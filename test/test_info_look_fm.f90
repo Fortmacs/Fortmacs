@@ -29,7 +29,8 @@ module test_info_look_fm
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char
     use fileio_fm, only: expand_file_name, emacs_wd, init_fileio, file_name_as_directory
-    use window_fm, only: window_configuration_type, current_window_configuration, set_window_configuration
+    use window_fm, only: window_configuration_type, current_window_configuration, set_window_configuration, &
+                         switch_to_buffer
     use bindings_fm, only: init_bindings
     use info_fm, only: info_directory_list, info_current_node, info_display_manual
     use info_look_fm, only: info_lookup_add_help, info_lookup_doc_specs_type, info_lookup_symbol, &
@@ -57,16 +58,24 @@ contains
         character(len=:), allocatable :: dir
         type(info_lookup_doc_specs_type) :: specs
         type(status_type) :: st
+        type(handle_type) :: b
         call init_bindings()
         call init_fileio()
         call expand_file_name("test/info-resources", dir, st, emacs_wd)
         dir = file_name_as_directory(dir)
         if (allocated(info_directory_list)) deallocate (info_directory_list)
-        allocate (character(len=len(dir)) :: info_directory_list(1))
+        ! (dir1 has a `dir' file for the directory node.)
+        allocate (character(len=len(dir) + 5) :: info_directory_list(2))
         info_directory_list(1) = dir
+        info_directory_list(2) = dir//"dir1/"
         call specs%add("(test)Index")
         call info_lookup_add_help(mode="test_look_mode", regexp="[a-z]+", doc_spec=specs)
         call info_lookup_reset(st)
+        ! The buffer looked up from, in the selected window; no Info
+        ! buffer left by an earlier lookup.
+        call switch_to_buffer(" info-look from", st)
+        b = get_buffer(" temp-info-look")
+        if (b%index /= 0) call kill_buffer(b, st)
     end subroutine setup
 
     !> Kill *info* and go back to OLD and the window configuration CONFIG.
@@ -98,7 +107,7 @@ contains
 
     subroutine test_lookup_symbol(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: old
+        type(handle_type) :: old, now
         type(window_configuration_type) :: config
         type(status_type) :: st
         call setup()
@@ -108,7 +117,8 @@ contains
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, info_node(), "Section One")
         ! The window of the buffer looked up from is selected again.
-        if (.not. allocated(error)) call check(error, current_buffer()%index == old%index, "back in the buffer")
+        now = current_buffer()
+        if (.not. allocated(error)) call check(error, now%index == old%index, "back in the buffer")
         ! Only the first word of "first chapter" is an item.
         if (.not. allocated(error)) then
             call info_lookup_symbol("first", st, mode="test_look_mode")
@@ -143,7 +153,7 @@ contains
 
     subroutine test_display_manual(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: old, b
+        type(handle_type) :: old, b, now
         type(window_configuration_type) :: config
         type(status_type) :: st
         call setup()
@@ -158,7 +168,8 @@ contains
             call set_buffer(old, st)
             ! The existing buffer is shown again.
             call info_display_manual("test", st)
-            call check(error, current_buffer()%index == b%index, "the same buffer")
+            now = current_buffer()
+            call check(error, now%index == b%index, "the same buffer")
             call kill_buffer(b, st)
         end if
         call teardown(old, config)

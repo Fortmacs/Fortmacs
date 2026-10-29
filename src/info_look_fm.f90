@@ -34,14 +34,14 @@ module info_look_fm
     use, intrinsic :: iso_fortran_env, only: int64, int32
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: nilp, xsymbol, symbolp, value_type, make_string, make_list
+    use lisp_fm, only: nilp, xsymbol, symbolp, symbols, value_type, make_string, make_list
     use casefiddle_fm, only: downcase_string
-    use character_fm, only: string_index_to_offset
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer, get_buffer_create, buffer_live_p
     use editfns_fm, only: point, point_min, goto_char, line_beginning_position, line_end_position
     use search_fm, only: looking_at, string_match, search_forward, re_search_forward, re_search_backward, &
-                         match_beginning, match_end, regexp_quote, case_fold_search, SEARCH_NOERROR
+                         match_beginning, match_end, regexp_quote, case_fold_search, SEARCH_NOERROR, &
+                         string_index_to_offset
     use subr_fm, only: match_string_no_properties
     use syntax_fm, only: skip_chars_forward, skip_chars_backward, skip_syntax_backward
     use textprop_fm, only: get_text_property
@@ -661,7 +661,7 @@ contains
     recursive subroutine cmd_info_lookup_symbol(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: value, mode
-        call interactive_arguments("symbol", .not. nilp(current_prefix_arg), value, mode, status)
+        call interactive_arguments("symbol",.not. nilp(current_prefix_arg), value, mode, status)
         if (.not. status%ok()) return
         call info_lookup_symbol(value, status, mode)
     end subroutine cmd_info_lookup_symbol
@@ -669,7 +669,7 @@ contains
     recursive subroutine cmd_info_lookup_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: value, mode
-        call interactive_arguments("file", .not. nilp(current_prefix_arg), value, mode, status)
+        call interactive_arguments("file",.not. nilp(current_prefix_arg), value, mode, status)
         if (.not. status%ok()) return
         call info_lookup_file(value, status, mode)
     end subroutine cmd_info_lookup_file
@@ -777,7 +777,8 @@ contains
                         end if
                     end do
                 end if
-                if (allocated(info_lookup_mode())) exit
+                mode = info_lookup_mode()
+                if (allocated(mode)) exit
                 m => m%parent
             end do
         end if
@@ -1023,7 +1024,7 @@ contains
                         else
                             call make_overlay(highlight_overlay, start, match_end(0, st), st)
                         end if
-                        call overlay_put(highlight_overlay, sym("face"), sym(info_lookup_highlight_face), st)
+                        call overlay_put(highlight_overlay, "face", sym(info_lookup_highlight_face), st)
                     end if
                 end if
             end do
@@ -1445,7 +1446,7 @@ contains
         type(status_type) :: st
         call get_text_property(point(), sym("custom_data"), v, st)
         found = symbolp(v) .and. .not. nilp(v)
-        if (found) item = xsymbol(v)
+        if (found) item = trim(symbols(xsymbol(v))%name)
     end subroutine parse_custom
 
     ! ------------------------------------------------------------------
@@ -1678,7 +1679,7 @@ contains
         if (.not. allocated(info_lookup_file_name_alist)) then
             allocate (info_lookup_file_name_alist(1))
             info_lookup_file_name_alist(1) = info_lookup_file_name_type(regexp="\`ac\(local\|site\|include\)\.m4\'", &
-                                                                         mode="autoconf_mode")
+                                                                        mode="autoconf_mode")
         end if
         if (allocated(info_lookup_alist)) return
 
@@ -1958,7 +1959,7 @@ contains
             integer :: k
             specs = info_lookup_doc_specs_type()
             do k = 1, size(nodes)
-                if (nodes(k)(1:1) == "(") then
+                if (nodes(k) (1:1) == "(") then
                     call specs%add(trim(nodes(k)), prefix="^ -+ .*: ", suffix="\( \|$\)")
                 else
                     call specs%add("("//prefix//")"//trim(nodes(k)), prefix="^ -+ .*: ", suffix="\( \|$\)")
