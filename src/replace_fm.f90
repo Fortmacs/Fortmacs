@@ -75,6 +75,8 @@ module replace_fm
     use help_fm, only: with_help_window
     use xdisp_fm, only: message
     use dispnew_fm, only: ding
+    use faces_fm, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_CLASS_MONO, &
+                        FACE_BACKGROUND_LIGHT, FACE_BACKGROUND_DARK
     implicit none(type, external)
     private
 
@@ -84,6 +86,10 @@ module replace_fm
               query_replace_compile_replacement, replace_expand_count, syms_of_replace
     public :: replacement_function, read_regexp, read_regexp_suggestions, query_replace_read_from_suggestions, &
               format_prompt
+
+    !> Face used to highlight matches permanently.  Port of replace.el
+    !> match.
+    type(named_face_type), target, public :: match
 
     !> A FROM_STRING and TO_STRING pair of `query_replace_defaults'.
     type, public :: replace_pair_type
@@ -1830,8 +1836,22 @@ contains
 
     !> Give the variables their defaults and register the commands.
     subroutine syms_of_replace()
+        integer, parameter :: C = FACE_CLASS_COLOR, M = FACE_CLASS_MONO, LIGHT = FACE_BACKGROUND_LIGHT, &
+                              DARK = FACE_BACKGROUND_DARK
         type(status_type) :: st
         type(value_type) :: history
+        call match%define("match", "Face used to highlight matches permanently.")
+        call match%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[LIGHT]), &
+                              face_attrs(background="khaki1"))
+        call match%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[DARK]), &
+                              face_attrs(background="RoyalBlue3"))
+        call match%spec_entry(display_when(classes=[C], min_colors=8, backgrounds=[LIGHT]), &
+                              face_attrs(background="yellow", foreground="black"))
+        call match%spec_entry(display_when(classes=[C], min_colors=8, backgrounds=[DARK]), &
+                              face_attrs(background="blue", foreground="white"))
+        call match%spec_entry(display_when(types=[character(len=3) :: "tty"], classes=[M]), &
+                              face_attrs(inverse_video=.true.))
+        call match%spec_entry(display_when(), face_attrs(background="gray"))
         query_replace_from_to_separator = " → "
         query_replace_from_history_variable = "query_replace_history"
         call defvar_nil("query_replace_history")

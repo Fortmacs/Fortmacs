@@ -48,7 +48,7 @@ module font_lock_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, nilp, t_value, list, consp, symbolp, symbols, xsymbol, list_elements, make_list
+    use lisp_fm, only: value_type, nil, nilp, t_value, list, consp, symbolp, symbols, xsymbol, list_elements, make_list, make_string
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set, add_local_variables_killer, value_eq
     use buffer_fm, only: buffers, cur, current_buffer, buffer_modified_p, restore_buffer_modified_p
@@ -70,7 +70,8 @@ module font_lock_fm
                             font_lock_mode_internal_proc, font_lock_specified_p_proc, font_lock_initial_fontify_proc, &
                             font_lock_mode_enabled, FONT_LOCK_OVERRIDE_NIL, FONT_LOCK_OVERRIDE_T, &
                             FONT_LOCK_OVERRIDE_KEEP, FONT_LOCK_OVERRIDE_PREPEND, FONT_LOCK_OVERRIDE_APPEND, &
-                            font_lock_face_proc, font_lock_matcher_proc, font_lock_form_proc, major_mode_of_current
+                            font_lock_face_proc, font_lock_matcher_proc, font_lock_form_proc, major_mode_of_current, &
+                            font_lock_properties_proc
     use syntax_fm, only: parse_state_type, parse_partial_sexp, syntax_ppss, COMMENTSTOP_SYNTAX_TABLE
     use subr_fm, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end, looking_back
     use data_fm, only: string_setting, forward_setting
@@ -326,7 +327,8 @@ contains
     !> FACE (or the face FACE_FUNCTION names), combined with existing
     !> fontification as OVERRIDE says (FONT_LOCK_OVERRIDE_NIL by default),
     !> LAXMATCH if SUBEXP need not match.
-    function font_lock_highlight(subexp, face, override, laxmatch, face_function, true_properties) result(h)
+    function font_lock_highlight(subexp, face, override, laxmatch, face_function, true_properties, nil_properties, &
+                                 display, properties_function) result(h)
         integer, intent(in) :: subexp
         character(len=*), intent(in), optional :: face
         integer, intent(in), optional :: override
@@ -334,6 +336,12 @@ contains
         procedure(font_lock_face_proc), optional :: face_function
         !> Text properties to set to true along with the face.
         character(len=*), intent(in), optional :: true_properties(:)
+        !> Text properties to set to false (nil) along with the face.
+        character(len=*), intent(in), optional :: nil_properties(:)
+        !> The `display' property to give along with the face.
+        character(len=*), intent(in), optional :: display
+        !> Gives the text properties that depend on the match.
+        procedure(font_lock_properties_proc), optional :: properties_function
         type(font_lock_highlight_type) :: h
         integer :: k
         h%match%subexp = subexp
@@ -343,6 +351,14 @@ contains
                 h%match%true_properties(k) = true_properties(k)
             end do
         end if
+        if (present(nil_properties)) then
+            allocate (h%match%nil_properties(size(nil_properties)))
+            do k = 1, size(nil_properties)
+                h%match%nil_properties(k) = nil_properties(k)
+            end do
+        end if
+        if (present(display)) h%match%display = display
+        if (present(properties_function)) h%match%properties_function => properties_function
         if (present(face)) h%match%face = face
         if (present(override)) h%match%override = override
         if (present(laxmatch)) h%match%laxmatch = laxmatch
@@ -1438,6 +1454,20 @@ contains
                 call put_text_property(start, end, sym(trim(highlight%true_properties(k))), t_value(), status)
                 if (.not. status%ok()) return
             end do
+        end if
+        if (allocated(highlight%nil_properties)) then
+            do k = 1, size(highlight%nil_properties)
+                call put_text_property(start, end, sym(trim(highlight%nil_properties(k))), nil(), status)
+                if (.not. status%ok()) return
+            end do
+        end if
+        if (allocated(highlight%display)) then
+            call put_text_property(start, end, sym("display"), make_string(highlight%display), status)
+            if (.not. status%ok()) return
+        end if
+        if (associated(highlight%properties_function)) then
+            call highlight%properties_function(start, end, status)
+            if (.not. status%ok()) return
         end if
         face = highlight_face(highlight)
         val = nil()

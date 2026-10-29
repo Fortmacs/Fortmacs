@@ -365,6 +365,7 @@ module commands_fm
         type(command_type) :: find_file_other_window
         type(command_type) :: find_file_read_only
         type(command_type) :: find_file_read_only_other_window
+        type(command_type) :: find_grep
         type(command_type) :: first_error
         type(command_type) :: fixup_whitespace
         type(command_type) :: font_lock_change_mode
@@ -388,6 +389,10 @@ module commands_fm
         type(command_type) :: global_auto_revert_mode
         type(command_type) :: global_font_lock_mode
         type(command_type) :: global_font_lock_mode_enable_in_buffer
+        type(command_type) :: grep
+        type(command_type) :: grep_find
+        type(command_type) :: grep_find_toggle_abbreviation
+        type(command_type) :: grep_mode
         type(command_type) :: help_for_help
         type(command_type) :: help_form_show
         type(command_type) :: help_mode
@@ -444,6 +449,7 @@ module commands_fm
         type(command_type) :: kill_all_abbrevs
         type(command_type) :: kill_buffer
         type(command_type) :: kill_compilation
+        type(command_type) :: kill_grep
         type(command_type) :: kill_line
         type(command_type) :: kill_paragraph
         type(command_type) :: kill_rectangle
@@ -485,6 +491,7 @@ module commands_fm
         type(command_type) :: kmacro_view_ring_2nd
         type(command_type) :: left_char
         type(command_type) :: left_word
+        type(command_type) :: lgrep
         type(command_type) :: list_abbrevs
         type(command_type) :: list_registers
         type(command_type) :: log_edit_comment_search_backward
@@ -607,9 +614,11 @@ module commands_fm
         type(command_type) :: replace_string
         type(command_type) :: revert_buffer
         type(command_type) :: revert_buffer_with_coding_system
+        type(command_type) :: rgrep
         type(command_type) :: right_char
         type(command_type) :: right_word
         type(command_type) :: rotate_yank_pointer
+        type(command_type) :: rzgrep
         type(command_type) :: save_buffer
         type(command_type) :: save_buffers_kill_terminal
         type(command_type) :: save_place_forget_unreadable_files
@@ -784,13 +793,14 @@ module commands_fm
         type(command_type) :: yank
         type(command_type) :: yank_pop
         type(command_type) :: yank_rectangle
+        type(command_type) :: zrgrep
     end type command_table_type
 
     !> The built-in commands.
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(752) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(762) = [character(len=43) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -1124,6 +1134,7 @@ module commands_fm
                                                                  "find_file_other_window", &
                                                                  "find_file_read_only", &
                                                                  "find_file_read_only_other_window", &
+                                                                 "find_grep", &
                                                                  "first_error", &
                                                                  "fixup_whitespace", &
                                                                  "font_lock_change_mode", &
@@ -1147,6 +1158,10 @@ module commands_fm
                                                                  "global_auto_revert_mode", &
                                                                  "global_font_lock_mode", &
                                                                  "global_font_lock_mode_enable_in_buffer", &
+                                                                 "grep", &
+                                                                 "grep_find", &
+                                                                 "grep_find_toggle_abbreviation", &
+                                                                 "grep_mode", &
                                                                  "help_for_help", &
                                                                  "help_form_show", &
                                                                  "help_mode", &
@@ -1203,6 +1218,7 @@ module commands_fm
                                                                  "kill_all_abbrevs", &
                                                                  "kill_buffer", &
                                                                  "kill_compilation", &
+                                                                 "kill_grep", &
                                                                  "kill_line", &
                                                                  "kill_paragraph", &
                                                                  "kill_rectangle", &
@@ -1244,6 +1260,7 @@ module commands_fm
                                                                  "kmacro_view_ring_2nd", &
                                                                  "left_char", &
                                                                  "left_word", &
+                                                                 "lgrep", &
                                                                  "list_abbrevs", &
                                                                  "list_registers", &
                                                                  "log_edit_comment_search_backward", &
@@ -1366,9 +1383,11 @@ module commands_fm
                                                                  "replace_string", &
                                                                  "revert_buffer", &
                                                                  "revert_buffer_with_coding_system", &
+                                                                 "rgrep", &
                                                                  "right_char", &
                                                                  "right_word", &
                                                                  "rotate_yank_pointer", &
+                                                                 "rzgrep", &
                                                                  "save_buffer", &
                                                                  "save_buffers_kill_terminal", &
                                                                  "save_place_forget_unreadable_files", &
@@ -1542,7 +1561,8 @@ module commands_fm
                                                                  "y_or_n_p_insert_y", &
                                                                  "yank", &
                                                                  "yank_pop", &
-                                                                 "yank_rectangle"]
+                                                                 "yank_rectangle", &
+                                                                 "zrgrep"]
 
 contains
 
@@ -2219,6 +2239,8 @@ contains
             p => commands%find_file_read_only
         case ("find_file_read_only_other_window")
             p => commands%find_file_read_only_other_window
+        case ("find_grep")
+            p => commands%find_grep
         case ("first_error")
             p => commands%first_error
         case ("fixup_whitespace")
@@ -2265,6 +2287,14 @@ contains
             p => commands%global_font_lock_mode
         case ("global_font_lock_mode_enable_in_buffer")
             p => commands%global_font_lock_mode_enable_in_buffer
+        case ("grep")
+            p => commands%grep
+        case ("grep_find")
+            p => commands%grep_find
+        case ("grep_find_toggle_abbreviation")
+            p => commands%grep_find_toggle_abbreviation
+        case ("grep_mode")
+            p => commands%grep_mode
         case ("help_for_help")
             p => commands%help_for_help
         case ("help_form_show")
@@ -2377,6 +2407,8 @@ contains
             p => commands%kill_buffer
         case ("kill_compilation")
             p => commands%kill_compilation
+        case ("kill_grep")
+            p => commands%kill_grep
         case ("kill_line")
             p => commands%kill_line
         case ("kill_paragraph")
@@ -2459,6 +2491,8 @@ contains
             p => commands%left_char
         case ("left_word")
             p => commands%left_word
+        case ("lgrep")
+            p => commands%lgrep
         case ("list_abbrevs")
             p => commands%list_abbrevs
         case ("list_registers")
@@ -2703,12 +2737,16 @@ contains
             p => commands%revert_buffer
         case ("revert_buffer_with_coding_system")
             p => commands%revert_buffer_with_coding_system
+        case ("rgrep")
+            p => commands%rgrep
         case ("right_char")
             p => commands%right_char
         case ("right_word")
             p => commands%right_word
         case ("rotate_yank_pointer")
             p => commands%rotate_yank_pointer
+        case ("rzgrep")
+            p => commands%rzgrep
         case ("save_buffer")
             p => commands%save_buffer
         case ("save_buffers_kill_terminal")
@@ -3057,6 +3095,8 @@ contains
             p => commands%yank_pop
         case ("yank_rectangle")
             p => commands%yank_rectangle
+        case ("zrgrep")
+            p => commands%zrgrep
         case default
             return
         end select

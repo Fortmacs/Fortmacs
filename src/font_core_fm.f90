@@ -65,7 +65,7 @@ module font_core_fm
     public :: syms_of_font_core, font_lock_mode, global_font_lock_mode, turn_on_font_lock, &
               turn_on_font_lock_if_desired, font_lock_change_mode, font_lock_defontify, font_lock_default_function, &
               font_lock_keywords_level, font_lock_mode_enabled, font_lock_face_proc, font_lock_matcher_proc, &
-              font_lock_form_proc, font_lock_function_proc, major_mode_of_current
+              font_lock_form_proc, font_lock_function_proc, major_mode_of_current, font_lock_properties_proc
 
     !> Overrides of a highlight (OVERRIDE in `font_lock_keywords'): keep
     !> an existing face (nil), override it (t), keep it and add only where
@@ -112,6 +112,16 @@ module font_core_fm
             logical, intent(in) :: mode
             type(status_type), intent(out) :: status
         end subroutine font_lock_function_proc
+
+        !> The text properties of a FACENAME of the form (face FACE PROP
+        !> VAL ...) that depend on the match: give the text from START to
+        !> END its properties (the match data is that of the match).
+        subroutine font_lock_properties_proc(start, end, status)
+            import :: int64, status_type
+            implicit none(type, external)
+            integer(int64), intent(in) :: start, end
+            type(status_type), intent(out) :: status
+        end subroutine font_lock_properties_proc
     end interface
 
     !> A MATCH-HIGHLIGHT of `font_lock_keywords': the face to give
@@ -122,7 +132,9 @@ module font_core_fm
     !> error.
     !> The face may come with text properties to give the text as well
     !> (a FACENAME of the form (face FACE PROP VAL ...)): the names in
-    !> `true_properties' are set to true.
+    !> `true_properties' are set to true, those in `nil_properties' to
+    !> false (nil), `display' is the `display' property, and
+    !> `properties_function' gives the ones that depend on the match.
     type, public :: font_lock_match_highlight_type
         integer :: subexp = 0
         character(len=:), allocatable :: face
@@ -130,6 +142,9 @@ module font_core_fm
         integer :: override = FONT_LOCK_OVERRIDE_NIL
         logical :: laxmatch = .false.
         character(len=64), allocatable :: true_properties(:)
+        character(len=64), allocatable :: nil_properties(:)
+        character(len=:), allocatable :: display
+        procedure(font_lock_properties_proc), pointer, nopass :: properties_function => null()
     end type font_lock_match_highlight_type
 
     !> A HIGHLIGHT of a keyword: a MATCH-HIGHLIGHT (`match'), or with
