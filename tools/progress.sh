@@ -161,7 +161,7 @@ pie_svg() {
             r = int(p * 100 + 0.5) / 100
             if (d > 0 && r == 0) r = 0.01
             if (d < t && r == 100) r = 99.99
-            return sprintf("%s%.2f%%", (r == p) ? "" : "≆", r)
+            return sprintf("%s%.2f%%", (r == p) ? "" : "≅", r)
         }
         # A wedge from A to B (fractions of a turn, clockwise from 12 o clock).
         function wedge(a, b, fill,   pi, x1, y1, x2, y2) {
@@ -197,7 +197,7 @@ pie_svg() {
 }
 
 # "DONE<br>of TOTAL" with thousands separators, and the share rounded to
-# a hundredth of a percent ("≆" unless exact; never 0 or 100 unless it
+# a hundredth of a percent ("≅" unless exact; never 0 or 100 unless it
 # is).
 # Arguments: DONE TOTAL WHAT (count or share).
 figure() {
@@ -213,7 +213,7 @@ figure() {
             r = int(p * 100 + 0.5) / 100
             if (d > 0 && r == 0) r = 0.01
             if (d < t && r == 100) r = 99.99
-            printf "%s%.2f%%", (r == p) ? "" : "≆", r
+            printf "%s%.2f%%", (r == p) ? "" : "≅", r
         }'
 }
 
