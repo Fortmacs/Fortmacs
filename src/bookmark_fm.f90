@@ -168,12 +168,12 @@ module bookmark_fm
         end subroutine bookmark_make_record_proc
 
         !> A `bookmark_edit_annotation_text_func': the default annotation
-        !> text for bookmark NAME.
-        function bookmark_annotation_text_proc(name) result(text)
+        !> TEXT for bookmark NAME.
+        subroutine bookmark_annotation_text_proc(name, text)
             implicit none(type, external)
             character(len=*), intent(in) :: name
-            character(len=:), allocatable :: text
-        end function bookmark_annotation_text_proc
+            character(len=:), allocatable, intent(out) :: text
+        end subroutine bookmark_annotation_text_proc
 
         !> A display function of `bookmark_jump': show BUFFER.
         recursive subroutine bookmark_display_proc(buffer, status)
@@ -373,7 +373,7 @@ module bookmark_fm
     type(handle_type), public :: bookmark_minibuffer_read_name_map
 
     !> Function to return default text to use for a bookmark annotation.
-    !> It takes one argument, the name of the bookmark, as a string.  Port
+    !> It takes the name of the bookmark, as a string, and returns the text.  Port
     !> of bookmark.el bookmark-edit-annotation-text-func.
     procedure(bookmark_annotation_text_proc), pointer, public :: bookmark_edit_annotation_text_func => null()
 
@@ -1433,19 +1433,26 @@ contains
                "#  Date:   "//current_time_string()//LF
     end function bookmark_default_annotation_text
 
+    subroutine default_annotation_text(name, text)
+        character(len=*), intent(in) :: name
+        character(len=:), allocatable, intent(out) :: text
+        text = bookmark_default_annotation_text(name)
+    end subroutine default_annotation_text
+
     !> Insert annotation for BOOKMARK_NAME at point.  Port of
     !> bookmark.el:bookmark-insert-annotation.
     recursive subroutine bookmark_insert_annotation(bookmark_name, status)
         character(len=*), intent(in) :: bookmark_name
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: annotation
+        character(len=:), allocatable :: annotation, text
         type(status_type) :: st
         if (bookmark_get_bookmark(bookmark_name, st, noerror=.true.) == 0) then
             call set_error(status, FM_GENERIC_ERROR, "Invalid bookmark: "//bookmark_name)
             return
         end if
         if (associated(bookmark_edit_annotation_text_func)) then
-            call insert(bookmark_edit_annotation_text_func(bookmark_name), status)
+            call bookmark_edit_annotation_text_func(bookmark_name, text)
+            call insert(text, status)
         else
             call insert(bookmark_default_annotation_text(bookmark_name), status)
         end if
@@ -2692,7 +2699,7 @@ contains
         if (.not. allocated(bookmark_inhibit_context_functions)) allocate (bookmark_inhibit_context_functions(0))
         if (.not. associated(bookmark_make_record_function)) bookmark_make_record_function => make_record_default
         if (.not. associated(bookmark_edit_annotation_text_func)) then
-            bookmark_edit_annotation_text_func => bookmark_default_annotation_text
+            bookmark_edit_annotation_text_func => default_annotation_text
         end if
         call defvar_nil("bookmark_history")
         call add_local_variables_killer(kill_bookmark_locals)
