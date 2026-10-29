@@ -173,7 +173,7 @@ pie_svg() {
         }
         { n++; label[n] = $1; color[n] = $2; d[n] = $3; t[n] = $4; done += $3; total += $4 }
         END {
-            rest = "#13110B"
+            rest = "#1A1A1A"
             printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"520\" height=\"180\" viewBox=\"0 0 520 180\" font-family=\"-apple-system, Segoe UI, Helvetica, Arial, sans-serif\" font-size=\"13\">\n"
             at = 0
             for (i = 1; i <= n; i++) {
@@ -220,13 +220,13 @@ figure() {
 # The progress block: a status line and the pie.
 readme_block() {
     mkdir -p "$root/docs/progress"
-    parts="C|#543A57|$c_done|$c_total
-Elisp|#1F747A|$l_done|$l_total
-GNU ELPA|#963E2C|$gnu_done|$gnu_total
-NonGNU ELPA|#B08866|$nongnu_done|$nongnu_total
-MELPA|#4B423E|$melpa_done|$melpa_total"
-    pie_svg pie "#4B423E" "#DFD6D1" "$parts"
-    pie_svg pie-dark "#DFD6D1" "#DFD6D1" "$parts"
+    parts="C|#557D59|$c_done|$c_total
+Elisp|#346A74|$l_done|$l_total
+GNU ELPA|#AB5043|$gnu_done|$gnu_total
+NonGNU ELPA|#BE925E|$nongnu_done|$nongnu_total
+MELPA|#D6D6D3|$melpa_done|$melpa_total"
+    pie_svg pie "#1A1A1A" "#1A1A1A" "$parts"
+    pie_svg pie-dark "#D6D6D3" "#D6D6D3" "$parts"
     echo "**Progress:** early porting. Fortmacs runs as a bare-bones terminal editor; most of Emacs is still"
     echo "missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far."
     echo
