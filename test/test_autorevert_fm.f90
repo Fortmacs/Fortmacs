@@ -65,6 +65,7 @@ contains
 
     subroutine collect_autorevert_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("auto-revert-test00-auto-revert-mode", test00_auto_revert_mode), &
                     new_unittest("auto-revert-test02-auto-revert-deleted-file", test02_deleted_file), &
@@ -78,7 +79,6 @@ contains
     ! ------------------------------------------------------------------
     ! The test environment
     ! ------------------------------------------------------------------
-
     !> with-auto-revert-test: short intervals.
     subroutine begin()
         call init_bindings()
@@ -102,11 +102,13 @@ contains
         type(handle_type), intent(in) :: buf
         character(len=*), intent(in) :: file
         type(status_type) :: st
+
         if (buffer_live_p(buf)) then
             call set_buffer(buf, st)
             call restore_buffer_modified_p(.false.)
             call kill_buffer(buf, st)
         end if
+
         call delete_file(file, st)
     end subroutine kill_and_delete
 
@@ -116,6 +118,7 @@ contains
         type(handle_type) :: old, h
         type(status_type) :: st
         character(len=:), allocatable :: msg
+
         old = current_buffer()
         call get_buffer_create(generate_new_buffer_name(" *autorevert-test*"), h, st)
         call set_buffer(h, st)
@@ -130,6 +133,7 @@ contains
     subroutine write_text_old(text, file)
         character(len=*), intent(in) :: text, file
         type(status_type) :: st
+
         call write_text(text, file)
         call set_file_times(file, st, mtime_sec=emacs_time() - 60, mtime_nsec=0)
     end subroutine write_text_old
@@ -139,6 +143,7 @@ contains
         character(len=:), allocatable :: text
         type(handle_type) :: h, old
         type(status_type) :: st
+
         text = ""
         h = get_buffer("*Messages*")
         if (.not. buffer_live_p(h)) return
@@ -156,6 +161,7 @@ contains
     !> Whether the captured messages include `wait_message'.
     logical function message_seen()
         character(len=:), allocatable :: text
+
         text = messages()
         message_seen = .false.
         if (len(text) > messages_start) message_seen = index(text(messages_start + 1:), wait_message) > 0
@@ -167,6 +173,7 @@ contains
         character(len=:), allocatable :: text
         type(handle_type) :: old
         type(status_type) :: st
+
         old = current_buffer()
         call set_buffer(buf, st)
         text = buffer_string()
@@ -186,6 +193,7 @@ contains
         type(status_type) :: st
         logical :: have
         integer :: k
+
         do k = 1, int(max_wait*10)
             if (pred()) return
             call read_event(ev, have, st, seconds=0.1)
@@ -196,6 +204,7 @@ contains
     !> (auto-revert--wait-for-revert).
     subroutine wait_for_revert(buf)
         type(handle_type), intent(in) :: buf
+
         wait_message = "Reverting buffer `"//buffers(buf%index)%name//"'"
         call wait_for(message_seen, auto_revert_interval + 1)
     end subroutine wait_for_revert
@@ -206,6 +215,7 @@ contains
         type(handle_type), intent(in) :: buf
         character(len=*), intent(in) :: text
         real, intent(in) :: max_wait
+
         wait_buffer = buf
         wait_text = text
         call wait_for(buffer_text_is, max_wait)
@@ -214,15 +224,16 @@ contains
     ! ------------------------------------------------------------------
     ! The tests
     ! ------------------------------------------------------------------
-
     !> Check autorevert for a file.
     subroutine test00_auto_revert_mode(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: tmpfile
         type(handle_type) :: buf
         type(status_type) :: st
+
         call begin()
         call make_temp_file("auto-revert-test", tmpfile, st)
+
         body: block
             call write_text("any text", tmpfile)
             call find_file_noselect(tmpfile, buf, st)
@@ -249,6 +260,7 @@ contains
             call wait_for_revert(buf)
             call check(error, index(buffer_string(), "any text") == 0, "not reverted: "//buffer_string())
         end block body
+
         call kill_and_delete(buf, tmpfile)
         call finish()
     end subroutine test00_auto_revert_mode
@@ -260,6 +272,7 @@ contains
     !> before-revert-hook: delete the visited file.
     recursive subroutine delete_visited_file(status)
         type(status_type), intent(out) :: status
+
         call delete_file(buffers(cur)%filename, status)
     end subroutine delete_visited_file
 
@@ -269,8 +282,10 @@ contains
         character(len=:), allocatable :: tmpfile
         type(handle_type) :: buf
         type(status_type) :: st
+
         call begin()
         call make_temp_file("auto-revert-test", tmpfile, st)
+
         body: block
             call write_text("any text", tmpfile)
             call find_file_noselect(tmpfile, buf, st)
@@ -304,6 +319,7 @@ contains
             call wait_for_revert(buf)
             call check(error, buffer_string(), "")
         end block body
+
         call kill_and_delete(buf, tmpfile)
         call finish()
     end subroutine test02_deleted_file
@@ -314,8 +330,10 @@ contains
         character(len=:), allocatable :: tmpfile
         type(handle_type) :: buf
         type(status_type) :: st
+
         call begin()
         call make_temp_file("auto-revert-test", tmpfile, st)
+
         body: block
             call capture_messages()
             call write_text("any text", tmpfile)
@@ -334,6 +352,7 @@ contains
             call check(error, index(buffer_string(), "modified text"//achar(10)//"another text") > 0, &
                        "tail: "//buffer_string())
         end block body
+
         call kill_and_delete(buf, tmpfile)
         call finish()
     end subroutine test03_tail_mode
@@ -344,12 +363,14 @@ contains
         character(len=:), allocatable :: file_1, file_2, file_3, file_2b
         type(handle_type) :: buf_1, buf_2, buf_3
         type(status_type) :: st
+
         call begin()
         auto_revert_use_notify%value = .true.
         call make_temp_file("auto-revert-test", file_1, st)
         call make_temp_file("auto-revert-test", file_2, st)
         call make_temp_file("auto-revert-test", file_3, st)
         file_2b = file_2//"-b"
+
         body: block
             call find_file_noselect(file_1, buf_1, st)
             call check(error,.not. minor_modes%auto_revert_mode%enabled_in(int(buf_1%index, int64)), "mode 1")
@@ -394,6 +415,7 @@ contains
             call wait_for_buffer_text(buf_2, "2-b", auto_revert_interval + 1)
             call check(error, text_of(buf_2), "2-b")
         end block body
+
         call minor_modes%global_auto_revert_mode%disable(st)
         call kill_and_delete(buf_1, file_1)
         call kill_and_delete(buf_2, file_2)
@@ -408,10 +430,12 @@ contains
         character(len=:), allocatable :: file_1, file_2
         type(handle_type) :: buf
         type(status_type) :: st
+
         call begin()
         auto_revert_use_notify%value = .true.
         call make_temp_file("auto-revert-test", file_1, st)
         file_2 = file_1//"-2"
+
         body: block
             call find_file_noselect(file_1, buf, st)
             call set_buffer(buf, st)
@@ -426,6 +450,7 @@ contains
             call wait_for_buffer_text(buf, "C", auto_revert_interval + 1)
             call check(error, text_of(buf), "C")
         end block body
+
         call kill_and_delete(buf, file_1)
         call delete_file(file_2, st)
         call finish()
@@ -435,6 +460,7 @@ contains
     recursive subroutine inhibited(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buf
+
         call minor_modes%auto_revert_mode%enable(status)
         buf = current_buffer()
         call write_text_old("another text", buffers(cur)%filename)
@@ -448,8 +474,10 @@ contains
         character(len=:), allocatable :: tmpfile
         type(handle_type) :: buf
         type(status_type) :: st
+
         call begin()
         call make_temp_file("auto-revert-test", tmpfile, st)
+
         body: block
             call write_text("any text", tmpfile)
             call find_file_noselect(tmpfile, buf, st)
@@ -465,6 +493,7 @@ contains
             call wait_for_revert(buf)
             call check(error, index(buffer_string(), "another text") > 0, "reverted: "//buffer_string())
         end block body
+
         call kill_and_delete(buf, tmpfile)
         call finish()
     end subroutine test08_inhibit

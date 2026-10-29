@@ -48,6 +48,7 @@ contains
 
     subroutine collect_simple_setvar_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("set-variable-integer-buffer-local", test_integer), &
                     new_unittest("set-variable-logical", test_logical), &
@@ -64,6 +65,7 @@ contains
     subroutine fresh()
         type(handle_type) :: buf
         type(status_type) :: st
+
         call init_bindings()
         call discard_input()
         call get_buffer_create("*scratch*", buf, st)
@@ -79,6 +81,7 @@ contains
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
+
         call key_parse(keys, evs, st)
         call unread_command_events(evs)
     end subroutine type_keys
@@ -88,9 +91,12 @@ contains
         character(len=*), intent(in) :: text
         character(len=:), allocatable :: keys
         integer :: k
+
         keys = ""
+
         do k = 1, len(text)
             if (k > 1) keys = keys//" "
+
             if (text(k:k) == " ") then
                 keys = keys//"SPC"
             else
@@ -105,6 +111,7 @@ contains
         character(len=*), intent(in), optional :: prefix
         type(status_type) :: st
         character(len=:), allocatable :: keys
+
         keys = ""
         if (present(prefix)) keys = prefix//" "
         keys = keys//"M-x "//spelled("set_variable")//" RET "//spelled(name)//" RET"
@@ -118,6 +125,7 @@ contains
     subroutine test_integer(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call fresh()
         call switch_to_buffer("*setvar*", st)
         call set_var("fill_column", "72")
@@ -129,6 +137,7 @@ contains
 
     subroutine test_logical(error)
         type(error_type), allocatable, intent(out) :: error
+
         call fresh()
         call set_var("case_replace", ".false.")
         call check(error,.not. case_replace, last_message)
@@ -140,6 +149,7 @@ contains
 
     subroutine test_string(error)
         type(error_type), allocatable, intent(out) :: error
+
         call fresh()
         call set_var("compile_command", '"make ""all"""')
         call check(error, compile_command%value, 'make "all"')
@@ -151,6 +161,7 @@ contains
     !> An enumerated setting takes its named constants.
     subroutine test_choice(error)
         type(error_type), allocatable, intent(out) :: error
+
         call fresh()
         call set_var("require_final_newline", "final_newline_visit")
         call check(error, require_final_newline%value == FINAL_NEWLINE_VISIT, last_message)
@@ -165,6 +176,7 @@ contains
     subroutine test_real(error)
         type(error_type), allocatable, intent(out) :: error
         real :: saved
+
         call fresh()
         saved = copy_region_blink_delay
         call set_var("copy_region_blink_delay", "0.5e0")
@@ -174,6 +186,7 @@ contains
 
     subroutine test_mismatch(error)
         type(error_type), allocatable, intent(out) :: error
+
         call fresh()
         call set_var("fill_column", "abc")
         call check(error, last_message, "Value "//LQ//"abc"//RQ//" does not match type integer of fill_column")
@@ -195,6 +208,7 @@ contains
     !> unterminated string.
     subroutine test_read_errors(error)
         type(error_type), allocatable, intent(out) :: error
+
         call fresh()
         call set_var("case_replace", ".true. x")
         call check(error, last_message, 'Invalid read syntax: "Trailing garbage following expression"')
@@ -207,6 +221,7 @@ contains
     subroutine test_default(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call fresh()
         compile_command = "make -k"
         call set_var("compile_command", "")
@@ -224,6 +239,7 @@ contains
     subroutine test_prefix(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call fresh()
         call switch_to_buffer("*setvar-prefix*", st)
         call set_var("case_fold_search", ".false.", "C-u")

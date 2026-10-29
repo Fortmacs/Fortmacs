@@ -147,6 +147,7 @@ contains
         type(handle_type), intent(in) :: ctl_x_map, help_map
         type(value_type), allocatable :: key(:)
         type(status_type) :: st
+
         call syms_of_coding()
         ! buffer.c: buffer-file-coding-system is local when set, and
         ! permanently local.
@@ -155,6 +156,7 @@ contains
         set_auto_coding_function => set_auto_coding
         after_insert_file_set_coding => after_insert_file_set_coding_1
         select_safe_coding_system_function => select_safe_coding_system
+
         if (.not. allocated(auto_coding_alist)) then
             allocate (auto_coding_alist(8))
             auto_coding_alist(1) = auto_coding_type("\.\(arc\|zip\|lzh\|lha\|zoo\|[jew]ar\|xpi\|rar\|7z\|squashfs\|"// &
@@ -168,6 +170,7 @@ contains
             auto_coding_alist(7) = auto_coding_type("/\.editorconfig\'", "utf-8")
             auto_coding_alist(8) = auto_coding_type("/#[^/]+#\'", "utf-8-emacs-unix")
         end if
+
         if (.not. allocated(auto_coding_regexp_alist)) then
             allocate (auto_coding_regexp_alist(5))
             auto_coding_regexp_alist(1) = auto_coding_type("\`BABYL OPTIONS:[ "//TAB//"]*-\*-[ "//TAB// &
@@ -182,6 +185,7 @@ contains
             auto_coding_regexp_alist(5) = auto_coding_type("\`;ELC"//achar(20)//achar(0)//achar(0)//achar(0), &
                                                            "emacs-mule")
         end if
+
         commands%set_buffer_file_coding_system%run => cmd_set_buffer_file_coding_system
         commands%revert_buffer_with_coding_system%run => cmd_revert_buffer_with_coding_system
         commands%prefer_coding_system%run => cmd_prefer_coding_system
@@ -201,6 +205,7 @@ contains
         use lisp_fm, only: make_keymap_ref
         type(handle_type), intent(in) :: map
         type(value_type) :: v
+
         v = make_keymap_ref(map)
     end function keymap_value
 
@@ -209,6 +214,7 @@ contains
         character(len=*), intent(in) :: keys, cmd
         type(value_type), allocatable :: key(:)
         type(status_type) :: status
+
         call key_parse(keys, key, status)
         call define_key(map, key, sym(cmd), status)
     end subroutine bind
@@ -216,7 +222,6 @@ contains
     ! ------------------------------------------------------------------
     ! Coding systems a file specifies
     ! ------------------------------------------------------------------
-
     !> Return the coding system specified by `auto_coding_alist' for FILENAME.
     !> Port of mule.el:auto-coding-alist-lookup (file names are case
     !> sensitive on Linux).
@@ -224,8 +229,10 @@ contains
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: coding
         integer :: k
+
         coding = ""
         if (.not. allocated(auto_coding_alist)) return
+
         do k = 1, size(auto_coding_alist)
             if (file_name_match_p(auto_coding_alist(k)%pattern, filename)) then
                 coding = auto_coding_alist(k)%coding
@@ -244,16 +251,20 @@ contains
         type(status_type) :: st
         logical :: saved
         integer :: k
+
         coding = ""
         if (.not. allocated(auto_coding_regexp_alist)) return
+
         ! The regexps hold bytes: as raw-byte characters on both sides.
         if (multibyte) then
             subject = text
         else
             subject = str_to_multibyte(text)
         end if
+
         saved = case_fold_search%value
         case_fold_search%value = .true.
+
         do k = 1, size(auto_coding_regexp_alist)
             if (string_match(str_to_multibyte(auto_coding_regexp_alist(k)%pattern), subject, st, &
                              inhibit_modify=.true.) > 0) then
@@ -261,6 +272,7 @@ contains
                 exit
             end if
         end do
+
         case_fold_search%value = saved
     end function auto_coding_regexp_alist_lookup
 
@@ -293,20 +305,25 @@ contains
         character(len=:), allocatable :: head, tail, spec
         integer :: size_, head_end, tail_start, k
         logical :: mb, head_found, tail_found
+
         mb = .false.
         if (present(multibyte)) mb = multibyte
         source = ""
         coding = auto_coding_alist_lookup(filename)
+
         if (len(coding) > 0) then
             source = "auto-coding-alist"
             return
         end if
+
         ! Try using `auto-coding-regexp-alist'.
         coding = auto_coding_regexp_alist_lookup(text, mb)
+
         if (len(coding) > 0) then
             source = "auto-coding-regexp-alist"
             return
         end if
+
         size_ = len(text)
         head_end = min(size_, 1024)
         tail_start = max(size_ - 3072, 0)
@@ -316,13 +333,16 @@ contains
         ! head and tail of SIZE bytes.
         head_found = index(lower(head), "coding:") > 0
         tail_found = index(lower(tail), "coding:") > 0
+
         ! At first check the head.
         if (head_found) then
             spec = auto_mode_region(head)
             if (len(spec) > 0) coding = coding_tag(spec)
         end if
+
         ! If no coding: tag in the head, check the tail.
         if (tail_found .and. len(coding) == 0) coding = local_variables_coding(tail)
+
         if (len(coding) > 0) then
             ! If the coding-system name ends with "!", remove it.
             k = len(coding)
@@ -341,23 +361,28 @@ contains
         character(len=:), allocatable :: spec, line, rest
         integer :: nl, i, j, a, b
         logical :: skip
+
         spec = ""
         nl = index(text, LF)
+
         if (nl == 0) then
             line = text
         else
             line = text(1:nl - 1)
         end if
+
         skip = .false.
         if (len(text) >= 2) skip = text(1:2) == "#!"
         if (len(text) >= 3) skip = skip .or. text(1:3) == "'\"""
         i = index(line, "-*-")
+
         if (i == 0 .and. skip .and. nl > 0) then
             line = text(nl + 1:)
             nl = index(line, LF)
             if (nl > 0) line = line(1:nl - 1)
             i = index(line, "-*-")
         end if
+
         if (i == 0) return
         rest = line(i + 3:)
         j = index(rest, "-*-")
@@ -376,14 +401,17 @@ contains
         type(status_type) :: st
         integer(int64) :: b, e
         logical :: saved
+
         coding = ""
         saved = case_fold_search%value
         case_fold_search%value = .true.
+
         if (string_match("\(.*;\)?[ "//TAB//"]*coding:[ "//TAB//"]*\([^ ;]+\)", spec, st) > 0) then
             b = match_beginning(2, st)
             e = match_end(2, st)
             if (st%ok() .and. b > 0 .and. e >= b) coding = spec(b:e - 1)
         end if
+
         case_fold_search%value = saved
     end function coding_tag
 
@@ -397,6 +425,7 @@ contains
         type(status_type) :: st
         integer(int64) :: k, start, pos, endpos
         logical :: saved
+
         coding = ""
         saved = case_fold_search%value
         case_fold_search%value = .true.
@@ -407,6 +436,7 @@ contains
         rest = tail(start:)
         k = string_match("["//CR//LF//"]\([^"//CR//LF//"]*\)[ "//TAB//"]*Local Variables:[ "//TAB//"]*\([^"//CR//LF// &
                          "]*\)["//CR//LF//"]", rest, st)
+
         if (k > 0) then
             ! The prefix is what comes before "local variables:" in its
             ! line.  The suffix is what comes after "local variables:"
@@ -425,6 +455,7 @@ contains
             rest = rest(1:endpos - 1)
             if (string_match(re_coding, rest, st) > 0) coding = rest(match_beginning(1, st):match_end(1, st) - 1)
         end if
+
         case_fold_search%value = saved
     end function local_variables_coding
 
@@ -434,7 +465,9 @@ contains
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: q
         integer :: i
+
         q = ""
+
         do i = 1, len(s)
             if (index("[*.\?+^$", s(i:i)) > 0) q = q//"\"
             q = q//s(i:i)
@@ -446,7 +479,9 @@ contains
         character(len=*), intent(in) :: s
         character(len=len(s)) :: t
         integer :: i
+
         t = s
+
         do i = 1, len(s)
             if (s(i:i) >= "A" .and. s(i:i) <= "Z") t(i:i) = achar(iachar(s(i:i)) + 32)
         end do
@@ -463,7 +498,9 @@ contains
         character(len=*), intent(in) :: filename, head
         character(len=:), allocatable, intent(out) :: coding
         character(len=:), allocatable :: source
+
         call find_auto_coding(filename, head, coding, source)
+
         if (len(coding) > 0) then
             if (.not. coding_system_p(coding)) coding = ""
         end if
@@ -475,15 +512,18 @@ contains
         logical, intent(in) :: make
         type(explicit_type), allocatable :: grown(:)
         integer :: n
+
         k = 0
         if (cur == 0) return
         if (.not. allocated(explicit)) allocate (explicit(0))
+
         do n = 1, size(explicit)
             if (explicit(n)%serial == buffers(cur)%serial) then
                 k = n
                 return
             end if
         end do
+
         if (.not. make) return
         n = size(explicit)
         allocate (grown(n + 1))
@@ -501,6 +541,7 @@ contains
     subroutine buffer_file_coding_system_explicit(read, write)
         character(len=:), allocatable, intent(out) :: read, write
         integer :: k
+
         read = ""
         write = ""
         k = explicit_index(.false.)
@@ -519,12 +560,15 @@ contains
         logical, intent(in) :: visit
         character(len=:), allocatable :: coding
         integer :: k
+
         if (inserted < 0) return
+
         if (visit .and. allocated(coding_system_for_read%value)) then
             k = explicit_index(.true.)
             explicit(k)%read = coding_system_for_read%value
             explicit(k)%write = ""
         end if
+
         if (.not. allocated(last_coding_system_used%value)) return
         if (len(last_coding_system_used%value) == 0) return
         coding = find_new_buffer_file_coding_system(last_coding_system_used%value)
@@ -542,6 +586,7 @@ contains
         character(len=:), allocatable :: bfcs, local_coding, found_coding, new_coding
         integer :: local_eol, found_eol, new_eol
         logical :: local
+
         new = ""
         if (len(coding) == 0) return
         bfcs = ""
@@ -551,9 +596,11 @@ contains
         ! LOCAL-CODING.
         local_eol = coding_system_eol_type(bfcs)
         local_coding = ""
+
         if (len(bfcs) > 0) then
             if (coding_system_type(bfcs) /= "undecided") local_coding = coding_system_base(bfcs)
         end if
+
         ! The current buffer has already set full coding-system, we had
         ! better not change it.
         if (local .and. local_eol /= EOL_UNDECIDED .and. len(local_coding) > 0) return
@@ -563,6 +610,7 @@ contains
         found_coding = coding_system_base(coding)
         ! No valid coding information found.
         if (found_eol == EOL_UNDECIDED .and. found_coding == "undecided") return
+
         ! The local setting takes precedence over the found one.
         if (local) then
             new_coding = local_coding
@@ -575,7 +623,9 @@ contains
             new_eol = found_eol
             if (new_eol == EOL_UNDECIDED) new_eol = local_eol
         end if
+
         new = new_coding
+
         if (new_eol /= EOL_UNDECIDED .and. coding_system_eol_type(new_coding) == EOL_UNDECIDED) then
             new = coding_system_change_eol_conversion(new_coding, new_eol)
         end if
@@ -588,11 +638,13 @@ contains
         character(len=*), intent(in) :: first, second
         character(len=:), allocatable :: cs
         integer :: eol
+
         cs = first
         ! If FIRST doesn't specify text conversion, merge with that of SECOND.
         if (coding_system_base(cs) == "undecided") cs = coding_system_change_text_conversion(cs, second)
         ! If FIRST doesn't specify eol conversion, merge with that of SECOND.
         eol = coding_system_eol_type(cs)
+
         if (eol == EOL_UNDECIDED .and. coding_system_eol_type(second) /= EOL_UNDECIDED) then
             cs = coding_system_change_eol_conversion(cs, coding_system_eol_type(second))
         end if
@@ -601,7 +653,6 @@ contains
     ! ------------------------------------------------------------------
     ! Reading coding systems
     ! ------------------------------------------------------------------
-
     !> Every coding system name, as completion candidates
     !> (Vcoding_system_alist).
     function coding_system_alist() result(list)
@@ -610,17 +661,22 @@ contains
         type(value_type), allocatable :: items(:)
         character(len=40) :: subs(0:2)
         integer :: k, j, i, n
+
         call coding_system_list(names)
         allocate (items(4*size(names) + 16))
         n = 0
+
         do k = 1, size(names)
             call coding_system_aliases(names(k)%name, aliases)
+
             do j = 1, size(aliases)
                 if (any_name(items(1:n), aliases(j)%name)) cycle
                 n = n + 1
                 items(n) = make_string(aliases(j)%name)
             end do
+
             call coding_system_subsidiaries(names(k)%name, subs)
+
             do i = 0, 2
                 if (len_trim(subs(i)) == 0) cycle
                 if (any_name(items(1:n), trim(subs(i)))) cycle
@@ -628,14 +684,18 @@ contains
                 items(n) = make_string(trim(subs(i)))
             end do
         end do
+
         list = make_list(items(1:n))
+
     contains
 
         logical function any_name(vs, name)
             type(value_type), intent(in) :: vs(:)
             character(len=*), intent(in) :: name
             integer :: m
+
             any_name = .false.
+
             do m = 1, size(vs)
                 if (xstring(vs(m)) == name) then
                     any_name = .true.
@@ -655,6 +715,7 @@ contains
         character(len=*), intent(in) :: prompt, default_coding_system
         character(len=:), allocatable, intent(out) :: coding
         type(status_type), intent(out) :: status
+
         call completing_read(prompt, completion_list_table(coding_system_alist()), coding, status, &
                              require_match=REQUIRE_MATCH_T, history="coding_system_history", &
                              default=default_coding_system)
@@ -665,6 +726,7 @@ contains
     function format_prompt(prompt, default) result(full)
         character(len=*), intent(in) :: prompt, default
         character(len=:), allocatable :: full
+
         full = prompt
         if (len(default) > 0) full = full//" (default "//default//")"
         full = full//": "
@@ -673,6 +735,7 @@ contains
     !> The whole text of the current buffer.
     function buffer_text() result(text)
         character(len=:), allocatable :: text
+
         text = buf_bytes(buffers(cur), BEG_BYTE, buffers(cur)%text%z_byte)
     end function buffer_text
 
@@ -681,7 +744,9 @@ contains
         character(len=*), intent(in) :: name
         type(coding_system_list_entry_type), intent(in) :: names(:)
         integer :: k
+
         member = .false.
+
         do k = 1, size(names)
             if (names(k)%name == name) then
                 member = .true.
@@ -704,6 +769,7 @@ contains
         type(status_type) :: vst
         logical :: all, any_safe
         integer :: k
+
         call find_coding_systems_text(buffer_text(), bcss, all)
         filename = ""
         if (allocated(buffers(cur)%filename)) filename = buffers(cur)%filename
@@ -717,12 +783,15 @@ contains
         ! different from the current coding-system, except for the case of
         ! auto-cs since choosing anything else is asking for trouble.
         default = auto_cs
+
         if (len(default) == 0) then
             any_safe = all .or. member(coding_system_base(bfcs_default), bcss)
+
             if (len(bfcs_default) > 0 .and. any_safe .and. coding_system_base(bfcs_default) /= current) then
                 default = bfcs_default
             else
                 call coding_system_priority_list(prio)
+
                 do k = 1, size(prio)
                     cs = prio(k)%name
                     if (len(coding_system_mime_charset(cs)) == 0) cycle
@@ -733,6 +802,7 @@ contains
                 end do
             end if
         end if
+
         call completing_read(format_prompt("Coding system for saving file", default), &
                              completion_list_table(coding_system_alist()), coding, status, &
                              require_match=REQUIRE_MATCH_T, history="coding_system_history", default=default)
@@ -742,7 +812,6 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
-
     !> Set the file coding-system of the current buffer to CODING-SYSTEM.
     !> This means that when you save the buffer, it will be converted
     !> according to CODING-SYSTEM.  For a list of possible values of
@@ -769,16 +838,20 @@ contains
         type(coding_system_list_entry_type), allocatable :: css(:), unsafe(:)
         logical :: all
         integer :: k
+
         call check_coding_system(coding_system, status)
         if (.not. status%ok()) return
         cs = coding_system
+
         if (len(cs) > 0 .and. allocated(buffer_file_coding_system%value) .and. .not. force) then
             if (len(buffer_file_coding_system%value) > 0) cs = merge_coding_systems(cs, buffer_file_coding_system%value)
         end if
+
         if (interactive .and. coding_system_charset_list(cs) /= "emacs") then
             ! Check whether save would succeed, and jump to the offending
             ! char(s) if not.
             call find_coding_systems_text(buffer_text(), css, all)
+
             if (.not. all .and. .not. member(coding_system_base(cs), css)) then
                 allocate (unsafe(1))
                 unsafe(1)%name = cs
@@ -788,6 +861,7 @@ contains
                 cs = chosen
             end if
         end if
+
         call buffer_file_coding_system%set_local(cs)
         k = explicit_index(.true.)
         explicit(k)%write = cs
@@ -798,6 +872,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: cs
         logical :: force
+
         force = .not. nilp(current_prefix_arg)
         call read_buffer_file_coding_system(cs, status)
         if (.not. status%ok()) return
@@ -819,21 +894,27 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: cs, saved
         logical :: had
+
         call check_coding_system(coding_system, status)
         if (.not. status%ok()) return
         cs = coding_system
+
         if (len(cs) > 0 .and. allocated(buffer_file_coding_system%value) .and. .not. force) then
             if (len(buffer_file_coding_system%value) > 0) cs = merge_coding_systems(cs, buffer_file_coding_system%value)
         end if
+
         ! (let ((coding-system-for-read coding-system)) (revert-buffer))
         had = allocated(coding_system_for_read%value)
         if (had) saved = coding_system_for_read%value
+
         if (len(cs) > 0) then
             coding_system_for_read = cs
         else
             call coding_system_for_read%clear()
         end if
+
         call revert_buffer(status)
+
         if (had) then
             coding_system_for_read = saved
         else
@@ -845,6 +926,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: cs
         logical :: force
+
         force = .not. nilp(current_prefix_arg)
         call read_coding_system("Coding system for visited file (default nil): ", "", cs, status)
         if (.not. status%ok()) return
@@ -861,6 +943,7 @@ contains
         character(len=*), intent(in) :: coding_system
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: output, input
+
         call check_coding_system(coding_system, status)
         if (.not. status%ok()) return
         call set_default(sym("buffer_file_coding_system"), make_string(coding_system), status)
@@ -895,26 +978,32 @@ contains
         logical, intent(in), optional :: interactive
         character(len=:), allocatable :: base, cs, t
         integer :: eol
+
         if (len(coding_system) == 0 .or. .not. coding_system_p(coding_system)) then
             call set_error(status, FM_GENERIC_ERROR, &
                            format_message("Invalid coding system `")//coding_system//format_message("'"))
             return
         end if
+
         t = coding_system_type(coding_system)
+
         if (t == "raw-text" .or. t == "undecided") then
             call set_error(status, FM_GENERIC_ERROR, &
                            format_message("Can't prefer the coding system `")//coding_system//format_message("'"))
             return
         end if
+
         base = coding_system_base(coding_system)
         eol = coding_system_eol_type(coding_system)
         call set_coding_system_priority([character(len=len(base)) :: base], status)
         if (.not. status%ok()) return
+
         if (present(interactive)) then
             if (interactive .and. base /= coding_system) then
                 call message("Highest priority is set to "//base//" (base of "//coding_system//")")
             end if
         end if
+
         ! If they asked for specific EOL conversion, honor that.
         cs = base
         if (eol /= EOL_UNDECIDED) cs = coding_system_change_eol_conversion(base, eol)
@@ -924,19 +1013,20 @@ contains
     recursive subroutine cmd_prefer_coding_system(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: cs
+
         do
             call completing_read("Coding system: ", completion_list_table(coding_system_alist()), cs, status, &
                                  require_match=REQUIRE_MATCH_T, history="coding_system_history")
             if (.not. status%ok()) return
             if (len(cs) > 0) exit
         end do
+
         call prefer_coding_system(cs, status, interactive=.true.)
     end subroutine cmd_prefer_coding_system
 
     ! ------------------------------------------------------------------
     ! Choosing a coding system that can encode the text
     ! ------------------------------------------------------------------
-
     !> Ask a user to select a safe coding system from candidates.
     !> The candidates of coding systems which can safely encode a text
     !> between FROM and TO are shown in a popup window.  Among them, the most
@@ -978,6 +1068,7 @@ contains
         logical :: no_other_defaults, all, ok
         integer :: k, nd, eol, n
         integer(int64) :: tick
+
         coding = ""
         status = status_type()
         no_other_defaults = only_default
@@ -990,6 +1081,7 @@ contains
         fname = file
         if (len(fname) == 0 .and. allocated(buffers(cur)%filename)) fname = buffers(cur)%filename
         call find_auto_coding(fname, text, auto_cs, source, multibyte=buffers(cur)%multibyte)
+
         if (len(auto_cs) > 0) then
             if (.not. coding_system_p(auto_cs)) then
                 if (source == ":coding") then
@@ -997,22 +1089,27 @@ contains
                 else
                     by = format_message("variable `")//source//format_message("'")
                 end if
+
                 call message(format_message("Warning (mule): Invalid coding system `")//auto_cs// &
                              format_message("' is specified")//LF//"for the current buffer/file by the "//by//"."//LF// &
                              "It is highly recommended to fix it before writing to a file.")
                 call yes_or_no(ok, status)
                 if (.not. status%ok()) return
+
                 if (.not. ok) then
                     call set_error(status, FM_GENERIC_ERROR, "Save aborted")
                     return
                 end if
+
                 auto_cs = ""
             end if
         end if
+
         if (len(auto_cs) > 0 .and. .not. no_other_defaults) then
             ! If the file has a coding cookie, use it regardless of any
             ! other setting.
             base = coding_system_base(auto_cs)
+
             if (base /= "undecided") then
                 ! For encoding, no-conversion-multibyte is the same as
                 ! no-conversion.
@@ -1020,6 +1117,7 @@ contains
                     auto_cs = "no-conversion"
                     base = "no-conversion"
                 end if
+
                 deallocate (defaults)
                 allocate (defaults(0))
                 nd = 0
@@ -1027,59 +1125,73 @@ contains
                 no_other_defaults = .true.
             end if
         end if
+
         if (.not. no_other_defaults) then
             ! If buffer-file-coding-system is not nil nor undecided, append
             ! it to the defaults.
             if (allocated(buffer_file_coding_system%value)) then
                 if (len(buffer_file_coding_system%value) > 0) then
                     base = coding_system_base(buffer_file_coding_system%value)
+
                     if (base /= "undecided" .and. .not. has_base(defaults(1:nd), base)) then
                         call append(defaults, nd, buffer_file_coding_system%value)
                     end if
                 end if
             end if
+
             call buffer_file_coding_system_explicit(read, write)
+
             if (len(write) == 0) then
                 ! If default buffer-file-coding-system is not nil nor
                 ! undecided, append it to the defaults.
                 call default_value(sym("buffer_file_coding_system"), v, vst)
                 dflt = ""
                 if (stringp(v)) dflt = xstring(v)
+
                 if (len(dflt) > 0) then
                     base = coding_system_base(dflt)
                     if (base /= "undecided" .and. .not. has_base(defaults(1:nd), base)) call append(defaults, nd, dflt)
                 end if
+
                 ! If the most preferred coding system has the property
                 ! mime-charset, append it to the defaults.
                 call coding_system_priority_list(prio, .true.)
+
                 if (size(prio) > 0) then
                     preferred = prio(1)%name
                     base = coding_system_base(preferred)
+
                     if (len(coding_system_mime_charset(preferred)) > 0 .and. .not. has_base(defaults(1:nd), base)) then
                         call append(defaults, nd, preferred)
                     end if
                 end if
             end if
         end if
+
         ! Decide the eol-type from the top of the default codings, current
         ! buffer-file-coding-system, or default buffer-file-coding-system.
         if (nd > 0) then
             eol = coding_system_eol_type(defaults(1)%name)
+
             if (eol == EOL_UNDECIDED .and. allocated(buffer_file_coding_system%value)) then
                 eol = coding_system_eol_type(buffer_file_coding_system%value)
             end if
+
             if (eol == EOL_UNDECIDED) then
                 call default_value(sym("buffer_file_coding_system"), v, vst)
                 if (stringp(v)) eol = coding_system_eol_type(xstring(v))
             end if
+
             if (eol /= EOL_UNDECIDED) then
                 do k = 1, nd
                     defaults(k)%name = coding_system_change_eol_conversion(defaults(k)%name, eol)
                 end do
             end if
         end if
+
         call find_coding_systems_text(text, codings, all)
         tick = buffers(cur)%text%chars_modiff
+
         if (all) then
             ! Any coding system is ok.
             if (nd > 0) coding = defaults(1)%name
@@ -1087,17 +1199,22 @@ contains
             ! Classify the defaults into safe, rejected, and unsafe.
             allocate (safe(0), unsafe(0), rejected(0))
             n = 0
+
             do k = 1, nd
                 if (member(coding_system_base(defaults(k)%name), codings)) then
                     call append(safe, n, defaults(k)%name)
                 end if
             end do
+
             n = 0
+
             do k = 1, nd
                 if (.not. member(coding_system_base(defaults(k)%name), codings)) call append(unsafe, n, defaults(k)%name)
             end do
+
             ! If there are safe ones, the first one is what we want.
             if (size(safe) > 0) coding = safe(1)%name
+
             ! If all the defaults failed, ask a user.
             if (len(coding) == 0) then
                 ! If UTF-8 is in CODINGS, but is not its first member, make
@@ -1109,10 +1226,12 @@ contains
                 if (.not. status%ok()) return
             end if
         end if
+
         ! Check we're not inconsistent with what `coding:' spec &c would
         ! give when file is re-read.
         if (len(auto_cs) > 0 .and. .not. (len(coding) > 0 .and. no_other_defaults .and. coding == auto_cs)) then
             call merge_auto_cs(coding, auto_cs)
+
             if (len(auto_cs) > 0 .and. len(auto_coding_alist_lookup(fname)) == 0 &
                 .and. .not. coding_system_equal(coding, auto_cs)) then
                 if (coding_system_type(auto_cs) == "charset" .or. coding_system_type(coding) == "charset" &
@@ -1121,6 +1240,7 @@ contains
                                           " specified by file contents.  Really save (else edit coding cookies "// &
                                           "and try again)? ", ok, status)
                     if (.not. status%ok()) return
+
                     if (.not. ok) then
                         call set_error(status, FM_GENERIC_ERROR, "Save aborted")
                         return
@@ -1128,33 +1248,40 @@ contains
                 end if
             end if
         end if
+
         if (tick /= buffers(cur)%text%chars_modiff) then
             call set_error(status, FM_GENERIC_ERROR, "Canceled because the buffer was modified")
             return
         end if
+
         if (len(coding) > 0) then
             if (coding_system_type(coding) == "undecided" .and. coding_system_prefer_utf_8_p(coding) &
                 .and. to - from < len(text, kind=int64)) then
                 coding = coding_system_change_text_conversion(coding, "utf-8")
             end if
         end if
+
     contains
 
         !> Merge CODING and AUTO_CS as far as possible.
         subroutine merge_auto_cs(coding, auto_cs)
             character(len=:), allocatable, intent(inout) :: coding, auto_cs
             integer :: eol1, eol2
+
             if (len(coding) == 0) then
                 coding = auto_cs
                 return
             end if
+
             eol1 = coding_system_eol_type(coding)
             eol2 = coding_system_eol_type(auto_cs)
+
             if (coding_system_base(coding) == "undecided") then
                 coding = coding_system_change_text_conversion(coding, auto_cs)
             else if (coding_system_base(auto_cs) == "undecided") then
                 auto_cs = coding_system_change_text_conversion(auto_cs, coding)
             end if
+
             if (eol1 == EOL_UNDECIDED) then
                 if (eol2 /= EOL_UNDECIDED) coding = coding_system_change_eol_conversion(coding, eol2)
             else if (eol2 == EOL_UNDECIDED) then
@@ -1167,6 +1294,7 @@ contains
     subroutine yes_or_no(ok, status)
         logical, intent(out) :: ok
         type(status_type), intent(out) :: status
+
         call yes_or_no_prompt("Really proceed with writing? ", ok, status)
     end subroutine yes_or_no
 
@@ -1175,6 +1303,7 @@ contains
         character(len=*), intent(in) :: prompt
         logical, intent(out) :: ok
         type(status_type), intent(out) :: status
+
         call yes_or_no_p(prompt, ok, status)
     end subroutine yes_or_no_prompt
 
@@ -1183,6 +1312,7 @@ contains
         use marker_fm, only: char_to_byte
         integer(int64), intent(in) :: from, to
         character(len=:), allocatable :: text
+
         text = buf_bytes(buffers(cur), char_to_byte(from), char_to_byte(to))
     end function region_text
 
@@ -1191,6 +1321,7 @@ contains
         integer, intent(inout) :: n
         character(len=*), intent(in) :: name
         type(coding_system_list_entry_type), allocatable :: grown(:)
+
         allocate (grown(n + 1))
         grown(1:n) = list(1:n)
         grown(n + 1)%name = name
@@ -1203,7 +1334,9 @@ contains
         type(coding_system_list_entry_type), intent(in) :: list(:)
         character(len=*), intent(in) :: base
         integer :: k
+
         has_base = .false.
+
         do k = 1, size(list)
             if (coding_system_base(list(k)%name) == base) has_base = .true.
         end do
@@ -1214,13 +1347,17 @@ contains
         type(coding_system_list_entry_type), intent(inout) :: list(:)
         character(len=*), intent(in) :: name
         integer :: k, j
+
         do k = 1, size(list)
             if (list(k)%name == name) exit
         end do
+
         if (k > size(list) .or. k == 1) return
+
         do j = k, 2, -1
             list(j)%name = list(j - 1)%name
         end do
+
         list(1)%name = name
     end subroutine to_front
 
@@ -1244,30 +1381,38 @@ contains
         integer(int64) :: p, firstpos
         integer :: k, j
         type(status_type) :: st
+
         coding = ""
         bufname = buffers(cur)%name
         text = "These default coding systems were tried to safely encode the following"//LF// &
                format_message("problematic characters in the buffer `")//bufname//format_message("'")//":"//LF
         firstpos = to
+
         do k = 1, size(unsafe)
             names(1) = unsafe(k)%name
             call check_coding_systems_text(region_text(from, to), from, names, bad, st)
+
             if (size(bad) > 0) then
                 line = "  "//unsafe(k)%name//":"
+
                 do j = 1, min(11, size(bad(1)%positions))
                     p = bad(1)%positions(j)
                     line = line//" ("//itoa(p)//" . "//char_at(p)//")"
                     firstpos = min(firstpos, p)
                 end do
+
                 text = text//line//LF
             end if
         end do
+
         text = text//"However, each of them encountered characters it couldn"//format_message("'")//"t encode safely:"//LF
+
         do k = 1, size(unsafe)
             names(1) = unsafe(k)%name
             call check_coding_systems_text(region_text(from, to), from, names, bad, st)
             if (size(bad) == 0) cycle
             line = "  "//unsafe(k)%name//" cannot safely encode these:"
+
             do j = 1, size(bad(1)%positions)
                 if (j <= 10) then
                     line = line//" "//char_at(bad(1)%positions(j))
@@ -1276,8 +1421,10 @@ contains
                     exit
                 end if
             end do
+
             text = text//line//LF
         end do
+
         text = text//LF//"Click on a character (or switch to this window by "//format_message("`C-x o'")//LF// &
                "and select the characters by RET) to jump to the place it appears,"//LF// &
                "where "//format_message("`C-u C-x ='")//" will give information about it."//LF
@@ -1287,9 +1434,11 @@ contains
                "or specify any other coding system (and risk losing"//LF// &
                "   the problematic characters)."//LF//LF
         list_line = ""
+
         do k = 1, size(codings)
             list_line = list_line//"  "//codings(k)%name
         end do
+
         text = text//fill_list(list_line)//LF
         call show_warning(text, status)
         if (.not. status%ok()) return
@@ -1298,6 +1447,7 @@ contains
         if (.not. status%ok()) return
         last_coding_system_specified = coding
         call kill_warning()
+
     contains
 
         function char_at(pos) result(s)
@@ -1307,6 +1457,7 @@ contains
             character(len=:), allocatable :: s
             integer(int64) :: b
             integer :: n
+
             b = char_to_byte(pos)
             s = buf_bytes(buffers(cur), b, b + 1)
             n = multibyte_length(buf_bytes(buffers(cur), b, min(b + 5, buffers(cur)%text%z_byte)), 1_int64, .false.)
@@ -1320,15 +1471,19 @@ contains
         character(len=*), intent(in) :: line
         character(len=:), allocatable :: filled, word, current
         integer :: i, j
+
         filled = ""
         current = " "
         i = 1
+
         do while (i <= len(line))
             if (line(i:i) == " ") then
                 i = i + 1
                 cycle
             end if
+
             j = index(line(i:), " ")
+
             if (j == 0) then
                 word = line(i:)
                 i = len(line) + 1
@@ -1336,12 +1491,15 @@ contains
                 word = line(i:i + j - 2)
                 i = i + j
             end if
+
             if (len(current) + 1 + len(word) > 70 .and. len(current) > 2) then
                 filled = filled//current//LF
                 current = " "
             end if
+
             current = current//" "//word
         end do
+
         filled = filled//current
     end function fill_list
 
@@ -1355,6 +1513,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: buf, previous, window
         type(status_type) :: st
+
         previous = current_buffer()
         call get_buffer_create("*Warning*", buf, status)
         if (.not. status%ok()) return
@@ -1370,6 +1529,7 @@ contains
         use buffer_fm, only: get_buffer, kill_buffer
         type(handle_type) :: buf
         type(status_type) :: st
+
         buf = get_buffer("*Warning*")
         if (buffer_live_p(buf)) call kill_buffer(buf, st)
     end subroutine kill_warning
@@ -1378,6 +1538,7 @@ contains
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
         character(len=24) :: buf
+
         write (buf, "(i0)") n
         s = trim(buf)
     end function itoa
@@ -1385,7 +1546,6 @@ contains
     ! ------------------------------------------------------------------
     ! Describing coding systems
     ! ------------------------------------------------------------------
-
     !> Print name and mnemonic letter of CODING-SYSTEM, and with DOC its
     !> docstring.  Port of mule-diag.el:print-coding-system-briefly.
     function print_coding_system_briefly(coding_system, doc) result(s)
@@ -1395,19 +1555,24 @@ contains
         type(coding_system_list_entry_type), allocatable :: aliases(:)
         character(len=40) :: subs(0:2)
         integer :: k, eol
+
         if (len(coding_system) == 0) then
             s = "nil"//LF
             return
         end if
+
         s = achar(coding_system_mnemonic(coding_system))//" -- "//coding_system
         call coding_system_aliases(coding_system, aliases)
+
         if (size(aliases) > 0) then
             if (aliases(1)%name == coding_system) then
                 if (size(aliases) > 1) then
                     alias_list = ""
+
                     do k = 2, size(aliases)
                         alias_list = alias_list//" "//aliases(k)%name
                     end do
+
                     s = s//" (alias:"//alias_list//")"
                 end if
             else if (member(coding_system, aliases)) then
@@ -1415,11 +1580,13 @@ contains
             else
                 eol = coding_system_eol_type(coding_system)
                 call coding_system_subsidiaries(aliases(1)%name, subs)
+
                 if (eol /= EOL_UNDECIDED .and. len_trim(subs(0)) > 0) then
                     if (trim(subs(eol)) /= coding_system) s = s//" (alias of "//trim(subs(eol))//")"
                 end if
             end if
         end if
+
         s = s//LF
         if (doc) s = s//LF//coding_system_doc_string(coding_system)//LF
     end function print_coding_system_briefly
@@ -1431,15 +1598,18 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: s, t, charsets
         character(len=40) :: subs(0:2)
+
         if (len(coding_system) == 0) then
             call describe_current_coding_system(status)
             return
         end if
+
         call check_coding_system(coding_system, status)
         if (.not. status%ok()) return
         s = print_coding_system_briefly(coding_system, .true.)
         t = coding_system_type(coding_system)
         s = s//"Type: "//t
+
         select case (t)
         case ("undecided")
             s = s//" (do automatic conversion)"
@@ -1453,7 +1623,9 @@ contains
             ! (UTF-16: nothing more.)
             continue
         end select
+
         s = s//LF//"EOL type: "
+
         select case (coding_system_eol_type(coding_system))
         case (EOL_UNDECIDED)
             call coding_system_subsidiaries(coding_system, subs)
@@ -1466,16 +1638,20 @@ contains
         case default
             s = s//"CR"//LF
         end select
+
         charsets = coding_system_charset_list(coding_system)
+
         if (coding_system_base(coding_system) /= "raw-text" .and. len(charsets) > 0) then
             s = s//"This coding system encodes the following charsets:"//LF//"  "//charsets
         end if
+
         call with_help_window(s, status)
     end subroutine describe_coding_system
 
     recursive subroutine cmd_describe_coding_system(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: cs
+
         call read_coding_system("Describe coding system (default current choices): ", "", cs, status)
         if (.not. status%ok()) return
         call describe_coding_system(cs, status)
@@ -1494,12 +1670,15 @@ contains
         type(value_type) :: v
         type(status_type) :: vst
         integer :: k, j
+
         s = "Coding system for saving this buffer:"//LF//"  "
+
         if (buffer_file_coding_system%local_p() .and. allocated(buffer_file_coding_system%value)) then
             s = s//print_coding_system_briefly(buffer_file_coding_system%value, .false.)
         else
             s = s//"Not set locally, use the default."//LF
         end if
+
         call default_value(sym("buffer_file_coding_system"), v, vst)
         dflt = ""
         if (stringp(v)) dflt = xstring(v)
@@ -1511,24 +1690,30 @@ contains
         s = s//"  encoding: "//print_coding_system_briefly(trim(default_process_coding_system(2)), .false.)
         s = s//LF//"Priority order for recognizing coding systems when reading files:"//LF
         call coding_system_priority_list(prio)
+
         do k = 1, size(prio)
             s = s//"  "//itoa(int(k, int64))//". "//prio(k)%name//" "
             call coding_system_aliases(prio(k)%name, aliases)
+
             if (size(aliases) > 0) then
                 if (aliases(1)%name == prio(k)%name) then
                     if (size(aliases) > 1) then
                         aliases_text = "(alias:"
+
                         do j = 2, size(aliases)
                             aliases_text = aliases_text//" "//aliases(j)%name
                         end do
+
                         s = s//aliases_text//")"
                     end if
                 else
                     s = s//"(alias of "//aliases(1)%name//")"
                 end if
             end if
+
             s = s//LF
         end do
+
         s = s//LF//"  Other coding systems cannot be distinguished automatically"//LF// &
             "  from these, and therefore cannot be recognized automatically"//LF// &
             "  with the present coding system priorities."//LF//LF
@@ -1536,9 +1721,11 @@ contains
         s = s//"  OPERATION"//TAB//"TARGET PATTERN"//TAB//TAB//"CODING SYSTEM(s)"//LF
         s = s//"  ---------"//TAB//"--------------"//TAB//TAB//"----------------"//LF
         s = s//"  File I/O"
+
         do k = 1, size(auto_coding_alist)
             s = s//table_row(fortran_string(auto_coding_alist(k)%pattern), auto_coding_alist(k)%coding)
         end do
+
         do k = 1, size(file_coding_system_alist)
             if (file_coding_system_alist(k)%decoding == file_coding_system_alist(k)%encoding) then
                 pair = file_coding_system_alist(k)%decoding
@@ -1547,11 +1734,14 @@ contains
             else
                 pair = "("//file_coding_system_alist(k)%decoding//" . "//file_coding_system_alist(k)%encoding//")"
             end if
+
             s = s//table_row(fortran_string(file_coding_system_alist(k)%pattern), pair)
         end do
+
         s = s//"  Process I/O"//TAB//"nothing specified"//LF
         s = s//"  Network I/O"//TAB//"nothing specified"//LF
         call with_help_window(s, status)
+
     contains
 
         !> A row: the pattern from column 16 and the coding systems from
@@ -1560,21 +1750,26 @@ contains
             character(len=*), intent(in) :: pattern, codings
             character(len=:), allocatable :: row
             integer :: col
+
             col = current_col()
             row = indent_to(col, 16)//pattern
             col = max(col, 16) + len(pattern)
+
             if (col >= 40) then
                 row = row//LF
                 col = 0
             end if
+
             row = row//indent_to(col, 40)//codings//LF
         end function table_row
 
         !> The column at the end of S.
         integer function current_col()
             integer :: nl, i
+
             nl = index(s, LF, back=.true.)
             current_col = 0
+
             do i = nl + 1, len(s)
                 if (s(i:i) == TAB) then
                     current_col = (current_col/8 + 1)*8
@@ -1590,18 +1785,22 @@ contains
             integer, intent(in) :: from, to
             character(len=:), allocatable :: ws
             integer :: col
+
             ws = ""
             col = from
+
             do while ((col/8 + 1)*8 <= to)
                 ws = ws//TAB
                 col = (col/8 + 1)*8
             end do
+
             if (col < to) ws = ws//repeat(" ", to - col)
         end function indent_to
     end subroutine describe_current_coding_system
 
     recursive subroutine cmd_describe_current_coding_system(status)
         type(status_type), intent(out) :: status
+
         call describe_current_coding_system(status)
     end subroutine cmd_describe_current_coding_system
 end module mule_fm

@@ -33,6 +33,7 @@ contains
 
     subroutine collect_error_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("default-is-ok", test_default_ok), &
                     new_unittest("intent-out-resets", test_intent_out_resets), &
@@ -45,6 +46,7 @@ contains
     subroutine test_default_ok(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call check(error, st%ok(), "fresh status not ok")
         if (allocated(error)) return
         call set_error(st, FM_ARGS_OUT_OF_RANGE, "5, 10")
@@ -60,6 +62,7 @@ contains
     subroutine test_intent_out_resets(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call set_error(st, FM_GENERIC_ERROR, "old")
         call fail_then_return(st)
         call check(error, st%ok(), "intent(out) did not reset status")
@@ -69,6 +72,7 @@ contains
 
     subroutine test_names(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, error_name(FM_ARGS_OUT_OF_RANGE), "args_out_of_range")
         if (allocated(error)) return
         call check(error, error_message(FM_BUFFER_READ_ONLY), "Buffer is read-only")
@@ -83,6 +87,7 @@ contains
     ! Mirrors the error-conditions lists built in data.c:syms_of_data.
     subroutine test_hierarchy(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, condition_matches(FM_TEXT_READ_ONLY, FM_BUFFER_READ_ONLY), &
                    "text-read-only is not a buffer-read-only")
         if (allocated(error)) return
@@ -105,6 +110,7 @@ contains
     subroutine test_format(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call check(error, format_error(st), "")
         if (allocated(error)) return
         call set_error(st, FM_END_OF_BUFFER)

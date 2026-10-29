@@ -64,6 +64,7 @@ contains
         integer(int64), allocatable :: saved(:)
         integer(int64) :: start, last, idx, mb
         logical :: context
+
         count = 0
         ! save-match-data
         saved = match_data()
@@ -73,20 +74,25 @@ contains
         ! Count the number of open parentheses in REGEXP.
         start = 1
         last = 0
+
         do
             idx = string_match("\\(\(\?[0-9]*:\)?", regexp, status, start)
             if (.not. status%ok()) exit
             if (idx == 0) exit
             ! Start of next search.
             start = match_end(0, status)
+
             if (match_beginning(1, status) == 0) then
                 mb = match_beginning(0, status)
+
                 if (last > 0) then
                     context = subregexp_context_p(regexp, mb, status, last)
                 else
                     context = subregexp_context_p(regexp, mb, status)
                 end if
+
                 if (.not. status%ok()) exit
+
                 ! It's not a shy group and it's not inside brackets or after
                 ! a backslash: it's really a group-open marker.
                 if (context) then
@@ -96,6 +102,7 @@ contains
                 end if
             end if
         end do
+
         call set_match_data(saved)
     end function regexp_opt_depth
 
@@ -140,9 +147,11 @@ contains
         character(len=:), allocatable :: op
         integer :: p
         logical :: has_open
+
         p = REGEXP_OPT_NIL
         if (present(paren)) p = paren
         has_open = .true.
+
         if (present(open)) then
             op = open
         else if (p /= REGEXP_OPT_NIL) then
@@ -151,7 +160,9 @@ contains
             has_open = .false.
             op = ""
         end if
+
         call sorted_unique(strings, list)
+
         if (size(list) > 0) then
             if (has_open) then
                 re = opt_group(list, .true., .false., op)
@@ -165,7 +176,9 @@ contains
                 re = "\(?:"//regexp_unmatchable//"\)"
             end if
         end if
+
         if (present(open)) return
+
         if (p == REGEXP_OPT_WORDS) then
             re = "\<"//re//"\>"
         else if (p == REGEXP_OPT_SYMBOLS) then
@@ -179,29 +192,38 @@ contains
         type(str_type), allocatable, intent(out) :: list(:)
         type(str_type) :: tmp
         integer :: i, j, n
+
         allocate (list(size(strings)))
+
         do i = 1, size(strings)
             list(i)%s = trim(strings(i))
         end do
+
         ! Insertion sort (the lists are short).
         do i = 2, size(list)
             call move_alloc(list(i)%s, tmp%s)
             j = i - 1
+
             do while (j >= 1)
                 if (.not. llt(tmp%s, list(j)%s)) exit
                 call move_alloc(list(j)%s, list(j + 1)%s)
                 j = j - 1
             end do
+
             call move_alloc(tmp%s, list(j + 1)%s)
         end do
+
         n = 0
+
         do i = 1, size(list)
             if (n > 0) then
                 if (list(i)%s == list(n)%s .and. len(list(i)%s) == len(list(n)%s)) cycle
             end if
+
             n = n + 1
             if (n /= i) list(n)%s = list(i)%s
         end do
+
         list = list(1:n)
     end subroutine sorted_unique
 
@@ -209,7 +231,9 @@ contains
     pure integer function nchars(s)
         character(len=*), intent(in) :: s
         integer :: i
+
         nchars = 0
+
         do i = 1, len(s)
             if (iand(iachar(s(i:i)), 192) /= 128) nchars = nchars + 1
         end do
@@ -220,9 +244,12 @@ contains
     integer function common_prefix(list) result(n)
         type(str_type), intent(in) :: list(:)
         integer :: i, k
+
         n = len(list(1)%s)
+
         do i = 2, size(list)
             n = min(n, len(list(i)%s))
+
             do k = 1, n
                 if (list(i)%s(k:k) /= list(1)%s(k:k)) then
                     n = k - 1
@@ -230,6 +257,7 @@ contains
                 end if
             end do
         end do
+
         ! Back off to a character boundary.
         do while (n > 0)
             if (n == len(list(1)%s)) exit
@@ -243,11 +271,14 @@ contains
     integer function common_suffix(list) result(n)
         type(str_type), intent(in) :: list(:)
         integer :: i, k, l1, li
+
         l1 = len(list(1)%s)
         n = l1
+
         do i = 2, size(list)
             li = len(list(i)%s)
             n = min(n, li)
+
             do k = 1, n
                 if (list(i)%s(li - k + 1:li - k + 1) /= list(1)%s(l1 - k + 1:l1 - k + 1)) then
                     n = k - 1
@@ -255,6 +286,7 @@ contains
                 end if
             end do
         end do
+
         ! The suffix must start at a character boundary.
         do while (n > 0)
             if (iand(iachar(list(1)%s(l1 - n + 1:l1 - n + 1)), 192) /= 128) exit
@@ -280,6 +312,7 @@ contains
         integer(int32), allocatable :: letters(:)
         integer :: i, n, nl, nr, k
         logical :: any_one
+
         if (present(open)) then
             open_group = open
         else if (paren) then
@@ -287,42 +320,52 @@ contains
         else
             open_group = ""
         end if
+
         close_group = ""
         if (paren) close_group = "\)"
         open_charset = open_group
         close_charset = close_group
+
         if (lax) then
             open_charset = ""
             close_charset = ""
         end if
+
         if (size(strings) == 0) then
             re = ""
             return
         end if
+
         if (size(strings) == 1) then
             if (nchars(strings(1)%s) == 1) then
                 re = open_charset//regexp_quote(strings(1)%s)//close_charset
             else
                 re = open_group//regexp_quote(strings(1)%s)//close_group
             end if
+
             return
         end if
+
         if (len(strings(1)%s) == 0) then
             sub1 = opt_group(strings(2:), .true., .true.)
             re = open_charset//sub1//"?"//close_charset
             return
         end if
+
         any_one = .false.
+
         if (nchars(strings(1)%s) == 1) then
             do i = 2, size(strings)
                 if (nchars(strings(i)%s) == 1) any_one = .true.
             end do
         end if
+
         if (any_one) then
             ! Collect one-char strings
             allocate (letters(0), rest(0))
             nl = 0
             nr = 0
+
             do i = 1, size(strings)
                 if (nchars(strings(i)%s) == 1) then
                     letters = [letters, first_char(strings(i)%s)]
@@ -330,6 +373,7 @@ contains
                     rest = [rest, strings(i)]
                 end if
             end do
+
             if (size(rest) > 0) then
                 ! several one-char strings: take them and recurse
                 ! on the rest (first so as to match the longest).
@@ -339,43 +383,55 @@ contains
                 ! all are one-char strings: just return a character set.
                 re = open_charset//regexp_opt_charset(letters)//close_charset
             end if
+
             return
         end if
+
         n = common_prefix(strings)
+
         if (n > 0) then
             ! common prefix: take it and recurse on the suffixes.
             prefix = strings(1)%s(1:n)
             allocate (parts(size(strings)))
+
             do i = 1, size(strings)
                 parts(i)%s = strings(i)%s(n + 1:)
             end do
+
             sub1 = opt_group(parts, .true., .true.)
             re = open_group//regexp_quote(prefix)//sub1//close_group
             return
         end if
+
         n = common_suffix(strings)
+
         if (n > 0) then
             ! common suffix: take it and recurse on the prefixes.
             xiffus = strings(1)%s(len(strings(1)%s) - n + 1:)
             allocate (parts(size(strings)))
+
             do i = 1, size(strings)
                 parts(i)%s = strings(i)%s(1:len(strings(i)%s) - n)
             end do
+
             ! Sorting is necessary in cases such as ("ad" "d").
             call sort_list(parts)
             sub1 = opt_group(parts, .true., .true.)
             re = open_group//sub1//regexp_quote(xiffus)//close_group
             return
         end if
+
         ! Otherwise, divide the list into those that start with a
         ! particular letter and those that do not, and recurse on them.
         first = char_prefix(strings(1)%s)
         k = 0
+
         do i = 1, size(strings)
             if (len(strings(i)%s) < len(first)) exit
             if (strings(i)%s(1:len(first)) /= first) exit
             k = i
         end do
+
         sub1 = opt_group(strings(1:k), .false., .false.)
         sub2 = opt_group(strings(k + 1:), .false., .false.)
         re = open_group//sub1//"\|"//sub2//close_group
@@ -386,14 +442,17 @@ contains
         type(str_type), intent(inout) :: list(:)
         type(str_type) :: tmp
         integer :: i, j
+
         do i = 2, size(list)
             call move_alloc(list(i)%s, tmp%s)
             j = i - 1
+
             do while (j >= 1)
                 if (.not. llt(tmp%s, list(j)%s)) exit
                 call move_alloc(list(j)%s, list(j + 1)%s)
                 j = j - 1
             end do
+
             call move_alloc(tmp%s, list(j + 1)%s)
         end do
     end subroutine sort_list
@@ -403,11 +462,14 @@ contains
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: c
         integer :: k
+
         k = 1
+
         do while (k < len(s))
             if (iand(iachar(s(k + 1:k + 1)), 192) /= 128) exit
             k = k + 1
         end do
+
         c = s(1:k)
     end function char_prefix
 
@@ -415,7 +477,9 @@ contains
     integer(int32) function first_char(s) result(c)
         character(len=*), intent(in) :: s
         integer :: b, n, k
+
         b = iachar(s(1:1))
+
         if (b < 128) then
             c = b
             return
@@ -429,6 +493,7 @@ contains
             c = iand(b, 31)
             n = 1
         end if
+
         do k = 1, n
             if (k + 1 > len(s)) exit
             c = ior(ishft(c, 6), iand(iachar(s(k + 1:k + 1)), 63))
@@ -442,6 +507,7 @@ contains
         character(len=MAX_MULTIBYTE_LENGTH) :: buf
         integer(int32) :: nbytes
         type(status_type) :: st
+
         call char_string(c, buf, nbytes, st)
         s = buf(1:nbytes)
     end function utf8
@@ -457,12 +523,15 @@ contains
         integer(int32) :: start, end, c, tmp
         character(len=:), allocatable :: charset, bracket, dash, caret, all
         integer :: i, j
+
         bracket = ""
         dash = ""
         caret = ""
         allocate (set(0))
+
         do i = 1, size(chars)
             c = chars(i)
+
             if (c == iachar("]")) then
                 bracket = "]"
             else if (c == iachar("^")) then
@@ -473,22 +542,28 @@ contains
                 set = [set, c]
             end if
         end do
+
         ! In increasing order (as map-char-table walks the table).
         do i = 2, size(set)
             tmp = set(i)
             j = i - 1
+
             do while (j >= 1)
                 if (set(j) <= tmp) exit
                 set(j + 1) = set(j)
                 j = j - 1
             end do
+
             set(j + 1) = tmp
         end do
+
         start = -1
         end = -2
         charset = ""
+
         do i = 1, size(set)
             c = set(i)
+
             if (c - 1 == end) then
                 end = c
             else
@@ -497,8 +572,10 @@ contains
                 end = c
             end if
         end do
+
         call flush ()
         all = bracket//charset//caret//dash
+
         if (len(all) == 0) then
             re = regexp_unmatchable
         else if (nchars(all) == 1) then
@@ -508,7 +585,9 @@ contains
         else
             re = "["//all//"]"
         end if
+
     contains
+
         subroutine flush ()
             if (end > start + 2) then
                 charset = charset//utf8(start)//"-"//utf8(end)
@@ -524,7 +603,7 @@ contains
     !> Whether C is not in SET.
     pure logical function all_differ(set, c)
         integer(int32), intent(in) :: set(:), c
+
         all_differ = all(set /= c)
     end function all_differ
-
 end module regexp_opt_fm

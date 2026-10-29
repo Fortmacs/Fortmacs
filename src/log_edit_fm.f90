@@ -356,32 +356,38 @@ contains
     ! ------------------------------------------------------------------
     ! Buffer-local values
     ! ------------------------------------------------------------------
-
     ! The index of the current buffer's entry in `locals', made if MAKE
     ! (0 if none).
     integer function local_index(make) result(k)
         logical, intent(in) :: make
         type(local_type), allocatable :: grown(:)
         integer :: i, n
+
         k = 0
         if (cur == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
+
         do k = 1, size(locals)
             if (locals(k)%serial == buffers(cur)%serial) return
         end do
+
         k = 0
         if (.not. make) return
+
         do k = 1, size(locals)
             if (.not. buffer_serial_live(locals(k)%serial)) then
                 locals(k) = local_type(serial=buffers(cur)%serial)
                 return
             end if
         end do
+
         n = size(locals)
         allocate (grown(n + 1))
+
         do i = 1, n
             grown(i) = locals(i)
         end do
+
         grown(n + 1)%serial = buffers(cur)%serial
         call move_alloc(grown, locals)
         k = n + 1
@@ -390,6 +396,7 @@ contains
     ! kill-all-local-variables: forget the current buffer's values.
     subroutine kill_log_edit_locals()
         integer :: k
+
         k = local_index(.false.)
         if (k > 0) locals(k) = local_type()
     end subroutine kill_log_edit_locals
@@ -398,6 +405,7 @@ contains
     !> for nil): the VC fileset backend corresponding to the current log.
     integer function log_edit_vc_backend() result(b)
         integer :: k
+
         b = 0
         k = local_index(.false.)
         if (k > 0) b = locals(k)%vc_backend
@@ -408,6 +416,7 @@ contains
     subroutine set_log_edit_callback(callback)
         procedure(command_proc) :: callback
         integer :: k
+
         k = local_index(.true.)
         locals(k)%callback => callback
     end subroutine set_log_edit_callback
@@ -417,6 +426,7 @@ contains
     subroutine set_log_edit_vc_backend(b)
         integer, intent(in) :: b
         integer :: k
+
         k = local_index(.true.)
         locals(k)%vc_backend = b
     end subroutine set_log_edit_vc_backend
@@ -426,7 +436,9 @@ contains
         logical, intent(out) :: set
         integer, intent(out) :: index
         integer :: k
+
         k = local_index(.false.)
+
         if (k > 0) then
             if (locals(k)%has_ring_index) then
                 set = locals(k)%ring_index_set
@@ -434,6 +446,7 @@ contains
                 return
             end if
         end if
+
         set = ring_index_set
         index = ring_index
     end subroutine get_ring_index
@@ -442,7 +455,9 @@ contains
     subroutine set_ring_index(index)
         integer, intent(in) :: index
         integer :: k
+
         k = local_index(.false.)
+
         if (k > 0) then
             if (locals(k)%has_ring_index) then
                 locals(k)%ring_index_set = .true.
@@ -450,6 +465,7 @@ contains
                 return
             end if
         end if
+
         ring_index_set = .true.
         ring_index = index
     end subroutine set_ring_index
@@ -462,6 +478,7 @@ contains
         type(handle_type) :: m
         type(status_type) :: st
         logical :: it
+
         it = .false.
         if (present(insertion_type)) it = insertion_type
         call copy_marker_at(pos, m, it, st)
@@ -471,6 +488,7 @@ contains
     integer(int64) function mpos(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
+
         call marker_position(m, mpos, st)
     end function mpos
 
@@ -481,6 +499,7 @@ contains
         type(handle_type) :: h
         character(len=:), allocatable :: expanded
         type(status_type) :: st
+
         h = null_handle()
         call expand_file_name(file, expanded, st, buffers(cur)%directory)
         if (st%ok()) h = get_file_buffer(expanded)
@@ -491,6 +510,7 @@ contains
     function format_prompt(prompt, default) result(full)
         character(len=*), intent(in) :: prompt, default
         character(len=:), allocatable :: full
+
         full = prompt
         if (len(default) > 0) full = full//" (default "//default//")"
         full = full//": "
@@ -500,6 +520,7 @@ contains
     integer(int64) function release(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
+
         call marker_position(m, release, st)
         call free_marker(m, st)
     end function release
@@ -512,6 +533,7 @@ contains
         integer(int64), intent(in), optional :: bound
         integer, intent(in), optional :: noerror
         integer(int64) :: pos
+
         call search_re_forward(regexp, pos, status, bound=bound, noerror=noerror)
         found = pos /= 0 .and. status%ok()
     end subroutine re_search_forward
@@ -523,6 +545,7 @@ contains
         integer(int64), intent(in), optional :: bound
         integer, intent(in), optional :: noerror
         integer(int64) :: pos
+
         call search_re_backward(regexp, pos, status, bound=bound, noerror=noerror)
         found = pos /= 0 .and. status%ok()
     end subroutine re_search_backward
@@ -533,6 +556,7 @@ contains
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: noerror
         integer(int64) :: pos
+
         call search_fwd(string, pos, status, noerror=noerror)
         found = pos /= 0 .and. status%ok()
     end subroutine search_forward
@@ -543,6 +567,7 @@ contains
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: noerror
         integer(int64) :: pos
+
         call search_bwd(string, pos, status, noerror=noerror)
         found = pos /= 0 .and. status%ok()
     end subroutine search_backward
@@ -550,7 +575,6 @@ contains
     ! ------------------------------------------------------------------
     ! The comment ring
     ! ------------------------------------------------------------------
-
     !> Return the comment whose index is STRIDE elements away from the current one.
     !> This accesses `log_edit_comment_ring', which stores commit log comments,
     !> i.e. descriptions of changes done by commits.
@@ -560,7 +584,9 @@ contains
         integer, intent(in) :: stride, len
         logical :: set
         integer :: current
+
         call get_ring_index(set, current)
+
         if (set) then
             index = modulo(current + stride, len)
         else if (stride > 0) then
@@ -582,8 +608,10 @@ contains
         character(len=:), allocatable :: item
         character(len=16) :: num
         integer :: ring_len, index
+
         status = status_type()
         ring_len = log_edit_comment_ring%count()
+
         if (ring_len <= 0) then
             call message("Empty comment ring")
             call ding()
@@ -607,6 +635,7 @@ contains
     recursive subroutine log_edit_next_comment(arg, status)
         integer, intent(in) :: arg
         type(status_type), intent(out) :: status
+
         call log_edit_previous_comment(-arg, status)
     end subroutine log_edit_next_comment
 
@@ -620,30 +649,36 @@ contains
         integer, intent(in), optional :: stride
         character(len=:), allocatable :: str, item
         integer :: step, ring_len, n
+
         status = status_type()
         step = 1
         if (present(stride)) step = stride
         if (.not. allocated(last_comment_match)) last_comment_match = ""
+
         if (len_trim(str_in) == 0 .and. len(str_in) == 0) then
             str = last_comment_match
         else
             str = str_in
             last_comment_match = str_in
         end if
+
         str = regexp_quote(str)
         ring_len = log_edit_comment_ring%count()
         n = log_edit_new_comment_index(step, ring_len)
+
         do
             if (n >= ring_len .or. n < 0) then
                 call set_error(status, FM_GENERIC_ERROR, "Not found")
                 return
             end if
+
             call log_edit_comment_ring%ref(n, item, status)
             if (.not. status%ok()) return
             if (string_match(str, item, status) > 0) exit
             if (.not. status%ok()) return
             n = n + step
         end do
+
         call set_ring_index(n)
         call log_edit_previous_comment(0, status)
     end subroutine log_edit_comment_search_backward
@@ -653,19 +688,20 @@ contains
     recursive subroutine log_edit_comment_search_forward(str, status)
         character(len=*), intent(in) :: str
         type(status_type), intent(out) :: status
+
         call log_edit_comment_search_backward(str, status, -1)
     end subroutine log_edit_comment_search_forward
 
     ! ------------------------------------------------------------------
     ! Font Lock
     ! ------------------------------------------------------------------
-
     ! Port of log-edit.el:log-edit-match-to-eoh.
     subroutine log_edit_match_to_eoh(limit, found, status)
         integer(int64), intent(in) :: limit
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
         integer(int64) :: start
+
         found = .false.
         if (limit < 0) continue
         start = point()
@@ -688,6 +724,7 @@ contains
     subroutine log_edit_goto_eoh(status)
         type(status_type), intent(out) :: status
         logical :: found
+
         call goto_char(point_min())
         call re_search_forward("^\([^[:alpha:]]\|[[:alnum:]-]+[^[:alnum:]-]\)", found, status, noerror=SEARCH_MOVE)
         if (found) call goto_char(match_beginning(0, status))
@@ -700,6 +737,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: start, here, moved
         logical :: summary
+
         found = .false.
         start = point()
         call log_edit_goto_eoh(status)
@@ -722,6 +760,7 @@ contains
     ! log-edit-headers-alist t) 'log-edit-header 'log-edit-unknown-header).
     subroutine header_name_face(face)
         character(len=:), allocatable, intent(out) :: face
+
         if (known_header(match_string(2))) then
             face = "log_edit_header"
         else
@@ -733,6 +772,7 @@ contains
     ! 'log-edit-header).
     subroutine header_contents_face(face)
         character(len=:), allocatable, intent(out) :: face
+
         face = header_alist_face(match_string(2))
         if (len(face) == 0) face = "log_edit_header"
     end subroutine header_contents_face
@@ -741,6 +781,7 @@ contains
     ! ("Summary" . log-edit-summary) ("Fixes") ("Author").
     logical function known_header(name)
         character(len=*), intent(in) :: name
+
         known_header = string_equal_ci(name, "Summary") .or. string_equal_ci(name, "Fixes") .or. &
                        string_equal_ci(name, "Author")
     end function known_header
@@ -749,6 +790,7 @@ contains
     function header_alist_face(name) result(face)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: face
+
         face = ""
         if (string_equal_ci(name, "Summary")) face = "log_edit_summary"
     end function header_alist_face
@@ -757,17 +799,21 @@ contains
     logical function string_equal_ci(a, b)
         character(len=*), intent(in) :: a, b
         integer :: i
+
         string_equal_ci = .false.
         if (len(a) /= len(b)) return
+
         do i = 1, len(a)
             if (lower(a(i:i)) /= lower(b(i:i))) return
         end do
+
         string_equal_ci = .true.
     end function string_equal_ci
 
     ! C in lower case (ASCII).
     character function lower(c)
         character, intent(in) :: c
+
         lower = c
         if (c >= "A" .and. c <= "Z") lower = achar(iachar(c) + 32)
     end function lower
@@ -776,6 +822,7 @@ contains
     subroutine headers_pre_form(limit)
         integer(int64), intent(out) :: limit
         type(status_type) :: st
+
         call goto_char(match_beginning(0, st))
         limit = match_end(0, st)
     end subroutine headers_pre_form
@@ -785,6 +832,7 @@ contains
     subroutine separator_pre_form(limit)
         integer(int64), intent(out) :: limit
         type(status_type) :: st
+
         call goto_char(match_end(0, st))
         limit = match_end(0, st) + 1
     end subroutine separator_pre_form
@@ -797,10 +845,12 @@ contains
         integer(int64) :: beg
         integer :: c
         logical :: found
+
         face = ""
         beg = max(point_min(), match_beginning(0, st) - 2)
         call put_text_property(beg, match_end(0, st), sym("font_lock_multiline"), t_value(), st)
         call char_after(c, found, beg)
+
         if (found) then
             if (char_syntax(c) == "w") face = "font_lock_warning_face"
         end if
@@ -813,6 +863,7 @@ contains
         type(font_lock_keyword_type), allocatable, intent(out) :: keywords(:)
         type(font_lock_highlight_type) :: inner(2), sep(1), anchors(2), first(1), h(1)
         integer :: n
+
         n = 2
         if (log_edit_font_lock_gnu_style) n = 7
         allocate (keywords(n))
@@ -853,7 +904,6 @@ contains
     ! ------------------------------------------------------------------
     ! The mode
     ! ------------------------------------------------------------------
-
     !> Setup a buffer to enter a VC commit log message.
     !> The buffer is put in mode MODE, or `log_edit_mode' if MODE is absent.
     !> If SETUP is true, erase the buffer and run `log_edit_hook'.
@@ -884,46 +934,59 @@ contains
         integer, intent(in), optional :: vc_backend
         logical :: do_setup
         integer :: k
+
         do_setup = .false.
         if (present(setup)) do_setup = setup
+
         if (present(setup_force)) then
             if (setup_force) do_setup = .true.
         end if
+
         if (log_edit_setup_invert .and. .not. opt(setup_force)) do_setup = .not. do_setup
+
         if (present(mode)) then
             call mode(status)
         else
             call log_edit_mode(status)
         end if
+
         if (.not. status%ok()) return
         k = local_index(.true.)
         locals(k)%callback => callback
         if (present(listfun)) locals(k)%listfun => listfun
         if (present(diff_function)) locals(k)%diff_function => diff_function
         if (present(vc_backend)) locals(k)%vc_backend = vc_backend
+
         if (present(set_params)) then
             call set_params(status)
             if (.not. status%ok()) return
         end if
+
         k = local_index(.true.)
         call log_edit_files(locals(k)%initial_files)
         locals(k)%has_initial_files = .true.
+
         if (do_setup) then
             call erase_buffer(status)
             if (.not. status%ok()) return
             call log_edit_hook%run(status)
             if (.not. status%ok()) return
         end if
+
         call push_mark(point_max())
+
         ! `vc-start-logentry' already emits a message; avoid a duplicate,
         ! and ensure we don't emit one at all in the case of doing the
         ! action immediately.
         if (.not. present(mode)) then
             call message(substitute_command_keys("Press \<log_edit_mode_map>\[log_edit_done] when you are done editing."))
         end if
+
     contains
+
         logical function opt(x)
             logical, intent(in), optional :: x
+
             opt = .false.
             if (present(x)) opt = x
         end function opt
@@ -945,6 +1008,7 @@ contains
         type(font_lock_keyword_type), allocatable :: keywords(:)
         logical :: saved
         integer :: k
+
         if (.not. associated(major_modes%log_edit_mode%run)) call syms_of_log_edit()
         call major_modes%log_edit_mode%begin(saved, status)
         if (.not. status%ok()) return
@@ -965,6 +1029,7 @@ contains
     recursive subroutine log_edit_do_auto_fill(status)
         type(status_type), intent(out) :: status
         integer(int64) :: here, eoh
+
         status = status_type()
         here = point()
         call rfc822_goto_eoh(status)
@@ -980,11 +1045,13 @@ contains
         type(handle_type), intent(in), optional :: buf_in
         type(handle_type) :: buf, win
         type(status_type) :: st
+
         if (present(buf_in)) then
             buf = buf_in
         else
             buf = get_buffer(LOG_EDIT_FILES_BUF)
         end if
+
         if (.not. buffer_live_p(buf)) return
         ! FIXME: Should use something like `quit-windows-on' here, but
         ! that function never deletes this buffer's window because it
@@ -1001,21 +1068,25 @@ contains
         character(len=*), intent(in), optional :: comment
         character(len=:), allocatable :: c, latest
         type(status_type) :: st
+
         if (present(comment)) then
             c = comment
         else
             c = buffer_string()
         end if
+
         if (.not. log_edit_comment_ring%empty_p()) then
             call log_edit_comment_ring%ref(0, latest, st)
             if (latest == c) return
         end if
+
         call log_edit_comment_ring%insert(c)
     end subroutine log_edit_remember_comment
 
     ! log-edit-remember-comment on `kill_buffer_hook'.
     recursive subroutine log_edit_remember_comment_hook(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call log_edit_remember_comment()
     end subroutine log_edit_remember_comment_hook
@@ -1030,42 +1101,54 @@ contains
         integer(int64) :: beg, moved
         integer :: c, k
         logical :: found, add, yes, same
+
         status = status_type()
         ! Clean up empty headers.
         call goto_char(point_min())
+
         do while (looking_at("^[a-z]*:"//LOG_EDIT_HEADER_CONTENTS_REGEXP, status))
             beg = match_beginning(0, status)
             call goto_char(match_end(0, status))
+
             if (string_match("\`[ "//achar(10)//achar(9)//"]*\'", match_string(1), status) > 0) then
                 call delete_region(beg, point(), status)
                 if (.not. status%ok()) return
             end if
         end do
+
         if (.not. status%ok()) return
         ! Get rid of leading empty lines.
         call goto_char(point_min())
+
         if (looking_at("\([ "//achar(9)//"]*"//achar(10)//"\)+", status)) then
             call delete_region(match_beginning(0, status), match_end(0, status), status)
             if (.not. status%ok()) return
         end if
+
         ! Get rid of trailing empty lines
         call goto_char(point_max())
         moved = skip_syntax_backward(" ")
         call char_after(c, found)
+
         if (found) then
             if (c == 10) call forward_char(status, 1_int64)
         end if
+
         call delete_region(point(), point_max(), status)
         if (.not. status%ok()) return
+
         ! Check for final newline
         if (point_max() > point_min()) then
             call char_before(c, found, point_max())
+
             if (c /= 10) then
                 add = log_edit_require_final_newline == LOG_EDIT_FINAL_NEWLINE_T
+
                 if (.not. add .and. log_edit_require_final_newline /= LOG_EDIT_FINAL_NEWLINE_NIL) then
                     call y_or_n_p("Buffer "//buffers(cur)%name//" does not end in newline.  Add one? ", add, status)
                     if (.not. status%ok()) return
                 end if
+
                 if (add) then
                     beg = point()
                     call goto_char(point_max())
@@ -1075,20 +1158,25 @@ contains
                 end if
             end if
         end if
+
         call log_edit_remember_comment()
         win = get_buffer_window(get_buffer(LOG_EDIT_FILES_BUF))
         yes = .true.
+
         if (log_edit_confirm /= LOG_EDIT_CONFIRM_NIL) then
             same = .false.
+
             if (log_edit_confirm == LOG_EDIT_CONFIRM_CHANGED) then
                 call log_edit_files(files)
                 ! An unset `log_edit_initial_files' is nil, the empty list.
                 same = size(files) == 0
                 k = local_index(.false.)
+
                 if (k > 0) then
                     if (locals(k)%has_initial_files) same = same_files(files, locals(k)%initial_files)
                 end if
             end if
+
             if (.not. same) then
                 call log_edit_show_files(status)
                 if (.not. status%ok()) return
@@ -1096,33 +1184,43 @@ contains
                 if (.not. status%ok()) return
             end if
         end if
+
         if (.not. yes) then
             if (win%index == 0) call log_edit_hide_buf()
             call message("Oh, well!  Later maybe?")
             return
         end if
+
         call log_edit_done_hook%run(status)
         if (.not. status%ok()) return
         call log_edit_hide_buf()
         k = local_index(.false.)
+
         if (k == 0) then
             call set_error(status, FM_GENERIC_ERROR, "No log operation is pending")
             return
         end if
+
         if (.not. associated(locals(k)%callback)) then
             call set_error(status, FM_GENERIC_ERROR, "No log operation is pending")
             return
         end if
+
         call locals(k)%callback(status)
+
     contains
+
         logical function same_files(a, b)
             type(log_edit_string_type), intent(in) :: a(:), b(:)
             integer :: i
+
             same_files = .false.
             if (size(a) /= size(b)) return
+
             do i = 1, size(a)
                 if (a(i)%s /= b(i)%s) return
             end do
+
             same_files = .true.
         end function same_files
     end subroutine log_edit_done
@@ -1134,6 +1232,7 @@ contains
     recursive subroutine log_edit_kill_buffer(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buf
+
         call log_edit_hide_buf()
         buf = current_buffer()
         call quit_windows_on(buf, .false., status)
@@ -1147,13 +1246,16 @@ contains
         type(log_edit_string_type), allocatable, intent(out) :: files(:)
         type(status_type) :: st
         integer :: k
+
         k = local_index(.false.)
+
         if (k > 0) then
             if (associated(locals(k)%listfun)) then
                 call locals(k)%listfun(files, st)
                 if (st%ok() .and. allocated(files)) return
             end if
         end if
+
         if (allocated(files)) deallocate (files)
         allocate (files(0))
     end subroutine log_edit_files
@@ -1163,14 +1265,17 @@ contains
     recursive subroutine log_edit_set_common_indentation(status)
         type(status_type), intent(out) :: status
         integer(int64) :: least, here, shortage
+
         here = point()
         least = point_max()
         call rfc822_goto_eoh(status)
         if (.not. status%ok()) return
+
         do while (point() < point_max())
             if (.not. looking_at("^[ "//achar(9)//"]*$", status)) least = min(least, current_indentation())
             shortage = forward_line(1_int64)
         end do
+
         call rfc822_goto_eoh(status)
         if (status%ok()) call indent_rigidly(point(), point_max(), log_edit_common_indent - least, status)
         call goto_char(here)
@@ -1181,14 +1286,17 @@ contains
     recursive subroutine log_edit_show_diff(status)
         type(status_type), intent(out) :: status
         integer :: k
+
         status = status_type()
         k = local_index(.false.)
+
         if (k > 0) then
             if (associated(locals(k)%diff_function)) then
                 call locals(k)%diff_function(status)
                 return
             end if
         end if
+
         call set_error(status, FM_GENERIC_ERROR, "Diff functionality has not been set up")
     end subroutine log_edit_show_diff
 
@@ -1196,6 +1304,7 @@ contains
     ! `log_edit_maybe_show_diff' (in log_edit_vc_fm).
     recursive subroutine call_diff_function(status)
         type(status_type), intent(out) :: status
+
         call log_edit_show_diff(status)
     end subroutine call_diff_function
 
@@ -1209,6 +1318,7 @@ contains
         type(display_alist_type) :: alist
         type(status_type) :: st
         integer :: k, saved_dedicated
+
         call log_edit_files(files)
         call get_buffer_create(LOG_EDIT_FILES_BUF, buf, status)
         if (.not. status%ok()) return
@@ -1218,15 +1328,20 @@ contains
         call log_edit_hide_buf(buf)
         buffers(cur)%read_only = .false.
         call erase_buffer(status)
+
         if (status%ok()) then
             allocate (strings(size(files)))
+
             do k = 1, size(files)
                 strings(k)%s = files(k)%s
             end do
+
             call cvs_insert_strings(strings, status)
         end if
+
         if (status%ok()) call special_mode(status)
         call goto_char(point_min())
+
         if (status%ok()) then
             alist%inhibit_same_window = .true.
             alist%window_height => shrink_window
@@ -1236,12 +1351,14 @@ contains
             call display_buffer(buf, win, status, [DISPLAY_ACTION_BELOW_SELECTED], alist)
             display_buffer_mark_dedicated = saved_dedicated
         end if
+
         call set_buffer(old, st)
     end subroutine log_edit_show_files
 
     ! (window-height . shrink-window-if-larger-than-buffer).
     subroutine shrink_window(window)
         type(handle_type), intent(in) :: window
+
         call shrink_window_if_larger_than_buffer(window)
     end subroutine shrink_window
 
@@ -1250,13 +1367,16 @@ contains
     logical function log_edit_empty_buffer_p() result(empty)
         integer(int64) :: here
         type(status_type) :: st
+
         empty = point_min() == point_max()
         if (empty) return
         here = point()
         call goto_char(point_min())
+
         do while (looking_at("^\([a-zA-Z]+: ?\)?$", st))
             if (forward_line(1_int64) /= 0) exit
         end do
+
         empty = eobp()
         call goto_char(here)
     end function log_edit_empty_buffer_p
@@ -1267,6 +1387,7 @@ contains
         character(len=*), intent(in) :: header
         character(len=*), intent(in), optional :: value
         character(len=:), allocatable :: line
+
         line = header//": "
         if (present(value)) line = line//value
         line = line//achar(10)
@@ -1280,6 +1401,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: value
         integer(int64) :: start
+
         start = point()
         call insert(make_header_line(header, value), status)
         if (.not. status%ok()) return
@@ -1295,10 +1417,12 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
         logical :: inter
+
         status = status_type()
         inter = .false.
         if (present(interactive)) inter = interactive
         if (.not. (inter .or. log_edit_empty_buffer_p())) return
+
         ! Put Author first because then the user can immediately yank in a
         ! multiline log message, or use \\`C-c C-w' (probably because they
         ! know it will generate exactly one line), without thereby pushing
@@ -1309,6 +1433,7 @@ contains
             call insert_header_line("Author", status)
             if (.not. status%ok()) return
         end if
+
         call insert_header_line("Summary", status)
         if (.not. status%ok()) return
         call insert(achar(10), status)
@@ -1319,6 +1444,7 @@ contains
     ! log-edit-insert-message-template on `log_edit_hook'.
     recursive subroutine hook_insert_message_template(status)
         type(status_type), intent(out) :: status
+
         call log_edit_insert_message_template(status)
     end subroutine hook_insert_message_template
 
@@ -1331,6 +1457,7 @@ contains
         character(len=:), allocatable :: template
         integer(int64) :: inserted
         logical :: inter
+
         status = status_type()
         inter = .false.
         if (present(interactive)) inter = interactive
@@ -1339,6 +1466,7 @@ contains
         ! ie should we first erase the buffer?
         call expand_file_name("CVS/Template", template, status, buffers(cur)%directory)
         if (.not. status%ok()) return
+
         if (file_readable_p(template)) then
             call goto_char(point_max())
             call insert_file_contents(template, .false., inserted, status)
@@ -1348,6 +1476,7 @@ contains
     ! log-edit-insert-cvs-template on `log_edit_hook'.
     recursive subroutine hook_insert_cvs_template(status)
         type(status_type), intent(out) :: status
+
         call log_edit_insert_cvs_template(status)
     end subroutine hook_insert_cvs_template
 
@@ -1363,12 +1492,14 @@ contains
         type(value_type) :: result, args(3)
         type(status_type) :: st
         logical :: inter
+
         status = status_type()
         inter = .false.
         if (present(interactive)) inter = interactive
         if (.not. (inter .or. log_edit_empty_buffer_p())) return
         call expand_file_name("CVS/Root", root, status, buffers(cur)%directory)
         if (.not. status%ok()) return
+
         if (file_readable_p(root)) then
             call goto_char(point_max())
             ! Ignore the stderr stuff, even if it's an error.
@@ -1386,12 +1517,15 @@ contains
         type(log_edit_string_type), allocatable :: files(:)
         character(len=:), allocatable :: text
         integer :: k
+
         call log_edit_files(files)
         text = "Affected files:  "//achar(10)
+
         do k = 1, size(files)
             if (k > 1) text = text//"  "//achar(10)
             text = text//files(k)%s
         end do
+
         call insert(text, status)
     end subroutine log_edit_insert_filenames
 
@@ -1403,9 +1537,11 @@ contains
         type(changelog_entries_type) :: entries
         character(len=:), allocatable :: text
         integer :: k
+
         status = status_type()
         call log_edit_files(files)
         text = ""
+
         do k = 1, size(files)
             call log_edit_changelog_entries(files(k)%s, entries, status)
             if (.not. status%ok()) return
@@ -1414,6 +1550,7 @@ contains
             if (len(text) > 0) text = text//", "
             text = text//files(k)%s
         end do
+
         if (len(text) > 0) then
             call goto_char(point_max())
             call insert(text//": ", status)
@@ -1426,17 +1563,20 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: here
         logical :: found, nl
+
         call rfc822_goto_eoh(status)
         if (.not. status%ok()) return
         here = point()
         call re_search_backward("^"//field//":\([ "//achar(9)//"]*\)$", found, status, noerror=SEARCH_NOERROR)
         if (.not. status%ok()) return
+
         if (found) then
             call goto_char(here)
             call replace_match(" "//value, status, fixedcase=.true., literal=.true., subexp=1)
         else
             call goto_char(here)
             nl = looking_at(achar(10), status)
+
             if (nl) then
                 call insert(field//": "//value//achar(10), status)
             else
@@ -1468,16 +1608,19 @@ contains
         integer(int64) :: here, eoh, start, end, shortage, moved
         logical :: found, saved_use_first, use
         type(status_type) :: st
+
         status = status_type()
         here = point()
         call rfc822_goto_eoh(status)
         if (.not. status%ok()) return
         eoh = point()
         call goto_char(here)
+
         if (point() <= eoh) then
             call goto_char(eoh)
             if (looking_at(achar(10), status)) call forward_char(status, 1_int64)
         end if
+
         use = .false.
         if (present(use_first)) use = use_first
         if (value_eq(last_command, sym("log_edit_insert_changelog"))) use = .true.
@@ -1487,16 +1630,19 @@ contains
         call log_edit_insert_changelog_entries(files, status)
         changelog_use_first = saved_use_first
         if (status%ok()) call log_edit_set_common_indentation(status)
+
         ! Add an Author: field if appropriate.
         if (status%ok() .and. has_author) then
             call log_edit_add_field("Author", author_name, status)
             if (status%ok()) call log_edit_add_field("Summary", "", status)
         end if
+
         ! Add a Fixes: field if applicable.
         if (status%ok() .and. allocated(log_edit_rewrite_fixes_regexp) .and. &
             allocated(log_edit_rewrite_fixes_replacement)) then
             call rfc822_goto_eoh(status)
             if (status%ok()) call re_search_forward(log_edit_rewrite_fixes_regexp, found, status, noerror=SEARCH_NOERROR)
+
             if (status%ok() .and. found) then
                 start = match_beginning(0, status)
                 end = match_end(0, status)
@@ -1505,13 +1651,16 @@ contains
                 if (status%ok()) call log_edit_add_field("Fixes", fixes, status)
             end if
         end if
+
         if (status%ok() .and. log_edit_strip_single_file_name) then
             call rfc822_goto_eoh(status)
             if (looking_at(achar(10), st)) call forward_char(st, 1_int64)
+
             if (looking_at("\*\s-+", st)) then
                 start = point()
                 shortage = forward_line(1_int64)
                 call re_search_forward("^\*\s-+", found, st, noerror=SEARCH_NOERROR)
+
                 if (.not. found) then
                     call goto_char(start)
                     moved = skip_chars_forward("^():", st)
@@ -1520,12 +1669,14 @@ contains
                 end if
             end if
         end if
+
         ! FIXME also add "Co-authored-by" when appropriate.
         ! Bzr accepts multiple --author arguments, others (?) don't.
         if (status%ok() .and. log_edit_rewrite_tiny_change .and. has_author .and. author_tiny) then
             call goto_char(point_max())
             call insert(achar(10)//"Copyright-paperwork-exempt: yes"//achar(10), status)
         end if
+
         call goto_char(here)
     end subroutine log_edit_insert_changelog
 
@@ -1533,7 +1684,6 @@ contains
     ! Functions for getting commit message from ChangeLog a file...
     ! Courtesy Jim Blandy
     ! ------------------------------------------------------------------
-
     !> Narrow to the top page of the current buffer, which visits a ChangeLog file.
     !> Actually, the narrowed region doesn't include the date line.
     !> A "page" in a ChangeLog file is the area between two dates.  Port of
@@ -1541,11 +1691,14 @@ contains
     recursive subroutine log_edit_narrow_changelog(status)
         type(status_type), intent(out) :: status
         integer(int64) :: start, shortage
+
         status = status_type()
+
         if (.not. derived_mode_p_exact("change_log_mode")) then
             call set_error(status, FM_GENERIC_ERROR, "log-edit-narrow-changelog: Current buffer isn't a ChangeLog")
             return
         end if
+
         call goto_char(point_min())
         ! Skip date line and subsequent blank lines.
         shortage = forward_line(1_int64)
@@ -1555,10 +1708,13 @@ contains
         if (.not. status%ok()) return
         call narrow_to_region(start, point(), status)
         call goto_char(point_min())
+
     contains
+
         ! (eq major-mode MODE).
         logical function derived_mode_p_exact(mode)
             character(len=*), intent(in) :: mode
+
             derived_mode_p_exact = .false.
             if (allocated(buffers(cur)%major_mode)) derived_mode_p_exact = buffers(cur)%major_mode == mode
         end function derived_mode_p_exact
@@ -1572,12 +1728,14 @@ contains
         type(status_type) :: st
         integer(int64) :: moved
         logical :: found
+
         call beginning_of_line()
         if (looking_at("^[ "//achar(9)//"]*$", st)) moved = skip_chars_backward_ws()
         call re_search_backward("^[ "//achar(9)//"]*"//achar(10), found, st, noerror=SEARCH_MOVE)
         if (found) call goto_char(match_end(0, st))
         beg = point()
         call re_search_forward("^[ "//achar(9)//achar(10)//"]*$", found, st, noerror=SEARCH_NOERROR)
+
         if (found) then
             end = match_beginning(0, st)
         else
@@ -1589,6 +1747,7 @@ contains
     integer(int64) function skip_chars_backward_ws() result(moved)
         use syntax_fm, only: skip_chars_backward
         type(status_type) :: st
+
         moved = skip_chars_backward(" "//achar(9)//achar(10), st, point_min())
     end function skip_chars_backward_ws
 
@@ -1601,13 +1760,16 @@ contains
         type(status_type) :: st
         integer(int64) :: shortage
         logical :: found
+
         call end_of_line(1_int64)
         call search_backward("*", found, st, noerror=SEARCH_NOERROR)
+
         if (found) then
             call beginning_of_line()
             beg = point()
             shortage = forward_line(1_int64)
             call re_search_forward("^[ "//achar(9)//"]*["//achar(10)//"*]", found, st, noerror=SEARCH_NOERROR)
+
             if (found) then
                 end = match_beginning(0, st)
             else
@@ -1626,12 +1788,15 @@ contains
     subroutine log_edit_changelog_entry(beg, end)
         integer(int64), intent(out) :: beg, end
         integer(int64) :: here
+
         here = point()
+
         if (log_edit_changelog_full_paragraphs) then
             call log_edit_changelog_paragraph(beg, end)
         else
             call log_edit_changelog_subparagraph(beg, end)
         end if
+
         call goto_char(here)
     end subroutine log_edit_changelog_entry
 
@@ -1641,33 +1806,40 @@ contains
         character(len=:), allocatable :: name, mail, time, author
         type(status_type) :: st
         logical :: tiny
+
         ! Code adapted from add-change-log-entry.
         if (allocated(add_log_full_name)) then
             name = add_log_full_name
         else
             name = user_full_name()
         end if
+
         if (allocated(add_log_mailing_address)) then
             mail = add_log_mailing_address
         else
             mail = user_mail_address_value()
         end if
+
         time = add_log_time_format()
+
         if (.not. changelog_use_first) then
             ours = looking_at(regexp_quote(time//"  "//name//"  <"//mail//">"), st)
             return
         end if
+
         ! Check the author, to potentially add it as a "Author: " header.
         ! FIXME This accumulates multiple authors, but only when there
         ! are multiple ChangeLog files.  It should also check for
         ! multiple authors in each individual entry.
         ours = .false.
         if (.not. looking_at("[^ "//achar(9)//"]", st)) return
+
         if (author_bound) then
             if (.not. looking_at(".+  .+  <"//regexp_quote(mail)//">", st)) then
                 if (looking_at(".+  \(.+  <.+>\) *\((tiny change)\)?", st)) then
                     author = replace_double_spaces(match_string(1))
                     tiny = match_beginning(2, st) > 0
+
                     if (.not. (has_author .and. index_in(author_name, author))) then
                         if (.not. has_author) then
                             has_author = .true.
@@ -1681,15 +1853,20 @@ contains
                 end if
             end if
         end if
+
         ours = .true.
+
     contains
+
         ! (string-replace "  " " " S).
         function replace_double_spaces(s) result(r)
             character(len=*), intent(in) :: s
             character(len=:), allocatable :: r
             integer :: i
+
             r = ""
             i = 1
+
             do while (i <= len(s))
                 if (i < len(s)) then
                     if (s(i:i + 1) == "  ") then
@@ -1698,6 +1875,7 @@ contains
                         cycle
                     end if
                 end if
+
                 r = r//s(i:i)
                 i = i + 1
             end do
@@ -1706,6 +1884,7 @@ contains
         ! (string-match (regexp-quote NEEDLE) HAYSTACK).
         logical function index_in(haystack, needle)
             character(len=*), intent(in) :: haystack, needle
+
             index_in = index(haystack, needle) > 0
         end function index_in
     end function log_edit_changelog_ours_p
@@ -1725,22 +1904,27 @@ contains
         type(status_type) :: st
         integer(int64) :: pos, eb, ee, saved_begv, saved_zv
         logical :: found
+
         status = status_type()
         allocate (entries%beg(0), entries%end(0))
         entries%buffer = null_handle()
         call expand_file_name(file, expanded, status, buffers(cur)%directory)
         if (.not. status%ok()) return
         visiting = find_buffer_visiting(file)
+
         ! If there is a buffer visiting FILE, and it has a local
         ! value for `change-log-default-name', use that.
         if (buffer_live_p(visiting)) then
             old = current_buffer()
             call set_buffer(visiting, st)
+
             if (change_log_default_name%local_p() .and. allocated(change_log_default_name%value)) then
                 changelog_file_name = change_log_default_name%value
             end if
+
             call set_buffer(old, st)
         end if
+
         if (.not. allocated(changelog_file_name)) then
             ! `find-change-log' uses `change-log-default-name' if set
             ! and sets it before exiting, so we need to work around
@@ -1751,6 +1935,7 @@ contains
             changelog_file_name = find_change_log()
             buffers(cur)%directory = saved_dir
         end if
+
         if (.not. (buffer_live_p(find_buffer_visiting(changelog_file_name)) .or. file_exists_p(changelog_file_name) &
                    .or. add_log_dont_create_changelog_file)) return
         call add_log_find_changelog_buffer(changelog_file_name, buf, status)
@@ -1759,11 +1944,13 @@ contains
         call set_buffer(buf, status)
         if (.not. status%ok()) return
         entries%buffer = buf
+
         body: block
             if (buffers(cur)%major_mode /= "change_log_mode") then
                 call change_log_mode(status)
                 if (.not. status%ok()) exit body
             end if
+
             call goto_char(point_min())
             if (looking_at("\s-*"//achar(10), status)) call goto_char(match_end(0, status))
             if (.not. log_edit_changelog_ours_p()) exit body
@@ -1774,23 +1961,28 @@ contains
             call goto_char(point_min())
             pattern = log_edit_changelog_pattern(file, changelog_file_name)
             pos = point()
+
             do while (.not. eobp())
                 call re_search_forward(pattern, found, status, noerror=SEARCH_NOERROR)
                 if (.not. status%ok() .or. .not. found) exit
                 call log_edit_changelog_entry(eb, ee)
+
                 ! This is not relevant, actually.
                 if (.not. (ee < max(pos + 1, point()))) then
                     entries%beg = [eb, entries%beg]
                     entries%end = [ee, entries%end]
                     entries%n = entries%n + 1
                 end if
+
                 ! Make sure we make progress.
                 pos = max(pos + 1, ee)
                 call goto_char(pos)
             end do
+
             call widen()
             call narrow_to_region(saved_begv, saved_zv, st)
         end block body
+
         call set_buffer(old, st)
     end subroutine log_edit_changelog_entries
 
@@ -1802,12 +1994,14 @@ contains
         integer(int64) :: here
         logical :: found
         type(status_type) :: st
+
         if (file(len(file):len(file)) == "/") then
             ! Match any files inside this directory.
             pattern = "^"//achar(9)//"\* "
             if (file /= "./") pattern = pattern//file
             return
         end if
+
         ! Search for the name of FILE relative to the ChangeLog.  If that
         ! doesn't occur anywhere, they're not using full relative
         ! filenames in the ChangeLog, so just look for FILE; we'll accept
@@ -1815,11 +2009,13 @@ contains
         pattern = file_relative_name(file, file_name_directory(changelog_file_name))
         ! FIXME: When can the above return an empty string?
         found = .false.
+
         if (len(pattern) > 0) then
             here = point()
             call search_forward(pattern, found, st, noerror=SEARCH_NOERROR)
             call goto_char(here)
         end if
+
         if (.not. found) pattern = file_name_nondirectory(file)
         pattern = "\(^\|[^[:alnum:]]\)"//regexp_quote(pattern)//"\($\|[^[:alnum:]]\)"
     end function log_edit_changelog_pattern
@@ -1840,18 +2036,24 @@ contains
         integer(int64) :: opoint
         logical :: saved_case, found
         integer :: k
+
         opoint = point()
+
         if (buffer_live_p(buffer)) then
             if (allocated(buffers(buffer%index)%filename)) log_name = buffers(buffer%index)%filename
         end if
+
         saved_case = case_fold_search%value
         case_fold_search = .false.
         call insert_buffer_substring(buffer, status, beg, end)
+
         if (.not. status%ok()) then
             case_fold_search = saved_case
             return
         end if
+
         bound = marker_at(point())
+
         if (allocated(log_name)) then
             do k = 1, size(files)
                 ! FIXME: f can be a directory, a (possibly indirect) parent
@@ -1866,9 +2068,11 @@ contains
                 if (.not. status%ok()) exit
             end do
         end if
+
         ! Eliminate tabs at the beginning of the line.
         if (status%ok()) then
             call goto_char(opoint)
+
             do
                 call re_search_forward("^\("//achar(9)//"+\)", found, status, bound=mpos(bound), &
                                        noerror=SEARCH_NOERROR)
@@ -1877,6 +2081,7 @@ contains
                 if (.not. status%ok()) exit
             end do
         end if
+
         call goto_char(release(bound))
         case_fold_search = saved_case
     end subroutine log_edit_changelog_insert_entries
@@ -1897,25 +2102,30 @@ contains
         type(changelog_entries_type) :: entries
         logical :: saved_bound
         integer :: i, j, k, n, m
+
         status = status_type()
         allocate (log_entries(0))
         saved_bound = author_bound
         author_bound = .true.
         has_author = .false.
         author_tiny = .false.
+
         ! Note that any ChangeLog entry can apply to more than one file.
         ! Here we construct a log-entries list with elements of the form
         !   ((LOGBUFFER ENTRYSTART ENTRYEND) FILE1 FILE2...)
         do i = 1, size(files)
             call log_edit_changelog_entries(files(i)%s, entries, status)
             if (.not. status%ok()) exit
+
             do j = 1, entries%n
                 k = 0
+
                 do m = 1, size(log_entries)
                     if (log_entries(m)%buffer%index == entries%buffer%index .and. &
                         log_entries(m)%buffer%generation == entries%buffer%generation .and. &
                         log_entries(m)%beg == entries%beg(j) .and. log_entries(m)%end == entries%end(j)) k = m
                 end do
+
                 if (k > 0) then
                     n = size(log_entries(k)%files)
                     call append_file(log_entries(k)%files, files(i)%s)
@@ -1928,13 +2138,16 @@ contains
                     grown(1)%end = entries%end(j)
                     allocate (grown(1)%files(0))
                     call append_file(grown(1)%files, files(i)%s)
+
                     do m = 1, n
                         grown(m + 1) = log_entries(m)
                     end do
+
                     call move_alloc(grown, log_entries)
                 end if
             end do
         end do
+
         ! Now map over log-entries, and extract the strings.
         if (status%ok()) then
             do k = size(log_entries), 1, -1
@@ -1945,19 +2158,25 @@ contains
                 if (.not. status%ok()) exit
             end do
         end if
+
         ! No newline after the last entry.
         if (status%ok() .and. size(log_entries) > 0) call delete_region(point() - 1, point(), status)
         author_bound = saved_bound
+
     contains
+
         subroutine append_file(list, f)
             type(log_edit_string_type), allocatable, intent(inout) :: list(:)
             character(len=*), intent(in) :: f
             type(log_edit_string_type), allocatable :: more(:)
             integer :: p
+
             allocate (more(size(list) + 1))
+
             do p = 1, size(list)
                 more(p) = list(p)
             end do
+
             more(size(list) + 1)%s = f
             call move_alloc(more, list)
         end subroutine append_file
@@ -1966,13 +2185,13 @@ contains
     ! ------------------------------------------------------------------
     ! Headers
     ! ------------------------------------------------------------------
-
     !> Toggle a boolean-type header in the current buffer.
     !> See `log_edit_set_header' for details.  Port of
     !> log-edit.el:log-edit-toggle-header.
     recursive logical function log_edit_toggle_header(header, value, status) result(val)
         character(len=*), intent(in) :: header, value
         type(status_type), intent(out) :: status
+
         val = log_edit_set_header(header, value, status, toggle=.true.)
     end function log_edit_toggle_header
 
@@ -1988,6 +2207,7 @@ contains
         type(handle_type) :: here, rbeg, rend
         type(status_type) :: st
         logical :: found, tog, narrowed
+
         tog = .false.
         if (present(toggle)) tog = toggle
         val = .true.
@@ -1999,14 +2219,17 @@ contains
         rend = marker_at(buffers(cur)%zv, .true.)
         call rfc822_goto_eoh(status)
         if (status%ok()) call narrow_to_region(point_min(), point(), status)
+
         if (status%ok()) then
             call goto_char(point_min())
             call re_search_forward("^"//header//":"//LOG_EDIT_HEADER_CONTENTS_REGEXP, found, status, &
                                    noerror=SEARCH_NOERROR)
         end if
+
         if (status%ok()) then
             if (found) then
                 val = .not. (tog .and. match_string(1) == value)
+
                 if (val) then
                     call replace_match(make_header_line(header, value), status, fixedcase=.true., literal=.true.)
                 else
@@ -2016,18 +2239,23 @@ contains
                 call insert_header_line(header, status, value)
             end if
         end if
+
         call widen()
+
         if (narrowed) then
             call narrow_to_region(release(rbeg), release(rend), st)
         else
             call free_marker(rbeg, st)
             call free_marker(rend, st)
         end if
+
         if (status%ok()) call rfc822_goto_eoh(status)
         if (status%ok()) call delete_horizontal_space(.false., status)
+
         if (status%ok()) then
             if (.not. looking_at(achar(10), status)) call insert(achar(10), status)
         end if
+
         call goto_char(release(here))
     end function log_edit_set_header
 
@@ -2055,22 +2283,27 @@ contains
         type(status_type) :: st
         logical :: has_summary, found, saved_case
         integer :: k
+
         status = status_type()
         allocate (res(0))
         has_summary = .false.
+
         do k = 1, size(headers)
             if (headers(k)%name == "Summary") has_summary = .true.
         end do
+
         if (has_summary) then
             all = headers
         else
             allocate (all(size(headers) + 1))
             all(1)%name = "Summary"
             all(1)%kind = LOG_EDIT_HEADER_SUMMARY
+
             do k = 1, size(headers)
                 all(k + 1) = headers(k)
             end do
         end if
+
         old = current_buffer()
         call get_buffer_create(generate_new_buffer_name(" *temp*"), temp, status, inhibit_buffer_hooks=.true.)
         if (.not. status%ok()) return
@@ -2078,6 +2311,7 @@ contains
         if (.not. status%ok()) return
         call erase_buffer(status)
         saved_case = case_fold_search%value
+
         body: block
             call insert(comment, status)
             if (.not. status%ok()) exit body
@@ -2085,8 +2319,10 @@ contains
             if (.not. status%ok()) exit body
             call narrow_to_region(point_min(), point(), status)
             case_fold_search = .true.
+
             do k = 1, size(all)
                 call goto_char(point_min())
+
                 do
                     call re_search_forward("^"//all(k)%name//":"//LOG_EDIT_HEADER_CONTENTS_REGEXP, found, status, &
                                            noerror=SEARCH_NOERROR)
@@ -2095,6 +2331,7 @@ contains
                     txt = match_string(1)
                     call replace_match("", status, fixedcase=.true., literal=.true.)
                     if (.not. status%ok()) exit body
+
                     select case (all(k)%kind)
                     case (LOG_EDIT_HEADER_SUMMARY)
                         summary = txt
@@ -2111,28 +2348,36 @@ contains
                     end select
                 end do
             end do
+
             ! Remove header separator if the header is empty.
             call widen()
             call goto_char(point_min())
+
             if (looking_at("\([ "//achar(9)//"]*"//achar(10)//"\)+", status)) then
                 call delete_region(match_beginning(0, status), match_end(0, status), status)
                 if (.not. status%ok()) exit body
             end if
+
             if (allocated(summary)) then
                 call insert(summary//achar(10)//achar(10), status)
                 if (.not. status%ok()) exit body
             end if
+
             msg = buffer_string()
         end block body
+
         case_fold_search = saved_case
         call set_buffer(old, st)
         call kill_buffer(temp, st)
         if (.not. allocated(msg)) msg = ""
         call move_alloc(res, args)
+
     contains
+
         function cmdarg_of(h) result(s)
             type(log_edit_header_type), intent(in) :: h
             character(len=:), allocatable :: s
+
             if (allocated(h%cmdarg)) then
                 s = h%cmdarg
             else
@@ -2151,6 +2396,7 @@ contains
         type(handle_type) :: here
         integer(int64) :: pt, moved, shortage
         logical :: on
+
         on = log_edit_toggle_header("Amend", "yes", status)
         if (.not. status%ok() .or. .not. on) return
         call goto_char(point_max())
@@ -2162,6 +2408,7 @@ contains
         if (.not. status%ok()) return
         ! (save-excursion ...)
         here = marker_at(point())
+
         body: block
             call rfc822_goto_eoh(status)
             if (.not. status%ok()) exit body
@@ -2169,58 +2416,67 @@ contains
             pt = point()
             if (forward_line(1_int64) /= 0) exit body
             if (.not. looking_at(achar(10)//"\|\'", status)) exit body
+
             if (bolp()) then
                 call buffer_substring(pt, point() - 1, summary, status)
             else
                 call buffer_substring(pt, point(), summary, status)
             end if
+
             if (.not. status%ok()) exit body
             moved = skip_chars_forward(" "//achar(10), status)
             call delete_region(pt, point(), status)
             if (.not. status%ok()) exit body
             on = log_edit_set_header("Summary", summary, status)
         end block body
+
         call goto_char(release(here))
     end subroutine log_edit_toggle_amend
 
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
-
     recursive subroutine cmd_log_edit_done(status)
         type(status_type), intent(out) :: status
+
         call log_edit_done(status)
     end subroutine cmd_log_edit_done
 
     recursive subroutine cmd_log_edit_insert_changelog(status)
         use lisp_fm, only: nilp
         type(status_type), intent(out) :: status
+
         call log_edit_insert_changelog(status,.not. nilp(current_prefix_arg))
     end subroutine cmd_log_edit_insert_changelog
 
     recursive subroutine cmd_log_edit_show_diff(status)
         type(status_type), intent(out) :: status
+
         call log_edit_show_diff(status)
     end subroutine cmd_log_edit_show_diff
 
     recursive subroutine cmd_log_edit_show_files(status)
         type(status_type), intent(out) :: status
+
         call log_edit_show_files(status)
     end subroutine cmd_log_edit_show_files
 
     recursive subroutine cmd_log_edit_kill_buffer(status)
         type(status_type), intent(out) :: status
+
         call log_edit_kill_buffer(status)
     end subroutine cmd_log_edit_kill_buffer
 
     recursive subroutine cmd_log_edit_previous_comment(status)
         type(status_type), intent(out) :: status
+
         if (read_only(status)) return
         call log_edit_previous_comment(int(prefix_numeric_value(current_prefix_arg)), status)
     end subroutine cmd_log_edit_previous_comment
 
     recursive subroutine cmd_log_edit_next_comment(status)
         type(status_type), intent(out) :: status
+
         if (read_only(status)) return
         call log_edit_next_comment(int(prefix_numeric_value(current_prefix_arg)), status)
     end subroutine cmd_log_edit_next_comment
@@ -2230,6 +2486,7 @@ contains
     logical function read_only(status)
         use error_fm, only: FM_BUFFER_READ_ONLY
         type(status_type), intent(out) :: status
+
         status = status_type()
         read_only = buffers(cur)%read_only
         if (read_only) call set_error(status, FM_BUFFER_READ_ONLY, buffers(cur)%name)
@@ -2239,6 +2496,7 @@ contains
     recursive subroutine read_comment_substring(str, status)
         character(len=:), allocatable, intent(out) :: str
         type(status_type), intent(out) :: status
+
         if (.not. allocated(last_comment_match)) last_comment_match = ""
         call read_string(format_prompt("Comment substring", last_comment_match), str, status, &
                          default=last_comment_match)
@@ -2247,6 +2505,7 @@ contains
     recursive subroutine cmd_log_edit_comment_search_backward(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: str
+
         call read_comment_substring(str, status)
         if (status%ok()) call log_edit_comment_search_backward(str, status)
     end subroutine cmd_log_edit_comment_search_backward
@@ -2254,52 +2513,60 @@ contains
     recursive subroutine cmd_log_edit_comment_search_forward(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: str
+
         call read_comment_substring(str, status)
         if (status%ok()) call log_edit_comment_search_forward(str, status)
     end subroutine cmd_log_edit_comment_search_forward
 
     recursive subroutine cmd_log_edit_mode_help(status)
         type(status_type), intent(out) :: status
+
         call log_edit_mode_help(status)
     end subroutine cmd_log_edit_mode_help
 
     recursive subroutine cmd_log_edit_insert_message_template(status)
         type(status_type), intent(out) :: status
+
         call log_edit_insert_message_template(status, interactive=.true.)
     end subroutine cmd_log_edit_insert_message_template
 
     recursive subroutine cmd_log_edit_insert_cvs_template(status)
         type(status_type), intent(out) :: status
+
         call log_edit_insert_cvs_template(status, interactive=.true.)
     end subroutine cmd_log_edit_insert_cvs_template
 
     recursive subroutine cmd_log_edit_insert_cvs_rcstemplate(status)
         type(status_type), intent(out) :: status
+
         call log_edit_insert_cvs_rcstemplate(status, interactive=.true.)
     end subroutine cmd_log_edit_insert_cvs_rcstemplate
 
     recursive subroutine cmd_log_edit_insert_filenames(status)
         type(status_type), intent(out) :: status
+
         call log_edit_insert_filenames(status)
     end subroutine cmd_log_edit_insert_filenames
 
     recursive subroutine cmd_log_edit_insert_filenames_without_changelog(status)
         type(status_type), intent(out) :: status
+
         call log_edit_insert_filenames_without_changelog(status)
     end subroutine cmd_log_edit_insert_filenames_without_changelog
 
     recursive subroutine cmd_log_edit_diff_fileset(status)
         type(status_type), intent(out) :: status
+
         call log_edit_diff_fileset(status)
     end subroutine cmd_log_edit_diff_fileset
 
     ! ------------------------------------------------------------------
     ! Definitions
     ! ------------------------------------------------------------------
-
     !> The faces of log-edit.el.
     subroutine define_faces()
         type(named_face_type), pointer :: f
+
         f => log_edit_summary
         call f%define("log_edit_summary", "Face for the summary in `log_edit_mode' buffers.")
         call f%spec_entry(display_when(), face_attrs(inherit="font_lock_function_name_face"))
@@ -2313,6 +2580,7 @@ contains
         call f%define("log_edit_unknown_header", "Face for unknown headers in `log_edit_mode' buffers.")
         call f%spec_entry(display_when(), face_attrs(inherit="font_lock_comment_face"))
     end subroutine define_faces
+
     ! Insert FUNC_NAMES, following ChangeLog formatting.
     ! Port of log-edit.el:log-edit--insert-filled-defuns.
     recursive subroutine log_edit_insert_filled_defuns(func_names, status)
@@ -2324,27 +2592,34 @@ contains
         integer(int64) :: fill
         integer :: c
         integer :: i
+
         status = status_type()
+
         if (size(func_names) == 0) then
             call insert(":", status)
             return
         end if
+
         fill = fill_column%value
         ! Insert a space unless this list of defun names is being
         ! inserted at the start of a line or after a space character.
         call char_before(c, found)
+
         if (.not. (found .and. (c == 10 .or. c == 32)) .and. .not. current_column() > fill) then
             call insert(" ", status)
             if (.not. status%ok()) return
         end if
+
         inside_paren_pair = .false.
         first_line = .true.
         ! Now insert the functions names one by one, inserting newlines
         ! as appropriate.
         i = 1
+
         do while (i <= size(func_names))
             associate (name => func_names(i)%s)
                 more = i < size(func_names)
+
                 ! If inserting `name' after preexisting text in the first
                 ! line would overflow the fill column, place it on its own
                 ! line.
@@ -2388,10 +2663,12 @@ contains
                     call insert("("//name//", ", status)
                 end if
             end associate
+
             if (.not. status%ok()) return
             first_line = .false.
             i = i + 1
         end do
+
         ! Close any open list of defuns.
         if (inside_paren_pair) then
             call delete_char(-2_int64, status)
@@ -2419,32 +2696,39 @@ contains
         logical :: found
         logical :: have_defuns, have_space, saved_indent
         type(status_type) :: st
+
         status = status_type()
         done = .false.
         opoint = marker_at(point())
         call log_edit_changelog_paragraph(beg, end)
+
         if (beg == end) then
             ! Not a ChangeLog entry, fill as normal.
             call goto_char(release(opoint))
             return
         end if
+
         end_marker = marker_at(end)
         call goto_char(beg)
+
         do
             ! Match a regexp against the next ChangeLog entry.
             ! `defuns_beg' will be the end of the file name,
             ! which marks the beginning of the list of defuns.
             have_defuns = .false.
             e = mpos(end_marker)
+
             if (beg < mpos(end_marker)) then
                 call re_search_forward("\(?1:"//change_log_unindented_file_names_re//"\)\|^\(?1:\)[[:blank:]]*(", &
                                        found, st, bound=mpos(end_marker), noerror=SEARCH_NOERROR)
+
                 if (found) then
                     have_defuns = .true.
                     defuns_beg = marker_at(match_end(1, st))
                     e = match_beginning(0, st)
                 end if
             end if
+
             ! Fill the intervening prose between the end of the
             ! last match and the beginning of the current match.
             saved_indent = fill_indent_according_to_mode
@@ -2452,6 +2736,7 @@ contains
             call goto_char(beg)
             b = line_beginning_position()
             have_space = .false.
+
             if (line_end_position() <= e) then
                 ! Replace space characters within parentheses
                 ! that resemble ChangeLog defun names between BEG
@@ -2469,24 +2754,30 @@ contains
                 ! character.
                 call re_search_forward("^\([[:blank:]]*\|\* .*[[:blank:]]\)(.*\([[:space:]]\).*):", found, st, &
                                        bound=e, noerror=SEARCH_NOERROR)
+
                 if (found) then
                     have_space = .true.
                     space_beg = marker_at(match_beginning(0, st))
                     space_end = marker_at(match_end(0, st))
                     call replace_regexp_in_region("[[:space:]]", NBSP, n, status, mpos(space_beg), mpos(space_end))
                 end if
+
                 call goto_char(here)
                 if (status%ok()) call fill_region(b, e, status, justify)
             end if
+
             fill_indent_according_to_mode = saved_indent
+
             ! Restore the spaces replaced by NBSPs.
             if (have_space) then
                 if (status%ok()) then
                     call replace_string_in_region(NBSP, " ", n, status, mpos(space_beg), mpos(space_end))
                 end if
+
                 n = release(space_beg)
                 n = release(space_end)
             end if
+
             if (.not. status%ok() .or. .not. have_defuns) exit
             call goto_char(mpos(defuns_beg))
             call change_log_read_defuns(defuns, status, mpos(end_marker))
@@ -2496,6 +2787,7 @@ contains
             if (.not. status%ok()) exit
             beg = point()
         end do
+
         n = release(end_marker)
         call goto_char(release(opoint))
         if (status%ok()) done = .true.
@@ -2508,11 +2800,13 @@ contains
     !> non-interactive call, for `log_edit_done_hook').
     recursive subroutine log_edit_done_strip_cvs_lines(status)
         type(status_type), intent(out) :: status
+
         call strip_cvs_lines(.false., status)
     end subroutine log_edit_done_strip_cvs_lines
 
     recursive subroutine cmd_log_edit_done_strip_cvs_lines(status)
         type(status_type), intent(out) :: status
+
         call strip_cvs_lines(.true., status)
     end subroutine cmd_log_edit_done_strip_cvs_lines
 
@@ -2525,6 +2819,7 @@ contains
         integer(int64) :: count
         logical :: cvs, saved_fold
         integer :: b
+
         status = status_type()
         cvs = interactive
         b = log_edit_vc_backend()
@@ -2545,6 +2840,7 @@ contains
     !> commands.
     subroutine syms_of_log_edit()
         type(status_type) :: st
+
         call define_faces()
         if (log_edit_comment_ring%size() == 0) call log_edit_comment_ring%make(LOG_EDIT_MAXIMUM_COMMENT_RING_SIZE)
         if (.not. allocated(last_comment_match)) last_comment_match = ""
@@ -2579,24 +2875,28 @@ contains
         call keymap_set(log_edit_mode_map, "M-r", "log_edit_comment_search_backward", st)
         call keymap_set(log_edit_mode_map, "M-s", "log_edit_comment_search_forward", st)
         call keymap_set(log_edit_mode_map, "C-c ?", "log_edit_mode_help", st)
+
         if (log_edit_hook%empty()) then
             call log_edit_hook%add(log_edit_show_files_hook)
             call log_edit_hook%add(log_edit_insert_changelog_hook)
             call log_edit_hook%add(hook_insert_cvs_template)
             call log_edit_hook%add(hook_insert_message_template)
         end if
+
         call add_local_variables_killer(kill_log_edit_locals)
     end subroutine syms_of_log_edit
 
     ! log-edit-insert-changelog on `log_edit_hook'.
     recursive subroutine log_edit_insert_changelog_hook(status)
         type(status_type), intent(out) :: status
+
         call log_edit_insert_changelog(status)
     end subroutine log_edit_insert_changelog_hook
 
     ! log-edit-show-files on `log_edit_hook'.
     recursive subroutine log_edit_show_files_hook(status)
         type(status_type), intent(out) :: status
+
         call log_edit_show_files(status)
     end subroutine log_edit_show_files_hook
 end module log_edit_fm

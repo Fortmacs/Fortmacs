@@ -457,8 +457,12 @@ ported. Their keys are unbound, as test_bindings_fm checks:
   `intent` on every dummy, named `end` statements, one module per file,
   FORD `!>` comments on public entities, 4-space indentation; but 132
   columns (stdlib's hard limit) rather than 80.
-- Blank lines separate procedures (internal ones too) and module-level
-  items; there are none inside a procedure body.
+- Blank lines as CLAUDE.md sets them (chosen with the user, 2026-10-29):
+  in procedure bodies around block constructs and after the declarations,
+  one around `contains` and between procedures; module specification
+  parts, interface blocks and type definitions keep theirs.
+  `tools/blank-lines.awk` applies them (also to the generated files), and
+  `tools/check.sh` fixes or checks them.
 - Enforced by `tools/check.sh` (and so CI): fprettify for layout
   (`.fprettify.rc`), Fortitude 0.9.2 with its default rules for the rest
   (`[extra.fortitude.check]` in fpm.toml). Notable rules: double-quoted
@@ -469,6 +473,9 @@ ported. Their keys are unbound, as test_bindings_fm checks:
 
 ## Conventions learned while porting
 
+- A pull request opened through the GitHub API starts no CI run; pushes
+  to it do.  Merge the current main into a branch right before opening its
+  PR, push that merge after opening it, and check that the run started.
 - When a .el and a .c file share a base name, the .c file keeps the plain
   name and the .el module gets a descriptive one, noted in its status row:
   lisp.el is `lisp_cmds_fm` (lisp.h is `lisp_fm`), dired.el `dired_mode_fm`
@@ -954,6 +961,7 @@ Each lists the default being used meanwhile.
 
 ## Session log
 
+- 2026-10-29 — Blank lines (`blank-lines`, based on main; chosen with the user): CLAUDE.md sets where blank lines go (around block constructs and after the declarations in procedure bodies, one around `contains` and between procedures); `tools/blank-lines.awk` applies them, `tools/check.sh` fixes or checks them, and the generators run it on their output; the whole codebase and the docs/syntax.html example are reformatted (blank lines only).  Conventions: a PR opened through the API starts no CI run.
 - 2026-10-29 — Showing what is asked for (`claude-md-show-requests`, based on main): CLAUDE.md asks that anything the user asks to see is shown in full in the reply at once, before other work resumes, and that the README progress bar and percentages are updated before every push (not only once per PR).
 - 2026-10-29 — The Info reader (roadmap step 34a, `step34-info`, based on main; step 34 is now four PRs, as recorded in the roadmap): info_fm (info.el: `info` C-h i, `info-other-window` C-h 4 i, `info-emacs-manual` C-h r, finding Info files and their compressed variants in `info_directory_list`, tag tables and split files, the directory node merged from the `dir` files, Info mode and its node commands n, p, u, l, r, d, f, m, g, t, <, >, ], [, SPC, DEL, TAB, RET, 1–9, w, h, ?).  Design decision "The manuals" (chosen with the user): an awk converter in tools/ for the Texinfo manuals, with "Deferred in Fortmacs" notes (step 34d).  The mode line shows a buffer's `mode_line_buffer_identification` segments (decision "Header lines as typed segments"); config_fm gains `configure_info_directory` (set at startup from the installation), files_fm `file_name_sans_extension`; `kill_buffer` is recursive (conventions).  Ports test-info-urls of info-tests.el; own tests on test/info-resources.  Next: 34b (the display of nodes).
 - 2026-10-29 — Name clashes (`org-move-naming-rule`, based on main): design decision "Name clashes" (chosen with the user, also in CLAUDE.md) replaces "Names that differ only in case": a variable named like a function takes `_variable` (`user_full_name_variable`, `deactivate_mark_variable`, `truncate_string_ellipsis_variable`, `grep_find_ignored_files_variable`, which had a `v` prefix), the capitalized twin of a name `_command` (`buffer_menu_other_window_command`, was `buffer_menu_mode_other_window`).  Recorded from steps 36a–c: the Ibuffer sorting mode `filename/process`, `/ SPC`'s upstream error, the predicate filter's display and the unbound `/ e` (design decision "Ibuffer filters"); helpers only a submodule calls are public (conventions).  Next: 34 (the Info reader) or 38 (Comint and shell, the rest).

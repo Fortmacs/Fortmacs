@@ -47,6 +47,7 @@ contains
 
     subroutine collect_apropos_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("apropos-tests-words-to-regexp-1", test_words_to_regexp_1), &
                     new_unittest("apropos-tests-words-to-regexp-2", test_words_to_regexp_2), &
@@ -71,6 +72,7 @@ contains
         character(len=*), intent(in), optional :: b, c
         type(apropos_word_type), allocatable :: w(:)
         integer :: n
+
         n = 1
         if (present(b)) n = 2
         if (present(c)) n = 3
@@ -83,12 +85,14 @@ contains
     logical function matches(re, s)
         character(len=*), intent(in) :: re, s
         type(status_type) :: st
+
         matches = string_match(re, s, st) > 0
     end function matches
 
     subroutine fresh()
         type(handle_type) :: buf
         type(status_type) :: st
+
         call init_bindings()
         call discard_input()
         call get_buffer_create("*scratch*", buf, st)
@@ -104,6 +108,7 @@ contains
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
+
         call key_parse(keys, evs, st)
         call unread_command_events(evs)
     end subroutine type_keys
@@ -113,9 +118,12 @@ contains
         character(len=*), intent(in) :: text
         character(len=:), allocatable :: keys
         integer :: k
+
         keys = ""
+
         do k = 1, len(text)
             if (k > 1) keys = keys//" "
+
             if (text(k:k) == " ") then
                 keys = keys//"SPC"
             else
@@ -128,6 +136,7 @@ contains
         character(len=:), allocatable :: text
         type(handle_type) :: old
         type(status_type) :: st
+
         old = current_buffer()
         text = "(none)"
         if (.not. buffer_live_p(get_buffer("*Apropos*"))) return
@@ -139,6 +148,7 @@ contains
     subroutine test_words_to_regexp_1(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: re
+
         re = apropos_words_to_regexp(words("foo", "bar"), "baz")
         call check(error, matches(re, "foobazbar") .and. matches(re, "barbazfoo") .and. &
                    .not. matches(re, "foo-bar") .and. .not. matches(re, "foobazbazbar"), re)
@@ -147,6 +157,7 @@ contains
     subroutine test_words_to_regexp_2(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: re
+
         re = apropos_words_to_regexp(words("foo", "bar", "baz"), "-")
         call check(error,.not. matches(re, "foo") .and. .not. matches(re, "foobar") .and. &
                    matches(re, "foo-bar") .and. matches(re, "foo-baz"), re)
@@ -155,6 +166,7 @@ contains
     subroutine test_parse_pattern_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(apropos_word_type), allocatable :: w(:)
+
         w = words("foo")
         call apropos_parse_pattern("", w, .false.)
         call check(error, matches(apropos_regexp, "foo") .and. matches(apropos_regexp, "foo-bar") .and. &
@@ -165,6 +177,7 @@ contains
     subroutine test_parse_pattern_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(apropos_word_type), allocatable :: w(:)
+
         w = words("foo", "bar")
         call apropos_parse_pattern("", w, .false.)
         call check(error, matches(apropos_regexp, "foo-bar") .and. matches(apropos_regexp, "bar-foo") .and. &
@@ -176,6 +189,7 @@ contains
     subroutine test_parse_pattern_3(error)
         type(error_type), allocatable, intent(out) :: error
         type(apropos_word_type), allocatable :: w(:)
+
         w = words("foo", "bar", "baz")
         call apropos_parse_pattern("", w, .false.)
         call check(error, matches(apropos_regexp, "foo-bar") .and. matches(apropos_regexp, "foo-baz") .and. &
@@ -190,6 +204,7 @@ contains
     subroutine test_parse_pattern_regexp(error)
         type(error_type), allocatable, intent(out) :: error
         type(apropos_word_type), allocatable :: w(:)
+
         call apropos_parse_pattern("foo+bar", w, .false.)
         call check(error,.not. matches(apropos_regexp, "fobar") .and. matches(apropos_regexp, "foobar") .and. &
                    matches(apropos_regexp, "fooobar"), apropos_regexp)
@@ -199,6 +214,7 @@ contains
     subroutine test_parse_pattern_synonyms(error)
         type(error_type), allocatable, intent(out) :: error
         type(apropos_word_type), allocatable :: w(:)
+
         w = words("open")
         call apropos_parse_pattern("", w, .false.)
         call check(error, matches(apropos_regexp, "find-file") .and. matches(apropos_regexp, "open-file") .and. &
@@ -209,6 +225,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: str = "Return apropos score for string STR."
         integer(int64), allocatable :: scores(:)
+
         call apropos_calc_scores(str, words("apr"), .true., scores)
         call check(error, size(scores) == 1, "one score")
         if (allocated(error)) return
@@ -231,6 +248,7 @@ contains
     subroutine test_true_hit(error)
         type(error_type), allocatable, intent(out) :: error
         type(apropos_word_type), allocatable :: w(:)
+
         w = words("foo", "bar")
         call check(error,.not. apropos_true_hit("foo", w) .and. apropos_true_hit("foo bar", w) .and. &
                    apropos_true_hit("foo bar baz", w))
@@ -242,6 +260,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=:), allocatable :: text
+
         call fresh()
         call type_keys("C-h a "//spelled("line kill")//" RET")
         call command_loop(st)
@@ -265,6 +284,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=*), parameter :: LQ = char(226)//char(128)//char(152), RQ = char(226)//char(128)//char(153)
+
         call fresh()
         call type_keys("C-h a "//spelled("zzqx")//" RET")
         call command_loop(st)
@@ -280,6 +300,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=:), allocatable :: text
+
         call fresh()
         call type_keys("C-h u "//spelled("fill_column")//" RET")
         call command_loop(st)
@@ -303,6 +324,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=:), allocatable :: text
+
         call fresh()
         call type_keys("C-h d "//spelled("upcase initial")//" RET")
         call command_loop(st)
@@ -323,6 +345,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: text
         type(handle_type) :: old
+
         call fresh()
         call type_keys("C-h a "//spelled("kill_whole_line")//" RET C-x o")
         call command_loop(st)

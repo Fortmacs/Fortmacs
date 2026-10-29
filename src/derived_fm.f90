@@ -120,8 +120,10 @@ contains
         character(len=*), intent(in) :: name
         type(major_mode_type), pointer :: p
         integer :: i
+
         p => null()
         if (.not. allocated(defined)) return
+
         do i = 1, size(defined)
             if (trim(defined(i)%p%name) == name) then
                 p => defined(i)%p
@@ -147,36 +149,46 @@ contains
         type(major_mode_ref_type), allocatable :: grown(:)
         type(status_type) :: st
         integer :: n
+
         self%name = name
         self%mode_name = mode_name
         self%run => run
         self%hook => null()
+
         if (present(hook)) then
             self%hook => hook
             if (len_trim(hook%name) == 0) hook%name = name//"_hook"
         end if
+
         if (present(syntax_table)) self%syntax_table = syntax_table
+
         if (present(abbrev_table)) then
             self%abbrev_table => abbrev_table
             call abbrev_table%define_table(trim(name)//"_abbrev_table")
         end if
+
         if (.not. keymap_live_p(self%map)) call make_sparse_keymap(self%map)
         self%parent => null()
+
         if (present(parent)) then
             self%parent => parent
+
             if (keymap_live_p(parent%map) .and. .not. keymap_live_p(keymap_parent(self%map))) then
                 call set_keymap_parent(self%map, parent%map, st)
             end if
         end if
+
         if (associated(major_mode_named(name))) return
         if (.not. allocated(defined)) allocate (defined(0))
         n = size(defined)
         allocate (grown(n + 1))
         grown(1:n) = defined
+
         select type (self)
         type is (major_mode_type)
             grown(n + 1)%p => self
         end select
+
         call move_alloc(grown, defined)
     end subroutine major_mode_define
 
@@ -191,12 +203,15 @@ contains
         logical, intent(out) :: saved
         type(status_type), intent(out) :: status
         type(abbrev_table_type), pointer :: local_table
+
         status = status_type()
         saved = .false.
         if (cur == 0) return
         call delay_mode_hooks_begin(saved)
+
         if (associated(self%parent)) then
             if (associated(self%parent%run)) call self%parent%run(status)
+
             if (.not. status%ok()) then
                 call delay_mode_hooks_end(saved)
                 return
@@ -204,14 +219,18 @@ contains
         else
             call kill_all_local_variables()
         end if
+
         buffers(cur)%major_mode = trim(self%name)
         buffers(cur)%mode_name = self%mode_name
+
         ! Identify special modes.
         if (associated(self%parent)) then
             if (self%parent%special) self%special = .true.
         end if
+
         if (associated(self%parent) .and. associated(self%abbrev_table)) then
             local_table => local_abbrev_table()
+
             if (.not. allocated(self%abbrev_table%parents)) then
                 ! This can happen if the major mode defines the abbrev-table
                 ! to be its parent's.
@@ -220,6 +239,7 @@ contains
                 if (.not. associated(self%abbrev_table, local_table)) call self%abbrev_table%add_parent(local_table)
             end if
         end if
+
         call use_local_map(self%map, status)
         if (self%syntax_table%index /= 0) buffers(cur)%syntax_table = self%syntax_table
         if (associated(self%abbrev_table)) call set_local_abbrev_table(self%abbrev_table)
@@ -231,7 +251,9 @@ contains
         class(major_mode_type), intent(in), target :: self
         logical, intent(in) :: saved
         type(status_type), intent(out) :: status
+
         call delay_mode_hooks_end(saved)
+
         select type (self)
         type is (major_mode_type)
             if (associated(self%hook)) then
@@ -249,17 +271,22 @@ contains
         type(major_mode_type), intent(in), target :: mode
         type(major_mode_type), pointer :: m
         integer :: depth
+
         derived = .false.
+
         select type (self)
         type is (major_mode_type)
             m => self
         end select
+
         do depth = 1, 100
             if (.not. associated(m)) return
+
             if (associated(m, mode)) then
                 derived = .true.
                 return
             end if
+
             m => m%parent
         end do
     end function major_mode_derived_from
@@ -271,20 +298,26 @@ contains
         character(len=*), intent(in) :: mode, modes(:)
         type(major_mode_type), pointer :: m
         integer :: i, depth
+
         derived = .false.
+
         do i = 1, size(modes)
             if (mode == trim(modes(i))) derived = .true.
         end do
+
         if (derived) return
         m => major_mode_named(mode)
+
         do depth = 1, 100
             if (.not. associated(m)) return
+
             do i = 1, size(modes)
                 if (trim(m%name) == trim(modes(i))) then
                     derived = .true.
                     return
                 end if
             end do
+
             m => m%parent
         end do
     end function provided_mode_derived_p_names
@@ -294,6 +327,7 @@ contains
     !> mode).
     logical function provided_mode_derived_p_name(mode, parent) result(derived)
         character(len=*), intent(in) :: mode, parent
+
         derived = provided_mode_derived_p_names(mode, [parent])
     end function provided_mode_derived_p_name
 
@@ -302,6 +336,7 @@ contains
     logical function derived_mode_p_object(mode) result(derived)
         type(major_mode_type), intent(in), target :: mode
         type(major_mode_type), pointer :: m
+
         derived = .false.
         if (cur == 0) return
         if (.not. allocated(buffers(cur)%major_mode)) return
@@ -313,6 +348,7 @@ contains
     !> MODES, given by name.  Port of subr.el:derived-mode-p.
     logical function derived_mode_p_names(modes) result(derived)
         character(len=*), intent(in) :: modes(:)
+
         derived = .false.
         if (cur == 0) return
         if (.not. allocated(buffers(cur)%major_mode)) return
@@ -323,6 +359,7 @@ contains
     !> named `mode'.  Port of subr.el:derived-mode-p (MODES a single mode).
     logical function derived_mode_p_name(mode) result(derived)
         character(len=*), intent(in) :: mode
+
         derived = derived_mode_p_names([mode])
     end function derived_mode_p_name
 end module derived_fm

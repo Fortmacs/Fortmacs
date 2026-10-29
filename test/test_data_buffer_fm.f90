@@ -50,6 +50,7 @@ contains
 
     subroutine collect_data_buffer_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("binding-test-manual", test_manual), &
                     new_unittest("binding-test-setq-default", test_setq_default), &
@@ -72,6 +73,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type), intent(out) :: a, b
         type(status_type) :: st
+
         call get_buffer_create("binding-test-A", a, st)
         call get_buffer_create("binding-test-B", b, st)
         call set(sym("binding-test-always-local"), sym("always"), st)
@@ -87,6 +89,7 @@ contains
     subroutine teardown(a, b)
         type(handle_type), intent(in) :: a, b
         type(status_type) :: st
+
         call kill_buffer(a, st)
         call kill_buffer(b, st)
     end subroutine teardown
@@ -97,6 +100,7 @@ contains
         character(len=*), intent(in) :: name, expected
         type(value_type) :: v
         type(status_type) :: st
+
         if (allocated(error)) return
         call symbol_value(sym(name), v, st)
         call check(error, st%ok(), name//" is void")
@@ -109,6 +113,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b
         type(status_type) :: st
+
         call setup(error, a, b)
         if (allocated(error)) return
         call check_value(error, "binding-test-some-local", "local")
@@ -126,6 +131,7 @@ contains
         type(handle_type) :: a, b
         type(status_type) :: st
         type(value_type) :: v
+
         call setup(error, a, b)
         if (allocated(error)) return
         call set_default(sym("binding-test-some-local"), sym("new-default"), st)
@@ -145,6 +151,7 @@ contains
         type(handle_type) :: a, b
         type(status_type) :: st
         logical :: bound
+
         call setup(error, a, b)
         if (allocated(error)) return
         call makunbound(sym("binding-test-some-local"), st)
@@ -167,6 +174,7 @@ contains
         type(handle_type) :: a, b
         type(status_type) :: st
         type(value_type) :: v
+
         call setup(error, a, b)
         if (allocated(error)) return
         call check(error, local_variable_if_set_p(sym("binding-test-always-local")), "local if set")
@@ -194,6 +202,7 @@ contains
         type(status_type) :: st
         type(value_type) :: v
         integer(int64) :: saved
+
         call setup(error, a, b)
         if (allocated(error)) return
         saved = fill_column%value
@@ -230,6 +239,7 @@ contains
         type(handle_type) :: a, b
         type(status_type) :: st
         type(value_type) :: v
+
         call setup(error, a, b)
         if (allocated(error)) return
         call set(sym("case_symbols_as_words"), t_value(), st)
@@ -255,6 +265,7 @@ contains
         type(handle_type) :: a, b
         type(status_type) :: st
         type(value_type) :: v
+
         call setup(error, a, b)
         if (allocated(error)) return
         call set(sym("auto_fill_function"), sym("do_auto_fill"), st)
@@ -288,6 +299,7 @@ contains
         type(handle_type) :: a, b
         type(status_type) :: st
         type(value_type) :: v
+
         call setup(error, a, b)
         if (allocated(error)) return
         call setq_local("binding-test-permanent", sym("kept"), st)
@@ -313,6 +325,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b
         type(value_type) :: alist, elt
+
         call setup(error, a, b)
         if (allocated(error)) return
         alist = buffer_local_variables()
@@ -334,6 +347,7 @@ contains
         type(handle_type) :: a, b
         type(status_type) :: st
         type(value_type) :: v
+
         call setup(error, a, b)
         if (allocated(error)) return
         call kill_buffer(a, st)
@@ -350,6 +364,7 @@ contains
         type(status_type) :: st
         type(value_type) :: v
         logical :: saved
+
         saved = case_fold_search%value
         call set_default(sym("case_fold_search"), sym("data-test"), st)
         call symbol_value(sym("case_fold_search"), v, st)
@@ -377,6 +392,7 @@ contains
         type(status_type) :: st
         type(value_type) :: v
         logical :: bound
+
         call setup(error, a, b)
         if (allocated(error)) return
         call makunbound(sym("fill_column"), st)

@@ -62,6 +62,7 @@ contains
     !> terminal's coding system is UTF-8, so U+2026 is displayable).
     function truncate_string_ellipsis() result(ellipsis)
         character(len=:), allocatable :: ellipsis
+
         if (allocated(truncate_string_ellipsis_variable)) then
             ellipsis = truncate_string_ellipsis_variable
         else
@@ -77,9 +78,11 @@ contains
         integer(int64) :: i
         integer(int32) :: c, clen
         integer :: n
+
         allocate (widths(len(str)), starts(len(str) + 1))
         n = 0
         i = 1
+
         do while (i <= len(str, kind=int64))
             call string_char_and_length(str, i, c, clen)
             n = n + 1
@@ -87,6 +90,7 @@ contains
             starts(n) = i
             i = i + clen
         end do
+
         starts(n + 1) = len(str, kind=int64) + 1
         widths = widths(1:n)
         starts = starts(1:n + 1)
@@ -95,7 +99,9 @@ contains
     pure integer function total(widths) result(t)
         integer, intent(in) :: widths(:)
         integer :: k
+
         t = 0
+
         do k = 1, size(widths)
             t = t + widths(k)
         end do
@@ -116,6 +122,7 @@ contains
         integer :: str_len, str_width, ellipsis_width, column, last_column, last_idx, end_column
         integer, allocatable :: ew(:)
         integer(int64), allocatable :: es(:)
+
         call decode(str, widths, starts)
         str_len = size(widths)
         str_width = total(widths)
@@ -129,30 +136,38 @@ contains
         tail = ""
         done = .false.
         from_idx = 0
+
         do while (column < start_column)
             if (idx >= str_len) exit
             idx = idx + 1
             column = column + widths(idx)
         end do
+
         if (column < start_column) then
             done = .true.
+
             if (len(padding) > 0) then
                 result = repeat(padding, max(0, end_column))
             else
                 result = ""
             end if
+
             return
         end if
+
         if (len(padding) > 0 .and. column > start_column) head = repeat(padding, column - start_column)
         from_idx = idx
+
         if (end_column >= column) then
             if (end_column < str_width .and. str_width > ellipsis_width) then
                 end_column = end_column - ellipsis_width
             else
                 ellipsis = ""
             end if
+
             last_column = column
             last_idx = idx
+
             do while (column < end_column)
                 if (idx >= str_len) exit
                 last_column = column
@@ -160,10 +175,12 @@ contains
                 idx = idx + 1
                 column = column + widths(idx)
             end do
+
             if (column > end_column) then
                 column = last_column
                 idx = last_idx
             end if
+
             if (len(padding) > 0 .and. column < end_column) tail = repeat(padding, end_column - column)
         end if
     end subroutine truncate_parts
@@ -175,7 +192,9 @@ contains
         character(len=:), allocatable :: s
         integer, allocatable :: widths(:)
         integer(int64), allocatable :: starts(:)
+
         call decode(str, widths, starts)
+
         if (to <= from) then
             s = ""
         else
@@ -223,8 +242,10 @@ contains
         character(len=:), allocatable :: head, tail, ell, result
         integer :: from_idx, idx
         logical :: done
+
         call truncate_parts(str, end_column, opt_int(start_column), opt_str(padding), &
                             ellipsis_of(ellipsis, default_ellipsis), head, from_idx, idx, tail, ell, done, result)
+
         if (done) then
             s = result
         else
@@ -252,8 +273,10 @@ contains
         logical :: done
         integer, allocatable :: widths(:)
         integer(int64), allocatable :: starts(:)
+
         call truncate_parts(str, end_column, opt_int(start_column), opt_str(padding), &
                             ellipsis_of(ellipsis, default_ellipsis), head, from_idx, idx, tail, ell, done, result)
+
         if (done) then
             v = make_string(result)
         else if (len(ell) > 0) then
@@ -271,6 +294,7 @@ contains
 
     integer function opt_int(x)
         integer, intent(in), optional :: x
+
         opt_int = 0
         if (present(x)) opt_int = x
     end function opt_int
@@ -278,6 +302,7 @@ contains
     function opt_str(x) result(s)
         character(len=*), intent(in), optional :: x
         character(len=:), allocatable :: s
+
         s = ""
         if (present(x)) s = x
     end function opt_str
@@ -286,8 +311,10 @@ contains
         character(len=*), intent(in), optional :: ellipsis
         logical, intent(in), optional :: default_ellipsis
         character(len=:), allocatable :: s
+
         s = ""
         if (present(ellipsis)) s = ellipsis
+
         if (present(default_ellipsis)) then
             if (default_ellipsis) s = truncate_string_ellipsis()
         end if

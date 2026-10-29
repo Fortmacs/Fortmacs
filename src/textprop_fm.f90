@@ -93,10 +93,10 @@ contains
     ! ------------------------------------------------------------------
     ! Helpers
     ! ------------------------------------------------------------------
-
     function qsym(name) result(v)
         character(len=*), intent(in) :: name
         type(value_type) :: v
+
         v = make_symbol_ref(intern(name))
     end function qsym
 
@@ -104,6 +104,7 @@ contains
         type(status_type), intent(inout) :: status
         integer(int64), intent(in) :: a, b
         character(len=24) :: sa, sb
+
         write (sa, "(i0)") a
         write (sb, "(i0)") b
         call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(sa)//", "//trim(sb))
@@ -117,13 +118,16 @@ contains
         integer(int64), intent(out) :: s, e
         logical, intent(out) :: nonempty
         type(status_type), intent(out) :: status
+
         s = min(start, end)
         e = max(start, end)
         nonempty = .false.
+
         if (.not. (buffers(cur)%begv <= s .and. e <= buffers(cur)%zv)) then
             call range_error(status, start, end)
             return
         end if
+
         nonempty = s /= e .and. buffers(cur)%begv /= buffers(cur)%zv
     end subroutine validate_range
 
@@ -142,12 +146,15 @@ contains
         type(value_type), intent(out) :: plist
         type(status_type), intent(out) :: status
         type(value_type) :: nil_v
+
         if (nilp(props)) return
+
         if (consp(props)) then
             if (mod(list_length(props), 2_int64) /= 0) then
                 call set_error(status, FM_GENERIC_ERROR, "Odd length text property list")
                 return
             end if
+
             plist = props
         else
             plist = list(props, nil_v)
@@ -159,8 +166,10 @@ contains
         type(value_type), intent(in) :: x, set
         type(value_type), allocatable :: elems(:)
         integer(int64) :: k
+
         memq_p = .false.
         call list_elements(set, elems)
+
         do k = 1, size(elems, kind=int64)
             if (value_eq(elems(k), x)) then
                 memq_p = .true.
@@ -173,6 +182,7 @@ contains
     subroutine text_read_only(status, propval)
         type(status_type), intent(inout) :: status
         type(value_type), intent(in) :: propval
+
         if (stringp(propval)) then
             call set_error(status, FM_TEXT_READ_ONLY, xstring(propval))
         else
@@ -183,7 +193,6 @@ contains
     ! ------------------------------------------------------------------
     ! Per-interval plist edits (textprop.c)
     ! ------------------------------------------------------------------
-
     !> Port of textprop.c:interval_has_all_properties.
     logical function has_all_properties(plist, k)
         type(value_type), intent(in) :: plist
@@ -192,13 +201,16 @@ contains
         type(value_type) :: val
         logical :: found
         integer(int64) :: j
+
         has_all_properties = .false.
         call list_elements(plist, elems)
+
         do j = 1, size(elems, kind=int64) - 1, 2
             call plist_get_eq(buffers(cur)%text%intervals%runs(k)%plist, elems(j), val, found)
             if (.not. found) return
             if (.not. value_eq(val, elems(j + 1))) return
         end do
+
         has_all_properties = .true.
     end function has_all_properties
 
@@ -212,10 +224,13 @@ contains
         type(value_type) :: val
         logical :: found
         integer(int64) :: j
+
         has_some_properties = .false.
         call list_elements(names, elems)
+
         do j = 1, size(elems, kind=int64), step
             call plist_get_eq(buffers(cur)%text%intervals%runs(k)%plist, elems(j), val, found)
+
             if (found) then
                 has_some_properties = .true.
                 return
@@ -233,22 +248,28 @@ contains
         type(value_type), allocatable :: new(:), old(:), grown(:)
         integer(int64) :: j, m
         logical :: found
+
         changed = .false.
         call list_elements(plist, new)
+
         do j = 1, size(new, kind=int64) - 1, 2
             call list_elements(buffers(cur)%text%intervals%runs(k)%plist, old)
             found = .false.
+
             do m = 1, size(old, kind=int64) - 1, 2
                 if (value_eq(old(m), new(j))) then
                     found = .true.
+
                     if (.not. value_eq(old(m + 1), new(j + 1))) then
                         old(m + 1) = new(j + 1)
                         buffers(cur)%text%intervals%runs(k)%plist = make_list(old)
                         changed = .true.
                     end if
+
                     exit
                 end if
             end do
+
             if (.not. found) then
                 grown = [new(j:j + 1), old]
                 buffers(cur)%text%intervals%runs(k)%plist = make_list(grown)
@@ -266,12 +287,15 @@ contains
         logical, intent(out) :: changed
         type(value_type), allocatable :: syms(:), old(:), kept(:)
         integer(int64) :: j, m, n
+
         changed = .false.
         call list_elements(names, syms)
+
         do j = 1, size(syms, kind=int64), step
             call list_elements(buffers(cur)%text%intervals%runs(k)%plist, old)
             allocate (kept(size(old)))
             n = 0
+
             do m = 1, size(old, kind=int64) - 1, 2
                 if (value_eq(old(m), syms(j))) then
                     changed = .true.
@@ -281,6 +305,7 @@ contains
                     n = n + 2
                 end if
             end do
+
             buffers(cur)%text%intervals%runs(k)%plist = make_list(kept(1:n))
             deallocate (kept)
         end do
@@ -289,12 +314,13 @@ contains
     ! ------------------------------------------------------------------
     ! Queries
     ! ------------------------------------------------------------------
-
     !> Index of the interval at `pos', or 0 if there is none (no intervals,
     !> empty accessible region, or `pos' at the end of the text).
     integer(int64) function interval_at(pos)
         integer(int64), intent(in) :: pos
+
         interval_at = 0
+
         associate (b => buffers(cur), iv => buffers(cur)%text%intervals)
             if (iv%n == 0 .or. b%begv == b%zv) return
             interval_at = find_interval(iv, pos)
@@ -309,10 +335,12 @@ contains
         type(value_type), intent(out) :: plist
         type(status_type), intent(out) :: status
         integer(int64) :: k
+
         if (.not. (buffers(cur)%begv <= position .and. position <= buffers(cur)%zv)) then
             call range_error(status, position, position)
             return
         end if
+
         k = interval_at(position)
         if (k > 0) plist = buffers(cur)%text%intervals%runs(k)%plist
     end subroutine text_properties_at
@@ -325,6 +353,7 @@ contains
         type(value_type), intent(out) :: val
         type(status_type), intent(out) :: status
         type(value_type) :: plist
+
         call text_properties_at(position, plist, status)
         if (status%ok()) val = textget(plist, prop)
     end subroutine get_text_property
@@ -332,14 +361,15 @@ contains
     ! ------------------------------------------------------------------
     ! Changing properties
     ! ------------------------------------------------------------------
-
     !> Whether interval K, which was at PREV_POS with PREV_LEN characters
     !> among PREV_N intervals in a buffer of PREV_Z, is still as it was:
     !> a before-change function may have changed the intervals behind our
     !> back (the check after modify_text_properties in textprop.c).
     logical function interval_unchanged(k, prev_n, prev_pos, prev_len, prev_z) result(same)
         integer(int64), intent(in) :: k, prev_n, prev_pos, prev_len, prev_z
+
         same = .false.
+
         associate (iv => buffers(cur)%text%intervals)
             if (iv%n /= prev_n .or. buffers(cur)%text%z /= prev_z) return
             same = iv%runs(k)%position == prev_pos .and. iv%runs(k)%length == prev_len
@@ -357,26 +387,32 @@ contains
         type(value_type) :: plist
         integer(int64) :: s, e, len, k, got, r, prev_n, prev_pos, prev_len, prev_z
         logical :: nonempty, any_change, first_time, done
+
         changed = .false.
         call validate_plist(properties, plist, status)
         if (.not. status%ok() .or. nilp(plist)) return
         first_time = .true.
+
         do
             call validate_range(start, end, s, e, nonempty, status)
             if (.not. status%ok() .or. .not. nonempty) return
             call ensure_intervals()
             done = .false.
+
             associate (iv => buffers(cur)%text%intervals)
                 len = e - s
                 k = find_interval(iv, s)
+
                 ! If this interval already has the properties, skip it.
                 if (has_all_properties(plist, k)) then
                     got = iv%runs(k)%length - (s - iv%runs(k)%position)
+
                     do
                         if (got >= len) then
                             done = .true.
                             exit
                         end if
+
                         len = len - got
                         k = k + 1
                         got = iv%runs(k)%length
@@ -386,12 +422,14 @@ contains
                     call split_interval_right(iv, k, s - iv%runs(k)%position, r)
                     k = r
                 end if
+
                 if (.not. done) then
                     prev_n = iv%n
                     prev_pos = iv%runs(k)%position
                     prev_len = iv%runs(k)%length
                 end if
             end associate
+
             if (done) return
             if (.not. first_time) exit
             prev_z = buffers(cur)%text%z
@@ -401,24 +439,30 @@ contains
             first_time = .false.
             if (interval_unchanged(k, prev_n, prev_pos, prev_len, prev_z)) exit
         end do
+
         changed = .true.
+
         ! At the start of interval K, with LEN chars to go.
         associate (iv => buffers(cur)%text%intervals)
             do
                 if (iv%runs(k)%length >= len) then
                     if (has_all_properties(plist, k)) exit
+
                     if (iv%runs(k)%length > len) then
                         call split_interval_left(iv, k, len, r)
                         k = r
                     end if
+
                     call add_properties(plist, k, any_change)
                     exit
                 end if
+
                 len = len - iv%runs(k)%length
                 call add_properties(plist, k, any_change)
                 k = k + 1
             end do
         end associate
+
         call signal_text_properties_change(s, e, status)
     end subroutine add_text_properties
 
@@ -429,6 +473,7 @@ contains
         type(value_type), intent(in) :: prop, val
         type(status_type), intent(out) :: status
         logical :: changed
+
         call add_text_properties(start, end, list(prop, val), changed, status)
     end subroutine put_text_property
 
@@ -447,18 +492,21 @@ contains
         integer(int64) :: s, e, next
         logical :: found, app
         integer :: n
+
         status = status_type()
         app = .false.
         if (present(append)) app = append
         prop = make_symbol_ref(intern("face"))
         s = min(start, end)
         e = max(start, end)
+
         do while (s < e)
             call next_single_property_change(s, prop, next, found, status, e)
             if (.not. status%ok()) return
             if (.not. found) next = e
             call get_text_property(s, prop, prev, status)
             if (.not. status%ok()) return
+
             if (nilp(prev)) then
                 call put_text_property(s, next, prop, face, status)
             else if (consp(prev) .and. .not. keyword_list(prev)) then
@@ -467,6 +515,7 @@ contains
                 call list_elements(prev, prev_items)
                 n = size(prev_items)
                 allocate (all(n + 1))
+
                 if (app) then
                     all(:n) = prev_items
                     all(n + 1) = face
@@ -474,6 +523,7 @@ contains
                     all(1) = face
                     all(2:) = prev_items
                 end if
+
                 call put_text_property(s, next, prop, make_list(all), status)
                 deallocate (all)
             else if (app) then
@@ -483,9 +533,11 @@ contains
             else
                 call put_text_property(s, next, prop, list(face, prev), status)
             end if
+
             if (.not. status%ok()) return
             s = next
         end do
+
     contains
 
         !> Whether V is an anonymous face (a list starting with a keyword).
@@ -493,6 +545,7 @@ contains
             type(value_type), intent(in) :: v
             type(value_type), allocatable :: elts(:)
             character(len=:), allocatable :: name
+
             keyword_list = .false.
             call list_elements(v, elts)
             if (size(elts) == 0) return
@@ -514,10 +567,12 @@ contains
         type(value_type) :: plist
         integer(int64) :: s, e, k, r, prev_n, prev_pos, prev_len, prev_z
         logical :: nonempty, first_time
+
         changed = .false.
         call validate_plist(properties, plist, status)
         if (.not. status%ok()) return
         first_time = .true.
+
         do
             call validate_range(start, end, s, e, nonempty, status)
             if (.not. status%ok() .or. .not. nonempty) return
@@ -525,12 +580,14 @@ contains
             if (buffers(cur)%text%intervals%n == 0 .and. nilp(plist)) return
             call ensure_intervals()
             if (.not. first_time) exit
+
             associate (iv => buffers(cur)%text%intervals)
                 k = find_interval(iv, s)
                 prev_n = iv%n
                 prev_pos = iv%runs(k)%position
                 prev_len = iv%runs(k)%length
             end associate
+
             prev_z = buffers(cur)%text%z
             call modify_text_properties(s, e, status)
             if (.not. status%ok()) return
@@ -538,23 +595,30 @@ contains
             first_time = .false.
             if (interval_unchanged(k, prev_n, prev_pos, prev_len, prev_z)) exit
         end do
+
         changed = .true.
+
         associate (iv => buffers(cur)%text%intervals)
             k = find_interval(iv, s)
+
             if (iv%runs(k)%position /= s) then
                 call split_interval_right(iv, k, s - iv%runs(k)%position, r)
                 k = r
             end if
+
             do while (k <= iv%n)
                 if (iv%runs(k)%position >= e) exit
+
                 if (interval_end(iv, k) > e) then
                     call split_interval_left(iv, k, e - iv%runs(k)%position, r)
                     k = r
                 end if
+
                 iv%runs(k)%plist = plist
                 k = k + 1
             end do
         end associate
+
         call signal_text_properties_change(s, e, status)
     end subroutine set_text_properties
 
@@ -566,6 +630,7 @@ contains
         type(value_type), intent(in) :: properties
         logical, intent(out) :: changed
         type(status_type), intent(out) :: status
+
         call remove_common(start, end, properties, 2_int64, changed, status)
     end subroutine remove_text_properties
 
@@ -576,6 +641,7 @@ contains
         type(value_type), intent(in) :: list
         logical, intent(out) :: changed
         type(status_type), intent(out) :: status
+
         call remove_common(start, end, list, 1_int64, changed, status)
     end subroutine remove_list_of_text_properties
 
@@ -586,24 +652,30 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: s, e, len, k, got, r, prev_n, prev_pos, prev_len, prev_z
         logical :: nonempty, any_change, first_time, done
+
         changed = .false.
         first_time = .true.
+
         do
             call validate_range(start, end, s, e, nonempty, status)
             if (.not. status%ok() .or. .not. nonempty) return
             if (buffers(cur)%text%intervals%n == 0) return
             done = .false.
+
             associate (iv => buffers(cur)%text%intervals)
                 len = e - s
                 k = find_interval(iv, s)
+
                 ! Skip intervals that have none of the properties.
                 if (.not. has_some_properties(names, step, k)) then
                     got = iv%runs(k)%length - (s - iv%runs(k)%position)
+
                     do
                         if (got >= len) then
                             done = .true.
                             exit
                         end if
+
                         len = len - got
                         k = k + 1
                         got = iv%runs(k)%length
@@ -613,12 +685,14 @@ contains
                     call split_interval_right(iv, k, s - iv%runs(k)%position, r)
                     k = r
                 end if
+
                 if (.not. done) then
                     prev_n = iv%n
                     prev_pos = iv%runs(k)%position
                     prev_len = iv%runs(k)%length
                 end if
             end associate
+
             if (done) return
             if (.not. first_time) exit
             prev_z = buffers(cur)%text%z
@@ -628,33 +702,39 @@ contains
             first_time = .false.
             if (interval_unchanged(k, prev_n, prev_pos, prev_len, prev_z)) exit
         end do
+
         changed = .true.
+
         associate (iv => buffers(cur)%text%intervals)
             do
                 if (iv%runs(k)%length >= len) then
                     if (.not. has_some_properties(names, step, k)) exit
+
                     if (iv%runs(k)%length > len) then
                         call split_interval_left(iv, k, len, r)
                         k = r
                     end if
+
                     call remove_properties(names, step, k, any_change)
                     exit
                 end if
+
                 len = len - iv%runs(k)%length
                 call remove_properties(names, step, k, any_change)
                 k = k + 1
             end do
         end associate
+
         call signal_text_properties_change(s, e, status)
     end subroutine remove_common
 
     ! ------------------------------------------------------------------
     ! Scanning for changes
     ! ------------------------------------------------------------------
-
     subroutine check_position(position, status)
         integer(int64), intent(in) :: position
         type(status_type), intent(out) :: status
+
         if (.not. (buffers(cur)%begv <= position .and. position <= buffers(cur)%zv)) then
             call range_error(status, position, position)
         end if
@@ -665,6 +745,7 @@ contains
         integer(int64), intent(out) :: result
         logical, intent(out) :: found
         integer(int64), intent(in), optional :: limit
+
         result = 0
         found = present(limit)
         if (found) result = limit
@@ -679,6 +760,7 @@ contains
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: limit
+
         call next_change(position, result, found, status, limit=limit)
     end subroutine next_property_change
 
@@ -691,6 +773,7 @@ contains
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: limit
+
         call next_change(position, result, found, status, prop, limit)
     end subroutine next_single_property_change
 
@@ -703,25 +786,31 @@ contains
         integer(int64), intent(in), optional :: limit
         integer(int64) :: k, next, bound
         type(value_type) :: here
+
         call give_limit(result, found, limit)
         call check_position(position, status)
         if (.not. status%ok()) return
         k = interval_at(position)
         if (k == 0) return
+
         associate (iv => buffers(cur)%text%intervals)
             if (present(prop)) here = textget(iv%runs(k)%plist, prop)
             next = k + 1
+
             do while (next <= iv%n)
                 if (present(limit)) then
                     if (iv%runs(next)%position >= limit) exit
                 end if
+
                 if (present(prop)) then
                     if (.not. value_eq(here, textget(iv%runs(next)%plist, prop))) exit
                 else
                     if (.not. intervals_equal(iv%runs(k)%plist, iv%runs(next)%plist)) exit
                 end if
+
                 next = next + 1
             end do
+
             bound = buffers(cur)%zv
             if (present(limit)) bound = limit
             if (next > iv%n) return
@@ -739,6 +828,7 @@ contains
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: limit
+
         call previous_change(position, result, found, status, limit=limit)
     end subroutine previous_property_change
 
@@ -751,6 +841,7 @@ contains
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: limit
+
         call previous_change(position, result, found, status, prop, limit)
     end subroutine previous_single_property_change
 
@@ -763,9 +854,11 @@ contains
         integer(int64), intent(in), optional :: limit
         integer(int64) :: k, prev, bound
         type(value_type) :: here
+
         call give_limit(result, found, limit)
         call check_position(position, status)
         if (.not. status%ok()) return
+
         associate (b => buffers(cur), iv => buffers(cur)%text%intervals)
             if (iv%n == 0 .or. b%begv == b%zv) return
             ! Start with the interval containing the char before POSITION.
@@ -774,17 +867,21 @@ contains
             if (k < 1) return
             if (present(prop)) here = textget(iv%runs(k)%plist, prop)
             prev = k - 1
+
             do while (prev >= 1)
                 if (present(limit)) then
                     if (interval_end(iv, prev) <= limit) exit
                 end if
+
                 if (present(prop)) then
                     if (.not. value_eq(here, textget(iv%runs(prev)%plist, prop))) exit
                 else
                     if (.not. intervals_equal(iv%runs(prev)%plist, iv%runs(k)%plist)) exit
                 end if
+
                 prev = prev - 1
             end do
+
             bound = b%begv
             if (present(limit)) bound = limit
             if (prev < 1) return
@@ -802,6 +899,7 @@ contains
         integer(int64), intent(out) :: result
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
+
         call property_scan(start, end, prop, value, .true., result, found, status)
     end subroutine text_property_any
 
@@ -813,6 +911,7 @@ contains
         integer(int64), intent(out) :: result
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
+
         call property_scan(start, end, prop, value, .false., result, found, status)
     end subroutine text_property_not_all
 
@@ -825,27 +924,34 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: s, e, k
         logical :: nonempty
+
         result = 0
         found = .false.
         call validate_range(start, end, s, e, nonempty, status)
         if (.not. status%ok()) return
+
         if (.not. nonempty .or. buffers(cur)%text%intervals%n == 0) then
             ! No intervals: every character has PROP nil.
             if (nonempty .and. (nilp(value) .eqv. want_eq)) then
                 result = s
                 found = .true.
             end if
+
             return
         end if
+
         associate (iv => buffers(cur)%text%intervals)
             k = find_interval(iv, s)
+
             do while (k <= iv%n)
                 if (iv%runs(k)%position >= e) exit
+
                 if (value_eq(textget(iv%runs(k)%plist, prop), value) .eqv. want_eq) then
                     result = max(iv%runs(k)%position, s)
                     found = .true.
                     return
                 end if
+
                 k = k + 1
             end do
         end associate
@@ -861,9 +967,11 @@ contains
         type(value_type) :: rear_non_sticky, front_sticky, prev_value
         type(status_type) :: status
         logical :: ignore_previous_character, is_rear_sticky, is_front_sticky
+
         is_rear_sticky = .true.
         is_front_sticky = .false.
         ignore_previous_character = pos <= buffers(cur)%begv
+
         ! text-property-default-nonsticky: its standard value makes
         ! syntax-table and display (textprop.c), composition (composite.c)
         ! and fill-space (fill.el) rear-nonsticky.
@@ -871,18 +979,22 @@ contains
             is_rear_sticky = .false.
         else
             call get_text_property(pos - 1, qsym("rear_nonsticky"), rear_non_sticky, status)
+
             if (consp(rear_non_sticky)) then
                 if (memq_p(prop, rear_non_sticky)) is_rear_sticky = .false.
             else if (.not. nilp(rear_non_sticky)) then
                 is_rear_sticky = .false.
             end if
         end if
+
         call get_text_property(pos, qsym("front_sticky"), front_sticky, status)
+
         if (value_eq(front_sticky, qsym("t"))) then
             is_front_sticky = .true.
         else if (consp(front_sticky)) then
             if (memq_p(prop, front_sticky)) is_front_sticky = .true.
         end if
+
         if (is_rear_sticky .and. .not. is_front_sticky) then
             stickiness = -1
         else if (.not. is_rear_sticky .and. is_front_sticky) then
@@ -892,6 +1004,7 @@ contains
         else
             ! Inconsistent: rear-sticky wins unless its value is nil.
             stickiness = -1
+
             if (ignore_previous_character) then
                 stickiness = 1
             else
@@ -899,10 +1012,12 @@ contains
                 if (nilp(prev_value)) stickiness = 1
             end if
         end if
+
     contains
 
         logical function default_nonsticky(p)
             type(value_type), intent(in) :: p
+
             default_nonsticky = value_eq(p, qsym("fill_space")) .or. value_eq(p, qsym("composition")) .or. &
                                 value_eq(p, qsym("syntax_table")) .or. value_eq(p, qsym("display"))
         end function default_nonsticky
@@ -917,28 +1032,36 @@ contains
         type(value_type), intent(in) :: propval
         type(value_type), allocatable :: elts(:)
         integer :: k
+
         invis = 0
         if (cur == 0) return
+
         if (buffers(cur)%invisibility_spec_t) then
             if (.not. nilp(propval)) invis = 1
             return
         end if
+
         if (.not. allocated(buffers(cur)%invisibility_spec)) return
         invis = match(propval)
         if (invis /= 0) return
+
         if (consp(propval)) then
             call list_elements(propval, elts)
+
             do k = 1, size(elts)
                 invis = match(elts(k))
                 if (invis /= 0) return
             end do
         end if
+
     contains
 
         integer function match(v) result(m)
             type(value_type), intent(in) :: v
             integer :: j
+
             m = 0
+
             associate (spec => buffers(cur)%invisibility_spec)
                 do j = 1, size(spec)
                     if (.not. value_eq(v, spec(j)%atom)) cycle
@@ -969,11 +1092,13 @@ contains
         integer(int64) :: b, e, p1, s1, p2, s2
         logical :: fa, ra
         integer :: k
+
         val = nil()
         if (cur == 0) return
         ! First check if there's an overlay at POS.
         best = null_handle()
         call overlays_in(max(position - 1, 1_int64), position + 1, vec)
+
         do k = 1, size(vec)
             tem = overlay_get_prop(vec(k), prop)
             if (nilp(tem)) cycle
@@ -982,16 +1107,20 @@ contains
             call overlay_advance(vec(k), fa, ra)
             ! Check the overlay is indeed active at point.
             if ((b == position .and. fa) .or. (e == position .and. .not. ra) .or. b > position .or. e < position) cycle
+
             if (best%index /= 0) then
                 call overlay_priority(best, p1, s1)
                 call overlay_priority(vec(k), p2, s2)
                 if (compare_overlays(p1, s1, overlay_start(best), overlay_end(best), int(best%index, int64), &
                                      p2, s2, b, e, int(vec(k)%index, int64)) >= 0) cycle
             end if
+
             best = vec(k)
             val = tem
         end do
+
         if (best%index /= 0) return
+
         ! Now check the text properties.
         select case (text_property_stickiness(prop, position))
         case (1:)
@@ -1001,6 +1130,7 @@ contains
         case default
             val = nil()
         end select
+
         if (.not. status%ok()) val = nil()
     end function get_pos_property
 
@@ -1014,6 +1144,7 @@ contains
         integer(int64), intent(out) :: beg, end
         type(status_type) :: status
         logical :: found
+
         call get_text_property(pos, prop, val, status)
         call previous_single_property_change(pos + 1, prop, beg, found, status, buffers(cur)%begv)
         if (.not. found) beg = buffers(cur)%begv
@@ -1032,6 +1163,7 @@ contains
         type(value_type), intent(in) :: prop
         type(value_type) :: val
         type(handle_type) :: overlay
+
         call get_char_property_and_overlay(position, prop, val, overlay)
     end function get_char_property
 
@@ -1047,18 +1179,22 @@ contains
         type(handle_type), allocatable :: vec(:)
         type(status_type) :: status
         integer :: k
+
         overlay = null_handle()
         val = nil()
         if (cur == 0) return
         ! The overlays containing POSITION, highest priority first.
         call overlays_at(position, vec, sorted=.true.)
+
         do k = 1, size(vec)
             val = overlay_get_prop(vec(k), prop)
+
             if (.not. nilp(val)) then
                 overlay = vec(k)
                 return
             end if
         end do
+
         call get_text_property(position, prop, val, status)
         if (.not. status%ok()) val = nil()
     end subroutine get_char_property_and_overlay
@@ -1078,6 +1214,7 @@ contains
         integer(int64) :: temp
         type(status_type) :: status
         logical :: found
+
         temp = next_overlay_change(position)
         if (present(limit)) temp = min(temp, limit)
         call next_property_change(position, next, found, status, temp)
@@ -1099,6 +1236,7 @@ contains
         integer(int64) :: temp
         type(status_type) :: status
         logical :: found
+
         temp = previous_overlay_change(position)
         if (present(limit)) temp = max(temp, limit)
         call previous_property_change(position, prev, found, status, temp)
@@ -1119,21 +1257,27 @@ contains
         integer(int64), intent(in), optional :: limit
         type(value_type) :: initial_value, value
         integer(int64) :: lim
+
         lim = buffers(cur)%zv
         if (present(limit)) lim = limit
+
         if (position >= lim) then
             next = lim
             if (next > buffers(cur)%zv) next = buffers(cur)%zv
             return
         end if
+
         initial_value = get_char_property(position, prop)
         next = position
+
         do
             next = next_char_property_change(next, lim)
+
             if (next >= lim) then
                 next = lim
                 exit
             end if
+
             value = get_char_property(next, prop)
             if (.not. value_eq(value, initial_value)) exit
             if (next >= buffers(cur)%zv) exit
@@ -1155,21 +1299,27 @@ contains
         integer(int64), intent(in), optional :: limit
         type(value_type) :: initial_value, value
         integer(int64) :: lim
+
         lim = buffers(cur)%begv
         if (present(limit)) lim = limit
+
         if (position <= lim) then
             prev = lim
             if (prev < buffers(cur)%begv) prev = buffers(cur)%begv
             return
         end if
+
         initial_value = get_char_property(position - 1, prop)
         prev = position
+
         do
             prev = previous_char_property_change(prev, lim)
+
             if (prev <= lim) then
                 prev = lim
                 exit
             end if
+
             value = get_char_property(prev - 1, prop)
             if (.not. value_eq(value, initial_value)) exit
         end do
@@ -1178,7 +1328,6 @@ contains
     ! ------------------------------------------------------------------
     ! Read-only text
     ! ------------------------------------------------------------------
-
     !> Signal text-read-only (or buffer-read-only) if `start'..`end' may not
     !> be changed because of `read_only' / `inhibit_read_only' properties.
     !> An empty range is an insertion: then the stickiness of `read_only'
@@ -1190,32 +1339,40 @@ contains
         type(value_type) :: inhibit, read_only, after, before, tem, val
         integer(int64) :: start, end, k, prev, p
         logical :: buffer_read_only, implied, express, has_after, has_prev, found
+
         associate (b => buffers(cur), iv => buffers(cur)%text%intervals)
             if (iv%n == 0) return
             start = min(start_in, end_in)
             end = max(start_in, end_in)
             inhibit = inhibit_read_only()
+
             if (start == end) then
                 ! I: interval after START; PREV: interval before it.
                 k = find_interval(iv, start)
                 has_prev = .false.
                 prev = 0
+
                 if (start /= b%begv) then
                     if (iv%runs(k)%position == start) then
                         prev = k - 1
                     else
                         prev = k
                     end if
+
                     has_prev = prev >= 1
                 end if
+
                 has_after = start /= b%zv
                 if (.not. (nilp(inhibit) .or. consp(inhibit))) return
+
                 if (.not. (has_after .and. has_prev .and. k == prev)) then
                     if (has_after) then
                         after = textget(iv%runs(k)%plist, qsym("read_only"))
+
                         if (.not. nilp(after) .and. .not. memq_p(after, inhibit)) then
                             tem = textget(iv%runs(k)%plist, qsym("front_sticky"))
                             call plist_get_eq(iv%runs(k)%plist, qsym("read_only"), val, found)
+
                             if (tmem(qsym("read_only"), tem) .or. &
                                 (nilp(val) .and. tmem(qsym("category"), tem))) then
                                 call text_read_only(status, after)
@@ -1223,11 +1380,14 @@ contains
                             end if
                         end if
                     end if
+
                     if (has_prev) then
                         before = textget(iv%runs(prev)%plist, qsym("read_only"))
+
                         if (.not. nilp(before) .and. .not. memq_p(before, inhibit)) then
                             tem = textget(iv%runs(prev)%plist, qsym("rear_nonsticky"))
                             call plist_get_eq(iv%runs(prev)%plist, qsym("read_only"), val, found)
+
                             if (.not. tmem(qsym("read_only"), tem) .and. &
                                 (.not. nilp(val) .or. .not. tmem(qsym("category"), tem))) then
                                 call text_read_only(status, before)
@@ -1239,15 +1399,19 @@ contains
                     ! Inside one interval: it is read-only unless both ends say
                     ! the property does not stick.
                     after = textget(iv%runs(k)%plist, qsym("read_only"))
+
                     if (.not. nilp(after) .and. .not. memq_p(after, inhibit)) then
                         call plist_get_eq(iv%runs(k)%plist, qsym("read_only"), val, found)
                         tem = textget(iv%runs(k)%plist, qsym("front_sticky"))
+
                         if (tmem(qsym("read_only"), tem) .or. &
                             (nilp(val) .and. tmem(qsym("category"), tem))) then
                             call text_read_only(status, after)
                             return
                         end if
+
                         tem = textget(iv%runs(k)%plist, qsym("rear_nonsticky"))
+
                         if (.not. tmem(qsym("read_only"), tem) .and. &
                             (.not. nilp(val) .or. .not. tmem(qsym("category"), tem))) then
                             call text_read_only(status, after)
@@ -1259,14 +1423,17 @@ contains
                 buffer_read_only = b%read_only .and. nilp(inhibit)
                 k = find_interval(iv, start)
                 p = 0
+
                 do
                     read_only = textget(iv%runs(k)%plist, qsym("read_only"))
                     ! INTERVAL_GENERALLY_WRITABLE_P / INTERVAL_EXPRESSLY_WRITABLE_P
                     implied = nilp(read_only) .or. (.not. nilp(inhibit) .and. .not. consp(inhibit))
                     express = .not. nilp(textget(iv%runs(k)%plist, qsym("inhibit_read_only")))
+
                     if (.not. express .and. .not. nilp(read_only) .and. consp(inhibit)) then
                         express = memq_p(read_only, inhibit)
                     end if
+
                     if (.not. implied .and. .not. express) then
                         call text_read_only(status, read_only)
                         return
@@ -1274,11 +1441,13 @@ contains
                         call set_error(status, FM_BUFFER_READ_ONLY, b%name)
                         return
                     end if
+
                     p = interval_end(iv, k)
                     k = k + 1
                     if (k > iv%n) exit
                     if (iv%runs(k)%position >= end) exit
                 end do
+
                 ! The last writable interval must reach END if the buffer is
                 ! read-only as a whole.
                 if (p < end .and. buffer_read_only) then
@@ -1288,10 +1457,10 @@ contains
             end if
         end associate
     end subroutine verify_interval_modification
+
     ! ------------------------------------------------------------------
     ! Properties of strings
     ! ------------------------------------------------------------------
-
     !> Property list of the character at POSITION (0-based) of STRING; nil
     !> at its end or where it has none.  Port of textprop.c:Ftext_properties_at
     !> with a string OBJECT.
@@ -1302,7 +1471,9 @@ contains
         integer(int64), allocatable :: starts(:), ends(:)
         type(value_type), allocatable :: plists(:)
         integer :: k
+
         call string_intervals(string, starts, ends, plists)
+
         do k = 1, size(starts)
             if (starts(k) <= position .and. position < ends(k)) then
                 plist = plists(k)
@@ -1318,6 +1489,7 @@ contains
         integer(int64), intent(in) :: position
         type(value_type), intent(in) :: prop, string
         type(value_type) :: val
+
         val = textget(string_text_properties_at(position, string), prop)
     end function string_get_text_property
 
@@ -1337,15 +1509,18 @@ contains
         integer(int64) :: s, e, nchars
         integer :: k, j
         logical :: piece_changed
+
         changed = .false.
         call string_chars(string, nchars, status)
         if (.not. status%ok()) return
         s = min(start, end)
         e = max(start, end)
+
         if (s < 0 .or. e > nchars) then
             call range_error(status, start, end)
             return
         end if
+
         call validate_plist(properties, plist, status)
         if (.not. status%ok()) return
         if (s == e .or. nilp(plist)) return
@@ -1355,15 +1530,18 @@ contains
         cuts = [0_int64, nchars, s, e, starts, ends]
         call sort_unique(cuts)
         allocate (pieces(size(cuts) - 1))
+
         do j = 1, size(pieces)
             do k = 1, size(starts)
                 if (starts(k) <= cuts(j) .and. cuts(j) < ends(k)) pieces(j) = plists(k)
             end do
+
             if (s <= cuts(j) .and. cuts(j) < e) then
                 call plist_add(pieces(j), plist, piece_changed)
                 changed = changed .or. piece_changed
             end if
         end do
+
         if (changed) call set_merged_intervals(string, cuts, pieces)
     end subroutine string_add_text_properties
 
@@ -1375,6 +1553,7 @@ contains
         type(value_type), intent(inout) :: string
         type(status_type), intent(out) :: status
         logical :: changed
+
         call string_add_text_properties(start, end, list(prop, val), string, changed, status)
     end subroutine string_put_text_property
 
@@ -1386,6 +1565,7 @@ contains
         type(status_type) :: st
         integer(int64) :: nchars
         logical :: changed
+
         v = string
         call string_chars(v, nchars, st)
         if (st%ok()) call string_add_text_properties(0_int64, nchars, properties, v, changed, st)
@@ -1397,11 +1577,14 @@ contains
         integer(int64), intent(out) :: nchars
         type(status_type), intent(out) :: status
         type(status_type) :: st
+
         nchars = 0
+
         if (.not. stringp(string)) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp")
             return
         end if
+
         call multibyte_chars_in_text(xstring(string), nchars, st)
         if (.not. st%ok()) nchars = len(xstring(string), kind=int64)
     end subroutine string_chars
@@ -1415,22 +1598,28 @@ contains
         type(value_type), allocatable :: pairs(:), old(:), grown(:)
         integer(int64) :: j, m
         logical :: found
+
         changed = .false.
         call list_elements(new, pairs)
+
         do j = 1, size(pairs, kind=int64) - 1, 2
             call list_elements(plist, old)
             found = .false.
+
             do m = 1, size(old, kind=int64) - 1, 2
                 if (value_eq(old(m), pairs(j))) then
                     found = .true.
+
                     if (.not. value_eq(old(m + 1), pairs(j + 1))) then
                         old(m + 1) = pairs(j + 1)
                         plist = make_list(old)
                         changed = .true.
                     end if
+
                     exit
                 end if
             end do
+
             if (.not. found) then
                 grown = [pairs(j:j + 1), old]
                 plist = make_list(grown)
@@ -1444,23 +1633,29 @@ contains
         integer(int64), allocatable, intent(inout) :: cuts(:)
         integer(int64) :: t
         integer :: i, j, n
+
         do i = 2, size(cuts)
             t = cuts(i)
             j = i - 1
+
             do while (j >= 1)
                 if (cuts(j) <= t) exit
                 cuts(j + 1) = cuts(j)
                 j = j - 1
             end do
+
             cuts(j + 1) = t
         end do
+
         n = min(1, size(cuts))
+
         do i = 2, size(cuts)
             if (cuts(i) /= cuts(n)) then
                 n = n + 1
                 cuts(n) = cuts(i)
             end if
         end do
+
         cuts = cuts(1:n)
     end subroutine sort_unique
 
@@ -1473,8 +1668,10 @@ contains
         integer(int64), allocatable :: starts(:), ends(:)
         type(value_type), allocatable :: plists(:)
         integer :: j, n
+
         allocate (starts(size(pieces)), ends(size(pieces)), plists(size(pieces)))
         n = 0
+
         do j = 1, size(pieces)
             if (n > 0) then
                 if (ends(n) == cuts(j) .and. intervals_equal(plists(n), pieces(j))) then
@@ -1482,11 +1679,13 @@ contains
                     cycle
                 end if
             end if
+
             n = n + 1
             starts(n) = cuts(j)
             ends(n) = cuts(j + 1)
             plists(n) = pieces(j)
         end do
+
         call set_string_intervals(string, starts(1:n), ends(1:n), plists(1:n))
     end subroutine set_merged_intervals
 
@@ -1505,6 +1704,7 @@ contains
         type(status_type) :: st
         integer(int64) :: nchars, p
         integer :: k
+
         result = 0
         found = .false.
         call string_chars(string, nchars, st)
@@ -1513,16 +1713,20 @@ contains
         here = string_get_text_property(position, prop, string)
         ! The next interval boundary where PROP's value differs.
         p = position
+
         do
             result = nchars
+
             do k = 1, size(starts)
                 if (starts(k) > p) result = min(result, starts(k))
                 if (ends(k) > p) result = min(result, ends(k))
             end do
+
             if (result >= nchars) return
             if (.not. value_eq(string_get_text_property(result, prop, string), here)) exit
             p = result
         end do
+
         found = .true.
     end subroutine string_next_single_property_change
 
@@ -1537,6 +1741,7 @@ contains
         type(value_type), allocatable :: plists(:)
         character(len=:), allocatable :: text
         integer(int64) :: first, last
+
         text = xstring(string)
         first = char_byte(text, from)
         last = char_byte(text, to)
@@ -1557,6 +1762,7 @@ contains
         type(status_type) :: st
         integer(int64) :: n1
         integer :: k
+
         v = make_string(xstring(string1)//xstring(string2))
         call string_chars(string1, n1, st)
         call string_intervals(string1, s1, e1, p1)
@@ -1564,16 +1770,19 @@ contains
         if (size(p1) + size(p2) == 0) return
         ! (No array constructors: a zero-size one reallocates to size 0.)
         allocate (plists(size(p1) + size(p2)), starts(size(p1) + size(p2)), ends(size(p1) + size(p2)))
+
         do k = 1, size(p1)
             plists(k) = p1(k)
             starts(k) = s1(k)
             ends(k) = e1(k)
         end do
+
         do k = 1, size(p2)
             plists(size(p1) + k) = p2(k)
             starts(size(p1) + k) = s2(k) + n1
             ends(size(p1) + k) = e2(k) + n1
         end do
+
         call set_string_intervals(v, starts, ends, plists)
     end function propertized_concat
 
@@ -1584,17 +1793,19 @@ contains
         integer(int64), intent(in) :: n
         integer(int64) :: count
         integer :: i
+
         byte = len(text) + 1
         count = 0
+
         do i = 1, len(text)
             if (iand(iachar(text(i:i)), 192) /= 128) then
                 if (count == n) then
                     byte = i
                     return
                 end if
+
                 count = count + 1
             end if
         end do
     end function char_byte
-
 end module textprop_fm

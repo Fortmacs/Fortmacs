@@ -183,21 +183,27 @@ contains
     integer(int64) function next_newline_byte(from_byte, to_byte) result(found)
         integer(int64), intent(in) :: from_byte, to_byte
         integer(int64) :: a, b, k
+
         found = 0
+
         associate (t => buffers(cur)%text)
             ! Before the gap: string index = byte position.
             a = from_byte
             b = min(to_byte, t%gpt_byte) - 1
+
             if (a <= b) then
                 k = index(t%beg(a:b), newline, kind=int64)
+
                 if (k > 0) then
                     found = a + k - 1
                     return
                 end if
             end if
+
             ! After the gap: string index = byte position + gap_size.
             a = max(from_byte, t%gpt_byte)
             b = to_byte - 1
+
             if (a <= b) then
                 k = index(t%beg(a + t%gap_size:b + t%gap_size), newline, kind=int64)
                 if (k > 0) found = a + k - 1
@@ -209,19 +215,25 @@ contains
     integer(int64) function prev_newline_byte(from_byte, to_byte) result(found)
         integer(int64), intent(in) :: from_byte, to_byte
         integer(int64) :: a, b, k
+
         found = 0
+
         associate (t => buffers(cur)%text)
             a = max(from_byte, t%gpt_byte)
             b = to_byte - 1
+
             if (a <= b) then
                 k = index(t%beg(a + t%gap_size:b + t%gap_size), newline, back=.true., kind=int64)
+
                 if (k > 0) then
                     found = a + k - 1
                     return
                 end if
             end if
+
             a = from_byte
             b = min(to_byte, t%gpt_byte) - 1
+
             if (a <= b) then
                 k = index(t%beg(a:b), newline, back=.true., kind=int64)
                 if (k > 0) found = a + k - 1
@@ -241,9 +253,11 @@ contains
         integer(int64), intent(in), optional :: end, start_byte, end_byte
         integer(int64), intent(out), optional :: counted, bytepos
         integer(int64) :: lim, lim_byte, pos_byte, nl, left
+
         associate (b => buffers(cur))
             if (present(end)) then
                 lim = end
+
                 if (present(end_byte)) then
                     lim_byte = end_byte
                 else
@@ -257,18 +271,22 @@ contains
                 lim_byte = b%begv_byte
             end if
         end associate
+
         if (present(start_byte)) then
             pos_byte = start_byte
         else
             pos_byte = char_to_byte(start)
         end if
+
         left = count
+
         if (count > 0) then
             do while (pos_byte < lim_byte)
                 nl = next_newline_byte(pos_byte, lim_byte)
                 if (nl == 0) exit
                 pos_byte = nl + 1
                 left = left - 1
+
                 if (left == 0) then
                     call finish(byte_to_char(pos_byte), pos_byte)
                     return
@@ -279,10 +297,12 @@ contains
                 nl = prev_newline_byte(lim_byte, pos_byte)
                 if (nl == 0) exit
                 left = left + 1
+
                 if (left >= 0) then
                     call finish(byte_to_char(nl + 1), nl + 1)
                     return
                 end if
+
                 pos_byte = nl
             end do
         else
@@ -290,12 +310,15 @@ contains
             lim = start
             lim_byte = pos_byte
         end if
+
         ! Fewer than COUNT newlines: stop at the limit.
         call finish(lim, lim_byte)
+
     contains
 
         subroutine finish(p, pbyte)
             integer(int64), intent(in) :: p, pbyte
+
             pos = p
             if (present(bytepos)) bytepos = pbyte
             if (present(counted)) counted = count - left
@@ -307,7 +330,9 @@ contains
     subroutine scan_newline(start, start_byte, limit, limit_byte, count)
         integer(int64), intent(in) :: start, start_byte, limit, limit_byte, count
         integer(int64) :: charpos, bytepos, counted
+
         charpos = find_newline(start, limit, count, counted, bytepos, start_byte, limit_byte)
+
         if (counted /= count) then
             call temp_set_point_both(buffers(cur), limit, limit_byte)
         else
@@ -321,6 +346,7 @@ contains
     integer(int64) function scan_newline_from_point(count, charpos, bytepos) result(counted)
         integer(int64), intent(in) :: count
         integer(int64), intent(out) :: charpos, bytepos
+
         associate (b => buffers(cur))
             if (count <= 0) then
                 charpos = find_newline(b%pt, b%begv, count - 1, counted, bytepos, b%pt_byte, b%begv_byte)
@@ -334,6 +360,7 @@ contains
     integer(int64) function find_newline_no_quit(from, frombyte, cnt, bytepos)
         integer(int64), intent(in) :: from, frombyte, cnt
         integer(int64), intent(out), optional :: bytepos
+
         find_newline_no_quit = find_newline(from, count=cnt, bytepos=bytepos, start_byte=frombyte)
     end function find_newline_no_quit
 
@@ -345,25 +372,29 @@ contains
         integer(int64), intent(out), optional :: bytepos
         integer(int64), intent(in), optional :: to
         integer(int64) :: counted, pbyte
+
         pos = find_newline(from, to, cnt, counted, pbyte)
+
         if (counted == cnt) then
             pos = pos - 1
             pbyte = pbyte - buf_prev_char_len(buffers(cur), pbyte)
         end if
+
         if (present(bytepos)) bytepos = pbyte
     end function find_before_next_newline
 
     ! ------------------------------------------------------------------
     ! Compiled patterns
     ! ------------------------------------------------------------------
-
     !> The 1-based character index in STR of the byte offset `off'.
     pure integer(int64) function string_offset_to_index(str, off) result(idx)
         character(len=*), intent(in) :: str
         integer(int64), intent(in) :: off
         integer(int64) :: i
+
         ! Each character before OFF has one head byte.
         idx = 1
+
         do i = 1, off
             if (char_head_p(ichar(str(i:i), int32))) idx = idx + 1
         end do
@@ -375,8 +406,10 @@ contains
         integer(int64), intent(in) :: idx
         integer(int64) :: n
         integer(int32) :: c, clen
+
         off = 0
         n = 1
+
         do while (n < idx .and. off < len(str, kind=int64))
             call string_char_and_length(str, off + 1, c, clen)
             off = off + clen
@@ -389,8 +422,10 @@ contains
         character(len=*), intent(in) :: str
         integer(int64) :: off
         integer(int32) :: c, clen
+
         n = 0
         off = 0
+
         do while (off < len(str, kind=int64))
             call string_char_and_length(str, off + 1, c, clen)
             off = off + clen
@@ -401,9 +436,11 @@ contains
     !> Make the match data `n' empty registers.
     subroutine clear_search_regs(n)
         integer, intent(in) :: n
+
         if (allocated(search_regs_start)) then
             if (size(search_regs_start) /= n) deallocate (search_regs_start, search_regs_end)
         end if
+
         if (.not. allocated(search_regs_start)) allocate (search_regs_start(0:n - 1), search_regs_end(0:n - 1))
         search_regs_start = -1
         search_regs_end = -1
@@ -417,19 +454,20 @@ contains
     subroutine ensure_search_regs(n)
         integer, intent(in) :: n
         integer :: m
+
         if (.not. allocated(search_regs_start)) then
             m = max(RE_NREGS, n)
         else
             m = size(search_regs_start)
             if (m < n) m = max(m + m/2, n)
         end if
+
         call clear_search_regs(m)
     end subroutine ensure_search_regs
 
     ! ------------------------------------------------------------------
     ! Matching at point and in strings
     ! ------------------------------------------------------------------
-
     !> Return true if text after point matches regular expression REGEXP.
     !> By default, this function modifies the match data that
     !> `match_beginning', `match_end' and `match_data' access.  If
@@ -439,6 +477,7 @@ contains
         character(len=*), intent(in) :: regexp
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: inhibit_modify
+
         matched = looking_at_1(regexp, .false.,.not. opt(inhibit_modify), status)
     end function looking_at
 
@@ -454,12 +493,14 @@ contains
         character(len=*), intent(in) :: regexp
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: inhibit_modify
+
         matched = looking_at_1(regexp, .true.,.not. opt(inhibit_modify), status)
     end function posix_looking_at
 
     !> The value of an optional logical, false if absent.
     pure logical function opt(flag)
         logical, intent(in), optional :: flag
+
         opt = .false.
         if (present(flag)) opt = flag
     end function opt
@@ -485,6 +526,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start
         logical, intent(in), optional :: inhibit_modify
+
         idx = string_match_1(regexp, string, start, .false.,.not. opt(inhibit_modify), status)
     end function string_match
 
@@ -506,19 +548,20 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start
         logical, intent(in), optional :: inhibit_modify
+
         idx = string_match_1(regexp, string, start, .true.,.not. opt(inhibit_modify), status)
     end function posix_string_match
 
     !> Signal that the matcher's stack overflowed (matcher_overflow).
     subroutine matcher_overflow(status)
         type(status_type), intent(inout) :: status
+
         call set_error(status, FM_GENERIC_ERROR, "Stack overflow in regexp matcher")
     end subroutine matcher_overflow
 
     ! ------------------------------------------------------------------
     ! String search
     ! ------------------------------------------------------------------
-
     !> Search forward from point for STRING.
     !> Set point to the end of the occurrence found, and return point
     !> in `found' (0 for none).
@@ -549,6 +592,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: bound, count
         integer, intent(in), optional :: noerror
+
         call search_command(string, 1_int64, .false., .false., found, status, bound, noerror, count)
     end subroutine search_forward
 
@@ -563,6 +607,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: bound, count
         integer, intent(in), optional :: noerror
+
         call search_command(string, -1_int64, .false., .false., found, status, bound, noerror, count)
     end subroutine search_backward
 
@@ -596,6 +641,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: bound, count
         integer, intent(in), optional :: noerror
+
         call search_command(regexp, 1_int64, .true., .false., found, status, bound, noerror, count)
     end subroutine re_search_forward
 
@@ -614,6 +660,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: bound, count
         integer, intent(in), optional :: noerror
+
         call search_command(regexp, -1_int64, .true., .false., found, status, bound, noerror, count)
     end subroutine re_search_backward
 
@@ -628,6 +675,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: bound, count
         integer, intent(in), optional :: noerror
+
         call search_command(regexp, 1_int64, .true., .true., found, status, bound, noerror, count)
     end subroutine posix_search_forward
 
@@ -644,6 +692,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: bound, count
         integer, intent(in), optional :: noerror
+
         call search_command(regexp, -1_int64, .true., .true., found, status, bound, noerror, count)
     end subroutine posix_search_backward
 
@@ -658,12 +707,14 @@ contains
         integer, intent(in), optional :: noerror
         integer(int64) :: n, lim, lim_byte, np
         integer :: mode
+
         status = status_type()
         found = 0
         mode = SEARCH_SIGNAL
         if (present(noerror)) mode = noerror
         n = direction
         if (present(count)) n = n*count
+
         associate (b => buffers(cur))
             if (.not. present(bound)) then
                 if (n > 0) then
@@ -675,10 +726,12 @@ contains
                 end if
             else
                 lim = bound
+
                 if (merge(lim < b%pt, lim > b%pt, n > 0)) then
                     call set_error(status, FM_GENERIC_ERROR, "Invalid search bound (wrong side of point)")
                     return
                 end if
+
                 if (lim > b%zv) then
                     lim = b%zv
                     lim_byte = b%zv_byte
@@ -690,17 +743,21 @@ contains
                 end if
             end if
         end associate
+
         np = search_buffer(string, buffers(cur)%pt, buffers(cur)%pt_byte, lim, lim_byte, n, case_fold_search%value, &
                            status, re, posix)
         if (.not. status%ok()) return
+
         if (np <= 0) then
             if (mode == SEARCH_SIGNAL) then
                 call set_error(status, FM_SEARCH_FAILED, fortran_string(string))
             else if (mode == SEARCH_MOVE) then
                 call temp_set_point_both(buffers(cur), lim, lim_byte)
             end if
+
             return
         end if
+
         call temp_set_point_both(buffers(cur), np, char_to_byte(np))
         found = np
     end subroutine search_command
@@ -710,8 +767,10 @@ contains
     pure logical function trivial_regexp_p(regexp)
         character(len=*), intent(in) :: regexp
         integer :: i
+
         trivial_regexp_p = .false.
         i = 1
+
         do while (i <= len(regexp))
             select case (regexp(i:i))
             case (".", "*", "+", "?", "[", "^", "$")
@@ -723,8 +782,10 @@ contains
             case default
                 continue
             end select
+
             i = i + 1
         end do
+
         trivial_regexp_p = .true.
     end function trivial_regexp_p
 
@@ -747,8 +808,10 @@ contains
         integer(int64) :: i, k, len_byte
         integer(int32) :: c, clen
         logical :: is_re
+
         status = status_type()
         is_re = opt(re)
+
         ! Searching 0 times means don't move.  Null string is found at
         ! starting position.
         if (n == 0 .or. len(string) == 0) then
@@ -756,16 +819,19 @@ contains
             np = pos
             return
         end if
+
         if (is_re .and. .not. (trivial_regexp_p(string) .and. .not. allocated(search_spaces_regexp))) then
             np = search_buffer_re(string, pos, pos_byte, lim, lim_byte, n, fold, opt(posix), status)
             return
         end if
+
         ! The pattern as characters, translated as the buffer text will be.
         ! In a trivial regexp, a backslash just quotes the next character.
         allocate (pat(len(string)))
         i = 1
         k = 0
         len_byte = 0
+
         do while (i <= len(string))
             if (is_re .and. string(i:i) == "\") i = i + 1
             call string_char_and_length(string, i, c, clen)
@@ -775,6 +841,7 @@ contains
             len_byte = len_byte + char_bytes(c)
             i = i + clen
         end do
+
         np = simple_search(n, pat(1:k), len_byte, fold, pos, pos_byte, lim, lim_byte)
     end function search_buffer
 
@@ -793,11 +860,13 @@ contains
         logical, intent(in) :: fold
         integer(int64) :: n, pos, pos_byte, this_pos, this_pos_byte, this_len, match_byte, nchars
         integer(int32) :: buf_ch
+
         n = count
         pos = start
         pos_byte = start_byte
         nchars = size(pat)
         match_byte = -1
+
         associate (b => buffers(cur))
             if (lim > pos) then
                 forward: do while (n > 0)
@@ -806,6 +875,7 @@ contains
                         this_pos_byte = pos_byte
                         this_len = 0
                         if (pos + nchars > lim .or. pos_byte + len_byte > lim_byte) exit forward
+
                         do while (this_len < nchars)
                             buf_ch = buf_fetch_char(b, this_pos_byte)
                             if (fold) buf_ch = case_canon(buf_ch)
@@ -813,15 +883,18 @@ contains
                             this_len = this_len + 1
                             this_pos_byte = this_pos_byte + buf_next_char_len(b, this_pos_byte)
                         end do
+
                         if (this_len == nchars) then
                             match_byte = this_pos_byte - pos_byte
                             pos = pos + nchars
                             pos_byte = pos_byte + match_byte
                             exit
                         end if
+
                         pos_byte = pos_byte + buf_next_char_len(b, pos_byte)
                         pos = pos + 1
                     end do
+
                     n = n - 1
                 end do forward
             else if (lim < pos) then
@@ -833,6 +906,7 @@ contains
                         this_pos_byte = pos_byte
                         this_len = 0
                         if (this_pos - nchars < lim .or. pos_byte - len_byte < lim_byte) exit backward
+
                         do while (this_len < nchars)
                             this_pos = this_pos - 1
                             this_pos_byte = this_pos_byte - buf_prev_char_len(b, this_pos_byte)
@@ -841,25 +915,30 @@ contains
                             if (buf_ch /= pat(nchars - this_len)) exit
                             this_len = this_len + 1
                         end do
+
                         if (this_len == nchars) then
                             match_byte = pos_byte - this_pos_byte
                             pos = this_pos
                             pos_byte = this_pos_byte
                             exit
                         end if
+
                         pos = pos - 1
                         pos_byte = pos_byte - buf_prev_char_len(b, pos_byte)
                     end do
+
                     n = n + 1
                 end do backward
             end if
         end associate
+
         if (n == 0) then
             if (count > 0) then
                 call set_search_regs(pos_byte - match_byte, match_byte)
             else
                 call set_search_regs(pos_byte, match_byte)
             end if
+
             np = pos
         else
             np = -abs(n)
@@ -871,6 +950,7 @@ contains
     subroutine set_search_regs(beg_byte, nbytes)
         integer(int64), intent(in) :: beg_byte, nbytes
         integer :: n
+
         ! Make sure we have registers in which to store the match position,
         ! and clear out the other registers.
         n = 2
@@ -895,6 +975,7 @@ contains
     integer(int64) function match_beginning(subexp, status) result(pos)
         integer, intent(in) :: subexp
         type(status_type), intent(out) :: status
+
         call match_limit(subexp, .true., pos, status)
     end function match_beginning
 
@@ -911,6 +992,7 @@ contains
     integer(int64) function match_end(subexp, status) result(pos)
         integer, intent(in) :: subexp
         type(status_type), intent(out) :: status
+
         call match_limit(subexp, .false., pos, status)
     end function match_end
 
@@ -921,20 +1003,25 @@ contains
         integer(int64), intent(out) :: pos
         type(status_type), intent(out) :: status
         character(len=11) :: buf
+
         status = status_type()
         pos = 0
+
         if (n < 0) then
             ! args_out_of_range (num, 0).
             write (buf, "(i0)") n
             call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(buf)//", 0")
             return
         end if
+
         if (.not. allocated(search_regs_start)) then
             call set_error(status, FM_GENERIC_ERROR, "No match data, because no search succeeded")
             return
         end if
+
         if (n >= size(search_regs_start)) return
         if (search_regs_start(n) < 0) return
+
         if (beginningp) then
             pos = search_regs_start(n)
         else
@@ -948,8 +1035,10 @@ contains
         integer(int64), intent(in) :: oldstart, oldend, newend
         integer(int64) :: change
         integer :: i
+
         if (.not. allocated(search_regs_start)) return
         change = newend - oldend
+
         do i = 0, size(search_regs_start) - 1
             ! If the subgroup that `replace_match' is modifying encloses
             ! the subgroup I, then its start position should stay
@@ -961,6 +1050,7 @@ contains
             else
                 search_regs_start(i) = oldstart
             end if
+
             if (search_regs_end(i) >= oldend) then
                 search_regs_end(i) = search_regs_end(i) + change
             else if (search_regs_end(i) > oldstart) then
@@ -984,14 +1074,18 @@ contains
     function match_data() result(data)
         integer(int64), allocatable :: data(:)
         integer :: i, n
+
         allocate (data(0))
         if (.not. allocated(search_regs_start)) return
         n = 0
+
         do i = 0, size(search_regs_start) - 1
             if (search_regs_start(i) >= 0) n = i + 1
         end do
+
         deallocate (data)
         allocate (data(2*n))
+
         do i = 0, n - 1
             if (search_regs_start(i) >= 0) then
                 data(2*i + 1) = search_regs_start(i)
@@ -1009,24 +1103,29 @@ contains
     subroutine set_match_data(data)
         integer(int64), intent(in) :: data(:)
         integer :: i, length, num_regs
+
         ! Allocate registers if they don't already exist (growing as
         ! xpalloc does: by half, or to 16 when tiny, or by what is needed).
         length = size(data)/2
         num_regs = 0
         if (allocated(search_regs_start)) num_regs = size(search_regs_start)
+
         if (length > num_regs) then
             i = num_regs + num_regs/2
             if (8*i < 128) i = 16
             if (i - num_regs < length - num_regs) i = length
             num_regs = i
         end if
+
         if (num_regs > 0) call clear_search_regs(num_regs)
+
         do i = 0, length - 1
             if (data(2*i + 1) > 0 .and. data(2*i + 2) > 0) then
                 search_regs_start(i) = data(2*i + 1)
                 search_regs_end(i) = data(2*i + 2)
             end if
         end do
+
         last_thing_searched = current_buffer()
         last_search_in_string = .false.
     end subroutine set_match_data
@@ -1038,7 +1137,9 @@ contains
     subroutine match_data_translate(n)
         integer(int64), intent(in) :: n
         integer :: i
+
         if (.not. allocated(search_regs_start)) return
+
         do i = 0, size(search_regs_start) - 1
             if (search_regs_start(i) >= 0) then
                 search_regs_start(i) = max(0_int64, search_regs_start(i) + n)
@@ -1063,7 +1164,9 @@ contains
         character(len=*), intent(in) :: string
         character(len=:), allocatable :: quoted
         integer :: i
+
         quoted = ""
+
         do i = 1, len(string)
             if (index("[*.\?+^$", string(i:i)) > 0) quoted = quoted//"\"
             quoted = quoted//string(i:i)

@@ -201,11 +201,11 @@ contains
     ! ------------------------------------------------------------------
     ! Definitions
     ! ------------------------------------------------------------------
-
     !> Define the Conf modes, their keymap, syntax tables and keywords (as
     !> loading conf-mode.el does).
     subroutine syms_of_conf_mode()
         type(status_type) :: st
+
         if (syntax_table_live_p(conf_mode_syntax_table)) return
         call forward_setting(conf_assignment_column)
         call forward_setting(conf_javaprop_assignment_column)
@@ -279,6 +279,7 @@ contains
     subroutine init_syntax_tables()
         type(status_type) :: st
         type(handle_type) :: t
+
         call make_syntax_table(conf_mode_syntax_table, st)
         t = conf_mode_syntax_table
         call modify_syntax_entry(iachar("="), iachar("="), ".", st, t)
@@ -328,10 +329,12 @@ contains
         logical, intent(in), optional :: lax, prepend
         type(font_lock_highlight_type) :: h
         logical :: l, p
+
         l = .false.
         if (present(lax)) l = lax
         p = .false.
         if (present(prepend)) p = prepend
+
         if (p) then
             h = font_lock_highlight(n, face=face, override=FONT_LOCK_OVERRIDE_PREPEND, laxmatch=l)
         else
@@ -342,6 +345,7 @@ contains
     subroutine init_keywords()
         character(len=*), parameter :: SECTION = "^[ "//TAB//"]*\[\(.+\)\]"
         type(font_lock_highlight_type) :: h1(1), h2(2), h7(7)
+
         allocate (conf_font_lock_keywords(3))
         ! [section] (do this first because it may look like a parameter)
         h1(1) = hl(1, "font_lock_type_face")
@@ -414,10 +418,13 @@ contains
         call set_entry(7, "/resmgr\.conf", "class\|add\|allow\|deny")
         call set_entry(8, "/dictionary\.lst\'", "DICT\|HYPH\|THES")
         call set_entry(9, "/tuxracer/options", "set")
+
     contains
+
         subroutine set_entry(k, regexp, keywords)
             integer, intent(in) :: k
             character(len=*), intent(in) :: regexp, keywords
+
             conf_space_keywords_alist(k)%regexp = regexp
             conf_space_keywords_alist(k)%keywords = keywords
         end subroutine set_entry
@@ -426,7 +433,6 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
-
     !> Align the assignments in the buffer or active region.
     !> In Transient Mark mode, if the mark is active, operate on the
     !> contents of the region.  Otherwise, operate on the whole buffer.
@@ -438,17 +444,21 @@ contains
         logical :: narrowed, moved
         type(status_type) :: st
         integer :: c
+
         status = status_type()
+
         if (present(arg)) then
             column = arg
         else
             column = conf_assignment_column%value
         end if
+
         opoint = point()
         ! (save-restriction)
         begv = buffers(cur)%begv
         zv_from_end = buffers(cur)%text%z - buffers(cur)%zv
         narrowed = .false.
+
         if (use_region_p()) then
             call region_beginning(b, status)
             if (status%ok()) call region_end(e, status)
@@ -457,15 +467,19 @@ contains
             if (.not. status%ok()) return
             narrowed = .true.
         end if
+
         call goto_char(point_min())
+
         do while (.not. eobp())
             ! go before comment if within
             cs = comment_beginning()
             if (cs > 0) call goto_char(cs)
+
             do
                 moved = forward_comment(9_int64)
                 if (.not. moved) exit
             end do
+
             if (.not. eobp()) then
                 if (looking_at(conf_assignment_regexp%value, st)) then
                     b = match_beginning(1, st)
@@ -473,12 +487,14 @@ contains
                     call goto_char(b)
                     call delete_region(point(), e, status)
                     if (.not. status%ok()) exit
+
                     if (allocated(conf_assignment_sign%value)) then
                         if (column >= 0) then
                             col = indent_to(column, status)
                             if (.not. status%ok()) exit
                             c = before_char()
                             if (conf_assignment_space%value .and. c /= 32 .and. c /= 9) call insert(" ", status)
+
                             if (conf_assignment_space%value .and. .not. eolp()) then
                                 call insert(conf_assignment_sign%value//" ", status)
                             else
@@ -490,8 +506,10 @@ contains
                             else
                                 call insert(conf_assignment_sign%value, status)
                             end if
+
                             if (status%ok() .and. .not. eolp()) then
                                 col = indent_to(-column, status)
+
                                 if (status%ok()) then
                                     c = before_char()
                                     if (conf_assignment_space%value .and. c /= 32 .and. c /= 9) call insert(" ", status)
@@ -505,16 +523,20 @@ contains
                             col = indent_to(abs(column), status)
                         end if
                     end if
+
                     if (.not. status%ok()) exit
                 end if
             end if
+
             shortage = forward_line(1_int64)
         end do
+
         ! (end of save-restriction and save-excursion)
         if (narrowed) then
             call widen()
             call narrow_to_region(begv, buffers(cur)%text%z - zv_from_end, st)
         end if
+
         call goto_char(min(max(opoint, point_min()), point_max()))
     end subroutine conf_align_assignments
 
@@ -522,6 +544,7 @@ contains
     integer function before_char()
         integer(int32) :: c
         logical :: found
+
         call char_before(c, found)
         before_char = -1
         if (found) before_char = c
@@ -531,6 +554,7 @@ contains
     integer function after_char()
         integer(int32) :: c
         logical :: found
+
         call char_after(c, found)
         after_char = -1
         if (found) after_char = c
@@ -542,6 +566,7 @@ contains
     !> Port of conf-mode.el:conf-align-assignments (the command).
     subroutine cmd_conf_align_assignments(status)
         type(status_type), intent(out) :: status
+
         if (nilp(current_prefix_arg)) then
             call conf_align_assignments(status)
         else
@@ -562,8 +587,10 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg
         type(handle_type) :: table
+
         call copy_syntax_table(table, status, syntax_table())
         if (.not. status%ok()) return
+
         if (.not. present(arg)) then
             call modify_syntax_entry(iachar("'"), iachar("'"), ".", status, table)
             call modify_syntax_entry(iachar('"'), iachar('"'), ".", status, table)
@@ -571,6 +598,7 @@ contains
             if (arg == 1) call modify_syntax_entry(iachar("'"), iachar("'"), ".", status, table)
             if (arg == 2) call modify_syntax_entry(iachar('"'), iachar('"'), ".", status, table)
         end if
+
         call set_syntax_table(table, status)
         if (.not. status%ok()) return
         call font_lock_flush(status)
@@ -580,6 +608,7 @@ contains
     !> conf-mode.el:conf-quote-normal.
     subroutine cmd_conf_quote_normal(status)
         type(status_type), intent(out) :: status
+
         if (nilp(current_prefix_arg)) then
             call conf_quote_normal(status)
         else
@@ -594,6 +623,7 @@ contains
         integer :: unix, win, equal, colon, space, jp, c
         integer(int64) :: opoint, moved, shortage, e
         type(status_type) :: st
+
         unix = 0
         win = 0
         equal = 0
@@ -602,9 +632,11 @@ contains
         jp = 0
         opoint = point()
         call goto_char(point_min())
+
         do while (.not. eobp())
             moved = skip_blanks()
             c = after_char()
+
             if (c == iachar("#")) then
                 unix = unix + 1
             else if (c == iachar(";")) then
@@ -618,6 +650,7 @@ contains
             else if (looking_at("[^ "//TAB//LF//"=:]+\(?:  ?[^ "//TAB//LF//"=:]+\)*[ "//TAB//"]*[=:]", st)) then
                 ! recognize at most double spaces within names
                 e = match_end(0, st)
+
                 if (before_char_at(e) == iachar("=")) then
                     equal = equal + 1
                 else
@@ -630,9 +663,12 @@ contains
             else
                 space = space + 1
             end if
+
             shortage = forward_line(1_int64)
         end do
+
         call goto_char(opoint)
+
         if (jp > max(unix, win, 3)) then
             call conf_javaprop_mode(status)
         else if (colon > max(equal, space)) then
@@ -650,6 +686,7 @@ contains
     integer(int64) function skip_blanks() result(moved)
         use syntax_fm, only: skip_chars_forward
         type(status_type) :: st
+
         moved = skip_chars_forward(" "//TAB//achar(12), st)
     end function skip_blanks
 
@@ -658,6 +695,7 @@ contains
         integer(int64), intent(in) :: pos
         integer(int32) :: c
         logical :: found
+
         call char_before(c, found, pos)
         before_char_at = -1
         if (found) before_char_at = c
@@ -698,7 +736,9 @@ contains
     recursive subroutine conf_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved, recursing
+
         if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
+
         ! Redirect to one of the submodes when called directly.  The file
         ! may have "mode: conf" in the local variable block, in which case
         ! we'll be called recursively infinitely.  Inhibit that.
@@ -709,6 +749,7 @@ contains
             conf_mode_recursing = recursing
             return
         end if
+
         call major_modes%conf_mode%begin(saved, status)
         if (.not. status%ok()) return
         call font_lock_defaults%set_local(keywords=conf_font_lock_keywords, case_fold=.true.)
@@ -724,6 +765,7 @@ contains
     subroutine conf_mode_initialize(comment, font_lock)
         character(len=*), intent(in) :: comment
         type(font_lock_keyword_type), intent(in), optional :: font_lock(:)
+
         call comment_start%set_local(comment)
         call comment_start_skip%set_local(regexp_quote(comment)//"+\s *")
         if (present(font_lock)) call font_lock_defaults%set_local(keywords=font_lock, case_fold=.true.)
@@ -735,6 +777,7 @@ contains
     recursive subroutine conf_unix_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
+
         if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_unix_mode%begin(saved, status)
         if (.not. status%ok()) return
@@ -759,6 +802,7 @@ contains
     recursive subroutine conf_windows_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
+
         if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_windows_mode%begin(saved, status)
         if (.not. status%ok()) return
@@ -782,6 +826,7 @@ contains
     recursive subroutine conf_javaprop_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
+
         if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_javaprop_mode%begin(saved, status)
         if (.not. status%ok()) return
@@ -819,18 +864,21 @@ contains
         logical :: saved
         integer :: k
         type(status_type) :: st
+
         if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_space_mode%begin(saved, status)
         if (.not. status%ok()) return
         call conf_mode_initialize("#", conf_space_font_lock_keywords)
         call conf_assignment_sign%make_local()
         call conf_assignment_sign%clear()
+
         if (allocated(buffers(cur)%filename)) then
             ! We set conf-space-keywords directly, but a value which is
             ! in the local variables list or interactively specified
             ! (see the function conf-space-keywords) takes precedence.
             call conf_space_keywords%make_local()
             call conf_space_keywords%clear()
+
             do k = 1, size(conf_space_keywords_alist)
                 if (string_match(conf_space_keywords_alist(k)%regexp, buffers(cur)%filename, st) > 0) then
                     call conf_space_keywords%set_local(conf_space_keywords_alist(k)%keywords)
@@ -838,6 +886,7 @@ contains
                 end if
             end do
         end if
+
         call conf_space_mode_internal(status)
         if (.not. status%ok()) return
         call major_modes%conf_space_mode%finish(saved, status)
@@ -849,16 +898,19 @@ contains
         character(len=*), intent(in) :: keywords
         type(status_type), intent(out) :: status
         logical :: saved
+
         call delay_mode_hooks_begin(saved)
         call conf_space_mode(status)
         call delay_mode_hooks_end(saved)
         if (.not. status%ok()) return
+
         if (len(keywords) == 0) then
             call conf_space_keywords%make_local()
             call conf_space_keywords%clear()
         else
             call conf_space_keywords%set_local(keywords)
         end if
+
         call conf_space_mode_internal(status)
         if (.not. status%ok()) return
         call run_mode_hooks(status)
@@ -870,6 +922,7 @@ contains
     recursive subroutine cmd_conf_space_keywords(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: keywords
+
         call read_string("Conf Space keyword regexp: ", keywords, status)
         if (.not. status%ok()) return
         call conf_space_keywords_command(keywords, status)
@@ -883,17 +936,21 @@ contains
         type(font_lock_keyword_type), allocatable :: keywords(:)
         type(font_lock_highlight_type) :: h1(1), h2(2)
         integer :: n
+
         status = status_type()
+
         if (allocated(conf_space_keywords%value)) then
             call conf_assignment_regexp%set_local("\(?:"//conf_space_keywords%value//"\)[ "//TAB//"]+.+?\([ "//TAB// &
                                                   "]+\|$\)")
         else
             call conf_assignment_regexp%set_local(".+?\([ "//TAB//"]+\|$\)")
         end if
+
         ! The keywords' (eval ...) entry, var val.
         n = size(conf_space_font_lock_keywords)
         allocate (keywords(n + 1))
         keywords(1:n) = conf_space_font_lock_keywords
+
         if (allocated(conf_space_keywords%value)) then
             h2(1) = hl(1, "font_lock_keyword_face")
             h2(2) = hl(2, "font_lock_variable_name_face")
@@ -903,6 +960,7 @@ contains
             h1(1) = hl(1, "font_lock_variable_name_face")
             keywords(n + 1) = font_lock_keyword("^[ "//TAB//"]*\([^"//achar(0)//"- ]+\)", highlights=h1)
         end if
+
         call font_lock_defaults%set_local(keywords=keywords, case_fold=.true.)
         ! If Font Lock is already enabled, reenable it with new
         ! conf-assignment-regexp.
@@ -922,6 +980,7 @@ contains
     recursive subroutine conf_colon_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
+
         if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_colon_mode%begin(saved, status)
         if (.not. status%ok()) return
@@ -946,6 +1005,7 @@ contains
     recursive subroutine conf_ppd_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
+
         if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_ppd_mode%begin(saved, status)
         if (.not. status%ok()) return
@@ -966,6 +1026,7 @@ contains
     recursive subroutine conf_xdefaults_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
+
         if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_xdefaults_mode%begin(saved, status)
         if (.not. status%ok()) return
@@ -983,6 +1044,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: start, end, pos, f
         type(status_type) :: st
+
         status = status_type()
         found = .false.
         ! Skip any number of "[" to handle things like [[section]].
@@ -991,6 +1053,7 @@ contains
         start = point()
         call forward_char(st, -1_int64)
         pos = scan_lists(point(), 1_int64, 0_int64, st)
+
         if (st%ok() .and. pos > 0) then
             call goto_char(pos)
             end = min(limit, point() - 1)
@@ -998,6 +1061,7 @@ contains
             call end_of_line(1_int64)
             end = min(limit, point())
         end if
+
         ! If there is a comma in the text, then we assume this is
         ! an array and not a section.  (This could be refined to
         ! look only for unquoted commas if necessary.)
@@ -1005,6 +1069,7 @@ contains
         call goto_char(start)
         call search_forward(",", f, st, bound=end, noerror=SEARCH_NOERROR)
         call goto_char(pos)
+
         if (f <= 0) then
             call set_match_data([start, end])
             found = .true.
@@ -1024,6 +1089,7 @@ contains
     recursive subroutine conf_toml_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
+
         if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_toml_mode%begin(saved, status)
         if (.not. status%ok()) return
@@ -1051,6 +1117,7 @@ contains
     recursive subroutine conf_desktop_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
+
         if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_desktop_mode%begin(saved, status)
         if (.not. status%ok()) return
@@ -1066,6 +1133,7 @@ contains
     recursive subroutine conf_npmrc_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
+
         if (.not. syntax_table_live_p(conf_mode_syntax_table)) call syms_of_conf_mode()
         call major_modes%conf_npmrc_mode%begin(saved, status)
         if (.not. status%ok()) return
@@ -1081,6 +1149,7 @@ contains
         integer(int64) :: opoint, begv, zv_from_end
         logical :: xml
         type(status_type) :: st
+
         status = status_type()
         opoint = point()
         begv = buffers(cur)%begv

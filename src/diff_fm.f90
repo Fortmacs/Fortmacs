@@ -126,6 +126,7 @@ contains
         character(len=:), allocatable, intent(out) :: switches
         logical, intent(out) :: given
         type(status_type), intent(out) :: status
+
         status = status_type()
         given = .not. nilp(current_prefix_arg)
         if (given) call read_string("Diff switches: ", switches, status, initial=diff_switches)
@@ -143,17 +144,21 @@ contains
         type(value_type) :: saved
         integer(int64) :: opoint
         character(len=:), allocatable :: what
+
         if (present(old_temp_file)) then
             if (len(old_temp_file) > 0) call delete_file(old_temp_file, st)
         end if
+
         if (present(new_temp_file)) then
             if (len(new_temp_file) > 0) call delete_file(new_temp_file, st)
         end if
+
         call goto_char(point_min())
         opoint = point()
         call goto_char(point_max())
         call symbol_value(sym("inhibit_read_only"), saved, st)
         call set(sym("inhibit_read_only"), t_value(), st)
+
         select case (code)
         case (0)
             what = " (no differences)"
@@ -162,6 +167,7 @@ contains
         case default
             what = ""
         end select
+
         call insert(achar(10)//"Diff finished"//what//".  "//current_time_string()//achar(10), st)
         call set(sym("inhibit_read_only"), saved, st)
         call goto_char(opoint)
@@ -186,6 +192,7 @@ contains
         character(len=*), intent(in), optional :: switches
         logical, intent(in), optional :: no_async
         type(handle_type) :: buf, window
+
         call diff_no_select(old, new, buf, status, switches, no_async)
         if (.not. status%ok()) return
         call display_buffer(buf, window, status)
@@ -203,12 +210,14 @@ contains
         type(status_type) :: st
         integer(int64) :: savedb, savedz
         character(len=:), allocatable :: msg
+
         status = status_type()
         if (.not. file_or_buf%is_buffer) return
         old = current_buffer()
         call set_buffer(file_or_buf%buffer, status)
         if (.not. status%ok()) return
         call make_temp_file("buffer-content-", tempfile, status)
+
         if (status%ok()) then
             if (diff_entire_buffers) then
                 savedb = buffers(cur)%begv
@@ -220,6 +229,7 @@ contains
                 call write_region(tempfile, .false., status, point_min(), point_max(), message=msg)
             end if
         end if
+
         call set_buffer(old, st)
     end subroutine diff_file_local_copy
 
@@ -232,6 +242,7 @@ contains
         type(status_type) :: st
         integer(int64) :: found
         logical :: again
+
         again = .false.
         if (present(force)) again = force
         if (.not. again .and. diff_use_labels /= DIFF_LABELS_CHECK) return
@@ -241,18 +252,22 @@ contains
         call set_buffer(tmp, st)
         call erase_buffer(st)
         call call_process(diff_command, result, st, destination=t_value(), args=list(make_string("--help")))
+
         if (st%ok()) then
             call search_backward("--label", found, st, noerror=SEARCH_NOERROR)
             if (found /= 0) diff_use_labels = DIFF_LABELS_YES
         end if
+
         call set_buffer(old, st)
         call kill_temp(tmp)
+
     contains
 
         subroutine kill_temp(b)
             use buffer_fm, only: kill_buffer
             type(handle_type), intent(in) :: b
             type(status_type) :: st2
+
             call kill_buffer(b, st2)
         end subroutine kill_temp
     end subroutine diff_check_labels
@@ -264,6 +279,7 @@ contains
         character(len=:), allocatable :: s
         integer(int64) :: bi
         type(status_type) :: st
+
         if (.not. operand%is_buffer) then
             s = operand%file
         else
@@ -297,48 +313,58 @@ contains
         type(status_type) :: st
         logical :: sync
         integer :: k
+
         status = status_type()
         old = old_in
         new = new_in
+
         if (.not. new%is_buffer) then
             call expand_file_name(new_in%file, new%file, status)
             if (.not. status%ok()) return
         end if
+
         if (.not. old%is_buffer) then
             call expand_file_name(old_in%file, old%file, status)
             if (.not. status%ok()) return
         end if
+
         ! If not specified, use default.
         sw = diff_switches
         if (present(switches)) sw = switches
         sync = .false.
         if (present(no_async)) sync = no_async
+
         if (present(buf)) then
             result = buf
         else
             call get_buffer_create("*Diff*", result, status)
             if (.not. status%ok()) return
         end if
+
         call diff_check_labels()
         call diff_file_local_copy(old, old_alt, status)
         if (status%ok()) call diff_file_local_copy(new, new_alt, status)
         if (.not. status%ok()) return
         command = diff_command
         if (len(sw) > 0) command = command//" "//sw
+
         if ((allocated(old_alt) .or. allocated(new_alt)) .and. diff_use_labels == DIFF_LABELS_YES) then
             command = command//" "//shell_quote_argument("--label")//" "//shell_quote_argument(operand_label(old))// &
                       " "//shell_quote_argument("--label")//" "//shell_quote_argument(operand_label(new))
         end if
+
         if (allocated(old_alt)) then
             command = command//" "//shell_quote_argument(old_alt)
         else
             command = command//" "//shell_quote_argument(old%file)
         end if
+
         if (allocated(new_alt)) then
             command = command//" "//shell_quote_argument(new_alt)
         else
             command = command//" "//shell_quote_argument(new%file)
         end if
+
         thisdir = ""
         if (allocated(buffers(cur)%directory)) thisdir = buffers(cur)%directory
         obuf = current_buffer()
@@ -349,10 +375,12 @@ contains
         call erase_buffer(st)
         call set(sym("inhibit_read_only"), saved, st)
         call diff_mode(status)
+
         if (.not. status%ok()) then
             call set_buffer(obuf, st)
             return
         end if
+
         call remember_revert_args(old, new, sw, sync)
         call revert_buffer_function%set_local(diff_revert)
         buffers(cur)%directory = thisdir
@@ -364,12 +392,14 @@ contains
         ! (let ((default-directory temporary-file-directory)) ...)
         olddir = buffers(cur)%directory
         buffers(cur)%directory = temporary_file_directory()
+
         if (.not. sync) then
             args(1)%s = shell_file_name%value
             args(2)%s = shell_command_switch%value
             args(3)%s = command
             call make_process("Diff", args, proc, status, buffer=result)
             buffers(cur)%directory = olddir
+
             if (status%ok()) then
                 call set_process_filter(proc, st, diff_process_filter)
                 call set_process_sentinel(proc, st, diff_process_sentinel)
@@ -383,6 +413,7 @@ contains
             buffers(cur)%directory = olddir
             k = 2
             if (fixnump(code)) k = int(xfixnum(code))
+
             if (allocated(old_alt) .and. allocated(new_alt)) then
                 call diff_sentinel(k, old_alt, new_alt)
             else if (allocated(old_alt)) then
@@ -392,8 +423,10 @@ contains
             else
                 call diff_sentinel(k)
             end if
+
             call set(sym("inhibit_read_only"), saved, st)
         end if
+
         call set_buffer(obuf, st)
     end subroutine diff_no_select
 
@@ -404,10 +437,13 @@ contains
         logical, intent(in) :: no_async
         type(revert_args_type), allocatable :: grown(:)
         integer :: k, n
+
         if (.not. allocated(revert_args)) allocate (revert_args(0))
+
         do k = 1, size(revert_args)
             if (revert_args(k)%serial == buffers(cur)%serial) exit
         end do
+
         if (k > size(revert_args)) then
             n = size(revert_args)
             allocate (grown(n + 1))
@@ -415,6 +451,7 @@ contains
             call move_alloc(grown, revert_args)
             k = n + 1
         end if
+
         revert_args(k)%serial = buffers(cur)%serial
         revert_args(k)%old = old
         revert_args(k)%new = new
@@ -429,12 +466,16 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: result
         integer :: k
+
         status = status_type()
         if (ignore_auto .or. noconfirm) continue
+
         do k = 1, size(revert_args)
             if (revert_args(k)%serial == buffers(cur)%serial) exit
         end do
+
         if (k > size(revert_args)) return
+
         associate (a => revert_args(k))
             call diff_no_select(a%old, a%new, result, status, a%switches, a%no_async, current_buffer())
         end associate
@@ -446,6 +487,7 @@ contains
         character(len=:), allocatable, intent(in) :: old_temp, new_temp
         type(diff_process_type), allocatable :: grown(:)
         integer :: n
+
         if (.not. allocated(diff_processes)) allocate (diff_processes(0))
         n = size(diff_processes)
         allocate (grown(n + 1))
@@ -470,6 +512,7 @@ contains
         type(status_type) :: st
         integer(int64) :: mpos, opoint
         logical :: moving
+
         status = status_type()
         pbuf = process_buffer(proc)
         if (.not. buffer_live_p(pbuf)) return
@@ -486,12 +529,14 @@ contains
         call insert(string, status)
         call set(sym("inhibit_read_only"), saved, st)
         call set_marker(mark, point(), st)
+
         if (moving) then
             call goto_char(point())
         else
             if (opoint > mpos) opoint = opoint + (point() - mpos)
             call goto_char(opoint)
         end if
+
         call set_buffer(obuf, st)
     end subroutine diff_process_filter
 
@@ -504,22 +549,27 @@ contains
         type(handle_type) :: obuf, pbuf
         type(status_type) :: st
         integer :: k
+
         status = status_type()
         if (len(event) < 0) return
         pbuf = process_buffer(proc)
         if (.not. buffer_live_p(pbuf)) return
+
         do k = 1, size(diff_processes)
             if (diff_processes(k)%process%index == proc%index .and. &
                 diff_processes(k)%process%generation == proc%generation) exit
         end do
+
         obuf = current_buffer()
         call set_buffer(pbuf, st)
+
         if (k <= size(diff_processes)) then
             call diff_sentinel(process_exit_status(proc), diff_processes(k)%old_temp, diff_processes(k)%new_temp)
             call drop_process(k)
         else
             call diff_sentinel(process_exit_status(proc))
         end if
+
         call set_buffer(obuf, st)
     end subroutine diff_process_sentinel
 
@@ -529,13 +579,16 @@ contains
         integer, intent(in) :: k
         type(diff_process_type), allocatable :: rest(:)
         integer :: i, j
+
         allocate (rest(size(diff_processes) - 1))
         j = 0
+
         do i = 1, size(diff_processes)
             if (i == k) cycle
             j = j + 1
             rest(j) = diff_processes(i)
         end do
+
         call move_alloc(rest, diff_processes)
     end subroutine drop_process
 
@@ -552,19 +605,24 @@ contains
         type(diff_operand_type) :: bak, ori
         character(len=:), allocatable :: latest
         logical :: found
+
         status = status_type()
+
         if (backup_file_name_p(file)) then
             bak%file = file
             ori%file = file_name_sans_versions(file)
         else
             call diff_latest_backup_file(file, latest, found)
+
             if (.not. found) then
                 call set_error(status, FM_GENERIC_ERROR, "No backup found for "//file)
                 return
             end if
+
             bak%file = latest
             ori%file = file
         end if
+
         call diff(bak, ori, status, switches)
     end subroutine diff_backup
 
@@ -574,6 +632,7 @@ contains
         character(len=*), intent(in) :: fn
         character(len=:), allocatable, intent(out) :: backup
         logical, intent(out) :: found
+
         call file_newest_backup(fn, backup, found)
     end subroutine diff_latest_backup_file
 
@@ -586,14 +645,17 @@ contains
         type(diff_operand_type) :: old, new
         type(handle_type) :: b
         integer(int64) :: bi
+
         b = current_buffer()
         if (present(buffer)) b = buffer
         call resolve_buffer(b, bi, status)
         if (.not. status%ok()) return
+
         if (.not. allocated(buffers(bi)%filename)) then
             call set_error(status, FM_GENERIC_ERROR, "Buffer is not visiting a file")
             return
         end if
+
         old%file = buffers(bi)%filename
         new%is_buffer = .true.
         new%buffer = b
@@ -619,6 +681,7 @@ contains
         character(len=*), intent(in), optional :: switches
         logical, intent(in), optional :: no_async
         type(diff_operand_type) :: o, n
+
         o%is_buffer = .true.
         o%buffer = old
         n%is_buffer = .true.
@@ -629,12 +692,12 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
-
     recursive subroutine cmd_diff(status)
         type(status_type), intent(out) :: status
         type(diff_operand_type) :: old, new
         character(len=:), allocatable :: newf, oldf, sw, backup
         logical :: given, found
+
         if (allocated(buffers(cur)%filename)) then
             if (file_exists_p(buffers(cur)%filename)) then
                 call read_file_name("Diff new file (default "//file_name_nondirectory(buffers(cur)%filename)//"): ", &
@@ -645,9 +708,11 @@ contains
         else
             call read_file_name("Diff new file: ", newf, status, mustmatch=REQUIRE_MATCH_T)
         end if
+
         if (.not. status%ok()) return
         call file_newest_backup(newf, backup, found)
         if (found) found = file_exists_p(backup)
+
         if (found) then
             call read_file_name("Diff original file (default "//file_name_nondirectory(backup)//"): ", oldf, status, &
                                 dir=file_name_directory(backup), default_filename=backup, mustmatch=REQUIRE_MATCH_T)
@@ -655,11 +720,13 @@ contains
             call read_file_name("Diff original file: ", oldf, status, dir=file_name_directory(newf), &
                                 mustmatch=REQUIRE_MATCH_T)
         end if
+
         if (.not. status%ok()) return
         call read_diff_switches(sw, given, status)
         if (.not. status%ok()) return
         old%file = oldf
         new%file = newf
+
         if (given) then
             call diff(old, new, status, sw)
         else
@@ -671,10 +738,12 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file, sw
         logical :: given
+
         call read_file_name("Diff (file with backup): ", file, status, mustmatch=REQUIRE_MATCH_T)
         if (.not. status%ok()) return
         call read_diff_switches(sw, given, status)
         if (.not. status%ok()) return
+
         if (given) then
             call diff_backup(file, status, sw)
         else
@@ -685,6 +754,7 @@ contains
     recursive subroutine cmd_diff_buffer_with_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
+
         ! (interactive "bBuffer: ")
         call read_buffer("Buffer: ", name, status, def=buffers(cur)%name, require_match=REQUIRE_MATCH_T)
         if (.not. status%ok()) return
@@ -698,6 +768,7 @@ contains
         type(handle_type) :: ob
         type(status_type) :: st
         logical :: given
+
         call read_buffer("Diff new buffer (default "//buffers(cur)%name//"): ", newb, status, def=buffers(cur)%name, &
                          require_match=REQUIRE_MATCH_T)
         if (.not. status%ok()) return
@@ -710,6 +781,7 @@ contains
         if (.not. status%ok()) return
         call read_diff_switches(sw, given, status)
         if (.not. status%ok()) return
+
         if (given) then
             call diff_buffers(get_buffer(oldb), get_buffer(newb), status, sw)
         else

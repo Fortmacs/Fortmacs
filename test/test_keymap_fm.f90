@@ -52,6 +52,7 @@ contains
 
     subroutine collect_keymap_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("keymap-make-keymap", test_make_keymap), &
                     new_unittest("keymap-keymapp", test_keymapp), &
@@ -88,6 +89,7 @@ contains
         character(len=*), intent(in) :: text
         type(value_type), allocatable :: key(:)
         type(status_type) :: st
+
         call key_parse(text, key, st)
         if (.not. st%ok()) allocate (key(0))
     end function kbd
@@ -95,6 +97,7 @@ contains
     function ch(c) result(key)
         character, intent(in) :: c
         type(value_type) :: key(1)
+
         key(1) = make_fixnum(int(iachar(c), int64))
     end function ch
 
@@ -103,24 +106,28 @@ contains
         type(value_type), intent(in) :: key(:)
         type(value_type) :: val
         type(status_type) :: st
+
         call lookup_key(map, key, val, st)
     end function lookup
 
     function ref(km) result(v)
         type(handle_type), intent(in) :: km
         type(value_type) :: v
+
         v = make_keymap_ref(km)
     end function ref
 
     subroutine free(km)
         type(handle_type), intent(in) :: km
         type(status_type) :: st
+
         call free_keymap(km, st)
     end subroutine free
 
     subroutine test_make_keymap(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: full, sparse, prompted
+
         call make_keymap(full)
         call make_sparse_keymap(sparse)
         call make_sparse_keymap(prompted, make_string("Prompt"))
@@ -137,6 +144,7 @@ contains
     subroutine test_keymapp(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b
+
         call make_keymap(a)
         call make_sparse_keymap(b)
         call check(error, keymapp(ref(a)) .and. keymapp(ref(b)), "keymaps")
@@ -156,6 +164,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: map, parent, h
         type(status_type) :: st
+
         call make_keymap(map)
         call make_sparse_keymap(parent)
         h = keymap_parent(map)
@@ -181,6 +190,7 @@ contains
         type(handle_type) :: map, copy, sub, subcopy
         type(status_type) :: st
         type(value_type) :: v
+
         call make_keymap(map)
         call define_key(map, kbd("a"), sym("foo"), st)
         call define_key(map, kbd("C-c x"), sym("bar"), st)
@@ -210,6 +220,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: map
         type(status_type) :: st
+
         call make_keymap(map)
         call define_key(map, ch("a"), nil(), st)
         call check(error, st%ok() .and. nilp(lookup(ref(map), ch("a"))))
@@ -220,6 +231,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: map
         type(status_type) :: st
+
         call make_keymap(map)
         call define_key(map, ch("a"), make_string("abc"), st)
         call check(error, value_equal(lookup(ref(map), ch("a")), make_string("abc")))
@@ -230,6 +242,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: map, map2
         type(status_type) :: st
+
         call make_keymap(map)
         call make_keymap(map2)
         call define_key(map, ch("a"), ref(map2), st)
@@ -245,6 +258,7 @@ contains
         type(status_type) :: st
         type(value_type) :: v
         type(value_type), allocatable :: none(:)
+
         call make_keymap(map)
         call define_key(map, ch("a"), sym("foo"), st)
         call check(error, value_eq(lookup(ref(map), ch("a")), sym("foo")), "a")
@@ -264,6 +278,7 @@ contains
         type(handle_type) :: map1, map2
         type(status_type) :: st
         type(value_type) :: maps
+
         call make_keymap(map1)
         call make_keymap(map2)
         call define_key(map1, ch("a"), sym("foo"), st)
@@ -283,6 +298,7 @@ contains
         type(handle_type) :: map
         type(status_type) :: st
         type(value_type) :: v
+
         call make_keymap(map)
         call define_key(map, kbd("C-c f"), sym("foo"), st)
         v = lookup(ref(map), kbd("C-c f x"))
@@ -298,6 +314,7 @@ contains
         type(handle_type) :: map
         type(status_type) :: st
         type(value_type) :: key(1), v
+
         call make_sparse_keymap(map)
         key(1) = t_value()
         call define_key(map, key, sym("self_insert_command"), st)
@@ -321,6 +338,7 @@ contains
         type(handle_type) :: parent, child
         type(status_type) :: st
         integer :: pass
+
         do pass = 1, 2
             call make_sparse_keymap(parent)
             call make_keymap(child)
@@ -329,6 +347,7 @@ contains
             call define_key(child, ch("a"), sym("bar"), st)
             call check(error, value_eq(lookup(ref(child), ch("a")), sym("bar")), "bar")
             if (allocated(error)) return
+
             if (pass == 1) then
                 ! Set to nil: shadows the parent.
                 call define_key(child, ch("a"), nil(), st)
@@ -338,6 +357,7 @@ contains
                 call define_key(child, ch("a"), nil(), st, remove=.true.)
                 call check(error, value_eq(lookup(ref(child), ch("a")), sym("foo")), "foo")
             end if
+
             call free(child)
             call free(parent)
             if (allocated(error)) return
@@ -348,6 +368,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: map, parent
         type(status_type) :: st
+
         call make_sparse_keymap(map)
         call make_sparse_keymap(parent)
         call set_keymap_parent(map, parent, st)
@@ -376,6 +397,7 @@ contains
         type(status_type) :: st
         type(value_type) :: keys
         type(value_type), allocatable :: seqs(:), events(:)
+
         call make_keymap(map)
         call make_sparse_keymap(parent)
         call set_keymap_parent(map, parent, st)
@@ -413,6 +435,7 @@ contains
         type(status_type) :: st
         type(value_type) :: key(1)
         integer(int64) :: c
+
         call make_sparse_keymap(a)
         call make_sparse_keymap(b)
         call define_key(a, kbd("C-x f"), sym("find_file"), st)
@@ -426,10 +449,12 @@ contains
         call make_keymap(fa)
         call make_keymap(fb)
         call define_key_range(fa, 97_int64, 99_int64, sym("undo"), st)
+
         do c = 97, 99
             key(1) = make_fixnum(c)
             call define_key(fb, key, sym("undo"), st)
         end do
+
         call check(error, value_equal(ref(fa), ref(fb)), "char-tables")
         call free(a)
         call free(b)
@@ -442,6 +467,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: map, parent
         type(status_type) :: st
+
         call make_sparse_keymap(map)
         call check(error, prin1_to_string(ref(map)), "(keymap)")
         if (allocated(error)) return
@@ -462,6 +488,7 @@ contains
         type(handle_type) :: parent, child
         type(status_type) :: st
         type(value_type) :: v
+
         call make_sparse_keymap(parent)
         call make_sparse_keymap(child)
         call set_keymap_parent(child, parent, st)
@@ -489,6 +516,7 @@ contains
         type(handle_type) :: map
         type(status_type) :: st
         type(value_type) :: key(2)
+
         call make_sparse_keymap(map)
         call define_key(map, kbd("M-x"), sym("execute_extended_command"), st)
         call check(error, value_eq(lookup(ref(map), kbd("M-x")), &
@@ -510,6 +538,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: map
         type(status_type) :: st
+
         call make_sparse_keymap(map)
         call define_key(map, kbd("C-c"), sym("foo"), st)
         call define_key(map, kbd("C-c f"), sym("bar"), st)
@@ -529,6 +558,7 @@ contains
         type(handle_type) :: map
         type(status_type) :: st
         type(value_type) :: key(1)
+
         call make_sparse_keymap(map)
         key(1) = sym("M-C-home")
         call define_key(map, key, sym("foo"), st)
@@ -543,6 +573,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(value_type), allocatable :: k(:)
         type(status_type) :: st
+
         k = kbd("C-x C-f")
         call check(error, size(k) == 2, "C-x C-f size")
         if (allocated(error)) return
@@ -597,6 +628,7 @@ contains
     subroutine test_key_description(error)
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: k1(1), k2(2), k3(3), prefix(1)
+
         k1(1) = sym("right")
         prefix(1) = make_fixnum(24_int64)
         call check(error, key_description(k1, prefix), "C-x <right>")
@@ -646,6 +678,7 @@ contains
         type(handle_type) :: global, local, buf, h
         type(status_type) :: st
         type(value_type) :: v
+
         global = current_global_map()
         call check(error, keymap_live_p(global) .and. keymap_full_p(global), "global")
         if (allocated(error)) return
@@ -681,6 +714,7 @@ contains
         type(handle_type) :: map, prefix
         type(status_type) :: st
         type(value_type) :: v
+
         call make_sparse_keymap(map)
         call define_key(map, kbd("C-c a"), sym("foo"), st)
         v = lookup(ref(map), kbd("C-c"))
@@ -699,6 +733,7 @@ contains
         character(len=*), parameter :: n_tilde = char(195)//char(177), u_umlaut = char(195)//char(188)
         character(len=16), allocatable :: valid(:), invalid(:)
         integer :: k
+
         valid = [character(len=16) :: "f", "X", "X f", &
                  "<F2>", "<f1> <f2> TAB", "<f1> RET", "<f1> SPC", "<f1>", "<return>", &
                  "C-x", "C-x a", "C-;", "C-a", "C-c SPC", "C-c TAB", "C-c c", "C-x 4 C-f", &
@@ -720,10 +755,12 @@ contains
                    "<s-return>", "<C-M-return>", "c-x", "C-xx", "M-xx", "M-x<TAB>"]
         call check(error,.not. key_valid_p(""), "empty")
         if (allocated(error)) return
+
         do k = 1, size(valid)
             call check(error, key_valid_p(trim(valid(k))), "valid: "//trim(valid(k)))
             if (allocated(error)) return
         end do
+
         do k = 1, size(invalid)
             ! Trimming would lose the significant spaces of " X".
             if (k == 1) then
@@ -731,6 +768,7 @@ contains
             else
                 call check(error,.not. key_valid_p(trim(invalid(k))), "invalid: "//trim(invalid(k)))
             end if
+
             if (allocated(error)) return
         end do
     end subroutine test_key_valid_p
@@ -742,6 +780,7 @@ contains
         type(handle_type) :: k
         type(value_type) :: a
         type(status_type) :: st
+
         call make_sparse_keymap(k)
         call keymap_set(k, "a", make_string("a"), st)
         call check(error, st%ok(), "keymap_set")
@@ -761,6 +800,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: global
         type(status_type) :: st
+
         global = ref(current_global_map())
         call keymap_global_set("C-c x", "forward_char", st)
         call check(error, st%ok() .and. value_eq(lookup(global, kbd("C-c x")), sym("forward_char")), &

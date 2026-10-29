@@ -168,11 +168,13 @@ contains
         !> errno, if already fetched.
         integer(c_int), intent(in), optional :: err
         character(len=12) :: num
+
         if (present(err)) then
             write (num, "(i0)") err
         else
             write (num, "(i0)") errno()
         end if
+
         call set_error(status, FM_FILE_ERROR, what//" failed, errno "//trim(num))
     end subroutine sys_error
 
@@ -181,6 +183,7 @@ contains
         integer(int32), intent(in) :: fd
         type(emacs_tty_type), intent(out) :: settings
         type(status_type), intent(out) :: status
+
         if (c_tcgetattr(fd, settings%main) /= 0) call sys_error(status, "tcgetattr")
     end subroutine emacs_get_tty
 
@@ -196,14 +199,17 @@ contains
         type(termios_type) :: now
         integer(c_int) :: action
         integer :: i
+
         action = TCSADRAIN
         if (flushp) action = TCSAFLUSH
+
         do i = 1, 10
             if (c_tcsetattr(fd, action, settings%main) < 0) then
                 if (errno() == EINTR) cycle
                 call sys_error(status, "tcsetattr")
                 return
             end if
+
             if (c_tcgetattr(fd, now) /= 0) cycle
             if (now%c_iflag == settings%main%c_iflag .and. &
                 now%c_oflag == settings%main%c_oflag .and. &
@@ -222,7 +228,9 @@ contains
         type(emacs_tty_type), intent(in) :: old
         logical, intent(in) :: flow_control, meta_key, controlling
         type(emacs_tty_type) :: tty
+
         tty = old
+
         associate (m => tty%main)
             m%c_iflag = ior(m%c_iflag, IGNBRK)          ! Ignore break condition
             m%c_iflag = iand(m%c_iflag, not(ICRNL))     ! No CR -> NL on input
@@ -232,18 +240,22 @@ contains
             m%c_lflag = iand(m%c_lflag, not(ICANON))    ! No erase/kill processing
             m%c_lflag = iand(m%c_lflag, not(IEXTEN))    ! No other editing chars
             m%c_lflag = ior(m%c_lflag, ISIG)            ! Enable signals
+
             if (flow_control) then
                 m%c_iflag = ior(m%c_iflag, IXON)
                 m%c_iflag = iand(m%c_iflag, not(IXANY))
             else
                 m%c_iflag = iand(m%c_iflag, not(IXON))
             end if
+
             m%c_oflag = iand(m%c_oflag, not(ONLCR))     ! No NL -> CR-NL on output
             m%c_oflag = iand(m%c_oflag, not(TAB3))      ! No tab expansion
+
             if (meta_key) then
                 m%c_cflag = ior(m%c_cflag, CS8)          ! 8-bit input
                 m%c_cflag = iand(m%c_cflag, not(PARENB)) ! No parity
             end if
+
             if (controlling) then
                 m%c_cc(VINTR) = QUIT_CHAR                ! C-g gives SIGINT
                 m%c_cc(VQUIT) = QUIT_CHAR
@@ -251,6 +263,7 @@ contains
                 m%c_cc(VINTR) = CDISABLE
                 m%c_cc(VQUIT) = CDISABLE
             end if
+
             m%c_cc(VMIN) = 1_c_signed_char              ! Wait for at least 1 byte
             m%c_cc(VTIME) = 0_c_signed_char             ! however long that takes
             m%c_cc(VSUSP) = CDISABLE                    ! C-z is ordinary input
@@ -258,6 +271,7 @@ contains
             m%c_cc(VREPRINT) = CDISABLE
             m%c_cc(VWERASE) = CDISABLE
             m%c_cc(VDISCARD) = CDISABLE
+
             if (flow_control) then
                 m%c_cc(VSTART) = 17_c_signed_char        ! C-q
                 m%c_cc(VSTOP) = 19_c_signed_char         ! C-s
@@ -276,6 +290,7 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: flow_control, meta_key, controlling
         logical :: flow, meta, ctl
+
         flow = .false.
         meta = .true.
         ctl = .true.
@@ -293,12 +308,14 @@ contains
         integer(int32), intent(in) :: fd
         type(emacs_tty_type), intent(in) :: old
         type(status_type), intent(out) :: status
+
         call emacs_set_tty(fd, old, .false., status)
     end subroutine reset_sys_modes
 
     !> Whether `fd' is a terminal.  The isatty check of emacs.c:main.
     logical function emacs_isatty(fd)
         integer(int32), intent(in) :: fd
+
         emacs_isatty = c_isatty(int(fd, c_int)) == 1
     end function emacs_isatty
 
@@ -308,6 +325,7 @@ contains
         integer(int32), intent(in) :: fd
         type(emacs_tty_type) :: settings
         type(status_type) :: status
+
         call emacs_get_tty(fd, settings, status)
         tabs_safe_p = status%ok() .and. iand(settings%main%c_oflag, TABDLY) /= TAB3
     end function tabs_safe_p
@@ -319,12 +337,15 @@ contains
         integer(int32), intent(out) :: width, height
         type(status_type), intent(out) :: status
         type(winsize_type) :: ws
+
         width = 0
         height = 0
+
         if (c_ioctl_winsize(fd, TIOCGWINSZ, ws) < 0) then
             call sys_error(status, "ioctl(TIOCGWINSZ)")
             return
         end if
+
         width = int(ws%ws_col, int32)
         height = int(ws%ws_row, int32)
     end subroutine get_tty_size
@@ -336,10 +357,12 @@ contains
         integer(int32), intent(in) :: width, height
         type(status_type), intent(out) :: status
         type(winsize_type) :: ws
+
         if (c_ioctl_winsize(fd, TIOCGWINSZ, ws) < 0) then
             call sys_error(status, "ioctl(TIOCGWINSZ)")
             return
         end if
+
         ws%ws_col = int(width, kind(ws%ws_col))
         ws%ws_row = int(height, kind(ws%ws_row))
         if (c_ioctl_winsize(fd, TIOCSWINSZ, ws) < 0) call sys_error(status, "ioctl(TIOCSWINSZ)")
@@ -359,18 +382,22 @@ contains
         integer(int32), intent(out), optional :: err
         integer(c_long) :: r
         integer(c_int) :: e
+
         nread = 0
         if (present(err)) err = 0
+
         do
             r = c_read(fd, buf, int(len(buf), c_size_t))
             if (r >= 0) exit
             e = errno()
+
             if (e /= EINTR) then
                 if (present(err)) err = e
                 call sys_error(status, "read", e)
                 return
             end if
         end do
+
         nread = int(r, int64)
     end subroutine emacs_read
 
@@ -387,11 +414,14 @@ contains
         integer(c_long) :: r
         integer(c_int) :: e
         integer(int64) :: n
+
         n = len(buf, kind=int64)
         written = 0
         if (present(err)) err = 0
+
         do while (written < n)
             r = c_write(fd, buf(written + 1:), int(n - written, c_size_t))
+
             if (r < 0) then
                 e = errno()
                 if (e == EINTR) cycle
@@ -399,6 +429,7 @@ contains
                 call sys_error(status, "write", e)
                 return
             end if
+
             written = written + r
         end do
     end subroutine emacs_full_write
@@ -409,6 +440,7 @@ contains
         character(len=*), intent(in) :: buf
         type(status_type), intent(out) :: status
         integer(int64) :: written
+
         call emacs_full_write(fd, buf, written, status)
     end subroutine emacs_write
 
@@ -419,15 +451,18 @@ contains
         integer(int32), intent(in) :: fd, timeout_ms
         type(pollfd_type) :: pfd(1)
         integer(c_int) :: r
+
         pfd(1)%fd = fd
         pfd(1)%events = POLLIN
         pfd(1)%revents = 0
+
         do
             r = c_poll(pfd, 1_c_long, timeout_ms)
             if (r >= 0 .or. errno() /= EINTR) exit
             ! A C-g (SIGINT) must reach the command loop.
             if (sigint_flag /= 0) exit
         end do
+
         input_available = r > 0 .and. iand(pfd(1)%revents, POLLIN) /= 0
     end function input_available
 
@@ -435,12 +470,14 @@ contains
     !> command loop.  Cf. dispnew.c:deliver_window_change_signal.
     subroutine handle_window_change_signal(signum) bind(C)
         integer(c_int), value :: signum
+
         winch_flag = signum
     end subroutine handle_window_change_signal
 
     !> Install the SIGWINCH handler.
     subroutine install_window_change_handler()
         type(c_funptr) :: old
+
         old = c_signal(SIGWINCH, c_funloc(handle_window_change_signal))
     end subroutine install_window_change_handler
 
@@ -449,12 +486,14 @@ contains
     !> keyboard.c:handle_interrupt_signal.
     subroutine handle_interrupt_signal(signum) bind(C)
         integer(c_int), value :: signum
+
         sigint_flag = signum
     end subroutine handle_interrupt_signal
 
     !> Install the SIGINT handler (keyboard.c:init_keyboard).
     subroutine install_interrupt_handler()
         type(c_funptr) :: old
+
         old = c_signal(SIGINT, c_funloc(handle_interrupt_signal))
     end subroutine install_interrupt_handler
 
@@ -477,19 +516,24 @@ contains
         integer(int32), intent(out) :: master, slave
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
+
         slave = -1
         master = c_posix_openpt(ior(O_RDWR, O_NOCTTY))
+
         if (master < 0) then
             call sys_error(status, "posix_openpt")
             return
         end if
+
         if (c_grantpt(master) /= 0 .or. c_unlockpt(master) /= 0) then
             call sys_error(status, "grantpt/unlockpt")
             call close_fd(master)
             return
         end if
+
         name = c_string_to_fortran(c_ptsname(master))
         slave = c_open(name//char(0), ior(O_RDWR, O_NOCTTY))
+
         if (slave < 0) then
             call sys_error(status, "open("//name//")")
             call close_fd(master)
@@ -500,6 +544,7 @@ contains
     subroutine close_fd(fd)
         integer(int32), intent(in) :: fd
         integer(c_int) :: r
+
         r = c_close(fd)
     end subroutine close_fd
 
@@ -507,11 +552,11 @@ contains
     ! Files.  Each returns 0 or the errno value, so that fileio.c's ports
     ! can build their messages (report_file_errno) without ISO_C_BINDING.
     ! ------------------------------------------------------------------
-
     !> `name' as a NUL-terminated C string.
     pure function c_path(name) result(p)
         character(len=*), intent(in) :: name
         character(len=len(name) + 1) :: p
+
         p = name//c_null_char
     end function c_path
 
@@ -520,7 +565,9 @@ contains
     integer(int32) function emacs_open_read(file, fd) result(err)
         character(len=*), intent(in) :: file
         integer(int32), intent(out) :: fd
+
         err = 0
+
         do
             fd = c_open(c_path(file), ior(O_RDONLY, O_CLOEXEC))
             if (fd >= 0) return
@@ -535,7 +582,9 @@ contains
         character(len=*), intent(in) :: file
         integer(int32), intent(in) :: mode
         integer(int32), intent(out) :: fd
+
         err = 0
+
         do
             fd = c_creat(c_path(file), mode)
             if (fd >= 0) return
@@ -548,6 +597,7 @@ contains
     integer(int32) function sys_access(file, mode) result(err)
         character(len=*), intent(in) :: file
         integer(int32), intent(in) :: mode
+
         err = 0
         if (c_access(c_path(file), mode) /= 0) err = errno()
     end function sys_access
@@ -555,6 +605,7 @@ contains
     !> rename(2).
     integer(int32) function sys_rename(old, new) result(err)
         character(len=*), intent(in) :: old, new
+
         err = 0
         if (c_rename(c_path(old), c_path(new)) /= 0) err = errno()
     end function sys_rename
@@ -562,6 +613,7 @@ contains
     !> unlink(2).
     integer(int32) function sys_unlink(file) result(err)
         character(len=*), intent(in) :: file
+
         err = 0
         if (c_unlink(c_path(file)) /= 0) err = errno()
     end function sys_unlink
@@ -570,6 +622,7 @@ contains
     integer(int32) function sys_mkdir(dir, mode) result(err)
         character(len=*), intent(in) :: dir
         integer(int32), intent(in) :: mode
+
         err = 0
         if (c_mkdir(c_path(dir), mode) /= 0) err = errno()
     end function sys_mkdir
@@ -577,6 +630,7 @@ contains
     !> rmdir(2).
     integer(int32) function sys_rmdir(dir) result(err)
         character(len=*), intent(in) :: dir
+
         err = 0
         if (c_rmdir(c_path(dir)) /= 0) err = errno()
     end function sys_rmdir
@@ -585,8 +639,10 @@ contains
     !> so for get_environment_variable).
     integer(int32) function sys_setenv(name, value) result(err)
         character(len=*), intent(in) :: name, value
+
         err = 0
         if (c_setenv(c_path(name), c_path(value), 1) /= 0) err = errno()
+
         if (err == 0) then
             if (.not. environment_read) call read_environment()
             call environment_set(name//"="//value)
@@ -596,8 +652,10 @@ contains
     !> Remove environment variable `name'.
     integer(int32) function sys_unsetenv(name) result(err)
         character(len=*), intent(in) :: name
+
         err = 0
         if (c_unsetenv(c_path(name)) /= 0) err = errno()
+
         if (err == 0) then
             if (.not. environment_read) call read_environment()
             call environment_set(name)
@@ -609,6 +667,7 @@ contains
         character(len=1) :: c
         character(len=:), allocatable :: entry
         integer :: unit, ios
+
         environment_read = .true.
         allocate (environment(16))
         environment_count = 0
@@ -616,9 +675,11 @@ contains
               status="old", iostat=ios)
         if (ios /= 0) return
         entry = ""
+
         do
             read (unit, iostat=ios) c
             if (ios /= 0) exit
+
             if (c == achar(0)) then
                 if (index(entry, "=") > 1) call environment_set(entry)
                 entry = ""
@@ -626,6 +687,7 @@ contains
                 entry = entry//c
             end if
         end do
+
         close (unit)
     end subroutine read_environment
 
@@ -635,29 +697,39 @@ contains
         character(len=*), intent(in) :: entry
         type(sys_string_type), allocatable :: grown(:)
         integer :: e, k, j
+
         e = index(entry, "=")
         if (e == 0) e = len(entry) + 1
+
         do k = 1, environment_count
             if (index(environment(k)%s, "=") /= e) cycle
             if (environment(k)%s(1:e - 1) /= entry(1:e - 1)) cycle
+
             if (e > len(entry)) then
                 do j = k, environment_count - 1
                     call move_alloc(environment(j + 1)%s, environment(j)%s)
                 end do
+
                 environment_count = environment_count - 1
             else
                 environment(k)%s = entry
             end if
+
             return
         end do
+
         if (e > len(entry)) return
+
         if (environment_count == size(environment)) then
             allocate (grown(2*environment_count))
+
             do k = 1, environment_count
                 call move_alloc(environment(k)%s, grown(k)%s)
             end do
+
             call move_alloc(grown, environment)
         end if
+
         environment_count = environment_count + 1
         environment(environment_count)%s = entry
     end subroutine environment_set
@@ -666,6 +738,7 @@ contains
     integer(int32) function sys_chmod(file, mode) result(err)
         character(len=*), intent(in) :: file
         integer(int32), intent(in) :: mode
+
         err = 0
         if (c_chmod(c_path(file), mode) /= 0) err = errno()
     end function sys_chmod
@@ -679,15 +752,19 @@ contains
         logical, intent(in), optional :: nofollow
         type(statx_type) :: sx
         integer(c_int) :: flags
+
         err = 0
         flags = AT_STATX_SYNC_AS_STAT
+
         if (present(nofollow)) then
             if (nofollow) flags = ior(flags, AT_SYMLINK_NOFOLLOW)
         end if
+
         if (c_statx(AT_FDCWD, c_path(file), flags, STATX_BASIC_STATS, sx) /= 0) then
             err = errno()
             return
         end if
+
         st%mode = iand(int(sx%stx_mode, int32), int(z'FFFF', int32))
         st%nlink = iand(int(sx%stx_nlink, int64), int(z'FFFFFFFF', int64))
         st%uid = sx%stx_uid
@@ -713,13 +790,17 @@ contains
         type(c_ptr) :: p
         integer :: length, stat, bufsize
         integer(int32) :: e1, e2
+
         call get_environment_variable("PWD", length=length, status=stat)
+
         if (stat == 0 .and. length > 0) then
             allocate (character(len=length) :: pwd)
             call get_environment_variable("PWD", pwd)
+
             if (pwd(1:1) == "/") then
                 e1 = sys_stat(pwd, pwdstat)
                 e2 = sys_stat(".", dotstat)
+
                 if (e1 == 0 .and. e2 == 0 .and. pwdstat%dev == dotstat%dev .and. &
                     pwdstat%ino == dotstat%ino) then
                     dir = pwd
@@ -727,19 +808,24 @@ contains
                 end if
             end if
         end if
+
         bufsize = 256
+
         do
             allocate (character(kind=c_char, len=bufsize) :: buf)
             p = c_getcwd(buf, int(bufsize, c_size_t))
             if (c_associated(p)) exit
             deallocate (buf)
+
             ! ERANGE: the buffer was too small; grow it and retry.
             if (errno() /= ERANGE .or. bufsize > 1048576) then
                 dir = ""
                 return
             end if
+
             bufsize = 2*bufsize
         end do
+
         dir = buf(1:index(buf, c_null_char) - 1)
     end function emacs_get_current_dir_name
 
@@ -749,6 +835,7 @@ contains
         character(len=*), intent(in) :: name
         character(len=:), allocatable, intent(out) :: home
         logical, intent(out) :: found
+
         call passwd_home(c_getpwnam(c_path(name)), home, found)
     end subroutine passwd_home_by_name
 
@@ -756,6 +843,7 @@ contains
     subroutine passwd_home_of_user(home, found)
         character(len=:), allocatable, intent(out) :: home
         logical, intent(out) :: found
+
         call passwd_home(c_getpwuid(c_getuid()), home, found)
     end subroutine passwd_home_of_user
 
@@ -767,6 +855,7 @@ contains
         logical, intent(out) :: found
         type(c_ptr) :: p
         type(passwd_type), pointer :: pw
+
         p = c_getpwuid(c_getuid())
         found = c_associated(p)
         name = ""
@@ -780,6 +869,7 @@ contains
         character(len=:), allocatable, intent(out) :: home
         logical, intent(out) :: found
         type(passwd_type), pointer :: pw
+
         found = c_associated(p)
         home = ""
         if (.not. found) return
@@ -806,30 +896,35 @@ contains
     function emacs_strerror(err) result(text)
         integer(int32), intent(in) :: err
         character(len=:), allocatable :: text
+
         text = c_string_to_fortran(c_strerror(err))
     end function emacs_strerror
 
     ! ------------------------------------------------------------------
     ! Processes.  Like the file calls, each returns 0 or the errno value.
     ! ------------------------------------------------------------------
-
     !> Fill `argv' (which must be a target) from `args'.
     subroutine make_argv(args, argv)
         type(sys_string_type), intent(in) :: args(:)
         type(c_argv_type), intent(out), target :: argv
         integer :: k, j, off, n
+
         allocate (argv%buf(sum([(len(args(k)%s) + 1, k=1, size(args))])))
         allocate (argv%ptrs(size(args) + 1))
         off = 1
+
         do k = 1, size(args)
             n = len(args(k)%s)
+
             do j = 1, n
                 argv%buf(off + j - 1) = args(k)%s(j:j)
             end do
+
             argv%buf(off + n) = c_null_char
             argv%ptrs(k) = c_loc(argv%buf(off))
             off = off + n + 1
         end do
+
         argv%ptrs(size(args) + 1) = c_null_ptr
     end subroutine make_argv
 
@@ -856,6 +951,7 @@ contains
         character(len=:), allocatable :: c_file, c_infile, c_null, c_dir, c_err
         integer(c_int) :: fd, r
         logical :: separate_err
+
         ! Everything the child needs is made before forking: between fork
         ! and exec it only makes system calls.
         call make_argv(args, argv)
@@ -869,16 +965,19 @@ contains
         if (separate_err) c_err = c_path(err_file)
         err = 0
         pid = c_fork()
+
         if (pid < 0) then
             err = errno()
             return
         end if
+
         if (pid /= 0) return
         ! The child.
         call child_signals()
         fd = c_open(c_infile, ior(O_RDONLY, O_CLOEXEC))
         if (fd < 0) call c_exit(127)
         r = c_dup2(fd, 0)
+
         if (out_fd >= 0) then
             r = c_dup2(out_fd, 1)
             r = c_dup2(out_fd, 2)
@@ -888,19 +987,23 @@ contains
             r = c_dup2(fd, 1)
             r = c_dup2(fd, 2)
         end if
+
         if (separate_err) then
             fd = c_creat(c_err, int(o'666', c_int))
             if (fd < 0) call c_exit(127)
             r = c_dup2(fd, 2)
         end if
+
         if (len(dir) > 0) then
             if (c_chdir(c_dir) /= 0) call c_exit(127)
         end if
+
         if (present(env)) then
             r = c_execve(c_file, argv%ptrs, envv%ptrs)
         else
             r = c_execv(c_file, argv%ptrs)
         end if
+
         call c_exit(127)
     end function emacs_spawn
 
@@ -912,6 +1015,7 @@ contains
     subroutine child_signals()
         type(c_funptr) :: old
         integer(c_int32_t) :: sid
+
         sid = c_setsid()
         old = c_signal(SIGINT, c_null_funptr)
         old = c_signal(SIGQUIT, c_null_funptr)
@@ -951,6 +1055,7 @@ contains
         integer(c_int32_t) :: w
         type(termios_type) :: tty
         type(status_type) :: st
+
         call make_argv(args, argv)
         if (present(env)) call make_argv(environment_with(env), envv)
         c_file = c_path(path)
@@ -963,12 +1068,15 @@ contains
         outpipe = -1
         master = -1
         slave = -1
+
         if (pty) then
             call open_pty(master, slave, st)
+
             if (.not. st%ok()) then
                 err = errno()
                 return
             end if
+
             r = c_fcntl_int(master, F_SETFD, FD_CLOEXEC)
             r = c_fcntl_int(slave, F_SETFD, FD_CLOEXEC)
             tty_name = c_string_to_fortran(c_ptsname(master))
@@ -979,21 +1087,26 @@ contains
                 err = errno()
                 return
             end if
+
             if (c_pipe2(outpipe, O_CLOEXEC) /= 0) then
                 err = errno()
                 call close_all()
                 return
             end if
+
             std_in = inpipe(1)
             std_out = outpipe(2)
         end if
+
         if (c_pipe2(monitor, O_CLOEXEC) /= 0) then
             err = errno()
             call close_all()
             return
         end if
+
         err = 0
         pid = c_fork()
+
         if (pid < 0) then
             err = errno()
             call close_all()
@@ -1001,32 +1114,41 @@ contains
             r = c_close(monitor(2))
             return
         end if
+
         if (pid == 0) then
             ! The child: only system calls from here on.
             call child_signals()
+
             if (pty) then
                 ! Make the pty's terminal the controlling terminal.
                 r = c_ioctl_int(slave, TIOCSCTTY, 0_c_int)
+
                 if (c_tcgetattr(slave, tty) == 0) then
                     tty = child_setup_tty(tty)
                     r = c_tcsetattr(slave, TCSANOW, tty)
                 end if
             end if
+
             r = c_dup2(std_in, 0)
             r = c_dup2(std_out, 1)
             r = c_dup2(std_out, 2)
+
             if (len(dir) > 0) then
                 if (c_chdir(c_dir) /= 0) call child_failed()
             end if
+
             if (present(env)) then
                 r = c_execve(c_file, argv%ptrs, envv%ptrs)
             else
                 r = c_execv(c_file, argv%ptrs)
             end if
+
             call child_failed()
         end if
+
         ! The parent: close the child's ends, then wait for the exec.
         r = c_close(monitor(2))
+
         if (pty) then
             r = c_close(slave)
             to_child = master
@@ -1037,12 +1159,15 @@ contains
             to_child = inpipe(2)
             from_child = outpipe(1)
         end if
+
         do
             n = c_read(monitor(1), code_chars, 4_c_size_t)
             if (n >= 0) exit
             if (errno() /= EINTR) exit
         end do
+
         r = c_close(monitor(1))
+
         if (n == 4) then
             ! The exec failed: reap the child and report why.
             err = transfer(code_chars, 0_int32)
@@ -1053,11 +1178,13 @@ contains
             from_child = -1
             pid = -1
         end if
+
     contains
 
         !> In the child: send errno through the monitor pipe and exit.
         subroutine child_failed()
             integer(c_long) :: written
+
             code = errno()
             written = c_write(monitor(2), transfer(code, code_chars), 4_c_size_t)
             call c_exit(127)
@@ -1065,10 +1192,12 @@ contains
 
         subroutine close_all()
             integer(c_int) :: k, rc
+
             do k = 1, 2
                 if (inpipe(k) >= 0) rc = c_close(inpipe(k))
                 if (outpipe(k) >= 0) rc = c_close(outpipe(k))
             end do
+
             if (master >= 0) rc = c_close(master)
             if (slave >= 0) rc = c_close(slave)
         end subroutine close_all
@@ -1082,9 +1211,11 @@ contains
         integer(int32), intent(out) :: code, sig
         integer(c_int) :: wstatus
         integer(c_int32_t) :: r
+
         code = -1
         sig = 0
         err = 0
+
         do
             r = c_waitpid(pid, wstatus, 0)
             if (r == pid) exit
@@ -1092,6 +1223,7 @@ contains
             if (err /= EINTR) return
             err = 0
         end do
+
         ! bits/waitstatus.h: WIFEXITED, WEXITSTATUS, WTERMSIG.
         if (iand(wstatus, 127) == 0) then
             code = iand(ishft(wstatus, -8), 255)
@@ -1105,8 +1237,10 @@ contains
     integer(int32) function emacs_pipe(fds) result(err)
         integer(int32), intent(out) :: fds(2)
         integer(c_int) :: cfds(2)
+
         err = 0
         fds = -1
+
         if (c_pipe2(cfds, O_CLOEXEC) /= 0) then
             err = errno()
         else
@@ -1119,6 +1253,7 @@ contains
     function emacs_environment() result(all)
         type(sys_string_type), allocatable :: all(:)
         type(sys_string_type) :: none(0)
+
         all = environment_with(none)
     end function emacs_environment
 
@@ -1132,37 +1267,49 @@ contains
         character(len=:), allocatable :: entry
         integer :: n, k, j
         logical :: shadowed
+
         allocate (all(size(env)))
         n = 0
+
         do k = 1, size(env)
             if (.not. already(all(1:n), env(k)%s)) then
                 n = n + 1
                 all(n)%s = env(k)%s
             end if
         end do
+
         if (.not. environment_read) call read_environment()
+
         do j = 1, environment_count
             entry = environment(j)%s
             shadowed = already(all(1:n), entry)
             if (shadowed) cycle
+
             if (n == size(all)) then
                 allocate (grown(max(16, 2*n)))
+
                 do k = 1, n
                     call move_alloc(all(k)%s, grown(k)%s)
                 end do
+
                 call move_alloc(grown, all)
             end if
+
             n = n + 1
             all(n)%s = entry
         end do
+
         ! Drop the entries that only name a variable to remove.
         j = 0
+
         do k = 1, n
             if (index(all(k)%s, "=") == 0) cycle
             j = j + 1
             if (j /= k) call move_alloc(all(k)%s, all(j)%s)
         end do
+
         all = all(1:j)
+
     contains
 
         !> Whether a variable of `list' has the name of `entry'.
@@ -1170,13 +1317,16 @@ contains
             type(sys_string_type), intent(in) :: list(:)
             character(len=*), intent(in) :: entry
             integer :: i, e, f
+
             e = index(entry, "=")
             if (e == 0) e = len(entry) + 1
             already = .false.
+
             do i = 1, size(list)
                 f = index(list(i)%s, "=")
                 if (f == 0) f = len(list(i)%s) + 1
                 if (f /= e) cycle
+
                 if (list(i)%s(1:f - 1) == entry(1:e - 1)) then
                     already = .true.
                     return
@@ -1193,6 +1343,7 @@ contains
         logical, intent(in) :: overridable
         integer(c_int64_t) :: mask(16)
         integer :: limit, threads
+
         n = 1
         if (c_sched_getaffinity(0_c_int32_t, 128_c_size_t, mask) == 0) n = max(1, sum(popcnt(mask)))
         if (.not. overridable) return
@@ -1201,6 +1352,7 @@ contains
         if (limit == 0) limit = huge(0)
         if (threads /= 0) n = threads
         n = min(n, limit)
+
     contains
 
         !> gnulib nproc.c:parse_omp_threads: the leading number of the
@@ -1209,6 +1361,7 @@ contains
             character(len=*), intent(in) :: name
             character(len=:), allocatable :: s
             integer :: length, stat, i, d, dmax
+
             value = 0
             dmax = huge(0) - 9
             dmax = dmax/10
@@ -1217,28 +1370,36 @@ contains
             allocate (character(len=length) :: s)
             call get_environment_variable(name, s, status=stat)
             i = 1
+
             do while (i <= len(s))
                 if (index(" "//achar(9)//achar(10)//achar(11)//achar(12)//achar(13), s(i:i)) == 0) exit
                 i = i + 1
             end do
+
             ! (strtoul saturates; so does this, at huge(0).)
             d = 0
+
             do while (i <= len(s))
                 if (s(i:i) < "0" .or. s(i:i) > "9") exit
+
                 if (d > dmax) then
                     d = huge(0)
                 else
                     d = 10*d + (iachar(s(i:i)) - iachar("0"))
                 end if
+
                 i = i + 1
             end do
+
             do while (i <= len(s))
                 if (index(" "//achar(9)//achar(10)//achar(11)//achar(12)//achar(13), s(i:i)) == 0) exit
                 i = i + 1
             end do
+
             if (i <= len(s)) then
                 if (s(i:i) /= ",") return
             end if
+
             value = d
         end function omp_threads
     end function emacs_num_processors
@@ -1254,6 +1415,7 @@ contains
         integer(int64), intent(out) :: sec
         integer(int32), intent(out) :: nsec
         type(timespec_type) :: ts
+
         if (c_clock_gettime(CLOCK_REALTIME, ts) /= 0) then
             sec = c_time(c_null_ptr)
             nsec = 0
@@ -1270,6 +1432,7 @@ contains
         integer :: parts(7)
         type(tm_type) :: tm
         type(c_ptr) :: p
+
         p = c_localtime_r(seconds, tm)
         parts = [tm%tm_year + 1900, tm%tm_mon + 1, tm%tm_mday, tm%tm_hour, tm%tm_min, tm%tm_sec, tm%tm_wday]
     end function emacs_localtime_wday
@@ -1284,6 +1447,7 @@ contains
     pure function child_setup_tty(tty) result(s)
         type(termios_type), intent(in) :: tty
         type(termios_type) :: s
+
         s = tty
         ! Enable output postprocessing, without mapping NL to CR-NL.
         s%c_oflag = ior(s%c_oflag, OPOST)
@@ -1315,6 +1479,7 @@ contains
     !> negative).  Returns 0 or errno.
     integer(int32) function emacs_kill(pid, sig) result(err)
         integer(int32), intent(in) :: pid, sig
+
         err = 0
         if (c_kill(pid, sig) /= 0) err = errno()
     end function emacs_kill
@@ -1323,6 +1488,7 @@ contains
     !> slave's), or -1.  The TIOCGPGRP part of process.c:emacs_get_tty_pgrp.
     integer(int32) function emacs_get_tty_pgrp(fd) result(gid)
         integer(int32), intent(in) :: fd
+
         gid = c_tcgetpgrp(fd)
     end function emacs_get_tty_pgrp
 
@@ -1336,7 +1502,9 @@ contains
         type(emacs_tty_type) :: t
         type(status_type) :: st
         integer :: k
+
         c = -1
+
         select case (signo)
         case (2)
             k = VINTR
@@ -1347,6 +1515,7 @@ contains
         case default
             return
         end select
+
         call emacs_get_tty(fd, t, st)
         if (.not. st%ok()) return
         if (t%main%c_cc(k) == CDISABLE) return
@@ -1358,6 +1527,7 @@ contains
     !> children get the default back).
     subroutine ignore_sigpipe()
         type(c_funptr) :: old
+
         old = c_signal(SIGPIPE, transfer(1_c_intptr_t, c_null_funptr))
     end subroutine ignore_sigpipe
 
@@ -1372,17 +1542,21 @@ contains
         integer(c_long) :: r
         integer(c_int) :: e
         integer(int64) :: n
+
         n = len(buf, kind=int64)
         written = 0
         err = 0
+
         do while (written < n)
             r = c_write(fd, buf(written + 1:), int(n - written, c_size_t))
+
             if (r < 0) then
                 e = errno()
                 if (e == EINTR) cycle
                 if (e /= EAGAIN) err = e
                 return
             end if
+
             written = written + r
         end do
     end subroutine emacs_write_nonblock
@@ -1390,6 +1564,7 @@ contains
     !> A close-on-exec duplicate of `fd' (-1 on failure).
     integer(int32) function emacs_dup_cloexec(fd)
         integer(int32), intent(in) :: fd
+
         emacs_dup_cloexec = c_fcntl_int(fd, F_DUPFD_CLOEXEC, 0_c_int)
     end function emacs_dup_cloexec
 
@@ -1403,17 +1578,20 @@ contains
         type(pollfd_type) :: pfd(size(fds))
         integer(c_int) :: r
         integer :: k
+
         do k = 1, size(fds)
             pfd(k)%fd = fds(k)
             pfd(k)%events = POLLIN
             pfd(k)%revents = 0
         end do
+
         do
             r = c_poll(pfd, int(size(fds), c_long), timeout_ms)
             if (r >= 0 .or. errno() /= EINTR) exit
             ! A C-g (SIGINT) must reach the command loop.
             if (sigint_flag /= 0) exit
         end do
+
         do k = 1, size(fds)
             ready(k) = r > 0 .and. pfd(k)%revents /= 0
         end do
@@ -1423,6 +1601,7 @@ contains
     subroutine set_nonblocking(fd)
         integer(int32), intent(in) :: fd
         integer(c_int) :: flags, r
+
         flags = c_fcntl_int(fd, F_GETFL, 0_c_int)
         if (flags >= 0) r = c_fcntl_int(fd, F_SETFL, ior(flags, O_NONBLOCK))
     end subroutine set_nonblocking
@@ -1431,6 +1610,7 @@ contains
     function emacs_strsignal(sig) result(text)
         integer(int32), intent(in) :: sig
         character(len=:), allocatable :: text
+
         text = c_string_to_fortran(c_strsignal(sig))
         if (len(text) == 0) text = "unknown"
     end function emacs_strsignal
@@ -1443,22 +1623,28 @@ contains
         integer(c_long) :: n
         integer(c_size_t) :: size
         integer :: k
+
         err = 0
         target = ""
         size = 256
+
         do
             allocate (buf(size))
             n = c_readlink(c_path(path), buf, size)
+
             if (n < 0) then
                 err = errno()
                 return
             end if
+
             if (n < size) exit
             ! Truncated: try again with more room.
             deallocate (buf)
             size = 2*size
         end do
+
         target = repeat(" ", int(n))
+
         do k = 1, int(n)
             target(k:k) = buf(k)
         end do
@@ -1472,6 +1658,7 @@ contains
         type(sys_string_type), intent(in) :: args(:)
         type(c_argv_type), target :: argv
         integer(c_int) :: r
+
         call make_argv(args, argv)
         r = c_execv(c_path(path), argv%ptrs)
         err = errno()
@@ -1486,9 +1673,11 @@ contains
         character(len=*), intent(inout) :: template
         integer(int32), intent(out) :: fd
         character(len=len(template) + 1) :: buf
+
         err = 0
         buf = c_path(template)
         fd = c_mkostemp(buf, O_CLOEXEC)
+
         if (fd < 0) then
             err = errno()
         else
@@ -1510,33 +1699,42 @@ contains
         type(c_ptr) :: dirp, p
         integer(c_int) :: r
         integer :: n, k, e
+
         err = 0
         allocate (names(0))
         dirp = c_opendir(c_path(dir))
+
         if (.not. c_associated(dirp)) then
             err = errno()
             return
         end if
+
         n = 0
+
         do
             p = c_readdir(dirp)
             if (.not. c_associated(p)) exit
             call c_f_pointer(p, entry, [dirent_size])
             e = name_offset
+
             do while (entry(e + 1) /= c_null_char)
                 e = e + 1
             end do
+
             if (n == size(names)) then
                 allocate (grown(max(16, 2*n)))
                 grown(1:n) = names
                 call move_alloc(grown, names)
             end if
+
             n = n + 1
             names(n)%s = repeat(" ", e - name_offset)
+
             do k = 1, e - name_offset
                 names(n)%s(k:k) = entry(name_offset + k)
             end do
         end do
+
         r = c_closedir(dirp)
         names = names(1:n)
     end function emacs_directory_entries
@@ -1544,6 +1742,7 @@ contains
     !> symlink(2): make `link' a symbolic link to `target'.
     integer(int32) function sys_symlink(target, link) result(err)
         character(len=*), intent(in) :: target, link
+
         err = 0
         if (c_symlink(c_path(target), c_path(link)) /= 0) err = errno()
     end function sys_symlink
@@ -1555,6 +1754,7 @@ contains
         integer :: parts(6)
         type(tm_type) :: tm
         type(c_ptr) :: p
+
         p = c_localtime_r(seconds, tm)
         parts = [tm%tm_year + 1900, tm%tm_mon + 1, tm%tm_mday, tm%tm_hour, tm%tm_min, tm%tm_sec]
     end function emacs_localtime
@@ -1566,7 +1766,9 @@ contains
         character(len=*), intent(in) :: file
         integer(int32), intent(in) :: flags, mode
         integer(int32), intent(out) :: fd
+
         err = 0
+
         do
             fd = c_open_mode(c_path(file), ior(flags, O_CLOEXEC), mode)
             if (fd >= 0) return
@@ -1578,6 +1780,7 @@ contains
     !> link(2).
     integer(int32) function sys_link(old, new) result(err)
         character(len=*), intent(in) :: old, new
+
         err = 0
         if (c_link(c_path(old), c_path(new)) /= 0) err = errno()
     end function sys_link
@@ -1586,6 +1789,7 @@ contains
     !> RENAME_NOREPLACE).  Cf. sysdep.c:renameat_noreplace.
     integer(int32) function sys_rename_noreplace(old, new) result(err)
         character(len=*), intent(in) :: old, new
+
         err = 0
         if (c_renameat2(AT_FDCWD, c_path(old), AT_FDCWD, c_path(new), RENAME_NOREPLACE) /= 0) err = errno()
     end function sys_rename_noreplace
@@ -1600,6 +1804,7 @@ contains
         logical, intent(in) :: nofollow
         type(timespec_type) :: ts(2)
         integer(c_int) :: flags
+
         err = 0
         ts(1)%tv_sec = atime_sec
         ts(1)%tv_nsec = atime_nsec
@@ -1616,6 +1821,7 @@ contains
         integer(int64), intent(in) :: atime_sec, mtime_sec
         integer(int32), intent(in) :: atime_nsec, mtime_nsec
         type(timespec_type) :: ts(2)
+
         err = 0
         ts(1)%tv_sec = atime_sec
         ts(1)%tv_nsec = atime_nsec
@@ -1627,6 +1833,7 @@ contains
     !> The process's file mode creation mask (umask(2), set back at once).
     integer(int32) function emacs_umask() result(mask)
         integer(c_int32_t) :: old, zero
+
         old = c_umask(0_c_int32_t)
         zero = c_umask(old)
         mask = old
@@ -1635,6 +1842,7 @@ contains
     !> fchmod(2).
     integer(int32) function sys_fchmod(fd, mode) result(err)
         integer(int32), intent(in) :: fd, mode
+
         err = 0
         if (c_fchmod(fd, mode) /= 0) err = errno()
     end function sys_fchmod
@@ -1646,6 +1854,7 @@ contains
         integer(int32), intent(in) :: mode
         logical, intent(in) :: nofollow
         integer(c_int) :: flags
+
         err = 0
         flags = 0
         if (nofollow) flags = AT_SYMLINK_NOFOLLOW
@@ -1655,6 +1864,7 @@ contains
     !> fchown(2); -1 leaves the owner or group as it is.
     integer(int32) function sys_fchown(fd, uid, gid) result(err)
         integer(int32), intent(in) :: fd, uid, gid
+
         err = 0
         if (c_fchown(fd, uid, gid) /= 0) err = errno()
     end function sys_fchown
@@ -1667,6 +1877,7 @@ contains
         logical, intent(out) :: found
         type(c_ptr) :: p
         type(group_type), pointer :: gr
+
         p = c_getgrgid(gid)
         found = c_associated(p)
         name = ""
@@ -1683,6 +1894,7 @@ contains
         logical, intent(out) :: found
         type(c_ptr) :: p
         type(passwd_type), pointer :: pw
+
         p = c_getpwuid(uid)
         found = c_associated(p)
         name = ""
@@ -1697,6 +1909,7 @@ contains
         integer(int32), intent(in) :: uid
         character(len=:), allocatable, intent(out) :: name, gecos
         logical, intent(out) :: found
+
         call passwd_entry(c_getpwuid(uid), name, gecos, found)
     end subroutine passwd_entry_by_uid
 
@@ -1710,6 +1923,7 @@ contains
         logical, intent(out) :: found
         type(c_ptr) :: p
         type(passwd_type), pointer :: pw
+
         uid = -1
         p = c_getpwnam(c_path(login))
         call passwd_entry(p, name, gecos, found)
@@ -1723,6 +1937,7 @@ contains
         character(len=:), allocatable, intent(out) :: name, gecos
         logical, intent(out) :: found
         type(passwd_type), pointer :: pw
+
         found = c_associated(p)
         name = ""
         gecos = ""
@@ -1738,7 +1953,9 @@ contains
         character(len=:), allocatable :: hostname
         character(kind=c_char, len=:), allocatable :: buf
         integer :: size, n, err
+
         size = 256
+
         do
             allocate (character(kind=c_char, len=size) :: buf)
             buf = repeat(c_null_char, size)
@@ -1749,6 +1966,7 @@ contains
             deallocate (buf)
             size = 2*size
         end do
+
         hostname = buf(1:max(n, 0))
     end function emacs_gethostname
 
@@ -1760,8 +1978,10 @@ contains
         type(passwd_type), pointer :: pw
         type(c_ptr) :: p
         integer :: n
+
         allocate (names(0))
         call c_setpwent()
+
         do
             p = c_getpwent()
             if (.not. c_associated(p)) exit
@@ -1772,6 +1992,7 @@ contains
             grown(n + 1)%s = c_string_to_fortran(pw%pw_name)
             call move_alloc(grown, names)
         end do
+
         call c_endpwent()
     end subroutine system_user_names
 
@@ -1783,8 +2004,10 @@ contains
         type(group_type), pointer :: gr
         type(c_ptr) :: p
         integer :: n
+
         allocate (names(0))
         call c_setgrent()
+
         do
             p = c_getgrent()
             if (.not. c_associated(p)) exit
@@ -1795,6 +2018,7 @@ contains
             grown(n + 1)%s = c_string_to_fortran(gr%gr_name)
             call move_alloc(grown, names)
         end do
+
         call c_endgrent()
     end subroutine system_group_names
 
@@ -1804,14 +2028,17 @@ contains
         character(len=*), intent(in) :: path
         integer(int64), intent(out) :: total, free, avail
         type(statvfs_type) :: buf
+
         err = 0
         total = 0
         free = 0
         avail = 0
+
         if (c_statvfs(c_path(path), buf) /= 0) then
             err = errno()
             return
         end if
+
         total = buf%f_blocks*buf%f_frsize
         free = buf%f_bfree*buf%f_frsize
         avail = buf%f_bavail*buf%f_frsize
@@ -1820,11 +2047,11 @@ contains
     ! ------------------------------------------------------------------
     ! inotify
     ! ------------------------------------------------------------------
-
     !> A new inotify instance, non-blocking and close-on-exec, in FD.
     !> The result is 0 or errno.
     integer(int32) function emacs_inotify_init(fd) result(err)
         integer(int32), intent(out) :: fd
+
         err = 0
         fd = c_inotify_init1(ior(O_NONBLOCK, O_CLOEXEC))
         if (fd < 0) err = errno()
@@ -1836,6 +2063,7 @@ contains
         integer(int32), intent(in) :: fd, mask
         character(len=*), intent(in) :: file
         integer(int32), intent(out) :: wd
+
         err = 0
         wd = c_inotify_add_watch(fd, c_path(file), mask)
         if (wd < 0) err = errno()
@@ -1844,6 +2072,7 @@ contains
     !> Remove watch WD from inotify instance FD.  The result is 0 or errno.
     integer(int32) function emacs_inotify_rm_watch(fd, wd) result(err)
         integer(int32), intent(in) :: fd, wd
+
         err = 0
         if (c_inotify_rm_watch(fd, wd) /= 0) err = errno()
     end function emacs_inotify_rm_watch
@@ -1860,37 +2089,48 @@ contains
         type(inotify_raw_event_type), allocatable :: grown(:)
         integer(c_long) :: n
         integer :: i, k, count, namelen, nul
+
         err = 0
         allocate (events(0), buf(BUFSIZE))
         bytes = ""
+
         do
             n = c_read(fd, buf, int(BUFSIZE, c_size_t))
+
             if (n < 0) then
                 if (errno() == EINTR) cycle
                 if (errno() /= EAGAIN) err = errno()
                 exit
             end if
+
             if (n == 0) exit
             allocate (character(len=int(n)) :: chunk)
+
             do k = 1, int(n)
                 chunk(k:k) = buf(k)
             end do
+
             bytes = bytes//chunk
             deallocate (chunk)
         end do
+
         count = 0
         i = 1
+
         do while (i + HEADER - 1 <= len(bytes))
             if (count == size(events)) then
                 allocate (grown(max(8, 2*count)))
+
                 do k = 1, count
                     grown(k)%wd = events(k)%wd
                     grown(k)%mask = events(k)%mask
                     grown(k)%cookie = events(k)%cookie
                     call move_alloc(events(k)%name, grown(k)%name)
                 end do
+
                 call move_alloc(grown, events)
             end if
+
             count = count + 1
             events(count)%wd = transfer(bytes(i:i + 3), 0_int32)
             events(count)%mask = transfer(bytes(i + 4:i + 7), 0_int32)
@@ -1901,14 +2141,17 @@ contains
             if (nul > 0) events(count)%name = events(count)%name(1:nul - 1)
             i = i + HEADER + namelen
         end do
+
         if (count < size(events)) then
             allocate (grown(count))
+
             do k = 1, count
                 grown(k)%wd = events(k)%wd
                 grown(k)%mask = events(k)%mask
                 grown(k)%cookie = events(k)%cookie
                 call move_alloc(events(k)%name, grown(k)%name)
             end do
+
             call move_alloc(grown, events)
         end if
     end subroutine emacs_inotify_read

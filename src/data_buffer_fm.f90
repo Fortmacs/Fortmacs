@@ -131,13 +131,14 @@ contains
     ! ------------------------------------------------------------------
     ! Forwarding
     ! ------------------------------------------------------------------
-
     !> The forwarding table index of symbol ID, or -1.
     integer function resolve(id) result(k)
         integer(int64), intent(in) :: id
         integer :: i
+
         if (symbols(id)%fwd == 0) then
             symbols(id)%fwd = -1
+
             do i = 1, NFWD
                 if (symbols(id)%name == trim(FWD_NAMES(i))) then
                     symbols(id)%fwd = i
@@ -145,9 +146,11 @@ contains
                     exit
                 end if
             end do
+
             if (symbols(id)%fwd < 0) call resolve_forwarded(id)
             if (symbols(id)%fwd < 0) call resolve_minor_mode(id)
         end if
+
         k = symbols(id)%fwd
     end function resolve
 
@@ -156,7 +159,9 @@ contains
     subroutine resolve_forwarded(id)
         integer(int64), intent(in) :: id
         integer :: i
+
         if (.not. allocated(forwarded)) return
+
         do i = 1, size(forwarded)
             if (symbols(id)%name == trim(forwarded(i)%p%name)) then
                 symbols(id)%fwd = EXT_BASE + i
@@ -174,6 +179,7 @@ contains
         integer(int64), intent(in) :: id
         type(minor_mode_type), pointer :: m
         integer :: i
+
         i = minor_mode_index(symbols(id)%name)
         if (i == 0) return
         m => minor_mode_at(i)
@@ -188,8 +194,10 @@ contains
     integer function kind_of(id) result(kind)
         integer(int64), intent(in) :: id
         integer :: k
+
         kind = 0
         k = resolve(id)
+
         if (k >= EXT_BASE) then
             select type (p => forwarded(k - EXT_BASE)%p)
             type is (integer_setting)
@@ -214,11 +222,14 @@ contains
         procedure(command_proc), pointer, intent(in) :: p
         type(value_type) :: v
         character(len=:), allocatable :: name
+
         if (.not. associated(p)) then
             v = nil()
             return
         end if
+
         name = command_name_of(p)
+
         if (len(name) > 0) then
             v = sym(name)
         else
@@ -232,7 +243,9 @@ contains
         procedure(indent_line_proc), pointer, intent(in) :: p
         type(value_type) :: v
         character(len=:), allocatable :: name
+
         name = indent_line_function_name(p)
+
         if (len(name) > 0) then
             v = sym(name)
         else
@@ -244,12 +257,14 @@ contains
     !> procedure of this kind: call it by name.
     subroutine auto_fill_by_name(status)
         type(status_type), intent(out) :: status
+
         call funcall(auto_fill_function%exact, status)
     end subroutine auto_fill_by_name
 
     function bool_value(b) result(v)
         logical, intent(in) :: b
         type(value_type) :: v
+
         if (b) then
             v = t_value()
         else
@@ -264,7 +279,9 @@ contains
         type(value_type), intent(in) :: fortran
         type(value_type), intent(out) :: v
         logical, intent(out) :: bound
+
         bound = .not. s%void
+
         if (s%has_exact) then
             v = s%exact
         else
@@ -276,6 +293,7 @@ contains
     subroutine keep_exact(s, v)
         class(setting_type), intent(inout) :: s
         type(value_type), intent(in) :: v
+
         s%exact = v
         s%has_exact = .true.
         s%void = .false.
@@ -289,7 +307,9 @@ contains
         type(value_type), intent(in) :: v
         logical, intent(in) :: integerp
         type(status_type), intent(out) :: status
+
         status = status_type()
+
         if (fixnump(v)) then
             s = xfixnum(v)
         else if (integerp .and. .not. nilp(v)) then
@@ -304,6 +324,7 @@ contains
     subroutine set_logical(s, v)
         type(logical_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
+
         s = .not. nilp(v)
         if (.not. (nilp(v) .or. value_eq(v, t_value()))) call keep_exact(s, v)
     end subroutine set_logical
@@ -313,6 +334,7 @@ contains
     subroutine set_string(s, v)
         type(string_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
+
         if (stringp(v)) then
             s = xstring(v)
         else
@@ -330,7 +352,9 @@ contains
         type(value_type), intent(out) :: v
         logical, intent(out) :: bound
         type(minor_mode_type), pointer :: m
+
         bound = .true.
+
         if (k >= EXT_BASE) then
             select type (p => forwarded(k - EXT_BASE)%p)
             type is (integer_setting)
@@ -344,13 +368,16 @@ contains
             class default
                 v = nil()
             end select
+
             return
         end if
+
         if (k > NFWD) then
             m => minor_mode_at(k - NFWD)
             call setting_value(m%state, bool_value(m%state%value), v, bound)
             return
         end if
+
         select case (trim(FWD_NAMES(k)))
         case ("fill_column")
             call setting_value(fill_column, make_fixnum(fill_column%value), v, bound)
@@ -434,6 +461,7 @@ contains
     function string_or_nil(s) result(v)
         character(len=:), allocatable, intent(in) :: s
         type(value_type) :: v
+
         if (allocated(s)) then
             v = make_string(s)
         else
@@ -448,7 +476,9 @@ contains
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
         type(minor_mode_type), pointer :: m
+
         status = status_type()
+
         if (k >= EXT_BASE) then
             select type (p => forwarded(k - EXT_BASE)%p)
             type is (integer_setting)
@@ -461,13 +491,16 @@ contains
                 call set_auto_fill(p, v)
             class default
             end select
+
             return
         end if
+
         if (k > NFWD) then
             m => minor_mode_at(k - NFWD)
             call set_logical(m%state, v)
             return
         end if
+
         select case (trim(FWD_NAMES(k)))
         case ("fill_column")
             call set_integer(fill_column, v, .true., status)
@@ -507,6 +540,7 @@ contains
             call set_logical(electric_indent_inhibit, v)
         case ("major_mode")
             if (cur == 0) return
+
             if (.not. symbolp(v)) then
                 call set_error(status, FM_WRONG_TYPE_ARGUMENT, "symbolp")
             else if (nilp(v)) then
@@ -516,6 +550,7 @@ contains
             end if
         case ("mode_name")
             if (cur == 0) return
+
             if (stringp(v)) then
                 buffers(cur)%mode_name = xstring(v)
             else
@@ -548,13 +583,16 @@ contains
         type(function_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
         type(command_type), pointer :: c
+
         if (nilp(v)) then
             s%value => null()
             call settle(s)
             return
         end if
+
         c => null()
         if (symbolp(v)) c => find_command(symbols(xsymbol(v))%name)
+
         if (associated(c)) then
             s%value => c%run
             call settle(s)
@@ -568,8 +606,10 @@ contains
     subroutine set_indent_line(s, v)
         type(indent_line_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
+
         if (symbolp(v) .and. .not. nilp(v)) then
             call indent_line_function_named(symbols(xsymbol(v))%name, s%value)
+
             if (len(indent_line_function_name(s%value)) > 0) then
                 call settle(s)
                 return
@@ -577,6 +617,7 @@ contains
         else
             call indent_line_function_named("", s%value)
         end if
+
         call keep_exact(s, v)
     end subroutine set_indent_line
 
@@ -585,6 +626,7 @@ contains
     function final_newline_value(n) result(v)
         integer(int64), intent(in) :: n
         type(value_type) :: v
+
         select case (n)
         case (FINAL_NEWLINE_NEVER)
             v = nil()
@@ -603,6 +645,7 @@ contains
     subroutine set_final_newline(s, v)
         type(integer_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
+
         if (nilp(v)) then
             s = FINAL_NEWLINE_NEVER
         else if (value_eq(v, t_value())) then
@@ -620,6 +663,7 @@ contains
     !> Forget S's exact value and voidness.
     subroutine settle(s)
         class(setting_type), intent(inout) :: s
+
         s%has_exact = .false.
         s%void = .false.
         s%exact = nil()
@@ -631,16 +675,20 @@ contains
         integer, intent(in) :: k
         type(status_type), intent(out) :: status
         type(minor_mode_type), pointer :: m
+
         status = status_type()
+
         if (k >= EXT_BASE) then
             forwarded(k - EXT_BASE)%p%void = .true.
             return
         end if
+
         if (k > NFWD) then
             m => minor_mode_at(k - NFWD)
             m%state%void = .true.
             return
         end if
+
         select case (trim(FWD_NAMES(k)))
         case ("fill_column", "left_margin", "tab_width")
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integerp")
@@ -705,19 +753,23 @@ contains
     module procedure forwarded_get
     integer :: k
     logical :: is_bound
+
     k = resolve(id)
     found = k > 0
     is_bound = .false.
+
     if (found) then
         call fwd_get(k, cur, v, is_bound)
     else
         v = nil()
     end if
+
     if (present(bound)) bound = is_bound
     end procedure forwarded_get
 
     module procedure forwarded_makunbound
     integer :: k
+
     status = status_type()
     k = resolve(id)
     found = k > 0
@@ -726,6 +778,7 @@ contains
 
     module procedure forwarded_set
     integer :: k
+
     status = status_type()
     k = resolve(id)
     found = k > 0
@@ -734,6 +787,7 @@ contains
 
     module procedure auto_local
     integer :: k
+
     k = resolve(id)
     auto_local = symbols(id)%local_if_set
     end procedure auto_local
@@ -741,14 +795,15 @@ contains
     ! ------------------------------------------------------------------
     ! Current values and the swap
     ! ------------------------------------------------------------------
-
     !> The current value of symbol ID.
     subroutine get_current(id, v, bound)
         integer(int64), intent(in) :: id
         type(value_type), intent(out) :: v
         logical, intent(out) :: bound
         integer :: k
+
         k = resolve(id)
+
         if (k > 0) then
             call fwd_get(k, cur, v, bound)
         else
@@ -764,7 +819,9 @@ contains
         logical, intent(in) :: bound
         integer :: k
         type(status_type) :: st
+
         k = resolve(id)
+
         if (k > 0) then
             ! The value came from the same variable, so it is valid.
             if (bound) then
@@ -782,9 +839,11 @@ contains
     integer function local_index(b, id) result(k)
         integer(int64), intent(in) :: b, id
         integer :: i
+
         k = 0
         if (b <= 0) return
         if (.not. allocated(buffers(b)%local_ids)) return
+
         do i = 1, buffers(b)%nlocal
             if (buffers(b)%local_ids(i) == id) then
                 k = i
@@ -797,12 +856,16 @@ contains
         integer(int64), intent(in) :: b
         type(procs_type), allocatable :: tmp(:)
         integer(int64) :: i
+
         if (.not. allocated(saved_procs)) allocate (saved_procs(max(b, 16_int64)))
+
         if (size(saved_procs, kind=int64) < b) then
             allocate (tmp(max(b, 2*size(saved_procs, kind=int64))))
+
             do i = 1, size(saved_procs, kind=int64)
                 tmp(i) = saved_procs(i)
             end do
+
             call move_alloc(tmp, saved_procs)
         end if
     end subroutine ensure_saved_procs
@@ -814,20 +877,25 @@ contains
         logical, intent(in) :: make
         type(fn_store_type), allocatable :: grown(:)
         integer :: j, n
+
         i = 0
         if (.not. allocated(fn_store)) allocate (fn_store(0))
+
         do j = 1, size(fn_store)
             if (fn_store(j)%b == b .and. fn_store(j)%k == k) then
                 i = j
                 return
             end if
         end do
+
         if (.not. make) return
         n = size(fn_store)
         allocate (grown(n + 1))
+
         do j = 1, n
             grown(j) = fn_store(j)
         end do
+
         grown(n + 1)%b = b
         grown(n + 1)%k = k
         call move_alloc(grown, fn_store)
@@ -839,8 +907,10 @@ contains
     subroutine fn_save(id, b)
         integer(int64), intent(in) :: id, b
         integer :: k, i
+
         k = resolve(id)
         i = fn_index(b, k, .true.)
+
         select type (p => forwarded(k - EXT_BASE)%p)
         type is (function_setting)
             fn_store(i)%s = p
@@ -851,9 +921,11 @@ contains
     subroutine fn_restore(id, b)
         integer(int64), intent(in) :: id, b
         integer :: k, i
+
         k = resolve(id)
         i = fn_index(b, k, .false.)
         if (i == 0) return
+
         select type (p => forwarded(k - EXT_BASE)%p)
         type is (function_setting)
             p = fn_store(i)%s
@@ -866,6 +938,7 @@ contains
         type(value_type), intent(out) :: v
         logical, intent(out) :: bound
         integer :: i
+
         v = nil()
         bound = .true.
         i = fn_index(b, resolve(id), .false.)
@@ -880,9 +953,11 @@ contains
         integer(int64), intent(in) :: old, new
         integer :: i
         integer(int64) :: id
+
         if (old > 0) then
             do i = 1, buffers(old)%nlocal
                 id = buffers(old)%local_ids(i)
+
                 select case (kind_of(id))
                 case (K_AUTO_FILL)
                     saved_procs(old)%auto_fill = auto_fill_function
@@ -899,9 +974,11 @@ contains
                 end select
             end do
         end if
+
         if (new > 0) then
             do i = 1, buffers(new)%nlocal
                 id = buffers(new)%local_ids(i)
+
                 select case (kind_of(id))
                 case (K_AUTO_FILL)
                     default_procs%auto_fill = auto_fill_function
@@ -926,7 +1003,9 @@ contains
         integer, intent(in) :: i
         integer(int64) :: id
         integer :: n
+
         id = buffers(cur)%local_ids(i)
+
         select case (kind_of(id))
         case (K_AUTO_FILL)
             auto_fill_function = default_procs%auto_fill
@@ -937,6 +1016,7 @@ contains
         case default
             call put_current(id, symbols(id)%default_val, symbols(id)%default_bound)
         end select
+
         n = buffers(cur)%nlocal
         buffers(cur)%local_ids(i:n - 1) = buffers(cur)%local_ids(i + 1:n)
         buffers(cur)%local_values(i:n - 1) = buffers(cur)%local_values(i + 1:n)
@@ -949,6 +1029,7 @@ contains
         type(value_type), intent(in) :: variable
         integer(int64), intent(out) :: id
         type(status_type), intent(out) :: status
+
         id = 0
         call ensure_obarray()
         call check_symbol(variable, status)
@@ -960,7 +1041,6 @@ contains
     ! ------------------------------------------------------------------
     ! The Lisp-level functions
     ! ------------------------------------------------------------------
-
     module procedure local_in_current
     if (kind_of(id) == K_SLOT) then
         local_in_current = .true.
@@ -975,12 +1055,14 @@ contains
     type(value_type), allocatable :: values(:)
     integer(int64), allocatable :: ids(:)
     logical, allocatable :: bound(:)
+
     call check_localizable(variable, id, status)
     if (.not. status%ok()) return
     if (cur == 0) return
     if (local_in_current(id)) return
     swap_buffer_locals_hook => swap_locals
     n = buffers(cur)%nlocal
+
     if (.not. allocated(buffers(cur)%local_ids)) then
         allocate (buffers(cur)%local_ids(8), buffers(cur)%local_values(8), buffers(cur)%local_bound(8))
     else if (n == size(buffers(cur)%local_ids)) then
@@ -992,9 +1074,11 @@ contains
         call move_alloc(values, buffers(cur)%local_values)
         call move_alloc(bound, buffers(cur)%local_bound)
     end if
+
     n = n + 1
     buffers(cur)%nlocal = n
     buffers(cur)%local_ids(n) = id
+
     ! The local value starts out as the current value, which becomes the
     ! default; the local value lives in the variable while CUR is current.
     select case (kind_of(id))
@@ -1013,9 +1097,11 @@ contains
 
     module procedure make_variable_buffer_local
     integer(int64) :: id
+
     call check_localizable(variable, id, status)
     if (.not. status%ok()) return
     symbols(id)%local_if_set = .true.
+
     ! A void variable gets the default value nil.
     if (kind_of(id) == 0 .and. .not. local_in_current(id)) then
         if (.not. symbols(id)%bound) then
@@ -1028,6 +1114,7 @@ contains
     module procedure kill_local_variable
     integer(int64) :: id
     integer :: i
+
     call check_localizable(variable, id, status)
     if (.not. status%ok()) return
     i = local_index(cur, id)
@@ -1039,6 +1126,7 @@ contains
     integer :: i
     type(value_type) :: prop
     type(status_type) :: st
+
     if (cur == 0) return
     ! The first thing this function does is run the normal hook
     ! `change_major_mode_hook'.
@@ -1054,13 +1142,16 @@ contains
     buffers(cur)%invisibility_spec_t = .true.
     buffers(cur)%read_only_mode_state_set = .false.
     if (allocated(buffers(cur)%invisibility_spec)) deallocate (buffers(cur)%invisibility_spec)
+
     do i = buffers(cur)%nlocal, 1, -1
         if (.not. all) then
             call get(make_symbol_ref(buffers(cur)%local_ids(i)), sym("permanent_local"), prop, st)
             if (.not. nilp(prop)) cycle
         end if
+
         call drop_local(i)
     end do
+
     ! The buffer-local variables kept in Fortran objects (none of them
     ! permanent).
     if (allocated(killers)) then
@@ -1072,12 +1163,14 @@ contains
 
     module procedure local_variable_p
     integer(int64) :: b, id
+
     local_variable_p = .false.
     call ensure_obarray()
     if (.not. symbolp(variable)) return
     id = xsymbol(variable)
     b = cur
     if (present(buffer)) b = buffer
+
     if (kind_of(id) == K_SLOT) then
         local_variable_p = .true.
     else
@@ -1105,7 +1198,9 @@ contains
         integer(int64), intent(in) :: id
         type(value_type), intent(out) :: v
         logical, intent(out) :: bound
+
         bound = .true.
+
         select case (kind_of(id))
         case (K_SLOT)
             call fwd_get(resolve(id), 0_int64, v, bound)
@@ -1141,6 +1236,7 @@ contains
     module procedure function_setting_default
     integer(int64) :: id
     integer :: i
+
     fn => s%value
     call ensure_obarray()
     id = xsymbol(sym(trim(s%name)))
@@ -1154,6 +1250,7 @@ contains
     module procedure default_value
     integer(int64) :: id
     logical :: bound
+
     call ensure_obarray()
     call check_symbol(symbol, status)
     if (.not. status%ok()) return
@@ -1164,6 +1261,7 @@ contains
 
     module procedure default_boundp
     type(value_type) :: v
+
     default_boundp = .false.
     call ensure_obarray()
     if (.not. symbolp(symbol)) return
@@ -1174,9 +1272,11 @@ contains
     integer(int64) :: id
     integer :: k
     logical :: found
+
     call check_localizable(symbol, id, status)
     if (.not. status%ok()) return
     k = resolve(id)
+
     if (.not. local_in_current(id)) then
         call forwarded_set(id, v, status, found)
         if (found) return
@@ -1184,6 +1284,7 @@ contains
         symbols(id)%bound = .true.
         return
     end if
+
     select case (kind_of(id))
     case (K_SLOT)
         ! The defaults of per-buffer slots are fixed.
@@ -1207,10 +1308,12 @@ contains
             logical :: bound
             call get_current(id, here, bound)
             call fwd_set(k, v, status)
+
             if (status%ok()) then
                 symbols(id)%default_val = v
                 symbols(id)%default_bound = .true.
             end if
+
             call put_current(id, here, bound)
         end block
     end select
@@ -1220,25 +1323,31 @@ contains
     integer(int64) :: id
     integer :: i
     logical :: bound
+
     call ensure_obarray()
     call check_symbol(variable, status)
     if (.not. status%ok()) return
     id = xsymbol(variable)
+
     if (buffer <= 0 .or. buffer > size(buffers, kind=int64)) then
         call set_error(status, FM_WRONG_TYPE_ARGUMENT, "bufferp")
         return
     end if
+
     if (.not. buffer_live_p(buffer_handle(buffer))) then
         call set_error(status, FM_WRONG_TYPE_ARGUMENT, "bufferp")
         return
     end if
+
     bound = .true.
+
     if (buffer == cur) then
         call get_current(id, v, bound)
     else if (kind_of(id) == K_SLOT) then
         call fwd_get(resolve(id), buffer, v, bound)
     else
         i = local_index(buffer, id)
+
         if (i == 0) then
             call get_default(id, v, bound)
         else
@@ -1257,6 +1366,7 @@ contains
             end select
         end if
     end if
+
     if (.not. bound) call set_error(status, FM_VOID_VARIABLE, symbols(id)%name)
     end procedure buffer_local_value
 
@@ -1267,32 +1377,38 @@ contains
     type(value_type) :: v
     type(status_type) :: st
     character(len=*), parameter :: SLOTS(3) = [character(len=16) :: "buffer_read_only", "major_mode", "mode_name"]
+
     b = cur
     if (present(buffer)) b = buffer
     alist = nil()
     if (b <= 0) return
     allocate (elts(buffers(b)%nlocal + size(SLOTS)))
     n = 0
+
     do i = 1, buffers(b)%nlocal
         id = buffers(b)%local_ids(i)
         call buffer_local_value(make_symbol_ref(id), b, v, st)
         n = n + 1
+
         if (st%ok()) then
             elts(n) = list(make_symbol_ref(id), v)
         else
             elts(n) = make_symbol_ref(id)
         end if
     end do
+
     do i = 1, size(SLOTS)
         call buffer_local_value(sym(trim(SLOTS(i))), b, v, st)
         n = n + 1
         elts(n) = list(sym(trim(SLOTS(i))), v)
     end do
+
     alist = make_list(elts(1:n))
     end procedure buffer_local_variables
 
     module procedure setq_local
     type(value_type) :: s
+
     s = sym(variable)
     call make_local_variable(s, status)
     if (status%ok()) call set(s, v, status)

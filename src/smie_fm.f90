@@ -449,7 +449,6 @@ contains
     ! ------------------------------------------------------------------
     ! Building the grammar data
     ! ------------------------------------------------------------------
-
     subroutine bnf_add(self, nt, items)
         class(smie_bnf_type), intent(inout) :: self
         character(len=*), intent(in) :: nt
@@ -457,25 +456,32 @@ contains
         type(smie_nonterminal_type), allocatable :: grown(:)
         type(smie_rhs_type), allocatable :: rhs(:)
         integer :: n, i, m
+
         if (.not. allocated(self%rules)) allocate (self%rules(0))
         n = size(self%rules)
+
         if (n > 0) then
             if (self%rules(n)%nt == nt) then
                 m = size(self%rules(n)%rhs)
                 allocate (rhs(m + 1))
+
                 do i = 1, m
                     call move_alloc(self%rules(n)%rhs(i)%items, rhs(i)%items)
                 end do
+
                 call make_items(items, rhs(m + 1))
                 call move_alloc(rhs, self%rules(n)%rhs)
                 return
             end if
         end if
+
         allocate (grown(n + 1))
+
         do i = 1, n
             call move_alloc(self%rules(i)%nt, grown(i)%nt)
             call move_alloc(self%rules(i)%rhs, grown(i)%rhs)
         end do
+
         grown(n + 1)%nt = nt
         allocate (grown(n + 1)%rhs(1))
         call make_items(items, grown(n + 1)%rhs(1))
@@ -487,13 +493,16 @@ contains
         character(len=*), intent(in) :: nt
         type(smie_nonterminal_type), allocatable :: grown(:)
         integer :: n, i
+
         if (.not. allocated(self%rules)) allocate (self%rules(0))
         n = size(self%rules)
         allocate (grown(n + 1))
+
         do i = 1, n
             call move_alloc(self%rules(i)%nt, grown(i)%nt)
             call move_alloc(self%rules(i)%rhs, grown(i)%rhs)
         end do
+
         grown(n + 1)%nt = nt
         allocate (grown(n + 1)%rhs(0))
         call move_alloc(grown, self%rules)
@@ -503,7 +512,9 @@ contains
         character(len=*), intent(in) :: items(:)
         type(smie_rhs_type), intent(out) :: rhs
         integer :: i
+
         allocate (rhs%items(size(items)))
+
         do i = 1, size(items)
             rhs%items(i)%s = trim(items(i))
         end do
@@ -515,18 +526,23 @@ contains
         character(len=*), intent(in) :: ops(:)
         type(smie_prec_type), allocatable :: grown(:)
         integer :: n, i
+
         if (.not. allocated(self%precs)) allocate (self%precs(0))
         n = size(self%precs)
         allocate (grown(n + 1))
+
         do i = 1, n
             grown(i)%assoc = self%precs(i)%assoc
             call move_alloc(self%precs(i)%ops, grown(i)%ops)
         end do
+
         grown(n + 1)%assoc = assoc
         allocate (grown(n + 1)%ops(size(ops)))
+
         do i = 1, size(ops)
             grown(n + 1)%ops(i)%s = trim(ops(i))
         end do
+
         call move_alloc(grown, self%precs)
     end subroutine precs_add
 
@@ -534,11 +550,13 @@ contains
     integer function prec2_index(table, x, y) result(k)
         type(smie_prec2_type), intent(in) :: table
         character(len=*), intent(in) :: x, y
+
         do k = 1, table%n
             if (table%x(k)%s == x .and. len(table%x(k)%s) == len(x)) then
                 if (table%y(k)%s == y .and. len(table%y(k)%s) == len(y)) return
             end if
         end do
+
         k = 0
     end function prec2_index
 
@@ -550,25 +568,31 @@ contains
         type(smie_string_type), allocatable :: gx(:), gy(:)
         integer, allocatable :: grel(:)
         integer :: k, cap
+
         k = prec2_index(table, x, y)
+
         if (k > 0) then
             table%rel(k) = rel
             return
         end if
+
         if (.not. allocated(table%x)) then
             allocate (table%x(16), table%y(16), table%rel(16))
         else if (table%n == size(table%x)) then
             cap = 2*size(table%x)
             allocate (gx(cap), gy(cap), grel(cap))
+
             do k = 1, table%n
                 call move_alloc(table%x(k)%s, gx(k)%s)
                 call move_alloc(table%y(k)%s, gy(k)%s)
                 grel(k) = table%rel(k)
             end do
+
             call move_alloc(gx, table%x)
             call move_alloc(gy, table%y)
             call move_alloc(grel, table%rel)
         end if
+
         table%n = table%n + 1
         table%x(table%n)%s = x
         table%y(table%n)%s = y
@@ -585,11 +609,14 @@ contains
         integer, intent(in) :: val
         type(smie_prec2_type), intent(in), optional :: override
         integer :: k, o
+
         k = prec2_index(table, x, y)
+
         if (k > 0) then
             if (table%rel(k) /= val) then
                 o = 0
                 if (present(override)) o = prec2_index(override, x, y)
+
                 if (o > 0) then
                     table%rel(k) = override%rel(o)
                 else
@@ -598,9 +625,11 @@ contains
                     ! "Conflict: X OLD/VAL Y" is deferred.)
                     warning_count = warning_count + 1
                 end if
+
                 return
             end if
         end if
+
         call prec2_put(table, x, y, val)
     end subroutine smie_set_prec2tab
 
@@ -614,8 +643,10 @@ contains
         type(smie_precs_type), intent(in) :: precs
         type(smie_prec2_type), intent(out) :: prec2
         integer :: p, i, j, q, selfrule, op1, op2, np
+
         np = 0
         if (allocated(precs%precs)) np = size(precs%precs)
+
         do p = 1, np
             associate (prec => precs%precs(p))
                 do i = 1, size(prec%ops)
@@ -629,13 +660,16 @@ contains
                     case default
                         selfrule = 0
                     end select
+
                     if (selfrule /= 0) then
                         do j = 1, size(prec%ops)
                             call smie_set_prec2tab(prec2, prec%ops(i)%s, prec%ops(j)%s, selfrule)
                         end do
                     end if
+
                     op1 = SMIE_LT
                     op2 = SMIE_GT
+
                     do q = 1, np
                         if (q == p) then
                             op1 = SMIE_GT
@@ -659,15 +693,19 @@ contains
         type(smie_prec2_type), intent(out) :: prec2
         type(status_type), intent(out) :: status
         integer :: t, k
+
         status = status_type()
+
         if (size(tables) == 1) then
             prec2 = tables(1)
             return
         end if
+
         do t = 1, size(tables)
             do k = 1, tables(t)%n
                 call smie_set_prec2tab(prec2, tables(t)%x(k)%s, tables(t)%y(k)%s, tables(t)%rel(k))
             end do
+
             if (tables(t)%has_open_close) then
                 if (prec2%has_open_close) then
                     if (.not. same_classes(prec2, tables(t))) then
@@ -680,6 +718,7 @@ contains
                     prec2%classes = tables(t)%classes
                 end if
             end if
+
             if (tables(t)%has_closer_alist) then
                 if (prec2%has_closer_alist) then
                     if (.not. same_pairs(prec2%openers, prec2%closers, tables(t)%openers, tables(t)%closers)) then
@@ -698,8 +737,10 @@ contains
     logical function same_classes(a, b) result(same)
         type(smie_prec2_type), intent(in) :: a, b
         integer :: i
+
         same = size(a%classes) == size(b%classes)
         if (.not. same) return
+
         do i = 1, size(a%classes)
             same = a%classes(i) == b%classes(i) .and. str_eq(a%class_tokens(i)%s, b%class_tokens(i)%s)
             if (.not. same) return
@@ -709,8 +750,10 @@ contains
     logical function same_pairs(a1, a2, b1, b2) result(same)
         type(smie_string_type), intent(in) :: a1(:), a2(:), b1(:), b2(:)
         integer :: i
+
         same = size(a1) == size(b1)
         if (.not. same) return
+
         do i = 1, size(a1)
             same = str_eq(a1(i)%s, b1(i)%s) .and. str_eq(a2(i)%s, b2(i)%s)
             if (.not. same) return
@@ -719,6 +762,7 @@ contains
 
     pure logical function str_eq(a, b)
         character(len=*), intent(in) :: a, b
+
         str_eq = len(a) == len(b)
         if (str_eq) str_eq = a == b
     end function str_eq
@@ -728,7 +772,9 @@ contains
         character(len=*), intent(in) :: s
         type(smie_string_type), intent(in) :: list(:)
         integer :: i
+
         member = .false.
+
         do i = 1, size(list)
             if (str_eq(s, list(i)%s)) then
                 member = .true.
@@ -741,6 +787,7 @@ contains
     subroutine pushnew(s, list)
         character(len=*), intent(in) :: s
         type(smie_string_type), allocatable, intent(inout) :: list(:)
+
         if (member(s, list)) return
         call push_front(s, list)
     end subroutine pushnew
@@ -750,11 +797,14 @@ contains
         type(smie_string_type), allocatable, intent(inout) :: list(:)
         type(smie_string_type), allocatable :: grown(:)
         integer :: i
+
         allocate (grown(size(list) + 1))
         grown(1)%s = s
+
         do i = 1, size(list)
             call move_alloc(list(i)%s, grown(i + 1)%s)
         end do
+
         call move_alloc(grown, list)
     end subroutine push_front
 
@@ -793,6 +843,7 @@ contains
         type(smie_prec2_type), allocatable :: tables(:)
         type(smie_string_type), allocatable :: ops(:)
         integer :: r, h, i, n, nrules, saved_count, k, j
+
         status = status_type()
         saved_count = warning_count
         warning_count = 0
@@ -800,43 +851,55 @@ contains
         if (allocated(bnf%rules)) nrules = size(bnf%rules)
         ! Non-terminals.
         allocate (nts(nrules))
+
         do r = 1, nrules
             nts(r)%s = bnf%rules(r)%nt
         end do
+
         allocate (first_ops_table(0), last_ops_table(0), first_nts_table(0), last_nts_table(0))
+
         ! The override: constraints and precs tables.
         if (present(constraints)) then
             do i = 1, size(constraints)
                 call smie_set_prec2tab(over, constraints(i)%t1, constraints(i)%t2, constraints(i)%rel)
             end do
         end if
+
         n = 0
         if (present(precs)) n = size(precs)
         allocate (tables(n + 1))
         tables(1) = over
+
         ! (The precs are pushed, so they are merged last first.)
         do i = 1, n
             call smie_precs_to_prec2(precs(n + 1 - i), tables(i + 1))
         end do
+
         call smie_merge_prec2s(tables, override, status)
+
         if (.not. status%ok()) then
             warning_count = saved_count
             return
         end if
+
         do r = 1, nrules
             allocate (first_ops(0), last_ops(0), first_nts(0), last_nts(0))
+
             do h = 1, size(bnf%rules(r)%rhs)
                 associate (rhs => bnf%rules(r)%rhs(h)%items)
                     n = size(rhs)
+
                     if (n == 0) then
                         call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: consp, nil")
                         warning_count = saved_count
                         return
                     end if
+
                     if (.not. member(rhs(1)%s, nts)) then
                         call pushnew(rhs(1)%s, first_ops)
                     else
                         call pushnew(rhs(1)%s, first_nts)
+
                         if (n > 1) then
                             ! If the first is not an OP we add the second (which
                             ! should be an OP if BNF is an "operator grammar").
@@ -852,13 +915,16 @@ contains
                                 warning_count = saved_count
                                 return
                             end if
+
                             call pushnew(rhs(2)%s, first_ops)
                         end if
                     end if
+
                     if (.not. member(rhs(n)%s, nts)) then
                         call pushnew(rhs(n)%s, last_ops)
                     else
                         call pushnew(rhs(n)%s, last_nts)
+
                         if (n > 1) then
                             if (member(rhs(n - 1)%s, nts)) then
                                 call set_error(status, FM_GENERIC_ERROR, "Adjacent non-terminals: "//rhs(n - 1)%s//" "// &
@@ -866,21 +932,25 @@ contains
                                 warning_count = saved_count
                                 return
                             end if
+
                             call pushnew(rhs(n - 1)%s, last_ops)
                         end if
                     end if
                 end associate
             end do
+
             call push_table(first_ops_table, bnf%rules(r)%nt, first_ops)
             call push_table(last_ops_table, bnf%rules(r)%nt, last_ops)
             call push_table(first_nts_table, bnf%rules(r)%nt, first_nts)
             call push_table(last_nts_table, bnf%rules(r)%nt, last_nts)
         end do
+
         ! Compute all first-ops by propagating the initial ones we have
         ! now, according to first-nts.
         call propagate(first_nts_table, first_ops_table)
         ! Same thing for last-ops.
         call propagate(last_nts_table, last_ops_table)
+
         ! Now generate the 2D precedence table.
         do r = 1, nrules
             do h = 1, size(bnf%rules(r)%rhs)
@@ -888,14 +958,17 @@ contains
                     do i = 1, size(rhs) - 1
                         if (member(rhs(i)%s, nts)) then
                             k = table_index(last_ops_table, rhs(i)%s)
+
                             do j = 1, size(last_ops_table(k)%ops)
                                 call smie_set_prec2tab(prec2, last_ops_table(k)%ops(j)%s, rhs(i + 1)%s, SMIE_GT, override)
                             end do
                         else if (member(rhs(i + 1)%s, nts)) then
                             k = table_index(first_ops_table, rhs(i + 1)%s)
+
                             do j = 1, size(first_ops_table(k)%ops)
                                 call smie_set_prec2tab(prec2, rhs(i)%s, first_ops_table(k)%ops(j)%s, SMIE_LT, override)
                             end do
+
                             if (i + 2 <= size(rhs)) then
                                 if (.not. member(rhs(i + 2)%s, nts)) then
                                     call smie_set_prec2tab(prec2, rhs(i)%s, rhs(i + 2)%s, SMIE_EQ, override)
@@ -908,6 +981,7 @@ contains
                 end associate
             end do
         end do
+
         ! Keep track of which tokens are openers/closer, so they can get a nil
         ! precedence in smie-prec2->grammar.
         call smie_bnf_classify(bnf, ops, prec2%classes)
@@ -918,20 +992,25 @@ contains
         ! (The total of warnings is not reported: display-warning is
         ! deferred.)
         warning_count = saved_count
+
     contains
+
         subroutine push_table(table, nt, list)
             type(nt_ops_type), allocatable, intent(inout) :: table(:)
             character(len=*), intent(in) :: nt
             type(smie_string_type), allocatable, intent(inout) :: list(:)
             type(nt_ops_type), allocatable :: grown(:)
             integer :: m
+
             allocate (grown(size(table) + 1))
             grown(1)%nt = nt
             call move_alloc(list, grown(1)%ops)
+
             do m = 1, size(table)
                 call move_alloc(table(m)%nt, grown(m + 1)%nt)
                 call move_alloc(table(m)%ops, grown(m + 1)%ops)
             end do
+
             call move_alloc(grown, table)
         end subroutine push_table
     end subroutine smie_bnf_to_prec2
@@ -940,9 +1019,11 @@ contains
     integer function table_index(table, nt) result(k)
         type(nt_ops_type), intent(in) :: table(:)
         character(len=*), intent(in) :: nt
+
         do k = 1, size(table)
             if (str_eq(table(k)%nt, nt)) return
         end do
+
         k = 0
     end function table_index
 
@@ -954,24 +1035,31 @@ contains
         type(smie_string_type), allocatable :: snapshot(:), cell(:)
         logical :: again
         integer :: t, i, j, k, src
+
         again = .true.
+
         do while (again)
             again = .false.
+
             do t = 1, size(nts_table)
                 k = table_index(ops_table, nts_table(t)%nt)
+
                 do i = 1, size(nts_table(t)%ops)
                     src = table_index(ops_table, nts_table(t)%ops(i)%s)
                     if (src == 0) cycle
                     snapshot = ops_table(src)%ops
+
                     do j = 1, size(snapshot)
                         ! (member op first-ops), where first-ops is (NT . OPS).
                         allocate (cell(size(ops_table(k)%ops) + 1))
                         cell(1)%s = ops_table(k)%nt
                         cell(2:) = ops_table(k)%ops
+
                         if (.not. member(snapshot(j)%s, cell)) then
                             again = .true.
                             call push_front(snapshot(j)%s, ops_table(k)%ops)
                         end if
+
                         deallocate (cell)
                     end do
                 end do
@@ -991,18 +1079,22 @@ contains
         type(smie_string_type), allocatable :: nts(:)
         integer :: r, h, i, n
         logical :: inners
+
         inners = .true.
         if (present(no_inners)) inners = .not. no_inners
         allocate (openers(0), closers(0), nts(size(bnf%rules)))
+
         do r = 1, size(bnf%rules)
             nts(r)%s = bnf%rules(r)%nt
         end do
+
         do r = 1, size(bnf%rules)
             do h = 1, size(bnf%rules(r)%rhs)
                 associate (rhs => bnf%rules(r)%rhs(h)%items)
                     n = size(rhs)
                     if (n < 2) cycle
                     if (member(rhs(1)%s, nts)) cycle
+
                     if (.not. inners) then
                         if (.not. member(rhs(n)%s, nts)) call add_pair(rhs(1)%s, rhs(n)%s)
                     else
@@ -1015,20 +1107,26 @@ contains
                 end associate
             end do
         end do
+
     contains
+
         ! cl-pushnew, then nreverse: pairs in the order first added.
         subroutine add_pair(a, b)
             character(len=*), intent(in) :: a, b
             type(smie_string_type), allocatable :: go(:), gc(:)
             integer :: m
+
             do m = 1, size(openers)
                 if (str_eq(openers(m)%s, a) .and. str_eq(closers(m)%s, b)) return
             end do
+
             allocate (go(size(openers) + 1), gc(size(closers) + 1))
+
             do m = 1, size(openers)
                 call move_alloc(openers(m)%s, go(m)%s)
                 call move_alloc(closers(m)%s, gc(m)%s)
             end do
+
             go(size(go))%s = a
             gc(size(gc))%s = b
             call move_alloc(go, openers)
@@ -1046,36 +1144,46 @@ contains
         type(smie_string_type), allocatable :: table(:)
         integer, allocatable :: values(:)
         integer :: r, h, i, n
+
         allocate (table(0), values(0))
+
         ! Mark non-terminals.
         do r = 1, size(bnf%rules)
             call set_class(bnf%rules(r)%nt, SMIE_NONTERMINAL, .true.)
         end do
+
         do r = 1, size(bnf%rules)
             do h = 1, size(bnf%rules(r)%rhs)
                 associate (rhs => bnf%rules(r)%rhs(h)%items)
                     n = size(rhs)
+
                     if (n == 1) then
                         call set_class(rhs(1)%s, SMIE_NEITHER, .false.)
                     else
                         call set_class(rhs(1)%s, SMIE_OPENER, .false.)
+
                         ! Remove internals.
                         do i = 2, n - 1
                             call set_class(rhs(i)%s, SMIE_NEITHER, .false.)
                         end do
+
                         call set_class(rhs(n)%s, SMIE_CLOSER, .false.)
                     end if
                 end associate
             end do
         end do
+
         allocate (tokens(0), classes(0))
+
         do i = 1, size(table)
             if (values(i) == SMIE_CLOSER .or. values(i) == SMIE_OPENER) then
                 call push_front(table(i)%s, tokens)
                 classes = [values(i), classes]
             end if
         end do
+
     contains
+
         ! smie-bnf--set-class (or the puthash marking a nonterminal).
         subroutine set_class(token, class, force)
             character(len=*), intent(in) :: token
@@ -1083,9 +1191,11 @@ contains
             logical, intent(in) :: force
             type(smie_string_type), allocatable :: grown(:)
             integer :: m, prev
+
             do m = 1, size(table)
                 if (str_eq(table(m)%s, token)) then
                     prev = values(m)
+
                     if (force) then
                         values(m) = class
                     else if (prev == class) then
@@ -1098,13 +1208,17 @@ contains
                         ! deferred.)
                         values(m) = SMIE_NEITHER
                     end if
+
                     return
                 end if
             end do
+
             allocate (grown(size(table) + 1))
+
             do m = 1, size(table)
                 call move_alloc(table(m)%s, grown(m)%s)
             end do
+
             grown(size(grown))%s = token
             call move_alloc(grown, table)
             values = [values, class]
@@ -1132,10 +1246,12 @@ contains
         integer :: ntok, ncell, k, a, b, x, y, i, e, j, m, c
         logical :: progress, in_rhs
         character(len=:), allocatable :: desc
+
         status = status_type()
         allocate (tokens(0), lcell(0), rcell(0), val(0), has(0), eqx(0), eqy(0), cx(0), cy(0))
         ntok = 0
         ncell = 0
+
         ! From `prec2' we construct a list of constraints between
         ! variables (aka "precedence levels").  These can be either
         ! equality constraints (in `eqs') or `<' constraints (in `csts').
@@ -1146,6 +1262,7 @@ contains
             b = token_index(prec2%y(k)%s)
             if (b == 0) b = new_token(prec2%y(k)%s)
             y = lcell(b)
+
             select case (prec2%rel(k))
             case (SMIE_EQ)
                 eqx = [eqx, x]
@@ -1161,40 +1278,50 @@ contains
                 return
             end select
         end do
+
         ! Upstream's lists start with the last constraint pushed.
         eqx = eqx(size(eqx):1:-1)
         eqy = eqy(size(eqy):1:-1)
         cx = cx(size(cx):1:-1)
         cy = cy(size(cy):1:-1)
+
         ! First process the equality constraints.
         do e = 1, size(eqx)
             if (eqy(e) == eqx(e)) cycle
+
             do j = e + 1, size(eqx)
                 if (eqy(j) == eqx(e)) eqy(j) = eqy(e)
                 ! This can happen because of `assoc' settings in precs
                 ! or because of a rhs like ("op" foo "op").
                 if (eqx(j) == eqx(e)) eqx(j) = eqy(e)
             end do
+
             do j = 1, size(cx)
                 if (cy(j) == eqx(e)) cy(j) = eqy(e)
                 if (cx(j) == eqx(e)) cx(j) = eqy(e)
             end do
         end do
+
         ! Then eliminate trivial constraints iteratively.
         i = 0
         allocate (alive(size(cx)))
         alive = .true.
+
         do while (any(alive))
             progress = .false.
+
             ! The right-hand variables when this pass starts.
             block
                 integer, allocatable :: rhvs(:)
                 rhvs = pack(cy, alive)
+
                 do c = 1, size(cx)
                     if (.not. alive(c)) cycle
                     in_rhs = any(rhvs == cx(c))
+
                     if (.not. in_rhs) then
                         progress = .true.
+
                         ! We could give each var in a given iteration the same value,
                         ! but we can also give them arbitrarily different values.
                         ! Basically, these are vars between which there is no
@@ -1210,17 +1337,21 @@ contains
                             has(cx(c)) = .true.
                             i = i + 1
                         end if
+
                         alive(c) = .false.
                     end if
                 end do
             end block
+
             if (.not. progress) then
                 desc = describe_cycle()
                 call set_error(status, FM_GENERIC_ERROR, "Can't resolve the precedence cycle: "//desc)
                 return
             end if
+
             i = i + 10
         end do
+
         ! Propagate equality constraints back to their sources.
         do e = size(eqx), 1, -1
             if (.not. has(eqy(e))) then
@@ -1234,9 +1365,11 @@ contains
                 has(eqy(e)) = .true.
                 i = i + 1
             end if
+
             val(eqx(e)) = val(eqy(e))
             has(eqx(e)) = .true.
         end do
+
         ! Finally, fill in the remaining vars (which did not appear on the
         ! left side of any < constraint).
         do m = ntok, 1, -1
@@ -1245,21 +1378,25 @@ contains
                 has(lcell(m)) = .true.
                 i = i + 1
             end if
+
             if (.not. has(rcell(m))) then
                 val(rcell(m)) = i
                 has(rcell(m)) = .true.
                 i = i + 1
             end if
         end do
+
         ! The grammar, in upstream's table order.
         grammar%unset = .false.
         allocate (grammar%tokens(ntok), grammar%left(ntok), grammar%right(ntok))
+
         do m = 1, ntok
             k = ntok + 1 - m
             grammar%tokens(m)%s = tokens(k)%s
             grammar%left(m) = smie_level_type(kind=SMIE_LEVEL_NUMBER, value=val(lcell(k)))
             grammar%right(m) = smie_level_type(kind=SMIE_LEVEL_NUMBER, value=val(rcell(k)))
         end do
+
         ! Mark closers and openers.
         if (prec2%has_open_close) then
             do k = 1, size(prec2%classes)
@@ -1267,6 +1404,7 @@ contains
                 ! `cons' can be nil for openers/closers which only contain
                 ! "atomic" elements.
                 if (m == 0) cycle
+
                 select case (prec2%classes(k))
                 case (SMIE_CLOSER)
                     call make_list_level(grammar%right(m))
@@ -1277,6 +1415,7 @@ contains
                 end select
             end do
         end if
+
         if (prec2%has_closer_alist) then
             if (size(prec2%openers) > 0) then
                 grammar%has_closer_alist = .true.
@@ -1284,12 +1423,16 @@ contains
                 grammar%closers = prec2%closers
             end if
         end if
+
     contains
+
         integer function token_index(token) result(t)
             character(len=*), intent(in) :: token
+
             do t = 1, ntok
                 if (str_eq(tokens(t)%s, token)) return
             end do
+
             t = 0
         end function token_index
 
@@ -1297,10 +1440,13 @@ contains
             character(len=*), intent(in) :: token
             type(smie_string_type), allocatable :: grown(:)
             integer :: q
+
             allocate (grown(ntok + 1))
+
             do q = 1, ntok
                 call move_alloc(tokens(q)%s, grown(q)%s)
             end do
+
             grown(ntok + 1)%s = token
             call move_alloc(grown, tokens)
             ntok = ntok + 1
@@ -1320,22 +1466,30 @@ contains
             integer, allocatable :: found(:)
             type(smie_string_type), allocatable :: names(:), res(:)
             integer :: q, s, r
+
             call find_cycle(found)
             allocate (names(size(found)))
+
             do q = 1, size(found)
                 allocate (res(0))
+
                 do s = ntok, 1, -1
                     if (lcell(s) == found(q)) call push_front("."//tokens(s)%s, res)
                     if (rcell(s) == found(q)) call push_front(tokens(s)%s//".", res)
                 end do
+
                 names(q)%s = ""
+
                 do r = 1, size(res)
                     if (r > 1) names(q)%s = names(q)%s//"="
                     names(q)%s = names(q)%s//res(r)%s
                 end do
+
                 deallocate (res)
             end do
+
             text = ""
+
             do q = 1, size(names) + 1
                 if (q > 1) text = text//" < "
                 text = text//names(mod(q - 1, size(names)) + 1)%s
@@ -1348,22 +1502,29 @@ contains
             type(path_type), allocatable :: paths(:), next(:)
             integer :: p, q
             logical :: found
+
             allocate (paths(0))
+
             do q = 1, size(cx)
                 if (alive(q)) call add_path(paths, [cx(q), cy(q)], .false.)
             end do
+
             found = .false.
+
             do while (.not. found)
                 if (size(paths) == 0) then
                     ! (No cycle: cannot happen without progress.)
                     cycle_nodes = [cx(1)]
                     return
                 end if
+
                 allocate (next(0))
+
                 do p = 1, size(paths)
                     do q = 1, size(cx)
                         if (.not. alive(q)) cycle
                         if (cx(q) /= paths(p)%nodes(2)) cycle
+
                         if (cy(q) == paths(p)%nodes(1)) then
                             ! (cons (car cycle) (nreverse (cdr cycle))); the
                             ! last one found wins.
@@ -1374,6 +1535,7 @@ contains
                         end if
                     end do
                 end do
+
                 call move_alloc(next, paths)
             end do
         end subroutine find_cycle
@@ -1385,17 +1547,21 @@ contains
             logical, intent(in) :: front
             type(path_type), allocatable :: grown(:)
             integer :: q, o
+
             allocate (grown(size(list) + 1))
             o = 0
             if (front) o = 1
+
             do q = 1, size(list)
                 call move_alloc(list(q)%nodes, grown(q + o)%nodes)
             end do
+
             if (front) then
                 grown(1)%nodes = nodes
             else
                 grown(size(grown))%nodes = nodes
             end if
+
             call move_alloc(grown, list)
         end subroutine add_path
     end subroutine smie_prec2_to_grammar
@@ -1403,6 +1569,7 @@ contains
     ! (setf (car cons) (list (car cons))): LEVEL becomes a list level.
     subroutine make_list_level(level)
         type(smie_level_type), intent(inout) :: level
+
         level_ids = level_ids + 1
         level%kind = SMIE_LEVEL_LIST
         level%id = level_ids
@@ -1412,28 +1579,33 @@ contains
     integer function smie_grammar_index(grammar, token) result(k)
         type(smie_grammar_type), intent(in) :: grammar
         character(len=*), intent(in) :: token
+
         k = 0
         if (.not. allocated(grammar%tokens)) return
+
         do k = 1, size(grammar%tokens)
             if (str_eq(grammar%tokens(k)%s, token)) return
         end do
+
         k = 0
     end function smie_grammar_index
 
     ! ------------------------------------------------------------------
     ! Levels
     ! ------------------------------------------------------------------
-
     pure logical function numberp(level)
         type(smie_level_type), intent(in) :: level
+
         numberp = level%kind == SMIE_LEVEL_NUMBER
     end function numberp
 
     ! (eq A B) of two levels.
     pure logical function level_eq(a, b)
         type(smie_level_type), intent(in) :: a, b
+
         level_eq = a%kind == b%kind
         if (.not. level_eq) return
+
         select case (a%kind)
         case (SMIE_LEVEL_NUMBER)
             level_eq = a%value == b%value
@@ -1448,6 +1620,7 @@ contains
     pure function level_or_t(level) result(l)
         type(smie_level_type), intent(in) :: level
         type(smie_level_type) :: l
+
         l = level
         if (l%kind == SMIE_LEVEL_NIL) l%kind = SMIE_LEVEL_T
     end function level_or_t
@@ -1455,32 +1628,38 @@ contains
     ! ------------------------------------------------------------------
     ! Buffer-local values
     ! ------------------------------------------------------------------
-
     ! The index in `locals' of the current buffer's (created if MAKE; 0 if
     ! none).
     integer function local_index(make) result(k)
         logical, intent(in) :: make
         type(smie_local_type), allocatable :: grown(:)
         integer :: i, n
+
         k = 0
         if (cur == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
+
         do k = 1, size(locals)
             if (locals(k)%serial == buffers(cur)%serial) return
         end do
+
         k = 0
         if (.not. make) return
+
         do k = 1, size(locals)
             if (.not. buffer_serial_live(locals(k)%serial)) then
                 locals(k) = smie_local_type(serial=buffers(cur)%serial)
                 return
             end if
         end do
+
         n = size(locals)
         allocate (grown(n + 1))
+
         do i = 1, n
             grown(i) = locals(i)
         end do
+
         grown(n + 1)%serial = buffers(cur)%serial
         call move_alloc(grown, locals)
         k = n + 1
@@ -1489,6 +1668,7 @@ contains
     ! kill-all-local-variables: forget the current buffer's values.
     subroutine kill_smie_locals()
         integer :: k
+
         k = local_index(.false.)
         if (k > 0) locals(k) = smie_local_type()
         k = smie_indent_functions%local_index()
@@ -1499,8 +1679,10 @@ contains
     function grammar() result(g)
         type(smie_grammar_type), pointer :: g
         integer :: k
+
         g => smie_grammar
         k = local_index(.false.)
+
         if (k > 0) then
             if (associated(locals(k)%grammar)) g => locals(k)%grammar
         end if
@@ -1510,6 +1692,7 @@ contains
     logical function closer_alist_p()
         integer :: k
         type(smie_grammar_type), pointer :: g
+
         closer_alist_p = .false.
         k = local_index(.false.)
         if (k == 0) return
@@ -1522,6 +1705,7 @@ contains
     logical function smie_closer_p(token)
         character(len=*), intent(in) :: token
         type(smie_grammar_type), pointer :: g
+
         smie_closer_p = .false.
         if (.not. closer_alist_p()) return
         g => grammar()
@@ -1532,6 +1716,7 @@ contains
     logical function smie_opener_p(token)
         character(len=*), intent(in) :: token
         type(smie_grammar_type), pointer :: g
+
         smie_opener_p = .false.
         if (.not. closer_alist_p()) return
         g => grammar()
@@ -1543,9 +1728,11 @@ contains
         character(len=*), intent(in) :: opener, closer
         type(smie_grammar_type), pointer :: g
         integer :: i
+
         closer_pair_p = .false.
         if (.not. closer_alist_p()) return
         g => grammar()
+
         do i = 1, size(g%openers)
             if (str_eq(g%openers(i)%s, opener) .and. str_eq(g%closers(i)%s, closer)) then
                 closer_pair_p = .true.
@@ -1561,6 +1748,7 @@ contains
         type(smie_toklevels_type) :: t
         type(smie_grammar_type), pointer :: g
         integer :: k
+
         g => grammar()
         k = smie_grammar_index(g, token)
         if (k == 0) return
@@ -1577,11 +1765,14 @@ contains
         type(status_type), intent(out) :: status
         procedure(smie_token_proc), pointer :: fn
         integer :: k
+
         fn => smie_forward_token_function
         k = local_index(.false.)
+
         if (k > 0) then
             if (associated(locals(k)%forward_token)) fn => locals(k)%forward_token
         end if
+
         if (associated(fn)) then
             call fn(token, status)
         else
@@ -1596,11 +1787,14 @@ contains
         type(status_type), intent(out) :: status
         procedure(smie_token_proc), pointer :: fn
         integer :: k
+
         fn => smie_backward_token_function
         k = local_index(.false.)
+
         if (k > 0) then
             if (associated(locals(k)%backward_token)) fn => locals(k)%backward_token
         end if
+
         if (associated(fn)) then
             call fn(token, status)
         else
@@ -1616,12 +1810,15 @@ contains
         type(status_type), intent(out) :: status
         procedure(smie_rules_proc), pointer :: fn
         integer :: k
+
         status = status_type()
         fn => smie_rules_function
         k = local_index(.false.)
+
         if (k > 0) then
             if (locals(k)%has_rules) fn => locals(k)%rules
         end if
+
         if (associated(fn)) call fn(method, arg, result, status)
     end subroutine call_rules
 
@@ -1629,8 +1826,10 @@ contains
     function triggers() result(t)
         character(len=:), allocatable :: t
         integer :: k
+
         t = smie_blink_matching_triggers
         k = local_index(.false.)
+
         if (k > 0) then
             if (locals(k)%has_triggers) t = locals(k)%triggers
         end if
@@ -1639,12 +1838,12 @@ contains
     ! ------------------------------------------------------------------
     ! Parsing using a precedence level table
     ! ------------------------------------------------------------------
-
     ! (buffer-substring-no-properties A B) (either order).
     function substring(a, b) result(text)
         integer(int64), intent(in) :: a, b
         character(len=:), allocatable :: text
         type(status_type) :: st
+
         call buffer_substring(a, b, text, st)
         if (.not. allocated(text)) text = ""
     end function substring
@@ -1656,12 +1855,15 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: p
         logical :: ok
+
         status = status_type()
         ok = forward_comment(-point())
         p = point()
+
         if (skip_syntax_backward(".") == 0) then
             if (skip_syntax_backward("w_'") == 0) continue
         end if
+
         token = substring(p, point())
     end subroutine smie_default_backward_token
 
@@ -1672,12 +1874,15 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: p
         logical :: ok
+
         status = status_type()
         ok = forward_comment(point_max())
         p = point()
+
         if (skip_syntax_forward(".") == 0) then
             if (skip_syntax_forward("w_'") == 0) continue
         end if
+
         token = substring(p, point())
     end subroutine smie_default_forward_token
 
@@ -1689,6 +1894,7 @@ contains
     ! figure out that it's an associative operator.
     pure logical function associative_p(left, right)
         type(smie_level_type), intent(in) :: left, right
+
         associative_p = level_eq(left, right)
     end function associative_p
 
@@ -1698,6 +1904,7 @@ contains
         character(len=*), intent(in) :: message
         integer(int64), intent(in) :: a, b
         character(len=24) :: sa, sb
+
         write (sa, "(i0)") a
         write (sb, "(i0)") b
         call set_error(status, FM_SCAN_ERROR, fortran_string(message)//", "//trim(sa)//", "//trim(sb))
@@ -1734,17 +1941,21 @@ contains
         integer(int64) :: pos, epos1, epos, beg, end_pos
         integer :: n
         logical :: half, idx
+
         status = status_type()
         half = .false.
         if (present(halfsexp)) half = halfsexp
         allocate (lfw(0), lbk(0))
+
         if (present(token)) then
             toklevels = smie_grammar_token(token)
+
             if (.not. toklevels%null) then
                 call push_levels(toklevels%left, toklevels%right)
             else
                 idx = string_match("\`\s(\|\s)\(\)\'", token, status, inhibit_modify=.false.) > 0
                 if (.not. status%ok()) return
+
                 if (idx) then
                     if (match_end(1, status) > 0) then
                         call push_levels(smie_level_type(kind=SMIE_LEVEL_NUMBER, value=0), smie_level_type())
@@ -1756,34 +1967,43 @@ contains
                     return
                 end if
             end if
+
             half = .false.
         end if
+
         do
             pos = point()
+
             if (forward) then
                 call smie_forward_token(tok, status)
             else
                 call smie_backward_token(tok, status)
             end if
+
             if (.not. status%ok()) return
             if (.not. allocated(tok)) tok = ""
             toklevels = smie_grammar_token(tok)
+
             if (toklevels%null) then
                 if (len(tok) == 0) then
                     call next_sexp(status)
+
                     if (status%code == FM_SCAN_ERROR) then
                         call scan_error_data(status, message, beg, end_pos)
                         status = status_type()
                         epos1 = beg
+
                         if (point() <= epos1) then
                             epos = end_pos
                         else
                             epos = epos1
                         end if
+
                         call goto_char(pos)
                         res%null = .false.
                         res%level%kind = SMIE_LEVEL_T
                         res%pos = epos
+
                         if (point() /= epos) then
                             if (point() < epos) then
                                 res%token = substring(epos, epos - 1)
@@ -1791,9 +2011,12 @@ contains
                                 res%token = substring(epos, epos + 1)
                             end if
                         end if
+
                         return
                     end if
+
                     if (.not. status%ok()) return
+
                     if (pos == point()) then
                         ! We did not move, so let's abort the loop.
                         res%null = .false.
@@ -1804,6 +2027,7 @@ contains
                 end if
             else
                 call forw_back(toklevels, forw, back)
+
                 if (.not. numberp(back)) then
                     ! A token like a paren-close.
                     call push_levels(toklevels%left, toklevels%right)
@@ -1813,6 +2037,7 @@ contains
                         if (.not. back%value < top_forw()) exit
                         call pop_levels()
                     end do
+
                     if (size(lfw) == 0) then
                         if (half .and. numberp(forw)) then
                             call push_levels(toklevels%left, toklevels%right)
@@ -1823,9 +2048,11 @@ contains
                     else
                         last_fw = lfw
                         last_bk = lbk
+
                         if (top_forw_number()) then
                             if (back%value == top_forw()) call pop_levels()
                         end if
+
                         ! We may have found a match for the previously pending
                         ! operator.  Is this the end?
                         if (size(lfw) > 0) then
@@ -1862,14 +2089,18 @@ contains
                     end if
                 end if
             end if
+
             if (size(lfw) == 0) exit
             half = .false.
         end do
+
     contains
+
         ! The forward and backward levels of T.
         recursive subroutine forw_back(t, f, b)
             type(smie_toklevels_type), intent(in) :: t
             type(smie_level_type), intent(out) :: f, b
+
             if (forward) then
                 f = t%right
                 b = t%left
@@ -1882,6 +2113,7 @@ contains
         ! (push (LEFT RIGHT) levels).
         recursive subroutine push_levels(left, right)
             type(smie_level_type), intent(in) :: left, right
+
             if (forward) then
                 lfw = [lfw, right]
                 lbk = [lbk, left]
@@ -1908,9 +2140,11 @@ contains
         ! Whether the top of lastlevels is associative.
         logical function associative_last()
             integer :: m
+
             m = size(last_fw)
             associative_last = .false.
             if (m == 0) return
+
             if (forward) then
                 associative_last = associative_p(last_bk(m), last_fw(m))
             else
@@ -1923,6 +2157,7 @@ contains
             type(smie_level_type), intent(in) :: f
             character(len=*), intent(in) :: t
             integer(int64), intent(in) :: p
+
             res%null = .false.
             res%level = level_or_t(f)
             res%pos = point()
@@ -1933,7 +2168,9 @@ contains
         ! NEXT-SEXP: skip one sexp.
         recursive subroutine next_sexp(st)
             type(status_type), intent(out) :: st
+
             st = status_type()
+
             if (forward) then
                 call forward_sexp(1_int64, st)
             else if (bobp()) then
@@ -1964,6 +2201,7 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: halfsexp
         character(len=*), intent(in), optional :: token
+
         call smie_next_sexp(.false., res, status, halfsexp, token)
     end subroutine smie_backward_sexp
 
@@ -1986,18 +2224,19 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: halfsexp
         character(len=*), intent(in), optional :: token
+
         call smie_next_sexp(.true., res, status, halfsexp, token)
     end subroutine smie_forward_sexp
 
     ! ------------------------------------------------------------------
     ! Miscellaneous commands using the precedence parser
     ! ------------------------------------------------------------------
-
     !> Move backward through N logical elements.  Port of
     !> smie.el:smie-backward-sexp-command.
     recursive subroutine smie_backward_sexp_command(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
+
         call smie_forward_sexp_command(-n, status)
     end subroutine smie_backward_sexp_command
 
@@ -2010,6 +2249,7 @@ contains
         integer(int64) :: left, pos
         logical :: forw, edge, was_local
         procedure(forward_sexp_proc), pointer :: saved
+
         status = status_type()
         forw = n > 0
         left = n
@@ -2017,29 +2257,36 @@ contains
         was_local = forward_sexp_function%local_p()
         saved => forward_sexp_function%get()
         call forward_sexp_function%set_local()
+
         do while (left /= 0)
             if (forw) then
                 left = left - 1
             else
                 left = left + 1
             end if
+
             pos = point()
+
             if (forw) then
                 call smie_forward_sexp(res, status, halfsexp=.true.)
             else
                 call smie_backward_sexp(res, status, halfsexp=.true.)
             end if
+
             if (.not. status%ok()) exit
+
             if (forw) then
                 edge = eobp()
             else
                 edge = bobp()
             end if
+
             if (.not. res%null .and. res%level%kind /= SMIE_LEVEL_NIL .and. pos == point() .and. .not. edge) then
                 call signal_scan_error(status, "Containing expression ends prematurely", res%pos, res%pos)
                 exit
             end if
         end do
+
         if (was_local) then
             call forward_sexp_function%set_local(saved)
         else
@@ -2055,6 +2302,7 @@ contains
         type(syntax_descriptor_type) :: d
         integer(int32) :: c
         logical :: found
+
         s = ""
         call char_after(c, found, pos)
         if (.not. found) return
@@ -2066,6 +2314,7 @@ contains
     function char_text(c) result(s)
         integer, intent(in) :: c
         character(len=:), allocatable :: s
+
         if (c < 128) then
             s = achar(c)
         else if (c < 2048) then
@@ -2083,10 +2332,13 @@ contains
         character(len=*), intent(in) :: s
         integer, allocatable :: cs(:)
         integer :: i, c, n
+
         allocate (cs(0))
         i = 1
+
         do while (i <= len(s))
             c = ichar(s(i:i))
+
             if (c < 128) then
                 n = 1
             else if (c < 224) then
@@ -2099,12 +2351,15 @@ contains
                 n = 4
                 c = iand(c, 7)
             end if
+
             block
                 integer :: j
+
                 do j = 1, n - 1
                     if (i + j <= len(s)) c = c*64 + iand(ichar(s(i + j:i + j)), 63)
                 end do
             end block
+
             cs = [cs, c]
             i = i + n
         end do
@@ -2114,6 +2369,7 @@ contains
     integer function before_char()
         integer(int32) :: c
         logical :: found
+
         call char_before(c, found)
         before_char = -1
         if (found) before_char = int(c)
@@ -2123,6 +2379,7 @@ contains
     integer function after_char()
         integer(int32) :: c
         logical :: found
+
         call char_after(c, found)
         after_char = -1
         if (found) after_char = int(c)
@@ -2138,12 +2395,12 @@ contains
     logical function char_in(c, s)
         integer, intent(in) :: c
         character(len=*), intent(in) :: s
+
         char_in = any(string_chars_of(s) == c)
     end function char_in
 
     ! (save-excursion (skip-chars-backward " \t") (bolp)) and the like are
     ! written out where used.
-
     !> Close the closest surrounding block.  Port of smie.el:smie-close-block.
     recursive subroutine smie_close_block(status)
         type(status_type), intent(out) :: status
@@ -2156,16 +2413,20 @@ contains
         integer :: level, k, i
         logical :: matched
         type(status_type) :: st
+
         here = point()
+
         body: block
             call backward_up_list(1_int64, status)
             if (.not. status%ok()) exit body
             matched = looking_at("\s(", status)
             if (.not. status%ok()) exit body
+
             if (matched) then
                 closer = matching_char(point())
                 exit body
             end if
+
             call smie_forward_token(open, status)
             if (.not. status%ok()) exit body
             if (.not. allocated(open)) open = ""
@@ -2173,6 +2434,7 @@ contains
             closer = first_closer(open)
             if (allocated(closer)) exit body
             t = smie_grammar_token(open)
+
             ! Even if we improve the auto-computation of closers,
             ! there are still cases where we need manual
             ! intervention, e.g. for Octave's use of `until'
@@ -2181,21 +2443,26 @@ contains
                 call set_error(status, FM_GENERIC_ERROR, "Doesn't look like a block")
                 exit body
             end if
+
             if (numberp(t%left)) then
                 call set_error(status, FM_GENERIC_ERROR, "Doesn't look like a block")
                 exit body
             end if
+
             ! Now that smie-setup automatically sets smie-closer-alist
             ! from the BNF, this is not really needed any more.
             levels = [smie_grammar_index(g, open)]
             allocate (seen(0), found(0))
+
             do while (size(levels) > 0)
                 level = levels(size(levels))
                 levels = levels(1:size(levels) - 1)
+
                 do k = 1, size(g%tokens)
                     if (.not. level_eq(g%right(level), g%left(k))) cycle
                     if (any(seen == k)) cycle
                     seen = [seen, k]
+
                     if (numberp(g%right(k))) then
                         levels = [levels, k]
                     else
@@ -2203,41 +2470,51 @@ contains
                     end if
                 end do
             end do
+
             if (size(found) == 0) then
                 call set_error(status, FM_GENERIC_ERROR, "No known closer for opener "//open)
                 exit body
             end if
+
             ! What should we do if there are various closers?
             closer = found(1)%s
         end block body
+
         call goto_char(here)
         if (.not. status%ok()) return
         moved = skip_chars_backward(" "//achar(9), st)
         i = 0
         if (.not. bolp()) i = 1
         call goto_char(here)
+
         if (i == 1) then
             call newline(status)
             if (.not. status%ok()) return
         end if
+
         call insert(closer, status)
         if (.not. status%ok()) return
         here = point()
         moved = skip_chars_forward(" "//achar(9), st)
         matched = eolp()
         call goto_char(here)
+
         if (matched) then
             call indent_according_to_mode(status)
         else
             call reindent_then_newline_and_indent(status)
         end if
+
     contains
+
         ! (cdr (assoc OPEN smie-closer-alist)).
         function first_closer(o) result(c)
             character(len=*), intent(in) :: o
             character(len=:), allocatable :: c
             integer :: m
+
             if (.not. closer_alist_p()) return
+
             do m = 1, size(g%openers)
                 if (str_eq(g%openers(m)%s, o)) then
                     c = g%closers(m)%s
@@ -2250,6 +2527,7 @@ contains
     ! `smie_close_block' as a command.
     recursive subroutine cmd_smie_close_block(status)
         type(status_type), intent(out) :: status
+
         call smie_close_block(status)
     end subroutine cmd_smie_close_block
 
@@ -2266,34 +2544,43 @@ contains
         integer(int64) :: arg, start, inc, pos, end_pos
         integer :: offset
         logical :: paren, more
+
         status = status_type()
         arg = arg_in
         start = point()
         inc = 1
         offset = 0
+
         if (arg < 0) then
             inc = -1
             offset = 1
         end if
+
         do while (arg /= 0)
             arg = arg - inc
+
             do
                 pos = point()
+
                 if (inc < 0) then
                     call smie_backward_token(token, status)
                 else
                     call smie_forward_token(token, status)
                 end if
+
                 if (.not. status%ok()) return
                 if (.not. allocated(token)) token = ""
                 levels = smie_grammar_token(token)
+
                 if (len(token) == 0) then
                     if (inc < 0) then
                         paren = looking_back("\s(\|\s)", status, point() - 1)
                     else
                         paren = looking_at("\s(\|\s)", status)
                     end if
+
                     if (.not. status%ok()) return
+
                     if (paren) then
                         ! Go back to `start' in case of an error.  This presumes
                         ! none of the token we've found until now include a ( or ).
@@ -2316,6 +2603,7 @@ contains
                 else
                     more = .true.
                 end if
+
                 if (.not. more) exit
             end do
         end do
@@ -2326,6 +2614,7 @@ contains
         type(smie_toklevels_type), intent(in) :: levels
         integer, intent(in) :: n
         type(smie_level_type) :: l
+
         if (n == 1) then
             l = levels%left
         else
@@ -2336,18 +2625,21 @@ contains
     ! `smie_down_list' as a command ("p").
     recursive subroutine cmd_smie_down_list(status)
         type(status_type), intent(out) :: status
+
         call smie_down_list(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_smie_down_list
 
     ! `smie_forward_sexp_command' as a command ("^p").
     recursive subroutine cmd_smie_forward_sexp_command(status)
         type(status_type), intent(out) :: status
+
         call smie_forward_sexp_command(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_smie_forward_sexp_command
 
     ! `smie_backward_sexp_command' as a command ("^p").
     recursive subroutine cmd_smie_backward_sexp_command(status)
         type(status_type), intent(out) :: status
+
         call smie_backward_sexp_command(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_smie_backward_sexp_command
 
@@ -2359,10 +2651,12 @@ contains
         character(len=:), allocatable :: ender, starter
         type(status_type) :: st
         integer(int64) :: here
+
         here = point()
         call goto_char(end)
         call smie_backward_token(ender, st)
         mismatch = .false.
+
         if (.not. allocated(ender)) then
             mismatch = blink_matching_check_mismatch(start, end)
         else if (.not. smie_closer_p(ender)) then
@@ -2376,6 +2670,7 @@ contains
             if (.not. allocated(starter)) starter = ""
             mismatch = .not. closer_pair_p(starter, ender)
         end if
+
         call goto_char(here)
     end function smie_blink_matching_check
 
@@ -2392,6 +2687,7 @@ contains
         logical :: ok, was_local
         procedure(blink_matching_check_proc), pointer :: saved
         type(status_type) :: st
+
         status = status_type()
         ! Position after the close token.
         pos = point()
@@ -2401,18 +2697,22 @@ contains
         if (.not. closer_alist_p()) return
         ! Sanity check.
         ok = before_char() == lce
+
         if (.not. ok) then
             here = point()
             moved = skip_chars_backward(" "//achar(9), st)
             pos = point()
             ok = before_char() == lce
+
             if (.not. ok) then
                 moved = skip_chars_backward(" "//achar(10)//achar(9), st)
                 pos = point()
                 ok = before_char() == lce
             end if
+
             call goto_char(here)
         end if
+
         if (.not. ok) return
         trig = triggers()
         if (.not. char_in(lce, trig)) return
@@ -2422,10 +2722,12 @@ contains
         if (ppss%comstr_start /= 0) return
         ! (save-excursion ...)
         opoint = point()
+
         body: block
             call smie_backward_token(token, status)
             if (.not. status%ok()) exit body
             if (.not. allocated(token)) token = ""
+
             if (point() == pos - 1 .and. char_count_of(token) == 1 .and. .not. smie_closer_p(token)) then
                 ! The trigger char is itself a token but is not one of the
                 ! closers (e.g. ?\; in Octave mode), so go back to the
@@ -2435,6 +2737,7 @@ contains
                 if (.not. status%ok()) exit body
                 if (.not. allocated(token)) token = ""
             end if
+
             if (.not. smie_closer_p(token)) exit body
             ! We're after a close token.  Let's still make sure we
             ! didn't skip a comment to find that token.
@@ -2455,15 +2758,18 @@ contains
             ok = before_char() == lce
             if (.not. ok) ok = .not. char_in(before_char(), triggers())
             if (.not. ok) exit body
+
             ! FIXME: For octave's "switch ... case ... case" we flash
             ! `switch' at the end of the first `case' and we burp
             ! "mismatch" at the end of the second `case'.
             if (.not. smie_blink_matching_inners) then
                 t = smie_grammar_token(token)
+
                 if (.not. t%null) then
                     if (numberp(t%right)) exit body
                 end if
             end if
+
             ! The major mode might set blink-matching-check-function
             ! buffer-locally so that interactive calls to
             ! blink-matching-open work right, but let's not presume
@@ -2472,18 +2778,21 @@ contains
             saved => current_blink_matching_check_function()
             call set_local_blink_matching_check_function(smie_blink_matching_check)
             call blink_matching_open(status)
+
             if (was_local) then
                 call set_local_blink_matching_check_function(saved)
             else
                 call kill_local_blink_matching_check_function()
             end if
         end block body
+
         call goto_char(opoint)
     end subroutine smie_blink_matching_open
 
     ! The number of characters of S.
     integer function char_count_of(s)
         character(len=*), intent(in) :: s
+
         char_count_of = size(string_chars_of(s))
     end function char_count_of
 
@@ -2497,6 +2806,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: ignored, btok, atok
         integer(int64) :: start, bend, aend
+
         found = .false.
         opener = .false.
         start_pos = 0
@@ -2510,10 +2820,12 @@ contains
         if (.not. status%ok()) return
         if (.not. allocated(btok)) btok = ""
         bend = point()
+
         if (bend >= start .and. smie_closer_p(btok)) then
             ! Token before point is a closer?
             call smie_backward_token(ignored, status)
             if (.not. status%ok()) return
+
             if (point() < start) then
                 found = .true.
                 token = btok
@@ -2525,6 +2837,7 @@ contains
             ! Token around point is an opener?
             call smie_backward_token(ignored, status)
             if (.not. status%ok()) return
+
             if (point() <= start) then
                 found = .true.
                 opener = .true.
@@ -2539,10 +2852,12 @@ contains
             aend = point()
             ! Hopefully shouldn't happen.
             if (aend < start) return
+
             ! Token after point is a closer?
             if (smie_opener_p(atok)) then
                 call smie_backward_token(ignored, status)
                 if (.not. status%ok()) return
+
                 if (point() <= start) then
                     found = .true.
                     opener = .true.
@@ -2567,9 +2882,11 @@ contains
         integer(int64) :: tick, hbeg, hend, tend, tbeg, here, pt
         integer :: k
         logical :: hfound, hopener, tfound, tmatch
+
         found = .false.
         k = local_index(.true.)
         call buffer_chars_modified_tick(current_buffer(), tick, st)
+
         if (closer_alist_p()) then
             if (.not. (locals(k)%has_cache .and. locals(k)%cache_pos == point() .and. locals(k)%cache_tick == tick)) then
                 locals(k)%has_cache = .true.
@@ -2579,13 +2896,16 @@ contains
                 pt = point()
                 call syntax_ppss(ppss)
                 call goto_char(pt)
+
                 if (ppss%comstr_start == 0) then
                     body: block
                         call opener_closer_at_point(hfound, hopener, htok, hbeg, hend, st)
                         if (.not. st%ok()) exit body
                         if (.not. hfound) exit body
+
                         if (.not. smie_blink_matching_inners) then
                             ht = smie_grammar_token(htok)
+
                             if (.not. ht%null) then
                                 if (hopener) then
                                     if (numberp(ht%left)) exit body
@@ -2594,15 +2914,18 @@ contains
                                 end if
                             end if
                         end if
+
                         tfound = .false.
                         tmatch = .false.
                         tbeg = 0
                         tend = 0
+
                         if (hopener) then
                             ! Opener.
                             call smie_forward_sexp(sdata, st, halfsexp=.true.)
                             if (.not. st%ok()) exit body
                             tend = point()
+
                             if (sdata%null .or. sdata%level%kind == SMIE_LEVEL_NIL) then
                                 call smie_backward_token(ignored, st)
                                 if (.not. st%ok()) exit body
@@ -2614,10 +2937,12 @@ contains
                             ! Closer.
                             call smie_backward_sexp(sdata, st, halfsexp=.true.)
                             if (.not. st%ok()) exit body
+
                             if (.not. sdata%null .and. sdata%level%kind /= SMIE_LEVEL_NIL) then
                                 ht = smie_grammar_token(htok)
                                 tt%null = .true.
                                 if (allocated(sdata%token)) tt = smie_grammar_token(sdata%token)
+
                                 if (.not. ht%null .and. .not. tt%null) then
                                     ! Here is an inner.
                                     if (numberp(ht%right) .and. level_eq(ht%right, tt%left)) then
@@ -2639,10 +2964,12 @@ contains
                                 tend = point()
                             end if
                         end if
+
                         ! Update the cache.
                         locals(k)%has_cache_data = .true.
                         locals(k)%cache_data%here_beg = hbeg
                         locals(k)%cache_data%here_end = hend
+
                         if (tfound) then
                             locals(k)%cache_data%there_beg = tbeg
                             locals(k)%cache_data%there_end = tend
@@ -2650,18 +2977,22 @@ contains
                             locals(k)%cache_data%there_beg = 0
                             locals(k)%cache_data%there_end = 0
                         end if
+
                         locals(k)%cache_data%mismatch = .not. (tfound .and. tmatch)
                     end block body
                 end if
+
                 here = locals(k)%cache_pos
                 call goto_char(here)
             end if
+
             if (locals(k)%has_cache_data) then
                 found = .true.
                 data = locals(k)%cache_data
                 return
             end if
         end if
+
         call advised_paren_data(k, found, data)
     end subroutine smie_matching_block_data
 
@@ -2671,30 +3002,35 @@ contains
         logical, intent(out) :: found
         type(show_paren_data_type), intent(out) :: data
         procedure(show_paren_data_proc), pointer :: fn
+
         found = .false.
+
         if (locals(k)%paren_data_local) then
             fn => locals(k)%paren_data
         else
             fn => show_paren_data_function
         end if
+
         if (associated(fn)) call fn(found, data)
     end subroutine advised_paren_data
 
     ! ------------------------------------------------------------------
     ! The indentation engine
     ! ------------------------------------------------------------------
-
     ! (funcall smie--hanging-eolp-function): the buffer's advised one, or
     ! the default.
     recursive logical function hanging_eolp()
         integer :: k
+
         k = local_index(.false.)
+
         if (k > 0) then
             if (associated(locals(k)%hanging_eolp)) then
                 hanging_eolp = locals(k)%hanging_eolp()
                 return
             end if
         end if
+
         hanging_eolp = smie_default_hanging_eolp()
     end function hanging_eolp
 
@@ -2704,6 +3040,7 @@ contains
     recursive logical function smie_default_hanging_eolp() result(eol)
         type(status_type) :: st
         integer(int64) :: moved
+
         moved = skip_chars_forward(" "//achar(9), st)
         eol = eolp()
         ! (looking-at comment-start-skip) ;(bug#16041).
@@ -2716,6 +3053,7 @@ contains
     subroutine smie_set_hanging_eolp_function(fn)
         procedure(smie_hanging_eolp_proc) :: fn
         integer :: k
+
         k = local_index(.true.)
         if (k > 0) locals(k)%hanging_eolp => fn
     end subroutine smie_set_hanging_eolp_function
@@ -2729,12 +3067,14 @@ contains
         character(len=:), allocatable :: token
         integer(int64) :: here, lep
         logical :: ok
+
         status = status_type()
         hanging = .false.
         if (smie_rule_bolp()) return
         here = point()
         lep = line_end_position()
         call smie_forward_token(token, status)
+
         if (status%ok()) then
             if (.not. allocated(token)) token = ""
             ! Could be an open-paren.
@@ -2742,6 +3082,7 @@ contains
             ok = hanging_eolp()
             hanging = lep <= point()
         end if
+
         call goto_char(here)
     end function smie_rule_hanging_p
 
@@ -2750,6 +3091,7 @@ contains
     recursive logical function smie_rule_bolp()
         integer(int64) :: here, moved
         type(status_type) :: st
+
         here = point()
         moved = skip_chars_backward(" "//achar(9), st)
         smie_rule_bolp = bolp()
@@ -2761,6 +3103,7 @@ contains
     recursive logical function smie_indent_bolp_1()
         integer(int64) :: bol, here
         logical :: ok
+
         bol = line_beginning_position()
         here = point()
         ok = forward_comment(-point())
@@ -2773,6 +3116,7 @@ contains
     recursive integer function smie_indent_current_column()
         integer(int64) :: pos, lbp
         logical :: ok
+
         pos = point()
         lbp = line_beginning_position()
         ok = forward_comment(-1_int64)
@@ -2791,38 +3135,48 @@ contains
         type(smie_toklevels_type) :: t
         type(smie_sexp_type) :: res
         integer(int64) :: pos, here
+
         status = status_type()
+
         if (.not. smie__parent%null) then
             parent = smie__parent
             return
         end if
+
         here = point()
+
         body: block
             pos = point()
             call smie_forward_token(tok, status)
             if (.not. status%ok()) exit body
             t%null = .true.
             if (allocated(tok)) t = smie_grammar_token(tok)
+
             if (t%null) then
                 call goto_char(pos)
             else if (.not. numberp(t%left)) then
                 call goto_char(pos)
             end if
+
             call smie_backward_sexp(parent, status, halfsexp=.true.)
             if (.not. status%ok()) exit body
+
             if (parent%null) then
                 do
                     call smie_backward_sexp(res, status)
                     if (.not. status%ok()) exit body
                     if (.not. res%null) exit
                 end do
+
                 parent%null = .false.
                 parent%level = smie_level_type()
                 parent%pos = point()
                 if (allocated(res%token)) parent%token = res%token
             end if
+
             smie__parent = parent
         end block body
+
         call goto_char(here)
     end subroutine smie_parent
 
@@ -2831,6 +3185,7 @@ contains
         type(status_type), intent(out) :: status
         type(smie_level_type) :: level
         type(smie_sexp_type) :: parent
+
         call smie_parent(parent, status)
         level = parent%level
     end function smie_parent_level
@@ -2843,6 +3198,7 @@ contains
         character(len=*), intent(in) :: parents(:)
         type(status_type), intent(out) :: status
         type(smie_sexp_type) :: parent
+
         p = .false.
         call smie_parent(parent, status)
         if (.not. status%ok()) return
@@ -2854,7 +3210,9 @@ contains
         character(len=*), intent(in) :: s
         character(len=*), intent(in) :: list(:)
         integer :: i
+
         in_list = .false.
+
         do i = 1, size(list)
             if (str_eq(s, trim(list(i)))) in_list = .true.
         end do
@@ -2868,19 +3226,23 @@ contains
         type(status_type), intent(out) :: status
         type(smie_toklevels_type) :: next
         integer(int64) :: here
+
         p = .false.
         here = point()
+
         body: block
             if (smie__after == 0) then
                 next = smie_indent_forward_token(status)
                 if (.not. status%ok()) exit body
                 smie__after = point()
             end if
+
             call goto_char(smie__after)
             next = smie_indent_forward_token(status)
             if (.not. status%ok()) exit body
             if (.not. next%null) p = in_list(next%token, tokens)
         end block body
+
         call goto_char(here)
     end function smie_rule_next_p
 
@@ -2891,6 +3253,7 @@ contains
         type(status_type), intent(out) :: status
         type(smie_toklevels_type) :: prev
         integer(int64) :: here
+
         p = .false.
         here = point()
         prev = smie_indent_backward_token(status)
@@ -2905,14 +3268,17 @@ contains
         type(status_type), intent(out) :: status
         type(smie_level_type) :: level, left
         type(smie_toklevels_type) :: t
+
         level = smie_parent_level(status)
         p = .false.
         if (.not. status%ok()) return
         left = smie_level_type()
+
         if (allocated(smie__token)) then
             t = smie_grammar_token(smie__token)
             if (.not. t%null) left = t%left
         end if
+
         p = level_eq(level, left)
     end function smie_rule_sibling_p
 
@@ -2927,6 +3293,7 @@ contains
         type(smie_sexp_type) :: parent
         type(smie_indent_type) :: v
         integer(int64) :: here
+
         here = point()
         call smie_parent(parent, status)
         if (.not. status%ok()) return
@@ -2934,10 +3301,12 @@ contains
         v = smie_indent_virtual(status)
         call goto_char(here)
         if (.not. status%ok()) return
+
         if (v%kind /= SMIE_INDENT_COLUMN) then
             call number_error(status, v)
             return
         end if
+
         r%kind = SMIE_RULE_COLUMN
         r%value = v%column
         if (present(offset)) r%value = r%value + offset
@@ -2947,6 +3316,7 @@ contains
     subroutine number_error(status, v)
         type(status_type), intent(out) :: status
         type(smie_indent_type), intent(in) :: v
+
         if (v%kind == SMIE_INDENT_NOINDENT) then
             call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: number-or-marker-p, noindent")
         else
@@ -2959,13 +3329,16 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: tok
         integer(int64) :: here, afterpos, moved
+
         here = point()
         n = smie_rule_separator_outdent
         call smie_forward_token(tok, status)
+
         if (.not. status%ok()) then
             call goto_char(here)
             return
         end if
+
         if (.not. allocated(tok)) then
             if (allocated(smie__token)) then
                 call message("smie-rule-separator: Can't skip token "//smie__token)
@@ -2973,10 +3346,12 @@ contains
                 call message("smie-rule-separator: Can't skip token nil")
             end if
         end if
+
         moved = skip_chars_forward(" ", status)
         afterpos = 0
         if (.not. eolp()) afterpos = point()
         call goto_char(here)
+
         ! This should always be true, unless
         ! smie-forward-token-function skipped a \n.
         if (afterpos /= 0) then
@@ -3005,10 +3380,13 @@ contains
         integer(int64) :: here
         integer :: parent_pos_col, outdent
         logical :: ok, sibling
+
         status = status_type()
+
         if (method == SMIE_BEFORE .and. smie_rule_bolp()) then
             sibling = smie_rule_sibling_p(status)
             if (.not. status%ok()) return
+
             if (.not. sibling) then
                 pr = smie_rule_parent(status)
                 if (.not. status%ok()) return
@@ -3027,6 +3405,7 @@ contains
                 return
             end if
         end if
+
         if (method == SMIE_AFTER .and. smie_rule_bolp()) then
             r%kind = SMIE_RULE_OFFSET
             r%value = separator_outdent(status)
@@ -3040,13 +3419,16 @@ contains
         character(len=*), intent(in) :: elem
         type(status_type), intent(out) :: status
         type(smie_rule_result_type) :: r
+
         n = smie_indent_basic
         call call_rules(SMIE_ELEM, elem, r, status)
         if (.not. status%ok()) return
+
         if (r%kind == SMIE_NIL .and. elem /= "basic") then
             call call_rules(SMIE_ELEM, "basic", r, status)
             if (.not. status%ok()) return
         end if
+
         if (r%kind /= SMIE_NIL) n = r%value
     end function smie_indent_offset
 
@@ -3066,10 +3448,13 @@ contains
         type(smie_indent_type) :: v
         integer(int64) :: here
         logical :: virtual
+
         here = point()
         call indent_rule_1(method, token, offset, status, after, parent)
+
         body: block
             if (.not. status%ok()) exit body
+
             select case (offset%kind)
             case (SMIE_NIL)
                 continue
@@ -3089,20 +3474,25 @@ contains
                 ! When parent==nil it doesn't matter because the only case
                 ! where it's really used is when the base-pos is hanging anyway.
                 virtual = .false.
+
                 if (present(parent)) then
                     if (.not. parent%null) virtual = parent%level%kind == SMIE_LEVEL_NIL
                 end if
+
                 if (.not. virtual) then
                     virtual = smie_rule_hanging_p(status)
                     if (.not. status%ok()) exit body
                 end if
+
                 if (virtual) then
                     v = smie_indent_virtual(status)
                     if (.not. status%ok()) exit body
+
                     if (v%kind /= SMIE_INDENT_COLUMN) then
                         call number_error(status, v)
                         exit body
                     end if
+
                     indent%column = indent%column + v%column
                 else
                     indent%column = indent%column + int(current_column())
@@ -3111,6 +3501,7 @@ contains
                 call set_error(status, FM_GENERIC_ERROR, "Unknown indentation offset")
             end select
         end block body
+
         call goto_char(here)
     end function indent_rule
 
@@ -3127,6 +3518,7 @@ contains
         character(len=:), allocatable :: saved_token
         integer(int64) :: saved_after
         logical :: had_token
+
         saved_parent = smie__parent
         had_token = allocated(smie__token)
         if (had_token) saved_token = smie__token
@@ -3138,11 +3530,13 @@ contains
         if (present(after)) smie__after = after
         call call_rules(method, token, result, status)
         smie__parent = saved_parent
+
         if (had_token) then
             smie__token = saved_token
         else if (allocated(smie__token)) then
             deallocate (smie__token)
         end if
+
         smie__after = saved_after
     end subroutine indent_rule_1
 
@@ -3155,18 +3549,23 @@ contains
         type(smie_toklevels_type) :: t
         character(len=:), allocatable :: tok
         logical :: paren
+
         call smie_forward_token(tok, status)
         if (.not. status%ok()) return
+
         if (allocated(tok)) then
             if (len(tok) > 0) then
                 t = smie_grammar_token(tok)
                 return
             end if
         end if
+
         paren = looking_at("\s(\|\s)\(\)", status)
         if (.not. status%ok()) return
+
         if (paren) then
             t%null = .false.
+
             if (match_end(1, status) > 0) then
                 t%left = smie_level_type(kind=SMIE_LEVEL_NUMBER, value=0)
                 t%right = smie_level_type()
@@ -3174,17 +3573,22 @@ contains
                 t%left = smie_level_type()
                 t%right = smie_level_type(kind=SMIE_LEVEL_NUMBER, value=0)
             end if
+
             call forward_char(status, 1_int64)
             t%token = substring(point() - 1, point())
             return
         end if
+
         paren = looking_at("\s""\|\s|", status)
         if (.not. status%ok()) return
+
         if (paren) then
             call forward_sexp(1_int64, status)
             return
         end if
+
         if (eobp()) return
+
         if (allocated(tok)) then
             call set_error(status, FM_GENERIC_ERROR, "Bumped into unknown token: "//prin1_string(tok))
         else
@@ -3199,20 +3603,25 @@ contains
         type(smie_toklevels_type) :: t
         character(len=:), allocatable :: tok
         integer :: class
+
         call smie_backward_token(tok, status)
         if (.not. status%ok()) return
+
         if (allocated(tok)) then
             if (len(tok) > 0) then
                 t = smie_grammar_token(tok)
                 return
             end if
         end if
+
         class = syntax_class_after(point() - 1)
+
         ! 4 == open paren syntax, 5 == close.
         if (class == 4 .or. class == 5) then
             call forward_char(status, -1_int64)
             t%null = .false.
             t%token = substring(point(), point() + 1)
+
             if (class == 4) then
                 t%left = smie_level_type()
                 t%right = smie_level_type(kind=SMIE_LEVEL_NUMBER, value=0)
@@ -3235,6 +3644,7 @@ contains
         type(syntax_descriptor_type) :: d
         integer(int32) :: c
         logical :: found
+
         syntax_class_after = -1
         call char_after(c, found, pos)
         if (.not. found) return
@@ -3249,6 +3659,7 @@ contains
         type(syntax_descriptor_type) :: d
         integer(int32) :: c
         logical :: found
+
         syntax_code_after = -1
         call char_after(c, found, pos)
         if (.not. found) return
@@ -3264,7 +3675,9 @@ contains
     recursive function smie_indent_virtual(status) result(indent)
         type(status_type), intent(out) :: status
         type(smie_indent_type) :: indent
+
         status = status_type()
+
         ! Trust pre-existing indentation on other lines.
         if (smie_rule_bolp()) then
             indent = smie_indent_type(kind=SMIE_INDENT_COLUMN, column=int(current_column()))
@@ -3277,6 +3690,7 @@ contains
     pure function column_of(col) result(indent)
         integer(int64), intent(in) :: col
         type(smie_indent_type) :: indent
+
         indent = smie_indent_type(kind=SMIE_INDENT_COLUMN, column=int(col))
     end function column_of
 
@@ -3287,6 +3701,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: here, found
         character(len=:), allocatable :: start_skip, end_skip
+
         status = status_type()
         if (.not. smie_rule_bolp()) return
         here = point()
@@ -3310,6 +3725,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: here
         logical :: ok
+
         status = status_type()
         here = point()
         ok = forward_comment(-point())
@@ -3325,14 +3741,17 @@ contains
         type(smie_rule_result_type) :: r
         integer(int64) :: here, moved
         logical :: at_close
+
         status = status_type()
         here = point()
+
         body: block
             ! (forward-comment (point-max))
             at_close = looking_at("\s)", status)
             if (.not. status%ok() .or. .not. at_close) exit body
             call indent_rule_1(SMIE_CLOSE_ALL, substring(point(), point() + 1), r, status, after=1 + point())
             if (.not. status%ok()) exit body
+
             if (r%kind /= SMIE_NIL) then
                 do while (skip_syntax_forward(")") /= 0)
                     moved = skip_chars_forward(" "//achar(9), status)
@@ -3341,21 +3760,26 @@ contains
                 call forward_char(status, 1_int64)
                 if (.not. status%ok()) exit body
             end if
+
             call backward_sexp(1_int64, status)
+
             if (status%code == FM_SCAN_ERROR) then
                 status = status_type()
                 exit body
             end if
+
             if (.not. status%ok()) exit body
             ! :not-hanging
             indent = smie_indent_virtual(status)
         end block body
+
         call goto_char(here)
     end subroutine smie_indent_close
 
     ! Whether two token levels are `equal'.
     logical function toklevels_equal(a, b)
         type(smie_toklevels_type), intent(in) :: a, b
+
         toklevels_equal = a%null .eqv. b%null
         if (.not. toklevels_equal .or. a%null) return
         toklevels_equal = str_eq(a%token, b%token) .and. level_equal(a%left, b%left) .and. level_equal(a%right, b%right)
@@ -3363,6 +3787,7 @@ contains
 
     pure logical function level_equal(a, b)
         type(smie_level_type), intent(in) :: a, b
+
         level_equal = a%kind == b%kind
         if (level_equal .and. (a%kind == SMIE_LEVEL_NUMBER .or. a%kind == SMIE_LEVEL_LIST)) level_equal = a%value == b%value
     end function level_equal
@@ -3383,8 +3808,10 @@ contains
         integer(int64) :: pos, endpos, shortage, here
         character(len=:), allocatable :: tok
         logical :: skip, ok
+
         status = status_type()
         pos = point()
+
         body: block
             if (present(token)) then
                 toklevels = smie_grammar_token(token)
@@ -3393,6 +3820,7 @@ contains
                 if (.not. status%ok()) exit body
                 ! Ignore tokens on subsequent lines.
                 skip = .false.
+
                 if (pos < line_beginning_position()) then
                     ! Make sure `token' also *starts* on another line.
                     endpos = point()
@@ -3404,6 +3832,7 @@ contains
                     if (st%ok()) skip = toklevels_equal(res, again) .and. point() == endpos
                     call goto_char(endpos)
                 end if
+
                 if (skip) then
                     toklevels = smie_toklevels_type()
                 else
@@ -3411,9 +3840,11 @@ contains
                     toklevels = res
                 end if
             end if
+
             ! Not a keyword.
             if (toklevels%null) exit body
             tok = toklevels%token
+
             if (.not. numberp(toklevels%left)) then
                 ! Different cases:
                 ! - smie-indent--bolp: "indent according to others".
@@ -3436,6 +3867,7 @@ contains
                 if (.not. ok) indent = column_of(current_column())
                 exit body
             end if
+
             ! FIXME: This still looks too much like black magic!!
             call smie_backward_sexp(parent, status, token=tok)
             if (.not. status%ok()) exit body
@@ -3462,23 +3894,28 @@ contains
             if (.not. ok) exit body
             here = point()
             call goto_char(pos)
+
             if (parent%null) then
                 indent = indent_rule(SMIE_BEFORE, tok, status, parent=parent)
             else
                 indent = indent_rule(SMIE_BEFORE, tok, status, parent=parent, base_pos=parent%pos)
             end if
+
             call goto_char(here)
             if (.not. status%ok() .or. indent%kind /= SMIE_INDENT_NIL) exit body
             plevel = merge_level(parent)
+
             if (level_eq(plevel, toklevels%left)) then
                 ! We bumped into a same-level operator; align with it.
                 ok = smie_rule_bolp() .and. point() /= pos
+
                 if (ok) then
                     here = point()
                     call goto_char(parent%pos)
                     ok = .not. smie_rule_bolp()
                     call goto_char(here)
                 end if
+
                 if (ok) then
                     ! If the parent is at EOL and its children are indented like
                     ! itself, then we can just obey the indentation chosen for the
@@ -3533,12 +3970,16 @@ contains
                 indent = smie_indent_virtual(status)
             end if
         end block body
+
         call goto_char(pos)
+
     contains
+
         ! (car parent): nil for a nil parent.
         function merge_level(p) result(l)
             type(smie_sexp_type), intent(in) :: p
             type(smie_level_type) :: l
+
             l = smie_level_type()
             if (.not. p%null) l = p%level
         end function merge_level
@@ -3548,6 +3989,7 @@ contains
     recursive subroutine indent_keyword_function(indent, status)
         type(smie_indent_type), intent(out) :: indent
         type(status_type), intent(out) :: status
+
         call smie_indent_keyword(indent, status)
     end subroutine indent_keyword_function
 
@@ -3559,18 +4001,22 @@ contains
         character(len=:), allocatable :: next
         integer(int64) :: pos, found, at, moved
         logical :: ok, skip
+
         status = status_type()
         ! Don't do it for virtual indentations.  We should normally never be "in
         ! front of a comment" when doing virtual-indentation anyway.  And if we are
         ! (as can happen in octave-mode), moving forward can lead to inf-loops.
         if (.not. smie_rule_bolp()) return
         pos = point()
+
         body: block
             call beginning_of_line()
+
             if (.not. allocated(comment_start_skip%value)) then
                 call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: stringp, nil")
                 exit body
             end if
+
             call re_search_forward(comment_start_skip%value, found, status, bound=line_end_position(), &
                                    noerror=SEARCH_NOERROR)
             if (.not. status%ok() .or. found == 0) exit body
@@ -3599,6 +4045,7 @@ contains
             ! base is before `pos'.
             indent = smie_indent_calculate(status)
         end block body
+
         call goto_char(pos)
     end subroutine smie_indent_comment
 
@@ -3611,6 +4058,7 @@ contains
         type(parse_state_type) :: ppss
         integer(int64) :: pos, start, shortage, moved
         logical :: ok
+
         status = status_type()
         if (.not. allocated(comment_continue%value)) return
         cont = comment_string_strip(comment_continue%value, .true., .true.)
@@ -3621,21 +4069,26 @@ contains
         call syntax_ppss(ppss)
         call goto_char(pos)
         if (ppss%incomment == 0) return
+
         body: block
             shortage = forward_line(-1_int64)
             start = ppss%comstr_start
+
             if (point() <= start) then
                 call goto_char(start)
                 ok = .false.
+
                 if (allocated(comment_start_skip%value)) then
                     ok = looking_at(comment_start_skip%value, status)
                     if (.not. status%ok()) exit body
                 end if
+
                 if (.not. ok) then
                     call forward_char(status, 1_int64)
                 else
                     call goto_char(match_end(0, status))
                     moved = skip_chars_backward(" "//achar(9), status)
+
                     ! Try to align the first char of the comment-continue
                     ! with the second char of the comment-start or the
                     ! first char if the comment-start is made of
@@ -3654,6 +4107,7 @@ contains
                         call goto_char(1 + start)
                     end if
                 end if
+
                 indent = column_of(current_column())
             else
                 moved = skip_chars_forward(" "//achar(9), status)
@@ -3661,6 +4115,7 @@ contains
                 if (status%ok() .and. ok) indent = column_of(current_column())
             end if
         end block body
+
         call goto_char(pos)
     end subroutine smie_indent_comment_continue
 
@@ -3673,6 +4128,7 @@ contains
         type(parse_state_type) :: ppss
         integer(int64) :: pos, idx, mb0, mb2, me2
         logical :: ok
+
         status = status_type()
         if (.not. allocated(comment_end_skip%value)) return
         ! Not just a \n comment-closer.
@@ -3685,6 +4141,7 @@ contains
         call syntax_ppss(ppss)
         call goto_char(pos)
         if (ppss%incomment == 0) return
+
         body: block
             call goto_char(ppss%comstr_start)
             if (.not. allocated(comment_start_skip%value)) exit body
@@ -3695,6 +4152,7 @@ contains
             ! and ender, if possible.
             idx = string_match("\(.+\).*"//achar(10)//"\(.*?\)\1", start//achar(10)//ender, status)
             if (.not. status%ok()) exit body
+
             if (idx > 0) then
                 mb0 = match_beginning(0, status) - 1
                 mb2 = match_beginning(2, status)
@@ -3704,6 +4162,7 @@ contains
                 indent = column_of(current_column())
             end if
         end block body
+
         call goto_char(pos)
     end subroutine smie_indent_comment_close
 
@@ -3714,6 +4173,7 @@ contains
         type(status_type), intent(out) :: status
         type(parse_state_type) :: ppss
         integer(int64) :: pos
+
         status = status_type()
         pos = point()
         call syntax_ppss(ppss)
@@ -3728,6 +4188,7 @@ contains
         type(status_type), intent(out) :: status
         type(parse_state_type) :: ppss
         integer(int64) :: pos
+
         status = status_type()
         pos = point()
         call syntax_ppss(ppss)
@@ -3744,8 +4205,10 @@ contains
         type(smie_indent_type) :: v
         integer(int64) :: pos
         integer :: basic
+
         status = status_type()
         pos = point()
+
         body: block
             toklevel = smie_indent_backward_token(status)
             if (.not. status%ok() .or. toklevel%null) exit body
@@ -3756,22 +4219,26 @@ contains
             ! for postfix.
             ! A closer.
             if (.not. numberp(toklevel%right)) exit body
+
             if (.not. numberp(toklevel%left) .or. smie_closer_p(toklevel%token)) then
                 ! An opener, or an inner.
                 v = smie_indent_virtual(status)
                 if (.not. status%ok()) exit body
                 basic = smie_indent_offset("basic", status)
                 if (.not. status%ok()) exit body
+
                 if (v%kind /= SMIE_INDENT_COLUMN) then
                     call number_error(status, v)
                     exit body
                 end if
+
                 indent = smie_indent_type(kind=SMIE_INDENT_COLUMN, column=v%column + basic)
             else
                 ! An infix.
                 indent = smie_indent_virtual(status)
             end if
         end block body
+
         call goto_char(pos)
     end subroutine smie_indent_after_keyword
 
@@ -3784,6 +4251,7 @@ contains
         type(status_type), intent(out) :: status
         type(smie_rule_result_type) :: r
         type(smie_toklevels_type) :: t
+
         status = status_type()
         if (.not. eolp()) return
         ! FIXME: Should we default to ";"?
@@ -3812,9 +4280,11 @@ contains
         integer(int64) :: here, inner
         integer :: args
         logical :: arg
+
         status = status_type()
         here = point()
         allocate (positions(0))
+
         body: block
             do
                 call smie_backward_sexp(res, status)
@@ -3823,12 +4293,14 @@ contains
                 positions = [point(), positions]
                 if (smie_rule_bolp()) exit
             end do
+
             ! Figure out if the atom we just skipped is an argument rather
             ! than a function.
             inner = point()
             call smie_backward_sexp(res, status)
             if (.not. status%ok()) exit body
             arg = res%null .or. res%level%kind == SMIE_LEVEL_NIL
+
             if (.not. arg) then
                 call smie_backward_token(tok, status)
                 if (.not. status%ok()) exit body
@@ -3837,7 +4309,9 @@ contains
                 if (.not. status%ok()) exit body
                 arg = r%kind /= SMIE_NIL
             end if
+
             call goto_char(inner)
+
             if (size(positions) == 0) then
                 ! We're the first expression of the list.  In that case, the
                 ! indentation should be (have been) determined by its context.
@@ -3863,20 +4337,23 @@ contains
                 indent = smie_indent_type(kind=SMIE_INDENT_COLUMN, column=args + smie_indent_current_column())
             end if
         end block body
+
         call goto_char(here)
     end subroutine smie_indent_exps
 
     ! ------------------------------------------------------------------
     ! `smie_indent_functions'
     ! ------------------------------------------------------------------
-
     integer function indent_functions_local_index(self) result(k)
         class(smie_indent_functions_type), intent(in) :: self
+
         k = 0
         if (cur == 0 .or. .not. allocated(self%locals)) return
+
         do k = 1, size(self%locals)
             if (self%locals(k)%serial == buffers(cur)%serial) return
         end do
+
         k = 0
     end function indent_functions_local_index
 
@@ -3885,15 +4362,19 @@ contains
         class(smie_indent_functions_type), intent(in) :: self
         type(indent_entry_type), allocatable :: list(:)
         integer :: k, i, j
+
         allocate (list(0))
         k = self%local_index()
+
         if (k == 0) then
             if (allocated(self%entries)) list = self%entries
             return
         end if
+
         do i = 1, size(self%locals(k)%entries)
             if (self%locals(k)%entries(i)%is_t) then
                 if (.not. allocated(self%entries)) cycle
+
                 do j = 1, size(self%entries)
                     list = [list, self%entries(j)]
                 end do
@@ -3911,48 +4392,62 @@ contains
         type(indent_local_type), allocatable :: grown(:)
         integer :: k, i
         logical :: at_end, in_buffer
+
         at_end = .false.
         if (present(append)) at_end = append
         in_buffer = .false.
         if (present(local)) in_buffer = local
         e%fn => fn
+
         if (.not. in_buffer) then
             if (.not. allocated(self%entries)) allocate (self%entries(0))
+
             do i = 1, size(self%entries)
                 if (associated(self%entries(i)%fn, fn)) return
             end do
+
             if (at_end) then
                 self%entries = [self%entries, e]
             else
                 self%entries = [e, self%entries]
             end if
+
             return
         end if
+
         if (cur == 0) return
         k = self%local_index()
+
         if (k == 0) then
             if (.not. allocated(self%locals)) allocate (self%locals(0))
+
             do k = 1, size(self%locals)
                 if (.not. buffer_serial_live(self%locals(k)%serial)) exit
             end do
+
             if (k > size(self%locals)) then
                 allocate (grown(size(self%locals) + 1))
+
                 do i = 1, size(self%locals)
                     grown(i) = self%locals(i)
                 end do
+
                 call move_alloc(grown, self%locals)
                 k = size(self%locals)
             end if
+
             self%locals(k)%serial = buffers(cur)%serial
             ! A buffer's own value starts as (t).
             if (allocated(self%locals(k)%entries)) deallocate (self%locals(k)%entries)
             allocate (self%locals(k)%entries(1))
             self%locals(k)%entries(1)%is_t = .true.
         end if
+
         do i = 1, size(self%locals(k)%entries)
             if (self%locals(k)%entries(i)%is_t) cycle
             if (associated(self%locals(k)%entries(i)%fn, fn)) return
         end do
+
         if (at_end) then
             self%locals(k)%entries = [self%locals(k)%entries, e]
         else
@@ -3967,19 +4462,25 @@ contains
         type(indent_entry_type), allocatable :: kept(:)
         integer :: k, i
         logical :: in_buffer
+
         in_buffer = .false.
         if (present(local)) in_buffer = local
         allocate (kept(0))
+
         if (.not. in_buffer) then
             if (.not. allocated(self%entries)) return
+
             do i = 1, size(self%entries)
                 if (.not. associated(self%entries(i)%fn, fn)) kept = [kept, self%entries(i)]
             end do
+
             call move_alloc(kept, self%entries)
             return
         end if
+
         k = self%local_index()
         if (k == 0) return
+
         do i = 1, size(self%locals(k)%entries)
             if (self%locals(k)%entries(i)%is_t) then
                 kept = [kept, self%locals(k)%entries(i)]
@@ -3987,6 +4488,7 @@ contains
                 kept = [kept, self%locals(k)%entries(i)]
             end if
         end do
+
         call move_alloc(kept, self%locals(k)%entries)
     end subroutine indent_functions_remove
 
@@ -3997,8 +4499,10 @@ contains
         type(smie_indent_type) :: indent
         type(indent_entry_type), allocatable :: fns(:)
         integer :: i
+
         status = status_type()
         fns = smie_indent_functions%current()
+
         do i = 1, size(fns)
             if (.not. associated(fns(i)%fn)) cycle
             call fns(i)%fn(indent, status)
@@ -4016,6 +4520,7 @@ contains
         type(status_type) :: st
         integer(int64) :: savep, shortage, moved, here, col
         logical :: keep
+
         status = status_type()
         noindent = .false.
         savep = point()
@@ -4026,6 +4531,7 @@ contains
         if (point() >= savep) keep = .false.
         indent = smie_indent_calculate(st)
         call goto_char(here)
+
         if (.not. st%ok()) then
             ! (with-demoted-errors "SMIE Error: %S" ...)
             call message("SMIE Error: "//format_error(st))
@@ -4033,25 +4539,31 @@ contains
         else if (indent%kind == SMIE_INDENT_NIL) then
             indent = smie_indent_type(kind=SMIE_INDENT_COLUMN, column=0)
         end if
+
         if (indent%kind == SMIE_INDENT_NOINDENT) then
             ! If something funny is used (e.g. `noindent'), return it.
             noindent = .true.
             return
         end if
+
         ! Just in case.
         col = max(0, indent%column)
+
         if (keep) then
             call save_point_indent(col, status)
         else
             call indent_line_to(col, status)
         end if
+
     contains
+
         ! (save-excursion (indent-line-to COL)).
         subroutine save_point_indent(c, s)
             integer(int64), intent(in) :: c
             type(status_type), intent(out) :: s
             type(handle_type) :: m
             integer(int64) :: p
+
             call copy_marker_at(point(), m, .false., s)
             call indent_line_to(c, s)
             call marker_position(m, p, st)
@@ -4064,6 +4576,7 @@ contains
     ! `normal_auto_fill_function' of SMIE modes).
     recursive subroutine smie_auto_fill_function(status)
         type(status_type), intent(out) :: status
+
         call smie_auto_fill(status)
     end subroutine smie_auto_fill_function
 
@@ -4072,8 +4585,10 @@ contains
         type(status_type), intent(out) :: status
         procedure(command_proc), pointer :: fn
         integer :: k
+
         k = local_index(.false.)
         fn => null()
+
         if (k > 0) then
             if (locals(k)%auto_fill_local) then
                 fn => locals(k)%auto_fill
@@ -4083,6 +4598,7 @@ contains
         else
             call function_setting_default(normal_auto_fill_function, fn)
         end if
+
         if (associated(fn)) then
             call fn(status)
         else
@@ -4102,8 +4618,10 @@ contains
         logical :: done, skip
         type(handle_type) :: saved
         type(status_type) :: st
+
         status = status_type()
         fc = current_fill_column()
+
         if (current_column() > fc) then
             ! The loop below presumes BOL is outside of strings or comments.  Also,
             ! sometimes we prefer to fill the comment than the code around it.
@@ -4111,24 +4629,28 @@ contains
             call syntax_ppss(ppss, line_beginning_position())
             call goto_char(here)
             skip = ppss%comstr_start /= 0
+
             if (.not. skip) then
                 call move_to_column(fc, reached, .false., status)
                 call syntax_ppss(ppss)
                 call goto_char(here)
                 skip = ppss%incomment /= 0
             end if
+
             if (.not. skip) then
                 do
                     ! We silence the error completely since errors are "normal" in
                     ! some cases and an error message would be annoying (bug#19342).
                     done = .false.
                     call copy_marker_at(point(), saved, .false., st)
+
                     attempt: block
                         end_pos = point()
                         ! Best-so-far.
                         bsf = 0
                         gain = 0
                         call beginning_of_line()
+
                         do
                             t = smie_indent_forward_token(status)
                             if (.not. status%ok()) exit attempt
@@ -4141,16 +4663,20 @@ contains
                             moved = skip_chars_forward(" "//achar(9), status)
                             newcol = smie_indent_calculate(status)
                             if (.not. status%ok()) exit attempt
+
                             if (newcol%kind /= SMIE_INDENT_COLUMN) then
                                 call number_error(status, newcol)
                                 exit attempt
                             end if
+
                             newgain = current_column() - newcol%column
+
                             if (newgain > gain) then
                                 gain = newgain
                                 bsf = point()
                             end if
                         end do
+
                         if (gain > 0) then
                             call goto_char(bsf)
                             call newline_and_indent(status)
@@ -4158,6 +4684,7 @@ contains
                             done = .true.
                         end if
                     end block attempt
+
                     ! (save-excursion ...)
                     call marker_position(saved, here, st)
                     call goto_char(here)
@@ -4168,6 +4695,7 @@ contains
                 end do
             end if
         end if
+
         if (current_column() > fc) call do_advised_auto_fill(status)
     end subroutine smie_auto_fill
 
@@ -4175,6 +4703,7 @@ contains
     recursive subroutine smie_paren_data_function(found, data)
         logical, intent(out) :: found
         type(show_paren_data_type), intent(out) :: data
+
         call smie_matching_block_data(found, data)
     end subroutine smie_paren_data_function
 
@@ -4182,12 +4711,14 @@ contains
     pure logical function string_lessp(a, b)
         character(len=*), intent(in) :: a, b
         integer :: i
+
         do i = 1, min(len(a), len(b))
             if (a(i:i) /= b(i:i)) then
                 string_lessp = ichar(a(i:i)) < ichar(b(i:i))
                 return
             end if
         end do
+
         string_lessp = len(a) < len(b)
     end function string_lessp
 
@@ -4207,12 +4738,14 @@ contains
         integer, allocatable :: trigs(:), cs(:)
         integer :: k, i, j
         logical :: dup
+
         if (cur == 0) return
         k = local_index(.true.)
         locals(k)%has_rules = .true.
         locals(k)%rules => rules_function
         locals(k)%grammar => grammar_in
         call indent_line_function%set_local(smie_indent_line)
+
         ! (add-function :around (local 'normal-auto-fill-function) #'smie-auto-fill),
         ! which does nothing when the advice is already there.
         if (.not. locals(k)%has_auto_fill) then
@@ -4221,6 +4754,7 @@ contains
             locals(k)%auto_fill => normal_auto_fill_function%value
             call normal_auto_fill_function%set_local(smie_auto_fill_function)
         end if
+
         call forward_sexp_function%set_local(smie_forward_sexp_command)
         if (present(forward_token)) locals(k)%forward_token => forward_token
         if (present(backward_token)) locals(k)%backward_token => backward_token
@@ -4229,6 +4763,7 @@ contains
         ! Only needed for interactive calls to blink-matching-open.
         call set_local_blink_matching_check_function(smie_blink_matching_check)
         call post_self_insert_hook%add(smie_blink_matching_open, depth=90, local=.true.)
+
         ! (add-function :around (local 'show-paren-data-function) #'smie--matching-block-data)
         if (.not. locals(k)%has_paren_data) then
             locals(k)%has_paren_data = .true.
@@ -4236,9 +4771,11 @@ contains
             locals(k)%paren_data => current_show_paren_data_function()
             call set_local_show_paren_data_function(smie_paren_data_function)
         end if
+
         ! Setup smie-blink-matching-triggers.  Rather than wait for SPC to
         ! blink, try to blink as soon as we type the last char of a block ender.
         closers = grammar_in%closers
+
         do i = 2, size(closers)
             do j = i, 2, -1
                 if (.not. string_lessp(closers(j)%s, closers(j - 1)%s)) exit
@@ -4247,9 +4784,12 @@ contains
                 closers(j - 1) = tmp
             end do
         end do
+
         allocate (trigs(0))
+
         do i = 1, size(closers)
             closer = closers(i)%s
+
             ! FIXME: this eliminates prefixes of other closers, but we
             ! should probably eliminate prefixes of other keywords as well.
             if (i < size(closers)) then
@@ -4257,17 +4797,23 @@ contains
                     if (closers(i + 1)%s(1:len(closer)) == closer) cycle
                 end if
             end if
+
             cs = string_chars_of(closer)
             if (size(cs) > 0) trigs = [cs(size(cs)), trigs]
         end do
+
         trig = triggers()
+
         do i = 1, size(trigs)
             dup = .false.
+
             do j = 1, i - 1
                 if (trigs(j) == trigs(i)) dup = .true.
             end do
+
             if (.not. dup) trig = trig//char_text(trigs(i))
         end do
+
         k = local_index(.true.)
         locals(k)%has_triggers = .true.
         locals(k)%triggers = trig
@@ -4279,6 +4825,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: tick, after, shortage
         type(status_type) :: st
+
         do
             call buffer_chars_modified_tick(current_buffer(), tick, st)
             call indent_according_to_mode(status)
@@ -4294,6 +4841,7 @@ contains
         smie_forward_token_function => smie_default_forward_token
         smie_backward_token_function => smie_default_backward_token
         smie_blink_matching_triggers = " "//achar(10)
+
         if (.not. allocated(smie_indent_functions%entries)) then
             call smie_indent_functions%add(smie_indent_fixindent, append=.true.)
             call smie_indent_functions%add(smie_indent_bob, append=.true.)
@@ -4308,6 +4856,7 @@ contains
             call smie_indent_functions%add(smie_indent_empty_line, append=.true.)
             call smie_indent_functions%add(smie_indent_exps, append=.true.)
         end if
+
         call add_local_variables_killer(kill_smie_locals)
         commands%smie_close_block%run => cmd_smie_close_block
         commands%smie_down_list%run => cmd_smie_down_list

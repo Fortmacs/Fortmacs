@@ -112,12 +112,12 @@ contains
     ! ------------------------------------------------------------------
     ! The table and the nodes
     ! ------------------------------------------------------------------
-
     ! The index of EWOC in `ewocs' (0 for a stale handle).
     integer function slot(ewoc) result(i)
         type(ewoc_type), intent(in) :: ewoc
         integer(int64) :: k
         type(status_type) :: st
+
         call table%resolve(ewoc%h, k, st)
         i = 0
         if (st%ok()) i = int(k)
@@ -132,9 +132,12 @@ contains
         type(node_type), allocatable :: grown(:)
         type(status_type) :: st
         integer :: k
+
         if (.not. allocated(e%nodes)) allocate (e%nodes(8))
+
         if (e%n == size(e%nodes)) then
             allocate (grown(2*e%n))
+
             do k = 1, e%n
                 grown(k)%left = e%nodes(k)%left
                 grown(k)%right = e%nodes(k)%right
@@ -143,12 +146,15 @@ contains
                 grown(k)%is_hf = e%nodes(k)%is_hf
                 if (allocated(e%nodes(k)%hf)) call move_alloc(e%nodes(k)%hf, grown(k)%hf)
             end do
+
             call move_alloc(grown, e%nodes)
         end if
+
         e%n = e%n + 1
         node = e%n
         e%nodes(node)%data = data
         call copy_marker_at(pos, e%nodes(node)%start_marker, .false., st)
+
         if (present(hf)) then
             e%nodes(node)%is_hf = .true.
             allocate (e%nodes(node)%hf(1))
@@ -161,6 +167,7 @@ contains
         type(ewoc_data_type), intent(in) :: e
         integer, intent(in) :: node
         type(status_type) :: st
+
         call marker_position(e%nodes(node)%start_marker, mpos, st)
     end function mpos
 
@@ -168,6 +175,7 @@ contains
     integer function node_next(e, node) result(r)
         type(ewoc_data_type), intent(in) :: e
         integer, intent(in) :: node
+
         r = e%nodes(node)%right
         if (r == DLL) r = 0
     end function node_next
@@ -176,6 +184,7 @@ contains
     integer function node_prev(e, node) result(l)
         type(ewoc_data_type), intent(in) :: e
         integer, intent(in) :: node
+
         l = e%nodes(node)%left
         if (l == DLL) l = 0
     end function node_prev
@@ -188,22 +197,27 @@ contains
         integer, intent(in) :: n_in
         integer :: n
         logical :: left
+
         left = n_in < 0
         n = n_in
+
         if (left) then
             n = -1 - n
             node = e%nodes(DLL)%left
         else
             node = e%nodes(DLL)%right
         end if
+
         do while (node /= DLL .and. n > 0)
             if (left) then
                 node = e%nodes(node)%left
             else
                 node = e%nodes(node)%right
             end if
+
             n = n - 1
         end do
+
         if (node == DLL) node = 0
     end function node_nth
 
@@ -212,6 +226,7 @@ contains
     integer function filter_hf_nodes(e, node) result(r)
         type(ewoc_data_type), intent(in) :: e
         integer, intent(in) :: node
+
         r = node
         if (node == e%header .or. node == e%footer) r = 0
     end function filter_hf_nodes
@@ -229,8 +244,10 @@ contains
         integer, intent(in) :: node_in
         integer :: node
         type(status_type) :: st
+
         if (beg >= end) return
         node = node_in
+
         do
             if (mpos(e, node) /= beg) exit
             call set_marker(e%nodes(node)%start_marker, end, st)
@@ -250,10 +267,12 @@ contains
         type(status_type) :: st
         integer(int64) :: beg
         integer :: k
+
         if (e%nodes(node)%is_hf) then
             do k = 1, size(e%nodes(node)%hf)
                 beg = point()
                 call insert(e%nodes(node)%hf(k)%text, st)
+
                 if (len(e%nodes(node)%hf(k)%face) > 0 .and. point() > beg) then
                     call put_text_property(beg, point(), sym("face"), sym(e%nodes(node)%hf(k)%face), st)
                 end if
@@ -263,6 +282,7 @@ contains
         else if (associated(e%pretty_printer)) then
             call e%pretty_printer(e%nodes(node)%data)
         end if
+
         if (.not. e%nosep) call insert(LF, st)
     end subroutine print_node
 
@@ -277,6 +297,7 @@ contains
         integer(int64) :: pos
         integer :: left
         type(status_type) :: st
+
         call copy_marker_at(point(), pm, .false., st)
         elemnode = new_node(ewocs(i), data, mpos(ewocs(i), node), hf)
         left = ewocs(i)%nodes(node)%left
@@ -299,6 +320,7 @@ contains
         type(value_type) :: saved
         type(handle_type) :: pm
         type(status_type) :: st
+
         m = mpos(ewocs(i), node)
         r = ewocs(i)%nodes(node)%right
         end = mpos(ewocs(i), r)
@@ -309,10 +331,12 @@ contains
         at_end = opoint == end
         has_offset = .false.
         offset = 0
+
         if (.not. at_end .and. m < opoint .and. opoint < end) then
             has_offset = .true.
             offset = opoint - m
         end if
+
         call copy_marker_at(opoint, pm, .false., st)
         ! First, remove the string from the buffer:
         call delete_region(m, end, st)
@@ -325,11 +349,13 @@ contains
         call marker_position(pm, pos, st)
         call goto_char(pos)
         call free_marker(pm, st)
+
         if (at_end) then
             call goto_char(end)
         else if (has_offset) then
             call goto_char(min(m + offset, end - 1))
         end if
+
         call set(sym("inhibit_read_only"), saved, st)
     end subroutine refresh_node
 
@@ -339,6 +365,7 @@ contains
         integer, intent(in) :: i
         type(handle_type), intent(out) :: old
         type(status_type) :: st
+
         old = current_buffer()
         call set_buffer(ewocs(i)%buffer, st)
     end subroutine enter_buffer
@@ -346,13 +373,13 @@ contains
     subroutine leave_buffer(old)
         type(handle_type), intent(in) :: old
         type(status_type) :: st
+
         if (buffer_live_p(old)) call set_buffer(old, st)
     end subroutine leave_buffer
 
     ! ------------------------------------------------------------------
     ! The public functions
     ! ------------------------------------------------------------------
-
     !> Create an empty ewoc.
     !>
     !> The ewoc will be inserted in the current buffer at the current position.
@@ -379,11 +406,14 @@ contains
         integer(int64) :: k, pos
         integer :: i, foot, head
         type(status_type) :: st
+
         call table%acquire(ewoc%h)
         i = int(ewoc%h%index)
         if (.not. allocated(ewocs)) allocate (ewocs(0))
+
         if (size(ewocs, kind=int64) < table%capacity()) then
             allocate (grown(table%capacity()))
+
             do k = 1, size(ewocs)
                 grown(k)%buffer = ewocs(k)%buffer
                 grown(k)%pretty_printer => ewocs(k)%pretty_printer
@@ -394,8 +424,10 @@ contains
                 grown(k)%n = ewocs(k)%n
                 if (allocated(ewocs(k)%nodes)) call move_alloc(ewocs(k)%nodes, grown(k)%nodes)
             end do
+
             call move_alloc(grown, ewocs)
         end if
+
         ewocs(i) = ewoc_data_type()
         ewocs(i)%buffer = current_buffer()
         ewocs(i)%pretty_printer => pretty_printer
@@ -405,17 +437,20 @@ contains
         foot = new_node(ewocs(i), 0_int64, pos)
         ewocs(i)%nodes(DLL)%left = DLL
         ewocs(i)%nodes(DLL)%right = DLL
+
         ! Set default values
         if (present(footer)) then
             foot = insert_new_node(i, DLL, 0_int64, footer)
         else
             foot = insert_new_node(i, DLL, 0_int64, "")
         end if
+
         if (present(header)) then
             head = insert_new_node(i, foot, 0_int64, header)
         else
             head = insert_new_node(i, foot, 0_int64, "")
         end if
+
         ewocs(i)%footer = foot
         ewocs(i)%header = head
     end function ewoc_create
@@ -426,11 +461,14 @@ contains
         type(ewoc_type), intent(in) :: ewoc
         type(status_type) :: st
         integer :: i, k
+
         i = slot(ewoc)
         if (i == 0) return
+
         do k = 1, ewocs(i)%n
             call free_marker(ewocs(i)%nodes(k)%start_marker, st)
         end do
+
         ewocs(i) = ewoc_data_type()
         call table%release(ewoc%h, st)
     end subroutine ewoc_free
@@ -440,6 +478,7 @@ contains
         type(ewoc_type), intent(in) :: ewoc
         integer, intent(in) :: node
         integer :: i
+
         ewoc_location = 0
         i = slot(ewoc)
         if (i == 0 .or. node == 0) return
@@ -452,6 +491,7 @@ contains
         type(ewoc_type), intent(in) :: ewoc
         integer, intent(in) :: node
         integer :: i
+
         ewoc_data = 0
         i = slot(ewoc)
         if (i == 0 .or. node == 0) return
@@ -464,6 +504,7 @@ contains
         integer, intent(in) :: node
         integer(int64), intent(in) :: data
         integer :: i
+
         i = slot(ewoc)
         if (i == 0 .or. node == 0) return
         ewocs(i)%nodes(node)%data = data
@@ -475,6 +516,7 @@ contains
         type(ewoc_type), intent(in) :: ewoc
         integer(int64), intent(in) :: data
         integer :: i
+
         node = 0
         i = slot(ewoc)
         if (i == 0) return
@@ -487,6 +529,7 @@ contains
         type(ewoc_type), intent(in) :: ewoc
         integer(int64), intent(in) :: data
         integer :: i
+
         node = 0
         i = slot(ewoc)
         if (i == 0) return
@@ -500,6 +543,7 @@ contains
         integer, intent(in) :: node
         integer(int64), intent(in) :: data
         integer :: i, next
+
         new = 0
         i = slot(ewoc)
         if (i == 0) return
@@ -516,6 +560,7 @@ contains
         integer(int64), intent(in) :: data
         type(handle_type) :: old
         integer :: i
+
         new = 0
         i = slot(ewoc)
         if (i == 0) return
@@ -531,6 +576,7 @@ contains
         type(ewoc_type), intent(in) :: ewoc
         integer, intent(in) :: node
         integer :: i
+
         next = 0
         i = slot(ewoc)
         if (i == 0 .or. node == 0) return
@@ -544,6 +590,7 @@ contains
         type(ewoc_type), intent(in) :: ewoc
         integer, intent(in) :: node
         integer :: i
+
         prev = 0
         i = slot(ewoc)
         if (i == 0 .or. node == 0) return
@@ -561,9 +608,11 @@ contains
         type(ewoc_type), intent(in) :: ewoc
         integer, intent(in) :: n
         integer :: i
+
         node = 0
         i = slot(ewoc)
         if (i == 0) return
+
         ! Skip the header (or footer, if n is negative).
         if (n < 0) then
             node = filter_hf_nodes(ewocs(i), node_nth(ewocs(i), n - 1))
@@ -586,14 +635,17 @@ contains
         type(ewoc_type), intent(in) :: ewoc
         type(handle_type) :: old
         integer :: i, node
+
         i = slot(ewoc)
         if (i == 0) return
         call enter_buffer(i, old)
         node = node_nth(ewocs(i), 1)
+
         do while (node /= ewocs(i)%footer .and. node /= 0)
             if (map_function(ewocs(i)%nodes(node)%data)) call refresh_node(i, node)
             node = node_next(ewocs(i), node)
         end do
+
         call leave_buffer(old)
     end subroutine ewoc_map
 
@@ -604,9 +656,11 @@ contains
         type(handle_type) :: old
         integer :: i, k, node, l, r, next
         type(status_type) :: st
+
         i = slot(ewoc)
         if (i == 0) return
         call enter_buffer(i, old)
+
         do k = 1, size(nodes)
             node = nodes(k)
             if (node == 0) cycle
@@ -625,6 +679,7 @@ contains
             ewocs(i)%nodes(node)%left = 0
             ewocs(i)%nodes(node)%right = 0
         end do
+
         call leave_buffer(old)
     end subroutine ewoc_delete
 
@@ -642,6 +697,7 @@ contains
         type(value_type) :: saved
         type(status_type) :: st
         integer :: i, node, n
+
         i = slot(ewoc)
         if (i == 0) return
         call enter_buffer(i, old)
@@ -651,14 +707,17 @@ contains
         allocate (goodbye(ewocs(i)%n))
         n = 0
         node = node_nth(ewocs(i), 1)
+
         do while (node /= ewocs(i)%footer .and. node /= 0)
             if (.not. predicate(ewocs(i)%nodes(node)%data)) then
                 ! (push node goodbye)
                 n = n + 1
                 goodbye(n) = node
             end if
+
             node = node_next(ewocs(i), node)
         end do
+
         call leave_buffer(old)
         call ewoc_delete(ewoc, goodbye(n:1:-1))
         call set(sym("inhibit_read_only"), saved, st)
@@ -678,12 +737,14 @@ contains
         type(handle_type) :: old
         integer(int64) :: pos, distance, d
         integer :: i, best_guess, g
+
         node = 0
         i = slot(ewoc)
         if (i == 0) return
         pos = point()
         call enter_buffer(i, old)
         if (present(pos_in)) pos = pos_in
+
         associate (e => ewocs(i))
             if (node_nth(e, 1) == node_nth(e, -1)) then
                 ! Nothing present?
@@ -700,29 +761,36 @@ contains
                 ! node'es (the first, the last, or GUESS) is nearest.
                 best_guess = node_nth(e, 1)
                 distance = abs(pos - mpos(e, best_guess))
+
                 if (present(guess)) then
                     if (guess /= 0) then
                         d = abs(pos - mpos(e, guess))
+
                         if (d < distance) then
                             distance = d
                             best_guess = guess
                         end if
                     end if
                 end if
+
                 g = node_nth(e, -1)        ! Check the last elem
                 d = abs(pos - mpos(e, g))
+
                 if (d < distance) then
                     distance = d
                     best_guess = g
                 end if
+
                 if (e%last_node /= 0) then  ! Check "previous".
                     g = e%last_node
                     d = abs(pos - mpos(e, g))
+
                     if (d < distance) then
                         distance = d
                         best_guess = g
                     end if
                 end if
+
                 ! best-guess is now a "best guess".
                 ! Find the correct node. First determine in which direction
                 ! it lies, and then move in that direction until it is found.
@@ -733,6 +801,7 @@ contains
                         if (best_guess == 0) best_guess = DLL
                         if (best_guess == DLL) exit
                     end do
+
                     ! ...and return the previous node.
                     node = node_prev(e, best_guess)
                 else
@@ -741,10 +810,12 @@ contains
                         best_guess = node_prev(e, best_guess)
                         if (best_guess == 0) exit
                     end do
+
                     node = best_guess
                 end if
             end if
         end associate
+
         call leave_buffer(old)
     end function ewoc_locate
 
@@ -756,12 +827,15 @@ contains
         integer, intent(in) :: nodes(:)
         type(handle_type) :: old
         integer :: i, k
+
         i = slot(ewoc)
         if (i == 0) return
         call enter_buffer(i, old)
+
         do k = 1, size(nodes)
             if (nodes(k) /= 0) call refresh_node(i, nodes(k))
         end do
+
         call leave_buffer(old)
     end subroutine ewoc_invalidate
 
@@ -773,19 +847,23 @@ contains
         integer, intent(in) :: arg_in
         type(handle_type) :: old
         integer :: i, arg
+
         node = 0
         i = slot(ewoc)
         if (i == 0) return
         arg = arg_in
         node = ewoc_locate(ewoc, point())
         call enter_buffer(i, old)
+
         if (node /= 0) then
             ! If we were past the last element, first jump to it.
             if (point() >= mpos(ewocs(i), ewocs(i)%nodes(node)%right)) arg = arg - 1
+
             do while (node /= 0 .and. arg > 0)
                 arg = arg - 1
                 node = node_prev(ewocs(i), node)
             end do
+
             ! Never step above the first element.
             if (filter_hf_nodes(ewocs(i), node) == 0) node = node_nth(ewocs(i), 1)
             call leave_buffer(old)
@@ -803,16 +881,19 @@ contains
         integer, intent(in) :: arg_in
         type(status_type), intent(out) :: status
         integer :: i, arg
+
         status = status_type()
         node = 0
         i = slot(ewoc)
         if (i == 0) return
         arg = arg_in
         node = ewoc_locate(ewoc, point())
+
         do while (node /= 0 .and. arg > 0)
             arg = arg - 1
             node = node_next(ewocs(i), node)
         end do
+
         ! Never step below the first element.
         ! (unless (ewoc--filter-hf-nodes ewoc node)
         !   (setq node (ewoc--node-nth dll -2)))
@@ -820,6 +901,7 @@ contains
             call set_error(status, FM_GENERIC_ERROR, "No next")
             return
         end if
+
         call ewoc_goto_node(ewoc, node)
     end function ewoc_goto_next
 
@@ -833,6 +915,7 @@ contains
         integer(int64) :: reached
         type(status_type) :: st
         integer :: i
+
         i = slot(ewoc)
         if (i == 0 .or. node == 0) return
         call enter_buffer(i, old)
@@ -854,6 +937,7 @@ contains
         type(value_type) :: saved
         type(status_type) :: st
         integer :: i, footer, node
+
         i = slot(ewoc)
         if (i == 0) return
         call enter_buffer(i, old)
@@ -864,11 +948,13 @@ contains
         call delete_region(mpos(ewocs(i), node_nth(ewocs(i), 1)), mpos(ewocs(i), footer), st)
         call goto_char(mpos(ewocs(i), footer))
         node = node_nth(ewocs(i), 1)
+
         do while (node /= footer .and. node /= 0)
             call set_marker(ewocs(i)%nodes(node)%start_marker, point(), st)
             call print_node(ewocs(i), node)
             node = node_next(ewocs(i), node)
         end do
+
         call set(sym("inhibit_read_only"), saved, st)
         call set_marker(ewocs(i)%nodes(footer)%start_marker, point(), st)
         call leave_buffer(old)
@@ -890,6 +976,7 @@ contains
         integer(int64), allocatable :: found(:)
         type(handle_type) :: old
         integer :: i, node, n
+
         allocate (result(0))
         i = slot(ewoc)
         if (i == 0) return
@@ -897,13 +984,16 @@ contains
         allocate (found(ewocs(i)%n))
         n = 0
         node = node_nth(ewocs(i), -2)
+
         do while (node /= ewocs(i)%header .and. node /= 0)
             if (predicate(ewocs(i)%nodes(node)%data)) then
                 n = n + 1
                 found(n) = ewocs(i)%nodes(node)%data
             end if
+
             node = node_prev(ewocs(i), node)
         end do
+
         ! (push ...): the first found ends last.
         result = found(n:1:-1)
         call leave_buffer(old)
@@ -916,6 +1006,7 @@ contains
         type(ewoc_type), intent(in) :: ewoc
         type(handle_type) :: buf
         integer :: i
+
         buf = null_handle()
         i = slot(ewoc)
         if (i == 0) return
@@ -927,18 +1018,23 @@ contains
         type(ewoc_type), intent(in) :: ewoc
         character(len=:), allocatable, intent(out) :: header, footer
         integer :: i
+
         header = ""
         footer = ""
         i = slot(ewoc)
         if (i == 0) return
         header = text_of(ewocs(i)%nodes(ewocs(i)%header)%hf)
         footer = text_of(ewocs(i)%nodes(ewocs(i)%footer)%hf)
+
     contains
+
         function text_of(parts) result(text)
             type(ewoc_part_type), intent(in) :: parts(:)
             character(len=:), allocatable :: text
             integer :: k
+
             text = ""
+
             do k = 1, size(parts)
                 text = text//parts(k)%text
             end do
@@ -951,6 +1047,7 @@ contains
         character(len=*), intent(in) :: header, footer
         type(handle_type) :: old
         integer :: i
+
         i = slot(ewoc)
         if (i == 0) return
         call enter_buffer(i, old)
@@ -959,10 +1056,13 @@ contains
         call refresh_node(i, ewocs(i)%header)
         call refresh_node(i, ewocs(i)%footer)
         call leave_buffer(old)
+
     contains
+
         subroutine set_text(parts, text)
             type(ewoc_part_type), allocatable, intent(inout) :: parts(:)
             character(len=*), intent(in) :: text
+
             if (allocated(parts)) deallocate (parts)
             allocate (parts(1))
             parts(1)%text = text
@@ -977,6 +1077,7 @@ contains
         type(ewoc_part_type), intent(in) :: header(:), footer(:)
         type(handle_type) :: old
         integer :: i
+
         i = slot(ewoc)
         if (i == 0) return
         call enter_buffer(i, old)

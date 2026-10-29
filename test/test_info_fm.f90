@@ -58,6 +58,7 @@ contains
 
     subroutine collect_info_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("test-info-urls", test_info_urls), &
                     new_unittest("info-find-node", test_find_node), &
@@ -81,12 +82,12 @@ contains
     ! ------------------------------------------------------------------
     ! The environment of the tests
     ! ------------------------------------------------------------------
-
     !> The directory of the resources, or its subdirectory SUB.
     function resource_dir(sub) result(dir)
         character(len=*), intent(in), optional :: sub
         character(len=:), allocatable :: dir
         type(status_type) :: st
+
         call init_fileio()
         call expand_file_name("test/info-resources", dir, st, emacs_wd)
         dir = file_name_as_directory(dir)
@@ -98,6 +99,7 @@ contains
         type(error_type), allocatable, intent(inout) :: error
         character(len=*), intent(in) :: file, name
         character(len=:), allocatable :: expected
+
         expected = resource_dir()
         expected = expected//name
         call check(error, file, expected)
@@ -106,6 +108,7 @@ contains
     !> Search Info files in the resource directory only.
     subroutine use_resources()
         character(len=:), allocatable :: dir
+
         call init_bindings()
         dir = resource_dir()
         call set_directories([dir])
@@ -115,8 +118,10 @@ contains
     subroutine set_directories(dirs)
         character(len=*), intent(in) :: dirs(:)
         integer :: k
+
         if (allocated(info_directory_list)) deallocate (info_directory_list)
         allocate (character(len=len(dirs)) :: info_directory_list(size(dirs)))
+
         do k = 1, size(dirs)
             info_directory_list(k) = dirs(k)
         end do
@@ -131,6 +136,7 @@ contains
         type(error_type), allocatable, intent(inout) :: error
         type(handle_type) :: info_buffer
         type(status_type) :: st
+
         call use_resources()
         old = current_buffer()
         call current_window_configuration(config)
@@ -146,6 +152,7 @@ contains
         type(window_configuration_type), intent(in) :: config
         type(handle_type) :: info_buffer
         type(status_type) :: st
+
         call set_window_configuration(config)
         info_buffer = get_buffer("*info*")
         if (info_buffer%index /= 0) call kill_buffer(info_buffer, st)
@@ -155,6 +162,7 @@ contains
     !> The current node's name, "" for none.
     function node() result(n)
         character(len=:), allocatable :: n
+
         n = info_current_node()
         if (.not. allocated(n)) n = ""
     end function node
@@ -164,6 +172,7 @@ contains
         type(error_type), allocatable, intent(inout) :: error
         character(len=*), intent(in) :: expected
         type(status_type), intent(in) :: st
+
         if (allocated(error)) return
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -175,24 +184,27 @@ contains
         character(len=:), allocatable :: text
         character(len=:), allocatable :: all
         integer(int64) :: b, e, i
+
         all = buffer_string()
         b = line_beginning_position(1_int64) - point_min() + 1
         e = b
+
         do i = b, len(all)
             if (all(i:i) == achar(10)) exit
             e = i
         end do
+
         text = all(b:e)
     end function current_line
 
     ! ------------------------------------------------------------------
     ! The tests
     ! ------------------------------------------------------------------
-
     subroutine test_info_urls(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=:), allocatable :: url
+
         call check(error, info_url_for_node("(tramp)Top", st), &
                    "https://www.gnu.org/software/emacs/manual/html_node/tramp/")
         if (allocated(error)) return
@@ -224,12 +236,15 @@ contains
         type(window_configuration_type) :: config
         type(header_line_format_type) :: id
         character(len=:), allocatable :: file
+
         call visit("test", "Top", old, config, error)
         if (.not. allocated(error)) call check(error, node(), "Top")
+
         if (.not. allocated(error)) then
             file = info_current_file()
             call check(error, allocated(file), "a current file")
         end if
+
         if (.not. allocated(error)) call check_file(error, file, "test")
         if (.not. allocated(error)) call check(error, buffers(cur)%name, "*info*")
         if (.not. allocated(error)) call check(error, buffers(cur)%major_mode, "info_mode")
@@ -238,11 +253,13 @@ contains
                                                "narrowed to the node")
         if (.not. allocated(error)) call check(error, line_beginning_position(1_int64) /= point_min(), &
                                                "point below the header line")
+
         ! The mode line shows the manual and the node.
         if (.not. allocated(error)) then
             id = buffers(cur)%mode_line_buffer_identification
             call check(error, size(id%segments), 3)
         end if
+
         if (.not. allocated(error)) call check(error, id%segments(2)%text, " (test) ")
         if (.not. allocated(error)) call check(error, id%segments(3)%text, "Top")
         call done(old, config)
@@ -253,6 +270,7 @@ contains
         type(handle_type) :: old
         type(window_configuration_type) :: config
         type(status_type) :: st
+
         call visit("test", "Top", old, config, error)
         call info_next(st)
         call check_node(error, "First Chapter", st)
@@ -264,15 +282,18 @@ contains
         call check_node(error, "Top", st)
         ! Point goes to the menu entry of the node left.
         if (.not. allocated(error)) call check(error, current_line(), "* First Chapter::       The first chapter.")
+
         if (.not. allocated(error)) then
             call info_up(st)
             call check(error,.not. st%ok(), "Top's Up is (dir), not in the resources")
         end if
+
         if (.not. allocated(error)) then
             call info_goto_node("Section One", st)
             call info_next(st)
             call check(error,.not. st%ok(), "Section One has no Next")
         end if
+
         if (.not. allocated(error)) call check(error, format_error(st), "Node has no Next")
         call done(old, config)
     end subroutine test_next_prev_up
@@ -282,6 +303,7 @@ contains
         type(handle_type) :: old
         type(window_configuration_type) :: config
         type(status_type) :: st
+
         call visit("test", "Top", old, config, error)
         call info_goto_node("Second Chapter", st)
         call check_node(error, "Second Chapter", st)
@@ -289,20 +311,24 @@ contains
         call check_node(error, "Top", st)
         call info_history_forward(st)
         call check_node(error, "Second Chapter", st)
+
         if (.not. allocated(error)) then
             call info_history_forward(st)
             call check(error, format_error(st), "This is the last Info node you looked at")
         end if
+
         call info_history_back(st)
         call check_node(error, "Top", st)
         ! (Visiting the file from another buffer recorded Top as the node
         ! left, as upstream: `info_pop_to_buffer' had already shown it.)
         call info_history_back(st)
         call check_node(error, "Top", st)
+
         if (.not. allocated(error)) then
             call info_history_back(st)
             call check(error, format_error(st), "This is the first Info node you looked at")
         end if
+
         call done(old, config)
     end subroutine test_history
 
@@ -311,6 +337,7 @@ contains
         type(handle_type) :: old
         type(window_configuration_type) :: config
         type(status_type) :: st
+
         call visit("test", "Top", old, config, error)
         call info_menu("Second", st)
         call check_node(error, "Second Chapter", st)
@@ -319,14 +346,17 @@ contains
         call info_nth_menu_item(3, st)
         call check_node(error, "Index", st)
         call info_top_node(st)
+
         if (.not. allocated(error)) then
             call info_nth_menu_item(4, st)
             call check(error, format_error(st), "Too few items in menu")
         end if
+
         if (.not. allocated(error)) then
             call info_menu("Nothing", st)
             call check(error, format_error(st), "No such item in menu")
         end if
+
         call done(old, config)
     end subroutine test_menu
 
@@ -335,16 +365,19 @@ contains
         type(handle_type) :: old
         type(window_configuration_type) :: config
         type(status_type) :: st
+
         call visit("test", "Second Chapter", old, config, error)
         ! The reference's node name spans two lines.
         call info_follow_reference("the first", st)
         call check_node(error, "First Chapter", st)
         call info_follow_reference("Section One", st)
         call check_node(error, "Section One", st)
+
         if (.not. allocated(error)) then
             call info_follow_reference("nowhere", st)
             call check(error, format_error(st), "No cross-reference named nowhere")
         end if
+
         call done(old, config)
     end subroutine test_follow_reference
 
@@ -353,6 +386,7 @@ contains
         type(handle_type) :: old
         type(window_configuration_type) :: config
         type(status_type) :: st
+
         call visit("test", "an anchor", old, config, error)
         call check_node(error, "Section One", st)
         if (.not. allocated(error)) call check(error, current_line(), "An anchor is here.")
@@ -365,12 +399,15 @@ contains
         type(window_configuration_type) :: config
         type(status_type) :: st
         character(len=:), allocatable :: subfile
+
         call visit("split", "Second Chapter", old, config, error)
         call check_node(error, "Second Chapter", st)
+
         if (.not. allocated(error)) then
             subfile = info_current_subfile()
             call check(error, allocated(subfile), "a subfile")
         end if
+
         if (.not. allocated(error)) call check(error, subfile, "split.info-2")
         call info_goto_node("Top", st)
         call check_node(error, "Top", st)
@@ -389,6 +426,7 @@ contains
         type(handle_type) :: old
         type(window_configuration_type) :: config
         type(status_type) :: st
+
         call visit("test", "Top", old, config, error)
         call info_forward_node(st)
         call check_node(error, "First Chapter", st)
@@ -412,6 +450,7 @@ contains
         type(handle_type) :: old
         type(window_configuration_type) :: config
         type(status_type) :: st
+
         call visit("test", "First Chapter", old, config, error)
         call info_final_node(st)
         call check_node(error, "Index", st)
@@ -423,6 +462,7 @@ contains
         type(handle_type) :: old
         type(window_configuration_type) :: config
         type(status_type) :: st
+
         call visit("test", "Index", old, config, error)
         if (.not. allocated(error)) call check(error, info_index_node(), "Index has the index cookie")
         call info_goto_node("Top", st)
@@ -441,6 +481,7 @@ contains
         type(handle_type) :: old
         type(window_configuration_type) :: config
         type(status_type) :: st
+
         call visit("test", "Top", old, config, error)
         call goto_char(point_min())
         call info_next_reference(st)
@@ -464,6 +505,7 @@ contains
         type(handle_type) :: old
         type(window_configuration_type) :: config
         type(status_type) :: st
+
         call visit("test", "First Chapter", old, config, error)
         call info_copy_current_node_name(st)
         call current_kill(0_int64, kill, st)
@@ -480,6 +522,7 @@ contains
         type(window_configuration_type) :: config
         type(status_type) :: st
         character(len=:), allocatable :: value
+
         call visit("test", "Top", old, config, error)
         call info_extract_pointer("next", value, st)
         if (.not. allocated(error)) call check(error, value, "First Chapter")
@@ -495,6 +538,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: text, dir0, dir1, dir2
         integer :: n
+
         call visit("test", "Top", old, config, error)
         dir1 = resource_dir("dir1")
         dir2 = resource_dir("dir2")
@@ -502,34 +546,42 @@ contains
         call set_directories([character(len=len(dir1)) :: dir1, dir2, dir0])
         call info_directory(st)
         call check_node(error, "Top", st)
+
         if (.not. allocated(error)) then
             text = buffer_string()
             call check(error, count_of(text, "* Test: (test).") == 1, "one Test entry:"//text)
         end if
+
         if (.not. allocated(error)) call check(error, count_of(text, "* Split: (split).") == 1, "one Split entry")
         if (.not. allocated(error)) call check(error, count_of(text, achar(10)//"Testing"//achar(10)) == 1, &
                                                "the Testing headings merged:"//text)
         if (.not. allocated(error)) call check(error, count_of(text, "* Other: (other).") == 1, "the Other entry")
+
         if (.not. allocated(error)) then
             n = index(text, "This (the Directory node)")
             call check(error, n > 0, "the text of the first dir file")
         end if
+
         ! A menu item of the directory goes to the manual.
         if (.not. allocated(error)) then
             call info_menu("Split", st)
             call check_node(error, "Top", st)
         end if
+
         if (.not. allocated(error)) call check_file(error, info_current_file(), "split")
         call done(old, config)
         call use_resources()
+
     contains
 
         !> The number of occurrences of S in T.
         integer function count_of(t, s) result(c)
             character(len=*), intent(in) :: t, s
             integer :: i, j
+
             c = 0
             i = 1
+
             do
                 j = index(t(i:), s)
                 if (j == 0) exit
@@ -546,6 +598,7 @@ contains
         type(status_type) :: st
         type(value_type) :: result
         character(len=:), allocatable :: temp, zipped, command
+
         call make_temp_file("info-test", temp, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -556,10 +609,12 @@ contains
         command = resource_dir()
         command = "gzip -c "//command//"test.info > "//zipped
         call call_process("sh", result, st, args=list(make_string("-c"), make_string(command)))
+
         if (.not. file_exists_p(zipped)) then
             ! (No gzip: nothing to test.)
             return
         end if
+
         call use_resources()
         command = file_name_directory(temp)
         call set_directories([command])

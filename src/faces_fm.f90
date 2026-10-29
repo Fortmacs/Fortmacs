@@ -476,10 +476,10 @@ contains
     ! ------------------------------------------------------------------
     ! Attribute types
     ! ------------------------------------------------------------------
-
     subroutine flag_from_logical(self, value)
         class(face_flag_type), intent(inout) :: self
         logical, intent(in) :: value
+
         if (value) then
             self%state = FACE_T
         else
@@ -489,15 +489,18 @@ contains
 
     subroutine flag_unspecify(self)
         class(face_flag_type), intent(inout) :: self
+
         self%state = FACE_UNSPECIFIED
     end subroutine flag_unspecify
 
     subroutine line_from_logical(self, value)
         class(face_line_type), intent(inout) :: self
         logical, intent(in) :: value
+
         if (allocated(self%color)) deallocate (self%color)
         self%style = FACE_STYLE_LINE
         self%position = .false.
+
         if (value) then
             self%state = FACE_T
         else
@@ -508,6 +511,7 @@ contains
     subroutine line_from_color(self, color)
         class(face_line_type), intent(inout) :: self
         character(len=*), intent(in) :: color
+
         self%state = FACE_COLOR
         self%color = color
         self%style = FACE_STYLE_LINE
@@ -516,6 +520,7 @@ contains
 
     subroutine line_unspecify(self)
         class(face_line_type), intent(inout) :: self
+
         self%state = FACE_UNSPECIFIED
         if (allocated(self%color)) deallocate (self%color)
     end subroutine line_unspecify
@@ -523,10 +528,12 @@ contains
     subroutine box_from_logical(self, value)
         class(face_box_type), intent(inout) :: self
         logical, intent(in) :: value
+
         if (allocated(self%color)) deallocate (self%color)
         if (allocated(self%style)) deallocate (self%style)
         self%line_width = 1
         self%line_height = 1
+
         if (value) then
             self%state = FACE_VALUE
         else
@@ -537,6 +544,7 @@ contains
     subroutine box_from_color(self, color)
         class(face_box_type), intent(inout) :: self
         character(len=*), intent(in) :: color
+
         if (allocated(self%style)) deallocate (self%style)
         self%state = FACE_COLOR
         self%color = color
@@ -546,12 +554,14 @@ contains
 
     subroutine box_unspecify(self)
         class(face_box_type), intent(inout) :: self
+
         self%state = FACE_UNSPECIFIED
     end subroutine box_unspecify
 
     subroutine height_from_integer(self, value)
         class(face_height_type), intent(inout) :: self
         integer, intent(in) :: value
+
         self%state = FACE_VALUE
         self%absolute = value
     end subroutine height_from_integer
@@ -559,23 +569,28 @@ contains
     subroutine height_from_real(self, value)
         class(face_height_type), intent(inout) :: self
         real, intent(in) :: value
+
         self%state = FACE_PLIST
         self%factor = value
     end subroutine height_from_real
 
     subroutine height_unspecify(self)
         class(face_height_type), intent(inout) :: self
+
         self%state = FACE_UNSPECIFIED
     end subroutine height_unspecify
 
     subroutine inherit_from_name(self, name)
         class(face_inherit_type), intent(inout) :: self
         character(len=*), intent(in) :: name
+
         if (allocated(self%names)) deallocate (self%names)
+
         if (len_trim(name) == 0) then
             self%state = FACE_NIL
             return
         end if
+
         allocate (self%names(1))
         self%names(1) = name
         self%state = FACE_LIST
@@ -585,20 +600,26 @@ contains
         class(face_inherit_type), intent(inout) :: self
         character(len=*), intent(in) :: names(:)
         integer :: k
+
         if (allocated(self%names)) deallocate (self%names)
+
         if (size(names) == 0) then
             self%state = FACE_NIL
             return
         end if
+
         allocate (self%names(size(names)))
+
         do k = 1, size(names)
             self%names(k) = names(k)
         end do
+
         self%state = FACE_LIST
     end subroutine inherit_from_names
 
     subroutine inherit_unspecify(self)
         class(face_inherit_type), intent(inout) :: self
+
         self%state = FACE_UNSPECIFIED
         if (allocated(self%names)) deallocate (self%names)
     end subroutine inherit_unspecify
@@ -616,6 +637,7 @@ contains
         real, intent(in), optional :: relative_height
         logical, intent(in), optional :: underline, overline, strike_through, box, inverse_video, extend
         type(face_attributes_type) :: a
+
         if (present(family)) a%family = family
         if (present(foundry)) a%foundry = foundry
         if (present(foreground)) a%foreground = foreground
@@ -628,21 +650,26 @@ contains
         if (present(relative_height)) a%height = relative_height
         if (present(underline)) a%underline = underline
         if (present(underline_color)) a%underline = underline_color
+
         if (present(underline_style)) then
             if (a%underline%state /= FACE_COLOR) then
                 a%underline%state = FACE_PLIST
             else
                 a%underline%state = FACE_PLIST
             end if
+
             a%underline%style = underline_style
         end if
+
         if (present(overline)) a%overline = overline
         if (present(strike_through)) a%strike_through = strike_through
         if (present(box)) a%box = box
+
         if (present(box_color)) then
             a%box%state = FACE_PLIST
             a%box%color = box_color
         end if
+
         if (present(inverse_video)) a%inverse_video = inverse_video
         if (present(inherit)) a%inherit = inherit
         if (present(inherits)) a%inherit = inherits
@@ -666,12 +693,15 @@ contains
         integer, intent(in), optional :: style
         logical, intent(in), optional :: position
         type(face_line_type) :: line
+
         line%state = FACE_PLIST
+
         if (present(color)) then
             line%color = color
         else
             line%color = ""
         end if
+
         if (present(style)) line%style = style
         if (present(position)) line%position = position
     end function face_underline
@@ -693,14 +723,18 @@ contains
         character(len=*), intent(in), optional :: color
         integer, intent(in), optional :: style
         type(face_box_type) :: box
+
         box%state = FACE_PLIST
+
         if (present(line_width)) then
             box%line_width = abs(line_width)
             box%line_height = line_width
         end if
+
         if (present(vertical_width)) box%line_width = vertical_width
         if (present(horizontal_width)) box%line_height = horizontal_width
         if (present(color)) box%color = color
+
         if (present(style)) then
             select case (style)
             case (FACE_BOX_RELEASED_BUTTON)
@@ -725,23 +759,26 @@ contains
         logical, intent(in), optional :: is_default
         type(face_display_type) :: d
         integer :: k
+
         d%always = .not. (present(classes) .or. present(min_colors) .or. present(backgrounds) .or. present(types))
         if (present(classes)) d%classes = classes
         if (present(backgrounds)) d%backgrounds = backgrounds
         if (present(min_colors)) d%min_colors = min_colors
+
         if (present(types)) then
             allocate (d%types(size(types)))
+
             do k = 1, size(types)
                 d%types(k) = types(k)
             end do
         end if
+
         if (present(is_default)) d%is_default = is_default
     end function display_when
 
     ! ------------------------------------------------------------------
     ! Faces
     ! ------------------------------------------------------------------
-
     !> Make face SELF known by NAME, with documentation DOC and no spec
     !> yet (`face_spec_entry' adds alternatives).  Port of
     !> faces.el:make-face / custom-declare-face (internal-make-lisp-face).
@@ -751,6 +788,7 @@ contains
         character(len=*), intent(in), optional :: doc
         type(face_ref_type), allocatable :: grown(:)
         integer :: n
+
         self%name = name
         if (present(doc)) self%doc = doc
         if (allocated(self%spec)) deallocate (self%spec)
@@ -760,10 +798,12 @@ contains
         n = size(registry)
         allocate (grown(n + 1))
         grown(1:n) = registry
+
         select type (self)
         type is (named_face_type)
             grown(n + 1)%p => self
         end select
+
         call move_alloc(grown, registry)
     end subroutine face_define
 
@@ -777,16 +817,19 @@ contains
         type(face_attributes_type), intent(in), optional :: supports
         type(face_spec_entry_type), allocatable :: grown(:)
         integer :: n
+
         if (.not. allocated(self%spec)) allocate (self%spec(0))
         n = size(self%spec)
         allocate (grown(n + 1))
         grown(1:n) = self%spec
         grown(n + 1)%display = display
+
         if (present(supports)) then
             grown(n + 1)%display%supports = .true.
             grown(n + 1)%display%always = .false.
             grown(n + 1)%supports_attrs = supports
         end if
+
         grown(n + 1)%attrs = attrs
         call move_alloc(grown, self%spec)
     end subroutine face_spec_entry
@@ -796,8 +839,10 @@ contains
         character(len=*), intent(in) :: name
         type(named_face_type), pointer :: p
         integer :: k
+
         p => null()
         if (.not. allocated(registry)) return
+
         do k = 1, size(registry)
             if (trim(registry(k)%p%name) == name) then
                 p => registry(k)%p
@@ -816,6 +861,7 @@ contains
     function face_at(k) result(p)
         integer, intent(in) :: k
         type(named_face_type), pointer :: p
+
         p => registry(k)%p
     end function face_at
 
@@ -826,6 +872,7 @@ contains
     subroutine set_frame_display(class, background, colors, type)
         integer, intent(in) :: class, background, colors
         character(len=*), intent(in) :: type
+
         frame_class = class
         frame_background = background
         frame_colors = colors
@@ -838,30 +885,39 @@ contains
         type(face_display_type), intent(in) :: display
         type(face_attributes_type), intent(in) :: supports_attrs
         integer :: k
+
         match = .true.
         if (display%always) return
+
         if (allocated(display%types)) then
             match = .false.
+
             do k = 1, size(display%types)
                 if (trim(display%types(k)) == trim(frame_type)) match = .true.
                 ! (type graphic) matches window systems only.
             end do
+
             if (.not. match) return
         end if
+
         if (display%min_colors > 0) then
             match = frame_colors >= display%min_colors
             if (.not. match) return
         end if
+
         if (allocated(display%classes)) then
             match = any(display%classes == frame_class)
             if (.not. match) return
         end if
+
         if (allocated(display%backgrounds)) then
             match = any(display%backgrounds == frame_background)
             if (.not. match) return
         end if
+
         if (display%supports) then
             match = .false.
+
             if (associated(display_supports_face_attributes_p)) then
                 match = display_supports_face_attributes_p(supports_attrs)
             end if
@@ -873,6 +929,7 @@ contains
     subroutine set_attributes(to, from)
         type(face_attributes_type), intent(inout) :: to
         type(face_attributes_type), intent(in) :: from
+
         if (allocated(from%family)) to%family = from%family
         if (allocated(from%foundry)) to%foundry = from%foundry
         if (allocated(from%width)) to%width = from%width
@@ -902,16 +959,20 @@ contains
         class(named_face_type), intent(inout) :: self
         integer :: k
         logical :: found
+
         self%lface = face_attributes_type()
         found = .false.
+
         if (allocated(self%spec)) then
             ! If the condition is `default', that sets the default for
             ! following conditions.
             do k = 1, size(self%spec)
                 if (self%spec(k)%display%is_default) call set_attributes(self%lface, self%spec(k)%attrs)
             end do
+
             do k = 1, size(self%spec)
                 if (self%spec(k)%display%is_default) cycle
+
                 if (match_display(self%spec(k)%display, self%spec(k)%supports_attrs)) then
                     call set_attributes(self%lface, self%spec(k)%attrs)
                     found = .true.
@@ -919,6 +980,7 @@ contains
                 end if
             end do
         end if
+
         call set_attributes(self%lface, self%face_attributes_type)
     end subroutine face_spec_recalc
 
@@ -926,7 +988,9 @@ contains
     !> frame-set-background-mode does for a new frame).
     subroutine face_spec_recalc_all()
         integer :: k
+
         if (.not. allocated(registry)) return
+
         do k = 1, size(registry)
             call registry(k)%p%recalc()
         end do
@@ -936,6 +1000,7 @@ contains
     !> xfaces.c:lface_equal_p compares attribute vectors).
     logical function faces_equal(a, b) result(eq)
         type(face_attributes_type), intent(in) :: a, b
+
         eq = same_string(a%family, b%family) .and. same_string(a%foundry, b%foundry) .and. &
              same_string(a%width, b%width) .and. same_string(a%weight, b%weight) .and. &
              same_string(a%slant, b%slant) .and. same_string(a%foreground, b%foreground) .and. &
@@ -955,19 +1020,24 @@ contains
         eq = a%inverse_video%state == b%inverse_video%state .and. a%extend%state == b%extend%state .and. &
              a%inherit%state == b%inherit%state
         if (.not. eq) return
+
         if (a%inherit%state == FACE_LIST) then
             eq = size(a%inherit%names) == size(b%inherit%names)
             if (eq) eq = all(a%inherit%names == b%inherit%names)
         end if
+
     contains
+
         logical function same_string(x, y)
             character(len=:), allocatable, intent(in) :: x, y
+
             same_string = allocated(x) .eqv. allocated(y)
             if (same_string .and. allocated(x)) same_string = x == y .and. len(x) == len(y)
         end function same_string
 
         logical function same_line(x, y)
             type(face_line_type), intent(in) :: x, y
+
             same_line = x%state == y%state .and. x%style == y%style .and. (x%position .eqv. y%position)
             if (same_line) same_line = same_string(x%color, y%color)
         end function same_line
@@ -977,6 +1047,7 @@ contains
     !> Port of font.c's weight_table (FONT_WEIGHT_NAME_NUMERIC).
     integer function face_weight_numeric(name) result(n)
         character(len=*), intent(in) :: name
+
         select case (name)
         case ("thin")
             n = 0
@@ -1009,6 +1080,7 @@ contains
     !> Port of font.c's slant_table (FONT_SLANT_NAME_NUMERIC).
     integer function face_slant_numeric(name) result(n)
         character(len=*), intent(in) :: name
+
         select case (name)
         case ("reverse-oblique", "ro")
             n = 0
@@ -1028,12 +1100,12 @@ contains
     ! ------------------------------------------------------------------
     ! The faces of faces.el
     ! ------------------------------------------------------------------
-
     !> Define the faces of faces.el with their specs.
     subroutine init_faces()
         integer, parameter :: C = FACE_CLASS_COLOR, G = FACE_CLASS_GRAYSCALE, M = FACE_CLASS_MONO
         integer, parameter :: LIGHT = FACE_BACKGROUND_LIGHT, DARK = FACE_BACKGROUND_DARK
         type(face_attributes_type) :: attrs
+
         call default%define("default", "Basic default face.")
         call default%spec_entry(display_when(), face_attrs())
         call bold%define("bold", "Basic bold face.")
@@ -1373,12 +1445,15 @@ contains
         call show_paren_mismatch%spec_entry(display_when(classes=[C]), &
                                             face_attrs(foreground="white", background="purple"))
         call show_paren_mismatch%spec_entry(display_when(), face_attrs(inverse_video=.true.))
+
     contains
+
         !> The attributes of mode-line's graphic alternatives: a released
         !> button box of width -1.
         function mode_line_box(background, foreground) result(a)
             character(len=*), intent(in) :: background, foreground
             type(face_attributes_type) :: a
+
             a = face_attrs(background=background, foreground=foreground)
             a%box%state = FACE_PLIST
             a%box%line_width = -1
@@ -1390,6 +1465,7 @@ contains
         function highlight_box(color) result(a)
             character(len=*), intent(in) :: color
             type(face_attributes_type) :: a
+
             a%box%state = FACE_PLIST
             a%box%line_width = 2
             a%box%line_height = 2
@@ -1401,6 +1477,7 @@ contains
         function inactive_box(weight, box_color, foreground, background) result(a)
             character(len=*), intent(in) :: weight, box_color, foreground, background
             type(face_attributes_type) :: a
+
             a = face_attrs(weight=weight, foreground=foreground, background=background)
             a%box%state = FACE_PLIST
             a%box%line_width = -1
@@ -1412,6 +1489,7 @@ contains
         function key_box(background, foreground, box_color) result(a)
             character(len=*), intent(in) :: background, foreground, box_color
             type(face_attributes_type) :: a
+
             a = face_attrs(background=background, foreground=foreground, inherit="fixed_pitch")
             a%box%state = FACE_PLIST
             a%box%line_width = -1

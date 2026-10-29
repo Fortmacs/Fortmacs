@@ -59,21 +59,23 @@ contains
     ! ------------------------------------------------------------------
     ! Listing directories
     ! ------------------------------------------------------------------
-
     module subroutine make_temp_file(prefix, file, status)
         character(len=*), intent(in) :: prefix
         character(len=:), allocatable, intent(out) :: file
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: pattern
         integer(int32) :: fd, err
+
         call expand_file_name(prefix//"XXXXXX", pattern, status, temporary_file_directory())
         if (.not. status%ok()) return
         file = pattern
         err = emacs_mkostemp(file, fd)
+
         if (err /= 0) then
             call report_file_errno("Creating file with prefix", prefix, err, status)
             return
         end if
+
         call close_fd(fd)
     end subroutine make_temp_file
 
@@ -81,6 +83,7 @@ contains
     !> `shell_file_name' (callproc.c).
     function shell_name() result(sh)
         character(len=:), allocatable :: sh
+
         if (.not. allocated(shell_file_name%value)) call init_callproc()
         sh = shell_file_name%value
     end function shell_name
@@ -98,6 +101,7 @@ contains
         integer(int64) :: beg, inserted
         integer :: k
         logical :: wild, full, found, had_dir
+
         wild = .false.
         if (present(wildcard)) wild = wildcard
         full = .false.
@@ -105,6 +109,7 @@ contains
         beg = point()
         call make_temp_file("lserr", errfile, status)
         if (.not. status%ok()) return
+
         if (wild) then
             ! If the wildcard is just in the file part, then run ls in the
             ! directory part of the file pattern using the last component as
@@ -121,18 +126,22 @@ contains
                     if (.not. status%ok()) return
                     dir = file_name_directory(f)
                 end if
+
                 pattern = file_name_nondirectory(file)
             end if
+
             ! NB since switches is passed to the shell, be careful of
             ! malicious values, eg "-l;reboot".
             command = "\"//insert_directory_program//" -d "
             call split_string_and_unquote(switches, parts, status)
             if (.not. status%ok()) return
             call list_elements(parts, elems)
+
             do k = 1, size(elems)
                 if (k > 1) command = command//" "
                 command = command//shell_quote_wildcard_pattern(xstring(elems(k)))
             end do
+
             command = command//" -- "//shell_quote_wildcard_pattern(pattern)
             had_dir = allocated(buffers(cur)%directory)
             if (had_dir) saved_dir = buffers(cur)%directory
@@ -142,6 +151,7 @@ contains
             argv(2) = make_string(command)
             args = make_list(argv)
             call call_process(shell_name(), result, status, destination=t_value(), args=args, error_file=errfile)
+
             if (had_dir) then
                 buffers(cur)%directory = saved_dir
             else
@@ -153,10 +163,12 @@ contains
             sw = switches
             if (.not. full) sw = switches//" -d"
             f = file
+
             if (index(f, "~") == 1) then
                 call expand_file_name(file, f, status)
                 if (.not. status%ok()) return
             end if
+
             if (len(sw) > 0) then
                 ! Split the switches at any spaces so we can pass separate
                 ! options as separate args.
@@ -166,10 +178,13 @@ contains
             else
                 allocate (elems(0))
             end if
+
             allocate (argv(size(elems) + 2))
+
             do k = 1, size(elems)
                 argv(k) = elems(k)
             end do
+
             ! Avoid lossage if FILE starts with `-'.
             argv(size(elems) + 1) = make_string("--")
             argv(size(elems) + 2) = make_string(f)
@@ -177,10 +192,12 @@ contains
             call call_process(insert_directory_program, result, status, destination=t_value(), args=args, &
                               error_file=errfile)
         end if
+
         if (.not. status%ok()) return
         ! If `ls' emits an error message, copy it to a buffer that will be
         ! displayed when a Dired invocation results in the `ls' error.
         call file_attributes(errfile, st, found)
+
         if (found .and. st%size > 0) then
             call get_buffer_create("*ls error*", errbuf, status)
             if (.not. status%ok()) return
@@ -192,6 +209,7 @@ contains
             if (.not. status%ok()) return
             dired_ls_error_buffer = errbuf
         end if
+
         dired_ls_error_file = errfile
         call delete_file(errfile, status)
         if (.not. status%ok()) return
@@ -208,6 +226,7 @@ contains
         integer(int32) :: c, n
         logical :: saved, found, have
         integer :: got
+
         status = status_type()
         if (string_match("--dired\>", switches, status) == 0) return
         if (.not. status%ok()) return
@@ -218,10 +237,12 @@ contains
         shortage = forward_line(-2_int64)
         saved = case_fold_search%value
         case_fold_search%value = .false.
+
         if (looking_at("//SUBDIRED//", status)) then
             call delete_region(point(), next_line_start(), status)
             shortage = forward_line(-1_int64)
         end if
+
         if (looking_at("//DIRED//", status)) then
             end = line_end_position()
             linebeg = point()
@@ -234,6 +255,7 @@ contains
             byte = 0
             k = len("//DIRED//") + 1
             got = 0
+
             do
                 call next_number(line, k, num, have)
                 if (.not. have) exit
@@ -244,6 +266,7 @@ contains
                 start = position_of(nums(1))
                 fend = position_of(nums(2))
                 call char_after(c, found, fend)
+
                 if (found) then
                     ! End is followed by \n or by output of -F.
                     if (index(achar(10)//" /*@%=|", achar(min(c, 127))) > 0 .and. c < 128) then
@@ -252,6 +275,7 @@ contains
                     end if
                 end if
             end do
+
             call goto_char(end)
             call goto_char(pos_bol())
             call delete_region(point(), next_line_start(), status)
@@ -261,15 +285,19 @@ contains
             ! one line too far back (see above).
             shortage = forward_line(1_int64)
         end if
+
         if (looking_at("//DIRED-OPTIONS//", status)) then
             call delete_region(point(), next_line_start(), status)
         end if
+
         case_fold_search%value = saved
+
     contains
 
         !> The position after this line (forward-line 1).
         integer(int64) function next_line_start() result(p)
             integer(int64) :: opoint, sh
+
             opoint = point()
             sh = forward_line(1_int64)
             p = point()
@@ -280,7 +308,9 @@ contains
         !> increasing order).
         integer(int64) function position_of(offset_in) result(p)
             integer(int64), intent(in) :: offset_in
+
             offset = offset_in
+
             do while (byte < offset .and. pos < buffers(cur)%zv)
                 c = buf_fetch_char(buffers(cur), char_to_byte(pos))
                 n = buf_next_char_len(buffers(cur), char_to_byte(pos))
@@ -289,6 +319,7 @@ contains
                 byte = byte + ext
                 pos = pos + 1
             end do
+
             p = pos
         end function position_of
 
@@ -298,12 +329,15 @@ contains
             integer(int64), intent(inout) :: k
             integer(int64), intent(out) :: value
             logical, intent(out) :: ok
+
             value = 0
             ok = .false.
+
             do while (k <= len(text))
                 if (text(k:k) /= " ") exit
                 k = k + 1
             end do
+
             do while (k <= len(text))
                 if (text(k:k) < "0" .or. text(k:k) > "9") exit
                 value = value*10 + (iachar(text(k:k)) - iachar("0"))
@@ -318,6 +352,7 @@ contains
         character(len=:), allocatable, intent(out), optional :: directory, wildcard
         logical :: found
         type(status_type) :: st
+
         found = .false.
         if (string_match("[[?*]", file_name_directory(dir), st, inhibit_modify=.true.) == 0) return
         ! Prefer an existing file to wildcards.
@@ -336,23 +371,29 @@ contains
         character(len=:), allocatable :: rest, value
         integer(int64) :: next
         integer :: i, n
+
         status = status_type()
         allocate (acc(0))
         rest = string
+
         do
             i = index(rest, '"')
+
             if (i == 0) then
                 ! No quoting: easy.
                 call split_whitespace(rest)
                 exit
             end if
+
             if (i > 1) call split_whitespace(rest(1:i - 1))
             call read_string_literal(rest, int(i + 1, int64), value, next, status)
             if (.not. status%ok()) return
             call add(value)
             rest = rest(next:)
         end do
+
         parts = make_list(acc)
+
     contains
 
         !> (split-string STR "\\s-+" t)
@@ -360,13 +401,17 @@ contains
             character(len=*), intent(in) :: str
             integer(int64) :: start, b, e
             type(status_type) :: st
+
             start = 1
+
             do
                 b = string_match("\s-+", str, st, start)
+
                 if (b == 0) then
                     if (start <= len_chars(str)) call add(substr(str, start, len_chars(str) + 1))
                     exit
                 end if
+
                 e = match_end(0, st)
                 if (b > start) call add(substr(str, start, b))
                 start = e
@@ -378,6 +423,7 @@ contains
             character(len=*), intent(in) :: str
             integer(int64), intent(in) :: start, end
             character(len=:), allocatable :: sub
+
             sub = str(string_index_to_offset(str, start) + 1:string_index_to_offset(str, end))
         end function substr
 
@@ -386,8 +432,10 @@ contains
             character(len=*), intent(in) :: str
             integer(int64) :: p
             integer(int32) :: ch, l
+
             m = 0
             p = 1
+
             do while (p <= len(str))
                 call string_char_and_length(str, p, ch, l)
                 p = p + l
@@ -397,6 +445,7 @@ contains
 
         subroutine add(text)
             character(len=*), intent(in) :: text
+
             n = size(acc)
             allocate (grown(n + 1))
             grown(1:n) = acc
@@ -410,7 +459,9 @@ contains
         character(len=:), allocatable :: quoted
         character(len=*), parameter :: special = " "//achar(9)//achar(10)//";<>&|()`'""#$"
         integer :: k
+
         quoted = ""
+
         do k = 1, len(pattern)
             if (index(special, pattern(k:k)) > 0) quoted = quoted//"\"
             quoted = quoted//pattern(k:k)
@@ -422,10 +473,12 @@ contains
         logical, intent(in), optional :: ignore_case
         logical :: p
         logical :: fold
+
         fold = .false.
         if (present(ignore_case)) fold = ignore_case
         p = .false.
         if (len(prefix) > len(string)) return
+
         if (fold) then
             p = downcase_string(prefix) == downcase_string(string(1:len(prefix)))
         else
@@ -436,7 +489,6 @@ contains
     ! ------------------------------------------------------------------
     ! File names
     ! ------------------------------------------------------------------
-
     recursive module subroutine file_truename(filename, truename, status)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable, intent(out) :: truename
@@ -445,7 +497,9 @@ contains
         character(len=:), allocatable :: name
         integer :: counter
         type(status_type) :: st
+
         name = filename
+
         if (len(filename) == 0 .or. filename == "~") then
             call expand_file_name(filename, name, status)
             if (.not. status%ok()) return
@@ -457,6 +511,7 @@ contains
                 name = name//filename(string_index_to_offset(filename, match_end(0, st)) + 1:)
             end if
         end if
+
         counter = 100
         allocate (prev_dirs(0))
         call truename_1(name, counter, prev_dirs, truename, status)
@@ -475,29 +530,38 @@ contains
         logical :: done, cached
         integer :: k
         integer(int32) :: err
+
         status = status_type()
         filename = filename_in
         done = .false.
+
         do while (.not. done)
             counter = counter - 1
+
             if (counter < 0) then
                 call set_error(status, FM_GENERIC_ERROR, "Apparent cycle of symbolic links for "//filename)
                 return
             end if
+
             dir = file_name_directory(filename)
+
             if (len(dir) == 0) then
                 dir = "./"
+
                 if (cur /= 0) then
                     if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
                 end if
             end if
+
             ! Get the truename of the directory.
             dirfile = directory_file_name(dir)
+
             ! If these are equal, we have the (or a) root directory.
             if (dir /= dirfile .or. len(dir) /= len(dirfile)) then
                 ! If this is the same dir we last got the truename for, save
                 ! time--don't recalculate.
                 cached = .false.
+
                 do k = 1, size(prev_dirs)
                     if (prev_dirs(k)%a == dir) then
                         dir = prev_dirs(k)%b
@@ -505,6 +569,7 @@ contains
                         exit
                     end if
                 end do
+
                 if (.not. cached) then
                     call truename_1(dirfile, counter, prev_dirs, new, status)
                     if (.not. status%ok()) return
@@ -517,7 +582,9 @@ contains
                     dir = new
                 end if
             end if
+
             nodir = file_name_nondirectory(filename)
+
             if (nodir == "..") then
                 filename = directory_file_name(file_name_directory(directory_file_name(dir)))
                 done = .true.
@@ -531,6 +598,7 @@ contains
                 target = ""
                 err = -1
                 if (file_symlink_p(filename)) err = emacs_readlink(filename, target)
+
                 if (err == 0) then
                     ! Yes => chase that link, then start all over since the
                     ! link may point to a directory name that uses links.
@@ -554,16 +622,21 @@ contains
         character(len=:), allocatable :: result
         character :: ch
         integer :: i, j, n
+
         n = len(wildcard)
         ! Copy the initial run of non-special characters.
         i = scan(wildcard, "[.*+\^$?")
+
         if (i == 0) then
             regexp = "\`"//wildcard//"\'"
             return
         end if
+
         result = wildcard(:i - 1)
+
         do while (i <= n)
             ch = wildcard(i:i)
+
             if (ch == "[" .and. i + 1 <= n) then
                 if (wildcard(i + 1:i + 1) == "]") then
                     result = result//"\["
@@ -571,15 +644,18 @@ contains
                     cycle
                 end if
             end if
+
             select case (ch)
             case ("[")
                 ! [...] maps to regexp char class.
                 i = i + 1
+
                 if (i > n) then
                     result = result//"["
                 else if (wildcard(i:i) == "!") then
                     ! [!...] -> [^...]
                     i = i + 1
+
                     if (i <= n) then
                         if (wildcard(i:i) == "]") then
                             i = i + 1
@@ -605,9 +681,11 @@ contains
                 else
                     result = result//"["
                 end if
+
                 ! Copy everything up to next `]'.
                 j = 0
                 if (i <= n) j = index(wildcard(i:), "]")
+
                 if (j > 0) then
                     j = i + j - 1
                     result = result//wildcard(i:j - 1)
@@ -634,8 +712,10 @@ contains
             case default
                 result = result//ch
             end select
+
             i = i + 1
         end do
+
         ! Shell wildcards should match the entire filename, not its part.
         ! Make the regexp say so.
         regexp = "\`"//result//"\'"
@@ -650,14 +730,17 @@ contains
         integer(int64) :: b
         type(status_type) :: st
         logical :: with_period
+
         with_period = .false.
         if (present(period)) with_period = period
         file = file_name_sans_versions(file_name_nondirectory(filename))
         found = .false.
         extension = ""
         b = string_match("\.[^.]*\'", file, st)
+
         if (b > 1) then
             found = .true.
+
             if (with_period) then
                 extension = file(string_index_to_offset(file, b) + 1:)
             else
@@ -674,8 +757,10 @@ contains
         character(len=:), allocatable :: file
         integer(int64) :: b
         type(status_type) :: st
+
         file = file_name_sans_versions(file_name_nondirectory(filename))
         b = string_match("\.[^.]*\'", file, st)
+
         if (b > 1) then
             ! Don't use expand-file-name here; if the directory is
             ! relative, we don't want to expand it.
@@ -689,6 +774,7 @@ contains
         character(len=*), intent(in) :: filename
         logical :: p
         type(status_type) :: st
+
         p = string_match("\`#.*#\'", filename, st) > 0
     end function auto_save_file_name_p
 
@@ -701,24 +787,30 @@ contains
         real(real64) :: amount, power, frac
         character(len=40) :: buf
         integer :: k
+
         fl = ""
         if (present(flavor)) fl = flavor
         power = 1000.0_real64
         if (fl == "" .or. fl == "iec") power = 1024.0_real64
         amount = file_size
         k = 1
+
         do while (amount >= power .and. k < size(prefixes))
             amount = amount/power
             k = k + 1
         end do
+
         prefix = trim(prefixes(k))
+
         if (fl == "iec") then
             if (prefix == "k") then
                 prefixed_unit = "K"
             else
                 prefixed_unit = prefix
             end if
+
             if (len(prefix) > 0) prefixed_unit = prefixed_unit//"i"
+
             if (present(unit)) then
                 prefixed_unit = prefixed_unit//unit
             else
@@ -728,19 +820,24 @@ contains
             prefixed_unit = prefix
             if (present(unit)) prefixed_unit = prefixed_unit//unit
         end if
+
         ! Mimic what GNU "ls -lh" does: if the formatted size will have just
         ! one digit before the decimal and its fractional part is not too
         ! small, then emit one digit after the decimal.
         frac = modulo(amount, 1.0_real64)
+
         if (amount < 10 .and. frac >= 0.05_real64 .and. frac < 0.95_real64) then
             write (buf, "(f0.1)") amount
         else
             write (buf, "(f0.0)") amount
         end if
+
         num = trim(adjustl(buf))
+
         if (len(num) > 0) then
             if (num(len(num):len(num)) == ".") num = num(1:len(num) - 1)
         end if
+
         if (index(num, ".") == 1) num = "0"//num
         if (len(num) == 0) num = "0"
         text = num
@@ -751,6 +848,7 @@ contains
     module function byte_count_to_string(size) result(text)
         real(real64), intent(in) :: size
         character(len=:), allocatable :: text
+
         text = file_size_human_readable(size, "iec", " ")
     end function byte_count_to_string
 
@@ -760,6 +858,7 @@ contains
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
         integer(int64) :: total, free, avail
+
         text = ""
         call file_system_info(dir, total, free, avail, found, status)
         if (found) text = byte_count_to_string(real(avail, real64))
@@ -768,16 +867,18 @@ contains
     ! ------------------------------------------------------------------
     ! Deleting
     ! ------------------------------------------------------------------
-
     module subroutine delete_file(filename, status)
         character(len=*), intent(in) :: filename
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: absname
+
         status = status_type()
+
         if (file_directory_p(filename) .and. .not. file_symlink_p(filename)) then
             call set_error(status, FM_FILE_ERROR, "Removing old name: is a directory: "//filename)
             return
         end if
+
         call expand_file_name(filename, absname, status)
         if (.not. status%ok()) return
         call delete_file_internal(absname, status)
@@ -793,6 +894,7 @@ contains
         type(status_type) :: st
         logical :: rec, proceed
         integer :: k
+
         rec = .false.
         if (present(recursive)) rec = recursive
         call expand_file_name(directory, dir, status)
@@ -800,20 +902,25 @@ contains
         dir = directory_file_name(dir)
         ! Call ourselves recursively if needed.
         proceed = .true.
+
         if (rec .and. .not. file_symlink_p(dir)) then
             call directory_files(dir, files, st, full=.true.)
+
             if (.not. st%ok()) then
                 if (.not. condition_matches(st%code, FM_FILE_MISSING)) then
                     status = st
                     return
                 end if
+
                 proceed = .false.
             else
                 call list_elements(files, elems)
+
                 do k = 1, size(elems)
                     name = xstring(elems(k))
                     ! directory-files-no-dot-files-regexp
                     if (file_name_nondirectory(name) == "." .or. file_name_nondirectory(name) == "..") cycle
+
                     ! This test is equivalent to but more efficient than
                     ! (and (file-directory-p fn) (not (file-symlink-p fn))).
                     if (file_directory_p(name) .and. .not. file_symlink_p(name)) then
@@ -821,6 +928,7 @@ contains
                         if (.not. status%ok()) return
                     else
                         call delete_file(name, st)
+
                         if (.not. st%ok()) then
                             if (.not. condition_matches(st%code, FM_FILE_MISSING)) then
                                 status = st
@@ -831,8 +939,10 @@ contains
                 end do
             end if
         end if
+
         if (.not. proceed) return
         call delete_directory_internal(dir, st)
+
         if (.not. st%ok()) then
             if (rec .and. condition_matches(st%code, FM_FILE_MISSING)) return
             status = st
@@ -842,12 +952,12 @@ contains
     ! ------------------------------------------------------------------
     ! Reverting
     ! ------------------------------------------------------------------
-
     recursive module subroutine revert_buffer(status, ignore_auto, noconfirm, preserve_modes)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: ignore_auto, noconfirm, preserve_modes
         procedure(revert_function_proc), pointer :: fn
         logical :: ia, nc, saved_in_progress, saved_preserve, restore_read_only, read_only_state
+
         ia = .false.
         if (present(ignore_auto)) ia = ignore_auto
         nc = .false.
@@ -861,16 +971,19 @@ contains
         restore_read_only = buffers(cur)%read_only_mode_state_set
         read_only_state = buffers(cur)%read_only_mode_state
         fn => revert_buffer_function%get()
+
         if (associated(fn)) then
             call fn(ia, nc, status)
         else
             call revert_buffer_default(ia, nc, status)
         end if
+
         if (restore_read_only) then
             buffers(cur)%read_only = read_only_state
             buffers(cur)%read_only_mode_state = read_only_state
             buffers(cur)%read_only_mode_state_set = .true.
         end if
+
         revert_buffer_in_progress = saved_in_progress
         revert_buffer_preserve_modes = saved_preserve
     end subroutine revert_buffer
@@ -904,17 +1017,21 @@ contains
         type(status_type) :: st
         logical :: proceed, modified, auto_save_p
         integer :: k
+
         status = status_type()
         ! No buffer is auto-saved (buffer_auto_save_file_name is never
         ! set), so the auto-save file is never offered, IGNORE_AUTO or not.
         auto_save_p = .false. .and. .not. ignore_auto
+
         if (.not. allocated(buffers(cur)%filename)) then
             call set_error(status, FM_GENERIC_ERROR, "Buffer does not seem to be associated with any file")
             return
         end if
+
         file_name = buffers(cur)%filename
         call buffer_modified_p(current_buffer(), modified, st)
         proceed = noconfirm
+
         if (.not. proceed .and. .not. modified .and. allocated(revert_without_query)) then
             do k = 1, size(revert_without_query)
                 if (string_match(trim(revert_without_query(k)), file_name, st) > 0) then
@@ -923,14 +1040,17 @@ contains
                 end if
             end do
         end if
+
         if (.not. proceed) then
             if (modified) then
                 call yes_or_no_p("Discard edits and reread from "//file_name//"? ", proceed, status)
             else
                 call yes_or_no_p("Revert buffer from file "//file_name//"? ", proceed, status)
             end if
+
             if (.not. status%ok() .or. .not. proceed) return
         end if
+
         call before_revert_hook%run(st)
         ! If file was backed up but has changed since,
         ! we should make another backup.
@@ -938,6 +1058,7 @@ contains
         ! Effectively copy the after_revert_hook status,
         ! since after_find_file will clobber it.
         run_hook = after_revert_hook
+
         block
             type(value_type) :: saved_inhibit
             saved_inhibit = inhibit_read_only()
@@ -945,6 +1066,7 @@ contains
             call revert_buffer_insert_file_contents_default(file_name, auto_save_p, status)
             call set(sym("inhibit_read_only"), saved_inhibit, st)
         end block
+
         if (.not. status%ok()) return
         call after_find_file(.false., .false., revert_buffer_preserve_modes)
         ! Run after_revert_hook as it was before we reverted.
@@ -966,44 +1088,54 @@ contains
         character(len=:), allocatable :: saved_coding, explicit_read, explicit_write
         logical :: had_coding, file_number
         integer(int64) :: inserted
+
         status = status_type()
         ! buffer_file_number: the file existed when last visited or saved.
         file_number = buffers(cur)%modtime_known .and. buffers(cur)%modtime_nsec /= NONEXISTENT_MODTIME_NSECS
+
         if (.not. file_exists_p(file_name)) then
             if (file_number) then
                 call set_error(status, FM_GENERIC_ERROR, "File "//file_name//" no longer exists!")
             else
                 call set_error(status, FM_GENERIC_ERROR, "Cannot revert nonexistent file "//file_name)
             end if
+
             return
         end if
+
         if (.not. file_readable_p(file_name)) then
             if (file_number) then
                 call set_error(status, FM_GENERIC_ERROR, "File "//file_name//" no longer readable!")
             else
                 call set_error(status, FM_GENERIC_ERROR, "Cannot revert unreadable file "//file_name)
             end if
+
             return
         end if
+
         call widen()
         had_coding = allocated(coding_system_for_read%value)
         if (had_coding) saved_coding = coding_system_for_read%value
+
         if (.not. had_coding) then
             call buffer_file_coding_system_explicit(explicit_read, explicit_write)
             if (len(explicit_read) > 0) coding_system_for_read%value = explicit_read
         end if
+
         ! This force after_insert_file_set_coding (called from
         ! insert_file_contents) to set buffer_file_coding_system to a
         ! proper value.
         call buffer_file_coding_system%kill_local()
         ! Note that this preserves point in an intelligent way.
         call insert_file_contents(file_name,.not. auto_save_p, inserted, status, replace=.true.)
+
         if (had_coding) then
             coding_system_for_read%value = saved_coding
         else if (allocated(coding_system_for_read%value)) then
             deallocate (coding_system_for_read%value)
         end if
     end subroutine revert_buffer_insert_file_contents_default
+
     module procedure file_backup_file_names
     use dired_fm, only: file_name_all_completions
     use fileio_fm, only: file_directory_p, file_newer_than_file_p, expand_file_name, file_name_directory, &
@@ -1018,6 +1150,7 @@ contains
     type(name_box), allocatable :: kept(:)
     type(status_type) :: st
     integer :: k, n, i, j
+
     names = nil()
     ! `make-backup-file-name' will get us the right directory for
     ! ordinary or numeric backups.
@@ -1031,6 +1164,7 @@ contains
     call list_elements(all, elts)
     allocate (kept(size(elts)))
     n = 0
+
     do k = 1, size(elts)
         candidate = dir//xstring(elts(k))
         if (.not. backup_file_name_p(candidate)) cycle
@@ -1039,28 +1173,35 @@ contains
         n = n + 1
         kept(n)%s = candidate
     end do
+
     ! (sort ... #'file-newer-than-file-p), stably.
     do i = 2, n
         tmp = kept(i)%s
         j = i - 1
+
         do while (j >= 1)
             if (.not. file_newer_than_file_p(tmp, kept(j)%s)) exit
             kept(j + 1)%s = kept(j)%s
             j = j - 1
         end do
+
         kept(j + 1)%s = tmp
     end do
+
     deallocate (elts)
     allocate (elts(n))
+
     do k = 1, n
         elts(k) = make_string(kept(k)%s)
     end do
+
     names = make_list(elts)
     end procedure file_backup_file_names
 
     module procedure file_newest_backup
     type(value_type) :: names
     type(value_type), allocatable :: elts(:)
+
     call file_backup_file_names(filename, names)
     call list_elements(names, elts)
     found = size(elts) > 0

@@ -92,18 +92,20 @@ contains
     ! ------------------------------------------------------------------
     ! Building groups
     ! ------------------------------------------------------------------
-
     subroutine item_add_value(self, v)
         class(namelist_item_type), intent(inout) :: self
         type(namelist_value_type), intent(in) :: v
         type(namelist_value_type), allocatable :: grown(:)
         integer :: k, n
+
         n = 0
         if (allocated(self%values)) n = size(self%values)
         allocate (grown(n + 1))
+
         do k = 1, n
             grown(k) = self%values(k)
         end do
+
         grown(n + 1) = v
         call move_alloc(grown, self%values)
     end subroutine item_add_value
@@ -112,6 +114,7 @@ contains
         class(namelist_item_type), intent(inout) :: self
         character(len=*), intent(in) :: string
         type(namelist_value_type) :: v
+
         v%kind = NAMELIST_STRING
         v%string = string
         call item_add_value(self, v)
@@ -121,6 +124,7 @@ contains
         class(namelist_item_type), intent(inout) :: self
         integer(int64), intent(in) :: n
         type(namelist_value_type) :: v
+
         v%kind = NAMELIST_INTEGER
         v%integer = n
         call item_add_value(self, v)
@@ -130,6 +134,7 @@ contains
         class(namelist_item_type), intent(inout) :: self
         logical, intent(in) :: b
         type(namelist_value_type) :: v
+
         v%kind = NAMELIST_LOGICAL
         v%logical = b
         call item_add_value(self, v)
@@ -140,12 +145,15 @@ contains
         type(namelist_item_type), intent(in) :: item
         type(namelist_item_type), allocatable :: grown(:)
         integer :: k, n
+
         n = 0
         if (allocated(self%items)) n = size(self%items)
         allocate (grown(n + 1))
+
         do k = 1, n
             grown(k) = self%items(k)
         end do
+
         grown(n + 1) = item
         call move_alloc(grown, self%items)
     end subroutine group_add
@@ -153,14 +161,15 @@ contains
     ! ------------------------------------------------------------------
     ! Writing
     ! ------------------------------------------------------------------
-
     !> TEXT as a character constant: in double quotes, each double quote
     !> doubled.
     pure function namelist_string_literal(text) result(s)
         character(len=*), intent(in) :: text
         character(len=:), allocatable :: s
         integer :: k
+
         s = '"'
+
         do k = 1, len(text)
             if (text(k:k) == '"') then
                 s = s//'""'
@@ -168,6 +177,7 @@ contains
                 s = s//text(k:k)
             end if
         end do
+
         s = s//'"'
     end function namelist_string_literal
 
@@ -177,39 +187,52 @@ contains
         character(len=:), allocatable :: text
         character(len=24) :: buf
         integer :: k, j
+
         text = "&"//group%name//achar(10)
+
         if (allocated(group%items)) then
             do k = 1, size(group%items)
                 associate (it => group%items(k))
                     text = text//" "//it%name
+
                     if (it%subscripted) then
                         write (buf, "(i0)") it%lower
                         text = text//"("//trim(buf)
+
                         if (it%upper /= it%lower) then
                             write (buf, "(i0)") it%upper
                             text = text//":"//trim(buf)
                         end if
+
                         text = text//")"
                     end if
+
                     if (allocated(it%component)) then
                         if (len(it%component) > 0) text = text//"%"//it%component
                     end if
+
                     text = text//" ="
+
                     if (allocated(it%values)) then
                         do j = 1, size(it%values)
                             if (j > 1) text = text//","
                             text = text//" "//value_text(it%values(j))
                         end do
                     end if
+
                     text = text//","//achar(10)
                 end associate
             end do
         end if
+
         text = text//"/"//achar(10)
+
     contains
+
         function value_text(v) result(s)
             type(namelist_value_type), intent(in) :: v
             character(len=:), allocatable :: s
+
             select case (v%kind)
             case (NAMELIST_INTEGER)
                 write (buf, "(i0)") v%integer
@@ -229,7 +252,6 @@ contains
     ! ------------------------------------------------------------------
     ! Reading
     ! ------------------------------------------------------------------
-
     !> The groups of TEXT, in order.  A syntax error is an
     !> invalid_read_syntax error naming the line.
     subroutine read_namelist(text, groups, status)
@@ -240,45 +262,59 @@ contains
         type(namelist_group_type) :: group
         type(namelist_item_type) :: item
         integer :: pos, k, n
+
         allocate (groups(0))
         pos = 1
+
         do
             call skip_blanks()
             if (pos > len(text)) return
+
             if (text(pos:pos) /= "&") then
                 call syntax_error()
                 return
             end if
+
             pos = pos + 1
             group = namelist_group_type()
             call read_name(group%name)
+
             if (len(group%name) == 0) then
                 call syntax_error()
                 return
             end if
+
             do
                 call skip_blanks()
+
                 if (pos > len(text)) then
                     call syntax_error()
                     return
                 end if
+
                 if (text(pos:pos) == "/") then
                     pos = pos + 1
                     exit
                 end if
+
                 call read_item(item)
                 if (.not. status%ok()) return
                 call group%add(item)
             end do
+
             n = size(groups)
             allocate (grown(n + 1))
+
             do k = 1, n
                 grown(k) = groups(k)
             end do
+
             grown(n + 1) = group
             call move_alloc(grown, groups)
         end do
+
     contains
+
         !> Skip blanks, newlines, commas and comments.
         subroutine skip_blanks()
             do while (pos <= len(text))
@@ -298,6 +334,7 @@ contains
 
         logical function name_char(c)
             character(len=1), intent(in) :: c
+
             name_char = (c >= "a" .and. c <= "z") .or. (c >= "A" .and. c <= "Z") .or. &
                         (c >= "0" .and. c <= "9") .or. c == "_"
         end function name_char
@@ -305,11 +342,14 @@ contains
         subroutine read_name(name)
             character(len=:), allocatable, intent(out) :: name
             integer :: start
+
             start = pos
+
             do while (pos <= len(text))
                 if (.not. name_char(text(pos:pos))) exit
                 pos = pos + 1
             end do
+
             name = text(start:pos - 1)
         end subroutine read_name
 
@@ -317,14 +357,18 @@ contains
             integer(int64), intent(out) :: n
             logical, intent(out) :: ok
             integer :: start, ios
+
             start = pos
+
             if (pos <= len(text)) then
                 if (text(pos:pos) == "-" .or. text(pos:pos) == "+") pos = pos + 1
             end if
+
             do while (pos <= len(text))
                 if (text(pos:pos) < "0" .or. text(pos:pos) > "9") exit
                 pos = pos + 1
             end do
+
             n = 0
             ok = pos > start
             if (ok) read (text(start:pos - 1), *, iostat=ios) n
@@ -336,50 +380,65 @@ contains
             type(namelist_item_type), intent(out) :: it
             type(namelist_value_type) :: v
             logical :: ok, more
+
             call read_name(it%name)
+
             if (len(it%name) == 0) then
                 call syntax_error()
                 return
             end if
+
             it%component = ""
+
             if (pos <= len(text)) then
                 if (text(pos:pos) == "(") then
                     pos = pos + 1
                     it%subscripted = .true.
                     call read_integer(it%lower, ok)
+
                     if (.not. ok) then
                         call syntax_error()
                         return
                     end if
+
                     it%upper = it%lower
+
                     if (pos <= len(text)) then
                         if (text(pos:pos) == ":") then
                             pos = pos + 1
                             call read_integer(it%upper, ok)
+
                             if (.not. ok) then
                                 call syntax_error()
                                 return
                             end if
                         end if
                     end if
+
                     if (.not. at(")")) then
                         call syntax_error()
                         return
                     end if
+
                     pos = pos + 1
                 end if
             end if
+
             if (at("%")) then
                 pos = pos + 1
                 call read_name(it%component)
             end if
+
             call skip_spaces()
+
             if (.not. at("=")) then
                 call syntax_error()
                 return
             end if
+
             pos = pos + 1
             allocate (it%values(0))
+
             do
                 call skip_blanks()
                 if (pos > len(text)) return
@@ -399,6 +458,7 @@ contains
 
         logical function at(c)
             character(len=1), intent(in) :: c
+
             at = .false.
             if (pos <= len(text)) at = text(pos:pos) == c
         end function at
@@ -411,7 +471,9 @@ contains
             character(len=1) :: q
             integer :: save
             logical :: ok
+
             more = .true.
+
             select case (text(pos:pos))
             case ("/")
                 more = .false.
@@ -420,11 +482,13 @@ contains
                 pos = pos + 1
                 v%kind = NAMELIST_STRING
                 v%string = ""
+
                 do
                     if (pos > len(text)) then
                         call syntax_error()
                         return
                     end if
+
                     if (text(pos:pos) == q) then
                         if (pos < len(text)) then
                             if (text(pos + 1:pos + 1) == q) then
@@ -433,14 +497,17 @@ contains
                                 cycle
                             end if
                         end if
+
                         pos = pos + 1
                         exit
                     end if
+
                     v%string = v%string//text(pos:pos)
                     pos = pos + 1
                 end do
             case (".")
                 v%kind = NAMELIST_LOGICAL
+
                 if (starts(".true.")) then
                     v%logical = .true.
                     pos = pos + 6
@@ -462,6 +529,7 @@ contains
                 ! A logical, unless it begins the next object's name.
                 save = pos
                 pos = pos + 1
+
                 if (pos <= len(text)) then
                     if (name_char(text(pos:pos))) then
                         pos = save
@@ -469,12 +537,15 @@ contains
                         return
                     end if
                 end if
+
                 call skip_spaces()
+
                 if (at("=") .or. at("(") .or. at("%")) then
                     pos = save
                     more = .false.
                     return
                 end if
+
                 v%kind = NAMELIST_LOGICAL
                 v%logical = text(save:save) == "T" .or. text(save:save) == "t"
             case default
@@ -489,8 +560,10 @@ contains
         logical function starts(word)
             character(len=*), intent(in) :: word
             integer :: k
+
             starts = pos + len(word) - 1 <= len(text)
             if (.not. starts) return
+
             do k = 1, len(word)
                 if (lower(text(pos + k - 1:pos + k - 1)) /= word(k:k)) then
                     starts = .false.
@@ -501,6 +574,7 @@ contains
 
         pure character(len=1) function lower(c)
             character(len=1), intent(in) :: c
+
             lower = c
             if (c >= "A" .and. c <= "Z") lower = achar(iachar(c) + 32)
         end function lower
@@ -508,10 +582,13 @@ contains
         subroutine syntax_error()
             character(len=12) :: buf
             integer :: line, k
+
             line = 1
+
             do k = 1, min(pos, len(text)) - 1
                 if (text(k:k) == achar(10)) line = line + 1
             end do
+
             write (buf, "(i0)") line
             call set_error(status, FM_INVALID_READ_SYNTAX, "namelist syntax, line "//trim(buf))
         end subroutine syntax_error

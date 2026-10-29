@@ -41,6 +41,7 @@ contains
 
     subroutine collect_sysdep_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("struct-layouts", test_layouts), &
                     new_unittest("raw-settings", test_raw_settings), &
@@ -58,6 +59,7 @@ contains
         type(termios_type) :: t
         type(winsize_type) :: w
         type(pollfd_type) :: p
+
         call check(error, int(c_sizeof(t)), 60)
         if (allocated(error)) return
         call check(error, int(c_sizeof(w)), 8)
@@ -68,12 +70,14 @@ contains
     subroutine test_raw_settings(error)
         type(error_type), allocatable, intent(out) :: error
         type(emacs_tty_type) :: old, raw
+
         old%main%c_iflag = ior(ior(ICRNL, INLCR), ior(ISTRIP, IXON))
         old%main%c_oflag = ior(ior(OPOST, ONLCR), TAB3)
         old%main%c_lflag = ior(ior(ECHO, ICANON), IEXTEN)
         old%main%c_cflag = PARENB
         old%main%c_cc(VSUSP) = 26
         raw = tty_raw_settings(old, .false., .true., .true.)
+
         associate (m => raw%main)
             call check(error, iand(m%c_iflag, ior(ior(ICRNL, INLCR), ior(ISTRIP, IXON))), 0_c_int)
             if (allocated(error)) return
@@ -97,6 +101,7 @@ contains
             if (allocated(error)) return
             call check(error, int(m%c_cc(VSUSP)), 0)
         end associate
+
         ! Not the controlling terminal: C-g must arrive as input.
         raw = tty_raw_settings(old, .true., .false., .false.)
         call check(error, int(raw%main%c_cc(VINTR)), 0)
@@ -113,9 +118,11 @@ contains
         type(status_type) :: st
         character(len=16) :: buf
         integer(int64) :: n
+
         call open_pty(master, slave, st)
         call check(error, st%ok(), "open_pty failed")
         if (allocated(error)) return
+
         run: block
             call init_sys_modes(slave, old, st)
             call check(error, st%ok(), "init_sys_modes failed")
@@ -134,6 +141,7 @@ contains
             call emacs_get_tty(slave, now, st)
             call check(error, iand(now%main%c_lflag, ICANON), ICANON)
         end block run
+
         call close_fd(slave)
         call close_fd(master)
     end subroutine test_pty_roundtrip
@@ -142,9 +150,11 @@ contains
         type(error_type), allocatable, intent(out) :: error
         integer(int32) :: master, slave, w, h
         type(status_type) :: st
+
         call open_pty(master, slave, st)
         call check(error, st%ok(), "open_pty failed")
         if (allocated(error)) return
+
         run: block
             call set_tty_size(master, 132_int32, 43_int32, st)
             call get_tty_size(slave, w, h, st)
@@ -154,6 +164,7 @@ contains
             if (allocated(error)) exit run
             call check(error, h, 43_int32)
         end block run
+
         call close_fd(slave)
         call close_fd(master)
     end subroutine test_pty_size
@@ -162,14 +173,17 @@ contains
         type(error_type), allocatable, intent(out) :: error
         integer(int32) :: master, slave
         type(status_type) :: st
+
         call open_pty(master, slave, st)
         call check(error, st%ok(), "open_pty failed")
         if (allocated(error)) return
+
         run: block
             call check(error,.not. input_available(slave, 0_int32), "phantom input")
             if (allocated(error)) exit run
             call check(error,.not. input_available(slave, 50_int32), "phantom input after wait")
         end block run
+
         call close_fd(slave)
         call close_fd(master)
     end subroutine test_poll
@@ -177,6 +191,7 @@ contains
     subroutine test_winch(error)
         type(error_type), allocatable, intent(out) :: error
         integer(c_int) :: r
+
         call install_window_change_handler()
         call check(error,.not. window_change_pending(), "flag set before any signal")
         if (allocated(error)) return
@@ -191,6 +206,7 @@ contains
         character(len=4) :: buf
         integer(int64) :: n
         type(status_type) :: st
+
         call emacs_read(-1_int32, buf, n, st)
         call check(error, st%code, FM_FILE_ERROR)
         if (allocated(error)) return

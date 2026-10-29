@@ -41,33 +41,40 @@ contains
     character(len=:), allocatable :: dir, file, file_dir, ancestor, base, rest
     type(status_type) :: st
     logical :: fold
+
     if (present(directory)) then
         base = directory
     else
         base = ""
+
         if (cur /= 0) then
             if (allocated(buffers(cur)%directory)) base = buffers(cur)%directory
         end if
     end if
+
     call expand_file_name(base, dir, st)
     dir = file_name_as_directory(dir)
     call expand_file_name(filename, file, st)
     fold = read_file_name_completion_ignore_case
     ancestor = "."
     file_dir = file_name_as_directory(file)
+
     do while (.not. (prefix_p(dir, file_dir) .or. prefix_p(dir, file)))
         dir = file_name_directory(dir(1:len(dir) - 1))
+
         if (ancestor == ".") then
             ancestor = ".."
         else
             ancestor = "../"//ancestor
         end if
     end do
+
     ! Now ancestor is empty, or .., or ../.., etc.
     if (prefix_p(dir, file)) then
         ! We matched within FILENAME's directory part.  Add the rest of
         ! FILENAME onto ANCESTOR.
         rest = file(len(dir) + 1:)
+
         if (ancestor == "." .and. len(rest) > 0) then
             ! But don't bother with ANCESTOR if it would give us `./'.
             rel = rest
@@ -78,13 +85,16 @@ contains
         ! We matched FILENAME's directory equivalent.
         rel = ancestor
     end if
+
 contains
 
     !> subr.el:string-prefix-p.
     logical function prefix_p(prefix, string)
         character(len=*), intent(in) :: prefix, string
+
         prefix_p = .false.
         if (len(string) < len(prefix)) return
+
         if (fold) then
             prefix_p = compare_strings(prefix, string(1:len(prefix)), ignore_case=.true.) == COMPARE_EQUAL
         else
@@ -101,10 +111,13 @@ contains
         character(len=*), intent(in), optional :: dir, default_filename, initial
         logical, intent(in), optional :: confirm_nonexistent
         integer :: mustmatch
+
         mustmatch = REQUIRE_MATCH_NIL
+
         if (present(confirm_nonexistent)) then
             if (confirm_nonexistent) mustmatch = REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION
         end if
+
         call read_file_name(prompt, result, status, dir, default_filename, mustmatch=mustmatch, initial=initial)
     end subroutine read_file_name_in_minibuffer
 
@@ -115,16 +128,20 @@ contains
         logical, intent(in) :: other_window
         character(len=*), intent(in) :: filename
         type(status_type), intent(out) :: status
+
         status = status_type()
+
         if (.not. file_exists_p(filename)) then
             call set_error(status, FM_GENERIC_ERROR, filename//" does not exist")
             return
         end if
+
         if (other_window) then
             call find_file_other_window(filename, status)
         else
             call find_file(filename, status)
         end if
+
         if (.not. status%ok()) return
         ! (with-current-buffer b (read-only-mode 1))
         call minor_modes%read_only_mode%enable(status)
@@ -133,12 +150,14 @@ contains
     recursive module subroutine find_file_read_only(filename, status)
         character(len=*), intent(in) :: filename
         type(status_type), intent(out) :: status
+
         call find_file_read_only_1(.false., filename, status)
     end subroutine find_file_read_only
 
     recursive module subroutine find_file_read_only_other_window(filename, status)
         character(len=*), intent(in) :: filename
         type(status_type), intent(out) :: status
+
         call find_file_read_only_1(.true., filename, status)
     end subroutine find_file_read_only_other_window
 
@@ -149,6 +168,7 @@ contains
     recursive subroutine cmd_find_file_read_only(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: filename, dir
+
         dir = "~/"
         if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
         call read_file_name_in_minibuffer("Find file read-only: ", filename, status, default_filename=dir, &
@@ -168,6 +188,7 @@ contains
     recursive subroutine cmd_find_file_read_only_other_window(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: filename, dir
+
         dir = "~/"
         if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
         call read_file_name_in_minibuffer("Find file read-only other window: ", filename, status, &
@@ -181,6 +202,7 @@ contains
         type(handle_type), intent(in), optional :: ctl_x_4_map
         type(value_type) :: key(1)
         type(status_type) :: status
+
         commands%find_file_read_only%run => cmd_find_file_read_only
         commands%find_file_read_only_other_window%run => cmd_find_file_read_only_other_window
         ! files.el: (define-key ctl-x-map "\C-r" 'find-file-read-only)
@@ -189,6 +211,7 @@ contains
         ! files.el: (define-key ctl-x-map "\C-q" 'read-only-mode)
         key(1) = make_fixnum(17_int64)
         call define_key(ctl_x_map, key, sym("read_only_mode"), status)
+
         if (present(ctl_x_4_map)) then
             ! files.el: (define-key ctl-x-4-map "r" 'find-file-read-only-other-window)
             key(1) = make_fixnum(int(iachar("r"), int64))

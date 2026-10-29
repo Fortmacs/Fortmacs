@@ -492,32 +492,38 @@ contains
     ! ------------------------------------------------------------------
     ! Buffer-local variables
     ! ------------------------------------------------------------------
-
     ! The index of the current buffer's entry in `locals', made if MAKE
     ! (0 if there is none).
     integer function local_index(make) result(k)
         logical, intent(in) :: make
         type(local_type), allocatable :: grown(:)
         integer :: i, n
+
         k = 0
         if (cur == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
+
         do k = 1, size(locals)
             if (locals(k)%serial == buffers(cur)%serial) return
         end do
+
         k = 0
         if (.not. make) return
+
         do k = 1, size(locals)
             if (.not. buffer_serial_live(locals(k)%serial)) then
                 locals(k) = local_type(serial=buffers(cur)%serial)
                 return
             end if
         end do
+
         n = size(locals)
         allocate (grown(n + 1))
+
         do i = 1, n
             grown(i) = locals(i)
         end do
+
         grown(n + 1)%serial = buffers(cur)%serial
         call move_alloc(grown, locals)
         k = n + 1
@@ -526,6 +532,7 @@ contains
     ! kill-all-local-variables: forget the current buffer's values.
     subroutine kill_bookmark_locals()
         integer :: k
+
         k = local_index(.false.)
         if (k > 0) locals(k) = local_type()
     end subroutine kill_bookmark_locals
@@ -536,6 +543,7 @@ contains
     function bookmark_current_bookmark() result(name)
         character(len=:), allocatable :: name
         integer :: k
+
         name = ""
         k = local_index(.false.)
         if (k == 0) return
@@ -547,8 +555,10 @@ contains
     subroutine set_bookmark_current_bookmark(name)
         character(len=*), intent(in), optional :: name
         integer :: k
+
         k = local_index(present(name))
         if (k == 0) return
+
         if (present(name)) then
             locals(k)%current_bookmark = name
         else if (allocated(locals(k)%current_bookmark)) then
@@ -559,6 +569,7 @@ contains
     ! Whether the current buffer's `bookmark_current_bookmark' is non-nil.
     logical function have_current_bookmark()
         integer :: k
+
         have_current_bookmark = .false.
         k = local_index(.false.)
         if (k > 0) have_current_bookmark = allocated(locals(k)%current_bookmark)
@@ -567,9 +578,9 @@ contains
     ! ------------------------------------------------------------------
     ! Records
     ! ------------------------------------------------------------------
-
     pure logical function same(a, b)
         character(len=*), intent(in) :: a, b
+
         same = len(a) == len(b)
         if (same) same = a == b
     end function same
@@ -580,6 +591,7 @@ contains
     function bookmark_name_from_full_record(bookmark_record) result(name)
         type(bookmark_type), intent(in) :: bookmark_record
         character(len=:), allocatable :: name
+
         name = ""
         if (allocated(bookmark_record%name)) name = bookmark_record%name
     end function bookmark_name_from_full_record
@@ -590,8 +602,10 @@ contains
         type(minibuffer_string_type), allocatable :: names(:)
         type(status_type) :: st
         integer :: k
+
         call bookmark_maybe_load_default_file(st)
         allocate (names(size(bookmark_alist)))
+
         do k = 1, size(bookmark_alist)
             names(k)%s = bookmark_name_from_full_record(bookmark_alist(k))
         end do
@@ -605,15 +619,20 @@ contains
         character(len=*), intent(in) :: bookmark_name
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: noerror
+
         status = status_type()
         if (.not. allocated(bookmark_alist)) allocate (bookmark_alist(0))
+
         do k = 1, size(bookmark_alist)
             if (name_matches(bookmark_alist(k), bookmark_name)) return
         end do
+
         k = 0
+
         if (present(noerror)) then
             if (noerror) return
         end if
+
         call set_error(status, FM_GENERIC_ERROR, "Invalid bookmark "//bookmark_name)
     end function bookmark_get_bookmark
 
@@ -623,8 +642,10 @@ contains
         use fns_fm, only: compare_strings, COMPARE_EQUAL
         type(bookmark_type), intent(in) :: record
         character(len=*), intent(in) :: name
+
         match = .false.
         if (.not. allocated(record%name)) return
+
         if (bookmark_completion_ignore_case) then
             match = compare_strings(record%name, name, ignore_case=.true.) == COMPARE_EQUAL
         else
@@ -638,6 +659,7 @@ contains
         character(len=*), intent(in) :: bookmark_name, newname
         type(status_type), intent(out) :: status
         integer :: k
+
         k = bookmark_get_bookmark(bookmark_name, status)
         if (k > 0) bookmark_alist(k)%name = newname
     end subroutine bookmark_set_name
@@ -649,6 +671,7 @@ contains
         character(len=:), allocatable :: annotation
         type(status_type) :: st
         integer :: k
+
         annotation = ""
         k = bookmark_get_bookmark(bookmark_name, st, noerror=.true.)
         if (k == 0) return
@@ -661,6 +684,7 @@ contains
         character(len=*), intent(in) :: bookmark_name, ann
         type(status_type), intent(out) :: status
         integer :: k
+
         k = bookmark_get_bookmark(bookmark_name, status)
         if (k > 0) bookmark_alist(k)%annotation = ann
     end subroutine bookmark_set_annotation
@@ -672,6 +696,7 @@ contains
         character(len=:), allocatable :: filename
         type(status_type) :: st
         integer :: k
+
         filename = ""
         k = bookmark_get_bookmark(bookmark_name, st, noerror=.true.)
         if (k == 0) return
@@ -684,6 +709,7 @@ contains
         character(len=*), intent(in) :: bookmark_name, filename
         type(status_type), intent(out) :: status
         integer :: k
+
         k = bookmark_get_bookmark(bookmark_name, status)
         if (k > 0) bookmark_alist(k)%filename = filename
     end subroutine bookmark_set_filename
@@ -694,6 +720,7 @@ contains
         character(len=*), intent(in) :: bookmark_name
         type(status_type) :: st
         integer :: k
+
         position = 0
         k = bookmark_get_bookmark(bookmark_name, st, noerror=.true.)
         if (k > 0) position = bookmark_alist(k)%position
@@ -706,6 +733,7 @@ contains
         integer(int64), intent(in) :: position
         type(status_type), intent(out) :: status
         integer :: k
+
         k = bookmark_get_bookmark(bookmark_name, status)
         if (k > 0) bookmark_alist(k)%position = position
     end subroutine bookmark_set_position
@@ -717,6 +745,7 @@ contains
         character(len=:), allocatable :: string
         type(status_type) :: st
         integer :: k
+
         string = ""
         k = bookmark_get_bookmark(bookmark_name, st, noerror=.true.)
         if (k == 0) return
@@ -729,6 +758,7 @@ contains
         character(len=*), intent(in) :: bookmark_name, string
         type(status_type), intent(out) :: status
         integer :: k
+
         k = bookmark_get_bookmark(bookmark_name, status)
         if (k > 0) bookmark_alist(k)%front_context_string = string
     end subroutine bookmark_set_front_context_string
@@ -740,6 +770,7 @@ contains
         character(len=:), allocatable :: string
         type(status_type) :: st
         integer :: k
+
         string = ""
         k = bookmark_get_bookmark(bookmark_name, st, noerror=.true.)
         if (k == 0) return
@@ -752,6 +783,7 @@ contains
         character(len=*), intent(in) :: bookmark_name, string
         type(status_type), intent(out) :: status
         integer :: k
+
         k = bookmark_get_bookmark(bookmark_name, status)
         if (k > 0) bookmark_alist(k)%rear_context_string = string
     end subroutine bookmark_set_rear_context_string
@@ -761,6 +793,7 @@ contains
         integer(int64), allocatable :: time(:)
         integer(int64) :: sec
         integer(int32) :: nsec
+
         call emacs_clock_realtime(sec, nsec)
         allocate (time(2))
         time(1) = sec
@@ -773,6 +806,7 @@ contains
         character(len=*), intent(in) :: bookmark_name
         type(status_type), intent(out) :: status
         integer :: k
+
         k = bookmark_get_bookmark(bookmark_name, status)
         if (k > 0) bookmark_alist(k)%last_modified = current_time()
     end subroutine bookmark_update_last_modified
@@ -781,6 +815,7 @@ contains
     subroutine move_record(from, to)
         type(bookmark_type), intent(inout) :: from
         type(bookmark_type), intent(out) :: to
+
         if (allocated(from%name)) call move_alloc(from%name, to%name)
         if (allocated(from%filename)) call move_alloc(from%filename, to%filename)
         to%position = from%position
@@ -796,13 +831,16 @@ contains
         type(bookmark_type), intent(in) :: record
         type(bookmark_type), allocatable :: grown(:)
         integer :: k, n
+
         if (.not. allocated(bookmark_alist)) allocate (bookmark_alist(0))
         n = size(bookmark_alist)
         allocate (grown(n + 1))
         grown(1) = record
+
         do k = 1, n
             call move_record(bookmark_alist(k), grown(k + 1))
         end do
+
         call move_alloc(grown, bookmark_alist)
     end subroutine push_record
 
@@ -811,12 +849,15 @@ contains
         type(bookmark_type), intent(in) :: record
         type(bookmark_type), allocatable :: grown(:)
         integer :: k, n
+
         if (.not. allocated(bookmark_alist)) allocate (bookmark_alist(0))
         n = size(bookmark_alist)
         allocate (grown(n + 1))
+
         do k = 1, n
             call move_record(bookmark_alist(k), grown(k))
         end do
+
         grown(n + 1) = record
         call move_alloc(grown, bookmark_alist)
     end subroutine append_record
@@ -826,10 +867,13 @@ contains
         integer, intent(in) :: k
         type(bookmark_type), allocatable :: kept(:)
         integer :: j
+
         allocate (kept(size(bookmark_alist) - 1))
+
         do j = 1, size(kept)
             call move_record(bookmark_alist(merge(j, j + 1, j < k)), kept(j))
         end do
+
         call move_alloc(kept, bookmark_alist)
     end subroutine delete_record
 
@@ -842,6 +886,7 @@ contains
     ! Whether time A is before time B (time-less-p).
     pure logical function time_less_p(a, b)
         integer(int64), intent(in) :: a(:), b(:)
+
         if (a(1) /= b(1)) then
             time_less_p = a(1) < b(1)
         else
@@ -854,12 +899,14 @@ contains
     pure logical function name_lessp(a, b)
         character(len=*), intent(in) :: a, b
         integer :: k
+
         do k = 1, min(len(a), len(b))
             if (a(k:k) /= b(k:k)) then
                 name_lessp = iachar(a(k:k)) < iachar(b(k:k))
                 return
             end if
         end do
+
         name_lessp = len(a) < len(b)
     end function name_lessp
 
@@ -875,26 +922,35 @@ contains
         type(bookmark_type), allocatable :: copy(:)
         type(bookmark_type) :: t
         integer :: i, j
+
         if (.not. allocated(bookmark_alist)) allocate (bookmark_alist(0))
         allocate (copy(size(bookmark_alist)))
+
         do i = 1, size(bookmark_alist)
             copy(i) = bookmark_alist(i)
         end do
+
         if (bookmark_sort_flag == BOOKMARK_SORT_FLAG_NIL) return
+
         ! A stable insertion sort (`sort' is stable).
         do i = 2, size(copy)
             call move_record(copy(i), t)
             j = i - 1
+
             do while (j >= 1)
                 if (.not. before(t, copy(j))) exit
                 call move_record(copy(j), copy(j + 1))
                 j = j - 1
             end do
+
             call move_record(t, copy(j + 1))
         end do
+
     contains
+
         logical function before(x, y)
             type(bookmark_type), intent(in) :: x, y
+
             if (bookmark_sort_flag == BOOKMARK_SORT_FLAG_LAST_MODIFIED) then
                 if (.not. allocated(x%last_modified)) then
                     before = .false.
@@ -926,20 +982,24 @@ contains
         character(len=:), allocatable :: def
         logical :: saved_case
         integer :: k
+
         result = ""
         call bookmark_maybe_load_default_file(status)
         if (.not. status%ok()) return
         def = ""
         if (present(default)) def = default
         allocate (names(size(bookmark_alist)))
+
         do k = 1, size(bookmark_alist)
             names(k) = make_string(bookmark_name_from_full_record(bookmark_alist(k)))
         end do
+
         table%kind = TABLE_LIST
         table%list = make_list(names)
         table%category = "bookmark"
         saved_case = completion_ignore_case%value
         completion_ignore_case%value = bookmark_completion_ignore_case
+
         if (len(def) > 0) then
             call completing_read(format_prompt(prompt, def), table, result, status, &
                                  require_match=REQUIRE_MATCH_OTHER, history="bookmark_history", default=def)
@@ -947,6 +1007,7 @@ contains
             call completing_read(format_prompt(prompt, def), table, result, status, &
                                  require_match=REQUIRE_MATCH_OTHER, history="bookmark_history")
         end if
+
         completion_ignore_case%value = saved_case
     end subroutine bookmark_completing_read
 
@@ -954,6 +1015,7 @@ contains
     function format_prompt(prompt, default) result(full)
         character(len=*), intent(in) :: prompt, default
         character(len=:), allocatable :: full
+
         full = prompt
         if (len(default) > 0) full = full//" (default "//default//")"
         full = full//": "
@@ -968,9 +1030,11 @@ contains
     subroutine bookmark_maybe_historicize_string(string, called_interactively)
         character(len=*), intent(in) :: string
         logical, intent(in), optional :: called_interactively
+
         if (present(called_interactively)) then
             if (called_interactively) return
         end if
+
         call add_to_history("bookmark_history", string)
     end subroutine bookmark_maybe_historicize_string
 
@@ -982,28 +1046,36 @@ contains
         type(minibuffer_string_type), allocatable :: defaults(:)
         integer :: saved_size, k
         logical :: inhibit
+
         saved_size = bookmark_search_size
+
         ! If we're in a buffer that's visiting an encrypted file, don't
         ! include any context in the bookmark file, because that would leak
         ! (possibly secret) data.
         if (allocated(buffers(cur)%filename) .and. allocated(bookmark_inhibit_context_functions)) then
             inhibit = .false.
+
             do k = 1, size(bookmark_inhibit_context_functions)
                 if (.not. associated(bookmark_inhibit_context_functions(k)%function)) cycle
+
                 if (bookmark_inhibit_context_functions(k)%function(buffers(cur)%filename)) then
                     inhibit = .true.
                     exit
                 end if
             end do
+
             if (inhibit) bookmark_search_size = 0
         end if
+
         if (associated(bookmark_make_record_function)) then
             call bookmark_make_record_function(record, status)
         else
             call bookmark_make_record_default(record, status)
         end if
+
         bookmark_search_size = saved_size
         if (.not. status%ok()) return
+
         ! Set up default name if the function does not provide one.
         if (.not. allocated(record%name)) then
             if (have_current_bookmark()) then
@@ -1012,6 +1084,7 @@ contains
                 record%name = bookmark_buffer_name()
             end if
         end if
+
         ! Set up defaults.  (Upstream adds them to the record's alist, which
         ! is lost when a record has nothing but its name.)
         if (.not. (allocated(record%filename) .or. record%position /= 0 .or. &
@@ -1019,29 +1092,38 @@ contains
                    allocated(record%annotation) .or. allocated(record%last_modified) .or. &
                    allocated(record%defaults))) return
         allocate (defaults(0))
+
         if (allocated(record%defaults)) then
             do k = 1, size(record%defaults)
                 call add_default(record%defaults(k)%s)
             end do
         end if
+
         if (have_current_bookmark()) call add_default(bookmark_current_bookmark())
         call add_default(record%name)
         call add_default(bookmark_buffer_name())
         call move_alloc(defaults, record%defaults)
+
     contains
+
         ! (delete-dups (append ...)): keep the first of equal strings.
         subroutine add_default(s)
             character(len=*), intent(in) :: s
             type(minibuffer_string_type), allocatable :: grown(:)
             integer :: j, n
+
             n = size(defaults)
+
             do j = 1, n
                 if (same(defaults(j)%s, s)) return
             end do
+
             allocate (grown(n + 1))
+
             do j = 1, n
                 call move_alloc(defaults(j)%s, grown(j)%s)
             end do
+
             grown(n + 1)%s = s
             call move_alloc(grown, defaults)
         end subroutine add_default
@@ -1059,6 +1141,7 @@ contains
         type(bookmark_type) :: bm
         type(status_type) :: st
         integer :: k
+
         call bookmark_maybe_load_default_file(status)
         if (.not. status%ok()) return
         bm = record
@@ -1066,6 +1149,7 @@ contains
         if (allocated(bm%defaults)) deallocate (bm%defaults)
         k = 0
         if (.not. no_overwrite) k = bookmark_get_bookmark(name, st, noerror=.true.)
+
         if (k > 0) then
             ! Already existing bookmark under that name and no prefix arg
             ! means just overwrite old bookmark.  First clean up if
@@ -1081,6 +1165,7 @@ contains
             ! list, since the list is kept in reverse order of creation.
             call push_record(bm)
         end if
+
         call set_bookmark_current_bookmark(name)
         bookmark_alist_modification_count = bookmark_alist_modification_count + 1
         if (bookmark_time_to_save_p()) call bookmark_save(status)
@@ -1109,25 +1194,30 @@ contains
         integer(int64), intent(in), optional :: posn
         character(len=:), allocatable :: text
         logical :: file, context
+
         file = .true.
         if (present(no_file)) file = .not. no_file
         context = .true.
         if (present(no_context)) context = .not. no_context
         status = status_type()
+
         if (file) then
             call bookmark_buffer_file_name(record%filename, status)
             if (.not. status%ok()) return
         end if
+
         if (context) then
             if (point_max() - point() >= bookmark_search_size) then
                 call buffer_substring(point(), point() + bookmark_search_size, text, status)
                 record%front_context_string = text
             end if
+
             if (point() - point_min() >= bookmark_search_size) then
                 call buffer_substring(point(), point() - bookmark_search_size, text, status)
                 record%rear_context_string = text
             end if
         end if
+
         record%position = point()
         if (present(posn)) record%position = posn
         record%last_modified = current_time()
@@ -1136,13 +1226,13 @@ contains
     recursive subroutine make_record_default(record, status)
         type(bookmark_type), intent(out) :: record
         type(status_type), intent(out) :: status
+
         call bookmark_make_record_default(record, status)
     end subroutine make_record_default
 
     ! ------------------------------------------------------------------
     ! File format
     ! ------------------------------------------------------------------
-
     !> Return a `bookmark_alist' LIST from the current buffer.
     !> The buffer must of course contain bookmark format information.
     !> Does not care from where in the buffer it is called, and does not
@@ -1156,35 +1246,44 @@ contains
         type(bookmark_type), allocatable :: records(:)
         logical :: found
         integer :: g, k, n, idx, m
+
         call read_namelist(buffer_string(), groups, status)
         if (.not. status%ok()) return
         found = .false.
         n = 0
+
         do g = 1, size(groups)
             if (groups(g)%name /= "bookmark") cycle
             found = .true.
             if (.not. allocated(groups(g)%items)) cycle
+
             do k = 1, size(groups(g)%items)
                 if (groups(g)%items(k)%name == "bookmark") n = max(n, int(groups(g)%items(k)%lower))
             end do
         end do
+
         if (.not. found) then
             if (allocated(buffers(cur)%filename)) then
                 call set_error(status, FM_GENERIC_ERROR, "File not in bookmark format: "//buffers(cur)%filename)
             else
                 call set_error(status, FM_GENERIC_ERROR, "Buffer not in bookmark format: "//buffers(cur)%name)
             end if
+
             return
         end if
+
         allocate (records(n))
+
         do g = 1, size(groups)
             if (groups(g)%name /= "bookmark" .or. .not. allocated(groups(g)%items)) cycle
+
             do k = 1, size(groups(g)%items)
                 associate (it => groups(g)%items(k))
                     if (it%name /= "bookmark" .or. .not. it%subscripted) cycle
                     if (size(it%values) == 0) cycle
                     idx = int(it%lower)
                     if (idx < 1) cycle
+
                     select case (it%component)
                     case ("name")
                         if (it%values(1)%kind == NAMELIST_STRING) records(idx)%name = it%values(1)%string
@@ -1217,13 +1316,17 @@ contains
                 end associate
             end do
         end do
+
         ! The records with a name.
         m = 0
+
         do k = 1, n
             if (allocated(records(k)%name)) m = m + 1
         end do
+
         allocate (list(m))
         m = 0
+
         do k = 1, n
             if (.not. allocated(records(k)%name)) cycle
             m = m + 1
@@ -1238,7 +1341,9 @@ contains
         character(len=:), allocatable :: text
         type(namelist_group_type) :: group
         integer :: k
+
         group%name = "bookmark"
+
         do k = 1, size(bookmark_alist)
             associate (b => bookmark_alist(k))
                 call add_string("name", bookmark_name_from_full_record(b))
@@ -1250,13 +1355,17 @@ contains
                 if (allocated(b%last_modified)) call add_integers("last_modified", b%last_modified)
             end associate
         end do
+
         text = "! Fortmacs bookmarks -*- coding: "//coding//" -*-"//achar(10)// &
                "! This format is meant to be slightly human-readable;"//achar(10)// &
                "! nevertheless, you probably don't want to edit it."//achar(10)//namelist_text(group)
+
     contains
+
         subroutine add_string(component, value)
             character(len=*), intent(in) :: component, value
             type(namelist_item_type) :: item
+
             item = namelist_item_type(name="bookmark", component=component, subscripted=.true., lower=k, upper=k)
             call item%add_string(value)
             call group%add(item)
@@ -1267,10 +1376,13 @@ contains
             integer(int64), intent(in) :: values(:)
             type(namelist_item_type) :: item
             integer :: j
+
             item = namelist_item_type(name="bookmark", component=component, subscripted=.true., lower=k, upper=k)
+
             do j = 1, size(values)
                 call item%add_integer(values(j))
             end do
+
             call group%add(item)
         end subroutine add_integers
     end function bookmark_file_text
@@ -1278,7 +1390,6 @@ contains
     ! ------------------------------------------------------------------
     ! Core code
     ! ------------------------------------------------------------------
-
     !> Set a bookmark using specified NAME or prompting with PROMPT.
     !> The bookmark is set at the current location.
     !>
@@ -1306,12 +1417,16 @@ contains
         type(minibuffer_string_type), allocatable :: defaults(:)
         character(len=:), allocatable :: default, str
         type(status_type) :: st
+
         call set_internal()
         bookmark_yank_point = 0
         bookmark_current_buffer = handle_type()
+
     contains
+
         recursive subroutine set_internal()
             character(len=24) :: buf
+
             call bookmark_make_record(record, status)
             if (.not. status%ok()) return
             ! `defaults' is a transient element of the record.  Bookmark
@@ -1319,9 +1434,11 @@ contains
             ! values accessible via M-n while reading a bookmark name.
             call move_alloc(record%defaults, defaults)
             default = ""
+
             if (allocated(defaults)) then
                 if (size(defaults) > 0) default = defaults(1)%s
             end if
+
             if (.not. allocated(defaults)) then
                 ! When no defaults in the record, use its name.
                 allocate (defaults(1))
@@ -1333,14 +1450,17 @@ contains
                 defaults(1)%s = record%name
                 default = record%name
             end if
+
             call bookmark_maybe_load_default_file(status)
             if (.not. status%ok()) return
+
             ! Don't set `bookmark_yank_point' and `bookmark_current_buffer'
             ! if they have been already set in another buffer.
             if (.not. (bookmark_yank_point /= 0 .and. buffer_live_p(bookmark_current_buffer))) then
                 bookmark_yank_point = point()
                 bookmark_current_buffer = current_buffer()
             end if
+
             if (present(name)) then
                 str = name
             else
@@ -1348,13 +1468,16 @@ contains
                                           keymap=bookmark_minibuffer_read_name_map, defaults=defaults)
                 if (.not. status%ok()) return
             end if
+
             if (len(str) == 0) str = default
+
             select case (overwrite_or_push)
             case (BOOKMARK_SET_ERROR)
                 if (bookmark_get_bookmark(str, st, noerror=.true.) > 0) then
                     call set_error(status, FM_GENERIC_ERROR, "A bookmark named """//str//""" already exists")
                     return
                 end if
+
                 call bookmark_store(str, record, .false., status)
             case (BOOKMARK_SET_OVERWRITE)
                 call bookmark_store(str, record, .false., status)
@@ -1366,12 +1489,15 @@ contains
                                format_message("Unrecognized value for `overwrite_or_push': ")//trim(buf))
                 return
             end select
+
             if (.not. status%ok()) return
+
             ! Ask for an annotation buffer for this bookmark
             if (bookmark_use_annotations) then
                 call bookmark_edit_annotation(str, status)
                 if (.not. status%ok()) return
             end if
+
             if (allocated(bookmark_fringe_mark)) call bookmark_set_fringe_mark()
         end subroutine set_internal
     end subroutine bookmark_set_internal
@@ -1406,8 +1532,10 @@ contains
         character(len=*), intent(in), optional :: name
         logical, intent(in), optional :: no_overwrite
         logical :: push
+
         push = .false.
         if (present(no_overwrite)) push = no_overwrite
+
         if (push) then
             call bookmark_set_internal("Add bookmark named", BOOKMARK_SET_PUSH, status, name)
         else
@@ -1417,6 +1545,7 @@ contains
 
     recursive subroutine cmd_bookmark_set(status)
         type(status_type), intent(out) :: status
+
         call bookmark_set(status, no_overwrite=.not. nilp(current_prefix_arg))
     end subroutine cmd_bookmark_set
 
@@ -1454,8 +1583,10 @@ contains
         character(len=*), intent(in), optional :: name
         logical, intent(in), optional :: push_bookmark
         logical :: push
+
         push = .false.
         if (present(push_bookmark)) push = push_bookmark
+
         if (push) then
             call bookmark_set_internal("Set bookmark", BOOKMARK_SET_PUSH, status, name)
         else
@@ -1465,6 +1596,7 @@ contains
 
     recursive subroutine cmd_bookmark_set_no_overwrite(status)
         type(status_type), intent(out) :: status
+
         call bookmark_set_no_overwrite(status, push_bookmark=.not. nilp(current_prefix_arg))
     end subroutine cmd_bookmark_set_no_overwrite
 
@@ -1474,7 +1606,9 @@ contains
     subroutine bookmark_kill_line(newline_too)
         logical, intent(in), optional :: newline_too
         type(status_type) :: st
+
         call delete_region(point(), pos_eol(), st)
+
         if (present(newline_too)) then
             if (newline_too .and. following_char() == 10) call delete_char(1_int64, st)
         end if
@@ -1488,6 +1622,7 @@ contains
         character(len=*), intent(in) :: bookmark_name
         character(len=:), allocatable :: text
         character(len=*), parameter :: LF = achar(10)
+
         text = format_message("#  Type the annotation for bookmark `")//bookmark_name//format_message("' here.")//LF// &
                format_message("#  All lines which start with a `#' will be deleted.")//LF// &
                substitute_command_keys("#  Type \[bookmark_edit_annotation_confirm] when done.  Type "// &
@@ -1499,6 +1634,7 @@ contains
     subroutine default_annotation_text(name, text)
         character(len=*), intent(in) :: name
         character(len=:), allocatable, intent(out) :: text
+
         text = bookmark_default_annotation_text(name)
     end subroutine default_annotation_text
 
@@ -1509,16 +1645,19 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: annotation, text
         type(status_type) :: st
+
         if (bookmark_get_bookmark(bookmark_name, st, noerror=.true.) == 0) then
             call set_error(status, FM_GENERIC_ERROR, "Invalid bookmark: "//bookmark_name)
             return
         end if
+
         if (associated(bookmark_edit_annotation_text_func)) then
             call bookmark_edit_annotation_text_func(bookmark_name, text)
             call insert(text, status)
         else
             call insert(bookmark_default_annotation_text(bookmark_name), status)
         end if
+
         if (.not. status%ok()) return
         annotation = bookmark_get_annotation(bookmark_name)
         if (len(annotation) > 0) call insert(annotation, status)
@@ -1535,6 +1674,7 @@ contains
     recursive subroutine bookmark_edit_annotation_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
+
         call major_modes%bookmark_edit_annotation_mode%begin(saved, status)
         if (.not. status%ok()) return
         call major_modes%bookmark_edit_annotation_mode%finish(saved, status)
@@ -1550,12 +1690,14 @@ contains
         character(len=:), allocatable :: name
         logical :: from_bookmark_list
         integer :: k
+
         from_bookmark_list = .false.
         k = local_index(.false.)
         if (k > 0) from_bookmark_list = locals(k)%annotation_from_bookmark_list
         call quit_window(.false., status)
         if (.not. status%ok()) return
         call bookmark_bmenu_surreptitiously_rebuild_list()
+
         if (from_bookmark_list) then
             list = get_buffer(bookmark_bmenu_buffer)
             call pop_to_buffer(list, status)
@@ -1563,6 +1705,7 @@ contains
             call goto_char(point_min())
             name = bookmark_bmenu_bookmark()
         end if
+
         call kill_buffer(old_buffer, status)
     end subroutine maybe_display_list
 
@@ -1571,6 +1714,7 @@ contains
     recursive subroutine bookmark_edit_annotation_cancel(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: old_buffer
+
         old_buffer = current_buffer()
         call message("Canceled by user")
         call maybe_display_list(old_buffer, status)
@@ -1585,11 +1729,14 @@ contains
         character(len=:), allocatable :: annotation, bookmark_name
         integer(int64) :: shortage
         integer :: k
+
         if (.not. derived_mode_p("bookmark_edit_annotation_mode")) then
             call set_error(status, FM_GENERIC_ERROR, "Not in bookmark_edit_annotation_mode")
             return
         end if
+
         call goto_char(point_min())
+
         do while (point() < point_max())
             if (following_char() == iachar("#")) then
                 call bookmark_kill_line(.true.)
@@ -1597,15 +1744,18 @@ contains
                 shortage = forward_line(1_int64)
             end if
         end do
+
         ! Take no chances with text properties.
         old_buffer = current_buffer()
         call buffer_substring(point_min(), point_max(), annotation, status)
         if (.not. status%ok()) return
         bookmark_name = ""
         k = local_index(.false.)
+
         if (k > 0) then
             if (allocated(locals(k)%annotation_name)) bookmark_name = locals(k)%annotation_name
         end if
+
         call bookmark_set_annotation(bookmark_name, annotation, status)
         if (.not. status%ok()) return
         call bookmark_update_last_modified(bookmark_name, status)
@@ -1624,6 +1774,7 @@ contains
         logical, intent(in), optional :: from_bookmark_list
         type(handle_type) :: buf
         integer :: k
+
         call get_buffer_create(generate_new_buffer_name("*Bookmark Annotation Compose*"), buf, status)
         if (.not. status%ok()) return
         call pop_to_buffer(buf, status)
@@ -1645,15 +1796,19 @@ contains
         character(len=:), allocatable :: name
         character(len=:), allocatable :: dirname
         integer :: idx
+
         if (allocated(buffers(cur)%filename)) then
             ! Or are we a file?
             name = file_name_nondirectory(buffers(cur)%filename)
             return
         end if
+
         dirname = dired_directory_of()
+
         if (len(dirname) > 0) then
             ! Or are we a directory?
             idx = len(dirname)
+
             ! Strip the trailing slash.
             if (dirname(idx:idx) == "/") then
                 name = file_name_nondirectory(dirname(1:idx - 1))
@@ -1661,8 +1816,10 @@ contains
                 ! Else return the current-buffer
                 name = buffers(cur)%name
             end if
+
             return
         end if
+
         ! If all else fails, use the buffer's name.
         name = buffers(cur)%name
     end function bookmark_buffer_name
@@ -1677,6 +1834,7 @@ contains
         character(len=:), allocatable :: string
         type(status_type) :: st
         integer(int64) :: start
+
         old = current_buffer()
         call set_buffer(bookmark_current_buffer, status)
         if (.not. status%ok()) return
@@ -1696,7 +1854,9 @@ contains
         character(len=:), allocatable, intent(out) :: name
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: dir
+
         status = status_type()
+
         ! Abbreviate the path, both so it's shorter and so it's more
         ! portable.  E.g., the user's home dir might be a different path on
         ! different machines, but "~/" will still reach it.
@@ -1704,11 +1864,14 @@ contains
             name = abbreviate_file_name(buffers(cur)%filename)
             return
         end if
+
         dir = dired_directory_of()
+
         if (len(dir) > 0) then
             name = abbreviate_file_name(dir)
             return
         end if
+
         name = ""
         call set_error(status, FM_GENERIC_ERROR, "Buffer not visiting a file or directory")
     end subroutine bookmark_buffer_file_name
@@ -1721,12 +1884,14 @@ contains
         logical, intent(in) :: new_known
         integer(int64), intent(in) :: new_sec
         integer(int32), intent(in) :: new_nsec
+
         if (.not. watch_asked_known) then
             ! (Both nil: both the current time.)
             queried = .not. new_known .and. watch_asked_nil
         else
             queried = new_known .and. new_sec == watch_asked_sec .and. new_nsec == watch_asked_nsec
         end if
+
         watch_asked_known = new_known
         watch_asked_nil = .not. new_known
         watch_asked_sec = new_sec
@@ -1739,18 +1904,23 @@ contains
         type(status_type), intent(out) :: status
         type(file_stat_type) :: stat
         logical :: found, ok
+
         status = status_type()
         if (.not. allocated(bookmark_alist)) allocate (bookmark_alist(0))
+
         if (.not. allocated(bookmark_bookmarks_timestamp%file) .and. size(bookmark_alist) == 0 .and. &
             file_readable_p(expand(bookmark_default_file))) then
             call bookmark_load(bookmark_default_file, status, overwrite=.true., no_msg=.true.)
             return
         end if
+
         if (bookmark_watch_bookmark_file == BOOKMARK_WATCH_BOOKMARK_FILE_NIL) return
         found = .false.
+
         if (allocated(bookmark_bookmarks_timestamp%file)) then
             call file_attributes(bookmark_bookmarks_timestamp%file, stat, found)
         end if
+
         ! (time-equal-p NEW-MTIME OLD-MTIME): nil is the current time.
         if (found .and. bookmark_bookmarks_timestamp%mtime_known) then
             if (stat%mtime_sec == bookmark_bookmarks_timestamp%mtime_sec .and. &
@@ -1758,12 +1928,15 @@ contains
         else if (.not. found .and. .not. bookmark_bookmarks_timestamp%mtime_known) then
             return
         end if
+
         if (watch_file_already_queried_p(found, stat%mtime_sec, stat%mtime_nsec)) return
+
         if (bookmark_watch_bookmark_file /= BOOKMARK_WATCH_BOOKMARK_FILE_SILENT) then
             call yes_or_no_p("Bookmarks "//bookmark_bookmarks_timestamp%file//" changed on disk.  Reload? ", &
                              ok, status)
             if (.not. status%ok() .or. .not. ok) return
         end if
+
         call bookmark_load(bookmark_bookmarks_timestamp%file, status, overwrite=.true., no_msg=.true.)
     end subroutine bookmark_maybe_load_default_file
 
@@ -1772,6 +1945,7 @@ contains
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: name
         type(status_type) :: st
+
         call expand_file_name(file, name, st)
         if (.not. st%ok()) name = file
     end function expand
@@ -1794,6 +1968,7 @@ contains
         integer(int64) :: pt
         logical :: found
         integer :: k
+
         call current_window_configuration(config)
         call bookmark_handle_bookmark(bookmark_name, status)
         buf = current_buffer()
@@ -1804,18 +1979,23 @@ contains
         if (.not. status%ok()) return
         win = get_buffer_window(buf)
         if (win%index /= 0) call set_window_point(windows(win%index), pt, st)
+
         if (allocated(bookmark_fringe_mark)) then
             call overlays_in(pos_bol(), pos_bol() + 1, overlays)
             found = .false.
+
             do k = 1, size(overlays)
                 ov = overlays(k)
+
                 if (is_bookmark_overlay(ov)) then
                     found = .true.
                     exit
                 end if
             end do
+
             if (.not. found) call bookmark_set_fringe_mark()
         end if
+
         call bookmark_after_jump_hook%run(status)
         if (.not. status%ok()) return
         ! If there is an annotation for this bookmark, show it in a buffer.
@@ -1825,12 +2005,14 @@ contains
     recursive subroutine display_same_window(buffer, status)
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
+
         call pop_to_buffer_same_window(buffer, status)
     end subroutine display_same_window
 
     recursive subroutine display_other_window(buffer, status)
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
+
         call switch_to_buffer_other_window(buffer, status)
     end subroutine display_other_window
 
@@ -1857,11 +2039,14 @@ contains
         type(status_type), intent(out) :: status
         procedure(bookmark_display_proc), optional :: display_func
         logical, intent(in), optional :: called_interactively
+
         if (.not. present(bookmark)) then
             call set_error(status, FM_GENERIC_ERROR, "No bookmark specified")
             return
         end if
+
         call bookmark_maybe_historicize_string(bookmark, called_interactively)
+
         ! Don't use `switch_to_buffer' because it would let the
         ! window-point override the bookmark's point when
         ! `switch_to_buffer_preserve_window_point' is true.
@@ -1875,6 +2060,7 @@ contains
     recursive subroutine cmd_bookmark_jump(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: bookmark
+
         call bookmark_completing_read("Jump to bookmark", bookmark, status, bookmark_current_bookmark())
         if (.not. status%ok()) return
         call bookmark_jump(bookmark, status, called_interactively=.true.)
@@ -1886,12 +2072,14 @@ contains
         character(len=*), intent(in) :: bookmark
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: called_interactively
+
         call bookmark_jump(bookmark, status, display_other_window, called_interactively)
     end subroutine bookmark_jump_other_window
 
     recursive subroutine cmd_bookmark_jump_other_window(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: bookmark
+
         call bookmark_completing_read("Jump to bookmark (in another window)", bookmark, status, &
                                       bookmark_current_bookmark())
         if (.not. status%ok()) return
@@ -1911,14 +2099,17 @@ contains
         type(status_type) :: err
         logical :: ok
         integer :: k
+
         k = bookmark_get_bookmark(bookmark_name, status)
         if (.not. status%ok()) return
         call bookmark_default_handler(bookmark_alist(k), status)
+
         if (condition_matches(status%code, FM_BOOKMARK_ERROR_NO_FILENAME)) then
             ! We were unable to find the marked file, so ask if user wants
             ! to relocate the bookmark, else remind them to consider
             ! deletion.
             file = bookmark_get_filename(bookmark_name)
+
             ! Don't know how to relocate if there's no `file'.
             if (len(file) > 0) then
                 err = status
@@ -1928,6 +2119,7 @@ contains
                 call ding()
                 call y_or_n_p(display_name//" nonexistent.  Relocate """//bookmark_name//"""? ", ok, status)
                 if (.not. status%ok()) return
+
                 if (ok) then
                     call bookmark_relocate(bookmark_name, status)
                     if (.not. status%ok()) return
@@ -1941,6 +2133,7 @@ contains
                 end if
             end if
         end if
+
         if (.not. status%ok()) return
         call set_bookmark_current_bookmark(bookmark_name)
     end subroutine bookmark_handle_bookmark
@@ -1956,6 +2149,7 @@ contains
         type(handle_type) :: buf
         type(status_type) :: st
         integer(int64) :: found
+
         if (allocated(bmk_record%filename)) then
             if (file_readable_p(expand(bmk_record%filename))) then
                 call find_file_noselect(bmk_record%filename, buf, status)
@@ -1971,7 +2165,9 @@ contains
             call set_error(status, FM_BOOKMARK_ERROR_NO_FILENAME, "stringp, nil")
             return
         end if
+
         if (bmk_record%position /= 0) call goto_char(bmk_record%position)
+
         ! Go searching forward first.  Then, if forward-str exists and was
         ! found in the file, we can search backward for behind-str.
         ! Rationale is that if text was inserted between the two in the
@@ -1981,6 +2177,7 @@ contains
             call search_forward(bmk_record%front_context_string, found, st, bound=point_max(), noerror=1)
             if (found /= 0) call goto_char(match_beginning(0, st))
         end if
+
         if (allocated(bmk_record%rear_context_string)) then
             call search_backward(bmk_record%rear_context_string, found, st, bound=point_min(), noerror=1)
             if (found /= 0) call goto_char(match_end(0, st))
@@ -1999,14 +2196,17 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: called_interactively
         character(len=:), allocatable :: bmrk_filename, newloc, expanded
+
         call bookmark_maybe_historicize_string(bookmark_name, called_interactively)
         call bookmark_maybe_load_default_file(status)
         if (.not. status%ok()) return
         bmrk_filename = bookmark_get_filename(bookmark_name)
+
         if (len(bmrk_filename) == 0) then
             call set_error(status, FM_USER_ERROR, "Cannot relocate bookmark of type """"")
             return
         end if
+
         call read_file_name("Relocate "//bookmark_name//" to: ", newloc, status, dir=file_name_directory(bmrk_filename))
         if (.not. status%ok()) return
         call expand_file_name(newloc, expanded, status)
@@ -2023,6 +2223,7 @@ contains
     recursive subroutine cmd_bookmark_relocate(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
+
         call bookmark_completing_read("Bookmark to relocate", name, status)
         if (.not. status%ok()) return
         call bookmark_relocate(name, status, called_interactively=.true.)
@@ -2038,6 +2239,7 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: no_history, called_interactively
         logical :: history
+
         history = .true.
         if (present(no_history)) history = .not. no_history
         if (history) call bookmark_maybe_historicize_string(bookmark_name, called_interactively)
@@ -2047,6 +2249,7 @@ contains
     recursive subroutine cmd_bookmark_insert_location(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
+
         call bookmark_completing_read("Insert bookmark location", name, status)
         if (.not. status%ok()) return
         call bookmark_insert_location(name, status, called_interactively=.true.)
@@ -2058,6 +2261,7 @@ contains
         character(len=*), intent(in) :: bookmark_name
         character(len=:), allocatable :: location
         type(status_type) :: st
+
         call bookmark_maybe_load_default_file(st)
         location = bookmark_get_filename(bookmark_name)
         if (len(location) == 0) location = "-- Unknown location --"
@@ -2079,11 +2283,13 @@ contains
         character(len=*), intent(in), optional :: new_name
         logical, intent(in), optional :: called_interactively
         character(len=:), allocatable :: final_new_name
+
         call bookmark_maybe_historicize_string(old_name, called_interactively)
         call bookmark_maybe_load_default_file(status)
         if (.not. status%ok()) return
         bookmark_yank_point = point()
         bookmark_current_buffer = current_buffer()
+
         if (present(new_name)) then
             final_new_name = new_name
         else
@@ -2091,6 +2297,7 @@ contains
                                       keymap=bookmark_minibuffer_read_name_map, history="bookmark_history")
             if (.not. status%ok()) return
         end if
+
         call bookmark_set_name(old_name, final_new_name, status)
         if (.not. status%ok()) return
         call bookmark_update_last_modified(final_new_name, status)
@@ -2103,6 +2310,7 @@ contains
     recursive subroutine cmd_bookmark_rename(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
+
         call bookmark_completing_read("Old bookmark name", name, status)
         if (.not. status%ok()) return
         call bookmark_rename(name, status, called_interactively=.true.)
@@ -2123,6 +2331,7 @@ contains
         character(len=:), allocatable :: str_to_insert
         type(status_type) :: st
         integer(int64) :: orig_point
+
         call bookmark_maybe_historicize_string(bookmark_name, called_interactively)
         call bookmark_maybe_load_default_file(status)
         if (.not. status%ok()) return
@@ -2141,6 +2350,7 @@ contains
     recursive subroutine cmd_bookmark_insert(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
+
         call bookmark_completing_read("Insert bookmark contents", name, status)
         if (.not. status%ok()) return
         call bookmark_insert(name, status, called_interactively=.true.)
@@ -2162,19 +2372,23 @@ contains
         logical :: rebuild
         type(status_type) :: st
         integer :: k
+
         call bookmark_maybe_historicize_string(bookmark_name, called_interactively)
         call bookmark_maybe_load_default_file(status)
         if (.not. status%ok()) return
         k = bookmark_get_bookmark(bookmark_name, st, noerror=.true.)
+
         if (k > 0) then
             call bookmark_remove_fringe_mark(bookmark_alist(k))
             call delete_record(k)
         end if
+
         ! Nil bookmark-current-bookmark if the last occurrence has been
         ! deleted.
         if (bookmark_get_bookmark(bookmark_current_bookmark(), st, noerror=.true.) == 0) then
             call set_bookmark_current_bookmark()
         end if
+
         rebuild = .true.
         if (present(batch)) rebuild = .not. batch
         if (rebuild) call bookmark_bmenu_surreptitiously_rebuild_list()
@@ -2185,6 +2399,7 @@ contains
     recursive subroutine cmd_bookmark_delete(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
+
         call bookmark_completing_read("Delete bookmark", name, status, bookmark_current_bookmark())
         if (.not. status%ok()) return
         call bookmark_delete(name, status, called_interactively=.true.)
@@ -2198,6 +2413,7 @@ contains
         logical, intent(in), optional :: no_confirm
         logical :: ok
         integer :: k
+
         ! We don't use `bookmark_menu_confirm_deletion' here because that
         ! variable is specifically to control confirmation prompting in a
         ! bookmark menu buffer, where the user has the marked-for-deletion
@@ -2208,16 +2424,20 @@ contains
         ok = .false.
         if (present(no_confirm)) ok = no_confirm
         status = status_type()
+
         if (.not. ok) then
             call yes_or_no_p("Permanently delete all bookmarks? ", ok, status)
             if (.not. status%ok()) return
         end if
+
         if (.not. ok) return
         call bookmark_maybe_load_default_file(status)
         if (.not. status%ok()) return
+
         do k = 1, size(bookmark_alist)
             call bookmark_remove_fringe_mark(bookmark_alist(k))
         end do
+
         bookmark_alist_modification_count = bookmark_alist_modification_count + size(bookmark_alist)
         call clear_alist()
         call bookmark_bmenu_surreptitiously_rebuild_list()
@@ -2226,6 +2446,7 @@ contains
 
     recursive subroutine cmd_bookmark_delete_all(status)
         type(status_type), intent(out) :: status
+
         call bookmark_delete_all(status, no_confirm=.not. nilp(current_prefix_arg))
     end subroutine cmd_bookmark_delete_all
 
@@ -2238,8 +2459,10 @@ contains
     logical function bookmark_time_to_save_p(final_time) result(save)
         logical, intent(in), optional :: final_time
         logical :: final
+
         final = .false.
         if (present(final_time)) final = final_time
+
         if (final) then
             save = bookmark_alist_modification_count > 0 .and. bookmark_save_flag /= BOOKMARK_SAVE_FLAG_NIL
         else if (bookmark_save_flag >= 0) then
@@ -2253,6 +2476,7 @@ contains
     !> minibuffer).  Port of bookmark.el:bookmark-write.
     recursive subroutine bookmark_write(status)
         type(status_type), intent(out) :: status
+
         call bookmark_maybe_load_default_file(status)
         if (.not. status%ok()) return
         call bookmark_save(status, parg=.true.)
@@ -2276,12 +2500,14 @@ contains
         character(len=*), intent(in), optional :: file
         character(len=:), allocatable :: f, default
         logical :: ask, make
+
         call bookmark_maybe_load_default_file(status)
         if (.not. status%ok()) return
         ask = .false.
         if (present(parg)) ask = parg
         make = .false.
         if (present(make_default)) make = make_default
+
         if (present(file)) then
             f = file
         else
@@ -2290,6 +2516,7 @@ contains
             else
                 default = bookmark_default_file
             end if
+
             if (ask) then
                 ! This should be part of the `interactive' spec.
                 call read_file_name("File to save bookmarks in: ("//default//") ", f, status, &
@@ -2299,12 +2526,14 @@ contains
                 f = default
             end if
         end if
+
         call bookmark_write_file(f, status)
         if (.not. status%ok()) return
         ! Signal that we have synced the bookmark file by setting this to 0.
         ! If there was an error at any point before, it will not get set,
         ! which is what we want.
         bookmark_alist_modification_count = 0
+
         if (make) then
             call set_timestamp(expand(f))
         else if (allocated(bookmark_bookmarks_timestamp%file)) then
@@ -2316,6 +2545,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: c_u_c_u
         type(value_type) :: arg
+
         c_u_c_u = .false.
         arg = current_prefix_arg
         if (.not. nilp(arg)) c_u_c_u = prefix_is_16(arg)
@@ -2327,6 +2557,7 @@ contains
         use lisp_fm, only: consp, fixnump, xfixnum, list_elements
         type(value_type), intent(in) :: arg
         type(value_type), allocatable :: elts(:)
+
         prefix_is_16 = .false.
         if (.not. consp(arg)) return
         call list_elements(arg, elts)
@@ -2341,6 +2572,7 @@ contains
         character(len=*), intent(in) :: file
         type(file_stat_type) :: stat
         logical :: found
+
         call file_attributes(file, stat, found)
         bookmark_bookmarks_timestamp%file = file
         bookmark_bookmarks_timestamp%mtime_known = found
@@ -2358,6 +2590,7 @@ contains
         type(status_type) :: st, wst
         character(len=:), allocatable :: coding, saved, base
         logical :: had_coding
+
         call make_progress_reporter(reporter, "Saving bookmarks to file "//file//"...")
         old = current_buffer()
         call get_buffer_create(" *Bookmarks*", h, status)
@@ -2367,6 +2600,7 @@ contains
         call goto_char(point_min())
         call erase_buffer(st)
         had_coding = allocated(coding_system_for_write%value)
+
         if (had_coding) then
             saved = coding_system_for_write%value
             coding = saved
@@ -2375,6 +2609,7 @@ contains
         else
             coding = "utf-8-emacs"
         end if
+
         ! (bookmark-insert-file-format-version-stamp)
         base = coding_system_base(coding)
         if (same(base, "undecided") .or. same(base, "prefer-utf-8")) base = "utf-8-emacs"
@@ -2385,19 +2620,23 @@ contains
         ! has no effect.)
         coding_system_for_write = coding
         call write_file(file, .false., wst)
+
         if (had_coding) then
             coding_system_for_write = saved
         else
             call coding_system_for_write%clear()
         end if
+
         if (.not. wst%ok()) then
             if (.not. condition_matches(wst%code, FM_FILE_ERROR)) then
                 status = wst
                 call set_buffer(old, st)
                 return
             end if
+
             call message("Can't write "//file)
         end if
+
         bookmark_file_coding_system = coding
         call kill_buffer(current_buffer(), st)
         call set_buffer(old, st)
@@ -2412,16 +2651,20 @@ contains
         type(bookmark_type), intent(inout) :: new_list(:)
         type(minibuffer_string_type), allocatable :: names(:), grown(:)
         integer :: k, j, n
+
         names = bookmark_all_names()
+
         do k = 1, size(new_list)
             call bookmark_maybe_rename(new_list(k), names)
             call append_record(new_list(k))
             n = size(names)
             allocate (grown(n + 1))
             grown(1)%s = bookmark_name_from_full_record(new_list(k))
+
             do j = 1, n
                 call move_alloc(names(j)%s, grown(j + 1)%s)
             end do
+
             call move_alloc(grown, names)
         end do
     end subroutine bookmark_import_new_list
@@ -2435,22 +2678,29 @@ contains
         character(len=:), allocatable :: found_name, new_name
         character(len=24) :: buf
         integer :: count
+
         found_name = bookmark_name_from_full_record(full_record)
         if (.not. member(found_name)) return
         ! We've got a conflict, so generate a new name
         count = 2
         new_name = found_name
+
         do while (member(new_name))
             write (buf, "(i0)") count
             new_name = found_name//"<"//trim(buf)//">"
             count = count + 1
         end do
+
         full_record%name = new_name
+
     contains
+
         logical function member(s)
             character(len=*), intent(in) :: s
             integer :: k
+
             member = .false.
+
             do k = 1, size(names)
                 if (same(names(k)%s, s)) then
                     member = .true.
@@ -2490,6 +2740,7 @@ contains
         type(status_type) :: st
         logical :: over, quiet, make
         integer :: k
+
         over = .false.
         if (present(overwrite)) over = overwrite
         quiet = .false.
@@ -2499,10 +2750,12 @@ contains
         call expand_file_name(file, f, status)
         if (.not. status%ok()) return
         afile = abbreviate_file_name(f)
+
         if (.not. file_readable_p(f)) then
             call set_error(status, FM_USER_ERROR, "Cannot read bookmark file "//afile)
             return
         end if
+
         if (.not. quiet) call make_progress_reporter(reporter, "Loading bookmarks from "//f//"...")
         old = current_buffer()
         call find_file_noselect(f, buf, status)
@@ -2511,30 +2764,39 @@ contains
         if (.not. status%ok()) return
         call goto_char(point_min())
         call bookmark_alist_from_buffer(blist, status)
+
         if (status%ok()) then
             if (.not. allocated(bookmark_alist)) allocate (bookmark_alist(0))
+
             if (over) then
                 call clear_alist()
+
                 do k = 1, size(blist)
                     call append_record(blist(k))
                 end do
+
                 bookmark_alist_modification_count = 0
             else
                 call bookmark_import_new_list(blist)
                 bookmark_alist_modification_count = bookmark_alist_modification_count + 1
             end if
+
             if (allocated(bookmark_bookmarks_timestamp%file)) then
                 current_default = bookmark_bookmarks_timestamp%file
             else
                 current_default = expand(bookmark_default_file)
             end if
+
             if (make .or. same(f, current_default)) call set_timestamp(f)
             call bookmark_bmenu_surreptitiously_rebuild_list()
+
             if (allocated(buffer_file_coding_system%value)) then
                 bookmark_file_coding_system = buffer_file_coding_system%value
             end if
+
             call kill_buffer(buf, st)
         end if
+
         ! (On an error the file's buffer stays, as upstream.)
         call set_buffer(old, st)
         if (.not. status%ok()) return
@@ -2547,11 +2809,13 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: default, file
         logical :: prefix
+
         if (allocated(bookmark_bookmarks_timestamp%file)) then
             default = abbreviate_file_name(bookmark_bookmarks_timestamp%file)
         else
             default = abbreviate_file_name(expand(bookmark_default_file))
         end if
+
         prefix = .not. nilp(current_prefix_arg)
         call read_file_name("Load bookmarks from: ("//default//") ", file, status, dir=file_name_directory(default), &
                             default_filename=default, mustmatch=REQUIRE_MATCH_CONFIRM)
@@ -2569,6 +2833,7 @@ contains
         type(handle_type) :: old_buf, buf, saved
         integer(int64) :: saved_point
         type(status_type) :: st
+
         status = status_type()
         annotation = bookmark_get_annotation(bookmark_name)
         if (len(annotation) == 0) return
@@ -2603,6 +2868,7 @@ contains
         character(len=:), allocatable :: name, ann
         integer(int64) :: shortage
         integer :: k
+
         old_window = selected_window()
         old_buffer = current_buffer()
         call get_buffer_create("*Bookmark Annotation*", buf, status)
@@ -2613,11 +2879,13 @@ contains
         buffers(cur)%read_only = .false.
         call erase_buffer(st)
         sorted = bookmark_maybe_sort_alist()
+
         do k = 1, size(sorted)
             name = bookmark_name_from_full_record(sorted(k))
             ann = ""
             if (allocated(sorted(k)%annotation)) ann = sorted(k)%annotation
             call insert(name//":"//achar(10), st)
+
             if (len(ann) > 0) then
                 ! insert the annotation, indented by 4 spaces.
                 block
@@ -2627,6 +2895,7 @@ contains
                     if (.not. bolp()) call insert(achar(10), st)
                     call goto_char(here)
                 end block
+
                 do while (point() < point_max())
                     ! paranoia
                     call beginning_of_line()
@@ -2636,6 +2905,7 @@ contains
                 end do
             end if
         end do
+
         call goto_char(point_min())
         call restore_buffer_modified_p(.false.)
         buffers(cur)%read_only = .true.
@@ -2647,7 +2917,6 @@ contains
     ! ------------------------------------------------------------------
     ! The bookmark list
     ! ------------------------------------------------------------------
-
     !> Rebuild the Bookmark List if it exists.
     !> Don't affect the buffer ring order.  Port of
     !> bookmark.el:bookmark-bmenu-surreptitiously-rebuild-list.
@@ -2656,6 +2925,7 @@ contains
         type(handle_type) :: old
         type(status_type) :: st
         integer(int64) :: pt
+
         if (.not. buffer_live_p(get_buffer(bookmark_bmenu_buffer))) return
         old = current_buffer()
         pt = point()
@@ -2673,11 +2943,13 @@ contains
         type(bookmark_type), allocatable :: sorted(:)
         type(tabulated_list_entry_type), allocatable :: entries(:)
         integer :: k, n, ncols
+
         sorted = bookmark_maybe_sort_alist()
         n = size(sorted)
         ncols = 3
         if (bookmark_bmenu_toggle_filenames) ncols = 4
         allocate (entries(n))
+
         ! (Pushed onto a list upstream: the last record first.)
         do k = 1, n
             associate (e => entries(n - k + 1), r => sorted(k))
@@ -2685,9 +2957,11 @@ contains
                 allocate (e%cols(ncols))
                 e%cols(1)%face = ""
                 e%cols(1)%text = ""
+
                 if (allocated(r%annotation)) then
                     if (len(r%annotation) > 0) e%cols(1)%text = "*"
                 end if
+
                 e%cols(2)%text = bookmark_name_from_full_record(r)
                 e%cols(2)%face = ""
                 ! (display-mouse-p: a window system.)
@@ -2695,12 +2969,14 @@ contains
                 ! (No handlers: no types.)
                 e%cols(3)%text = ""
                 e%cols(3)%face = ""
+
                 if (bookmark_bmenu_toggle_filenames) then
                     e%cols(4)%text = bookmark_location(e%id)
                     e%cols(4)%face = ""
                 end if
             end associate
         end do
+
         ! The value of `bookmark_sort_flag' might have changed since the
         ! last time the buffer contents were generated, so re-check it.
         if (bookmark_sort_flag == BOOKMARK_SORT_FLAG_T) then
@@ -2714,6 +2990,7 @@ contains
             ! at the bottom.
             call set_tabulated_list_entries(entries(n:1:-1))
         end if
+
         ! Generate the header only after `tabulated_list_sort_key' is
         ! settled, because if that's true then the sort-direction indicator
         ! will be shown in the named column, but if it's nil then the
@@ -2725,12 +3002,14 @@ contains
     recursive subroutine bmenu_revert_function(ignore_auto, noconfirm, status)
         logical, intent(in) :: ignore_auto, noconfirm
         type(status_type), intent(out) :: status
+
         if (ignore_auto .and. noconfirm) continue
         call bookmark_bmenu_revert(status)
     end subroutine bmenu_revert_function
 
     recursive subroutine bmenu_revert_hook(status)
         type(status_type), intent(out) :: status
+
         call bookmark_bmenu_revert(status)
     end subroutine bmenu_revert_hook
 
@@ -2743,6 +3022,7 @@ contains
         type(handle_type) :: old
         type(status_type) :: st
         integer(int64) :: pt
+
         buf = get_buffer(bookmark_bmenu_buffer)
         if (buf%index /= 0) return
         old = current_buffer()
@@ -2765,17 +3045,20 @@ contains
         logical, intent(in), optional :: called_interactively
         type(handle_type) :: buf
         logical :: interactive
+
         call bookmark_maybe_load_default_file(status)
         if (.not. status%ok()) return
         call get_buffer_create(bookmark_bmenu_buffer, buf, status)
         if (.not. status%ok()) return
         interactive = .false.
         if (present(called_interactively)) interactive = called_interactively
+
         if (interactive) then
             call switch_to_buffer(buffers(buf%index)%name, status)
         else
             call set_buffer(buf, status)
         end if
+
         if (.not. status%ok()) return
         call bookmark_bmenu_mode(status)
         if (.not. status%ok()) return
@@ -2784,6 +3067,7 @@ contains
 
     recursive subroutine cmd_bookmark_bmenu_list(status)
         type(status_type), intent(out) :: status
+
         call bookmark_bmenu_list(status, called_interactively=.true.)
     end subroutine cmd_bookmark_bmenu_list
 
@@ -2845,15 +3129,18 @@ contains
         type(status_type), intent(out) :: status
         type(tabulated_list_column_type), allocatable :: format(:)
         logical :: saved
+
         call major_modes%bookmark_bmenu_mode%begin(saved, status)
         if (.not. status%ok()) return
         ! (truncate-lines: not ported.)
         buffers(cur)%read_only = .true.
+
         if (bookmark_bmenu_toggle_filenames) then
             allocate (format(4))
         else
             allocate (format(3))
         end if
+
         ! Space to add "*" for bookmark with annotation
         format(1)%name = ""
         format(1)%width = 1
@@ -2865,12 +3152,14 @@ contains
         format(3)%width = bookmark_bmenu_type_column_width
         format(3)%sort = .true.
         format(3)%predicate => bookmark_bmenu_type_predicate
+
         if (bookmark_bmenu_toggle_filenames) then
             format(4)%name = "File"
             format(4)%width = 0
             format(4)%sort = .true.
             format(4)%predicate => bookmark_bmenu_file_predicate
         end if
+
         call set_tabulated_list_format(format)
         call set_tabulated_list_padding(BOOKMARK_BMENU_MARKS_WIDTH)
         if (bookmark_sort_flag == BOOKMARK_SORT_FLAG_T) call set_tabulated_list_sort_key("Bookmark Name")
@@ -2885,6 +3174,7 @@ contains
     logical function collate_lessp(a, b)
         use fns_fm, only: compare_strings
         character(len=*), intent(in) :: a, b
+
         collate_lessp = compare_strings(a, b, ignore_case=.true.) < 0
     end function collate_lessp
 
@@ -2893,6 +3183,7 @@ contains
     !> Port of bookmark.el:bookmark-bmenu--name-predicate.
     logical function bookmark_bmenu_name_predicate(a, b)
         type(tabulated_list_entry_type), intent(in) :: a, b
+
         bookmark_bmenu_name_predicate = collate_lessp(a%id, b%id)
     end function bookmark_bmenu_name_predicate
 
@@ -2901,6 +3192,7 @@ contains
     !> Port of bookmark.el:bookmark-bmenu--type-predicate.
     logical function bookmark_bmenu_type_predicate(a, b)
         type(tabulated_list_entry_type), intent(in) :: a, b
+
         bookmark_bmenu_type_predicate = collate_lessp(a%cols(3)%text, b%cols(3)%text)
     end function bookmark_bmenu_type_predicate
 
@@ -2909,6 +3201,7 @@ contains
     !> Port of bookmark.el:bookmark-bmenu--file-predicate.
     logical function bookmark_bmenu_file_predicate(a, b)
         type(tabulated_list_entry_type), intent(in) :: a, b
+
         bookmark_bmenu_file_predicate = collate_lessp(bookmark_location(a%id), bookmark_location(b%id))
     end function bookmark_bmenu_file_predicate
 
@@ -2919,19 +3212,23 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: show
         logical :: s
+
         status = status_type()
         s = .false.
         if (present(show)) s = show
+
         if (s) then
             bookmark_bmenu_toggle_filenames = .true.
         else
             bookmark_bmenu_toggle_filenames = .not. bookmark_bmenu_toggle_filenames
         end if
+
         call bookmark_bmenu_surreptitiously_rebuild_list()
     end subroutine bookmark_bmenu_toggle_filenames_command
 
     recursive subroutine cmd_bookmark_bmenu_toggle_filenames(status)
         type(status_type), intent(out) :: status
+
         call bookmark_bmenu_toggle_filenames_command(status)
     end subroutine cmd_bookmark_bmenu_toggle_filenames
 
@@ -2961,6 +3258,7 @@ contains
     !> buffer ("" for none).  Port of bookmark.el:bookmark-bmenu-bookmark.
     function bookmark_bmenu_bookmark() result(name)
         character(len=:), allocatable :: name
+
         call bookmark_bmenu_ensure_position()
         name = tabulated_list_get_id()
     end function bookmark_bmenu_bookmark
@@ -2970,6 +3268,7 @@ contains
     !> bookmark.el:bookmark-bmenu-mark.
     recursive subroutine bookmark_bmenu_mark(status)
         type(status_type), intent(out) :: status
+
         call bookmark_bmenu_ensure_position()
         call tabulated_list_put_tag(">", status, .true.)
     end subroutine bookmark_bmenu_mark
@@ -2979,14 +3278,17 @@ contains
         character(len=*), intent(in) :: tag
         type(status_type), intent(out) :: status
         integer(int64) :: saved
+
         saved = point()
         call goto_char(point_min())
         call bookmark_bmenu_ensure_position()
         status = status_type()
+
         do while (.not. eobp())
             call tabulated_list_put_tag(tag, status, .true.)
             if (.not. status%ok()) exit
         end do
+
         call goto_char(saved)
     end subroutine tag_all
 
@@ -2995,6 +3297,7 @@ contains
     !> bookmark.el:bookmark-bmenu-mark-all.
     recursive subroutine bookmark_bmenu_mark_all(status)
         type(status_type), intent(out) :: status
+
         call tag_all(">", status)
     end subroutine bookmark_bmenu_mark_all
 
@@ -3014,10 +3317,12 @@ contains
         integer(int64) :: found
         integer :: tem_size, k
         logical :: ro, dup
+
         bmrk = bookmark_bmenu_bookmark()
         menu = current_buffer()
         allocate (others(0))
         call goto_char(point_min())
+
         do
             call re_search_forward("^>", found, status, noerror=1)
             if (.not. status%ok()) return
@@ -3030,17 +3335,21 @@ contains
             buffers(cur)%read_only = ro
             if (.not. status%ok()) return
             dup = same(tem, bmrk)
+
             do k = 1, size(others)
                 if (same(others(k)%s, tem)) dup = .true.
             end do
+
             if (.not. dup) call append_name(others, tem)
         end do
+
         tem_size = (frame_lines(selected_frame) - 1)/(1 + size(others))
         call delete_other_windows(selected_window(), status)
         if (.not. status%ok()) return
         call bookmark_jump(bmrk, status)
         if (.not. status%ok()) return
         call bury_buffer(status, menu)
+
         if (size(others) > 0) then
             do k = 1, size(others)
                 call split_window(selected_window(), tem_size, .true., .false., new, status)
@@ -3060,11 +3369,14 @@ contains
         character(len=*), intent(in) :: name
         type(minibuffer_string_type), allocatable :: grown(:)
         integer :: k, n
+
         n = size(names)
         allocate (grown(n + 1))
+
         do k = 1, n
             call move_alloc(names(k)%s, grown(k)%s)
         end do
+
         grown(n + 1)%s = name
         call move_alloc(grown, names)
     end subroutine append_name
@@ -3075,18 +3387,23 @@ contains
         use search_fm, only: looking_at
         integer(int64) :: saved, shortage
         type(status_type) :: st
+
         saved = point()
         call goto_char(point_min())
         call bookmark_bmenu_ensure_position()
         any = .false.
+
         do while (.not. eobp())
             call beginning_of_line()
+
             if (looking_at("^\S-", st)) then
                 any = .true.
                 exit
             end if
+
             shortage = forward_line(1_int64)
         end do
+
         call goto_char(saved)
     end function bookmark_bmenu_any_marks
 
@@ -3101,6 +3418,7 @@ contains
         type(handle_type) :: old
         type(status_type) :: st
         integer(int64) :: pt
+
         old = current_buffer()
         pt = point()
         call current_window_configuration(config)
@@ -3131,6 +3449,7 @@ contains
         type(handle_type) :: old
         type(status_type) :: st
         integer(int64) :: pt
+
         call bookmark_bmenu_ensure_position()
         old = current_buffer()
         pt = point()
@@ -3147,6 +3466,7 @@ contains
     recursive subroutine bookmark_bmenu_1_window(status)
         use window_fm, only: delete_other_windows, bury_buffer, other_buffer
         type(status_type), intent(out) :: status
+
         call bookmark_jump(bookmark_bmenu_bookmark(), status)
         if (.not. status%ok()) return
         call bury_buffer(status, other_buffer(current_buffer()))
@@ -3161,6 +3481,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: menu, other
         character(len=:), allocatable :: bmrk
+
         bmrk = bookmark_bmenu_bookmark()
         menu = current_buffer()
         call delete_other_windows(selected_window(), status)
@@ -3177,6 +3498,7 @@ contains
     recursive subroutine display_pop_to_buffer(buffer, status)
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
+
         call pop_to_buffer(buffer, status)
     end subroutine display_pop_to_buffer
 
@@ -3184,6 +3506,7 @@ contains
     !> bookmark.el:bookmark-bmenu-this-window.
     recursive subroutine bookmark_bmenu_this_window(status)
         type(status_type), intent(out) :: status
+
         call bookmark_jump(bookmark_bmenu_bookmark(), status)
     end subroutine bookmark_bmenu_this_window
 
@@ -3191,6 +3514,7 @@ contains
     !> visible.  Port of bookmark.el:bookmark-bmenu-other-window.
     recursive subroutine bookmark_bmenu_other_window(status)
         type(status_type), intent(out) :: status
+
         call bookmark_jump_via(bookmark_bmenu_bookmark(), display_other_window, status)
     end subroutine bookmark_bmenu_other_window
 
@@ -3199,6 +3523,7 @@ contains
     !> bookmark.el:bookmark-bmenu-switch-other-window.
     recursive subroutine bookmark_bmenu_switch_other_window(status)
         type(status_type), intent(out) :: status
+
         call bookmark_jump_via(bookmark_bmenu_bookmark(), display_not_this_window, status)
     end subroutine bookmark_bmenu_switch_other_window
 
@@ -3208,6 +3533,7 @@ contains
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         type(handle_type) :: window
+
         call display_buffer(buffer, window, status, alist=display_alist_type(inhibit_same_window=.true.))
     end subroutine display_not_this_window
 
@@ -3215,6 +3541,7 @@ contains
     !> Port of bookmark.el:bookmark-bmenu-show-annotation.
     recursive subroutine bookmark_bmenu_show_annotation(status)
         type(status_type), intent(out) :: status
+
         call bookmark_show_annotation(bookmark_bmenu_bookmark(), status)
     end subroutine bookmark_bmenu_show_annotation
 
@@ -3222,6 +3549,7 @@ contains
     !> bookmark.el:bookmark-bmenu-show-all-annotations.
     recursive subroutine bookmark_bmenu_show_all_annotations(status)
         type(status_type), intent(out) :: status
+
         call bookmark_show_all_annotations(status)
     end subroutine bookmark_bmenu_show_all_annotations
 
@@ -3229,6 +3557,7 @@ contains
     !> Port of bookmark.el:bookmark-bmenu-edit-annotation.
     recursive subroutine bookmark_bmenu_edit_annotation(status)
         type(status_type), intent(out) :: status
+
         call bookmark_edit_annotation(bookmark_bmenu_bookmark(), status, .true.)
     end subroutine bookmark_bmenu_edit_annotation
 
@@ -3240,6 +3569,7 @@ contains
         logical, intent(in), optional :: backup
         integer(int64) :: shortage
         logical :: up
+
         up = .false.
         if (present(backup)) up = backup
         ! any flags to reset according to circumstances?  How about a flag
@@ -3247,6 +3577,7 @@ contains
         ! have this now, so maybe later.
         call bookmark_bmenu_ensure_position()
         call tabulated_list_put_tag(" ", status)
+
         if (up) then
             shortage = forward_line(-1_int64)
         else
@@ -3256,6 +3587,7 @@ contains
 
     recursive subroutine cmd_bookmark_bmenu_unmark(status)
         type(status_type), intent(out) :: status
+
         call bookmark_bmenu_unmark(status,.not. nilp(current_prefix_arg))
     end subroutine cmd_bookmark_bmenu_unmark
 
@@ -3264,6 +3596,7 @@ contains
     recursive subroutine bookmark_bmenu_backup_unmark(status)
         type(status_type), intent(out) :: status
         integer(int64) :: shortage
+
         shortage = forward_line(-1_int64)
         call bookmark_bmenu_ensure_position()
         call bookmark_bmenu_unmark(status)
@@ -3275,6 +3608,7 @@ contains
     !> bookmark.el:bookmark-bmenu-unmark-all.
     recursive subroutine bookmark_bmenu_unmark_all(status)
         type(status_type), intent(out) :: status
+
         call tag_all(" ", status)
     end subroutine bookmark_bmenu_unmark_all
 
@@ -3284,6 +3618,7 @@ contains
     !> Port of bookmark.el:bookmark-bmenu-delete.
     recursive subroutine bookmark_bmenu_delete(status)
         type(status_type), intent(out) :: status
+
         call bookmark_bmenu_ensure_position()
         call tabulated_list_put_tag("D", status, .true.)
     end subroutine bookmark_bmenu_delete
@@ -3295,6 +3630,7 @@ contains
     recursive subroutine bookmark_bmenu_delete_backwards(status)
         type(status_type), intent(out) :: status
         integer(int64) :: shortage
+
         call bookmark_bmenu_delete(status)
         shortage = forward_line(-2_int64)
     end subroutine bookmark_bmenu_delete_backwards
@@ -3307,6 +3643,7 @@ contains
     !> Port of bookmark.el:bookmark-bmenu-delete-all.
     recursive subroutine bookmark_bmenu_delete_all(status)
         type(status_type), intent(out) :: status
+
         call tag_all("D", status)
     end subroutine bookmark_bmenu_delete_all
 
@@ -3321,27 +3658,34 @@ contains
         character(len=:), allocatable :: o_str
         integer(int64) :: o_point, o_col, found, here
         logical :: ok, have_str
+
         status = status_type()
+
         if (bookmark_menu_confirm_deletion) then
             call yes_or_no_p("Delete selected bookmarks? ", ok, status)
             if (.not. status%ok()) return
+
             if (.not. ok) then
                 call message("Bookmarks not deleted.")
                 return
             end if
         end if
+
         call make_progress_reporter(reporter, "Deleting bookmarks...")
         o_point = point()
         here = pos_bol()
         have_str = .false.
+
         if (here < point_max()) then
             if (char_at(here) /= iachar("D")) have_str = .true.
         else
             have_str = .true.
         end if
+
         if (have_str) call buffer_substring(here, pos_eol(), o_str, status)
         o_col = current_column()
         call goto_char(point_min())
+
         do
             call re_search_forward("^D", found, status, bound=point_max(), noerror=1)
             if (.not. status%ok()) return
@@ -3350,8 +3694,10 @@ contains
             call bookmark_delete(bookmark_bmenu_bookmark(), status, batch=.true.)
             if (.not. status%ok()) return
         end do
+
         call bookmark_bmenu_list(status)
         if (.not. status%ok()) return
+
         if (have_str) then
             call goto_char(point_min())
             call search_forward(o_str, found, status)
@@ -3361,14 +3707,18 @@ contains
         else
             call goto_char(o_point)
         end if
+
         call beginning_of_line()
         call progress_reporter_done(reporter)
+
     contains
+
         integer function char_at(pos)
             use editfns_fm, only: char_after
             integer(int64), intent(in) :: pos
             integer(int32) :: c
             logical :: found
+
             call char_after(c, found, pos)
             char_at = -1
             if (found) char_at = c
@@ -3381,6 +3731,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: thispoint
         character(len=:), allocatable :: bmrk
+
         bmrk = bookmark_bmenu_bookmark()
         thispoint = point()
         call bookmark_rename(bmrk, status)
@@ -3391,6 +3742,7 @@ contains
     !> bookmark.el:bookmark-bmenu-locate.
     recursive subroutine bookmark_bmenu_locate(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call message(bookmark_location(bookmark_bmenu_bookmark()))
     end subroutine bookmark_bmenu_locate
@@ -3402,6 +3754,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: thispoint
         character(len=:), allocatable :: bmrk
+
         bmrk = bookmark_bmenu_bookmark()
         thispoint = point()
         call bookmark_relocate(bmrk, status)
@@ -3417,11 +3770,14 @@ contains
         type(bookmark_type), allocatable :: saved(:)
         type(status_type) :: st
         integer :: k
+
         call move_alloc(bookmark_alist, saved)
         allocate (bookmark_alist(0))
+
         do k = 1, size(saved)
             if (string_match(regexp, bookmark_name_from_full_record(saved(k)), st) > 0) call append_record(saved(k))
         end do
+
         call bookmark_bmenu_list(status)
         call move_alloc(saved, bookmark_alist)
     end subroutine bookmark_bmenu_filter_alist_by_regexp
@@ -3434,15 +3790,18 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: bmk, pattern
         type(status_type) :: st
+
         bmk = bookmark_bmenu_bookmark()
         search_timer = handle_type()
         call minibuffer_setup_hook%add(bmenu_search_setup)
         call read_string("Pattern: ", pattern, status)
         call minibuffer_setup_hook%remove(bmenu_search_setup)
+
         if (status%ok()) then
             if (timerp(search_timer)) call free_timer(search_timer)
             search_timer = handle_type()
         end if
+
         if (timerp(search_timer)) then
             ! Signaled an error or a `quit'.
             call free_timer(search_timer)
@@ -3459,6 +3818,7 @@ contains
         use minibuf_fm, only: minibuffer_setup_hook
         use timer_fm, only: run_with_idle_timer
         type(status_type), intent(out) :: status
+
         ! (minibuffer-with-setup-hook: once.)
         call minibuffer_setup_hook%remove(bmenu_search_setup)
         search_minibuffer = current_buffer()
@@ -3470,6 +3830,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: old
         type(status_type) :: st
+
         old = current_buffer()
         call set_buffer(search_minibuffer, status)
         if (.not. status%ok()) return
@@ -3482,21 +3843,24 @@ contains
     subroutine bookmark_bmenu_goto_bookmark(name)
         character(len=*), intent(in) :: name
         integer(int64) :: shortage
+
         call goto_char(point_min())
+
         do while (.not. (same(name, bookmark_bmenu_bookmark()) .or. eobp()))
             shortage = forward_line(1_int64)
         end do
+
         shortage = forward_line(0_int64)
     end subroutine bookmark_bmenu_goto_bookmark
 
     ! ------------------------------------------------------------------
     ! Fringe mark
     ! ------------------------------------------------------------------
-
     ! Whether overlay OV is a bookmark's mark.
     logical function is_bookmark_overlay(ov)
         use data_fm, only: value_eq
         type(handle_type), intent(in) :: ov
+
         is_bookmark_overlay = value_eq(overlay_get(ov, "category"), sym("bookmark"))
     end function is_bookmark_overlay
 
@@ -3508,6 +3872,7 @@ contains
         type(handle_type) :: bm
         type(status_type) :: st
         type(value_type) :: spec(3), props(2)
+
         call make_overlay(bm, pos_bol(), pos_bol() + 1, st)
         if (.not. st%ok()) return
         call overlay_put(bm, "category", sym("bookmark"), st)
@@ -3533,10 +3898,12 @@ contains
         integer(int64) :: saved_point, saved_begv, saved_zv
         integer :: b, k
         logical :: found
+
         if (bm%position == 0 .or. .not. allocated(bm%filename)) return
         found = .false.
         list = buffer_list()
         old = current_buffer()
+
         do b = 1, size(list)
             if (found) exit
             call set_buffer(list(b), st)
@@ -3560,6 +3927,7 @@ contains
             call overlays_in(pos_bol(), pos_bol() + 1, overlays)
             call restore_restriction(saved_begv, saved_zv)
             call goto_char(saved_point)
+
             do k = 1, size(overlays)
                 if (is_bookmark_overlay(overlays(k))) then
                     call free_overlay(overlays(k))
@@ -3568,6 +3936,7 @@ contains
                 end if
             end do
         end do
+
         call set_buffer(old, st)
     end subroutine bookmark_remove_fringe_mark
 
@@ -3576,18 +3945,19 @@ contains
         use editfns_fm, only: narrow_to_region
         integer(int64), intent(in) :: begv, zv
         type(status_type) :: st
+
         call narrow_to_region(begv, zv, st)
     end subroutine restore_restriction
 
     ! ------------------------------------------------------------------
     ! Exit hook
     ! ------------------------------------------------------------------
-
     !> Save bookmark state, if necessary, at Fortmacs exit time.
     !> This also runs `bookmark_exit_hook'.  Port of
     !> bookmark.el:bookmark-exit-hook-internal.
     recursive subroutine bookmark_exit_hook_internal(status)
         type(status_type), intent(out) :: status
+
         call bookmark_exit_hook%run(status)
         if (.not. status%ok()) return
         if (bookmark_time_to_save_p(.true.)) call bookmark_save(status)
@@ -3596,21 +3966,21 @@ contains
     ! ------------------------------------------------------------------
     ! Commands without arguments
     ! ------------------------------------------------------------------
-
     recursive subroutine cmd_bookmark_write(status)
         type(status_type), intent(out) :: status
+
         call bookmark_write(status)
     end subroutine cmd_bookmark_write
 
     ! ------------------------------------------------------------------
     ! Definitions
     ! ------------------------------------------------------------------
-
     !> The faces of bookmark.el.
     subroutine define_faces()
         type(named_face_type), pointer :: f
         integer, parameter :: C = FACE_CLASS_COLOR, G = FACE_CLASS_GRAYSCALE, L = FACE_BACKGROUND_LIGHT, &
                               D = FACE_BACKGROUND_DARK
+
         f => bookmark_face
         call f%define("bookmark_face", "Face used to highlight current line.")
         call f%spec_entry(display_when(classes=[G], backgrounds=[L]), face_attrs(foreground="DimGray"))
@@ -3624,14 +3994,17 @@ contains
     !> Define the commands, keymaps, the mode and the options' defaults.
     subroutine syms_of_bookmark()
         type(status_type) :: st
+
         if (.not. allocated(bookmark_default_file)) bookmark_default_file = state_directory()//"bookmarks"
         if (.not. allocated(bookmark_fringe_mark)) bookmark_fringe_mark = "bookmark_mark"
         if (.not. allocated(bookmark_alist)) allocate (bookmark_alist(0))
         if (.not. allocated(bookmark_inhibit_context_functions)) allocate (bookmark_inhibit_context_functions(0))
         if (.not. associated(bookmark_make_record_function)) bookmark_make_record_function => make_record_default
+
         if (.not. associated(bookmark_edit_annotation_text_func)) then
             bookmark_edit_annotation_text_func => default_annotation_text
         end if
+
         call defvar_nil("bookmark_history")
         call add_local_variables_killer(kill_bookmark_locals)
         call define_faces()

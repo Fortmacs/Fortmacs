@@ -413,13 +413,13 @@ contains
     ! ------------------------------------------------------------------
     ! Helpers
     ! ------------------------------------------------------------------
-
     !> Append S to LIST.
     subroutine push(list, s)
         type(vc_string_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
         type(vc_string_type), allocatable :: grown(:)
         integer :: n
+
         if (.not. allocated(list)) allocate (list(0))
         n = size(list)
         allocate (grown(n + 1))
@@ -432,6 +432,7 @@ contains
     subroutine one(list, s)
         type(vc_string_type), allocatable, intent(out) :: list(:)
         character(len=*), intent(in) :: s
+
         allocate (list(1))
         list(1)%s = s
     end subroutine one
@@ -441,7 +442,9 @@ contains
         character(len=*), intent(in) :: s
         type(vc_string_type), intent(in) :: list(:)
         integer :: k
+
         member = .false.
+
         do k = 1, size(list)
             if (list(k)%s == s .and. len(list(k)%s) == len(s)) then
                 member = .true.
@@ -456,6 +459,7 @@ contains
         character(len=*), intent(in), optional :: dir
         character(len=:), allocatable :: full
         type(status_type) :: st
+
         call expand_file_name(file, full, st, dir)
         if (.not. st%ok()) full = file
     end function expand
@@ -463,6 +467,7 @@ contains
     !> The current buffer's `default_directory'.
     function default_directory() result(dir)
         character(len=:), allocatable :: dir
+
         dir = "./"
         if (cur == 0) return
         if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
@@ -471,6 +476,7 @@ contains
     !> The current buffer's visited file ("" for none).
     function buffer_file_name() result(file)
         character(len=:), allocatable :: file
+
         file = ""
         if (cur == 0) return
         if (allocated(buffers(cur)%filename)) file = buffers(cur)%filename
@@ -479,6 +485,7 @@ contains
     !> Whether the current buffer is modified.
     logical function buffer_modified_p(h)
         type(handle_type), intent(in) :: h
+
         buffer_modified_p = .false.
         if (.not. buffer_live_p(h)) return
         buffer_modified_p = buffers(h%index)%text%save_modiff < buffers(h%index)%text%modiff
@@ -488,6 +495,7 @@ contains
     logical function derived_mode_p(mode)
         use derived_fm, only: provided_mode_derived_p
         character(len=*), intent(in) :: mode
+
         derived_mode_p = .false.
         if (cur == 0) return
         if (.not. allocated(buffers(cur)%major_mode)) return
@@ -499,6 +507,7 @@ contains
         integer, intent(in) :: n
         character(len=:), allocatable :: s
         character(len=16) :: buf
+
         write (buf, "(i0)") n
         s = trim(buf)
     end function itoa
@@ -509,12 +518,15 @@ contains
         logical, intent(in) :: create
         type(vc_locals_type), allocatable :: grown(:)
         integer :: n
+
         k = 0
         if (cur == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
+
         do k = 1, size(locals)
             if (locals(k)%serial == buffers(cur)%serial) return
         end do
+
         k = 0
         if (.not. create) return
         n = size(locals)
@@ -529,11 +541,14 @@ contains
     subroutine kill_vc_locals()
         logical, allocatable :: keep(:)
         integer :: k
+
         if (.not. allocated(locals) .or. cur == 0) return
         allocate (keep(size(locals)))
+
         do k = 1, size(locals)
             keep(k) = locals(k)%serial /= buffers(cur)%serial
         end do
+
         locals = pack(locals, keep)
     end subroutine kill_vc_locals
 
@@ -542,6 +557,7 @@ contains
     subroutine set_vc_buffer_overriding_fileset(fs)
         type(vc_fileset_type), intent(in), optional :: fs
         integer :: k
+
         k = local_index(.true.)
         locals(k)%has_override = present(fs)
         if (present(fs)) locals(k)%override = fs
@@ -553,25 +569,32 @@ contains
         logical, intent(in) :: create
         type(vc_log_buffer_type), allocatable :: grown(:)
         integer :: i, n
+
         k = 0
         if (cur == 0) return
         if (.not. allocated(log_buffers)) allocate (log_buffers(0))
+
         do k = 1, size(log_buffers)
             if (log_buffers(k)%serial == buffers(cur)%serial) return
         end do
+
         k = 0
         if (.not. create) return
+
         do k = 1, size(log_buffers)
             if (.not. buffer_serial_live(log_buffers(k)%serial)) then
                 log_buffers(k) = vc_log_buffer_type(serial=buffers(cur)%serial)
                 return
             end if
         end do
+
         n = size(log_buffers)
         allocate (grown(n + 1))
+
         do i = 1, n
             grown(i) = log_buffers(i)
         end do
+
         grown(n + 1)%serial = buffers(cur)%serial
         call move_alloc(grown, log_buffers)
         k = n + 1
@@ -581,6 +604,7 @@ contains
     !> set): the type of VC log shown in it.
     integer function vc_log_view_type()
         integer :: k
+
         vc_log_view_type = VC_LOG_VIEW_NIL
         k = log_buffer_index(.false.)
         if (k > 0) vc_log_view_type = log_buffers(k)%view_type
@@ -589,6 +613,7 @@ contains
     !> The current buffer's `vc--shortlog': whether this is a shortlog.
     logical function vc_shortlog()
         integer :: k
+
         vc_shortlog = .false.
         k = log_buffer_index(.false.)
         if (k > 0) vc_shortlog = log_buffers(k)%shortlog
@@ -600,6 +625,7 @@ contains
     recursive subroutine vc_shrink_buffer_window(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: window
+
         status = status_type()
         window = get_buffer_window(current_buffer())
         if (window%index /= 0) call shrink_window_if_larger_than_buffer(window)
@@ -611,6 +637,7 @@ contains
     function vc_buffer_revision() result(rev)
         character(len=:), allocatable :: rev
         integer :: k
+
         rev = ""
         k = local_index(.false.)
         if (k == 0) return
@@ -620,7 +647,6 @@ contains
     ! ------------------------------------------------------------------
     ! Switches
     ! ------------------------------------------------------------------
-
     !> Return a list of vc-BACKEND switches for operation OP.
     !> B is the backend.  OP is an operation such as "diff".
     !>
@@ -638,11 +664,14 @@ contains
         character(len=*), intent(in) :: op
         type(vc_string_type), allocatable, intent(out) :: switches(:)
         type(vc_switches_type) :: sw
+
         allocate (switches(0))
         sw = vc_switches_type()
+
         if (b > 0 .and. op == "diff") then
             if (associated(vc_backends(b)%diff_switches)) sw = vc_backends(b)%diff_switches
         end if
+
         if (sw%kind == VC_SWITCHES_NIL) then
             select case (op)
             case ("diff")
@@ -659,10 +688,12 @@ contains
                 ! Not an operation with switches options.
             end select
         end if
+
         if (sw%kind == VC_SWITCHES_NIL .and. op == "diff") then
             if (allocated(diff_switches)) call one(switches, diff_switches)
             return
         end if
+
         if (sw%kind == VC_SWITCHES_LIST) then
             if (allocated(sw%list)) switches = sw%list
         end if
@@ -671,7 +702,6 @@ contains
     ! ------------------------------------------------------------------
     ! Deducing the fileset and backend
     ! ------------------------------------------------------------------
-
     !> Return the root directory for the current VC tree (FOUND false if
     !> the root directory cannot be identified).
     !> B is the VC backend.  Port of vc.el:vc-root-dir.
@@ -681,6 +711,7 @@ contains
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: backend
         integer :: b
+
         root = ""
         found = .false.
         status = status_type()
@@ -705,44 +736,54 @@ contains
         character(len=:), allocatable :: dir, answer, def_dir, repo_dir, saved
         logical :: found
         integer :: k, b, maxlen, n
+
         status = status_type()
         bk = 0
         ! First try: find a responsible backend, it must be a backend
         ! under which FILE is not yet registered and with the most
         ! specific path to FILE.
         maxlen = 0
+
         do k = 1, size(vc_handled_backends)
             b = vc_backend_named(vc_handled_backends(k))
             if (b == 0) cycle
+
             if (associated(vc_backends(b)%registered)) then
                 if (vc_backends(b)%registered(file)) cycle
             end if
+
             call vc_call_responsible_p(b, file, dir, found)
             if (.not. found) cycle
             n = count_components(expand(dir))
+
             if (n > maxlen) then
                 maxlen = n
                 bk = b
             end if
         end do
+
         if (bk /= 0) return
         ! no responsible backend
         allocate (names(0))
+
         do k = size(vc_handled_backends), 1, -1
             b = vc_backend_named(vc_handled_backends(k))
             if (b == 0) cycle
             if (associated(vc_backends(b)%create_repo)) names = [names, make_string(vc_backends(b)%name)]
         end do
+
         ! Read the VC backend from the user, only complete with the
         ! backends that have the 'create-repo method.
         call completing_read(file//" is not in a version controlled directory."//achar(10)//"Use VC backend: ", &
                              completion_list_table(make_list(names)), answer, status, require_match=REQUIRE_MATCH_T)
         if (.not. status%ok()) return
         bk = vc_backend_named(answer)
+
         if (bk == 0) then
             call set_error(status, FM_GENERIC_ERROR, "Unknown backend "//answer)
             return
         end if
+
         ! read the directory where to create the repository, make sure
         ! it's a parent of file.
         def_dir = file_name_directory(file)
@@ -753,13 +794,16 @@ contains
         buffers(cur)%directory = file_name_as_directory(expand(repo_dir))
         call vc_backends(bk)%create_repo(status)
         buffers(cur)%directory = saved
+
     contains
 
         !> The length of (file-name-split NAME).
         integer function count_components(name) result(c)
             character(len=*), intent(in) :: name
             integer :: i
+
             c = 1
+
             do i = 1, len(name)
                 if (name(i:i) == "/") c = c + 1
             end do
@@ -786,6 +830,7 @@ contains
         character(len=:), allocatable :: full, dir, best
         logical :: found, quiet
         integer :: k, b
+
         status = status_type()
         bk = 0
         if (.not. file_directory_p(file)) bk = vc_backend(file)
@@ -794,6 +839,7 @@ contains
         ! Choose the most specific.
         full = expand(file)
         best = ""
+
         do k = 1, size(vc_handled_backends)
             b = vc_backend_named(vc_handled_backends(k))
             if (b == 0) cycle
@@ -803,11 +849,13 @@ contains
             ! directories, such as "~/", wouldn't look "less specific" due
             ! to their artificially shorter length.
             dir = expand(dir)
+
             if (bk == 0 .or. len(dir) > len(best)) then
                 bk = b
                 best = dir
             end if
         end do
+
         if (bk /= 0) return
         quiet = .false.
         if (present(no_error)) quiet = no_error
@@ -823,31 +871,39 @@ contains
         integer :: k
         logical :: nonvc
         logical :: handled
+
         b = 0
         k = local_index(.false.)
+
         if (k > 0) then
             if (locals(k)%has_override) then
                 b = locals(k)%override%backend
                 return
             end if
         end if
+
         call mode_backend(b, handled)
         if (handled) return
+
         if (derived_mode_p("diff_mode")) then
             b = vc_backend_named(diff_vc_backend())
             return
         end if
+
         nonvc = vc_deduce_backend_all_modes
+
         if (.not. nonvc .and. allocated(vc_deduce_backend_nonvc_modes)) then
             do k = 1, size(vc_deduce_backend_nonvc_modes)
                 if (derived_mode_p(trim(vc_deduce_backend_nonvc_modes(k)))) nonvc = .true.
             end do
         end if
+
         if (nonvc) then
             b = vc_responsible_backend(default_directory(), st)
             if (.not. st%ok()) b = 0
             return
         end if
+
         if (allocated(buffers(cur)%vc_mode)) b = vc_backend(buffer_file_name())
     end function vc_deduce_backend
 
@@ -892,6 +948,7 @@ contains
         character(len=:), allocatable :: file
         logical :: nsc, au, smo, ok, handled
         integer :: k, b
+
         status = status_type()
         nsc = .false.
         au = .false.
@@ -900,72 +957,90 @@ contains
         if (present(allow_unregistered)) au = allow_unregistered
         if (present(state_model_only_files)) smo = state_model_only_files
         k = local_index(.false.)
+
         if (k > 0) then
             if (locals(k)%has_override .and. .not. smo) then
                 fs = locals(k)%override
                 return
             end if
         end if
+
         call vc_dir_fileset(fs, status, smo, handled)
         if (handled) return
         file = buffer_file_name()
+
         if (derived_mode_p("dired_mode")) then
             call dired_vc_deduce_fileset(fs, status, smo, nsc)
             return
         end if
+
         if (derived_mode_p("diff_mode") .and. len(file) == 0) then
             call diff_vc_deduce_fileset(fs, status)
             return
         end if
+
         b = vc_backend(file)
+
         if (b /= 0) then
             fs%backend = b
             call one(fs%files, file)
+
             if (smo) then
                 call one(fs%only_files, file)
                 fs%state = vc_state(file)
                 fs%model = vc_checkout_model(b, fs%files)
                 fs%has_state = .true.
             end if
+
             return
         end if
+
         call log_view_fileset(fs, handled)
         if (handled) return
         parent = vc_parent_buffer()
+
         if (buffer_live_p(parent)) then
             ok = allocated(buffers(parent%index)%filename)
+
             if (.not. ok) then
                 call set_buffer(parent, st)
                 ok = derived_mode_p("vc_dir_mode") .or. derived_mode_p("dired_mode") .or. derived_mode_p("diff_mode")
             end if
+
             if (ok) then
                 call set_buffer(parent, st)
                 call vc_deduce_fileset(fs, status, not_state_changing, allow_unregistered, state_model_only_files)
                 return
             end if
         end if
+
         if (len(file) == 0) then
             b = vc_responsible_backend(default_directory(), st)
+
             if (st%ok() .and. b /= 0) then
                 fs%backend = b
                 call one(fs%files, default_directory())
                 return
             end if
         end if
+
         if (au .and. len(file) > 0) then
             if (.not. vc_registered(file)) then
                 fs%backend = vc_backend_for_registration(file, status)
                 if (.not. status%ok()) return
                 call one(fs%files, file)
+
                 if (smo) then
                     call one(fs%only_files, file)
                     fs%state = VC_UNREGISTERED
                     fs%model = VC_MODEL_NIL
                     fs%has_state = .true.
                 end if
+
                 return
             end if
         end if
+
         call set_error(status, FM_GENERIC_ERROR, "File is not under version control")
     end subroutine vc_deduce_fileset
 
@@ -981,17 +1056,22 @@ contains
         integer, allocatable :: states(:)
         type(status_type) :: st
         integer :: k
+
         call dired_get_marked_files(files, status, error="")
         if (.not. status%ok()) return
         allocate (names(size(files)))
+
         do k = 1, size(files)
             names(k)%s = files(k)%s
         end do
+
         fs%backend = vc_responsible_backend(default_directory(), st, no_error=.true.)
+
         if (fs%backend == 0 .and. size(names) > 0) then
             fs%backend = vc_backend_for_registration(names(1)%s, status)
             if (.not. status%ok()) return
         end if
+
         if (.not. not_state_changing) then
             do k = 1, size(names)
                 if (file_directory_p(names(k)%s)) then
@@ -1001,12 +1081,16 @@ contains
                 end if
             end do
         end if
+
         fs%files = names
+
         if (state_model_only_files) then
             allocate (states(size(names)))
+
             do k = 1, size(names)
                 states(k) = vc_state(names(k)%s)
             end do
+
             call vc_only_files_state_and_model(names, states, fs%backend, fs, status)
         end if
     end subroutine dired_vc_deduce_fileset
@@ -1020,6 +1104,7 @@ contains
         character(len=:), allocatable :: name
         integer(int64) :: saved
         logical :: found
+
         if (buffer_narrowed_p()) then
             ! If user used `diff-restrict-view' then we may not have the
             ! file header, and the commit will not succeed (bug#73387).
@@ -1027,11 +1112,13 @@ contains
                            "Cannot commit patch when narrowed; consider C-x n w C-c RET n C-x v v")
             return
         end if
+
         fs%backend = vc_responsible_backend(default_directory(), status)
         if (.not. status%ok()) return
         allocate (fs%files(0))
         saved = point()
         call goto_char(point_min())
+
         do
             call diff_file_next(status)
             if (.not. status%ok()) exit
@@ -1040,6 +1127,7 @@ contains
             if (.not. status%ok()) exit
             if (found) call push(fs%files, name)
         end do
+
         call goto_char(saved)
         if (.not. status%ok()) return
         fs%patch = .true.
@@ -1057,9 +1145,11 @@ contains
         character(len=:), allocatable :: file
         logical :: found
         logical :: handled
+
         status = status_type()
         call vc_dir_ensure_buffer(status, handled)
         if (.not. status%ok()) return
+
         if (handled) then
             continue
         else if (derived_mode_p("dired_mode")) then
@@ -1078,6 +1168,7 @@ contains
                 call set_buffer(parent, st)
             end do
         end if
+
         if (len(buffer_file_name()) == 0) then
             call set_error(status, FM_GENERIC_ERROR, "Buffer "//buffers(cur)%name//" is not associated with a file")
         else if (vc_backend(buffer_file_name()) == 0) then
@@ -1097,13 +1188,17 @@ contains
         integer, allocatable :: distinct(:)
         integer :: k, j, first, second, s
         logical :: yes, compat, compat2
+
         status = status_type()
         allocate (distinct(0))
+
         do k = 1, size(states)
             if (.not. any(distinct == states(k))) distinct = [distinct, states(k)]
         end do
+
         fs%only_files = files
         fs%has_state = .true.
+
         ! Check that all files are in a consistent state, since we use that
         ! state to decide which operation to perform.
         if (size(distinct) == 1) then
@@ -1119,22 +1214,27 @@ contains
             ! entering the log message, we leave things as we found them.
             call y_or_n_p("Some files are unregistered; register them before checking in?", yes, status)
             if (.not. status%ok()) return
+
             if (.not. yes) then
                 call clash()
                 return
             end if
+
             s = VC_EDITED
         else
             call clash()
             return
         end if
+
         fs%state = s
         fs%model = VC_MODEL_NIL
         if (s /= VC_STATE_NIL .and. s /= VC_UNREGISTERED) fs%model = vc_checkout_model(b, files)
+
     contains
 
         logical function compatible(state)
             integer, intent(in) :: state
+
             compatible = state == VC_ADDED .or. state == VC_MISSING .or. state == VC_REMOVED .or. state == VC_EDITED
         end function compatible
 
@@ -1142,27 +1242,33 @@ contains
         subroutine clash()
             use files_fm, only: abbreviate_file_name
             integer :: a, c
+
             ! The first state of the compatible ones (or of the others),
             ! and the first other one.
             first = 0
             second = 0
             compat = .false.
+
             do k = 1, size(distinct)
                 if (compatible(distinct(k))) then
                     compat = .true.
                     exit
                 end if
             end do
+
             do k = 1, size(distinct)
                 compat2 = compatible(distinct(k))
+
                 if (compat .eqv. compat2) then
                     if (first == 0) first = distinct(k)
                 else if (second == 0) then
                     second = distinct(k)
                 end if
             end do
+
             if (.not. compat) then
                 second = 0
+
                 do k = 1, size(distinct)
                     if (distinct(k) /= first) then
                         second = distinct(k)
@@ -1170,20 +1276,24 @@ contains
                     end if
                 end do
             end if
+
             a = 1
             c = 1
+
             do j = 1, size(states)
                 if (states(j) == first) then
                     a = j
                     exit
                 end if
             end do
+
             do j = 1, size(states)
                 if (states(j) == second) then
                     c = j
                     exit
                 end if
             end do
+
             call set_error(status, FM_GENERIC_ERROR, &
                            "To apply VC operations to multiple files, the files must be in similar VC states."// &
                            achar(10)//abbreviate_file_name(files(a)%s)//" in state `"//vc_state_name(first)// &
@@ -1202,11 +1312,14 @@ contains
         type(value_type) :: saved
         type(status_type) :: st
         integer :: k
+
         b = 0
         allocate (names(size(vc_handled_backends)))
+
         do k = 1, size(vc_handled_backends)
             names(k) = make_string(trim(vc_handled_backends(k)))
         end do
+
         call symbol_value(sym("completion_ignore_case"), saved, st)
         call set(sym("completion_ignore_case"), nil(), st)
         call completing_read(prompt, completion_list_table(make_list(names)), answer, status, &
@@ -1220,7 +1333,6 @@ contains
     ! ------------------------------------------------------------------
     ! C-x v v
     ! ------------------------------------------------------------------
-
     !> Do the next logical version control operation on the current fileset.
     !> This requires that all files in the current VC fileset be in the
     !> sufficiently similar states.  If they are not, signal an error.
@@ -1270,11 +1382,13 @@ contains
         type(vc_fileset_type) :: fs, reg
         character(len=:), allocatable :: revision
         integer :: state, model, b, k
+
         status = status_type()
         call vc_deduce_fileset(fs, status, .false., .true., .true.)
         if (.not. status%ok()) return
         state = fs%state
         model = fs%model
+
         ! If a buffer has unsaved changes, a checkout would discard those
         ! changes, so treat the buffer as having unlocked changes.
         if (model /= VC_MODEL_IMPLICIT .and. state == VC_UP_TO_DATE .and. .not. fs%patch) then
@@ -1282,6 +1396,7 @@ contains
                 if (buffer_modified_p(get_file_buffer(fs%files(k)%s))) state = VC_UNLOCKED_CHANGES
             end do
         end if
+
         ! Do the right thing.
         if (state == VC_IGNORED) then
             call set_error(status, FM_GENERIC_ERROR, "Fileset files are ignored by the version-control system")
@@ -1308,10 +1423,12 @@ contains
                 ! Go to a different revision.
                 call read_string("Branch, revision, or backend to move to: ", revision, status)
                 if (.not. status%ok()) return
+
                 if (is_backend_name(revision)) then
                     call set_error(status, FM_GENERIC_ERROR, "Transferring files between backends is not ported yet")
                     return
                 end if
+
                 do k = 1, size(fs%files)
                     call vc_checkout(fs%files(k)%s, status, revision)
                     if (.not. status%ok()) return
@@ -1338,6 +1455,7 @@ contains
         else
             call set_error(status, FM_GENERIC_ERROR, "Fileset is in an unknown state "//vc_state_name(state))
         end if
+
     contains
 
         subroutine checkin_deferred()
@@ -1352,25 +1470,30 @@ contains
             type(vc_string_type), allocatable :: register(:)
             character(len=:), allocatable :: rev
             integer :: i
+
             ! Remaining files need to be committed
             if (size(fs%files) == 0) then
                 call message("No files remain to be committed")
                 return
             end if
+
             ! In the case there actually are any unregistered files then
             ! `vc-deduce-backend', via `vc-only-files-state-and-model',
             ! has already prompted the user to approve registering them.
             allocate (register(0))
+
             if (allocated(fs%only_files)) then
                 do i = 1, size(fs%only_files)
                     if (.not. vc_registered(fs%only_files(i)%s)) call push(register, fs%only_files(i)%s)
                 end do
             end if
+
             if (.not. verbose) then
                 call vc_checkin(fs%files, fs%backend, status, register=register)
             else
                 call read_string("New revision or backend: ", rev, status)
                 if (.not. status%ok()) return
+
                 if (is_backend_name(rev)) then
                     call set_error(status, FM_GENERIC_ERROR, "Transferring files between backends is not ported yet")
                 else
@@ -1384,7 +1507,9 @@ contains
             use casefiddle_fm, only: downcase_string
             character(len=*), intent(in) :: s
             integer :: i
+
             is_backend_name = .false.
+
             do i = 1, size(vc_handled_backends)
                 if (downcase_string(trim(vc_handled_backends(i))) == downcase_string(s)) is_backend_name = .true.
             end do
@@ -1420,23 +1545,29 @@ contains
         logical, intent(in), optional :: comment_t, initial_contents
         type(vc_string_type), intent(in), optional :: register(:)
         type(vc_log_operation_type) :: action
+
         call vc_before_checkin_hook%run(status)
         if (.not. status%ok()) return
         action%run => checkin_operation
         action%backend = b
         if (present(rev)) action%rev = rev
+
         if (present(register)) then
             action%register = register
         else
             allocate (action%register(0))
         end if
+
         call vc_start_logentry(files, "Enter a change comment.", "*vc-log*", action, status, comment=comment, &
                                comment_t=comment_t, initial_contents=initial_contents, mode=backend_log_edit_mode, &
                                after_hook=vc_checkin_hook, backend=b)
+
     contains
+
         ! (lambda () (vc-call-backend backend 'log-edit-mode)).
         recursive subroutine backend_log_edit_mode(st)
             type(status_type), intent(out) :: st
+
             if (associated(vc_backends(b)%log_edit_mode)) then
                 call vc_backends(b)%log_edit_mode(st)
             else
@@ -1461,6 +1592,7 @@ contains
         character(len=:), allocatable :: comment, start_again, instructions
         integer :: b, k
         logical :: ok, found
+
         status = status_type()
         b = operation%backend
         ! Check the user isn't likely to be surprised by what is included
@@ -1473,22 +1605,27 @@ contains
         instructions = substitute_command_keys("type \<log_edit_mode_map>\[log_edit_kill_buffer] to cancel, "// &
                                                start_again//", "// &
                                                "\[log_edit_previous_comment] to recall your message")
+
         if (vc_dispatcher_browsing()) then
             ok = size(files) == 1 .and. .not. explicit_marks_p()
+
             if (.not. ok) then
                 call vc_deduce_fileset(current, st)
                 if (st%ok()) ok = same_files(files, current%files)
             end if
+
             if (.not. ok) then
                 call yes_or_no_p("Selected file(s) in buffer """//buffers(cur)%name//""" have changed; "// &
                                  "continue with old fileset?", ok, status)
                 if (.not. status%ok()) return
             end if
+
             if (.not. ok) then
                 call set_error(status, FM_USER_ERROR, "To use the new fileset "//instructions)
                 return
             end if
         end if
+
         ! "This log message intentionally left almost blank".
         ! RCS 5.7 gripes about whitespace-only comments too.
         comment = comment_in
@@ -1500,40 +1637,53 @@ contains
         fs%files = files
         call vc_buffer_sync_fileset(fs, status)
         if (.not. status%ok()) return
+
         if (size(operation%register) > 0) then
             fs%files = operation%register
             call vc_register(status, fs)
             if (.not. status%ok()) return
         end if
+
         if (.not. associated(vc_backends(b)%checkin)) then
             call vc_not_supported(status, "checkin", b)
             return
         end if
+
         call message("Checking in "//vc_delistify(files)//"...")
         call with_properties_begin(files, flist)
+
         if (allocated(operation%rev)) then
             call vc_backends(b)%checkin(files, comment, status, operation%rev)
         else
             call vc_backends(b)%checkin(files, comment, status)
         end if
+
         if (.not. status%ok()) return
+
         do k = 1, size(files)
             call vc_delete_automatic_version_backups(files(k)%s)
         end do
+
         do k = 1, size(flist)
             if (.not. vc_touched(VC_PROP_STATE)) call vc_file_set_state(flist(k)%s, VC_UP_TO_DATE)
+
             if (.not. vc_touched(VC_PROP_CHECKOUT_TIME)) then
                 call file_attributes(flist(k)%s, attr, found)
+
                 if (found) then
                     call vc_file_set_checkout_time(flist(k)%s, attr%mtime_sec, attr%mtime_nsec)
                 else
                     call vc_file_set_checkout_time(flist(k)%s)
                 end if
             end if
+
             if (.not. vc_touched(VC_PROP_WORKING_REVISION)) call vc_file_set_working_revision(flist(k)%s)
         end do
+
         call message("Checking in "//vc_delistify(files)//"...done")
+
     contains
+
         ! Are any files in the directory browser explicitly marked?  Port
         ! of vc-dispatcher.el:vc-dispatcher--explicit-marks-p (VC-Dir is
         ! not ported).
@@ -1541,6 +1691,7 @@ contains
             type(dired_string_type), allocatable :: marked(:)
             type(status_type) :: s
             logical :: one
+
             explicit_marks_p = .false.
             if (.not. derived_mode_p("dired_mode")) return
             one = .false.
@@ -1552,11 +1703,14 @@ contains
         logical function same_files(a, c)
             type(vc_string_type), intent(in) :: a(:), c(:)
             integer :: i
+
             same_files = .false.
             if (size(a) /= size(c)) return
+
             do i = 1, size(a)
                 if (a(i)%s /= c(i)%s) return
             end do
+
             same_files = .true.
         end function same_files
     end subroutine checkin_operation
@@ -1566,11 +1720,14 @@ contains
     recursive subroutine vc_create_repo(b, status)
         integer, intent(in) :: b
         type(status_type), intent(out) :: status
+
         status = status_type()
+
         if (.not. associated(vc_backends(b)%create_repo)) then
             call vc_not_supported(status, "create-repo", b)
             return
         end if
+
         call vc_backends(b)%create_repo(status)
     end subroutine vc_create_repo
 
@@ -1596,14 +1753,18 @@ contains
         character(len=:), allocatable :: root
         logical :: found
         integer :: b, k
+
         status = status_type()
+
         if (present(fileset)) then
             fs = fileset
         else
             call vc_deduce_fileset(fs, status, .false., .true.)
             if (.not. status%ok()) return
         end if
+
         b = fs%backend
+
         ! We used to operate on `only-files', but VC wants to provide the
         ! possibility to register directories rather than files only, since
         ! many VCS allow that as well.
@@ -1614,9 +1775,11 @@ contains
                     return
                 end if
             end if
+
             ! Watch out for new buffers of size 0: the corresponding file
             ! does not exist yet, even though buffer-modified-p is nil.
             bname = get_file_buffer(fs%files(k)%s)
+
             if (bname%index /= 0) then
                 old = current_buffer()
                 call set_buffer(bname, st)
@@ -1627,32 +1790,39 @@ contains
                 if (.not. status%ok()) return
             end if
         end do
+
         call message("Registering ("//vc_delistify(fs%files)//")... ")
+
         do k = 1, size(fs%files)
             call vc_file_clearprops(fs%files(k)%s)
         end do
+
         if (.not. associated(vc_backends(b)%register)) then
             call vc_not_supported(status, "register", b)
             return
         end if
+
         call vc_backends(b)%register(fs%files, status, comment)
         if (.not. status%ok()) return
         call vc_root_dir(root, found, st, b)
+
         do k = 1, size(fs%files)
             call vc_file_set_backend(fs%files(k)%s, b)
             bname = get_file_buffer(fs%files(k)%s)
+
             if (bname%index /= 0) then
                 if (.not. vc_make_backup_files) buffers(bname%index)%backup_inhibited = .true.
             end if
+
             call vc_resynch_buffer(fs%files(k)%s, root, st, keep=.true., noquery=VC_NOQUERY_T)
         end do
+
         call message("Registering ("//vc_delistify(fs%files)//")... done")
     end subroutine vc_register
 
     ! ------------------------------------------------------------------
     ! Ignoring
     ! ------------------------------------------------------------------
-
     !> Ignore FILE under the VCS of DIRECTORY.
     !>
     !> Normally, FILE is a wildcard specification that matches the files
@@ -1674,23 +1844,29 @@ contains
         character(len=:), allocatable :: dir, ignore
         logical :: found, rm
         integer :: b
+
         status = status_type()
         dir = default_directory()
         if (present(directory)) dir = directory
         b = vc_responsible_backend(default_directory(), status)
+
         if (.not. status%ok()) then
             call set_error(status, FM_GENERIC_ERROR, "Unknown backend")
             return
         end if
+
         rm = .false.
         if (present(remove)) rm = remove
+
         ! vc-default-ignore: FILE is a wildcard specification relative to
         ! DIRECTORY.
         if (.not. associated(vc_backends(b)%find_ignore_file)) then
             call vc_not_supported(status, "find-ignore-file", b)
             return
         end if
+
         call vc_backends(b)%find_ignore_file(dir, ignore, found)
+
         if (rm) then
             call vc_remove_regexp("^"//regexp_quote(file)//"\("//achar(10)//"\|$\)", ignore, status)
         else
@@ -1707,6 +1883,7 @@ contains
         character(len=:), allocatable :: ignore
         logical :: found
         integer :: b
+
         dir = default_directory()
         b = vc_responsible_backend(default_directory(), status)
         if (.not. status%ok()) return
@@ -1722,18 +1899,21 @@ contains
         type(handle_type) :: buf, old
         type(status_type) :: st
         integer(int64) :: found
+
         call find_file_noselect(file, buf, status)
         if (.not. status%ok()) return
         old = current_buffer()
         call set_buffer(buf, st)
         call goto_char(point_min())
         call re_search_forward("^"//regexp_quote(string)//"$", found, st, noerror=SEARCH_NOERROR)
+
         if (found == 0) then
             call goto_char(point_max())
             if (.not. bolp()) call insert(achar(10), status)
             call insert(string//achar(10), status)
             if (status%ok()) call save_buffer(1_int64, .false., status)
         end if
+
         call set_buffer(old, st)
     end subroutine vc_add_line
 
@@ -1745,6 +1925,7 @@ contains
         type(handle_type) :: buf, old
         type(status_type) :: st
         integer(int64) :: found
+
         status = status_type()
         if (.not. file_exists_p(file)) return
         call find_file_noselect(file, buf, status)
@@ -1752,12 +1933,14 @@ contains
         old = current_buffer()
         call set_buffer(buf, st)
         call goto_char(point_min())
+
         do
             call re_search_forward(regexp, found, st, noerror=SEARCH_NOERROR)
             if (found == 0) exit
             call replace_match("", status)
             if (.not. status%ok()) exit
         end do
+
         if (status%ok()) call save_buffer(1_int64, .false., status)
         call set_buffer(old, st)
     end subroutine vc_remove_regexp
@@ -1765,7 +1948,6 @@ contains
     ! ------------------------------------------------------------------
     ! Checking out, resolving
     ! ------------------------------------------------------------------
-
     !> Retrieve a copy of the revision REV of FILE.
     !> REV defaults to the latest revision.
     !>
@@ -1781,26 +1963,34 @@ contains
         character(len=:), allocatable :: root
         logical :: found
         integer :: b
+
         status = status_type()
+
         if (.not. present(rev)) then
             b = vc_backend(file)
+
             if (b /= 0) then
                 if (vc_call_make_version_backups_p(b, file) .and. vc_up_to_date_p(file)) call vc_make_version_backup(file)
             end if
         end if
+
         b = vc_backend(file)
+
         if (b == 0) then
             call set_error(status, FM_GENERIC_ERROR, "File "//file//" is not under version control")
             return
         end if
+
         if (.not. associated(vc_backends(b)%checkout)) then
             call vc_not_supported(status, "checkout", b)
             return
         end if
+
         call with_properties_begin([string_of(file)], flist)
         call vc_backends(b)%checkout(file, status, rev)
         if (.not. status%ok()) return
         call file_attributes(file, attr, found)
+
         do b = 1, size(flist)
             if (.not. vc_touched(VC_PROP_STATE)) then
                 if (vc_checkout_model(vc_backend(file), flist) == VC_MODEL_IMPLICIT) then
@@ -1809,6 +1999,7 @@ contains
                     call vc_file_set_state(flist(b)%s, VC_EDITED)
                 end if
             end if
+
             if (.not. vc_touched(VC_PROP_CHECKOUT_TIME)) then
                 if (found) then
                     call vc_file_set_checkout_time(flist(b)%s, attr%mtime_sec, attr%mtime_nsec)
@@ -1817,6 +2008,7 @@ contains
                 end if
             end if
         end do
+
         call vc_root_dir(root, found, st)
         call vc_resynch_buffer(file, root, status, keep=.true., noquery=VC_NOQUERY_T)
         if (.not. status%ok()) return
@@ -1827,6 +2019,7 @@ contains
     function string_of(s) result(e)
         character(len=*), intent(in) :: s
         type(vc_string_type) :: e
+
         e%s = s
     end function string_of
 
@@ -1838,13 +2031,17 @@ contains
         type(vc_string_type), allocatable, intent(out) :: flist(:)
         type(handle_type), allocatable :: all(:)
         integer :: k, j
+
         allocate (flist(0))
         call vc_touch_reset()
+
         do k = 1, size(files)
             if (file_directory_p(files(k)%s)) then
                 all = buffer_list()
+
                 do j = 1, size(all)
                     if (.not. allocated(buffers(all(j)%index)%filename)) cycle
+
                     if (index(buffers(all(j)%index)%filename, files(k)%s) == 1) then
                         call push(flist, buffers(all(j)%index)%filename)
                     end if
@@ -1863,24 +2060,30 @@ contains
         type(status_type), intent(out) :: status
         type(vc_string_type), allocatable :: flist(:)
         integer :: k
+
         status = status_type()
+
         if (.not. associated(vc_backends(b)%mark_resolved)) then
             call vc_not_supported(status, "mark-resolved", b)
             return
         end if
+
         call with_properties_begin(files, flist)
         call vc_backends(b)%mark_resolved(files, status)
         if (.not. status%ok()) return
+
         ! FIXME: Is this TRTD?  Might not be.
         if (.not. vc_touched(VC_PROP_STATE)) then
             do k = 1, size(flist)
                 call vc_file_set_state(flist(k)%s, VC_EDITED)
             end do
         end if
+
         ! Recompute mode lines.
         do k = 1, size(files)
             call vc_mode_line(files(k)%s, b)
         end do
+
         if (size(files) > 1) then
             call message("Conflicts have been resolved in "//itoa(size(files))//" files.  "// &
                          "Type C-x v v to check in changes.")
@@ -1892,7 +2095,6 @@ contains
     ! ------------------------------------------------------------------
     ! Diffs
     ! ------------------------------------------------------------------
-
     !> The end of a diff: say there were no changes (in a buffer the
     !> asynchronous process left empty), set up the Diff buffer type, go
     !> to the start and run `vc_diff_finish_functions'.  Port of
@@ -1904,15 +2106,18 @@ contains
         type(handle_type) :: old, window
         type(status_type) :: st
         logical :: emptyp
+
         status = status_type()
         if (.not. buffer_live_p(action%buffer)) return
         old = current_buffer()
         call set_buffer(action%buffer, st)
         emptyp = point_max() == point_min()
+
         if (action%flag .and. emptyp) then
             call bind_read_only_insert(action%s2//"."//achar(10))
             call message(action%s2)
         end if
+
         call diff_setup_buffer_type()
         call goto_char(point_min())
         ! vc-diff-finish-functions: vc-shrink-buffer-window.
@@ -1928,6 +2133,7 @@ contains
         character(len=*), intent(in) :: text
         type(value_type) :: saved
         type(status_type) :: st
+
         call symbol_value(sym("inhibit_read_only"), saved, st)
         call set(sym("inhibit_read_only"), t_value(), st)
         call insert(text, st)
@@ -1955,42 +2161,52 @@ contains
         character(len=:), allocatable :: msg1, msg2, wrev
         logical :: verb, found
         integer :: k
+
         status = status_type()
         changes = .false.
         verb = .false.
         if (present(verbose)) verb = verbose
+
         if (present(buffer)) then
             buf = buffer
         else
             call get_buffer_create("*vc-diff*", buf, status)
             if (.not. status%ok()) return
         end if
+
         files = fs%files
         msg1 = "Finding changes in "//vc_delistify(files)//"..."
         msg2 = "No changes between "
+
         if (present(rev1)) then
             msg2 = msg2//rev1
         else
             msg2 = msg2//"working revision"
         end if
+
         msg2 = msg2//" and "
+
         if (present(rev2)) then
             msg2 = msg2//rev2
         else
             msg2 = msg2//"workfile"
         end if
+
         old = current_buffer()
         ! (vc-setup-buffer leaves BUF current, so the backend's commands
         ! insert there without setting it up again.)
         call vc_setup_buffer(buf, status)
         if (.not. status%ok()) return
         call message(msg1)
+
         ! Many backends don't handle well the case of a file that has been
         ! added but not yet committed to the repo (notably CVS and Subversion).
         if (vc_diff_added_files) then
             allocate (filtered(0))
+
             do k = 1, size(files)
                 call vc_working_revision(files(k)%s, wrev, found)
+
                 if (file_directory_p(files(k)%s) .or. .not. (found .and. wrev == "0")) then
                     call push(filtered, files(k)%s)
                 else if (present(rev1) .or. present(rev2)) then
@@ -2003,6 +2219,7 @@ contains
                     ! /dev/null.
                     call vc_switches(0, "diff", sw)
                     call push(sw, "/dev/null")
+
                     if (async) then
                         call vc_do_command(VC_DEST_CURRENT, VC_OKSTATUS_ASYNC, "diff", [string_of(files(k)%s)], &
                                            sw, status, buffer=buf)
@@ -2010,11 +2227,14 @@ contains
                         call vc_do_command(VC_DEST_CURRENT, 1, "diff", [string_of(files(k)%s)], sw, status, &
                                            buffer=buf)
                     end if
+
                     if (.not. status%ok()) return
                 end if
             end do
+
             files = filtered
         end if
+
         call set_buffer(buf, st)
         ! Make the *vc-diff* buffer read only, the diff-mode key
         ! bindings are nicer for read only buffers. pcl-cvs does the
@@ -2023,6 +2243,7 @@ contains
         ! Set the major mode and some local variables before calling into
         ! the backend.
         call diff_mode(st)
+
         if (present(rev1) .and. present(rev2)) then
             call set_diff_vc_backend(vc_backend_name(fs%backend), rev1, rev2)
         else if (present(rev1)) then
@@ -2032,21 +2253,26 @@ contains
         else
             call set_diff_vc_backend(vc_backend_name(fs%backend))
         end if
+
         call remember_diff_args(async, fs, verb, rev1, rev2)
         call revert_buffer_function%set_local(vc_diff_revert)
+
         if (.not. associated(vc_backends(fs%backend)%diff)) then
             call vc_not_supported(status, "diff", fs%backend)
             return
         end if
+
         call vc_backends(fs%backend)%diff(files, buf, async, status, rev1, rev2)
         if (.not. status%ok()) return
         call set_buffer(buf, st)
         proc = get_buffer_process(buf)
+
         if (point_max() == point_min() .and. proc%index == 0) then
             ! Treat this case specially so as not to pop the buffer.
             call message(msg2)
             return
         end if
+
         ! Display the buffer, but at the end because it can change point.
         call pop_to_buffer(buf, status)
         if (.not. status%ok()) return
@@ -2071,6 +2297,7 @@ contains
         type(vc_fileset_type), intent(in) :: fs
         character(len=*), intent(in), optional :: rev1, rev2
         integer :: k
+
         k = local_index(.true.)
         locals(k)%has_diff = .true.
         locals(k)%diff_async = async
@@ -2091,12 +2318,14 @@ contains
         type(handle_type) :: buf
         logical :: changes
         integer :: k
+
         status = status_type()
         if (ignore_auto .and. noconfirm .and. .false.) return
         k = local_index(.false.)
         if (k == 0) return
         l = locals(k)
         buf = current_buffer()
+
         if (allocated(l%diff_rev1) .and. allocated(l%diff_rev2)) then
             call vc_diff_internal(l%diff_async, l%diff_fileset, changes, status, l%diff_rev1, l%diff_rev2, &
                                   l%diff_verbose, buf)
@@ -2126,9 +2355,11 @@ contains
         type(vc_string_type), allocatable :: fl(:), table(:)
         type(value_type), allocatable :: names(:)
         integer :: backend, k
+
         status = status_type()
         backend = 0
         if (present(b)) backend = b
+
         if (present(files)) then
             fl = files
             if (backend == 0 .and. size(fl) > 0) backend = vc_backend(fl(1)%s)
@@ -2138,18 +2369,22 @@ contains
             fl = fs%files
             backend = fs%backend
         end if
+
         if (backend /= 0) then
             if (associated(vc_backends(backend)%revision_completion_table)) then
                 call vc_backends(backend)%revision_completion_table(fl, table)
                 allocate (names(size(table)))
+
                 do k = 1, size(table)
                     names(k) = make_string(table(k)%s)
                 end do
+
                 call completing_read(prompt, completion_list_table(make_list(names)), rev, status, &
                                      initial=initial, history="vc_revision_history", default=default)
                 return
             end if
         end if
+
         call read_string(prompt, rev, status, initial=initial, default=default)
     end subroutine vc_read_revision
 
@@ -2163,8 +2398,10 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: rev1_default, sym_rev, rev1_prompt
         logical :: found, have_default
+
         have_default = .false.
         rev1_default = ""
+
         ! someday we may be able to do revision completion on non-singleton
         ! filesets, but not yet.
         if (size(fs%files) == 1) then
@@ -2172,12 +2409,14 @@ contains
             ! source as defaults
             if (associated(vc_backends(fs%backend)%previous_revision)) then
                 call vc_symbolic_working_revision(fs%files(1)%s, sym_rev, found, fs%backend)
+
                 if (found) then
                     call vc_backends(fs%backend)%previous_revision(fs%files(1)%s, sym_rev, rev1_default, have_default)
                     if (have_default .and. len(rev1_default) == 0) have_default = .false.
                 end if
             end if
         end if
+
         ! construct argument list
         if (have_default) then
             rev1_prompt = "Older revision (default "//rev1_default//"): "
@@ -2185,6 +2424,7 @@ contains
         else
             call vc_read_revision("Older revision: ", rev1, status, fs%files, fs%backend)
         end if
+
         if (.not. status%ok()) return
         call vc_read_revision("Newer revision (default current source): ", rev2, status, fs%files, fs%backend)
     end subroutine vc_diff_build_argument_list_internal
@@ -2201,11 +2441,14 @@ contains
         logical, intent(in), optional :: interactive
         type(vc_fileset_type) :: fs
         logical :: changes
+
         status = status_type()
+
         if (len(rev1) == 0 .and. len(rev2) > 0) then
             call set_error(status, FM_GENERIC_ERROR, "Not a valid revision range")
             return
         end if
+
         call vc_deduce_fileset(fs, status, .true.)
         if (.not. status%ok()) return
         call diff_revs(vc_allow_async_diff, fs, rev1, rev2, opt(interactive), changes, status)
@@ -2219,6 +2462,7 @@ contains
         logical, intent(out) :: changes
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: buffer
+
         if (len(rev1) > 0 .and. len(rev2) > 0) then
             call vc_diff_internal(async, fs, changes, status, rev1, rev2, verbose, buffer)
         else if (len(rev1) > 0) then
@@ -2232,6 +2476,7 @@ contains
 
     logical function opt(flag)
         logical, intent(in), optional :: flag
+
         opt = .false.
         if (present(flag)) opt = flag
     end function opt
@@ -2248,8 +2493,10 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: rootdir
         logical :: found
+
         saved_dir = default_directory()
         fs%backend = vc_deduce_backend()
+
         if (fs%backend /= 0) then
             call vc_call_root(fs%backend, default_directory(), rootdir, found, status)
             if (.not. status%ok()) return
@@ -2259,11 +2506,13 @@ contains
             if (.not. status%ok()) return
             rootdir = file_name_as_directory(expand(rootdir))
             fs%backend = vc_responsible_backend(rootdir, status)
+
             if (.not. status%ok() .or. fs%backend == 0) then
                 call set_error(status, FM_GENERIC_ERROR, "Directory is not version controlled")
                 return
             end if
         end if
+
         buffers(cur)%directory = rootdir
         call one(fs%files, rootdir)
     end subroutine with_backend_in_rootdir
@@ -2279,15 +2528,19 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: saved
         logical :: changes
+
         status = status_type()
+
         ! This is a mix of `vc-root-diff' and `vc-version-diff'
         if (len(rev1) == 0 .and. len(rev2) > 0) then
             call set_error(status, FM_GENERIC_ERROR, "Not a valid revision range")
             return
         end if
+
         old = current_buffer()
         call with_backend_in_rootdir("VC root-diff", fs, saved, status)
         if (status%ok()) call diff_revs(vc_allow_async_diff, fs, rev1, rev2, opt(interactive), changes, status)
+
         if (buffer_live_p(old)) then
             call set_buffer(old, st)
             buffers(cur)%directory = saved
@@ -2310,7 +2563,9 @@ contains
         type(vc_fileset_type) :: fs
         character(len=:), allocatable :: rev1, rev2
         logical :: changes
+
         status = status_type()
+
         if (opt(historic)) then
             call vc_deduce_fileset(fs, status, .true.)
             if (.not. status%ok()) return
@@ -2319,12 +2574,14 @@ contains
             call vc_version_diff(rev1, rev2, status, .true.)
             return
         end if
+
         if (present(fileset)) then
             fs = fileset
         else
             call vc_deduce_fileset(fs, status, .true.)
             if (.not. status%ok()) return
         end if
+
         call vc_buffer_sync_fileset(fs, status, not_essential)
         if (.not. status%ok()) return
         call vc_diff_internal(vc_allow_async_diff, fs, changes, status, verbose=opt(interactive))
@@ -2351,8 +2608,10 @@ contains
         character(len=:), allocatable :: file
         integer :: k, j
         logical :: in_dir
+
         status = status_type()
         allocate (dirs(0), bufs(0))
+
         do k = 1, size(fs%files)
             if (file_directory_p(fs%files(k)%s)) then
                 call push(dirs, file_name_as_directory(fs%files(k)%s))
@@ -2361,12 +2620,15 @@ contains
                 if (buf%index /= 0) bufs = [bufs, buf]
             end if
         end do
+
         if (size(dirs) > 0) then
             all = buffer_list()
+
             do k = 1, size(all)
                 if (.not. allocated(buffers(all(k)%index)%filename)) cycle
                 file = buffers(all(k)%index)%filename
                 in_dir = .false.
+
                 do j = 1, size(dirs)
                     if (opt(not_essential)) then
                         ! For speed (bug#79137).
@@ -2375,18 +2637,22 @@ contains
                         if (file_in_directory_p(file, dirs(j)%s)) in_dir = .true.
                     end if
                 end do
+
                 if (.not. in_dir) cycle
                 if (.not. (opt(missing_in_dirs) .or. file_exists_p(file))) cycle
                 if (any(bufs%index == all(k)%index)) cycle
                 bufs = [bufs, all(k)]
             end do
         end if
+
         old = current_buffer()
+
         do k = 1, size(bufs)
             call set_buffer(bufs(k), st)
             call vc_buffer_sync(status, not_essential)
             if (.not. status%ok()) exit
         end do
+
         if (buffer_live_p(old)) call set_buffer(old, st)
     end subroutine vc_buffer_sync_fileset
 
@@ -2407,14 +2673,18 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: saved, rev1, rev2, root
         logical :: changes, found
+
         status = status_type()
+
         if (historic) then
             ! We want the diff for the VC root dir.
             args%backend = vc_deduce_backend()
+
             if (args%backend == 0) then
                 args%backend = vc_responsible_backend(default_directory(), status)
                 if (.not. status%ok()) return
             end if
+
             call vc_call_root(args%backend, default_directory(), root, found, status)
             if (.not. status%ok()) return
             call one(args%files, root)
@@ -2423,16 +2693,19 @@ contains
             call vc_root_version_diff(rev1, rev2, status, .true.)
             return
         end if
+
         old = current_buffer()
         ! VC diff for the root directory produces output that is relative
         ! to it.  Bind default-directory to the root directory here, this
         ! way the *vc-diff* buffer is setup correctly, so relative file
         ! names work.
         call with_backend_in_rootdir("VC root-diff", fs, saved, status)
+
         if (status%ok()) then
             call vc_buffer_sync_fileset(fs, status, not_essential)
             if (status%ok()) call vc_diff_internal(vc_allow_async_diff, fs, changes, status, verbose=opt(interactive))
         end if
+
         if (buffer_live_p(old)) then
             call set_buffer(old, st)
             buffers(cur)%directory = saved
@@ -2442,7 +2715,6 @@ contains
     ! ------------------------------------------------------------------
     ! Other revisions
     ! ------------------------------------------------------------------
-
     !> Visit revision REV of the current file in another window.
     !> If the current file is named `F', the revision is named `F.~REV~'.
     !> If `F.~REV~' already exists, use it instead of checking it out again.
@@ -2457,14 +2729,17 @@ contains
         character(len=:), allocatable :: file, revision
         type(handle_type) :: buf
         logical :: found
+
         call vc_ensure_vc_buffer(status)
         if (.not. status%ok()) return
         file = buffers(cur)%filename
+
         if (len(rev) == 0) then
             call vc_symbolic_working_revision(file, revision, found)
         else
             revision = rev
         end if
+
         call vc_find_revision(file, revision, buf, status)
         if (.not. status%ok()) return
         call switch_to_buffer_other_window(buf, status)
@@ -2482,12 +2757,15 @@ contains
         type(handle_type) :: filebuf, old, outbuf
         type(status_type) :: st
         integer :: backend, k
+
         result = null_handle()
         status = status_type()
+
         if (vc_find_revision_no_save) then
             call set_error(status, FM_GENERIC_ERROR, "vc_find_revision_no_save is not ported yet")
             return
         end if
+
         automatic_backup = vc_version_backup_file_name(file, revision)
         filebuf = get_file_buffer(file)
         if (filebuf%index == 0) filebuf = current_buffer()
@@ -2495,6 +2773,7 @@ contains
         backend = 0
         if (present(b)) backend = b
         if (backend == 0) backend = vc_backend(file)
+
         if (.not. file_exists_p(filename)) then
             if (file_exists_p(automatic_backup)) then
                 call rename_file(automatic_backup, filename, status)
@@ -2506,6 +2785,7 @@ contains
                 ! with-temp-file FILENAME
                 call get_buffer_create(generate_new_buffer_name(" *temp file*"), outbuf, status)
                 if (.not. status%ok()) return
+
                 if (.not. associated(vc_backends(backend)%find_revision)) then
                     call vc_not_supported(status, "find-revision", backend)
                 else
@@ -2513,22 +2793,27 @@ contains
                     ! vc-checkout-switches.
                     call vc_backends(backend)%find_revision(file, revision, outbuf, status)
                 end if
+
                 if (status%ok()) then
                     call set_buffer(outbuf, st)
                     call write_region(filename, .false., status, point_min(), point_max(), msg)
                 end if
+
                 call kill_buffer(outbuf, st)
+
                 if (.not. status%ok()) then
                     if (file_exists_p(filename)) call delete_file(filename, st)
                     call set_buffer(old, st)
                     return
                 end if
+
                 call set_buffer(filebuf, st)
                 call vc_mode_line(file)
                 call set_buffer(old, st)
                 call message("Checking out "//filename//"...done")
             end if
         end if
+
         call find_file_noselect(filename, result, status)
         if (.not. status%ok()) return
         old = current_buffer()
@@ -2545,7 +2830,6 @@ contains
     ! ------------------------------------------------------------------
     ! Reverting
     ! ------------------------------------------------------------------
-
     !> Revert working copies of the selected fileset to their repository contents.
     !> This asks for confirmation if the buffer contents are not identical
     !> to the working revision (except for keyword expansion).  Port of
@@ -2558,11 +2842,13 @@ contains
         character(len=:), allocatable :: names, str
         logical :: queried, yes, changes, show
         integer :: k
+
         status = status_type()
         call vc_deduce_fileset(fs, status)
         if (.not. status%ok()) return
         queried = .false.
         diff_buffer = null_handle()
+
         ! If any of the files is visited by the current buffer, make sure
         ! buffer is saved.  If the user says `no', abort since we cannot
         ! show the changes and ask for confirmation to discard them.
@@ -2572,11 +2858,14 @@ contains
                 if (.not. status%ok()) return
             end if
         end if
+
         call save_some_buffers(.false., .false., status, in_fileset)
         if (.not. status%ok()) return
         names = ""
+
         do k = 1, size(fs%files)
             buf = get_file_buffer(fs%files(k)%s)
+
             if (buffer_modified_p(buf)) then
                 if (len(names) > 0) then
                     names = buffers(buf%index)%name//", "//names
@@ -2584,20 +2873,25 @@ contains
                     names = buffers(buf%index)%name
                 end if
             end if
+
             if (vc_up_to_date_p(fs%files(k)%s)) then
                 call yes_or_no_p(fs%files(k)%s//" seems up-to-date.  Revert anyway? ", yes, status)
                 if (.not. status%ok()) return
+
                 if (.not. yes) then
                     call set_error(status, FM_GENERIC_ERROR, "Revert canceled")
                     return
                 end if
+
                 queried = .true.
             end if
         end do
+
         if (len(names) > 0) then
             call set_error(status, FM_GENERIC_ERROR, "Cannot revert with these buffers unsaved: "//names)
             return
         end if
+
         if (vc_revert_show_diff /= VC_REVERT_SHOW_DIFF_NIL) then
             call get_buffer_create(generate_new_buffer_name("*vc-diff*"), diff_buffer, status)
             if (.not. status%ok()) return
@@ -2607,8 +2901,10 @@ contains
             ! Avoid querying the user again.
             show = .not. queried
         end if
+
         if (status%ok() .and. show) then
             str = vc_delistify(fs%files)
+
             if (len(str) >= 50) then
                 if (size(fs%files) == 1) then
                     str = "1 file"
@@ -2616,15 +2912,19 @@ contains
                     str = itoa(size(fs%files))//" files"
                 end if
             end if
+
             call yes_or_no_p("Discard changes in "//str//"? ", yes, status)
             if (status%ok() .and. .not. yes) call set_error(status, FM_GENERIC_ERROR, "Revert cancelled")
         end if
+
         if (diff_buffer%index /= 0) then
             if (buffer_live_p(diff_buffer)) call quit_windows_on(diff_buffer, vc_revert_show_diff == VC_REVERT_SHOW_DIFF_KILL, &
                                                                  st)
         end if
+
         if (.not. status%ok()) return
         call vc_revert_files(fs%backend, fs%files, status)
+
     contains
 
         !> save-some-buffers's PRED: the buffer visits one of the files.
@@ -2645,16 +2945,19 @@ contains
         logical, intent(out) :: found
         character(len=*), intent(in), optional :: rev
         integer :: b
+
         backup = ""
         found = .false.
         b = vc_backend(file)
         if (b == 0) return
         if (.not. vc_call_make_version_backups_p(b, file)) return
         backup = vc_version_backup_file_name(file, rev)
+
         if (file_exists_p(backup)) then
             found = .true.
             return
         end if
+
         ! there is no automatic backup, but maybe the user made one manually
         backup = vc_version_backup_file_name(file, rev, manual=.true.)
         found = file_exists_p(backup)
@@ -2671,40 +2974,49 @@ contains
         character(len=:), allocatable :: backup_file, root
         logical :: dir, found
         integer :: b, state, k
+
         status = status_type()
         call with_properties_begin([string_of(file)], flist)
         dir = file_directory_p(file)
         found = .false.
         if (.not. dir) call vc_version_backup_file(file, backup_file, found)
+
         if (found) then
             call copy_file(backup_file, file, status, ok_if_already_exists=.true.)
             if (.not. status%ok()) return
             call vc_delete_automatic_version_backups(file)
         end if
+
         if (dir) then
             b = vc_responsible_backend(file, status)
             if (.not. status%ok()) return
         else
             b = vc_backend(file)
         end if
+
         if (b == 0) then
             call set_error(status, FM_GENERIC_ERROR, "File "//file//" is not under version control")
             return
         end if
+
         if (.not. associated(vc_backends(b)%revert)) then
             call vc_not_supported(status, "revert", b)
             return
         end if
+
         if (found) then
             call vc_backends(b)%revert(file, status, backup_file)
         else
             call vc_backends(b)%revert(file, status)
         end if
+
         if (.not. status%ok()) return
         state = vc_state(file)
+
         do k = 1, size(flist)
             call set_after_revert(flist(k)%s, state)
         end do
+
         call vc_root_dir(root, found, st)
         call vc_resynch_buffer(file, root, status, keep=.true., noquery=VC_NOQUERY_T)
     end subroutine vc_revert_file
@@ -2718,7 +3030,9 @@ contains
         integer, intent(in) :: state
         type(file_stat_type) :: attr
         logical :: found
+
         if (state == VC_ADDED .and. .not. vc_touched(VC_PROP_BACKEND)) call vc_file_set_backend(file, 0)
+
         if (.not. vc_touched(VC_PROP_STATE)) then
             if (state == VC_ADDED) then
                 call vc_file_set_state(file, VC_UNREGISTERED)
@@ -2726,8 +3040,10 @@ contains
                 call vc_file_set_state(file, VC_UP_TO_DATE)
             end if
         end if
+
         if (.not. vc_touched(VC_PROP_CHECKOUT_TIME)) then
             call file_attributes(file, attr, found)
+
             if (found) then
                 call vc_file_set_checkout_time(file, attr%mtime_sec, attr%mtime_nsec)
             else
@@ -2749,9 +3065,11 @@ contains
         character(len=:), allocatable :: root
         logical :: found
         integer :: k
+
         status = status_type()
         if (size(files) == 0) return
         call message("Reverting "//vc_delistify(files)//"...")
+
         if (.not. associated(vc_backends(b)%revert_files)) then
             do k = 1, size(files)
                 call vc_revert_file(files(k)%s, status)
@@ -2762,27 +3080,32 @@ contains
             ! Use `vc-file-getprop' directly here because we may be
             ! handling very many files and do not want to hit the disk.
             allocate (states(size(flist)))
+
             do k = 1, size(flist)
                 states(k) = vc_file_get_state(flist(k)%s)
             end do
+
             call vc_backends(b)%revert_files(files, status)
             if (.not. status%ok()) return
+
             do k = 1, size(flist)
                 call set_after_revert(flist(k)%s, states(k))
             end do
+
             call vc_root_dir(root, found, st)
+
             do k = 1, size(files)
                 call vc_resynch_buffer(files(k)%s, root, status, keep=.true., noquery=VC_NOQUERY_T)
                 if (.not. status%ok()) return
             end do
         end if
+
         call message("Reverting "//vc_delistify(files)//"...done")
     end subroutine vc_revert_files
 
     ! ------------------------------------------------------------------
     ! Deleting and renaming
     ! ------------------------------------------------------------------
-
     !> Delete file and mark it as such in the version control system.
     !> If called interactively, read FILES, defaulting to the current
     !> buffer's file name if it's under version control.
@@ -2801,20 +3124,26 @@ contains
         logical :: yes, found
         integer, allocatable :: backends(:)
         integer :: k, j, b, state
+
         status = status_type()
         allocate (files(size(files_in)), backends(size(files_in)))
+
         do k = 1, size(files_in)
             files(k)%s = expand(files_in(k)%s)
         end do
+
         do k = 1, size(files)
             buf = get_file_buffer(files(k)%s)
+
             if (file_directory_p(files(k)%s)) then
                 b = vc_responsible_backend(files(k)%s, status)
                 if (.not. status%ok()) return
             else
                 b = vc_backend(files(k)%s)
             end if
+
             backends(k) = b
+
             if (b /= 0) then
                 if (.not. associated(vc_backends(b)%delete_file)) then
                     call set_error(status, FM_GENERIC_ERROR, "Deleting files under "//vc_backend_name(b)// &
@@ -2822,44 +3151,56 @@ contains
                     return
                 end if
             end if
+
             if (buffer_modified_p(buf)) then
                 call set_error(status, FM_GENERIC_ERROR, "Please save or undo your changes before deleting "// &
                                files(k)%s)
                 return
             end if
+
             state = vc_state(files(k)%s)
+
             if (state == VC_EDITED) then
                 call set_error(status, FM_GENERIC_ERROR, "Please commit or undo your changes before deleting "// &
                                files(k)%s)
                 return
             end if
+
             if (state == VC_CONFLICT) then
                 call set_error(status, FM_GENERIC_ERROR, "Please resolve the conflicts before deleting "//files(k)%s)
                 return
             end if
         end do
+
         if (.not. opt(noconfirm)) then
             if (size(files) > 1) then
                 call y_or_n_p("Really want to delete these "//itoa(size(files))//" files? ", yes, status)
             else
                 call y_or_n_p("Really want to delete "//file_name_nondirectory(files(1)%s)//"? ", yes, status)
             end if
+
             if (.not. status%ok()) return
+
             if (.not. yes) then
                 call set_error(status, FM_GENERIC_ERROR, "Abort!")
                 return
             end if
         end if
+
         do k = 1, size(files)
             buf = get_file_buffer(files(k)%s)
+
             if (.not. (file_directory_p(files(k)%s) .or. .not. make_backup_files .or. &
                        backup_file_name_p(files(k)%s) .or. .not. file_exists_p(files(k)%s))) then
                 old = current_buffer()
+
                 if (buf%index == 0) then
                     call find_file_noselect(files(k)%s, buf, status)
                     if (.not. status%ok()) return
                 end if
+
                 call set_buffer(buf, st)
+
                 block
                     logical :: saved_inhibited
                     integer(int32) :: modes
@@ -2868,24 +3209,29 @@ contains
                     call backup_buffer(modes)
                     buffers(cur)%backup_inhibited = saved_inhibited
                 end block
+
                 call set_buffer(old, st)
             end if
+
             if (backends(k) == 0) then
                 call post_backend_deletion(files(k)%s)
                 if (.not. status%ok()) return
             end if
         end do
+
         ! The files by backend, in order.
         do k = 1, size(files)
             b = backends(k)
             if (b == 0 .or. b == -1) cycle
             allocate (group(0))
+
             do j = k, size(files)
                 if (backends(j) == b) then
                     call push(group, files(j)%s)
                     backends(j) = -1
                 end if
             end do
+
             if (associated(vc_backends(b)%delete_files)) then
                 saved = default_directory()
                 call vc_root_dir(root, found, st, b)
@@ -2893,6 +3239,7 @@ contains
                 call vc_backends(b)%delete_files(group, status)
                 buffers(cur)%directory = saved
                 if (.not. status%ok()) return
+
                 do j = 1, size(group)
                     call post_backend_deletion(group(j)%s)
                 end do
@@ -2910,8 +3257,10 @@ contains
                     call post_backend_deletion(group(j)%s)
                 end do
             end if
+
             deallocate (group)
         end do
+
     contains
 
         !> Things to do after calling the backend's `delete-file' or
@@ -2921,9 +3270,11 @@ contains
             character(len=*), intent(in) :: file
             type(file_stat_type) :: attr
             logical :: exists
+
             ! For the case of unregistered files, or if the backend didn't
             ! actually delete the file.
             call file_attributes(file, attr, exists, nofollow=.true.)
+
             if (exists) then
                 if (file_directory_p(file) .and. .not. file_symlink_p(file)) then
                     call delete_directory(file, st, .true.)
@@ -2931,6 +3282,7 @@ contains
                     call delete_file(file, st)
                 end if
             end if
+
             ! Forget what VC knew about the file.
             call vc_file_clearprops(file)
             ! Make sure the buffer is killed and *vc-dir* buffers are
@@ -2957,6 +3309,7 @@ contains
         type(vc_string_type), allocatable :: one_file(:)
         logical :: dirp, any_registered, saved_ro
         integer :: state, b
+
         status = status_type()
         new = new_in
         ! in CL I would have said (setq new (merge-pathnames new old))
@@ -2968,16 +3321,20 @@ contains
         saved = default_directory()
         buffers(cur)%directory = file_name_directory(old)
         dirp = file_directory_p(old)
+
         body: block
             if (buffer_modified_p(oldbuf)) then
                 call set_error(status, FM_GENERIC_ERROR, "Please save files before moving them")
                 exit body
             end if
+
             newbuf = get_file_buffer(new)
+
             if (newbuf%index /= 0) then
                 call set_error(status, FM_GENERIC_ERROR, "Already editing new file name")
                 exit body
             end if
+
             ! Handle OK-IF-ALREADY-EXISTS here because it's not part of the VC
             ! backend `delete-file' API.
             if (file_exists_p(new)) then
@@ -2990,17 +3347,21 @@ contains
                     exit body
                 end if
             end if
+
             if (.not. dirp) then
                 state = vc_state(old)
+
                 if (.not. (state == VC_UP_TO_DATE .or. state == VC_EDITED .or. state == VC_ADDED)) then
                     if (state == VC_LOCKED) then
                         call set_error(status, FM_GENERIC_ERROR, "Please check in files before moving them")
                     else
                         call set_error(status, FM_GENERIC_ERROR, "Please update files before moving them")
                     end if
+
                     exit body
                 end if
             end if
+
             ! The rename commands for several VCS (at least Bzr, Git and
             ! Mercurial) will fail if asked to move a directory containing
             ! only untracked files.  So skip calling into the backend if OLD
@@ -3008,6 +3369,7 @@ contains
             ! finding any VC-managed files.
             any_registered = .true.
             if (dirp) any_registered = vc_file_tree_walk_any(old)
+
             if (any_registered) then
                 if (dirp) then
                     b = vc_responsible_backend(old, status)
@@ -3015,20 +3377,25 @@ contains
                 else
                     b = vc_backend(old)
                 end if
+
                 if (b == 0 .or. .not. associated(vc_backends(b)%rename_file)) then
                     call vc_not_supported(status, "rename-file", b)
                     exit body
                 end if
+
                 call vc_backends(b)%rename_file(old, new, status)
                 if (.not. status%ok()) exit body
             end if
+
             call vc_file_clearprops(old)
             call vc_file_clearprops(new)
+
             ! Move the actual file (unless the backend did it already)
             if (file_exists_p(old)) then
                 call rename_file(old, new, status)
                 if (.not. status%ok()) exit body
             end if
+
             ! ?? Renaming a file might change its contents due to keyword
             ! expansion.
             if (oldbuf%index /= 0) then
@@ -3044,6 +3411,7 @@ contains
                 return
             end if
         end block body
+
         if (cur /= 0) buffers(cur)%directory = saved
     end subroutine vc_rename_file
 
@@ -3052,6 +3420,7 @@ contains
     recursive logical function vc_file_tree_walk_any(dirname) result(found)
         character(len=*), intent(in) :: dirname
         type(vc_string_type), allocatable :: files(:)
+
         call vc_file_tree_walk(dirname, files, first_only=.true.)
         found = size(files) > 0
     end function vc_file_tree_walk_any
@@ -3064,8 +3433,10 @@ contains
         character(len=*), intent(in) :: dirname
         type(vc_string_type), allocatable, intent(out) :: files(:)
         logical, intent(in), optional :: first_only
+
         allocate (files(0))
         call walk(expand(dirname))
+
     contains
 
         recursive subroutine walk(file)
@@ -3077,22 +3448,28 @@ contains
             character(len=:), allocatable :: dir, f, dirf
             integer :: k, j
             logical :: excluded
+
             if (opt(first_only) .and. size(files) > 0) return
+
             if (.not. file_directory_p(file)) then
                 if (vc_registered(file)) call push(files, file)
                 return
             end if
+
             dir = file_name_as_directory(file)
             call directory_files(dir, names, st)
             if (.not. st%ok()) return
             call list_elements(names, elts)
+
             do k = 1, size(elts)
                 f = xstring(elts(k))
                 if (f == "." .or. f == "..") cycle
                 excluded = .false.
+
                 do j = 1, size(vc_directory_exclusion_list)
                     if (trim(vc_directory_exclusion_list(j)) == f) excluded = .true.
                 end do
+
                 if (excluded) cycle
                 dirf = expand(f, dir)
                 ! Avoid possible loops.
@@ -3105,20 +3482,22 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
-
     recursive subroutine cmd_vc_next_action(status)
         type(status_type), intent(out) :: status
+
         call vc_next_action(.not. nilp(current_prefix_arg), status)
     end subroutine cmd_vc_next_action
 
     recursive subroutine cmd_vc_register(status)
         type(status_type), intent(out) :: status
+
         call vc_register(status)
     end subroutine cmd_vc_register
 
     recursive subroutine cmd_vc_create_repo(status)
         type(status_type), intent(out) :: status
         integer :: b
+
         b = vc_read_backend("Create repository for: ", status)
         if (.not. status%ok()) return
         call vc_create_repo(b, status)
@@ -3127,18 +3506,22 @@ contains
     recursive subroutine cmd_vc_ignore(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: rel_dir, file
+
         rel_dir = vc_ignore_base_dir(status)
         if (.not. status%ok()) return
         call read_file_name("File to ignore: ", file, status)
         if (.not. status%ok()) return
+
         if (file_name_absolute_p(file)) then
             if (file_in_directory_p(file, rel_dir)) file = file_relative_name(file, rel_dir)
         end if
+
         call vc_ignore(file, status, rel_dir,.not. nilp(current_prefix_arg))
     end subroutine cmd_vc_ignore
 
     recursive subroutine cmd_vc_diff(status)
         type(status_type), intent(out) :: status
+
         call vc_diff(status,.not. nilp(current_prefix_arg), .true., interactive=.true.)
     end subroutine cmd_vc_diff
 
@@ -3146,6 +3529,7 @@ contains
         type(status_type), intent(out) :: status
         type(vc_fileset_type) :: fs
         character(len=:), allocatable :: rev1, rev2
+
         call vc_deduce_fileset(fs, status, .true.)
         if (.not. status%ok()) return
         call vc_diff_build_argument_list_internal(fs, rev1, rev2, status)
@@ -3158,11 +3542,14 @@ contains
         type(vc_fileset_type) :: args
         character(len=:), allocatable :: rev1, rev2, root
         logical :: found
+
         args%backend = vc_deduce_backend()
+
         if (args%backend == 0) then
             args%backend = vc_responsible_backend(default_directory(), status)
             if (.not. status%ok()) return
         end if
+
         call vc_call_root(args%backend, default_directory(), root, found, status)
         if (.not. status%ok()) return
         call one(args%files, root)
@@ -3173,6 +3560,7 @@ contains
 
     recursive subroutine cmd_vc_root_diff(status)
         type(status_type), intent(out) :: status
+
         call vc_root_diff(.not. nilp(current_prefix_arg), status, .true., .true.)
     end subroutine cmd_vc_root_diff
 
@@ -3181,6 +3569,7 @@ contains
         character(len=:), allocatable :: rev
         type(handle_type) :: old
         type(status_type) :: st
+
         old = current_buffer()
         call vc_ensure_vc_buffer(status)
         if (.not. status%ok()) return
@@ -3193,6 +3582,7 @@ contains
 
     recursive subroutine cmd_vc_revert(status)
         type(status_type), intent(out) :: status
+
         call vc_revert(status)
     end subroutine cmd_vc_revert
 
@@ -3200,12 +3590,14 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
         type(vc_string_type), allocatable :: files(:)
+
         if (len(buffer_file_name()) > 0 .and. vc_backend(buffer_file_name()) /= 0) then
             call read_file_name("VC delete file: ", file, status, default_filename=buffer_file_name(), &
                                 mustmatch=REQUIRE_MATCH_T)
         else
             call read_file_name("VC delete file: ", file, status, mustmatch=REQUIRE_MATCH_T)
         end if
+
         if (.not. status%ok()) return
         call one(files, file)
         call vc_delete_file(files, status)
@@ -3214,12 +3606,14 @@ contains
     recursive subroutine cmd_vc_rename_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: old, new
+
         if (len(buffer_file_name()) > 0 .and. vc_backend(buffer_file_name()) /= 0) then
             call read_file_name("VC rename file: ", old, status, default_filename=buffer_file_name(), &
                                 mustmatch=REQUIRE_MATCH_T)
         else
             call read_file_name("VC rename file: ", old, status, mustmatch=REQUIRE_MATCH_T)
         end if
+
         if (.not. status%ok()) return
         call read_file_name("Rename to: ", new, status)
         if (.not. status%ok()) return
@@ -3228,6 +3622,7 @@ contains
 
     recursive subroutine cmd_vc_clear_context(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call vc_clear_context()
     end subroutine cmd_vc_clear_context
@@ -3235,6 +3630,7 @@ contains
     !> `vc_mode_line' as vc-mode-line-hook.
     subroutine mode_line_hook(file)
         character(len=*), intent(in) :: file
+
         call vc_mode_line(file)
     end subroutine mode_line_hook
 
@@ -3244,6 +3640,7 @@ contains
             vc_deduce_backend_nonvc_modes = [character(len=32) :: "dired_mode", "shell_mode", "eshell_mode", &
                                              "compilation_mode"]
         end if
+
         if (.not. allocated(locals)) allocate (locals(0))
         commands%vc_next_action%run => cmd_vc_next_action
         commands%vc_register%run => cmd_vc_register
@@ -3261,9 +3658,11 @@ contains
         commands%vc_clear_context%run => cmd_vc_clear_context
         commands%vc_print_log%run => cmd_vc_print_log
         commands%vc_print_root_log%run => cmd_vc_print_root_log
+
         if (.not. vc_log_finish_functions%member(vc_shrink_buffer_window)) then
             call vc_log_finish_functions%add(vc_shrink_buffer_window)
         end if
+
         vc_mode_line_hook => mode_line_hook
         call add_local_variables_killer(kill_vc_locals)
         call syms_of_vc_dispatcher()

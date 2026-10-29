@@ -943,6 +943,7 @@ contains
     !> Whether `a' and `b' are the same buffer (or window) handle.
     pure logical function same_handle(a, b)
         type(handle_type), intent(in) :: a, b
+
         same_handle = a%index == b%index .and. a%generation == b%generation
     end function same_handle
 
@@ -951,6 +952,7 @@ contains
     integer(int64) function window_start(w) result(pos)
         type(window_type), intent(in) :: w
         type(status_type) :: status
+
         pos = 1
         if (w%start%index == 0) return
         call marker_position(w%start, pos, status)
@@ -964,6 +966,7 @@ contains
         integer(int64), intent(in) :: pos
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: noforce
+
         if (w%start%index == 0) call make_marker(w%start)
         call set_marker(w%start, pos, status, w%buffer)
         w%force_start = .true.
@@ -976,6 +979,7 @@ contains
     integer(int64) function window_point(w) result(pos)
         type(window_type), intent(in) :: w
         type(status_type) :: status
+
         pos = 1
         if (w%pointm%index == 0) return
         call marker_position(w%pointm, pos, status)
@@ -987,6 +991,7 @@ contains
         type(window_type), intent(inout) :: w
         integer(int64), intent(in) :: pos
         type(status_type), intent(out) :: status
+
         if (w%pointm%index == 0) call make_marker(w%pointm)
         call set_marker(w%pointm, pos, status, w%buffer)
     end subroutine set_window_point
@@ -995,6 +1000,7 @@ contains
     !> Port of window.c:window_body_height (in lines).
     integer function window_body_lines(w)
         type(window_type), intent(in) :: w
+
         window_body_lines = w%total_lines
         if (.not. w%mini) window_body_lines = max(0, w%total_lines - 1)
         if (window_wants_header_line(w)) window_body_lines = window_body_lines - 1
@@ -1008,6 +1014,7 @@ contains
         type(window_type), intent(in) :: w
         integer(int64) :: bi
         type(status_type) :: st
+
         wants = .false.
         if (w%mini .or. w%total_lines <= 2) return
         call resolve_buffer(w%buffer, bi, st)
@@ -1020,14 +1027,18 @@ contains
         type(window_type), intent(inout) :: w
         type(status_type) :: status
         integer :: k
+
         if (w%start%index /= 0) call free_marker(w%start, status)
         if (w%pointm%index /= 0) call free_marker(w%pointm, status)
+
         if (allocated(w%prev_buffers)) then
             do k = 1, size(w%prev_buffers)
                 call free_prev_buffer(w%prev_buffers(k))
             end do
+
             deallocate (w%prev_buffers)
         end if
+
         if (allocated(w%next_buffers)) deallocate (w%next_buffers)
         call free_quit_restore(w%quit_restore)
         call free_quit_restore(w%quit_restore_prev)
@@ -1040,6 +1051,7 @@ contains
     subroutine free_prev_buffer(e)
         type(prev_buffer_type), intent(inout) :: e
         type(status_type) :: status
+
         if (e%start%index /= 0) call free_marker(e%start, status)
         if (e%point%index /= 0) call free_marker(e%point, status)
         e = prev_buffer_type()
@@ -1050,6 +1062,7 @@ contains
     subroutine free_quit_restore(q)
         type(quit_restore_type), intent(inout) :: q
         type(status_type) :: status
+
         if (q%quad_point%index /= 0) call free_marker(q%quad_point, status)
         q = quit_restore_type()
     end subroutine free_quit_restore
@@ -1057,13 +1070,14 @@ contains
     ! ------------------------------------------------------------------
     ! The window registry and tree
     ! ------------------------------------------------------------------
-
     !> A new window, in no tree and showing no buffer.  Port of
     !> window.c:make_window.
     subroutine make_window(h)
         type(handle_type), intent(out) :: h
         type(window_type), allocatable :: grown(:)
+
         call wtable%acquire(h)
+
         if (.not. allocated(windows)) then
             allocate (windows(wtable%capacity()))
         else if (size(windows, kind=int64) < wtable%capacity()) then
@@ -1071,6 +1085,7 @@ contains
             grown(1:size(windows)) = windows
             call move_alloc(grown, windows)
         end if
+
         windows(h%index) = window_type()
     end subroutine make_window
 
@@ -1081,8 +1096,10 @@ contains
     subroutine delete_window_object(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: status
+
         if (.not. wtable%is_live(h)) return
         if (windows(h%index)%dead) return
+
         if (windows(h%index)%config_refs > 0) then
             associate (w => windows(h%index))
                 if (w%start%index /= 0) call free_marker(w%start, status)
@@ -1097,8 +1114,10 @@ contains
                 w%child = null_handle()
                 w%dead = .true.
             end associate
+
             return
         end if
+
         call free_window(windows(h%index))
         windows(h%index) = window_type()
         call wtable%release(h, status)
@@ -1109,7 +1128,9 @@ contains
     function window_ref(h) result(w)
         type(handle_type), intent(in) :: h
         type(window_type), pointer :: w
+
         w => null()
+
         if (wtable%is_live(h)) then
             if (.not. windows(h%index)%dead) w => windows(h%index)
         end if
@@ -1119,6 +1140,7 @@ contains
     !> window.c:Fwindow_valid_p.
     logical function window_valid_p(h)
         type(handle_type), intent(in) :: h
+
         window_valid_p = wtable%is_live(h)
         if (window_valid_p) window_valid_p = .not. windows(h%index)%dead
     end function window_valid_p
@@ -1127,12 +1149,14 @@ contains
     !> Port of window.c:Fwindow_live_p.
     logical function window_live_p(h)
         type(handle_type), intent(in) :: h
+
         window_live_p = wtable%is_live(h)
         if (window_live_p) window_live_p = windows(h%index)%child%index == 0 .and. .not. windows(h%index)%dead
     end function window_live_p
 
     pure logical function same_window(a, b)
         type(handle_type), intent(in) :: a, b
+
         same_window = a%index == b%index .and. a%generation == b%generation
     end function same_window
 
@@ -1143,8 +1167,10 @@ contains
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), allocatable :: grown(:)
         type(handle_type) :: c
+
         if (.not. allocated(list)) allocate (list(0))
         if (.not. wtable%is_live(root)) return
+
         if (windows(root%index)%child%index == 0) then
             allocate (grown(size(list) + 1))
             grown(1:size(list)) = list
@@ -1152,7 +1178,9 @@ contains
             call move_alloc(grown, list)
             return
         end if
+
         c = windows(root%index)%child
+
         do while (wtable%is_live(c))
             call window_leaves(c, list)
             c = windows(c%index)%next
@@ -1162,6 +1190,7 @@ contains
     !> Columns for text in `w': its width less the vertical border.
     integer function window_text_cols(w)
         type(window_type), intent(in) :: w
+
         window_text_cols = w%total_cols
         if (w%divider) window_text_cols = max(1, w%total_cols - 1)
     end function window_text_cols
@@ -1176,13 +1205,16 @@ contains
         integer, intent(in) :: top, left, lines, cols, frame_cols
         type(handle_type) :: c
         integer :: n, old_total, k, pos, size_k, given, old_k
+
         if (.not. wtable%is_live(h)) return
+
         associate (w => windows(h%index))
             if (w%horizontal) then
                 old_total = w%total_cols
             else
                 old_total = w%total_lines
             end if
+
             w%top_line = top
             w%left_col = left
             w%total_lines = lines
@@ -1190,19 +1222,24 @@ contains
             w%divider = left + cols < frame_cols
             if (w%child%index == 0) return
         end associate
+
         ! Count the children and the old sizes along the combination.
         n = 0
         c = windows(h%index)%child
+
         do while (wtable%is_live(c))
             n = n + 1
             c = windows(c%index)%next
         end do
+
         pos = 0
         given = 0
         k = 0
         c = windows(h%index)%child
+
         do while (wtable%is_live(c))
             k = k + 1
+
             if (windows(h%index)%horizontal) then
                 old_k = windows(c%index)%total_cols
                 size_k = new_size(cols)
@@ -1212,6 +1249,7 @@ contains
                 size_k = new_size(lines)
                 call resize_window_tree(c, top + pos, left, size_k, cols, frame_cols)
             end if
+
             pos = pos + size_k
             c = windows(c%index)%next
         end do
@@ -1221,6 +1259,7 @@ contains
         !> The new size of the k-th child out of `total'.
         integer function new_size(total)
             integer, intent(in) :: total
+
             if (k == n) then
                 new_size = total - given
             else if (old_total > 0 .and. old_k > 0) then
@@ -1228,6 +1267,7 @@ contains
             else
                 new_size = total/n
             end if
+
             given = given + new_size
         end function new_size
     end subroutine resize_window_tree
@@ -1236,13 +1276,16 @@ contains
     recursive subroutine delete_window_tree(h)
         type(handle_type), intent(in) :: h
         type(handle_type) :: c, nxt
+
         if (.not. wtable%is_live(h)) return
         c = windows(h%index)%child
+
         do while (wtable%is_live(c))
             nxt = windows(c%index)%next
             call delete_window_tree(c)
             c = nxt
         end do
+
         call delete_window_object(h)
     end subroutine delete_window_tree
 
@@ -1250,6 +1293,7 @@ contains
     !> siblings), leaving `old' out of it.  Port of window.c:replace_window.
     subroutine replace_window(old, new)
         type(handle_type), intent(in) :: old, new
+
         associate (o => windows(old%index), n => windows(new%index))
             n%parent = o%parent
             n%next = o%next
@@ -1260,11 +1304,13 @@ contains
             n%total_cols = o%total_cols
             n%divider = o%divider
             if (wtable%is_live(o%next)) windows(o%next%index)%prev = new
+
             if (wtable%is_live(o%prev)) then
                 windows(o%prev%index)%next = new
             else if (wtable%is_live(o%parent)) then
                 windows(o%parent%index)%child = new
             end if
+
             o%parent = null_handle()
             o%next = null_handle()
             o%prev = null_handle()
@@ -1291,12 +1337,14 @@ contains
         type(handle_type) :: parent, nxt, r
         integer :: old_size
         logical :: combine
+
         status = status_type()
         r = old
         if (present(refer)) r = refer
         parent = windows(old%index)%parent
         combine = .false.
         if (wtable%is_live(parent)) combine = windows(parent%index)%horizontal .eqv. horizontal
+
         if (.not. combine) then
             ! A new internal window takes old's place, with old as its child.
             call make_window(parent)
@@ -1306,7 +1354,9 @@ contains
             windows(old%index)%parent = parent
             if (same_window(root, old)) root = parent
         end if
+
         call make_window(new)
+
         associate (o => windows(old%index), n => windows(new%index))
             n%parent = parent
             nxt = o%next
@@ -1319,6 +1369,7 @@ contains
             n%total_lines = o%total_lines
             n%total_cols = o%total_cols
             n%divider = o%divider
+
             if (horizontal) then
                 old_size = o%total_cols - new_size
                 o%total_cols = old_size
@@ -1332,6 +1383,7 @@ contains
                 n%total_lines = new_size
             end if
         end associate
+
         call set_window_buffer_internal(new, windows(r%index)%buffer, .true.)
     end subroutine split_window_internal
 
@@ -1347,26 +1399,32 @@ contains
         integer, intent(in) :: frame_cols
         type(handle_type) :: parent, only
         integer :: top, left, lines, cols
+
         heir = null_handle()
         parent = windows(h%index)%parent
         if (.not. wtable%is_live(parent)) return
+
         associate (w => windows(h%index))
             if (wtable%is_live(w%prev)) then
                 heir = w%prev
             else
                 heir = w%next
             end if
+
             ! Unlink.
             if (wtable%is_live(w%prev)) then
                 windows(w%prev%index)%next = w%next
             else
                 windows(parent%index)%child = w%next
             end if
+
             if (wtable%is_live(w%next)) windows(w%next%index)%prev = w%prev
+
             ! The heir grows over the space.
             associate (e => windows(heir%index))
                 top = min(e%top_line, w%top_line)
                 left = min(e%left_col, w%left_col)
+
                 if (windows(parent%index)%horizontal) then
                     lines = e%total_lines
                     cols = e%total_cols + w%total_cols
@@ -1375,13 +1433,16 @@ contains
                     cols = e%total_cols
                 end if
             end associate
+
             w%parent = null_handle()
             w%next = null_handle()
             w%prev = null_handle()
         end associate
+
         call resize_window_tree(heir, top, left, lines, cols, frame_cols)
         ! A combination of one is no combination.
         only = windows(parent%index)%child
+
         if (.not. wtable%is_live(windows(only%index)%next)) then
             call replace_window(parent, only)
             if (same_window(root, parent)) root = only

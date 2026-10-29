@@ -41,26 +41,32 @@ contains
         type(status_type) :: ignore
         integer(int64) :: i, k
         logical :: was_current
+
         call resolve_buffer(h, i, status)
         if (.not. status%ok()) return
+
         ! Run hooks with the buffer to be killed as the current buffer.
         if (associated(run_kill_buffer_hook)) then
             other = current_buffer()
             call set_buffer_internal(i)
             call run_kill_buffer_hook(h)
             call resolve_buffer(other, k, ignore)
+
             if (ignore%ok()) then
                 call set_buffer_internal(k)
             else
                 call set_buffer_internal(i)
             end if
+
             ! The hook may have killed the buffer.
             call resolve_buffer(h, i, status)
+
             if (.not. status%ok()) then
                 status = status_type()
                 return
             end if
         end if
+
         ! Make this buffer not be displayed.
         if (associated(replace_buffer_in_windows_hook)) call replace_buffer_in_windows_hook(h)
         ! Kill the processes of this buffer.
@@ -78,29 +84,35 @@ contains
         ! The mark and the mark ring belong to the buffer (upstream they are
         ! left to GC).
         if (buffers(i)%mark%index /= 0) call free_marker(buffers(i)%mark, ignore)
+
         if (allocated(buffers(i)%mark_ring)) then
             do k = 1, size(buffers(i)%mark_ring)
                 call free_marker(buffers(i)%mark_ring(k), ignore)
             end do
         end if
+
         call table%release(h, status)
         if (.not. status%ok()) return
         if (allocated(buffers(i)%text%beg)) deallocate (buffers(i)%text%beg)
         buffers(i) = buffer_type()
         if (.not. was_current) return
+
         do k = alist_count, 1, -1
             if (buffers(alist(k)%index)%name(1:1) /= " ") then
                 call set_buffer_internal(alist(k)%index)
                 return
             end if
         end do
+
         call get_buffer_create("*scratch*", other, status)
         if (status%ok()) call set_buffer_internal(other%index)
     end subroutine kill_buffer
 
     module subroutine erase_buffer(status)
         type(status_type), intent(out) :: status
+
         if (cur == 0) return
+
         ! Fwiden (editfns.c), inline until editfns_fm exists.
         associate (b => buffers(cur))
             b%begv = BEG
@@ -108,6 +120,7 @@ contains
             b%zv = b%text%z
             b%zv_byte = b%text%z_byte
         end associate
+
         call del_range(BEG, buffers(cur)%text%z, status)
     end subroutine erase_buffer
 
@@ -116,6 +129,7 @@ contains
     subroutine alist_remove(h)
         type(handle_type), intent(in) :: h
         integer(int64) :: k
+
         do k = 1, alist_count
             if (alist(k)%index == h%index .and. alist(k)%generation == h%generation) then
                 alist(k:alist_count - 1) = alist(k + 1:alist_count)

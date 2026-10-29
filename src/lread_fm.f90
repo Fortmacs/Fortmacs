@@ -56,7 +56,9 @@ contains
     pure integer(int64) function hash_name(name)
         character(len=*), intent(in) :: name
         integer :: k
+
         hash_name = 0
+
         do k = 1, len(name)
             hash_name = mod(hash_name*31 + ichar(name(k:k), int64), 2147483647_int64)
         end do
@@ -66,14 +68,18 @@ contains
     integer(int64) function find_slot(name)
         character(len=*), intent(in) :: name
         integer(int64) :: mask, id
+
         mask = size(slots, kind=int64) - 1
         find_slot = iand(hash_name(name), mask) + 1
+
         do
             id = slots(find_slot)
             if (id == 0) return
+
             if (len(symbols(id)%name) == len(name)) then
                 if (symbols(id)%name == name) return
             end if
+
             find_slot = iand(find_slot, mask) + 1
         end do
     end function find_slot
@@ -82,6 +88,7 @@ contains
     !> Port of lread.c:init_obarray_once.
     subroutine init_obarray()
         integer(int64) :: id
+
         allocate (slots(64))
         slots = 0
         allocate (symbols(32))
@@ -100,11 +107,13 @@ contains
     integer(int64) function add_symbol(name) result(id)
         character(len=*), intent(in) :: name
         type(symbol_type), allocatable :: grown(:)
+
         if (nsymbols == size(symbols, kind=int64)) then
             allocate (grown(2*nsymbols))
             grown(1:nsymbols) = symbols(1:nsymbols)
             call move_alloc(grown, symbols)
         end if
+
         ! Keep the table at most half full.
         if (2*(nsymbols + 1) > size(slots, kind=int64)) call rehash(2*size(slots, kind=int64))
         nsymbols = nsymbols + 1
@@ -112,6 +121,7 @@ contains
         symbols(id) = symbol_type()
         symbols(id)%name = name
         slots(find_slot(name)) = id
+
         ! Keywords are constants that evaluate to themselves.
         if (len(name) > 0) then
             if (name(1:1) == ":") then
@@ -125,9 +135,11 @@ contains
     subroutine rehash(new_size)
         integer(int64), intent(in) :: new_size
         integer(int64) :: id
+
         deallocate (slots)
         allocate (slots(new_size))
         slots = 0
+
         do id = 1, nsymbols
             slots(find_slot(symbols(id)%name)) = id
         end do
@@ -143,6 +155,7 @@ contains
     !> Port of lread.c:Fintern (initial obarray).
     integer(int64) function intern(name) result(id)
         character(len=*), intent(in) :: name
+
         if (.not. allocated(slots)) call init_obarray()
         id = slots(find_slot(name))
         if (id == 0) id = add_symbol(name)
@@ -152,6 +165,7 @@ contains
     !> Port of lread.c:Fintern_soft.
     integer(int64) function intern_soft(name) result(id)
         character(len=*), intent(in) :: name
+
         if (.not. allocated(slots)) call init_obarray()
         id = slots(find_slot(name))
     end function intern_soft
@@ -161,13 +175,13 @@ contains
     function sym(name) result(v)
         character(len=*), intent(in) :: name
         type(value_type) :: v
+
         v = make_symbol_ref(intern(name))
     end function sym
 
     ! ------------------------------------------------------------------
     ! Reading string constants
     ! ------------------------------------------------------------------
-
     !> Read a string constant from TEXT (internal encoding), starting at
     !> byte START, just after the opening double quote: VALUE is the
     !> string read and NEXT the byte after the closing quote.  Escape
@@ -190,24 +204,30 @@ contains
         integer(int32) :: ch, n, modifiers
         character(len=MAX_MULTIBYTE_LENGTH) :: buf
         type(status_type) :: st
+
         value = ""
         pos = start
         next = len(text) + 1
+
         do
             if (pos > len(text)) then
                 call set_error(status, FM_GENERIC_ERROR, "End of file during parsing")
                 return
             end if
+
             call string_char_and_length(text, pos, ch, n)
             pos = pos + n
             if (ch == iachar('"')) exit
+
             if (ch == iachar("\")) then
                 if (pos > len(text)) then
                     call set_error(status, FM_GENERIC_ERROR, "End of file during parsing")
                     return
                 end if
+
                 call string_char_and_length(text, pos, ch, n)
                 pos = pos + n
+
                 if (ch == iachar("s")) then
                     ! `\s' is always a space in strings.
                     ch = iachar(" ")
@@ -218,14 +238,17 @@ contains
                     call read_char_escape(text, pos, ch, status)
                     if (.not. status%ok()) return
                 end if
+
                 modifiers = iand(ch, CHAR_MODIFIER_MASK)
                 ch = iand(ch, not(CHAR_MODIFIER_MASK))
+
                 if (ch < 128) then
                     ! Allow `\C-SPC' and `\^SPC'.
                     if (modifiers == CHAR_CTL .and. ch == iachar(" ")) then
                         ch = 0
                         modifiers = 0
                     end if
+
                     if (iand(modifiers, CHAR_SHIFT) /= 0) then
                         ! Shift modifier is valid only with [A-Za-z].
                         if (ch >= iachar("A") .and. ch <= iachar("Z")) then
@@ -235,21 +258,25 @@ contains
                             modifiers = iand(modifiers, not(CHAR_SHIFT))
                         end if
                     end if
+
                     if (iand(modifiers, CHAR_META) /= 0) then
                         ! Move the meta bit to the right place for a string.
                         modifiers = iand(modifiers, not(CHAR_META))
                         ch = byte8_to_char(ior(ch, 128))
                     end if
                 end if
+
                 ! Any modifiers remaining are invalid.
                 if (modifiers /= 0) then
                     call set_error(status, FM_GENERIC_ERROR, "Invalid modifier in string")
                     return
                 end if
             end if
+
             call char_string(ch, buf, n, st)
             value = value//buf(1:n)
         end do
+
         next = pos
     end subroutine read_string_literal
 
@@ -264,13 +291,16 @@ contains
         integer(int32) :: modifiers, ncontrol, chr, c1, i, count, digit, nhex, k, n
         integer(int64) :: save
         logical :: done
+
         status = status_type()
         modifiers = 0
         ncontrol = 0
         chr = 0
         done = .false.
+
         do while (.not. done)
             done = .true.
+
             select case (c)
             case (iachar("a"))
                 chr = 7
@@ -295,6 +325,7 @@ contains
                 return
             case (iachar("M"), iachar("S"), iachar("H"), iachar("A"), iachar("s"))
                 if (.not. next_char(c1)) return
+
                 if (c1 /= iachar("-")) then
                     if (c == iachar("s")) then
                         ! \s not followed by a hyphen is SPC.
@@ -318,7 +349,9 @@ contains
                     case default
                         modifiers = ior(modifiers, CHAR_SUPER)
                     end select
+
                     if (.not. next_char(c1)) return
+
                     if (c1 == iachar("\")) then
                         if (.not. next_char(c)) return
                         done = .false.
@@ -329,13 +362,16 @@ contains
             case (iachar("C"), iachar("^"))
                 if (c == iachar("C")) then
                     if (.not. next_char(c1)) return
+
                     if (c1 /= iachar("-")) then
                         call set_error(status, FM_GENERIC_ERROR, "Invalid escape char syntax: \C not followed by -")
                         return
                     end if
                 end if
+
                 ncontrol = ncontrol + 1
                 if (.not. next_char(c1)) return
+
                 if (c1 == iachar("\")) then
                     if (.not. next_char(c)) return
                     done = .false.
@@ -345,6 +381,7 @@ contains
             case (iachar("0"):iachar("7"))
                 ! 1-3 octal digits.  Values in 0x80..0xff are raw bytes.
                 i = c - iachar("0")
+
                 do count = 1, 2
                     if (pos > len(text)) exit
                     c1 = iachar(text(pos:pos))
@@ -352,28 +389,34 @@ contains
                     i = i*8 + (c1 - iachar("0"))
                     pos = pos + 1
                 end do
+
                 if (i >= 128 .and. i < 256) i = byte8_to_char(i)
                 chr = i
             case (iachar("x"))
                 ! 1 or more hex digits.
                 i = 0
                 count = 0
+
                 do
                     if (pos > len(text)) exit
                     digit = char_hexdigit(iachar(text(pos:pos), int32))
                     if (digit < 0) exit
+
                     if (i > ior(CHAR_META, CHAR_META - 1)/16) then
                         call set_error(status, FM_GENERIC_ERROR, "Hex character out of range")
                         return
                     end if
+
                     i = i*16 + digit
                     pos = pos + 1
                     count = min(count + 1, 3)
                 end do
+
                 if (count == 0) then
                     call set_error(status, FM_GENERIC_ERROR, "Invalid escape char syntax: \x not followed by hex digit")
                     return
                 end if
+
                 if (count < 3 .and. i >= 128) i = byte8_to_char(i)
                 modifiers = ior(modifiers, iand(i, CHAR_MODIFIER_MASK))
                 chr = iand(i, not(CHAR_MODIFIER_MASK))
@@ -381,70 +424,89 @@ contains
                 nhex = 4
                 if (c == iachar("U")) nhex = 8
                 i = 0
+
                 do k = 1, nhex
                     if (pos > len(text)) then
                         call set_error(status, FM_GENERIC_ERROR, "Malformed Unicode escape")
                         return
                     end if
+
                     digit = char_hexdigit(iachar(text(pos:pos), int32))
+
                     if (digit < 0) then
                         call set_error(status, FM_GENERIC_ERROR, "Non-hex character used for Unicode escape: "// &
                                        text(pos:pos))
                         return
                     end if
+
                     if (i > int(z'10FFFF', int32)) then
                         call set_error(status, FM_GENERIC_ERROR, "Non-Unicode character")
                         return
                     end if
+
                     i = i*16 + digit
                     pos = pos + 1
                 end do
+
                 if (i > int(z'10FFFF', int32)) then
                     call set_error(status, FM_GENERIC_ERROR, "Non-Unicode character")
                     return
                 end if
+
                 chr = i
             case (iachar("N"))
                 ! Named character: only \N{U+X} here.
                 if (.not. next_char(c1)) return
+
                 if (c1 /= iachar("{")) then
                     call set_error(status, FM_GENERIC_ERROR, "Expected opening brace after \N")
                     return
                 end if
+
                 k = index(text(pos:), "}")
+
                 if (k == 0) then
                     call set_error(status, FM_GENERIC_ERROR, "End of file during parsing")
                     return
                 end if
+
                 n = k - 1
                 i = -1
+
                 if (n >= 3) then
                     if (text(pos:pos + 1) == "U+") then
                         i = 0
+
                         do count = 2, n - 1
                             digit = char_hexdigit(iachar(text(pos + count:pos + count), int32))
+
                             if (digit < 0 .or. i > int(z'10FFFF', int32)) then
                                 i = -1
                                 exit
                             end if
+
                             i = i*16 + digit
                         end do
                     end if
                 end if
+
                 if (i < 0 .or. i > int(z'10FFFF', int32)) then
                     call set_error(status, FM_GENERIC_ERROR, "Invalid read syntax: \N{"//text(pos:pos + n - 1)//"}")
                     return
                 end if
+
                 if (char_surrogate_p(i)) then
                     call set_error(status, FM_GENERIC_ERROR, "Invalid read syntax: \N{"//text(pos:pos + n - 1)//"}")
                     return
                 end if
+
                 pos = pos + k
                 chr = i
             case default
                 chr = c
             end select
         end do
+
         ! Apply Control modifiers.
         do while (ncontrol > 0)
             if ((chr >= iachar("@") .and. chr <= iachar("_")) .or. (chr >= iachar("a") .and. chr <= iachar("z"))) then
@@ -454,9 +516,12 @@ contains
             else
                 modifiers = ior(modifiers, CHAR_CTL)
             end if
+
             ncontrol = ncontrol - 1
         end do
+
         c = ior(chr, modifiers)
+
     contains
 
         !> Read the next character into CH (false at the end of TEXT, with
@@ -464,13 +529,16 @@ contains
         logical function next_char(ch) result(ok)
             integer(int32), intent(out) :: ch
             integer(int32) :: len1
+
             save = pos
             ok = pos <= len(text)
             ch = -1
+
             if (.not. ok) then
                 call set_error(status, FM_GENERIC_ERROR, "End of file during parsing")
                 return
             end if
+
             call string_char_and_length(text, pos, ch, len1)
             pos = pos + len1
         end function next_char

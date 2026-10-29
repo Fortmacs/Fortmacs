@@ -49,6 +49,7 @@ contains
         integer(int32) :: modes
         logical :: keep, mkparents, contents, follow, found
         integer :: k
+
         status = status_type()
         keep = .false.
         if (present(keep_time)) keep = keep_time
@@ -56,27 +57,33 @@ contains
         if (present(parents)) mkparents = parents
         contents = .false.
         if (present(copy_contents)) contents = copy_contents
+
         if (file_in_directory_p(newname, directory)) then
             call set_error(status, FM_GENERIC_ERROR, format_message("Cannot copy `")//directory// &
                            format_message("' into its subdirectory `")//newname//format_message("'"))
             return
         end if
+
         ! Compute target name.
         call expand_file_name(directory, dir, status)
         if (.not. status%ok()) return
         dir = directory_file_name(dir)
         call expand_file_name(newname, new, status)
         if (.not. status%ok()) return
+
         ! If DIRECTORY is a symlink, create a symlink with the same target.
         if (file_symlink_p(dir) .and. copy_directory_create_symlink) then
             target = file_symlink_target(dir)
+
             if (directory_name_p(new)) then
                 call make_symbolic_link(target, new//file_name_nondirectory(dir), status, .true.)
             else
                 call make_symbolic_link(target, new, status, .true.)
             end if
+
             return
         end if
+
         ! Else proceed to copy as a regular directory first by creating
         ! the destination directory if needed, preparing to follow any
         ! symlink to a directory we did not create.
@@ -91,27 +98,33 @@ contains
             ! create NEWNAME/[DIRECTORY-BASENAME].
             if (.not. contents) new = new//file_name_nondirectory(dir)
             call make_directory(directory_file_name(new), err, mkparents, follow)
+
             if (.not. err%ok()) then
                 if (.not. file_directory_p(new)) then
                     status = err
                     return
                 end if
+
                 follow = .true.
             end if
         end if
+
         ! Copy recursively.  We do not want to copy "." and "..".
         call directory_files(dir, files, status, full=.true.)
         if (.not. status%ok()) return
         call list_elements(files, elems)
+
         do k = 1, size(elems)
             file = xstring(elems(k))
             if (file_name_nondirectory(file) == "." .or. file_name_nondirectory(file) == "..") cycle
             target = file_name_as_directory(new)//file_name_nondirectory(file)
             call file_attributes(file, attrs, found, nofollow=.true.)
             filetype = ""
+
             if (found) then
                 if (iand(attrs%mode, S_IFMT) == S_IFLNK) filetype = file_symlink_target(file)
             end if
+
             if (found .and. iand(attrs%mode, S_IFMT) == S_IFDIR) then
                 ! Directory but not a symlink.
                 call copy_directory(file, target, status, keep, mkparents, .true.)
@@ -121,13 +134,16 @@ contains
             else
                 call copy_file(file, target, status, ok_if_already_exists=.true., keep_time=keep)
             end if
+
             if (.not. status%ok()) return
         end do
+
         ! Set directory attributes.
         modes = file_modes(dir)
         call file_attributes(dir, dattrs, found, nofollow=.true.)
         if (modes >= 0) call set_file_modes(new, modes, status, nofollow=.not. follow)
         if (.not. status%ok()) return
+
         if (keep .and. found) then
             call set_file_times(new, status, dattrs%mtime_sec, dattrs%mtime_nsec, nofollow=.not. follow)
         end if
@@ -140,6 +156,7 @@ contains
         type(status_type) :: st
         integer :: i1, i2, j1, j2
         logical :: mismatch, more1, more2
+
         inside = .false.
         ! DIR must exist.
         if (.not. file_directory_p(dir)) return
@@ -147,6 +164,7 @@ contains
         if (.not. st%ok()) return
         call file_truename(dir, d, st)
         if (.not. st%ok()) return
+
         if (index(f, "//") == 1) then
             ! A UNC on Windows systems, or a "super-root" on Apollo.
             root = "//"
@@ -155,25 +173,31 @@ contains
         else
             root = ""
         end if
+
         ! (split-string file "/" t) and (split-string dir "/" t), compared
         ! component by component.
         mismatch = .false.
         i1 = 1
         j1 = 1
+
         do
             call next_component(f, i1, i2, more1)
             call next_component(d, j1, j2, more2)
             if (.not. (more1 .and. more2)) exit
+
             if (f(i1:i2) == d(j1:j2) .and. i2 - i1 == j2 - j1) then
                 root = root//f(i1:i2)//"/"
             else
                 mismatch = .true.
                 exit
             end if
+
             i1 = i2 + 1
             j1 = j2 + 1
         end do
+
         if (.not. mismatch) inside = file_equal_p(root, dir)
+
     contains
 
         !> The next non-empty component of S at or after START: S(START:FINISH).
@@ -183,15 +207,19 @@ contains
             integer, intent(out) :: finish
             logical, intent(out) :: found
             integer :: slash
+
             found = .false.
             finish = start - 1
+
             do while (start <= len(s))
                 if (s(start:start) /= "/") exit
                 start = start + 1
             end do
+
             if (start > len(s)) return
             found = .true.
             slash = index(s(start:), "/")
+
             if (slash == 0) then
                 finish = len(s)
             else
@@ -207,6 +235,7 @@ contains
         type(file_stat_type) :: a1, a2
         type(status_type) :: st
         logical :: found1, found2
+
         same = .false.
         call file_truename(file1, t1, st)
         if (.not. st%ok()) return
@@ -231,20 +260,25 @@ contains
         type(handle_type) :: old, buf
         type(status_type) :: st
         logical :: mkparents
+
         status = status_type()
         mkparents = .false.
         if (present(parents)) mkparents = parents
+
         if (file_exists_p(filename) .and. .not. mkparents) then
             call set_error(status, FM_FILE_ALREADY_EXISTS, "File exists: "//filename)
             return
         end if
+
         paren_dir = file_name_directory(filename)
+
         if (len(paren_dir) > 0) then
             if (.not. file_exists_p(paren_dir)) then
                 call make_directory(paren_dir, status, mkparents)
                 if (.not. status%ok()) return
             end if
         end if
+
         ! (write-region "" nil filename nil 0): an empty temporary buffer
         ! written without a message.
         old = current_buffer()
@@ -267,7 +301,9 @@ contains
         character, intent(in) :: c
         integer(int32), intent(out) :: mask
         type(status_type), intent(inout) :: status
+
         mask = 0
+
         select case (c)
         case ("u")
             mask = int(o'4700', int32)
@@ -290,6 +326,7 @@ contains
         character, intent(in) :: c
         integer(int32), intent(in) :: from
         integer(int32) :: uright, gright, oright
+
         select case (c)
         case ("r")
             right = int(o'0444', int32)
@@ -333,19 +370,24 @@ contains
         integer(int32) :: num_right
         integer :: i
         character :: op
+
         num_rights = from
         i = 1
         op = achar(0)
         if (len(rights) >= 1) op = rights(1:1)
+
         do while (index("+-=", op) > 0)
             num_right = 0
             i = i + 1
+
             do while (i <= len(rights))
                 if (index("rwxXstugo", rights(i:i)) == 0) exit
                 num_right = ior(num_right, file_modes_char_to_right(rights(i:i), num_rights))
                 i = i + 1
             end do
+
             num_right = iand(who_mask, num_right)
+
             select case (op)
             case ("+")
                 num_rights = ior(num_rights, num_right)
@@ -354,6 +396,7 @@ contains
             case default
                 num_rights = ior(iand(num_rights, not(who_mask)), num_right)
             end select
+
             op = achar(0)
             if (i <= len(rights)) op = rights(i:i)
         end do
@@ -368,10 +411,12 @@ contains
         integer(int32) :: num_who, who
         integer :: start, i, who_end, k
         logical :: matched
+
         status = status_type()
         num_modes = 0
         if (present(from)) num_modes = from
         rest = modes
+
         do
             if (len(rest) == 0) exit
             if (rest(1:1) == achar(0)) exit
@@ -379,44 +424,56 @@ contains
             ! case-sensitive: at the start or after a newline.
             matched = .false.
             start = 1
+
             do while (start <= len(rest))
                 i = start
+
                 do while (i <= len(rest))
                     if (index("ugoa", rest(i:i)) == 0) exit
                     i = i + 1
                 end do
+
                 who_end = i
+
                 do while (i <= len(rest))
                     if (index("+=-", rest(i:i)) == 0) exit
                     matched = .true.
                     i = i + 1
+
                     do while (i <= len(rest))
                         if (index("rwxXstugo", rest(i:i)) == 0) exit
                         i = i + 1
                     end do
                 end do
+
                 if (matched) exit
                 ! The next line start.
                 k = index(rest(start:), achar(10))
                 if (k == 0) exit
                 start = start + k
             end do
+
             if (.not. matched) then
                 call set_error(status, FM_GENERIC_ERROR, format_message("Parse error in modes near `")//rest// &
                                format_message("'"))
                 return
             end if
+
             num_who = 0
+
             do k = start, who_end - 1
                 call file_modes_char_to_who(rest(k:k), who, status)
                 if (.not. status%ok()) return
                 num_who = ior(num_who, who)
             end do
+
             if (num_who == 0) num_who = ior(int(o'7000', int32), default_file_modes())
             num_modes = file_modes_rights_to_number(rest(who_end:), num_who, num_modes)
+
             if (i <= len(rest)) then
                 if (rest(i:i) == ",") i = i + 1
             end if
+
             rest = rest(i:)
         end do
     end subroutine file_modes_symbolic_to_number
@@ -425,6 +482,7 @@ contains
         integer(int32), intent(in) :: mode
         character, intent(in), optional :: filetype
         character(len=10) :: s
+
         if (present(filetype)) then
             s(1:1) = filetype
         else
@@ -445,6 +503,7 @@ contains
                 s(1:1) = "-"
             end select
         end if
+
         s(2:2) = bit(256, "r")
         s(3:3) = bit(128, "w")
         s(4:4) = special(64, 2048, "x", "s", "S")
@@ -454,11 +513,13 @@ contains
         s(8:8) = bit(4, "r")
         s(9:9) = bit(2, "w")
         s(10:10) = special(1, 512, "x", "t", "T")
+
     contains
 
         character function bit(mask, c)
             integer, intent(in) :: mask
             character, intent(in) :: c
+
             bit = "-"
             if (iand(mode, mask) /= 0) bit = c
         end function bit
@@ -468,6 +529,7 @@ contains
         character function special(mask, special_mask, x, s_set, s_unset)
             integer, intent(in) :: mask, special_mask
             character, intent(in) :: x, s_set, s_unset
+
             if (iand(mode, mask) == 0) then
                 special = "-"
                 if (iand(mode, special_mask) /= 0) special = s_unset
@@ -482,6 +544,7 @@ contains
     recursive subroutine copy_directory_for_rename(directory, newname, status)
         character(len=*), intent(in) :: directory, newname
         type(status_type), intent(out) :: status
+
         call copy_directory(directory, newname, status, keep_time=.true.)
     end subroutine copy_directory_for_rename
 
@@ -489,6 +552,7 @@ contains
     recursive subroutine delete_directory_for_rename(file, status)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
+
         call delete_directory(file, status, .true.)
     end subroutine delete_directory_for_rename
 
@@ -496,6 +560,7 @@ contains
     recursive subroutine delete_file_for_rename(file, status)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
+
         call delete_file(file, status)
     end subroutine delete_file_for_rename
 

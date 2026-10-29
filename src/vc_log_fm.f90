@@ -43,6 +43,7 @@ contains
     logical :: dir_present, shortlog, is_start
     integer :: k, the_type
     type(vc_log_limit_type) :: lim
+
     is_start = .false.
     if (present(is_start_revision)) is_start = is_start_revision
     if (present(limit)) lim = limit
@@ -50,19 +51,24 @@ contains
     ! so that any buffer-local settings in the vc-controlled
     ! buffer can be accessed by the command.
     dir_present = .false.
+
     do k = 1, size(files)
         if (file_directory_p(files(k)%s)) dir_present = .true.
     end do
+
     if (dir_present) then
         shortlog = vc_log_short_style%directory
     else
         shortlog = vc_log_short_style%file
     end if
+
     the_type = VC_LOG_VIEW_LONG
     if (shortlog) the_type = VC_LOG_VIEW_SHORT
+
     if (present(type)) then
         if (type /= VC_LOG_VIEW_NIL) the_type = type
     end if
+
     call vc_log_internal_common(backend, "*vc-change-log*", files, the_type, shortlog, working_revision, is_start, &
                                 lim, status)
     end procedure vc_print_log_internal
@@ -91,6 +97,7 @@ contains
         type(status_type) :: st
         logical :: limit_unsupported
         integer :: k
+
         call get_buffer_create(buffer_name, buffer, status)
         if (.not. status%ok()) return
         old = current_buffer()
@@ -101,16 +108,19 @@ contains
         log_buffers(k)%shortlog = shortlog
         call set_buffer(old, st)
         limit_unsupported = .false.
+
         if (.not. associated(vc_backends(backend)%print_log)) then
             call set_error(status, FM_VC_NOT_SUPPORTED, "No print-log function for "//vc_backends(backend)%name)
             return
         end if
+
         if (is_start_revision) then
             call vc_backends(backend)%print_log(files, buffer, shortlog, working_revision, limit, status, &
                                                 limit_unsupported)
         else
             call vc_backends(backend)%print_log(files, buffer, shortlog, "", limit, status, limit_unsupported)
         end if
+
         if (.not. status%ok()) return
         old = current_buffer()
         call set_buffer(buffer, st)
@@ -118,12 +128,15 @@ contains
         ! to t, so let's keep doing it, just in case.
         call symbol_value(sym("inhibit_read_only"), saved, st)
         call set(sym("inhibit_read_only"), t_value(), st)
+
         if (associated(vc_backends(backend)%log_view_mode)) then
             call vc_backends(backend)%log_view_mode(status)
         else
             call log_view_mode(status)
         end if
+
         call set(sym("inhibit_read_only"), saved, st)
+
         if (status%ok()) then
             call set_log_view_vc_backend(backend)
             call set_log_view_vc_fileset(files)
@@ -137,6 +150,7 @@ contains
             log_buffers(k)%type = type
             call revert_buffer_function%set_local(log_revert)
         end if
+
         call set_buffer(old, st)
         if (.not. status%ok()) return
         ! Display after setting up major-mode, so display-buffer-alist can know
@@ -160,19 +174,23 @@ contains
         type(handle_type) :: old
         type(value_type) :: saved
         type(status_type) :: st
+
         status = status_type()
         if (.not. buffer_live_p(action%buffer)) return
         old = current_buffer()
         call set_buffer(action%buffer, st)
         call symbol_value(sym("inhibit_read_only"), saved, st)
         call set(sym("inhibit_read_only"), t_value(), st)
+
         ! When it's nil, point really shouldn't move (bug#15322).
         if (len(action%s1) > 0) then
             if (associated(vc_backends(action%n)%show_log_entry)) then
                 call vc_backends(action%n)%show_log_entry(action%s1)
             end if
+
             vc_sentinel_movepoint = point()
         end if
+
         call restore_buffer_modified_p(.false.)
         call vc_log_finish_functions%run(status)
         call set(sym("inhibit_read_only"), saved, st)
@@ -185,6 +203,7 @@ contains
         type(status_type), intent(out) :: status
         type(vc_log_buffer_type) :: args
         integer :: k
+
         status = status_type()
         if (ignore_auto .and. noconfirm .and. .false.) return
         k = log_buffer_index(.false.)
@@ -199,17 +218,20 @@ contains
     type(vc_fileset_type) :: fs
     type(vc_log_limit_type) :: lim
     character(len=:), allocatable :: rev
+
     call vc_deduce_fileset(fs, status, .true.)
     if (.not. status%ok()) return
     rev = ""
     if (present(working_revision)) rev = working_revision
     if (len(rev) == 0) rev = vc_buffer_revision()
+
     if (present(limit)) then
         if (limit > 0) then
             lim%kind = VC_LIMIT_NUMBER
             lim%n = limit
         end if
     end if
+
     call vc_print_log_internal(fs%backend, fs%files, rev, status, .false., lim)
     end procedure vc_print_log
 
@@ -222,19 +244,24 @@ contains
     type(status_type) :: st
     logical :: with_diff
     integer :: the_type
+
     call with_backend_in_rootdir("VC revision log", fs, saved_dir, status)
+
     if (.not. status%ok()) then
         buffers(cur)%directory = saved_dir
         return
     end if
+
     rev = ""
     if (present(revision)) rev = revision
+
     if (present(limit)) then
         if (limit > 0) then
             lim%kind = VC_LIMIT_NUMBER
             lim%n = limit
         end if
     end if
+
     with_diff = lim%kind == VC_LIMIT_NUMBER .and. lim%n == 1 .and. len(rev) > 0
     saved_style = vc_log_short_style
     if (with_diff) vc_log_short_style = vc_log_short_style_type(directory=.false., file=.false.)
@@ -243,11 +270,13 @@ contains
     old = current_buffer()
     call vc_print_log_internal(fs%backend, fs%files, rev, status, len(rev) > 0, lim, the_type)
     vc_log_short_style = saved_style
+
     if (buffer_live_p(old)) then
         call set_buffer(old, st)
         buffers(cur)%directory = saved_dir
         call set_buffer(get_buffer("*vc-change-log*"), st)
     end if
+
     if (.not. status%ok()) return
     ! We're looking at the root, so displaying " from <some-file>" in
     ! the mode line isn't helpful.
@@ -263,6 +292,7 @@ contains
         character(len=:), allocatable :: answer
         character(len=24) :: buf
         integer :: ios
+
         limit = 0
         write (buf, "(i0)") vc_log_show_limit
         call read_from_minibuffer("Limit display (0 for unlimited): ", answer, status, initial=trim(buf))
@@ -276,6 +306,7 @@ contains
     use minibuf_fm, only: read_from_minibuffer
     character(len=:), allocatable :: rev
     integer(int64) :: lim
+
     if (.not. nilp(current_prefix_arg)) then
         call read_from_minibuffer("Leave point at revision (default last revision): ", rev, status)
         if (.not. status%ok()) return
@@ -292,6 +323,7 @@ contains
     use minibuf_fm, only: read_string
     character(len=:), allocatable :: default, revision, prompt
     integer(int64) :: lim
+
     if (fixnump(current_prefix_arg)) then
         if (xfixnum(current_prefix_arg) == 1) then
             default = word_at_point()
@@ -319,6 +351,7 @@ contains
         character(len=:), allocatable :: word
         integer(int64) :: opoint, beg, moved
         type(status_type) :: st
+
         opoint = point()
         moved = skip_syntax_backward("w")
         beg = point()

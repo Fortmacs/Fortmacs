@@ -1401,13 +1401,14 @@ contains
     ! ------------------------------------------------------------------
     ! Buffer-local variables
     ! ------------------------------------------------------------------
-
     !> Whether a live buffer has serial number SERIAL.
     logical function serial_live(serial)
         integer(int64), intent(in) :: serial
         integer(int64) :: k
+
         serial_live = .false.
         if (.not. allocated(buffers)) return
+
         do k = 1, size(buffers, kind=int64)
             if (buffers(k)%serial /= serial) cycle
             serial_live = buffer_live_p(buffer_handle(k))
@@ -1419,16 +1420,20 @@ contains
     subroutine free_alist(alist)
         type(dired_subdir_type), allocatable, intent(inout) :: alist(:)
         integer :: k
+
         if (.not. allocated(alist)) return
+
         do k = 1, size(alist)
             if (alist(k)%marker%index /= 0) call release_marker(alist(k)%marker)
         end do
+
         deallocate (alist)
     end subroutine free_alist
 
     !> Forget entry K (of a killed buffer, or for kill-all-local-variables).
     subroutine clear_entry(k)
         integer, intent(in) :: k
+
         call free_alist(locals(k)%subdir_alist)
         if (allocated(locals(k)%directory)) deallocate (locals(k)%directory)
         if (allocated(locals(k)%actual_switches)) deallocate (locals(k)%actual_switches)
@@ -1444,27 +1449,33 @@ contains
         logical, intent(in) :: make
         type(dired_local_type), allocatable :: grown(:)
         integer :: i, n
+
         k = 0
         if (cur == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
+
         do i = 1, size(locals)
             if (locals(i)%set .and. locals(i)%serial == buffers(cur)%serial) then
                 k = i
                 return
             end if
         end do
+
         if (.not. make) return
+
         ! Reuse the entry of a dead buffer.
         do i = 1, size(locals)
             if (locals(i)%set) then
                 if (serial_live(locals(i)%serial)) cycle
                 call clear_entry(i)
             end if
+
             locals(i)%set = .true.
             locals(i)%serial = buffers(cur)%serial
             k = i
             return
         end do
+
         n = size(locals)
         allocate (grown(n + 1))
         grown(1:n) = locals
@@ -1477,6 +1488,7 @@ contains
     !> kill-all-local-variables: Dired's buffer-local variables.
     subroutine kill_dired_locals()
         integer :: k
+
         k = local_index(.false.)
         if (k > 0) call clear_entry(k)
     end subroutine kill_dired_locals
@@ -1486,6 +1498,7 @@ contains
     function dired_directory_of() result(dir)
         character(len=:), allocatable :: dir
         integer :: k
+
         dir = ""
         k = local_index(.false.)
         if (k == 0) return
@@ -1498,6 +1511,7 @@ contains
     function dired_actual_switches_of() result(sw)
         character(len=:), allocatable :: sw
         integer :: k
+
         sw = ""
         k = local_index(.false.)
         if (k == 0) return
@@ -1509,12 +1523,14 @@ contains
     function dired_subdir_dirs() result(dirs)
         type(dired_string_type), allocatable :: dirs(:)
         integer :: k, i
+
         allocate (dirs(0))
         k = local_index(.false.)
         if (k == 0) return
         if (.not. allocated(locals(k)%subdir_alist)) return
         deallocate (dirs)
         allocate (dirs(size(locals(k)%subdir_alist)))
+
         do i = 1, size(dirs)
             dirs(i)%s = locals(k)%subdir_alist(i)%dir
         end do
@@ -1523,6 +1539,7 @@ contains
     !> The number of elements of the current buffer's `dired_subdir_alist'.
     integer function alist_size()
         integer :: k
+
         alist_size = 0
         k = local_index(.false.)
         if (k == 0) return
@@ -1532,6 +1549,7 @@ contains
     !> The current buffer's `default_directory'.
     function default_directory() result(dir)
         character(len=:), allocatable :: dir
+
         dir = "./"
         if (cur == 0) return
         if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
@@ -1543,6 +1561,7 @@ contains
         character(len=*), intent(in), optional :: dir
         character(len=:), allocatable :: full
         type(status_type) :: st
+
         call expand_file_name(name, full, st, dir)
         if (.not. st%ok()) full = name
     end function expand
@@ -1550,11 +1569,11 @@ contains
     ! ------------------------------------------------------------------
     ! Small helpers
     ! ------------------------------------------------------------------
-
     !> Whether text after point matches REGEXP (looking-at-p).
     logical function looking_at_p(regexp)
         character(len=*), intent(in) :: regexp
         type(status_type) :: st
+
         looking_at_p = looking_at(regexp, st, inhibit_modify=.true.)
     end function looking_at_p
 
@@ -1562,6 +1581,7 @@ contains
     logical function string_match_p(regexp, string)
         character(len=*), intent(in) :: regexp, string
         type(status_type) :: st
+
         string_match_p = string_match(regexp, string, st, inhibit_modify=.true.) > 0
     end function string_match_p
 
@@ -1572,7 +1592,9 @@ contains
         integer(int64), intent(in), optional :: bound, count
         integer(int64) :: pos
         type(status_type) :: st
+
         found = .false.
+
         if (present(bound)) then
             if (bound > 0) then
                 call re_search_forward(regexp, pos, st, bound=bound, noerror=SEARCH_NOERROR, count=count)
@@ -1582,6 +1604,7 @@ contains
         else
             call re_search_forward(regexp, pos, st, noerror=SEARCH_NOERROR, count=count)
         end if
+
         found = st%ok() .and. pos > 0
     end function re_search_forward_p
 
@@ -1591,6 +1614,7 @@ contains
         integer(int64), intent(in), optional :: count
         integer(int64) :: pos
         type(status_type) :: st
+
         call re_search_backward(regexp, pos, st, noerror=SEARCH_NOERROR, count=count)
         found = st%ok() .and. pos > 0
     end function re_search_backward_p
@@ -1599,6 +1623,7 @@ contains
     integer(int64) function mpos(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
+
         call marker_position(m, mpos, st)
         if (.not. st%ok()) mpos = 0
     end function mpos
@@ -1607,6 +1632,7 @@ contains
     subroutine release_marker(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
+
         call free_marker(m, st)
     end subroutine release_marker
 
@@ -1614,18 +1640,21 @@ contains
     integer(int64) function mbeg(n)
         integer, intent(in) :: n
         type(status_type) :: st
+
         mbeg = match_beginning(n, st)
     end function mbeg
 
     integer(int64) function mend(n)
         integer, intent(in) :: n
         type(status_type) :: st
+
         mend = match_end(n, st)
     end function mend
 
     !> The position N lines after this one's start (line-beginning-position N).
     integer(int64) function bol(n)
         integer(int64), intent(in), optional :: n
+
         bol = line_beginning_position(n)
     end function bol
 
@@ -1637,6 +1666,7 @@ contains
     subroutine fwd_line(n)
         integer(int64), intent(in) :: n
         integer(int64) :: shortage
+
         shortage = forward_line(n)
     end subroutine fwd_line
 
@@ -1646,11 +1676,13 @@ contains
         integer(int64), intent(in), optional :: pos
         integer(int32) :: c
         logical :: found
+
         if (present(pos)) then
             call char_after(c, found, pos)
         else
             call char_after(c, found)
         end if
+
         char_at = achar(0)
         if (found .and. c >= 0 .and. c < 128) char_at = achar(c)
     end function char_at
@@ -1659,6 +1691,7 @@ contains
     character function char_before_point()
         integer(int32) :: c
         logical :: found
+
         call char_before(c, found)
         char_before_point = achar(0)
         if (found .and. c >= 0 .and. c < 128) char_before_point = achar(c)
@@ -1668,6 +1701,7 @@ contains
     subroutine inhibit_read_only_begin(saved)
         type(value_type), intent(out) :: saved
         type(status_type) :: st
+
         saved = inhibit_read_only()
         call set(sym("inhibit_read_only"), t_value(), st)
     end subroutine inhibit_read_only_begin
@@ -1675,6 +1709,7 @@ contains
     subroutine inhibit_read_only_end(saved)
         type(value_type), intent(in) :: saved
         type(status_type) :: st
+
         call set(sym("inhibit_read_only"), saved, st)
     end subroutine inhibit_read_only_end
 
@@ -1682,6 +1717,7 @@ contains
     subroutine replace_char_at_point(c, status)
         character, intent(in) :: c
         type(status_type), intent(out) :: status
+
         call delete_char(1_int64, status)
         if (.not. status%ok()) return
         call insert(c, status)
@@ -1692,14 +1728,17 @@ contains
         character(len=*), intent(in) :: from, to, text
         character(len=:), allocatable :: out
         integer :: i, k
+
         out = ""
         i = 1
+
         do
             k = index(text(i:), from)
             if (k == 0) exit
             out = out//text(i:i + k - 2)//to
             i = i + k - 1 + len(from)
         end do
+
         out = out//text(i:)
     end function string_replace
 
@@ -1708,6 +1747,7 @@ contains
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
         character(len=24) :: buf
+
         write (buf, "(i0)") n
         s = trim(buf)
     end function itoa
@@ -1716,6 +1756,7 @@ contains
     function dired_plural_s(count) result(s)
         integer(int64), intent(in) :: count
         character(len=:), allocatable :: s
+
         s = "s"
         if (count == 1) s = ""
     end function dired_plural_s
@@ -1724,13 +1765,13 @@ contains
     subroutine run_hook_quietly(hook)
         type(hook_type), intent(inout) :: hook
         type(status_type) :: st
+
         call hook%run(st)
     end subroutine run_hook_quietly
 
     ! ------------------------------------------------------------------
     ! Switches
     ! ------------------------------------------------------------------
-
     !> Return true if the string SWITCHES matches LONG or SHORT format.
     !> Port of dired.el:dired-check-switches.
     logical function dired_check_switches(switches, short, long) result(p)
@@ -1738,6 +1779,7 @@ contains
         character(len=*), intent(in), optional :: long
         character(len=:), allocatable :: re
         logical :: saved
+
         re = "\(\`\| \)-[[:alnum:]]*"//short
         if (present(long)) re = re//"\|--"//long//"\>"
         saved = case_fold_search%value
@@ -1750,6 +1792,7 @@ contains
     !> of dired.el:dired-switches-escape-p.
     logical function dired_switches_escape_p(switches)
         character(len=*), intent(in) :: switches
+
         dired_switches_escape_p = dired_check_switches(switches, "b", "\(quoting-style=\)?escape")
     end function dired_switches_escape_p
 
@@ -1757,6 +1800,7 @@ contains
     !> of dired.el:dired-switches-recursive-p.
     logical function dired_switches_recursive_p(switches)
         character(len=*), intent(in) :: switches
+
         dired_switches_recursive_p = dired_check_switches(switches, "R", "recursive")
     end function dired_switches_recursive_p
 
@@ -1765,6 +1809,7 @@ contains
     logical function dired_check_use_ls_dired()
         type(value_type) :: result
         type(status_type) :: st
+
         call call_process(insert_directory_program, result, st, args=list(make_string("--dired"), make_string("-N")))
         dired_check_use_ls_dired = .false.
         if (st%ok() .and. fixnump(result)) dired_check_use_ls_dired = xfixnum(result) == 0
@@ -1773,7 +1818,6 @@ contains
     ! ------------------------------------------------------------------
     ! Reading in a directory
     ! ------------------------------------------------------------------
-
     !> Insert a directory listing of DIR, Dired style.
     !> Use SWITCHES to make the listings.
     !> If FILE_LIST is present, list only those files.
@@ -1795,6 +1839,7 @@ contains
         integer(int64) :: opoint, beg, found, mb, content_point, here
         logical :: wild, header, use_ls_dired, dir_wildcard, have_list, changed, saved_tabs, had_dir
         integer :: k
+
         dir = dir_in
         switches = switches_in
         wild = .false.
@@ -1804,6 +1849,7 @@ contains
         have_list = present(file_list)
         status = status_type()
         opoint = point()
+
         ! Use -N with --dired, to countermand possible non-default quoting
         ! style, in particular via the environment variable QUOTING_STYLE.
         if (dired_use_ls_dired == DIRED_USE_LS_DIRED_UNSPECIFIED) then
@@ -1814,14 +1860,17 @@ contains
                 call message(format_message("ls does not support --dired -N; see `dired_use_ls_dired' "// &
                                             "for more details."))
             end if
+
             use_ls_dired = dired_use_ls_dired == DIRED_USE_LS_DIRED_T
         else
             use_ls_dired = dired_use_ls_dired /= DIRED_USE_LS_DIRED_NIL
         end if
+
         if (use_ls_dired) switches = "--dired -N "//switches
         ! Expand directory wildcards and fill file-list.
         dir_wildcard = .false.
         if (.not. have_list .and. wild) dir_wildcard = insert_directory_wildcard_in_dir_p(dir, dw_dir, dw_wild)
+
         if (dir_wildcard) then
             switches = "-d "//switches
             script = insert_directory_program//" "//switches//" "//dw_wild
@@ -1830,12 +1879,15 @@ contains
             buffers(cur)%directory = dw_dir
             call call_process(shell_name(), result, status, destination=t_value(), &
                               args=list(make_string("-c"), make_string(script)))
+
             if (had_dir) then
                 buffers(cur)%directory = saved_dir
             else
                 deallocate (buffers(cur)%directory)
             end if
+
             if (.not. status%ok()) return
+
             if (.not. (fixnump(result))) then
                 call set_error(status, FM_USER_ERROR, dw_wild//": No files matching wildcard")
                 return
@@ -1843,6 +1895,7 @@ contains
                 call set_error(status, FM_USER_ERROR, dw_wild//": No files matching wildcard")
                 return
             end if
+
             call insert_directory_clean(point(), switches, status)
             if (.not. status%ok()) return
         else if (have_list) then
@@ -1854,10 +1907,12 @@ contains
                 ! implementations that don't indent entries by one column.
                 here = point()
                 call goto_char(beg)
+
                 if (.not. looking_at_p(" ")) then
                     call insert(" ", status)
                     here = here + 1
                 end if
+
                 call goto_char(here)
                 ! Re-align fields, if necessary.
                 call dired_align_file(beg, point())
@@ -1866,12 +1921,14 @@ contains
             call insert_directory(dir, switches, status, wild,.not. wild)
             if (.not. status%ok()) return
         end if
+
         ! Quote certain characters, unless ls quoted them for us.
         if (.not. dired_switches_escape_p(dired_actual_switches_of())) then
             here = point()
             call make_marker(end_marker)
             call set_marker(end_marker, here, st)
             call goto_char(opoint)
+
             do
                 call search_forward("\", found, st, bound=mpos(end_marker), noerror=SEARCH_NOERROR)
                 if (found <= 0) exit
@@ -1880,7 +1937,9 @@ contains
                 call replace_match("\\", st, literal=.true.)
                 call set_text_properties(mb, mb + 2, props, changed, st)
             end do
+
             call goto_char(opoint)
+
             do
                 call search_forward(achar(13), found, st, bound=mpos(end_marker), noerror=SEARCH_NOERROR)
                 if (found <= 0) exit
@@ -1889,6 +1948,7 @@ contains
                 call replace_match("\015", st, literal=.true.)
                 call set_text_properties(mb, mb + 4, props, changed, st)
             end do
+
             call goto_char(mpos(end_marker))
             call release_marker(end_marker)
         else
@@ -1898,10 +1958,12 @@ contains
             dir = string_replace("\", "\\", dir)
             dir = string_replace(LF, "\n", dir)
         end if
+
         ! If we used --dired and it worked, the lines are already indented.
         ! Otherwise, indent them.
         here = point()
         call goto_char(opoint)
+
         if (.not. looking_at_p("  ")) then
             call goto_char(here)
             saved_tabs = indent_tabs_mode%value
@@ -1913,12 +1975,14 @@ contains
         else
             call goto_char(here)
         end if
+
         ! Insert text at the beginning to standardize things.
         content_point = opoint
         here = point()
         call make_marker(end_marker)
         call set_marker(end_marker, here, st)
         call goto_char(opoint)
+
         if (header .or. wild) then
             if (.not. header_present()) then
                 ! Inserted directory name must be absolute, but keep in
@@ -1929,11 +1993,14 @@ contains
                 else
                     dir_name = directory_file_name(file_name_directory(dir))
                 end if
+
                 call insert("  "//dir_name//":"//LF, status)
                 if (.not. status%ok()) return
             end if
+
             content_point = point()
         end if
+
         if (wild) then
             ! Insert "wildcard" line where "total" line would be for a full dir.
             if (insert_directory_wildcard_in_dir_p(dir, dw_dir, dw_wild)) then
@@ -1941,13 +2008,16 @@ contains
             else
                 call insert("  wildcard "//file_name_nondirectory(dir)//LF, status)
             end if
+
             if (.not. status%ok()) return
         end if
+
         content_point = dired_insert_disk_space(opoint, dir, status)
         if (.not. status%ok()) return
         call goto_char(mpos(end_marker))
         call release_marker(end_marker)
         call dired_insert_set_properties(content_point, point())
+
     contains
 
         !> (and (looking-at "^  \\(.*\\):$")
@@ -1955,6 +2025,7 @@ contains
         logical function header_present()
             character(len=:), allocatable :: name
             type(status_type) :: s2
+
             header_present = .false.
             if (.not. looking_at("^  \(.*\):$", s2)) return
             call buffer_substring(mbeg(1), mend(1), name, s2)
@@ -1965,6 +2036,7 @@ contains
     !> The shell for wildcard listings: `shell_file_name' (callproc.c).
     function shell_name() result(sh)
         character(len=:), allocatable :: sh
+
         if (.not. allocated(shell_file_name%value)) call init_callproc()
         sh = shell_file_name%value
     end function shell_name
@@ -1979,15 +2051,18 @@ contains
         character(len=:), allocatable :: available
         integer(int64) :: opoint
         logical :: found
+
         status = status_type()
         opoint = point()
         pos = beg
         call goto_char(beg)
+
         ! First find the line to put it on.
         if (.not. re_search_forward_p("^ *\(total\)")) then
             call goto_char(opoint)
             return
         end if
+
         if (dired_free_space == DIRED_FREE_SPACE_NIL .or. dired_free_space == DIRED_FREE_SPACE_FIRST) then
             call delete_region(mbeg(0), bol(2_int64), status)
         else
@@ -1995,9 +2070,11 @@ contains
             ! confusion.
             call replace_match("total used in directory", status, subexp=1)
         end if
+
         if (.not. status%ok()) return
         call get_free_disk_space(file, available, found, status)
         if (.not. status%ok()) return
+
         if (found) then
             select case (dired_free_space)
             case (DIRED_FREE_SPACE_SEPARATE)
@@ -2010,19 +2087,23 @@ contains
                 pos = point()
             case (DIRED_FREE_SPACE_FIRST)
                 call goto_char(beg)
+
                 if (looking_at_p(" */")) then
                     call end_of_line()
+
                     if (char_before_point() == ":") then
                         call put_text_property(point() - 1, point(), sym("display"), &
                                                make_string(": ("//available//" available)"), status)
                     end if
                 end if
+
                 call fwd_line(1_int64)
                 pos = point()
             case default
                 pos = beg
             end select
         end if
+
         call goto_char(opoint)
     end function dired_insert_disk_space
 
@@ -2037,13 +2118,16 @@ contains
         type(value_type) :: props
         integer(int64) :: opoint, fbeg, fend, pos, b
         logical :: changed
+
         opoint = point()
         call make_marker(end_marker)
         call set_marker(end_marker, end, st)
         call goto_char(beg)
+
         do while (point() < mpos(end_marker))
             ! (ignore-errors ...)
             pos = dired_move_to_filename(st)
+
             if (pos == 0) then
                 if (.not. (looking_at_p("^$") .or. looking_at_p(dired_subdir_regexp))) then
                     call put_text_property(bol(), eol() + 1, sym("invisible"), sym("dired_hide_details_information"), st)
@@ -2054,19 +2138,23 @@ contains
                 call put_text_property(b, fend, sym("invisible"), sym("dired_hide_details_detail"), st)
                 fbeg = point()
                 pos = dired_move_to_end_of_filename(st)
+
                 if (st%ok()) then
                     fend = pos - 1
                     call goto_char(fbeg)
                     props = list(sym("mouse_face"), sym("highlight"), sym("dired_filename"), t_value(), &
                                  sym("help_echo"), make_string("mouse-2: visit this file in other window"))
                     call add_text_properties(fbeg, fend + 1, props, changed, st)
+
                     if (fend + 5 < eol()) then
                         call put_text_property(fend + 5, eol(), sym("invisible"), sym("dired_hide_details_link"), st)
                     end if
                 end if
             end if
+
             call fwd_line(1_int64)
         end do
+
         call release_marker(end_marker)
         call goto_char(opoint)
     end subroutine dired_insert_set_properties
@@ -2083,43 +2171,53 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: re
         logical :: num_align, have_offset
+
         opoint = point()
         ! Check that there is indeed a file, and that there is another
         ! adjacent file with which to align, and that additional spaces are
         ! needed to align the filenames.
         call goto_char(beg)
         file = dired_move_to_filename(st, eol_in=end)
+
         if (file == 0) then
             call goto_char(opoint)
             return
         end if
+
         file_col = current_column()
         other = 0
         call goto_char(beg)
         shortage = forward_line(-1_int64)
         if (shortage == 0) other = dired_move_to_filename(st)
+
         if (other == 0) then
             call goto_char(beg)
             shortage = forward_line(1_int64)
             if (shortage == 0) other = dired_move_to_filename(st)
         end if
+
         if (other == 0) then
             call goto_char(opoint)
             return
         end if
+
         other_col = current_column()
+
         if (other == file .or. other_col <= file_col) then
             call goto_char(opoint)
             return
         end if
+
         ! If we've only looked at the line above, check to see if the line
         ! below exists as well and if so, align with the shorter one.
         if (other < file) then
             call goto_char(beg)
             shortage = forward_line(1_int64)
+
             if (shortage == 0) then
                 if (dired_move_to_filename(st) /= 0) then
                     alt_col = current_column()
+
                     if (alt_col < other_col) then
                         other_col = alt_col
                         other = point()
@@ -2127,6 +2225,7 @@ contains
                 end if
             end if
         end if
+
         ! Keep positions up-to-date when we insert stuff.
         call make_marker(other_marker)
         call set_marker(other_marker, other, st)
@@ -2136,6 +2235,7 @@ contains
         call goto_char(beg)
         ! Skip to the first field.
         moved = skip_chars_forward(" ", st)
+
         do while (other_col > file_col .and. mpos(file_marker) > point())
             ! We're now just in front of a field, with a space behind us.
             curcol = current_column()
@@ -2147,23 +2247,28 @@ contains
             ! realign the first column of file's data.
             have_offset = .true.
             align_pt_offset = 0
+
             if (curcol /= 0) then
                 filepos = point()
                 call goto_char(mpos(other_marker))
                 call move_to_column(curcol, reached)
+
                 if (char_before_point() == " ") then
                     re = " *"
                 else
                     re = "[^ ]* *"
                 end if
+
                 if (num_align) re = re//"[0-9][^ ]*"
                 have_offset = looking_at(re, st)
                 if (have_offset) align_pt_offset = mend(0) - mbeg(0)
                 call goto_char(filepos)
             end if
+
             ! Now, the number of spaces to insert is align-pt-offset minus
             ! the distance to the equivalent point on the current line.
             spaces = 0
+
             if (have_offset) then
                 if (.not. num_align) then
                     spaces = align_pt_offset
@@ -2174,12 +2279,14 @@ contains
                     call goto_char(filepos)
                 end if
             end if
+
             if (have_offset .and. spaces > 0) then
                 file_col = spaces + file_col
                 if (file_col > other_col) spaces = spaces - (file_col - other_col)
                 call insert_char_n(32, spaces, st)
                 ! Let's just make really sure we did not mess up.
                 filepos = point()
+
                 if (dired_move_to_filename(st) /= mpos(file_marker)) then
                     ! Damn!  We messed up: let's revert the change.
                     call goto_char(filepos)
@@ -2188,10 +2295,12 @@ contains
                     call goto_char(filepos)
                 end if
             end if
+
             ! Now skip to next field.
             moved = skip_chars_forward("^ ", st)
             moved = skip_chars_forward(" ", st)
         end do
+
         call release_marker(file_marker)
         call release_marker(other_marker)
         call goto_char(opoint)
@@ -2211,6 +2320,7 @@ contains
         type(status_type) :: st
         integer(int64) :: opoint
         logical :: found, saved_undo, after
+
         after = .true.
         if (present(run_after_hook)) after = run_after_hook
         status = status_type()
@@ -2236,6 +2346,7 @@ contains
         call goto_char(point_min())
         call dired_build_subdir_alist(st)
         call file_attributes(dirname, attributes, found)
+
         if (found) then
             if (iand(attributes%mode, int(o'170000', int32)) == int(o'040000', int32)) then
                 ! (set-visited-file-modtime MTIME)
@@ -2245,6 +2356,7 @@ contains
                 buffers(cur)%modtime_size = -1
             end if
         end if
+
         call restore_buffer_modified_p(.false.)
         ! (save-excursion: the text was replaced, so point is at the start.)
         call goto_char(point_min())
@@ -2266,8 +2378,10 @@ contains
         type(handle_type) :: begv_m, zv_m
         integer(int64) :: found, opoint
         integer :: k
+
         status = status_type()
         dir = expand(dired_directory_of())
+
         if (len(file_name_nondirectory(dir)) == 0) then
             ! If we are reading a whole single directory...
             call dired_insert_directory(dir, dired_actual_switches_of(), status, &
@@ -2279,6 +2393,7 @@ contains
             ! Else treat it as a wildcard spec.
             call dired_insert_directory(dir, dired_actual_switches_of(), status, wildcard=.true., hdr=.true.)
         end if
+
         if (.not. status%ok()) return
         ! Every time `temporary_file_directory' is (re)displayed in Dired a
         ! new `ls' error file is created and the Dired buffer has an entry
@@ -2298,15 +2413,18 @@ contains
         call goto_char(point_min())
         base = file_name_base(dired_ls_error_file)
         call search_forward(base, found, st, noerror=SEARCH_NOERROR)
+
         if (found > 0) then
             ! The call chain of `dired_remove_entry' requires a non-nil
             ! `dired_subdir_alist', so we set it.
             k = local_index(.true.)
             had_alist = allocated(locals(k)%subdir_alist)
+
             if (had_alist) then
                 saved_alist = locals(k)%subdir_alist
                 deallocate (locals(k)%subdir_alist)
             end if
+
             allocate (locals(k)%subdir_alist(1))
             locals(k)%subdir_alist(1)%dir = temporary_file_directory()
             call make_marker(locals(k)%subdir_alist(1)%marker)
@@ -2315,11 +2433,13 @@ contains
             call free_alist(locals(k)%subdir_alist)
             if (had_alist) locals(k)%subdir_alist = saved_alist
         end if
+
         call narrow_to_region(mpos(begv_m), mpos(zv_m), st)
         call release_marker(begv_m)
         call release_marker(zv_m)
         call goto_char(opoint)
         call set_buffer(old, st)
+
     contains
 
         !> FILENAME without directory and extension (file-name-base).
@@ -2327,6 +2447,7 @@ contains
             character(len=*), intent(in) :: filename
             character(len=:), allocatable :: b
             integer :: k2
+
             b = file_name_nondirectory(filename)
             k2 = index(b, ".", back=.true.)
             if (k2 > 1) b = b(1:k2 - 1)
@@ -2336,7 +2457,6 @@ contains
     ! ------------------------------------------------------------------
     ! The subdirectory alist
     ! ------------------------------------------------------------------
-
     !> Build `dired_subdir_alist' by parsing the buffer.
     !> If optional arg SWITCHES is present, use its value instead of
     !> `dired_actual_switches'.  Port of dired.el:dired-build-subdir-alist.
@@ -2351,6 +2471,7 @@ contains
         integer(int64) :: opoint, count, b1, e1, header_bol, after
         logical :: saved_undo, file_entry, esc
         integer :: k, i
+
         status = status_type()
         k = local_index(.true.)
         call free_alist(locals(k)%subdir_alist)
@@ -2359,13 +2480,16 @@ contains
         call inhibit_read_only_begin(saved_ro)
         saved_undo = buffers(cur)%undo_enabled
         buffers(cur)%undo_enabled = .false.
+
         if (present(switches)) then
             sw = switches
         else
             sw = dired_actual_switches_of()
         end if
+
         count = 0
         call goto_char(point_min())
+
         do while (re_search_forward_p(dired_subdir_regexp))
             after = point()
             b1 = mbeg(1)
@@ -2375,6 +2499,7 @@ contains
             call beginning_of_line()
             header_bol = point()
             file_entry = looking_at_p(dired_re_maybe_mark//dired_re_inode_size//dired_re_perms)
+
             if (.not. file_entry) then
                 call buffer_substring(b1, e1, new_dir_name, status)
                 new_dir_name = expand(new_dir_name)
@@ -2383,12 +2508,14 @@ contains
                 call insert(new_dir_name, status)
                 after = after + (len_chars(new_dir_name) - (e1 - b1))
                 count = count + 1
+
                 ! Undo any escaping of newlines and \ by
                 ! dired-insert-directory.  Convert "n" preceded by odd number
                 ! of \ to newline, and \\ to \.
                 if (dired_switches_escape_p(sw) .and. index(new_dir_name, "\") > 0) then
                     res = ""
                     esc = .false.
+
                     do i = 1, len(new_dir_name)
                         if (new_dir_name(i:i) == "\") then
                             if (esc) then
@@ -2407,8 +2534,10 @@ contains
                             esc = .false.
                         end if
                     end do
+
                     new_dir_name = res
                 end if
+
                 ! dired-alist-add-1: place a sub directory boundary between
                 ! lines.
                 call make_marker(m)
@@ -2419,20 +2548,26 @@ contains
                 grown(2:) = locals(k)%subdir_alist
                 call move_alloc(grown, locals(k)%subdir_alist)
             end if
+
             call goto_char(after)
         end do
+
         buffers(cur)%undo_enabled = saved_undo
         call inhibit_read_only_end(saved_ro)
         call goto_char(opoint)
+
         if (count > 1 .and. present(called_interactively)) then
             if (called_interactively) call message("Buffer includes "//itoa(count)//" directories")
         end if
+
     contains
 
         integer(int64) function len_chars(s)
             character(len=*), intent(in) :: s
             integer :: j
+
             len_chars = 0
+
             do j = 1, len(s)
                 if (iand(ichar(s(j:j)), 192) /= 128) len_chars = len_chars + 1
             end do
@@ -2444,6 +2579,7 @@ contains
     function dired_normalize_subdir(dir) result(norm)
         character(len=*), intent(in) :: dir
         character(len=:), allocatable :: norm
+
         if (file_name_absolute_p(dir)) then
             norm = file_name_as_directory(dir)
         else
@@ -2463,20 +2599,25 @@ contains
         character(len=:), allocatable :: dir
         integer :: k, i
         integer(int64) :: here
+
         status = status_type()
         dir = ""
         k = local_index(.false.)
+
         if (k == 0 .or. alist_size() == 0) then
             ! probably because called in a non-dired buffer
             call set_error(status, FM_GENERIC_ERROR, "No subdir_alist in #<buffer "//buffers(cur)%name//">")
             return
         end if
+
         here = point()
+
         do i = 1, size(locals(k)%subdir_alist)
             dir = locals(k)%subdir_alist(i)%dir
             ! use `<=' (not `<') as subdir line is part of subdir
             if (mpos(locals(k)%subdir_alist(i)%marker) <= here) exit
         end do
+
         if (present(localp)) then
             if (localp) dir = dired_make_relative(dir, default_directory())
         end if
@@ -2492,14 +2633,17 @@ contains
         character(len=:), allocatable :: rel, dir
         type(status_type) :: st
         integer(int64) :: e
+
         if (present(dir_in)) then
             dir = dir_in
         else
             dir = default_directory()
         end if
+
         ! This case comes into play if default-directory is set to use ~.
         if (string_match_p("\(\`\|:\)~", dir)) dir = expand(dir)
         rel = file
+
         if (string_match("^"//regexp_quote(dir), file, st) > 0) then
             e = mend(0)
             rel = file(string_index_to_offset(file, e) + 1:)
@@ -2513,10 +2657,12 @@ contains
         character(len=:), allocatable :: cur_dir
         type(status_type) :: st
         integer :: k, i
+
         dir = ""
         cur_dir = dired_current_directory(st)
         if (.not. st%ok()) return
         k = local_index(.false.)
+
         do i = 1, size(locals(k)%subdir_alist)
             if (locals(k)%subdir_alist(i)%dir == cur_dir) then
                 ! alist stores b-o-l positions
@@ -2531,9 +2677,11 @@ contains
     integer function dired_subdir_index(dir) result(index)
         character(len=*), intent(in) :: dir
         integer :: k, i
+
         index = -1
         k = local_index(.false.)
         if (k == 0) return
+
         do i = 1, size(locals(k)%subdir_alist)
             if (locals(k)%subdir_alist(i)%dir == dir) then
                 index = i - 1
@@ -2553,6 +2701,7 @@ contains
         character(len=:), allocatable :: this_dir
         integer :: k, index
         logical :: noerr, skip
+
         pos = 0
         noerr = .false.
         if (present(no_error_if_not_found)) noerr = no_error_if_not_found
@@ -2562,6 +2711,7 @@ contains
         if (.not. status%ok()) return
         k = local_index(.false.)
         index = dired_subdir_index(this_dir) - int(arg)
+
         if (index >= 0 .and. index < size(locals(k)%subdir_alist)) then
             call goto_char(mpos(locals(k)%subdir_alist(index + 1)%marker))
             if (skip) call end_of_line()
@@ -2580,18 +2730,20 @@ contains
     integer(int64) function dired_subdir_max() result(pos)
         integer(int64) :: opoint
         type(status_type) :: st
+
         opoint = point()
         pos = point_max()
+
         if (alist_size() > 1) then
             if (dired_next_subdir(1_int64, st, .true., .true.) /= 0) pos = point()
         end if
+
         call goto_char(opoint)
     end function dired_subdir_max
 
     ! ------------------------------------------------------------------
     ! File names in the buffer
     ! ------------------------------------------------------------------
-
     !> Move to the beginning of the filename on the current line.
     !> Return the position of the beginning of the filename, or 0 if none
     !> found.
@@ -2608,19 +2760,23 @@ contains
         integer(int64), intent(in), optional :: eol_in
         integer(int64) :: e, change
         logical :: raise, found
+
         status = status_type()
         raise = .false.
         if (present(raise_error)) raise = raise_error
+
         if (present(eol_in)) then
             e = eol_in
         else
             e = eol()
         end if
+
         pos = 0
         call beginning_of_line()
         ! First try assuming `ls --dired' was used.
         call next_single_property_change(point(), sym("dired_filename"), change, found, status, limit=e)
         if (.not. status%ok()) return
+
         if (found .and. change < e) then
             call goto_char(change)
             pos = change
@@ -2635,6 +2791,7 @@ contains
                                "Unrecognized line!  Check directory_listing_before_filename_regexp")
                 return
             end if
+
             call beginning_of_line()
         else if (raise) then
             call set_error(status, FM_GENERIC_ERROR, "No file on this line")
@@ -2644,6 +2801,7 @@ contains
     !> `directory_listing_before_filename_regexp' (files.el).
     function directory_listing_regexp() result(re)
         character(len=:), allocatable :: re
+
         re = directory_listing_before_filename_regexp
     end function directory_listing_regexp
 
@@ -2659,12 +2817,14 @@ contains
         character :: file_type
         integer(int64) :: opoint, e, change, found_pos, saved
         logical :: noerr, used_f, hidden, symlink, executable, found
+
         status = status_type()
         noerr = .false.
         if (present(no_error)) noerr = no_error
         pos = 0
         call get_text_property(point(), sym("dired_filename"), v, status)
         if (.not. status%ok()) return
+
         if (.not. nilp(v)) then
             call next_single_property_change(point(), sym("dired_filename"), change, found, status)
             ! No property change can happen on or before the last file name
@@ -2675,6 +2835,7 @@ contains
             pos = change
             return
         end if
+
         opoint = point()
         used_f = dired_check_switches(dired_actual_switches_of(), "F", "classify")
         e = eol()
@@ -2682,14 +2843,17 @@ contains
         file_type = " "
         symlink = .false.
         executable = .false.
+
         if (.not. hidden) then
             saved = point()
+
             ! Find out what kind of file this is: restrict perm bits to be
             ! non-blank, otherwise this matches one char to early (looking
             ! backward).
             if (re_search_backward_p(dired_permission_flags_regexp)) then
                 file_type = char_at(mbeg(1))
                 symlink = file_type == "l"
+
                 ! Only with -F we need to know whether it's an executable.
                 if (used_f) then
                     call buffer_substring(mbeg(2), mend(2), bits, status)
@@ -2704,12 +2868,16 @@ contains
                 call set_error(status, FM_GENERIC_ERROR, "No file on this line")
                 return
             end if
+
             call goto_char(saved)
+
             ! Move point to end of name:
             if (symlink) then
                 call search_forward(" -> ", found_pos, status, bound=e, noerror=SEARCH_NOERROR)
+
                 if (found_pos > 0) then
                     call goto_char(point() - 4)
+
                     ! did ls really mark the link?
                     if (used_f .and. dired_ls_f_marks_symlinks .and. char_before_point() == "@") then
                         call goto_char(point() - 1)
@@ -2723,6 +2891,7 @@ contains
                 if (used_f .and. (scan(file_type, "dsp") > 0 .or. executable)) call goto_char(point() - 1)
             end if
         end if
+
         if (.not. noerr .and. opoint == point()) then
             if (hidden) then
                 call set_error(status, FM_GENERIC_ERROR, &
@@ -2730,8 +2899,10 @@ contains
             else
                 call set_error(status, FM_GENERIC_ERROR, "No file on this line")
             end if
+
             return
         end if
+
         if (opoint /= point()) pos = point()
     end function dired_move_to_end_of_filename
 
@@ -2742,6 +2913,7 @@ contains
         type(value_type) :: v
         type(status_type) :: st
         integer(int64) :: p
+
         p = point()
         if (present(pos)) p = pos
         dired_hidden_p = .false.
@@ -2772,6 +2944,7 @@ contains
         integer :: lp, i, shift
         logical :: noerr, saved_fold, already_absolute, verbatim
         type(status_type) :: st
+
         lp = DIRED_LOCALP_NIL
         if (present(localp)) lp = localp
         noerr = .false.
@@ -2787,15 +2960,18 @@ contains
         p1 = dired_move_to_filename(status,.not. noerr)
         if (status%ok() .and. p1 /= 0) p2 = dired_move_to_end_of_filename(status, noerr)
         call goto_char(opoint)
+
         if (.not. status%ok()) then
             case_fold_search%value = saved_fold
             return
         end if
+
         ! nil if no file on this line, but no-error-if-not-filep is t:
         if (p1 /= 0 .and. p2 /= 0) then
             call buffer_substring(p1, p2, raw, status)
             ! Unquote names quoted by ls or by dired-insert-directory.
             quoted = ""
+
             do i = 1, len(raw)
                 if (raw(i:i) == '"') then
                     if (i == 1) then
@@ -2804,18 +2980,23 @@ contains
                         quoted = quoted//"\"
                     end if
                 end if
+
                 quoted = quoted//raw(i:i)
             end do
+
             ! Unescape any spaces escaped by ls -b (bug#10469).
             if (dired_switches_escape_p(dired_actual_switches_of())) then
                 verbatim = lp == DIRED_LOCALP_VERBATIM
                 rep = ""
                 shift = -1
+
                 if (verbatim) then
                     rep = "\\"
                     shift = 1
                 end if
+
                 start = 1
+
                 do
                     b = string_match("\(\\\) ", quoted, st, start)
                     if (b == 0) exit
@@ -2824,17 +3005,22 @@ contains
                     start = shift + mend(0)
                 end do
             end if
+
             ! Hence we don't need to worry about converting `\\' back to `\'.
             call read_string_literal(quoted//'"', 1_int64, file, next, status)
+
             if (.not. status%ok()) then
                 case_fold_search%value = saved_fold
                 return
             end if
+
             found = .true.
         end if
+
         case_fold_search%value = saved_fold
         if (.not. found) return
         already_absolute = index(file, "/") == 1
+
         if (lp == DIRED_LOCALP_VERBATIM) then
             return
         else if (.not. noerr .and. (file == "." .or. file == "..")) then
@@ -2848,10 +3034,12 @@ contains
             return
         else
             dir = dired_current_directory(status, lp == DIRED_LOCALP_T)
+
             if (.not. status%ok()) then
                 found = .false.
                 return
             end if
+
             file = dir//file
         end if
     end subroutine dired_get_filename
@@ -2865,9 +3053,11 @@ contains
         logical, intent(out) :: found
         character(len=:), allocatable :: filename
         type(status_type) :: st
+
         name = ""
         call dired_get_filename(filename, found, st, no_error_if_not_filep=.true.)
         if (.not. found) return
+
         if (file_directory_p(filename)) then
             name = file_name_as_directory(abbreviate_file_name(filename))
         else
@@ -2880,6 +3070,7 @@ contains
     logical function dired_between_files()
         integer(int64) :: opoint
         type(status_type) :: st
+
         opoint = point()
         dired_between_files = dired_move_to_filename(st) == 0
         call goto_char(opoint)
@@ -2888,12 +3079,12 @@ contains
     ! ------------------------------------------------------------------
     ! Dired buffers
     ! ------------------------------------------------------------------
-
     !> Is FILE part of the directory tree starting at DIR?  Port of
     !> dired.el:dired-in-this-tree-p.
     logical function dired_in_this_tree_p(file, dir)
         character(len=*), intent(in) :: file, dir
         logical :: saved
+
         saved = case_fold_search%value
         case_fold_search%value = .false.
         dired_in_this_tree_p = string_match_p("^"//regexp_quote(dir), file)
@@ -2906,13 +3097,16 @@ contains
         character(len=*), intent(in) :: pattern
         character(len=:), allocatable :: regexp
         integer :: matched, k, set_start, set_cont, set_end
+
         regexp = ""
         matched = 0
+
         do
             k = scan(pattern(matched + 1:), "[?*")
             if (k == 0) exit
             k = matched + k
             regexp = regexp//regexp_quote(pattern(matched + 1:k - 1))
+
             select case (pattern(k:k))
             case ("?")
                 regexp = regexp//"."
@@ -2921,14 +3115,18 @@ contains
                 ! Fails to handle ^ yet ????
                 set_start = k
                 set_cont = set_start + 2
+
                 if (set_start + 1 <= len(pattern)) then
                     if (pattern(set_start + 1:set_start + 1) == "^") set_cont = set_start + 3
                 end if
+
                 set_end = index(pattern(set_cont:), "]")
+
                 if (set_end == 0) then
                     matched = len(pattern)
                     exit
                 end if
+
                 set_end = set_cont + set_end - 1
                 regexp = regexp//pattern(set_start:set_end)
                 matched = set_end
@@ -2937,6 +3135,7 @@ contains
                 matched = k
             end select
         end do
+
         regexp = "\`"//regexp//regexp_quote(pattern(matched + 1:))//"\'"
     end function dired_glob_regexp
 
@@ -2956,16 +3155,19 @@ contains
         type(status_type) :: st
         logical :: ok
         integer :: i, k
+
         allocate (result(0))
         call prune_dired_buffers()
         dir = file_name_as_directory(expand(dir_in))
         old = current_buffer()
+
         do i = 1, size(dired_buffers)
             buf = dired_buffers(i)%buffer
             if (.not. dired_in_this_tree_p(dir, dired_buffers(i)%dir)) cycle
             call set_buffer(buf, st)
             ok = .false.
             k = local_index(.false.)
+
             if (k > 0) then
                 if (dired_subdir_index(dir) >= 0) then
                     if (.not. present(file)) then
@@ -2977,6 +3179,7 @@ contains
                     end if
                 end if
             end if
+
             if (ok) then
                 allocate (grown(size(result) + 1))
                 grown(1) = buf
@@ -2984,6 +3187,7 @@ contains
                 call move_alloc(grown, result)
             end if
         end do
+
         call set_buffer(old, st)
     end function dired_buffers_for_dir
 
@@ -2991,19 +3195,24 @@ contains
     subroutine prune_dired_buffers()
         type(dired_buffer_entry_type), allocatable :: kept(:)
         integer :: i, n
+
         if (.not. allocated(dired_buffers)) allocate (dired_buffers(0))
         n = 0
+
         do i = 1, size(dired_buffers)
             if (buffer_live_p(dired_buffers(i)%buffer)) n = n + 1
         end do
+
         if (n == size(dired_buffers)) return
         allocate (kept(n))
         n = 0
+
         do i = 1, size(dired_buffers)
             if (.not. buffer_live_p(dired_buffers(i)%buffer)) cycle
             n = n + 1
             kept(n) = dired_buffers(i)
         end do
+
         call move_alloc(kept, dired_buffers)
     end subroutine prune_dired_buffers
 
@@ -3015,13 +3224,16 @@ contains
         type(dired_buffer_entry_type), allocatable :: grown(:)
         type(handle_type) :: me
         integer :: i
+
         expanded_default = expand(default_directory())
         me = current_buffer()
         bufs = dired_buffers_for_dir(expanded_default)
+
         do i = 1, size(bufs)
             ! we have already advertised ourselves
             if (same_window(bufs(i), me)) return
         end do
+
         allocate (grown(size(dired_buffers) + 1))
         grown(1)%dir = expanded_default
         grown(1)%buffer = me
@@ -3039,10 +3251,12 @@ contains
         type(handle_type) :: old
         type(status_type) :: st
         integer :: i
+
         found = null_handle()
         call prune_dired_buffers()
         dirname = expand(dirname_in)
         old = current_buffer()
+
         do i = 1, size(dired_buffers)
             call set_buffer(dired_buffers(i)%buffer, st)
             if (.not. st%ok()) cycle
@@ -3051,18 +3265,19 @@ contains
             dd = dired_directory_of()
             ! dired-directory is nil during find-alternate-file
             if (len(dd) == 0) cycle
+
             if (dirname == expand(dd)) then
                 found = dired_buffers(i)%buffer
                 exit
             end if
         end do
+
         call set_buffer(old, st)
     end function dired_find_buffer_nocreate
 
     ! ------------------------------------------------------------------
     ! The dired command
     ! ------------------------------------------------------------------
-
     !> Read the directory (and with a prefix argument the switches) for
     !> `dired': "Dired STR(directory): ".  Port of
     !> dired.el:dired-read-dir-and-switches.
@@ -3071,12 +3286,15 @@ contains
         character(len=:), allocatable, intent(out) :: dirname, switches
         logical, intent(out) :: have_switches
         type(status_type), intent(out) :: status
+
         have_switches = .not. nilp(current_prefix_arg)
         switches = ""
+
         if (have_switches) then
             call read_string("Dired listing switches: ", switches, status, initial=dired_listing_switches)
             if (.not. status%ok()) return
         end if
+
         call read_file_name("Dired "//str//"(directory): ", dirname, status, default_filename=default_directory())
     end subroutine dired_read_dir_and_switches
 
@@ -3101,6 +3319,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: switches
         type(handle_type) :: buf
+
         call dired_noselect(dirname, buf, status, switches)
         if (.not. status%ok()) return
         if (buf%index /= 0) call pop_to_buffer_same_window(buf, status)
@@ -3118,6 +3337,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: switches
         type(handle_type) :: buf
+
         call dired_noselect(dirname, buf, status, switches)
         if (.not. status%ok()) return
         if (buf%index /= 0) call switch_to_buffer_other_window(buf, status)
@@ -3142,8 +3362,10 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: dirname, switches
         logical :: have_switches
+
         call dired_read_dir_and_switches("", dirname, switches, have_switches, status)
         if (.not. status%ok()) return
+
         if (have_switches) then
             call dired(dirname, status, switches)
         else
@@ -3160,8 +3382,10 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: dirname, switches
         logical :: have_switches
+
         call dired_read_dir_and_switches("in other window ", dirname, switches, have_switches, status)
         if (.not. status%ok()) return
+
         if (have_switches) then
             call dired_other_window(dirname, status, switches)
         else
@@ -3179,11 +3403,13 @@ contains
         character(len=*), intent(in), optional :: switches
         character(len=:), allocatable :: dirname
         logical :: initially_was_dirname
+
         if (len(dir_or_list) == 0) then
             dirname = default_directory()
         else
             dirname = dir_or_list
         end if
+
         ! This loses the distinction between "/foo/*/" and "/foo/*" that
         ! some shells make:
         initially_was_dirname = file_name_as_directory(dirname) == dirname
@@ -3202,6 +3428,7 @@ contains
         character(len=*), intent(in) :: dirname
         type(handle_type), intent(out) :: buf
         type(status_type), intent(out) :: status
+
         call dired_noselect(dirname, buf, status)
     end subroutine dired_noselect_dir
 
@@ -3211,6 +3438,7 @@ contains
         character(len=*), intent(in) :: dirname
         type(file_stat_type) :: attributes
         logical :: found
+
         changed = .false.
         if (.not. buffers(cur)%modtime_known) return
         call file_attributes(dirname, attributes, found)
@@ -3233,18 +3461,22 @@ contains
         type(status_type) :: st
         integer :: k
         logical :: new_buffer_p, failed
+
         status = status_type()
         old_buf = current_buffer()
         ! Look for an existing buffer.
         buffer = dired_find_buffer_nocreate(dirname)
         ! Note that buffer already is in dired-mode, if found.
         new_buffer_p = buffer%index == 0
+
         if (new_buffer_p) then
             call create_file_buffer(dirname, buffer, status)
             if (.not. status%ok()) return
         end if
+
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
+
         if (.not. new_buffer_p) then
             if (present(switches)) then
                 ! ... but new switches: file list may have changed
@@ -3270,20 +3502,25 @@ contains
                 ! if it was the name of a directory at all.
                 buffers(cur)%directory = file_name_directory(dirname)
             end if
+
             if (present(switches)) then
                 sw = switches
             else
                 sw = dired_listing_switches
             end if
+
             call dired_mode(status, dirname, sw)
+
             if (status%ok()) then
                 ! default-directory and dired-actual-switches are set now
                 ! (buffer-local), so we can call dired-readin.
                 failed = .true.
                 dired_ls_error_buffer = null_handle()
                 call dired_readin(status)
+
                 if (status%ok()) then
                     failed = .false.
+
                     if (buffer_live_p(dired_ls_error_buffer)) then
                         if (buffer_live_p(get_buffer("*ls error*"))) failed = .true.
                     end if
@@ -3291,6 +3528,7 @@ contains
             else
                 failed = .true.
             end if
+
             ! If either `dired_readin' failed (e.g. if parent directories
             ! are inaccessible) or `ls' errored, don't leave the Dired buffer
             ! around.
@@ -3302,6 +3540,7 @@ contains
                 call dired_initial_position(dirname)
             end if
         end if
+
         if (buffer_live_p(old_buf)) call set_buffer(old_buf, st)
     end subroutine dired_internal_noselect
 
@@ -3310,6 +3549,7 @@ contains
     subroutine dired_display_ls_error()
         type(handle_type) :: errwin
         type(status_type) :: st
+
         if (buffer_live_p(dired_ls_error_buffer)) then
             call display_buffer(dired_ls_error_buffer, errwin, st)
             if (window_live_p(errwin)) call fit_window_to_buffer(errwin)
@@ -3323,6 +3563,7 @@ contains
     !> dired.el:dired-initial-position (no dired-x).
     subroutine dired_initial_position(dirname)
         character(len=*), intent(in) :: dirname
+
         call end_of_line()
         if (allocated(dired_trivial_filenames)) call dired_goto_next_nontrivial_file()
         call run_hook_quietly(dired_initial_position_hook)
@@ -3336,9 +3577,11 @@ contains
         type(status_type) :: st
         integer(int64) :: pos
         logical :: found
+
         ! so there is a file to compare with
         call dired_goto_next_file()
         if (.not. allocated(dired_trivial_filenames)) return
+
         do while (.not. eobp())
             call dired_get_filename(fn, found, st, no_error_if_not_filep=.true.)
             if (.not. found) fn = ""
@@ -3353,7 +3596,9 @@ contains
     subroutine dired_goto_next_file()
         integer(int64) :: max
         type(status_type) :: st
+
         max = dired_subdir_max() - 1
+
         do while (dired_move_to_filename(st) == 0 .and. point() < max)
             call fwd_line(1_int64)
         end do
@@ -3362,7 +3607,6 @@ contains
     ! ------------------------------------------------------------------
     ! Dired mode
     ! ------------------------------------------------------------------
-
     !> Mode for "editing" directory listings.
     !> In Dired, you are "editing" a list of the files in a directory and
     !>   (optionally) its subdirectories, in the format of `ls -lR'.
@@ -3413,6 +3657,7 @@ contains
         type(font_lock_keyword_type), allocatable :: keywords(:)
         logical :: saved
         integer :: k
+
         if (.not. keymap_live_p(dired_mode_map)) call syms_of_dired_mode()
         ! (kill-all-local-variables) (use-local-map dired-mode-map)
         call major_modes%dired_mode%begin(saved, status)
@@ -3422,16 +3667,19 @@ contains
         buffers(cur)%read_only = .true.
         call revert_buffer_function%set_local(dired_revert)
         k = local_index(.true.)
+
         if (present(dirname)) then
             locals(k)%directory = dirname
         else
             locals(k)%directory = default_directory()
         end if
+
         if (present(switches)) then
             locals(k)%actual_switches = switches
         else
             locals(k)%actual_switches = dired_listing_switches
         end if
+
         call dired_font_lock_keywords(keywords)
         call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true.)
         ! before sorting
@@ -3443,13 +3691,13 @@ contains
     !> `dired_mode' as a command procedure (not interactive).
     recursive subroutine dired_mode_cmd(status)
         type(status_type), intent(out) :: status
+
         call dired_mode(status)
     end subroutine dired_mode_cmd
 
     ! ------------------------------------------------------------------
     ! Reverting
     ! ------------------------------------------------------------------
-
     !> Reread the Dired buffer.
     !> Must also be called after `dired_actual_switches' have changed.
     !> Should not fail even on completely garbaged buffers.
@@ -3467,6 +3715,7 @@ contains
         character, allocatable :: mark_chars(:)
         type(value_type) :: saved_ro
         logical :: modflag, saved_fold
+
         ! just in case user narrowed
         call widen()
         call buffer_modified_p(current_buffer(), modflag, status)
@@ -3481,6 +3730,7 @@ contains
         call dired_remember_marks(point_min(), point_max(), mark_files, mark_chars)
         ! Run dired-after-readin-hook just once, below.
         call dired_readin(status, run_after_hook=.false.)
+
         if (status%ok()) then
             ! mark files that were marked
             call dired_mark_remembered(mark_files, mark_chars)
@@ -3490,6 +3740,7 @@ contains
             call dired_restore_positions(positions)
             if (.not. modflag) call restore_buffer_modified_p(.false.)
         end if
+
         call inhibit_read_only_end(saved_ro)
         case_fold_search%value = saved_fold
         call free_positions(positions)
@@ -3507,29 +3758,35 @@ contains
         type(handle_type) :: me
         integer(int64) :: opoint, pos
         integer :: k, j
+
         me = current_buffer()
         positions%buffer = me
         opoint = point()
         call save_at(opoint, positions%here)
         allocate (positions%windows(0), positions%prevs(0))
         call window_leaves(selected_frame%root_window, list)
+
         do k = 1, size(list)
             if (.not. same_window(windows(list(k)%index)%buffer, me)) cycle
+
             if (same_window(list(k), selected_window())) then
                 pos = opoint
             else
                 pos = window_point(windows(list(k)%index))
             end if
+
             allocate (grown(size(positions%windows) + 1))
             grown(1:size(positions%windows)) = positions%windows
             call save_at(pos, grown(size(grown)))
             grown(size(grown))%window = list(k)
             call move_alloc(grown, positions%windows)
         end do
+
         ! For each window that showed the current buffer before, its
         ! window-point marker in the window's list of previous buffers.
         do k = 1, size(list)
             if (.not. allocated(windows(list(k)%index)%prev_buffers)) cycle
+
             do j = 1, size(windows(list(k)%index)%prev_buffers)
                 if (.not. same_window(windows(list(k)%index)%prev_buffers(j)%buffer, me)) cycle
                 if (windows(list(k)%index)%prev_buffers(j)%point%index == 0) exit
@@ -3542,7 +3799,9 @@ contains
                 exit
             end do
         end do
+
         call goto_char(opoint)
+
     contains
 
         subroutine save_at(p, saved)
@@ -3550,6 +3809,7 @@ contains
             type(dired_saved_position_type), intent(inout) :: saved
             character(len=:), allocatable :: fn
             type(status_type) :: st
+
             call goto_char(p)
             call dired_get_filename(fn, saved%has_file, st, no_error_if_not_filep=.true.)
             if (saved%has_file) saved%file = fn
@@ -3561,6 +3821,7 @@ contains
     !> markers belong to the windows).
     subroutine free_positions(positions)
         type(dired_positions_type), intent(inout) :: positions
+
         if (allocated(positions%windows)) deallocate (positions%windows)
         if (allocated(positions%prevs)) deallocate (positions%prevs)
     end subroutine free_positions
@@ -3573,11 +3834,14 @@ contains
         type(handle_type) :: mbuf
         integer(int64) :: opoint, pos
         integer :: k
+
         call goto_char(position_of(positions%here))
+
         do k = 1, size(positions%windows)
             ! Ensure that window still displays the original buffer.
             if (.not. window_live_p(positions%windows(k)%window)) cycle
             if (.not. same_window(windows(positions%windows(k)%window%index)%buffer, positions%buffer)) cycle
+
             if (same_window(positions%windows(k)%window, selected_window())) then
                 call goto_char(position_of(positions%windows(k)))
             else
@@ -3587,7 +3851,9 @@ contains
                 call set_window_point(windows(positions%windows(k)%window%index), pos, st)
             end if
         end do
+
         opoint = point()
+
         do k = 1, size(positions%prevs)
             ! Sanity check of the point marker.
             call marker_buffer(positions%prevs(k)%marker, mbuf, st)
@@ -3597,7 +3863,9 @@ contains
             pos = position_of(positions%prevs(k))
             call set_marker(positions%prevs(k)%marker, pos, st)
         end do
+
         call goto_char(opoint)
+
     contains
 
         !> Go to the saved file, else to the saved line's file; return
@@ -3606,13 +3874,16 @@ contains
             type(dired_saved_position_type), intent(in) :: saved
             integer(int64) :: q
             type(status_type) :: s2
+
             q = 0
             if (saved%has_file) q = dired_goto_file(saved%file, s2)
+
             if (q == 0) then
                 call goto_char(point_min())
                 call fwd_line(saved%line - 1)
                 q = dired_move_to_filename(s2)
             end if
+
             p = point()
         end function position_of
     end subroutine dired_restore_positions
@@ -3629,9 +3900,11 @@ contains
         type(status_type) :: st
         integer(int64) :: opoint
         logical :: found
+
         allocate (files(0), chars(0))
         opoint = point()
         call goto_char(beg)
+
         do while (re_search_forward_p(dired_re_mark, end))
             call dired_get_filename(fil, found, st, no_error_if_not_filep=.true.)
             if (.not. found) cycle
@@ -3643,6 +3916,7 @@ contains
             call move_alloc(gf, files)
             call move_alloc(gc, chars)
         end do
+
         call goto_char(opoint)
     end subroutine dired_remember_marks
 
@@ -3654,20 +3928,22 @@ contains
         type(status_type) :: st
         integer(int64) :: opoint
         integer :: k
+
         opoint = point()
+
         do k = 1, size(files)
             if (dired_goto_file(files(k)%s, st) /= 0) then
                 call beginning_of_line()
                 call replace_char_at_point(chars(k), st)
             end if
         end do
+
         call goto_char(opoint)
     end subroutine dired_mark_remembered
 
     ! ------------------------------------------------------------------
     ! Going to a file
     ! ------------------------------------------------------------------
-
     !> Go to line describing file FILE in this Dired buffer.  Return the
     !> position, or 0.  FILE must be an absolute file name.  Port of
     !> dired.el:dired-goto-file.
@@ -3678,13 +3954,16 @@ contains
         character(len=:), allocatable :: file, dir
         integer(int64) :: opoint
         logical :: saved_fold, ok
+
         status = status_type()
         found = 0
+
         if (.not. file_name_absolute_p(file_in)) then
             call set_error(status, FM_GENERIC_ERROR, format_message("File name `")//file_in// &
                            format_message("' is not absolute"))
             return
         end if
+
         ! does no harm if not a directory
         file = directory_file_name(file_in)
         saved_fold = case_fold_search%value
@@ -3694,12 +3973,14 @@ contains
         ! First, look for a listing under the absolute name.
         call goto_char(point_min())
         found = dired_goto_file_1(file, file, point_max())
+
         if (found == 0) then
             ! Next, look for it as a relative name with leading
             ! subdirectories.
             call goto_char(point_min())
             found = dired_goto_file_1(file_relative_name(file, default_directory()), file, point_max())
         end if
+
         if (found == 0) then
             ! Otherwise, look for it as a relative name, a base name only.
             if (dir == expand(default_directory())) then
@@ -3709,9 +3990,12 @@ contains
                 ok = .false.
                 if (alist_size() > 1) ok = dired_goto_subdir(dir) /= 0
             end if
+
             if (ok) found = dired_goto_file_1(file_name_nondirectory(file), file, dired_subdir_max())
         end if
+
         case_fold_search%value = saved_fold
+
         ! Return buffer position, if found.
         if (found /= 0) then
             call goto_char(found)
@@ -3736,14 +4020,18 @@ contains
         integer(int64) :: pos
         type(status_type) :: st
         logical :: have
+
         str = string_replace(achar(13), "\^m", file)
         str = string_replace("\", "\\", str)
+
         if (dired_switches_escape_p(dired_actual_switches_of()) .and. scan(str, " "//TAB//LF) > 0) then
             str = string_replace(" ", "\ ", str)
             str = string_replace(TAB, "\t", str)
             str = string_replace(LF, "\n", str)
         end if
+
         found = 0
+
         do while (found == 0)
             ! filenames are preceded by SPC, this makes the search faster
             ! (e.g. for the filename "-").
@@ -3752,6 +4040,7 @@ contains
             ! Check that we are in the right place.  Match could have BASE
             ! just as initial substring or in permission bits etc.
             call dired_get_filename(fn, have, st, no_error_if_not_filep=.true.)
+
             if (have .and. fn == full_name .and. len(fn) == len(full_name)) then
                 found = dired_move_to_filename(st)
             else
@@ -3766,6 +4055,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file, dir
         integer(int64) :: pos
+
         dir = dired_current_directory(status)
         if (.not. status%ok()) return
         call read_file_name("Goto file: ", file, status, dir=dir)
@@ -3778,7 +4068,6 @@ contains
     ! ------------------------------------------------------------------
     ! Moving
     ! ------------------------------------------------------------------
-
     !> The prefix argument of a command as a number (1 if none).
     integer(int64) function prefix_n()
         prefix_n = prefix_numeric_value(current_prefix_arg)
@@ -3791,6 +4080,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved_visual
         integer(int64) :: saved_goal, pos
+
         saved_visual = line_move_visual
         saved_goal = goal_column
         line_move_visual = .false.
@@ -3809,20 +4099,24 @@ contains
         integer(int64), intent(in), optional :: opoint_in
         integer(int64) :: opoint, pos
         logical :: found
+
         status = status_type()
         opoint = point()
         if (present(opoint_in)) opoint = opoint_in
+
         if (arg > 0) then
             found = re_search_forward_p(dired_re_dir, count=arg)
         else
             call beginning_of_line()
             found = re_search_backward_p(dired_re_dir, count=-arg)
         end if
+
         if (found) then
             ! user may type `i' or `f'
             pos = dired_move_to_filename(status)
         else
             call goto_char(opoint)
+
             if (dired_movement_style == DIRED_MOVEMENT_STYLE_NIL) then
                 call set_error(status, FM_GENERIC_ERROR, "No more subdirectories")
             end if
@@ -3838,6 +4132,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: arg, old_arg, old_position, moving_down, pos
         logical :: wrapped, cycle_style, files_style
+
         status = status_type()
         arg = arg_in
         wrapped = .false.
@@ -3853,9 +4148,11 @@ contains
                       dired_movement_style == DIRED_MOVEMENT_STYLE_CYCLE_FILES
         files_style = dired_movement_style == DIRED_MOVEMENT_STYLE_CYCLE_FILES .or. &
                       dired_movement_style == DIRED_MOVEMENT_STYLE_BOUNDED_FILES
+
         ! Line by line in case we forget to skip empty lines.
         do while (arg /= 0)
             call jumpfun(moving_down)
+
             if (old_position == point()) then
                 ! Now point is at beginning/end of movable area, but it
                 ! still wants to move farther.
@@ -3870,11 +4167,13 @@ contains
                     else
                         call goto_char(point_max())
                     end if
+
                     wrapped = .true.
                 else
                     ! `bounded': go back to the last non-empty line.
                     do while (empty_line_p() .and. arg /= 0)
                         call jumpfun(-moving_down)
+
                         ! Point not moving means infinite loop.
                         if (old_position == point()) then
                             arg = 0
@@ -3882,6 +4181,7 @@ contains
                             old_position = point()
                         end if
                     end do
+
                     ! Encountered a boundary, so let's stop movement.
                     if (empty_line_p()) then
                         arg = 0
@@ -3890,18 +4190,22 @@ contains
                     end if
                 end if
             end if
+
             if (.not. empty_line_p()) then
                 ! Has moved to a non-empty line.  This movement does make
                 ! sense.
                 arg = arg - moving_down
             end if
+
             old_position = point()
         end do
+
     contains
 
         subroutine jumpfun(n)
             integer(int64), intent(in) :: n
             type(status_type) :: s2
+
             if (jump == 1) then
                 call dired_trivial_next_line(n, s2)
             else
@@ -3913,6 +4217,7 @@ contains
         logical function empty_line_p()
             empty_line_p = .false.
             if (.not. dired_between_files()) return
+
             if (files_style) then
                 empty_line_p = .true.
             else
@@ -3931,6 +4236,7 @@ contains
     subroutine dired_next_line(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
+
         if (dired_movement_style /= DIRED_MOVEMENT_STYLE_NIL) then
             call dired_move_to_next_line(arg, 1, status)
         else
@@ -3948,6 +4254,7 @@ contains
     subroutine dired_previous_line(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
+
         call dired_next_line(-arg, status)
     end subroutine dired_previous_line
 
@@ -3959,6 +4266,7 @@ contains
     subroutine dired_next_dirline(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
+
         if (dired_movement_style /= DIRED_MOVEMENT_STYLE_NIL) then
             call dired_move_to_next_line(arg, 2, status)
         else
@@ -3974,6 +4282,7 @@ contains
     subroutine dired_prev_dirline(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
+
         call dired_next_dirline(-arg, status)
     end subroutine dired_prev_dirline
 
@@ -3986,6 +4295,7 @@ contains
     !> dired.el:dired-next-line (interactive).
     subroutine cmd_dired_next_line(status)
         type(status_type), intent(out) :: status
+
         call dired_next_line(prefix_n(), status)
     end subroutine cmd_dired_next_line
 
@@ -3998,6 +4308,7 @@ contains
     !> dired.el:dired-previous-line (interactive).
     subroutine cmd_dired_previous_line(status)
         type(status_type), intent(out) :: status
+
         call dired_previous_line(prefix_n(), status)
     end subroutine cmd_dired_previous_line
 
@@ -4008,6 +4319,7 @@ contains
     !> dired.el:dired-next-dirline (interactive).
     subroutine cmd_dired_next_dirline(status)
         type(status_type), intent(out) :: status
+
         call dired_next_dirline(prefix_n(), status)
     end subroutine cmd_dired_next_dirline
 
@@ -4018,6 +4330,7 @@ contains
     !> dired.el:dired-prev-dirline (interactive).
     subroutine cmd_dired_prev_dirline(status)
         type(status_type), intent(out) :: status
+
         call dired_prev_dirline(prefix_n(), status)
     end subroutine cmd_dired_prev_dirline
 
@@ -4026,6 +4339,7 @@ contains
     subroutine cmd_dired_next_subdir(status)
         type(status_type), intent(out) :: status
         integer(int64) :: pos
+
         pos = dired_next_subdir(prefix_n(), status)
     end subroutine cmd_dired_next_subdir
 
@@ -4036,6 +4350,7 @@ contains
     subroutine cmd_dired_prev_subdir(status)
         type(status_type), intent(out) :: status
         integer(int64) :: pos, arg
+
         if (.not. nilp(current_prefix_arg)) then
             arg = prefix_n()
         else if (len(dired_get_subdir()) > 0) then
@@ -4044,6 +4359,7 @@ contains
         else
             arg = 0
         end if
+
         pos = dired_prev_subdir(arg, status)
     end subroutine cmd_dired_prev_subdir
 
@@ -4058,6 +4374,7 @@ contains
         character(len=:), allocatable :: dir, up
         integer(int64) :: pos
         logical :: other
+
         other = .false.
         if (present(other_window)) other = other_window
         dir = dired_current_directory(status)
@@ -4065,15 +4382,18 @@ contains
         up = file_name_directory(directory_file_name(dir))
         if (dired_goto_file(directory_file_name(dir), status) /= 0) return
         if (.not. status%ok()) return
+
         ! Only try dired-goto-subdir if buffer has more than one dir.
         if (alist_size() > 1) then
             if (dired_goto_subdir(up) /= 0) return
         end if
+
         if (other) then
             call dired_other_window(up, status)
         else
             call dired_find_possibly_alternative_file(up, status)
         end if
+
         if (.not. status%ok()) return
         pos = dired_goto_file(dir, status)
     end subroutine dired_up_directory
@@ -4086,30 +4406,34 @@ contains
     !> (interactive).
     recursive subroutine cmd_dired_up_directory(status)
         type(status_type), intent(out) :: status
+
         call dired_up_directory(status,.not. nilp(current_prefix_arg))
     end subroutine cmd_dired_up_directory
 
     ! ------------------------------------------------------------------
     ! Visiting
     ! ------------------------------------------------------------------
-
     !> Get the current line's file name, with an error if file does not
     !> exist.  Port of dired.el:dired-get-file-for-visit.
     recursive subroutine dired_get_file_for_visit(file_name, status)
         character(len=:), allocatable, intent(out) :: file_name
         type(status_type), intent(out) :: status
         logical :: found
+
         ! We pass t for second arg so that we don't get error for `.' and
         ! `..'.
         call dired_get_filename(file_name, found, status, no_error_if_not_filep=.true.)
         if (.not. status%ok()) return
+
         if (.not. found) then
             call set_error(status, FM_USER_ERROR, "No file on this line")
             return
         end if
+
         ! (file-name-sans-versions raw t) keeps backup versions: the name
         ! is unchanged.
         if (file_exists_p(file_name)) return
+
         if (file_symlink_p(file_name)) then
             call set_error(status, FM_GENERIC_ERROR, "File is a symlink to a nonexistent target")
         else
@@ -4125,6 +4449,7 @@ contains
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
         logical :: saved
+
         saved = find_file_run_dired
         find_file_run_dired = .true.
         call find_file(file, status)
@@ -4136,6 +4461,7 @@ contains
     recursive subroutine dired_find_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
+
         call dired_get_file_for_visit(file, status)
         if (.not. status%ok()) return
         call dired_find_possibly_alternative_file(file, status)
@@ -4150,6 +4476,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
         logical :: saved
+
         call dired_get_file_for_visit(file, status)
         if (.not. status%ok()) return
         saved = find_file_run_dired
@@ -4165,6 +4492,7 @@ contains
         character(len=:), allocatable :: file
         type(handle_type) :: buf, window
         type(display_alist_type) :: alist
+
         call dired_get_file_for_visit(file, status)
         if (.not. status%ok()) return
         call find_file_noselect(file, buf, status)
@@ -4177,7 +4505,6 @@ contains
     ! ------------------------------------------------------------------
     ! Marked files
     ! ------------------------------------------------------------------
-
     !> Return a string suitable for use in a Dired prompt.
     !> ARG_KIND and ARG_N are normally the prefix argument for the calling
     !> command.  FILES should be a list of file names.
@@ -4189,6 +4516,7 @@ contains
         integer(int64), intent(in) :: arg_n
         type(dired_string_type), intent(in) :: files(:)
         character(len=:), allocatable :: prompt
+
         if (size(files) == 1) then
             prompt = files(1)%s
         else if (arg_kind == DIRED_ARG_INTEGER) then
@@ -4205,7 +4533,9 @@ contains
     subroutine prefix_kind(arg_kind, arg_n)
         integer, intent(out) :: arg_kind
         integer(int64), intent(out) :: arg_n
+
         arg_n = 0
+
         if (nilp(current_prefix_arg)) then
             arg_kind = DIRED_ARG_NIL
         else if (consp(current_prefix_arg)) then
@@ -4220,6 +4550,7 @@ contains
     !> of dired.el:dired-marker-regexp.
     function dired_marker_regexp() result(re)
         character(len=:), allocatable :: re
+
         re = "^"//regexp_quote(dired_marker_char)
     end function dired_marker_regexp
 
@@ -4239,16 +4570,20 @@ contains
         type(handle_type) :: pos
         type(status_type) :: st
         integer(int64) :: arg, opoint, p
+
         status = status_type()
         arg = arg_in
         call make_marker(pos)
         call beginning_of_line()
+
         do while (arg > 0 .and. .not. eobp())
             arg = arg - 1
             call beginning_of_line()
+
             do while (.not. eobp() .and. dired_between_files())
                 call fwd_line(1_int64)
             end do
+
             opoint = point()
             call fwd_line(1_int64)
             call set_marker(pos, point() + 1, st)
@@ -4261,17 +4596,21 @@ contains
             ! them.)
             call goto_char(mpos(pos))
         end do
+
         do while (status%ok() .and. arg < 0 .and. .not. bobp())
             arg = arg + 1
             call fwd_line(-1_int64)
+
             do while (.not. bobp() .and. dired_between_files())
                 call fwd_line(-1_int64)
             end do
+
             call beginning_of_line()
             opoint = point()
             call function(status)
             call goto_char(opoint)
         end do
+
         call release_marker(pos)
         p = dired_move_to_filename(st)
     end subroutine dired_repeat_over_lines
@@ -4299,12 +4638,14 @@ contains
         type(status_type) :: st
         integer(int64) :: opoint, p
         logical :: saved_fold
+
         status = status_type()
         found = .false.
         upward = .false.
         call inhibit_read_only_begin(saved_ro)
         saved_fold = case_fold_search%value
         case_fold_search%value = .false.
+
         if (arg_kind == DIRED_ARG_INTEGER) then
             ! no save-excursion, want to move point.
             call dired_repeat_over_lines(arg_n, body, status)
@@ -4317,12 +4658,14 @@ contains
         else
             opoint = point()
             call goto_char(point_min())
+
             ! remember position of next marked file before BODY can insert
             ! lines before the just found file.
             if (re_search_forward_p(dired_marker_regexp())) then
                 found = .true.
                 call make_marker(next_position)
                 call set_marker(next_position, point(), st)
+
                 do while (next_position%index /= 0)
                     call goto_char(mpos(next_position))
                     call body(status)
@@ -4330,6 +4673,7 @@ contains
                     ! move after last match
                     call goto_char(mpos(next_position))
                     call fwd_line(1_int64)
+
                     if (re_search_forward_p(dired_marker_regexp())) then
                         call set_marker(next_position, point(), st)
                     else
@@ -4337,11 +4681,14 @@ contains
                         next_position = null_handle()
                     end if
                 end do
+
                 if (next_position%index /= 0) call release_marker(next_position)
             end if
+
             call goto_char(opoint)
             if (.not. found .and. arg_kind /= DIRED_ARG_MARKED .and. status%ok()) call body(status)
         end if
+
         case_fold_search%value = saved_fold
         call inhibit_read_only_end(saved_ro)
         ! save-excursion loses, again
@@ -4354,6 +4701,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
         logical :: found
+
         call dired_get_filename(file, found, status, map_localp, map_no_error)
         if (.not. status%ok()) return
         call push_result(file, found)
@@ -4368,6 +4716,7 @@ contains
         type(status_type) :: st
         logical :: found
         integer :: n
+
         call dired_get_filename(file, found, status)
         if (.not. status%ok()) return
         call push_result(file, found)
@@ -4385,11 +4734,14 @@ contains
         logical, intent(in) :: found
         type(dired_string_type), allocatable :: gf(:)
         logical, allocatable :: gl(:)
+
         allocate (gf(map_n + 1), gl(map_n + 1))
+
         if (map_n > 0) then
             gf(1:map_n) = map_files(1:map_n)
             gl(1:map_n) = map_found(1:map_n)
         end if
+
         gf(map_n + 1)%s = file
         gl(map_n + 1) = found
         call move_alloc(gf, map_files)
@@ -4441,6 +4793,7 @@ contains
         integer(int64) :: num
         integer(int64) :: opoint
         logical :: found, upward, distinguish
+
         kind = DIRED_ARG_NIL
         if (present(arg_kind)) kind = arg_kind
         num = 0
@@ -4462,6 +4815,7 @@ contains
         deallocate (files)
         allocate (files(n))
         n = 0
+
         if (upward) then
             do k = map_n, 1, -1
                 if (.not. map_found(k)) cycle
@@ -4475,9 +4829,11 @@ contains
                 files(n)%s = map_files(k)%s
             end do
         end if
+
         if (distinguish .and. found .and. kind == DIRED_ARG_NIL .and. map_n == 1 .and. present(one_marked)) then
             one_marked = n == 1
         end if
+
         if (size(files) == 0 .and. present(error)) then
             if (len(error) > 0) then
                 call set_error(status, FM_USER_ERROR, error)
@@ -4490,12 +4846,12 @@ contains
     ! ------------------------------------------------------------------
     ! Marking
     ! ------------------------------------------------------------------
-
     !> Whether Dired marking commands should act on region.  Port of
     !> dired.el:dired-mark--region-use-p.
     logical function dired_mark_region_use_p() result(use_region)
         integer(int64) :: b, e
         type(status_type) :: st
+
         use_region = .false.
         if (dired_mark_region == DIRED_MARK_REGION_NIL) return
         if (.not. region_active_p()) return
@@ -4509,6 +4865,7 @@ contains
     integer(int64) function dired_mark_region_beginning() result(pos)
         integer(int64) :: opoint, b
         type(status_type) :: st
+
         pos = point_min()
         if (.not. dired_mark_region_use_p()) return
         opoint = point()
@@ -4523,6 +4880,7 @@ contains
     integer(int64) function dired_mark_region_end() result(pos)
         integer(int64) :: opoint, e
         type(status_type) :: st
+
         pos = point_max()
         if (.not. dired_mark_region_use_p()) return
         opoint = point()
@@ -4538,15 +4896,18 @@ contains
         type(value_type) :: v
         type(status_type) :: st
         logical :: whole
+
         if (dired_mark_region == DIRED_MARK_REGION_LINE) then
             whole = .not. bolp()
         else
             whole = .false.
+
             if (point() > point_min()) then
                 call get_text_property(point() - 1, sym("dired_filename"), v, st)
                 whole = .not. nilp(v)
             end if
         end if
+
         if (whole) then
             pos = eol()
         else
@@ -4580,6 +4941,7 @@ contains
         character(len=:), allocatable :: action, region
         integer(int64) :: opoint, beg
         logical :: use_region_p
+
         status = status_type()
         call inhibit_read_only_begin(saved_ro)
         use_region_p = dired_mark_region_use_p()
@@ -4590,6 +4952,7 @@ contains
         count = 0
         region = ""
         if (use_region_p) region = " in region"
+
         if (len(msg) > 0) then
             if (dired_marker_char == " ") then
                 action = "Unmarking"
@@ -4598,13 +4961,16 @@ contains
             else
                 action = "Marking"
             end if
+
             if (dired_del_marker == dired_marker_char) then
                 call message(action//" "//msg//"s for deletion"//region//"...")
             else
                 call message(action//" "//msg//"s"//region//"...")
             end if
         end if
+
         call goto_char(beg)
+
         do while (point() < mpos(end_marker))
             if (predicate()) then
                 if (char_at() /= dired_marker_char) then
@@ -4613,21 +4979,26 @@ contains
                     count = count + 1
                 end if
             end if
+
             call fwd_line(1_int64)
         end do
+
         if (len(msg) > 0 .and. status%ok()) then
             if (dired_marker_char == " ") then
                 action = "un"
             else
                 action = ""
             end if
+
             if (dired_marker_char == dired_del_marker) then
                 action = action//"flagged"
             else
                 action = action//"marked"
             end if
+
             call message(itoa(count)//" "//msg//dired_plural_s(count)//" "//action//region)
         end if
+
         call release_marker(end_marker)
         call goto_char(opoint)
         call inhibit_read_only_end(saved_ro)
@@ -4644,30 +5015,38 @@ contains
         character(len=:), allocatable :: fn
         type(status_type) :: st
         logical :: found
+
         status = status_type()
+
         if (start > end) then
             call set_error(status, FM_GENERIC_ERROR, "Start > End")
             return
         end if
+
         call inhibit_read_only_begin(saved_ro)
         call make_marker(end_marker)
         call set_marker(end_marker, end, st)
         ! assumed at beginning of line
         call goto_char(start)
+
         do while (point() < mpos(end_marker))
             ! Skip subdir line and following garbage like the `total' line:
             do while (point() < mpos(end_marker) .and. dired_between_files())
                 call fwd_line(1_int64)
             end do
+
             if (.not. looking_at_p(dired_re_dot)) then
                 call dired_get_filename(fn, found, st, no_error_if_not_filep=.true.)
+
                 if (found) then
                     call replace_char_at_point(dired_marker_char, status)
                     if (.not. status%ok()) exit
                 end if
             end if
+
             call fwd_line(1_int64)
         end do
+
         call release_marker(end_marker)
         call inhibit_read_only_end(saved_ro)
     end subroutine dired_mark_files_in_region
@@ -4678,8 +5057,10 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: opoint
         logical :: dot_ok, found
+
         status = status_type()
         dot_ok = .not. looking_at_p(dired_re_dot)
+
         if (.not. dot_ok) then
             ! Don't skip symlinks to ".", "..", etc.
             opoint = point()
@@ -4687,6 +5068,7 @@ contains
             dot_ok = char_at(mbeg(1)) == "l"
             call goto_char(opoint)
         end if
+
         if (dot_ok .or. dired_marker_char /= dired_del_marker) then
             call replace_char_at_point(repeat_char, status)
         end if
@@ -4709,7 +5091,9 @@ contains
         type(status_type), intent(out) :: status
         type(value_type) :: saved_ro
         integer(int64) :: opoint, b, e, end
+
         status = status_type()
+
         if (interactive .and. dired_mark_region_use_p()) then
             ! Mark files in the active region.
             opoint = point()
@@ -4746,6 +5130,7 @@ contains
     !> this subdir.  Port of dired.el:dired-mark (interactive).
     recursive subroutine cmd_dired_mark(status)
         type(status_type), intent(out) :: status
+
         call dired_mark_1(prefix_n(), .true., status)
     end subroutine cmd_dired_mark
 
@@ -4761,6 +5146,7 @@ contains
         logical, intent(in) :: interactive
         type(status_type), intent(out) :: status
         character :: saved
+
         saved = dired_marker_char
         dired_marker_char = " "
         call dired_mark_1(arg, interactive, status)
@@ -4776,6 +5162,7 @@ contains
     !> in the active region.  Port of dired.el:dired-unmark (interactive).
     recursive subroutine cmd_dired_unmark(status)
         type(status_type), intent(out) :: status
+
         call dired_unmark(prefix_n(), .true., status)
     end subroutine cmd_dired_unmark
 
@@ -4791,6 +5178,7 @@ contains
         logical, intent(in) :: interactive
         type(status_type), intent(out) :: status
         character :: saved
+
         saved = dired_marker_char
         dired_marker_char = dired_del_marker
         call dired_mark_1(arg, interactive, status)
@@ -4807,6 +5195,7 @@ contains
     !> (interactive).
     recursive subroutine cmd_dired_flag_file_deletion(status)
         type(status_type), intent(out) :: status
+
         call dired_flag_file_deletion(prefix_n(), .true., status)
     end subroutine cmd_dired_flag_file_deletion
 
@@ -4817,6 +5206,7 @@ contains
     !> in the active region.  Port of dired.el:dired-unmark-backward.
     recursive subroutine cmd_dired_unmark_backward(status)
         type(status_type), intent(out) :: status
+
         call dired_unmark(-prefix_n(), .true., status)
     end subroutine cmd_dired_unmark_backward
 
@@ -4834,12 +5224,14 @@ contains
         type(handle_type) :: end_marker
         type(status_type) :: st
         integer(int64) :: opoint
+
         status = status_type()
         opoint = point()
         call inhibit_read_only_begin(saved_ro)
         call make_marker(end_marker)
         call set_marker(end_marker, dired_mark_region_end(), st)
         call goto_char(dired_mark_region_beginning())
+
         do while (point() < mpos(end_marker))
             if (.not. (dired_between_files() .or. looking_at_p(dired_re_dot))) then
                 ! use subst instead of insdel because it does not move the
@@ -4850,10 +5242,13 @@ contains
                 else
                     call subst_char_in_region(point(), point() + 1, iachar(dired_marker_char), iachar(" "), status)
                 end if
+
                 if (.not. status%ok()) exit
             end if
+
             call fwd_line(1_int64)
         end do
+
         call release_marker(end_marker)
         call inhibit_read_only_end(saved_ro)
         call goto_char(opoint)
@@ -4864,6 +5259,7 @@ contains
         character(len=:), allocatable :: fn
         type(status_type) :: st
         logical :: found
+
         p = .false.
         if (looking_at_p(dired_re_dot)) return
         ! empty line
@@ -4890,6 +5286,7 @@ contains
         character, intent(in), optional :: marker_char
         character :: saved
         integer(int64) :: count
+
         saved = dired_marker_char
         if (present(marker_char)) dired_marker_char = marker_char
         mark_regexp = regexp
@@ -4908,6 +5305,7 @@ contains
         character(len=:), allocatable :: fn, ext
         type(status_type) :: st
         logical :: found
+
         if (file_defaults) then
             ! Add more suggestions into the default list
             allocate (defaults(1))
@@ -4915,19 +5313,23 @@ contains
             call dired_get_filename(fn, found, st, DIRED_LOCALP_T, .true.)
             if (found) call add_default(fn)
             call dired_get_filename(fn, found, st, DIRED_LOCALP_NIL, .true.)
+
             if (found) then
                 call file_name_extension(fn, ext, found, period=.true.)
                 call add_default(regexp_quote(ext)//"\'")
             end if
+
             call read_regexp(prompt, regexp, status, defaults=defaults, history="dired_regexp_history")
         else
             call read_regexp(prompt, regexp, status, history="dired_regexp_history")
         end if
+
     contains
 
         subroutine add_default(s)
             character(len=*), intent(in) :: s
             type(minibuffer_string_type), allocatable :: grown(:)
+
             allocate (grown(size(defaults) + 1))
             grown(1:size(defaults)) = defaults
             grown(size(grown))%s = s
@@ -4949,11 +5351,13 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: regexp, verb
         logical :: unmark
+
         unmark = .not. nilp(current_prefix_arg)
         verb = "Mark"
         if (unmark) verb = "Unmark"
         call read_dired_regexp(verb//" files (regexp): ", regexp, status, .true.)
         if (.not. status%ok()) return
+
         if (unmark) then
             call dired_mark_files_regexp(regexp, status, " ")
         else
@@ -4968,6 +5372,7 @@ contains
         type(status_type) :: st
         integer(int64) :: opoint, pos, inserted
         logical :: found
+
         p = .false.
         if (looking_at_p(dired_re_dot)) return
         ! empty line
@@ -4979,6 +5384,7 @@ contains
         prebuf = get_file_buffer(expand(fn))
         call message("Checking "//fn)
         old = current_buffer()
+
         ! For now we do it inside emacs.  Grep might be better if there
         ! are a lot of files.
         if (prebuf%index /= 0 .and. .not. dired_always_read_filesystem) then
@@ -4997,6 +5403,7 @@ contains
             p = st%ok() .and. pos > 0
             call kill_buffer(tmp, st)
         end if
+
         call set_buffer(old, st)
     end function containing_regexp_p
 
@@ -5019,6 +5426,7 @@ contains
         character, intent(in), optional :: marker_char
         character :: saved
         integer(int64) :: count
+
         saved = dired_marker_char
         if (present(marker_char)) dired_marker_char = marker_char
         mark_regexp = regexp
@@ -5034,11 +5442,13 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: regexp, verb
         logical :: unmark
+
         unmark = .not. nilp(current_prefix_arg)
         verb = "Mark"
         if (unmark) verb = "Unmark"
         call read_dired_regexp(verb//" files containing (regexp): ", regexp, status, .false.)
         if (.not. status%ok()) return
+
         if (unmark) then
             call dired_mark_files_containing_regexp(regexp, status, " ")
         else
@@ -5054,6 +5464,7 @@ contains
     recursive subroutine cmd_dired_flag_files_regexp(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: regexp
+
         call read_dired_regexp("Flag for deletion (regexp): ", regexp, status, .false.)
         if (.not. status%ok()) return
         call dired_mark_files_regexp(regexp, status, dired_del_marker)
@@ -5063,6 +5474,7 @@ contains
     !> Port of dired.el:dired-flag-garbage-files.
     recursive subroutine cmd_dired_flag_garbage_files(status)
         type(status_type), intent(out) :: status
+
         call dired_mark_files_regexp(dired_garbage_files_regexp, status, dired_del_marker)
     end subroutine cmd_dired_flag_garbage_files
 
@@ -5091,12 +5503,15 @@ contains
         type(status_type), intent(out) :: status
         character :: saved
         integer(int64) :: count
+
         saved = dired_marker_char
+
         if (nilp(current_prefix_arg)) then
             dired_marker_char = marker
         else
             dired_marker_char = " "
         end if
+
         count = dired_mark_if(predicate, msg, status)
         dired_marker_char = saved
     end subroutine mark_if_command
@@ -5108,6 +5523,7 @@ contains
     !> dired.el:dired-mark-symlinks.
     recursive subroutine cmd_dired_mark_symlinks(status)
         type(status_type), intent(out) :: status
+
         call mark_if_command(symlink_line_p, "symbolic link", dired_marker_char, status)
     end subroutine cmd_dired_mark_symlinks
 
@@ -5118,6 +5534,7 @@ contains
     !> dired.el:dired-mark-directories.
     recursive subroutine cmd_dired_mark_directories(status)
         type(status_type), intent(out) :: status
+
         call mark_if_command(directory_line_p, "directory file", dired_marker_char, status)
     end subroutine cmd_dired_mark_directories
 
@@ -5128,6 +5545,7 @@ contains
     !> dired.el:dired-mark-executables.
     recursive subroutine cmd_dired_mark_executables(status)
         type(status_type), intent(out) :: status
+
         call mark_if_command(executable_line_p, "executable file", dired_marker_char, status)
     end subroutine cmd_dired_mark_executables
 
@@ -5137,11 +5555,13 @@ contains
         type(status_type) :: st
         integer(int64) :: opoint
         logical :: found
+
         p = .false.
         ! It is less than general to check for # here, but it's the only
         ! way this runs fast enough.
         opoint = point()
         call end_of_line()
+
         if (char_before_point() == "#") then
             p = .true.
         else if (char_before_point() == "*") then
@@ -5149,6 +5569,7 @@ contains
             call goto_char(point() - 1)
             p = char_before_point() == "#"
         end if
+
         call goto_char(opoint)
         if (.not. p) return
         p = .not. looking_at_p(dired_re_dir)
@@ -5165,6 +5586,7 @@ contains
     !> dired.el:dired-flag-auto-save-files.
     recursive subroutine cmd_dired_flag_auto_save_files(status)
         type(status_type), intent(out) :: status
+
         call mark_if_command(auto_save_line_p, "auto save file", dired_del_marker, status)
     end subroutine cmd_dired_flag_auto_save_files
 
@@ -5174,6 +5596,7 @@ contains
         type(status_type) :: st
         integer(int64) :: opoint
         logical :: found
+
         ! Don't call backup-file-name-p unless the last character looks
         ! like it might be the end of a backup file name.
         opoint = point()
@@ -5197,6 +5620,7 @@ contains
     !> dired.el:dired-flag-backup-files.
     recursive subroutine cmd_dired_flag_backup_files(status)
         type(status_type), intent(out) :: status
+
         call mark_if_command(backup_line_p, "backup file", dired_del_marker, status)
     end subroutine cmd_dired_flag_backup_files
 
@@ -5208,12 +5632,14 @@ contains
         type(status_type), intent(out) :: status
         type(value_type) :: ev
         logical :: have
+
         c = 0
         if (len(prompt) > 0) call message(prompt)
         cursor_in_echo_area = .true.
         call read_event(ev, have, status)
         cursor_in_echo_area = .false.
         if (.not. status%ok()) return
+
         if (.not. have) then
             call set_error(status, FM_QUIT)
         else if (.not. fixnump(ev)) then
@@ -5238,7 +5664,9 @@ contains
         type(status_type) :: st
         integer(int64) :: opoint, found_pos
         logical :: ok
+
         status = status_type()
+
         if (new == achar(13) .or. old == achar(13)) then
             if (new == achar(13)) then
                 call set_error(status, FM_USER_ERROR, format_message("Invalid mark character: `")//new// &
@@ -5247,11 +5675,14 @@ contains
                 call set_error(status, FM_USER_ERROR, format_message("Invalid mark character: `")//old// &
                                format_message("'"))
             end if
+
             return
         end if
+
         opoint = point()
         call inhibit_read_only_begin(saved_ro)
         call goto_char(point_min())
+
         do
             call search_forward(LF//old, found_pos, st, noerror=SEARCH_NOERROR)
             if (found_pos <= 0) exit
@@ -5259,6 +5690,7 @@ contains
             if (old == " ") call dired_get_filename(fn, ok, st, DIRED_LOCALP_NO_DIR, .true.)
             if (ok) call subst_char_in_region(mbeg(0), mend(0), iachar(old), iachar(new), status)
         end do
+
         call inhibit_read_only_end(saved_ro)
         call goto_char(opoint)
     end subroutine dired_change_marks
@@ -5269,14 +5701,17 @@ contains
     recursive subroutine cmd_dired_change_marks(status)
         type(status_type), intent(out) :: status
         integer(int64) :: old, new
+
         call read_char("Change (old mark): ", old, status)
         if (.not. status%ok()) return
         call read_char("Change "//achar(min(old, 127_int64))//" marks to (new mark): ", new, status)
         if (.not. status%ok()) return
+
         if (old > 127 .or. new > 127) then
             call set_error(status, FM_USER_ERROR, "Invalid mark character")
             return
         end if
+
         call dired_change_marks(achar(old), achar(new), status)
     end subroutine cmd_dired_change_marks
 
@@ -5296,6 +5731,7 @@ contains
         type(status_type) :: st
         integer(int64) :: opoint, count, found_pos
         logical :: saved_fold, found
+
         status = status_type()
         opoint = point()
         count = 0
@@ -5308,6 +5744,7 @@ contains
         saved_fold = case_fold_search%value
         case_fold_search%value = .false.
         call goto_char(point_min())
+
         do
             if (mark == achar(13)) then
                 found = re_search_forward_p(dired_re_mark)
@@ -5315,7 +5752,9 @@ contains
                 call search_forward(LF//mark, found_pos, st, noerror=SEARCH_NOERROR)
                 found = found_pos > 0
             end if
+
             if (.not. found) exit
+
             if (ask) then
                 found_pos = point()
                 call dired_get_filename(file, file_found, st, DIRED_LOCALP_T, .true.)
@@ -5327,16 +5766,20 @@ contains
                 if (.not. status%ok()) exit
                 if (.not. answer) cycle
             end if
+
             call subst_char_in_region(point() - 1, point(), iachar(char_before_point()), iachar(" "), status)
             count = count + 1
         end do
+
         case_fold_search%value = saved_fold
         call inhibit_read_only_end(saved_ro)
+
         if (count == 1) then
             call message("1 mark removed")
         else
             call message(itoa(count)//" marks removed")
         end if
+
         call goto_char(opoint)
     end subroutine dired_unmark_all_files
 
@@ -5349,12 +5792,15 @@ contains
     recursive subroutine cmd_dired_unmark_all_files(status)
         type(status_type), intent(out) :: status
         integer(int64) :: mark
+
         call read_char("Remove marks (RET means all): ", mark, status)
         if (.not. status%ok()) return
+
         if (mark > 127) then
             call set_error(status, FM_GENERIC_ERROR, "Non-ASCII mark character")
             return
         end if
+
         call dired_unmark_all_files(achar(mark), status,.not. nilp(current_prefix_arg))
     end subroutine cmd_dired_unmark_all_files
 
@@ -5362,6 +5808,7 @@ contains
     !> dired.el:dired-unmark-all-marks.
     recursive subroutine cmd_dired_unmark_all_marks(status)
         type(status_type), intent(out) :: status
+
         call dired_unmark_all_files(achar(13), status)
     end subroutine cmd_dired_unmark_all_marks
 
@@ -5381,16 +5828,19 @@ contains
         integer(int64), intent(in), optional :: opoint_in
         integer(int64) :: opoint, pos
         logical :: found
+
         status = status_type()
         ! return to where interactively started
         opoint = point()
         if (present(opoint_in)) opoint = opoint_in
+
         if (arg > 0) then
             found = re_search_forward_p(dired_re_mark, count=arg)
         else
             call beginning_of_line()
             found = re_search_backward_p(dired_re_mark, count=-arg)
         end if
+
         if (found) then
             pos = dired_move_to_filename(status)
         else if (.not. wrap) then
@@ -5398,11 +5848,13 @@ contains
             call set_error(status, FM_GENERIC_ERROR, "No next marked file")
         else
             call message("(Wraparound for next marked file)")
+
             if (arg > 0) then
                 call goto_char(point_min())
             else
                 call goto_char(point_max())
             end if
+
             call dired_next_marked_file(arg, .false., status, opoint)
         end if
     end subroutine dired_next_marked_file
@@ -5414,6 +5866,7 @@ contains
     !> Port of dired.el:dired-next-marked-file (interactive).
     recursive subroutine cmd_dired_next_marked_file(status)
         type(status_type), intent(out) :: status
+
         call dired_next_marked_file(prefix_n(), .true., status)
     end subroutine cmd_dired_next_marked_file
 
@@ -5424,6 +5877,7 @@ contains
     !> line.  Port of dired.el:dired-prev-marked-file.
     recursive subroutine cmd_dired_prev_marked_file(status)
         type(status_type), intent(out) :: status
+
         call dired_next_marked_file(-prefix_n(), .true., status)
     end subroutine cmd_dired_prev_marked_file
 
@@ -5437,8 +5891,10 @@ contains
         real(real64) :: size
         logical :: one_marked, found
         integer :: k
+
         call dired_get_marked_files(files, status, distinguish_one_marked=.true., one_marked=one_marked)
         if (.not. status%ok()) return
+
         if (one_marked) then
             nmarked = 1
         else if (size_of(files) <= 1) then
@@ -5446,11 +5902,14 @@ contains
         else
             nmarked = size_of(files)
         end if
+
         size = 0
+
         do k = 1, size_of(files)
             call file_attributes(files(k)%s, st, found, nofollow=.true.)
             if (found) size = size + real(st%size, real64)
         end do
+
         if (nmarked == 0) then
             call message("No marked files")
         else if (nmarked == 1) then
@@ -5458,10 +5917,12 @@ contains
         else
             call message(itoa(nmarked)//" marked files ("//byte_count_to_string(size)//" total size)")
         end if
+
     contains
 
         integer function size_of(a)
             type(dired_string_type), intent(in) :: a(:)
+
             size_of = ubound(a, 1)
         end function size_of
     end subroutine dired_number_of_marked_files
@@ -5469,7 +5930,6 @@ contains
     ! ------------------------------------------------------------------
     ! Deleting files
     ! ------------------------------------------------------------------
-
     !> Delete FILE or directory (possibly recursively if RECURSIVE is
     !> not DIRED_RECURSIVE_NEVER).  RECURSIVE determines what to do with a
     !> non-empty directory.  The effect of its possible values is:
@@ -5492,22 +5952,28 @@ contains
         type(status_type) :: st
         logical :: empty_dir_p
         integer :: k
+
         status = status_type()
+
         ! This test is equivalent to (and (file-directory-p fn)
         ! (not (file-symlink-p fn))) but more efficient.
         if (.not. (file_directory_p(file) .and. .not. file_symlink_p(file))) then
             call delete_file(file, status)
             return
         end if
+
         empty_dir_p = .true.
         call directory_files(file, files, st, full=.true.)
+
         if (st%ok()) then
             call list_elements(files, elems)
+
             do k = 1, size(elems)
                 name = file_name_nondirectory(xstring(elems(k)))
                 if (name /= "." .and. name /= "..") empty_dir_p = .false.
             end do
         end if
+
         if (recursive /= DIRED_RECURSIVE_NEVER .and. .not. empty_dir_p) then
             if (recursive /= DIRED_RECURSIVE_ALWAYS) then
                 answers(1) = read_answer_type("yes", iachar("y"), "delete recursively the current directory")
@@ -5516,6 +5982,7 @@ contains
                 answers(4) = read_answer_type("quit", iachar("q"), "exit")
                 call read_answer("Recursively delete "//dired_make_relative(file)//"? ", answers, answer, status)
                 if (.not. status%ok()) return
+
                 select case (answer)
                 case ("all")
                     recursive = DIRED_RECURSIVE_ALWAYS
@@ -5534,6 +6001,7 @@ contains
             ! Empty dir or recursive is nil.
             recursive = DIRED_RECURSIVE_NEVER
         end if
+
         call delete_directory(file, status, recursive /= DIRED_RECURSIVE_NEVER)
     end subroutine dired_delete_file
 
@@ -5549,6 +6017,7 @@ contains
         character :: saved
         integer(int64) :: opoint
         logical :: found, upward, saved_fold, quiet
+
         status = status_type()
         quiet = .false.
         if (present(nomessage)) quiet = nomessage
@@ -5560,6 +6029,7 @@ contains
         call goto_char(point_min())
         found = re_search_forward_p(dired_marker_regexp())
         call goto_char(opoint)
+
         if (found) then
             call reset_results()
             call dired_map_over_marks(collect_filename_and_marker, DIRED_ARG_NIL, 0_int64, status, found, upward)
@@ -5568,6 +6038,7 @@ contains
         else if (.not. quiet) then
             call message("(No deletions requested)")
         end if
+
         case_fold_search%value = saved_fold
         dired_marker_char = saved
     end subroutine dired_do_flagged_delete
@@ -5578,6 +6049,7 @@ contains
     !> dired.el:dired-do-flagged-delete (interactive).
     recursive subroutine cmd_dired_do_flagged_delete(status)
         type(status_type), intent(out) :: status
+
         call dired_do_flagged_delete(status)
     end subroutine cmd_dired_do_flagged_delete
 
@@ -5592,6 +6064,7 @@ contains
         integer(int64), intent(in) :: arg_n
         type(status_type), intent(out) :: status
         logical :: found, upward
+
         call reset_results()
         ! this may move point if ARG is an integer
         call dired_map_over_marks(collect_filename_and_marker, arg_kind, arg_n, status, found, upward)
@@ -5607,6 +6080,7 @@ contains
         type(status_type), intent(out) :: status
         integer :: kind
         integer(int64) :: n
+
         call prefix_kind(kind, n)
         call dired_do_delete(kind, n, status)
     end subroutine cmd_dired_do_delete
@@ -5614,10 +6088,13 @@ contains
     !> Free the markers the deletion bodies made.
     subroutine free_map_markers()
         integer :: k
+
         if (.not. allocated(map_markers)) return
+
         do k = 1, size(map_markers)
             if (map_markers(k)%index /= 0) call release_marker(map_markers(k))
         end do
+
         deallocate (map_markers)
         allocate (map_markers(0))
     end subroutine free_map_markers
@@ -5642,19 +6119,23 @@ contains
         integer(int64) :: opoint, count, succ, p
         integer :: k, i, j, recursive, saved_recursive
         logical :: answer, canceled
+
         status = status_type()
         ! L is an alist of files to delete, with their buffer positions;
         ! filenames are absolute.  (In buffer order.)
         allocate (files(map_n), markers(map_n))
+
         do k = 1, map_n
             if (upward) then
                 j = map_n + 1 - k
             else
                 j = k
             end if
+
             files(k)%s = map_files(j)%s
             markers(k) = map_markers(j)
         end do
+
         count = map_n
         succ = 0
         ! Bind `dired_recursive_deletes' so that we can change it locally
@@ -5662,20 +6143,25 @@ contains
         saved_recursive = dired_recursive_deletes
         ! canonicalize file list for pop up
         allocate (rel(size(files)))
+
         do k = 1, size(files)
             rel(k)%s = dired_make_relative(files(k)%s)
         end do
+
         prompt = "Delete "//dired_marker_prompt(arg_kind, arg_n, rel)//" "
         call dired_mark_pop_up(" *Deletions*", "delete", rel, prompt, answer, status)
+
         if (.not. status%ok()) then
             dired_recursive_deletes = saved_recursive
             return
         end if
+
         if (answer) then
             opoint = point()
             allocate (failures(0))
             canceled = .false.
             call make_progress_reporter(reporter, "Deleting...", 0_int64, count)
+
             do k = 1, size(files)
                 call goto_char(mpos(markers(k)))
                 p = dired_move_to_filename(st)
@@ -5683,6 +6169,7 @@ contains
                 fn = files(k)%s
                 recursive = dired_recursive_deletes
                 call dired_delete_file(fn, recursive, st)
+
                 if (st%ok()) then
                     ! if we get here, removing worked
                     succ = succ + 1
@@ -5690,10 +6177,12 @@ contains
                     ! dired-fun-in-all-buffers
                     bufs = dired_buffers_for_dir(file_name_directory(fn), file_name_nondirectory(fn))
                     old = current_buffer()
+
                     do i = 1, size(bufs)
                         call set_buffer(bufs(i), st)
                         call dired_delete_entry(fn, st)
                     end do
+
                     call set_buffer(old, st)
                     ! For when FN's directory name is different from the
                     ! current buffer's dired-directory.
@@ -5714,6 +6203,7 @@ contains
                     call move_alloc(grown, failures)
                 end if
             end do
+
             if (.not. canceled) then
                 if (size(failures) == 0) then
                     call progress_reporter_done(reporter)
@@ -5725,10 +6215,12 @@ contains
                                            failures)
                 end if
             end if
+
             call goto_char(opoint)
         else
             call message("(No deletions performed)")
         end if
+
         dired_recursive_deletes = saved_recursive
         p = dired_move_to_filename(st)
     end subroutine dired_internal_do_deletions
@@ -5742,7 +6234,9 @@ contains
         type(value_type) :: saved_ro
         type(status_type) :: st
         integer(int64) :: opoint, b
+
         opoint = point()
+
         if (dired_goto_file(file, st) /= 0) then
             call inhibit_read_only_begin(saved_ro)
             call beginning_of_line()
@@ -5750,6 +6244,7 @@ contains
             call delete_region(b, bol(2_int64), st)
             call inhibit_read_only_end(saved_ro)
         end if
+
         call goto_char(min(opoint, point_max()))
     end subroutine dired_remove_entry
 
@@ -5761,6 +6256,7 @@ contains
     recursive subroutine dired_delete_entry(file, status)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
+
         call dired_remove_entry(file)
         call dired_clean_up_after_deletion(file, status)
     end subroutine dired_delete_entry
@@ -5773,11 +6269,14 @@ contains
         character(len=*), intent(in) :: fn
         type(status_type), intent(out) :: status
         integer(int64) :: opoint
+
         status = status_type()
         opoint = point()
+
         if (alist_size() > 1) then
             if (dired_goto_subdir(fn) /= 0) call dired_kill_subdir(status)
         end if
+
         call goto_char(min(opoint, point_max()))
     end subroutine dired_clean_up_after_deletion
 
@@ -5800,18 +6299,22 @@ contains
         type(status_type) :: st
         integer :: saved_dedicated, k
         logical :: quiet
+
         answer = .false.
         if (.not. associated(dired_deletion_confirmer)) dired_deletion_confirmer => yes_or_no_p
         quiet = dired_no_confirm%all .or. size(files) == 1
+
         if (allocated(dired_no_confirm%commands)) then
             do k = 1, size(dired_no_confirm%commands)
                 if (trim(dired_no_confirm%commands(k)) == op_symbol) quiet = .true.
             end do
         end if
+
         if (quiet) then
             call dired_deletion_confirmer(prompt, answer, status)
             return
         end if
+
         old = current_buffer()
         call temp_buffer_window_setup(buffer_name, buffer, status)
         if (.not. status%ok()) return
@@ -5828,10 +6331,12 @@ contains
         display_buffer_mark_dedicated = saved_dedicated
         call set_buffer(old, st)
         if (.not. status%ok()) return
+
         if (.not. window_live_p(window)) then
             call dired_deletion_confirmer(prompt, answer, status)
             return
         end if
+
         ! (with-selected-window window (unwind-protect (apply function args)
         !    (quit-restore-window window 'kill)))
         owindow = selected_window()
@@ -5845,6 +6350,7 @@ contains
     !> The `window_height' of `dired_mark_pop_up': fit-window-to-buffer.
     subroutine fit_window(window)
         type(handle_type), intent(in) :: window
+
         call fit_window_to_buffer(window)
     end subroutine fit_window
 
@@ -5857,11 +6363,14 @@ contains
         integer(int64) :: beg
         logical :: changed
         integer :: k
+
         if (.not. window_live_p(window)) return
         allocate (strings(size(pop_up_files)))
+
         do k = 1, size(pop_up_files)
             strings(k)%s = pop_up_files(k)%s
         end do
+
         beg = point()
         call completion_insert_strings(strings)
         call remove_text_properties(beg, point(), list(sym("mouse_face"), nil(), sym("help_echo"), nil()), changed, st)
@@ -5877,6 +6386,7 @@ contains
         character(len=:), allocatable :: old_dir
         type(value_type) :: saved_ro
         logical :: saved_hooks
+
         old_dir = default_directory()
         call get_buffer_create(buffer_name, buffer, status)
         if (.not. status%ok()) return
@@ -5899,7 +6409,6 @@ contains
     ! ------------------------------------------------------------------
     ! Logging failures
     ! ------------------------------------------------------------------
-
     !> Log a message (TEXT, usually ending with a newline) in the Dired log
     !> buffer.  Port of dired.el:dired-log (a string).
     subroutine dired_log(text)
@@ -5907,6 +6416,7 @@ contains
         type(handle_type) :: old, buf
         type(value_type) :: saved_ro
         type(status_type) :: st
+
         old = current_buffer()
         call get_buffer_create(dired_log_buffer, buf, st)
         call set_buffer(buf, st)
@@ -5925,6 +6435,7 @@ contains
         type(value_type) :: saved_ro
         type(status_type) :: st
         character(len=:), allocatable :: obuf_name
+
         old = current_buffer()
         obuf_name = buffers(cur)%name
         call get_buffer_create(dired_log_buffer, buf, st)
@@ -5945,8 +6456,10 @@ contains
     subroutine backward_page()
         logical :: found
         integer(int64) :: opoint
+
         if (bobp()) return
         opoint = point()
+
         if (re_search_backward_p("^"//achar(12))) then
             if (mend(0) == opoint) then
                 call goto_char(mbeg(0))
@@ -5954,8 +6467,10 @@ contains
                 call goto_char(opoint)
             end if
         end if
+
         call goto_char(point() - 1)
         found = re_search_backward_p("^"//achar(12))
+
         if (found) then
             call goto_char(mend(0))
         else
@@ -5974,6 +6489,7 @@ contains
         character(len=:), allocatable :: text, list_text
         type(status_type) :: st
         integer :: k
+
         if (size(failures) == 1) then
             old = current_buffer()
             buf = get_buffer(dired_log_buffer)
@@ -5989,13 +6505,16 @@ contains
         else
             ! (format "%s" failures): a list of strings.
             list_text = "("
+
             do k = 1, size(failures)
                 if (k > 1) list_text = list_text//" "
                 list_text = list_text//failures(k)%s
             end do
+
             list_text = list_text//")"
             call message(string//"--type ? for details "//list_text)
         end if
+
         ! Log a summary describing a bunch of errors.
         call dired_log(LF//string//LF)
         call dired_log_end()
@@ -6009,6 +6528,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: owindow, window, buf
         type(status_type) :: st
+
         status = status_type()
         buf = get_buffer(dired_log_buffer)
         if (buf%index == 0) return
@@ -6027,6 +6547,7 @@ contains
     !> of dired.el:dired-summary.
     recursive subroutine dired_summary(status)
         type(status_type), intent(out) :: status
+
         call dired_why(status)
         call message(substitute_command_keys("\`d'-elete, \`u'-ndelete, \`x'-punge, \`f'-ind, "// &
                                              "\`o'-ther window, \`R'-ename, \`C'-opy, \`h'-elp"))
@@ -6041,6 +6562,7 @@ contains
         type(status_type), intent(out) :: status
         type(value_type) :: saved_ro
         type(status_type) :: st
+
         ! undo-ignore-read-only
         call inhibit_read_only_begin(saved_ro)
         call undo(current_prefix_arg, status)
@@ -6071,8 +6593,10 @@ contains
         type(dired_string_type), allocatable :: files(:)
         character(len=:), allocatable :: subdir, string
         integer :: k
+
         status = status_type()
         subdir = dired_get_subdir()
+
         if (len(subdir) > 0) then
             allocate (files(1))
             files(1)%s = subdir
@@ -6089,13 +6613,17 @@ contains
         else
             call dired_get_marked_files(files, status, DIRED_LOCALP_NO_DIR, DIRED_ARG_INTEGER, prefix_n())
         end if
+
         if (.not. status%ok()) return
+
         if (size(files) == 1) then
             string = files(1)%s
         else
             string = ""
+
             do k = 1, size(files)
                 if (k > 1) string = string//" "
+
                 if (scan(files(k)%s, " ""'") > 0) then
                     string = string//prin1_to_string(make_string(files(k)%s))
                 else
@@ -6103,19 +6631,23 @@ contains
                 end if
             end do
         end if
+
         if (len(string) > 0) then
             if (symbol_is(last_command, "kill_region")) then
                 call kill_append(string, .false.)
             else
                 call kill_new(string)
             end if
+
             call message(string)
         end if
+
     contains
 
         logical function symbol_is(v, name)
             type(value_type), intent(in) :: v
             character(len=*), intent(in) :: name
+
             symbol_is = value_eq(v, sym(name))
         end function symbol_is
     end subroutine cmd_dired_copy_filename_as_kill
@@ -6123,17 +6655,18 @@ contains
     ! ------------------------------------------------------------------
     ! Sorting
     ! ------------------------------------------------------------------
-
     !> Set mode-line according to option `dired_switches_in_mode_line'.
     !> Port of dired.el:dired-sort-set-mode-line.
     subroutine dired_sort_set_mode_line()
         character(len=:), allocatable :: sw, xs
         logical :: saved
+
         if (.not. allocated(buffers(cur)%major_mode)) return
         if (buffers(cur)%major_mode /= "dired_mode") return
         sw = dired_actual_switches_of()
         saved = case_fold_search%value
         case_fold_search%value = .false.
+
         if (dired_switches_in_mode_line == DIRED_SWITCHES_SORT_ORDER) then
             if (string_match_p(dired_sort_by_name_regexp, sw)) then
                 buffers(cur)%mode_name = "Dired by name"
@@ -6144,6 +6677,7 @@ contains
             end if
         else if (dired_switches_in_mode_line >= 0) then
             xs = sw(1:min(len(sw), dired_switches_in_mode_line))
+
             if (len(xs) == 0) then
                 buffers(cur)%mode_name = "Dired"
             else if (len(xs) < len(sw)) then
@@ -6154,6 +6688,7 @@ contains
         else
             buffers(cur)%mode_name = "Dired "//sw
         end if
+
         case_fold_search%value = saved
     end subroutine dired_sort_set_mode_line
 
@@ -6163,11 +6698,14 @@ contains
     recursive subroutine cmd_dired_sort_toggle_or_edit(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: switches
+
         status = status_type()
+
         if (dired_sort_inhibit) then
             call set_error(status, FM_GENERIC_ERROR, "Cannot sort this Dired buffer")
             return
         end if
+
         if (.not. nilp(current_prefix_arg)) then
             call read_string("ls switches (must contain -l): ", switches, status, initial=dired_actual_switches_of())
             if (.not. status%ok()) return
@@ -6186,15 +6724,18 @@ contains
         type(status_type) :: st
         logical :: sorting_by_date, saved
         integer :: k
+
         status = status_type()
         sw = dired_actual_switches_of()
         saved = case_fold_search%value
         case_fold_search%value = .false.
         sorting_by_date = string_match_p(dired_sort_by_date_regexp, sw)
+
         ! Remove the -t switch.
         do while (string_match(switch_regexp, sw, st) > 0)
             m2 = match_string(2, sw)
             m4 = match_string(4, sw)
+
             if (len(m2) == 0 .and. len(m4) == 0) then
                 ! Remove a stand-alone -t switch.
                 call replace_match("", st, fixedcase=.true., literal=.true., string=sw, result=newsw)
@@ -6202,8 +6743,10 @@ contains
                 ! Remove a switch of the form -XtY for some X and Y.
                 call replace_match("", st, fixedcase=.true., literal=.true., string=sw, subexp=3, result=newsw)
             end if
+
             sw = newsw
         end do
+
         ! Now, if we weren't sorting by date before, add the -t switch.
         ! Some simple-minded ls implementations (eg ftp servers) only allow
         ! a single option string, so try not to add " -t" if possible.
@@ -6214,6 +6757,7 @@ contains
                 sw = sw//" -t"
             end if
         end if
+
         case_fold_search%value = saved
         k = local_index(.true.)
         locals(k)%actual_switches = sw
@@ -6232,6 +6776,7 @@ contains
         logical, intent(in), optional :: no_revert
         integer :: k
         logical :: nr
+
         status = status_type()
         nr = .false.
         if (present(no_revert)) nr = no_revert
@@ -6251,12 +6796,15 @@ contains
         character(len=*), intent(in) :: switches
         type(dired_subdir_type), allocatable :: kept(:)
         integer :: k, i, j, n
+
         k = local_index(.true.)
+
         if (dired_switches_recursive_p(switches) .and. .not. dired_switches_recursive_p(dired_actual_switches_of())) then
             ! Adding -R to ls switches -- save `dired_subdir_alist':
             locals(k)%has_pre_r = .true.
             if (allocated(locals(k)%subdir_alist_pre_r)) deallocate (locals(k)%subdir_alist_pre_r)
             allocate (locals(k)%subdir_alist_pre_r(alist_size()))
+
             do i = 1, alist_size()
                 locals(k)%subdir_alist_pre_r(i)%s = locals(k)%subdir_alist(i)%dir
             end do
@@ -6266,6 +6814,7 @@ contains
             ! are still present:
             if (.not. allocated(locals(k)%subdir_alist)) return
             allocate (kept(0))
+
             if (locals(k)%has_pre_r .and. size(locals(k)%subdir_alist_pre_r) > 0) then
                 do i = 1, size(locals(k)%subdir_alist_pre_r)
                     do j = 1, size(locals(k)%subdir_alist)
@@ -6277,6 +6826,7 @@ contains
                         end if
                     end do
                 end do
+
                 deallocate (locals(k)%subdir_alist_pre_r)
                 allocate (locals(k)%subdir_alist_pre_r(0))
             else if (size(locals(k)%subdir_alist) > 0) then
@@ -6285,6 +6835,7 @@ contains
                 kept = [kept, locals(k)%subdir_alist(n)]
                 locals(k)%subdir_alist(n)%marker = null_handle()
             end if
+
             call free_alist(locals(k)%subdir_alist)
             call move_alloc(kept, locals(k)%subdir_alist)
         end if
@@ -6293,44 +6844,51 @@ contains
     ! ------------------------------------------------------------------
     ! Font Lock
     ! ------------------------------------------------------------------
-
     subroutine face_mark(face)
         character(len=:), allocatable, intent(out) :: face
+
         face = dired_mark_face
     end subroutine face_mark
 
     subroutine face_marked(face)
         character(len=:), allocatable, intent(out) :: face
+
         face = dired_marked_face
     end subroutine face_marked
 
     subroutine face_flagged(face)
         character(len=:), allocatable, intent(out) :: face
+
         face = dired_flagged_face
     end subroutine face_flagged
 
     subroutine face_perm_write(face)
         character(len=:), allocatable, intent(out) :: face
+
         face = dired_perm_write_face
     end subroutine face_perm_write
 
     subroutine face_directory(face)
         character(len=:), allocatable, intent(out) :: face
+
         face = dired_directory_face
     end subroutine face_directory
 
     subroutine face_symlink(face)
         character(len=:), allocatable, intent(out) :: face
+
         face = dired_symlink_face
     end subroutine face_symlink
 
     subroutine face_ignored(face)
         character(len=:), allocatable, intent(out) :: face
+
         face = dired_ignored_face
     end subroutine face_ignored
 
     subroutine face_header(face)
         character(len=:), allocatable, intent(out) :: face
+
         face = dired_header_face
     end subroutine face_header
 
@@ -6338,6 +6896,7 @@ contains
     subroutine pre_move_to_filename(limit)
         integer(int64), intent(out) :: limit
         type(status_type) :: st
+
         limit = dired_move_to_filename(st)
     end subroutine pre_move_to_filename
 
@@ -6349,6 +6908,7 @@ contains
         integer(int64), intent(out) :: limit
         type(value_type) :: v
         type(status_type) :: st
+
         call end_of_line()
         limit = 0
         call get_text_property(point() - 1, sym("mouse_face"), v, st)
@@ -6363,6 +6923,7 @@ contains
         logical, intent(out) :: found, name_found
         character(len=:), allocatable :: file
         type(status_type) :: st
+
         found = .false.
         truename = ""
         call dired_file_name_at_point(file, name_found)
@@ -6379,6 +6940,7 @@ contains
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
         integer(int64) :: pos
+
         call re_search_forward(regexp, pos, status, bound=limit, noerror=SEARCH_NOERROR)
         found = status%ok() .and. pos > 0
     end subroutine search_to
@@ -6391,13 +6953,16 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: truename
         logical :: have, name_found
+
         status = status_type()
         found = .false.
         if (.not. dired_check_symlinks) return
         call truename_at_point(truename, have, name_found)
+
         if (have) then
             if (file_exists_p(truename)) return
         end if
+
         call search_to("\(.+\) \(->\) ?\(.+\)", limit, found, status)
     end subroutine broken_symlink_matcher
 
@@ -6408,6 +6973,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: truename
         logical :: have, name_found
+
         status = status_type()
         found = .false.
         if (.not. dired_check_symlinks) return
@@ -6424,17 +6990,22 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: truename
         logical :: have, name_found
+
         status = status_type()
         found = .false.
+
         if (.not. dired_check_symlinks) then
             call search_to("\(.+-> ?\)\(.+\)", limit, found, status)
             return
         end if
+
         call truename_at_point(truename, have, name_found)
         if (.not. name_found) return
+
         if (have) then
             if (file_directory_p(truename)) return
         end if
+
         call search_to("\(.+-> ?\)\(.+\)", limit, found, status)
     end subroutine other_symlink_matcher
 
@@ -6452,6 +7023,7 @@ contains
         character(len=:), allocatable :: exts, prefix
         character(len=64) :: props(1)
         integer :: k
+
         props(1) = "dired_symlink_filename"
         prefix = dired_re_maybe_mark//dired_re_inode_size
         allocate (kw(16))
@@ -6483,10 +7055,12 @@ contains
         ! quicker to first find just an extension, then go back to the
         ! start of that file name.
         exts = "\(?:"
+
         do k = 1, size(completion_ignored_extensions)
             if (k > 1) exts = exts//"\|"
             exts = exts//regexp_quote(trim(completion_ignored_extensions(k)))
         end do
+
         exts = exts//"\)"
         h1(1) = font_lock_highlight(0, face_function=face_ignored)
         a(1) = font_lock_anchored(h1, regexp=".+", pre_match_form=pre_move_to_filename)
@@ -6529,6 +7103,7 @@ contains
     subroutine init_dired_faces()
         integer, parameter :: C = FACE_CLASS_COLOR
         type(named_face_type), pointer :: f
+
         f => dired_header
         call f%define("dired_header", "Face used for directory headers.")
         call f%spec_entry(display_when(), face_attrs(inherit="font_lock_type_face"))
@@ -6573,12 +7148,12 @@ contains
     ! ------------------------------------------------------------------
     ! Commands that wrap the functions
     ! ------------------------------------------------------------------
-
     !> Build `dired_subdir_alist' by parsing the buffer.
     !> Returns the new value of `dired_subdir_alist'.
     !> Port of dired.el:dired-build-subdir-alist (interactive).
     recursive subroutine cmd_dired_build_subdir_alist(status)
         type(status_type), intent(out) :: status
+
         call dired_build_subdir_alist(status, called_interactively=.true.)
     end subroutine cmd_dired_build_subdir_alist
 
@@ -6586,6 +7161,7 @@ contains
     !> dired.el:dired-find-file (interactive).
     recursive subroutine cmd_dired_find_file(status)
         type(status_type), intent(out) :: status
+
         call dired_find_file(status)
     end subroutine cmd_dired_find_file
 
@@ -6596,6 +7172,7 @@ contains
     !> Port of dired.el:dired-find-file-other-window (interactive).
     recursive subroutine cmd_dired_find_file_other_window(status)
         type(status_type), intent(out) :: status
+
         call dired_find_file_other_window(status)
     end subroutine cmd_dired_find_file_other_window
 
@@ -6603,6 +7180,7 @@ contains
     !> dired.el:dired-display-file (interactive).
     recursive subroutine cmd_dired_display_file(status)
         type(status_type), intent(out) :: status
+
         call dired_display_file(status)
     end subroutine cmd_dired_display_file
 
@@ -6617,6 +7195,7 @@ contains
     !> (interactive).
     recursive subroutine cmd_dired_toggle_marks(status)
         type(status_type), intent(out) :: status
+
         call dired_toggle_marks(status)
     end subroutine cmd_dired_toggle_marks
 
@@ -6624,6 +7203,7 @@ contains
     !> dired.el:dired-number-of-marked-files (interactive).
     recursive subroutine cmd_dired_number_of_marked_files(status)
         type(status_type), intent(out) :: status
+
         call dired_number_of_marked_files(status)
     end subroutine cmd_dired_number_of_marked_files
 
@@ -6633,6 +7213,7 @@ contains
     !> errors.  Port of dired.el:dired-why (interactive).
     recursive subroutine cmd_dired_why(status)
         type(status_type), intent(out) :: status
+
         call dired_why(status)
     end subroutine cmd_dired_why
 
@@ -6640,17 +7221,18 @@ contains
     !> of dired.el:dired-summary (interactive).
     recursive subroutine cmd_dired_summary(status)
         type(status_type), intent(out) :: status
+
         call dired_summary(status)
     end subroutine cmd_dired_summary
 
     ! ------------------------------------------------------------------
     ! Setup
     ! ------------------------------------------------------------------
-
     !> Bind KEYS (key-parse syntax) to COMMAND in `dired_mode_map'.
     subroutine bind(keys, command)
         character(len=*), intent(in) :: keys, command
         type(status_type) :: st
+
         call keymap_set(dired_mode_map, keys, command, st)
     end subroutine bind
 
@@ -6659,6 +7241,7 @@ contains
         character(len=*), intent(in) :: from, command
         type(value_type), allocatable :: events(:)
         type(status_type) :: st
+
         call list_elements(list(sym("remap"), sym(from)), events)
         call define_key(dired_mode_map, events, sym(command), st)
     end subroutine bind_remap
@@ -6669,11 +7252,14 @@ contains
     subroutine syms_of_dired_mode(ctl_x_map, ctl_x_4_map)
         type(handle_type), intent(in), optional :: ctl_x_map, ctl_x_4_map
         type(status_type) :: st
+
         if (.not. allocated(dired_listing_switches)) dired_listing_switches = "-al"
         if (.not. allocated(dired_trivial_filenames)) dired_trivial_filenames = "\`\.\.?\'\|\`\.?#"
+
         if (.not. allocated(dired_garbage_files_regexp)) then
             dired_garbage_files_regexp = "\(?:\.\(?:aux\|bak\|dvi\|log\|orig\|rej\|toc\)\)\'"
         end if
+
         if (.not. allocated(dired_header_face)) dired_header_face = "dired_header"
         if (.not. allocated(dired_mark_face)) dired_mark_face = "dired_mark"
         if (.not. allocated(dired_marked_face)) dired_marked_face = "dired_marked"

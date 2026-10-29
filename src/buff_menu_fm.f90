@@ -198,25 +198,32 @@ contains
         logical, intent(in) :: make
         type(local_type), allocatable :: grown(:)
         integer :: i, n
+
         k = 0
         if (cur == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
+
         do k = 1, size(locals)
             if (locals(k)%serial == buffers(cur)%serial) return
         end do
+
         k = 0
         if (.not. make) return
+
         do k = 1, size(locals)
             if (.not. buffer_serial_live(locals(k)%serial)) then
                 locals(k) = local_type(serial=buffers(cur)%serial)
                 return
             end if
         end do
+
         n = size(locals)
         allocate (grown(n + 1))
+
         do i = 1, n
             grown(i) = locals(i)
         end do
+
         grown(n + 1)%serial = buffers(cur)%serial
         call move_alloc(grown, locals)
         k = n + 1
@@ -227,6 +234,7 @@ contains
         integer(int64), intent(in) :: bi
         character(len=:), allocatable :: id
         character(len=24) :: s
+
         write (s, "(i0)") buffers(bi)%serial
         id = trim(s)
     end function buffer_id
@@ -237,10 +245,12 @@ contains
         type(handle_type) :: h
         integer(int64) :: serial, k
         integer :: ios
+
         h = null_handle()
         if (len(id) == 0) return
         read (id, *, iostat=ios) serial
         if (ios /= 0) return
+
         do k = 1, size(buffers, kind=int64)
             if (buffers(k)%serial /= serial) cycle
             if (buffer_live_p(buffer_handle(k))) h = buffer_handle(k)
@@ -252,6 +262,7 @@ contains
     ! tabulated-list-get-id).
     logical function has_id(id)
         character(len=*), intent(in) :: id
+
         has_id = len(id) > 0
     end function has_id
 
@@ -262,14 +273,19 @@ contains
     integer function buffer_menu_dynamic_name_width(bufs) result(width)
         type(handle_type), intent(in) :: bufs(:)
         integer :: k, longest, cols
+
         longest = 0
+
         do k = 1, size(bufs)
             if (buffer_live_p(bufs(k))) longest = max(longest, len(buffers(bufs(k)%index)%name))
         end do
+
         cols = 80
+
         if (selected_frame%selected_window%index /= 0) then
             cols = window_text_cols(windows(selected_frame%selected_window%index))
         end if
+
         ! This gives 19 on an 80 column window, and take up
         ! proportionally more space as the window widens.
         width = max(19, min(int(real(cols, real64)/4.2_real64), longest))
@@ -315,6 +331,7 @@ contains
     recursive subroutine buffer_menu_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
+
         call major_modes%buffer_menu_mode%begin(saved, status)
         if (.not. status%ok()) return
         call buffer_stale_function%set_local(stale_fast)
@@ -324,12 +341,14 @@ contains
 
     recursive integer function stale_fast(noconfirm) result(stale)
         logical, intent(in) :: noconfirm
+
         if (noconfirm) continue
         stale = BUFFER_STALE_FAST
     end function stale_fast
 
     recursive subroutine refresh_hook(status)
         type(status_type), intent(out) :: status
+
         call list_buffers_refresh(status)
     end subroutine refresh_hook
 
@@ -384,6 +403,7 @@ contains
     recursive subroutine buffer_menu(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buf
+
         call list_buffers_noselect(buf, status, files_only=prefix_files_only())
         if (.not. status%ok()) return
         call switch_to_buffer(buffers(buf%index)%name, status)
@@ -401,6 +421,7 @@ contains
     recursive subroutine buffer_menu_other_window(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buf
+
         call list_buffers_noselect(buf, status, files_only=prefix_files_only())
         if (.not. status%ok()) return
         call switch_to_buffer_other_window(buf, status)
@@ -419,6 +440,7 @@ contains
     recursive subroutine list_buffers(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buf, window
+
         call list_buffers_noselect(buf, status, files_only=prefix_files_only())
         if (.not. status%ok()) return
         call display_buffer(buf, window, status)
@@ -427,7 +449,9 @@ contains
     ! Buffer-menu--selection-message.
     subroutine selection_message()
         integer :: k
+
         k = local_index(.true.)
+
         if (locals(k)%files_only) then
             call message("Showing only file-visiting buffers.")
         else if (locals(k)%show_internal) then
@@ -444,12 +468,15 @@ contains
     recursive subroutine buffer_menu_toggle_files_only(status)
         type(status_type), intent(out) :: status
         integer :: k
+
         k = local_index(.true.)
+
         if (nilp(current_prefix_arg)) then
             locals(k)%files_only = .not. locals(k)%files_only
         else
             locals(k)%files_only = prefix_numeric_value(current_prefix_arg) > 0
         end if
+
         call selection_message()
         call revert_buffer(status)
     end subroutine buffer_menu_toggle_files_only
@@ -461,12 +488,15 @@ contains
     recursive subroutine buffer_menu_toggle_internal(status)
         type(status_type), intent(out) :: status
         integer :: k
+
         k = local_index(.true.)
+
         if (nilp(current_prefix_arg)) then
             locals(k)%show_internal = .not. locals(k)%show_internal
         else
             locals(k)%show_internal = prefix_numeric_value(current_prefix_arg) > 0
         end if
+
         call selection_message()
         call revert_buffer(status)
     end subroutine buffer_menu_toggle_internal
@@ -481,11 +511,13 @@ contains
         type(handle_type) :: buffer
         character(len=:), allocatable :: id
         logical :: signal
+
         status = status_type()
         signal = .false.
         if (present(error_if_non_existent_p)) signal = error_if_non_existent_p
         id = tabulated_list_get_id()
         buffer = id_buffer(id)
+
         if (.not. has_id(id)) then
             if (signal) call set_error(status, FM_GENERIC_ERROR, "No buffer on this line")
         else if (buffer%index == 0) then
@@ -496,6 +528,7 @@ contains
     ! Buffer-menu-beginning.
     subroutine buffer_menu_beginning()
         integer(int64) :: shortage
+
         call goto_char(point_min())
         if (.not. buffer_menu_use_header_line) shortage = forward_line()
     end subroutine buffer_menu_beginning
@@ -506,6 +539,7 @@ contains
         character(len=*), intent(in) :: text
         type(status_type), intent(out) :: status
         type(tabulated_list_desc_type) :: desc
+
         desc%text = text
         desc%face = ""
         call tabulated_list_set_col(desc, status, col=col, change_entry_data=.true.)
@@ -517,11 +551,14 @@ contains
     recursive subroutine buffer_menu_mark(status)
         type(status_type), intent(out) :: status
         integer(int64) :: shortage
+
         status = status_type()
+
         if (has_id(tabulated_list_get_id())) then
             call set_col(1, buffer_menu_marker_char, status)
             if (.not. status%ok()) return
         end if
+
         shortage = forward_line()
     end subroutine buffer_menu_mark
 
@@ -532,20 +569,25 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: backup
         integer(int64) :: shortage, n
+
         status = status_type()
         n = 1
+
         if (present(backup)) then
             if (backup) n = -1
         end if
+
         if (has_id(tabulated_list_get_id())) then
             call unmark(char(13), status)
             if (.not. status%ok()) return
         end if
+
         shortage = forward_line(n)
     end subroutine buffer_menu_unmark
 
     recursive subroutine cmd_buffer_menu_unmark(status)
         type(status_type), intent(out) :: status
+
         call buffer_menu_unmark(status,.not. nilp(current_prefix_arg))
     end subroutine cmd_buffer_menu_unmark
 
@@ -557,22 +599,27 @@ contains
         character, intent(in) :: mark
         type(status_type), intent(out) :: status
         integer(int64) :: saved, shortage
+
         status = status_type()
         saved = point()
         call goto_char(point_min())
+
         do while (.not. eobp())
             call unmark(mark, status)
             if (.not. status%ok()) exit
             shortage = forward_line()
         end do
+
         call goto_char(saved)
     end subroutine buffer_menu_unmark_all_buffers
 
     recursive subroutine cmd_buffer_menu_unmark_all_buffers(status)
         type(status_type), intent(out) :: status
         integer(int64) :: c
+
         call read_char("Remove marks (RET means all):", c, status)
         if (.not. status%ok()) return
+
         if (c > 127) then
             ! (A mark is an ASCII character; others match none.)
             call buffer_menu_unmark_all_buffers(char(0), status)
@@ -585,6 +632,7 @@ contains
     !> buff-menu.el:Buffer-menu-unmark-all.
     recursive subroutine buffer_menu_unmark_all(status)
         type(status_type), intent(out) :: status
+
         call buffer_menu_unmark_all_buffers(char(13), status)
     end subroutine buffer_menu_unmark_all
 
@@ -593,11 +641,14 @@ contains
     recursive subroutine buffer_menu_backup_unmark(status)
         type(status_type), intent(out) :: status
         integer(int64) :: shortage
+
         status = status_type()
         shortage = forward_line(-1_int64)
+
         do while (.not. has_id(tabulated_list_get_id()) .and. .not. bobp())
             shortage = forward_line(-1_int64)
         end do
+
         if (has_id(tabulated_list_get_id())) call unmark(char(13), status)
     end subroutine buffer_menu_backup_unmark
 
@@ -614,19 +665,24 @@ contains
         integer :: col
         integer, parameter :: cols(2) = [1, 3]
         integer :: j
+
         status = status_type()
         call tabulated_list_get_entry(entry, found)
         if (.not. found) return
+
         ! A mark could appear in column 0 or 2.
         do j = 1, 2
             col = cols(j)
+
             if (mark == char(13) .or. first_char_equal(mark, entry%cols(col)%text)) then
                 call set_col(col, " ", status)
                 if (.not. status%ok()) return
             end if
         end do
+
         ! Reset modified mark in column 2.
         buf = buffer_menu_buffer(st)
+
         if (buf%index /= 0) then
             call buffer_modified_p(buf, modified, st)
             if (modified .and. entry%cols(3)%text == " ") call set_col(3, "*", status)
@@ -640,6 +696,7 @@ contains
         character, intent(in) :: mark
         character(len=*), intent(in) :: text
         integer(int32) :: a, b
+
         a = 0
         if (len(text) > 0) a = iachar(text(1:1))
         b = iachar(mark)
@@ -659,25 +716,32 @@ contains
         type(handle_type) :: buf
         type(status_type) :: st
         integer(int64) :: n, shortage
+
         status = status_type()
         n = 1
         if (present(arg)) n = arg
         if (n == 0) n = 1
+
         do while (n > 0)
             buf = buffer_menu_buffer(st)
+
             if (buf%index /= 0) then
                 call set_col(1, buffer_menu_del_char, status)
                 if (.not. status%ok()) return
             end if
+
             shortage = forward_line(1_int64)
             n = n - 1
         end do
+
         do while (n < 0)
             buf = buffer_menu_buffer(st)
+
             if (buf%index /= 0) then
                 call set_col(1, buffer_menu_del_char, status)
                 if (.not. status%ok()) return
             end if
+
             shortage = forward_line(-1_int64)
             n = n + 1
         end do
@@ -685,6 +749,7 @@ contains
 
     recursive subroutine cmd_buffer_menu_delete(status)
         type(status_type), intent(out) :: status
+
         call buffer_menu_delete(status, prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_buffer_menu_delete
 
@@ -697,6 +762,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg
         integer(int64) :: n
+
         n = 1
         if (present(arg)) n = arg
         call buffer_menu_delete(status, -n)
@@ -704,6 +770,7 @@ contains
 
     recursive subroutine cmd_buffer_menu_delete_backwards(status)
         type(status_type), intent(out) :: status
+
         call buffer_menu_delete_backwards(status, prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_buffer_menu_delete_backwards
 
@@ -715,14 +782,18 @@ contains
         type(handle_type) :: buf
         type(status_type) :: st
         integer(int64) :: shortage
+
         status = status_type()
+
         if (has_id(tabulated_list_get_id())) then
             buf = buffer_menu_buffer(st)
+
             if (buf%index /= 0) then
                 call set_col(3, "S", status)
                 if (.not. status%ok()) return
             end if
         end if
+
         shortage = forward_line()
     end subroutine buffer_menu_save
 
@@ -735,6 +806,7 @@ contains
         type(handle_type) :: buf, old
         type(status_type) :: st
         logical :: modified
+
         modified = .false.
         if (present(arg)) modified = arg
         buf = buffer_menu_buffer(status, .true.)
@@ -744,6 +816,7 @@ contains
         if (.not. status%ok()) return
         call restore_buffer_modified_p(modified)
         call set_buffer(old, st)
+
         if (modified) then
             call set_col(3, "*", status)
         else
@@ -753,6 +826,7 @@ contains
 
     recursive subroutine cmd_buffer_menu_not_modified(status)
         type(status_type), intent(out) :: status
+
         call buffer_menu_not_modified(status,.not. nilp(current_prefix_arg))
     end subroutine cmd_buffer_menu_not_modified
 
@@ -767,13 +841,16 @@ contains
         type(status_type) :: st
         integer(int64) :: saved, shortage
         logical :: found, delete, killed
+
         status = status_type()
         menu = current_buffer()
         saved = point()
         call buffer_menu_beginning()
+
         do while (.not. eobp())
             buffer = id_buffer(tabulated_list_get_id())
             call tabulated_list_get_entry(entry, found)
+
             if (.not. found) then
                 shortage = forward_line(1_int64)
             else if (buffer%index == 0) then
@@ -781,23 +858,28 @@ contains
                 if (.not. status%ok()) exit
             else
                 delete = following_char() == iachar("D")
+
                 if (entry%cols(3)%text == "S") then
                     call set_buffer(buffer, st)
                     call save_buffer(1_int64, .false., st)
                     call set_buffer(menu, status)
                     if (.not. status%ok()) exit
+
                     if (st%ok()) then
                         call set_col(3, " ", status)
                         if (.not. status%ok()) exit
                     end if
                 end if
+
                 killed = .false.
+
                 if (delete .and. buffer%index /= menu%index) then
                     call kill_buffer(buffer, st)
                     killed = st%ok() .and. .not. buffer_live_p(buffer)
                     call set_buffer(menu, status)
                     if (.not. status%ok()) exit
                 end if
+
                 if (killed) then
                     call tabulated_list_delete_entry(deleted, found, status)
                     if (.not. status%ok()) exit
@@ -806,6 +888,7 @@ contains
                 end if
             end if
         end do
+
         call goto_char(min(saved, point_max()))
     end subroutine buffer_menu_execute
 
@@ -820,6 +903,7 @@ contains
         type(handle_type) :: this_buffer, menu_buffer, new
         type(handle_type), allocatable :: marked(:), others(:)
         integer :: height, k, n
+
         this_buffer = buffer_menu_buffer(status, .true.)
         if (.not. status%ok()) return
         menu_buffer = current_buffer()
@@ -827,20 +911,24 @@ contains
         if (.not. status%ok()) return
         allocate (others(size(marked)))
         n = 0
+
         do k = 1, size(marked)
             if (marked(k)%index == this_buffer%index) cycle
             n = n + 1
             others(n) = marked(k)
         end do
+
         height = (frame_lines(selected_frame) - 1)/(1 + n)
         call delete_other_windows(selected_window(), status)
         if (.not. status%ok()) return
         call switch_to_buffer(buffers(this_buffer%index)%name, status)
         if (.not. status%ok()) return
+
         if (menu_buffer%index /= this_buffer%index) then
             call bury_buffer(status, menu_buffer)
             if (.not. status%ok()) return
         end if
+
         do k = 1, n
             call split_window(selected_window(), height, .true., .false., new, status)
             if (.not. status%ok()) return
@@ -849,6 +937,7 @@ contains
             call switch_to_buffer(buffers(others(k)%index)%name, status)
             if (.not. status%ok()) return
         end do
+
         ! Back to the beginning!
         call other_window(1_int64, status)
     end subroutine buffer_menu_select
@@ -865,20 +954,24 @@ contains
         type(status_type) :: st
         integer(int64) :: saved, found
         logical :: clear
+
         clear = .false.
         if (present(unmark)) clear = unmark
         allocate (bufs(0))
         saved = point()
         call buffer_menu_beginning()
+
         do
             call re_search_forward("^>", found, status, noerror=1)
             if (.not. status%ok()) exit
             if (found == 0) exit
             buffer = buffer_menu_buffer(st)
+
             if (buffer%index /= 0 .and. clear) then
                 call set_col(1, " ", status)
                 if (.not. status%ok()) exit
             end if
+
             if (buffer%index /= 0) then
                 allocate (grown(size(bufs) + 1))
                 grown(1:size(bufs)) = bufs
@@ -886,6 +979,7 @@ contains
                 call move_alloc(grown, bufs)
             end if
         end do
+
         call goto_char(saved)
     end subroutine buffer_menu_marked_buffers
 
@@ -896,6 +990,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: nlines
         type(handle_type), allocatable :: bufs(:)
+
         call buffer_menu_marked_buffers(bufs, status)
         if (.not. status%ok()) return
         call multi_occur(bufs, regexp, status, nlines)
@@ -906,8 +1001,10 @@ contains
         character(len=:), allocatable :: regexp, collect
         logical :: has_nlines, has_collect
         integer(int64) :: nlines
+
         call occur_read_primary_args(regexp, has_nlines, nlines, has_collect, collect, status)
         if (.not. status%ok()) return
+
         if (has_nlines) then
             call buffer_menu_multi_occur(regexp, status, nlines)
         else
@@ -920,6 +1017,7 @@ contains
     recursive subroutine buffer_menu_1_window(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buf
+
         buf = buffer_menu_buffer(status, .true.)
         if (.not. status%ok()) return
         call switch_to_buffer(buffers(buf%index)%name, status)
@@ -934,6 +1032,7 @@ contains
     recursive subroutine buffer_menu_this_window(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buf
+
         buf = buffer_menu_buffer(status, .true.)
         if (.not. status%ok()) return
         call switch_to_buffer(buffers(buf%index)%name, status)
@@ -945,6 +1044,7 @@ contains
     recursive subroutine buffer_menu_other_window_command(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buf
+
         buf = buffer_menu_buffer(status, .true.)
         if (.not. status%ok()) return
         ! (display-buffer-overriding-action inhibit-same-window: as
@@ -958,6 +1058,7 @@ contains
     recursive subroutine buffer_menu_switch_other_window(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buf, window
+
         buf = buffer_menu_buffer(status, .true.)
         if (.not. status%ok()) return
         call display_buffer(buf, window, status, alist=display_alist_type(inhibit_same_window=.true.))
@@ -968,6 +1069,7 @@ contains
     recursive subroutine buffer_menu_2_window(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buff, menu, other
+
         buff = buffer_menu_buffer(status, .true.)
         if (.not. status%ok()) return
         menu = current_buffer()
@@ -989,6 +1091,7 @@ contains
         type(handle_type) :: buf, old
         type(status_type) :: st
         logical :: read_only
+
         buf = buffer_menu_buffer(status, .true.)
         if (.not. status%ok()) return
         old = current_buffer()
@@ -998,6 +1101,7 @@ contains
         read_only = buffers(cur)%read_only
         call set_buffer(old, st)
         if (.not. status%ok()) return
+
         if (read_only) then
             call set_col(2, "%", status)
         else
@@ -1014,9 +1118,11 @@ contains
         character(len=:), allocatable :: id
         integer(int64) :: saved
         logical :: found
+
         status = status_type()
         id = tabulated_list_get_id()
         buffer = id_buffer(id)
+
         if (.not. has_id(id)) then
             continue
         else if (buffer%index /= 0) then
@@ -1024,10 +1130,12 @@ contains
             if (.not. status%ok()) return
             saved = point()
             call tabulated_list_delete_entry(elt, found, status)
+
             if (status%ok()) then
                 call goto_char(point_max())
                 call tabulated_list_print_entry(elt, status)
             end if
+
             call goto_char(min(saved, point_max()))
             if (.not. status%ok()) return
             call message("Buffer buried.")
@@ -1043,6 +1151,7 @@ contains
     recursive subroutine buffer_menu_view(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buf
+
         buf = buffer_menu_buffer(status, .true.)
         if (.not. status%ok()) return
         call view_buffer(buf, status)
@@ -1053,6 +1162,7 @@ contains
     recursive subroutine buffer_menu_view_other_window(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buf
+
         buf = buffer_menu_buffer(status, .true.)
         if (.not. status%ok()) return
         call view_buffer_other_window(buf, status)
@@ -1061,7 +1171,6 @@ contains
     ! ------------------------------------------------------------------
     ! Functions for populating the Buffer Menu.
     ! ------------------------------------------------------------------
-
     !> Create and return in BUFFER a Buffer Menu buffer.
     !> This is called by `buffer_menu' and others as a subroutine.
     !>
@@ -1082,12 +1191,14 @@ contains
         type(handle_type) :: old_buffer
         type(status_type) :: st
         integer :: k
+
         old_buffer = current_buffer()
         call get_buffer_create("*Buffer List*", buffer, status)
         if (.not. status%ok()) return
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
         call buffer_menu_mode(status)
+
         if (status%ok()) then
             k = local_index(.true.)
             locals(k)%files_only = .false.
@@ -1102,6 +1213,7 @@ contains
             call list_buffers_refresh(status, old_buffer)
             if (status%ok()) call tabulated_list_print(status)
         end if
+
         call set_buffer(old_buffer, st)
     end subroutine list_buffers_noselect
 
@@ -1122,6 +1234,7 @@ contains
         integer :: k, j, n, name_width
         integer(int64) :: bi
         type(status_type) :: st
+
         old = null_handle()
         if (present(old_buffer)) old = old_buffer
         call buffer_menu_marked_buffers(marked, status)
@@ -1133,20 +1246,24 @@ contains
         filter => locals(k)%filter_predicate
         ! Collect info for each buffer we're interested in.
         explicit = .true.
+
         if (associated(locals(k)%list_function)) then
             call locals(k)%list_function(candidates)
         else if (locals(k)%has_list) then
             candidates = locals(k)%list
         else
             explicit = .false.
+
             if (buffer_menu_use_frame_buffer_list) then
                 candidates = frame_buffer_list()
             else
                 candidates = buffer_list()
             end if
         end if
+
         allocate (entries(size(candidates)), listed(size(candidates)))
         n = 0
+
         do j = 1, size(candidates)
             if (.not. buffer_live_p(candidates(j))) cycle
             bi = candidates(j)%index
@@ -1155,8 +1272,10 @@ contains
             file = ""
             if (allocated(buffers(bi)%filename)) file = buffers(bi)%filename
             live = .true.
+
             if (.not. explicit) then
                 live = .false.
+
                 if (show_internal .or. len(file) > 0) then
                     live = .true.
                 else if (len(name) > 0) then
@@ -1164,19 +1283,24 @@ contains
                 else
                     live = .true.
                 end if
+
                 if (bi == menu%index) live = .false.
                 if (.not. (len(file) > 0 .or. show_non_file)) live = .false.
                 if (live .and. associated(filter)) live = filter(candidates(j))
             end if
+
             if (live) then
                 n = n + 1
                 listed(n) = candidates(j)
+
                 associate (e => entries(n))
                     e%id = buffer_id(bi)
                     allocate (e%cols(7))
+
                     do k = 1, 7
                         e%cols(k)%face = ""
                     end do
+
                     if (bi == old%index) then
                         e%cols(1)%text = "."
                     else if (any_index(marked, bi)) then
@@ -1184,6 +1308,7 @@ contains
                     else
                         e%cols(1)%text = " "
                     end if
+
                     e%cols(2)%text = " "
                     if (buffers(bi)%read_only) e%cols(2)%text = "%"
                     call buffer_modified_p(candidates(j), modified, st)
@@ -1192,12 +1317,14 @@ contains
                     ! (Buffer-menu--pretty-name.)
                     e%cols(4)%text = name
                     e%cols(4)%face = "buffer_menu_buffer"
+
                     if (buffer_menu_human_readable_sizes) then
                         size_text = file_size_human_readable(real(buffer_size(), real64))
                     else
                         write (s, "(i0)") buffer_size()
                         size_text = trim(s)
                     end if
+
                     e%cols(5)%text = size_text
                     ! (format-mode-line mode-name: "Fundamental" until a mode sets it.)
                     e%cols(6)%text = "Fundamental"
@@ -1207,13 +1334,16 @@ contains
                 end associate
             end if
         end do
+
         call set_buffer(menu, status)
         if (.not. status%ok()) return
+
         if (associated(buffer_menu_name_width_function)) then
             name_width = buffer_menu_name_width_function(listed(1:n))
         else
             name_width = buffer_menu_name_width
         end if
+
         format(1) = column("C", 1, 0)
         format(2) = column("R", 1, 0)
         format(3) = column("M", 1, 1)
@@ -1234,6 +1364,7 @@ contains
         character(len=*), intent(in) :: name
         integer, intent(in) :: width, pad_right
         type(tabulated_list_column_type) :: c
+
         c%name = name
         c%width = width
         c%sort = .true.
@@ -1244,7 +1375,9 @@ contains
         type(handle_type), intent(in) :: bufs(:)
         integer(int64), intent(in) :: bi
         integer :: k
+
         found = .false.
+
         do k = 1, size(bufs)
             if (bufs(k)%index == bi) found = .true.
         end do
@@ -1255,6 +1388,7 @@ contains
     !> buff-menu.el:tabulated-list-entry-size->.
     logical function tabulated_list_entry_size_greater(a, b) result(greater)
         type(tabulated_list_entry_type), intent(in) :: a, b
+
         greater = string_to_number(a%cols(5)%text) > string_to_number(b%cols(5)%text)
     end function tabulated_list_entry_size_greater
 
@@ -1263,20 +1397,26 @@ contains
     real(real64) function string_to_number(text) result(x)
         character(len=*), intent(in) :: text
         integer :: k, e, ios
+
         x = 0
         k = 1
+
         do while (k <= len(text))
             if (text(k:k) /= " " .and. text(k:k) /= char(9)) exit
             k = k + 1
         end do
+
         e = k
+
         if (e <= len(text)) then
             if (text(e:e) == "-" .or. text(e:e) == "+") e = e + 1
         end if
+
         do while (e <= len(text))
             if (index("0123456789.", text(e:e)) == 0) exit
             e = e + 1
         end do
+
         if (e > k) read (text(k:e - 1), *, iostat=ios) x
         if (e > k .and. ios /= 0) x = 0
     end function string_to_number
@@ -1285,6 +1425,7 @@ contains
     function pretty_file_name(file) result(text)
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: text
+
         if (len(file) > 0) then
             text = abbreviate_file_name(file)
         else if (allocated(list_buffers_directory%value)) then
@@ -1306,12 +1447,14 @@ contains
         type(status_type), intent(out) :: status
         type(value_type) :: ev
         logical :: have
+
         c = 0
         if (len(prompt) > 0) call message(prompt)
         cursor_in_echo_area = .true.
         call read_event(ev, have, status)
         cursor_in_echo_area = .false.
         if (.not. status%ok()) return
+
         if (.not. have) then
             call set_error(status, FM_QUIT)
         else if (.not. fixnump(ev)) then
@@ -1328,9 +1471,11 @@ contains
     !> Define Buffer Menu mode, its keymap and commands, and C-x C-b.
     subroutine syms_of_buff_menu()
         type(status_type) :: st
+
         if (.not. associated(buffer_menu_name_width_function)) then
             buffer_menu_name_width_function => buffer_menu_dynamic_name_width
         end if
+
         call buffer_menu_buffer_face%define("buffer_menu_buffer", "Face for buffer names in the Buffer Menu.")
         call buffer_menu_buffer_face%spec_entry(display_when(), face_attrs(weight="bold"))
         call major_modes%buffer_menu_mode%define("buffer_menu_mode", "Buffer Menu", buffer_menu_mode, &

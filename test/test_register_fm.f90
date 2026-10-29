@@ -59,6 +59,7 @@ contains
 
     subroutine collect_register_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("register-test-bug27634", test_bug27634), &
                     new_unittest("register--jumpable-p", test_jumpable_p), &
@@ -84,6 +85,7 @@ contains
         type(status_type) :: st
         type(rectangle_line_type) :: none(0)
         integer :: k
+
         call get_buffer_create("*register-test*", h, st)
         call set_buffer(h, st)
         call set_buffer_read_only(h, .false., st)
@@ -92,12 +94,14 @@ contains
         call insert(text, st)
         call goto_char(1_int64)
         call show_alone()
+
         ! Empty every register (an empty rectangle is nil).
         if (allocated(register_alist)) then
             do k = 1, size(register_alist)
                 call set_register(register_alist(k)%name, none)
             end do
         end if
+
         register_separator = -1
         call discard_input()
         prefix_arg = nil()
@@ -108,6 +112,7 @@ contains
     function value_of(r) result(v)
         integer(int64), intent(in) :: r
         type(register_value_type) :: v
+
         call get_register(r, v)
     end function value_of
 
@@ -115,6 +120,7 @@ contains
     integer function kind_of(r)
         integer(int64), intent(in) :: r
         type(register_value_type) :: v
+
         call get_register(r, v)
         kind_of = v%kind
     end function kind_of
@@ -124,6 +130,7 @@ contains
         integer(int64), intent(in) :: r
         character(len=:), allocatable :: s
         type(register_value_type) :: v
+
         call get_register(r, v)
         s = ""
         if (allocated(v%text)) s = v%text
@@ -133,6 +140,7 @@ contains
     integer(int64) function number_of(r)
         integer(int64), intent(in) :: r
         type(register_value_type) :: v
+
         call get_register(r, v)
         number_of = v%number
     end function number_of
@@ -140,8 +148,10 @@ contains
     !> Whether no register holds anything.
     logical function all_empty()
         integer :: k
+
         all_empty = .true.
         if (.not. allocated(register_alist)) return
+
         do k = 1, size(register_alist)
             if (register_alist(k)%value%kind /= REGISTER_EMPTY) all_empty = .false.
         end do
@@ -155,7 +165,9 @@ contains
         type(status_type) :: st
         type(value_type) :: escape(1)
         integer :: k
+
         call fresh(h, "text")
+
         do k = 1, 3
             select case (k)
             case (1)
@@ -166,12 +178,14 @@ contains
             case default
                 call kbd_store_bytes(achar(27))
             end select
+
             call commands_point_to_register(st)
             call check(error, st%code == FM_QUIT, "quit: "//format_error(st))
             if (allocated(error)) return
             call check(error, all_empty(), "no register set")
             if (allocated(error)) return
         end do
+
         call kill_buffer(h, st)
     end subroutine test_bug27634
 
@@ -179,6 +193,7 @@ contains
     subroutine commands_point_to_register(status)
         use commands_fm, only: commands
         type(status_type), intent(out) :: status
+
         call commands%point_to_register%run(status)
     end subroutine commands_point_to_register
 
@@ -191,6 +206,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(register_value_type) :: v
+
         call fresh(h, "text")
         call point_to_register(ra, st)
         call check(error, register_jumpable_p(value_of(ra)), "marker")
@@ -221,6 +237,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, other
         type(status_type) :: st
+
         call fresh(h, "hello world")
         call goto_char(7_int64)
         call point_to_register(ra, st)
@@ -261,6 +278,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, "hello world")
         call copy_to_register(ra, 1_int64, 6_int64, st)
         call check(error, kind_of(ra) == REGISTER_TEXT .and. text_of(ra) == "hello", "copied")
@@ -301,6 +319,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, "one two three")
         call append_to_register(ra, 1_int64, 4_int64, st)
         call append_to_register(ra, 5_int64, 8_int64, st)
@@ -330,6 +349,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, "  -12 apples")
         ! Without a number, read one at point and move over it.
         call number_to_register(ra, st)
@@ -367,6 +387,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(register_value_type) :: v
+
         call fresh(h, "abcdef"//nl//"ghijkl"//nl//"mnopqr")
         call copy_rectangle_to_register(ra, 2_int64, 19_int64, st)
         v = value_of(ra)
@@ -396,6 +417,7 @@ contains
         type(handle_type) :: h, other, w
         type(handle_type), allocatable :: leaves(:)
         type(status_type) :: st
+
         call fresh(h, "hello")
         call goto_char(3_int64)
         call get_buffer_create("*register-other*", other, st)
@@ -424,6 +446,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, other
         type(status_type) :: st
+
         call fresh(h, "hello")
         call get_buffer_create("*register-other*", other, st)
         call buffer_to_register(other, ra)
@@ -449,6 +472,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, "hello")
         call goto_char(3_int64)
         call point_to_register(ra, st)
@@ -492,6 +516,7 @@ contains
         character(len=:), allocatable :: s
         type(handle_type) :: old, b
         type(status_type) :: st
+
         s = ""
         b = get_buffer(name)
         if (.not. buffer_live_p(b)) return
@@ -505,6 +530,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, "hello")
         call view_register(ra, st)
         call check(error, last_message, "Register a is empty")
@@ -532,6 +558,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(handle_type), allocatable :: leaves(:)
+
         call fresh(h, "hello")
         call set_register(rb, "bee")
         call set_register(ra, 1_int64)
@@ -555,6 +582,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: text
         type(register_value_type) :: v
+
         call fresh(h, "alpha beta")
         ! C-x r SPC a at 3, M-> then C-x r j a.
         call goto_char(3_int64)

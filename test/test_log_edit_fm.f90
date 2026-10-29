@@ -43,6 +43,7 @@ contains
 
     subroutine collect_log_edit_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("log-edit-fill-entry", test_fill_entry), &
                     new_unittest("log-edit-fill-entry-indented-func-entries", test_indented), &
@@ -62,12 +63,12 @@ contains
     ! ------------------------------------------------------------------
     ! Helpers
     ! ------------------------------------------------------------------
-
     !> (with-temp-buffer (insert TEXT)).
     subroutine temp_buffer(text, h)
         character(len=*), intent(in) :: text
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call init_bindings()
         call get_buffer_create(" *log-edit-test*", h, st)
         call set_buffer(h, st)
@@ -78,6 +79,7 @@ contains
     subroutine leave(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
+
         fill_column = 70
         call kill_buffer(h, st)
     end subroutine leave
@@ -90,6 +92,7 @@ contains
         character(len=*), intent(in) :: wanted
         type(status_type) :: st
         logical :: done
+
         fill_column = column
         call log_edit_fill_entry(st, done)
         fill_column = 70
@@ -101,10 +104,10 @@ contains
     ! ------------------------------------------------------------------
     ! log-edit-fill-entry
     ! ------------------------------------------------------------------
-
     subroutine test_fill_entry(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
+
         call temp_buffer("* dir/file.ext (fun1):"//LF// &
                          "(fun2):"//LF// &
                          "(fun3):"//LF// &
@@ -123,6 +126,7 @@ contains
                             "(fun8): A longer description of a complicated change.  Spread over a"//LF// &
                             "couple of sentences.  Long enough to be filled for several lines."//LF// &
                             "(fun9): Etc.")
+
         if (.not. allocated(error)) then
             call fill_and_check(error, 20, &
                                 "* dir/file.ext (fun1)"//LF// &
@@ -139,6 +143,7 @@ contains
                                 "for several lines."//LF// &
                                 "(fun9): Etc.")
         end if
+
         if (.not. allocated(error)) then
             call fill_and_check(error, 40, &
                                 "* dir/file.ext (fun1, fun2, fun3):"//LF// &
@@ -150,12 +155,14 @@ contains
                                 "filled for several lines."//LF// &
                                 "(fun9): Etc.")
         end if
+
         call leave(h)
     end subroutine test_fill_entry
 
     subroutine test_indented(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
+
         ! Indenting function entries is a typical mistake caused by using a
         ! misconfigured or non-ChangeLog specific fill function.
         call temp_buffer("* dir/file.ext (fun1):"//LF// &
@@ -182,6 +189,7 @@ contains
     subroutine test_trailing_prose(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
+
         call temp_buffer("* dir/file.ext (fun1): A longer description of a complicated change."// &
                          "  Spread over a couple of sentences."// &
                          "  Long enough to be filled for several lines.", h)
@@ -195,6 +203,7 @@ contains
     subroutine test_joining(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
+
         ! Join short enough function names on the same line.
         call temp_buffer("* dir/file.ext (fun1):"//LF//"(fun2):", h)
         call fill_and_check(error, 72, "* dir/file.ext (fun1, fun2):")
@@ -239,35 +248,42 @@ contains
         character(len=*), parameter :: string4 = "* file2.txt (abcdefghijklmnopqrstuvwxyz):"
         type(handle_type) :: h
         type(status_type) :: st
+
         call temp_buffer(string, h)
         call fill_and_check(error, 64, string)
+
         if (.not. allocated(error)) then
             call erase_buffer(st)
             call insert(string1, st)
             call fill_and_check(error, 64, "* file2.txt (fun4, fun5, fun6, fun7, fun8, fun9, fun10)"//LF// &
                                 "(fun11345):")
         end if
+
         if (.not. allocated(error)) then
             call erase_buffer(st)
             call insert(string2, st)
             call fill_and_check(error, 64, string2)
         end if
+
         if (.not. allocated(error)) then
             call erase_buffer(st)
             call insert(string3, st)
             call fill_and_check(error, 39, string3)
         end if
+
         if (.not. allocated(error)) then
             call erase_buffer(st)
             call insert(string4, st)
             call fill_and_check(error, 39, "* file2.txt "//LF//"(abcdefghijklmnopqrstuvwxyz):")
         end if
+
         call leave(h)
     end subroutine test_confinement
 
     subroutine test_space_substitution(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
+
         ! This test verifies that filling the paragraph surrounding the
         ! last line of defuns does not break between defun lists with
         ! spaces in identifiers.
@@ -399,6 +415,7 @@ contains
     subroutine test_initial_wrapping(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
+
         ! This test verifies that a newline is inserted before a defun
         ! itself longer than the fill column when such a defun is being
         ! inserted after a file name, and not otherwise.
@@ -423,6 +440,7 @@ contains
     subroutine test_no_defun_list_wrapping(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
+
         ! This test verifies that the opening defun list of an entry is never
         ! broken, even in the event its length in total exceeds the fill
         ! column.
@@ -438,10 +456,10 @@ contains
     ! ------------------------------------------------------------------
     ! log-edit-done-strip-cvs-lines
     ! ------------------------------------------------------------------
-
     ! A no-op `log_edit_callback'.
     recursive subroutine no_callback(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
     end subroutine no_callback
 
@@ -454,6 +472,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer :: b
+
         call temp_buffer("", h)
         b = 0
         if (len(vc_backend) > 0) call register_vc_backend(vc_backend, b)
@@ -472,6 +491,7 @@ contains
     !> Strip lines beginning with "CVS:" when using CVS as VC backend.
     subroutine test_strip_cvs(error)
         type(error_type), allocatable, intent(out) :: error
+
         call strip_cvs_lines_helper(error, "summary line"//LF//"first line"//LF// &
                                     "CVS: Please evaluate your changes and consider the following."//LF// &
                                     "CVS: Abort checkin if you answer no."//LF, &
@@ -484,18 +504,21 @@ contains
         character(len=*), parameter :: string = "summary line"//LF//"first line"//LF// &
                                        "CVS: Please evaluate your changes and consider the following."//LF// &
                                        "CVS: Abort checkin if you answer no."//LF
+
         call strip_cvs_lines_helper(error, string, string, "")
     end subroutine test_strip_non_cvs
 
     !> Strip lines that contain solely "CVS: " when using CVS as VC backend.
     subroutine test_strip_colon_blank(error)
         type(error_type), allocatable, intent(out) :: error
+
         call strip_cvs_lines_helper(error, "CVS: "//LF, "", "CVS")
     end subroutine test_strip_colon_blank
 
     !> Strip lines that contain solely "CVS:" when using CVS as VC backend.
     subroutine test_strip_colon(error)
         type(error_type), allocatable, intent(out) :: error
+
         ! This test verifies that lines consisting only of "CVS:" (no blank
         ! after the colon) are stripped from the commit message.
         ! CVS does this to accommodate editors that delete trailing whitespace.

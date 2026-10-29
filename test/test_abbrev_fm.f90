@@ -78,6 +78,7 @@ contains
 
     subroutine collect_abbrev_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("abbrev--table-symbols-test", test_table_symbols), &
                     new_unittest("copy-abbrev-table-test", test_copy_abbrev_table), &
@@ -118,12 +119,12 @@ contains
     ! ------------------------------------------------------------------
     ! Fixtures
     ! ------------------------------------------------------------------
-
     !> A fresh Fundamental buffer shown alone, no abbrevs, the default
     !> settings.
     subroutine fresh(h)
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call init_bindings()
         call discard_input()
         prefix_arg = nil()
@@ -153,6 +154,7 @@ contains
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
+
         call key_parse(keys, evs, st)
         call unread_command_events(evs)
         call command_loop(st)
@@ -163,10 +165,13 @@ contains
         character(len=*), intent(in) :: text
         type(value_type), allocatable :: evs(:)
         integer :: i
+
         allocate (evs(len(text)))
+
         do i = 1, len(text)
             evs(i) = make_fixnum(int(iachar(text(i:i)), int64))
         end do
+
         call unread_command_events(evs)
     end subroutine type_text
 
@@ -175,6 +180,7 @@ contains
         character(len=*), intent(in) :: abbrev
         type(abbrev_table_type), intent(in), target, optional :: table
         character(len=:), allocatable :: s, e
+
         call abbrev_expansion(abbrev, e, table)
         s = "<none>"
         if (allocated(e)) s = e
@@ -183,12 +189,14 @@ contains
     !> Whether the current buffer contains TEXT.
     logical function buffer_has(text)
         character(len=*), intent(in) :: text
+
         buffer_has = index(buffer_string(), text) > 0
     end function buffer_has
 
     subroutine write_text(file, text)
         character(len=*), intent(in) :: file, text
         integer :: u
+
         open (newunit=u, file=file, access="stream", form="unformatted", status="replace", action="write")
         write (u) text
         close (u)
@@ -198,6 +206,7 @@ contains
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: text
         integer :: u, n
+
         open (newunit=u, file=file, access="stream", form="unformatted", status="old", action="read")
         inquire (unit=u, size=n)
         allocate (character(len=n) :: text)
@@ -210,6 +219,7 @@ contains
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: path
         type(status_type) :: st
+
         call init_fileio()
         call expand_file_name("build/test-abbrev", path, st, emacs_wd)
         call make_directory_internal(path, st)
@@ -220,12 +230,12 @@ contains
     ! ------------------------------------------------------------------
     ! Ported from abbrev-tests.el
     ! ------------------------------------------------------------------
-
     subroutine test_table_symbols(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
         character(len=:), allocatable :: names(:)
+
         call fresh(h)
         call setup_test_abbrev_table()
         call ert_test_abbrevs%define("sys", "system abbrev", system=.true.)
@@ -246,6 +256,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(abbrev_table_type), target :: new_table
+
         call fresh(h)
         call setup_test_abbrev_table()
         ! Bug 21828
@@ -261,6 +272,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(abbrev_table_type) :: table
+
         call fresh(h)
         call check(error, table%empty())
         if (allocated(error)) return
@@ -277,6 +289,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer :: num_tables, k, empty
+
         call fresh(h)
         ! ensure at least one abbrev exists
         call setup_test_abbrev_table()
@@ -287,9 +300,11 @@ contains
         if (allocated(error)) return
         ! number of empty tables should be the same as number of tables
         empty = 0
+
         do k = 1, size(abbrev_table_name_list)
             if (abbrev_table_name_list(k)%p%empty()) empty = empty + 1
         end do
+
         call check(error, empty, num_tables)
         call kill_buffer(h, st)
     end subroutine test_kill_all_abbrevs
@@ -299,6 +314,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call setup_test_abbrev_table()
         call check(error, abbrev_table_name(ert_test_abbrevs), "ert_test_abbrevs")
@@ -312,6 +328,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call setup_test_abbrev_table()
         call check(error, expansion_of("a-e-t", ert_test_abbrevs), "abbrev-ert-test")
@@ -329,6 +346,7 @@ contains
         type(handle_type) :: h, abbrev_buffer
         type(status_type) :: st
         character(len=:), allocatable :: name
+
         call fresh(h)
         ! all abbrevs
         call prepare_abbrev_list_buffer(abbrev_buffer, st)
@@ -350,6 +368,7 @@ contains
         type(handle_type) :: h, abbrev_buffer
         type(status_type) :: st
         integer(int64) :: found
+
         call fresh(h)
         ! all abbrevs
         call setup_test_abbrev_table()
@@ -393,6 +412,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call insert_abbrevs(st)
         call check(error, st%ok() .and. buffer_has("(global_abbrev_table)"), buffer_string())
@@ -409,6 +429,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         character(len=:), allocatable :: file, text
+
         call fresh(h)
         file = test_file("abbrev-init.f90")
         call setup_test_abbrev_table()
@@ -446,6 +467,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         character(len=:), allocatable :: file, text
+
         call fresh(h)
         file = test_file("abbrev-props.f90")
         call write_text(file, "module user_config"//LF//"    use fortmacs"//LF//"contains"//LF// &
@@ -477,6 +499,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(abbrev_table_type), target :: table
+
         call fresh(h)
         call insert("some text foo ", st)
         call type_text("bar"//achar(13))
@@ -491,6 +514,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(abbrev_table_type), target :: table
+
         call fresh(h)
         call insert("some text foo ", st)
         call type_text("bar"//achar(13))
@@ -505,6 +529,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(abbrev_table_type), target :: table
+
         call fresh(h)
         call insert("some     text foo", st)
         call goto_char(point_min())
@@ -521,6 +546,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         logical :: result
+
         call fresh(h)
         abbrev_file_name = test_file("abbrev-save.f90")
         save_abbrevs = SAVE_ABBREVS_ASK
@@ -549,7 +575,6 @@ contains
     ! ------------------------------------------------------------------
     ! Own tests
     ! ------------------------------------------------------------------
-
     !> In Abbrev mode, a character without word syntax after a word
     !> expands it (cmds.c's self-insert-command); a word character does
     !> not, nor does Abbrev mode off.
@@ -557,6 +582,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call global_abbrev_table%define("teh", "the")
         call run("teh SPC")
@@ -579,6 +605,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call global_abbrev_table%define("teh", "the")
         call global_abbrev_table%define("foo", "find outer otter")
@@ -592,6 +619,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call global_abbrev_table%define("foo", "find outer otter")
         abbrev_mode = .true.
@@ -608,6 +636,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call global_abbrev_table%define("teh", "the")
         call run("teh C-x ' SPC teh C-x a e")
@@ -623,6 +652,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call global_abbrev_table%define("teh", "the")
         abbrev_mode = .true.
@@ -644,6 +674,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call global_abbrev_table%define("teh", "the")
         call global_abbrev_table%define("ab", "about")
@@ -664,6 +695,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call insert("the", st)
         call run("C-x a g TH RET")
@@ -695,6 +727,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call insert("hello world", st)
         call run("C-x a l hw RET")
@@ -716,6 +749,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call insert("say foo.", st)
         call run("C-x a i g bar RET")
@@ -729,6 +763,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call global_abbrev_table%define("teh", "the")
         call insert("teh cat and teh dog", st)
@@ -748,6 +783,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call define_global_abbrev("a-b.c-", "x", st)
         call check(error, format_error(st), &
@@ -768,6 +804,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(abbrev_ref_type) :: sym
+
         call fresh(h)
         abbrev_mode = .true.
         ! An abbrev that is case-fixed only expands as defined.
@@ -808,6 +845,7 @@ contains
     subroutine count_hook(value, status)
         logical, intent(out) :: value
         type(status_type), intent(out) :: status
+
         status = status_type()
         hook_calls = hook_calls + 1
         value = .true.
@@ -816,6 +854,7 @@ contains
     subroutine refuse_hook(value, status)
         logical, intent(out) :: value
         type(status_type), intent(out) :: status
+
         status = status_type()
         hook_calls = hook_calls + 1
         value = .false.
@@ -828,6 +867,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(abbrev_ref_type) :: sym
+
         call fresh(h)
         abbrev_mode = .true.
         hook_calls = 0
@@ -857,6 +897,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(abbrev_table_type), pointer :: table
+
         call fresh(h)
         call text_mode(st)
         table => local_abbrev_table()
@@ -895,6 +936,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call global_abbrev_table%define("sy", "system", system=.true.)
         call check(error,.not. abbrevs_changed, "system")
@@ -919,6 +961,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call check(error, mode_line_modes(h%index), "Fundamental")
         if (allocated(error)) return
@@ -940,6 +983,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call global_abbrev_table%define("teh", "the")
         abbrev_mode = .true.
@@ -960,10 +1004,12 @@ contains
         integer(int64) :: i
         integer :: k
         character(len=:), allocatable :: text
+
         call fresh(h)
         abbrev_file_name = test_file("abbrev-some.f90")
         ! Only the abbrevs need saving (not files earlier suites left modified).
         all = buffer_list()
+
         do k = 1, size(all)
             call resolve_buffer(all(k), i, st)
             if (.not. st%ok()) cycle
@@ -971,6 +1017,7 @@ contains
             call set_buffer(all(k), st)
             call restore_buffer_modified_p(.false.)
         end do
+
         call set_buffer(h, st)
         save_abbrevs = SAVE_ABBREVS_ASK
         call global_abbrev_table%define("teh", "the")

@@ -199,32 +199,38 @@ contains
     ! ------------------------------------------------------------------
     ! Buffer-local values and the file information
     ! ------------------------------------------------------------------
-
     ! The index of the current buffer's entry in `locals', made if MAKE
     ! (0 if none).
     integer function local_index(make) result(k)
         logical, intent(in) :: make
         type(local_type), allocatable :: grown(:)
         integer :: i, n
+
         k = 0
         if (cur == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
+
         do k = 1, size(locals)
             if (locals(k)%serial == buffers(cur)%serial) return
         end do
+
         k = 0
         if (.not. make) return
+
         do k = 1, size(locals)
             if (.not. buffer_serial_live(locals(k)%serial)) then
                 locals(k) = local_type(serial=buffers(cur)%serial)
                 return
             end if
         end do
+
         n = size(locals)
         allocate (grown(n + 1))
+
         do i = 1, n
             grown(i) = locals(i)
         end do
+
         grown(n + 1)%serial = buffers(cur)%serial
         call move_alloc(grown, locals)
         k = n + 1
@@ -233,6 +239,7 @@ contains
     ! kill-all-local-variables: forget the current buffer's values.
     subroutine kill_vc_dir_locals()
         integer :: k
+
         k = local_index(.false.)
         if (k > 0) locals(k) = local_type()
     end subroutine kill_vc_dir_locals
@@ -242,8 +249,10 @@ contains
         type(ewoc_type), intent(out) :: ewoc
         logical, intent(out) :: has
         integer :: k
+
         has = .false.
         k = local_index(.false.)
+
         if (k > 0) then
             has = locals(k)%has_ewoc
             ewoc = locals(k)%ewoc
@@ -254,6 +263,7 @@ contains
     function ew() result(ewoc)
         type(ewoc_type) :: ewoc
         logical :: has
+
         call vc_dir_ewoc(ewoc, has)
     end function ew
 
@@ -261,6 +271,7 @@ contains
     !> current *vc-dir* buffer (0 for nil).
     integer function vc_dir_backend()
         integer :: k
+
         vc_dir_backend = 0
         k = local_index(.false.)
         if (k > 0) vc_dir_backend = locals(k)%backend
@@ -270,6 +281,7 @@ contains
     function process_buffer() result(h)
         type(handle_type) :: h
         integer :: k
+
         h = null_handle()
         k = local_index(.false.)
         if (k > 0) h = locals(k)%process_buffer
@@ -283,31 +295,38 @@ contains
         type(vc_dir_fileinfo_type), allocatable :: grown(:)
         logical, allocatable :: grown_live(:)
         integer :: k, n
+
         if (.not. allocated(infos)) then
             allocate (infos(16))
             allocate (info_live(16))
             info_live = .false.
         end if
+
         id = 0
+
         do k = 1, size(infos)
             if (.not. info_live(k)) then
                 id = k
                 exit
             end if
         end do
+
         if (id == 0) then
             n = size(infos)
             allocate (grown(2*n))
             allocate (grown_live(2*n))
             grown_live = .false.
+
             do k = 1, n
                 grown(k) = infos(k)
             end do
+
             grown_live(1:n) = info_live
             call move_alloc(grown, infos)
             call move_alloc(grown_live, info_live)
             id = n + 1
         end if
+
         infos(id) = vc_dir_fileinfo_type()
         infos(id)%entry = entry
         if (present(directory)) infos(id)%directory = directory
@@ -319,6 +338,7 @@ contains
     integer(int64) function new_dir_info(name, directory) result(id)
         character(len=*), intent(in) :: name, directory
         type(vc_dir_entry_type) :: entry
+
         entry%name = name
         id = new_info(entry, directory)
     end function new_dir_info
@@ -328,6 +348,7 @@ contains
         integer, intent(in) :: node
         type(vc_dir_fileinfo_type) :: info
         integer(int64) :: id
+
         id = ewoc_data(ew(), node)
         if (id > 0) info = infos(id)
     end function vc_dir_info
@@ -335,6 +356,7 @@ contains
     ! The data of NODE.
     integer(int64) function did(node)
         integer, intent(in) :: node
+
         did = ewoc_data(ew(), node)
     end function did
 
@@ -343,22 +365,24 @@ contains
         integer, intent(in) :: nodes(:)
         integer(int64) :: id
         integer :: k
+
         do k = 1, size(nodes)
             id = did(nodes(k))
             if (id > 0) info_live(id) = .false.
         end do
+
         call ewoc_delete(ew(), nodes)
     end subroutine delete_nodes
 
     ! ------------------------------------------------------------------
     ! Helpers
     ! ------------------------------------------------------------------
-
     !> Insert TEXT with the face FACE (propertize).
     subroutine insert_with_face(text, face)
         character(len=*), intent(in) :: text, face
         integer(int64) :: beg
         type(status_type) :: st
+
         beg = point()
         call insert(text, st)
         if (len(face) > 0 .and. point() > beg) call put_text_property(beg, point(), sym("face"), sym(face), st)
@@ -368,18 +392,21 @@ contains
     logical function string_lessp(a, b)
         character(len=*), intent(in) :: a, b
         integer :: k
+
         do k = 1, min(len(a), len(b))
             if (a(k:k) /= b(k:k)) then
                 string_lessp = iachar(a(k:k)) < iachar(b(k:k))
                 return
             end if
         end do
+
         string_lessp = len(a) < len(b)
     end function string_lessp
 
     ! (string-prefix-p PREFIX STRING).
     logical function string_prefix_p(prefix, string)
         character(len=*), intent(in) :: prefix, string
+
         string_prefix_p = .false.
         if (len(prefix) > len(string)) return
         string_prefix_p = string(1:len(prefix)) == prefix
@@ -390,6 +417,7 @@ contains
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: full
         type(status_type) :: st
+
         call expand_file_name(name, full, st, buffers(cur)%directory)
     end function expand
 
@@ -397,6 +425,7 @@ contains
     function entry_directory(name) result(dir)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: dir
+
         dir = file_name_directory(directory_file_name(expand(name)))
     end function entry_directory
 
@@ -404,6 +433,7 @@ contains
     subroutine bind_inhibit_read_only(saved)
         type(value_type), intent(out) :: saved
         type(status_type) :: st
+
         call symbol_value(sym("inhibit_read_only"), saved, st)
         if (.not. st%ok()) saved = nil()
         call set(sym("inhibit_read_only"), t_value(), st)
@@ -412,6 +442,7 @@ contains
     subroutine restore_inhibit_read_only(saved)
         type(value_type), intent(in) :: saved
         type(status_type) :: st
+
         call set(sym("inhibit_read_only"), saved, st)
     end subroutine restore_inhibit_read_only
 
@@ -425,13 +456,14 @@ contains
     ! ------------------------------------------------------------------
     ! The buffer
     ! ------------------------------------------------------------------
-
     ! Used to keep the cursor on the file name column.  Port of
     ! vc-dir.el:vc-dir-move-to-goal-column.
     subroutine vc_dir_move_to_goal_column()
         type(status_type) :: st
         integer(int64) :: k
+
         call beginning_of_line()
+
         if (.not. eolp()) then
             ! Must be in sync with vc-default-dir-printer.
             do k = 1, 25
@@ -454,6 +486,7 @@ contains
         type(status_type) :: st
         logical :: new
         integer :: k
+
         status = status_type()
         new = .false.
         if (present(create_new)) new = create_new
@@ -462,11 +495,13 @@ contains
         dir = file_name_as_directory(full)
         buf = null_handle()
         old = current_buffer()
+
         ! Look for another buffer name BNAME visiting the same directory.
         if (.not. new .and. allocated(vc_dir_buffers)) then
             do k = 1, size(vc_dir_buffers)
                 if (.not. buffer_live_p(vc_dir_buffers(k))) cycle
                 call set_buffer(vc_dir_buffers(k), st)
+
                 if (derived_mode_p("vc_dir_mode") .and. vc_dir_backend() == backend .and. &
                     buffers(cur)%directory == dir) then
                     buf = vc_dir_buffers(k)
@@ -474,6 +509,7 @@ contains
                 end if
             end do
         end if
+
         call set_buffer(old, st)
         if (buf%index /= 0) return
         ! Create a new buffer named BNAME.
@@ -498,9 +534,11 @@ contains
         integer, intent(in) :: node
         character(len=:), allocatable :: dir
         integer(int64) :: id
+
         id = did(node)
         dir = ""
         if (id == 0) return
+
         ! If it's a directory node, get it from the node.
         if (allocated(infos(id)%directory)) then
             dir = infos(id)%directory
@@ -513,6 +551,7 @@ contains
     ! Whether STATE is one of `vc_dir__up_to_date_states'.
     logical function up_to_date_state(state)
         integer, intent(in) :: state
+
         up_to_date_state = state == VC_UP_TO_DATE .or. state == VC_IGNORED
     end function up_to_date_state
 
@@ -537,65 +576,80 @@ contains
         integer(int64) :: id
         logical :: noins, has
         integer :: n, k, j, i, node, prev_node, nremove, crt, first, prev, next, b
+
         noins = .false.
         if (present(noinsert)) noins = noinsert
         old = current_buffer()
         call set_buffer(buffer, st)
         call vc_dir_ewoc(e, has)
+
         if (.not. has) then
             call set_buffer(old, st)
             return
         end if
+
         ! Insert the entries sorted by name into the ewoc.
         ! We assume the ewoc is sorted too, which should be the
         ! case if we always add entries with vc-dir-update.
         n = size(entries_in)
         allocate (dirs(n), order(n))
+
         do k = 1, n
             dirs(k)%s = entry_directory(entries_in(k)%name)
             order(k) = k
         end do
+
         ! Sort: first files and then subdirectories.
         do k = 2, n
             j = order(k)
             i = k - 1
+
             do while (i >= 1)
                 if (.not. before(j, order(i))) exit
                 order(i + 1) = order(i)
                 i = i - 1
             end do
+
             order(i + 1) = j
         end do
+
         allocate (entries(n))
+
         do k = 1, n
             entries(k) = entries_in(order(k))
         end do
+
         ! Insert directory entries in the right places.
         k = 1
         node = ewoc_nth(e, 0)
         allocate (to_remove(0))
         dotname = file_relative_name(buffers(cur)%directory, buffers(cur)%directory)
+
         ! Insert . if it is not present.
         if (node == 0) then
             node = ewoc_enter_last(e, new_dir_info(dotname, buffers(cur)%directory))
             node = ewoc_nth(e, 0)
         end if
+
         do while (k <= n .and. node /= 0)
             entryfile = entries(k)%name
             entrydir = entry_directory(entryfile)
             nodedir = vc_dir_node_directory(node)
+
             if (string_lessp(nodedir, entrydir)) then
                 ! First try to find the directory.
                 node = ewoc_next(e, node)
             else if (nodedir == entrydir) then
                 ! Found the directory, find the place for the file name.
                 nodefile = infos(did(node))%entry%name
+
                 if (nodefile == dotname) then
                     node = ewoc_next(e, node)
                 else if (string_lessp(nodefile, entryfile)) then
                     node = ewoc_next(e, node)
                 else if (nodefile == entryfile) then
                     id = did(node)
+
                     if (entries(k)%state == VC_STATE_NIL .or. &
                         (vc_dir_auto_hide_up_to_date /= VC_DIR_AUTO_HIDE_NIL .and. &
                          vc_dir_auto_hide_up_to_date /= VC_DIR_AUTO_HIDE_REVERT .and. &
@@ -614,6 +668,7 @@ contains
                         infos(id)%needs_update = .false.
                         call ewoc_invalidate(e, [node])
                     end if
+
                     k = k + 1
                     node = ewoc_next(e, node)
                 else
@@ -632,32 +687,41 @@ contains
                     ! Now insert the node itself.
                     node = enter_before_keep(node, new_info(entries(k)))
                 end if
+
                 k = k + 1
             end if
         end do
+
         ! We're past the last node, all remaining entries go to the end.
         if (node == 0 .and. .not. noins) then
             lastdir = vc_dir_node_directory(ewoc_nth(e, -1))
+
             do j = k, n
                 entrydir = entry_directory(entries(j)%name)
+
                 ! Insert a directory node if needed.
                 if (lastdir /= entrydir) then
                     lastdir = entrydir
                     rd = file_relative_name(entrydir, buffers(cur)%directory)
                     i = ewoc_enter_last(e, new_dir_info(rd, entrydir))
                 end if
+
                 ! Now insert the node itself.
                 i = ewoc_enter_last(e, new_info(entries(j)))
             end do
         end if
+
         nremove = size(to_remove)
+
         if (nremove > 0) then
             call bind_inhibit_read_only(saved)
             crt = ewoc_nth(e, -1)
             first = ewoc_nth(e, 0)
             i = 1
+
             do while (crt /= first .and. crt /= 0)
                 prev = ewoc_prev(e, crt)
+
                 if (i <= nremove) then
                     if (crt == to_remove(i)) then
                         ! Remove the entries we queued up for removal.
@@ -667,6 +731,7 @@ contains
                         cycle
                     end if
                 end if
+
                 ! Remove directories which (now) have no child files.
                 if (allocated(infos(did(crt))%directory)) then
                     next = ewoc_next(e, crt)
@@ -674,12 +739,16 @@ contains
                     if (.not. has) has = allocated(infos(did(next))%directory)
                     if (has) call delete_nodes([crt])
                 end if
+
                 crt = prev
             end do
+
             call restore_inhibit_read_only(saved)
         end if
+
         ! Update VC file properties.
         b = vc_dir_backend()
+
         do j = k, n
             if (entries(j)%state == VC_UNREGISTERED) then
                 call vc_file_set_backend(entries(j)%name, VC_BACKEND_NONE)
@@ -687,11 +756,15 @@ contains
                 call vc_file_set_backend(entries(j)%name, b)
             end if
         end do
+
         call set_buffer(old, st)
+
     contains
+
         ! The sort predicate of the entries: by directory, then name.
         logical function before(a, b)
             integer, intent(in) :: a, b
+
             if (string_lessp(dirs(a)%s, dirs(b)%s)) then
                 before = .true.
             else if (dirs(a)%s /= dirs(b)%s) then
@@ -706,6 +779,7 @@ contains
             integer, intent(in) :: node
             integer(int64), intent(in) :: data
             integer :: new
+
             new = ewoc_enter_before(e, node, data)
             same = node
         end function enter_before_keep
@@ -715,8 +789,10 @@ contains
     !> vc-dir.el:vc-dir-busy.
     logical function vc_dir_busy()
         type(handle_type) :: buf, proc
+
         buf = process_buffer()
         vc_dir_busy = buffer_live_p(buf)
+
         if (vc_dir_busy) then
             proc = get_buffer_process(buf)
             vc_dir_busy = proc%index /= 0
@@ -729,6 +805,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: buf, proc
         integer :: k
+
         status = status_type()
         buf = process_buffer()
         if (.not. buffer_live_p(buf)) return
@@ -742,7 +819,6 @@ contains
     ! ------------------------------------------------------------------
     ! Motion
     ! ------------------------------------------------------------------
-
     !> Go to the next line.
     !> With prefix argument ARG, move that many lines.  Port of
     !> vc-dir.el:vc-dir-next-line.
@@ -750,6 +826,7 @@ contains
         integer, intent(in) :: arg
         type(status_type), intent(out) :: status
         integer :: node
+
         node = ewoc_goto_next(ew(), arg, status)
         if (.not. status%ok()) return
         call vc_dir_move_to_goal_column()
@@ -761,6 +838,7 @@ contains
     recursive subroutine vc_dir_previous_line(arg)
         integer, intent(in) :: arg
         integer :: node
+
         node = ewoc_goto_prev(ew(), arg)
         call vc_dir_move_to_goal_column()
     end subroutine vc_dir_previous_line
@@ -769,13 +847,17 @@ contains
     recursive subroutine vc_dir_next_directory()
         integer(int64) :: orig
         integer :: next
+
         orig = point()
+
         do
             next = ewoc_next(ew(), ewoc_locate(ew()))
+
             if (next == 0) then
                 call goto_char(orig)
                 return
             end if
+
             call ewoc_goto_node(ew(), next)
             call vc_dir_move_to_goal_column()
             if (allocated(infos(did(next))%directory)) return
@@ -787,13 +869,17 @@ contains
     recursive subroutine vc_dir_previous_directory()
         integer(int64) :: orig
         integer :: prev
+
         orig = point()
+
         do
             prev = ewoc_prev(ew(), ewoc_locate(ew()))
+
             if (prev == 0) then
                 call goto_char(orig)
                 return
             end if
+
             call ewoc_goto_node(ew(), prev)
             call vc_dir_move_to_goal_column()
             if (allocated(infos(did(prev))%directory)) return
@@ -803,7 +889,6 @@ contains
     ! ------------------------------------------------------------------
     ! Marking
     ! ------------------------------------------------------------------
-
     ! Call MARK_UNMARK_FUNCTION on each line of the active region, or once.
     ! Port of vc-dir.el:vc-dir-mark-unmark.
     recursive subroutine vc_dir_mark_unmark(fn, status)
@@ -818,7 +903,9 @@ contains
         integer(int64) :: lastl, processed_line, opoint, pos
         type(status_type) :: st
         logical :: saved
+
         status = status_type()
+
         if (use_region_p()) then
             processed_line = -1
             call region_end(pos, st)
@@ -826,6 +913,7 @@ contains
             opoint = point()
             call region_beginning(pos, st)
             call goto_char(pos)
+
             do while (line_number_at_pos() <= lastl)
                 ! We make sure to not get stuck processing the
                 ! same line in an infinite loop.
@@ -841,6 +929,7 @@ contains
                 ! file in a marked directory tree.  Just continue.
                 if (.not. st%ok()) call vc_dir_next_line(1, st)
             end do
+
             call goto_char(opoint)
         else
             call fn(status)
@@ -855,15 +944,18 @@ contains
         logical, intent(in) :: if_marked
         character(len=:), allocatable :: argdir, dir
         integer :: crt
+
         argdir = vc_dir_node_directory(arg)
         crt = arg
         found = 0
+
         ! Go through the predecessors, checking if any directory that is
         ! a parent is marked.
         do while (found == 0)
             crt = ewoc_prev(ew(), crt)
             if (crt == 0) exit
             dir = vc_dir_node_directory(crt)
+
             if (allocated(infos(did(crt))%directory) .and. string_prefix_p(dir, argdir)) then
                 if (.not. if_marked .or. infos(did(crt))%marked) found = crt
             end if
@@ -878,9 +970,11 @@ contains
         integer, allocatable, intent(out) :: found(:)
         character(len=:), allocatable :: argdir
         integer :: crt
+
         argdir = vc_dir_node_directory(arg)
         allocate (found(0))
         crt = arg
+
         do
             crt = ewoc_next(ew(), crt)
             if (crt == 0) exit
@@ -900,6 +994,7 @@ contains
         integer(int64) :: id
         integer :: crt, parent, k
         logical :: yes
+
         status = status_type()
         crt = 0
         if (present(arg)) crt = arg
@@ -913,44 +1008,53 @@ contains
         allocate (children(0))
         if (allocated(infos(id)%directory)) call vc_dir_children(crt, .true., children)
         name = infos(id)%entry%name
+
         if (size(children) > 0) then
             ! The user wants to mark a directory where some of its children
             ! are already marked.  Although the user's intent is clear, by
             ! default we still ask them before unmarking in order to avoid
             ! accidental erasure of complex patterns of marks.
             yes = mass_mark() /= VC_DIR_MASS_MARK_NIL
+
             if (yes .and. mass_mark() == VC_DIR_MASS_MARK_ASK) then
                 call y_or_n_p("Replace marks on subitems with marking `"//name//"' itself?", yes, status)
                 if (.not. status%ok()) return
             end if
+
             if (.not. yes) then
                 call set_error(status, FM_USER_ERROR, "`"//name//"' is already marked")
                 return
             end if
+
             do k = 1, size(children)
                 infos(did(children(k)))%marked = .false.
                 to_inval = [children(k), to_inval]
             end do
         else
             parent = vc_dir_parent(crt, .true.)
+
             if (parent /= 0) then
                 name = infos(did(parent))%entry%name
                 ! The user seems to want to mark an entry whose directory is
                 ! already marked.  As the file is already implicitly marked for
                 ! most VCS, they may not really intend this.
                 yes = mass_mark() /= VC_DIR_MASS_MARK_NIL
+
                 if (yes .and. mass_mark() == VC_DIR_MASS_MARK_ASK) then
                     call y_or_n_p("`"//name//"' is already marked; unmark it?", yes, status)
                     if (.not. status%ok()) return
                 end if
+
                 if (.not. yes) then
                     call set_error(status, FM_USER_ERROR, "`"//name//"' is already marked")
                     return
                 end if
+
                 infos(did(parent))%marked = .false.
                 to_inval = [parent, to_inval]
             end if
         end if
+
         infos(id)%marked = .true.
         call ewoc_invalidate(ew(), to_inval)
         ! (mouse-event-p last-command-event): mouse events are not
@@ -960,6 +1064,7 @@ contains
 
     recursive subroutine mark_file_current(status)
         type(status_type), intent(out) :: status
+
         call vc_dir_mark_file(status)
     end subroutine mark_file_current
 
@@ -969,16 +1074,19 @@ contains
     !> line.  Port of vc-dir.el:vc-dir-mark.
     recursive subroutine vc_dir_mark(status)
         type(status_type), intent(out) :: status
+
         call vc_dir_mark_unmark(mark_file_current, status)
     end subroutine vc_dir_mark
 
     recursive logical function directory_marked(data)
         integer(int64), intent(in) :: data
+
         directory_marked = allocated(infos(data)%directory) .and. infos(data)%marked
     end function directory_marked
 
     recursive logical function mark_unmarked_file(data)
         integer(int64), intent(in) :: data
+
         mark_unmarked_file = .false.
         if (allocated(infos(data)%directory) .or. infos(data)%marked) return
         infos(data)%marked = .true.
@@ -998,22 +1106,27 @@ contains
         integer(int64), allocatable :: marked_dirs(:)
         integer :: crt, state
         integer(int64) :: id
+
         status = status_type()
+
         if (arg) then
             ! Mark all files.
             ! First check that no directory is marked, we can't mark
             ! files in that case.
             call ewoc_collect(ew(), directory_marked, marked_dirs)
+
             if (size(marked_dirs) > 0) then
                 call set_error(status, FM_GENERIC_ERROR, "Cannot mark all files, directory `"// &
                                infos(marked_dirs(1))%entry%name//"' marked")
                 return
             end if
+
             call ewoc_map(mark_unmarked_file, ew())
         else
             crt = ewoc_locate(ew())
             if (crt == 0) return
             id = did(crt)
+
             if (allocated(infos(id)%directory)) then
                 ! It's a directory, mark child files.
                 do
@@ -1027,13 +1140,16 @@ contains
                 ! It's a file
                 state = infos(id)%entry%state
                 crt = ewoc_nth(ew(), 0)
+
                 do while (crt /= 0)
                     id = did(crt)
+
                     if (.not. infos(id)%marked .and. infos(id)%entry%state == state .and. &
                         .not. allocated(infos(id)%directory)) then
                         call vc_dir_mark_file(status, crt)
                         if (.not. status%ok()) return
                     end if
+
                     crt = ewoc_next(ew(), crt)
                 end do
             end if
@@ -1043,14 +1159,17 @@ contains
     recursive logical function mark_by_regexp_fn(data)
         integer(int64), intent(in) :: data
         type(status_type) :: st
+
         mark_by_regexp_fn = .false.
         if (allocated(infos(data)%directory)) return
         if ((.not. map_unmark) .neqv. (.not. infos(data)%marked)) return
+
         ! We don't want to match on the part of the file
         ! that's above the current directory.
         if (string_match_p(map_regexp, file_relative_name(infos(data)%entry%name, buffers(cur)%directory), st) == 0) then
             return
         end if
+
         infos(data)%marked = .not. map_unmark
         mark_by_regexp_fn = .true.
     end function mark_by_regexp_fn
@@ -1061,6 +1180,7 @@ contains
     recursive subroutine vc_dir_mark_by_regexp(regexp, unmark)
         character(len=*), intent(in) :: regexp
         logical, intent(in), optional :: unmark
+
         map_regexp = regexp
         map_unmark = .false.
         if (present(unmark)) map_unmark = unmark
@@ -1071,8 +1191,10 @@ contains
         integer(int64), intent(in) :: data
         character(len=:), allocatable :: name
         integer :: k
+
         mark_files_fn = .false.
         name = expand(infos(data)%entry%name)
+
         do k = 1, size(map_files)
             if (map_files(k)%s == name) then
                 infos(data)%marked = .true.
@@ -1091,26 +1213,33 @@ contains
         type(vc_string_type), allocatable :: sorted(:)
         type(vc_string_type) :: tmp
         integer :: k, j, n
+
         ! Filter out subitems that would be implicitly marked.
         sorted = mark_files
+
         do k = 2, size(sorted)
             tmp = sorted(k)
             j = k - 1
+
             do while (j >= 1)
                 if (.not. string_lessp(tmp%s, sorted(j)%s)) exit
                 sorted(j + 1) = sorted(j)
                 j = j - 1
             end do
+
             sorted(j + 1) = tmp
         end do
+
         n = 0
         if (allocated(map_files)) deallocate (map_files)
         allocate (map_files(size(sorted)))
         k = 1
+
         do while (k <= size(sorted))
             n = n + 1
             map_files(n) = sorted(k)
             j = k + 1
+
             if (len(sorted(k)%s) > 0) then
                 if (sorted(k)%s(len(sorted(k)%s):) == "/") then
                     do while (j <= size(sorted))
@@ -1119,14 +1248,17 @@ contains
                     end do
                 end if
             end if
+
             k = j
         end do
+
         map_files = map_files(1:n)
         call ewoc_map(mark_files_fn, ew())
     end subroutine vc_dir_mark_files
 
     recursive logical function mark_state_fn(data)
         integer(int64), intent(in) :: data
+
         mark_state_fn = .false.
         if (.not. any(map_states == infos(data)%entry%state)) return
         infos(data)%marked = .true.
@@ -1137,6 +1269,7 @@ contains
     !> Port of vc-dir.el:vc-dir-mark-state-files.
     recursive subroutine vc_dir_mark_state_files(states)
         integer, intent(in) :: states(:)
+
         map_states = states
         call ewoc_map(mark_state_fn, ew())
     end subroutine vc_dir_mark_state_files
@@ -1145,6 +1278,7 @@ contains
     !> removed.  Port of vc-dir.el:vc-dir-mark-registered-files.
     recursive subroutine vc_dir_mark_registered_files(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call vc_dir_mark_state_files([VC_EDITED, VC_ADDED, VC_REMOVED])
     end subroutine vc_dir_mark_registered_files
@@ -1153,6 +1287,7 @@ contains
     !> vc-dir.el:vc-dir-mark-unregistered-files.
     recursive subroutine vc_dir_mark_unregistered_files(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call vc_dir_mark_state_files([VC_UNREGISTERED])
     end subroutine vc_dir_mark_unregistered_files
@@ -1165,11 +1300,13 @@ contains
         integer(int64) :: id
         integer :: crt, parent, k
         logical :: yes
+
         status = status_type()
         crt = ewoc_locate(ew())
         if (crt == 0) return
         id = did(crt)
         allocate (to_inval(0))
+
         if (infos(id)%marked) then
             infos(id)%marked = .false.
             to_inval = [crt, to_inval]
@@ -1180,13 +1317,16 @@ contains
             parent = vc_dir_parent(crt, .true.)
             allocate (all_children(0))
             if (parent /= 0) call vc_dir_children(parent, .false., all_children)
+
             if (parent /= 0 .and. size(all_children) > 0) then
                 yes = mass_mark() /= VC_DIR_MASS_MARK_NIL
+
                 if (yes .and. mass_mark() == VC_DIR_MASS_MARK_ASK) then
                     call y_or_n_p("Replace mark on `"//infos(id)%entry%name// &
                                   "' with marks on all subitems but this one?", yes, status)
                     if (.not. status%ok()) return
                 end if
+
                 if (yes) then
                     if (allocated(infos(id)%directory)) then
                         call vc_dir_children(crt, .false., children)
@@ -1194,8 +1334,10 @@ contains
                     else
                         subtree = [crt, vc_dir_parent(crt, .false.)]
                     end if
+
                     infos(did(parent))%marked = .false.
                     to_inval = [parent, to_inval]
+
                     do k = 1, size(all_children)
                         infos(did(all_children(k)))%marked = .not. any(subtree == all_children(k))
                         to_inval = [all_children(k), to_inval]
@@ -1206,12 +1348,15 @@ contains
                 ! or explicitly, but it has marked items below it.
                 ! Offer to unmark those.
                 call vc_dir_children(crt, .true., children)
+
                 if (size(children) > 0 .and. mass_mark() /= VC_DIR_MASS_MARK_NIL) then
                     yes = .true.
+
                     if (mass_mark() == VC_DIR_MASS_MARK_ASK) then
                         call y_or_n_p("Unmark all items within `"//infos(id)%entry%name//"'?", yes, status)
                         if (.not. status%ok()) return
                     end if
+
                     if (yes) then
                         do k = 1, size(children)
                             infos(did(children(k)))%marked = .false.
@@ -1221,6 +1366,7 @@ contains
                 end if
             end if
         end if
+
         if (size(to_inval) > 0) call ewoc_invalidate(ew(), to_inval)
         call vc_dir_next_line(1, status)
     end subroutine vc_dir_unmark_file
@@ -1231,6 +1377,7 @@ contains
     !> line.  Port of vc-dir.el:vc-dir-unmark.
     recursive subroutine vc_dir_unmark(status)
         type(status_type), intent(out) :: status
+
         call vc_dir_mark_unmark(vc_dir_unmark_file, status)
     end subroutine vc_dir_unmark
 
@@ -1239,6 +1386,7 @@ contains
     recursive subroutine vc_dir_unmark_file_up(status)
         type(status_type), intent(out) :: status
         integer :: prev
+
         status = status_type()
         ! If we're on the first line, we won't move up, but we will still
         ! remove the mark.  This seems a bit odd but it is what buffer-menu
@@ -1252,6 +1400,7 @@ contains
 
     recursive logical function unmark_fn(data)
         integer(int64), intent(in) :: data
+
         unmark_fn = .false.
         if (.not. infos(data)%marked) return
         infos(data)%marked = .false.
@@ -1260,6 +1409,7 @@ contains
 
     recursive logical function unmark_state_fn(data)
         integer(int64), intent(in) :: data
+
         unmark_state_fn = .false.
         if (.not. infos(data)%marked .or. infos(data)%entry%state /= map_state) return
         infos(data)%marked = .false.
@@ -1276,16 +1426,19 @@ contains
     recursive subroutine vc_dir_unmark_all_files(arg)
         logical, intent(in) :: arg
         integer :: crt
+
         if (arg) then
             call ewoc_map(unmark_fn, ew())
         else
             crt = ewoc_locate(ew())
             if (crt == 0) return
+
             if (allocated(infos(did(crt))%directory)) then
                 ! It's a directory, unmark child files.
                 do
                     crt = ewoc_next(ew(), crt)
                     if (crt == 0) exit
+
                     if (.not. allocated(infos(did(crt))%directory)) then
                         infos(did(crt))%marked = .false.
                         call ewoc_invalidate(ew(), [crt])
@@ -1304,9 +1457,11 @@ contains
     recursive subroutine vc_dir_toggle_mark_file(status)
         type(status_type), intent(out) :: status
         integer :: crt
+
         status = status_type()
         crt = ewoc_locate(ew())
         if (crt == 0) return
+
         if (infos(did(crt))%marked) then
             call vc_dir_unmark_file(status)
         else
@@ -1317,7 +1472,6 @@ contains
     ! ------------------------------------------------------------------
     ! Commands on the files
     ! ------------------------------------------------------------------
-
     !> Like `vc_next_action' but for all files shown in the VC-Dir buffer.
     !> This command ignores VC-Dir marks and the position of point.
     !> When the VC-Dir's root directory is the repository root (as it usually
@@ -1330,16 +1484,21 @@ contains
         type(vc_fileset_type) :: fs
         integer :: crt, n
         integer(int64) :: id
+
         allocate (files(0), states(0))
         crt = ewoc_nth(ew(), 0)
         n = 0
+
         do while (crt /= 0)
             id = did(crt)
+
             if (.not. allocated(infos(id)%directory)) then
                 call push_file(expand(infos(id)%entry%name), infos(id)%entry%state)
             end if
+
             crt = ewoc_next(ew(), crt)
         end do
+
         fs%backend = vc_dir_backend()
         allocate (fs%files(1))
         fs%files(1)%s = buffers(cur)%directory
@@ -1348,17 +1507,22 @@ contains
         call set_vc_buffer_overriding_fileset(fs)
         call vc_next_action(.false., status)
         call set_vc_buffer_overriding_fileset()
+
     contains
+
         subroutine push_file(name, state)
             character(len=*), intent(in) :: name
             integer, intent(in) :: state
             type(vc_string_type), allocatable :: grown(:)
             integer :: k
+
             n = size(files)
             allocate (grown(n + 1))
+
             do k = 1, n
                 call move_alloc(files(k)%s, grown(k)%s)
             end do
+
             grown(n + 1)%s = name
             call move_alloc(grown, files)
             states = [states, state]
@@ -1371,16 +1535,20 @@ contains
     recursive subroutine vc_dir_delete_file(status)
         type(status_type), intent(out) :: status
         type(vc_fileset_type) :: fs
+
         call vc_dir_deduce_fileset(fs, status, .true.)
         if (.not. status%ok()) return
+
         if (.not. allocated(fs%only_files)) then
             call set_error(status, FM_USER_ERROR, "Nothing to delete here")
             return
         end if
+
         if (size(fs%only_files) == 0) then
             call set_error(status, FM_USER_ERROR, "Nothing to delete here")
             return
         end if
+
         call vc_delete_file(fs%only_files, status)
     end subroutine vc_dir_delete_file
 
@@ -1388,6 +1556,7 @@ contains
     recursive subroutine vc_dir_find_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
+
         call vc_dir_current_file(file, status)
         if (status%ok()) call find_file(file, status)
     end subroutine vc_dir_find_file
@@ -1400,6 +1569,7 @@ contains
     recursive subroutine vc_dir_find_file_other_window(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
+
         call vc_dir_current_file(file, status)
         if (status%ok()) call find_file_other_window(file, status)
     end subroutine vc_dir_find_file_other_window
@@ -1412,6 +1582,7 @@ contains
         character(len=:), allocatable :: file
         type(handle_type) :: buf, window
         type(display_alist_type) :: alist
+
         call vc_dir_current_file(file, status)
         if (.not. status%ok()) return
         call find_file_noselect(file, buf, status)
@@ -1427,6 +1598,7 @@ contains
         use view_fm, only: view_file
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
+
         call vc_dir_current_file(file, status)
         if (status%ok()) call view_file(file, status)
     end subroutine vc_dir_view_file
@@ -1434,6 +1606,7 @@ contains
     recursive logical function ignore_marked_fn(data)
         integer(int64), intent(in) :: data
         type(status_type) :: st
+
         ignore_marked_fn = .false.
         if (.not. infos(data)%marked) return
         call vc_ignore(infos(data)%entry%name, st)
@@ -1447,7 +1620,9 @@ contains
         logical, intent(in) :: arg
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: rel_dir, file
+
         status = status_type()
+
         if (arg) then
             call ewoc_map(ignore_marked_fn, ew())
         else
@@ -1465,23 +1640,28 @@ contains
         character(len=:), allocatable, intent(out) :: file
         type(status_type), intent(out) :: status
         integer :: node
+
         status = status_type()
         file = ""
         node = ewoc_locate(ew())
+
         if (node == 0) then
             call set_error(status, FM_GENERIC_ERROR, "No file available")
             return
         end if
+
         file = expand(infos(did(node))%entry%name)
     end subroutine vc_dir_current_file
 
     recursive logical function marked_fn(data)
         integer(int64), intent(in) :: data
+
         marked_fn = infos(data)%marked
     end function marked_fn
 
     recursive logical function needs_update_fn(data)
         integer(int64), intent(in) :: data
+
         needs_update_fn = infos(data)%needs_update
     end function needs_update_fn
 
@@ -1490,8 +1670,10 @@ contains
         type(vc_string_type), allocatable, intent(out) :: files(:)
         integer(int64), allocatable :: ids(:)
         integer :: k
+
         call ewoc_collect(ew(), marked_fn, ids)
         allocate (files(size(ids)))
+
         do k = 1, size(ids)
             files(k)%s = expand(infos(ids(k))%entry%name)
         end do
@@ -1506,19 +1688,24 @@ contains
         character(len=:), allocatable :: dir
         integer(int64) :: id, data
         integer :: crt
+
         allocate (files(0), states(0))
         crt = ewoc_nth(ew(), 0)
+
         do while (crt /= 0)
             id = did(crt)
+
             if (infos(id)%marked) then
                 ! FIXME: use vc-dir-child-files-and-states here instead of duplicating it.
                 if (allocated(infos(id)%directory)) then
                     dir = infos(id)%directory
+
                     do
                         crt = ewoc_next(ew(), crt)
                         if (crt == 0) exit
                         data = did(crt)
                         if (.not. string_prefix_p(dir, vc_dir_node_directory(crt))) exit
+
                         if (.not. allocated(infos(data)%directory)) then
                             call push_pair(files, states, expand(infos(data)%entry%name), infos(data)%entry%state)
                         end if
@@ -1541,11 +1728,14 @@ contains
         integer, intent(in) :: state
         type(vc_string_type), allocatable :: grown(:)
         integer :: k, n
+
         n = size(files)
         allocate (grown(n + 1))
+
         do k = 1, n
             call move_alloc(files(k)%s, grown(k)%s)
         end do
+
         grown(n + 1)%s = file
         call move_alloc(grown, files)
         states = [states, state]
@@ -1562,17 +1752,21 @@ contains
         character(len=:), allocatable :: dir
         integer(int64) :: id, data
         integer :: crt
+
         allocate (files(0), states(0))
         crt = ewoc_locate(ew())
         if (crt == 0) return
         id = did(crt)
+
         if (allocated(infos(id)%directory)) then
             dir = infos(id)%directory
+
             do
                 crt = ewoc_next(ew(), crt)
                 if (crt == 0) exit
                 data = did(crt)
                 if (.not. string_prefix_p(dir, vc_dir_node_directory(crt))) exit
+
                 if (.not. allocated(infos(data)%directory)) then
                     call push_pair(files, states, expand(infos(data)%entry%name), infos(data)%entry%state)
                 end if
@@ -1589,16 +1783,20 @@ contains
         type(vc_dir_entry_type), intent(out) :: entry
         character(len=:), allocatable :: saved
         integer :: b
+
         entry%name = file_relative_name(fname, def_dir)
         b = vc_dir_backend()
         if (b == 0) return
         saved = buffers(cur)%directory
         buffers(cur)%directory = def_dir
         if (associated(vc_backends(b)%state)) entry%state = vc_backends(b)%state(entry%name)
+
         if (associated(vc_backends(b)%status_fileinfo_extra)) then
             call vc_backends(b)%status_fileinfo_extra(entry%name, entry)
         end if
+
         buffers(cur)%directory = saved
+
         ! Ensure we return a nil state if the file does not exist and is
         ! not tracked so that it disappears from VC-Dir (bug#81191).
         if (entry%state == VC_UP_TO_DATE .and. .not. file_exists_p(fname)) then
@@ -1615,21 +1813,27 @@ contains
         type(vc_string_type), allocatable, intent(out) :: children(:)
         integer, allocatable :: states(:)
         integer :: crt
+
         allocate (children(0), states(0))
         crt = ewoc_nth(ew(), 0)
+
         ! Find DIR
         do while (crt /= 0)
             if (string_prefix_p(dirname, vc_dir_node_directory(crt))) exit
             crt = ewoc_next(ew(), crt)
         end do
+
         do while (crt /= 0)
             if (.not. string_prefix_p(dirname, vc_dir_node_directory(crt))) exit
+
             if (.not. allocated(infos(did(crt))%directory)) then
                 ! (push ...)
                 call push_pair(children, states, expand(infos(did(crt))%entry%name), 0)
             end if
+
             crt = ewoc_next(ew(), crt)
         end do
+
         children = children(size(children):1:-1)
     end subroutine vc_dir_find_child_files
 
@@ -1641,14 +1845,17 @@ contains
         type(vc_string_type), allocatable :: files(:)
         type(vc_dir_entry_type), allocatable :: fileentries(:)
         integer :: k, n
+
         call vc_dir_find_child_files(dirname, files)
         n = size(files)
         if (n == 0) return
         allocate (fileentries(n))
+
         do k = 1, n
             ! (push ...): the last first.
             call vc_dir_recompute_file_state(files(k)%s, buffers(cur)%directory, fileentries(n + 1 - k))
         end do
+
         call vc_dir_update(fileentries, current_buffer())
     end subroutine vc_dir_resync_directory_files
 
@@ -1665,12 +1872,14 @@ contains
         type(ewoc_part_type) :: none(0)
         type(status_type) :: st
         integer :: k, n
+
         call file_truename(fname, file, st)
         if (.not. st%ok()) file = fname
         if (.not. allocated(vc_dir_buffers)) return
         old = current_buffer()
         allocate (keep(size(vc_dir_buffers)))
         n = 0
+
         ! look for a vc-dir buffer that might show this file.
         do k = 1, size(vc_dir_buffers)
             status_buf = vc_dir_buffers(k)
@@ -1684,6 +1893,7 @@ contains
             ! relative to the toplevel value.
             call expand_file_name(buffers(cur)%directory, ddir, st)
             if (.not. file_in_directory_p(file, ddir)) cycle
+
             if (file_directory_p(file)) then
                 call vc_dir_resync_directory_files(file)
                 call vc_dir_headers(vc_dir_backend(), ddir, header)
@@ -1698,6 +1908,7 @@ contains
                                    complete_state(1)%state == VC_UP_TO_DATE)
             end if
         end do
+
         call set_buffer(old, st)
         ! Remove out-of-date entries from vc-dir-buffers.
         vc_dir_buffers = keep(1:n)
@@ -1706,7 +1917,6 @@ contains
     ! ------------------------------------------------------------------
     ! The mode
     ! ------------------------------------------------------------------
-
     !> Major mode for VC directory buffers.
     !> Marking/Unmarking key bindings and actions: \<vc_dir_mode_map>
     !> \[vc_dir_mark] - mark a file/directory
@@ -1736,6 +1946,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved_mode
         integer :: k
+
         if (.not. associated(major_modes%vc_dir_mode%run)) call syms_of_vc_dir()
         call major_modes%vc_dir_mode%begin(saved_mode, status)
         if (.not. status%ok()) return
@@ -1743,6 +1954,7 @@ contains
         locals(k)%backend = use_vc_backend
         buffers(cur)%read_only = .false.
         call erase_buffer(status)
+
         if (status%ok()) then
             locals(k)%process_buffer = null_handle()
             locals(k)%ewoc = ewoc_create(vc_dir_printer)
@@ -1752,6 +1964,7 @@ contains
             call add_vc_dir_buffer(current_buffer())
             call vc_dir_refresh(status)
         end if
+
         buffers(cur)%read_only = .true.
         if (.not. status%ok()) return
         call major_modes%vc_dir_mode%finish(saved_mode, status)
@@ -1762,10 +1975,13 @@ contains
         type(handle_type), intent(in) :: buf
         type(handle_type), allocatable :: grown(:)
         integer :: k, n
+
         if (.not. allocated(vc_dir_buffers)) allocate (vc_dir_buffers(0))
+
         do k = 1, size(vc_dir_buffers)
             if (vc_dir_buffers(k)%index == buf%index .and. vc_dir_buffers(k)%generation == buf%generation) return
         end do
+
         n = size(vc_dir_buffers)
         allocate (grown(n + 1))
         grown(1) = buf
@@ -1783,11 +1999,13 @@ contains
         type(ewoc_part_type), allocatable, intent(out) :: parts(:)
         type(ewoc_part_type), allocatable :: extra(:)
         integer :: k, n
+
         if (associated(vc_backends(backend)%dir_extra_headers)) then
             call vc_backends(backend)%dir_extra_headers(dir, extra)
         else
             call vc_default_dir_extra_headers(dir, extra)
         end if
+
         n = size(extra)
         allocate (parts(5 + n))
         parts(1)%text = "VC backend : "
@@ -1798,9 +2016,11 @@ contains
         parts(3)%face = "vc_dir_header"
         parts(4)%text = abbreviate_file_name(dir)//LF
         parts(4)%face = "vc_dir_header_value"
+
         do k = 1, n
             parts(4 + k) = extra(k)
         end do
+
         parts(5 + n)%text = LF
         parts(5 + n)%face = ""
     end subroutine vc_dir_headers
@@ -1817,9 +2037,11 @@ contains
         type(status_type) :: st
         integer :: crt, first, prev, next
         logical :: empty
+
         old = current_buffer()
         call set_buffer(buffer, st)
         call vc_dir_update(entries, buffer)
+
         if (.not. more_to_come) then
             call clear_mode_line_process()
             ! Remove the ones that haven't been updated at all.
@@ -1830,24 +2052,30 @@ contains
             call bind_inhibit_read_only(saved)
             crt = ewoc_nth(ew(), -1)
             first = ewoc_nth(ew(), 0)
+
             do while (crt /= first .and. crt /= 0)
                 prev = ewoc_prev(ew(), crt)
+
                 if (allocated(infos(did(crt))%directory)) then
                     next = ewoc_next(ew(), crt)
                     empty = next == 0
                     if (.not. empty) empty = allocated(infos(did(next))%directory)
                     if (empty) call delete_nodes([crt])
                 end if
+
                 crt = prev
             end do
+
             call restore_inhibit_read_only(saved)
         end if
+
         if (buffer_live_p(old)) call set_buffer(old, st)
     end subroutine refresh_files_update
 
     ! The predicate of `ewoc_filter' in `refresh_files_update'.
     recursive logical function not_needs_update(data)
         integer(int64), intent(in) :: data
+
         ! The state for directory entries might
         ! have been changed to 'up-to-date,
         ! reset it, otherwise it will be removed when doing 'x'
@@ -1856,6 +2084,7 @@ contains
         if (allocated(infos(data)%directory) .and. infos(data)%entry%state == VC_UP_TO_DATE) then
             infos(data)%entry%state = VC_STATE_NIL
         end if
+
         not_needs_update = .not. infos(data)%needs_update
         if (.not. not_needs_update) info_live(data) = .false.
     end function not_needs_update
@@ -1866,11 +2095,14 @@ contains
         type(handle_type), intent(out) :: buf
         type(status_type) :: st
         integer :: k
+
         k = local_index(.true.)
+
         if (.not. buffer_live_p(locals(k)%process_buffer)) then
             call get_buffer_create(generate_new_buffer_name(" *VC-"//vc_backend_name(backend)//"* tmp status"), &
                                    locals(k)%process_buffer, st)
         end if
+
         buf = locals(k)%process_buffer
     end subroutine ensure_process_buffer
 
@@ -1883,6 +2115,7 @@ contains
         type(handle_type) :: buffer, pbuf
         type(status_type) :: st
         integer :: backend
+
         status = status_type()
         def_dir = buffers(cur)%directory
         backend = vc_dir_backend()
@@ -1897,9 +2130,11 @@ contains
         call set_buffer(pbuf, st)
         buffers(cur)%directory = def_dir
         call erase_buffer(st)
+
         if (associated(vc_backends(backend)%dir_status_files)) then
             call vc_backends(backend)%dir_status_files(def_dir, files, refresh_files_update, buffer, status)
         end if
+
         call set_buffer(buffer, st)
     end subroutine vc_dir_refresh_files
 
@@ -1908,6 +2143,7 @@ contains
     recursive subroutine vc_dir_revert_buffer_function(ignore_auto, noconfirm, status)
         logical, intent(in) :: ignore_auto, noconfirm
         type(status_type), intent(out) :: status
+
         if (ignore_auto .and. noconfirm .and. .false.) return
         call vc_dir_refresh(status)
         if (.not. status%ok()) return
@@ -1924,27 +2160,34 @@ contains
         type(handle_type) :: old
         type(status_type) :: st
         integer :: k
+
         old = current_buffer()
         call set_buffer(buffer, st)
         call vc_dir_update(entries, buffer)
+
         if (.not. more_to_come) then
             call ewoc_collect(ew(), needs_update_fn, remaining)
+
             if (size(remaining) > 0) then
                 allocate (names(size(remaining)))
+
                 do k = 1, size(remaining)
                     names(k)%s = infos(remaining(k))%entry%name
                 end do
+
                 call vc_dir_refresh_files(names, st)
             else
                 call clear_mode_line_process()
                 call vc_dir_refresh_hook%run(st)
             end if
         end if
+
         if (buffer_live_p(old)) call set_buffer(old, st)
     end subroutine refresh_update
 
     recursive logical function set_needs_update(data)
         integer(int64), intent(in) :: data
+
         if (.not. allocated(infos(data)%directory)) infos(data)%needs_update = .true.
         set_needs_update = .false.
     end function set_needs_update
@@ -1962,13 +2205,17 @@ contains
         type(handle_type) :: buffer, pbuf
         type(status_type) :: st
         integer :: backend
+
         status = status_type()
+
         if (vc_dir_busy()) then
             call set_error(status, FM_GENERIC_ERROR, "Another update process is in progress, cannot run two at a time")
             return
         end if
+
         def_dir = buffers(cur)%directory
         backend = vc_dir_backend()
+
         if (vc_dir_save_some_buffers_on_revert) then
             fs%backend = backend
             allocate (fs%files(1))
@@ -1976,6 +2223,7 @@ contains
             call vc_buffer_sync_fileset(fs, status, .true.)
             if (.not. status%ok()) return
         end if
+
         call vc_set_mode_line_busy_indicator()
         ! Create a buffer that can be used by `dir-status' and call
         ! `dir-status' with this buffer as the current buffer.  Use
@@ -1993,9 +2241,11 @@ contains
         call set_buffer(pbuf, st)
         buffers(cur)%directory = def_dir
         call erase_buffer(st)
+
         if (associated(vc_backends(backend)%dir_status_files)) then
             call vc_backends(backend)%dir_status_files(def_dir, nofiles, refresh_update, buffer, status)
         end if
+
         call set_buffer(buffer, st)
     end subroutine vc_dir_refresh
 
@@ -2006,6 +2256,7 @@ contains
     recursive subroutine vc_dir_show_fileentry(file)
         character(len=*), intent(in) :: file
         type(vc_dir_entry_type) :: entry(1)
+
         entry(1)%name = file_relative_name(file, buffers(cur)%directory)
         entry(1)%state = vc_state(expand(file))
         call vc_dir_update(entry, current_buffer())
@@ -2024,13 +2275,16 @@ contains
         integer(int64) :: id
         integer :: crt, first, next, prev
         logical :: remove
+
         if (present(state)) then
             call message("Hiding items in state """//vc_state_name(state)//"""")
         else
             call message("Hiding up-to-date and ignored items")
         end if
+
         crt = ewoc_nth(ew(), -1)
         first = ewoc_nth(ew(), 0)
+
         ! Go over from the last item to the first and remove the
         ! up-to-date files and directories with no child files.
         do while (crt /= first .and. crt /= 0)
@@ -2040,6 +2294,7 @@ contains
             ! ewoc-delete does not work without this...
             call bind_inhibit_read_only(saved)
             remove = .false.
+
             if (allocated(infos(id)%directory)) then
                 ! Remove directories with no child files.
                 ! Nothing follows this directory.
@@ -2047,6 +2302,7 @@ contains
                 ! Next item is a directory.
                 if (.not. remove) remove = allocated(infos(did(next))%directory)
             end if
+
             if (.not. remove) then
                 ! Remove files in specified STATE.  STATE can be a
                 ! symbol, a user-name, or nil.
@@ -2056,6 +2312,7 @@ contains
                     remove = up_to_date_state(infos(id)%entry%state)
                 end if
             end if
+
             if (remove) call delete_nodes([crt])
             call restore_inhibit_read_only(saved)
             crt = prev
@@ -2068,6 +2325,7 @@ contains
         type(status_type), intent(out) :: status
         type(value_type) :: saved
         integer :: crt
+
         status = status_type()
         crt = ewoc_locate(ew())
         if (crt == 0) return
@@ -2080,13 +2338,16 @@ contains
     recursive subroutine vc_dir_printer(data)
         integer(int64), intent(in) :: data
         integer :: b
+
         b = vc_dir_backend()
+
         if (b > 0) then
             if (associated(vc_backends(b)%dir_printer)) then
                 call vc_backends(b)%dir_printer(infos(data))
                 return
             end if
         end if
+
         call vc_default_dir_printer(infos(data))
     end subroutine vc_dir_printer
 
@@ -2114,9 +2375,11 @@ contains
         integer, allocatable :: other_states(:)
         integer :: k, n_up
         logical :: yes
+
         status = status_type()
         allocate (other(0), other_states(0))
         n_up = 0
+
         do k = 1, size(files)
             if (up_to_date_state(states(k))) then
                 n_up = n_up + 1
@@ -2124,11 +2387,14 @@ contains
                 call push_pair(other, other_states, files(k)%s, states(k))
             end if
         end do
+
         yes = .false.
+
         if (n_up > 0 .and. size(other) > 0) then
             call y_or_n_p("Clear up-to-date items before proceeding?", yes, status)
             if (.not. status%ok()) return
         end if
+
         if (yes) then
             call vc_dir_hide_state()
             call vc_only_files_state_and_model(other, other_states, vc_dir_backend(), fs, status)
@@ -2148,10 +2414,12 @@ contains
         integer, allocatable :: states(:)
         character(len=:), allocatable :: file
         logical :: smo
+
         status = status_type()
         smo = .false.
         if (present(state_model_only_files)) smo = state_model_only_files
         call vc_dir_marked_files(marked)
+
         if (size(marked) > 0) then
             fs%files = marked
             if (smo) call vc_dir_marked_only_files_and_states(only_files, states)
@@ -2162,6 +2430,7 @@ contains
             fs%files(1)%s = file
             if (smo) call vc_dir_child_files_and_states(only_files, states)
         end if
+
         fs%backend = vc_dir_backend()
         if (smo) call vc_dir_only_files_state_and_model(only_files, states, fs, status)
     end subroutine vc_dir_deduce_fileset
@@ -2174,8 +2443,10 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: root
         logical :: found
+
         call vc_root_dir(root, found, status)
         if (.not. status%ok()) return
+
         if (found) then
             call vc_dir(root, status)
         else
@@ -2206,17 +2477,21 @@ contains
         type(handle_type) :: buffer, old
         type(status_type) :: st
         integer :: b, saved
+
         b = 0
         if (present(backend)) b = backend
+
         if (b == 0) then
             b = vc_responsible_backend(dir, status)
             if (.not. status%ok()) return
         end if
+
         ! (let ((pop-up-windows)) ...): based on cvs-examine; bug#6204.
         call vc_dir_prepare_status_buffer("*vc-dir*", dir, b, buffer, status)
         if (.not. status%ok()) return
         old = current_buffer()
         call set_buffer(buffer, st)
+
         if (derived_mode_p("vc_dir_mode")) then
             call vc_dir_refresh(status)
         else
@@ -2227,6 +2502,7 @@ contains
             use_vc_backend = saved
             ! (Activate the backend-specific minor mode, if any: deferred.)
         end if
+
         call set_buffer(old, st)
         if (.not. status%ok()) return
         call pop_to_buffer(buffer, status)
@@ -2237,6 +2513,7 @@ contains
     recursive subroutine vc_default_dir_extra_headers(dir, parts)
         character(len=*), intent(in) :: dir
         type(ewoc_part_type), allocatable, intent(out) :: parts(:)
+
         ! Be loud by default to remind people to add code to display
         ! backend specific headers.
         ! XXX: change this to return nil before the release.
@@ -2256,12 +2533,14 @@ contains
         character(len=20) :: padded
         logical :: isdir
         integer :: state
+
         ! If you change the layout here, change vc-dir-move-to-goal-column.
         ! VC backends can implement backend specific versions of this
         ! function.  Changes here might need to be reflected in the
         ! vc-BACKEND-dir-printer functions.
         isdir = allocated(fileentry%directory)
         state = fileentry%entry%state
+
         if (isdir) then
             display_state = ""
         else if (allocated(fileentry%display_state)) then
@@ -2269,12 +2548,15 @@ contains
         else
             display_state = vc_state_name(state)
         end if
+
         if (fileentry%marked) then
             call insert_with_face("*", "vc_dir_mark_indicator")
         else
             call insert_with_face(" ", "vc_dir_mark_indicator")
         end if
+
         call insert_with_face("   ", "")
+
         if (display_state == "up-to-date") then
             face = "vc_dir_status_up_to_date"
         else if (display_state == "missing" .or. display_state == "conflict" .or. display_state == "needs-update" &
@@ -2285,13 +2567,16 @@ contains
         else
             face = "vc_dir_status_edited"
         end if
+
         if (len(display_state) >= 20) then
             call insert_with_face(display_state, face)
         else
             padded = display_state
             call insert_with_face(padded, face)
         end if
+
         call insert_with_face(" ", "")
+
         if (isdir) then
             call insert_with_face(fileentry%entry%name, "vc_dir_directory")
         else
@@ -2302,7 +2587,6 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
-
     integer function count_arg()
         count_arg = int(prefix_numeric_value(current_prefix_arg))
     end function count_arg
@@ -2315,6 +2599,7 @@ contains
         character(len=:), allocatable :: root, dir, truename, name
         logical :: found
         integer :: b
+
         call vc_root_dir(root, found, status)
         if (.not. status%ok()) return
         if (.not. found) root = buffers(cur)%directory
@@ -2328,11 +2613,13 @@ contains
         call file_truename(dir, truename, status)
         if (.not. status%ok()) return
         b = 0
+
         if (.not. nilp(current_prefix_arg)) then
             call read_backend(name, status)
             if (.not. status%ok()) return
             b = vc_backend_named(name)
         end if
+
         call vc_dir(truename, status, b)
     end subroutine cmd_vc_dir
 
@@ -2346,44 +2633,53 @@ contains
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: names(:)
         integer :: k
+
         allocate (names(size(vc_handled_backends)))
+
         do k = 1, size(vc_handled_backends)
             names(k) = make_string(trim(vc_handled_backends(k)))
         end do
+
         call completing_read("Use VC backend: ", completion_list_table(make_list(names)), name, status, &
                              require_match=REQUIRE_MATCH_T)
     end subroutine read_backend
 
     recursive subroutine cmd_vc_dir_next_line(status)
         type(status_type), intent(out) :: status
+
         call vc_dir_next_line(count_arg(), status)
     end subroutine cmd_vc_dir_next_line
 
     recursive subroutine cmd_vc_dir_previous_line(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call vc_dir_previous_line(count_arg())
     end subroutine cmd_vc_dir_previous_line
 
     recursive subroutine cmd_vc_dir_next_directory(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call vc_dir_next_directory()
     end subroutine cmd_vc_dir_next_directory
 
     recursive subroutine cmd_vc_dir_previous_directory(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call vc_dir_previous_directory()
     end subroutine cmd_vc_dir_previous_directory
 
     recursive subroutine cmd_vc_dir_mark_all_files(status)
         type(status_type), intent(out) :: status
+
         call vc_dir_mark_all_files(.not. nilp(current_prefix_arg), status)
     end subroutine cmd_vc_dir_mark_all_files
 
     recursive subroutine cmd_vc_dir_unmark_all_files(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call vc_dir_unmark_all_files(.not. nilp(current_prefix_arg))
     end subroutine cmd_vc_dir_unmark_all_files
@@ -2392,27 +2688,33 @@ contains
         use minibuf_fm, only: read_string
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: regexp
+
         call read_string("Mark files matching: ", regexp, status)
         if (status%ok()) call vc_dir_mark_by_regexp(regexp,.not. nilp(current_prefix_arg))
     end subroutine cmd_vc_dir_mark_by_regexp
 
     recursive subroutine cmd_vc_dir_ignore(status)
         type(status_type), intent(out) :: status
+
         call vc_dir_ignore(.not. nilp(current_prefix_arg), status)
     end subroutine cmd_vc_dir_ignore
 
     recursive subroutine cmd_vc_dir_hide_up_to_date(status)
         type(status_type), intent(out) :: status
         integer :: node
+
         status = status_type()
+
         if (.not. nilp(current_prefix_arg)) then
             ! Command is prefixed.  Infer STATE from point.
             node = ewoc_locate(ew())
+
             if (node /= 0) then
                 call vc_dir_hide_state(infos(did(node))%entry%state)
                 return
             end if
         end if
+
         call vc_dir_hide_state()
     end subroutine cmd_vc_dir_hide_up_to_date
 
@@ -2421,6 +2723,7 @@ contains
         use minibuffer_fm, only: REQUIRE_MATCH_T
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
+
         call read_file_name("Show file: ", file, status, mustmatch=REQUIRE_MATCH_T)
         if (status%ok()) call vc_dir_show_fileentry(file)
     end subroutine cmd_vc_dir_show_fileentry
@@ -2428,9 +2731,9 @@ contains
     ! ------------------------------------------------------------------
     ! Definitions
     ! ------------------------------------------------------------------
-
     subroutine define_faces()
         type(named_face_type), pointer :: f
+
         f => vc_dir_header
         call f%define("vc_dir_header", "Face for headers in VC-Dir buffers.")
         call f%spec_entry(display_when(), face_attrs(inherit="font_lock_type_face"))
@@ -2468,6 +2771,7 @@ contains
         use lisp_fm, only: make_keymap_ref
         type(handle_type) :: regexp_map, mark_map
         type(status_type) :: st
+
         vc_dir_resynch_file => vc_dir_resynch_file_impl
         commands%vc_dir%run => cmd_vc_dir
         commands%vc_dir_root%run => vc_dir_root

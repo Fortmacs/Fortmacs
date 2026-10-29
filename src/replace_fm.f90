@@ -393,6 +393,7 @@ contains
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
         character(len=24) :: buf
+
         write (buf, "(i0)") n
         s = trim(buf)
     end function number_to_string
@@ -404,9 +405,12 @@ contains
         character(len=*), intent(in) :: string
         character(len=:), allocatable :: descr
         integer :: i, c
+
         descr = ""
+
         do i = 1, len(string)
             c = iachar(string(i:i))
+
             if (c < 32) then
                 descr = descr//"^"//achar(c + 64)
             else if (c == 127) then
@@ -425,7 +429,9 @@ contains
         character(len=*), intent(in) :: replacement
         character(len=:), allocatable :: quoted
         integer :: i
+
         quoted = ""
+
         do i = 1, len(replacement)
             if (replacement(i:i) == "\") then
                 quoted = quoted//"\\"
@@ -442,14 +448,17 @@ contains
         character(len=*), intent(in) :: string, chars
         integer, intent(in) :: from
         integer :: i
+
         at = 0
         i = from
+
         do while (i < len(string))
             if (string(i:i) == "\") then
                 if (index(chars, string(i + 1:i + 1)) > 0) then
                     at = i
                     return
                 end if
+
                 ! Skip the escaped character.
                 i = i + 2
             else
@@ -470,15 +479,18 @@ contains
         logical, intent(out) :: counted
         type(status_type), intent(out) :: status
         integer :: at
+
         status = status_type()
         counted = .false.
         if (.not. regexp_flag) return
         at = find_directive(to, 1, ",#")
+
         do while (at > 0)
             if (to(at + 1:at + 1) == ",") then
                 call set_error(status, FM_USER_ERROR, "\, in a replacement is not applicable in Fortmacs")
                 return
             end if
+
             counted = .true.
             at = find_directive(to, at + 2, ",#")
         end do
@@ -491,14 +503,17 @@ contains
         integer(int64), intent(in) :: count
         character(len=:), allocatable :: text
         integer :: at, from
+
         text = ""
         from = 1
         at = find_directive(to, 1, "#")
+
         do while (at > 0)
             text = text//to(from:at - 1)//number_to_string(count)
             from = at + 2
             at = find_directive(to, from, "#")
         end do
+
         text = text//to(from:)
     end function replace_expand_count
 
@@ -508,6 +523,7 @@ contains
         character(len=*), intent(in) :: prompt
         character(len=*), intent(in), optional :: default
         character(len=:), allocatable :: full
+
         full = prompt
         if (present(default)) full = full//" (default "//default//")"
         full = full//": "
@@ -520,6 +536,7 @@ contains
         logical, intent(out) :: found
         type(value_type) :: list, first
         type(status_type) :: status
+
         head = ""
         found = .false.
         call symbol_value(sym(name), list, status)
@@ -538,18 +555,23 @@ contains
         character(len=*), intent(in) :: from, to
         type(replace_pair_type), allocatable :: longer(:)
         integer :: n, k
+
         n = 0
         if (allocated(query_replace_defaults)) n = size(query_replace_defaults)
         allocate (longer(min(n + 1, max(history_length, 0))))
+
         if (size(longer) == 0) then
             call move_alloc(longer, query_replace_defaults)
             return
         end if
+
         longer(1)%from = from
         longer(1)%to = to
+
         do k = 2, size(longer)
             longer(k) = query_replace_defaults(k - 1)
         end do
+
         call move_alloc(longer, query_replace_defaults)
     end subroutine push_defaults
 
@@ -560,13 +582,17 @@ contains
         character(len=*), intent(in) :: s
         type(minibuffer_string_type), allocatable :: grown(:)
         integer :: k
+
         if (n == size(list)) then
             allocate (grown(max(4, 2*n)))
+
             do k = 1, n
                 call move_alloc(list(k)%s, grown(k)%s)
             end do
+
             call move_alloc(grown, list)
         end if
+
         n = n + 1
         list(n)%s = s
     end subroutine push_string
@@ -577,6 +603,7 @@ contains
         logical, intent(out) :: found
         integer(int64) :: b, e
         type(status_type) :: st
+
         found = use_region_p()
         text = ""
         if (.not. found) return
@@ -596,6 +623,7 @@ contains
         integer, intent(out) :: n
         character(len=:), allocatable :: s
         logical :: found
+
         allocate (list(4))
         n = 0
         call region_text(s, found)
@@ -620,6 +648,7 @@ contains
         integer, intent(out) :: n
         character(len=:), allocatable :: s
         logical :: found
+
         allocate (list(6))
         n = 0
         call region_text(s, found)
@@ -660,6 +689,7 @@ contains
         character(len=:), allocatable :: full, input, histvar
         integer :: n, nmore, k, j
         logical :: saved_add, have_default, dup
+
         histvar = "regexp_history"
         if (present(history)) histvar = history
         have_default = .false.
@@ -668,23 +698,30 @@ contains
         ! (delete-dups (delq nil (delete "" suggestions)))
         allocate (suggestions(4))
         n = 0
+
         if (present(defaults)) then
             do k = 1, size(defaults)
                 call add_suggestion(defaults(k)%s)
             end do
         end if
+
         do k = 1, nmore
             call add_suggestion(more(k)%s)
         end do
+
         ! The prompt
         full = prompt
+
         if (.not. ends_in_colon(prompt)) then
             full = prompt
+
             if (have_default) then
                 if (len(defaults(1)%s) > 0) full = full//" (default "//query_replace_descr(defaults(1)%s)//")"
             end if
+
             full = full//": "
         end if
+
         ! Do not automatically add default to the history for empty input.
         saved_add = history_add_new_input
         history_add_new_input = .false.
@@ -693,20 +730,26 @@ contains
         if (.not. status%ok()) return
         ! Return the default value when the user enters empty input.
         result = input
+
         if (len(input) == 0) then
             if (.not. have_default) return
             result = defaults(1)%s
         end if
+
         call add_to_history(histvar, result)
+
     contains
 
         subroutine add_suggestion(s)
             character(len=*), intent(in) :: s
+
             if (len(s) == 0) return
             dup = .false.
+
             do j = 1, n
                 if (suggestions(j)%s == s .and. len(suggestions(j)%s) == len(s)) dup = .true.
             end do
+
             if (.not. dup) call push_string(suggestions, n, s)
         end subroutine add_suggestion
 
@@ -714,7 +757,9 @@ contains
         logical function ends_in_colon(p)
             character(len=*), intent(in) :: p
             integer :: i
+
             ends_in_colon = .false.
+
             do i = len(p), 1, -1
                 if (p(i:i) == " " .or. p(i:i) == achar(9)) cycle
                 ends_in_colon = p(i:i) == ":"
@@ -743,6 +788,7 @@ contains
         integer(int64) :: saved_point
         logical :: saved_add, have_separator
         integer :: k, n, at, nsuggestions
+
         to = ""
         have_to = .false.
         counted = .false.
@@ -756,12 +802,15 @@ contains
         n = 0
         if (have_separator .and. allocated(query_replace_defaults)) n = size(query_replace_defaults)
         allocate (entries(n + size(older)))
+
         do k = 1, n
             entries(k) = make_string(query_replace_defaults(k)%from//query_replace_from_to_separator// &
                                      query_replace_defaults(k)%to)
         end do
+
         if (size(older) > 0) entries(n + 1:) = older
         call set(sym("minibuffer_history"), make_list(entries), st)
+
         if (n > 0) then
             full_prompt = format_prompt(prompt, query_replace_descr(query_replace_defaults(1)%from)// &
                                         query_replace_from_to_separator// &
@@ -776,9 +825,11 @@ contains
         else
             full_prompt = format_prompt(prompt)
         end if
+
         ! The save-excursion here is in case the user marks and copies a
         ! region in order to specify the minibuffer input.
         saved_point = point()
+
         if (regexp_flag) then
             call read_regexp(full_prompt, from, status, history="minibuffer_history")
         else
@@ -789,9 +840,11 @@ contains
                                       defaults=suggestions(1:nsuggestions))
             history_add_new_input = saved_add
         end if
+
         call goto_char(saved_point)
         call set(sym("minibuffer_history"), saved_history, st)
         if (.not. status%ok()) return
+
         if (len(from) == 0 .and. allocated(query_replace_defaults)) then
             if (size(query_replace_defaults) > 0) then
                 to = query_replace_defaults(1)%to
@@ -801,27 +854,34 @@ contains
                 return
             end if
         end if
+
         if (have_separator .and. len(query_replace_from_to_separator) > 0) then
             at = index(from, query_replace_from_to_separator)
+
             if (at > 0) then
                 to = from(at + len(query_replace_from_to_separator):)
                 from = from(1:at - 1)
                 have_to = .true.
             end if
         end if
+
         call add_to_history(query_replace_from_history_variable, from, keep_all=.true.)
+
         ! Warn if user types \n or \t, but don't reject the input.
         if (regexp_flag) then
             at = find_directive(from, 1, "nt")
+
             if (at > 0) then
                 if (from(at + 1:at + 1) == "n") then
                     call message(format_message("Note: `\n' here doesn't match a newline; to do that, type C-q C-j instead"))
                 else
                     call message(format_message("Note: `\t' here doesn't match a tab; to do that, just type TAB"))
                 end if
+
                 call sit_for(2000)
             end if
         end if
+
         if (.not. have_to) return
         call add_to_history(query_replace_to_history_variable, to, keep_all=.true.)
         call push_defaults(from, to)
@@ -839,6 +899,7 @@ contains
         logical, intent(out) :: counted
         type(status_type), intent(out) :: status
         logical :: saved_add
+
         counted = .false.
         saved_add = history_add_new_input
         history_add_new_input = .false.
@@ -865,16 +926,19 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: noerror
         logical :: have_to
+
         delimited = .false.
         backward = .false.
         counted = .false.
         to = ""
         from = ""
         status = status_type()
+
         if (.not. present_true(noerror)) then
             call barf_if_buffer_read_only(status)
             if (.not. status%ok()) return
         end if
+
         delimited = .not. nilp(current_prefix_arg) .and. .not. value_eq(current_prefix_arg, sym("-"))
         backward = value_eq(current_prefix_arg, sym("-"))
         call query_replace_read_from(prompt, regexp_flag, from, to, have_to, counted, status)
@@ -884,6 +948,7 @@ contains
 
     logical function present_true(x)
         logical, intent(in), optional :: x
+
         present_true = .false.
         if (present(x)) present_true = x
     end function present_true
@@ -901,6 +966,7 @@ contains
         character(len=:), allocatable :: regexp, saved_spaces
         integer(int64) :: pos
         logical :: had_spaces, saved_fold
+
         if (delimited_flag) then
             regexp = word_search_regexp(search_string, .false.)
         else if (regexp_flag) then
@@ -908,6 +974,7 @@ contains
         else
             regexp = regexp_quote(search_string)
         end if
+
         had_spaces = allocated(search_spaces_regexp)
         if (had_spaces) saved_spaces = search_spaces_regexp
         if (allocated(search_spaces_regexp)) deallocate (search_spaces_regexp)
@@ -915,6 +982,7 @@ contains
             allocated(search_whitespace_regexp)) search_spaces_regexp = search_whitespace_regexp
         saved_fold = case_fold_search%value
         case_fold_search = case_fold
+
         if (present_true(backward)) then
             if (limit > 0) then
                 call re_search_backward(regexp, pos, status, bound=limit, noerror=SEARCH_NOERROR)
@@ -928,6 +996,7 @@ contains
                 call re_search_forward(regexp, pos, status, noerror=SEARCH_NOERROR)
             end if
         end if
+
         case_fold_search = saved_fold
         if (allocated(search_spaces_regexp)) deallocate (search_spaces_regexp)
         if (had_spaces) search_spaces_regexp = saved_spaces
@@ -956,12 +1025,15 @@ contains
         logical, intent(in), optional :: backward
         character(len=:), allocatable :: text, edited
         integer :: at
+
         unedited = noedit
         text = newtext
         status = status_type()
+
         if (.not. (literal .or. noedit)) then
             unedited = .true.
             at = find_directive(text, 1, "?")
+
             do while (at > 0)
                 call read_string("Edit replacement string: ", edited, status, &
                                  initial=text(1:at - 1)//text(at + 2:), position=1 + schars(text(1:at - 1)))
@@ -971,6 +1043,7 @@ contains
                 at = find_directive(text, 1, "?")
             end do
         end if
+
         call set_match_data(data)
         call replace_match(text, status, fixedcase, literal)
         if (.not. status%ok()) return
@@ -992,17 +1065,23 @@ contains
         type(stack_entry_type), allocatable :: grown(:)
         type(status_type) :: status
         integer :: k
+
         if (.not. allocated(stack)) allocate (stack(16))
+
         if (nstack == size(stack)) then
             allocate (grown(2*size(stack)))
+
             do k = 1, nstack
                 grown(k) = stack(k)
             end do
+
             call move_alloc(grown, stack)
         end if
+
         nstack = nstack + 1
         stack(nstack)%point = point()
         stack(nstack)%replaced = replaced
+
         if (replaced) then
             ! If the replacement has already happened, all we need is the
             ! current match start and end.
@@ -1010,6 +1089,7 @@ contains
         else
             stack(nstack)%data = match_data()
         end if
+
         stack(nstack)%search_str = ""
         if (allocated(search_str)) stack(nstack)%search_str = search_str
         stack(nstack)%next_replace = ""
@@ -1028,6 +1108,7 @@ contains
         integer(int64) :: opoint
         type(status_type) :: status
         logical :: matched
+
         opoint = point()
         call goto_char(pos)
         matched = looking_at(regexp, status)
@@ -1092,15 +1173,18 @@ contains
                    last_was_act_and_show, update_stack, nonempty_match, have_limit, back, found, done, &
                    replaced, querying, use_items, use_fn, is_counted, unread, matched, ro_found
         integer :: again, def, nstack, item, stack_idx, stack_len, num_replacements
+
         status = status_type()
         back = present_true(backward)
         is_counted = present_true(counted)
         querying = query_flag
         if (present(result)) result = .false.
         fold = case_fold_search%value
+
         if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NIL) then
             fold = isearch_no_upper_case_p(from_string, regexp_flag)
         end if
+
         nocasify = .not. (case_replace .and. fold)
         literal = .not. regexp_flag
         noedit = .false.
@@ -1114,18 +1198,22 @@ contains
         again = AGAIN_T
         allocate (again_match(0), real_data(0))
         unread = .false.
+
         if (querying) then
             msg_prefix = "Query replacing "
             if (back) msg_prefix = msg_prefix//"backward "
             if (delimited_flag) msg_prefix = msg_prefix//"word "
             if (regexp_flag) msg_prefix = msg_prefix//"regexp "
         end if
+
         ! If region is active, in Transient Mark mode, operate on region.
         limit = 0
         have_limit = .false.
+
         if (present(start) .and. present(end)) then
             have_limit = .true.
             call make_marker(limit_marker)
+
             if (back) then
                 call set_marker(limit_marker, min(start, end), st)
                 call goto_char(max(start, end))
@@ -1133,11 +1221,14 @@ contains
                 call set_marker(limit_marker, max(start, end), st)
                 call goto_char(min(start, end))
             end if
+
             call deactivate_mark()
         end if
+
         next_replacement = replacements
         use_items = .false.
         use_fn = present(replacement_fn)
+
         if (.not. use_fn .and. present(replacement_list)) then
             call list_elements(replacement_list, items)
             use_items = size(items) > 0
@@ -1147,13 +1238,16 @@ contains
             rotate_count = repeat
             item = 1
         end if
+
         call push_mark()
         call undo_boundary()
         saved_fold = case_fold_search%value
         case_fold_search = fold
+
         ! Loop finding occurrences that perhaps should be replaced.
         main: do while (keep_going)
             if (have_limit) call marker_position(limit_marker, limit, st)
+
             if (back) then
                 if (bobp()) exit main
                 if (have_limit .and. point() <= limit) exit main
@@ -1161,6 +1255,7 @@ contains
                 if (eobp()) exit main
                 if (have_limit .and. point() >= limit) exit main
             end if
+
             ! Use the next match if it is already known; otherwise, search
             ! for a match after moving forward one char if progress is
             ! required.
@@ -1171,6 +1266,7 @@ contains
                 else
                     call goto_char(again_match(2))
                 end if
+
                 real_data = again_match
                 found = .true.
             case (AGAIN_T)
@@ -1181,11 +1277,13 @@ contains
                 if (found) real_data = match_data()
             case default
                 found = .false.
+
                 if (back) then
                     if (point() - 1 > point_min()) found = .not. have_limit .or. point() - 1 > limit
                 else
                     if (point() + 1 < point_max()) found = .not. have_limit .or. point() + 1 < limit
                 end if
+
                 if (found) then
                     ! If not accepting adjacent matches, move one char to
                     ! the right before searching again.  Undo the motion if
@@ -1195,6 +1293,7 @@ contains
                     found = replace_search(from_string, merge(limit, 0_int64, have_limit), regexp_flag, &
                                            delimited_flag, fold, status, back)
                     if (.not. status%ok()) exit main
+
                     if (found) then
                         real_data = match_data()
                     else
@@ -1202,6 +1301,7 @@ contains
                     end if
                 end if
             end select
+
             if (.not. found) exit main
             ! Record whether the match is nonempty, to avoid an infinite
             ! loop repeatedly matching the same empty string.
@@ -1212,6 +1312,7 @@ contains
             ! affect whether the next match is adjacent to this one.  If
             ! that match is empty, don't use it.
             again = AGAIN_NIL
+
             if (nonempty_match) then
                 if (.not. regexp_flag) then
                     again = AGAIN_T
@@ -1221,21 +1322,25 @@ contains
                     else
                         matched = looking_at(from_string, st)
                     end if
+
                     if (matched) then
                         again_match = match_data()
                         if (again_match(1) /= again_match(2)) again = AGAIN_DATA
                     end if
                 end if
             end if
+
             ! Optionally ignore matches that have a read-only property.
             if (query_replace_skip_read_only) then
                 call text_property_not_all(real_data(1), real_data(2), sym("read_only"), nil(), ro_pos, &
                                            ro_found, st)
+
                 if (ro_found) then
                     skip_read_only_count = skip_read_only_count + 1
                     cycle main
                 end if
             end if
+
             ! Calculate the replacement string, if necessary.
             if (use_fn) then
                 call set_match_data(real_data)
@@ -1247,19 +1352,23 @@ contains
                     item = item + 1
                     if (item > size(items)) item = 1
                 end if
+
                 next_replacement = xstring(items(item))
             else if (is_counted) then
                 next_replacement = replace_expand_count(replacements, replace_count)
             end if
+
             if (.not. querying) then
                 call act(next_replacement, nocasify)
                 if (.not. status%ok()) exit main
                 replace_count = replace_count + 1
                 cycle main
             end if
+
             call undo_boundary()
             done = .false.
             replaced = .false.
+
             ! Loop reading commands until one of them sets done, which
             ! means it has finished handling this occurrence.  Any command
             ! that sets `done' should leave behind proper match data for the
@@ -1267,12 +1376,14 @@ contains
             ! `real_match_data'.
             do while (.not. done)
                 call set_match_data(real_data)
+
                 ! Obtain the matched groups: needed only when regexp-flag
                 ! non nil.
                 if (last_was_undo .and. regexp_flag) then
                     last_was_undo = .false.
                     real_data = match_data_at(real_data(1), from_string)
                 end if
+
                 ! Matched string and next-replacement-replaced stored in
                 ! stack.
                 call buffer_substring(real_data(1), real_data(2), search_string_replaced, st)
@@ -1290,6 +1401,7 @@ contains
                 ! that clobbers the match data.
                 call set_match_data(real_data)
                 def = query_replace_answer(key)
+
                 select case (def)
                 case (ANSWER_HELP)
                     help_text = "Query replacing "
@@ -1325,11 +1437,13 @@ contains
                         stack_idx = 0
                         stack_len = nstack
                         num_replacements = 0
+
                         do while (stack_idx < stack_len .and. nstack > 0 .and. &
                                   (.not. replaced .or. last_was_act_and_show))
                             elt = stack(nstack - stack_idx)
                             stack_idx = stack_idx + 1
                             replaced = elt%replaced
+
                             ! Bind swapped values (search-string <--> replacement)
                             if (replaced) then
                                 undo_search = elt%next_replace
@@ -1338,14 +1452,17 @@ contains
                                 undo_search = elt%search_str
                                 last_replacement = elt%next_replace
                             end if
+
                             search_string_replaced = undo_search
                             next_replacement_replaced = last_replacement
                             last_was_act_and_show = .false.
+
                             if (stack_idx == stack_len .and. .not. replaced .and. num_replacements == 0) then
                                 call message("Nothing to undo")
                                 call ding()
                                 call sit_for(1000)
                             end if
+
                             if (replaced) then
                                 nstack = nstack - stack_idx
                                 call goto_char(elt%point)
@@ -1356,12 +1473,15 @@ contains
                                 call act(last_replacement, .true.)
                                 if (.not. status%ok()) exit main
                                 replace_count = replace_count - 1
+
                                 if (regexp_flag) then
                                     real_data = match_data_at(match_beginning(0, st), last_replacement)
                                 else
                                     real_data = match_data_at(match_beginning(0, st), regexp_quote(last_replacement))
                                 end if
+
                                 if (regexp_flag) next_replacement = elt%next_replace
+
                                 ! Set replaced nil to keep in loop
                                 if (def == ANSWER_UNDO_ALL) then
                                     replaced = .false.
@@ -1371,6 +1491,7 @@ contains
                                 end if
                             end if
                         end do
+
                         if (def == ANSWER_UNDO_ALL .and. num_replacements /= 0) then
                             if (num_replacements == 1) then
                                 call message("Undid 1 replacement")
@@ -1378,9 +1499,11 @@ contains
                                 call message("Undid "//number_to_string(int(num_replacements, int64))// &
                                              " replacements")
                             end if
+
                             call ding()
                             call sit_for(1000)
                         end if
+
                         replaced = .false.
                         last_was_undo = .true.
                         last_was_act_and_show = .false.
@@ -1391,6 +1514,7 @@ contains
                         if (.not. status%ok()) exit main
                         replace_count = replace_count + 1
                     end if
+
                     done = .true.
                     replaced = .true.
                     update_stack = .not. last_was_act_and_show
@@ -1400,6 +1524,7 @@ contains
                         if (.not. status%ok()) exit main
                         replace_count = replace_count + 1
                     end if
+
                     keep_going = .false.
                     done = .true.
                     replaced = .true.
@@ -1420,6 +1545,7 @@ contains
                         if (.not. status%ok()) exit main
                         replace_count = replace_count + 1
                     end if
+
                     done = .true.
                     querying = .false.
                     replaced = .true.
@@ -1436,18 +1562,22 @@ contains
                     ! save-excursion
                     opoint = point()
                     call recursive_edit_1(status)
+
                     if (.not. status%ok()) then
                         call free_marker(opos, st)
                         exit main
                     end if
+
                     call goto_char(opoint)
                     call marker_position(opos, opoint, st)
                     call goto_char(opoint)
                     call free_marker(opos, st)
+
                     ! Before we make the replacement, decide whether the
                     ! search string can match again just after this match.
                     if (regexp_flag .and. nonempty_match) then
                         again = AGAIN_NIL
+
                         if (looking_at(from_string, st)) then
                             again = AGAIN_DATA
                             again_match = match_data()
@@ -1460,9 +1590,11 @@ contains
                     else
                         call read_string("Edit replacement string: ", edited, status, initial=next_replacement)
                     end if
+
                     if (.not. status%ok()) exit main
                     next_replacement = edited
                     noedit = .false.
+
                     if (replaced) then
                         call set_match_data(real_data)
                     else
@@ -1470,6 +1602,7 @@ contains
                         if (.not. status%ok()) exit main
                         replaced = .true.
                     end if
+
                     next_replacement_replaced = next_replacement
                     done = .true.
                 case (ANSWER_DELETE_AND_EDIT)
@@ -1493,6 +1626,7 @@ contains
                     else
                         call scroll_down(nil(), status)
                     end if
+
                     if (.not. status%ok()) exit main
                 case (ANSWER_QUIT)
                     call set_error(status, FM_QUIT)
@@ -1509,6 +1643,7 @@ contains
                     done = .true.
                 end select
             end do
+
             ! Record previous position for ^ when we move on.
             if (update_stack) call push_stack(stack, nstack, replaced, search_string_replaced, &
                                               next_replacement_replaced, next_replacement, again, again_match)
@@ -1516,17 +1651,22 @@ contains
             if (allocated(search_string_replaced)) deallocate (search_string_replaced)
             last_was_act_and_show = .false.
         end do main
+
         case_fold_search = saved_fold
         if (have_limit) call free_marker(limit_marker, st)
         if (.not. status%ok()) return
+
         if (.not. unread) then
             help_text = "Replaced "//number_to_string(replace_count)//" occurrence"
             if (replace_count /= 1) help_text = help_text//"s"
+
             if (skip_read_only_count > 0) then
                 help_text = help_text//" (skipped "//number_to_string(skip_read_only_count)//" read-only)"
             end if
+
             call message(help_text)
         end if
+
         if (present(result)) result = keep_going .and. nstack > 0
 
     contains
@@ -1538,6 +1678,7 @@ contains
             character(len=*), intent(in) :: text
             logical, intent(in) :: fixedcase
             integer(int64) :: from, to
+
             from = real_data(1)
             to = real_data(2)
             noedit = replace_match_maybe_edit(text, fixedcase, literal, noedit, real_data, status, back)
@@ -1551,8 +1692,10 @@ contains
             type(status_type) :: s
             integer(int64) :: delta
             integer :: k
+
             delta = match_end(0, s) - match_beginning(0, s) - (to - from)
             call adjust(again_match, from, to, delta)
+
             do k = 1, nstack
                 if (.not. stack(k)%replaced) call adjust(stack(k)%data, from, to, delta)
             end do
@@ -1564,8 +1707,10 @@ contains
             integer(int64), intent(inout) :: positions(:)
             integer(int64), intent(in) :: from, to, delta
             integer :: i
+
             do i = 1, size(positions)
                 if (positions(i) <= 0) cycle
+
                 if (positions(i) >= to) then
                     positions(i) = positions(i) + delta
                 else if (positions(i) > from) then
@@ -1578,7 +1723,6 @@ contains
     ! ------------------------------------------------------------------
     ! The commands
     ! ------------------------------------------------------------------
-
     !> Replace some occurrences of FROM_STRING with TO_STRING.
     !> As each match is found, the user must type a character saying
     !> what to do with it.  Type SPC or `y' to replace the match,
@@ -1630,6 +1774,7 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: delimited, backward
         integer(int64), intent(in), optional :: start, end
+
         call perform_replace(from_string, to_string, .true., .false., present_true(delimited), status, &
                              start=start, end=end, backward=backward)
     end subroutine query_replace
@@ -1691,6 +1836,7 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: delimited, backward, counted
         integer(int64), intent(in), optional :: start, end
+
         call perform_replace(regexp, to_string, .true., .true., present_true(delimited), status, &
                              start=start, end=end, backward=backward, counted=counted)
     end subroutine query_replace_regexp
@@ -1724,12 +1870,15 @@ contains
         type(value_type), allocatable :: items(:), grown(:)
         character(len=:), allocatable :: rest
         integer :: at
+
         allocate (items(0))
         rest = to_strings
+
         do while (len(rest) /= 0)
             at = index(rest, " ")
             allocate (grown(size(items) + 1))
             grown(1:size(items)) = items
+
             if (at > 0) then
                 grown(size(grown)) = make_string(rest(1:at - 1))
                 rest = rest(at + 1:)
@@ -1737,8 +1886,10 @@ contains
                 grown(size(grown)) = make_string(rest)
                 rest = ""
             end if
+
             call move_alloc(grown, items)
         end do
+
         call perform_replace(regexp, "", .true., .true., .false., status, repeat_count=n, start=start, end=end, &
                              replacement_list=make_list(items))
     end subroutine map_query_replace_regexp
@@ -1781,6 +1932,7 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: delimited, backward
         integer(int64), intent(in), optional :: start, end
+
         call perform_replace(from_string, to_string, .false., .false., present_true(delimited), status, &
                              start=start, end=end, backward=backward)
     end subroutine replace_string
@@ -1834,6 +1986,7 @@ contains
         logical, intent(in), optional :: delimited, backward, counted
         integer(int64), intent(in), optional :: start, end
         procedure(replacement_function), optional :: replacement_fn
+
         call perform_replace(regexp, to_string, .false., .true., present_true(delimited), status, &
                              start=start, end=end, backward=backward, counted=counted, &
                              replacement_fn=replacement_fn)
@@ -1881,11 +2034,13 @@ contains
         integer(int64) :: limit, found, beg, shortage
         logical :: inter, saved_fold
         type(status_type) :: st
+
         count = 0
         status = status_type()
         inter = .false.
         if (present(interactive)) inter = interactive
         call make_marker(end_marker)
+
         if (present(rstart) .and. present(rend)) then
             call goto_char(min(rstart, rend))
             call set_marker(end_marker, max(rstart, rend), st)
@@ -1897,12 +2052,16 @@ contains
         else
             call set_marker(end_marker, point_max(), st)
         end if
+
         saved_fold = case_fold_search%value
+
         if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NIL) then
             case_fold_search%value = isearch_no_upper_case_p(regexp, .true.)
         end if
+
         call make_marker(opoint)
         call set_marker(opoint, point(), st)
+
         do
             call marker_position(end_marker, limit, st)
             if (point() >= limit) exit
@@ -1917,12 +2076,14 @@ contains
             if (.not. status%ok()) exit
             count = count + 1
         end do
+
         case_fold_search%value = saved_fold
         call marker_position(opoint, beg, st)
         call goto_char(beg)
         call free_marker(opoint, st)
         call free_marker(end_marker, st)
         if (.not. status%ok()) return
+
         if (inter) then
             if (count == 1) then
                 call message("Deleted 1 matching line")
@@ -1937,7 +2098,9 @@ contains
     function command_prompt(base, what) result(prompt)
         character(len=*), intent(in) :: base, what
         character(len=:), allocatable :: prompt
+
         prompt = base
+
         if (.not. nilp(current_prefix_arg)) then
             if (value_eq(current_prefix_arg, sym("-"))) then
                 prompt = prompt//" backward"
@@ -1945,6 +2108,7 @@ contains
                 prompt = prompt//" word"
             end if
         end if
+
         prompt = prompt//what
         if (use_region_p()) prompt = prompt//" in region"
     end function command_prompt
@@ -1959,9 +2123,11 @@ contains
         logical :: delimited, backward, counted
         integer(int64) :: b, e
         type(status_type) :: st
+
         call query_replace_read_args(command_prompt(base, what), regexp_flag, from, to, delimited, backward, &
                                      counted, status)
         if (.not. status%ok()) return
+
         if (use_region_p()) then
             call region_beginning(b, st)
             call region_end(e, st)
@@ -1975,21 +2141,25 @@ contains
 
     recursive subroutine cmd_query_replace(status)
         type(status_type), intent(out) :: status
+
         call run_command("Query replace", "", .false., .true., status)
     end subroutine cmd_query_replace
 
     recursive subroutine cmd_query_replace_regexp(status)
         type(status_type), intent(out) :: status
+
         call run_command("Query replace", " regexp", .true., .true., status)
     end subroutine cmd_query_replace_regexp
 
     recursive subroutine cmd_replace_string(status)
         type(status_type), intent(out) :: status
+
         call run_command("Replace", " string", .false., .false., status)
     end subroutine cmd_replace_string
 
     recursive subroutine cmd_replace_regexp(status)
         type(status_type), intent(out) :: status
+
         call run_command("Replace", " regexp", .true., .false., status)
     end subroutine cmd_replace_regexp
 
@@ -1998,14 +2168,17 @@ contains
         character(len=:), allocatable :: from, to
         integer(int64) :: b, e
         type(status_type) :: st
+
         call read_regexp("Map query replace (regexp): ", from, status, history=query_replace_from_history_variable)
         if (.not. status%ok()) return
         call read_from_minibuffer("Query replace "//query_replace_descr(from)//" with (space-separated strings): ", &
                                   to, status, history=query_replace_to_history_variable, default=from)
         if (.not. status%ok()) return
+
         if (use_region_p()) then
             call region_beginning(b, st)
             call region_end(e, st)
+
             if (nilp(current_prefix_arg)) then
                 call map_query_replace_regexp(from, to, status, start=b, end=e)
             else
@@ -2025,6 +2198,7 @@ contains
                               DARK = FACE_BACKGROUND_DARK
         type(status_type) :: st
         type(value_type) :: history
+
         ! (faces.el is loaded before replace.el.)
         call init_faces()
         call match%define("match", "Face used to highlight matches permanently.")
@@ -2053,23 +2227,26 @@ contains
         commands%replace_string%run => cmd_replace_string
         commands%replace_regexp%run => cmd_replace_regexp
     end subroutine syms_of_replace
+
     ! ------------------------------------------------------------------
     ! keep-lines and friends
     ! ------------------------------------------------------------------
-
     !> The regexp argument of `keep_lines' and friends: read with PROMPT.
     !> Port of replace.el:keep-lines-read-args.
     recursive subroutine keep_lines_read_args(prompt, regexp, status)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: regexp
         type(status_type), intent(out) :: status
+
         call read_regexp(prompt, regexp, status)
     end subroutine keep_lines_read_args
 
     !> The case-fold-search of the keep-lines commands for REGEXP.
     logical function lines_case_fold(regexp) result(fold)
         character(len=*), intent(in) :: regexp
+
         fold = case_fold_search%value
+
         if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NIL) then
             fold = isearch_no_upper_case_p(regexp, .true.)
         end if
@@ -2109,10 +2286,12 @@ contains
         type(status_type) :: st
         integer(int64) :: start, end, limit, found, opoint, pos, shortage
         logical :: inter, saved_fold
+
         status = status_type()
         inter = .false.
         if (present(interactive)) inter = interactive
         call make_marker(rend_m)
+
         if (present(rstart) .and. present(rend)) then
             call goto_char(min(rstart, rend))
             opoint = point()
@@ -2130,17 +2309,20 @@ contains
         else
             call set_marker(rend_m, point_max(), st)
         end if
+
         opoint = point()
         if (.not. bolp()) shortage = forward_line(1_int64)
         start = point()
         saved_fold = case_fold_search%value
         case_fold_search = lines_case_fold(regexp)
+
         do
             call marker_position(rend_m, limit, st)
             if (point() >= limit) exit
             ! Start is first char not preserved by previous match.
             call re_search_forward(regexp, found, status, bound=limit, noerror=SEARCH_MOVE)
             if (.not. status%ok()) exit
+
             if (found == 0) then
                 call delete_region(start, limit, status)
             else
@@ -2152,6 +2334,7 @@ contains
                 ! Now end is first char preserved by the new match.
                 if (start < end) call delete_region(start, end, status)
             end if
+
             if (.not. status%ok()) exit
             pos = point()
             shortage = forward_line(1_int64)
@@ -2161,6 +2344,7 @@ contains
             call marker_position(rend_m, limit, st)
             if (point() < limit .and. match_beginning(0, st) == match_end(0, st)) call goto_char(point() + 1)
         end do
+
         case_fold_search = saved_fold
         call goto_char(min(opoint, point_max()))
         call free_marker(rend_m, st)
@@ -2173,6 +2357,7 @@ contains
     recursive subroutine cmd_keep_lines(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: regexp
+
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
         call keep_lines_read_args("Keep lines containing match for regexp", regexp, status)
@@ -2187,6 +2372,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: regexp
         integer(int64) :: count
+
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
         call keep_lines_read_args("Flush lines containing match for regexp", regexp, status)
@@ -2201,7 +2387,9 @@ contains
         logical, intent(in) :: inter
         type(status_type) :: st
         integer(int64) :: pos
+
         call make_marker(rend_m)
+
         if (present(rstart) .and. present(rend)) then
             call goto_char(min(rstart, rend))
             call set_marker(rend_m, max(rstart, rend), st)
@@ -2229,6 +2417,7 @@ contains
         type(status_type) :: st
         integer(int64) :: limit, found, beg, shortage
         logical :: saved_fold
+
         count = 0
         status = status_type()
         call lines_bounds(rend_m, rstart, rend, inter)
@@ -2236,6 +2425,7 @@ contains
         case_fold_search = lines_case_fold(regexp)
         call make_marker(opoint)
         call set_marker(opoint, point(), st)
+
         do
             call marker_position(rend_m, limit, st)
             if (point() >= limit) exit
@@ -2247,14 +2437,17 @@ contains
             beg = point()
             call goto_char(match_end(0, st))
             shortage = forward_line(1_int64)
+
             if (copy) then
                 call copy_region_as_kill(beg, point(), status)
             else
                 call kill_region(beg, point(), status)
             end if
+
             if (.not. status%ok()) exit
             count = count + 1
         end do
+
         case_fold_search = saved_fold
         call marker_position(opoint, beg, st)
         call goto_char(beg)
@@ -2299,6 +2492,7 @@ contains
         integer(int64), intent(in), optional :: rstart, rend
         logical, intent(in), optional :: interactive
         logical :: inter
+
         inter = .false.
         if (present(interactive)) inter = interactive
         call kill_or_copy_matching_lines(regexp, .false., count, status, rstart, rend, inter)
@@ -2337,6 +2531,7 @@ contains
         integer(int64), intent(in), optional :: rstart, rend
         logical, intent(in), optional :: interactive
         logical :: inter
+
         inter = .false.
         if (present(interactive)) inter = interactive
         call kill_or_copy_matching_lines(regexp, .true., count, status, rstart, rend, inter)
@@ -2348,6 +2543,7 @@ contains
         integer(int64), intent(in) :: n
         character(len=*), intent(in) :: verb, noun
         character(len=:), allocatable :: text
+
         text = verb//" "//number_to_string(n)//" "//noun
         if (n /= 1) text = text//"s"
     end function plural
@@ -2360,6 +2556,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: regexp
         integer(int64) :: count
+
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
         call keep_lines_read_args("Kill lines containing match for regexp", regexp, status)
@@ -2374,6 +2571,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: regexp
         integer(int64) :: count
+
         call keep_lines_read_args("Copy lines containing match for regexp", regexp, status)
         if (status%ok()) call copy_matching_lines(regexp, count, status, interactive=.true.)
     end subroutine cmd_copy_matching_lines
@@ -2407,11 +2605,13 @@ contains
         type(status_type) :: st
         integer(int64) :: limit, found, opoint, pos
         logical :: inter, saved_fold
+
         count = 0
         status = status_type()
         inter = .false.
         if (present(interactive)) inter = interactive
         opoint = point()
+
         if (present(rstart)) then
             if (present(rend)) then
                 call goto_char(min(rstart, rend))
@@ -2427,8 +2627,10 @@ contains
         else
             limit = point_max()
         end if
+
         saved_fold = case_fold_search%value
         case_fold_search = lines_case_fold(regexp)
+
         do while (point() < limit)
             call re_search_forward(regexp, found, status, bound=limit, noerror=SEARCH_NOERROR)
             if (.not. status%ok() .or. found == 0) exit
@@ -2436,8 +2638,10 @@ contains
             if (match_beginning(0, st) == match_end(0, st) .and. .not. eobp()) call goto_char(point() + 1)
             count = count + 1
         end do
+
         case_fold_search = saved_fold
         call goto_char(opoint)
+
         if (status%ok() .and. inter) then
             if (count == 1) then
                 call message("1 occurrence")
@@ -2455,6 +2659,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: regexp
         integer(int64) :: count
+
         call keep_lines_read_args("How many matches for regexp", regexp, status)
         if (status%ok()) call how_many(regexp, count, status, interactive=.true.)
     end subroutine cmd_how_many
@@ -2462,9 +2667,9 @@ contains
     ! ------------------------------------------------------------------
     ! Occur buffers
     ! ------------------------------------------------------------------
-
     logical function same_buffer_handle(a, b)
         type(handle_type), intent(in) :: a, b
+
         same_buffer_handle = a%index == b%index .and. a%generation == b%generation
     end function same_buffer_handle
 
@@ -2475,12 +2680,16 @@ contains
         logical, intent(in) :: create
         type(occur_buffer_type), allocatable :: grown(:)
         integer :: n
+
         if (.not. allocated(occur_buffers)) allocate (occur_buffers(0))
+
         do k = 1, size(occur_buffers)
             if (same_buffer_handle(occur_buffers(k)%buffer, h)) return
         end do
+
         k = 0
         if (.not. create) return
+
         do k = 1, size(occur_buffers)
             if (.not. buffer_live_p(occur_buffers(k)%buffer)) then
                 call occur_reset_entry(k)
@@ -2488,11 +2697,14 @@ contains
                 return
             end if
         end do
+
         n = size(occur_buffers)
         allocate (grown(n + 1))
+
         do k = 1, n
             grown(k) = occur_buffers(k)
         end do
+
         grown(n + 1)%buffer = h
         call move_alloc(grown, occur_buffers)
         k = n + 1
@@ -2503,14 +2715,18 @@ contains
         integer, intent(in) :: k
         type(status_type) :: st
         integer :: i, j
+
         if (.not. allocated(occur_buffers(k)%targets)) return
+
         do i = 1, occur_buffers(k)%ntargets
             if (.not. allocated(occur_buffers(k)%targets(i)%beg)) cycle
+
             do j = 1, size(occur_buffers(k)%targets(i)%beg)
                 call free_marker(occur_buffers(k)%targets(i)%beg(j), st)
                 call free_marker(occur_buffers(k)%targets(i)%end(j), st)
             end do
         end do
+
         deallocate (occur_buffers(k)%targets)
         occur_buffers(k)%ntargets = 0
     end subroutine occur_free_targets
@@ -2520,6 +2736,7 @@ contains
         type(occur_source_type), intent(inout) :: sources(:)
         type(status_type) :: st
         integer :: i
+
         do i = 1, size(sources)
             if (.not. sources(i)%region) cycle
             if (sources(i)%start%index /= 0) call free_marker(sources(i)%start, st)
@@ -2531,6 +2748,7 @@ contains
     subroutine occur_reset_entry(k)
         integer, intent(in) :: k
         type(occur_buffer_type) :: empty
+
         call occur_free_targets(k)
         if (allocated(occur_buffers(k)%sources)) call occur_free_sources(occur_buffers(k)%sources)
         occur_buffers(k) = empty
@@ -2541,6 +2759,7 @@ contains
     recursive subroutine occur_garbage_collect_revert_args(status)
         type(status_type), intent(out) :: status
         integer :: k
+
         status = status_type()
         k = occur_entry(current_buffer(), .false.)
         if (k /= 0) call occur_reset_entry(k)
@@ -2553,17 +2772,22 @@ contains
         type(handle_type), intent(in) :: beg(:), end(:)
         type(occur_target_type), allocatable :: grown(:)
         integer :: k, n, i
+
         k = occur_entry(current_buffer(), .true.)
         if (.not. allocated(occur_buffers(k)%targets)) allocate (occur_buffers(k)%targets(16))
         n = occur_buffers(k)%ntargets
+
         if (n == size(occur_buffers(k)%targets)) then
             allocate (grown(2*n))
+
             do i = 1, n
                 call move_alloc(occur_buffers(k)%targets(i)%beg, grown(i)%beg)
                 call move_alloc(occur_buffers(k)%targets(i)%end, grown(i)%end)
             end do
+
             call move_alloc(grown, occur_buffers(k)%targets)
         end if
+
         n = n + 1
         occur_buffers(k)%targets(n)%beg = beg
         occur_buffers(k)%targets(n)%end = end
@@ -2574,7 +2798,6 @@ contains
     ! ------------------------------------------------------------------
     ! Occur mode
     ! ------------------------------------------------------------------
-
     !> Major mode for output from \[occur].
     !> \<occur_mode_map>Move point to one of the items in this buffer,
     !> then use \[occur_mode_goto_occurrence] to go to the occurrence that
@@ -2585,6 +2808,7 @@ contains
     recursive subroutine occur_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
+
         call major_modes%occur_mode%begin(saved, status)
         if (.not. status%ok()) return
         call occur_mode_body()
@@ -2609,6 +2833,7 @@ contains
     recursive subroutine occur_edit_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
+
         call major_modes%occur_edit_mode%begin(saved, status)
         if (.not. status%ok()) return
         buffers(cur)%read_only = .false.
@@ -2621,7 +2846,9 @@ contains
     !> replace.el:occur-cease-edit.
     recursive subroutine occur_cease_edit(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
+
         if (derived_mode_p(major_modes%occur_edit_mode)) then
             call occur_mode(status)
             if (status%ok()) call message("Switching to Occur mode.")
@@ -2635,6 +2862,7 @@ contains
         type(value_type) :: v
         type(status_type) :: st
         integer :: k
+
         idx = 0
         call get_text_property(pos, sym("occur_target"), v, st)
         if (.not. fixnump(v)) return
@@ -2652,15 +2880,19 @@ contains
         type(status_type), intent(out) :: status
         type(status_type) :: st
         integer :: idx, k
+
         status = status_type()
         idx = target_at(point())
+
         if (idx == 0) then
             call set_error(status, FM_GENERIC_ERROR, "No occurrence on this line")
             return
         end if
+
         k = occur_entry(current_buffer(), .false.)
         marker = occur_buffers(k)%targets(idx)%beg(1)
         call marker_buffer(marker, buffer, st)
+
         if (.not. buffer_live_p(buffer)) then
             call set_error(status, FM_GENERIC_ERROR, "Buffer for this occurrence was killed")
         end if
@@ -2672,6 +2904,7 @@ contains
         type(handle_type), intent(out) :: marker
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer
+
         call occur_mode_find_occurrences(marker, buffer, status)
     end subroutine occur_mode_find_occurrence
 
@@ -2683,6 +2916,7 @@ contains
         type(handle_type) :: marker, buffer
         type(status_type) :: st
         integer(int64) :: pos
+
         call occur_mode_find_occurrences(marker, buffer, status)
         if (.not. status%ok()) return
         call pop_to_buffer(buffer, status)
@@ -2703,6 +2937,7 @@ contains
         type(handle_type) :: marker, buffer, occur_buf
         type(status_type) :: st
         integer(int64) :: pos
+
         occur_buf = current_buffer()
         call occur_mode_find_occurrences(marker, buffer, status)
         if (.not. status%ok()) return
@@ -2722,6 +2957,7 @@ contains
         type(display_alist_type) :: alist
         type(status_type) :: st
         integer(int64) :: pos
+
         occur_buf = current_buffer()
         call occur_mode_find_occurrences(marker, buffer, status)
         if (.not. status%ok()) return
@@ -2751,22 +2987,29 @@ contains
         type(status_type) :: st
         integer(int64) :: r, r1, i
         logical :: found
+
         status = status_type()
+
         do i = 1, n
             call search(point(), r, found)
+
             if (found) then
                 call get_text_property(r, sym("occur_match"), v, st)
+
                 if (.not. nilp(v)) then
                     r1 = r
                     call search(r1, r, found)
                 end if
             end if
+
             if (.not. found) then
                 call set_error(status, FM_USER_ERROR, msg)
                 return
             end if
+
             call goto_char(r)
         end do
+
     contains
 
         subroutine search(from, to, ok)
@@ -2774,11 +3017,13 @@ contains
             integer(int64), intent(out) :: to
             logical, intent(out) :: ok
             type(status_type) :: s
+
             if (forward) then
                 call next_single_property_change(from, sym("occur_match"), to, ok, s)
             else
                 call previous_single_property_change(from, sym("occur_match"), to, ok, s)
             end if
+
             if (.not. s%ok()) ok = .false.
         end subroutine search
     end subroutine occur_find_match
@@ -2787,6 +3032,7 @@ contains
     !> Port of replace.el:occur-next.
     recursive subroutine occur_next(status)
         type(status_type), intent(out) :: status
+
         call occur_find_match(prefix_numeric_value(current_prefix_arg), .true., "No more matches", status)
     end subroutine occur_next
 
@@ -2794,6 +3040,7 @@ contains
     !> Port of replace.el:occur-prev.
     recursive subroutine occur_prev(status)
         type(status_type), intent(out) :: status
+
         call occur_find_match(prefix_numeric_value(current_prefix_arg), .false., "No earlier matches", status)
     end subroutine occur_prev
 
@@ -2807,6 +3054,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: win
         type(status_type) :: st
+
         if (reset) then
             call goto_char(point_min())
         else if (n < 0) then
@@ -2814,6 +3062,7 @@ contains
         else if (n > 0) then
             call goto_char(line_end_position())
         end if
+
         call occur_find_match(abs(n), n >= 0, "No more matches", status)
         if (.not. status%ok()) return
         ! In case the *Occur* buffer is visible in a nonselected window.
@@ -2832,6 +3081,7 @@ contains
         logical :: has_nlines, has_collect
         integer(int64) :: nlines
         integer :: k
+
         status = status_type()
         if (ignore_auto .or. noconfirm) continue
         k = occur_entry(current_buffer(), .false.)
@@ -2844,6 +3094,7 @@ contains
         if (has_collect) collect = occur_buffers(k)%collect
         sources = occur_buffers(k)%sources
         name = buffers(cur)%name
+
         if (has_collect) then
             call occur_1(regexp, has_nlines, nlines, sources, status, name, collect)
         else
@@ -2865,24 +3116,29 @@ contains
                           found, reached
         logical :: readonly, ok
         integer :: idx, k
+
         status = status_type()
         opoint = point()
         call goto_char(beg)
         line_beg = line_beginning_position()
         idx = target_at(line_beg)
+
         if (idx == 0) then
             call goto_char(opoint)
             return
         end if
+
         k = occur_entry(current_buffer(), .false.)
         m = occur_buffers(k)%targets(idx)%beg(1)
         call marker_buffer(m, buf, st)
         call get_text_property(line_beg, sym("occur_prefix"), prefix_beg, st)
         call get_text_property(end, sym("occur_prefix"), prefix_end, st)
+
         if (nilp(prefix_beg) .or. .not. nilp(prefix_end) .or. .not. buffer_live_p(buf)) then
             call goto_char(opoint)
             return
         end if
+
         if (old_len == 0) then
             ! Apply occur-target property to inserted (e.g. yanked) text.
             call put_text_property(beg, end, sym("occur_target"), make_fixnum(int(idx, int64)), st)
@@ -2893,15 +3149,18 @@ contains
             if (found /= 0) call delete_region(point() - 1, end, st)
             call goto_char(pos)
         end if
+
         line = line_number_at_pos() - line_number_at_pos(window_start(windows(selected_frame%selected_window%index)))
         readonly = buffers(buf%index)%read_only
         occur_buf = current_buffer()
         win = get_buffer_window(buf)
+
         if (win%index == 0) then
             alist%inhibit_same_window = .true.
             call display_buffer(buf, win, st, alist=alist)
             call set_buffer(occur_buf, st)
         end if
+
         ! (save-excursion: the display may have moved point.)
         call goto_char(beg)
         line_end = line_end_position()
@@ -2917,6 +3176,7 @@ contains
         call marker_position(m, pos, st)
         call goto_char(pos)
         call recenter(make_fixnum(line), .false., st)
+
         if (readonly) then
             call message("Buffer `"//buffers(buf%index)%name//"' is read only.")
         else
@@ -2935,9 +3195,11 @@ contains
             call goto_char(beg_pos)
             call insert(text, st)
         end if
+
         call move_to_column(col, reached, .false., st)
         call select_window(old_window, st)
         call set_buffer(occur_buf, st)
+
     contains
 
         !> The length in bytes of the common prefix of S1 and S2, whole
@@ -2945,11 +3207,14 @@ contains
         integer function common_prefix(s1, s2) result(n)
             character(len=*), intent(in) :: s1, s2
             integer :: i
+
             n = 0
+
             do i = 1, min(len(s1), len(s2))
                 if (s1(i:i) /= s2(i:i)) exit
                 n = i
             end do
+
             ! Back to a character boundary.
             do while (n > 0 .and. n < len(s1))
                 if (iand(iachar(s1(n + 1:n + 1)), 192) /= 128) exit
@@ -2965,6 +3230,7 @@ contains
             character(len=*), intent(in) :: s
             character(len=len(s)) :: r
             integer :: i
+
             do i = 1, len(s)
                 r(i:i) = s(len(s) - i + 1:len(s) - i + 1)
             end do
@@ -2973,7 +3239,9 @@ contains
         integer(int64) function chars_of(s) result(c)
             character(len=*), intent(in) :: s
             integer :: i
+
             c = 0
+
             do i = 1, len(s)
                 if (iand(iachar(s(i:i)), 192) /= 128) c = c + 1
             end do
@@ -2983,7 +3251,6 @@ contains
     ! ------------------------------------------------------------------
     ! occur
     ! ------------------------------------------------------------------
-
     !> The arguments of `occur' read interactively: the REGEXP, and the
     !> COLLECT regexp with C-u (HAS_COLLECT), else NLINES from a numeric
     !> prefix (HAS_NLINES).  Port of replace.el:occur-read-primary-args.
@@ -2997,26 +3264,32 @@ contains
         character(len=:), allocatable :: head, default
         logical :: found
         integer :: depth
+
         has_collect = consp(current_prefix_arg)
         has_nlines = .false.
         nlines = 0
         ! 'regexp-history-last.
         call history_head("regexp_history", head, found)
+
         if (found) then
             allocate (defaults(1))
             defaults(1)%s = head
         else
             allocate (defaults(0))
         end if
+
         if (has_collect) then
             call read_regexp("Collect strings matching regexp", regexp, status, defaults)
         else
             call read_regexp("List lines matching regexp", regexp, status, defaults)
         end if
+
         if (.not. status%ok()) return
+
         if (has_collect) then
             ! Perform collect operation.
             depth = regexp_opt_depth(regexp, st)
+
             if (depth == 0) then
                 ! No subexpression so collect the entire match.
                 collect = "\&"
@@ -3095,9 +3368,11 @@ contains
         character(len=*), intent(in), optional :: collect
         type(occur_source_type) :: sources(1)
         integer(int64) :: n
+
         n = 0
         if (present(nlines)) n = nlines
         sources(1)%buffer = current_buffer()
+
         if (present(collect)) then
             call occur_1(regexp, present(nlines), n, sources, status, collect=collect)
         else
@@ -3116,6 +3391,7 @@ contains
         type(occur_source_type) :: sources(1)
         type(status_type) :: st
         integer(int64) :: n
+
         n = 0
         if (present(nlines)) n = nlines
         sources(1)%buffer = current_buffer()
@@ -3123,6 +3399,7 @@ contains
         call copy_marker_at(max(start, point_min()), sources(1)%start, .false., st)
         call copy_marker_at(min(end, point_max()), sources(1)%end, .false., st)
         sources(1)%orig_point = point()
+
         if (present(collect)) then
             call occur_1(regexp, present(nlines), n, sources, status, collect=collect)
         else
@@ -3141,11 +3418,14 @@ contains
         logical :: has_nlines, has_collect
         integer(int64) :: nlines, b, e
         type(status_type) :: st
+
         call occur_read_primary_args(regexp, has_nlines, nlines, has_collect, collect, status)
         if (.not. status%ok()) return
+
         if (use_region_p()) then
             call region_beginning(b, st)
             call region_end(e, st)
+
             if (has_collect) then
                 call occur_in_region(regexp, b, e, status, collect=collect)
             else if (has_nlines) then
@@ -3179,12 +3459,15 @@ contains
         type(occur_source_type), allocatable :: sources(:)
         integer(int64) :: n
         integer :: i
+
         n = 0
         if (present(nlines)) n = nlines
         allocate (sources(size(bufs)))
+
         do i = 1, size(bufs)
             sources(i)%buffer = bufs(i)
         end do
+
         if (present(collect)) then
             call occur_1(regexp, present(nlines), n, sources, status, collect=collect)
         else
@@ -3205,25 +3488,33 @@ contains
         logical :: has_nlines, has_collect, dup
         integer(int64) :: nlines
         integer :: i
+
         call read_buffer("First buffer to search: ", name, status, buffers(cur)%name, REQUIRE_MATCH_T)
         if (.not. status%ok()) return
         names = [character(len=64) :: name]
+
         do
             call read_buffer("Next buffer to search (RET to end): ", name, status, require_match=REQUIRE_MATCH_T)
             if (.not. status%ok()) return
             if (len(name) == 0) exit
             dup = .false.
+
             do i = 1, size(names)
                 if (trim(names(i)) == name) dup = .true.
             end do
+
             if (.not. dup) names = [character(len=64) :: names, name]
         end do
+
         allocate (bufs(size(names)))
+
         do i = 1, size(names)
             bufs(i) = get_buffer(trim(names(i)))
         end do
+
         call occur_read_primary_args(regexp, has_nlines, nlines, has_collect, collect, status)
         if (.not. status%ok()) return
+
         if (has_collect) then
             call multi_occur(bufs, regexp, status, collect=collect)
         else if (has_nlines) then
@@ -3250,26 +3541,31 @@ contains
         type(status_type) :: st
         logical :: by_name, keep
         integer :: i, n
+
         status = status_type()
         by_name = .false.
         if (present(allbufs)) by_name = allbufs
         all = buffer_list()
         allocate (chosen(size(all)))
         n = 0
+
         do i = 1, size(all)
             if (by_name) then
                 keep = string_match(bufregexp, buffers(all(i)%index)%name, st) /= 0
             else
                 keep = .false.
+
                 if (allocated(buffers(all(i)%index)%filename)) then
                     keep = string_match(bufregexp, buffers(all(i)%index)%filename, st) /= 0
                 end if
             end if
+
             if (keep) then
                 n = n + 1
                 chosen(n) = all(i)
             end if
         end do
+
         if (present(collect)) then
             call multi_occur(chosen(:n), regexp, status, collect=collect)
         else
@@ -3289,16 +3585,20 @@ contains
         character(len=:), allocatable :: bufregexp, regexp, collect, default
         logical :: has_nlines, has_collect, found
         integer(int64) :: nlines
+
         call history_head("regexp_history", default, found)
+
         if (.not. nilp(current_prefix_arg)) then
             call read_regexp("List lines in buffers whose names match regexp: ", bufregexp, status)
         else
             call read_regexp("List lines in buffers whose filenames match regexp: ", bufregexp, status)
         end if
+
         if (.not. status%ok()) return
         if (len(bufregexp) == 0 .and. found) bufregexp = default
         call occur_read_primary_args(regexp, has_nlines, nlines, has_collect, collect, status)
         if (.not. status%ok()) return
+
         if (has_collect) then
             call multi_occur_in_matching_buffers(bufregexp, regexp, status,.not. nilp(current_prefix_arg), &
                                                  collect=collect)
@@ -3324,31 +3624,37 @@ contains
         character(len=:), allocatable :: name, actual
         logical :: unique, inter
         integer :: k, i
+
         status = status_type()
         unique = .false.
         if (present(unique_p)) unique = unique_p
         inter = .false.
         if (present(interactive_p)) inter = interactive_p
         old = current_buffer()
+
         if (buffers(cur)%major_mode == "occur_mode") then
             buf = current_buffer()
         else
             buf = get_buffer("*Occur*")
         end if
+
         if (.not. buffer_live_p(buf)) return
         call set_buffer(buf, st)
         name = "*Occur: "
         k = occur_entry(buf, .false.)
+
         if (k /= 0) then
             if (allocated(occur_buffers(k)%sources)) then
                 do i = 1, size(occur_buffers(k)%sources)
                     if (i > 1) name = name//"/"
+
                     if (buffer_live_p(occur_buffers(k)%sources(i)%buffer)) then
                         name = name//buffers(occur_buffers(k)%sources(i)%buffer%index)%name
                     end if
                 end do
             end if
         end if
+
         name = name//"*"
         call rename_buffer(name, unique .or. .not. inter, actual, status)
         call set_buffer(old, st)
@@ -3360,6 +3666,7 @@ contains
     !> Rename the current *Occur* buffer to *Occur: original-buffer-name*.
     recursive subroutine cmd_occur_rename_buffer(status)
         type(status_type), intent(out) :: status
+
         call occur_rename_buffer(status,.not. nilp(current_prefix_arg), .true.)
     end subroutine cmd_occur_rename_buffer
 
@@ -3371,6 +3678,7 @@ contains
     function occur_regexp_descr(regexp) result(descr)
         character(len=*), intent(in) :: regexp
         character(len=:), allocatable :: descr
+
         descr = " for """//regexp//""""
     end function occur_regexp_descr
 
@@ -3383,11 +3691,14 @@ contains
         character(len=:), allocatable :: text
         integer(int64) :: p
         integer :: i, c
+
         call buffer_substring(b, e, text, st)
         p = b
+
         do i = 1, len(text)
             c = iachar(text(i:i))
             if (iand(c, 192) == 128) cycle
+
             if (c < 32) then
                 call put_prop(p, p + 1, "display", propertize(make_string("^"//achar(c + 64)), &
                                                               list(sym("face"), sym("escape_glyph"))))
@@ -3395,6 +3706,7 @@ contains
                 call put_prop(p, p + 1, "display", propertize(make_string("^?"), &
                                                               list(sym("face"), sym("escape_glyph"))))
             end if
+
             p = p + 1
         end do
     end subroutine descr_display
@@ -3406,9 +3718,11 @@ contains
         type(occur_source_type), allocatable :: active(:)
         logical :: live(size(sources))
         integer :: i
+
         do i = 1, size(sources)
             live(i) = buffer_live_p(sources(i)%buffer)
         end do
+
         active = pack(sources, live)
     end function active_sources
 
@@ -3430,17 +3744,21 @@ contains
         integer(int64) :: count, n, found, limit
         logical :: saved_undo, fold, same, saved_fold
         integer :: i, k, bufcount, diff
+
         status = status_type()
+
         if (len(regexp) == 0) then
             call set_error(status, FM_GENERIC_ERROR, "Occur doesn't work with the empty regexp")
             return
         end if
+
         name = "*Occur*"
         if (present(buf_name)) name = buf_name
         active = active_sources(sources)
         old = current_buffer()
         dir = ""
         if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+
         ! Handle the case where one of the buffers we're searching is the
         ! output buffer.  Just rename it.
         do i = 1, size(active)
@@ -3451,6 +3769,7 @@ contains
                 exit
             end if
         end do
+
         ! Now find or create the output buffer.  If we just renamed that
         ! buffer, we will make a new one here.
         call get_buffer_create(name, occur_buf, status)
@@ -3459,16 +3778,19 @@ contains
         ! Make the default-directory of the *Occur* buffer match that of the
         ! buffer where the occurrences come from.
         buffers(cur)%directory = dir
+
         if (present(collect)) then
             ! This is for collect operation.
             call fundamental_mode(status)
         else
             call occur_mode(status)
         end if
+
         if (.not. status%ok()) then
             call set_buffer(old, st)
             return
         end if
+
         call symbol_value(sym("inhibit_read_only"), inhibit, st)
         call set(sym("inhibit_read_only"), t_value(), st)
         ! Don't generate undo entries for creation of the initial contents.
@@ -3479,11 +3801,13 @@ contains
         k = occur_entry(occur_buf, .true.)
         call occur_free_targets(k)
         count = 0
+
         if (present(collect)) then
             ! Treat nlines as a regexp to collect.
             do i = 1, size(active)
                 call set_buffer(active(i)%buffer, st)
                 n = point()
+
                 if (active(i)%region) then
                     call marker_position(active(i)%start, limit, st)
                     call goto_char(limit)
@@ -3492,6 +3816,7 @@ contains
                     call goto_char(point_min())
                     limit = point_max()
                 end if
+
                 do
                     call re_search_forward(regexp, found, st, bound=limit, noerror=SEARCH_NOERROR)
                     if (.not. st%ok() .or. found == 0) exit
@@ -3504,8 +3829,10 @@ contains
                     if (current_column() /= 0) call insert(LF, st)
                     call set_buffer(active(i)%buffer, st)
                 end do
+
                 call goto_char(n)
             end do
+
             call set_buffer(occur_buf, st)
         else
             ! Perform normal occur.
@@ -3514,16 +3841,21 @@ contains
             else
                 n = list_matching_lines_default_context_lines
             end if
+
             call set_buffer(old, st)
             fold = case_fold_search%value
+
             if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NIL) then
                 fold = isearch_no_upper_case_p(regexp, .true.)
             end if
+
             call set_buffer(occur_buf, st)
             saved_fold = .false.
+
             if (len(list_matching_lines_prefix_face) > 0) then
                 saved_fold = face_differs_from_default_p(list_matching_lines_prefix_face)
             end if
+
             if (saved_fold) then
                 call occur_engine(regexp, active, occur_buf, n, fold, list_matching_lines_buffer_name_face, &
                                   list_matching_lines_prefix_face, list_matching_lines_face, &
@@ -3532,26 +3864,32 @@ contains
                 call occur_engine(regexp, active, occur_buf, n, fold, list_matching_lines_buffer_name_face, "", &
                                   list_matching_lines_face,.not. occur_excluded_properties_all, count)
             end if
+
             call set_buffer(occur_buf, st)
         end if
+
         bufcount = size(active)
         diff = size(sources) - bufcount
         text = "Searched "//number_to_string(int(bufcount, int64))//" buffer"
         if (bufcount /= 1) text = text//"s"
         if (diff /= 0) text = text//" ("//number_to_string(int(diff, int64))//" killed)"
         text = text//"; "
+
         if (count == 0) then
             text = text//"no"
         else
             text = text//number_to_string(count)
         end if
+
         text = text//" match"
         if (count /= 1) text = text//"es"
+
         ! Don't display regexp if with remaining text it is longer than
         ! window-width.
         if (len(regexp) + 42 <= window_text_cols(windows(selected_frame%selected_window%index))) then
             text = text//" for """//query_replace_descr(regexp)//""""
         end if
+
         call message(text)
         k = occur_entry(occur_buf, .true.)
         same = .false.
@@ -3561,35 +3899,44 @@ contains
         occur_buffers(k)%regexp = regexp
         occur_buffers(k)%has_nlines = has_nlines
         occur_buffers(k)%nlines = nlines
+
         if (present(collect)) then
             occur_buffers(k)%collect = collect
         else if (allocated(occur_buffers(k)%collect)) then
             deallocate (occur_buffers(k)%collect)
         end if
+
         occur_buffers(k)%sources = sources
         buffers(cur)%undo_enabled = saved_undo
         call set(sym("inhibit_read_only"), inhibit, st)
+
         if (count == 0) then
             call kill_buffer(occur_buf, st)
         else
             call display_buffer(occur_buf, win, st)
+
             if (occur_final_pos /= 0) then
                 win = get_buffer_window(occur_buf)
                 if (win%index /= 0) call set_window_point(windows(win%index), occur_final_pos, st)
             end if
+
             next_error_last_buffer = occur_buf
             buffers(cur)%read_only = .true.
             call restore_buffer_modified_p(.false.)
             call occur_hook%run(status)
         end if
+
         if (buffer_live_p(old)) call set_buffer(old, st)
+
     contains
 
         logical function same_sources(a, b)
             type(occur_source_type), intent(in) :: a(:), b(:)
             integer :: j
+
             same_sources = size(a) == size(b)
             if (.not. same_sources) return
+
             do j = 1, size(a)
                 if (.not. same_buffer_handle(a(j)%buffer, b(j)%buffer)) same_sources = .false.
                 if (a(j)%region .neqv. b(j)%region) same_sources = .false.
@@ -3601,13 +3948,13 @@ contains
     ! ------------------------------------------------------------------
     ! The engine
     ! ------------------------------------------------------------------
-
     !> Insert TEXT in the current buffer at point; START and END get where
     !> it went.
     subroutine out_insert(text, start, end)
         character(len=*), intent(in) :: text
         integer(int64), intent(out) :: start, end
         type(status_type) :: st
+
         start = point()
         call insert(text, st)
         end = point()
@@ -3619,6 +3966,7 @@ contains
         character(len=*), intent(in) :: prop
         type(value_type), intent(in) :: value
         type(status_type) :: st
+
         if (end > start) call put_text_property(start, end, sym(prop), value, st)
     end subroutine put_prop
 
@@ -3639,6 +3987,7 @@ contains
         integer(int64) :: p, q, off
         logical :: found, changed
         integer :: i, n
+
         out = current_buffer()
         call set_buffer(src, st)
         if (keep_props .and. font_lock_mode_enabled()) call font_lock_ensure(st, sbeg, send)
@@ -3647,6 +3996,7 @@ contains
         call out_insert(text, start, end)
         if (.not. keep_props) return
         p = sbeg
+
         do while (p < send)
             call set_buffer(src, st)
             call text_properties_at(p, plist, st)
@@ -3655,26 +4005,32 @@ contains
             call list_elements(plist, elts)
             allocate (kept(size(elts)))
             n = 0
+
             do i = 1, size(elts) - 1, 2
                 if (excluded(elts(i))) cycle
                 kept(n + 1) = elts(i)
                 kept(n + 2) = elts(i + 1)
                 n = n + 2
             end do
+
             call set_buffer(out, st)
             off = p - sbeg
             if (n > 0) call add_text_properties(start + off, start + off + (q - p), make_list(kept(:n)), changed, st)
             deallocate (kept)
             p = q
         end do
+
         call set_buffer(out, st)
+
     contains
 
         logical function excluded(name)
             type(value_type), intent(in) :: name
             integer :: j
+
             excluded = .false.
             if (.not. allocated(occur_excluded_properties)) return
+
             do j = 1, size(occur_excluded_properties)
                 if (value_eq(name, sym(trim(occur_excluded_properties(j))))) excluded = .true.
             end do
@@ -3691,6 +4047,7 @@ contains
         character(len=*), intent(in) :: prefix_face
         integer(int64) :: b, e
         type(status_type) :: st
+
         call out_insert("       :", b, e)
         if (len(prefix_face) > 0) call put_prop(b, e, "font_lock_face", sym(prefix_face))
         call insert_source_line(src, sbeg, send, keep_props, b, e)
@@ -3702,6 +4059,7 @@ contains
     subroutine mark_current_line(b, e)
         integer(int64), intent(in) :: b, e
         type(status_type) :: st
+
         if (e <= b) return
         call add_face_text_property(b, e, sym(list_matching_lines_current_line_face), st)
         call put_prop(b, e, "current_line", t_value())
@@ -3715,33 +4073,41 @@ contains
         integer(int64), allocatable, intent(out) :: begs(:), ends(:)
         integer(int64) :: opoint, count, shortage
         logical :: forwardp, moved
+
         opoint = point()
         call goto_char(pt)
         count = count_in
         forwardp = count > 0
         allocate (begs(0), ends(0))
         moved = .false.
+
         do
             if (count == 0) exit
+
             if (forwardp) then
                 if (eobp()) exit
             else
                 if (bobp() .and. .not. moved) exit
             end if
+
             if (forwardp) then
                 count = count - 1
             else
                 count = count + 1
             end if
+
             begs = [begs, line_beginning_position()]
             ends = [ends, line_end_position()]
+
             if (forwardp) then
                 shortage = forward_line(1_int64)
             else
                 shortage = forward_line(-1_int64)
             end if
+
             moved = shortage == 0
         end do
+
         call goto_char(opoint)
     end subroutine occur_accumulate_lines
 
@@ -3769,10 +4135,12 @@ contains
                           shortage, opoint, x
         logical :: multi_occur_p, orig_line_shown_p, has_prev_line, saved_fold, separator, current_match
         integer :: s, tidx, i, j
+
         global_lines = 0
         global_matches = 0
         nlines = nlines_in
         multi_occur_p = size(sources) > 1
+
         do s = 1, size(sources)
             src = sources(s)%buffer
             if (.not. buffer_live_p(src)) cycle
@@ -3781,14 +4149,17 @@ contains
             call set_buffer(out_buf, st)
             headerpt = point()
             call set_buffer(src, st)
+
             if (sources(s)%region) then
                 orig_line = line_number_at_pos(sources(s)%orig_point)
             else
                 orig_line = line_number_at_pos()
             end if
+
             saved_fold = case_fold_search%value
             case_fold_search = case_fold
             opoint = point()
+
             ! Begin searching in the buffer.
             if (sources(s)%region) then
                 call marker_position(sources(s)%start, x, st)
@@ -3796,22 +4167,27 @@ contains
             else
                 call goto_char(point_min())
             end if
+
             shortage = forward_line(0_int64)
+
             if (sources(s)%region) then
                 call marker_position(sources(s)%end, limit, st)
             else
                 limit = point_max()
             end if
+
             start_line = line_number_at_pos()
             curr_line = start_line
             orig_line_shown_p = .false.
             has_prev_line = .false.
             prev_line = 0
             allocate (prev_after_b(0), prev_after_e(0), prev_after_cur(0))
+
             do while (point() < limit)
                 origpt = point()
                 call re_search_forward(regexp, found, st, bound=limit, noerror=SEARCH_NOERROR)
                 endpt = found
+
                 if (found /= 0) then
                     lines = lines + 1
                     ! Get beginning of first match line and end of the last.
@@ -3826,17 +4202,21 @@ contains
                     ! Count empty lines that don't use next loop (Bug#22062).
                     if (slen == 0) matches = matches + 1
                     current_match = .false.
+
                     if (list_matching_lines_jump_to_current_line .and. .not. multi_occur_p) then
                         if (curr_line == orig_line) current_match = .true.
+
                         ! Shown either here or will be shown by
                         ! occur-context-lines.
                         if (orig_line >= curr_line - nlines .and. orig_line <= curr_line + nlines) then
                             orig_line_shown_p = .true.
                         end if
                     end if
+
                     ! Highlight the matches.
                     allocate (match_starts(0), match_ends(0), mbeg(0), mend(0))
                     mstart = 0
+
                     do while (mstart < slen)
                         if (string_match(regexp, curstring, st, mstart + 1) == 0) exit
                         mb = match_beginning(0, st) - 1
@@ -3848,6 +4228,7 @@ contains
                         call copy_marker_at(begpt + mb, mbeg(size(mbeg)), .false., st)
                         call copy_marker_at(begpt + me, mend(size(mend)), .false., st)
                         matches = matches + 1
+
                         ! Avoid infloop (Bug#7593).
                         if (mstart == me) then
                             mstart = mstart + 1
@@ -3855,10 +4236,12 @@ contains
                             mstart = me
                         end if
                     end do
+
                     call set_buffer(out_buf, st)
                     tidx = occur_add_target(mbeg, mend)
                     ! Context lines.
                     separator = .false.
+
                     if (nlines /= 0) then
                         call set_buffer(src, st)
                         call occur_accumulate_lines(-(1 + abs(nlines)), begpt, acc_b, acc_e)
@@ -3871,16 +4254,19 @@ contains
                         allocate (before_cur(size(before_b)), after_cur(size(after_b)))
                         before_cur = .false.
                         after_cur = .false.
+
                         if (list_matching_lines_jump_to_current_line .and. .not. multi_occur_p) then
                             if (orig_line >= curr_line - nlines .and. orig_line < curr_line) then
                                 j = int(size(before_b) - (curr_line - orig_line)) + 1
                                 if (j >= 1 .and. j <= size(before_b)) before_cur(j) = .true.
                             end if
+
                             if (orig_line <= curr_line + nlines .and. orig_line > curr_line) then
                                 j = int(orig_line - curr_line)
                                 if (j >= 1 .and. j <= size(after_b)) after_cur(j) = .true.
                             end if
                         end if
+
                         ! Combine after-lines of the previous match with
                         ! before-lines of the current match.
                         if (size(prev_after_b) > 0) then
@@ -3898,6 +4284,7 @@ contains
                                 separator = .true.
                             end if
                         end if
+
                         if (has_prev_line) then
                             ! Don't overlap current before-lines with
                             ! previous match line.
@@ -3914,30 +4301,37 @@ contains
                             end if
                         end if
                     end if
+
                     ! orig-line-str.
                     call set_buffer(out_buf, st)
+
                     if (list_matching_lines_jump_to_current_line .and. .not. orig_line_shown_p .and. &
                         curr_line > orig_line) then
                         orig_line_shown_p = .true.
                         call insert_orig_line()
                     end if
+
                     ! Actually insert the match display data.
                     if (nlines /= 0) then
                         do i = 1, size(prev_after_b)
                             call insert_context_line(src, prev_after_b(i), prev_after_e(i), keep_props, prefix_face, &
                                                      prev_after_cur(i))
                         end do
+
                         if (separator) then
                             call out_insert("-------"//LF, hb, he)
                             if (len(prefix_face) > 0) call put_prop(hb, he, "font_lock_face", sym(prefix_face))
                         end if
+
                         do i = 1, size(before_b)
                             call insert_context_line(src, before_b(i), before_e(i), keep_props, prefix_face, &
                                                      before_cur(i))
                         end do
                     end if
+
                     call insert_match(src, begpt, endpt, curstring, curr_line, tidx, match_starts, match_ends, &
                                       current_match, keep_props, prefix_face, match_face)
+
                     if (nlines > 0) then
                         prev_after_b = after_b
                         prev_after_e = after_e
@@ -3946,12 +4340,14 @@ contains
                         deallocate (prev_after_b, prev_after_e, prev_after_cur)
                         allocate (prev_after_b(0), prev_after_e(0), prev_after_cur(0))
                     end if
+
                     if (allocated(before_cur)) deallocate (before_cur)
                     if (allocated(after_cur)) deallocate (after_cur)
                     deallocate (match_starts, match_ends, mbeg, mend)
                     call set_buffer(src, st)
                     call goto_char(endpt)
                 end if
+
                 if (found /= 0) then
                     ! Sum line numbers between first and last match lines.
                     curr_line = curr_line + count_lines(begpt, endpt)
@@ -3963,22 +4359,29 @@ contains
                 else
                     call goto_char(point_max())
                 end if
+
                 prev_line = curr_line - 1
                 has_prev_line = .true.
             end do
+
             ! Flush remaining context after-lines.
             call set_buffer(out_buf, st)
+
             do i = 1, size(prev_after_b)
                 call insert_context_line(src, prev_after_b(i), prev_after_e(i), keep_props, prefix_face, prev_after_cur(i))
             end do
+
             deallocate (prev_after_b, prev_after_e, prev_after_cur)
+
             if (list_matching_lines_jump_to_current_line .and. .not. orig_line_shown_p) then
                 orig_line_shown_p = .true.
                 call insert_orig_line()
             end if
+
             call set_buffer(src, st)
             call goto_char(opoint)
             case_fold_search = saved_fold
+
             ! Is the count zero?
             if (lines /= 0) then
                 global_lines = global_lines + lines
@@ -3987,24 +4390,29 @@ contains
                 call goto_char(headerpt)
                 header = number_to_string(matches)//" match"
                 if (matches /= 1) header = header//"es"
+
                 ! Don't display the same number of lines and matches in
                 ! case of 1 match per line.
                 if (lines /= matches) then
                     header = header//" in "//number_to_string(lines)//" line"
                     if (lines /= 1) header = header//"s"
                 end if
+
                 ! Don't display regexp for multi-buffer.
                 if (.not. size(sources) > 1) header = header//occur_regexp_descr(regexp)
                 header = header//" in buffer: "//buffers(src%index)%name
+
                 if (sources(s)%region) then
                     call marker_position(sources(s)%start, mb, st)
                     call marker_position(sources(s)%end, me, st)
                     header = header//" within region: "//number_to_string(mb)//"-"//number_to_string(me)
                 end if
+
                 call out_insert(header//LF, hb, he)
                 call descr_display(hb, he - 1)
                 call put_prop(hb, he, "read_only", t_value())
                 if (len(title_face) > 0) call add_face_text_property(hb, he, sym(title_face), st)
+
                 if (list_matching_lines_jump_to_current_line .and. .not. multi_occur_p) then
                     call goto_char(point_max())
                     call previous_single_property_change(point(), sym("current_line"), x, current_match, st)
@@ -4016,28 +4424,34 @@ contains
                 end if
             end if
         end do
+
         ! Display total match count and regexp for multi-buffer.
         call set_buffer(out_buf, st)
+
         if (global_lines /= 0 .and. size(sources) > 1) then
             call goto_char(point_min())
             header = number_to_string(global_matches)//" match"
             if (global_matches /= 1) header = header//"es"
+
             if (global_lines /= global_matches) then
                 header = header//" in "//number_to_string(global_lines)//" line"
                 if (global_lines /= 1) header = header//"s"
             end if
+
             header = header//" total"//occur_regexp_descr(regexp)//":"//LF
             call out_insert(header, hb, he)
             call descr_display(hb, he - 1)
             if (len(title_face) > 0) call add_face_text_property(hb, he, sym(title_face), st)
             call goto_char(point_min())
         end if
+
     contains
 
         !> Insert the line of the original buffer that was current
         !> (orig-line-str), highlighted, with its prefix.
         subroutine insert_orig_line()
             integer(int64) :: lb, le, here, sh
+
             call set_buffer(src, st)
             here = point()
             call goto_char(point_min())
@@ -4070,6 +4484,7 @@ contains
         integer(int64) :: pb, pe, b, e, sbeg, cur_off, nl_pos, a, z, i, k
         character(len=16) :: buf
         integer :: nseg
+
         target = make_fixnum(int(tidx, int64))
         ! Using 7 digits aligns tabs properly.
         write (buf, "(i7, ':')") curr_line
@@ -4092,12 +4507,15 @@ contains
         sbeg = begpt
         cur_off = 0
         nseg = 0
+
         do
             nl_pos = index(curstring(byte_of(cur_off) + 1:), LF)
+
             if (nl_pos == 0) then
                 call segment(endpt)
                 exit
             end if
+
             call segment(sbeg + chars(curstring(byte_of(cur_off) + 1:byte_of(cur_off) + nl_pos - 1)))
             call out_insert(LF//"       :", b, e)
             if (len(prefix_face) > 0) call put_prop(b, e, "font_lock_face", sym(prefix_face))
@@ -4105,17 +4523,20 @@ contains
             cur_off = cur_off + seg_len(nseg) + 1
             sbeg = sbeg + seg_len(nseg) + 1
         end do
+
         if (current) then
             do k = 1, nseg
                 call mark_current_line(seg_out(k), seg_out(k) + seg_len(k))
             end do
         end if
+
         do i = 1, size(match_starts)
             do k = 1, nseg
                 a = max(match_starts(i), seg_cur(k))
                 z = min(match_ends(i), seg_cur(k) + seg_len(k))
                 if (z <= a) cycle
                 call put_prop(seg_out(k) + (a - seg_cur(k)), seg_out(k) + (z - seg_cur(k)), "occur_match", t_value())
+
                 ! Add `match-face' to faces copied from the buffer.
                 if (len(match_face) > 0) then
                     call add_face_text_property(seg_out(k) + (a - seg_cur(k)), seg_out(k) + (z - seg_cur(k)), &
@@ -4123,15 +4544,18 @@ contains
                 end if
             end do
         end do
+
         ! Add markers at eol, but no mouse props.
         call out_insert(LF, b, e)
         call put_prop(b, e, "occur_target", target)
+
     contains
 
         !> Insert the source text from SBEG to SEND as the next segment.
         subroutine segment(send)
             integer(int64), intent(in) :: send
             integer(int64) :: sb, se
+
             call insert_source_line(src, sbeg, send, keep_props, sb, se)
             call put_prop(sb, se, "occur_target", target)
             call put_prop(sb, se, "follow_link", t_value())
@@ -4148,13 +4572,16 @@ contains
             integer(int64), intent(in) :: c
             integer(int64) :: n
             integer :: j
+
             off = 0
             n = 0
+
             do j = 1, len(curstring)
                 if (iand(iachar(curstring(j:j)), 192) /= 128) then
                     if (n == c) return
                     n = n + 1
                 end if
+
                 off = j
             end do
         end function byte_of
@@ -4162,7 +4589,9 @@ contains
         integer(int64) function chars(s2) result(c)
             character(len=*), intent(in) :: s2
             integer :: j
+
             c = 0
+
             do j = 1, len(s2)
                 if (iand(iachar(s2(j:j)), 192) /= 128) c = c + 1
             end do
@@ -4172,21 +4601,23 @@ contains
     ! ------------------------------------------------------------------
     ! Definitions
     ! ------------------------------------------------------------------
-
     !> Define Occur mode and Occur-Edit mode, give the Occur variables
     !> their defaults and register the commands (after Text mode, whose map
     !> Occur-Edit mode's inherits).
     subroutine syms_of_occur()
         type(status_type) :: st
+
         list_matching_lines_face = "match"
         list_matching_lines_buffer_name_face = "underline"
         list_matching_lines_current_line_face = "lazy_highlight"
         list_matching_lines_prefix_face = "shadow"
+
         if (.not. allocated(occur_excluded_properties)) then
             occur_excluded_properties = [character(len=24) :: "read_only", "invisible", "intangible", "field", &
                                          "mouse_face", "help_echo", "local_map", "keymap", "yank_handler", &
                                          "follow_link"]
         end if
+
         call defvar_nil(OCCUR_COLLECT_HISTORY)
         call set(sym(OCCUR_COLLECT_HISTORY), list(make_string("\1")), st)
         call occur_mode_hook%add(turn_on_font_lock_hook)
@@ -4236,7 +4667,7 @@ contains
     !> turn-on-font-lock as a function of `occur_mode_hook'.
     recursive subroutine turn_on_font_lock_hook(status)
         type(status_type), intent(out) :: status
+
         call turn_on_font_lock(status)
     end subroutine turn_on_font_lock_hook
-
 end module replace_fm

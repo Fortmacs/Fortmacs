@@ -342,13 +342,13 @@ contains
     ! ------------------------------------------------------------------
     ! Defining coding systems
     ! ------------------------------------------------------------------
-
     !> Define the fundamental coding systems and their priorities.  Port of
     !> coding.c:syms_of_coding (no-conversion, undecided), the coding
     !> systems mule-conf.el defines, and reset-language-environment's
     !> priorities.
     recursive subroutine syms_of_coding()
         integer :: id
+
         if (ncodings > 0) return
         allocate (codings(64), aliases(160))
         if (.not. allocated(eol_mnemonic_unix%value)) eol_mnemonic_unix%value = ":"
@@ -423,6 +423,7 @@ contains
                     doc="Encode ASCII as-is and encode non-ASCII characters to `?'.")
         call define_coding_system_alias("iso-safe", "us-ascii")
         call define_coding_system_alias("ascii", "us-ascii")
+
         ! mule-conf.el's file-coding-system-alist, without its functions.
         if (.not. allocated(file_coding_system_alist)) then
             allocate (file_coding_system_alist(6))
@@ -433,6 +434,7 @@ contains
             file_coding_system_alist(5) = file_coding_type("\.tar\'", "no-conversion", "no-conversion")
             file_coding_system_alist(6) = file_coding_type("", "undecided", "")
         end if
+
         ! reset-language-environment: utf-8, iso-2022-7bit, iso-latin-1,
         ! iso-2022-7bit-lock, iso-2022-8bit-ss2, emacs-mule, raw-text
         ! first, the other categories in coding.c's order.
@@ -459,6 +461,7 @@ contains
         type(coding_type) :: c
         character(len=*), parameter :: SUFFIXES(0:2) = [character(len=5) :: "-unix", "-dos", "-mac"]
         integer :: i, sub
+
         c%name = name
         c%ctype = ctype
         c%mnemonic = mnemonic
@@ -480,6 +483,7 @@ contains
         id = add_coding(c)
         codings(id)%base = id
         call add_alias(name, id)
+
         if (c%eol == EOL_UNDECIDED) then
             do i = 0, 2
                 c%name = name//trim(SUFFIXES(i))
@@ -490,17 +494,20 @@ contains
                 call add_alias(c%name, sub)
             end do
         end if
+
         if (category_id(category) == 0) category_id(category) = id
     end function define
 
     integer function add_coding(c) result(id)
         type(coding_type), intent(in) :: c
         type(coding_type), allocatable :: grown(:)
+
         if (ncodings == size(codings)) then
             allocate (grown(2*size(codings)))
             grown(1:ncodings) = codings(1:ncodings)
             call move_alloc(grown, codings)
         end if
+
         ncodings = ncodings + 1
         codings(ncodings) = c
         id = ncodings
@@ -510,11 +517,13 @@ contains
         character(len=*), intent(in) :: name
         integer, intent(in) :: id
         type(alias_type), allocatable :: grown(:)
+
         if (naliases == size(aliases)) then
             allocate (grown(2*size(aliases)))
             grown(1:naliases) = aliases(1:naliases)
             call move_alloc(grown, aliases)
         end if
+
         naliases = naliases + 1
         aliases(naliases)%name = name
         aliases(naliases)%id = id
@@ -527,9 +536,11 @@ contains
         character(len=*), intent(in) :: alias, coding_system
         character(len=*), parameter :: SUFFIXES(0:2) = [character(len=5) :: "-unix", "-dos", "-mac"]
         integer :: id, i
+
         id = coding_system_id(coding_system)
         if (id == 0) return
         call add_alias(alias, id)
+
         if (codings(id)%eol == EOL_UNDECIDED) then
             do i = 0, 2
                 call add_alias(alias//trim(SUFFIXES(i)), codings(id)%subsidiaries(i))
@@ -540,13 +551,14 @@ contains
     ! ------------------------------------------------------------------
     ! Looking up coding systems
     ! ------------------------------------------------------------------
-
     !> The id of the coding system called NAME (an alias included), or 0.
     recursive integer function coding_system_id(name) result(id)
         character(len=*), intent(in) :: name
         integer :: k
+
         id = 0
         if (ncodings == 0) call syms_of_coding()
+
         do k = 1, naliases
             if (aliases(k)%name == name) then
                 id = aliases(k)%id
@@ -559,6 +571,7 @@ contains
     function coding_system_name(id) result(name)
         integer, intent(in) :: id
         character(len=:), allocatable :: name
+
         name = ""
         if (id > 0 .and. id <= ncodings) name = codings(id)%name
     end function coding_system_name
@@ -569,6 +582,7 @@ contains
     !> ("" is nil).
     logical function coding_system_p(object)
         character(len=*), intent(in) :: object
+
         coding_system_p = len(object) == 0
         if (.not. coding_system_p) coding_system_p = coding_system_id(object) > 0
     end function coding_system_p
@@ -581,6 +595,7 @@ contains
     subroutine check_coding_system(coding_system, status)
         character(len=*), intent(in) :: coding_system
         type(status_type), intent(out) :: status
+
         if (coding_system_p(coding_system)) return
         call set_error(status, FM_CODING_SYSTEM_ERROR, coding_system)
     end subroutine check_coding_system
@@ -600,6 +615,7 @@ contains
     integer function coding_system_eol_type(coding_system) result(eol)
         character(len=*), intent(in) :: coding_system
         integer :: id
+
         eol = EOL_UNDECIDED
         if (len(coding_system) == 0) return
         id = coding_system_id(coding_system)
@@ -612,10 +628,12 @@ contains
         character(len=*), intent(in) :: coding_system
         character(len=40), intent(out) :: subs(0:2)
         integer :: id, i
+
         subs = ""
         id = coding_system_id(coding_system)
         if (id == 0) return
         if (codings(id)%eol /= EOL_UNDECIDED) return
+
         do i = 0, 2
             subs(i) = codings(codings(id)%subsidiaries(i))%name
         end do
@@ -628,6 +646,7 @@ contains
         character(len=*), intent(in) :: coding_system
         character(len=:), allocatable :: base
         integer :: id
+
         base = ""
         id = coding_system_id(coding_system)
         if (id > 0) base = codings(codings(id)%base)%name
@@ -642,9 +661,11 @@ contains
         character(len=*), intent(in) :: coding_system
         character(len=:), allocatable :: t
         integer :: id
+
         t = ""
         id = coding_system_id(coding_system)
         if (id == 0) return
+
         select case (codings(id)%ctype)
         case (CODING_UNDECIDED)
             t = "undecided"
@@ -666,6 +687,7 @@ contains
     integer function coding_system_mnemonic(coding_system) result(c)
         character(len=*), intent(in) :: coding_system
         integer :: id
+
         c = iachar("=")
         id = coding_system_id(coding_system)
         if (id > 0) c = codings(id)%mnemonic
@@ -677,6 +699,7 @@ contains
         character(len=*), intent(in) :: coding_system
         character(len=:), allocatable :: doc
         integer :: id
+
         doc = ""
         id = coding_system_id(coding_system)
         if (id > 0) doc = codings(id)%doc
@@ -687,6 +710,7 @@ contains
         character(len=*), intent(in) :: coding_system
         character(len=:), allocatable :: m
         integer :: id
+
         m = ""
         id = coding_system_id(coding_system)
         if (id > 0) m = codings(id)%mime_charset
@@ -698,9 +722,11 @@ contains
         character(len=*), intent(in) :: coding_system
         character(len=:), allocatable :: s
         integer :: id
+
         s = ""
         id = coding_system_id(coding_system)
         if (id == 0) return
+
         select case (codings(id)%charset)
         case (CS_ASCII)
             s = "ascii"
@@ -723,12 +749,14 @@ contains
         integer, intent(out) :: bom
         character(len=:), allocatable, intent(out), optional :: with, without
         integer :: id
+
         bom = BOM_NONE
         if (present(with)) with = ""
         if (present(without)) without = ""
         id = coding_system_id(coding_system)
         if (id == 0) return
         bom = codings(id)%bom
+
         if (bom == BOM_DETECT) then
             if (present(with)) with = codings(id)%bom_with
             if (present(without)) without = codings(id)%bom_without
@@ -739,6 +767,7 @@ contains
     logical function coding_system_endian(coding_system) result(big)
         character(len=*), intent(in) :: coding_system
         integer :: id
+
         big = .true.
         id = coding_system_id(coding_system)
         if (id > 0) big = codings(id)%big_endian
@@ -748,6 +777,7 @@ contains
     logical function coding_system_for_unibyte_p(coding_system)
         character(len=*), intent(in) :: coding_system
         integer :: id
+
         coding_system_for_unibyte_p = .false.
         id = coding_system_id(coding_system)
         if (id > 0) coding_system_for_unibyte_p = codings(id)%for_unibyte
@@ -757,6 +787,7 @@ contains
     logical function coding_system_ascii_compatible_p(coding_system)
         character(len=*), intent(in) :: coding_system
         integer :: id
+
         coding_system_ascii_compatible_p = .false.
         id = coding_system_id(coding_system)
         if (id > 0) coding_system_ascii_compatible_p = codings(id)%ascii_compatible
@@ -766,6 +797,7 @@ contains
     logical function coding_system_prefer_utf_8_p(coding_system)
         character(len=*), intent(in) :: coding_system
         integer :: id
+
         coding_system_prefer_utf_8_p = .false.
         id = coding_system_id(coding_system)
         if (id > 0) coding_system_prefer_utf_8_p = codings(id)%prefer_utf_8
@@ -776,6 +808,7 @@ contains
         character(len=*), intent(in) :: coding_system
         character(len=:), allocatable :: cat
         integer :: id
+
         cat = ""
         id = coding_system_id(coding_system)
         if (id > 0) cat = trim(CATEGORY_NAMES(codings(id)%category))
@@ -788,9 +821,11 @@ contains
         character(len=*), intent(in) :: coding_system
         type(coding_system_list_entry_type), allocatable, intent(out) :: names(:)
         integer :: id, k, n
+
         id = coding_system_id(coding_system)
         allocate (names(naliases))
         n = 0
+
         if (id > 0) then
             do k = 1, naliases
                 if (aliases(k)%id == id) then
@@ -799,6 +834,7 @@ contains
                 end if
             end do
         end if
+
         names = names(1:n)
     end subroutine coding_system_aliases
 
@@ -808,7 +844,9 @@ contains
     !> mule.el:coding-system-equal.
     logical function coding_system_equal(coding_system_1, coding_system_2)
         character(len=*), intent(in) :: coding_system_1, coding_system_2
+
         coding_system_equal = coding_system_1 == coding_system_2
+
         if (.not. coding_system_equal) then
             coding_system_equal = coding_system_id(coding_system_1) > 0 .and. &
                                   coding_system_id(coding_system_1) == coding_system_id(coding_system_2)
@@ -826,13 +864,16 @@ contains
         logical, intent(in), optional :: base_only
         logical :: bases
         integer :: k, n, id
+
         bases = .false.
         if (present(base_only)) bases = base_only
         if (ncodings == 0) call syms_of_coding()
         allocate (names(naliases))
         n = 0
+
         do k = 1, naliases
             id = aliases(k)%id
+
             if (bases) then
                 if (codings(id)%base /= id .or. aliases(k)%name /= codings(id)%name) cycle
             else
@@ -840,9 +881,11 @@ contains
                 ! names one alone (emacs-internal).
                 if (codings(id)%base /= id .and. is_subsidiary_name(aliases(k)%name, id)) cycle
             end if
+
             n = n + 1
             names(n)%name = aliases(k)%name
         end do
+
         names = names(1:n)
     end subroutine coding_system_list
 
@@ -853,6 +896,7 @@ contains
         integer, intent(in) :: id
         character(len=*), parameter :: SUFFIXES(0:2) = [character(len=5) :: "-unix", "-dos", "-mac"]
         character(len=:), allocatable :: suffix
+
         suffix = trim(SUFFIXES(codings(id)%eol))
         is_subsidiary_name = .false.
         if (len(name) > len(suffix)) is_subsidiary_name = name(len(name) - len(suffix) + 1:) == suffix
@@ -868,18 +912,22 @@ contains
         type(coding_system_list_entry_type), allocatable, intent(out) :: names(:)
         logical, intent(in), optional :: highestp
         integer :: i, n, id
+
         if (ncodings == 0) call syms_of_coding()
         allocate (names(NCAT))
         n = 0
+
         do i = 0, NCAT - 1
             id = category_id(priorities(i))
             if (id == 0) cycle
             n = n + 1
             names(n)%name = codings(codings(id)%base)%name
+
             if (present(highestp)) then
                 if (highestp) exit
             end if
         end do
+
         names = names(1:n)
     end subroutine coding_system_priority_list
 
@@ -892,14 +940,18 @@ contains
         type(status_type), intent(out) :: status
         logical :: changed(0:NCAT - 1)
         integer :: new(0:NCAT - 1), i, j, id, cat
+
         changed = .false.
         j = 0
+
         do i = 1, size(coding_systems)
             id = coding_system_id(trim(coding_systems(i)))
+
             if (id == 0) then
                 call set_error(status, FM_CODING_SYSTEM_ERROR, trim(coding_systems(i)))
                 return
             end if
+
             cat = codings(id)%category
             if (changed(cat)) cycle
             changed(cat) = .true.
@@ -907,16 +959,20 @@ contains
             j = j + 1
             category_id(cat) = id
         end do
+
         i = j
         j = 0
+
         do while (i < NCAT)
             do while (changed(priorities(j)))
                 j = j + 1
             end do
+
             new(i) = priorities(j)
             i = i + 1
             j = j + 1
         end do
+
         priorities = new
     end subroutine set_coding_system_priority
 
@@ -936,11 +992,13 @@ contains
         integer, intent(in) :: eol_type
         character(len=:), allocatable :: cs
         integer :: id, base, orig_eol
+
         cs = coding_system
         id = coding_system_id(coding_system)
         if (id == 0) return
         orig_eol = codings(id)%eol
         base = codings(id)%base
+
         if (orig_eol == EOL_UNDECIDED) then
             if (eol_type /= EOL_UNDECIDED) cs = codings(codings(id)%subsidiaries(eol_type))%name
         else if (orig_eol == eol_type) then
@@ -965,7 +1023,9 @@ contains
         character(len=*), intent(in) :: coding_system, coding
         character(len=:), allocatable :: cs
         integer :: eol
+
         eol = coding_system_eol_type(coding_system)
+
         if (len(coding) == 0) then
             cs = coding_system_change_eol_conversion("undecided", eol)
         else
@@ -978,6 +1038,7 @@ contains
     function coding_system_eol_type_mnemonic(coding_system) result(s)
         character(len=*), intent(in) :: coding_system
         character(len=:), allocatable :: s
+
         select case (coding_system_eol_type(coding_system))
         case (EOL_UNIX)
             s = eol_mnemonic_unix%value
@@ -998,14 +1059,17 @@ contains
         character(len=*), intent(in) :: coding_system, parent
         character(len=:), allocatable :: cs
         integer :: eol, parent_eol
+
         cs = coding_system
         if (len(cs) == 0) cs = "raw-text"
         eol = coding_system_eol_type(cs)
         if (eol /= EOL_UNDECIDED) return
         parent_eol = EOL_UNIX
+
         if (len(parent) > 0) then
             if (coding_system_eol_type(parent) /= EOL_UNDECIDED) parent_eol = coding_system_eol_type(parent)
         end if
+
         cs = coding_system_change_eol_conversion(cs, parent_eol)
     end function coding_inherit_eol_type
 
@@ -1016,14 +1080,17 @@ contains
         character(len=*), intent(in) :: coding_system
         character(len=:), allocatable :: cs
         integer :: id, eol
+
         cs = "raw-text"
         if (len(coding_system) == 0) return
         id = coding_system_id(coding_system)
         if (id == 0) return
+
         if (codings(id)%ctype == CODING_RAW_TEXT) then
             cs = coding_system
             return
         end if
+
         eol = codings(id)%eol
         if (eol /= EOL_UNDECIDED) cs = coding_system_change_eol_conversion("raw-text", eol)
     end function raw_text_coding_system
@@ -1057,9 +1124,11 @@ contains
         end interface
         character(len=:), allocatable, intent(out) :: decoding, encoding
         integer :: k
+
         decoding = ""
         encoding = ""
         if (ncodings == 0) call syms_of_coding()
+
         do k = 1, size(file_coding_system_alist)
             if (matcher(file_coding_system_alist(k)%pattern, filename)) then
                 decoding = file_coding_system_alist(k)%decoding
@@ -1072,7 +1141,6 @@ contains
     ! ------------------------------------------------------------------
     ! Source text
     ! ------------------------------------------------------------------
-
     !> The source as coding.c's ONE_MORE_BYTE sees it: a byte (0 to 255),
     !> or, in multibyte text, minus a character that is not a raw byte.
     subroutine source_units(src, multibyte, units)
@@ -1081,16 +1149,21 @@ contains
         integer, allocatable, intent(out) :: units(:)
         integer(int64) :: p
         integer :: n, ch, length
+
         allocate (units(len(src)))
         n = 0
+
         if (.not. multibyte) then
             do p = 1, len(src)
                 n = n + 1
                 units(n) = iachar(src(p:p))
             end do
+
             return
         end if
+
         p = 1
+
         do while (p <= len(src, kind=int64))
             if (iachar(src(p:p)) < 128) then
                 ch = iachar(src(p:p))
@@ -1100,25 +1173,28 @@ contains
                 length = 1
             else
                 call string_char_and_length(src, p, ch, length)
+
                 if (char_byte8_p(ch)) then
                     ch = char_to_byte8(ch)
                 else
                     ch = -ch
                 end if
             end if
+
             n = n + 1
             units(n) = ch
             p = p + length
         end do
+
         units = units(1:n)
     end subroutine source_units
 
     ! ------------------------------------------------------------------
     ! Detection
     ! ------------------------------------------------------------------
-
     logical function has(mask, cat)
         integer, intent(in) :: mask, cat
+
         has = btest(mask, cat)
     end function has
 
@@ -1131,12 +1207,14 @@ contains
         integer(int64) :: src, src_base, nchars, n
         integer :: c, k, trail
         logical :: bom_found, invalid
+
         n = size(units, kind=int64)
         info%checked = ior(info%checked, MASK_UTF_8)
         src = head_ascii + 1
         nchars = head_ascii
         bom_found = .false.
         ok = .false.
+
         ! BOM should be at the head, and is 3-byte long.
         if (src == 1 .and. src + 3 <= n) then
             if (units(1) == int(z'EF') .and. units(2) == int(z'BB') .and. units(3) == int(z'BF')) then
@@ -1145,22 +1223,28 @@ contains
                 nchars = nchars + 1
             end if
         end if
+
         invalid = .false.
         src_base = src
+
         do while (src <= n)
             src_base = src
             c = units(src)
             src = src + 1
+
             if (c < 128) then
                 nchars = nchars + 1
+
                 if (c == CR .and. src <= n) then
                     if (units(src) == LF) then
                         src = src + 1
                         nchars = nchars + 1
                     end if
                 end if
+
                 cycle
             end if
+
             ! The number of trailing bytes the leading byte announces (5
             ! for a byte no sequence starts with).
             if (iand(c, int(z'E0')) == int(z'C0')) then
@@ -1174,28 +1258,37 @@ contains
             else
                 trail = 5
             end if
+
             do k = 1, min(trail, 4)
                 if (src > n) exit
+
                 if (units(src) < 0 .or. iand(units(src), int(z'C0')) /= int(z'80')) then
                     invalid = .true.
                     exit
                 end if
+
                 src = src + 1
             end do
+
             if (invalid .or. src > n .and. k <= min(trail, 4)) exit
+
             if (trail == 5) then
                 invalid = .true.
                 exit
             end if
+
             nchars = nchars + 1
         end do
+
         ! An incomplete sequence at the end rejects too (the whole text is
         ! the last block).
         if (.not. invalid .and. src > n .and. src_base < src) invalid = sequence_cut(units, src_base)
+
         if (invalid) then
             info%rejected = ior(info%rejected, MASK_UTF_8)
             return
         end if
+
         if (bom_found) then
             ! The first character 0xFFFE doesn't necessarily mean a BOM.
             info%found = ior(info%found, 2**CAT_UTF_8_AUTO + 2**CAT_UTF_8_SIG + 2**CAT_UTF_8_NOSIG)
@@ -1205,6 +1298,7 @@ contains
             ! means that we found a valid non-ASCII characters.
             if (nchars < n) info%found = ior(info%found, 2**CAT_UTF_8_AUTO + 2**CAT_UTF_8_NOSIG)
         end if
+
         ok = .true.
     end function detect_coding_utf_8
 
@@ -1214,9 +1308,11 @@ contains
         integer, intent(in) :: units(:)
         integer(int64), intent(in) :: start
         integer :: c, need
+
         sequence_cut = .false.
         c = units(start)
         if (c < 128) return
+
         if (iand(c, int(z'E0')) == int(z'C0')) then
             need = 2
         else if (iand(c, int(z'F0')) == int(z'E0')) then
@@ -1226,6 +1322,7 @@ contains
         else
             need = 5
         end if
+
         sequence_cut = start + need - 1 > size(units, kind=int64)
     end function sequence_cut
 
@@ -1238,13 +1335,16 @@ contains
         logical :: e(0:255), o(0:255)
         integer :: c1, c2, e_num, o_num
         integer(int64) :: src, n
+
         n = size(units, kind=int64)
         info%checked = ior(info%checked, MASK_UTF_16)
         ok = .false.
+
         if (mod(n, 2_int64) == 1) then
             info%rejected = ior(info%rejected, MASK_UTF_16)
             return
         end if
+
         if (n < 2) then
             ! no_more_source
             if (n == 0) then
@@ -1252,10 +1352,13 @@ contains
             else
                 info%rejected = ior(info%rejected, MASK_UTF_16)
             end if
+
             return
         end if
+
         c1 = units(1)
         c2 = units(2)
+
         if (c1 == int(z'FF') .and. c2 == int(z'FE')) then
             info%found = ior(info%found, 2**CAT_UTF_16_LE + 2**CAT_UTF_16_AUTO)
             info%rejected = ior(info%rejected, 2**CAT_UTF_16_BE + 2**CAT_UTF_16_BE_NOSIG + 2**CAT_UTF_16_LE_NOSIG)
@@ -1277,12 +1380,14 @@ contains
             o(c2) = .true.
             info%rejected = ior(info%rejected, 2**CAT_UTF_16_AUTO + 2**CAT_UTF_16_BE + 2**CAT_UTF_16_LE)
             src = 3
+
             do while (iand(info%rejected, MASK_UTF_16) /= MASK_UTF_16)
                 if (src + 1 > n) exit
                 c1 = units(src)
                 c2 = units(src + 1)
                 src = src + 2
                 if (c2 < 0) exit
+
                 if (c1 >= 0) then
                     if (.not. e(c1)) then
                         e(c1) = .true.
@@ -1290,6 +1395,7 @@ contains
                         if (e_num >= 128) info%rejected = ior(info%rejected, 2**CAT_UTF_16_BE_NOSIG)
                     end if
                 end if
+
                 if (.not. o(c2)) then
                     o(c2) = .true.
                     o_num = o_num + 1
@@ -1310,6 +1416,7 @@ contains
         integer :: id, c, limit, found
         integer(int64) :: src
         logical :: check_latin_extra
+
         info%checked = ior(info%checked, 2**CAT_CHARSET)
         ok = .false.
         id = category_id(CAT_CHARSET)
@@ -1319,22 +1426,27 @@ contains
         src = 1
         if (codings(id)%ascii_compatible) src = head_ascii + 1
         found = 0
+
         do while (src <= size(units, kind=int64))
             c = units(src)
             src = src + 1
             if (c < 0) cycle
+
             if (c > limit) then
                 info%rejected = ior(info%rejected, 2**CAT_CHARSET)
                 return
             end if
+
             if (c >= 128) then
                 if (c < int(z'A0') .and. check_latin_extra .and. .not. any(LATIN_EXTRA == c)) then
                     info%rejected = ior(info%rejected, 2**CAT_CHARSET)
                     return
                 end if
+
                 found = 2**CAT_CHARSET
             end if
         end do
+
         info%found = ior(info%found, found)
         ok = .true.
     end function detect_coding_charset
@@ -1345,7 +1457,9 @@ contains
         integer, intent(in) :: units(:)
         integer(int64), intent(in) :: head_ascii
         type(detect_info_type), intent(inout) :: info
+
         ok = .false.
+
         select case (category)
         case (CAT_UTF_8_AUTO, CAT_UTF_8_NOSIG, CAT_UTF_8_SIG)
             ok = detect_coding_utf_8(units, head_ascii, info)
@@ -1366,16 +1480,20 @@ contains
         integer, intent(in) :: category
         integer(int64) :: src, n
         integer :: c, this_eol, total, msb, lsb
+
         n = size(units, kind=int64)
         eol_seen = EOL_SEEN_NONE
         total = 0
+
         if (has(MASK_UTF_16, category)) then
             msb = 0
             if (category == CAT_UTF_16_LE .or. category == CAT_UTF_16_LE_NOSIG) msb = 1
             lsb = 1 - msb
             src = 1
+
             do while (src + 1 <= n)
                 c = units(src + lsb)
+
                 if (units(src + msb) == 0 .and. (c == LF .or. c == CR)) then
                     if (c == LF) then
                         this_eol = EOL_SEEN_LF
@@ -1387,17 +1505,21 @@ contains
                         this_eol = EOL_SEEN_CRLF
                         src = src + 2
                     end if
+
                     if (.not. merge_eol(eol_seen, this_eol)) exit
                     total = total + 1
                     if (total == MAX_EOL_CHECK_COUNT) exit
                 end if
+
                 src = src + 2
             end do
         else
             src = 1
+
             do while (src <= n)
                 c = units(src)
                 src = src + 1
+
                 if (c == LF .or. c == CR) then
                     if (c == LF) then
                         this_eol = EOL_SEEN_LF
@@ -1409,6 +1531,7 @@ contains
                         this_eol = EOL_SEEN_CRLF
                         src = src + 1
                     end if
+
                     if (.not. merge_eol(eol_seen, this_eol)) exit
                     total = total + 1
                     if (total == MAX_EOL_CHECK_COUNT) exit
@@ -1423,7 +1546,9 @@ contains
     logical function merge_eol(eol_seen, this_eol) result(go_on)
         integer, intent(inout) :: eol_seen
         integer, intent(in) :: this_eol
+
         go_on = .true.
+
         if (eol_seen == EOL_SEEN_NONE) then
             ! This is the first end-of-line.
             eol_seen = this_eol
@@ -1443,8 +1568,10 @@ contains
     !> coding.c:adjust_coding_eol_type.
     integer function adjust_eol(id, eol_seen) result(adjusted)
         integer, intent(in) :: id, eol_seen
+
         adjusted = id
         if (codings(id)%eol /= EOL_UNDECIDED) return
+
         if (iand(eol_seen, EOL_SEEN_LF) /= 0) then
             adjusted = codings(id)%subsidiaries(EOL_UNIX)
         else if (iand(eol_seen, EOL_SEEN_CRLF) /= 0) then
@@ -1458,6 +1585,7 @@ contains
     !> undecided.
     integer function with_eol(id, eol) result(sub)
         integer, intent(in) :: id, eol
+
         sub = id
         if (eol == EOL_UNDECIDED) return
         if (codings(id)%eol == EOL_UNDECIDED) sub = codings(id)%subsidiaries(eol)
@@ -1473,11 +1601,14 @@ contains
         logical, intent(in) :: inhibit_nbd
         integer(int64) :: p
         integer :: c
+
         head_ascii = 0
         null_byte_found = .false.
         eight_bit_found = .false.
+
         do p = 1, len(src, kind=int64)
             c = iachar(src(p:p))
+
             if (c >= 128) then
                 eight_bit_found = .true.
                 if (null_byte_found) exit
@@ -1503,13 +1634,16 @@ contains
         integer(int64) :: head_ascii
         logical :: null_byte_found, eight_bit_found, hit
         integer :: i, category, this, specified_eol
+
         found_id = id
         specified_eol = codings(id)%eol
+
         if (codings(id)%ctype == CODING_UNDECIDED) then
             call scan_head(src, head_ascii, null_byte_found, eight_bit_found, inhibit_null_byte_detection%value)
             if (.not. (null_byte_found .or. eight_bit_found .or. head_ascii < len(src, kind=int64))) return
             this = 0
             hit = .false.
+
             if (null_byte_found) then
                 info%checked = ior(info%checked, not(MASK_UTF_16))
                 info%rejected = ior(info%rejected, not(MASK_UTF_16))
@@ -1519,10 +1653,12 @@ contains
                     info%rejected = ior(info%rejected, not(MASK_UTF_8))
                 end if
             end if
+
             ! The first CAT_RAW_TEXT positions of the priorities.
             do i = 0, CAT_RAW_TEXT - 1
                 category = priorities(i)
                 this = category_id(category)
+
                 if (this == 0) then
                     ! No coding system of this category is defined.
                     info%rejected = ior(info%rejected, 2**category)
@@ -1540,7 +1676,9 @@ contains
                     end if
                 end if
             end do
+
             found_id = 0
+
             if (hit) then
                 found_id = auto_choice(this, category, info)
             else if (null_byte_found) then
@@ -1550,12 +1688,14 @@ contains
             else if (info%rejected /= 0) then
                 do i = 0, CAT_RAW_TEXT - 1
                     category = priorities(i)
+
                     if (.not. has(info%rejected, category)) then
                         found_id = category_id(category)
                         exit
                     end if
                 end do
             end if
+
             if (found_id == 0) then
                 found_id = id
                 return
@@ -1563,6 +1703,7 @@ contains
         else if (codings(id)%category == CAT_UTF_8_AUTO) then
             found_id = id
             call scan_head(src, head_ascii, null_byte_found, eight_bit_found, .true.)
+
             if (head_ascii == len(src, kind=int64)) then
                 found_id = coding_system_id(codings(id)%bom_without)
             else if (detect_coding_utf_8(units, 0_int64, info)) then
@@ -1574,6 +1715,7 @@ contains
             end if
         else if (codings(id)%category == CAT_UTF_16_AUTO) then
             found_id = id
+
             if (detect_coding_utf_16(units, info)) then
                 if (has(info%found, CAT_UTF_16_LE)) then
                     found_id = coding_system_id(codings(id)%bom_with)
@@ -1581,10 +1723,12 @@ contains
                     found_id = coding_system_id(codings(id)%bom_without)
                 end if
             end if
+
             if (found_id == id) return
         else
             return
         end if
+
         if (specified_eol /= EOL_UNDECIDED) found_id = with_eol(found_id, specified_eol)
     end function detect_for_decoding
 
@@ -1593,7 +1737,9 @@ contains
     integer function auto_choice(this, category, info) result(id)
         integer, intent(in) :: this, category
         type(detect_info_type), intent(in) :: info
+
         id = this
+
         if (category == CAT_UTF_8_AUTO) then
             if (codings(this)%bom == BOM_DETECT) then
                 if (has(info%found, CAT_UTF_8_SIG)) then
@@ -1637,6 +1783,7 @@ contains
         integer(int64) :: head_ascii
         logical :: null_byte_found, eight_bit_found, top, hit
         integer :: i, category, this, n, mask, found, k, normal_eol, be_eol, le_eol, this_eol
+
         if (ncodings == 0) call syms_of_coding()
         top = .false.
         if (present(highest)) top = highest
@@ -1647,6 +1794,7 @@ contains
         category = CAT_UNDECIDED
         this = 0
         hit = .false.
+
         if (null_byte_found .or. eight_bit_found .or. head_ascii < len(src, kind=int64)) then
             if (head_ascii == len(src, kind=int64)) then
                 ! As all bytes are 7-bit, we can ignore non-ISO-2022 codings.
@@ -1656,9 +1804,11 @@ contains
                     info%checked = ior(info%checked, not(MASK_UTF_16))
                     info%rejected = ior(info%rejected, not(MASK_UTF_16))
                 end if
+
                 do i = 0, CAT_RAW_TEXT - 1
                     category = priorities(i)
                     this = category_id(category)
+
                     if (this == 0) then
                         info%rejected = ior(info%rejected, 2**category)
                     else if (category >= CAT_RAW_TEXT) then
@@ -1676,8 +1826,10 @@ contains
                                 else
                                     category = CAT_UTF_16_BE
                                 end if
+
                                 this = category_id(category)
                             end if
+
                             hit = .true.
                             exit
                         end if
@@ -1685,6 +1837,7 @@ contains
                 end do
             end if
         end if
+
         if (iand(info%rejected, MASK_ANY) == MASK_ANY .or. null_byte_found) then
             info%found = 2**CAT_RAW_TEXT
             n = 1
@@ -1711,10 +1864,12 @@ contains
         else
             mask = ior(info%rejected, info%found)
             found = 0
+
             ! The categories found, in priority order, then one that is
             ! neither rejected nor found.
             do i = 0, CAT_RAW_TEXT - 1
                 category = priorities(i)
+
                 if (has(info%found, category)) then
                     if (category_id(category) > 0) then
                         n = n + 1
@@ -1722,26 +1877,33 @@ contains
                     end if
                 end if
             end do
+
             ! Only the first of those that are neither stays in the list:
             ! each replaces the one before (list1i in the loop upstream).
             k = 0
+
             do i = CAT_RAW_TEXT - 1, 0, -1
                 category = priorities(i)
+
                 if (.not. has(mask, category)) then
                     found = ibset(found, category)
                     if (category_id(category) > 0) k = category_id(category)
                 end if
             end do
+
             if (k > 0) then
                 n = n + 1
                 ids(n) = k
             end if
+
             info%found = ior(info%found, found)
         end if
+
         ! Then, detect eol-format if necessary.
         normal_eol = -1
         be_eol = -1
         le_eol = -1
+
         if (iand(info%found, not(MASK_UTF_16)) /= 0) then
             if (null_byte_found) then
                 normal_eol = EOL_SEEN_LF
@@ -1749,11 +1911,14 @@ contains
                 normal_eol = detect_eol(units, CAT_RAW_TEXT)
             end if
         end if
+
         if (iand(info%found, 2**CAT_UTF_16_BE + 2**CAT_UTF_16_BE_NOSIG) /= 0) be_eol = detect_eol(units, CAT_UTF_16_BE)
         if (iand(info%found, 2**CAT_UTF_16_LE + 2**CAT_UTF_16_LE_NOSIG) /= 0) le_eol = detect_eol(units, CAT_UTF_16_LE)
         allocate (names(n))
+
         do k = 1, n
             category = codings(ids(k))%category
+
             if (category == CAT_UTF_16_BE .or. category == CAT_UTF_16_BE_NOSIG) then
                 this_eol = be_eol
             else if (category == CAT_UTF_16_LE .or. category == CAT_UTF_16_LE_NOSIG) then
@@ -1761,6 +1926,7 @@ contains
             else
                 this_eol = normal_eol
             end if
+
             if (codings(ids(k))%eol == EOL_UNDECIDED .and. this_eol > 0) then
                 names(k)%name = codings(adjust_eol(ids(k), this_eol))%name
             else
@@ -1772,18 +1938,19 @@ contains
     ! ------------------------------------------------------------------
     ! Decoding
     ! ------------------------------------------------------------------
-
     !> Append character C to CHARS(1:N).
     subroutine push(chars, n, c)
         integer, allocatable, intent(inout) :: chars(:)
         integer(int64), intent(inout) :: n
         integer, intent(in) :: c
         integer, allocatable :: grown(:)
+
         if (n == size(chars, kind=int64)) then
             allocate (grown(max(16_int64, 2*n)))
             grown(1:n) = chars(1:n)
             call move_alloc(grown, chars)
         end if
+
         n = n + 1
         chars(n) = c
     end subroutine push
@@ -1792,6 +1959,7 @@ contains
     !> others as raw bytes; a character of multibyte source stays.
     integer function invalid_char(u) result(c)
         integer, intent(in) :: u
+
         if (u < 0) then
             c = -u
         else if (u < 128) then
@@ -1810,23 +1978,29 @@ contains
         integer(int64) :: src, nu, base
         integer :: c, c1, k, need, b(4)
         logical :: bad
+
         nu = size(units, kind=int64)
         src = 1
+
         if (codings(id)%bom /= BOM_NONE .and. nu >= 3) then
             if (units(1) == int(z'EF') .and. units(2) == int(z'BB') .and. units(3) == int(z'BF')) src = 4
         end if
+
         do while (src <= nu)
             base = src
             c1 = units(src)
             src = src + 1
+
             if (c1 < 0) then
                 call push(chars, n, -c1)
                 cycle
             end if
+
             if (c1 < 128) then
                 call push(chars, n, c1)
                 cycle
             end if
+
             if (iand(c1, int(z'E0')) == int(z'C0')) then
                 need = 1
             else if (iand(c1, int(z'F0')) == int(z'E0')) then
@@ -1838,9 +2012,12 @@ contains
             else
                 need = 0
             end if
+
             bad = need == 0
+
             do k = 1, need
                 if (bad) exit
+
                 if (src > nu) then
                     bad = .true.
                 else if (units(src) < 0 .or. iand(units(src), int(z'C0')) /= int(z'80')) then
@@ -1850,6 +2027,7 @@ contains
                     src = src + 1
                 end if
             end do
+
             if (.not. bad) then
                 select case (need)
                 case (1)
@@ -1869,6 +2047,7 @@ contains
                     bad = c > MAX_CHAR .or. c < int(z'200000')
                 end select
             end if
+
             if (bad) then
                 ! invalid_code: the first byte alone, as a raw byte.
                 src = base + 1
@@ -1888,39 +2067,48 @@ contains
         integer(int64) :: src, nu
         integer :: c, c1, c2, surrogate
         logical :: big
+
         nu = size(units, kind=int64)
         big = codings(id)%big_endian
         src = 1
         surrogate = 0
+
         if (codings(id)%bom == BOM_WITH .and. nu >= 2) then
             if (units(1) >= 0 .and. units(2) >= 0) then
                 c = ior(ishft(units(1), 8), units(2))
                 if (big .and. c == int(z'FEFF') .or. .not. big .and. c == int(z'FFFE')) src = 3
             end if
         end if
+
         do while (src <= nu)
             c1 = units(src)
             src = src + 1
+
             if (c1 < 0) then
                 call push(chars, n, -c1)
                 cycle
             end if
+
             if (src > nu) then
                 call push(chars, n, invalid_char(c1))
                 exit
             end if
+
             c2 = units(src)
             src = src + 1
+
             if (c2 < 0) then
                 call push(chars, n, invalid_char(c1))
                 call push(chars, n, -c2)
                 cycle
             end if
+
             if (big) then
                 c = ior(ishft(c1, 8), c2)
             else
                 c = ior(ishft(c2, 8), c1)
             end if
+
             if (surrogate /= 0) then
                 if (.not. (c >= int(z'DC00') .and. c <= int(z'DFFF'))) then
                     if (big) then
@@ -1930,6 +2118,7 @@ contains
                         call push(chars, n, iand(surrogate, 255))
                         call push(chars, n, ishft(surrogate, -8))
                     end if
+
                     if (c >= int(z'D800') .and. c <= int(z'DBFF')) then
                         surrogate = c
                     else
@@ -1947,6 +2136,7 @@ contains
                 call push(chars, n, c)
             end if
         end do
+
         ! A high surrogate at the end: its bytes, as decode_coding flushes
         ! unprocessed data.
         if (surrogate /= 0) then
@@ -1968,10 +2158,13 @@ contains
         integer(int64), intent(inout) :: n
         integer(int64) :: src
         integer :: c, limit
+
         limit = 127
         if (codings(id)%charset == CS_LATIN1) limit = 255
+
         do src = 1, size(units, kind=int64)
             c = units(src)
+
             if (c >= 0 .and. c <= limit) then
                 call push(chars, n, c)
             else
@@ -1987,6 +2180,7 @@ contains
         integer, allocatable, intent(inout) :: chars(:)
         integer(int64), intent(inout) :: n
         integer(int64) :: src
+
         do src = 1, size(units, kind=int64)
             call push(chars, n, invalid_char(units(src)))
         end do
@@ -2001,10 +2195,13 @@ contains
         integer(int64), intent(inout) :: n
         integer(int64) :: p, q
         integer :: eol_seen
+
         if (inhibit_eol_conversion%value .or. codings(id)%eol == EOL_UNIX) return
+
         if (codings(id)%eol == EOL_UNDECIDED) then
             eol_seen = EOL_SEEN_NONE
             p = 1
+
             do while (p <= n)
                 if (chars(p) == LF) then
                     eol_seen = ior(eol_seen, EOL_SEEN_LF)
@@ -2020,8 +2217,10 @@ contains
                         eol_seen = ior(eol_seen, EOL_SEEN_CR)
                     end if
                 end if
+
                 p = p + 1
             end do
+
             ! Handle DOS-style EOLs in a file with stray ^M characters.
             if (iand(eol_seen, EOL_SEEN_CRLF) /= 0 .and. iand(eol_seen, EOL_SEEN_CR) /= 0 &
                 .and. iand(eol_seen, EOL_SEEN_LF) == 0) then
@@ -2030,14 +2229,17 @@ contains
                      .and. eol_seen /= EOL_SEEN_CR) then
                 eol_seen = EOL_SEEN_LF
             end if
+
             if (eol_seen /= EOL_SEEN_NONE) id = adjust_eol(id, eol_seen)
         end if
+
         select case (codings(id)%eol)
         case (EOL_MAC)
             where (chars(1:n) == CR) chars(1:n) = LF
         case (EOL_DOS)
             q = 0
             p = 1
+
             do while (p <= n)
                 if (chars(p) == CR .and. p < n) then
                     if (chars(p + 1) == LF) then
@@ -2045,10 +2247,12 @@ contains
                         cycle
                     end if
                 end if
+
                 q = q + 1
                 chars(q) = chars(p)
                 p = p + 1
             end do
+
             n = q
         case default
             ! Unix: nothing to convert.
@@ -2067,8 +2271,10 @@ contains
         integer(int32) :: nb
         integer(int64) :: k, q
         type(status_type) :: st
+
         if (.not. multibyte) then
             allocate (character(len=n) :: text)
+
             do k = 1, n
                 if (chars(k) < 256) then
                     text(k:k) = char(chars(k))
@@ -2076,10 +2282,13 @@ contains
                     text(k:k) = char(char_to_byte8(chars(k)))
                 end if
             end do
+
             return
         end if
+
         allocate (character(len=MAX_MULTIBYTE_LENGTH*n) :: text)
         q = 0
+
         do k = 1, n
             if (chars(k) < 128) then
                 q = q + 1
@@ -2090,6 +2299,7 @@ contains
                 q = q + nb
             end if
         end do
+
         text = text(1:q)
     end subroutine chars_to_text
 
@@ -2108,25 +2318,30 @@ contains
         integer(int64) :: n
         integer :: id
         logical :: smb, dmb
+
         text = ""
         used = coding
         smb = .false.
         if (present(src_multibyte)) smb = src_multibyte
         dmb = .true.
         if (present(dst_multibyte)) dmb = dst_multibyte
+
         if (len(coding) == 0) then
             id = coding_system_id("undecided")
         else
             id = coding_system_id(coding)
         end if
+
         if (id == 0) then
             call set_error(status, FM_CODING_SYSTEM_ERROR, coding)
             return
         end if
+
         call source_units(src, smb, units)
         id = detect_for_decoding(id, units, src)
         allocate (chars(max(16, size(units))))
         n = 0
+
         select case (codings(id)%ctype)
         case (CODING_UTF_8)
             call decode_utf_8(id, units, chars, n)
@@ -2137,6 +2352,7 @@ contains
         case default
             call decode_raw_text(units, chars, n)
         end select
+
         call decode_eol(id, chars, n)
         call chars_to_text(chars, n, dmb, text)
         used = codings(id)%name
@@ -2145,18 +2361,19 @@ contains
     ! ------------------------------------------------------------------
     ! Encoding
     ! ------------------------------------------------------------------
-
     !> Append the bytes of BYTES to OUT(1:Q).
     subroutine emit(out, q, bytes)
         character(len=:), allocatable, intent(inout) :: out
         integer(int64), intent(inout) :: q
         character(len=*), intent(in) :: bytes
         character(len=:), allocatable :: grown
+
         if (q + len(bytes) > len(out, kind=int64)) then
             allocate (character(len=max(2*len(out, kind=int64), q + len(bytes) + 16)) :: grown)
             grown(1:q) = out(1:q)
             call move_alloc(grown, out)
         end if
+
         out(q + 1:q + len(bytes)) = bytes
         q = q + len(bytes)
     end subroutine emit
@@ -2172,9 +2389,11 @@ contains
         integer(int64), intent(out) :: n
         integer(int64) :: p
         integer :: c, length
+
         allocate (chars(max(16, len(src))))
         n = 0
         p = 1
+
         do while (p <= len(src, kind=int64))
             if (multibyte) then
                 if (iachar(src(p:p)) < 128) then
@@ -2191,7 +2410,9 @@ contains
                 if (c >= 128) c = byte8_to_char(c)
                 length = 1
             end if
+
             p = p + length
+
             if (c == LF .and. eol == EOL_DOS) then
                 call push(chars, n, CR)
                 call push(chars, n, LF)
@@ -2210,6 +2431,7 @@ contains
         character(len=MAX_MULTIBYTE_LENGTH) :: buf
         integer(int32) :: nb
         type(status_type) :: st
+
         call char_string(c, buf, nb, st)
         s = buf(1:nb)
     end function internal_bytes
@@ -2229,30 +2451,37 @@ contains
         integer(int64) :: n, k, q
         integer :: id, eol, c, limit, u
         logical :: mb
+
         out = ""
         used = coding
         mb = .true.
         if (present(multibyte)) mb = multibyte
+
         if (len(coding) == 0) then
             id = coding_system_id("no-conversion")
         else
             id = coding_system_id(coding)
         end if
+
         if (id == 0) then
             call set_error(status, FM_CODING_SYSTEM_ERROR, coding)
             return
         end if
+
         eol = codings(id)%eol
         if (inhibit_eol_conversion%value .or. eol == EOL_UNDECIDED) eol = EOL_UNIX
         call consume_chars(text, mb, eol, chars, n)
         deallocate (out)
         allocate (character(len=max(16_int64, 2*n)) :: out)
         q = 0
+
         select case (codings(id)%ctype)
         case (CODING_UTF_8)
             if (codings(id)%bom /= BOM_NONE) call emit(out, q, char(int(z'EF'))//char(int(z'BB'))//char(int(z'BF')))
+
             do k = 1, n
                 c = chars(k)
+
                 if (char_byte8_p(c)) then
                     call emit(out, q, char(char_to_byte8(c)))
                 else if (c < 128) then
@@ -2269,9 +2498,11 @@ contains
                     call emit(out, q, char(int(z'FF'))//char(int(z'FE')))
                 end if
             end if
+
             do k = 1, n
                 c = chars(k)
                 if (c > MAX_UNICODE_CHAR) c = codings(id)%default_char
+
                 if (c < int(z'10000')) then
                     call emit_16(c)
                 else
@@ -2283,8 +2514,10 @@ contains
         case (CODING_CHARSET)
             limit = 127
             if (codings(id)%charset == CS_LATIN1) limit = 255
+
             do k = 1, n
                 c = chars(k)
+
                 if (c < 128) then
                     call emit(out, q, char(c))
                 else if (char_byte8_p(c)) then
@@ -2299,6 +2532,7 @@ contains
             ! encode_coding_raw_text (also for undecided).
             do k = 1, n
                 c = chars(k)
+
                 if (c < 128) then
                     call emit(out, q, char(c))
                 else if (char_byte8_p(c)) then
@@ -2311,12 +2545,15 @@ contains
                 end if
             end do
         end select
+
         out = out(1:q)
         used = codings(id)%name
+
     contains
 
         subroutine emit_16(v)
             integer, intent(in) :: v
+
             if (codings(id)%big_endian) then
                 call emit(out, q, char(ishft(v, -8))//char(iand(v, 255)))
             else
@@ -2328,16 +2565,17 @@ contains
     ! ------------------------------------------------------------------
     ! Encodability
     ! ------------------------------------------------------------------
-
     !> Whether coding system CODING can encode character C.  Port of
     !> coding.c:char_encodable_p.
     logical function char_encodable_p(c, coding)
         integer, intent(in) :: c
         character(len=*), intent(in) :: coding
         integer :: id
+
         char_encodable_p = .false.
         id = coding_system_id(coding)
         if (id == 0) return
+
         select case (codings(id)%charset)
         case (CS_ASCII)
             char_encodable_p = c < 128
@@ -2372,24 +2610,29 @@ contains
         integer(int64), allocatable :: pos(:, :), counts(:)
         integer(int64) :: p, chars, nc
         integer :: k, c, length, m
+
         allocate (result(0))
+
         do k = 1, size(coding_systems)
             if (coding_system_id(trim(coding_systems(k))) == 0) then
                 call set_error(status, FM_CODING_SYSTEM_ERROR, trim(coding_systems(k)))
                 return
             end if
         end do
+
         nc = len(text, kind=int64)
         allocate (pos(max(1_int64, nc), size(coding_systems)), counts(size(coding_systems)))
         counts = 0
         p = 1
         chars = 0
+
         do while (p <= nc)
             if (iachar(text(p:p)) < 128) then
                 p = p + 1
             else
                 call string_char_and_length(text, p, c, length)
                 p = p + length
+
                 do k = 1, size(coding_systems)
                     if (.not. char_encodable_p(c, trim(coding_systems(k)))) then
                         counts(k) = counts(k) + 1
@@ -2397,12 +2640,15 @@ contains
                     end if
                 end do
             end if
+
             chars = chars + 1
         end do
+
         m = count(counts > 0)
         deallocate (result)
         allocate (result(m))
         m = 0
+
         ! In the reverse order of the list, as the upstream loops leave it.
         do k = size(coding_systems), 1, -1
             if (counts(k) == 0) cycle
@@ -2410,6 +2656,7 @@ contains
             result(m)%coding = trim(coding_systems(k))
             result(m)%positions = pos(1:counts(k), k)
         end do
+
         result = result(size(result):1:-1)
     end subroutine check_coding_systems_text
 
@@ -2425,41 +2672,50 @@ contains
         logical, allocatable :: safe(:)
         integer(int64) :: p
         integer :: c, length, id, i, n, k
+
         if (ncodings == 0) call syms_of_coding()
         allocate (safe(ncodings))
         safe = .true.
         all = .true.
         p = 1
+
         do while (p <= len(text, kind=int64))
             if (iachar(text(p:p)) < 128) then
                 p = p + 1
                 cycle
             end if
+
             all = .false.
             call string_char_and_length(text, p, c, length)
             p = p + length
+
             do id = 1, ncodings
                 if (safe(id)) safe(id) = char_encodable_p(c, codings(id)%name)
             end do
         end do
+
         allocate (names(ncodings))
         n = 0
+
         if (all) then
             names(1)%name = "undecided"
             n = 1
             names = names(1:n)
             return
         end if
+
         ! The base coding systems that encode it: those of the categories
         ! by priority first, then the others.
         do i = 0, NCAT - 1
             id = category_id(priorities(i))
             if (id == 0) cycle
+
             if (safe(id) .and. codings(id)%ctype /= CODING_RAW_TEXT .and. codings(id)%ctype /= CODING_UNDECIDED) then
                 n = n + 1
                 names(n)%name = codings(id)%name
             end if
         end do
+
         do id = 1, ncodings
             if (codings(id)%base /= id) cycle
             if (.not. safe(id)) cycle
@@ -2468,13 +2724,13 @@ contains
             n = n + 1
             names(n)%name = codings(id)%name
         end do
+
         names = names(1:n)
     end subroutine find_coding_systems_text
 
     ! ------------------------------------------------------------------
     ! Strings and regions
     ! ------------------------------------------------------------------
-
     !> Decode STRING (bytes, unless MULTIBYTE) by CODING-SYSTEM into RESULT.
     !> If CODING-SYSTEM is nil, it returns STRING itself.  The value is a
     !> multibyte string.  This function sets `last_coding_system_used' to
@@ -2488,13 +2744,16 @@ contains
         logical, intent(in), optional :: multibyte
         character(len=:), allocatable :: used
         logical :: mb
+
         mb = .false.
         if (present(multibyte)) mb = multibyte
+
         if (len(coding_system) == 0) then
             last_coding_system_used = "no-conversion"
             result = string
             return
         end if
+
         call decode_coding_bytes(string, coding_system, result, used, status, src_multibyte=mb)
         if (.not. status%ok()) return
         last_coding_system_used = used
@@ -2512,11 +2771,13 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: multibyte
         character(len=:), allocatable :: used
+
         if (len(coding_system) == 0) then
             last_coding_system_used = "no-conversion"
             result = string
             return
         end if
+
         call encode_coding_text(string, coding_system, result, used, status, multibyte)
         if (.not. status%ok()) return
         last_coding_system_used = used
@@ -2530,6 +2791,7 @@ contains
         type(coding_system_list_entry_type), allocatable, intent(out) :: names(:)
         logical, intent(in), optional :: highest, multibyte
         logical :: mb
+
         mb = .false.
         if (present(multibyte)) mb = multibyte
         call detect_coding_bytes(string, mb, names, highest)
@@ -2541,13 +2803,16 @@ contains
         integer(int64), intent(out) :: from, to
         character(len=:), allocatable, intent(out) :: bytes
         type(status_type), intent(out) :: status
+
         from = min(start, end)
         to = max(start, end)
+
         if (from < buffers(cur)%begv .or. to > buffers(cur)%zv) then
             call set_error(status, FM_ARGS_OUT_OF_RANGE)
             bytes = ""
             return
         end if
+
         bytes = buf_bytes(buffers(cur), char_to_byte(from), char_to_byte(to))
     end subroutine region_bytes
 
@@ -2561,11 +2826,14 @@ contains
         logical, intent(in), optional :: highest
         character(len=:), allocatable :: bytes
         integer(int64) :: from, to
+
         call region_bytes(start, end, from, to, bytes, status)
+
         if (.not. status%ok()) then
             allocate (names(0))
             return
         end if
+
         call detect_coding_bytes(bytes, buffers(cur)%multibyte, names, highest)
     end subroutine detect_coding_region
 
@@ -2584,6 +2852,7 @@ contains
         character(len=*), intent(in) :: coding_system
         integer(int64), intent(out) :: inserted
         type(status_type), intent(out) :: status
+
         call convert_region(start, end, coding_system, .false., inserted, status)
     end subroutine decode_coding_region
 
@@ -2601,6 +2870,7 @@ contains
         character(len=*), intent(in) :: coding_system
         integer(int64), intent(out) :: inserted
         type(status_type), intent(out) :: status
+
         call convert_region(start, end, coding_system, .true., inserted, status)
     end subroutine encode_coding_region
 
@@ -2614,16 +2884,20 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: bytes, text, used
         integer(int64) :: from, to, k
+
         inserted = 0
         call region_bytes(start, end, from, to, bytes, status)
         if (.not. status%ok()) return
+
         if (len(coding_system) == 0) then
             last_coding_system_used = "no-conversion"
             inserted = to - from
             return
         end if
+
         call check_coding_system(coding_system, status)
         if (.not. status%ok()) return
+
         if (encode) then
             call encode_coding_text(bytes, coding_system, text, used, status, multibyte=buffers(cur)%multibyte)
             ! The bytes, as raw-byte characters in a multibyte buffer.
@@ -2632,20 +2906,24 @@ contains
             call decode_coding_bytes(bytes, coding_system, text, used, status, src_multibyte=buffers(cur)%multibyte, &
                                      dst_multibyte=buffers(cur)%multibyte)
         end if
+
         if (.not. status%ok()) return
         call temp_set_point_both(buffers(cur), from, char_to_byte(from))
         call del_range(from, to, status)
         if (.not. status%ok()) return
         call insert(text, status)
         if (.not. status%ok()) return
+
         if (buffers(cur)%multibyte) then
             inserted = 0
+
             do k = 1, len(text, kind=int64)
                 if (iand(iachar(text(k:k)), int(z'C0')) /= int(z'80')) inserted = inserted + 1
             end do
         else
             inserted = len(text, kind=int64)
         end if
+
         last_coding_system_used = used
     end subroutine convert_region
 end module coding_fm

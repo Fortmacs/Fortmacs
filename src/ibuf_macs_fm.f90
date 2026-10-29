@@ -425,6 +425,7 @@ contains
         logical, intent(in), optional :: elide
         procedure(ibuffer_size_proc), optional :: min_function, max_function
         type(ibuffer_column_spec_type) :: spec
+
         spec%name = name
         if (present(min_size)) spec%min_size = min_size
         if (present(max_size)) spec%max_size = max_size
@@ -438,6 +439,7 @@ contains
     function ibuffer_text(text) result(spec)
         character(len=*), intent(in) :: text
         type(ibuffer_column_spec_type) :: spec
+
         spec%text = text
         spec%text_len = min(len(text), IBUFFER_TEXT_LEN)
     end function ibuffer_text
@@ -447,12 +449,15 @@ contains
         type(ibuffer_column_spec_type), intent(in) :: entries(:)
         type(ibuffer_format_type), allocatable :: grown(:)
         integer :: k, n
+
         if (.not. allocated(self%formats)) allocate (self%formats(0))
         n = size(self%formats)
         allocate (grown(n + 1))
+
         do k = 1, n
             call move_alloc(self%formats(k)%entries, grown(k)%entries)
         end do
+
         allocate (grown(n + 1)%entries(size(entries)))
         grown(n + 1)%entries = entries
         call move_alloc(grown, self%formats)
@@ -460,12 +465,14 @@ contains
 
     subroutine formats_clear(self)
         class(ibuffer_formats_type), intent(inout) :: self
+
         if (allocated(self%formats)) deallocate (self%formats)
         allocate (self%formats(0))
     end subroutine formats_clear
 
     integer function formats_count(self) result(n)
         class(ibuffer_formats_type), intent(in) :: self
+
         n = 0
         if (allocated(self%formats)) n = size(self%formats)
     end function formats_count
@@ -473,7 +480,6 @@ contains
     ! ------------------------------------------------------------------
     ! Filters
     ! ------------------------------------------------------------------
-
     !> A compound filter specification: the logical-and of the filters F1, F2, ... (one or more, up to 16): (and FILTER-SPECS...).
     function ibuffer_and(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16) result(f)
         type(ibuffer_filter_type), intent(in) :: f1
@@ -481,70 +487,87 @@ contains
                                                            f15, f16
         type(ibuffer_filter_type) :: f
         integer :: count
+
         allocate (f%nodes(1))
         f%nodes(1)%kind = IBUFFER_FILTER_AND
         count = 1
         call append_nodes(f, f1)
+
         if (present(f2)) then
             call append_nodes(f, f2)
             count = count + 1
         end if
+
         if (present(f3)) then
             call append_nodes(f, f3)
             count = count + 1
         end if
+
         if (present(f4)) then
             call append_nodes(f, f4)
             count = count + 1
         end if
+
         if (present(f5)) then
             call append_nodes(f, f5)
             count = count + 1
         end if
+
         if (present(f6)) then
             call append_nodes(f, f6)
             count = count + 1
         end if
+
         if (present(f7)) then
             call append_nodes(f, f7)
             count = count + 1
         end if
+
         if (present(f8)) then
             call append_nodes(f, f8)
             count = count + 1
         end if
+
         if (present(f9)) then
             call append_nodes(f, f9)
             count = count + 1
         end if
+
         if (present(f10)) then
             call append_nodes(f, f10)
             count = count + 1
         end if
+
         if (present(f11)) then
             call append_nodes(f, f11)
             count = count + 1
         end if
+
         if (present(f12)) then
             call append_nodes(f, f12)
             count = count + 1
         end if
+
         if (present(f13)) then
             call append_nodes(f, f13)
             count = count + 1
         end if
+
         if (present(f14)) then
             call append_nodes(f, f14)
             count = count + 1
         end if
+
         if (present(f15)) then
             call append_nodes(f, f15)
             count = count + 1
         end if
+
         if (present(f16)) then
             call append_nodes(f, f16)
             count = count + 1
         end if
+
         f%nodes(1)%count = count
     end function ibuffer_and
 
@@ -555,70 +578,87 @@ contains
                                                            f15, f16
         type(ibuffer_filter_type) :: f
         integer :: count
+
         allocate (f%nodes(1))
         f%nodes(1)%kind = IBUFFER_FILTER_OR
         count = 1
         call append_nodes(f, f1)
+
         if (present(f2)) then
             call append_nodes(f, f2)
             count = count + 1
         end if
+
         if (present(f3)) then
             call append_nodes(f, f3)
             count = count + 1
         end if
+
         if (present(f4)) then
             call append_nodes(f, f4)
             count = count + 1
         end if
+
         if (present(f5)) then
             call append_nodes(f, f5)
             count = count + 1
         end if
+
         if (present(f6)) then
             call append_nodes(f, f6)
             count = count + 1
         end if
+
         if (present(f7)) then
             call append_nodes(f, f7)
             count = count + 1
         end if
+
         if (present(f8)) then
             call append_nodes(f, f8)
             count = count + 1
         end if
+
         if (present(f9)) then
             call append_nodes(f, f9)
             count = count + 1
         end if
+
         if (present(f10)) then
             call append_nodes(f, f10)
             count = count + 1
         end if
+
         if (present(f11)) then
             call append_nodes(f, f11)
             count = count + 1
         end if
+
         if (present(f12)) then
             call append_nodes(f, f12)
             count = count + 1
         end if
+
         if (present(f13)) then
             call append_nodes(f, f13)
             count = count + 1
         end if
+
         if (present(f14)) then
             call append_nodes(f, f14)
             count = count + 1
         end if
+
         if (present(f15)) then
             call append_nodes(f, f15)
             count = count + 1
         end if
+
         if (present(f16)) then
             call append_nodes(f, f16)
             count = count + 1
         end if
+
         f%nodes(1)%count = count
     end function ibuffer_or
 
@@ -627,6 +667,7 @@ contains
     function ibuffer_not(f1) result(f)
         type(ibuffer_filter_type), intent(in) :: f1
         type(ibuffer_filter_type) :: f
+
         allocate (f%nodes(1))
         f%nodes(1)%kind = IBUFFER_FILTER_NOT
         f%nodes(1)%count = 1
@@ -638,6 +679,7 @@ contains
     function ibuffer_saved(name) result(f)
         character(len=*), intent(in) :: name
         type(ibuffer_filter_type) :: f
+
         allocate (f%nodes(1))
         f%nodes(1)%kind = IBUFFER_FILTER_SAVED
         call set_string(f%nodes(1), name)
@@ -652,15 +694,18 @@ contains
         integer(int64), intent(in), optional :: number
         procedure(ibuffer_buffer_predicate_proc), optional :: predicate
         type(ibuffer_filter_type) :: f
+
         allocate (f%nodes(1))
         f%nodes(1)%kind = IBUFFER_FILTER_SIMPLE
         f%nodes(1)%name = name
         if (present(qualifier)) call set_string(f%nodes(1), qualifier)
+
         if (present(number)) then
             f%nodes(1)%has_qualifier = .true.
             f%nodes(1)%is_number = .true.
             f%nodes(1)%number = number
         end if
+
         if (present(predicate)) then
             f%nodes(1)%has_qualifier = .true.
             f%nodes(1)%predicate => predicate
@@ -670,6 +715,7 @@ contains
     subroutine set_string(node, s)
         type(ibuffer_filter_node_type), intent(inout) :: node
         character(len=*), intent(in) :: s
+
         node%has_qualifier = .true.
         node%qualifier = s
         node%qualifier_len = min(len(s), len(node%qualifier))
@@ -679,6 +725,7 @@ contains
     function ibuffer_major_mode(mode) result(f)
         character(len=*), intent(in) :: mode
         type(ibuffer_filter_type) :: f
+
         f = ibuffer_filter("mode", qualifier=mode)
     end function ibuffer_major_mode
 
@@ -686,6 +733,7 @@ contains
     function ibuffer_used_mode(mode) result(f)
         character(len=*), intent(in) :: mode
         type(ibuffer_filter_type) :: f
+
         f = ibuffer_filter("used_mode", qualifier=mode)
     end function ibuffer_used_mode
 
@@ -693,6 +741,7 @@ contains
     function ibuffer_derived_mode(mode) result(f)
         character(len=*), intent(in) :: mode
         type(ibuffer_filter_type) :: f
+
         f = ibuffer_filter("derived_mode", qualifier=mode)
     end function ibuffer_derived_mode
 
@@ -700,18 +749,21 @@ contains
     function ibuffer_name(regexp) result(f)
         character(len=*), intent(in) :: regexp
         type(ibuffer_filter_type) :: f
+
         f = ibuffer_filter("name", qualifier=regexp)
     end function ibuffer_name
 
     !> Buffers running a process (process).
     function ibuffer_process() result(f)
         type(ibuffer_filter_type) :: f
+
         f = ibuffer_filter("process")
     end function ibuffer_process
 
     !> Buffers whose name begins and ends with * (starred-name).
     function ibuffer_starred_name() result(f)
         type(ibuffer_filter_type) :: f
+
         f = ibuffer_filter("starred_name")
     end function ibuffer_starred_name
 
@@ -719,6 +771,7 @@ contains
     function ibuffer_filename(regexp) result(f)
         character(len=*), intent(in) :: regexp
         type(ibuffer_filter_type) :: f
+
         f = ibuffer_filter("filename", qualifier=regexp)
     end function ibuffer_filename
 
@@ -726,6 +779,7 @@ contains
     function ibuffer_basename(regexp) result(f)
         character(len=*), intent(in) :: regexp
         type(ibuffer_filter_type) :: f
+
         f = ibuffer_filter("basename", qualifier=regexp)
     end function ibuffer_basename
 
@@ -734,6 +788,7 @@ contains
     function ibuffer_file_extension(regexp) result(f)
         character(len=*), intent(in) :: regexp
         type(ibuffer_filter_type) :: f
+
         f = ibuffer_filter("file_extension", qualifier=regexp)
     end function ibuffer_file_extension
 
@@ -741,6 +796,7 @@ contains
     function ibuffer_directory(regexp) result(f)
         character(len=*), intent(in) :: regexp
         type(ibuffer_filter_type) :: f
+
         f = ibuffer_filter("directory", qualifier=regexp)
     end function ibuffer_directory
 
@@ -748,6 +804,7 @@ contains
     function ibuffer_size_gt(size) result(f)
         integer(int64), intent(in) :: size
         type(ibuffer_filter_type) :: f
+
         f = ibuffer_filter("size_gt", number=size)
     end function ibuffer_size_gt
 
@@ -755,18 +812,21 @@ contains
     function ibuffer_size_lt(size) result(f)
         integer(int64), intent(in) :: size
         type(ibuffer_filter_type) :: f
+
         f = ibuffer_filter("size_lt", number=size)
     end function ibuffer_size_lt
 
     !> Modified buffers (modified).
     function ibuffer_modified() result(f)
         type(ibuffer_filter_type) :: f
+
         f = ibuffer_filter("modified")
     end function ibuffer_modified
 
     !> Buffers visiting a file (visiting-file).
     function ibuffer_visiting_file() result(f)
         type(ibuffer_filter_type) :: f
+
         f = ibuffer_filter("visiting_file")
     end function ibuffer_visiting_file
 
@@ -774,6 +834,7 @@ contains
     function ibuffer_content(regexp) result(f)
         character(len=*), intent(in) :: regexp
         type(ibuffer_filter_type) :: f
+
         f = ibuffer_filter("content", qualifier=regexp)
     end function ibuffer_content
 
@@ -782,6 +843,7 @@ contains
     function ibuffer_predicate(predicate) result(f)
         procedure(ibuffer_buffer_predicate_proc) :: predicate
         type(ibuffer_filter_type) :: f
+
         f = ibuffer_filter("predicate", predicate=predicate)
     end function ibuffer_predicate
 
@@ -791,6 +853,7 @@ contains
         type(ibuffer_filter_type), intent(in) :: from
         type(ibuffer_filter_node_type), allocatable :: grown(:)
         integer :: n, m
+
         n = size(f%nodes)
         m = 0
         if (allocated(from%nodes)) m = size(from%nodes)
@@ -806,7 +869,9 @@ contains
         type(ibuffer_filter_type), intent(in) :: f
         integer, intent(in) :: k
         integer :: j, c
+
         n = 1
+
         select case (f%nodes(k)%kind)
         case (IBUFFER_FILTER_NOT, IBUFFER_FILTER_AND, IBUFFER_FILTER_OR)
             do c = 1, f%nodes(k)%count
@@ -823,6 +888,7 @@ contains
         type(ibuffer_filter_type), intent(in) :: f
         integer, intent(in) :: k, n
         type(ibuffer_filter_type) :: part
+
         allocate (part%nodes(n))
         part%nodes = f%nodes(k:k + n - 1)
     end function ibuffer_filter_part
@@ -831,20 +897,24 @@ contains
     logical function ibuffer_filter_equal(a, b) result(same)
         type(ibuffer_filter_type), intent(in) :: a, b
         integer :: k
+
         same = .false.
         if (.not. allocated(a%nodes) .or. .not. allocated(b%nodes)) return
         if (size(a%nodes) /= size(b%nodes)) return
+
         do k = 1, size(a%nodes)
             associate (x => a%nodes(k), y => b%nodes(k))
                 if (x%kind /= y%kind .or. x%count /= y%count .or. x%name /= y%name .or. &
                     (x%has_qualifier .neqv. y%has_qualifier) .or. x%qualifier_len /= y%qualifier_len .or. &
                     x%qualifier /= y%qualifier .or. (x%is_number .neqv. y%is_number) .or. x%number /= y%number) return
                 if (associated(x%predicate) .neqv. associated(y%predicate)) return
+
                 if (associated(x%predicate)) then
                     if (.not. associated(x%predicate, y%predicate)) return
                 end if
             end associate
         end do
+
         same = .true.
     end function ibuffer_filter_equal
 
@@ -854,6 +924,7 @@ contains
         type(ibuffer_filter_type), intent(in), optional :: f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, &
                                                            f14, f15, f16
         integer :: n
+
         allocate (filters(16))
         n = 0
         call put(f1)
@@ -873,9 +944,12 @@ contains
         call put(f15)
         call put(f16)
         filters = filters(1:n)
+
     contains
+
         subroutine put(f)
             type(ibuffer_filter_type), intent(in), optional :: f
+
             if (.not. present(f)) return
             n = n + 1
             filters(n) = f
@@ -888,6 +962,7 @@ contains
         type(ibuffer_filter_type), intent(in), optional :: f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, &
                                                            f14, f15, f16
         type(ibuffer_filter_type), allocatable :: filters(:)
+
         call add_filters(filters, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16)
         call self%set(name, filters)
     end subroutine saved_filters_add
@@ -900,26 +975,33 @@ contains
         type(ibuffer_saved_filter_type), allocatable :: grown(:)
         integer :: k, n
         logical :: at_front
+
         if (.not. allocated(self%entries)) allocate (self%entries(0))
         k = self%find(name)
+
         if (k == 0) then
             at_front = .false.
             if (present(front)) at_front = front
             n = size(self%entries)
             allocate (grown(n + 1))
+
             if (at_front) then
                 do k = 1, n
                     call move_saved(self%entries(k), grown(k + 1))
                 end do
+
                 k = 1
             else
                 do k = 1, n
                     call move_saved(self%entries(k), grown(k))
                 end do
+
                 k = n + 1
             end if
+
             call move_alloc(grown, self%entries)
         end if
+
         self%entries(k)%name = name
         if (allocated(self%entries(k)%filters)) deallocate (self%entries(k)%filters)
         allocate (self%entries(k)%filters(size(filters)))
@@ -928,6 +1010,7 @@ contains
 
     subroutine move_saved(from, to)
         type(ibuffer_saved_filter_type), intent(inout) :: from, to
+
         call move_alloc(from%name, to%name)
         call move_alloc(from%filters, to%filters)
     end subroutine move_saved
@@ -935,11 +1018,13 @@ contains
     integer function saved_filters_find(self, name) result(k)
         class(ibuffer_saved_filters_type), intent(in) :: self
         character(len=*), intent(in) :: name
+
         if (allocated(self%entries)) then
             do k = 1, size(self%entries)
                 if (self%entries(k)%name == name .and. len(self%entries(k)%name) == len(name)) return
             end do
         end if
+
         k = 0
     end function saved_filters_find
 
@@ -948,16 +1033,20 @@ contains
         character(len=*), intent(in) :: name
         type(ibuffer_saved_filter_type), allocatable :: kept(:)
         integer :: k, n
+
         if (.not. allocated(self%entries)) return
         allocate (kept(size(self%entries)))
         n = 0
+
         do k = 1, size(self%entries)
             if (self%entries(k)%name == name .and. len(self%entries(k)%name) == len(name)) cycle
             n = n + 1
             call move_saved(self%entries(k), kept(n))
         end do
+
         deallocate (self%entries)
         allocate (self%entries(n))
+
         do k = 1, n
             call move_saved(kept(k), self%entries(k))
         end do
@@ -965,12 +1054,14 @@ contains
 
     subroutine saved_filters_clear(self)
         class(ibuffer_saved_filters_type), intent(inout) :: self
+
         if (allocated(self%entries)) deallocate (self%entries)
         allocate (self%entries(0))
     end subroutine saved_filters_clear
 
     integer function saved_filters_count(self) result(n)
         class(ibuffer_saved_filters_type), intent(in) :: self
+
         n = 0
         if (allocated(self%entries)) n = size(self%entries)
     end function saved_filters_count
@@ -981,12 +1072,14 @@ contains
         type(ibuffer_filter_type), intent(in), optional :: f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, &
                                                            f14, f15, f16
         type(ibuffer_filter_type), allocatable :: filters(:)
+
         call add_filters(filters, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16)
         call self%insert(name, filters, size_of_groups(self) + 1)
     end subroutine filter_groups_add
 
     integer function size_of_groups(groups) result(n)
         class(ibuffer_filter_groups_type), intent(in) :: groups
+
         n = 0
         if (allocated(groups%groups)) n = size(groups%groups)
     end function size_of_groups
@@ -998,30 +1091,37 @@ contains
         integer, intent(in) :: at
         type(ibuffer_saved_filter_type), allocatable :: grown(:)
         integer :: k, n, pos
+
         if (.not. allocated(self%groups)) allocate (self%groups(0))
         n = size(self%groups)
         pos = max(1, min(at, n + 1))
         allocate (grown(n + 1))
+
         do k = 1, pos - 1
             call move_saved(self%groups(k), grown(k))
         end do
+
         grown(pos)%name = name
         allocate (grown(pos)%filters(size(filters)))
         grown(pos)%filters = filters
+
         do k = pos, n
             call move_saved(self%groups(k), grown(k + 1))
         end do
+
         call move_alloc(grown, self%groups)
     end subroutine filter_groups_insert
 
     integer function filter_groups_find(self, name) result(k)
         class(ibuffer_filter_groups_type), intent(in) :: self
         character(len=*), intent(in) :: name
+
         if (allocated(self%groups)) then
             do k = 1, size(self%groups)
                 if (self%groups(k)%name == name .and. len(self%groups(k)%name) == len(name)) return
             end do
         end if
+
         k = 0
     end function filter_groups_find
 
@@ -1030,16 +1130,20 @@ contains
         character(len=*), intent(in) :: name
         type(ibuffer_saved_filter_type), allocatable :: kept(:)
         integer :: k, n
+
         if (.not. allocated(self%groups)) return
         allocate (kept(size(self%groups)))
         n = 0
+
         do k = 1, size(self%groups)
             if (self%groups(k)%name == name .and. len(self%groups(k)%name) == len(name)) cycle
             n = n + 1
             call move_saved(self%groups(k), kept(n))
         end do
+
         deallocate (self%groups)
         allocate (self%groups(n))
+
         do k = 1, n
             call move_saved(kept(k), self%groups(k))
         end do
@@ -1047,12 +1151,14 @@ contains
 
     subroutine filter_groups_clear(self)
         class(ibuffer_filter_groups_type), intent(inout) :: self
+
         if (allocated(self%groups)) deallocate (self%groups)
         allocate (self%groups(0))
     end subroutine filter_groups_clear
 
     integer function filter_groups_count(self) result(n)
         class(ibuffer_filter_groups_type), intent(in) :: self
+
         n = size_of_groups(self)
     end function filter_groups_count
 
@@ -1064,32 +1170,40 @@ contains
         type(ibuffer_named_groups_type), allocatable :: grown(:)
         integer :: k, n
         logical :: at_front
+
         if (.not. allocated(self%entries)) allocate (self%entries(0))
         k = self%find(name)
+
         if (k == 0) then
             at_front = .false.
             if (present(front)) at_front = front
             n = size(self%entries)
             allocate (grown(n + 1))
+
             if (at_front) then
                 do k = 1, n
                     call move_named(self%entries(k), grown(k + 1))
                 end do
+
                 k = 1
             else
                 do k = 1, n
                     call move_named(self%entries(k), grown(k))
                 end do
+
                 k = n + 1
             end if
+
             call move_alloc(grown, self%entries)
         end if
+
         self%entries(k)%name = name
         self%entries(k)%groups = groups
     end subroutine saved_groups_add
 
     subroutine move_named(from, to)
         type(ibuffer_named_groups_type), intent(inout) :: from, to
+
         call move_alloc(from%name, to%name)
         call move_alloc(from%groups%groups, to%groups%groups)
     end subroutine move_named
@@ -1097,11 +1211,13 @@ contains
     integer function saved_groups_find(self, name) result(k)
         class(ibuffer_saved_filter_groups_type), intent(in) :: self
         character(len=*), intent(in) :: name
+
         if (allocated(self%entries)) then
             do k = 1, size(self%entries)
                 if (self%entries(k)%name == name .and. len(self%entries(k)%name) == len(name)) return
             end do
         end if
+
         k = 0
     end function saved_groups_find
 
@@ -1110,16 +1226,20 @@ contains
         character(len=*), intent(in) :: name
         type(ibuffer_named_groups_type), allocatable :: kept(:)
         integer :: k, n
+
         if (.not. allocated(self%entries)) return
         allocate (kept(size(self%entries)))
         n = 0
+
         do k = 1, size(self%entries)
             if (self%entries(k)%name == name .and. len(self%entries(k)%name) == len(name)) cycle
             n = n + 1
             call move_named(self%entries(k), kept(n))
         end do
+
         deallocate (self%entries)
         allocate (self%entries(n))
+
         do k = 1, n
             call move_named(kept(k), self%entries(k))
         end do
@@ -1127,12 +1247,14 @@ contains
 
     subroutine saved_groups_clear(self)
         class(ibuffer_saved_filter_groups_type), intent(inout) :: self
+
         if (allocated(self%entries)) deallocate (self%entries)
         allocate (self%entries(0))
     end subroutine saved_groups_clear
 
     integer function saved_groups_count(self) result(n)
         class(ibuffer_saved_filter_groups_type), intent(in) :: self
+
         n = 0
         if (allocated(self%entries)) n = size(self%entries)
     end function saved_groups_count
@@ -1143,13 +1265,16 @@ contains
         type(ibuffer_formats_type), intent(in) :: formats
         type(ibuffer_filter_format_type), allocatable :: grown(:)
         integer :: k, n
+
         if (.not. allocated(self%entries)) allocate (self%entries(0))
         n = size(self%entries)
         allocate (grown(n + 1))
+
         do k = 1, n
             grown(k)%filter = self%entries(k)%filter
             call move_alloc(self%entries(k)%formats%formats, grown(k)%formats%formats)
         end do
+
         grown(n + 1)%filter = filter
         grown(n + 1)%formats = formats
         call move_alloc(grown, self%entries)
@@ -1157,6 +1282,7 @@ contains
 
     subroutine filter_formats_clear(self)
         class(ibuffer_filter_formats_type), intent(inout) :: self
+
         if (allocated(self%entries)) deallocate (self%entries)
         allocate (self%entries(0))
     end subroutine filter_formats_clear
@@ -1164,12 +1290,13 @@ contains
     integer function filter_formats_find(self, filter) result(k)
         class(ibuffer_filter_formats_type), intent(in) :: self
         character(len=*), intent(in) :: filter
+
         if (allocated(self%entries)) then
             do k = 1, size(self%entries)
                 if (self%entries(k)%filter == filter) return
             end do
         end if
+
         k = 0
     end function filter_formats_find
-
 end module ibuf_macs_fm

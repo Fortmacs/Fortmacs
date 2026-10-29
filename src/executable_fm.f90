@@ -115,10 +115,13 @@ contains
         character(len=*), intent(in) :: command
         character(len=:), allocatable :: path
         character(len=:), allocatable :: dir
+
         dir = "/"
+
         if (cur /= 0) then
             if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
         end if
+
         call locate_program(command, dir, path)
     end function executable_find
 
@@ -127,11 +130,13 @@ contains
     !> non-executable files.  Port of executable.el:executable-chmod.
     subroutine executable_chmod_function(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         if (executable_chmod == EXECUTABLE_CHMOD_NIL) return
         if (cur == 0) return
         if (.not. allocated(buffers(cur)%filename)) return
         if (file_executable_p(buffers(cur)%filename)) return
+
         if (executable_chmod < 0) then
             call set_file_modes(buffers(cur)%filename, int(-executable_chmod, int32), status)
         else
@@ -156,42 +161,53 @@ contains
         integer(int64) :: here, idx, mb1, me1
         integer(int64), allocatable :: saved(:)
         logical :: noquery, insert_it, skip, ok, matched
+
         noquery = .false.
         if (present(no_query_flag)) noquery = no_query_flag
         insert_it = .false.
         if (present(insert_flag)) insert_it = insert_flag
         status = status_type()
+
         if (file_name_absolute_p(interpreter_in)) then
             interpreter = interpreter_in
         else
             interpreter = executable_find(interpreter_in)
+
             if (len(interpreter) == 0) then
                 call set_error(status, FM_GENERIC_ERROR, "Interpreter "//interpreter_in//" not recognized")
                 return
             end if
         end if
+
         result = interpreter
         idx = string_match("\`/:", interpreter, status)
+
         if (idx > 0) then
             argument = interpreter(3:)
         else
             argument = interpreter
         end if
+
         if (present(argument_in)) then
             if (len(argument_in) > 0) argument = argument//" "//argument_in
         end if
+
         ! For backward compatibility, allow `executable_prefix_env' to be
         ! overridden by custom `executable_prefix'.
         idx = string_match("#!\([ "//achar(9)//"]*/usr/bin/env[ "//achar(9)//"]*\)?$", executable_prefix, status)
+
         if (idx > 0) then
             if (executable_prefix_env) argument = "/usr/bin/env "//file_name_nondirectory(argument)
         else
             argument = executable_prefix(3:)//argument
         end if
+
         skip = buffers(cur)%read_only
+
         if (.not. skip .and. allocated(buffers(cur)%filename)) then
             skip = string_match(executable_magicless_file_regexp, buffers(cur)%filename, status) > 0
         end if
+
         if (.not. skip) skip = .not. (insert_it .or. executable_insert)
         if (.not. skip) skip = point_min() > 1
         if (skip) return
@@ -199,6 +215,7 @@ contains
         call goto_char(point_min())
         call after_save_hook%add(executable_chmod_function, local=.true.)
         matched = looking_at("#![ "//achar(9)//"]*\(.*\)$", status)
+
         if (matched) then
             mb1 = match_beginning(1, status)
             me1 = match_end(1, status)
@@ -207,10 +224,12 @@ contains
             ! don't offer to change it.
             call buffer_substring(me1 - 1, me1, current, status)
             ok = current /= " "
+
             if (ok) then
                 call buffer_substring(point(), me1, current, status)
                 ok = argument /= current .or. len(argument) /= len(current)
             end if
+
             if (ok) then
                 if (executable_query /= EXECUTABLE_QUERY_NIL .and. .not. noquery) then
                     ! (save-match-data (save-window-excursion ...)): make
@@ -219,11 +238,13 @@ contains
                     call y_or_n_p(format_message("Replace magic number by `#!")//argument//format_message("'? "), &
                                   ok, status)
                     call set_match_data(saved)
+
                     if (.not. status%ok()) then
                         call goto_char(here)
                         return
                     end if
                 end if
+
                 if (ok) then
                     call replace_match(argument, status, fixedcase=.true., literal=.true., subexp=1)
                     call message(format_message("Magic number changed to `#!")//argument//format_message("'"))
@@ -233,6 +254,7 @@ contains
             call insert("#!"//argument//achar(10), status)
             call message(format_message("Magic number changed to `#!")//argument//format_message("'"))
         end if
+
         call goto_char(here)
     end subroutine executable_set_magic
 
@@ -240,6 +262,7 @@ contains
     recursive subroutine cmd_executable_set_magic(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name, arg, result
+
         call read_string("Name or file name of interpreter: ", name, status)
         if (.not. status%ok()) return
         call read_string("Argument for "//name//": ", arg, status)
@@ -253,6 +276,7 @@ contains
     recursive subroutine executable_self_display_command(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: result
+
         if (value_eq(this_command, sym("executable_self_display"))) this_command = sym("executable_set_magic")
         call executable_set_magic(executable_self_display, result, status, "-n+2")
     end subroutine executable_self_display_command
@@ -267,6 +291,7 @@ contains
         integer(int64) :: begv, zv
         integer(int32) :: current_mode, add_mode
         type(status_type) :: st
+
         status = status_type()
         if (cur == 0) return
         if (buffers(cur)%text%z - 1 < 2) return
@@ -277,15 +302,19 @@ contains
         call narrow_to_region(begv, zv, st)
         if (.not. allocated(head)) return
         if (head /= "#!") return
+
         if (.not. allocated(buffers(cur)%filename)) then
             call message("Unable to make file executable: Wrong type argument: stringp, nil")
             return
         end if
+
         current_mode = file_modes(buffers(cur)%filename)
+
         if (current_mode < 0) then
             call message("Unable to make file executable: Wrong type argument: integerp, nil")
             return
         end if
+
         add_mode = iand(int(o'111', int32), default_file_modes())
         if (iand(int(o'111', int32), current_mode) /= 0 .or. add_mode == 0) return
         call set_file_modes(buffers(cur)%filename, ior(current_mode, add_mode), st)
@@ -295,17 +324,20 @@ contains
     !> Give the variables their defaults and register the commands.
     subroutine syms_of_executable()
         type(font_lock_highlight_type) :: h(1)
+
         if (.not. allocated(executable_magicless_file_regexp)) executable_magicless_file_regexp = &
             "/[Mm]akefile$\|/\.\(z?profile\|bash_profile\|z?login\|bash_login\|z?logout\|bash_logout\|.+shrc\|" &
             //"esrc\|rcrc\|[kz]shenv\)$"
         if (.not. allocated(executable_prefix)) executable_prefix = "#!"
         if (.not. allocated(executable_self_display)) executable_self_display = "tail"
+
         if (.not. allocated(executable_font_lock_keywords)) then
             allocate (executable_font_lock_keywords(1))
             h(1) = font_lock_highlight(1, "font_lock_keyword_face", override=FONT_LOCK_OVERRIDE_T)
             executable_font_lock_keywords(1) = font_lock_keyword("\`#!.*/\([^ "//achar(9)//achar(10)//"]+\)", &
                                                                  highlights=h)
         end if
+
         commands%executable_set_magic%run => cmd_executable_set_magic
         commands%executable_self_display%run => executable_self_display_command
     end subroutine syms_of_executable

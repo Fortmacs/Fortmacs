@@ -64,6 +64,7 @@ contains
 
     subroutine collect_coding_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("ert-test-coding-bogus-coding-systems", test_bogus), &
                     new_unittest("ert-test-coding-ascii", test_ascii), &
@@ -86,15 +87,16 @@ contains
     ! ------------------------------------------------------------------
     ! Helpers
     ! ------------------------------------------------------------------
-
     !> The work directory (coding-tests-workdir), as a directory name.
     function tdir() result(d)
         character(len=:), allocatable :: d
+
         d = file_name_as_directory(emacs_wd)//"build/test-coding-workdir/"
     end function tdir
 
     subroutine setup()
         type(status_type) :: st
+
         call init_fileio()
         call init_bindings()
         call make_directory_internal(file_name_as_directory(emacs_wd)//"build", st)
@@ -106,11 +108,13 @@ contains
         character(len=*), intent(in) :: names(:)
         type(status_type) :: st
         integer :: k
+
         do k = 1, size(names)
             call delete_file_internal(tdir()//trim(names(k)), st)
             ! Saving made backups of some.
             call delete_file_internal(tdir()//trim(names(k))//"~", st)
         end do
+
         call delete_directory_internal(tdir(), st)
     end subroutine remove_files
 
@@ -118,6 +122,7 @@ contains
     subroutine temp_buffer(buf)
         type(handle_type), intent(out) :: buf
         type(status_type) :: st
+
         call get_buffer_create(" *coding-test*", buf, st)
         call set_buffer(buf, st)
         call kill_buffer(buf, st)
@@ -133,6 +138,7 @@ contains
         character(len=*), intent(in) :: file, contents, coding
         type(handle_type) :: buf
         type(status_type) :: st
+
         call temp_buffer(buf)
         call set_buffer_file_coding_system(coding, .false., .false., .false., st)
         call insert(contents, st)
@@ -145,6 +151,7 @@ contains
     function contents_of(content_type) result(s)
         character(len=*), intent(in) :: content_type
         character(len=:), allocatable :: s
+
         select case (content_type)
         case ("ascii")
             s = ASCII
@@ -163,11 +170,14 @@ contains
         character(len=*), intent(in) :: s, how
         character(len=:), allocatable :: t
         integer :: k
+
         if (how == "bom") then
             t = char(int(z'EF'))//char(int(z'BB'))//char(int(z'BF'))//s
             return
         end if
+
         t = ""
+
         do k = 1, len(s)
             if (s(k:k) /= LF) then
                 t = t//s(k:k)
@@ -184,6 +194,7 @@ contains
     !> The coding priority list, to restore after `with_priority'.
     subroutine save_priority(saved)
         type(coding_system_list_entry_type), allocatable, intent(out) :: saved(:)
+
         call coding_system_priority_list(saved)
     end subroutine save_priority
 
@@ -192,10 +203,13 @@ contains
         character(len=40), allocatable :: names(:)
         type(status_type) :: st
         integer :: k
+
         allocate (names(size(saved)))
+
         do k = 1, size(saved)
             names(k) = saved(k)%name
         end do
+
         call set_coding_system_priority(names, st)
     end subroutine restore_priority
 
@@ -213,6 +227,7 @@ contains
         type(handle_type) :: buf
         type(status_type) :: st
         integer(int64) :: inserted
+
         call save_priority(saved)
         call set_coding_system_priority(["utf-8-auto"], st)
         contents = contents_of(content_type)
@@ -223,6 +238,7 @@ contains
         call coding_system_for_read%clear()
         text = buffer_string()
         err = ""
+
         if (.not. st%ok()) then
             err = format_error(st)
         else if (.not. coding_system_equal(buffer_file_coding_system%value, detected)) then
@@ -230,6 +246,7 @@ contains
         else if (text /= contents) then
             err = content_type//"-"//write_coding//" read by "//read_coding//": wrong text "//text
         end if
+
         call kill_buffer(buf, st)
         call restore_priority(saved)
     end function coding_tests
@@ -237,12 +254,12 @@ contains
     ! ------------------------------------------------------------------
     ! coding-tests.el
     ! ------------------------------------------------------------------
-
     subroutine test_bogus(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
         type(status_type) :: st
         integer(int64) :: inserted
+
         call setup()
         call temp_buffer(buf)
         call delete_file_internal(tdir()//"nonexistent", st)
@@ -263,6 +280,7 @@ contains
 
     subroutine test_ascii(error)
         type(error_type), allocatable, intent(out) :: error
+
         call setup()
         call gen_file("ascii-unix", ASCII, "unix")
         call gen_file("ascii-dos", ASCII, "dos")
@@ -277,9 +295,12 @@ contains
         call expect(coding_tests("ascii", "mac", "dos", "dos", "cr"))
         call expect(coding_tests("ascii", "dos", "mac", "mac", "lflf"))
         call remove_files([character(len=16) :: "ascii-unix", "ascii-dos", "ascii-mac"])
+
     contains
+
         subroutine expect(err)
             character(len=*), intent(in) :: err
+
             if (allocated(error)) return
             call check(error, len(err) == 0, err)
         end subroutine expect
@@ -291,13 +312,16 @@ contains
         character(len=*), parameter :: EOLS(3) = [character(len=4) :: "unix", "dos", "mac"]
         character(len=40) :: names(6)
         integer :: i, j
+
         call setup()
+
         do i = 1, 2
             do j = 1, 3
                 names((i - 1)*3 + j) = "latin-"//trim(CODINGS(i))//"-"//trim(EOLS(j))
                 call gen_file(trim(names((i - 1)*3 + j)), LATIN, trim(CODINGS(i))//"-"//trim(EOLS(j)))
             end do
         end do
+
         call expect(coding_tests("latin", "utf-8-unix", "undecided", "utf-8-unix"))
         call expect(coding_tests("latin", "utf-8-unix", "utf-8-unix", "utf-8-unix"))
         call expect(coding_tests("latin", "utf-8-dos", "undecided", "utf-8-dos"))
@@ -312,9 +336,12 @@ contains
         call expect(coding_tests("latin", "utf-8-with-signature-dos", "undecided", "utf-8-with-signature-dos"))
         call expect(coding_tests("latin", "utf-8-with-signature-unix", "utf-8", "utf-8-unix", "bom"))
         call remove_files(names)
+
     contains
+
         subroutine expect(err)
             character(len=*), intent(in) :: err
+
             if (allocated(error)) return
             call check(error, len(err) == 0, err)
         end subroutine expect
@@ -322,6 +349,7 @@ contains
 
     subroutine test_binary(error)
         type(error_type), allocatable, intent(out) :: error
+
         call setup()
         call gen_file("binary-raw-text-unix", contents_of("binary"), "raw-text-unix")
         call gen_file("binary-raw-text-dos", contents_of("binary"), "raw-text-dos")
@@ -333,9 +361,12 @@ contains
         call expect(coding_tests("binary", "raw-text-mac", "dos", "raw-text-dos", "cr"))
         call expect(coding_tests("binary", "raw-text-dos", "mac", "raw-text-mac", "lflf"))
         call remove_files([character(len=24) :: "binary-raw-text-unix", "binary-raw-text-dos", "binary-raw-text-mac"])
+
     contains
+
         subroutine expect(err)
             character(len=*), intent(in) :: err
+
             if (allocated(error)) return
             call check(error, len(err) == 0, err)
         end subroutine expect
@@ -351,6 +382,7 @@ contains
         type(handle_type) :: buf
         type(status_type) :: st
         integer(int64) :: inserted
+
         call save_priority(saved)
         if (present(prefer)) call set_coding_system_priority([character(len=len(prefer)) :: prefer], st)
         call temp_buffer(buf)
@@ -372,27 +404,33 @@ contains
         type(handle_type) :: buf
         type(status_type) :: st
         integer(int64) :: inserted
+
         call temp_buffer(buf)
         call insert_file_contents(tdir()//file, .false., inserted, st)
         call goto_char(point_min())
+
         if (len(coding_tag) > 0) then
             call insert(";; -*- coding: "//coding_tag//"; -*-"//LF, st)
         else
             call insert(";;"//LF, st)
         end if
+
         if (present(str)) call insert(str, st)
         call write_file(tdir()//"test-test.el", .false., st)
         err = ""
+
         if (.not. st%ok()) then
             err = format_error(st)
         else if (.not. coding_system_equal(buffer_file_coding_system%value, coding)) then
             err = "Incorrect encoding: "//last_coding_system_used%value
         end if
+
         call kill_buffer(current_buffer(), st)
     end function prefer_write
 
     subroutine test_prefer_utf_8(error)
         type(error_type), allocatable, intent(out) :: error
+
         call setup()
         call gen_file("ascii.el", contents_of("ascii"), "unix")
         call gen_file("utf-8.el", contents_of("latin"), "utf-8-unix")
@@ -403,9 +441,12 @@ contains
         call expect(prefer_write("ascii.el", "iso-8859-1", "iso-8859-1-unix"))
         call expect(prefer_write("ascii.el", "", "utf-8-unix", "À"))
         call remove_files([character(len=16) :: "ascii.el", "utf-8.el", "test-test.el"])
+
     contains
+
         subroutine expect(err)
             character(len=*), intent(in) :: err
+
             if (allocated(error)) return
             call check(error, len(err) == 0, err)
         end subroutine expect
@@ -420,14 +461,17 @@ contains
         character(len=*), parameter :: DOS(3) = [character(len=16) :: "us-ascii-dos", "iso-latin-1-dos", "utf-8-dos"]
         type(status_type) :: st
         integer :: k
+
         uni = ""
         nocr = ""
         nolf = ""
+
         do k = 0, 127
             uni = uni//achar(k)
             if (k /= 13) nocr = nocr//achar(k)
             if (k /= 10) nolf = nolf//achar(k)
         end do
+
         ! Encodings without EOL conversion.
         do k = 1, 3
             call decode_coding_string(uni, trim(PLAIN(k)), out, st)
@@ -437,8 +481,10 @@ contains
             call check(error, out == uni .and. last_coding_system_used%value == trim(PLAIN(k)), trim(PLAIN(k)))
             if (allocated(error)) return
         end do
+
         ! With EOL conversion inhibited.
         inhibit_eol_conversion%value = .true.
+
         do k = 1, 3
             call decode_coding_string(uni, trim(BARE(k)), out, st)
             call check(error, out == uni, trim(BARE(k)))
@@ -447,8 +493,10 @@ contains
             call check(error, out == uni, trim(BARE(k)))
             if (allocated(error)) exit
         end do
+
         inhibit_eol_conversion%value = .false.
         if (allocated(error)) return
+
         ! Identity decoding with EOL conversion for ASCII except CR, and
         ! encoding for ASCII except LF (mac-roman-mac is Deferred).
         do k = 1, 3
@@ -465,6 +513,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(unencodable_type), allocatable :: r(:)
         type(status_type) :: st
+
         call check_coding_systems_text("aå", 0_int64, [character(len=8) :: "utf-8"], r, st)
         call check(error, st%ok() .and. size(r) == 0)
         if (allocated(error)) return
@@ -483,11 +532,11 @@ contains
     ! ------------------------------------------------------------------
     ! mule-tests.el
     ! ------------------------------------------------------------------
-
     !> Check that Bug#27391 is fixed.
     subroutine test_bug27391(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: coding, source
+
         call init_bindings()
         call find_auto_coding("", LF//"[comment]: # ( Local Variables: )"//LF// &
                               "[comment]: # ( coding: utf-8"//achar(9)//")"//LF// &
@@ -498,11 +547,11 @@ contains
     ! ------------------------------------------------------------------
     ! Own tests
     ! ------------------------------------------------------------------
-
     !> The coding system detect-coding-string finds first, as GNU Emacs
     !> finds it for the ported coding systems.
     subroutine test_detect(error)
         type(error_type), allocatable, intent(out) :: error
+
         call init_bindings()
         call expect("ABC"//LF, "undecided-unix")
         call expect("ABC", "undecided")
@@ -516,10 +565,13 @@ contains
         call expect("A"//char(int(z'80')), "raw-text")
         call expect(char(int(z'C3'))//char(int(z'A9'))//CR//LF, "utf-8-dos")
         call expect("A"//CR//LF//"B"//LF, "undecided-unix")
+
     contains
+
         subroutine expect(bytes, coding)
             character(len=*), intent(in) :: bytes, coding
             type(coding_system_list_entry_type), allocatable :: names(:)
+
             if (allocated(error)) return
             call detect_coding_string(bytes, names, .true.)
             call check(error, size(names) == 1, coding)
@@ -532,6 +584,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(coding_system_list_entry_type), allocatable :: names(:)
         type(status_type) :: st
+
         call init_bindings()
         call check(error, coding_system_p("utf-8") .and. coding_system_p("latin-1-dos") .and. coding_system_p("") &
                    .and. .not. coding_system_p("bogus"))
@@ -566,12 +619,16 @@ contains
         call coding_system_priority_list(names)
         call check(error, joined(names), "utf-8 iso-latin-1 raw-text utf-8-auto utf-8-with-signature utf-16 "// &
                    "utf-16be-with-signature utf-16le-with-signature utf-16be utf-16le undecided")
+
     contains
+
         function joined(list) result(s)
             type(coding_system_list_entry_type), intent(in) :: list(:)
             character(len=:), allocatable :: s
             integer :: k
+
             s = ""
+
             do k = 1, size(list)
                 if (k > 1) s = s//" "
                 s = s//list(k)%name
@@ -584,6 +641,7 @@ contains
     subroutine test_auto_coding(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: coding, source
+
         call init_bindings()
         call find_auto_coding("/tmp/x.txt", ";; -*- mode: text; coding: latin-1 -*-"//LF//"x"//LF, coding, source)
         call check(error, coding == "latin-1" .and. source == ":coding", coding)
@@ -614,6 +672,7 @@ contains
         character(len=:), allocatable :: text, data
         character(len=*), parameter :: LAT1 = "caf"//char(int(z'E9'))//LF
         character(len=*), parameter :: DOSTEXT = "one"//CR//LF//"two"//CR//LF
+
         call setup()
         call write_raw("latin1.txt", LAT1)
         call write_raw("dos.txt", DOSTEXT)
@@ -662,11 +721,14 @@ contains
         call check(error, data == DOSTEXT//"thr"//char(int(z'E9'))//"e"//CR//LF, data)
         call kill_buffer(buf, st)
         call remove_files([character(len=16) :: "latin1.txt", "dos.txt", "latin1.txt~", "dos.txt~"])
+
     contains
+
         subroutine write_raw(name, bytes)
             character(len=*), intent(in) :: name, bytes
             type(handle_type) :: b
             type(status_type) :: s
+
             call temp_buffer(b)
             buffers(cur)%multibyte = .false.
             call insert(bytes, s)
@@ -683,6 +745,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
         type(status_type) :: st
+
         call init_bindings()
         call temp_buffer(buf)
         call check(error, mode_line_mule_info(cur, .false.), "UUU:")
@@ -703,6 +766,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(coding_system_list_entry_type), allocatable :: saved(:), names(:)
         type(status_type) :: st
+
         call init_bindings()
         call save_priority(saved)
         call prefer_coding_system("latin-1-dos", st)
@@ -724,6 +788,7 @@ contains
         type(handle_type) :: help, old
         type(status_type) :: st
         character(len=:), allocatable :: text
+
         call init_bindings()
         old = current_buffer()
         call describe_coding_system("utf-8", st)

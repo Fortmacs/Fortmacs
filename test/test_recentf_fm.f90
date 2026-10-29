@@ -43,6 +43,7 @@ contains
 
     subroutine collect_recentf_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("recentf-add-file", test_add_file), &
                     new_unittest("recentf-exclude", test_exclude), &
@@ -71,7 +72,9 @@ contains
     function joined() result(s)
         character(len=:), allocatable :: s
         integer :: k
+
         s = ""
+
         do k = 1, size(recentf_list)
             if (k > 1) s = s//"|"
             s = s//recentf_list(k)%name
@@ -81,6 +84,7 @@ contains
     !> Adding a file puts it first, once.
     subroutine test_add_file(error)
         type(error_type), allocatable, intent(out) :: error
+
         call start()
         call recentf_add_file("/tmp/recentf-x")
         call recentf_add_file("/tmp/recentf-y")
@@ -94,6 +98,7 @@ contains
     !> A regexp and a predicate of `recentf_exclude'.
     subroutine test_exclude(error)
         type(error_type), allocatable, intent(out) :: error
+
         call start()
         recentf_exclude = [recentf_check_type(regexp="\.tmp\'"), &
                            recentf_check_type(predicate=recentf_exclude_file_by_extension_p)]
@@ -114,6 +119,7 @@ contains
         character(len=:), allocatable :: tmpfile
         type(status_type) :: st
         logical :: removed
+
         call start()
         call make_temp_file("recentf-test", tmpfile, st)
         call recentf_add_file("/this/file/does/not/exist")
@@ -142,6 +148,7 @@ contains
         character(len=:), allocatable :: tmpfile
         type(status_type) :: st
         type(value_type) :: history
+
         call start()
         call make_temp_file("recentf-test", tmpfile, st)
         recentf_save_file = tmpfile
@@ -168,6 +175,7 @@ contains
     subroutine test_open_errors(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call start()
         call recentf_open_most_recent_file(11_int64, st)
         call check(error, format_error(st), "Recent file number out of range [0-9], 11")
