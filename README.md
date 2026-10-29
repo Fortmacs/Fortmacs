@@ -112,6 +112,16 @@ it would become an endless race over which packages matter most. Emacs
 already works, so Emacs in Fortran would likely never happen. This is for
 fun. Let's see where it goes.
 
+AI has made breakthroughs that were out of reach before: AlphaFold
+predicted the structures of some 200 million proteins (part of the 2024
+Nobel Prize in Chemistry); a deep-learning screen found halicin, a new
+antibiotic candidate; AlphaTensor found a faster way to multiply 4×4
+matrices in mod-2 arithmetic, the first improvement there on Strassen's
+1969 method; an AI controller shaped the plasma of a fusion tokamak in real
+time. Yet AI-assisted coding still carries a stigma. Fortmacs judges its
+code like any other: it must build, pass Emacs's own tests and survive
+human review.
+
 Fortmacs is co-written with Claude Code, Anthropic's coding agent, running
 on one of Claude's most capable models.
 
