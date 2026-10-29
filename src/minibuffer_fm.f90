@@ -96,6 +96,8 @@ module minibuffer_fm
               cir_predicate_proc, completion_in_region_proc
     public :: internal_complete_buffer, minibuffer_maybe_quote_filename
     public :: completing_read, completion_try_completion, completion_all_completions, completion_boundaries, &
+              completion_table_with_context, completion_complete_and_exit, completion_do_completion, &
+              completion_prompt_end, completion_exit_proc, &
               minibuffer_complete, minibuffer_complete_word, minibuffer_complete_and_exit, &
               minibuffer_completion_help, minibuffer_hide_completions, minibuffer_message, &
               read_file_name_internal
@@ -268,6 +270,13 @@ module minibuffer_fm
     type(flex_cost_type), allocatable :: flex_costs(:)
 
     abstract interface
+        !> The EXIT_FUNCTION of `completion_complete_and_exit'.
+        recursive subroutine completion_exit_proc(status)
+            import :: status_type
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine completion_exit_proc
+
         !> A completion-in-region-mode-predicate: whether
         !> `completion_in_region_mode' should stay on.
         recursive logical function cir_predicate_proc()
@@ -388,6 +397,10 @@ module minibuffer_fm
             implicit none(type, external)
         end subroutine completion_settings_defaults
     end interface
+
+    ! The prefix and predicate of `completion_table_with_context'.
+    character(len=:), allocatable :: context_prefix
+    procedure(completion_predicate), pointer :: context_pred => null()
 
 contains
 
@@ -913,7 +926,7 @@ contains
     !> for file names the result is the positions delimited by the
     !> closest directory separators.  Port of
     !> minibuffer.el:completion-boundaries.
-    subroutine completion_boundaries(string, collection, suffix, bstart, bend, pred)
+    recursive subroutine completion_boundaries(string, collection, suffix, bstart, bend, pred)
         character(len=*), intent(in) :: string, suffix
         type(completion_table_type), intent(in) :: collection
         integer(int64), intent(out) :: bstart, bend
@@ -1669,16 +1682,29 @@ contains
     !> completion--complete-and-exit).
     subroutine minibuffer_complete_and_exit(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: string
-        type(value_type) :: compl
-        integer(int64) :: beg, end
-        integer :: bits
+        integer(int64) :: beg
         beg = completion_prompt_end(status)
         if (.not. status%ok()) return
-        end = point_max()
+        call completion_complete_and_exit(beg, point_max(), exit_minibuffer, status)
+    end subroutine minibuffer_complete_and_exit
+
+    !> Exit from `require_match' minibuffer.
+    !> COMPLETION_FUNCTION is called if the current buffer's content does
+    !> not appear to be a match: here the text from BEG to END is completed,
+    !> and EXIT_FUNCTION called if that gives a valid completion.  Port of
+    !> minibuffer.el:completion-complete-and-exit (with
+    !> completion--complete-and-exit).
+    recursive subroutine completion_complete_and_exit(beg, end, exit_function, status)
+        integer(int64), intent(in) :: beg, end
+        procedure(completion_exit_proc) :: exit_function
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: string
+        type(value_type) :: compl
+        integer :: bits
+        status = status_type()
         ! Allow user to specify null string.
         if (beg == end) then
-            call exit_minibuffer(status)
+            call exit_function(status)
             return
         end if
         call buffer_substring(beg, end, string, status)
@@ -1693,7 +1719,7 @@ contains
                     end if
                 end if
             end if
-            call exit_minibuffer(status)
+            call exit_function(status)
             return
         end if
         ! The user is permitted to exit with an input that's rejected by
@@ -1703,7 +1729,7 @@ contains
             if (value_eq(last_command, this_command) .or. &
                 (minibuffer_completion_confirm == REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION .and. &
                  .not. confirm_exit_command(last_command))) then
-                call exit_minibuffer(status)
+                call exit_function(status)
             else
                 call minibuffer_message("Confirm")
             end if
@@ -1713,17 +1739,17 @@ contains
         bits = completion_do_completion(beg, end, .false., .true.)
         select case (bits)
         case (1, 3)
-            call exit_minibuffer(status)
+            call exit_function(status)
         case (7)
             if (minibuffer_completion_confirm == REQUIRE_MATCH_NIL) then
-                call exit_minibuffer(status)
+                call exit_function(status)
             else
                 call minibuffer_message("Confirm")
             end if
         case default
             ! Not a match: stay in the minibuffer.
         end select
-    end subroutine minibuffer_complete_and_exit
+    end subroutine completion_complete_and_exit
 
     !> Whether `cmd' is in minibuffer-confirm-exit-commands.
     logical function confirm_exit_command(cmd)
@@ -2523,4 +2549,79 @@ contains
             continue
         end select
     end subroutine read_file_name_internal
+
+    !> Complete with TABLE the STRING that follows PREFIX: the completion
+    !> table of `completing_read_multiple' and the like (for ACTION, as a
+    !> `completion_function').  Port of
+    !> minibuffer.el:completion-table-with-context.
+    recursive subroutine completion_table_with_context(prefix, table, string, action, result, status, pred, suffix)
+        character(len=*), intent(in) :: prefix, string
+        type(completion_table_type), intent(in) :: table
+        integer, intent(in) :: action
+        type(value_type), intent(out) :: result
+        type(status_type), intent(out) :: status
+        procedure(completion_predicate), optional :: pred
+        character(len=*), intent(in), optional :: suffix
+        character(len=:), allocatable :: saved_prefix
+        procedure(completion_predicate), pointer :: saved_pred
+        integer(int64) :: bstart, bend
+        status = status_type()
+        ! (The predicate sees PREFIX and the candidate.)
+        saved_prefix = context_prefix
+        saved_pred => context_pred
+        context_prefix = prefix
+        context_pred => null()
+        if (present(pred)) context_pred => pred
+        select case (action)
+        case (COMPLETE_BOUNDARIES)
+            if (present(pred)) then
+                call completion_boundaries(string, table, suffix_of(), bstart, bend, context_predicate)
+            else
+                call completion_boundaries(string, table, suffix_of(), bstart, bend)
+            end if
+            result = list(make_fixnum(bstart + schars(prefix)), make_fixnum(bend))
+        case (COMPLETE_TRY)
+            if (present(pred)) then
+                call try_completion(string, table, result, status, context_predicate)
+            else
+                call try_completion(string, table, result, status)
+            end if
+            ! In case of try-completion, add the prefix.
+            if (status%ok() .and. stringp(result)) result = make_string(prefix//xstring(result))
+        case (COMPLETE_ALL)
+            if (present(pred)) then
+                call all_completions(string, table, result, status, context_predicate)
+            else
+                call all_completions(string, table, result, status)
+            end if
+        case default
+            result = nil()
+            if (present(pred)) then
+                if (test_completion(string, table, context_predicate)) result = t_value()
+            else
+                if (test_completion(string, table)) result = t_value()
+            end if
+        end select
+        context_prefix = saved_prefix
+        context_pred => saved_pred
+    contains
+        function suffix_of() result(s)
+            character(len=:), allocatable :: s
+            s = ""
+            if (present(suffix)) s = suffix
+        end function suffix_of
+    end subroutine completion_table_with_context
+
+    ! The predicate of `completion_table_with_context': its PRED called
+    ! with the prefix and the candidate.
+    logical function context_predicate(elt)
+        type(value_type), intent(in) :: elt
+        context_predicate = .true.
+        if (.not. associated(context_pred)) return
+        if (stringp(elt)) then
+            context_predicate = context_pred(make_string(context_prefix//xstring(elt)))
+        else
+            context_predicate = context_pred(elt)
+        end if
+    end function context_predicate
 end module minibuffer_fm
