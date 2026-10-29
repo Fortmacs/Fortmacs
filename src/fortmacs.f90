@@ -355,7 +355,12 @@ module fortmacs
                          comint_mode_hook, comint_exec_hook, comint_output_filter_functions, &
                          comint_preoutput_filter_functions, comint_input_filter_functions, comint_mode_map, &
                          comint_truncate_buffer, &
-                         comint_strip_ctrl_m, comint_postoutput_scroll_to_bottom, comint_show_maximum_output
+                         comint_strip_ctrl_m, comint_postoutput_scroll_to_bottom, comint_show_maximum_output, &
+                         comint_input_autoexpand, COMINT_AUTOEXPAND_NIL, COMINT_AUTOEXPAND_T, COMINT_AUTOEXPAND_INPUT, &
+                         COMINT_AUTOEXPAND_HISTORY, comint_scroll_to_bottom_on_input, COMINT_SCROLL_ON_INPUT_NIL, &
+                         COMINT_SCROLL_ON_INPUT_T, COMINT_SCROLL_ON_INPUT_ALL, COMINT_SCROLL_ON_INPUT_THIS, &
+                         comint_insert_previous_argument_from_end, comint_history_isearch, COMINT_HISTORY_ISEARCH_NIL, &
+                         COMINT_HISTORY_ISEARCH_DWIM, COMINT_HISTORY_ISEARCH_T
     use shell_fm, only: shell, shell_mode, shell_dumb_shell_regexp, shell_prompt_pattern, shell_delimiter_argument_list, &
                         shell_command_regexp, shell_command_separator_regexp, shell_popd_regexp, shell_pushd_regexp, &
                         shell_pushd_tohome, shell_pushd_dextract, shell_pushd_dunique, shell_cd_regexp, &
@@ -655,7 +660,11 @@ module fortmacs
               comint_mode_hook, comint_exec_hook, comint_output_filter_functions, comint_preoutput_filter_functions, &
               comint_input_filter_functions, comint_mode_map, &
               comint_truncate_buffer, comint_strip_ctrl_m, comint_postoutput_scroll_to_bottom, &
-              comint_show_maximum_output
+              comint_show_maximum_output, comint_input_autoexpand, COMINT_AUTOEXPAND_NIL, COMINT_AUTOEXPAND_T, &
+              COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY, comint_scroll_to_bottom_on_input, &
+              COMINT_SCROLL_ON_INPUT_NIL, COMINT_SCROLL_ON_INPUT_T, COMINT_SCROLL_ON_INPUT_ALL, &
+              COMINT_SCROLL_ON_INPUT_THIS, comint_insert_previous_argument_from_end, comint_history_isearch, &
+              COMINT_HISTORY_ISEARCH_NIL, COMINT_HISTORY_ISEARCH_DWIM, COMINT_HISTORY_ISEARCH_T
     public :: shell, shell_mode, shell_dumb_shell_regexp, shell_prompt_pattern, shell_delimiter_argument_list, &
               shell_command_regexp, shell_command_separator_regexp, shell_popd_regexp, shell_pushd_regexp, &
               shell_pushd_tohome, shell_pushd_dextract, shell_pushd_dunique, shell_cd_regexp, shell_dirtrack_verbose, &

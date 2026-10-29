@@ -36,7 +36,9 @@ module test_comint_fm
     use process_fm, only: accept_process_output, get_buffer_process, process_status, delete_process, &
                           process_connection_type, process_shutdown, process_arg_type
     use comint_fm, only: make_comint, comint_send_input, comint_arguments, comint_input_ring_item, &
-                         comint_input_ring_length, comint_previous_input, comint_interrupt_subjob, comint_bol
+                         comint_input_ring_length, comint_previous_input, comint_interrupt_subjob, comint_bol, &
+                         comint_replace_by_expanded_history, comint_insert_previous_argument, comint_input_autoexpand, &
+                         COMINT_AUTOEXPAND_T, COMINT_AUTOEXPAND_INPUT, comint_within_quotes
     implicit none(type, external)
     private
 
@@ -52,7 +54,9 @@ contains
                     new_unittest("comint-arguments", test_arguments), &
                     new_unittest("comint-send-input", test_send_input), &
                     new_unittest("comint-command-loop", test_command_loop), &
-                    new_unittest("comint-interrupt-subjob", test_interrupt) &
+                    new_unittest("comint-interrupt-subjob", test_interrupt), &
+                    new_unittest("comint-history-expansion", test_history_expansion), &
+                    new_unittest("comint-within-quotes", test_within_quotes) &
                     ]
     end subroutine collect_comint_fm
 
@@ -202,4 +206,114 @@ contains
                                                buffer_string())
         call finish(h)
     end subroutine test_interrupt
+    !> History references expand before point: !!, !!:N, !-N, !STRING,
+    !> ^OLD^NEW; C-c . inserts the last argument of the previous input;
+    !> RET expands the input with `comint_input_autoexpand' set to
+    !> COMINT_AUTOEXPAND_INPUT.
+    subroutine test_history_expansion(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        logical :: saved, done
+        integer(int64) :: pm
+        call init_bindings()
+        saved = process_connection_type%value
+        process_connection_type = .false.
+        call make_comint("fm-cat-history", "cat", h, st)
+        process_connection_type = saved
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        call set_buffer(h, st)
+        call show_alone()
+        call goto_char(point_max())
+        call insert("echo one two three", st)
+        call comint_send_input(st)
+        call wait_for("three"//new_line("a")//"echo one two three"//new_line("a"))
+        call goto_char(point_max())
+        pm = point_max()
+        call comint_input_autoexpand%set_local(COMINT_AUTOEXPAND_T)
+        ! !!:2 is the second argument of the previous input.
+        call insert("!!:2", st)
+        done = comint_replace_by_expanded_history(st)
+        call check(error, done, "expanded: "//format_error(st))
+        if (.not. allocated(error)) call check(error, input_text(pm), "two")
+        ! !! is the whole previous input.
+        if (.not. allocated(error)) then
+            call clear_input(pm)
+            call insert("!!", st)
+            done = comint_replace_by_expanded_history(st)
+            call check(error, input_text(pm), "echo one two three")
+        end if
+        ! !ec is the most recent input starting with "ec".
+        if (.not. allocated(error)) then
+            call clear_input(pm)
+            call insert("x !ec:$", st)
+            done = comint_replace_by_expanded_history(st)
+            call check(error, input_text(pm), "x three")
+        end if
+        ! ^two^2 substitutes in the previous input.
+        if (.not. allocated(error)) then
+            call clear_input(pm)
+            call insert("^two^2", st)
+            done = comint_replace_by_expanded_history(st)
+            call check(error, input_text(pm), "echo one 2 three")
+        end if
+        ! Quoted references stay.
+        if (.not. allocated(error)) then
+            call clear_input(pm)
+            call insert("echo '!!'", st)
+            done = comint_replace_by_expanded_history(st)
+            call check(error, input_text(pm), "echo '!!'")
+        end if
+        ! C-c . inserts the last argument.
+        if (.not. allocated(error)) then
+            call clear_input(pm)
+            call insert("ls", st)
+            call comint_insert_previous_argument(0, .false., st)
+            call check(error, input_text(pm), "ls three")
+        end if
+        ! RET expands the input.
+        if (.not. allocated(error)) then
+            call clear_input(pm)
+            call comint_input_autoexpand%set_local(COMINT_AUTOEXPAND_INPUT)
+            call insert("!!:1", st)
+            call comint_send_input(st)
+            call wait_for("one"//new_line("a")//"one"//new_line("a"))
+            call check(error, comint_input_ring_item(0), "one")
+        end if
+        call finish(h)
+    contains
+        ! The text from PM to the end of the buffer.
+        function input_text(from) result(text)
+            use editfns_fm, only: buffer_substring
+            integer(int64), intent(in) :: from
+            character(len=:), allocatable :: text
+            type(status_type) :: st2
+            call buffer_substring(from, point_max(), text, st2)
+        end function input_text
+
+        ! Delete the text from PM to the end of the buffer.
+        subroutine clear_input(from)
+            use editfns_fm, only: delete_region
+            integer(int64), intent(in) :: from
+            type(status_type) :: st2
+            call delete_region(from, point_max(), st2)
+            call goto_char(point_max())
+        end subroutine clear_input
+    end subroutine test_history_expansion
+
+    !> Whether a position is inside quotes.
+    subroutine test_within_quotes(error)
+        use buffer_fm, only: get_buffer_create
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call get_buffer_create(" comint quotes", h, st)
+        call set_buffer(h, st)
+        call insert("echo 'a b' ""c", st)
+        call check(error, comint_within_quotes(1_int64, 9_int64), "inside single quotes")
+        if (.not. allocated(error)) call check(error,.not. comint_within_quotes(1_int64, 11_int64), "after them")
+        if (.not. allocated(error)) call check(error, comint_within_quotes(1_int64, 14_int64), "after a double quote")
+        call kill_buffer(h, st)
+    end subroutine test_within_quotes
 end module test_comint_fm

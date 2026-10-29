@@ -71,9 +71,12 @@ comint_buffer_maximum_size
 comint_eol_on_send
 comint_exec_hook
 comint_highlight_input
+comint_history_isearch
+comint_input_autoexpand
 comint_input_ignoredups
 comint_input_ring_file_name
 comint_input_ring_size
+comint_insert_previous_argument_from_end
 comint_mode_hook
 comint_move_point_for_matching_input
 comint_move_point_for_output
@@ -81,6 +84,7 @@ comint_pager
 comint_process_echoes
 comint_prompt_read_only
 comint_scroll_show_maximum_output
+comint_scroll_to_bottom_on_input
 comint_terminfo_terminal
 comint_use_prompt_regexp
 comment_auto_fill_only_comments

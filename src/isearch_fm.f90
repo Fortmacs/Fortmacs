@@ -87,7 +87,8 @@ module isearch_fm
               isearch_backward_regexp_command, isearch_toggle_regexp, isearch_toggle_lax_whitespace, &
               isearch_no_upper_case_p, word_search_regexp, isearch_search_fun_default, set_isearch_wrapped
     public :: isearch_search_proc, isearch_search_fun_proc, isearch_wrap_proc, isearch_pop_proc, &
-              isearch_push_state_proc, isearch_filter_proc
+              isearch_push_state_proc, isearch_filter_proc, isearch_message_proc, isearch_message_display, &
+              set_isearch_barrier, set_isearch_opoint
 
     !> Values of `isearch_case_fold_search': nil, t, and `yes' (set by
     !> M-c: fold even when the string has upper-case letters).
@@ -217,6 +218,13 @@ module isearch_fm
             character(len=*), intent(in) :: data
         end subroutine isearch_pop_proc
 
+        !> An `isearch_message_function': display the search prompt
+        !> (C_Q_HACK and ELLIPSIS as for `isearch_message').
+        recursive subroutine isearch_message_proc(c_q_hack, ellipsis)
+            implicit none(type, external)
+            logical, intent(in) :: c_q_hack, ellipsis
+        end subroutine isearch_message_proc
+
         !> An `isearch_filter_predicate': whether the match from BEG to
         !> END is one to stop at.
         recursive logical function isearch_filter_proc(beg, end)
@@ -263,6 +271,7 @@ module isearch_fm
         procedure(isearch_wrap_proc), pointer, nopass :: wrap => null()
         procedure(isearch_push_state_proc), pointer, nopass :: push_state => null()
         procedure(isearch_filter_proc), pointer, nopass :: filter => null()
+        procedure(isearch_message_proc), pointer, nopass :: message => null()
     end type local_functions_type
 
     !> The buffers' values of the Isearch function variables.
@@ -283,6 +292,8 @@ module isearch_fm
     type, public :: isearch_search_fun_function_type
         character(len=32) :: name = "isearch_search_fun_function"
     contains
+        !> Set the current buffer's value to null (setq to nil).
+        procedure, nopass :: clear_local => search_fun_clear_local
         !> Make FN the current buffer's value (setq-local).
         procedure, nopass :: set_local => search_fun_set_local
         !> Set FN to the current buffer's value (null for the default).
@@ -299,6 +310,8 @@ module isearch_fm
     type, public :: isearch_wrap_function_type
         character(len=32) :: name = "isearch_wrap_function"
     contains
+        !> Set the current buffer's value to null (setq to nil).
+        procedure, nopass :: clear_local => wrap_clear_local
         !> Make FN the current buffer's value (setq-local).
         procedure, nopass :: set_local => wrap_set_local
         !> The current buffer's value (null for nil).
@@ -311,6 +324,8 @@ module isearch_fm
     type, public :: isearch_push_state_function_type
         character(len=32) :: name = "isearch_push_state_function"
     contains
+        !> Set the current buffer's value to null (setq to nil).
+        procedure, nopass :: clear_local => push_state_clear_local
         !> Make FN the current buffer's value (setq-local).
         procedure, nopass :: set_local => push_state_set_local
         !> The current buffer's value (null for nil).
@@ -330,11 +345,35 @@ module isearch_fm
     type, public :: isearch_filter_predicate_type
         character(len=32) :: name = "isearch_filter_predicate"
     contains
+        !> Set the current buffer's value to null (setq to nil).
+        procedure, nopass :: clear_local => filter_clear_local
         !> Make FN the current buffer's value (setq-local).
         procedure, nopass :: set_local => filter_set_local
         !> The current buffer's value (null for the default).
         procedure, nopass :: get => filter_get
     end type isearch_filter_predicate_type
+
+    !> Function to call to display the search prompt.
+    !> If null, use function `isearch_message'.  Port of isearch.el
+    !> isearch-message-function (set with `set_local').
+    type, public :: isearch_message_function_type
+        character(len=32) :: name = "isearch_message_function"
+    contains
+        !> Set the current buffer's value to null (setq to nil).
+        procedure, nopass :: clear_local => message_clear_local
+        !> Make FN the current buffer's value (setq-local).
+        procedure, nopass :: set_local => message_set_local
+        !> The current buffer's value (null for nil).
+        procedure, nopass :: get => message_get
+    end type isearch_message_function_type
+
+    !> See the type.  Port of isearch.el isearch-message-function.
+    type(isearch_message_function_type), public :: isearch_message_function
+
+    !> A string added to the Isearch prompt (unallocated for nil), as
+    !> "history " when searching a comint's input history.  Port of
+    !> isearch.el isearch-message-prefix-add.
+    character(len=:), allocatable, public :: isearch_message_prefix_add
 
     !> See the type.  Port of isearch.el isearch-search-fun-function.
     type(isearch_search_fun_function_type), public :: isearch_search_fun_function
@@ -964,10 +1003,25 @@ contains
 
     !> Generate and print the message string.  Port of
     !> isearch.el:isearch-message (no face on the failing part).
-    subroutine isearch_message_show(c_q_hack, ellipsis)
+    ! (funcall (or isearch-message-function #'isearch-message) C-Q-HACK
+    ! ELLIPSIS).
+    recursive subroutine isearch_message_show(c_q_hack, ellipsis)
         logical, intent(in), optional :: c_q_hack, ellipsis
-        call message_nolog(isearch_message_string(flag(c_q_hack), flag(ellipsis)))
+        procedure(isearch_message_proc), pointer :: f
+        f => message_get()
+        if (associated(f)) then
+            call f(flag(c_q_hack), flag(ellipsis))
+        else
+            call isearch_message_display(flag(c_q_hack), flag(ellipsis))
+        end if
     end subroutine isearch_message_show
+
+    !> Generate and print the message string.  Port of
+    !> isearch.el:isearch-message (no face for the failing part).
+    subroutine isearch_message_display(c_q_hack, ellipsis)
+        logical, intent(in) :: c_q_hack, ellipsis
+        call message_nolog(isearch_message_string(c_q_hack, ellipsis))
+    end subroutine isearch_message_display
 
     function isearch_message_string(c_q_hack, ellipsis) result(m)
         logical, intent(in) :: c_q_hack
@@ -1066,6 +1120,7 @@ contains
         end if
         ! isearch--describe-regexp-mode.
         if (isearch_regexp) m = m//"regexp "
+        if (allocated(isearch_message_prefix_add)) m = m//isearch_message_prefix_add
         if (nonincremental) then
             m = m//"search"
         else
@@ -2180,6 +2235,18 @@ contains
         isearch_wrapped = wrapped
     end subroutine set_isearch_wrapped
 
+    !> (setq isearch-barrier POS), for a search function.
+    subroutine set_isearch_barrier(pos)
+        integer(int64), intent(in) :: pos
+        isearch_barrier = pos
+    end subroutine set_isearch_barrier
+
+    !> (setq isearch-opoint POS), for a search function.
+    subroutine set_isearch_opoint(pos)
+        integer(int64), intent(in) :: pos
+        isearch_opoint = pos
+    end subroutine set_isearch_opoint
+
     ! ------------------------------------------------------------------
     ! The buffer-local function variables
     ! ------------------------------------------------------------------
@@ -2266,6 +2333,51 @@ contains
         k = local_slot(.false.)
         if (k > 0) fn => local_functions(k)%push_state
     end function push_state_get
+
+    subroutine message_set_local(fn)
+        procedure(isearch_message_proc) :: fn
+        integer :: k
+        k = local_slot(.true.)
+        if (k > 0) local_functions(k)%message => fn
+    end subroutine message_set_local
+
+    function message_get() result(fn)
+        procedure(isearch_message_proc), pointer :: fn
+        integer :: k
+        fn => null()
+        k = local_slot(.false.)
+        if (k > 0) fn => local_functions(k)%message
+    end function message_get
+
+    subroutine search_fun_clear_local()
+        integer :: k
+        k = local_slot(.false.)
+        if (k > 0) local_functions(k)%search_fun => null()
+    end subroutine search_fun_clear_local
+
+    subroutine wrap_clear_local()
+        integer :: k
+        k = local_slot(.false.)
+        if (k > 0) local_functions(k)%wrap => null()
+    end subroutine wrap_clear_local
+
+    subroutine push_state_clear_local()
+        integer :: k
+        k = local_slot(.false.)
+        if (k > 0) local_functions(k)%push_state => null()
+    end subroutine push_state_clear_local
+
+    subroutine filter_clear_local()
+        integer :: k
+        k = local_slot(.false.)
+        if (k > 0) local_functions(k)%filter => null()
+    end subroutine filter_clear_local
+
+    subroutine message_clear_local()
+        integer :: k
+        k = local_slot(.false.)
+        if (k > 0) local_functions(k)%message => null()
+    end subroutine message_clear_local
 
     subroutine filter_set_local(fn)
         procedure(isearch_filter_proc) :: fn
