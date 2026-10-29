@@ -43,7 +43,8 @@ module window_fm
               split_window_and_copy, copy_quit_restore, window_resize, syms_of_window_display, &
               current_window_configuration, set_window_configuration, free_window_configuration
     public :: window_start, set_window_start, window_point, &
-              set_window_point, window_body_lines, free_window, free_prev_buffer, free_quit_restore
+              set_window_point, window_body_lines, window_wants_header_line, free_window, free_prev_buffer, &
+              free_quit_restore
     public :: make_window, delete_window_object, window_ref, window_live_p, window_valid_p, same_window, same_handle, &
               window_leaves, resize_window_tree, window_text_cols, split_window_internal, &
               remove_window_from_tree, replace_window, delete_window_tree
@@ -246,6 +247,10 @@ module window_fm
         logical :: divider = .false.
         !> The minibuffer window: no mode line.
         logical :: mini = .false.
+        !> The height of the header line redisplay last drew (lines on a
+        !> terminal, pixels on a window system; 0 for none): the text area
+        !> starts below it (w->header_line_height).
+        integer :: header_line_height = 0
         !> Where redisplay put the cursor, relative to the window; -1: none.
         integer :: cursor_vpos = -1, cursor_hpos = -1
         !> On a window-system frame, where and how large redisplay draws the
@@ -986,13 +991,29 @@ contains
         call set_marker(w%pointm, pos, status, w%buffer)
     end subroutine set_window_point
 
-    !> Lines for text: the total minus the mode line.  Port of
-    !> window.c:window_body_height (in lines).
+    !> Lines for text: the total minus the mode line and the header line.
+    !> Port of window.c:window_body_height (in lines).
     integer function window_body_lines(w)
         type(window_type), intent(in) :: w
         window_body_lines = w%total_lines
         if (.not. w%mini) window_body_lines = max(0, w%total_lines - 1)
+        if (window_wants_header_line(w)) window_body_lines = window_body_lines - 1
     end function window_body_lines
+
+    !> Whether window W shows a header line: its buffer has a
+    !> `header_line_format' and the window has room for it besides a text
+    !> line and the mode line.  Port of window.c:window_wants_header_line
+    !> (no `window_header_line_format' parameter or tab line).
+    logical function window_wants_header_line(w) result(wants)
+        type(window_type), intent(in) :: w
+        integer(int64) :: bi
+        type(status_type) :: st
+        wants = .false.
+        if (w%mini .or. w%total_lines <= 2) return
+        call resolve_buffer(w%buffer, bi, st)
+        if (.not. st%ok()) return
+        wants = allocated(buffers(bi)%header_line_format%segments)
+    end function window_wants_header_line
 
     !> Free the window's markers.  Not a port (upstream relies on GC).
     subroutine free_window(w)
