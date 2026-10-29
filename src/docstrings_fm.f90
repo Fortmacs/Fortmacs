@@ -90,11 +90,12 @@ module docstrings_fm
                          comint_move_point_for_matching_input, COMINT_MATCHING_AFTER_INPUT, &
                          COMINT_MATCHING_END_OF_LINE, comint_move_point_for_output, COMINT_MOVE_NIL, COMINT_MOVE_T, &
                          COMINT_MOVE_ALL, COMINT_MOVE_THIS, COMINT_MOVE_OTHERS, comint_output_filter_functions, &
-                         comint_pager, comint_preoutput_filter_functions, comint_process_echoes, &
-                         comint_prompt_read_only, comint_prompt_regexp, comint_repeat_map, &
-                         comint_scroll_show_maximum_output, comint_scroll_to_bottom_on_input, &
-                         COMINT_SCROLL_ON_INPUT_NIL, COMINT_SCROLL_ON_INPUT_T, COMINT_SCROLL_ON_INPUT_ALL, &
-                         COMINT_SCROLL_ON_INPUT_THIS, comint_terminfo_terminal, comint_use_prompt_regexp
+                         comint_pager, comint_password_prompt_max_length, comint_password_prompt_regexp, &
+                         comint_preoutput_filter_functions, comint_process_echoes, comint_prompt_read_only, &
+                         comint_prompt_regexp, comint_repeat_map, comint_scroll_show_maximum_output, &
+                         comint_scroll_to_bottom_on_input, COMINT_SCROLL_ON_INPUT_NIL, COMINT_SCROLL_ON_INPUT_T, &
+                         COMINT_SCROLL_ON_INPUT_ALL, COMINT_SCROLL_ON_INPUT_THIS, comint_terminfo_terminal, &
+                         comint_use_prompt_regexp
     use commands_fm, only: commands
     use compile_fm, only: compilation_always_kill, compilation_ask_about_save, &
                           compilation_column_face, compilation_context_lines, COMPILATION_CONTEXT_NIL, &
@@ -306,13 +307,15 @@ module docstrings_fm
     use map_ynp_fm, only: read_answer_short, READ_ANSWER_SHORT_NIL, READ_ANSWER_SHORT_T, &
                           READ_ANSWER_SHORT_AUTO
     use minibuf_fm, only: completion_ignore_case, enable_recursive_minibuffers, &
-                          history_add_new_input, minibuffer_setup_hook, read_minibuffer_restore_windows
+                          history_add_new_input, minibuffer_setup_hook, read_hide_char, &
+                          read_minibuffer_restore_windows
     use minibuffer_fm, only: completion_at_point_functions, completion_auto_help, &
                              completion_category_defaults, completion_category_overrides, completion_fail_discreetly, &
                              completion_flex_nospace, completion_in_region_mode_map, completion_pcm_leading_wildcard, &
                              completion_pcm_word_delimiters, completion_show_inline_help, completion_styles, &
                              completions_max_height, insert_default_directory, minibuffer_completing_file_name, &
                              read_buffer_completion_ignore_case, read_file_name_completion_ignore_case
+    use mule_conf_fm, only: password_colon_equivalents, password_word_equivalents
     use mule_fm, only: auto_coding_alist, auto_coding_regexp_alist, last_coding_system_specified, &
                        mule_keymap, select_safe_coding_system_accept_default_p
     use mule_util_fm, only: vtruncate_string_ellipsis
@@ -507,7 +510,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1292) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1295) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -567,11 +570,11 @@ module docstrings_fm
                                                     "comint_previous_matching_input", "comint_previous_matching_input_from_input", &
                                              "comint_previous_prompt", "comint_quit_subjob", "comint_replace_by_expanded_history", &
                                                      "comint_restore_input", "comint_run", "comint_send_eof", "comint_send_input", &
-                                                    "comint_send_string", "comint_set_process_mark", "comint_show_maximum_output", &
-                                                                "comint_show_output", "comint_stop_subjob", "comint_strip_ctrl_m", &
-                                                   "comint_truncate_buffer", "comint_write_output", "comment_box", "comment_dwim", &
-                                                      "comment_indent", "comment_indent_new_line", "comment_kill", "comment_line", &
-                                                            "comment_or_uncomment_region", "comment_region", "comment_set_column", &
+                                                         "comint_send_invisible", "comint_send_string", "comint_set_process_mark", &
+                                                         "comint_show_maximum_output", "comint_show_output", "comint_stop_subjob", &
+                                            "comint_strip_ctrl_m", "comint_truncate_buffer", "comint_write_output", "comment_box", &
+                                                      "comment_dwim", "comment_indent", "comment_indent_new_line", "comment_kill", &
+                                            "comment_line", "comment_or_uncomment_region", "comment_region", "comment_set_column", &
                                                         "compilation_display_error", "compilation_minor_mode", "compilation_mode", &
                                              "compilation_next_error", "compilation_next_error_function", "compilation_next_file", &
                                                                     "compilation_previous_error", "compilation_previous_file", &
@@ -813,9 +816,10 @@ module docstrings_fm
                                                                     "re_search_backward", "re_search_forward", "read_buffer", &
                                                 "read_char_from_minibuffer_insert_char", "read_char_from_minibuffer_insert_other", &
                                                 "read_file_name_default", "read_multiple_choice", "read_number", "read_only_mode", &
-                                                "read_shell_command", "read_string", "recenter", "recenter_top_bottom", "recentf", &
-                                         "recentf_cleanup", "recentf_keep_default_predicate", "recentf_load_list", "recentf_mode", &
-                                                "recentf_open", "recentf_open_most_recent_file", "recentf_save_list", "recompile", &
+                                         "read_passwd_mode", "read_passwd_toggle_visibility", "read_shell_command", "read_string", &
+                                                                  "recenter", "recenter_top_bottom", "recentf", "recentf_cleanup", &
+                                            "recentf_keep_default_predicate", "recentf_load_list", "recentf_mode", "recentf_open", &
+                                                                "recentf_open_most_recent_file", "recentf_save_list", "recompile", &
                                            "rectangle_backward_char", "rectangle_dimensions", "rectangle_exchange_point_and_mark", &
                                                          "rectangle_forward_char", "rectangle_intersect_p", "rectangle_left_char", &
                                                            "rectangle_mark_mode", "rectangle_next_line", "rectangle_number_lines", &
@@ -891,7 +895,7 @@ module docstrings_fm
                                                                     "yank_rectangle", "yes_or_no_p", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1045) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1050) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -945,6 +949,7 @@ module docstrings_fm
                                                      "comint_input_sender_no_newline", "comint_insert_previous_argument_from_end", &
                                                     "comint_mode_hook", "comint_mode_map", "comint_move_point_for_matching_input", &
                                                  "comint_move_point_for_output", "comint_output_filter_functions", "comint_pager", &
+                                                             "comint_password_prompt_max_length", "comint_password_prompt_regexp", &
                                           "comint_preoutput_filter_functions", "comint_process_echoes", "comint_prompt_read_only", &
                                                  "comint_prompt_regexp", "comint_repeat_map", "comint_scroll_show_maximum_output", &
                                                                    "comint_scroll_to_bottom_on_input", "comint_terminfo_terminal", &
@@ -1146,7 +1151,8 @@ module docstrings_fm
                                                            "occur_mode_find_occurrence_hook", "occur_mode_hook", "occur_mode_map", &
                                                  "only_global_abbrevs", "open_paren_in_column_0_is_defun_start", "page_delimiter", &
                                                           "paragraph_ignore_fill_prefix", "paragraph_separate", "paragraph_start", &
-                                                "parse_sexp_ignore_comments", "parse_sexp_lookup_properties", "pending_undo_list", &
+                                                                    "parse_sexp_ignore_comments", "parse_sexp_lookup_properties", &
+                                                   "password_colon_equivalents", "password_word_equivalents", "pending_undo_list", &
                                                "pop_up_windows", "post_command_hook", "post_self_insert_hook", "pre_command_hook", &
                                                   "process_connection_type", "prog_indentation_context", "prog_mode_abbrev_table", &
                                                                     "prog_mode_hook", "prog_mode_map", "query_replace_defaults", &
@@ -1154,16 +1160,17 @@ module docstrings_fm
                                                                  "query_replace_show_replacement", "query_replace_skip_read_only", &
                                                                     "query_replace_to_history_variable", "read_answer_short", &
                                                             "read_buffer_completion_ignore_case", "read_char_choice_use_read_key", &
-                                                       "read_file_name_completion_ignore_case", "read_minibuffer_restore_windows", &
-                                                          "read_only_mode_hook", "read_quoted_char_radix", "recentf_auto_cleanup", &
-                                             "recentf_autosave_interval", "recentf_exclude", "recentf_exclude_ignored_extensions", &
-                                              "recentf_filename_handlers", "recentf_initialize_file_name_history", "recentf_keep", &
-                                               "recentf_list", "recentf_max_saved_items", "recentf_mode_hook", "recentf_mode_map", &
-                                                          "recentf_save_file", "recentf_save_file_modes", "recentf_show_messages", &
-                                                  "rectangle_mark_mode_hook", "rectangle_mark_mode_map", "regexp_search_ring_max", &
-                                                    "register_alist", "register_separator", "repeat_check_key", "repeat_exit_key", &
-                                                  "repeat_exit_timeout", "repeat_in_progress", "repeat_keep_prefix", "repeat_map", &
-                                               "repeat_mode_hook", "repeat_num_input_keys_at_repeat", "repeat_on_final_keystroke", &
+                                                                    "read_file_name_completion_ignore_case", "read_hide_char", &
+                                               "read_minibuffer_restore_windows", "read_only_mode_hook", "read_quoted_char_radix", &
+                                                           "recentf_auto_cleanup", "recentf_autosave_interval", "recentf_exclude", &
+                                                                "recentf_exclude_ignored_extensions", "recentf_filename_handlers", &
+                                                           "recentf_initialize_file_name_history", "recentf_keep", "recentf_list", &
+                                          "recentf_max_saved_items", "recentf_mode_hook", "recentf_mode_map", "recentf_save_file", &
+                                                   "recentf_save_file_modes", "recentf_show_messages", "rectangle_mark_mode_hook", &
+                                                            "rectangle_mark_mode_map", "regexp_search_ring_max", "register_alist", &
+                                               "register_separator", "repeat_check_key", "repeat_exit_key", "repeat_exit_timeout", &
+                                                     "repeat_in_progress", "repeat_keep_prefix", "repeat_map", "repeat_mode_hook", &
+                                                                   "repeat_num_input_keys_at_repeat", "repeat_on_final_keystroke", &
                                                       "repeat_previous_repeated_command", "repeat_too_dangerous", "replace_count", &
                                                "replace_lax_whitespace", "replace_regexp_lax_whitespace", "require_final_newline", &
                                             "revert_buffer_function", "revert_buffer_in_progress", "revert_buffer_preserve_modes", &
@@ -3313,6 +3320,14 @@ contains
                         "comint.el:comint-send-input."//LF// &
                         ""//LF// &
                         "Send input to process."
+        case ("comint_send_invisible")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Read a string without echoing."//LF// &
+                        "Then send it to the process running in the current buffer."//LF// &
+                        "The string is sent using `comint_input_sender'."//LF// &
+                        "Security bug: your string can still be temporarily recovered with"//LF// &
+                        "\[view_lossage]; `clear_this_command_keys' can fix that."
         case ("comint_send_string")
             entry%file = "comint_fm.f90"
             entry%fortran = "call comint_send_string(process, string, status)"
@@ -10113,6 +10128,16 @@ contains
                         ""//LF// &
                         "Reverting a buffer will keep the read-only status set by using"//LF// &
                         "this command."
+        case ("read_passwd_mode")
+            entry%file = "auth_source_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle visibility of password in minibuffer."
+        case ("read_passwd_toggle_visibility")
+            entry%file = "auth_source_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle minibuffer contents visibility."//LF// &
+                        "Adapt also mode line.  If optional FORCE is true, hide the"//LF// &
+                        "minibuffer contents."
         case ("read_shell_command")
             entry%file = "simple_fm.f90"
             entry%fortran = "call read_shell_command(prompt, result, status, initial, history, default, history_positio"// &
@@ -14318,6 +14343,24 @@ contains
                         "all of the output without any filtering or delays.  Comint will then"//LF// &
                         "set the PAGER variable to name that program, when it invokes"//LF// &
                         "external programs."
+        case ("comint_password_prompt_max_length")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_password_prompt_max_length"
+            entry%original = "256"
+            entry%value = repr(comint_password_prompt_max_length)
+            entry%doc = "The maximum amount of text to examine when matching password"//LF// &
+                        "prompts.  This is used by `comint_watch_for_password_prompt' to"//LF// &
+                        "reduce the amount of time spent searching for password prompts."
+        case ("comint_password_prompt_regexp")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_password_prompt_regexp"
+            if (allocated(comint_password_prompt_regexp)) then
+                entry%value = repr(comint_password_prompt_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp matching prompts for passwords in the inferior process."//LF// &
+                        "This is used by `comint_watch_for_password_prompt'."
         case ("comint_preoutput_filter_functions")
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_preoutput_filter_functions"
@@ -20159,6 +20202,29 @@ contains
             entry%doc = "True means `forward_sexp', etc., obey `syntax_table' property."//LF// &
                         "Ignoring the `syntax_table' property may result in faster syntax"//LF// &
                         "scanning when this variable is false."
+        case ("password_colon_equivalents")
+            entry%file = "mule_conf_fm.f90"
+            entry%fortran = "password_colon_equivalents"
+            if (allocated(password_colon_equivalents)) then
+                entry%value = repr(password_colon_equivalents)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "List of characters equivalent to trailing colon in ""password"""//LF// &
+                        "prompts."
+        case ("password_word_equivalents")
+            entry%file = "mule_conf_fm.f90"
+            entry%fortran = "password_word_equivalents"
+            if (allocated(password_word_equivalents)) then
+                entry%value = repr(password_word_equivalents)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "List of words equivalent to ""password""."//LF// &
+                        "This is used by Shell mode and other parts of Emacs to recognize"//LF// &
+                        "password prompts, including prompts in languages other than"//LF// &
+                        "English.  Different case choices should not be assumed to be"//LF// &
+                        "included; callers should bind `case_fold_search' to true."
         case ("pending_undo_list")
             entry%file = "simple_fm.f90"
             entry%fortran = "pending_undo_list"
@@ -20338,6 +20404,17 @@ contains
             entry%original = ".false."
             entry%value = repr(read_file_name_completion_ignore_case)
             entry%doc = "True means when reading a file name completion ignores case."
+        case ("read_hide_char")
+            entry%file = "minibuf_fm.f90"
+            entry%fortran = "read_hide_char"
+            entry%original = "-1"
+            entry%value = repr(read_hide_char)
+            entry%doc = "Whether to hide input characters in noninteractive mode."//LF// &
+                        "If not -1, it must be a character, which will be used to mask the"//LF// &
+                        "input characters.  This variable should never be set globally."//LF// &
+                        ""//LF// &
+                        "This variable also overrides the default character that"//LF// &
+                        "`read_passwd' uses to hide passwords."
         case ("read_minibuffer_restore_windows")
             entry%file = "minibuf_fm.f90"
             entry%fortran = "read_minibuffer_restore_windows"

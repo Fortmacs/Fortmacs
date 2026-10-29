@@ -81,6 +81,7 @@ comint_mode_hook
 comint_move_point_for_matching_input
 comint_move_point_for_output
 comint_pager
+comint_password_prompt_regexp
 comint_process_echoes
 comint_prompt_read_only
 comint_scroll_show_maximum_output
@@ -372,6 +373,8 @@ paragraph_ignore_fill_prefix
 paragraph_separate
 paragraph_start
 parse_sexp_ignore_comments
+password_colon_equivalents
+password_word_equivalents
 pop_up_windows
 prog_mode_hook
 query_replace_from_history_variable

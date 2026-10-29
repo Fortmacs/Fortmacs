@@ -360,7 +360,10 @@ module fortmacs
                          COMINT_AUTOEXPAND_HISTORY, comint_scroll_to_bottom_on_input, COMINT_SCROLL_ON_INPUT_NIL, &
                          COMINT_SCROLL_ON_INPUT_T, COMINT_SCROLL_ON_INPUT_ALL, COMINT_SCROLL_ON_INPUT_THIS, &
                          comint_insert_previous_argument_from_end, comint_history_isearch, COMINT_HISTORY_ISEARCH_NIL, &
-                         COMINT_HISTORY_ISEARCH_DWIM, COMINT_HISTORY_ISEARCH_T
+                         COMINT_HISTORY_ISEARCH_DWIM, COMINT_HISTORY_ISEARCH_T, comint_password_prompt_regexp, &
+                         comint_password_prompt_max_length
+    use mule_conf_fm, only: password_word_equivalents, password_colon_equivalents
+    use minibuf_fm, only: read_hide_char
     use shell_fm, only: shell, shell_mode, shell_dumb_shell_regexp, shell_prompt_pattern, shell_delimiter_argument_list, &
                         shell_command_regexp, shell_command_separator_regexp, shell_popd_regexp, shell_pushd_regexp, &
                         shell_pushd_tohome, shell_pushd_dextract, shell_pushd_dunique, shell_cd_regexp, &
@@ -664,7 +667,9 @@ module fortmacs
               COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY, comint_scroll_to_bottom_on_input, &
               COMINT_SCROLL_ON_INPUT_NIL, COMINT_SCROLL_ON_INPUT_T, COMINT_SCROLL_ON_INPUT_ALL, &
               COMINT_SCROLL_ON_INPUT_THIS, comint_insert_previous_argument_from_end, comint_history_isearch, &
-              COMINT_HISTORY_ISEARCH_NIL, COMINT_HISTORY_ISEARCH_DWIM, COMINT_HISTORY_ISEARCH_T
+              COMINT_HISTORY_ISEARCH_NIL, COMINT_HISTORY_ISEARCH_DWIM, COMINT_HISTORY_ISEARCH_T, &
+              comint_password_prompt_regexp, comint_password_prompt_max_length
+    public :: password_word_equivalents, password_colon_equivalents, read_hide_char
     public :: shell, shell_mode, shell_dumb_shell_regexp, shell_prompt_pattern, shell_delimiter_argument_list, &
               shell_command_regexp, shell_command_separator_regexp, shell_popd_regexp, shell_pushd_regexp, &
               shell_pushd_tohome, shell_pushd_dextract, shell_pushd_dunique, shell_cd_regexp, shell_dirtrack_verbose, &

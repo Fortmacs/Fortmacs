@@ -98,6 +98,7 @@ module modes_fm
         type(minor_mode_type) :: ibuffer_auto_mode
         type(minor_mode_type) :: indent_tabs_mode
         type(minor_mode_type) :: read_only_mode
+        type(minor_mode_type) :: read_passwd_mode
         type(minor_mode_type) :: recentf_mode
         type(minor_mode_type) :: rectangle_mark_mode
         type(minor_mode_type) :: repeat_mode

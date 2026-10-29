@@ -36,7 +36,7 @@ module minibuf_fm
                                 completion_list_table, completion_obarray_table, completion_function_table, &
                                 COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST, COMPLETE_BOUNDARIES, TABLE_LIST, &
                                 TABLE_OBARRAY, TABLE_FUNCTION
-    use, intrinsic :: iso_fortran_env, only: int64
+    use, intrinsic :: iso_fortran_env, only: int64, int32
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
     use eval_fm, only: hook_type
@@ -106,6 +106,15 @@ module minibuf_fm
     !> history list, so it is possible to do this afterwards by calling
     !> `add_to_history' explicitly.  Port of minibuf.c history-add-new-input.
     logical, public :: history_add_new_input = .true.
+
+    !> Whether to hide input characters in noninteractive mode.
+    !> If not -1, it must be a character, which will be used to mask the
+    !> input characters.  This variable should never be set globally.
+    !>
+    !> This variable also overrides the default character that
+    !> `read_passwd' uses to hide passwords.  Port of minibuf.c
+    !> read-hide-char (-1 for nil).
+    integer(int32), public :: read_hide_char = -1
 
     !> Normal hook run just after entry to minibuffer.  Port of minibuf.c
     !> minibuffer-setup-hook (the function of `minibuffer_with_setup_hook'
@@ -373,9 +382,12 @@ contains
         minibuffer_temporary_goal_position = 0
         had_before = allocated(minibuffer_text_before_history)
         if (had_before) call move_alloc(minibuffer_text_before_history, saved_before)
-        ! If variable is unbound, make it nil.
-        call symbol_value(sym(histvar), histval, st)
-        if (.not. st%ok()) call set(sym(histvar), nil(), st)
+        ! If variable is unbound, make it nil (a HISTORY of "t" keeps no
+        ! history).
+        if (histvar /= "t") then
+            call symbol_value(sym(histvar), histval, st)
+            if (.not. st%ok()) call set(sym(histvar), nil(), st)
+        end if
         old_selected = selected_frame%minibuffer_selected
         sw => frame_selected_window_ref()
         mw => minibuffer_window_ref()
@@ -488,7 +500,7 @@ contains
             return
         end if
         ! Add the value to the appropriate history list, if any.
-        if (history_add_new_input .and. have_histstring) then
+        if (history_add_new_input .and. have_histstring .and. histvar /= "t") then
             call add_to_history(histvar, histstring, added=history_added)
         end if
     end subroutine read_from_minibuffer

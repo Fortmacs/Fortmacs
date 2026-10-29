@@ -39,13 +39,14 @@
 !> `comint_continue_subjob', and `comint_scroll_to_bottom_on_input' are
 !> ported.
 !>
+!> Password prompts are recognized (`comint_watch_for_password_prompt'
+!> on `comint_output_filter_functions', `comint_password_prompt_regexp')
+!> and answered with `comint_send_invisible'.
+!>
 !> Not ported yet (Deferred): completion
 !> (`comint_completion_at_point', file name completion, the
 !> `comint_dynamic_*' commands, `comint_dynamic_list_input_ring' (C-c C-l),
-!> `comint_complete_input_ring' (C-x <up>)); password prompts
-!> (`comint_watch_for_password_prompt', `comint_send_invisible',
-!> `comint_password_prompt_regexp'), which upstream has in
-!> `comint_output_filter_functions'; ANSI colors
+!> `comint_complete_input_ring' (C-x <up>)); ANSI colors
 !> (`ansi_color_process_output', also there); the status of a stopped
 !> process (process_fm reports none); redirection (`comint_redirect_*'); network
 !> connections and ptys without a program as PROGRAM; `comint_fontify_input_mode'
@@ -57,7 +58,7 @@
 !> (`comint_get_source' and friends); `comint_run' with switches read
 !> after C-u (an error says so); coding systems.
 module comint_fm
-    use, intrinsic :: iso_fortran_env, only: int32, int64
+    use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type, set_error, format_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, nil, nilp, t_value, list, consp, symbolp, symbols, xsymbol, list_elements, &
@@ -80,7 +81,7 @@ module comint_fm
     use cmds_fm, only: delete_char, forward_char, forward_line, beginning_of_line, end_of_line, self_insert_command
     use syntax_fm, only: skip_chars_forward
     use search_fm, only: looking_at, string_match, re_search_backward, match_beginning, match_end, regexp_quote, &
-                         SEARCH_NOERROR, replace_match
+                         SEARCH_NOERROR, replace_match, case_fold_search
     use subr_fm, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end, match_string
     use eval_fm, only: hook_type, string_hook_type, string_filter_hook_type
     use keymap_fm, only: keymap_set, lookup_key, key_description, command_remapping, current_global_map, &
@@ -117,6 +118,11 @@ module comint_fm
                           isearch_message_prefix_add, set_isearch_barrier, set_isearch_opoint
     use itree_fm, only: make_overlay, move_overlay, delete_overlay, overlay_put, overlayp
     use keyboard_fm, only: pre_command_hook
+    use auth_source_fm, only: read_passwd
+    use mule_conf_fm, only: password_word_equivalents, password_colon_equivalents, syms_of_mule_conf
+    use regexp_opt_fm, only: regexp_opt, REGEXP_OPT_T
+    use character_fm, only: char_string, MAX_MULTIBYTE_LENGTH
+    use timer_fm, only: run_at_time
     implicit none(type, external)
     private
 
@@ -144,7 +150,9 @@ module comint_fm
               comint_history_isearch_backward, comint_history_isearch_backward_regexp, comint_history_isearch_setup, &
               comint_history_isearch_end, comint_goto_input, comint_preinput_scroll_to_bottom, comint_stop_subjob, &
               comint_continue_subjob
-    public :: comint_input_sender_proc, comint_get_old_input_proc, comint_input_filter_proc
+    public :: comint_input_sender_proc, comint_get_old_input_proc, comint_input_filter_proc, comint_password_proc
+    public :: comint_send_invisible, comint_read_noecho, comint_watch_for_password_prompt, &
+              set_comint_password_function, comint_password_prompt_regexp_default
 
     abstract interface
         !> A `comint_input_sender': send to PROCESS the input STRING.
@@ -171,6 +179,17 @@ module comint_fm
             implicit none(type, external)
             character(len=*), intent(in) :: input
         end function comint_input_filter_proc
+    end interface
+
+    abstract interface
+        !> A `comint_password_function': the password for PROMPT, FOUND
+        !> false if normal password prompting should occur.
+        recursive subroutine comint_password_proc(prompt, password, found)
+            implicit none(type, external)
+            character(len=*), intent(in) :: prompt
+            character(len=:), allocatable, intent(out) :: password
+            logical, intent(out) :: found
+        end subroutine comint_password_proc
     end interface
 
     !> Values of `comint_move_point_for_output'.
@@ -562,7 +581,33 @@ module comint_fm
         logical :: has_insert_previous_argument_last_index = .false.
         !> comint-history-isearch-message-overlay.
         type(handle_type) :: history_isearch_message_overlay
+        !> comint-password-function.
+        procedure(comint_password_proc), pointer, nopass :: password_function => null()
     end type comint_buffer_type
+
+    !> Regexp matching prompts for passwords in the inferior process.
+    !> This is used by `comint_watch_for_password_prompt'.  Port of
+    !> comint.el comint-password-prompt-regexp (made by
+    !> `comint_password_prompt_regexp_default' when Comint is set up).
+    character(len=:), allocatable, public :: comint_password_prompt_regexp
+
+    !> The maximum amount of text to examine when matching password
+    !> prompts.  This is used by `comint_watch_for_password_prompt' to
+    !> reduce the amount of time spent searching for password prompts.
+    !> Port of comint.el comint-password-prompt-max-length.
+    integer, public :: comint_password_prompt_max_length = 256
+
+    ! comint--prompt-recursion-depth.
+    integer :: comint_prompt_recursion_depth = 0
+
+    ! A password prompt waiting for the timer `comint_watch_for_password_prompt'
+    ! starts (the arguments of its lambda).
+    type :: pending_prompt_type
+        type(handle_type) :: buffer
+        character(len=:), allocatable :: prompt
+    end type pending_prompt_type
+
+    type(pending_prompt_type), allocatable :: pending_prompts(:)
 
     !> True means to force searching in input history.
     !> If false, respect the option `comint_history_isearch'.  Port of
@@ -651,6 +696,7 @@ contains
         e%insert_previous_argument_last_start_pos = null_handle()
         e%has_insert_previous_argument_last_index = .false.
         e%history_isearch_message_overlay = null_handle()
+        e%password_function => null()
         e%local = .false.
     end subroutine free_locals
 
@@ -815,6 +861,23 @@ contains
         k = local_entry()
         comint_buffers(k)%input_filter => fn
     end subroutine set_comint_input_filter
+
+    !> Abnormal hook run when prompted for a password.
+    !> This function gets one argument, a string containing the prompt.
+    !> It may return a string containing the password, or nil if normal
+    !> password prompting should occur.  Sets the current buffer's
+    !> comint.el comint-password-function (buffer-local); without FN, nil.
+    subroutine set_comint_password_function(fn)
+        procedure(comint_password_proc), optional :: fn
+        integer :: k
+        if (cur == 0) return
+        k = local_entry()
+        if (present(fn)) then
+            comint_buffers(k)%password_function => fn
+        else
+            comint_buffers(k)%password_function => null()
+        end if
+    end subroutine set_comint_password_function
 
     ! ------------------------------------------------------------------
     ! Small helpers
@@ -4358,6 +4421,241 @@ contains
     end subroutine comint_continue_subjob
 
     ! ------------------------------------------------------------------
+    ! Passwords
+    ! ------------------------------------------------------------------
+
+    !> The default value of `comint_password_prompt_regexp', made from
+    !> `password_word_equivalents' and `password_colon_equivalents'.
+    !> Port of the value of comint.el comint-password-prompt-regexp.
+    function comint_password_prompt_regexp_default() result(re)
+        character(len=:), allocatable :: re
+        character(len=MAX_MULTIBYTE_LENGTH) :: buf
+        character(len=:), allocatable :: colons
+        type(status_type) :: st
+        integer(int32) :: nbytes
+        integer :: i
+        colons = ""
+        do i = 1, size(password_colon_equivalents)
+            call char_string(password_colon_equivalents(i), buf, nbytes, st)
+            colons = colons//buf(1:nbytes)
+        end do
+        re = "\(^ *\|"// &
+             regexp_opt([character(len=24) :: "Enter", "enter", "Enter same", "enter same", "Enter the", "enter the", &
+                         "Current", &
+                         ! Ansible.  (Bug#78442)
+                         "Vault", "SSH", "BECOME", &
+                         "Enter Auth", "enter auth", "Old", "old", "New", "new", "login", &
+                         "Kerberos", "CVS", "UNIX", " SMB", "LDAP", "PEM", "SUDO", &
+                         "[sudo]", "[sudo: authenticate]", "[su: authenticate]", &
+                         "doas", "Repeat", "Bad", "Retype", "Verify"], REGEXP_OPT_T)// &
+             ! Allow for user name to precede password equivalent
+             ! (Bug#31075).
+             " +.*\)"// &
+             "\(?:"//regexp_opt(password_word_equivalents)//"\|Response\)"// &
+             "\(?:\(?:, try\)? *again\| (empty for no passphrase)\| (again)\)?"// &
+             ! "[[:alpha:]]" used to be "for", which fails to match
+             ! non-English.
+             "\(?: [[:alpha:]]+ .+\)?[[:blank:]]*"// &
+             "["//colons//"][[:space:]]*\'"// &
+             ! The ccrypt encryption dialog doesn't end with a colon, so
+             ! treat it specially.
+             "\|^Enter encryption key: (repeat) *\'"// &
+             ! Ansible.  The vault-id syntax is a guess.  (Bug#78442)
+             "\|^Vault password ([^@-][^@]*): \'"// &
+             ! Default openssh format: "user@host's password:".
+             "\|^[^@ "//achar(9)//achar(10)//"]+@[^@ "//achar(9)//achar(10)//"]+'s password: *\'"// &
+             ! openssh-8.6p1 format: "(user@host) Password:".
+             ! "(user@host) Password for user@host:"  (Bug#79424)
+             "\|^([^)@ "//achar(9)//achar(10)//"]+@[^)@ "//achar(9)//achar(10)//"]+) Password\(?: for [^)@ "// &
+             achar(9)//achar(10)//"]+@[^)@ "//achar(9)//achar(10)//"]+\)?: *\'"
+    end function comint_password_prompt_regexp_default
+
+    !> Read a password with PROMPT (obsolete: use `read_passwd').  Port
+    !> of comint.el:comint-read-noecho.
+    recursive subroutine comint_read_noecho(prompt, result, status)
+        character(len=*), intent(in) :: prompt
+        character(len=:), allocatable, intent(out) :: result
+        type(status_type), intent(out) :: status
+        call read_passwd(prompt, result, status)
+    end subroutine comint_read_noecho
+
+    !> Read a string without echoing.
+    !> Then send it to the process running in the current buffer.
+    !> The string is sent using `comint_input_sender'.
+    !> Security bug: your string can still be temporarily recovered with
+    !> \[view_lossage]; `clear_this_command_keys' can fix that.  Port of
+    !> comint.el:comint-send-invisible.
+    recursive subroutine comint_send_invisible(status, prompt)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: prompt
+        type(handle_type) :: proc, wbuf
+        character(len=:), allocatable :: prefix, prefix_prompt, str
+        integer :: k
+        logical :: found
+        status = status_type()
+        wbuf = windows(selected_frame%selected_window%index)%buffer
+        if (same_handle(wbuf, current_buffer())) then
+            prefix = ""
+        else
+            prefix = "(In buffer "//buffers(cur)%name//") "
+        end if
+        proc = get_buffer_process(current_buffer())
+        if (proc%index == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "Buffer "//buffers(cur)%name//" has no process")
+            return
+        end if
+        if (present(prompt)) then
+            prefix_prompt = prefix//prompt
+        else
+            prefix_prompt = prefix//"Non-echoed text: "
+        end if
+        found = .false.
+        k = local_entry()
+        if (associated(comint_buffers(k)%password_function)) then
+            call comint_buffers(k)%password_function(prefix_prompt, str, found)
+        end if
+        if (.not. found) then
+            call read_passwd(prefix_prompt, str, status)
+            found = status%ok()
+        end if
+        if (found) then
+            call comint_snapshot_last_prompt()
+            k = local_entry()
+            call comint_buffers(k)%input_sender(proc, str, status)
+        else
+            call message("Warning: text will be echoed")
+            status = status_type()
+        end if
+    end subroutine comint_send_invisible
+
+    recursive subroutine cmd_comint_send_invisible(status)
+        type(status_type), intent(out) :: status
+        call comint_send_invisible(status)
+    end subroutine cmd_comint_send_invisible
+
+    !> Prompt in the minibuffer for password and send without echoing.
+    !> Looks for a match to `comint_password_prompt_regexp' in order to
+    !> detect the need to (prompt and) send a password.  Ignores any
+    !> carriage returns (\r) in STRING.
+    !>
+    !> This function could be in the list
+    !> `comint_output_filter_functions'.  Port of
+    !> comint.el:comint-watch-for-password-prompt.
+    recursive subroutine comint_watch_for_password_prompt(string, status)
+        character(len=*), intent(in) :: string
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: text, content, prompt
+        type(pending_prompt_type), allocatable :: grown(:)
+        type(handle_type) :: timer
+        logical :: saved_fold, matched
+        integer :: n
+        status = status_type()
+        text = string_limit_end(without_cr(string), comint_password_prompt_max_length)
+        saved_fold = case_fold_search%value
+        case_fold_search = .true.
+        matched = string_match(comint_password_prompt_regexp, text, status) > 0
+        case_fold_search = saved_fold
+        if (.not. status%ok() .or. .not. matched) then
+            status = status_type()
+            return
+        end if
+        content = string_trim(match_string(0, text))
+        prompt = content
+        if (len(content) > 0) then
+            if (content(len(content):len(content)) /= " ") prompt = content//" "
+        end if
+        ! Use `run-at-time' in order not to pause execution of the process
+        ! filter with a minibuffer
+        if (.not. allocated(pending_prompts)) allocate (pending_prompts(0))
+        n = size(pending_prompts)
+        allocate (grown(n + 1))
+        grown(1:n) = pending_prompts
+        grown(n + 1)%buffer = current_buffer()
+        grown(n + 1)%prompt = prompt
+        call move_alloc(grown, pending_prompts)
+        call run_at_time(timer, 0.0_real64, send_pending_password, status)
+    contains
+        ! (string-replace "\r" "" S)
+        function without_cr(s) result(r)
+            character(len=*), intent(in) :: s
+            character(len=:), allocatable :: r
+            integer :: j, n
+            allocate (character(len=len(s)) :: r)
+            n = 0
+            do j = 1, len(s)
+                if (s(j:j) == achar(13)) cycle
+                n = n + 1
+                r(n:n) = s(j:j)
+            end do
+            r = r(1:n)
+        end function without_cr
+
+        ! (string-limit S N t): the last N bytes of S, not splitting a
+        ! character.
+        function string_limit_end(s, nmax) result(r)
+            character(len=*), intent(in) :: s
+            integer, intent(in) :: nmax
+            character(len=:), allocatable :: r
+            integer :: b
+            if (len(s) <= nmax) then
+                r = s
+                return
+            end if
+            b = len(s) - nmax + 1
+            ! Skip UTF-8 continuation bytes.
+            do while (b <= len(s))
+                if (iand(iachar(s(b:b)), 192) /= 128) exit
+                b = b + 1
+            end do
+            r = s(b:)
+        end function string_limit_end
+
+        ! (string-trim S "[ \n\r\t\v\f\b\a]+" "\n+")
+        function string_trim(s) result(r)
+            character(len=*), intent(in) :: s
+            character(len=:), allocatable :: r
+            integer :: b, e
+            b = 1
+            do while (b <= len(s))
+                if (index(" "//achar(10)//achar(13)//achar(9)//achar(11)//achar(12)//achar(8)//achar(7), s(b:b)) == 0) exit
+                b = b + 1
+            end do
+            e = len(s)
+            do while (e >= b)
+                if (s(e:e) /= achar(10)) exit
+                e = e - 1
+            end do
+            r = s(b:e)
+        end function string_trim
+    end subroutine comint_watch_for_password_prompt
+
+    ! The timer function of `comint_watch_for_password_prompt': send the
+    ! oldest pending password prompt's password.
+    recursive subroutine send_pending_password(status)
+        type(status_type), intent(out) :: status
+        type(pending_prompt_type) :: p
+        type(handle_type) :: old, proc
+        type(status_type) :: st
+        status = status_type()
+        if (.not. allocated(pending_prompts)) return
+        if (size(pending_prompts) == 0) return
+        p = pending_prompts(1)
+        pending_prompts = pending_prompts(2:)
+        if (.not. buffer_live_p(p%buffer)) return
+        old = current_buffer()
+        call set_buffer(p%buffer, st)
+        comint_prompt_recursion_depth = comint_prompt_recursion_depth + 1
+        if (comint_prompt_recursion_depth > 10) then
+            call message("Password prompt recursion too deep")
+        else
+            proc = get_buffer_process(current_buffer())
+            if (proc%index /= 0) call comint_send_invisible(status, p%prompt)
+        end if
+        comint_prompt_recursion_depth = comint_prompt_recursion_depth - 1
+        if (buffer_live_p(old)) call set_buffer(old, st)
+    end subroutine send_pending_password
+
+    ! ------------------------------------------------------------------
     ! Setup
     ! ------------------------------------------------------------------
 
@@ -4395,7 +4693,16 @@ contains
         call forward_setting(comint_use_prompt_regexp)
         call forward_setting(comint_terminfo_terminal)
         call forward_setting(comint_inhibit_carriage_motion)
+        ! (The default value lists comint-postoutput-scroll-to-bottom
+        ! before comint-watch-for-password-prompt; `add' puts a function
+        ! first.)
+        call comint_output_filter_functions%add(comint_watch_for_password_prompt)
         call comint_output_filter_functions%add(comint_postoutput_scroll_to_bottom)
+        call syms_of_mule_conf()
+        if (.not. allocated(comint_password_prompt_regexp)) then
+            comint_password_prompt_regexp = comint_password_prompt_regexp_default()
+        end if
+        commands%comint_send_invisible%run => cmd_comint_send_invisible
         call add_local_variables_killer(kill_comint_locals)
         ! Keys:
         call keymap_set(comint_mode_map, "M-p", "comint_previous_input", st)

@@ -93,6 +93,7 @@ module bindings_fm
     use diff_mode_fm, only: syms_of_diff_mode
     use diff_fm, only: syms_of_diff
     use comint_fm, only: syms_of_comint, comint_mode_map
+    use auth_source_fm, only: syms_of_auth_source
     use shell_fm, only: syms_of_shell, shell_mode_map
     use rect_fm, only: syms_of_rect
     use savehist_fm, only: syms_of_savehist
@@ -307,6 +308,7 @@ contains
         call syms_of_executable()
         call syms_of_sh_script()
         call syms_of_process()
+        call syms_of_auth_source()
         call syms_of_comint()
         call syms_of_shell()
         call syms_of_compile()
