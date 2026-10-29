@@ -119,6 +119,7 @@ program tester
     use test_namelist_fm, only: collect_namelist_fm
     use test_savehist_fm, only: collect_savehist_fm
     use test_saveplace_fm, only: collect_saveplace_fm
+    use test_recentf_fm, only: collect_recentf_fm
     use test_bookmark_fm, only: collect_bookmark_fm
     implicit none(type, external)
     ! test-drive's interfaces take default integers.
@@ -223,6 +224,7 @@ program tester
                  new_testsuite("namelist_fm", collect_namelist_fm), &
                  new_testsuite("savehist_fm", collect_savehist_fm), &
                  new_testsuite("saveplace_fm", collect_saveplace_fm), &
+                 new_testsuite("recentf_fm", collect_recentf_fm), &
                  new_testsuite("bookmark_fm", collect_bookmark_fm) &
                  ]
     call get_argument(1, suite_name)

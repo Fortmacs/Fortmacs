@@ -582,6 +582,13 @@ module commands_fm
         type(command_type) :: read_only_mode
         type(command_type) :: recenter
         type(command_type) :: recenter_top_bottom
+        type(command_type) :: recentf
+        type(command_type) :: recentf_cleanup
+        type(command_type) :: recentf_load_list
+        type(command_type) :: recentf_mode
+        type(command_type) :: recentf_open
+        type(command_type) :: recentf_open_most_recent_file
+        type(command_type) :: recentf_save_list
         type(command_type) :: recompile
         type(command_type) :: rectangle_backward_char
         type(command_type) :: rectangle_exchange_point_and_mark
@@ -783,7 +790,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(745) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(752) = [character(len=43) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -1334,6 +1341,13 @@ module commands_fm
                                                                  "read_only_mode", &
                                                                  "recenter", &
                                                                  "recenter_top_bottom", &
+                                                                 "recentf", &
+                                                                 "recentf_cleanup", &
+                                                                 "recentf_load_list", &
+                                                                 "recentf_mode", &
+                                                                 "recentf_open", &
+                                                                 "recentf_open_most_recent_file", &
+                                                                 "recentf_save_list", &
                                                                  "recompile", &
                                                                  "rectangle_backward_char", &
                                                                  "rectangle_exchange_point_and_mark", &
@@ -2639,6 +2653,20 @@ contains
             p => commands%recenter
         case ("recenter_top_bottom")
             p => commands%recenter_top_bottom
+        case ("recentf")
+            p => commands%recentf
+        case ("recentf_cleanup")
+            p => commands%recentf_cleanup
+        case ("recentf_load_list")
+            p => commands%recentf_load_list
+        case ("recentf_mode")
+            p => commands%recentf_mode
+        case ("recentf_open")
+            p => commands%recentf_open
+        case ("recentf_open_most_recent_file")
+            p => commands%recentf_open_most_recent_file
+        case ("recentf_save_list")
+            p => commands%recentf_save_list
         case ("recompile")
             p => commands%recompile
         case ("rectangle_backward_char")

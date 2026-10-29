@@ -271,6 +271,12 @@ module docstrings_fm
     use process_fm, only: delete_exited_processes, process_connection_type
     use prog_mode_fm, only: prog_indentation_context, prog_mode_abbrev_table, prog_mode_hook, &
                             prog_mode_map
+    use recentf_fm, only: recentf_auto_cleanup, RECENTF_AUTO_CLEANUP_MODE, &
+                          RECENTF_AUTO_CLEANUP_NEVER, recentf_autosave_interval, recentf_exclude, &
+                          recentf_exclude_ignored_extensions, recentf_filename_handlers, &
+                          recentf_initialize_file_name_history, recentf_keep, recentf_list, recentf_max_saved_items, &
+                          recentf_mode_hook, recentf_mode_map, recentf_save_file, recentf_save_file_modes, &
+                          recentf_show_messages
     use rect_fm, only: killed_rectangle, rectangle_mark_mode_hook, rectangle_mark_mode_map
     use register_fm, only: register_alist, register_separator
     use repeat_fm, only: repeat_check_key, repeat_exit_key, repeat_exit_timeout, repeat_in_progress, &
@@ -422,20 +428,21 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(966) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(976) = [character(len=50) :: &
                                                      "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
-                                                  "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", "abort_minibuffers", &
-                                            "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
-                                                          "add_mode_abbrev", "add_name_to_file", "add_save_some_buffers_function", &
-                                           "append_to_register", "apply_on_rectangle", "apropos_command", "apropos_documentation", &
-                                                      "apropos_follow", "apropos_function", "apropos_mode", "apropos_next_symbol", &
-                                                             "apropos_previous_symbol", "apropos_user_option", "apropos_variable", &
-                                             "async_shell_command", "auto_fill_mode", "auto_revert_mode", "auto_revert_set_timer", &
-                                                                  "auto_revert_tail_mode", "back_to_indentation", "backward_char", &
-                                             "backward_delete_char_untabify", "backward_kill_paragraph", "backward_kill_sentence", &
-                                                     "backward_kill_sexp", "backward_kill_word", "backward_list", "backward_page", &
-                                                   "backward_paragraph", "backward_sentence", "backward_sexp", "backward_up_list", &
-                                            "backward_word", "beginning_of_buffer", "beginning_of_line", "beginning_of_line_text", &
+                                                                   "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", &
+                                                      "abbreviate_file_name_handler", "abort_minibuffers", "abort_recursive_edit", &
+                                                 "accept_process_output", "add_auto_mode", "add_global_abbrev", "add_mode_abbrev", &
+                                                       "add_name_to_file", "add_save_some_buffers_function", "append_to_register", &
+                                               "apply_on_rectangle", "apropos_command", "apropos_documentation", "apropos_follow", &
+                                             "apropos_function", "apropos_mode", "apropos_next_symbol", "apropos_previous_symbol", &
+                                               "apropos_user_option", "apropos_variable", "async_shell_command", "auto_fill_mode", &
+                                                             "auto_revert_mode", "auto_revert_set_timer", "auto_revert_tail_mode", &
+                                                          "back_to_indentation", "backward_char", "backward_delete_char_untabify", &
+                                                        "backward_kill_paragraph", "backward_kill_sentence", "backward_kill_sexp", &
+                                                     "backward_kill_word", "backward_list", "backward_page", "backward_paragraph", &
+                                                        "backward_sentence", "backward_sexp", "backward_up_list", "backward_word", &
+                                                             "beginning_of_buffer", "beginning_of_line", "beginning_of_line_text", &
                                                            "blink_matching_check_mismatch", "blink_matching_open", "bobp", "bolp", &
                                                       "bookmark_delete", "bookmark_delete_all", "bookmark_edit_annotation_cancel", &
                                            "bookmark_edit_annotation_confirm", "bookmark_edit_annotation_mode", "bookmark_insert", &
@@ -538,12 +545,12 @@ module docstrings_fm
                                                             "f90_previous_block", "f90_previous_statement", "f90_upcase_keywords", &
                                                                    "f90_upcase_region_keywords", "face_box", "face_underline", &
                                                                  "file_modes_number_to_symbolic", "file_modes_symbolic_to_number", &
-                                         "file_name_sans_versions", "file_to_register", "fill_french_nobreak_p", "fill_paragraph", &
-                                                               "fill_polish_nobreak_p", "fill_region", "fill_region_as_paragraph", &
-                                                                 "fill_region_as_paragraph_default", "fill_single_char_nobreak_p", &
-                                                              "fill_single_word_nobreak_p", "find_file", "find_file_other_window", &
-                                                         "find_file_read_only", "find_file_read_only_other_window", "first_error", &
-                                                               "fixup_whitespace", "font_lock_add_keywords", "font_lock_anchored", &
+                                                           "file_name_sans_versions", "file_to_register", "file_truename_handler", &
+                                                "fill_french_nobreak_p", "fill_paragraph", "fill_polish_nobreak_p", "fill_region", &
+                                                                   "fill_region_as_paragraph", "fill_region_as_paragraph_default", &
+                                                          "fill_single_char_nobreak_p", "fill_single_word_nobreak_p", "find_file", &
+                                              "find_file_other_window", "find_file_read_only", "find_file_read_only_other_window", &
+                                                "first_error", "fixup_whitespace", "font_lock_add_keywords", "font_lock_anchored", &
                                                         "font_lock_change_mode", "font_lock_debug_fontify", "font_lock_defontify", &
                                                      "font_lock_fontify_block", "font_lock_fontify_buffer", "font_lock_highlight", &
                                                            "font_lock_keyword", "font_lock_mode", "font_lock_mode_set_explicitly", &
@@ -628,7 +635,9 @@ module docstrings_fm
                                                                    "re_search_backward", "re_search_forward", "read_buffer", &
                                                 "read_char_from_minibuffer_insert_char", "read_char_from_minibuffer_insert_other", &
                                                 "read_file_name_default", "read_multiple_choice", "read_number", "read_only_mode", &
-                                              "read_shell_command", "read_string", "recenter", "recenter_top_bottom", "recompile", &
+                                                "read_shell_command", "read_string", "recenter", "recenter_top_bottom", "recentf", &
+                                         "recentf_cleanup", "recentf_keep_default_predicate", "recentf_load_list", "recentf_mode", &
+                                                "recentf_open", "recentf_open_most_recent_file", "recentf_save_list", "recompile", &
                                            "rectangle_backward_char", "rectangle_dimensions", "rectangle_exchange_point_and_mark", &
                                                          "rectangle_forward_char", "rectangle_intersect_p", "rectangle_left_char", &
                                                            "rectangle_mark_mode", "rectangle_next_line", "rectangle_number_lines", &
@@ -702,7 +711,7 @@ module docstrings_fm
                                                                    "yank_rectangle", "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(837) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(851) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -904,11 +913,15 @@ module docstrings_fm
                                                                    "query_replace_to_history_variable", "read_answer_short", &
                                                             "read_buffer_completion_ignore_case", "read_char_choice_use_read_key", &
                                                        "read_file_name_completion_ignore_case", "read_minibuffer_restore_windows", &
-                                                      "read_only_mode_hook", "read_quoted_char_radix", "rectangle_mark_mode_hook", &
-                                                            "rectangle_mark_mode_map", "regexp_search_ring_max", "register_alist", &
-                                               "register_separator", "repeat_check_key", "repeat_exit_key", "repeat_exit_timeout", &
-                                                     "repeat_in_progress", "repeat_keep_prefix", "repeat_map", "repeat_mode_hook", &
-                                                                   "repeat_num_input_keys_at_repeat", "repeat_on_final_keystroke", &
+                                                          "read_only_mode_hook", "read_quoted_char_radix", "recentf_auto_cleanup", &
+                                             "recentf_autosave_interval", "recentf_exclude", "recentf_exclude_ignored_extensions", &
+                                              "recentf_filename_handlers", "recentf_initialize_file_name_history", "recentf_keep", &
+                                               "recentf_list", "recentf_max_saved_items", "recentf_mode_hook", "recentf_mode_map", &
+                                                          "recentf_save_file", "recentf_save_file_modes", "recentf_show_messages", &
+                                                  "rectangle_mark_mode_hook", "rectangle_mark_mode_map", "regexp_search_ring_max", &
+                                                    "register_alist", "register_separator", "repeat_check_key", "repeat_exit_key", &
+                                                  "repeat_exit_timeout", "repeat_in_progress", "repeat_keep_prefix", "repeat_map", &
+                                               "repeat_mode_hook", "repeat_num_input_keys_at_repeat", "repeat_on_final_keystroke", &
                                                       "repeat_previous_repeated_command", "repeat_too_dangerous", "replace_count", &
                                                "replace_lax_whitespace", "replace_regexp_lax_whitespace", "require_final_newline", &
                                             "revert_buffer_function", "revert_buffer_in_progress", "revert_buffer_preserve_modes", &
@@ -1478,6 +1491,10 @@ contains
             entry%fortran = "abbrev_table_name(table)"
             entry%doc = "Return the name of the specified abbrev TABLE ("""" if it has"//LF// &
                         "none)."
+        case ("abbreviate_file_name_handler")
+            entry%file = "recentf_fm.f90"
+            entry%fortran = "call abbreviate_file_name_handler(name, result, status)"
+            entry%doc = "abbreviate-file-name as a `recentf_filename_handlers' element."
         case ("abort_minibuffers")
             entry%file = "minibuffer_fm.f90"
             entry%interactive = .true.
@@ -4691,6 +4708,10 @@ contains
                         "With a prefix-argument, prompt for FILE_NAME using `read_file_name',"//LF// &
                         "With no prefix-argument, use the currently visited file or directory"//LF// &
                         "for FILE_NAME."
+        case ("file_truename_handler")
+            entry%file = "recentf_fm.f90"
+            entry%fortran = "call file_truename_handler(name, result, status)"
+            entry%doc = "file-truename as a `recentf_filename_handlers' element."
         case ("fill_french_nobreak_p")
             entry%file = "fill_fm.f90"
             entry%fortran = "fill_french_nobreak_p()"
@@ -7633,6 +7654,62 @@ contains
                         "With numeric prefix ARG, move current line ARG lines below the"//LF// &
                         "window top.  With plain \[universal_argument], move current line"//LF// &
                         "to window center."
+        case ("recentf")
+            entry%file = "recentf_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Prompt for FILE in `recentf_list' and visit it."//LF// &
+                        "Enable `recentf_mode' if it isn't already."
+        case ("recentf_cleanup")
+            entry%file = "recentf_fm.f90"
+            entry%fortran = "call recentf_cleanup()"
+            entry%interactive = .true.
+            entry%doc = "Cleanup the recent list."//LF// &
+                        "That is, remove duplicates, non-kept, and excluded files."
+        case ("recentf_keep_default_predicate")
+            entry%file = "recentf_fm.f90"
+            entry%fortran = "recentf_keep_default_predicate(file)"
+            entry%doc = "Return true if FILE should be kept in the recent list."
+        case ("recentf_load_list")
+            entry%file = "recentf_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Load a previously saved recent list."//LF// &
+                        "Read data from the file specified by `recentf_save_file'."//LF// &
+                        "When `recentf_initialize_file_name_history' is true, initialize an"//LF// &
+                        "empty `file_name_history' with the recent list."
+        case ("recentf_mode")
+            entry%file = "recentf_fm.f90"
+            entry%fortran = "call recentf_mode(status)"
+            entry%interactive = .true.
+            entry%doc = "Toggle keeping track of opened files (Recentf mode)."//LF// &
+                        "This mode maintains a list of recently opened files and makes it"//LF// &
+                        "easy to visit them.  The recent files list is automatically saved"//LF// &
+                        "across Fortmacs sessions."//LF// &
+                        ""//LF// &
+                        "You can use `recentf_open' to visit files."//LF// &
+                        ""//LF// &
+                        "By default, only operations like opening a file, writing a buffer"//LF// &
+                        "to a file, and killing a buffer is counted as ""operating"" on the"//LF// &
+                        "file."
+        case ("recentf_open")
+            entry%file = "recentf_fm.f90"
+            entry%fortran = "call recentf_open(status)"
+            entry%interactive = .true.
+            entry%doc = "Prompt for FILE in `recentf_list' and visit it."//LF// &
+                        "Enable `recentf_mode' if it isn't already."
+        case ("recentf_open_most_recent_file")
+            entry%file = "recentf_fm.f90"
+            entry%fortran = "call recentf_open_most_recent_file(n_in, status)"
+            entry%interactive = .true.
+            entry%doc = "Open the Nth most recent file."//LF// &
+                        "Optional argument N must be a valid digit number.  It defaults to 1."//LF// &
+                        "1 opens the most recent file, 2 the second most recent one, etc.."//LF// &
+                        "0 opens the tenth most recent file."
+        case ("recentf_save_list")
+            entry%file = "recentf_fm.f90"
+            entry%fortran = "call recentf_save_list(interactive)"
+            entry%interactive = .true.
+            entry%doc = "Save the recent list."//LF// &
+                        "Write data into the file specified by `recentf_save_file'."
         case ("recompile")
             entry%file = "compile_fm.f90"
             entry%fortran = "call recompile(status, edit_command)"
@@ -15974,6 +16051,133 @@ contains
             entry%value = repr(read_quoted_char_radix)
             entry%doc = "Radix for \[quoted_insert] and other uses of `read_quoted_char'."//LF// &
                         "Supported radix values are 8, 10 and 16."
+        case ("recentf_auto_cleanup")
+            entry%file = "recentf_fm.f90"
+            entry%fortran = "recentf_auto_cleanup"
+            entry%original = "RECENTF_AUTO_CLEANUP_MODE"
+            select case (recentf_auto_cleanup)
+            case (RECENTF_AUTO_CLEANUP_MODE)
+                entry%value = "RECENTF_AUTO_CLEANUP_MODE"
+            case (RECENTF_AUTO_CLEANUP_NEVER)
+                entry%value = "RECENTF_AUTO_CLEANUP_NEVER"
+            case default
+                entry%value = repr(recentf_auto_cleanup)
+            end select
+            entry%doc = "Define when to automatically cleanup the recent list."//LF// &
+                        "That is, remove duplicates, non-kept, and excluded files."//LF// &
+                        ""//LF// &
+                        "The following values can be set:"//LF// &
+                        ""//LF// &
+                        "- RECENTF_AUTO_CLEANUP_MODE"//LF// &
+                        "    Cleanup when turning the mode on (default)."//LF// &
+                        "- RECENTF_AUTO_CLEANUP_NEVER"//LF// &
+                        "    Never cleanup the list automatically."//LF// &
+                        "- A number"//LF// &
+                        "    Cleanup each time Fortmacs has been idle that number of seconds."//LF// &
+                        ""//LF// &
+                        "See also the command `recentf_cleanup', that can be used to"//LF// &
+                        "manually cleanup the list."
+        case ("recentf_autosave_interval")
+            entry%file = "recentf_fm.f90"
+            entry%fortran = "recentf_autosave_interval"
+            entry%original = "0"
+            entry%value = repr(recentf_autosave_interval)
+            entry%doc = "The interval between auto saves of recently opened files, in"//LF// &
+                        "seconds.  If set to 0, disables timer-based auto saving."
+        case ("recentf_exclude")
+            entry%file = "recentf_fm.f90"
+            entry%fortran = "recentf_exclude"
+            entry%doc = "List of regexps and predicates for filenames excluded from the"//LF// &
+                        "recent list.  When a filename matches any of the regexps or"//LF// &
+                        "satisfies any of the predicates it is excluded from the recent"//LF// &
+                        "list.  A predicate is a function that is passed a filename to check"//LF// &
+                        "and that must return true to exclude it."
+        case ("recentf_exclude_ignored_extensions")
+            entry%file = "recentf_fm.f90"
+            entry%fortran = "recentf_exclude_ignored_extensions"
+            if (allocated(recentf_exclude_ignored_extensions)) then
+                entry%value = repr(recentf_exclude_ignored_extensions)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "List of file-name extensions that `recentf' should ignore."//LF// &
+                        "This has effect only if the function"//LF// &
+                        "`recentf_exclude_file_by_extension_p' is in the list that is the"//LF// &
+                        "value of `recentf_exclude'.  If this option is empty and"//LF// &
+                        "`recentf_exclude_file_by_extension_p' is a member of"//LF// &
+                        "`recentf_exclude', a file will be ignored if its extension is in"//LF// &
+                        "`completion_ignored_extensions', which see."
+        case ("recentf_filename_handlers")
+            entry%file = "recentf_fm.f90"
+            entry%fortran = "recentf_filename_handlers"
+            entry%doc = "Functions to post process recent file names."//LF// &
+                        "They are successively passed a file name to transform it."
+        case ("recentf_initialize_file_name_history")
+            entry%file = "recentf_fm.f90"
+            entry%fortran = "recentf_initialize_file_name_history"
+            entry%original = ".true."
+            entry%value = repr(recentf_initialize_file_name_history)
+            entry%doc = "True means to initialize `file_name_history' with the recent list."//LF// &
+                        "If `file_name_history' is not empty, do nothing."
+        case ("recentf_keep")
+            entry%file = "recentf_fm.f90"
+            entry%fortran = "recentf_keep"
+            entry%doc = "List of regexps and predicates for filenames kept in the recent"//LF// &
+                        "list.  Regexps and predicates are tried in the specified order."//LF// &
+                        "When empty all filenames are kept in the recent list."//LF// &
+                        "When a filename matches any of the regexps or satisfies any of the"//LF// &
+                        "predicates it is kept in the recent list."//LF// &
+                        "The default is to keep readable files."//LF// &
+                        "A predicate is a function that is passed a filename to check and"//LF// &
+                        "that must return true to keep it."
+        case ("recentf_list")
+            entry%file = "recentf_fm.f90"
+            entry%fortran = "recentf_list"
+            entry%doc = "List of recently opened files for `recentf_mode'."
+        case ("recentf_max_saved_items")
+            entry%file = "recentf_fm.f90"
+            entry%fortran = "recentf_max_saved_items"
+            entry%original = "25"
+            entry%value = repr(recentf_max_saved_items)
+            entry%doc = "Maximum number of items of the recent list that will be saved."//LF// &
+                        "RECENTF_NO_LIMIT means to save the whole list."//LF// &
+                        "See the command `recentf_save_list'."
+        case ("recentf_mode_hook")
+            entry%file = "recentf_fm.f90"
+            entry%fortran = "recentf_mode_hook"
+            entry%doc = "Hook run after entering or leaving `recentf_mode'."
+        case ("recentf_mode_map")
+            entry%file = "recentf_fm.f90"
+            entry%fortran = "recentf_mode_map"
+            entry%doc = "Keymap to use in `recentf_mode'."
+        case ("recentf_save_file")
+            entry%file = "recentf_fm.f90"
+            entry%fortran = "recentf_save_file"
+            if (allocated(recentf_save_file)) then
+                entry%value = repr(recentf_save_file)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "File to save the recent list into."
+        case ("recentf_save_file_modes")
+            entry%file = "recentf_fm.f90"
+            entry%fortran = "recentf_save_file_modes"
+            entry%original = "384"
+            entry%value = repr(recentf_save_file_modes)
+            entry%doc = "Mode bits of recentf save file, as an integer, or -1."//LF// &
+                        "If not -1, after writing `recentf_save_file', set its mode bits to"//LF// &
+                        "this value.  This is decimal, not octal.  The default is 384 (0600"//LF// &
+                        "in octal), which gives R/W access only to the user who owns that"//LF// &
+                        "file.  See also the function `set_file_modes'."
+        case ("recentf_show_messages")
+            entry%file = "recentf_fm.f90"
+            entry%fortran = "recentf_show_messages"
+            entry%original = ".true."
+            entry%value = repr(recentf_show_messages)
+            entry%doc = "Whether to show verbose messages about low-level recentf actions."//LF// &
+                        "False means to not show messages related to the recentf machinery."//LF// &
+                        "True means show messages that were printed by default on Emacs <="//LF// &
+                        "31.1."
         case ("rectangle_mark_mode_hook")
             entry%file = "rect_fm.f90"
             entry%fortran = "rectangle_mark_mode_hook"

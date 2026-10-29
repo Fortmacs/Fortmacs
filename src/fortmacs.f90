@@ -418,6 +418,14 @@ module fortmacs
                             save_place_after_find_file_hook, save_place_mode_hook, save_place_local_mode_hook, &
                             save_place_version_control, SAVE_PLACE_VERSION_CONTROL_T, SAVE_PLACE_VERSION_CONTROL_NIL, &
                             SAVE_PLACE_VERSION_CONTROL_NEVER, SAVE_PLACE_VERSION_CONTROL_NOSPECIAL
+    use recentf_fm, only: recentf_mode, recentf_open, recentf_open_most_recent_file, recentf_save_list, recentf_cleanup, &
+                          recentf_file_type, recentf_list, recentf_check_type, recentf_filename_handler_type, &
+                          RECENTF_NO_LIMIT, recentf_max_saved_items, recentf_save_file, recentf_save_file_modes, &
+                          recentf_exclude, recentf_exclude_ignored_extensions, recentf_keep, recentf_menu_action, &
+                          RECENTF_AUTO_CLEANUP_MODE, RECENTF_AUTO_CLEANUP_NEVER, recentf_auto_cleanup, &
+                          recentf_initialize_file_name_history, recentf_filename_handlers, recentf_show_messages, &
+                          recentf_autosave_interval, recentf_mode_hook, recentf_mode_map, recentf_keep_default_predicate, &
+                          abbreviate_file_name_handler, file_truename_handler
     use bookmark_fm, only: bookmark_type, bookmark_inhibit_context_function_type, bookmark_use_annotations, &
                            bookmark_save_flag, BOOKMARK_SAVE_FLAG_NIL, BOOKMARK_SAVE_FLAG_T, bookmark_default_file, &
                            bookmark_watch_bookmark_file, BOOKMARK_WATCH_BOOKMARK_FILE_NIL, &
@@ -737,6 +745,13 @@ module fortmacs
               save_place_after_find_file_hook, save_place_mode_hook, save_place_local_mode_hook, &
               save_place_version_control, SAVE_PLACE_VERSION_CONTROL_T, SAVE_PLACE_VERSION_CONTROL_NIL, &
               SAVE_PLACE_VERSION_CONTROL_NEVER, SAVE_PLACE_VERSION_CONTROL_NOSPECIAL
+    public :: recentf_mode, recentf_open, recentf_open_most_recent_file, recentf_save_list, recentf_cleanup, &
+              recentf_file_type, recentf_list, recentf_check_type, recentf_filename_handler_type, RECENTF_NO_LIMIT, &
+              recentf_max_saved_items, recentf_save_file, recentf_save_file_modes, recentf_exclude, &
+              recentf_exclude_ignored_extensions, recentf_keep, recentf_menu_action, RECENTF_AUTO_CLEANUP_MODE, &
+              RECENTF_AUTO_CLEANUP_NEVER, recentf_auto_cleanup, recentf_initialize_file_name_history, &
+              recentf_filename_handlers, recentf_show_messages, recentf_autosave_interval, recentf_mode_hook, &
+              recentf_mode_map, recentf_keep_default_predicate, abbreviate_file_name_handler, file_truename_handler
     public :: bookmark_type, bookmark_inhibit_context_function_type, bookmark_use_annotations, bookmark_save_flag, &
               BOOKMARK_SAVE_FLAG_NIL, BOOKMARK_SAVE_FLAG_T, bookmark_default_file, bookmark_watch_bookmark_file, &
               BOOKMARK_WATCH_BOOKMARK_FILE_NIL, BOOKMARK_WATCH_BOOKMARK_FILE_T, BOOKMARK_WATCH_BOOKMARK_FILE_SILENT, &
