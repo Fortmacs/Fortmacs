@@ -45,7 +45,7 @@ module vc_dir_fm
     use data_fm, only: symbol_value, set, add_local_variables_killer
     use eval_fm, only: hook_type
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, buffer_live_p, buffer_serial_live, erase_buffer, &
-                         get_buffer_create, generate_new_buffer_name, kill_buffer, vdeactivate_mark
+                         get_buffer_create, generate_new_buffer_name, kill_buffer, deactivate_mark_variable
     use commands_fm, only: commands
     use modes_fm, only: major_modes
     use derived_fm, only: derived_mode_p

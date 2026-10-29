@@ -38,7 +38,7 @@ module fileio_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type, set_error, FM_FILE_ERROR, FM_FILE_MISSING, FM_FILE_ALREADY_EXISTS, &
                         FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_PERMISSION_DENIED, FM_FILE_DATE_ERROR
-    use buffer_fm, only: buffers, cur, BEG, BEG_BYTE, buf_bytes, barf_if_buffer_read_only, vdeactivate_mark, current_buffer
+    use buffer_fm, only: buffers, cur, BEG, BEG_BYTE, buf_bytes, barf_if_buffer_read_only, deactivate_mark_variable, current_buffer
     use marker_fm, only: char_to_byte, byte_to_char, set_marker, marker_position, free_marker
     use handle_fm, only: handle_type
     use character_fm, only: char_head_p
@@ -1423,7 +1423,7 @@ contains
             call insert(text, status)
             inhibit_modification_hooks%value = saved_inhibit
             if (.not. status%ok()) return
-            vdeactivate_mark = .true.
+            deactivate_mark_variable = .true.
             call goto_char(opoint)
         end if
         inserted = nchars

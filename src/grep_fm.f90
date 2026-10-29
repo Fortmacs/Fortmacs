@@ -152,7 +152,7 @@ module grep_fm
     end type grep_files_alias_type
 
     abstract interface
-        !> The car of a cons element of `vgrep_find_ignored_files' and
+        !> The car of a cons element of `grep_find_ignored_files_variable' and
         !> `grep_find_ignored_directories': whether the element applies to
         !> the search directory DIR.
         logical function grep_ignore_predicate(dir)
@@ -177,7 +177,7 @@ module grep_fm
 
     public :: grep_ignore_predicate, grep_read_files_proc, grep_save_buffers_proc
 
-    !> An element of `vgrep_find_ignored_files' and
+    !> An element of `grep_find_ignored_files_variable' and
     !> `grep_find_ignored_directories': the file or directory NAME, which
     !> applies to a search directory only if APPLIES (when given) says so
     !> (the cons form (FUNCTION . NAME)).
@@ -310,7 +310,7 @@ module grep_fm
     !> By default, the <X> placeholder contains find options for affecting
     !> the directory list, and the <F> placeholder contains the find
     !> options which affect which files are matched, both
-    !> `vgrep_find_ignored_files' and the FILES argument to `rgrep'.
+    !> `grep_find_ignored_files_variable' and the FILES argument to `rgrep'.
     !>
     !> This separation allows the two sources of file matching in <F> to be
     !> optimized together into a set of options which are overall faster
@@ -341,8 +341,9 @@ module grep_fm
     !> List of file names which `rgrep' and `lgrep' shall exclude.
     !> If an element has a predicate (APPLIES), it is called on the search
     !> directory to determine whether NAME should not be excluded.  Port of
-    !> grep.el grep-find-ignored-files.
-    type(grep_ignore_type), allocatable, public :: vgrep_find_ignored_files(:)
+    !> grep.el grep-find-ignored-files (renamed: the function
+    !> `grep_find_ignored_files' has its name).
+    type(grep_ignore_type), allocatable, public :: grep_find_ignored_files_variable(:)
 
     !> If not GREP_SAVE_BUFFERS_NIL, save buffers before running the grep
     !> commands.  If GREP_SAVE_BUFFERS_ASK, ask before saving.  If
@@ -2134,7 +2135,7 @@ contains
     function grep_find_ignored_files(dir) result(names)
         character(len=*), intent(in) :: dir
         character(len=64), allocatable :: names(:)
-        names = filter_list_by_dir(vgrep_find_ignored_files, dir)
+        names = filter_list_by_dir(grep_find_ignored_files_variable, dir)
     end function grep_find_ignored_files
 
     !> Return the list of ignored directories applicable to DIR.  Port of
@@ -2700,7 +2701,7 @@ contains
                 end do
             end if
         end if
-        if (.not. allocated(vgrep_find_ignored_files)) then
+        if (.not. allocated(grep_find_ignored_files_variable)) then
             ! (cons ".#*" (delq nil (mapcar (lambda (s) (unless
             ! (string-match-p "/\\'" s) (concat "*" s)))
             ! completion-ignored-extensions))).
@@ -2708,13 +2709,13 @@ contains
             do i = 1, size(completion_ignored_extensions)
                 if (.not. ends_with_slash(completion_ignored_extensions(i))) n = n + 1
             end do
-            allocate (vgrep_find_ignored_files(n))
-            vgrep_find_ignored_files(1)%name = ".#*"
+            allocate (grep_find_ignored_files_variable(n))
+            grep_find_ignored_files_variable(1)%name = ".#*"
             n = 1
             do i = 1, size(completion_ignored_extensions)
                 if (ends_with_slash(completion_ignored_extensions(i))) cycle
                 n = n + 1
-                vgrep_find_ignored_files(n)%name = "*"//trim(completion_ignored_extensions(i))
+                grep_find_ignored_files_variable(n)%name = "*"//trim(completion_ignored_extensions(i))
             end do
         end if
         allocate (grep_compilation_transform_finished_rules(2))
