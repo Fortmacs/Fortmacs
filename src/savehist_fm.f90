@@ -345,9 +345,11 @@ contains
         status = status_type()
         if (item%name == "savehist_minibuffer_history_variables") then
             if (allocated(savehist_minibuffer_history_variables)) deallocate (savehist_minibuffer_history_variables)
-            allocate (savehist_minibuffer_history_variables(0))
-            if (.not. item%subscripted) return
-            allocate (character(len=64) :: savehist_minibuffer_history_variables(size(item%values)))
+            if (.not. item%subscripted) then
+                allocate (savehist_minibuffer_history_variables(0))
+                return
+            end if
+            allocate (savehist_minibuffer_history_variables(size(item%values)))
             do k = 1, size(item%values)
                 savehist_minibuffer_history_variables(k) = item%values(k)%string
             end do
