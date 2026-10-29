@@ -27,6 +27,7 @@ Fortmacs: a rewrite of GNU Emacs 31.1 (tag emacs-31.1) in modern Fortran (2018+,
 - Workflow: one roadmap step per PR, based on main (never stack PRs); batch related fixes into one PR rather than many small ones, and keep a PR as a draft until it is complete. When the user is away, build the next step on the open PR's branch instead of waiting for a merge. Each PR updates PORTING.md (status table, session log) and the README progress block (tools/progress.sh --update-readme). Changes to PORTING.md or CLAUDE.md always go through a PR, never straight to main. After opening a PR, poll it and continue once it is merged.
 - License: GPLv3 or later, matching upstream. Ported files keep upstream FSF copyright notices plus ours.
 - Keep answers short.
+- When the user asks to see something (options, designs, files, answers), show it in full in the reply at that moment, before resuming other work: the user sees only replies, not text written between tool calls.
 
 ## Fortran conventions
 
