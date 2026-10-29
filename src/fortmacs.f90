@@ -470,7 +470,11 @@ module fortmacs
     use info_fm, only: info_history_skip_intermediate_nodes, info_default_directory_list, info_directory_list, &
                        info_additional_directory_list, info_scroll_prefer_subnodes, info_mode_hook, &
                        info_selection_hook, info_url_alist, info_url_type, info_suffix_list, info_suffix_type, &
-                       info_streamline_headings, info_heading_type, info_mode_map, info_mode_syntax_table
+                       info_streamline_headings, info_heading_type, info_mode_map, info_mode_syntax_table, &
+                       info_fontify_maximum_menu_size, INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL, &
+                       INFO_FONTIFY_MAXIMUM_MENU_SIZE_T, info_fontify_visited_nodes, info_use_header_line, &
+                       info_hide_note_references, INFO_HIDE_NOTE_REFERENCES_NIL, INFO_HIDE_NOTE_REFERENCES_T, &
+                       INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, info_breadcrumbs_depth
     use ibuffer_fm, only: ibuffer_formats, ibuffer_always_compile_formats, ibuffer_fontification_alist, &
                           ibuffer_human_readable_size, ibuffer_use_other_window, &
                           ibuffer_default_shrink_to_minimum_size, ibuffer_display_summary, ibuffer_truncate_lines, &
@@ -843,7 +847,11 @@ module fortmacs
     public :: info_history_skip_intermediate_nodes, info_default_directory_list, info_directory_list, &
               info_additional_directory_list, info_scroll_prefer_subnodes, info_mode_hook, info_selection_hook, &
               info_url_alist, info_url_type, info_suffix_list, info_suffix_type, info_streamline_headings, &
-              info_heading_type, info_mode_map, info_mode_syntax_table
+              info_heading_type, info_mode_map, info_mode_syntax_table, info_fontify_maximum_menu_size, &
+              INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL, INFO_FONTIFY_MAXIMUM_MENU_SIZE_T, info_fontify_visited_nodes, &
+              info_use_header_line, info_hide_note_references, INFO_HIDE_NOTE_REFERENCES_NIL, &
+              INFO_HIDE_NOTE_REFERENCES_T, INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, &
+              info_breadcrumbs_depth
     public :: ibuffer_formats, ibuffer_always_compile_formats, ibuffer_fontification_alist, &
               ibuffer_human_readable_size, ibuffer_use_other_window, ibuffer_default_shrink_to_minimum_size, &
               ibuffer_display_summary, ibuffer_truncate_lines, ibuffer_case_fold_search, &

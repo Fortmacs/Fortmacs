@@ -128,6 +128,19 @@ module face_table_fm
     use ibuffer_fm, only: ibuffer_locked_buffer
     use ibuffer_fm, only: ibuffer_marked_face_def
     use ibuffer_fm, only: ibuffer_title_face_def
+    use info_fm, only: info_header_node_face
+    use info_fm, only: info_header_xref_face
+    use info_fm, only: info_index_match_face
+    use info_fm, only: info_menu_header_face
+    use info_fm, only: info_menu_star_face
+    use info_fm, only: info_node_face
+    use info_fm, only: info_quoted_face
+    use info_fm, only: info_title_1_face
+    use info_fm, only: info_title_2_face
+    use info_fm, only: info_title_3_face
+    use info_fm, only: info_title_4_face
+    use info_fm, only: info_xref_face
+    use info_fm, only: info_xref_visited_face
     use faces_fm, only: internal_border
     use faces_fm, only: italic
     use isearch_fm, only: lazy_highlight
@@ -309,6 +322,19 @@ module face_table_fm
         type(named_face_type), pointer :: ibuffer_locked_buffer => ibuffer_locked_buffer
         type(named_face_type), pointer :: ibuffer_marked => ibuffer_marked_face_def
         type(named_face_type), pointer :: ibuffer_title => ibuffer_title_face_def
+        type(named_face_type), pointer :: info_header_node => info_header_node_face
+        type(named_face_type), pointer :: info_header_xref => info_header_xref_face
+        type(named_face_type), pointer :: info_index_match => info_index_match_face
+        type(named_face_type), pointer :: info_menu_header => info_menu_header_face
+        type(named_face_type), pointer :: info_menu_star => info_menu_star_face
+        type(named_face_type), pointer :: info_node => info_node_face
+        type(named_face_type), pointer :: info_quoted => info_quoted_face
+        type(named_face_type), pointer :: info_title_1 => info_title_1_face
+        type(named_face_type), pointer :: info_title_2 => info_title_2_face
+        type(named_face_type), pointer :: info_title_3 => info_title_3_face
+        type(named_face_type), pointer :: info_title_4 => info_title_4_face
+        type(named_face_type), pointer :: info_xref => info_xref_face
+        type(named_face_type), pointer :: info_xref_visited => info_xref_visited_face
         type(named_face_type), pointer :: internal_border => internal_border
         type(named_face_type), pointer :: italic => italic
         type(named_face_type), pointer :: lazy_highlight => lazy_highlight

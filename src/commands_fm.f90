@@ -612,6 +612,7 @@ module commands_fm
         type(command_type) :: info_forward_node
         type(command_type) :: info_goto_node
         type(command_type) :: info_help
+        type(command_type) :: info_history
         type(command_type) :: info_history_back
         type(command_type) :: info_history_forward
         type(command_type) :: info_last_menu_item
@@ -630,6 +631,7 @@ module commands_fm
         type(command_type) :: info_scroll_down
         type(command_type) :: info_scroll_up
         type(command_type) :: info_summary
+        type(command_type) :: info_toc
         type(command_type) :: info_top_node
         type(command_type) :: info_undefined
         type(command_type) :: info_up
@@ -1047,7 +1049,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1009) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1011) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1628,6 +1630,7 @@ module commands_fm
                                                                   "info_forward_node", &
                                                                   "info_goto_node", &
                                                                   "info_help", &
+                                                                  "info_history", &
                                                                   "info_history_back", &
                                                                   "info_history_forward", &
                                                                   "info_last_menu_item", &
@@ -1646,6 +1649,7 @@ module commands_fm
                                                                   "info_scroll_down", &
                                                                   "info_scroll_up", &
                                                                   "info_summary", &
+                                                                  "info_toc", &
                                                                   "info_top_node", &
                                                                   "info_undefined", &
                                                                   "info_up", &
@@ -3227,6 +3231,8 @@ contains
             p => commands%info_goto_node
         case ("info_help")
             p => commands%info_help
+        case ("info_history")
+            p => commands%info_history
         case ("info_history_back")
             p => commands%info_history_back
         case ("info_history_forward")
@@ -3263,6 +3269,8 @@ contains
             p => commands%info_scroll_up
         case ("info_summary")
             p => commands%info_summary
+        case ("info_toc")
+            p => commands%info_toc
         case ("info_top_node")
             p => commands%info_top_node
         case ("info_undefined")

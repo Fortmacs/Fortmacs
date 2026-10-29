@@ -58,8 +58,8 @@ module info_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_SEARCH_FAILED
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, nil, t_value, nilp, make_string, make_list, list, make_fixnum, stringp, consp, &
-                       fixnump, xstring, xfixnum, list_length, list_elt
-    use lread_fm, only: sym
+                       fixnump, xstring, xfixnum, list_length, list_elt, make_symbol_ref, symbols, xsymbol, symbolp
+    use lread_fm, only: sym, intern
     use data_fm, only: logical_setting, set, add_local_variables_killer
     use eval_fm, only: hook_type
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, buffer_live_p, buffer_serial_live, get_buffer_create, &
@@ -77,10 +77,20 @@ module info_fm
                          string_index_to_offset, case_fold_search, SEARCH_NOERROR, SEARCH_MOVE
     use subr_fm, only: match_string_no_properties, looking_back, y_or_n_p
     use syntax_fm, only: skip_chars_forward, skip_chars_backward, copy_syntax_table, modify_syntax_entry, &
-                         syntax_table_live_p
+                         syntax_table_live_p, skip_syntax_backward
     use casefiddle_fm, only: downcase_string, capitalize_string
     use textprop_fm, only: get_text_property, put_text_property, get_char_property, &
-                           next_single_char_property_change, previous_single_char_property_change
+                           next_single_char_property_change, previous_single_char_property_change, &
+                           next_single_property_change, remove_text_properties, propertized_concat, &
+                           string_put_text_property
+    use character_fm, only: multibyte_chars_in_text
+    use itree_fm, only: make_overlay, overlay_put
+    use faces_fm, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
+                        FACE_BACKGROUND_DARK
+    use font_core_fm, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
+                            font_lock_mode_enabled, turn_on_font_lock
+    use font_lock_fm, only: font_lock_keyword, font_lock_highlight
+    use fill_fm, only: string_width
     use fileio_fm, only: file_exists_p, file_directory_p, file_name_directory, file_name_nondirectory, &
                          file_name_as_directory, directory_file_name, file_name_absolute_p, expand_file_name, &
                          substitute_in_file_name, insert_file_contents, file_attributes, file_stat_type
@@ -98,12 +108,12 @@ module info_fm
     use derived_fm, only: derived_mode_p
     use xdisp_fm, only: message, tab_width
     use indent_fm, only: current_column, move_to_column
-    use simple_fm, only: kill_new, count_lines, pos_visible_in_window_p, deactivate_mark
+    use simple_fm, only: kill_new, count_lines, pos_visible_in_window_p, deactivate_mark, line_number_at_pos
     use window_fm, only: windows, display_buffer, select_window, get_buffer_window, window_start, set_window_start, &
                          scroll_up, scroll_down, recenter, display_alist_type, DISPLAY_ACTION_SAME_WINDOW, &
                          window_configuration_type, current_window_configuration, set_window_configuration, &
                          free_window_configuration, delete_other_windows, switch_to_buffer, bury_buffer
-    use frame_fm, only: selected_window
+    use frame_fm, only: selected_window, selected_frame, frame_window_p
     use dispnew_fm, only: ding
     use minibuf_fm, only: completion_ignore_case, try_completion, all_completions, test_completion, &
                           completion_table_type, completion_list_table, completion_function_table, &
@@ -126,7 +136,7 @@ module info_fm
               info_copy_current_node_name, info_extract_pointer, info_extract_menu_node_name, info_select_node, &
               info_current_file, info_current_node, info_current_subfile, info_insert_file_contents, &
               info_build_node_completions, info_undefined, info_help, info_summary, info_kill_buffer, &
-              syms_of_info
+              info_toc, info_history, info_fontify_node, syms_of_info
 
     !> A node visited: the Info FILE (as `info_current_file'), the NODE name
     !> and the position POS of point in it.  An element of the stacks
@@ -182,14 +192,17 @@ module info_fm
         end subroutine info_virtual_find_node_proc
     end interface
 
-    !> A virtual Info file (an element of `info_virtual_files'): file names
-    !> matching the regexp NAME are handled by FIND_FILE and FIND_NODE
-    !> instead of being read from disk.  (The toc-nodes operation comes
-    !> with the table of contents, which is Deferred.)
+    !> A virtual Info file (an element of `info_virtual_files') or node
+    !> (of `info_virtual_nodes'): file or node names matching the regexp
+    !> NAME are handled by FIND_FILE and FIND_NODE instead of being read
+    !> from disk.  TOC_NODES true gives the file the table of contents
+    !> of the virtual files of Info: a Top node without parent, section
+    !> or children (their toc-nodes operation).
     type, public :: info_virtual_file_type
         character(len=64) :: name = ""
         procedure(info_virtual_find_file_proc), pointer, nopass :: find_file => null()
         procedure(info_virtual_find_node_proc), pointer, nopass :: find_node => null()
+        logical :: toc_nodes = .false.
     end type info_virtual_file_type
 
     ! ------------------------------------------------------------------
@@ -335,6 +348,13 @@ module info_fm
     !> FIND_NODE).  Port of info.el Info-virtual-files.
     type(info_virtual_file_type), allocatable, public :: info_virtual_files(:)
 
+    !> List of definitions of virtual Info nodes.  Each element names a
+    !> class of virtual Info node names by a regexp (NAME), chosen
+    !> carefully not to cause node name clashes with existing node names,
+    !> and the procedure handling their find-node operation (FIND_NODE).
+    !> Port of info.el Info-virtual-nodes.
+    type(info_virtual_file_type), allocatable, public :: info_virtual_nodes(:)
+
     !> The syntax table of `info_mode'.  Port of info.el Info-mode-syntax-table.
     type(handle_type), public :: info_mode_syntax_table
 
@@ -411,6 +431,10 @@ module info_fm
         logical :: has_complete_cache = .false.
         character(len=:), allocatable :: cache_file, cache_node, cache_string
         type(string_type), allocatable :: cache_completions(:)
+        ! The header-line-format of Info mode, (:eval (get-text-property
+        ! (point-min) 'header-line)), and the header with its faces.
+        logical :: header_from_property = .false.
+        type(header_line_format_type) :: header
     end type local_type
 
     type(local_type), allocatable :: locals(:)
@@ -439,6 +463,96 @@ module info_fm
     !> something like `:' and `info_following_node_name_re'.  Port of
     !> info.el Info-menu-entry-name-re.
     character(len=*), parameter, public :: INFO_MENU_ENTRY_NAME_RE = "\(?:[^:]\|:[^:,.;() "//TAB//LF//"]\)*"
+
+    !> Values of `info_fontify_maximum_menu_size' other than a number.
+    integer, parameter, public :: INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL = -1, INFO_FONTIFY_MAXIMUM_MENU_SIZE_T = -2
+
+    !> Maximum size of menu to fontify if `font_lock_mode' is true.
+    !> Set to INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL to disable node
+    !> fontification; set to INFO_FONTIFY_MAXIMUM_MENU_SIZE_T for no
+    !> limit.  Port of info.el Info-fontify-maximum-menu-size.
+    integer, public :: info_fontify_maximum_menu_size = 400000
+
+    !> True to fontify references to visited nodes in `info_xref_visited'
+    !> face.  Port of info.el Info-fontify-visited-nodes.
+    type(logical_setting), public :: info_fontify_visited_nodes = &
+                                     logical_setting(name="info_fontify_visited_nodes", value=.true.)
+
+    !> True means to put the beginning-of-node links in an Emacs
+    !> header-line.  A header-line does not scroll with the rest of the
+    !> buffer.  Port of info.el Info-use-header-line.
+    type(logical_setting), public :: info_use_header_line = &
+                                     logical_setting(name="info_use_header_line", value=.true.)
+
+    !> Values of `info_hide_note_references'.
+    integer, parameter, public :: INFO_HIDE_NOTE_REFERENCES_NIL = 0, INFO_HIDE_NOTE_REFERENCES_T = 1, &
+                                  INFO_HIDE_NOTE_REFERENCES_HIDE = 2, INFO_HIDE_NOTE_REFERENCES_TAG = 3
+
+    !> If true, hide the tag and section reference in *note and * menu
+    !> items.  If the value is INFO_HIDE_NOTE_REFERENCES_T, the default,
+    !> replace "*note" with "see".  If the value is
+    !> INFO_HIDE_NOTE_REFERENCES_HIDE, remove "*note" without replacing it
+    !> with anything.  If the value is INFO_HIDE_NOTE_REFERENCES_TAG, the
+    !> reference section is still shown.  INFO_HIDE_NOTE_REFERENCES_NIL
+    !> completely disables this feature, leaving the original "*note"
+    !> visible.  (`info_refill_paragraphs' is Deferred.)  Port of info.el
+    !> Info-hide-note-references.
+    integer, public :: info_hide_note_references = INFO_HIDE_NOTE_REFERENCES_T
+
+    !> Depth of breadcrumbs to display.  0 means do not display
+    !> breadcrumbs.  Port of info.el Info-breadcrumbs-depth.
+    integer, public :: info_breadcrumbs_depth = 4
+
+    !> Face for Info node names.  Port of info.el info-node.
+    type(named_face_type), target, public :: info_node_face
+    !> Face for info titles at level 1.  Port of info.el info-title-1.
+    type(named_face_type), target, public :: info_title_1_face
+    !> Face for info titles at level 2.  Port of info.el info-title-2.
+    type(named_face_type), target, public :: info_title_2_face
+    !> Face for info titles at level 3.  Port of info.el info-title-3.
+    type(named_face_type), target, public :: info_title_3_face
+    !> Face for info titles at level 4.  Port of info.el info-title-4.
+    type(named_face_type), target, public :: info_title_4_face
+    !> Face for headers in Info menus.  Port of info.el info-menu-header.
+    type(named_face_type), target, public :: info_menu_header_face
+    !> Face used to emphasize `*' in an Info menu.  The face is assigned
+    !> to the third, sixth, and ninth `*' for easier orientation.  See
+    !> `info_nth_menu_item'.  Port of info.el info-menu-star.
+    type(named_face_type), target, public :: info_menu_star_face
+    !> Face for unvisited Info cross-references.  Port of info.el info-xref.
+    type(named_face_type), target, public :: info_xref_face
+    !> Face for visited Info cross-references.  Port of info.el
+    !> info-xref-visited.
+    type(named_face_type), target, public :: info_xref_visited_face
+    !> Face for Info cross-references in a node header.  Port of info.el
+    !> info-header-xref.
+    type(named_face_type), target, public :: info_header_xref_face
+    !> Face for Info nodes in a node header.  Port of info.el
+    !> info-header-node.
+    type(named_face_type), target, public :: info_header_node_face
+    !> Face used to highlight matches in an index entry.  Port of info.el
+    !> info-index-match.
+    type(named_face_type), target, public :: info_index_match_face
+    !> Face used for quoted elements.  Port of info.el Info-quoted.
+    type(named_face_type), target, public :: info_quoted_face
+
+    ! An element of the table of contents of an Info file (an element of
+    ! Info-toc-nodes): the node NAME, its PARENT from the Up pointer, the
+    ! SECTION name in the Top node where it is placed, and its CHILDREN
+    ! from the node menu.
+    type :: toc_node_type
+        character(len=:), allocatable :: name
+        logical :: has_parent = .false., has_section = .false.
+        character(len=:), allocatable :: parent, section
+        type(string_type), allocatable :: children(:)
+    end type toc_node_type
+
+    ! The cached table of contents of FILE.
+    type :: toc_file_type
+        character(len=:), allocatable :: file
+        type(toc_node_type), allocatable :: nodes(:)
+    end type toc_file_type
+    type(toc_file_type), allocatable :: toc_cache(:)
 
     abstract interface
         !> A URL-specification function of `info_url_alist': the URL of
@@ -1419,6 +1533,25 @@ contains
         k = 0
     end function virtual_file_index
 
+    ! The procedure of the find-node operation of the virtual file
+    ! FILENAME or else of the virtual node NODENAME (null if neither is
+    ! virtual).  Part of info.el:Info-virtual-fun.
+    function virtual_find_node(filename, nodename) result(fn)
+        character(len=*), intent(in) :: filename, nodename
+        procedure(info_virtual_find_node_proc), pointer :: fn
+        integer :: k
+        fn => null()
+        k = virtual_file_index(filename)
+        if (k > 0) fn => info_virtual_files(k)%find_node
+        if (associated(fn)) return
+        do k = 1, size(info_virtual_nodes)
+            if (smatch(trim(info_virtual_nodes(k)%name), nodename)) then
+                fn => info_virtual_nodes(k)%find_node
+                if (associated(fn)) return
+            end if
+        end do
+    end function virtual_find_node
+
     !> Return expanded FILENAME, or FILENAME itself if it is a virtual
     !> file such as "dir".  If NOERROR is true and the file is not found,
     !> return unallocated (no error).
@@ -2146,7 +2279,7 @@ contains
             type(value_type) :: saved
             integer(int64) :: guesspos, anchorpos, filepos, pos, line
             logical :: found, anchor, in_info_mode, has_file, done
-            integer :: v
+            procedure(info_virtual_find_node_proc), pointer :: vfn
             status = status_type()
             has_file = present(filename)
             if (has_file) then
@@ -2156,11 +2289,8 @@ contains
             end if
             anchorpos = 0
             k = here()
-            v = virtual_file_index(file)
-            if (v > 0) then
-                if (.not. associated(info_virtual_files(v)%find_node)) v = 0
-            end if
-            if (v > 0) then
+            vfn => virtual_find_node(file, nodename)
+            if (associated(vfn)) then
                 buffers(cur)%read_only = .false.
                 call set_current_file(file)
                 call set_current_subfile()
@@ -2168,7 +2298,7 @@ contains
                 if (allocated(buffers(cur)%filename)) deallocate (buffers(cur)%filename)
                 call erase_buffer(status)
                 if (.not. status%ok()) return
-                call info_virtual_files(v)%find_node(file, nodename, back, status)
+                call vfn(file, nodename, back, status)
                 if (.not. status%ok()) return
                 k = here()
                 call set_marker_nowhere(locals(k)%tag_table_marker)
@@ -3073,7 +3203,8 @@ contains
             deallocate (locals(k)%history_forward)
             allocate (locals(k)%history_forward(0))
         end block k_forward
-        ! (Info-fontify-node is Deferred.)
+        if (info_fontify_maximum_menu_size /= INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL) call info_fontify_node()
+        call update_header_line()
         call list_buffers_directory%set_local(node_description(current_file_or_empty()))
         call display_images_node()
         call hide_cookies_node()
@@ -3807,10 +3938,18 @@ contains
 
     ! The virtual Info files defined so far: the directory.
     subroutine init_virtual_files()
-        allocate (info_virtual_files(1))
+        allocate (info_virtual_files(2))
         info_virtual_files(1)%name = "\`dir\'"
         info_virtual_files(1)%find_file => directory_find_file
         info_virtual_files(1)%find_node => directory_find_node
+        info_virtual_files(1)%toc_nodes = .true.
+        info_virtual_files(2)%name = "\`\*History\*\'"
+        info_virtual_files(2)%find_file => directory_find_file
+        info_virtual_files(2)%find_node => history_find_node
+        info_virtual_files(2)%toc_nodes = .true.
+        allocate (info_virtual_nodes(1))
+        info_virtual_nodes(1)%name = "\`\*TOC\*\'"
+        info_virtual_nodes(1)%find_node => toc_find_node
     end subroutine init_virtual_files
 
     ! Directory-specific implementation of `info_find_file'.  Port of
@@ -5383,6 +5522,1102 @@ contains
     end subroutine cmd_info_copy_current_node_name
 
     ! ------------------------------------------------------------------
+    ! The table of contents and the history node
+    ! ------------------------------------------------------------------
+
+    ! History-specific implementation of `Info-find-node-2'.  Port of
+    ! info.el:Info-history-find-node.
+    recursive subroutine history_find_node(filename, nodename, no_going_back, status)
+        character(len=*), intent(in) :: filename, nodename
+        logical, intent(in) :: no_going_back
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: file, node, dir
+        type(status_type) :: st
+        integer(int64) :: start
+        integer :: i
+        status = status_type()
+        if (no_going_back) continue
+        call insert(LF//US//LF//"File: "//filename//",  Node: "//nodename//",  Up: (dir)"//LF//LF, status)
+        call insert("History of Visited Nodes"//LF, status)
+        call insert("************************"//LF//LF, status)
+        call insert("* Menu:"//LF//LF, status)
+        if (.not. allocated(info_history_list)) return
+        do i = 1, size(info_history_list)
+            file = info_history_list(i)%file
+            node = info_history_list(i)%node
+            if (file == "*History*" .and. node == "Top") cycle
+            call insert("* "//node//": (", st)
+            dir = file_name_directory(file)
+            start = point()
+            call insert(dir, st)
+            if (len(dir) > 0) call put_text_property(start, point(), sym("invisible"), t_value(), st)
+            call insert(file_name_nondirectory(file)//")"//node//"."//LF, st)
+        end do
+    end subroutine history_find_node
+
+    !> Go to a node with a menu of visited nodes.  Port of
+    !> info.el:Info-history.
+    recursive subroutine info_history(status)
+        type(status_type), intent(out) :: status
+        call info_find_node("*History*", "Top", status)
+        if (.not. status%ok()) return
+        call info_next_reference(status)
+        if (.not. status%ok()) return
+        call info_next_reference(status)
+    end subroutine info_history
+
+    ! Toc-specific implementation of `Info-find-node-2'.  Port of
+    ! info.el:Info-toc-find-node.
+    recursive subroutine toc_find_node(filename, nodename, no_going_back, status)
+        character(len=*), intent(in) :: filename, nodename
+        logical, intent(in) :: no_going_back
+        type(status_type), intent(out) :: status
+        type(toc_node_type), allocatable :: node_list(:)
+        type(status_type) :: st
+        integer :: saved_hide, k
+        logical :: saved_visited
+        status = status_type()
+        if (no_going_back) continue
+        call info_toc_nodes(filename, node_list)
+        call insert(LF//US//LF//"File: "//filename//",  Node: "//nodename//",  Up: Top"//LF//LF, status)
+        call insert("Table of Contents"//LF, status)
+        call insert("*****************"//LF//LF, status)
+        call insert("*Note Top::"//LF, status)
+        ! Get Top nodes
+        k = toc_index(node_list, "Top")
+        if (k > 0) then
+            if (allocated(node_list(k)%children)) call toc_insert(node_list(k)%children, node_list, 0, filename)
+        end if
+        if (.not. bobp()) then
+            saved_hide = info_hide_note_references
+            saved_visited = info_fontify_visited_nodes%value
+            info_hide_note_references = INFO_HIDE_NOTE_REFERENCES_HIDE
+            info_fontify_visited_nodes%value = .false.
+            call set_current_file(filename)
+            call set_current_node("*TOC*")
+            call goto_min()
+            if (refwd(LF//"["//US//FF//"]"//LF)) then
+                call narrow_to_region(point(), point_max(), st)
+            else
+                call narrow_to_region(point_min(), point_max(), st)
+            end if
+            call info_fontify_node()
+            call widen()
+            info_hide_note_references = saved_hide
+            info_fontify_visited_nodes%value = saved_visited
+        end if
+    end subroutine toc_find_node
+
+    ! The index of the node NAME in NODES (0 if none).
+    integer function toc_index(nodes, name) result(k)
+        type(toc_node_type), intent(in) :: nodes(:)
+        character(len=*), intent(in) :: name
+        do k = 1, size(nodes)
+            if (nodes(k)%name == name) return
+        end do
+        k = 0
+    end function toc_index
+
+    !> Go to a node with table of contents of the current Info file.
+    !> Table of contents is created from the tree structure of menus.
+    !> Port of info.el:Info-toc.
+    recursive subroutine info_toc(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: prev_node
+        integer(int64) :: p
+        integer :: k
+        call info_find_node(current_file_or_empty(), "*TOC*", status)
+        if (.not. status%ok()) return
+        k = here()
+        prev_node = ""
+        if (size(locals(k)%history) > 0) prev_node = locals(k)%history(1)%node
+        call goto_min()
+        p = 0
+        if (sfwd("*Note "//prev_node//":")) p = point() - len(prev_node) - 2
+        if (p > 0) then
+            call goto_char(p)
+        else
+            call goto_min()
+        end if
+    end subroutine info_toc
+
+    ! Insert table of contents with references to nodes.  Port of
+    ! info.el:Info-toc-insert.
+    recursive subroutine toc_insert(nodes, node_list, level, curr_file)
+        type(string_type), intent(in) :: nodes(:)
+        type(toc_node_type), intent(in) :: node_list(:)
+        integer, intent(in) :: level
+        character(len=*), intent(in) :: curr_file
+        character(len=:), allocatable :: section, indentation
+        type(status_type) :: st
+        integer :: i, k
+        section = "Top"
+        indentation = repeat(TAB, level)
+        do i = 1, size(nodes)
+            k = toc_index(node_list, nodes(i)%s)
+            if (k > 0) then
+                if (node_list(k)%has_section) then
+                    if (node_list(k)%section /= section .and. &
+                        .not. (node_list(k)%has_parent .and. parent_is_section(node_list(k)))) then
+                        section = node_list(k)%section
+                        call insert(indentation//section//LF, st)
+                    end if
+                end if
+            end if
+            call insert(indentation//"*Note "//nodes(i)%s//":: "//LF, st)
+            if (k > 0) then
+                if (allocated(node_list(k)%children)) then
+                    call toc_insert(node_list(k)%children, node_list, level + 1, curr_file)
+                end if
+            end if
+        end do
+    contains
+
+        ! (equal (nth 1 node) (nth 2 node)).
+        logical function parent_is_section(n)
+            type(toc_node_type), intent(in) :: n
+            parent_is_section = n%parent == n%section
+        end function parent_is_section
+    end subroutine toc_insert
+
+    ! Build table of contents from menus of Info FILE and its subfiles.
+    ! Port of info.el:Info-toc-build.
+    recursive subroutine toc_build(file, nodes)
+        character(len=*), intent(in) :: file
+        type(toc_node_type), allocatable, intent(out) :: nodes(:)
+        character(len=:), allocatable :: found, main_file, nodename, upnode, menu_node_name, section
+        type(string_type), allocatable :: subfiles(:), menu_items(:), section_names(:), section_of(:)
+        type(handle_type) :: old, temp
+        type(status_type) :: st
+        integer(int64) :: bound, opoint, detail
+        logical :: has_main, has_up
+        allocate (nodes(0), section_names(0), section_of(0))
+        call add_string(section_names, "Top")
+        call add_string(section_of, "Top")
+        old = current_buffer()
+        call get_buffer_create(generate_new_buffer_name(" *temp*"), temp, st, inhibit_buffer_hooks=.true.)
+        call set_buffer(temp, st)
+        call info_find_file(file, found, st, noerror=.true.)
+        if (allocated(found)) then
+            buffers(cur)%directory = file_name_directory(found)
+            main_file = found
+            has_main = .true.
+        else
+            has_main = .false.
+        end if
+        allocate (subfiles(0))
+        do while (has_main .or. size(subfiles) > 0)
+            call erase_buffer(st)
+            if (has_main) then
+                call info_insert_file_contents(main_file, st)
+            else
+                call info_insert_file_contents(subfiles(1)%s, st)
+            end if
+            call goto_min()
+            do
+                if (.not. sfwd(LF//US//LF//"File:", move=.true.)) exit
+                if (.not. sfwd("Node: ", move=.true.)) exit
+                nodename = following_node_name()
+                opoint = point()
+                bound = point_max()
+                if (sfwd(LF//US)) bound = point()
+                bound = bound - 2
+                call goto_char(opoint)
+                has_up = refwd("Up:"//following_node_name_re(), bound)
+                if (has_up) upnode = match_string_no_properties(1)
+                if (has_up) then
+                    if (index(upnode, "(") > 0) has_up = .false.
+                end if
+                section = "Top"
+                allocate (menu_items(0))
+                if (.not. info_index_node(nodename, file)) then
+                    if (refwd("^\* Menu:", bound)) then
+                        call fwd_line(1_int64)
+                        call beginning_of_line(1_int64)
+                        if (nodename == "Top") then
+                            opoint = point()
+                            if (refwd("^[ "//TAB//"—-]*The Detailed Node Listing")) then
+                                detail = point()
+                                bound = detail
+                            end if
+                            call goto_char(opoint)
+                        end if
+                        do while (point() < bound)
+                            if (looking("^\* +[^:]+:")) then
+                                ! Menu item line
+                                call beginning_of_line(1_int64)
+                                call goto_char(point() + 2)
+                                call info_extract_menu_node_name(menu_node_name)
+                                call add_string(menu_items, menu_node_name)
+                                if (nodename == "Top") then
+                                    call add_string(section_names, menu_node_name)
+                                    call add_string(section_of, section)
+                                end if
+                            else if (nodename == "Top" .and. looking("^\([^ "//TAB//LF//"*=.-][^:"//LF//"]*\)")) then
+                                ! Other non-empty strings in the Top node are
+                                ! section names
+                                section = match_string_no_properties(1)
+                            end if
+                            call fwd_line(1_int64)
+                            call beginning_of_line(1_int64)
+                        end do
+                    end if
+                end if
+                call add_toc_node(nodes, nodename, has_up, upnode, menu_items)
+                deallocate (menu_items)
+                call goto_char(bound)
+            end do
+            if (has_main) then
+                opoint = point()
+                call goto_min()
+                if (sfwd(LF//US//LF//"Indirect:")) then
+                    opoint = point()
+                    bound = point_max()
+                    if (sfwd(LF//US)) bound = point()
+                    call goto_char(opoint)
+                    do while (refwd("^\(.*\): [0-9]+$", bound))
+                        call add_string(subfiles, match_string_no_properties(1))
+                    end do
+                end if
+                has_main = .false.
+            else
+                subfiles = subfiles(2:)
+            end if
+        end do
+        call set_buffer(old, st)
+        call kill_buffer(temp, st)
+        call set_sections()
+    contains
+
+        ! (push (list NODENAME UPNODE nil MENU-ITEMS) NODES), in order.
+        subroutine add_toc_node(list, name, has_parent, parent, children)
+            type(toc_node_type), allocatable, intent(inout) :: list(:)
+            character(len=*), intent(in) :: name
+            logical, intent(in) :: has_parent
+            character(len=:), allocatable, intent(in) :: parent
+            type(string_type), intent(in) :: children(:)
+            type(toc_node_type), allocatable :: grown(:)
+            integer :: m
+            allocate (grown(size(list) + 1))
+            do m = 1, size(list)
+                grown(m) = list(m)
+            end do
+            m = size(list) + 1
+            grown(m)%name = name
+            grown(m)%has_parent = has_parent
+            if (has_parent) grown(m)%parent = parent
+            grown(m)%children = children
+            call move_alloc(grown, list)
+        end subroutine add_toc_node
+
+        ! The section of each node: (cadr (assoc nodename sections)),
+        ! the most recent entry winning as with assoc on a pushed list.
+        subroutine set_sections()
+            integer :: m, j
+            do m = 1, size(nodes)
+                do j = size(section_names), 1, -1
+                    if (section_names(j)%s == nodes(m)%name) then
+                        nodes(m)%has_section = .true.
+                        nodes(m)%section = section_of(j)%s
+                        exit
+                    end if
+                end do
+            end do
+        end subroutine set_sections
+    end subroutine toc_build
+
+    ! Return in NODES a node list of Info FILENAME with parent-children
+    ! information.  This information is cached in `Info-toc-nodes' with
+    ! the help of `toc_build'.  Port of info.el:Info-toc-nodes.
+    recursive subroutine info_toc_nodes(filename, nodes)
+        character(len=*), intent(in) :: filename
+        type(toc_node_type), allocatable, intent(out) :: nodes(:)
+        type(toc_file_type), allocatable :: grown(:)
+        integer :: i, k
+        k = virtual_file_index(filename)
+        if (k > 0) then
+            if (info_virtual_files(k)%toc_nodes) then
+                allocate (nodes(1))
+                nodes(1)%name = "Top"
+                allocate (nodes(1)%children(0))
+                return
+            end if
+        end if
+        if (.not. allocated(toc_cache)) allocate (toc_cache(0))
+        do i = 1, size(toc_cache)
+            if (toc_cache(i)%file == filename) then
+                nodes = toc_cache(i)%nodes
+                return
+            end if
+        end do
+        ! Skip virtual Info files
+        if (info_virtual_file_p(filename)) then
+            allocate (nodes(0))
+        else
+            ! Scan the entire manual and cache the result in Info-toc-nodes
+            call toc_build(filename, nodes)
+        end if
+        allocate (grown(size(toc_cache) + 1))
+        grown(1)%file = filename
+        grown(1)%nodes = nodes
+        do i = 1, size(toc_cache)
+            grown(i + 1) = toc_cache(i)
+        end do
+        call move_alloc(grown, toc_cache)
+    end subroutine info_toc_nodes
+
+    ! ------------------------------------------------------------------
+    ! The display of nodes
+    ! ------------------------------------------------------------------
+
+    ! The breadcrumbs line of the current node: links to its ancestors up
+    ! to `info_breadcrumbs_depth' of them, from the Top node, as a string
+    ! with faces (empty if none).  Port of info.el:Info-breadcrumbs.
+    recursive function breadcrumbs() result(line)
+        type(value_type) :: line
+        type(toc_node_type), allocatable :: nodes(:)
+        type(string_type), allocatable :: crumbs(:), rev(:)
+        character(len=:), allocatable :: node, current, txt, manual
+        type(value_type) :: piece
+        type(status_type) :: st
+        logical :: has_line, has_node
+        integer :: depth, i, k
+        call info_toc_nodes(current_file_or_empty(), nodes)
+        current = current_node_or_empty()
+        node = current
+        has_node = .true.
+        allocate (rev(0))
+        depth = info_breadcrumbs_depth
+        ! Get ancestors from the cached parent-children node info
+        do while (has_node .and. node /= "Top" .and. depth > 0)
+            k = toc_index(nodes, node)
+            has_node = .false.
+            if (k > 0) then
+                if (nodes(k)%has_parent) then
+                    node = nodes(k)%parent
+                    has_node = .true.
+                    call add_string(rev, node)
+                end if
+            end if
+            depth = depth - 1
+        end do
+        ! (push node crumbs): the farthest ancestor first.
+        allocate (crumbs(0))
+        do i = size(rev), 1, -1
+            call add_string(crumbs, rev(i)%s)
+        end do
+        ! Add bottom node.
+        ! Let it disappear if crumbs is nil.
+        if (info_use_header_line%value .and. size(crumbs) > 0) call add_string(crumbs, current)
+        line = make_string("")
+        has_line = .false.
+        if (info_use_header_line%value .or. size(crumbs) > 0) then
+            ! Add top node (and continuation if needed).
+            call add_top(crumbs)
+            ! Eliminate duplicate.
+            call fwd_line(1_int64)
+            manual = file_name_sans_extension(file_name_nondirectory(current_file_or_empty()))
+            do i = 1, size(crumbs)
+                if (crumbs(i)%s /= "Top") then
+                    txt = crumbs(i)%s
+                else
+                    txt = "("//manual//")Top"
+                end if
+                if (has_line) then
+                    line = propertized_concat(line, make_string(" > "))
+                end if
+                if (crumbs(i)%s == achar(0)) then
+                    piece = make_string("...")
+                else if (crumbs(i)%s == current) then
+                    ! No point linking to ourselves.
+                    piece = make_string(txt)
+                    call string_put_text_property(0_int64, nchars_of(txt), sym("font_lock_face"), &
+                                                  make_symbol_ref(intern("info_header_node")), piece, st)
+                else
+                    piece = make_string(txt)
+                    call string_put_text_property(0_int64, nchars_of(txt), sym("mouse_face"), &
+                                                  make_symbol_ref(intern("highlight")), piece, st)
+                    call string_put_text_property(0_int64, nchars_of(txt), sym("font_lock_face"), &
+                                                  make_symbol_ref(intern("info_header_xref")), piece, st)
+                    call string_put_text_property(0_int64, nchars_of(txt), sym("help_echo"), &
+                                                  make_string("mouse-2: Go to node"), piece, st)
+                    call string_put_text_property(0_int64, nchars_of(txt), sym("link_args"), &
+                                                  make_string(txt), piece, st)
+                end if
+                line = propertized_concat(line, piece)
+                has_line = .true.
+            end do
+            line = propertized_concat(line, make_string(LF))
+        end if
+    contains
+
+        ! (cons "Top" (if (member (pop crumbs) '(nil "Top")) crumbs (cons
+        ! nil crumbs))), nil being NUL.
+        subroutine add_top(list)
+            type(string_type), allocatable, intent(inout) :: list(:)
+            type(string_type), allocatable :: rest(:)
+            integer :: m
+            logical :: first_is_top
+            first_is_top = .true.
+            if (size(list) > 0) first_is_top = list(1)%s == "Top"
+            allocate (rest(0))
+            call add_string(rest, "Top")
+            if (.not. first_is_top) call add_string(rest, achar(0))
+            do m = 2, size(list)
+                call add_string(rest, list(m)%s)
+            end do
+            call move_alloc(rest, list)
+        end subroutine add_top
+    end function breadcrumbs
+
+    ! The number of characters of the UTF-8 text S.
+    integer(int64) function nchars_of(s)
+        type(status_type) :: st
+        character(len=*), intent(in) :: s
+        call multibyte_chars_in_text(s, nchars_of, st)
+    end function nchars_of
+
+    ! Fontify the node.  Port of info.el:Info-fontify-node
+    ! (`info_refill_paragraphs' and the keymaps of the links, which only
+    ! the mouse uses, are Deferred).
+    recursive subroutine info_fontify_node()
+        type(value_type) :: saved_ro, crumbs, prop
+        type(handle_type) :: ov
+        type(status_type) :: st
+        character(len=:), allocatable :: tag, header, manual, other_tag, s1, node
+        integer(int64) :: opoint, where, nbeg, nend, tbeg, header_end, start, next, rbeg, rend, b1, e1, mb, me
+        integer(int64) :: limit, fncount, footnote_num, n, p0
+        logical :: fold, not_fontified_p, fontify_visited_p, found, cont, ok, external_link_p
+        integer :: hide, i, ios
+        character :: c
+        opoint = point()
+        saved_ro = bind_inhibit_read_only()
+        fold = bind_case_fold(.true.)
+        ! the node hasn't already been fontified
+        call next_single_property_change(point_min(), sym("font_lock_face"), where, found, st)
+        not_fontified_p = .true.
+        if (found) not_fontified_p = where == point_max()
+        ! visited nodes need to be re-fontified
+        fontify_visited_p = .false.
+        if (info_fontify_visited_nodes%value .and. info_fontify_maximum_menu_size /= INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL) then
+            ! Don't take time to refontify visited nodes in huge nodes
+            fontify_visited_p = info_fontify_maximum_menu_size == INFO_FONTIFY_MAXIMUM_MENU_SIZE_T .or. &
+                                point_max() - point_min() < info_fontify_maximum_menu_size
+        end if
+        ! Disable Info-hide-note-references in nodes that are incompatible
+        ! with that feature.
+        hide = info_hide_note_references
+        manual = file_name_sans_extension(file_name_nondirectory(current_file_or_empty()))
+        if (lower(manual) == "texinfo" .and. current_node_or_empty() == "Cross Reference Commands") then
+            hide = INFO_HIDE_NOTE_REFERENCES_NIL
+        end if
+
+        ! Fontify header line
+        call goto_min()
+        if (not_fontified_p .and. looking("^\(File: [^,: "//TAB//"]+,?[ "//TAB//"]+\)?")) then
+            call goto_char(mend(0))
+            do while (looking("[ "//TAB//"]*\([^:, "//TAB//LF//"]+\):[ "//TAB//"]+\([^:,"//TAB//LF//"]+\),?"))
+                call goto_char(mend(0))
+                nbeg = mbeg(2)
+                nend = mend(2)
+                tbeg = mbeg(1)
+                tag = match_string_no_properties(1)
+                if (lower(tag) == "node") then
+                    call put_text_property(nbeg, nend, sym("font_lock_face"), symbol_value_of("info_header_node"), st)
+                else
+                    call put_text_property(nbeg, nend, sym("font_lock_face"), symbol_value_of("info_header_xref"), st)
+                    call put_text_property(tbeg, nend, sym("mouse_face"), symbol_value_of("header_line_highlight"), st)
+                    call put_text_property(tbeg, nend, sym("help_echo"), &
+                                           make_string("mouse-2: Go to node "//text(nbeg, nend)), st)
+                    ! (The keymap of the link, used by the mouse, is
+                    ! Deferred.)  A symbol value of the `link-args'
+                    ! property is handled specially by
+                    ! `Info-mouse-follow-link'.
+                    call put_text_property(tbeg, nend, sym("link_args"), symbol_value_of(lower(tag)), st)
+                end if
+            end do
+            ! Treat header line.
+            if (info_use_header_line%value) then
+                call goto_min()
+                header_end = line_end_position(1_int64)
+                ! If we find neither Next: nor Prev: link, show the entire
+                ! node header.  Otherwise, don't show the File: and Node:
+                ! parts, to avoid wasting precious space on information that
+                ! is available in the mode line.
+                if (refwd("\(next\|up\|prev[ious]*\): ", header_end)) then
+                    call goto_char(mbeg(1))
+                    header = text(point(), header_end)
+                    call note_header(point(), header_end, "")
+                else if (refwd("node:[ "//TAB//"]*[^ "//TAB//"]+[ "//TAB//"]*", header_end)) then
+                    header = "No next, prev or up links  --  "//text(point(), header_end)
+                    call note_header(point(), header_end, "No next, prev or up links  --  ")
+                else
+                    header = text(point(), header_end)
+                    call note_header(point(), header_end, "")
+                end if
+                call put_text_property(point_min(), point_min() + 1, sym("header_line"), &
+                                       make_string(replace_all("%", "%%", header)), st)
+                ! Hide the part of the first line that is in the header, if
+                ! it is just part.
+                if (info_breadcrumbs_depth > 0) then
+                    crumbs = breadcrumbs()
+                    call make_overlay(ov, point_min(), header_end + 1, st)
+                    call overlay_put(ov, "display", crumbs, st)
+                    call overlay_put(ov, "evaporate", t_value(), st)
+                else if (.not. bobp()) then
+                    ! Hide the punctuation at the end, too.
+                    p0 = skip_chars_backward(" "//TAB//",", st)
+                    call put_text_property(point(), header_end, sym("invisible"), t_value(), st)
+                    ! Hide the suffix of the Info file name.
+                    call beginning_of_line(1_int64)
+                    if (refwd("File: "//manual//"\([^,"//LF//TAB//"]+\),", header_end)) then
+                        call put_text_property(mbeg(1), mend(1), sym("invisible"), t_value(), st)
+                    end if
+                end if
+            end if
+        end if
+
+        ! Fontify titles
+        call goto_min()
+        if (font_lock_mode_enabled() .and. not_fontified_p) then
+            do while (refwd(LF//"\([^ "//TAB//LF//"].+\)"//LF//"\(\*\*+\|==+\|--+\|\.\.+\)$"))
+                ! Only consider it as an underlined title if the ASCII
+                ! underline has the same size as the text.  A typical
+                ! counter example is when a continuation "..." is alone on
+                ! a line.
+                if (string_width(match_string_no_properties(1)) == string_width(match_string_no_properties(2))) then
+                    c = text(point() - 1, point())
+                    select case (c)
+                    case ("*")
+                        prop = symbol_value_of("info_title_1")
+                    case ("=")
+                        prop = symbol_value_of("info_title_2")
+                    case ("-")
+                        prop = symbol_value_of("info_title_3")
+                    case default
+                        prop = symbol_value_of("info_title_4")
+                    end select
+                    call put_text_property(mbeg(1), mend(1), sym("font_lock_face"), prop, st)
+                    ! This is a serious problem for trying to handle
+                    ! multiple frame types at once.  We want this text to
+                    ! be invisible on frames that can display the font
+                    ! above.
+                    if (frame_window_p(selected_frame)) then
+                        b1 = mbeg(2) - 1
+                        e1 = mend(2)
+                        call put_text_property(b1, e1, sym("invisible"), t_value(), st)
+                        call put_text_property(b1, e1, sym("front_sticky"), nil(), st)
+                        call put_text_property(b1, e1, sym("rear_nonsticky"), t_value(), st)
+                    end if
+                end if
+            end do
+        end if
+
+        ! Fontify cross references
+        call goto_min()
+        if (not_fontified_p .or. fontify_visited_p) then
+            do while (refwd("\(\*Note["//" "//LF//TAB//"]+\)\([^:]*\)\(:[ "//TAB//"]*\([^.,:(]*\)\(\(([^)]*)\)" &
+                            //"[^.,:]*\)?[,:]?"//LF//"?\)"))
+                call cross_reference()
+            end do
+        end if
+
+        ! (Refilling paragraphs, `info_refill_paragraphs', is Deferred.)
+
+        ! Fontify menu items
+        call goto_min()
+        ok = not_fontified_p .or. fontify_visited_p
+        if (ok) ok = sfwd(LF//"* Menu:")
+        if (ok) then
+            ! Don't take time to annotate huge menus
+            ok = info_fontify_maximum_menu_size /= INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL
+            if (ok) ok = info_fontify_maximum_menu_size == INFO_FONTIFY_MAXIMUM_MENU_SIZE_T .or. &
+                         point_max() - point() < info_fontify_maximum_menu_size
+        end if
+        if (ok) then
+            n = 0
+            do while (refwd("^\* Menu:\|\(?:^\* +\("//INFO_MENU_ENTRY_NAME_RE//"\)\(:"//node_spec_re() &
+                            //"\([ "//TAB//"]*\)\)\)"))
+                if (mbeg(1) > 0) call menu_item()
+            end do
+        end if
+
+        ! Fontify menu headers
+        ! Add the face `info-menu-header' to any header before a menu entry
+        call goto_min()
+        if (not_fontified_p .and. refwd("^\* Menu:")) then
+            call put_text_property(mbeg(0), mend(0), sym("font_lock_face"), symbol_value_of("info_menu_header"), st)
+            do while (refwd(LF//LF//"\([^*"//LF//" ].*\)"//LF//LF//"?[*]"))
+                call put_text_property(mbeg(1), mend(1), sym("font_lock_face"), symbol_value_of("info_menu_header"), st)
+            end do
+        end if
+
+        ! Hide index line numbers
+        call goto_min()
+        if (not_fontified_p) then
+            if (info_index_node()) then
+                do while (refwd("[ "//TAB//LF//"]*(line +[0-9]+)"))
+                    call put_text_property(mbeg(0), mend(0), sym("invisible"), t_value(), st)
+                end do
+            end if
+        end if
+
+        ! Fontify http and ftp references
+        call goto_min()
+        if (not_fontified_p) then
+            do while (refwd("\(https?\|ftp\)://[^ "//TAB//LF//"""`‘({<>})’']+"))
+                call put_text_property(mbeg(0), mend(0), sym("font_lock_face"), symbol_value_of("info_xref"), st)
+                call put_text_property(mbeg(0), mend(0), sym("mouse_face"), symbol_value_of("highlight"), st)
+                call put_text_property(mbeg(0), mend(0), sym("help_echo"), make_string("mouse-2: go to this URL"), st)
+            end do
+        end if
+
+        ! Fontify footnotes
+        call goto_min()
+        if (not_fontified_p .and. refwd("^[ "//TAB//"]*-+ Footnotes -+$")) then
+            limit = point()
+            fncount = 0
+            ! How many footnotes do we have in this node?
+            do while (refwd("^ [ "//TAB//"]*([0-9]+) "))
+                fncount = fncount + 1
+            end do
+            call goto_min()
+            do while (refwd("\((\([0-9]+\))\)"))
+                s1 = match_string_no_properties(2)
+                read (s1, *, iostat=ios) footnote_num
+                if (ios /= 0) footnote_num = 0
+                ! Don't fontify parenthesized numbers that cannot possibly
+                ! be one of this node's footnotes.  This still doesn't
+                ! catch unrelated numbers that happen to be small enough,
+                ! but in that case they should use "@footnotestyle
+                ! separate" in the Texinfo sources.
+                if (footnote_num > 0 .and. footnote_num <= fncount) then
+                    mb = mbeg(0)
+                    me = mend(0)
+                    call put_text_property(mb, me, sym("font_lock_face"), symbol_value_of("info_xref"), st)
+                    call put_text_property(mb, me, sym("link"), t_value(), st)
+                    call put_text_property(mb, me, sym("mouse_face"), symbol_value_of("highlight"), st)
+                    if (point() < limit) then
+                        call put_text_property(mb, me, sym("help_echo"), &
+                                               make_string("mouse-2: go to footnote definition"), st)
+                    else
+                        call put_text_property(mb, me, sym("help_echo"), &
+                                               make_string("mouse-2: go to footnote reference"), st)
+                    end if
+                end if
+            end do
+        end if
+
+        ! Hide empty lines at the end of the node.
+        call goto_char(point_max())
+        p0 = skip_chars_backward(LF, st)
+        if (point() < point_max() - 1) call put_text_property(point(), point_max() - 1, sym("invisible"), t_value(), st)
+
+        call restore_buffer_modified_p(.false.)
+        fold = bind_case_fold(fold)
+        call unbind_inhibit_read_only(saved_ro)
+        call goto_char(min(max(opoint, point_min()), point_max()))
+    contains
+
+        ! Record the header line made of the text from B to E, after
+        ! PREFIX, with its faces (the `header-line' property, which
+        ! `update_header_line' shows).
+        subroutine note_header(b, e, prefix)
+            integer(int64), intent(in) :: b, e
+            character(len=*), intent(in) :: prefix
+            type(header_line_format_type) :: h
+            type(value_type) :: f
+            integer(int64) :: pos, nxt
+            logical :: has
+            integer :: k
+            if (len(prefix) > 0) call h%add(prefix)
+            pos = b
+            do while (pos < e)
+                call next_single_property_change(pos, sym("font_lock_face"), nxt, has, st, e)
+                if (.not. has .or. nxt > e) nxt = e
+                call get_text_property(pos, sym("font_lock_face"), f, st)
+                if (symbolp(f)) then
+                    call h%add(text(pos, nxt), symbol_name_of(f))
+                else
+                    call h%add(text(pos, nxt))
+                end if
+                pos = nxt
+            end do
+            if (.not. allocated(h%segments)) call h%add("")
+            k = here()
+            locals(k)%header = h
+        end subroutine note_header
+
+        ! Fontify the cross reference matched.
+        subroutine cross_reference()
+            integer(int64) :: m(0:6, 2)
+            integer :: g
+            character(len=:), allocatable :: m4, m5, m2
+            logical :: fold2
+            do g = 0, 6
+                m(g, 1) = mbeg(g)
+                m(g, 2) = mend(g)
+            end do
+            start = m(0, 1)
+            next = point()
+            m2 = text(m(2, 1), m(2, 2))
+            m4 = ""
+            if (m(4, 1) > 0) m4 = text(m(4, 1), m(4, 2))
+            m5 = ""
+            if (m(5, 1) > 0) m5 = text(m(5, 1), m(5, 2))
+            if (not_fontified_p) then
+                if (hide /= INFO_HIDE_NOTE_REFERENCES_NIL) then
+                    other_tag = achar(0)
+                    if (hide /= INFO_HIDE_NOTE_REFERENCES_HIDE .and. line_number_at_pos() > 4) then
+                        ! Skip breadcrumbs
+                        ! *Note is often used where *note should have been
+                        call goto_char(start)
+                        p0 = skip_syntax_backward(" ")
+                        if (point() > point_min()) then
+                            c = text(point() - 1, point())
+                            if (c == "(" .or. c == "[" .or. c == "{") then
+                                ! Check whether the paren is preceded by an end
+                                ! of sentence
+                                p0 = skip_syntax_backward(" (")
+                            end if
+                        end if
+                        if (looking_back("\(^\|[ (]\)see", st, point() - 4)) then
+                            other_tag = ""
+                        else
+                            ! We want "Also *note" to produce "Also see", but
+                            ! "See also *note" to produce "See also", so match
+                            ! case-sensitively.
+                            fold2 = bind_case_fold(.false.)
+                            ok = looking_back("\(^\| \)also", st, point() - 5)
+                            fold2 = bind_case_fold(fold2)
+                            if (ok) then
+                                other_tag = ""
+                            else if (looking_back("\(^\| \)in", st, point() - 3)) then
+                                other_tag = ""
+                            else
+                                c = " "
+                                if (point() > point_min()) c = text(point() - 1, point())
+                                if (point() == point_min() .or. c == "." .or. c == "!" .or. c == "?") then
+                                    other_tag = "See "
+                                else if (sfwd(LF//LF, start)) then
+                                    other_tag = "See "
+                                else
+                                    other_tag = "see "
+                                end if
+                            end if
+                        end if
+                    end if
+                    call goto_char(next)
+                    ! Don't hide \n after *Note
+                    e1 = m(1, 2)
+                    s1 = text(m(1, 1), m(1, 2))
+                    i = index(s1, LF)
+                    if (i > 0) e1 = m(1, 1) + string_char_count(s1, i)
+                    if (other_tag /= achar(0)) then
+                        call put_text_property(m(1, 1), e1, sym("display"), make_string(other_tag), st)
+                    else
+                        call put_text_property(m(1, 1), e1, sym("invisible"), t_value(), st)
+                    end if
+                    call put_text_property(m(1, 1), e1, sym("front_sticky"), nil(), st)
+                    call put_text_property(m(1, 1), e1, sym("rear_nonsticky"), t_value(), st)
+                end if
+                if (m(5, 2) > 0 .or. len(m4) > 0) then
+                    if (len(m5) > 0) then
+                        s1 = "mouse-2: go to "//m5
+                    else
+                        s1 = "mouse-2: go to "//m4
+                    end if
+                else
+                    s1 = "mouse-2: go to this node"
+                end if
+                call put_text_property(m(2, 1), m(2, 2), sym("help_echo"), make_string(s1), st)
+                call put_text_property(m(2, 1), m(2, 2), sym("mouse_face"), symbol_value_of("highlight"), st)
+            end if
+            rbeg = m(2, 1)
+            rend = m(2, 2)
+            ! Display visited nodes in a different face
+            if (len(m5) > 0) then
+                node = m5
+            else if (len(m4) > 0) then
+                node = m4
+            else
+                node = m2
+            end if
+            node = trim_leading_space(canonicalize_whitespace(node))
+            if (info_fontify_visited_nodes%value .and. visited(node)) then
+                call put_text_property(rbeg, rend, sym("font_lock_face"), symbol_value_of("info_xref_visited"), st)
+            else
+                call put_text_property(rbeg, rend, sym("font_lock_face"), symbol_value_of("info_xref"), st)
+            end if
+            ! For multiline ref, unfontify newline and surrounding whitespace
+            p0 = point()
+            call goto_char(rbeg)
+            do while (refwd("\s-*"//LF//"\s-*", rend))
+                call remove_property(mbeg(0), mend(0), "font_lock_face")
+            end do
+            call goto_char(p0)
+            if (not_fontified_p) then
+                if (hide == INFO_HIDE_NOTE_REFERENCES_T .or. hide == INFO_HIDE_NOTE_REFERENCES_HIDE) then
+                    call put_text_property(m(3, 1), m(3, 2), sym("invisible"), t_value(), st)
+                    call put_text_property(m(3, 1), m(3, 2), sym("front_sticky"), nil(), st)
+                    call put_text_property(m(3, 1), m(3, 2), sym("rear_nonsticky"), t_value(), st)
+                    ! Unhide the file name of the external reference in parens
+                    if (m(6, 1) > 0 .and. hide /= INFO_HIDE_NOTE_REFERENCES_HIDE) then
+                        call remove_property(m(6, 1), m(6, 2), "invisible")
+                        call remove_property(m(6, 1), m(6, 2), "front_sticky")
+                        call remove_property(m(6, 1), m(6, 2), "rear_nonsticky")
+                    end if
+                    ! Unhide newline because hidden newlines cause too long
+                    ! lines
+                    p0 = point()
+                    call goto_char(m(3, 1))
+                    if (refwd(LF//"[ "//TAB//"]*", m(3, 2))) then
+                        b1 = mbeg(0)
+                        e1 = mend(0)
+                        call goto_char(m(3, 2) + 1)
+                        if (.not. looking("[.)]*$")) then
+                            call remove_property(b1, e1, "invisible")
+                            call remove_property(b1, e1, "front_sticky")
+                            call remove_property(b1, e1, "rear_nonsticky")
+                        end if
+                    end if
+                    call goto_char(p0)
+                end if
+            end if
+        end subroutine cross_reference
+
+        ! Fontify the menu item matched.
+        subroutine menu_item()
+            integer(int64) :: m(0:6, 2), ln_start
+            integer :: g
+            character(len=:), allocatable :: m3
+            do g = 0, 6
+                m(g, 1) = mbeg(g)
+                m(g, 2) = mend(g)
+            end do
+            m3 = ""
+            if (m(3, 1) > 0) m3 = text(m(3, 1), m(3, 2))
+            if (not_fontified_p) then
+                n = n + 1
+                ! visual aids to help with 1-9 keys
+                if (n <= 9 .and. mod(n, 3_int64) == 0) then
+                    call put_text_property(m(0, 1), m(0, 1) + 1, sym("font_lock_face"), &
+                                           symbol_value_of("info_menu_star"), st)
+                end if
+                if (m(3, 2) > 0 .and. len(m3) > 0) then
+                    s1 = "mouse-2: go to "//m3
+                else
+                    s1 = "mouse-2: go to this node"
+                end if
+                call put_text_property(m(1, 1), m(1, 2), sym("help_echo"), make_string(s1), st)
+                call put_text_property(m(1, 1), m(1, 2), sym("mouse_face"), symbol_value_of("highlight"), st)
+            end if
+            ! Display visited menu items in a different face
+            if (len(m3) == 0) then
+                node = text(m(1, 1), m(1, 2))
+            else
+                node = m3
+            end if
+            if (info_fontify_visited_nodes%value .and. visited(node)) then
+                call put_text_property(m(1, 1), m(1, 2), sym("font_lock_face"), symbol_value_of("info_xref_visited"), st)
+            else
+                call put_text_property(m(1, 1), m(1, 2), sym("font_lock_face"), symbol_value_of("info_xref"), st)
+            end if
+            if (not_fontified_p .and. (hide == INFO_HIDE_NOTE_REFERENCES_T .or. hide == INFO_HIDE_NOTE_REFERENCES_HIDE)) then
+                if (.not. info_index_node()) then
+                    call put_text_property(m(2, 1), m(6, 2) - 1, sym("invisible"), t_value(), st)
+                    ! Unhide the file name in parens
+                    if (m(4, 2) > 0) then
+                        if (text(m(4, 2), m(4, 2) + 1) /= ".") call remove_property(m(4, 1), m(4, 2), "invisible")
+                    end if
+                    ! We need a stretchable space like :align-to but with a
+                    ! minimum value.
+                    if (m(1, 2) - m(0, 1) <= 22) then
+                        call put_text_property(m(6, 2) - 1, m(6, 2), sym("display"), space_spec_value("align_to", 24), st)
+                    else
+                        call put_text_property(m(6, 2) - 1, m(6, 2), sym("display"), space_spec_value("width", 2), st)
+                    end if
+                    cont = looking(".")
+                    do
+                        if (forward_line(1_int64) /= 0) exit
+                        if (.not. looking("\([ "//TAB//"]+\)[^*"//LF//"]")) exit
+                        ln_start = mbeg(1)
+                        call put_text_property(ln_start, mend(1) - 1, sym("invisible"), t_value(), st)
+                        if (cont) then
+                            call put_text_property(mend(1) - 1, mend(1), sym("display"), space_spec_value("align_to", 26), st)
+                        else
+                            call put_text_property(mend(1) - 1, mend(1), sym("display"), space_spec_value("align_to", 24), st)
+                        end if
+                        cont = .true.
+                    end do
+                end if
+            end if
+        end subroutine menu_item
+
+        ! Whether NODE (of the current file, or "(FILE)NODE") is in
+        ! `info_history_list'.
+        logical function visited(name)
+            character(len=*), intent(in) :: name
+            character(len=:), allocatable :: nm, fl, hfile
+            integer :: k
+            nm = name
+            external_link_p = smatch("(\([^)]+\))\([^)]*\)", nm, .true.)
+            if (external_link_p) then
+                fl = file_name_nondirectory(match_string_no_properties(1, nm))
+                if (len(match_string_no_properties(2, nm)) == 0) then
+                    nm = "Top"
+                else
+                    nm = match_string_no_properties(2, nm)
+                end if
+            else
+                fl = current_file_or_empty()
+            end if
+            visited = .false.
+            if (.not. allocated(info_history_list)) return
+            do k = 1, size(info_history_list)
+                if (info_history_list(k)%node /= nm) cycle
+                hfile = info_history_list(k)%file
+                if (external_link_p) hfile = file_name_nondirectory(hfile)
+                if (hfile == fl) then
+                    visited = .true.
+                    return
+                end if
+            end do
+        end function visited
+    end subroutine info_fontify_node
+
+    ! S without its leading spaces and tabs.
+    function trim_leading_space(s) result(t)
+        character(len=*), intent(in) :: s
+        character(len=:), allocatable :: t
+        integer :: i
+        i = verify(s, " "//TAB)
+        if (i == 0) then
+            t = ""
+        else
+            t = s(i:)
+        end if
+    end function trim_leading_space
+
+    ! The number of characters in the first N bytes of the UTF-8 text S
+    ! (of the text before byte N+1).
+    integer(int64) function string_char_count(s, n) result(count)
+        character(len=*), intent(in) :: s
+        integer, intent(in) :: n
+        count = nchars_of(s(1:n - 1))
+    end function string_char_count
+
+    ! The symbol named NAME as a value.
+    function symbol_value_of(name) result(v)
+        character(len=*), intent(in) :: name
+        type(value_type) :: v
+        v = make_symbol_ref(intern(name))
+    end function symbol_value_of
+
+    ! The name of the symbol V.
+    function symbol_name_of(v) result(name)
+        type(value_type), intent(in) :: v
+        character(len=:), allocatable :: name
+        name = trim(symbols(xsymbol(v))%name)
+    end function symbol_name_of
+
+    ! The display spec (space :KEY N).
+    function space_spec_value(key, n) result(v)
+        character(len=*), intent(in) :: key
+        integer, intent(in) :: n
+        type(value_type) :: v
+        v = list(sym("space"), sym(":"//replace_all("_", "-", key)), make_fixnum(int(n, int64)))
+    end function space_spec_value
+
+    ! Remove the text property PROP from START to END.
+    subroutine remove_property(start, end, prop)
+        integer(int64), intent(in) :: start, end
+        character(len=*), intent(in) :: prop
+        type(status_type) :: st
+        logical :: changed
+        call remove_text_properties(start, end, list(sym(prop), t_value()), changed, st)
+    end subroutine remove_property
+
+    ! Show the header line of the current node: the `header-line' property
+    ! of the node's first character, as Info mode's header-line-format
+    ! (:eval (get-text-property (point-min) 'header-line)) does, with the
+    ! faces of the node's header.
+    subroutine update_header_line()
+        type(value_type) :: prop
+        type(status_type) :: st
+        integer :: k
+        k = here()
+        if (.not. locals(k)%header_from_property) return
+        call get_text_property(point_min(), sym("header_line"), prop, st)
+        if (nilp(prop) .or. .not. allocated(locals(k)%header%segments)) then
+            call buffers(cur)%header_line_format%clear()
+        else
+            buffers(cur)%header_line_format = locals(k)%header
+        end if
+    end subroutine update_header_line
+
+    ! Define the faces of Info.
+    subroutine define_info_faces()
+        type(named_face_type), pointer :: f
+        integer, parameter :: C = FACE_CLASS_COLOR
+        f => info_node_face
+        call f%define("info_node", "Face for Info node names.")
+        call f%spec_entry(display_when(classes=[C], backgrounds=[FACE_BACKGROUND_LIGHT]), &
+                          face_attrs(foreground="brown", weight="bold", slant="italic"))
+        call f%spec_entry(display_when(classes=[C], backgrounds=[FACE_BACKGROUND_DARK]), &
+                          face_attrs(foreground="white", weight="bold", slant="italic"))
+        call f%spec_entry(display_when(), face_attrs(weight="bold", slant="italic"))
+        f => info_title_1_face
+        call f%define("info_title_1", "Face for info titles at level 1.")
+        call f%spec_entry(display_when(types=[character(len=3) :: "tty", "pc"], classes=[C], &
+                                       backgrounds=[FACE_BACKGROUND_LIGHT]), face_attrs(foreground="green", weight="bold"))
+        call f%spec_entry(display_when(types=[character(len=3) :: "tty", "pc"], classes=[C], &
+                                       backgrounds=[FACE_BACKGROUND_DARK]), face_attrs(foreground="yellow", weight="bold"))
+        call f%spec_entry(display_when(), face_attrs(relative_height=1.2, inherits=[character(len=12) :: "info_title_2"]))
+        f => info_title_2_face
+        call f%define("info_title_2", "Face for info titles at level 2.")
+        call f%spec_entry(display_when(types=[character(len=3) :: "tty", "pc"], classes=[C]), &
+                          face_attrs(foreground="lightblue", weight="bold"))
+        call f%spec_entry(display_when(), face_attrs(relative_height=1.2, inherits=[character(len=12) :: "info_title_3"]))
+        f => info_title_3_face
+        call f%define("info_title_3", "Face for info titles at level 3.")
+        call f%spec_entry(display_when(types=[character(len=3) :: "tty", "pc"], classes=[C]), face_attrs(weight="bold"))
+        call f%spec_entry(display_when(), face_attrs(relative_height=1.2, inherits=[character(len=12) :: "info_title_4"]))
+        f => info_title_4_face
+        call f%define("info_title_4", "Face for info titles at level 4.")
+        call f%spec_entry(display_when(types=[character(len=3) :: "tty", "pc"], classes=[C]), face_attrs(weight="bold"))
+        call f%spec_entry(display_when(), face_attrs(weight="bold", inherits=[character(len=14) :: "variable_pitch"]))
+        f => info_menu_header_face
+        call f%define("info_menu_header", "Face for headers in Info menus.")
+        call f%spec_entry(display_when(types=[character(len=3) :: "tty", "pc"]), face_attrs(underline=.true., weight="bold"))
+        call f%spec_entry(display_when(), face_attrs(weight="bold", inherits=[character(len=14) :: "variable_pitch"]))
+        f => info_menu_star_face
+        call f%define("info_menu_star", "Face used to emphasize `*' in an Info menu."//LF// &
+                      "The face is assigned to the third, sixth, and ninth `*' for easier"//LF// &
+                      "orientation.  See `info_nth_menu_item'.")
+        call f%spec_entry(display_when(classes=[C]), face_attrs(foreground="red1"))
+        call f%spec_entry(display_when(), face_attrs(underline=.true.))
+        f => info_xref_face
+        call f%define("info_xref", "Face for unvisited Info cross-references.")
+        call f%spec_entry(display_when(), face_attrs(inherits=[character(len=4) :: "link"]))
+        f => info_xref_visited_face
+        call f%define("info_xref_visited", "Face for visited Info cross-references.")
+        call f%spec_entry(display_when(), face_attrs(inherits=[character(len=12) :: "link_visited", "info_xref"]))
+        f => info_header_xref_face
+        call f%define("info_header_xref", "Face for Info cross-references in a node header.")
+        call f%spec_entry(display_when(), face_attrs(inherits=[character(len=9) :: "info_xref"]))
+        f => info_header_node_face
+        call f%define("info_header_node", "Face for Info nodes in a node header.")
+        call f%spec_entry(display_when(), face_attrs(inherits=[character(len=9) :: "info_node"]))
+        f => info_index_match_face
+        call f%define("info_index_match", "Face used to highlight matches in an index entry.")
+        call f%spec_entry(display_when(), face_attrs(inherits=[character(len=5) :: "match"]))
+        f => info_quoted_face
+        call f%define("info_quoted", "Face used for quoted elements.")
+        call f%spec_entry(display_when(), face_attrs(inherits=[character(len=17) :: "fixed_pitch_serif"]))
+    end subroutine define_info_faces
+
+    ! ------------------------------------------------------------------
     ! Info mode
     ! ------------------------------------------------------------------
 
@@ -5412,6 +6647,8 @@ contains
     !> \[info_follow_reference]        Follow a cross reference.  Reads name of reference.
     !> \[info_history_back]        Move back in history to the last node you were at.
     !> \[info_history_forward]        Move forward in history to the node you returned from after using \[info_history_back].
+    !> \[info_history]        Go to menu of visited nodes.
+    !> \[info_toc]        Go to table of contents of the current Info file.
     !>
     !> Moving within a node:
     !> \[info_scroll_up]        Normally, scroll forward a full screen.
@@ -5429,6 +6666,7 @@ contains
     !> \[info_goto_node]        Move to node specified by name.
     !>           You may include a filename as well, as (FILENAME)NODENAME.
     !> 1 .. 9        Pick first ... ninth item in node's menu.
+    !>           Every third `*' is highlighted to help pick the right number.
     !> \[info_copy_current_node_name]        Put name of current Info node in the kill ring.
     !> \[universal_argument] \[info]        Move to new Info file with completion.
     !> \[universal_argument] N \[info]        Select Info buffer with prefix number in the name *info*<N>.
@@ -5437,6 +6675,7 @@ contains
     !> are not listed).
     recursive subroutine info_mode(status)
         type(status_type), intent(out) :: status
+        type(font_lock_keyword_type), allocatable :: keywords(:)
         logical :: saved
         integer :: k
         if (.not. associated(major_modes%info_mode%run)) call syms_of_info()
@@ -5448,14 +6687,30 @@ contains
         k = here()
         call make_marker(locals(k)%tag_table_marker)
         ! (The display table for terminals that can't show the Unicode
-        ! symbols of Info files, the header line, the tool bar, desktop
-        ! saving, Isearch across nodes, the context menu and bookmarks are
-        ! Deferred.)
+        ! symbols of Info files, the tool bar, desktop saving, Isearch
+        ! across nodes, the context menu and bookmarks are Deferred.)
+        ! do not override global header lines
+        if (info_use_header_line%value) locals(k)%header_from_property = .true.
+        call info_mode_font_lock_keywords(keywords)
+        call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true., case_fold=.true.)
         call kill_buffer_hook%add(info_kill_buffer, local=.true.)
         call revert_buffer_function%set_local(info_revert_buffer_function)
         call info_set_mode_line()
         call major_modes%info_mode%finish(saved, status)
     end subroutine info_mode
+
+    ! The font lock keywords of Info mode: the text inside curved quotes
+    ! in the face `info_quoted'.  We deliberately fontify only ‘..’
+    ! quoting, and not `..', because the former can be done much more
+    ! reliably, i.e. without risking false positives.  (It doesn't
+    ! handle nested quotes.)  Port of info.el Info-mode-font-lock-keywords.
+    subroutine info_mode_font_lock_keywords(keywords)
+        type(font_lock_keyword_type), allocatable, intent(out) :: keywords(:)
+        type(font_lock_highlight_type) :: h(1)
+        allocate (keywords(1))
+        h(1) = font_lock_highlight(1, face="info_quoted")
+        keywords(1) = font_lock_keyword("‘\([‘’]\|[^‘’]*\)’", highlights=h)
+    end subroutine info_mode_font_lock_keywords
 
     !> When an Info buffer is killed, make sure the associated tags buffer
     !> is killed too.  Port of info.el:Info-kill-buffer.
@@ -5501,6 +6756,8 @@ contains
         character(len=1) :: digit
         integer :: i
         if (associated(major_modes%info_mode%run)) return
+        call define_info_faces()
+        call info_mode_hook%add(turn_on_font_lock)
         call init_info_mode_syntax_table()
         call major_modes%info_mode%define("info_mode", "Info", info_mode, info_mode_hook, &
                                           parent=major_modes%special_mode, syntax_table=info_mode_syntax_table, &
@@ -5539,6 +6796,8 @@ contains
         commands%info_undefined%run => info_undefined
         commands%info_help%run => info_help
         commands%info_summary%run => info_summary
+        commands%info_toc%run => info_toc
+        commands%info_history%run => info_history
         call keymap_set(info_mode_map, ".", "beginning_of_buffer", st)
         call keymap_set(info_mode_map, "SPC", "info_scroll_up", st)
         call keymap_set(info_mode_map, "S-SPC", "info_scroll_down", st)
@@ -5567,12 +6826,14 @@ contains
         ! See <https://debbugs.gnu.org/16455>.
         call keymap_set(info_mode_map, "H", "describe_mode", st)
         call keymap_set(info_mode_map, "l", "info_history_back", st)
+        call keymap_set(info_mode_map, "L", "info_history", st)
         call keymap_set(info_mode_map, "m", "info_menu", st)
         call keymap_set(info_mode_map, "n", "info_next", st)
         call keymap_set(info_mode_map, "p", "info_prev", st)
         call keymap_set(info_mode_map, "q", "quit_window", st)
         call keymap_set(info_mode_map, "r", "info_history_forward", st)
         call keymap_set(info_mode_map, "t", "info_top_node", st)
+        call keymap_set(info_mode_map, "T", "info_toc", st)
         call keymap_set(info_mode_map, "u", "info_up", st)
         ! `w' for consistency with `dired-copy-filename-as-kill'.
         call keymap_set(info_mode_map, "w", "info_copy_current_node_name", st)
