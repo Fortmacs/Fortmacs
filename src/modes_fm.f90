@@ -60,6 +60,7 @@ module modes_fm
         type(major_mode_type) :: grep_mode
         type(major_mode_type) :: help_mode
         type(major_mode_type) :: ibuffer_mode
+        type(major_mode_type) :: info_mode
         type(major_mode_type) :: log_edit_mode
         type(major_mode_type) :: log_view_mode
         type(major_mode_type) :: messages_buffer_mode

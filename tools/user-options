@@ -308,6 +308,13 @@ ibuffer_use_header_line
 ibuffer_use_other_window
 ibuffer_view_ibuffer
 indent_tabs_mode
+info_additional_directory_list
+info_default_directory_list
+info_history_skip_intermediate_nodes
+info_mode_hook
+info_scroll_prefer_subnodes
+info_selection_hook
+info_url_alist
 inhibit_eol_conversion
 insert_default_directory
 insert_directory_program
