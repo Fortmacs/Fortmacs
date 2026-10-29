@@ -96,7 +96,7 @@ module compile_fm
                        add_local_variables_killer, forward_setting
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, buffer_live_p, &
                          buffer_list, erase_buffer, restore_buffer_modified_p
-    use marker_fm, only: copy_marker_at, free_marker, marker_position, set_marker, marker_buffer
+    use marker_fm, only: copy_marker_at, free_marker, marker_position, set_marker, marker_buffer, make_marker
     use insdel_fm, only: insert, before_change_functions
     use editfns_fm, only: point, point_min, point_max, goto_char, widen, narrow_to_region, &
                           line_beginning_position, line_end_position, eobp, bobp, bolp, buffer_size, &
@@ -151,7 +151,7 @@ module compile_fm
               compilation_set_skip_threshold, compilation_minor_mode, compilation_shell_minor_mode, &
               compilation_setup, compilation_face, compilation_buffer_internal_p, compilation_buffer_p, &
               compilation_message_info, compilation_message_counts, compilation_find_file, compilation_set_mode_locals, &
-              compilation_update_mode_line
+              compilation_update_mode_line, compilation_message_location
 
     abstract interface
         !> A rule's LINE, END-LINE, COLUMN or END-COLUMN given as a function
@@ -3136,6 +3136,47 @@ contains
         call goto_char(opoint)
         call set_buffer(comp, st)
     end subroutine compilation_update_markers
+
+    !> The BUFFER and POSITION of the location of the message at POS of
+    !> the current compilation buffer (FOUND false for none), its markers
+    !> updated (the file visited) if they are not set yet; what
+    !> grep-edit--prepare-buffer computes with compilation--update-markers.
+    recursive subroutine compilation_message_location(pos, buffer, position, found, status)
+        integer(int64), intent(in) :: pos
+        type(handle_type), intent(out) :: buffer
+        integer(int64), intent(out) :: position
+        logical, intent(out) :: found
+        type(status_type), intent(out) :: status
+        type(handle_type) :: dummy
+        type(status_type) :: st
+        integer :: k, msg, loc
+        status = status_type()
+        found = .false.
+        position = 0
+        buffer = null_handle()
+        k = entry_of(current_buffer())
+        if (k == 0) return
+        msg = message_at(pos)
+        if (msg == 0) return
+        loc = compilation_buffers(k)%messages(msg)%loc
+        if (loc == 0) return
+        ! Update the markers if necessary.
+        if (compilation_buffers(k)%locs(loc)%marker%index /= 0) then
+            call marker_buffer(compilation_buffers(k)%locs(loc)%marker, buffer, st)
+        end if
+        if (compilation_buffers(k)%locs(loc)%marker%index == 0 .or. .not. buffer_live_p(buffer)) then
+            call make_marker(dummy)
+            call compilation_update_markers(loc, dummy, compilation_error_screen_columns%value, &
+                                            compilation_first_column%value, status)
+            call free_marker(dummy, st)
+            if (.not. status%ok()) return
+            k = entry_of(current_buffer())
+        end if
+        if (compilation_buffers(k)%locs(loc)%marker%index == 0) return
+        call marker_buffer(compilation_buffers(k)%locs(loc)%marker, buffer, st)
+        call marker_position(compilation_buffers(k)%locs(loc)%marker, position, st)
+        found = st%ok() .and. buffer_live_p(buffer)
+    end subroutine compilation_message_location
 
     !> Advance to the next error message and visit the file where the
     !> error was.  This is the value of `next_error_function' in

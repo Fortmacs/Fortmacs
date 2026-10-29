@@ -995,13 +995,19 @@ contains
         e = point_max()
         if (present(end)) e = end
         k = local_index(.false.)
-        if (locals(k)%jit_lock) then
-            call jit_lock_fontify_now(status, b, e)
-        else if (.not. locals(k)%fontified) then
-            pt = point()
-            call font_lock_fontify_region(b, e, status)
-            call goto_char(pt)
+        if (k /= 0) then
+            if (locals(k)%jit_lock) then
+                call jit_lock_fontify_now(status, b, e)
+                return
+            else if (locals(k)%fontified) then
+                return
+            end if
         end if
+        ! (font-lock-ensure-function without JIT Lock, also in a buffer
+        ! where Font Lock mode is off.)
+        pt = point()
+        call font_lock_fontify_region(b, e, status)
+        call goto_char(pt)
     end subroutine font_lock_ensure
 
     !> Update the syntax highlighting in this buffer.

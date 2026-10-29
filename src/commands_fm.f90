@@ -172,10 +172,12 @@ module commands_fm
         type(command_type) :: conf_unix_mode
         type(command_type) :: conf_windows_mode
         type(command_type) :: conf_xdefaults_mode
+        type(command_type) :: copy_matching_lines
         type(command_type) :: copy_rectangle_as_kill
         type(command_type) :: copy_rectangle_to_register
         type(command_type) :: copy_region_as_kill
         type(command_type) :: copy_to_register
+        type(command_type) :: count_matches
         type(command_type) :: cycle_spacing
         type(command_type) :: dabbrev_completion
         type(command_type) :: dabbrev_expand
@@ -189,6 +191,8 @@ module commands_fm
         type(command_type) :: delete_forward_char
         type(command_type) :: delete_horizontal_space
         type(command_type) :: delete_indentation
+        type(command_type) :: delete_matching_lines
+        type(command_type) :: delete_non_matching_lines
         type(command_type) :: delete_other_windows
         type(command_type) :: delete_process
         type(command_type) :: delete_rectangle
@@ -368,6 +372,7 @@ module commands_fm
         type(command_type) :: find_grep
         type(command_type) :: first_error
         type(command_type) :: fixup_whitespace
+        type(command_type) :: flush_lines
         type(command_type) :: font_lock_change_mode
         type(command_type) :: font_lock_debug_fontify
         type(command_type) :: font_lock_defontify
@@ -390,6 +395,9 @@ module commands_fm
         type(command_type) :: global_font_lock_mode
         type(command_type) :: global_font_lock_mode_enable_in_buffer
         type(command_type) :: grep
+        type(command_type) :: grep_change_to_grep_edit_mode
+        type(command_type) :: grep_edit_mode
+        type(command_type) :: grep_edit_save_changes
         type(command_type) :: grep_find
         type(command_type) :: grep_find_toggle_abbreviation
         type(command_type) :: grep_mode
@@ -397,6 +405,7 @@ module commands_fm
         type(command_type) :: help_form_show
         type(command_type) :: help_mode
         type(command_type) :: help_quit
+        type(command_type) :: how_many
         type(command_type) :: ignore
         type(command_type) :: increment_register
         type(command_type) :: indent_according_to_mode
@@ -445,12 +454,14 @@ module commands_fm
         type(command_type) :: jump_to_register
         type(command_type) :: just_one_space
         type(command_type) :: justify_current_line
+        type(command_type) :: keep_lines
         type(command_type) :: keyboard_quit
         type(command_type) :: kill_all_abbrevs
         type(command_type) :: kill_buffer
         type(command_type) :: kill_compilation
         type(command_type) :: kill_grep
         type(command_type) :: kill_line
+        type(command_type) :: kill_matching_lines
         type(command_type) :: kill_paragraph
         type(command_type) :: kill_rectangle
         type(command_type) :: kill_region
@@ -493,6 +504,7 @@ module commands_fm
         type(command_type) :: left_word
         type(command_type) :: lgrep
         type(command_type) :: list_abbrevs
+        type(command_type) :: list_matching_lines
         type(command_type) :: list_registers
         type(command_type) :: log_edit_comment_search_backward
         type(command_type) :: log_edit_comment_search_forward
@@ -550,6 +562,8 @@ module commands_fm
         type(command_type) :: move_to_tab_stop
         type(command_type) :: move_to_window_line
         type(command_type) :: move_to_window_line_top_bottom
+        type(command_type) :: multi_occur
+        type(command_type) :: multi_occur_in_matching_buffers
         type(command_type) :: negative_argument
         type(command_type) :: newline
         type(command_type) :: newline_and_indent
@@ -561,6 +575,17 @@ module commands_fm
         type(command_type) :: next_line_or_history_element
         type(command_type) :: normal_mode
         type(command_type) :: number_to_register
+        type(command_type) :: occur
+        type(command_type) :: occur_cease_edit
+        type(command_type) :: occur_edit_mode
+        type(command_type) :: occur_mode
+        type(command_type) :: occur_mode_display_occurrence
+        type(command_type) :: occur_mode_goto_occurrence
+        type(command_type) :: occur_mode_goto_occurrence_other_window
+        type(command_type) :: occur_mode_mouse_goto
+        type(command_type) :: occur_next
+        type(command_type) :: occur_prev
+        type(command_type) :: occur_rename_buffer
         type(command_type) :: open_line
         type(command_type) :: open_rectangle
         type(command_type) :: other_window
@@ -800,7 +825,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(762) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(787) = [character(len=43) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -941,10 +966,12 @@ module commands_fm
                                                                  "conf_unix_mode", &
                                                                  "conf_windows_mode", &
                                                                  "conf_xdefaults_mode", &
+                                                                 "copy_matching_lines", &
                                                                  "copy_rectangle_as_kill", &
                                                                  "copy_rectangle_to_register", &
                                                                  "copy_region_as_kill", &
                                                                  "copy_to_register", &
+                                                                 "count_matches", &
                                                                  "cycle_spacing", &
                                                                  "dabbrev_completion", &
                                                                  "dabbrev_expand", &
@@ -958,6 +985,8 @@ module commands_fm
                                                                  "delete_forward_char", &
                                                                  "delete_horizontal_space", &
                                                                  "delete_indentation", &
+                                                                 "delete_matching_lines", &
+                                                                 "delete_non_matching_lines", &
                                                                  "delete_other_windows", &
                                                                  "delete_process", &
                                                                  "delete_rectangle", &
@@ -1137,6 +1166,7 @@ module commands_fm
                                                                  "find_grep", &
                                                                  "first_error", &
                                                                  "fixup_whitespace", &
+                                                                 "flush_lines", &
                                                                  "font_lock_change_mode", &
                                                                  "font_lock_debug_fontify", &
                                                                  "font_lock_defontify", &
@@ -1159,6 +1189,9 @@ module commands_fm
                                                                  "global_font_lock_mode", &
                                                                  "global_font_lock_mode_enable_in_buffer", &
                                                                  "grep", &
+                                                                 "grep_change_to_grep_edit_mode", &
+                                                                 "grep_edit_mode", &
+                                                                 "grep_edit_save_changes", &
                                                                  "grep_find", &
                                                                  "grep_find_toggle_abbreviation", &
                                                                  "grep_mode", &
@@ -1166,6 +1199,7 @@ module commands_fm
                                                                  "help_form_show", &
                                                                  "help_mode", &
                                                                  "help_quit", &
+                                                                 "how_many", &
                                                                  "ignore", &
                                                                  "increment_register", &
                                                                  "indent_according_to_mode", &
@@ -1214,12 +1248,14 @@ module commands_fm
                                                                  "jump_to_register", &
                                                                  "just_one_space", &
                                                                  "justify_current_line", &
+                                                                 "keep_lines", &
                                                                  "keyboard_quit", &
                                                                  "kill_all_abbrevs", &
                                                                  "kill_buffer", &
                                                                  "kill_compilation", &
                                                                  "kill_grep", &
                                                                  "kill_line", &
+                                                                 "kill_matching_lines", &
                                                                  "kill_paragraph", &
                                                                  "kill_rectangle", &
                                                                  "kill_region", &
@@ -1262,6 +1298,7 @@ module commands_fm
                                                                  "left_word", &
                                                                  "lgrep", &
                                                                  "list_abbrevs", &
+                                                                 "list_matching_lines", &
                                                                  "list_registers", &
                                                                  "log_edit_comment_search_backward", &
                                                                  "log_edit_comment_search_forward", &
@@ -1319,6 +1356,8 @@ module commands_fm
                                                                  "move_to_tab_stop", &
                                                                  "move_to_window_line", &
                                                                  "move_to_window_line_top_bottom", &
+                                                                 "multi_occur", &
+                                                                 "multi_occur_in_matching_buffers", &
                                                                  "negative_argument", &
                                                                  "newline", &
                                                                  "newline_and_indent", &
@@ -1330,6 +1369,17 @@ module commands_fm
                                                                  "next_line_or_history_element", &
                                                                  "normal_mode", &
                                                                  "number_to_register", &
+                                                                 "occur", &
+                                                                 "occur_cease_edit", &
+                                                                 "occur_edit_mode", &
+                                                                 "occur_mode", &
+                                                                 "occur_mode_display_occurrence", &
+                                                                 "occur_mode_goto_occurrence", &
+                                                                 "occur_mode_goto_occurrence_other_window", &
+                                                                 "occur_mode_mouse_goto", &
+                                                                 "occur_next", &
+                                                                 "occur_prev", &
+                                                                 "occur_rename_buffer", &
                                                                  "open_line", &
                                                                  "open_rectangle", &
                                                                  "other_window", &
@@ -1853,6 +1903,8 @@ contains
             p => commands%conf_windows_mode
         case ("conf_xdefaults_mode")
             p => commands%conf_xdefaults_mode
+        case ("copy_matching_lines")
+            p => commands%copy_matching_lines
         case ("copy_rectangle_as_kill")
             p => commands%copy_rectangle_as_kill
         case ("copy_rectangle_to_register")
@@ -1861,6 +1913,8 @@ contains
             p => commands%copy_region_as_kill
         case ("copy_to_register")
             p => commands%copy_to_register
+        case ("count_matches")
+            p => commands%count_matches
         case ("cycle_spacing")
             p => commands%cycle_spacing
         case ("dabbrev_completion")
@@ -1887,6 +1941,10 @@ contains
             p => commands%delete_horizontal_space
         case ("delete_indentation")
             p => commands%delete_indentation
+        case ("delete_matching_lines")
+            p => commands%delete_matching_lines
+        case ("delete_non_matching_lines")
+            p => commands%delete_non_matching_lines
         case ("delete_other_windows")
             p => commands%delete_other_windows
         case ("delete_process")
@@ -2245,6 +2303,8 @@ contains
             p => commands%first_error
         case ("fixup_whitespace")
             p => commands%fixup_whitespace
+        case ("flush_lines")
+            p => commands%flush_lines
         case ("font_lock_change_mode")
             p => commands%font_lock_change_mode
         case ("font_lock_debug_fontify")
@@ -2289,6 +2349,12 @@ contains
             p => commands%global_font_lock_mode_enable_in_buffer
         case ("grep")
             p => commands%grep
+        case ("grep_change_to_grep_edit_mode")
+            p => commands%grep_change_to_grep_edit_mode
+        case ("grep_edit_mode")
+            p => commands%grep_edit_mode
+        case ("grep_edit_save_changes")
+            p => commands%grep_edit_save_changes
         case ("grep_find")
             p => commands%grep_find
         case ("grep_find_toggle_abbreviation")
@@ -2303,6 +2369,8 @@ contains
             p => commands%help_mode
         case ("help_quit")
             p => commands%help_quit
+        case ("how_many")
+            p => commands%how_many
         case ("ignore")
             p => commands%ignore
         case ("increment_register")
@@ -2399,6 +2467,8 @@ contains
             p => commands%just_one_space
         case ("justify_current_line")
             p => commands%justify_current_line
+        case ("keep_lines")
+            p => commands%keep_lines
         case ("keyboard_quit")
             p => commands%keyboard_quit
         case ("kill_all_abbrevs")
@@ -2411,6 +2481,8 @@ contains
             p => commands%kill_grep
         case ("kill_line")
             p => commands%kill_line
+        case ("kill_matching_lines")
+            p => commands%kill_matching_lines
         case ("kill_paragraph")
             p => commands%kill_paragraph
         case ("kill_rectangle")
@@ -2495,6 +2567,8 @@ contains
             p => commands%lgrep
         case ("list_abbrevs")
             p => commands%list_abbrevs
+        case ("list_matching_lines")
+            p => commands%list_matching_lines
         case ("list_registers")
             p => commands%list_registers
         case ("log_edit_comment_search_backward")
@@ -2609,6 +2683,10 @@ contains
             p => commands%move_to_window_line
         case ("move_to_window_line_top_bottom")
             p => commands%move_to_window_line_top_bottom
+        case ("multi_occur")
+            p => commands%multi_occur
+        case ("multi_occur_in_matching_buffers")
+            p => commands%multi_occur_in_matching_buffers
         case ("negative_argument")
             p => commands%negative_argument
         case ("newline")
@@ -2631,6 +2709,28 @@ contains
             p => commands%normal_mode
         case ("number_to_register")
             p => commands%number_to_register
+        case ("occur")
+            p => commands%occur
+        case ("occur_cease_edit")
+            p => commands%occur_cease_edit
+        case ("occur_edit_mode")
+            p => commands%occur_edit_mode
+        case ("occur_mode")
+            p => commands%occur_mode
+        case ("occur_mode_display_occurrence")
+            p => commands%occur_mode_display_occurrence
+        case ("occur_mode_goto_occurrence")
+            p => commands%occur_mode_goto_occurrence
+        case ("occur_mode_goto_occurrence_other_window")
+            p => commands%occur_mode_goto_occurrence_other_window
+        case ("occur_mode_mouse_goto")
+            p => commands%occur_mode_mouse_goto
+        case ("occur_next")
+            p => commands%occur_next
+        case ("occur_prev")
+            p => commands%occur_prev
+        case ("occur_rename_buffer")
+            p => commands%occur_rename_buffer
         case ("open_line")
             p => commands%open_line
         case ("open_rectangle")

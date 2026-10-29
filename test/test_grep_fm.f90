@@ -31,7 +31,7 @@ module test_grep_fm
     use lisp_fm, only: value_type, nilp, stringp, xstring
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, get_buffer, &
-                         buffer_live_p, set_buffer_read_only, current_buffer
+                         buffer_live_p, set_buffer_read_only, current_buffer, restore_buffer_modified_p
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string, point, point_min, point_max, goto_char
     use textprop_fm, only: get_text_property
@@ -45,6 +45,7 @@ module test_grep_fm
     use process_fm, only: accept_process_output, get_buffer_process
     use compile_fm, only: compilation_parse_errors, compilation_forget_errors, compilation_message_info, &
                           compilation_message_info_type, compilation_message_counts
+    use grep_fm, only: grep_change_to_grep_edit_mode, grep_edit_save_changes
     use grep_fm, only: grep, grep_mode, grep_compute_defaults, rgrep_default_command, grep_expand_template, &
                        grep_find_abbreviate, grep_heading_regexp, grep_highlight_matches, GREP_NIL, GREP_ALWAYS, &
                        GREP_AUTO
@@ -68,7 +69,8 @@ contains
                     new_unittest("compile-test-grep-regexps", test_grep_regexps), &
                     new_unittest("wildcard-to-regexp", test_wildcard_to_regexp), &
                     new_unittest("grep-expand-template", test_expand_template), &
-                    new_unittest("grep-run", test_grep_run) &
+                    new_unittest("grep-run", test_grep_run), &
+                    new_unittest("grep-edit-mode", test_grep_edit) &
                     ]
     end subroutine collect_grep_fm
 
@@ -352,5 +354,65 @@ contains
         open (newunit=unit, file=path, status="old")
         close (unit, status="delete")
     end subroutine test_grep_run
+
+    !> Grep-Edit mode: an edit of a match line in *grep* changes the line
+    !> of the file's buffer, and C-c C-c returns to Grep mode.
+    subroutine test_grep_edit(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, buf, file_buf
+        type(status_type) :: st
+        character(len=:), allocatable :: dir, path, text
+        integer(int64) :: found
+        integer :: unit
+        call init_bindings()
+        dir = file_name_as_directory(temporary_file_directory())
+        path = dir//"fortmacs-grep-edit-test.txt"
+        open (newunit=unit, file=path, status="replace", action="write")
+        write (unit, "(a)") "alpha"
+        write (unit, "(a)") "beta needle"
+        close (unit)
+        call get_buffer_create("*grep-test*", h, st)
+        call set_buffer(h, st)
+        buffers(cur)%directory = dir
+        call show_alone()
+        call set_buffer(h, st)
+        call grep("grep -nH -e needle fortmacs-grep-edit-test.txt", st)
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        call wait_grep()
+        buf = get_buffer("*grep*")
+        call set_buffer(buf, st)
+        call grep_change_to_grep_edit_mode(st)
+        call check(error, st%ok(), format_error(st))
+        if (.not. allocated(error)) call check(error, buffers(cur)%major_mode, "grep_edit_mode")
+        if (allocated(error)) return
+        ! The end of the match line, after "needle".
+        call goto_char(point_min())
+        call re_search_forward("beta needle", found, st)
+        call check(error, found /= 0, "the match line")
+        if (allocated(error)) return
+        call insert("X", st)
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        file_buf = get_buffer("fortmacs-grep-edit-test.txt")
+        call check(error, buffer_live_p(file_buf), "the file's buffer")
+        if (allocated(error)) return
+        call set_buffer(file_buf, st)
+        text = buffer_string()
+        call check(error, text, "alpha"//new_line("a")//"beta needleX"//new_line("a"))
+        if (allocated(error)) return
+        call set_buffer(buf, st)
+        call grep_edit_save_changes(st)
+        call check(error, st%ok(), format_error(st))
+        if (.not. allocated(error)) call check(error, buffers(cur)%major_mode, "grep_mode")
+        call set_buffer(file_buf, st)
+        call restore_buffer_modified_p(.false.)
+        call kill_buffer(file_buf, st)
+        call set_buffer_read_only(buf, .false., st)
+        call kill_buffer(buf, st)
+        call kill_buffer(h, st)
+        open (newunit=unit, file=path, status="old")
+        close (unit, status="delete")
+    end subroutine test_grep_edit
 
 end module test_grep_fm

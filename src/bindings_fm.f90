@@ -50,7 +50,7 @@ module bindings_fm
     use paragraphs_fm, only: syms_of_paragraphs
     use lisp_cmds_fm, only: syms_of_lisp_cmds
     use search_fm, only: syms_of_search
-    use replace_fm, only: syms_of_replace
+    use replace_fm, only: syms_of_replace, syms_of_occur
     use casefiddle_fm, only: syms_of_casefiddle
     use novice_fm, only: syms_of_novice
     use indent_fm, only: syms_of_indent
@@ -123,6 +123,8 @@ module bindings_fm
                                  function_key_map, ctl_x_x_map, ctl_x_r_map, ctl_x_4_map
     !> bindings.el:goto-map, keymap for navigation commands (M-g).
     type(handle_type), public :: goto_map
+    !> bindings.el:search-map, keymap for search related commands (M-s).
+    type(handle_type), public :: search_map
 
     !> bindings.el:abbrev-map (keymap for abbrev commands).
     type(handle_type), public :: abbrev_map
@@ -260,6 +262,7 @@ contains
         if (keymap_live_p(ctl_x_r_map)) call free_keymap(ctl_x_r_map, status)
         if (keymap_live_p(function_key_map)) call free_keymap(function_key_map, status)
         if (keymap_live_p(goto_map)) call free_keymap(goto_map, status)
+        if (keymap_live_p(search_map)) call free_keymap(search_map, status)
         if (keymap_live_p(abbrev_map)) call free_keymap(abbrev_map, status)
         if (keymap_live_p(undo_repeat_map)) call free_keymap(undo_repeat_map, status)
         if (keymap_live_p(buffer_navigation_repeat_map)) call free_keymap(buffer_navigation_repeat_map, status)
@@ -301,7 +304,7 @@ contains
         call syms_of_comint()
         call syms_of_shell()
         call syms_of_compile()
-        call syms_of_grep()
+        call syms_of_occur()
         call syms_of_diff_mode()
         call syms_of_diff()
         call syms_of_rect()
@@ -574,6 +577,11 @@ contains
         call bind(goto_map, "M-p", "previous_error")
         key(1) = make_fixnum(int(iachar("g"), int64))
         call define_key(esc_map, key, make_keymap_ref(goto_map), status)
+        ! bindings.el: search-map (the keys of ported commands).
+        call make_sparse_keymap(search_map)
+        call bind(search_map, "o", "occur")
+        key(1) = make_fixnum(int(iachar("s"), int64))
+        call define_key(esc_map, key, make_keymap_ref(search_map), status)
         call bind(global_map, "C-t", "transpose_chars")
         call bind(esc_map, "t", "transpose_words")
         call bind(ctl_x_map, "C-t", "transpose_lines")
@@ -607,6 +615,9 @@ contains
         call define_key(ctl_x_map, key, make_keymap_ref(ctl_x_4_map), status)
         call syms_of_files(ctl_x_map, ctl_x_4_map)
         call syms_of_vc_hooks(ctl_x_map)
+        ! (After vc_hooks: `grep_find_ignored_directories' defaults to
+        ! `vc_directory_exclusion_list'.)
+        call syms_of_grep()
         call syms_of_vc()
         call syms_of_log_view()
         call syms_of_vc_dir()
@@ -657,6 +668,7 @@ contains
         call register_keymap_name("comint_mode_map", comint_mode_map)
         call register_keymap_name("shell_mode_map", shell_mode_map)
         call register_keymap_name("goto_map", goto_map)
+        call register_keymap_name("search_map", search_map)
         call register_keymap_name("minibuffer_local_completion_map", minibuffer_local_completion_map)
         call register_keymap_name("minibuffer_local_must_match_map", minibuffer_local_must_match_map)
         call register_keymap_name("minibuffer_local_filename_completion_map", minibuffer_local_filename_completion_map)

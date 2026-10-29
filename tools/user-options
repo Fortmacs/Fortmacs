@@ -268,6 +268,12 @@ kmacro_ring_max
 left_margin
 line_move_ignore_invisible
 line_move_visual
+list_matching_lines_buffer_name_face
+list_matching_lines_current_line_face
+list_matching_lines_default_context_lines
+list_matching_lines_face
+list_matching_lines_jump_to_current_line
+list_matching_lines_prefix_face
 make_backup_files
 mark_even_if_inactive
 mark_ring_max
@@ -277,6 +283,10 @@ mounted_file_systems
 next_error_hook
 next_error_verbose
 next_screen_context_lines
+occur_excluded_properties
+occur_hook
+occur_mode_find_occurrence_hook
+occur_mode_hook
 only_global_abbrevs
 open_paren_in_column_0_is_defun_start
 page_delimiter

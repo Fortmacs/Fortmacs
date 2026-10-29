@@ -65,6 +65,8 @@ module isearch_fm
     use xdisp_fm, only: message, message_nolog
     use dispnew_fm, only: ding
     use simple_fm, only: push_mark, current_kill
+    use faces_fm, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
+                        FACE_BACKGROUND_DARK
     implicit none(type, external)
     private
 
@@ -193,6 +195,13 @@ module isearch_fm
     !> isearch--saved-local-map and isearch--saved-overriding-local-map.
     type(handle_type) :: saved_local_map, saved_overriding_local_map
     !> The pre-command hook isearch-mode replaced.
+
+    !> Face for lazy highlighting of matches other than the current one.
+    !> Used in Isearch when `isearch_lazy_highlight' is true, and in
+    !> `query_replace' when `query_replace_lazy_highlight' is true (both
+    !> Deferred: the face serves Occur's current line).  Port of isearch.el
+    !> lazy-highlight.
+    type(named_face_type), target, public :: lazy_highlight
 
 contains
 
@@ -1848,6 +1857,20 @@ contains
         type(handle_type) :: meta_map
         type(value_type) :: key(1)
         type(status_type) :: status
+        call lazy_highlight%define("lazy_highlight", "Face for lazy highlighting of matches other than the current one."// &
+                                   new_line("a")//"Used in Isearch when `isearch_lazy_highlight' is true,"// &
+                                   new_line("a")//"and in `query_replace' when `query_replace_lazy_highlight' is true.")
+        call lazy_highlight%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, &
+                                                    backgrounds=[FACE_BACKGROUND_LIGHT]), &
+                                       face_attrs(background="paleturquoise", distant_foreground="black"))
+        call lazy_highlight%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=88, &
+                                                    backgrounds=[FACE_BACKGROUND_DARK]), &
+                                       face_attrs(background="paleturquoise4", distant_foreground="white"))
+        call lazy_highlight%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=16), &
+                                       face_attrs(background="turquoise3", distant_foreground="white"))
+        call lazy_highlight%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=8), &
+                                       face_attrs(background="turquoise3", distant_foreground="white"))
+        call lazy_highlight%spec_entry(display_when(), face_attrs(underline=.true.))
         call defvar_nil("search_ring")
         call defvar_nil("regexp_search_ring")
         commands%isearch_forward%run => isearch_forward_command
