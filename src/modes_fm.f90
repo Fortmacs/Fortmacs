@@ -88,6 +88,7 @@ module modes_fm
         type(minor_mode_type) :: global_font_lock_mode
         type(minor_mode_type) :: indent_tabs_mode
         type(minor_mode_type) :: read_only_mode
+        type(minor_mode_type) :: recentf_mode
         type(minor_mode_type) :: rectangle_mark_mode
         type(minor_mode_type) :: repeat_mode
         type(minor_mode_type) :: save_place_local_mode

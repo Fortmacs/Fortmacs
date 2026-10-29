@@ -96,6 +96,7 @@ module bindings_fm
     use rect_fm, only: syms_of_rect
     use savehist_fm, only: syms_of_savehist
     use saveplace_fm, only: syms_of_saveplace
+    use recentf_fm, only: syms_of_recentf
     use register_fm, only: syms_of_register
     use abbrev_fm, only: syms_of_abbrev, edit_abbrevs_mode_map
     use dabbrev_fm, only: syms_of_dabbrev
@@ -303,6 +304,7 @@ contains
         call syms_of_rect()
         call syms_of_savehist()
         call syms_of_saveplace()
+        call syms_of_recentf()
         call syms_of_register()
         call syms_of_macros()
         call syms_of_kmacro()
