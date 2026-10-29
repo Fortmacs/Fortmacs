@@ -56,6 +56,7 @@ module modes_fm
         type(major_mode_type) :: edit_abbrevs_mode
         type(major_mode_type) :: f90_mode
         type(major_mode_type) :: fundamental_mode
+        type(major_mode_type) :: grep_mode
         type(major_mode_type) :: help_mode
         type(major_mode_type) :: log_edit_mode
         type(major_mode_type) :: log_view_mode

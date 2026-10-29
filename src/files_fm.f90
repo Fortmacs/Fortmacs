@@ -99,7 +99,7 @@ module files_fm
     public :: save_some_buffers_proc, add_save_some_buffers_function, save_some_buffers_pred
     public :: find_file_other_window, backup_file_name_p, revert_buffer, revert_function_proc, find_directory_proc
     public :: insert_directory, insert_directory_clean, insert_directory_wildcard_in_dir_p, file_truename, &
-              delete_file, delete_directory, file_name_extension, auto_save_file_name_p, &
+              delete_file, delete_directory, file_name_extension, wildcard_to_regexp, auto_save_file_name_p, &
               file_size_human_readable, byte_count_to_string, get_free_disk_space, split_string_and_unquote, &
               shell_quote_wildcard_pattern, string_prefix_p
     public :: copy_directory, file_in_directory_p, file_equal_p, make_empty_file, file_modes_symbolic_to_number, &
@@ -458,6 +458,17 @@ module files_fm
             logical, intent(out) :: found
             logical, intent(in), optional :: period
         end subroutine file_name_extension
+
+        !> Given a shell file name pattern WILDCARD, return an equivalent
+        !> regexp.  The generated regexp will match a file name only if the
+        !> file name matches that wildcard according to shell rules.  Only
+        !> wildcards known by `sh' are supported.  Port of
+        !> files.el:wildcard-to-regexp.  (In files_dir_fm.)
+        pure module function wildcard_to_regexp(wildcard) result(regexp)
+            implicit none(type, external)
+            character(len=*), intent(in) :: wildcard
+            character(len=:), allocatable :: regexp
+        end function wildcard_to_regexp
 
         !> Return true if FILENAME can be yielded by `make_auto_save_file_name'.
         !> FILENAME should lack slashes.  Port of

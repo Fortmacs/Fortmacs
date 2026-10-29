@@ -559,7 +559,8 @@ module simple_fm
         !> `read_from_minibuffer', except READ and KEYMAP are missing and
         !> HISTORY defaults to `shell_command_history'.  Port of
         !> simple.el:read-shell-command.  (In simple_shell_fm.)
-        module subroutine read_shell_command(prompt, result, status, initial, history, default, history_position)
+        module subroutine read_shell_command(prompt, result, status, initial, history, default, history_position, &
+                                             position)
             implicit none(type, external)
             character(len=*), intent(in) :: prompt
             character(len=:), allocatable, intent(out) :: result
@@ -568,6 +569,9 @@ module simple_fm
             !> The initial position in the history (HIST of the form
             !> (SYMBOL . POSITION)).
             integer, intent(in), optional :: history_position
+            !> With INITIAL, point goes to this one-indexed position in it
+            !> (INITIAL of the form (STRING . POSITION)).
+            integer(int64), intent(in), optional :: position
         end subroutine read_shell_command
 
         !> Execute string COMMAND in inferior shell; display output, if any.

@@ -321,6 +321,19 @@ module fortmacs
                           compilation_minor_mode, compilation_shell_minor_mode, compile_goto_error, &
                           compilation_next_error, compilation_previous_error, compilation_next_file, &
                           compilation_previous_file
+    use grep_fm, only: grep, grep_find, lgrep, rgrep, zrgrep, grep_mode, grep_compute_defaults, grep_apply_setting, &
+                       GREP_NIL, GREP_T, GREP_AUTO_DETECT, GREP_ALWAYS, GREP_AUTO, GREP_FIND_USE_XARGS_NIL, &
+                       GREP_FIND_USE_XARGS_EXEC, GREP_FIND_USE_XARGS_EXEC_PLUS, GREP_FIND_USE_XARGS_GNU, &
+                       GREP_FIND_USE_XARGS_GNU_SORT, GREP_FIND_USE_XARGS_OTHER, GREP_SAVE_BUFFERS_NIL, &
+                       GREP_SAVE_BUFFERS_T, GREP_SAVE_BUFFERS_ASK, grep_files_alias_type, grep_ignore_type, &
+                       grep_ignore_predicate, grep_read_files_proc, grep_save_buffers_proc, grep_highlight_matches, &
+                       grep_match_regexp, grep_scroll_output, grep_command, grep_command_position, grep_template, &
+                       grep_use_null_device, grep_use_null_filename_separator, grep_find_command, &
+                       grep_find_command_position, grep_find_template, rgrep_find_ignores_in_f, grep_files_aliases, &
+                       grep_find_ignored_directories, vgrep_find_ignored_files, grep_save_buffers, &
+                       grep_save_buffers_function, grep_error_screen_columns, grep_setup_hook, grep_mode_hook, &
+                       grep_mode_map, grep_find_abbreviate, grep_use_headings, grep_program, find_program, &
+                       xargs_program, grep_find_use_xargs, grep_read_files_function, find_name_arg
     use comint_fm, only: comint_inhibit_carriage_motion, comint_mode, make_comint, make_comint_in_buffer, comint_run, &
                          comint_exec, comint_send_input, comint_send_string, comint_prompt_regexp, &
                          comint_prompt_read_only, comint_highlight_input, comint_input_ignoredups, &

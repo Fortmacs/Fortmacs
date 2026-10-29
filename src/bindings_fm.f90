@@ -89,6 +89,7 @@ module bindings_fm
     use view_fm, only: syms_of_view
     use process_fm, only: syms_of_process
     use compile_fm, only: syms_of_compile, compilation_mode_map
+    use grep_fm, only: syms_of_grep
     use diff_mode_fm, only: syms_of_diff_mode
     use diff_fm, only: syms_of_diff
     use comint_fm, only: syms_of_comint, comint_mode_map
@@ -608,6 +609,9 @@ contains
         call define_key(ctl_x_map, key, make_keymap_ref(ctl_x_4_map), status)
         call syms_of_files(ctl_x_map, ctl_x_4_map)
         call syms_of_vc_hooks(ctl_x_map)
+        ! (After vc_hooks: `grep_find_ignored_directories' defaults to
+        ! `vc_directory_exclusion_list'.)
+        call syms_of_grep()
         call syms_of_vc()
         call syms_of_log_view()
         call syms_of_vc_dir()
