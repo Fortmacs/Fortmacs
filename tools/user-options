@@ -122,6 +122,7 @@ conf_colon_assignment_space
 conf_javaprop_assignment_column
 copy_directory_create_symlink
 copy_region_blink_delay
+crm_prompt
 cycle_spacing_actions
 dabbrev_abbrev_char_regexp
 dabbrev_abbrev_skip_leading_regexp
@@ -277,6 +278,7 @@ ibuffer_directory_abbrev_alist
 ibuffer_display_summary
 ibuffer_eliding_string
 ibuffer_expert
+ibuffer_filter_format_alist
 ibuffer_filter_group_name_face
 ibuffer_fontification_alist
 ibuffer_formats
@@ -296,6 +298,9 @@ ibuffer_never_search_content_name
 ibuffer_never_show_predicates
 ibuffer_old_time
 ibuffer_read_only_char
+ibuffer_save_with_custom
+ibuffer_saved_filter_groups
+ibuffer_saved_filters
 ibuffer_show_empty_filter_groups
 ibuffer_title_face
 ibuffer_truncate_lines

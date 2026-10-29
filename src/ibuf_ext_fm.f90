@@ -24,16 +24,28 @@
 !> preloaded.  (Fortmacs builds them in: a submodule of ibuffer_fm, as
 !> ibuf-ext.el and ibuffer.el use each other.)
 !>
-!> Deferred: the filters and filter groups (`ibuffer_filtering_qualifiers',
-!> `ibuffer_saved_filters', `ibuffer_filter_groups',
-!> `ibuffer_saved_filter_groups', the `ibuffer_filter_by_*' commands and
-!> the filter and filter group commands, `ibuffer_interactive_filter_by_mode',
-!> `ibuffer_bs_show' and `ibuffer_bs_toggle_all'; step 36c: there is one
-!> filter group, "Default"), `ibuffer_do_isearch' and
-!> `ibuffer_do_isearch_regexp' (misearch.el), `ibuffer_do_print'
-!> (lpr.el), the mouse commands; remote files in `ibuffer_diff_with_file'
-!> (`diff-file-local-copy').  Not applicable: `ibuffer_do_eval' and
-!> `ibuffer_do_view_and_eval' (no run-time Lisp).
+!> The filters are nested function calls (`ibuffer_and', `ibuffer_or',
+!> `ibuffer_not', `ibuffer_saved' and the simple filters of ibuf_macs_fm):
+!> a specification is its nodes in prefix order.  The filters of an
+!> Ibuffer buffer are read with `ibuffer_filtering_qualifiers' and set
+!> with `ibuffer_set_filtering_qualifiers', its filter groups likewise
+!> (`ibuffer_filter_groups').  The commands `ibuffer_filter_by_NAME' that
+!> define-ibuffer-filter makes are procedures of their own; the filters
+!> themselves are entries of `ibuffer_filtering_alist'.
+!>
+!> Deferred: saving `ibuffer_saved_filters' and
+!> `ibuffer_saved_filter_groups' with `ibuffer_save_with_custom' (Customize,
+!> step 26), `ibuffer_repair_saved_filters' and the old format of saved
+!> filters, a fractional size read by `ibuffer_filter_by_size_gt' and
+!> `ibuffer_filter_by_size_lt' (read as its integer part),
+!> `ibuffer_do_isearch' and `ibuffer_do_isearch_regexp' (misearch.el),
+!> `ibuffer_do_print' (lpr.el), the mouse commands
+!> (`ibuffer_mouse_filter_by_mode', `ibuffer_mouse_toggle_filter_group');
+!> remote files in `ibuffer_diff_with_file' (`diff-file-local-copy').  Not
+!> applicable: `ibuffer_do_eval', `ibuffer_do_view_and_eval' and reading a
+!> predicate form for `ibuffer_filter_by_predicate' (`/ e'; no run-time
+!> Lisp: `ibuffer_filter_by_predicate' takes a Fortran function, shown as
+!> " [predicate]" without its form).
 submodule(ibuffer_fm) ibuf_ext_fm
     use lisp_fm, only: make_list
     use data_fm, only: value_eq
@@ -53,6 +65,19 @@ submodule(ibuffer_fm) ibuf_ext_fm
     use diff_fm, only: diff_check_labels, diff_sentinel, diff_command, diff_switches, diff_use_labels, DIFF_LABELS_YES
     use diff_mode_fm, only: diff_mode
     use window_fm, only: pop_to_buffer_same_window
+    use error_fm, only: FM_WRONG_TYPE_ARGUMENT
+    use lisp_fm, only: symbolp, xsymbol, symbols, list_elements
+    use search_fm, only: SEARCH_NOERROR
+    use files_fm, only: file_name_extension
+    use simple_fm, only: simple_kill_line => kill_line
+    use derived_fm, only: major_mode_type, major_mode_named, provided_mode_derived_p
+    use minibuf_fm, only: minibuffer_string_type
+    use crm_fm, only: completing_read_multiple
+    use callint_fm, only: call_interactively
+    use keymap_fm, only: where_is_internal, current_local_map
+    use minibuf_table_fm, only: TABLE_OBARRAY
+    use ibuf_macs_fm, only: ibuffer_filter_node_type, ibuffer_filter, ibuffer_saved, ibuffer_predicate, &
+                            ibuffer_filter_extent, ibuffer_filter_part, ibuffer_filter_equal
     implicit none(type, external)
 
     ! frame-or-buffer-changed-p's state for `ibuffer_auto_mode'
@@ -85,7 +110,9 @@ contains
     ! ------------------------------------------------------------------
 
     module procedure ibuffer_ext_visible_p
+    type(ibuffer_filter_type), allocatable :: filters(:)
     integer :: k
+    status = status_type()
     k = ibuffer_local_index(.true.)
     visible = buf_matches_regexps(buf, locals(k)%tmp_show)
     if (visible) return
@@ -98,20 +125,330 @@ contains
         if (ibuffer_buf%index == 0) return
         if (ibuffer_buf%index == buf%index) return
     end if
-    ! (ibuffer-included-in-filters-p BUF ibuffer-filtering-qualifiers):
-    ! there are no filters yet.
-    visible = .true.
+    filters = locals(k)%qualifiers
+    visible = ibuffer_included_in_filters_p(buf, filters, status)
+    if (.not. status%ok()) return
+    if (.not. visible) visible = buf_matches_predicates(buf, ibuffer_always_show_predicates)
     end procedure ibuffer_ext_visible_p
 
     module procedure ibuffer_generate_filter_groups
-    integer :: k
-    ! (The filter groups are deferred: "Default" holds every buffer.)
-    allocate (names(1), group_of(size(bmarklist)))
-    names(1) = "Default"
+    type(ibuffer_filter_groups_type) :: groups
+    integer, allocatable :: of_group(:), counts(:), slot(:)
+    logical :: no_empty, no_default, hit
+    integer :: k, g, n, m
+    status = status_type()
+    no_empty = .false.
+    if (present(noempty)) no_empty = noempty
+    no_default = .false.
+    if (present(nodefault)) no_default = nodefault
+    k = ibuffer_local_index(.true.)
+    groups = locals(k)%filter_groups
+    if (.not. allocated(groups%groups)) allocate (groups%groups(0))
+    if (.not. no_default) call groups%add("Default")
+    n = groups%count()
+    allocate (of_group(size(bmarklist)), counts(n), slot(n), group_of(size(bmarklist)))
+    of_group = 0
+    counts = 0
+    do g = 1, n
+        do k = 1, size(bmarklist)
+            if (of_group(k) /= 0) cycle
+            hit = ibuffer_included_in_filters_p(bmarklist(k)%buffer, groups%groups(g)%filters, status)
+            if (.not. status%ok()) return
+            if (hit) then
+                of_group(k) = g
+                counts(g) = counts(g) + 1
+            end if
+        end do
+    end do
+    ! (push (cons NAME BUFS) ret): the last group first.
+    allocate (names(n))
+    m = 0
+    slot = 0
+    do g = n, 1, -1
+        if (no_empty .and. counts(g) == 0) cycle
+        m = m + 1
+        names(m) = groups%groups(g)%name
+        slot(g) = m
+    end do
+    names = names(1:m)
     do k = 1, size(bmarklist)
-        group_of(k) = 1
+        group_of(k) = 0
+        if (of_group(k) > 0) group_of(k) = slot(of_group(k))
     end do
     end procedure ibuffer_generate_filter_groups
+
+    ! ------------------------------------------------------------------
+    ! Filters
+    ! ------------------------------------------------------------------
+
+    module procedure ibuffer_included_in_filters_p
+    type(status_type) :: st
+    logical :: one
+    integer :: j
+    status = status_type()
+    included = .true.
+    ! (A filter will return false if it failed; all are tried.)
+    do j = 1, size(filters)
+        one = ibuffer_included_in_filter_p(buf, filters(j), st)
+        if (.not. st%ok()) then
+            status = st
+            included = .false.
+            return
+        end if
+        if (.not. one) included = .false.
+    end do
+    end procedure ibuffer_included_in_filters_p
+
+    module procedure ibuffer_unary_operand
+    integer :: n
+    if (.not. allocated(filter%nodes)) then
+        allocate (operand%nodes(0))
+    else if (size(filter%nodes) < 2) then
+        allocate (operand%nodes(0))
+    else
+        n = ibuffer_filter_extent(filter, 2)
+        operand = ibuffer_filter_part(filter, 2, n)
+    end if
+    end procedure ibuffer_unary_operand
+
+    module procedure ibuffer_included_in_filter_p
+    type(ibuffer_filter_type) :: inner
+    status = status_type()
+    included = .false.
+    if (.not. allocated(filter%nodes)) return
+    if (size(filter%nodes) == 0) return
+    if (filter%nodes(1)%kind == IBUFFER_FILTER_NOT) then
+        inner = ibuffer_unary_operand(filter)
+        if (size(inner%nodes) == 0) return
+        ! Allows (not (not ...)) etc, which may be overkill
+        if (inner%nodes(1)%kind == IBUFFER_FILTER_NOT) then
+            included = ibuffer_included_in_filter_p(buf, ibuffer_unary_operand(inner), status)
+        else
+            included = .not. included_in_filter_p_1(buf, inner, status)
+            if (.not. status%ok()) included = .false.
+        end if
+    else
+        included = included_in_filter_p_1(buf, filter, status)
+    end if
+    end procedure ibuffer_included_in_filter_p
+
+    ! Port of ibuf-ext.el:ibuffer-included-in-filter-p-1.
+    recursive logical function included_in_filter_p_1(buf, filter, status) result(included)
+        type(handle_type), intent(in) :: buf
+        type(ibuffer_filter_type), intent(in) :: filter
+        type(status_type), intent(out) :: status
+        type(ibuffer_filter_type), allocatable :: parts(:), saved(:)
+        type(status_type) :: st
+        logical :: one
+        integer :: j, i
+        status = status_type()
+        included = .false.
+        select case (filter%nodes(1)%kind)
+        case (IBUFFER_FILTER_OR)
+            call operands(filter, parts)
+            do j = 1, size(parts)
+                one = ibuffer_included_in_filter_p(buf, parts(j), status)
+                if (.not. status%ok()) then
+                    included = .false.
+                    return
+                end if
+                if (one) included = .true.
+            end do
+        case (IBUFFER_FILTER_AND)
+            call operands(filter, parts)
+            included = .true.
+            do j = 1, size(parts)
+                if (.not. ibuffer_included_in_filter_p(buf, parts(j), status)) then
+                    included = .false.
+                    return
+                end if
+                if (.not. status%ok()) return
+            end do
+        case (IBUFFER_FILTER_SAVED)
+            i = ibuffer_saved_filters%find(qualifier_text(filter%nodes(1)))
+            if (i == 0) then
+                call ibuffer_filter_disable(st, .true.)
+                call set_error(status, FM_GENERIC_ERROR, "Unknown saved filter "//qualifier_text(filter%nodes(1)))
+                return
+            end if
+            saved = ibuffer_saved_filters%entries(i)%filters
+            included = ibuffer_included_in_filters_p(buf, saved, status)
+        case (IBUFFER_FILTER_NOT)
+            ! (Only reached through `ibuffer_included_in_filter_p'.)
+            included = ibuffer_included_in_filter_p(buf, filter, status)
+        case default
+            i = filter_index(filter%nodes(1)%name)
+            if (i == 0) then
+                call ibuffer_filter_disable(st, .true.)
+                call set_error(status, FM_GENERIC_ERROR, "Undefined filter "//trim(filter%nodes(1)%name))
+                return
+            end if
+            included = ibuffer_filtering_alist(i)%test(buf, filter%nodes(1), st)
+            if (.not. st%ok()) then
+                ! (condition-case: an error pops the filter.)
+                included = .false.
+                call ibuffer_pop_filter(status)
+            end if
+        end select
+    end function included_in_filter_p_1
+
+    ! The index in `ibuffer_filtering_alist' of the filter NAME (0 for
+    ! none).
+    integer function filter_index(name) result(i)
+        character(len=*), intent(in) :: name
+        if (allocated(ibuffer_filtering_alist)) then
+            do i = 1, size(ibuffer_filtering_alist)
+                if (ibuffer_filtering_alist(i)%name == name) return
+            end do
+        end if
+        i = 0
+    end function filter_index
+
+    ! The string qualifier of NODE.
+    function qualifier_text(node) result(s)
+        type(ibuffer_filter_node_type), intent(in) :: node
+        character(len=:), allocatable :: s
+        s = node%qualifier(1:node%qualifier_len)
+    end function qualifier_text
+
+    ! The operands of the compound FILTER.
+    subroutine operands(filter, parts)
+        type(ibuffer_filter_type), intent(in) :: filter
+        type(ibuffer_filter_type), allocatable, intent(out) :: parts(:)
+        integer :: j, k, n
+        allocate (parts(filter%nodes(1)%count))
+        k = 2
+        do j = 1, size(parts)
+            n = ibuffer_filter_extent(filter, k)
+            parts(j) = ibuffer_filter_part(filter, k, n)
+            k = k + n
+        end do
+    end subroutine operands
+
+    ! The compound filter of KIND (`not', `and' or `or') with the operands
+    ! PARTS.
+    function compound(kind, parts) result(f)
+        integer, intent(in) :: kind
+        type(ibuffer_filter_type), intent(in) :: parts(:)
+        type(ibuffer_filter_type) :: f
+        integer :: j, n, at
+        n = 1
+        do j = 1, size(parts)
+            n = n + size(parts(j)%nodes)
+        end do
+        allocate (f%nodes(n))
+        f%nodes(1)%kind = kind
+        f%nodes(1)%count = size(parts)
+        at = 2
+        do j = 1, size(parts)
+            f%nodes(at:at + size(parts(j)%nodes) - 1) = parts(j)%nodes
+            at = at + size(parts(j)%nodes)
+        end do
+    end function compound
+
+    ! Add F before the filters of LIST.
+    subroutine push_front(list, f)
+        type(ibuffer_filter_type), allocatable, intent(inout) :: list(:)
+        type(ibuffer_filter_type), intent(in) :: f
+        type(ibuffer_filter_type), allocatable :: grown(:)
+        integer :: j
+        allocate (grown(size(list) + 1))
+        grown(1) = f
+        do j = 1, size(list)
+            grown(j + 1) = list(j)
+        end do
+        call move_alloc(grown, list)
+    end subroutine push_front
+
+    ! The filters A followed by B.
+    function joined(a, b) result(ab)
+        type(ibuffer_filter_type), intent(in) :: a(:), b(:)
+        type(ibuffer_filter_type), allocatable :: ab(:)
+        integer :: j
+        allocate (ab(size(a) + size(b)))
+        do j = 1, size(a)
+            ab(j) = a(j)
+        end do
+        do j = 1, size(b)
+            ab(size(a) + j) = b(j)
+        end do
+    end function joined
+
+    module procedure ibuffer_format_qualifier
+    if (.not. allocated(qualifier%nodes)) then
+        s = ""
+    else if (size(qualifier%nodes) == 0) then
+        s = ""
+    else if (qualifier%nodes(1)%kind == IBUFFER_FILTER_NOT) then
+        s = " [NOT"//format_qualifier_1(ibuffer_unary_operand(qualifier))//"]"
+    else
+        s = format_qualifier_1(qualifier)
+    end if
+    end procedure ibuffer_format_qualifier
+
+    ! Port of ibuf-ext.el:ibuffer-format-qualifier-1.
+    recursive function format_qualifier_1(qualifier) result(s)
+        type(ibuffer_filter_type), intent(in) :: qualifier
+        character(len=:), allocatable :: s
+        type(ibuffer_filter_type), allocatable :: parts(:)
+        character(len=32) :: buf
+        integer :: j, i
+        if (.not. allocated(qualifier%nodes)) then
+            s = ""
+            return
+        end if
+        if (size(qualifier%nodes) == 0) then
+            s = ""
+            return
+        end if
+        select case (qualifier%nodes(1)%kind)
+        case (IBUFFER_FILTER_SAVED)
+            s = " [filter: "//qualifier_text(qualifier%nodes(1))//"]"
+        case (IBUFFER_FILTER_OR, IBUFFER_FILTER_AND)
+            call operands(qualifier, parts)
+            if (qualifier%nodes(1)%kind == IBUFFER_FILTER_OR) then
+                s = " [OR"
+            else
+                s = " [AND"
+            end if
+            do j = 1, size(parts)
+                s = s//ibuffer_format_qualifier(parts(j))
+            end do
+            s = s//"]"
+        case (IBUFFER_FILTER_NOT)
+            s = ibuffer_format_qualifier(qualifier)
+        case default
+            i = filter_index(qualifier%nodes(1)%name)
+            s = " ["
+            if (i > 0) s = s//trim(ibuffer_filtering_alist(i)%description)
+            associate (node => qualifier%nodes(1))
+                ! (A predicate, a procedure, has no printed form.)
+                if (node%has_qualifier .and. .not. associated(node%predicate)) then
+                    if (node%is_number) then
+                        write (buf, "(i0)") node%number
+                        s = s//": "//trim(buf)
+                    else
+                        s = s//": "//qualifier_text(node)
+                    end if
+                end if
+            end associate
+            s = s//"]"
+        end select
+    end function format_qualifier_1
+
+    module procedure ibuffer_push_filter
+    integer :: k, j
+    type(ibuffer_filter_type), allocatable :: filters(:)
+    k = ibuffer_local_index(.true.)
+    pushed = .false.
+    do j = 1, size(locals(k)%qualifiers)
+        if (ibuffer_filter_equal(locals(k)%qualifiers(j), filter_specification)) return
+    end do
+    filters = locals(k)%qualifiers
+    call push_front(filters, filter_specification)
+    call ibuffer_set_filtering_qualifiers(filters)
+    pushed = .true.
+    end procedure ibuffer_push_filter
 
     !> Toggle use of Ibuffer's auto-update facility (Ibuffer Auto mode).
     !> Port of ibuf-ext.el:ibuffer-auto-mode.
@@ -331,9 +668,8 @@ contains
     recursive subroutine cmd_ibuffer_jump_to_filter_group(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
-        ! (ibuffer-read-filter-group-name: there are no filter groups yet.)
-        call set_error(status, FM_GENERIC_ERROR, "No filter groups active")
-        if (.false.) call ibuffer_jump_to_filter_group(name, status)
+        call read_filter_group_name("Jump to filter group: ", name, status)
+        if (status%ok()) call ibuffer_jump_to_filter_group(name, status)
     end subroutine cmd_ibuffer_jump_to_filter_group
 
     ! ------------------------------------------------------------------
@@ -1748,6 +2084,1377 @@ contains
         call rename_buffer(generate_new_buffer_name(base_name), .false., actual, st)
     end subroutine rename_uniquely
 
+    ! ------------------------------------------------------------------
+    ! Filter definitions (define-ibuffer-filter)
+    ! ------------------------------------------------------------------
+
+    ! The string qualifier of NODE, an error if it has none.
+    subroutine string_qualifier(node, s, status)
+        type(ibuffer_filter_node_type), intent(in) :: node
+        character(len=:), allocatable, intent(out) :: s
+        type(status_type), intent(out) :: status
+        status = status_type()
+        s = qualifier_text(node)
+        if (.not. node%has_qualifier .or. node%is_number .or. associated(node%predicate)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp")
+        end if
+    end subroutine string_qualifier
+
+    ! (string-match QUALIFIER STRING).
+    recursive logical function qualifier_matches(node, string, status) result(hit)
+        type(ibuffer_filter_node_type), intent(in) :: node
+        character(len=*), intent(in) :: string
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: regexp
+        hit = .false.
+        call string_qualifier(node, regexp, status)
+        if (.not. status%ok()) return
+        hit = string_match(regexp, string, status) > 0
+    end function qualifier_matches
+
+    ! The `ibuffer_buffer_file_name' of BUF.
+    function file_name_of(buf) result(name)
+        type(handle_type), intent(in) :: buf
+        character(len=:), allocatable :: name
+        type(handle_type) :: old
+        type(status_type) :: st
+        old = current_buffer()
+        call set_buffer(buf, st)
+        name = ibuffer_buffer_file_name()
+        call set_buffer(old, st)
+    end function file_name_of
+
+    ! Port of ibuf-ext.el define-ibuffer-filter mode and used-mode.
+    recursive logical function filter_mode(buf, qualifier, status) result(included)
+        type(handle_type), intent(in) :: buf
+        type(ibuffer_filter_node_type), intent(in) :: qualifier
+        type(status_type), intent(out) :: status
+        status = status_type()
+        included = qualifier%has_qualifier .and. .not. qualifier%is_number
+        if (included) included = major_mode_of(buf) == qualifier_text(qualifier)
+    end function filter_mode
+
+    ! Port of ibuf-ext.el define-ibuffer-filter derived-mode.
+    recursive logical function filter_derived_mode(buf, qualifier, status) result(included)
+        type(handle_type), intent(in) :: buf
+        type(ibuffer_filter_node_type), intent(in) :: qualifier
+        type(status_type), intent(out) :: status
+        status = status_type()
+        included = qualifier%has_qualifier .and. .not. qualifier%is_number
+        if (included) included = provided_mode_derived_p(major_mode_of(buf), qualifier_text(qualifier))
+    end function filter_derived_mode
+
+    ! Port of ibuf-ext.el define-ibuffer-filter name.
+    recursive logical function filter_name(buf, qualifier, status) result(included)
+        type(handle_type), intent(in) :: buf
+        type(ibuffer_filter_node_type), intent(in) :: qualifier
+        type(status_type), intent(out) :: status
+        included = qualifier_matches(qualifier, buffers(buf%index)%name, status)
+    end function filter_name
+
+    ! Port of ibuf-ext.el define-ibuffer-filter process.
+    recursive logical function filter_process(buf, qualifier, status) result(included)
+        type(handle_type), intent(in) :: buf
+        type(ibuffer_filter_node_type), intent(in) :: qualifier
+        type(status_type), intent(out) :: status
+        type(handle_type) :: proc
+        status = status_type()
+        if (qualifier%has_qualifier) continue
+        proc = get_buffer_process(buf)
+        included = proc%index /= 0
+    end function filter_process
+
+    ! Port of ibuf-ext.el define-ibuffer-filter starred-name.
+    recursive logical function filter_starred_name(buf, qualifier, status) result(included)
+        type(handle_type), intent(in) :: buf
+        type(ibuffer_filter_node_type), intent(in) :: qualifier
+        type(status_type), intent(out) :: status
+        if (qualifier%has_qualifier) continue
+        included = string_match("\`\*[^*]+\*\(?:<[[:digit:]]+>\)?\'", buffers(buf%index)%name, status) > 0
+    end function filter_starred_name
+
+    ! Port of ibuf-ext.el define-ibuffer-filter filename.
+    recursive logical function filter_filename(buf, qualifier, status) result(included)
+        type(handle_type), intent(in) :: buf
+        type(ibuffer_filter_node_type), intent(in) :: qualifier
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: it
+        status = status_type()
+        included = .false.
+        it = file_name_of(buf)
+        if (len(it) > 0) included = qualifier_matches(qualifier, it, status)
+    end function filter_filename
+
+    ! Port of ibuf-ext.el define-ibuffer-filter basename.
+    recursive logical function filter_basename(buf, qualifier, status) result(included)
+        type(handle_type), intent(in) :: buf
+        type(ibuffer_filter_node_type), intent(in) :: qualifier
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: it
+        status = status_type()
+        included = .false.
+        it = file_name_of(buf)
+        if (len(it) > 0) included = qualifier_matches(qualifier, file_name_nondirectory(it), status)
+    end function filter_basename
+
+    ! Port of ibuf-ext.el define-ibuffer-filter file-extension.
+    recursive logical function filter_file_extension(buf, qualifier, status) result(included)
+        type(handle_type), intent(in) :: buf
+        type(ibuffer_filter_node_type), intent(in) :: qualifier
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: it, ext
+        logical :: found
+        status = status_type()
+        included = .false.
+        it = file_name_of(buf)
+        if (len(it) == 0) return
+        call file_name_extension(it, ext, found)
+        if (.not. found) ext = ""
+        included = qualifier_matches(qualifier, ext, status)
+    end function filter_file_extension
+
+    ! Port of ibuf-ext.el define-ibuffer-filter directory.
+    recursive logical function filter_directory(buf, qualifier, status) result(included)
+        type(handle_type), intent(in) :: buf
+        type(ibuffer_filter_node_type), intent(in) :: qualifier
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: filename, dirname
+        status = status_type()
+        included = .false.
+        filename = file_name_of(buf)
+        dirname = ""
+        if (len(filename) > 0) dirname = file_name_directory(filename)
+        if (len(dirname) > 0) then
+            included = qualifier_matches(qualifier, dirname, status)
+        else if (allocated(buffers(buf%index)%directory)) then
+            included = qualifier_matches(qualifier, buffers(buf%index)%directory, status)
+        end if
+    end function filter_directory
+
+    ! The size of BUF and the number qualifier of NODE, an error if it has
+    ! none.
+    subroutine size_and_number(buf, node, size, number, status)
+        type(handle_type), intent(in) :: buf
+        type(ibuffer_filter_node_type), intent(in) :: node
+        integer(int64), intent(out) :: size, number
+        type(status_type), intent(out) :: status
+        type(handle_type) :: old
+        type(status_type) :: st
+        status = status_type()
+        old = current_buffer()
+        call set_buffer(buf, st)
+        size = buffer_size()
+        call set_buffer(old, st)
+        number = node%number
+        if (.not. node%is_number) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "number-or-marker-p")
+    end subroutine size_and_number
+
+    ! Port of ibuf-ext.el define-ibuffer-filter size-gt.
+    recursive logical function filter_size_gt(buf, qualifier, status) result(included)
+        type(handle_type), intent(in) :: buf
+        type(ibuffer_filter_node_type), intent(in) :: qualifier
+        type(status_type), intent(out) :: status
+        integer(int64) :: size, number
+        call size_and_number(buf, qualifier, size, number, status)
+        included = status%ok() .and. size > number
+    end function filter_size_gt
+
+    ! Port of ibuf-ext.el define-ibuffer-filter size-lt.
+    recursive logical function filter_size_lt(buf, qualifier, status) result(included)
+        type(handle_type), intent(in) :: buf
+        type(ibuffer_filter_node_type), intent(in) :: qualifier
+        type(status_type), intent(out) :: status
+        integer(int64) :: size, number
+        call size_and_number(buf, qualifier, size, number, status)
+        included = status%ok() .and. size < number
+    end function filter_size_lt
+
+    ! Port of ibuf-ext.el define-ibuffer-filter modified.
+    recursive logical function filter_modified(buf, qualifier, status) result(included)
+        type(handle_type), intent(in) :: buf
+        type(ibuffer_filter_node_type), intent(in) :: qualifier
+        type(status_type), intent(out) :: status
+        if (qualifier%has_qualifier) continue
+        call buffer_modified_p(buf, included, status)
+    end function filter_modified
+
+    ! Port of ibuf-ext.el define-ibuffer-filter visiting-file.
+    recursive logical function filter_visiting_file(buf, qualifier, status) result(included)
+        type(handle_type), intent(in) :: buf
+        type(ibuffer_filter_node_type), intent(in) :: qualifier
+        type(status_type), intent(out) :: status
+        status = status_type()
+        if (qualifier%has_qualifier) continue
+        included = .false.
+        if (allocated(buffers(buf%index)%filename)) included = len(buffers(buf%index)%filename) > 0
+    end function filter_visiting_file
+
+    ! Port of ibuf-ext.el define-ibuffer-filter content.
+    recursive logical function filter_content(buf, qualifier, status) result(included)
+        type(handle_type), intent(in) :: buf
+        type(ibuffer_filter_node_type), intent(in) :: qualifier
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: regexp
+        type(handle_type) :: old
+        type(status_type) :: st
+        integer(int64) :: saved, found
+        included = .false.
+        call string_qualifier(qualifier, regexp, status)
+        if (.not. status%ok()) return
+        old = current_buffer()
+        call set_buffer(buf, st)
+        saved = point()
+        call goto_char(point_min())
+        call re_search_forward(regexp, found, status, noerror=SEARCH_NOERROR)
+        included = status%ok() .and. found > 0
+        call goto_char(saved)
+        call set_buffer(old, st)
+    end function filter_content
+
+    ! Port of ibuf-ext.el define-ibuffer-filter predicate.
+    recursive logical function filter_predicate(buf, qualifier, status) result(included)
+        type(handle_type), intent(in) :: buf
+        type(ibuffer_filter_node_type), intent(in) :: qualifier
+        type(status_type), intent(out) :: status
+        type(handle_type) :: old
+        type(status_type) :: st
+        status = status_type()
+        included = .false.
+        if (.not. associated(qualifier%predicate)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "functionp")
+            return
+        end if
+        old = current_buffer()
+        call set_buffer(buf, st)
+        included = qualifier%predicate(buf)
+        if (buffer_live_p(old)) call set_buffer(old, st)
+    end function filter_predicate
+
+    ! ------------------------------------------------------------------
+    ! The filter stack
+    ! ------------------------------------------------------------------
+
+    ! Jump back to BUF after an update (it may have been filtered out).
+    recursive subroutine jump_back(buf, status)
+        type(handle_type), intent(in) :: buf
+        type(status_type), intent(out) :: status
+        status = status_type()
+        if (buf%index == 0) return
+        if (.not. buffer_live_p(buf)) return
+        call ibuffer_jump_to_buffer(buffers(buf%index)%name, status)
+    end subroutine jump_back
+
+    module procedure ibuffer_filter_disable
+    type(handle_type) :: buf
+    type(status_type) :: st
+    integer :: k
+    logical :: delete
+    delete = .false.
+    if (present(delete_filter_groups)) delete = delete_filter_groups
+    k = ibuffer_local_index(.true.)
+    deallocate (locals(k)%qualifiers)
+    allocate (locals(k)%qualifiers(0))
+    if (delete) call locals(k)%filter_groups%clear()
+    buf = ibuffer_current_buffer(st)
+    call ibuffer_update(status, .false., .true.)
+    if (.not. status%ok()) return
+    call jump_back(buf, status)
+    end procedure ibuffer_filter_disable
+
+    recursive subroutine cmd_ibuffer_filter_disable(status)
+        type(status_type), intent(out) :: status
+        call ibuffer_filter_disable(status)
+    end subroutine cmd_ibuffer_filter_disable
+
+    module procedure ibuffer_pop_filter
+    type(ibuffer_filter_type), allocatable :: filters(:)
+    type(handle_type) :: buf
+    type(status_type) :: st
+    filters = ibuffer_filtering_qualifiers()
+    if (size(filters) == 0) then
+        call set_error(status, FM_GENERIC_ERROR, "No filters in effect")
+        return
+    end if
+    call ibuffer_set_filtering_qualifiers(filters(2:))
+    buf = ibuffer_current_buffer(st)
+    call ibuffer_update(status, .false., .true.)
+    if (.not. status%ok()) return
+    call jump_back(buf, status)
+    end procedure ibuffer_pop_filter
+
+    module procedure ibuffer_decompose_filter
+    type(ibuffer_filter_type), allocatable :: filters(:), parts(:), saved(:), tail(:)
+    type(status_type) :: st
+    integer :: i
+    filters = ibuffer_filtering_qualifiers()
+    if (size(filters) == 0) then
+        call set_error(status, FM_GENERIC_ERROR, "No filters in effect")
+        return
+    end if
+    tail = filters(2:)
+    select case (filters(1)%nodes(1)%kind)
+    case (IBUFFER_FILTER_OR, IBUFFER_FILTER_AND)
+        call operands(filters(1), parts)
+        call ibuffer_set_filtering_qualifiers(joined(parts, tail))
+    case (IBUFFER_FILTER_SAVED)
+        i = ibuffer_saved_filters%find(qualifier_text(filters(1)%nodes(1)))
+        if (i == 0) then
+            call ibuffer_filter_disable(st)
+            call set_error(status, FM_GENERIC_ERROR, "Unknown saved filter "//qualifier_text(filters(1)%nodes(1)))
+            return
+        end if
+        saved = ibuffer_saved_filters%entries(i)%filters
+        call ibuffer_set_filtering_qualifiers(joined(saved, tail))
+    case (IBUFFER_FILTER_NOT)
+        call push_front(tail, ibuffer_unary_operand(filters(1)))
+        call ibuffer_set_filtering_qualifiers(tail)
+    case default
+        call set_error(status, FM_GENERIC_ERROR, "Filter type "//trim(filters(1)%nodes(1)%name)//" is not compound")
+        return
+    end select
+    call ibuffer_update(status, .false., .true.)
+    end procedure ibuffer_decompose_filter
+
+    recursive subroutine cmd_ibuffer_decompose_filter(status)
+        type(status_type), intent(out) :: status
+        call ibuffer_decompose_filter(status)
+    end subroutine cmd_ibuffer_decompose_filter
+
+    module procedure ibuffer_exchange_filters
+    type(ibuffer_filter_type), allocatable :: filters(:)
+    type(ibuffer_filter_type) :: first
+    filters = ibuffer_filtering_qualifiers()
+    if (size(filters) < 2) then
+        call set_error(status, FM_GENERIC_ERROR, "Need two filters to exchange")
+        return
+    end if
+    first = filters(1)
+    filters(1) = filters(2)
+    filters(2) = first
+    call ibuffer_set_filtering_qualifiers(filters)
+    call ibuffer_update(status, .false., .true.)
+    end procedure ibuffer_exchange_filters
+
+    recursive subroutine cmd_ibuffer_exchange_filters(status)
+        type(status_type), intent(out) :: status
+        call ibuffer_exchange_filters(status)
+    end subroutine cmd_ibuffer_exchange_filters
+
+    module procedure ibuffer_negate_filter
+    type(ibuffer_filter_type), allocatable :: filters(:)
+    type(ibuffer_filter_type) :: lim(1)
+    filters = ibuffer_filtering_qualifiers()
+    if (size(filters) == 0) then
+        call set_error(status, FM_GENERIC_ERROR, "No filters in effect")
+        return
+    end if
+    if (filters(1)%nodes(1)%kind == IBUFFER_FILTER_NOT) then
+        lim(1) = filters(1)
+        filters(1) = ibuffer_unary_operand(lim(1))
+    else
+        lim(1) = filters(1)
+        filters(1) = compound(IBUFFER_FILTER_NOT, lim)
+    end if
+    call ibuffer_set_filtering_qualifiers(filters)
+    call ibuffer_update(status, .false., .true.)
+    end procedure ibuffer_negate_filter
+
+    recursive subroutine cmd_ibuffer_negate_filter(status)
+        type(status_type), intent(out) :: status
+        call ibuffer_negate_filter(status)
+    end subroutine cmd_ibuffer_negate_filter
+
+    ! Port of ibuf-ext.el:ibuffer--or-and-filter.
+    recursive subroutine or_and_filter(op, decompose, status)
+        integer, intent(in) :: op
+        logical, intent(in) :: decompose
+        type(status_type), intent(out) :: status
+        type(ibuffer_filter_type), allocatable :: filters(:), a(:), b(:)
+        character(len=3) :: opname
+        integer :: top
+        opname = "AND"
+        if (op == IBUFFER_FILTER_OR) opname = "OR"
+        filters = ibuffer_filtering_qualifiers()
+        if (decompose) then
+            top = 0
+            if (size(filters) > 0) top = filters(1)%nodes(1)%kind
+            if (top == op) then
+                call ibuffer_decompose_filter(status)
+            else
+                call set_error(status, FM_GENERIC_ERROR, "Top filter is not an "//trim(opname))
+            end if
+            return
+        end if
+        if (size(filters) < 2) then
+            call set_error(status, FM_GENERIC_ERROR, "Need two filters to "//trim(opname))
+            return
+        end if
+        ! If either filter is an op, eliminate unnecessary nesting.
+        if (filters(1)%nodes(1)%kind == op) then
+            call operands(filters(1), a)
+        else
+            allocate (a(1))
+            a(1) = filters(1)
+        end if
+        if (filters(2)%nodes(1)%kind == op) then
+            call operands(filters(2), b)
+        else
+            allocate (b(1))
+            b(1) = filters(2)
+        end if
+        filters = filters(2:)
+        filters(1) = compound(op, joined(a, b))
+        call ibuffer_set_filtering_qualifiers(filters)
+        call ibuffer_update(status, .false., .true.)
+    end subroutine or_and_filter
+
+    module procedure ibuffer_or_filter
+    logical :: d
+    d = .false.
+    if (present(decompose)) d = decompose
+    call or_and_filter(IBUFFER_FILTER_OR, d, status)
+    end procedure ibuffer_or_filter
+
+    recursive subroutine cmd_ibuffer_or_filter(status)
+        type(status_type), intent(out) :: status
+        call ibuffer_or_filter(status,.not. nilp(current_prefix_arg))
+    end subroutine cmd_ibuffer_or_filter
+
+    module procedure ibuffer_and_filter
+    logical :: d
+    d = .false.
+    if (present(decompose)) d = decompose
+    call or_and_filter(IBUFFER_FILTER_AND, d, status)
+    end procedure ibuffer_and_filter
+
+    recursive subroutine cmd_ibuffer_and_filter(status)
+        type(status_type), intent(out) :: status
+        call ibuffer_and_filter(status,.not. nilp(current_prefix_arg))
+    end subroutine cmd_ibuffer_and_filter
+
+    ! ------------------------------------------------------------------
+    ! Saved filters
+    ! ------------------------------------------------------------------
+
+    ! ibuffer-maybe-save-stuff: with `ibuffer_save_with_custom', Customize
+    ! saves `ibuffer_saved_filters' and `ibuffer_saved_filter_groups'
+    ! (Deferred with Customize, step 26).
+    subroutine maybe_save_stuff()
+    end subroutine maybe_save_stuff
+
+    ! A completion table of the names of NAMES.
+    function names_table(names) result(table)
+        type(minibuffer_string_type), intent(in) :: names(:)
+        type(completion_table_type) :: table
+        type(value_type), allocatable :: values(:)
+        integer :: j
+        allocate (values(size(names)))
+        do j = 1, size(names)
+            values(j) = make_string(names(j)%s)
+        end do
+        table%kind = TABLE_LIST
+        table%list = make_list(values)
+    end function names_table
+
+    ! The names of the saved filters.
+    function saved_filter_names() result(names)
+        type(minibuffer_string_type), allocatable :: names(:)
+        integer :: j
+        allocate (names(ibuffer_saved_filters%count()))
+        do j = 1, size(names)
+            names(j)%s = ibuffer_saved_filters%entries(j)%name
+        end do
+    end function saved_filter_names
+
+    ! Read the name of a saved filter with PROMPT ("No saved filters" if
+    ! there are none).
+    recursive subroutine read_saved_filter_name(prompt, name, status)
+        character(len=*), intent(in) :: prompt
+        character(len=:), allocatable, intent(out) :: name
+        type(status_type), intent(out) :: status
+        if (ibuffer_saved_filters%count() == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "No saved filters")
+            name = ""
+            return
+        end if
+        call completing_read(prompt, names_table(saved_filter_names()), name, status, require_match=REQUIRE_MATCH_T)
+    end subroutine read_saved_filter_name
+
+    module procedure ibuffer_save_filters
+    status = status_type()
+    call ibuffer_saved_filters%set(name, filters, front=.true.)
+    call maybe_save_stuff()
+    end procedure ibuffer_save_filters
+
+    recursive subroutine cmd_ibuffer_save_filters(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+        type(ibuffer_filter_type), allocatable :: filters(:)
+        filters = ibuffer_filtering_qualifiers()
+        if (size(filters) == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "No filters currently in effect")
+            return
+        end if
+        call read_from_minibuffer("Save current filters as: ", name, status)
+        if (status%ok()) call ibuffer_save_filters(name, filters, status)
+    end subroutine cmd_ibuffer_save_filters
+
+    module procedure ibuffer_delete_saved_filters
+    call ibuffer_saved_filters%remove(name)
+    call maybe_save_stuff()
+    call ibuffer_update(status, .false., .true.)
+    end procedure ibuffer_delete_saved_filters
+
+    recursive subroutine cmd_ibuffer_delete_saved_filters(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+        call read_saved_filter_name("Delete saved filters: ", name, status)
+        if (status%ok()) call ibuffer_delete_saved_filters(name, status)
+    end subroutine cmd_ibuffer_delete_saved_filters
+
+    module procedure ibuffer_add_saved_filters
+    type(ibuffer_filter_type), allocatable :: filters(:)
+    filters = ibuffer_filtering_qualifiers()
+    call push_front(filters, ibuffer_saved(name))
+    call ibuffer_set_filtering_qualifiers(filters)
+    call ibuffer_update(status, .false., .true.)
+    end procedure ibuffer_add_saved_filters
+
+    recursive subroutine cmd_ibuffer_add_saved_filters(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+        call read_saved_filter_name("Add saved filters: ", name, status)
+        if (status%ok()) call ibuffer_add_saved_filters(name, status)
+    end subroutine cmd_ibuffer_add_saved_filters
+
+    module procedure ibuffer_switch_to_saved_filters
+    type(ibuffer_filter_type) :: filters(1)
+    filters(1) = ibuffer_saved(name)
+    call ibuffer_set_filtering_qualifiers(filters)
+    call ibuffer_update(status, .false., .true.)
+    end procedure ibuffer_switch_to_saved_filters
+
+    recursive subroutine cmd_ibuffer_switch_to_saved_filters(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+        call read_saved_filter_name("Switch to saved filters: ", name, status)
+        if (status%ok()) call ibuffer_switch_to_saved_filters(name, status)
+    end subroutine cmd_ibuffer_switch_to_saved_filters
+
+    ! ------------------------------------------------------------------
+    ! Filter groups
+    ! ------------------------------------------------------------------
+
+    module procedure ibuffer_filters_to_filter_group
+    type(ibuffer_filter_type), allocatable :: filters(:)
+    integer :: k
+    filters = ibuffer_filtering_qualifiers()
+    if (size(filters) == 0) then
+        call set_error(status, FM_GENERIC_ERROR, "No filters in effect")
+        return
+    end if
+    k = ibuffer_local_index(.true.)
+    call locals(k)%filter_groups%insert(name, filters, 1)
+    call ibuffer_filter_disable(status)
+    end procedure ibuffer_filters_to_filter_group
+
+    recursive subroutine cmd_ibuffer_filters_to_filter_group(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+        call read_from_minibuffer("Name for filtering group: ", name, status)
+        if (status%ok()) call ibuffer_filters_to_filter_group(name, status)
+    end subroutine cmd_ibuffer_filters_to_filter_group
+
+    module procedure ibuffer_set_filter_groups_by_mode
+    type(handle_type), allocatable :: bufs(:)
+    character(len=IBUFFER_NAME_LEN), allocatable :: modes(:)
+    character(len=:), allocatable :: mode
+    type(ibuffer_filter_groups_type) :: groups
+    integer :: j, n
+    bufs = buffer_list()
+    allocate (modes(size(bufs)))
+    n = 0
+    do j = 1, size(bufs)
+        mode = major_mode_of(bufs(j))
+        if (any(modes(1:n) == mode)) cycle
+        if (.not. ibuffer_view_ibuffer .and. mode == "ibuffer_mode") cycle
+        n = n + 1
+        modes(n) = mode
+    end do
+    allocate (groups%groups(0))
+    do j = 1, n
+        call groups%add(trim(modes(j)), ibuffer_major_mode(trim(modes(j))))
+    end do
+    call ibuffer_set_filter_groups(groups)
+    call ibuffer_update(status, .false., .true.)
+    end procedure ibuffer_set_filter_groups_by_mode
+
+    recursive subroutine cmd_ibuffer_set_filter_groups_by_mode(status)
+        type(status_type), intent(out) :: status
+        call ibuffer_set_filter_groups_by_mode(status)
+    end subroutine cmd_ibuffer_set_filter_groups_by_mode
+
+    ! Error "No filter groups active" if there are none.
+    logical function no_filter_groups(status) result(none)
+        type(status_type), intent(out) :: status
+        integer :: k
+        status = status_type()
+        k = ibuffer_local_index(.true.)
+        none = locals(k)%filter_groups%count() == 0
+        if (none) call set_error(status, FM_GENERIC_ERROR, "No filter groups active")
+    end function no_filter_groups
+
+    module procedure ibuffer_pop_filter_group
+    integer :: k
+    if (no_filter_groups(status)) return
+    k = ibuffer_local_index(.true.)
+    ! (Upstream deletes the popped group, not its name, from
+    ! `ibuffer_hidden_filter_groups', which leaves them as they are.)
+    call locals(k)%filter_groups%remove(locals(k)%filter_groups%groups(1)%name)
+    call ibuffer_update(status, .false., .true.)
+    end procedure ibuffer_pop_filter_group
+
+    recursive subroutine cmd_ibuffer_pop_filter_group(status)
+        type(status_type), intent(out) :: status
+        call ibuffer_pop_filter_group(status)
+    end subroutine cmd_ibuffer_pop_filter_group
+
+    ! Port of ibuf-ext.el:ibuffer-read-filter-group-name.
+    recursive subroutine read_filter_group_name(msg, name, status, nodefault, noerror)
+        character(len=*), intent(in) :: msg
+        character(len=:), allocatable, intent(out) :: name
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: nodefault, noerror
+        type(ibuffer_state_type), allocatable :: states(:)
+        character(len=256), allocatable :: groups(:)
+        integer, allocatable :: group_of(:)
+        type(minibuffer_string_type), allocatable :: names(:)
+        logical :: no_default, no_error
+        integer :: k, j, n
+        no_default = .false.
+        if (present(nodefault)) no_default = nodefault
+        no_error = .false.
+        if (present(noerror)) no_error = noerror
+        name = ""
+        if (.not. no_error) then
+            if (no_filter_groups(status)) return
+        end if
+        ! `ibuffer_generate_filter_groups' returns all non-hidden filter
+        ! groups, possibly excluding empty groups or Default.
+        ! We add `ibuffer_hidden_filter_groups' to the list, excluding
+        ! Default if necessary.
+        call ibuffer_current_state_list(states, status)
+        if (.not. status%ok()) return
+        call ibuffer_generate_filter_groups(states, groups, group_of, status,.not. ibuffer_show_empty_filter_groups, &
+                                            no_default)
+        if (.not. status%ok()) return
+        k = ibuffer_local_index(.true.)
+        allocate (names(size(groups) + size(locals(k)%hidden_groups)))
+        n = 0
+        do j = 1, size(groups)
+            n = n + 1
+            names(n)%s = trim(groups(j))
+        end do
+        do j = 1, size(locals(k)%hidden_groups)
+            if (no_default .and. locals(k)%hidden_groups(j) == "Default") cycle
+            n = n + 1
+            names(n)%s = trim(locals(k)%hidden_groups(j))
+        end do
+        call completing_read(msg, names_table(names(1:n)), name, status, require_match=REQUIRE_MATCH_T)
+    end subroutine read_filter_group_name
+
+    module procedure ibuffer_decompose_filter_group
+    type(ibuffer_filter_type), allocatable :: data(:)
+    integer :: k, i
+    k = ibuffer_local_index(.true.)
+    i = locals(k)%filter_groups%find(group)
+    if (i > 0) then
+        data = locals(k)%filter_groups%groups(i)%filters
+    else
+        allocate (data(0))
+    end if
+    call locals(k)%filter_groups%remove(group)
+    call ibuffer_set_filtering_qualifiers(data)
+    call ibuffer_update(status, .false., .true.)
+    end procedure ibuffer_decompose_filter_group
+
+    recursive subroutine cmd_ibuffer_decompose_filter_group(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: group
+        call read_filter_group_name("Decompose filter group: ", group, status, nodefault=.true.)
+        if (status%ok()) call ibuffer_decompose_filter_group(group, status)
+    end subroutine cmd_ibuffer_decompose_filter_group
+
+    module procedure ibuffer_clear_filter_groups
+    integer :: k
+    k = ibuffer_local_index(.true.)
+    call locals(k)%filter_groups%clear()
+    deallocate (locals(k)%hidden_groups)
+    allocate (locals(k)%hidden_groups(0))
+    call ibuffer_update(status, .false., .true.)
+    end procedure ibuffer_clear_filter_groups
+
+    recursive subroutine cmd_ibuffer_clear_filter_groups(status)
+        type(status_type), intent(out) :: status
+        call ibuffer_clear_filter_groups(status)
+    end subroutine cmd_ibuffer_clear_filter_groups
+
+    module procedure ibuffer_kill_filter_group
+    type(ibuffer_saved_filter_type), allocatable :: ring(:)
+    integer :: k, i, j, n
+    if (name == "Default") then
+        call set_error(status, FM_GENERIC_ERROR, "Can't kill default filter group")
+        return
+    end if
+    k = ibuffer_local_index(.true.)
+    i = locals(k)%filter_groups%find(name)
+    if (i == 0) then
+        call set_error(status, FM_GENERIC_ERROR, 'No filter group with name "'//name//'"')
+        return
+    end if
+    n = size(locals(k)%group_kill_ring)
+    allocate (ring(n + 1))
+    ring(1) = locals(k)%filter_groups%groups(i)
+    do j = 1, n
+        ring(j + 1) = locals(k)%group_kill_ring(j)
+    end do
+    call move_alloc(ring, locals(k)%group_kill_ring)
+    call locals(k)%filter_groups%remove(name)
+    locals(k)%hidden_groups = pack(locals(k)%hidden_groups, locals(k)%hidden_groups /= name)
+    call ibuffer_update(status, .false., .true.)
+    end procedure ibuffer_kill_filter_group
+
+    recursive subroutine cmd_ibuffer_kill_filter_group(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+        call read_filter_group_name("Kill filter group: ", name, status, nodefault=.true.)
+        if (status%ok()) call ibuffer_kill_filter_group(name, status)
+    end subroutine cmd_ibuffer_kill_filter_group
+
+    !> Kill the filter group at point.
+    !> See also `ibuffer_kill_filter_group'.  Port of
+    !> ibuf-ext.el:ibuffer-kill-line.
+    recursive subroutine ibuffer_kill_line(status)
+        type(status_type), intent(out) :: status
+        integer(int64) :: saved
+        logical :: found
+        character(len=:), allocatable :: it
+        saved = point()
+        call ibuffer_forward_line(0_int64)
+        found = has_string_prop(point(), "ibuffer_filter_group_name")
+        if (found) it = string_prop(point(), "ibuffer_filter_group_name")
+        call goto_char(saved)
+        if (found) then
+            call ibuffer_kill_filter_group(it, status)
+        else if (nilp(current_prefix_arg)) then
+            call simple_kill_line(1_int64, .false., status)
+        else
+            call simple_kill_line(prefix_numeric_value(current_prefix_arg), .true., status)
+        end if
+    end subroutine ibuffer_kill_line
+
+    ! Port of ibuf-ext.el:ibuffer-insert-filter-group-before.
+    subroutine insert_filter_group_before(newgroup, group)
+        type(ibuffer_saved_filter_type), intent(in) :: newgroup
+        character(len=*), intent(in) :: group
+        integer :: k, pos
+        k = ibuffer_local_index(.true.)
+        pos = locals(k)%filter_groups%find(group)
+        if (pos == 0) pos = locals(k)%filter_groups%count() + 1
+        call locals(k)%filter_groups%insert(newgroup%name, newgroup%filters, pos)
+    end subroutine insert_filter_group_before
+
+    !> Yank the last killed filter group before group at point.  Port of
+    !> ibuf-ext.el:ibuffer-yank.
+    recursive subroutine ibuffer_yank(status)
+        type(status_type), intent(out) :: status
+        if (has_string_prop(point(), "ibuffer_filter_group_name")) then
+            call ibuffer_yank_filter_group(string_prop(point(), "ibuffer_filter_group_name"), status)
+        else if (has_string_prop(point(), "ibuffer_filter_group")) then
+            call ibuffer_yank_filter_group(string_prop(point(), "ibuffer_filter_group"), status)
+        else
+            call set_error(status, FM_GENERIC_ERROR, "No filter group at point")
+        end if
+    end subroutine ibuffer_yank
+
+    module procedure ibuffer_yank_filter_group
+    type(ibuffer_saved_filter_type) :: top
+    integer :: k
+    k = ibuffer_local_index(.true.)
+    if (size(locals(k)%group_kill_ring) == 0) then
+        call set_error(status, FM_GENERIC_ERROR, "The Ibuffer filter group kill-ring is empty")
+        return
+    end if
+    top = locals(k)%group_kill_ring(1)
+    locals(k)%group_kill_ring = locals(k)%group_kill_ring(2:)
+    call insert_filter_group_before(top, name)
+    call ibuffer_update(status, .false., .true.)
+    end procedure ibuffer_yank_filter_group
+
+    recursive subroutine cmd_ibuffer_yank_filter_group(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+        call read_filter_group_name("Yank filter group before group: ", name, status)
+        if (status%ok()) call ibuffer_yank_filter_group(name, status)
+    end subroutine cmd_ibuffer_yank_filter_group
+
+    module procedure ibuffer_save_filter_groups
+    status = status_type()
+    call ibuffer_saved_filter_groups%add(name, groups, front=.true.)
+    call maybe_save_stuff()
+    end procedure ibuffer_save_filter_groups
+
+    recursive subroutine cmd_ibuffer_save_filter_groups(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+        if (no_filter_groups(status)) return
+        call read_from_minibuffer("Save current filter groups as: ", name, status)
+        if (status%ok()) call ibuffer_save_filter_groups(name, ibuffer_filter_groups(), status)
+    end subroutine cmd_ibuffer_save_filter_groups
+
+    ! The names of the saved sets of filter groups.
+    function saved_group_names() result(names)
+        type(minibuffer_string_type), allocatable :: names(:)
+        integer :: j
+        allocate (names(ibuffer_saved_filter_groups%count()))
+        do j = 1, size(names)
+            names(j)%s = ibuffer_saved_filter_groups%entries(j)%name
+        end do
+    end function saved_group_names
+
+    module procedure ibuffer_delete_saved_filter_groups
+    call ibuffer_saved_filter_groups%remove(name)
+    call maybe_save_stuff()
+    call ibuffer_update(status, .false., .true.)
+    end procedure ibuffer_delete_saved_filter_groups
+
+    recursive subroutine cmd_ibuffer_delete_saved_filter_groups(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+        if (ibuffer_saved_filter_groups%count() == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "No saved filter groups")
+            return
+        end if
+        call completing_read("Delete saved filter group: ", names_table(saved_group_names()), name, status, &
+                             require_match=REQUIRE_MATCH_T)
+        if (status%ok()) call ibuffer_delete_saved_filter_groups(name, status)
+    end subroutine cmd_ibuffer_delete_saved_filter_groups
+
+    module procedure ibuffer_switch_to_saved_filter_groups
+    type(ibuffer_filter_groups_type) :: groups
+    integer :: k, i
+    i = ibuffer_saved_filter_groups%find(name)
+    if (i > 0) then
+        groups = ibuffer_saved_filter_groups%entries(i)%groups
+    else
+        allocate (groups%groups(0))
+    end if
+    call ibuffer_set_filter_groups(groups)
+    k = ibuffer_local_index(.true.)
+    deallocate (locals(k)%hidden_groups)
+    allocate (locals(k)%hidden_groups(0))
+    call ibuffer_update(status, .false., .true.)
+    end procedure ibuffer_switch_to_saved_filter_groups
+
+    recursive subroutine cmd_ibuffer_switch_to_saved_filter_groups(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+        if (ibuffer_saved_filter_groups%count() == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "No saved filters")
+            return
+        else if (ibuffer_saved_filter_groups%count() == 1) then
+            ! `ibuffer_saved_filter_groups' is a user variable that defaults
+            ! to empty.  We assume that with one element in this list the
+            ! user knows what she wants.  See bug#12331.
+            name = ibuffer_saved_filter_groups%entries(1)%name
+        else
+            call completing_read("Switch to saved filter group: ", names_table(saved_group_names()), name, status, &
+                                 require_match=REQUIRE_MATCH_T)
+            if (.not. status%ok()) return
+        end if
+        call ibuffer_switch_to_saved_filter_groups(name, status)
+    end subroutine cmd_ibuffer_switch_to_saved_filter_groups
+
+    ! ------------------------------------------------------------------
+    ! Filtering commands (define-ibuffer-filter)
+    ! ------------------------------------------------------------------
+
+    ! The description of the filter NAME.
+    function filter_description(name) result(desc)
+        character(len=*), intent(in) :: name
+        character(len=:), allocatable :: desc
+        integer :: i
+        desc = ""
+        i = filter_index(name)
+        if (i > 0) desc = trim(ibuffer_filtering_alist(i)%description)
+    end function filter_description
+
+    ! Push FILTER, a filter by NAME, and tell (with the qualifier text QSTR
+    ! if HAS_QSTR).
+    recursive subroutine apply_filter(name, filter, has_qstr, qstr, status)
+        character(len=*), intent(in) :: name, qstr
+        type(ibuffer_filter_type), intent(in) :: filter
+        logical, intent(in) :: has_qstr
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: desc
+        status = status_type()
+        desc = filter_description(name)
+        if (.not. ibuffer_push_filter(filter)) then
+            if (has_qstr) then
+                call message("Filter by "//desc//" already applied:  "//qstr)
+            else
+                call message("Filter by "//desc//" already applied")
+            end if
+        else
+            if (has_qstr) then
+                call message("Filter by "//desc//" added:  "//qstr)
+            else
+                call message("Filter by "//desc//" added")
+            end if
+            call ibuffer_update(status, .false., .true.)
+        end if
+    end subroutine apply_filter
+
+    module procedure ibuffer_filter_by
+    character(len=32) :: buf
+    if (present(qualifier)) then
+        call apply_filter(name, ibuffer_filter(name, qualifier=qualifier), .true., qualifier, status)
+    else if (present(number)) then
+        write (buf, "(i0)") number
+        call apply_filter(name, ibuffer_filter(name, number=number), .true., trim(buf), status)
+    else
+        call apply_filter(name, ibuffer_filter(name), .false., "", status)
+    end if
+    end procedure ibuffer_filter_by
+
+    ! The command of a filter with ACCEPT-LIST: the filter NAME with each
+    ! of the qualifiers QUALIFIER, composed with `or'.
+    recursive subroutine filter_by_list(name, qualifier, status)
+        character(len=*), intent(in) :: name, qualifier(:)
+        type(status_type), intent(out) :: status
+        character(len=len(qualifier)), allocatable :: q(:)
+        character(len=len(qualifier)) :: tmp
+        type(ibuffer_filter_type), allocatable :: parts(:)
+        type(ibuffer_filter_type) :: filter
+        character(len=:), allocatable :: qstr
+        integer :: j, i, n
+        ! Reject equivalent filters: (or f1 f2) is same as (or f2 f1).
+        allocate (q(size(qualifier)))
+        n = 0
+        do j = 1, size(qualifier)
+            if (any(q(1:n) == qualifier(j))) cycle
+            n = n + 1
+            q(n) = qualifier(j)
+        end do
+        do j = 2, n
+            tmp = q(j)
+            i = j - 1
+            do while (i >= 1)
+                if (.not. llt(tmp, q(i))) exit
+                q(i + 1) = q(i)
+                i = i - 1
+            end do
+            q(i + 1) = tmp
+        end do
+        if (n == 0) then
+            call apply_filter(name, ibuffer_filter(name), .true., "", status)
+            return
+        end if
+        qstr = trim(q(1))
+        do j = 2, n
+            qstr = qstr//","//trim(q(j))
+        end do
+        if (n == 1) then
+            filter = ibuffer_filter(name, qualifier=trim(q(1)))
+        else
+            ! Compose individual filters with `or'.
+            allocate (parts(n))
+            do j = 1, n
+                parts(j) = ibuffer_filter(name, qualifier=trim(q(j)))
+            end do
+            filter = compound(IBUFFER_FILTER_OR, parts)
+        end if
+        call apply_filter(name, filter, .true., qstr, status)
+    end subroutine filter_by_list
+
+    module procedure ibuffer_filter_by_mode
+    call filter_by_list("mode", qualifier, status)
+    end procedure ibuffer_filter_by_mode
+
+    module procedure ibuffer_filter_by_used_mode
+    call filter_by_list("used_mode", qualifier, status)
+    end procedure ibuffer_filter_by_used_mode
+
+    module procedure ibuffer_filter_by_derived_mode
+    call filter_by_list("derived_mode", qualifier, status)
+    end procedure ibuffer_filter_by_derived_mode
+
+    module procedure ibuffer_filter_by_predicate
+    ! (The qualifier, a procedure, has no printed form.)
+    call apply_filter("predicate", ibuffer_predicate(qualifier), .false., "", status)
+    end procedure ibuffer_filter_by_predicate
+
+    module procedure ibuffer_list_buffer_modes
+    type(handle_type), allocatable :: bufs(:)
+    character(len=IBUFFER_NAME_LEN), allocatable :: found(:), grown(:)
+    character(len=:), allocatable :: name
+    type(major_mode_type), pointer :: p
+    logical :: parents
+    integer :: j, n
+    parents = .false.
+    if (present(include_parents)) parents = include_parents
+    bufs = buffer_list()
+    allocate (found(16))
+    n = 0
+    do j = 1, size(bufs)
+        name = major_mode_of(bufs(j))
+        p => major_mode_named(name)
+        do
+            if (any(found(1:n) == name)) exit
+            if (n == size(found)) then
+                allocate (grown(2*n))
+                grown(1:n) = found
+                call move_alloc(grown, found)
+            end if
+            n = n + 1
+            found(n) = name
+            if (.not. parents) exit
+            if (.not. associated(p)) exit
+            p => p%parent
+            if (.not. associated(p)) exit
+            name = trim(p%name)
+        end do
+    end do
+    ! (Pushed: the last found first.)
+    modes = found(n:1:-1)
+    end procedure ibuffer_list_buffer_modes
+
+    ! PROMPT with DEFAULT, as format-prompt makes it.
+    function prompt_with_default(prompt, default) result(full)
+        character(len=*), intent(in) :: prompt, default
+        character(len=:), allocatable :: full
+        full = prompt
+        if (len(default) > 0) full = full//" (default "//default//")"
+        full = full//": "
+    end function prompt_with_default
+
+    ! Whether ELT is a symbol whose name ends in "_mode" (string-match
+    ! "-mode\\'").
+    logical function mode_symbol_p(elt)
+        type(value_type), intent(in) :: elt
+        integer :: n
+        mode_symbol_p = .false.
+        if (.not. symbolp(elt)) return
+        n = len(symbols(xsymbol(elt))%name)
+        if (n < 5) return
+        mode_symbol_p = symbols(xsymbol(elt))%name(n - 4:n) == "_mode"
+    end function mode_symbol_p
+
+    ! Read a comma separated list of mode names with PROMPT from TABLE
+    ! (with PREDICATE if MODES_ONLY), offering DEFAULT.
+    recursive subroutine read_modes(prompt, table, default, modes_only, modes, status)
+        character(len=*), intent(in) :: prompt, default
+        type(completion_table_type), intent(in) :: table
+        logical, intent(in) :: modes_only
+        character(len=IBUFFER_NAME_LEN), allocatable, intent(out) :: modes(:)
+        type(status_type), intent(out) :: status
+        type(minibuffer_string_type), allocatable :: results(:)
+        integer :: j
+        if (modes_only .and. len(default) > 0) then
+            call completing_read_multiple(prompt, table, results, status, predicate=mode_symbol_p, &
+                                          require_match=REQUIRE_MATCH_T, default=default)
+        else if (modes_only) then
+            call completing_read_multiple(prompt, table, results, status, predicate=mode_symbol_p, &
+                                          require_match=REQUIRE_MATCH_T)
+        else if (len(default) > 0) then
+            call completing_read_multiple(prompt, table, results, status, require_match=REQUIRE_MATCH_T, &
+                                          default=default)
+        else
+            call completing_read_multiple(prompt, table, results, status, require_match=REQUIRE_MATCH_T)
+        end if
+        if (.not. status%ok()) return
+        allocate (modes(size(results)))
+        do j = 1, size(results)
+            modes(j) = results(j)%s
+        end do
+    end subroutine read_modes
+
+    ! The major mode of the buffer on this line ("" for none).
+    function line_buffer_mode() result(default)
+        character(len=:), allocatable :: default
+        type(handle_type) :: buf
+        type(status_type) :: st
+        default = ""
+        buf = ibuffer_current_buffer(st)
+        if (buf%index /= 0) then
+            if (buffer_live_p(buf)) default = major_mode_of(buf)
+        end if
+    end function line_buffer_mode
+
+    ! A completion table of the mode names MODES.
+    function modes_table(modes) result(table)
+        character(len=*), intent(in) :: modes(:)
+        type(completion_table_type) :: table
+        type(minibuffer_string_type), allocatable :: names(:)
+        integer :: j
+        allocate (names(size(modes)))
+        do j = 1, size(modes)
+            names(j)%s = trim(modes(j))
+        end do
+        table = names_table(names)
+    end function modes_table
+
+    recursive subroutine cmd_ibuffer_filter_by_mode(status)
+        type(status_type), intent(out) :: status
+        character(len=IBUFFER_NAME_LEN), allocatable :: modes(:)
+        type(completion_table_type) :: table
+        character(len=:), allocatable :: default
+        default = line_buffer_mode()
+        table%kind = TABLE_OBARRAY
+        call read_modes(prompt_with_default("Filter by major mode", default), table, default, .true., modes, status)
+        if (status%ok()) call ibuffer_filter_by_mode(modes, status)
+    end subroutine cmd_ibuffer_filter_by_mode
+
+    recursive subroutine cmd_ibuffer_filter_by_used_mode(status)
+        type(status_type), intent(out) :: status
+        character(len=IBUFFER_NAME_LEN), allocatable :: modes(:), in_use(:)
+        character(len=:), allocatable :: default
+        default = line_buffer_mode()
+        call ibuffer_list_buffer_modes(in_use)
+        call read_modes(prompt_with_default("Filter by major mode", default), modes_table(in_use), default, .false., &
+                        modes, status)
+        if (status%ok()) call ibuffer_filter_by_used_mode(modes, status)
+    end subroutine cmd_ibuffer_filter_by_used_mode
+
+    recursive subroutine cmd_ibuffer_filter_by_derived_mode(status)
+        type(status_type), intent(out) :: status
+        character(len=IBUFFER_NAME_LEN), allocatable :: modes(:), in_use(:)
+        call ibuffer_list_buffer_modes(in_use, .true.)
+        call read_modes("Filter by derived mode: ", modes_table(in_use), "", .false., modes, status)
+        if (status%ok()) call ibuffer_filter_by_derived_mode(modes, status)
+    end subroutine cmd_ibuffer_filter_by_derived_mode
+
+    recursive subroutine cmd_ibuffer_filter_by_name(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: s
+        call read_from_minibuffer("Filter by name (regexp): ", s, status)
+        if (status%ok()) call ibuffer_filter_by_name(s, status)
+    end subroutine cmd_ibuffer_filter_by_name
+
+    recursive subroutine cmd_ibuffer_filter_by_process(status)
+        type(status_type), intent(out) :: status
+        call ibuffer_filter_by_process(status)
+    end subroutine cmd_ibuffer_filter_by_process
+
+    recursive subroutine cmd_ibuffer_filter_by_starred_name(status)
+        type(status_type), intent(out) :: status
+        call ibuffer_filter_by_starred_name(status)
+    end subroutine cmd_ibuffer_filter_by_starred_name
+
+    recursive subroutine cmd_ibuffer_filter_by_filename(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: s
+        call read_from_minibuffer("Filter by full file name (regexp): ", s, status)
+        if (status%ok()) call ibuffer_filter_by_filename(s, status)
+    end subroutine cmd_ibuffer_filter_by_filename
+
+    recursive subroutine cmd_ibuffer_filter_by_basename(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: s
+        call read_from_minibuffer("Filter by file name, without directory part (regex): ", s, status)
+        if (status%ok()) call ibuffer_filter_by_basename(s, status)
+    end subroutine cmd_ibuffer_filter_by_basename
+
+    recursive subroutine cmd_ibuffer_filter_by_file_extension(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: s
+        call read_from_minibuffer("Filter by filename extension without separator (regex): ", s, status)
+        if (status%ok()) call ibuffer_filter_by_file_extension(s, status)
+    end subroutine cmd_ibuffer_filter_by_file_extension
+
+    recursive subroutine cmd_ibuffer_filter_by_directory(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: s
+        call read_from_minibuffer("Filter by directory name (regex): ", s, status)
+        if (status%ok()) call ibuffer_filter_by_directory(s, status)
+    end subroutine cmd_ibuffer_filter_by_directory
+
+    ! (string-to-number S) for a size: its integer part (0 if S is not a
+    ! number).
+    integer(int64) function size_number(s) result(n)
+        character(len=*), intent(in) :: s
+        integer :: k
+        logical :: negative
+        n = 0
+        k = 1
+        do while (k <= len(s))
+            if (s(k:k) /= " " .and. s(k:k) /= achar(9)) exit
+            k = k + 1
+        end do
+        negative = .false.
+        if (k <= len(s)) then
+            if (s(k:k) == "-" .or. s(k:k) == "+") then
+                negative = s(k:k) == "-"
+                k = k + 1
+            end if
+        end if
+        do while (k <= len(s))
+            if (s(k:k) < "0" .or. s(k:k) > "9") exit
+            n = 10*n + (iachar(s(k:k)) - iachar("0"))
+            k = k + 1
+        end do
+        if (negative) n = -n
+    end function size_number
+
+    recursive subroutine cmd_ibuffer_filter_by_size_gt(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: s
+        call read_from_minibuffer("Filter by size greater than: ", s, status)
+        if (status%ok()) call ibuffer_filter_by_size_gt(size_number(s), status)
+    end subroutine cmd_ibuffer_filter_by_size_gt
+
+    recursive subroutine cmd_ibuffer_filter_by_size_lt(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: s
+        call read_from_minibuffer("Filter by size less than: ", s, status)
+        if (status%ok()) call ibuffer_filter_by_size_lt(size_number(s), status)
+    end subroutine cmd_ibuffer_filter_by_size_lt
+
+    recursive subroutine cmd_ibuffer_filter_by_modified(status)
+        type(status_type), intent(out) :: status
+        call ibuffer_filter_by_modified(status)
+    end subroutine cmd_ibuffer_filter_by_modified
+
+    recursive subroutine cmd_ibuffer_filter_by_visiting_file(status)
+        type(status_type), intent(out) :: status
+        call ibuffer_filter_by_visiting_file(status)
+    end subroutine cmd_ibuffer_filter_by_visiting_file
+
+    recursive subroutine cmd_ibuffer_filter_by_content(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: s
+        call read_from_minibuffer("Filter by content (regexp): ", s, status)
+        if (status%ok()) call ibuffer_filter_by_content(s, status)
+    end subroutine cmd_ibuffer_filter_by_content
+
+    !> Select and apply filter chosen by completion against available
+    !> filters.  Indicates corresponding key sequences in echo area after
+    !> filtering.
+    !>
+    !> The completion matches against the filter description text of
+    !> each filter in `ibuffer_filtering_alist'.  Port of
+    !> ibuf-ext.el:ibuffer-filter-chosen-by-completion.
+    recursive subroutine ibuffer_filter_chosen_by_completion(status)
+        type(status_type), intent(out) :: status
+        type(minibuffer_string_type), allocatable :: names(:)
+        type(value_type), allocatable :: events(:)
+        type(value_type) :: keys
+        character(len=:), allocatable :: match, command
+        character(len=32) :: buf
+        integer :: j, i
+        allocate (names(size(ibuffer_filtering_alist)))
+        do j = 1, size(names)
+            names(j)%s = trim(ibuffer_filtering_alist(j)%description)
+        end do
+        call completing_read("Filter by: ", names_table(names), match, status, require_match=REQUIRE_MATCH_T)
+        if (.not. status%ok()) return
+        i = 0
+        do j = 1, size(names)
+            if (names(j)%s == match) then
+                i = j
+                exit
+            end if
+        end do
+        if (i == 0) then
+            command = "ibuffer_filter_by_"
+        else
+            command = "ibuffer_filter_by_"//trim(ibuffer_filtering_alist(i)%name)
+        end if
+        call call_interactively(sym(command), status)
+        if (.not. status%ok()) return
+        ! (mapconcat #'key-description KEY "or "): the first key sequence
+        ! is a list of events, each given to key-description, which wants
+        ! a sequence.
+        call where_is_internal(sym(command), keys, .true., ibuffer_mode_map)
+        if (.not. nilp(keys)) then
+            call list_elements(keys, events)
+            if (size(events) > 0) then
+                if (fixnump(events(1))) then
+                    write (buf, "(i0)") xfixnum(events(1))
+                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "sequencep, "//trim(buf))
+                else
+                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "sequencep")
+                end if
+                return
+            end if
+        end if
+        call message(command//" can be run with key sequences: ")
+    end subroutine ibuffer_filter_chosen_by_completion
+
+    !> Enable or disable filtering by the major mode at point.  Port of
+    !> ibuf-ext.el:ibuffer-interactive-filter-by-mode.
+    recursive subroutine ibuffer_interactive_filter_by_mode(event_or_point, status)
+        integer(int64), intent(in) :: event_or_point
+        type(status_type), intent(out) :: status
+        type(ibuffer_filter_type), allocatable :: filters(:), kept(:)
+        type(handle_type) :: buf
+        type(status_type) :: st
+        logical :: pushed
+        integer :: j, n
+        call goto_char(event_or_point)
+        buf = ibuffer_current_buffer(st)
+        filters = ibuffer_filtering_qualifiers()
+        if (any([(filter_symbol(filters(j)) == "mode", j=1, size(filters))])) then
+            allocate (kept(size(filters)))
+            n = 0
+            do j = 1, size(filters)
+                if (filter_symbol(filters(j)) == "mode") cycle
+                n = n + 1
+                kept(n) = filters(j)
+            end do
+            call ibuffer_set_filtering_qualifiers(kept(1:n))
+        else
+            if (buf%index == 0) then
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "bufferp")
+                return
+            end if
+            pushed = ibuffer_push_filter(ibuffer_major_mode(major_mode_of(buf)))
+        end if
+        call ibuffer_update(status, .false., .true.)
+    end subroutine ibuffer_interactive_filter_by_mode
+
+    recursive subroutine cmd_ibuffer_interactive_filter_by_mode(status)
+        type(status_type), intent(out) :: status
+        call ibuffer_interactive_filter_by_mode(point(), status)
+    end subroutine cmd_ibuffer_interactive_filter_by_mode
+
+    !> Emulate `bs_show' from the bs.el package.  Port of
+    !> ibuf-ext.el:ibuffer-bs-show.
+    recursive subroutine ibuffer_bs_show(status)
+        type(status_type), intent(out) :: status
+        type(ibuffer_filter_type) :: files(1)
+        type(status_type) :: st
+        files(1) = ibuffer_filename(".*")
+        call ibuffer(status, other_window_p=.true., name="*Ibuffer-bs*", qualifiers=files, shrink=IBUFFER_SHRINK_T)
+        if (.not. status%ok()) return
+        call keymap_set(current_local_map(), "a", "ibuffer_bs_toggle_all", st)
+    end subroutine ibuffer_bs_show
+
+    !> Emulate `bs_toggle_show_all' from the bs.el package.  Port of
+    !> ibuf-ext.el:ibuffer-bs-toggle-all.
+    recursive subroutine ibuffer_bs_toggle_all(status)
+        type(status_type), intent(out) :: status
+        logical :: pushed
+        integer :: k
+        k = ibuffer_local_index(.true.)
+        if (size(locals(k)%qualifiers) > 0) then
+            call ibuffer_pop_filter(status)
+        else
+            pushed = ibuffer_push_filter(ibuffer_filename(".*"))
+            call ibuffer_update(status, .false., .true.)
+        end if
+    end subroutine ibuffer_bs_toggle_all
+
     module procedure syms_of_ibuf_ext
     type(status_type) :: st
     type(handle_type) :: m
@@ -1756,6 +3463,64 @@ contains
     call define_ibuffer_sorter("alphabetic", "buffer name", sort_alphabetic)
     call define_ibuffer_sorter("size", "size", sort_size)
     call define_ibuffer_sorter("filename/process", "file name", sort_filename_process)
+    call define_ibuffer_filter("mode", "major mode", filter_mode)
+    call define_ibuffer_filter("used_mode", "major mode in use", filter_mode)
+    call define_ibuffer_filter("derived_mode", "derived mode", filter_derived_mode)
+    call define_ibuffer_filter("name", "buffer name", filter_name)
+    call define_ibuffer_filter("process", "process", filter_process)
+    call define_ibuffer_filter("starred_name", "starred buffer name", filter_starred_name)
+    call define_ibuffer_filter("filename", "full file name", filter_filename)
+    call define_ibuffer_filter("basename", "file basename", filter_basename)
+    call define_ibuffer_filter("file_extension", "filename extension", filter_file_extension)
+    call define_ibuffer_filter("directory", "directory name", filter_directory)
+    call define_ibuffer_filter("size_gt", "size greater than", filter_size_gt)
+    call define_ibuffer_filter("size_lt", "size less than", filter_size_lt)
+    call define_ibuffer_filter("modified", "modified", filter_modified)
+    call define_ibuffer_filter("visiting_file", "visiting a file", filter_visiting_file)
+    call define_ibuffer_filter("content", "content", filter_content)
+    call define_ibuffer_filter("predicate", "predicate", filter_predicate)
+    commands%ibuffer_filter_by_mode%run => cmd_ibuffer_filter_by_mode
+    commands%ibuffer_filter_by_used_mode%run => cmd_ibuffer_filter_by_used_mode
+    commands%ibuffer_filter_by_derived_mode%run => cmd_ibuffer_filter_by_derived_mode
+    commands%ibuffer_filter_by_name%run => cmd_ibuffer_filter_by_name
+    commands%ibuffer_filter_by_process%run => cmd_ibuffer_filter_by_process
+    commands%ibuffer_filter_by_starred_name%run => cmd_ibuffer_filter_by_starred_name
+    commands%ibuffer_filter_by_filename%run => cmd_ibuffer_filter_by_filename
+    commands%ibuffer_filter_by_basename%run => cmd_ibuffer_filter_by_basename
+    commands%ibuffer_filter_by_file_extension%run => cmd_ibuffer_filter_by_file_extension
+    commands%ibuffer_filter_by_directory%run => cmd_ibuffer_filter_by_directory
+    commands%ibuffer_filter_by_size_gt%run => cmd_ibuffer_filter_by_size_gt
+    commands%ibuffer_filter_by_size_lt%run => cmd_ibuffer_filter_by_size_lt
+    commands%ibuffer_filter_by_modified%run => cmd_ibuffer_filter_by_modified
+    commands%ibuffer_filter_by_visiting_file%run => cmd_ibuffer_filter_by_visiting_file
+    commands%ibuffer_filter_by_content%run => cmd_ibuffer_filter_by_content
+    commands%ibuffer_filter_chosen_by_completion%run => ibuffer_filter_chosen_by_completion
+    commands%ibuffer_interactive_filter_by_mode%run => cmd_ibuffer_interactive_filter_by_mode
+    commands%ibuffer_filter_disable%run => cmd_ibuffer_filter_disable
+    commands%ibuffer_pop_filter%run => ibuffer_pop_filter
+    commands%ibuffer_decompose_filter%run => cmd_ibuffer_decompose_filter
+    commands%ibuffer_exchange_filters%run => cmd_ibuffer_exchange_filters
+    commands%ibuffer_negate_filter%run => cmd_ibuffer_negate_filter
+    commands%ibuffer_or_filter%run => cmd_ibuffer_or_filter
+    commands%ibuffer_and_filter%run => cmd_ibuffer_and_filter
+    commands%ibuffer_save_filters%run => cmd_ibuffer_save_filters
+    commands%ibuffer_delete_saved_filters%run => cmd_ibuffer_delete_saved_filters
+    commands%ibuffer_add_saved_filters%run => cmd_ibuffer_add_saved_filters
+    commands%ibuffer_switch_to_saved_filters%run => cmd_ibuffer_switch_to_saved_filters
+    commands%ibuffer_filters_to_filter_group%run => cmd_ibuffer_filters_to_filter_group
+    commands%ibuffer_set_filter_groups_by_mode%run => cmd_ibuffer_set_filter_groups_by_mode
+    commands%ibuffer_pop_filter_group%run => cmd_ibuffer_pop_filter_group
+    commands%ibuffer_decompose_filter_group%run => cmd_ibuffer_decompose_filter_group
+    commands%ibuffer_clear_filter_groups%run => cmd_ibuffer_clear_filter_groups
+    commands%ibuffer_kill_filter_group%run => cmd_ibuffer_kill_filter_group
+    commands%ibuffer_kill_line%run => ibuffer_kill_line
+    commands%ibuffer_yank%run => ibuffer_yank
+    commands%ibuffer_yank_filter_group%run => cmd_ibuffer_yank_filter_group
+    commands%ibuffer_save_filter_groups%run => cmd_ibuffer_save_filter_groups
+    commands%ibuffer_delete_saved_filter_groups%run => cmd_ibuffer_delete_saved_filter_groups
+    commands%ibuffer_switch_to_saved_filter_groups%run => cmd_ibuffer_switch_to_saved_filter_groups
+    commands%ibuffer_bs_show%run => ibuffer_bs_show
+    commands%ibuffer_bs_toggle_all%run => ibuffer_bs_toggle_all
     call minor_modes%ibuffer_auto_mode%define("ibuffer_auto_mode", body=ibuffer_auto_mode)
     commands%ibuffer_auto_mode%run => cmd_ibuffer_auto_mode
     commands%ibuffer_toggle_filter_group%run => ibuffer_toggle_filter_group
@@ -1832,6 +3597,47 @@ contains
     call keymap_set(m, "M-p", "ibuffer_backward_filter_group", st)
     call keymap_set(m, "<backtab>", "ibuffer_backward_filter_group", st)
     call keymap_set(m, "M-j", "ibuffer_jump_to_filter_group", st)
+    call keymap_set(m, "C-k", "ibuffer_kill_line", st)
+    call keymap_set(m, "C-y", "ibuffer_yank", st)
+    ! (ibuffer--filter-map)
+    call keymap_set(m, "/ RET", "ibuffer_filter_by_mode", st)
+    call keymap_set(m, "/ SPC", "ibuffer_filter_chosen_by_completion", st)
+    call keymap_set(m, "/ m", "ibuffer_filter_by_used_mode", st)
+    call keymap_set(m, "/ M", "ibuffer_filter_by_derived_mode", st)
+    call keymap_set(m, "/ n", "ibuffer_filter_by_name", st)
+    call keymap_set(m, "/ E", "ibuffer_filter_by_process", st)
+    call keymap_set(m, "/ *", "ibuffer_filter_by_starred_name", st)
+    call keymap_set(m, "/ f", "ibuffer_filter_by_filename", st)
+    call keymap_set(m, "/ F", "ibuffer_filter_by_directory", st)
+    call keymap_set(m, "/ b", "ibuffer_filter_by_basename", st)
+    call keymap_set(m, "/ .", "ibuffer_filter_by_file_extension", st)
+    call keymap_set(m, "/ <", "ibuffer_filter_by_size_lt", st)
+    call keymap_set(m, "/ >", "ibuffer_filter_by_size_gt", st)
+    call keymap_set(m, "/ i", "ibuffer_filter_by_modified", st)
+    call keymap_set(m, "/ v", "ibuffer_filter_by_visiting_file", st)
+    call keymap_set(m, "/ c", "ibuffer_filter_by_content", st)
+    call keymap_set(m, "/ r", "ibuffer_switch_to_saved_filters", st)
+    call keymap_set(m, "/ a", "ibuffer_add_saved_filters", st)
+    call keymap_set(m, "/ x", "ibuffer_delete_saved_filters", st)
+    call keymap_set(m, "/ d", "ibuffer_decompose_filter", st)
+    call keymap_set(m, "/ s", "ibuffer_save_filters", st)
+    call keymap_set(m, "/ p", "ibuffer_pop_filter", st)
+    call keymap_set(m, "/ <up>", "ibuffer_pop_filter", st)
+    call keymap_set(m, "/ !", "ibuffer_negate_filter", st)
+    call keymap_set(m, "/ t", "ibuffer_exchange_filters", st)
+    call keymap_set(m, "/ TAB", "ibuffer_exchange_filters", st)
+    call keymap_set(m, "/ o", "ibuffer_or_filter", st)
+    call keymap_set(m, "/ |", "ibuffer_or_filter", st)
+    call keymap_set(m, "/ &", "ibuffer_and_filter", st)
+    call keymap_set(m, "/ g", "ibuffer_filters_to_filter_group", st)
+    call keymap_set(m, "/ P", "ibuffer_pop_filter_group", st)
+    call keymap_set(m, "/ S-<up>", "ibuffer_pop_filter_group", st)
+    call keymap_set(m, "/ D", "ibuffer_decompose_filter_group", st)
+    call keymap_set(m, "/ /", "ibuffer_filter_disable", st)
+    call keymap_set(m, "/ S", "ibuffer_save_filter_groups", st)
+    call keymap_set(m, "/ R", "ibuffer_switch_to_saved_filter_groups", st)
+    call keymap_set(m, "/ X", "ibuffer_delete_saved_filter_groups", st)
+    call keymap_set(m, "/ \", "ibuffer_clear_filter_groups", st)
     call keymap_set(m, "% n", "ibuffer_mark_by_name_regexp", st)
     call keymap_set(m, "% m", "ibuffer_mark_by_mode_regexp", st)
     call keymap_set(m, "% f", "ibuffer_mark_by_file_name_regexp", st)

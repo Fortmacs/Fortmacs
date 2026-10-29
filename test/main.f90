@@ -124,6 +124,7 @@ program tester
     use test_bookmark_fm, only: collect_bookmark_fm
     use test_buff_menu_fm, only: collect_buff_menu_fm
     use test_ibuffer_fm, only: collect_ibuffer_fm
+    use test_ibuf_ext_fm, only: collect_ibuf_ext_fm
     use test_time_date_fm, only: collect_time_date_fm
     use test_mule_util_fm, only: collect_mule_util_fm
     use test_tabulated_list_fm, only: collect_tabulated_list_fm
@@ -235,6 +236,7 @@ program tester
                  new_testsuite("bookmark_fm", collect_bookmark_fm), &
                  new_testsuite("buff_menu_fm", collect_buff_menu_fm), &
                  new_testsuite("ibuffer_fm", collect_ibuffer_fm), &
+                 new_testsuite("ibuf_ext_fm", collect_ibuf_ext_fm), &
                  new_testsuite("time_date_fm", collect_time_date_fm), &
                  new_testsuite("mule_util_fm", collect_mule_util_fm), &
                  new_testsuite("tabulated_list_fm", collect_tabulated_list_fm) &

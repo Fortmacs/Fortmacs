@@ -102,6 +102,7 @@ module bindings_fm
     use bookmark_fm, only: syms_of_bookmark, bookmark_map, bookmark_minibuffer_read_name_map
     use buff_menu_fm, only: syms_of_buff_menu
     use ibuffer_fm, only: syms_of_ibuffer
+    use crm_fm, only: syms_of_crm
     use register_fm, only: syms_of_register
     use abbrev_fm, only: syms_of_abbrev, edit_abbrevs_mode_map
     use dabbrev_fm, only: syms_of_dabbrev
@@ -640,6 +641,7 @@ contains
         if (keymap_live_p(minibuffer_local_map)) call free_keymap(minibuffer_local_map, status)
         call init_minibuf()
         call syms_of_minibuffer()
+        call syms_of_crm()
         call syms_of_subr()
         call bind(minibuffer_local_map, "M-n", "next_history_element")
         call bind(minibuffer_local_map, "<next>", "next_history_element")

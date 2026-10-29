@@ -31,14 +31,12 @@
 !> submodule ibuf_ext_fm; ibuf-macs.el's definitions are the types of
 !> ibuf_macs_fm.
 !>
-!> Deferred: filtering and filter groups (ibuf-ext.el's filters, the
-!> `/' prefix map, `ibuffer_filter_format_alist', the QUALIFIERS and
-!> FILTER_GROUPS arguments of `ibuffer', FILES_ONLY of
-!> `ibuffer_list_buffers' and `ibuffer_other_window', the filters in the
-!> mode line and the header line; step 36c), the menus and mouse
-!> commands (`ibuffer_mouse_toggle_mark', `ibuffer_mouse_visit_buffer',
-!> `ibuffer_mouse_popup_menu', the header and name keymaps, help-echo),
-!> frames (`ibuffer_visit_buffer_other_frame', `ibuffer_do_view_other_frame'),
+!> Deferred: the menus and mouse commands (`ibuffer_mouse_toggle_mark',
+!> `ibuffer_mouse_visit_buffer', `ibuffer_mouse_popup_menu', the header
+!> and name keymaps, among them the mode name's (RET and mouse-2 run
+!> `ibuffer_interactive_filter_by_mode'), help-echo, the filter groups'
+!> help-echo with their filters), frames
+!> (`ibuffer_visit_buffer_other_frame', `ibuffer_do_view_other_frame'),
 !> `ibuffer_visit_tags_table' (etags.el), locked buffers (emacs-lock.el:
 !> the locked column is blank, `ibuffer_do_toggle_lock' and
 !> `ibuffer_mark_by_locked' do nothing), `ibuffer_customize' (cus-edit.el),
@@ -103,7 +101,13 @@ module ibuffer_fm
                             ibuffer_directory_abbrev_type, ibuffer_column_proc, ibuffer_summarizer_proc, &
                             ibuffer_sorter_proc, ibuffer_form_proc, IBUFFER_ALIGN_LEFT, IBUFFER_ALIGN_CENTER, &
                             IBUFFER_ALIGN_RIGHT, IBUFFER_OP_NIL, IBUFFER_OP_T, IBUFFER_OP_KILL, IBUFFER_MODIFIER_NIL, &
-                            IBUFFER_MODIFIER_T, IBUFFER_MODIFIER_MAYBE, IBUFFER_NAME_LEN
+                            IBUFFER_MODIFIER_T, IBUFFER_MODIFIER_MAYBE, IBUFFER_NAME_LEN, ibuffer_filter_type, &
+                            ibuffer_saved_filters_type, ibuffer_saved_filter_type, ibuffer_filter_groups_type, &
+                            ibuffer_saved_filter_groups_type, ibuffer_filter_def_type, ibuffer_filter_formats_type, &
+                            ibuffer_filter_format_type, ibuffer_or, ibuffer_and, ibuffer_not, ibuffer_major_mode, &
+                            ibuffer_derived_mode, ibuffer_starred_name, ibuffer_filename, ibuffer_buffer_predicate_proc, &
+                            ibuffer_filter_test_proc, IBUFFER_FILTER_SIMPLE, IBUFFER_FILTER_NOT, IBUFFER_FILTER_AND, &
+                            IBUFFER_FILTER_OR, IBUFFER_FILTER_SAVED
     implicit none(type, external)
     private
 
@@ -121,11 +125,26 @@ module ibuffer_fm
               ibuffer_operate, ibuffer_confirm_operation_on, ibuffer_buffer_file_name, ibuffer_save_marks_begin, &
               ibuffer_save_marks_end, ibuffer_state_type, syms_of_ibuffer
     public :: define_ibuffer_column, define_ibuffer_sorter, ibuffer_do_sort_by
+    public :: define_ibuffer_filter, ibuffer_included_in_filters_p, ibuffer_included_in_filter_p, ibuffer_unary_operand, &
+              ibuffer_format_qualifier, ibuffer_push_filter, ibuffer_filter_disable, ibuffer_pop_filter, &
+              ibuffer_decompose_filter, ibuffer_exchange_filters, ibuffer_negate_filter, ibuffer_or_filter, &
+              ibuffer_and_filter, ibuffer_save_filters, ibuffer_delete_saved_filters, ibuffer_add_saved_filters, &
+              ibuffer_switch_to_saved_filters, ibuffer_filters_to_filter_group, ibuffer_set_filter_groups_by_mode, &
+              ibuffer_pop_filter_group, ibuffer_decompose_filter_group, ibuffer_clear_filter_groups, &
+              ibuffer_kill_filter_group, ibuffer_yank_filter_group, ibuffer_save_filter_groups, &
+              ibuffer_delete_saved_filter_groups, ibuffer_switch_to_saved_filter_groups, ibuffer_filter_by_mode, &
+              ibuffer_filter_by_used_mode, ibuffer_filter_by_derived_mode, ibuffer_filter_by_name, &
+              ibuffer_filter_by_process, ibuffer_filter_by_starred_name, ibuffer_filter_by_filename, &
+              ibuffer_filter_by_basename, ibuffer_filter_by_file_extension, ibuffer_filter_by_directory, &
+              ibuffer_filter_by_size_gt, ibuffer_filter_by_size_lt, ibuffer_filter_by_modified, &
+              ibuffer_filter_by_visiting_file, ibuffer_filter_by_content, ibuffer_filter_by_predicate, &
+              ibuffer_list_buffer_modes, ibuffer_filtering_qualifiers, ibuffer_set_filtering_qualifiers, &
+              ibuffer_filter_groups, ibuffer_set_filter_groups
     ! (Public for the submodule ibuf_ext_fm: gfortran emits no private
     ! procedure that only a submodule uses.)
     public :: buf_matches_predicates, buf_matches_regexps, form_compressed, has_prop, has_string_prop, &
               ibuffer_abbreviate_file_name, ibuffer_set_mark_1, jump_to_buffer_by_name, line_serial, map_marked_lines, &
-              mode_name_of, serial_buffer, string_prop, update_mode_line_process, ibuffer_local_index
+              mode_name_of, serial_buffer, string_prop, update_mode_line_process, ibuffer_local_index, filter_symbol
     public :: ibuffer_column, ibuffer_text
 
     ! The values of `ibuffer_always_show_last_buffer'.
@@ -413,6 +432,53 @@ module ibuffer_fm
     !> Port of ibuf-ext.el ibuffer-show-empty-filter-groups.
     logical, public :: ibuffer_show_empty_filter_groups = .true.
 
+    !> The saved filters: each a name and filter specifications.
+    !>
+    !> The filters defined here are joined with an implicit logical `and'
+    !> and associated with NAME.  The combined specification can be used
+    !> by name in other filter specifications via `ibuffer_saved'.  They
+    !> can also be switched to by name (see the functions
+    !> `ibuffer_switch_to_saved_filters' and `ibuffer_save_filters').  The
+    !> variable `ibuffer_save_with_custom' affects how this information is
+    !> saved for future sessions.  Add one with
+    !> `ibuffer_saved_filters%add(NAME, F1, F2, ...)'.  Port of ibuf-ext.el
+    !> ibuffer-saved-filters.
+    type(ibuffer_saved_filters_type), public :: ibuffer_saved_filters
+
+    !> The saved sets of filter groups to switch between: each a unique
+    !> but arbitrary name and filter groups with the same structure as
+    !> `ibuffer_filter_groups'.
+    !>
+    !> See also the functions `ibuffer_save_filter_groups' and
+    !> `ibuffer_switch_to_saved_filter_groups' for saving and switching
+    !> between sets of filter groups, and the variable
+    !> `ibuffer_save_with_custom' that affects how this information is
+    !> saved.  Port of ibuf-ext.el ibuffer-saved-filter-groups.
+    type(ibuffer_saved_filter_groups_type), public :: ibuffer_saved_filter_groups
+
+    !> The filters: each a name, a description, and the test of a buffer.
+    !>
+    !> You most likely do not want to modify this variable directly; see
+    !> `define_ibuffer_filter'.  Port of ibuf-ext.el ibuffer-filtering-alist.
+    type(ibuffer_filter_def_type), allocatable, public :: ibuffer_filtering_alist(:)
+
+    !> Special formats used when a filter is active.
+    !>
+    !> For example, suppose that when you add a filter for buffers whose
+    !> major mode is `text_mode', you only want to see the mark and the
+    !> name of the buffer.  You could accomplish that by adding
+    !> `call fmts%add([ibuffer_column("mark"), ibuffer_text(" "),
+    !> ibuffer_column("name")])' and `call
+    !> ibuffer_filter_format_alist%add("mode", fmts)'.  Port of ibuf-ext.el
+    !> ibuffer-filter-format-alist.
+    type(ibuffer_filter_formats_type), public :: ibuffer_filter_format_alist
+
+    !> If true, then use Custom to save interactively changed variables.
+    !> Currently, this only applies to `ibuffer_saved_filters' and
+    !> `ibuffer_saved_filter_groups'.  Port of ibuf-ext.el
+    !> ibuffer-save-with-custom.
+    logical, public :: ibuffer_save_with_custom = .true.
+
     !> Keymap for `ibuffer_mode'.  Port of ibuffer.el ibuffer-mode-map.
     type(handle_type), public :: ibuffer_mode_map
 
@@ -464,6 +530,12 @@ module ibuffer_fm
         character(len=256), allocatable :: tmp_hide(:), tmp_show(:)
         ! ibuffer-hidden-filter-groups.
         character(len=256), allocatable :: hidden_groups(:)
+        ! ibuffer-filtering-qualifiers (the top of the stack first),
+        ! ibuffer-filter-groups, ibuffer-filter-group-kill-ring (the last
+        ! killed first).
+        type(ibuffer_filter_type), allocatable :: qualifiers(:)
+        type(ibuffer_filter_groups_type) :: filter_groups
+        type(ibuffer_saved_filter_type), allocatable :: group_kill_ring(:)
         ! A buffer-local `ibuffer_formats' (the FORMATS of `ibuffer').
         logical :: has_formats = .false.
         type(ibuffer_formats_type) :: formats
@@ -506,23 +578,337 @@ module ibuffer_fm
     interface
         !> Whether BUF should be shown (ibuffer-ext-visible-p).  (In
         !> ibuf_ext_fm.)
-        recursive module logical function ibuffer_ext_visible_p(buf, all, ibuffer_buf) result(visible)
+        recursive module logical function ibuffer_ext_visible_p(buf, all, ibuffer_buf, status) result(visible)
             implicit none(type, external)
             type(handle_type), intent(in) :: buf, ibuffer_buf
             logical, intent(in) :: all
+            type(status_type), intent(out) :: status
         end function ibuffer_ext_visible_p
 
         !> Divide BMARKLIST into the filter groups: their NAMES (in reverse
         !> order, as upstream returns them) and the buffers of each,
         !> GROUP_OF(k) being the index in NAMES of the group of entry k
-        !> (0 for none).  Port of ibuf-ext.el:ibuffer-generate-filter-groups.
-        !> (In ibuf_ext_fm.)
-        recursive module subroutine ibuffer_generate_filter_groups(bmarklist, names, group_of)
+        !> (0 for none).  NOEMPTY leaves out the empty groups, NODEFAULT
+        !> the group "Default".  Port of
+        !> ibuf-ext.el:ibuffer-generate-filter-groups.  (In ibuf_ext_fm.)
+        recursive module subroutine ibuffer_generate_filter_groups(bmarklist, names, group_of, status, noempty, &
+                                                                   nodefault)
             implicit none(type, external)
             type(ibuffer_state_type), intent(in) :: bmarklist(:)
             character(len=256), allocatable, intent(out) :: names(:)
             integer, allocatable, intent(out) :: group_of(:)
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: noempty, nodefault
         end subroutine ibuffer_generate_filter_groups
+
+        !> Return true if BUF passes all FILTERS.
+        !>
+        !> BUF is a buffer, and FILTERS is a list of filter specifications
+        !> with the same structure as `ibuffer_filtering_qualifiers'.  Port
+        !> of ibuf-ext.el:ibuffer-included-in-filters-p.  (In ibuf_ext_fm.)
+        recursive module logical function ibuffer_included_in_filters_p(buf, filters, status) result(included)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buf
+            type(ibuffer_filter_type), intent(in) :: filters(:)
+            type(status_type), intent(out) :: status
+        end function ibuffer_included_in_filters_p
+
+        !> Return true if BUF pass FILTER.
+        !>
+        !> BUF is a buffer, and FILTER is a filter specification, with the
+        !> same structure as an element of the list
+        !> `ibuffer_filtering_qualifiers'.  Port of
+        !> ibuf-ext.el:ibuffer-included-in-filter-p.  (In ibuf_ext_fm.)
+        recursive module logical function ibuffer_included_in_filter_p(buf, filter, status) result(included)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buf
+            type(ibuffer_filter_type), intent(in) :: filter
+            type(status_type), intent(out) :: status
+        end function ibuffer_included_in_filter_p
+
+        !> Extract operand from a unary compound FILTER specification
+        !> (`ibuffer_not').  Port of ibuf-ext.el:ibuffer-unary-operand.  (In
+        !> ibuf_ext_fm.)
+        module function ibuffer_unary_operand(filter) result(operand)
+            implicit none(type, external)
+            type(ibuffer_filter_type), intent(in) :: filter
+            type(ibuffer_filter_type) :: operand
+        end function ibuffer_unary_operand
+
+        !> The text of the filter specification QUALIFIER, as shown in the
+        !> mode line: " [DESCRIPTION: QUALIFIER]".  Port of
+        !> ibuf-ext.el:ibuffer-format-qualifier.  (In ibuf_ext_fm.)
+        recursive module function ibuffer_format_qualifier(qualifier) result(s)
+            implicit none(type, external)
+            type(ibuffer_filter_type), intent(in) :: qualifier
+            character(len=:), allocatable :: s
+        end function ibuffer_format_qualifier
+
+        !> Add FILTER_SPECIFICATION to `ibuffer_filtering_qualifiers'.
+        !> If FILTER_SPECIFICATION is already in the list then return false.
+        !> Otherwise, return true.  Port of ibuf-ext.el:ibuffer-push-filter.
+        !> (In ibuf_ext_fm.)
+        module logical function ibuffer_push_filter(filter_specification) result(pushed)
+            implicit none(type, external)
+            type(ibuffer_filter_type), intent(in) :: filter_specification
+        end function ibuffer_push_filter
+
+        !> Disable all filters currently in effect in this buffer.
+        !> With optional arg DELETE_FILTER_GROUPS true, delete all filter
+        !> group definitions by setting `ibuffer_filter_groups' to empty.
+        !> Port of ibuf-ext.el:ibuffer-filter-disable.  (In ibuf_ext_fm.)
+        recursive module subroutine ibuffer_filter_disable(status, delete_filter_groups)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: delete_filter_groups
+        end subroutine ibuffer_filter_disable
+
+        !> Remove the top filter in this buffer.  Port of
+        !> ibuf-ext.el:ibuffer-pop-filter.  (In ibuf_ext_fm.)
+        recursive module subroutine ibuffer_pop_filter(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine ibuffer_pop_filter
+
+        !> Separate this buffer's top compound filter (AND, OR, NOT, or
+        !> SAVED).
+        !>
+        !> This means that the topmost filter on the filtering stack, which
+        !> must be a complex filter like (OR [name: foo] [mode: bar_mode]),
+        !> will be turned into separate filters, like [name: foo] and [mode:
+        !> bar_mode].  Port of ibuf-ext.el:ibuffer-decompose-filter.  (In
+        !> ibuf_ext_fm.)
+        recursive module subroutine ibuffer_decompose_filter(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine ibuffer_decompose_filter
+
+        !> Exchange the top two filters on the stack in this buffer.  Port of
+        !> ibuf-ext.el:ibuffer-exchange-filters.  (In ibuf_ext_fm.)
+        recursive module subroutine ibuffer_exchange_filters(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine ibuffer_exchange_filters
+
+        !> Negate the sense of the top filter in the current buffer.  Port of
+        !> ibuf-ext.el:ibuffer-negate-filter.  (In ibuf_ext_fm.)
+        recursive module subroutine ibuffer_negate_filter(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine ibuffer_negate_filter
+
+        !> Replace the top two filters in this buffer with their logical
+        !> OR.  If optional argument DECOMPOSE is true, instead break the
+        !> top OR filter into parts.  Port of ibuf-ext.el:ibuffer-or-filter.
+        !> (In ibuf_ext_fm.)
+        recursive module subroutine ibuffer_or_filter(status, decompose)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: decompose
+        end subroutine ibuffer_or_filter
+
+        !> Replace the top two filters in this buffer with their logical
+        !> AND.  If optional argument DECOMPOSE is true, instead break the
+        !> top AND filter into parts.  Port of
+        !> ibuf-ext.el:ibuffer-and-filter.  (In ibuf_ext_fm.)
+        recursive module subroutine ibuffer_and_filter(status, decompose)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: decompose
+        end subroutine ibuffer_and_filter
+
+        !> Save FILTERS in this buffer with name NAME in
+        !> `ibuffer_saved_filters'.  Interactively, prompt for NAME, and use
+        !> the current filters.  Port of ibuf-ext.el:ibuffer-save-filters.
+        !> (In ibuf_ext_fm.)
+        recursive module subroutine ibuffer_save_filters(name, filters, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: name
+            type(ibuffer_filter_type), intent(in) :: filters(:)
+            type(status_type), intent(out) :: status
+        end subroutine ibuffer_save_filters
+
+        !> Delete saved filters with NAME from `ibuffer_saved_filters'.
+        !> Port of ibuf-ext.el:ibuffer-delete-saved-filters.  (In
+        !> ibuf_ext_fm.)
+        recursive module subroutine ibuffer_delete_saved_filters(name, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: name
+            type(status_type), intent(out) :: status
+        end subroutine ibuffer_delete_saved_filters
+
+        !> Add saved filters from `ibuffer_saved_filters' to this buffer's
+        !> filters.  Port of ibuf-ext.el:ibuffer-add-saved-filters.  (In
+        !> ibuf_ext_fm.)
+        recursive module subroutine ibuffer_add_saved_filters(name, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: name
+            type(status_type), intent(out) :: status
+        end subroutine ibuffer_add_saved_filters
+
+        !> Set this buffer's filters to filters with NAME from
+        !> `ibuffer_saved_filters'.  Port of
+        !> ibuf-ext.el:ibuffer-switch-to-saved-filters.  (In ibuf_ext_fm.)
+        recursive module subroutine ibuffer_switch_to_saved_filters(name, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: name
+            type(status_type), intent(out) :: status
+        end subroutine ibuffer_switch_to_saved_filters
+
+        !> Make the current filters into a filtering group.  Port of
+        !> ibuf-ext.el:ibuffer-filters-to-filter-group.  (In ibuf_ext_fm.)
+        recursive module subroutine ibuffer_filters_to_filter_group(name, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: name
+            type(status_type), intent(out) :: status
+        end subroutine ibuffer_filters_to_filter_group
+
+        !> Set the current filter groups to filter by mode.  Port of
+        !> ibuf-ext.el:ibuffer-set-filter-groups-by-mode.  (In ibuf_ext_fm.)
+        recursive module subroutine ibuffer_set_filter_groups_by_mode(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine ibuffer_set_filter_groups_by_mode
+
+        !> Remove the first filter group.  Port of
+        !> ibuf-ext.el:ibuffer-pop-filter-group.  (In ibuf_ext_fm.)
+        recursive module subroutine ibuffer_pop_filter_group(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine ibuffer_pop_filter_group
+
+        !> Decompose the filter group GROUP into active filters.  Port of
+        !> ibuf-ext.el:ibuffer-decompose-filter-group.  (In ibuf_ext_fm.)
+        recursive module subroutine ibuffer_decompose_filter_group(group, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: group
+            type(status_type), intent(out) :: status
+        end subroutine ibuffer_decompose_filter_group
+
+        !> Remove all filter groups.  Port of
+        !> ibuf-ext.el:ibuffer-clear-filter-groups.  (In ibuf_ext_fm.)
+        recursive module subroutine ibuffer_clear_filter_groups(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine ibuffer_clear_filter_groups
+
+        !> Kill the filter group named NAME.
+        !> The group will be added to `ibuffer_filter_group_kill_ring'.
+        !> Port of ibuf-ext.el:ibuffer-kill-filter-group.  (In ibuf_ext_fm.)
+        recursive module subroutine ibuffer_kill_filter_group(name, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: name
+            type(status_type), intent(out) :: status
+        end subroutine ibuffer_kill_filter_group
+
+        !> Yank the last killed filter group before group named NAME.  Port
+        !> of ibuf-ext.el:ibuffer-yank-filter-group.  (In ibuf_ext_fm.)
+        recursive module subroutine ibuffer_yank_filter_group(name, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: name
+            type(status_type), intent(out) :: status
+        end subroutine ibuffer_yank_filter_group
+
+        !> Save all active filter groups GROUPS as NAME.
+        !> They are added to `ibuffer_saved_filter_groups'.  Interactively,
+        !> prompt for NAME, and use the current filters.  Port of
+        !> ibuf-ext.el:ibuffer-save-filter-groups.  (In ibuf_ext_fm.)
+        recursive module subroutine ibuffer_save_filter_groups(name, groups, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: name
+            type(ibuffer_filter_groups_type), intent(in) :: groups
+            type(status_type), intent(out) :: status
+        end subroutine ibuffer_save_filter_groups
+
+        !> Delete saved filter groups with NAME.
+        !> They are removed from `ibuffer_saved_filter_groups'.  Port of
+        !> ibuf-ext.el:ibuffer-delete-saved-filter-groups.  (In ibuf_ext_fm.)
+        recursive module subroutine ibuffer_delete_saved_filter_groups(name, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: name
+            type(status_type), intent(out) :: status
+        end subroutine ibuffer_delete_saved_filter_groups
+
+        !> Set this buffer's filter groups to saved version with NAME.
+        !> The value from `ibuffer_saved_filter_groups' is used.  Port of
+        !> ibuf-ext.el:ibuffer-switch-to-saved-filter-groups.  (In
+        !> ibuf_ext_fm.)
+        recursive module subroutine ibuffer_switch_to_saved_filter_groups(name, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: name
+            type(status_type), intent(out) :: status
+        end subroutine ibuffer_switch_to_saved_filter_groups
+
+        !> Limit current view to buffers with major mode(s) specified by
+        !> QUALIFIER.  QUALIFIER is the mode name or a list of names.
+        !> Called interactively, accept a comma separated list of mode
+        !> names.  Port of ibuf-ext.el:ibuffer-filter-by-mode.  (In
+        !> ibuf_ext_fm.)
+        recursive module subroutine ibuffer_filter_by_mode(qualifier, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: qualifier(:)
+            type(status_type), intent(out) :: status
+        end subroutine ibuffer_filter_by_mode
+
+        !> Limit current view to buffers with major mode(s) specified by
+        !> QUALIFIER.  QUALIFIER is the mode name or a list of names.
+        !>
+        !> Called interactively, accept a comma separated list of mode names
+        !> currently used by buffers.  Port of
+        !> ibuf-ext.el:ibuffer-filter-by-used-mode.  (In ibuf_ext_fm.)
+        recursive module subroutine ibuffer_filter_by_used_mode(qualifier, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: qualifier(:)
+            type(status_type), intent(out) :: status
+        end subroutine ibuffer_filter_by_used_mode
+
+        !> Limit current view to buffers with major mode(s) specified by
+        !> QUALIFIER.  QUALIFIER is the mode name or a list of names.
+        !>  Restrict the view to buffers whose major mode derivates
+        !>  from modes specified by QUALIFIER.
+        !> Called interactively, accept a comma separated list of mode
+        !> names.  Port of ibuf-ext.el:ibuffer-filter-by-derived-mode.  (In
+        !> ibuf_ext_fm.)
+        recursive module subroutine ibuffer_filter_by_derived_mode(qualifier, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: qualifier(:)
+            type(status_type), intent(out) :: status
+        end subroutine ibuffer_filter_by_derived_mode
+
+        !> Apply the simple filter NAME with the string QUALIFIER, the
+        !> integer NUMBER or no qualifier: `ibuffer_filter_by_name',
+        !> `ibuffer_filter_by_process', `ibuffer_filter_by_starred_name',
+        !> `ibuffer_filter_by_filename', `ibuffer_filter_by_basename',
+        !> `ibuffer_filter_by_file_extension', `ibuffer_filter_by_directory',
+        !> `ibuffer_filter_by_size_gt', `ibuffer_filter_by_size_lt',
+        !> `ibuffer_filter_by_modified', `ibuffer_filter_by_visiting_file' and
+        !> `ibuffer_filter_by_content' (the commands
+        !> ibuf-macs.el:define-ibuffer-filter defines).  (In ibuf_ext_fm.)
+        recursive module subroutine ibuffer_filter_by(name, status, qualifier, number)
+            implicit none(type, external)
+            character(len=*), intent(in) :: name
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: qualifier
+            integer(int64), intent(in), optional :: number
+        end subroutine ibuffer_filter_by
+
+        !> Limit current view to buffers for which QUALIFIER returns true.
+        !> Port of ibuf-ext.el:ibuffer-filter-by-predicate.  (In
+        !> ibuf_ext_fm.)
+        recursive module subroutine ibuffer_filter_by_predicate(qualifier, status)
+            implicit none(type, external)
+            procedure(ibuffer_buffer_predicate_proc) :: qualifier
+            type(status_type), intent(out) :: status
+        end subroutine ibuffer_filter_by_predicate
+
+        !> Create a completion table of buffer modes currently in use.
+        !> If INCLUDE_PARENTS is true then include parent modes.  Port of
+        !> ibuf-ext.el:ibuffer-list-buffer-modes.  (In ibuf_ext_fm.)
+        module subroutine ibuffer_list_buffer_modes(modes, include_parents)
+            implicit none(type, external)
+            character(len=IBUFFER_NAME_LEN), allocatable, intent(out) :: modes(:)
+            logical, intent(in), optional :: include_parents
+        end subroutine ibuffer_list_buffer_modes
 
         !> Define ibuf-ext.el's commands, sorting methods and keys.  (In
         !> ibuf_ext_fm.)
@@ -574,6 +960,7 @@ contains
         locals(k)%sorting_mode = ""
         locals(k)%last_sorting_mode = ""
         allocate (locals(k)%tmp_hide(0), locals(k)%tmp_show(0), locals(k)%hidden_groups(0))
+        allocate (locals(k)%qualifiers(0), locals(k)%filter_groups%groups(0), locals(k)%group_kill_ring(0))
     end subroutine init_local
 
     ! kill-all-local-variables: forget the Ibuffer state.
@@ -584,13 +971,86 @@ contains
         locals(k) = local_type(serial=-1)
     end subroutine kill_ibuffer_locals
 
+    !> The filters currently acting on the buffer list of the current
+    !> Ibuffer buffer (empty if no filters are in effect): the top of the
+    !> stack first.  All of the specified filters in the list are applied
+    !> successively to the buffer list.
+    !>
+    !> Each filter specification can be simple, such as
+    !> `ibuffer_major_mode("text_mode")', or compound: `ibuffer_not(F)',
+    !> `ibuffer_and(F1, F2, ...)', `ibuffer_or(F1, F2, ...)' and
+    !> `ibuffer_saved(NAME)' (the filter saved under the string NAME in
+    !> `ibuffer_saved_filters'; it is an error to name a filter that has
+    !> not been saved).
+    !>
+    !> This variable is local to each ibuffer buffer.  Port of
+    !> ibuf-ext.el ibuffer-filtering-qualifiers (read).
+    function ibuffer_filtering_qualifiers() result(filters)
+        type(ibuffer_filter_type), allocatable :: filters(:)
+        integer :: k
+        k = ibuffer_local_index(.true.)
+        allocate (filters(size(locals(k)%qualifiers)))
+        filters = locals(k)%qualifiers
+    end function ibuffer_filtering_qualifiers
+
+    !> Set `ibuffer_filtering_qualifiers' of the current Ibuffer buffer to
+    !> FILTERS.  Port of ibuf-ext.el ibuffer-filtering-qualifiers (set).
+    subroutine ibuffer_set_filtering_qualifiers(filters)
+        type(ibuffer_filter_type), intent(in) :: filters(:)
+        integer :: k
+        k = ibuffer_local_index(.true.)
+        deallocate (locals(k)%qualifiers)
+        allocate (locals(k)%qualifiers(size(filters)))
+        locals(k)%qualifiers = filters
+    end subroutine ibuffer_set_filtering_qualifiers
+
+    !> The current Ibuffer buffer's active filter groups (none if empty).
+    !>
+    !> Each group has a label and one or more filter specifications of
+    !> the same form as allowed as elements of
+    !> `ibuffer_filtering_qualifiers'.
+    !>
+    !> Each filter group is displayed as a separate section in the
+    !> ibuffer list, headed by LABEL and displaying only the buffers
+    !> that pass through all the filters associated with NAME in this
+    !> list.  Port of ibuf-ext.el ibuffer-filter-groups (read).
+    function ibuffer_filter_groups() result(groups)
+        type(ibuffer_filter_groups_type) :: groups
+        integer :: k
+        k = ibuffer_local_index(.true.)
+        groups = locals(k)%filter_groups
+    end function ibuffer_filter_groups
+
+    !> Set `ibuffer_filter_groups' of the current Ibuffer buffer to
+    !> GROUPS.  Port of ibuf-ext.el ibuffer-filter-groups (set).
+    subroutine ibuffer_set_filter_groups(groups)
+        type(ibuffer_filter_groups_type), intent(in) :: groups
+        integer :: k
+        k = ibuffer_local_index(.true.)
+        locals(k)%filter_groups = groups
+        if (.not. allocated(locals(k)%filter_groups%groups)) allocate (locals(k)%filter_groups%groups(0))
+    end subroutine ibuffer_set_filter_groups
+
     ! The current buffer's formats (the buffer-local `ibuffer_formats' if
     ! set).
     function formats_of() result(f)
         type(ibuffer_formats_type) :: f
-        integer :: k
+        integer :: k, j, found, i
         k = ibuffer_local_index(.false.)
         if (k > 0) then
+            ! ibuffer-active-formats-name: the formats of the last filter in
+            ! `ibuffer_filter_format_alist'.
+            found = 0
+            if (allocated(ibuffer_filter_format_alist%entries)) then
+                do j = 1, size(locals(k)%qualifiers)
+                    i = ibuffer_filter_format_alist%find(filter_symbol(locals(k)%qualifiers(j)))
+                    if (i > 0) found = i
+                end do
+            end if
+            if (found > 0) then
+                f = ibuffer_filter_format_alist%entries(found)%formats
+                return
+            end if
             if (locals(k)%has_formats) then
                 f = locals(k)%formats
                 return
@@ -598,6 +1058,28 @@ contains
         end if
         f = ibuffer_formats
     end function formats_of
+
+    ! (car FILTER): the name of a simple filter, else "not", "and", "or"
+    ! or "saved".
+    function filter_symbol(filter) result(name)
+        type(ibuffer_filter_type), intent(in) :: filter
+        character(len=:), allocatable :: name
+        name = ""
+        if (.not. allocated(filter%nodes)) return
+        if (size(filter%nodes) == 0) return
+        select case (filter%nodes(1)%kind)
+        case (IBUFFER_FILTER_NOT)
+            name = "not"
+        case (IBUFFER_FILTER_AND)
+            name = "and"
+        case (IBUFFER_FILTER_OR)
+            name = "or"
+        case (IBUFFER_FILTER_SAVED)
+            name = "saved"
+        case default
+            name = trim(filter%nodes(1)%name)
+        end select
+    end function filter_symbol
 
     ! ------------------------------------------------------------------
     ! Text properties of the lines
@@ -2457,13 +2939,15 @@ contains
     end function buf_matches_regexps
 
     ! ibuffer-filter-buffers.
-    recursive subroutine filter_buffers(ibuffer_buf, last, bmarklist, all, result)
+    recursive subroutine filter_buffers(ibuffer_buf, last, bmarklist, all, result, status)
         type(handle_type), intent(in) :: ibuffer_buf, last
         type(ibuffer_state_type), intent(in) :: bmarklist(:)
         logical, intent(in) :: all
         type(ibuffer_state_type), allocatable, intent(out) :: result(:)
+        type(status_type), intent(out) :: status
         integer :: k, n
         logical :: keep
+        status = status_type()
         allocate (result(size(bmarklist)))
         n = 0
         do k = 1, size(bmarklist)
@@ -2472,7 +2956,10 @@ contains
             if (ibuffer_always_show_last_buffer /= IBUFFER_SHOW_LAST_NEVER .and. last%index /= 0) then
                 keep = last%index == bmarklist(k)%buffer%index
             end if
-            if (.not. keep) keep = ibuffer_ext_visible_p(bmarklist(k)%buffer, all, ibuffer_buf)
+            if (.not. keep) then
+                keep = ibuffer_ext_visible_p(bmarklist(k)%buffer, all, ibuffer_buf, status)
+                if (.not. status%ok()) return
+            end if
             if (keep) then
                 n = n + 1
                 result(n) = bmarklist(k)
@@ -2863,6 +3350,139 @@ contains
         ibuffer_sorting_functions(k)%less => less
     end subroutine define_ibuffer_sorter
 
+    !> Define a filter named NAME.
+    !> DESCRIPTION is a short string describing the filter.
+    !>
+    !> TEST should return whether a particular buffer should be displayed
+    !> or not, given the buffer and the qualifier of the filter
+    !> specification.  (The command `ibuffer_filter_by_NAME' that applies
+    !> it is a separate procedure, made with `ibuffer_filter_by'.)  Port of
+    !> ibuf-macs.el:define-ibuffer-filter.
+    subroutine define_ibuffer_filter(name, description, test)
+        character(len=*), intent(in) :: name, description
+        procedure(ibuffer_filter_test_proc) :: test
+        type(ibuffer_filter_def_type), allocatable :: grown(:)
+        integer :: n
+        if (.not. allocated(ibuffer_filtering_alist)) allocate (ibuffer_filtering_alist(0))
+        n = size(ibuffer_filtering_alist)
+        allocate (grown(n + 1))
+        grown(2:n + 1) = ibuffer_filtering_alist
+        ! (Pushed onto the alist.)
+        grown(1)%name = name
+        grown(1)%description = description
+        grown(1)%test => test
+        call move_alloc(grown, ibuffer_filtering_alist)
+    end subroutine define_ibuffer_filter
+
+    !> Limit current view to buffers with name matching QUALIFIER.  Port of
+    !> ibuf-ext.el:ibuffer-filter-by-name.
+    recursive subroutine ibuffer_filter_by_name(qualifier, status)
+        character(len=*), intent(in) :: qualifier
+        type(status_type), intent(out) :: status
+        call ibuffer_filter_by("name", status, qualifier=qualifier)
+    end subroutine ibuffer_filter_by_name
+
+    !> Limit current view to buffers running a process.  Port of
+    !> ibuf-ext.el:ibuffer-filter-by-process.
+    recursive subroutine ibuffer_filter_by_process(status)
+        type(status_type), intent(out) :: status
+        call ibuffer_filter_by("process", status)
+    end subroutine ibuffer_filter_by_process
+
+    !> Limit current view to buffers with name beginning and ending
+    !> with *, along with an optional suffix of the form digits or
+    !> <digits>.  Port of ibuf-ext.el:ibuffer-filter-by-starred-name.
+    recursive subroutine ibuffer_filter_by_starred_name(status)
+        type(status_type), intent(out) :: status
+        call ibuffer_filter_by("starred_name", status)
+    end subroutine ibuffer_filter_by_starred_name
+
+    !> Limit current view to buffers with full file name matching
+    !> QUALIFIER.
+    !>
+    !> For example, for a buffer associated with file '/a/b/c.d', this
+    !> matches against '/a/b/c.d'.  Port of
+    !> ibuf-ext.el:ibuffer-filter-by-filename.
+    recursive subroutine ibuffer_filter_by_filename(qualifier, status)
+        character(len=*), intent(in) :: qualifier
+        type(status_type), intent(out) :: status
+        call ibuffer_filter_by("filename", status, qualifier=qualifier)
+    end subroutine ibuffer_filter_by_filename
+
+    !> Limit current view to buffers with file basename matching
+    !> QUALIFIER.
+    !>
+    !> For example, for a buffer associated with file `/a/b/c.d', this
+    !> matches against `c.d'.  Port of ibuf-ext.el:ibuffer-filter-by-basename.
+    recursive subroutine ibuffer_filter_by_basename(qualifier, status)
+        character(len=*), intent(in) :: qualifier
+        type(status_type), intent(out) :: status
+        call ibuffer_filter_by("basename", status, qualifier=qualifier)
+    end subroutine ibuffer_filter_by_basename
+
+    !> Limit current view to buffers with filename extension matching
+    !> QUALIFIER.
+    !>
+    !> The separator character (typically `.') is not part of the
+    !> pattern.  For example, for a buffer associated with file
+    !> `/a/b/c.d', this matches against `d'.  Port of
+    !> ibuf-ext.el:ibuffer-filter-by-file-extension.
+    recursive subroutine ibuffer_filter_by_file_extension(qualifier, status)
+        character(len=*), intent(in) :: qualifier
+        type(status_type), intent(out) :: status
+        call ibuffer_filter_by("file_extension", status, qualifier=qualifier)
+    end subroutine ibuffer_filter_by_file_extension
+
+    !> Limit current view to buffers with directory matching QUALIFIER.
+    !>
+    !> For a buffer associated with file '/a/b/c.d', this matches
+    !> against '/a/b'.  For a buffer not associated with a file, this
+    !> matches against the value of `default_directory' in that buffer.
+    !> Port of ibuf-ext.el:ibuffer-filter-by-directory.
+    recursive subroutine ibuffer_filter_by_directory(qualifier, status)
+        character(len=*), intent(in) :: qualifier
+        type(status_type), intent(out) :: status
+        call ibuffer_filter_by("directory", status, qualifier=qualifier)
+    end subroutine ibuffer_filter_by_directory
+
+    !> Limit current view to buffers with size greater than QUALIFIER.
+    !> Port of ibuf-ext.el:ibuffer-filter-by-size-gt.
+    recursive subroutine ibuffer_filter_by_size_gt(qualifier, status)
+        integer(int64), intent(in) :: qualifier
+        type(status_type), intent(out) :: status
+        call ibuffer_filter_by("size_gt", status, number=qualifier)
+    end subroutine ibuffer_filter_by_size_gt
+
+    !> Limit current view to buffers with size less than QUALIFIER.  Port
+    !> of ibuf-ext.el:ibuffer-filter-by-size-lt.
+    recursive subroutine ibuffer_filter_by_size_lt(qualifier, status)
+        integer(int64), intent(in) :: qualifier
+        type(status_type), intent(out) :: status
+        call ibuffer_filter_by("size_lt", status, number=qualifier)
+    end subroutine ibuffer_filter_by_size_lt
+
+    !> Limit current view to buffers that are marked as modified.  Port of
+    !> ibuf-ext.el:ibuffer-filter-by-modified.
+    recursive subroutine ibuffer_filter_by_modified(status)
+        type(status_type), intent(out) :: status
+        call ibuffer_filter_by("modified", status)
+    end subroutine ibuffer_filter_by_modified
+
+    !> Limit current view to buffers that are visiting a file.  Port of
+    !> ibuf-ext.el:ibuffer-filter-by-visiting-file.
+    recursive subroutine ibuffer_filter_by_visiting_file(status)
+        type(status_type), intent(out) :: status
+        call ibuffer_filter_by("visiting_file", status)
+    end subroutine ibuffer_filter_by_visiting_file
+
+    !> Limit current view to buffers whose contents match QUALIFIER.  Port
+    !> of ibuf-ext.el:ibuffer-filter-by-content.
+    recursive subroutine ibuffer_filter_by_content(qualifier, status)
+        character(len=*), intent(in) :: qualifier
+        type(status_type), intent(out) :: status
+        call ibuffer_filter_by("content", status, qualifier=qualifier)
+    end subroutine ibuffer_filter_by_content
+
     !> Sort the buffers by how recently they've been used.  Port of
     !> ibuffer.el define-ibuffer-sorter recency.
     recursive logical function sort_recency(a, b) result(less)
@@ -3108,7 +3728,7 @@ contains
         call ibuffer_current_state_list(blist, status)
         if (.not. status%ok()) return
         k = ibuffer_local_index(.true.)
-        if (size(blist) == 0 .and. size(locals(k)%hidden_groups) > 0) then
+        if (size(blist) == 0 .and. (size(locals(k)%qualifiers) > 0 .or. size(locals(k)%hidden_groups) > 0)) then
             call message("No buffers! (note: filtering in effect)")
         end if
         call ibuffer_redisplay_engine(blist, status)
@@ -3155,7 +3775,12 @@ contains
         call current_buffers_with_marks(bufs, marks, status)
         if (.not. status%ok()) return
         k = ibuffer_local_index(.true.)
-        call filter_buffers(current_buffer(), last, marks, locals(k)%display_maybe_show_predicates, blist)
+        call filter_buffers(current_buffer(), last, marks, locals(k)%display_maybe_show_predicates, blist, status)
+        if (.not. status%ok()) return
+        k = ibuffer_local_index(.true.)
+        if (size(blist) == 0 .and. size(locals(k)%qualifiers) > 0) then
+            call message("No buffers! (note: filtering in effect)")
+        end if
         if (.not. quiet) call message("Updating buffer list...")
         call ibuffer_redisplay_engine(blist, status)
         if (.not. status%ok()) return
@@ -3167,8 +3792,16 @@ contains
             call ibuffer_shrink_to_fit()
         end if
         call ibuffer_forward_line(0_int64)
-        ! (The header line shows the filters, when there are any.)
-        if (ibuffer_use_header_line /= IBUFFER_HEADER_LINE_TITLE) call buffers(cur)%header_line_format%clear()
+        ! I tried to update this automatically from the mode-line-process
+        ! format, but changing nil-ness of header-line-format while computing
+        ! mode-line-format is asking a bit too much it seems.  --Stef
+        if (ibuffer_use_header_line /= IBUFFER_HEADER_LINE_TITLE) then
+            call buffers(cur)%header_line_format%clear()
+            k = ibuffer_local_index(.true.)
+            if (ibuffer_use_header_line /= IBUFFER_HEADER_LINE_NIL .and. size(locals(k)%qualifiers) > 0) then
+                call buffers(cur)%header_line_format%add("")
+            end if
+        end if
         call update_mode_line_process()
     end subroutine ibuffer_update
 
@@ -3184,23 +3817,55 @@ contains
     end subroutine revert_function
 
     ! The mode line's state info next to the mode name: " by " and the
-    ! sorting mode, " [rev]" and " (Auto)" (upstream evaluated by the mode
-    ! line).
-    subroutine update_mode_line_process()
+    ! sorting mode, " [rev]", " (Auto)" and the filters unless they're
+    ! already in the header line (upstream evaluated by the mode line);
+    ! the header line showing the filters gets the same, after the mode
+    ! name (ibuffer-header-line-format).
+    recursive subroutine update_mode_line_process()
         type(mode_line_part_type), allocatable :: parts(:)
-        integer :: k
-        k = ibuffer_local_index(.true.)
-        allocate (parts(1))
-        if (len(locals(k)%sorting_mode) > 0) then
-            parts(1)%text = " by "//locals(k)%sorting_mode
-        else
-            parts(1)%text = " by view time"
+        if (ibuffer_use_header_line /= IBUFFER_HEADER_LINE_TITLE .and. &
+            allocated(buffers(cur)%header_line_format%segments)) then
+            ! Display the part that won't be in the mode-line.
+            call buffers(cur)%header_line_format%clear()
+            call buffers(cur)%header_line_format%add("")
+            call buffers(cur)%header_line_format%add(mode_name_of(current_buffer()))
+            call buffers(cur)%header_line_format%add(state_text()//qualifiers_text())
         end if
-        if (locals(k)%sorting_reversep) parts(1)%text = parts(1)%text//" [rev]"
-        if (minor_modes%ibuffer_auto_mode%enabled()) parts(1)%text = parts(1)%text//" (Auto)"
+        allocate (parts(1))
+        parts(1)%text = state_text()
+        ! Only list the filters if they're not already in the header-line.
+        if (.not. allocated(buffers(cur)%header_line_format%segments)) then
+            parts(1)%text = parts(1)%text//qualifiers_text()
+        end if
         parts(1)%face = ""
         call set_mode_line_process(parts)
     end subroutine update_mode_line_process
+
+    ! " by " and the sorting mode, " [rev]" and " (Auto)".
+    function state_text() result(text)
+        character(len=:), allocatable :: text
+        integer :: k
+        k = ibuffer_local_index(.true.)
+        if (len(locals(k)%sorting_mode) > 0) then
+            text = " by "//locals(k)%sorting_mode
+        else
+            text = " by view time"
+        end if
+        if (locals(k)%sorting_reversep) text = text//" [rev]"
+        if (minor_modes%ibuffer_auto_mode%enabled()) text = text//" (Auto)"
+    end function state_text
+
+    ! (mapconcat 'ibuffer-format-qualifier ibuffer-filtering-qualifiers "")
+    recursive function qualifiers_text() result(text)
+        character(len=:), allocatable :: text
+        type(ibuffer_filter_type), allocatable :: filters(:)
+        integer :: j
+        filters = ibuffer_filtering_qualifiers()
+        text = ""
+        do j = 1, size(filters)
+            text = text//ibuffer_format_qualifier(filters(j))
+        end do
+    end function qualifiers_text
 
     ! ibuffer-sort-bufferlist: sort BMARKLIST in place by the current
     ! sorting mode (a stable sort, as `sort').
@@ -3311,7 +3976,8 @@ contains
         call current_format_entries(entries, status)
         if (.not. status%ok()) return
         orig = count_lines(point_min(), point())
-        call ibuffer_generate_filter_groups(bmarklist, names, group_of)
+        call ibuffer_generate_filter_groups(bmarklist, names, group_of, status)
+        if (.not. status%ok()) return
         call clear_summary_columns()
         buffers(cur)%read_only = .false.
         call erase_buffer(st)
@@ -3352,21 +4018,53 @@ contains
     ! Entry points
     ! ------------------------------------------------------------------
 
-    !> Display a list of buffers, in another window.  Port of
-    !> ibuffer.el:ibuffer-list-buffers (FILES_ONLY is deferred with the
-    !> filters).
-    recursive subroutine ibuffer_list_buffers(status)
+    !> Display a list of buffers, in another window.
+    !> If optional argument FILES_ONLY is true, then add a filter for
+    !> buffers which are visiting a file.  Port of
+    !> ibuffer.el:ibuffer-list-buffers.
+    recursive subroutine ibuffer_list_buffers(status, files_only)
         type(status_type), intent(out) :: status
-        call ibuffer(status, other_window_p=.true., noselect=.true.)
+        logical, intent(in), optional :: files_only
+        type(ibuffer_filter_type) :: files(1)
+        logical :: only
+        only = .false.
+        if (present(files_only)) only = files_only
+        if (only) then
+            files(1) = ibuffer_filename(".*")
+            call ibuffer(status, other_window_p=.true., qualifiers=files, noselect=.true.)
+        else
+            call ibuffer(status, other_window_p=.true., noselect=.true.)
+        end if
     end subroutine ibuffer_list_buffers
 
-    !> Like `ibuffer', but displayed in another window by default.  Port of
-    !> ibuffer.el:ibuffer-other-window (FILES_ONLY is deferred with the
-    !> filters).
-    recursive subroutine ibuffer_other_window(status)
+    recursive subroutine cmd_ibuffer_list_buffers(status)
         type(status_type), intent(out) :: status
-        call ibuffer(status, other_window_p=.true.)
+        call ibuffer_list_buffers(status,.not. nilp(current_prefix_arg))
+    end subroutine cmd_ibuffer_list_buffers
+
+    !> Like `ibuffer', but displayed in another window by default.
+    !> If optional argument FILES_ONLY is true, then add a filter for
+    !> buffers which are visiting a file.  Port of
+    !> ibuffer.el:ibuffer-other-window.
+    recursive subroutine ibuffer_other_window(status, files_only)
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: files_only
+        type(ibuffer_filter_type) :: files(1)
+        logical :: only
+        only = .false.
+        if (present(files_only)) only = files_only
+        if (only) then
+            files(1) = ibuffer_filename(".*")
+            call ibuffer(status, other_window_p=.true., qualifiers=files)
+        else
+            call ibuffer(status, other_window_p=.true.)
+        end if
     end subroutine ibuffer_other_window
+
+    recursive subroutine cmd_ibuffer_other_window(status)
+        type(status_type), intent(out) :: status
+        call ibuffer_other_window(status,.not. nilp(current_prefix_arg))
+    end subroutine cmd_ibuffer_other_window
 
     !> Begin using Ibuffer to edit a list of buffers.
     !> Type \<ibuffer_mode_map>\[describe_mode] after entering ibuffer for
@@ -3375,18 +4073,23 @@ contains
     !> All arguments are optional.
     !> OTHER_WINDOW_P says to use another window.
     !> NAME specifies the name of the buffer (defaults to "*Ibuffer*").
+    !> QUALIFIERS is an initial set of filtering qualifiers to use;
+    !>   see `ibuffer_filtering_qualifiers'.
     !> NOSELECT means don't select the Ibuffer buffer.
     !> SHRINK means shrink the buffer to minimal size.  The special
     !>   value IBUFFER_SHRINK_ONEWINDOW means always use another window.
+    !> FILTER_GROUPS is an initial set of filtering groups to use;
+    !>   see `ibuffer_filter_groups'.
     !> FORMATS is the value to use for `ibuffer_formats'.
     !>   If specified, then the variable `ibuffer_formats' will have
-    !>   that value locally in this buffer.  Port of ibuffer.el:ibuffer
-    !>   (QUALIFIERS and FILTER_GROUPS are deferred with the filters).
-    recursive subroutine ibuffer(status, other_window_p, name, noselect, shrink, formats)
+    !>   that value locally in this buffer.  Port of ibuffer.el:ibuffer.
+    recursive subroutine ibuffer(status, other_window_p, name, qualifiers, noselect, shrink, filter_groups, formats)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: other_window_p, noselect
         character(len=*), intent(in), optional :: name
+        type(ibuffer_filter_type), intent(in), optional :: qualifiers(:)
         integer, intent(in), optional :: shrink
+        type(ibuffer_filter_groups_type), intent(in), optional :: filter_groups
         type(ibuffer_formats_type), intent(in), optional :: formats
         type(handle_type) :: buf, window, old, old_window
         type(status_type) :: st
@@ -3431,6 +4134,13 @@ contains
             if (present(shrink)) then
                 if (shrink /= IBUFFER_SHRINK_NIL) locals(k)%shrink = shrink
             end if
+            if (present(qualifiers)) then
+                if (size(qualifiers) > 0) call ibuffer_set_filtering_qualifiers(qualifiers)
+            end if
+            if (present(filter_groups)) then
+                if (filter_groups%count() > 0) call ibuffer_set_filter_groups(filter_groups)
+            end if
+            k = ibuffer_local_index(.true.)
             if (present(formats)) then
                 locals(k)%has_formats = .true.
                 locals(k)%formats = formats
@@ -3565,6 +4275,44 @@ contains
     !>   \[ibuffer_mark_by_file_name_regexp] - Mark buffers by their filename, using a regexp.
     !>   \[ibuffer_mark_by_content_regexp] - Mark buffers by their content, using a regexp.
     !>
+    !> Filtering commands:
+    !>
+    !>   \[ibuffer_filter_chosen_by_completion] - Select and apply filter chosen by completion.
+    !>   \[ibuffer_filter_by_mode] - Add a filter by any major mode.
+    !>   \[ibuffer_filter_by_used_mode] - Add a filter by a major mode now in use.
+    !>   \[ibuffer_filter_by_derived_mode] - Add a filter by derived mode.
+    !>   \[ibuffer_filter_by_name] - Add a filter by buffer name.
+    !>   \[ibuffer_filter_by_content] - Add a filter by buffer content.
+    !>   \[ibuffer_filter_by_basename] - Add a filter by basename.
+    !>   \[ibuffer_filter_by_directory] - Add a filter by directory name.
+    !>   \[ibuffer_filter_by_filename] - Add a filter by filename.
+    !>   \[ibuffer_filter_by_file_extension] - Add a filter by file extension.
+    !>   \[ibuffer_filter_by_modified] - Add a filter by modified buffers.
+    !>   \[ibuffer_filter_by_size_gt] - Add a filter by buffer size.
+    !>   \[ibuffer_filter_by_size_lt] - Add a filter by buffer size.
+    !>   \[ibuffer_filter_by_starred_name] - Add a filter by special buffers.
+    !>   \[ibuffer_filter_by_visiting_file] - Add a filter by buffers visiting files.
+    !>   \[ibuffer_save_filters] - Save the current filters with a name.
+    !>   \[ibuffer_switch_to_saved_filters] - Switch to previously saved filters.
+    !>   \[ibuffer_add_saved_filters] - Add saved filters to current filters.
+    !>   \[ibuffer_and_filter] - Replace the top two filters with their logical AND.
+    !>   \[ibuffer_or_filter] - Replace the top two filters with their logical OR.
+    !>   \[ibuffer_pop_filter] - Remove the top filter.
+    !>   \[ibuffer_negate_filter] - Invert the logical sense of the top filter.
+    !>   \[ibuffer_decompose_filter] - Break down the topmost filter.
+    !>   \[ibuffer_filter_disable] - Remove all filtering currently in effect.
+    !>
+    !> Filter group commands:
+    !>
+    !>   \[ibuffer_filters_to_filter_group] - Create filter group from filters.
+    !>   \[ibuffer_pop_filter_group] - Remove top filter group.
+    !>   \[ibuffer_forward_filter_group] - Move to the next filter group.
+    !>   \[ibuffer_backward_filter_group] - Move to the previous filter group.
+    !>   \[ibuffer_clear_filter_groups] - Remove all active filter groups.
+    !>   \[ibuffer_save_filter_groups] - Save the current groups with a name.
+    !>   \[ibuffer_switch_to_saved_filter_groups] - Restore previously saved groups.
+    !>   \[ibuffer_delete_saved_filter_groups] - Delete previously saved groups.
+    !>
     !> Sorting commands:
     !>
     !>   \[ibuffer_toggle_sorting_mode] - Rotate between the various sorting modes.
@@ -3593,6 +4341,66 @@ contains
     !>   \[ibuffer_visit_buffer_other_window_noselect] - As both above, but don't select
     !>         the new window.
     !>   \[ibuffer_bury_buffer] - Bury (not kill!) the buffer on this line.
+    !>
+    !> ** Information on Filtering:
+    !>
+    !> You can filter your Ibuffer view via different criteria.  Each Ibuffer
+    !> buffer has its own stack of active filters.  For example, suppose you
+    !> are working on an Emacs Lisp project.  You can create an Ibuffer
+    !> buffer displaying only `emacs_lisp_mode' buffers via
+    !> `\[ibuffer_filter_by_mode] emacs_lisp_mode RET'.  In this case, there
+    !> is just one entry on the filtering stack.
+    !>
+    !> You can also combine filters.  The various filtering commands push a
+    !> new filter onto the stack, and the filters combine to show just
+    !> buffers which satisfy ALL criteria on the stack.  For example, suppose
+    !> you only want to see buffers in `emacs_lisp_mode', whose names begin
+    !> with "gnus".  You can accomplish this via:
+    !>
+    !>   \[ibuffer_filter_by_mode] emacs_lisp_mode RET
+    !>   \[ibuffer_filter_by_name] ^gnus RET
+    !>
+    !> Additionally, you can OR the top two filters together with
+    !> \[ibuffer_or_filters].  To see all buffers in either
+    !> `emacs_lisp_mode' or `lisp_interaction_mode', type:
+    !>
+    !>   \[ibuffer_filter_by_mode] emacs_lisp_mode RET
+    !>   \[ibuffer_filter_by_mode] lisp_interaction_mode RET
+    !>   \[ibuffer_or_filters]
+    !>
+    !> Filters can also be saved and restored using mnemonic names: see the
+    !> functions `ibuffer_save_filters' and `ibuffer_switch_to_saved_filters'.
+    !>
+    !> To remove the top filter on the stack, use \[ibuffer_pop_filter], and
+    !> to disable all filtering currently in effect, use
+    !> \[ibuffer_filter_disable].
+    !>
+    !> ** Filter Groups:
+    !>
+    !> Once one has mastered filters, the next logical step up is "filter
+    !> groups".  A filter group is basically a named group of buffers which
+    !> match a filter, which are displayed together in an Ibuffer buffer.  To
+    !> create a filter group, simply use the regular functions to create a
+    !> filter, and then type \[ibuffer_filters_to_filter_group].
+    !>
+    !> A quick example will make things clearer.  Suppose that one wants to
+    !> group all of one's Emacs Lisp buffers together.  To do this, type:
+    !>
+    !>   \[ibuffer_filter_by_mode] emacs_lisp_mode RET
+    !>   \[ibuffer_filters_to_filter_group] emacs lisp buffers RET
+    !>
+    !> You may, of course, name the group whatever you want; it doesn't have
+    !> to be "emacs lisp buffers".  Filter groups may be composed of any
+    !> arbitrary combination of filters.
+    !>
+    !> Just like filters themselves, filter groups act as a stack.  Buffers
+    !> will not be displayed multiple times if they would be included in
+    !> multiple filter groups; instead, the first filter group is used.  The
+    !> filter groups are displayed in this order of precedence.
+    !>
+    !> You may rearrange filter groups by using the usual pair
+    !> \[ibuffer_kill_line] and \[ibuffer_yank].  Yanked groups
+    !> will be inserted before the group at point.
     !>
     !> Port of ibuffer.el:ibuffer-mode.
     recursive subroutine ibuffer_mode(status)
@@ -3795,6 +4603,37 @@ contains
             allocate (ibuffer_never_search_content_mode(1))
             ibuffer_never_search_content_mode(1) = "dired_mode"
         end if
+        if (.not. allocated(ibuffer_saved_filters%entries)) then
+            call ibuffer_saved_filters%add("programming", &
+                                           ibuffer_or(ibuffer_derived_mode("prog_mode"), &
+                                                      ibuffer_major_mode("ess_mode"), &
+                                                      ibuffer_major_mode("compilation_mode")))
+            call ibuffer_saved_filters%add("text document", &
+                                           ibuffer_and(ibuffer_derived_mode("text_mode"), &
+                                                       ibuffer_not(ibuffer_starred_name())))
+            call ibuffer_saved_filters%add("TeX", &
+                                           ibuffer_or(ibuffer_derived_mode("tex_mode"), &
+                                                      ibuffer_major_mode("latex_mode"), &
+                                                      ibuffer_major_mode("context_mode"), &
+                                                      ibuffer_major_mode("ams_tex_mode"), &
+                                                      ibuffer_major_mode("bibtex_mode")))
+            call ibuffer_saved_filters%add("web", &
+                                           ibuffer_or(ibuffer_derived_mode("sgml_mode"), &
+                                                      ibuffer_derived_mode("css_base_mode"), &
+                                                      ibuffer_derived_mode("js_base_mode"), &
+                                                      ibuffer_derived_mode("typescript_ts_base_mode"), &
+                                                      ibuffer_major_mode("js2_mode"), &
+                                                      ibuffer_derived_mode("haml_mode"), &
+                                                      ibuffer_major_mode("sass_mode")))
+            call ibuffer_saved_filters%add("gnus", &
+                                           ibuffer_or(ibuffer_major_mode("message_mode"), &
+                                                      ibuffer_major_mode("mail_mode"), &
+                                                      ibuffer_major_mode("gnus_group_mode"), &
+                                                      ibuffer_major_mode("gnus_summary_mode"), &
+                                                      ibuffer_major_mode("gnus_article_mode")))
+        end if
+        if (.not. allocated(ibuffer_saved_filter_groups%entries)) allocate (ibuffer_saved_filter_groups%entries(0))
+        if (.not. allocated(ibuffer_filter_format_alist%entries)) allocate (ibuffer_filter_format_alist%entries(0))
         call ibuffer_marked_face_def%define("ibuffer_marked", "Face used by default in `ibuffer_marked_face'.")
         call ibuffer_marked_face_def%spec_entry(display_when(), face_attrs(inherit="warning"))
         call ibuffer_deletion_face_def%define("ibuffer_deletion", "Face used by default in `ibuffer_deletion_face'.")
@@ -3832,8 +4671,8 @@ contains
         m = ibuffer_mode_map
         commands%ibuffer_mode%run => ibuffer_mode
         commands%ibuffer%run => cmd_ibuffer
-        commands%ibuffer_other_window%run => ibuffer_other_window
-        commands%ibuffer_list_buffers%run => ibuffer_list_buffers
+        commands%ibuffer_other_window%run => cmd_ibuffer_other_window
+        commands%ibuffer_list_buffers%run => cmd_ibuffer_list_buffers
         commands%ibuffer_jump%run => cmd_ibuffer_jump
         commands%ibuffer_find_file%run => ibuffer_find_file
         commands%ibuffer_backward_line%run => cmd_ibuffer_backward_line
