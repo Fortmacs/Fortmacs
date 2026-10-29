@@ -28,7 +28,7 @@ module test_info_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_list, make_string
+    use lisp_fm, only: value_type, list, make_string
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, kill_buffer, get_buffer, header_line_format_type
     use editfns_fm, only: buffer_string, point, point_min, point_max, goto_char, line_beginning_position
     use search_fm, only: search_forward, SEARCH_NOERROR
@@ -93,13 +93,34 @@ contains
         if (present(sub)) dir = file_name_as_directory(dir//sub)
     end function resource_dir
 
+    !> Check that FILE is the resource file NAME.
+    subroutine check_file(error, file, name)
+        type(error_type), allocatable, intent(inout) :: error
+        character(len=*), intent(in) :: file, name
+        character(len=:), allocatable :: expected
+        expected = resource_dir()
+        expected = expected//name
+        call check(error, file, expected)
+    end subroutine check_file
+
     !> Search Info files in the resource directory only.
     subroutine use_resources()
+        character(len=:), allocatable :: dir
         call init_bindings()
-        if (allocated(info_directory_list)) deallocate (info_directory_list)
-        allocate (character(len=len(resource_dir())) :: info_directory_list(1))
-        info_directory_list(1) = resource_dir()
+        dir = resource_dir()
+        call set_directories([dir])
     end subroutine use_resources
+
+    !> Set `info_directory_list' to DIRS.
+    subroutine set_directories(dirs)
+        character(len=*), intent(in) :: dirs(:)
+        integer :: k
+        if (allocated(info_directory_list)) deallocate (info_directory_list)
+        allocate (character(len=len(dirs)) :: info_directory_list(size(dirs)))
+        do k = 1, size(dirs)
+            info_directory_list(k) = dirs(k)
+        end do
+    end subroutine set_directories
 
     !> Visit node NODE of FILE in a fresh *info* buffer, saving the window
     !> configuration in CONFIG and the buffer current before in OLD.
@@ -209,7 +230,7 @@ contains
             file = info_current_file()
             call check(error, allocated(file), "a current file")
         end if
-        if (.not. allocated(error)) call check(error, file, resource_dir()//"test")
+        if (.not. allocated(error)) call check_file(error, file, "test")
         if (.not. allocated(error)) call check(error, buffers(cur)%name, "*info*")
         if (.not. allocated(error)) call check(error, buffers(cur)%major_mode, "info_mode")
         ! The buffer is narrowed to the node, point after its header line.
@@ -359,7 +380,7 @@ contains
         if (.not. allocated(error)) call check(error, current_line(), "An anchor is here.")
         call info_goto_node("(test)Index", st)
         call check_node(error, "Index", st)
-        if (.not. allocated(error)) call check(error, info_current_file(), resource_dir()//"test")
+        if (.not. allocated(error)) call check_file(error, info_current_file(), "test")
         call done(old, config)
     end subroutine test_split_file
 
@@ -472,14 +493,13 @@ contains
         type(handle_type) :: old
         type(window_configuration_type) :: config
         type(status_type) :: st
-        character(len=:), allocatable :: text
+        character(len=:), allocatable :: text, dir0, dir1, dir2
         integer :: n
         call visit("test", "Top", old, config, error)
-        deallocate (info_directory_list)
-        allocate (character(len=len(resource_dir("dir2"))) :: info_directory_list(3))
-        info_directory_list(1) = resource_dir("dir1")
-        info_directory_list(2) = resource_dir("dir2")
-        info_directory_list(3) = resource_dir()
+        dir1 = resource_dir("dir1")
+        dir2 = resource_dir("dir2")
+        dir0 = resource_dir()
+        call set_directories([character(len=len(dir1)) :: dir1, dir2, dir0])
         call info_directory(st)
         call check_node(error, "Top", st)
         if (.not. allocated(error)) then
@@ -499,7 +519,7 @@ contains
             call info_menu("Split", st)
             call check_node(error, "Top", st)
         end if
-        if (.not. allocated(error)) call check(error, info_current_file(), resource_dir()//"split")
+        if (.not. allocated(error)) call check_file(error, info_current_file(), "split")
         call done(old, config)
         call use_resources()
     contains
@@ -525,7 +545,7 @@ contains
         type(window_configuration_type) :: config
         type(status_type) :: st
         type(value_type) :: result
-        character(len=:), allocatable :: temp, zipped
+        character(len=:), allocatable :: temp, zipped, command
         call make_temp_file("info-test", temp, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -533,14 +553,16 @@ contains
         ! with the empty suffix.)
         call delete_file(temp, st)
         zipped = temp//".info.gz"
-        call call_process("sh", result, st, args=make_list([make_string("-c"), make_string( &
-                                                            "gzip -c "//resource_dir()//"test.info > "//zipped)]))
+        command = resource_dir()
+        command = "gzip -c "//command//"test.info > "//zipped
+        call call_process("sh", result, st, args=list(make_string("-c"), make_string(command)))
         if (.not. file_exists_p(zipped)) then
             ! (No gzip: nothing to test.)
             return
         end if
         call use_resources()
-        info_directory_list(1) = file_name_directory(temp)
+        command = file_name_directory(temp)
+        call set_directories([command])
         old = current_buffer()
         call current_window_configuration(config)
         info_buffer = get_buffer("*info*")

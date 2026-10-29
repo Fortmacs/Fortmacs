@@ -57,7 +57,7 @@ module info_fm
     use, intrinsic :: iso_fortran_env, only: int64, int32
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_SEARCH_FAILED
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, t_value, nilp, make_string, make_list, make_fixnum, stringp, consp, &
+    use lisp_fm, only: value_type, nil, t_value, nilp, make_string, make_list, list, make_fixnum, stringp, consp, &
                        fixnump, xstring, xfixnum, list_length, list_elt
     use lread_fm, only: sym
     use data_fm, only: logical_setting, set, add_local_variables_killer
@@ -1131,7 +1131,7 @@ contains
                 dir = file_name_directory(fullname)
                 if (len(dir) == 0) dir = buffers(cur)%directory
                 if (len_trim(info_suffix_list(tail)%args) > 0) then
-                    args = make_list([make_string(trim(info_suffix_list(tail)%args))])
+                    args = list(make_string(trim(info_suffix_list(tail)%args)))
                 else
                     args = nil()
                 end if
@@ -2338,26 +2338,34 @@ contains
         marker_points = st%ok()
     end function marker_points
 
-    ! Move point to the proper occurrence of NAME, the name of the index
-    ! entry or cross reference followed, within the selected node.  Port
-    ! of info.el:Info-find-index-name.
-    subroutine find_index_name(name)
+    ! Move point to the place within the current node where NAME is
+    ! defined.  FOUND is true if found (else point goes to the beginning
+    ! of the node).  Port of info.el:Info-find-index-name.
+    recursive subroutine find_index_name(name, found)
         character(len=*), intent(in) :: name
-        integer(int64) :: start
-        logical :: fold
+        logical, intent(out), optional :: found
+        logical :: fold, ok
         fold = bind_case_fold(.true.)
-        start = point()
-        if (.not. (refwd("[`‘']"//regexp_quote(name)//"['’]") .or. &
-                   ! Find a function definition with a return type.
-                   refwd("^[ "//TAB//"]+-- \w+: \w+ "//regexp_quote(name)//"\b") .or. &
-                   sfwd("`"//name//"'") .or. sfwd("‘"//name//"’") .or. &
-                   refwd("\b"//regexp_quote(name)//"\b") .or. &
-                   sfwd(name))) call goto_char(start)
-        if (.not. bolp() .or. point() /= start) then
-            ! (Pull back to the beginning of the match, as upstream does
-            ! for the fallbacks.)
-            continue
+        ok = refwd("[a-zA-Z]+: "//regexp_quote(name)//"\( \|$\)")
+        ! Find a function definition with a return type.
+        if (.not. ok) ok = refwd("[a-zA-Z]+: [a-zA-Z0-9_ *&]+ "//regexp_quote(name)//"\( \|$\)")
+        if (.not. ok) ok = sfwd("['`‘]"//name//"['’]")
+        if (.not. ok) then
+            if (smatch("\`.*\( (.*)\)\'", name, .true.)) &
+                ok = sfwd("['`‘]"//name(1:string_index_to_offset(name, mbeg(1)))//"['’]")
         end if
+        if (.not. ok) ok = sfwd(name)
+        ! Try again without the " <1>" makeinfo can append
+        if (.not. ok) then
+            if (smatch("\`\(.*\) <[0-9]+>\'", name, .true.)) &
+                call find_index_name(match_string_no_properties(1, name), ok)
+        end if
+        if (ok) then
+            call beginning_of_line(1_int64)
+        else
+            call goto_min()
+        end if
+        if (present(found)) found = ok
         fold = bind_case_fold(fold)
     end subroutine find_index_name
 
