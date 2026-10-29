@@ -97,6 +97,7 @@ module bindings_fm
     use savehist_fm, only: syms_of_savehist
     use saveplace_fm, only: syms_of_saveplace
     use recentf_fm, only: syms_of_recentf
+    use tabulated_list_fm, only: syms_of_tabulated_list
     use bookmark_fm, only: syms_of_bookmark, bookmark_map, bookmark_minibuffer_read_name_map
     use register_fm, only: syms_of_register
     use abbrev_fm, only: syms_of_abbrev, edit_abbrevs_mode_map
@@ -306,6 +307,7 @@ contains
         call syms_of_savehist()
         call syms_of_saveplace()
         call syms_of_recentf()
+        call syms_of_tabulated_list()
         call syms_of_bookmark()
         call syms_of_register()
         call syms_of_macros()

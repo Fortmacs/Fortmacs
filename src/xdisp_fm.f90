@@ -103,6 +103,7 @@ module xdisp_fm
     use character_fm, only: char_byte8_p, char_to_byte8, string_char_and_length, multibyte_length, &
                             byte8_to_char, multibyte_chars_in_text
     use dispextern_fm, only: glyph_type, glyph_row_type, DEFAULT_FACE_ID, MODE_LINE_ACTIVE_FACE_ID, &
+                             HEADER_LINE_ACTIVE_FACE_ID, HEADER_LINE_INACTIVE_FACE_ID, &
                              MODE_LINE_INACTIVE_FACE_ID, VERTICAL_BORDER_FACE_ID, STRETCH_GLYPH, FILLED_BOX_CURSOR
     use font_fm, only: font_type, font_metrics_type
     use xfaces_fm, only: face_at_buffer_position, face_at_string_position, merge_faces, realize_basic_faces, &
@@ -110,7 +111,7 @@ module xdisp_fm
     use frame_fm, only: frame_type, selected_frame, selected_window, frame_window_p, frame_lines, frame_cols, window_pixel_left, &
                         window_pixel_top, window_pixel_width, window_pixel_height, window_body_pixel_width
     use window_fm, only: window_type, set_window_buffer, window_start, &
-                         set_window_start, window_body_lines, window_point, window_text_cols, windows, &
+                         set_window_start, window_body_lines, window_wants_header_line, window_point, window_text_cols, windows, &
                          window_valid_p, make_window, resize_window_tree, window_leaves, same_window, &
                          set_window_point
     use dispnew_fm, only: adjust_frame_glyphs, update_frame, update_window_line, redraw_frame
@@ -2034,6 +2035,7 @@ contains
         if (.not. status%ok()) return
         gui = frame_window_p(f)
         body = window_body_lines(w)
+        w%header_line_height = 0
         width = window_text_cols(w)
         capacity = width
         if (gui) then
@@ -2045,6 +2047,14 @@ contains
             if (selected) mode_line_face = MODE_LINE_ACTIVE_FACE_ID
             last_y = window_pixel_height(f, w)
             if (.not. w%mini) last_y = last_y - estimate_mode_line_height(f, mode_line_face)
+            if (window_wants_header_line(w)) then
+                if (selected) then
+                    w%header_line_height = estimate_mode_line_height(f, HEADER_LINE_ACTIVE_FACE_ID)
+                else
+                    w%header_line_height = estimate_mode_line_height(f, HEADER_LINE_INACTIVE_FACE_ID)
+                end if
+                last_y = last_y - w%header_line_height
+            end if
             body = last_y/max(1, f%smallest_font_height) + 2
             capacity = width/max(1, f%smallest_char_width) + 4
         end if
@@ -2089,11 +2099,12 @@ contains
             ! update_window: the rows, the mode line, then the cursor's
             ! place and the borders (gui_update_window_end).
             left = window_pixel_left(f, w)
-            top = window_pixel_top(f, w)
+            top = window_pixel_top(f, w) + w%header_line_height
             do r = 1, nrows
                 if (rows(r)%enabled_p) call update_window_line(f, rows(r), left, top, left + width)
             end do
             if (.not. w%mini) call display_mode_line(f, w, bi, start, pt, selected)
+            if (window_wants_header_line(w)) call display_header_line(f, w, bi, selected)
             if (cursor_row >= 0) call get_phys_cursor_geometry(f, w, rows(cursor_row + 1), cursor_col, cursor_hpos, last_y)
             if (.not. w%mini) call gui_draw_vertical_border(f, w, last_y)
             return
@@ -2113,7 +2124,8 @@ contains
         w%window_end_valid = reached_end
         w%cursor_vpos = cursor_row
         w%cursor_hpos = cursor_col
-        call put_rows(f, w%top_line, w%left_col, rows, w%divider .and. .not. w%mini)
+        if (window_wants_header_line(w)) call display_header_line(f, w, bi, selected)
+        call put_rows(f, w%top_line + w%header_line_height, w%left_col, rows, w%divider .and. .not. w%mini)
         if (.not. w%mini) call display_mode_line(f, w, bi, start, pt, selected)
     end subroutine redisplay_window
 
@@ -2835,6 +2847,125 @@ contains
         end associate
     end subroutine display_mode_line
 
+    !> Draw the header line of window `w' (showing buffer slot `bi') at the
+    !> top of the window: the segments of the buffer's
+    !> `header_line_format', each from its column, in its face merged
+    !> into header_line_active (`w' selected) or header_line_inactive,
+    !> cut at the right edge of the text area and filled with spaces.
+    !> Sets `w%header_line_height'.  Port of xdisp.c:display_mode_line
+    !> for the header line (HEADER_LINE_FACE_ID; the segments stand for
+    !> the strings and `(space :align-to N)' specs of the format).
+    subroutine display_header_line(f, w, bi, selected)
+        type(frame_type), intent(inout) :: f
+        type(window_type), intent(inout) :: w
+        integer(int64), intent(in) :: bi
+        logical, intent(in) :: selected
+        type(glyph_row_type) :: line
+        type(glyph_row_type) :: rows(1)
+        type(glyph_type) :: cells(MAX_CHAR_CELLS), g
+        integer(int32), allocatable :: chars(:)
+        integer(int32) :: base, face
+        integer :: width, x, k, i, j, n, nchars, nglyphs, asc, desc, column
+        logical :: gui
+        gui = frame_window_p(f)
+        base = HEADER_LINE_INACTIVE_FACE_ID
+        if (selected) base = HEADER_LINE_ACTIVE_FACE_ID
+        if (gui) then
+            width = window_body_pixel_width(f, w)
+            allocate (line%glyphs(width/max(1, f%smallest_char_width) + 4))
+        else
+            width = window_text_cols(w)
+            allocate (rows(1)%glyphs(max(0, width)))
+            rows(1)%glyphs = glyph_type(face_id=base)
+        end if
+        x = 0
+        column = 0
+        nglyphs = 0
+        associate (segs => buffers(bi)%header_line_format%segments)
+            segments: do k = 1, size(segs)
+                face = base
+                if (len(segs(k)%face) > 0) face = merge_faces(f, segs(k)%face, 0_int32, base)
+                ! The stretch of a `(space :align-to N)' spec (N columns of the
+                ! frame on a window system).
+                do while (behind(segs(k)%align_to))
+                    if (.not. put(glyph_type(face_id=base), 1)) exit segments
+                end do
+                call decode_string(segs(k)%text, chars, nchars)
+                do i = 1, nchars
+                    cells = glyph_type()
+                    call produce_char(chars(i), column, cells, n, gui=gui)
+                    cells(1:n)%face_id = face
+                    do j = 1, n
+                        if (.not. put(cells(j), 1)) exit segments
+                    end do
+                end do
+            end do segments
+        end associate
+        if (gui) then
+            ! Fill up with spaces, then the row's metrics.
+            do while (x < width .and. nglyphs < size(line%glyphs))
+                g = glyph_type(face_id=base)
+                call gui_produce_glyph(f, g, x)
+                nglyphs = nglyphs + 1
+                line%glyphs(nglyphs) = g
+                x = x + g%pixel_width
+            end do
+            line%used = nglyphs
+            asc = 0
+            desc = 0
+            line%pixel_width = 0
+            do k = 1, line%used
+                asc = max(asc, line%glyphs(k)%ascent)
+                desc = max(desc, line%glyphs(k)%descent)
+                line%pixel_width = line%pixel_width + line%glyphs(k)%pixel_width
+            end do
+            if (asc + desc == 0) desc = f%line_height
+            line%ascent = asc
+            line%height = asc + desc
+            line%enabled_p = .true.
+            line%y = 0
+            w%header_line_height = estimate_mode_line_height(f, base)
+            line%visible_height = min(line%height, w%header_line_height)
+            call update_window_line(f, line, window_pixel_left(f, w), window_pixel_top(f, w), &
+                                    window_pixel_left(f, w) + width)
+        else
+            w%header_line_height = 1
+            call put_rows(f, w%top_line, w%left_col, rows, w%divider .and. .not. w%mini)
+        end if
+    contains
+        !> Whether the next place is left of column TARGET.
+        logical function behind(target)
+            integer, intent(in) :: target
+            if (gui) then
+                behind = x < target*f%column_width
+            else
+                behind = column < target
+            end if
+        end function behind
+
+        !> Put glyph G at the next place, CELLS columns wide; false at the
+        !> right edge.
+        logical function put(g, cells) result(ok)
+            type(glyph_type), intent(in) :: g
+            integer, intent(in) :: cells
+            type(glyph_type) :: gg
+            ok = .false.
+            if (gui) then
+                if (x >= width .or. nglyphs >= size(line%glyphs)) return
+                gg = g
+                call gui_produce_glyph(f, gg, x)
+                nglyphs = nglyphs + 1
+                line%glyphs(nglyphs) = gg
+                x = x + gg%pixel_width
+            else
+                if (column >= width) return
+                rows(1)%glyphs(column + 1) = g
+            end if
+            column = column + cells
+            ok = .true.
+        end function put
+    end subroutine display_header_line
+
     !> Where and how large the cursor of window `w' on window-system frame
     !> `f' is drawn: on glyph `hpos' of `row' at pixel `x' of the text
     !> area (less wide on a stretch glyph, x-stretch-cursor nil), as high
@@ -2884,7 +3015,7 @@ contains
             end if
         end if
         w%phys_cursor_x = window_pixel_left(f, w) + cx
-        w%phys_cursor_y = window_pixel_top(f, w) + y
+        w%phys_cursor_y = window_pixel_top(f, w) + w%header_line_height + y
         w%phys_cursor_width = wd
         w%phys_cursor_height = h
     end subroutine get_phys_cursor_geometry
@@ -2903,7 +3034,7 @@ contains
         x0 = window_pixel_left(f, w)
         x1 = x0 + window_body_pixel_width(f, w)
         y0 = window_pixel_top(f, w)
-        y1 = y0 + text_bottom - 1
+        y1 = y0 + w%header_line_height + text_bottom - 1
         if (w%divider) call f%rif%draw_vertical_window_border(x1 - 1, y0, y1, VERTICAL_BORDER_FACE_ID)
         if (w%left_col > 0) call f%rif%draw_vertical_window_border(x0 - 1, y0, y1, VERTICAL_BORDER_FACE_ID)
     end subroutine gui_draw_vertical_border
@@ -3455,7 +3586,7 @@ contains
                 f%cursor_vpos = mw%top_line
                 f%cursor_hpos = min(endcol, mw%total_cols - 1)
             else if (sw%cursor_vpos >= 0) then
-                f%cursor_vpos = sw%top_line + sw%cursor_vpos
+                f%cursor_vpos = sw%top_line + sw%header_line_height + sw%cursor_vpos
                 f%cursor_hpos = sw%left_col + sw%cursor_hpos
                 ! display_and_set_cursor: the selected window's cursor (in
                 ! the echo area or minibuffer: Deferred).

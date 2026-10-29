@@ -670,6 +670,13 @@ module commands_fm
         type(command_type) :: string_rectangle
         type(command_type) :: switch_to_buffer
         type(command_type) :: tab_to_tab_stop
+        type(command_type) :: tabulated_list_mode
+        type(command_type) :: tabulated_list_narrow_current_column
+        type(command_type) :: tabulated_list_next_column
+        type(command_type) :: tabulated_list_previous_column
+        type(command_type) :: tabulated_list_revert
+        type(command_type) :: tabulated_list_sort
+        type(command_type) :: tabulated_list_widen_current_column
         type(command_type) :: text_mode
         type(command_type) :: transient_mark_mode
         type(command_type) :: transpose_chars
@@ -790,7 +797,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(752) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(759) = [character(len=43) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -1429,6 +1436,13 @@ module commands_fm
                                                                  "string_rectangle", &
                                                                  "switch_to_buffer", &
                                                                  "tab_to_tab_stop", &
+                                                                 "tabulated_list_mode", &
+                                                                 "tabulated_list_narrow_current_column", &
+                                                                 "tabulated_list_next_column", &
+                                                                 "tabulated_list_previous_column", &
+                                                                 "tabulated_list_revert", &
+                                                                 "tabulated_list_sort", &
+                                                                 "tabulated_list_widen_current_column", &
                                                                  "text_mode", &
                                                                  "transient_mark_mode", &
                                                                  "transpose_chars", &
@@ -2829,6 +2843,20 @@ contains
             p => commands%switch_to_buffer
         case ("tab_to_tab_stop")
             p => commands%tab_to_tab_stop
+        case ("tabulated_list_mode")
+            p => commands%tabulated_list_mode
+        case ("tabulated_list_narrow_current_column")
+            p => commands%tabulated_list_narrow_current_column
+        case ("tabulated_list_next_column")
+            p => commands%tabulated_list_next_column
+        case ("tabulated_list_previous_column")
+            p => commands%tabulated_list_previous_column
+        case ("tabulated_list_revert")
+            p => commands%tabulated_list_revert
+        case ("tabulated_list_sort")
+            p => commands%tabulated_list_sort
+        case ("tabulated_list_widen_current_column")
+            p => commands%tabulated_list_widen_current_column
         case ("text_mode")
             p => commands%text_mode
         case ("transient_mark_mode")
