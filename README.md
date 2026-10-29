@@ -14,7 +14,7 @@ missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far.
 
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/progress/pie-dark.svg">
-<img src="docs/progress/pie.svg" width="520" height="180" alt="Ported: ≆3.73% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA">
+<img src="docs/progress/pie.svg" width="520" height="180" alt="Ported: ≅3.73% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA">
 </picture>
 <!-- progress:end -->
 
@@ -103,52 +103,34 @@ otherwise:
 
 ## Why AI assistance?
 
-The progress chart covers tens of thousands of definitions to rewrite, in
-Emacs's C as well as its Elisp, plus over 7,000 packages (509 in GNU ELPA,
-293 in NonGNU ELPA, 6,333 in MELPA), every one written in Elisp. Package
-maintainers shouldn't be expected to port their work to an experimental
-niche project, and one person or a handful of porters could never keep up;
-it would become an endless race over which packages matter most. Emacs
-already works, so Emacs in Fortran would likely never happen. This is for
-fun. Let's see where it goes.
+Emacs has tens of thousands of C and Elisp definitions, plus over 7,000
+Elisp packages (509 in GNU ELPA, 293 in NonGNU ELPA, 6,333 in MELPA). A
+handful of porters could never keep up, and maintainers shouldn't be asked
+to port their work to a niche experiment, so without help Emacs in Fortran
+would never happen. This is for fun. Let's see where it goes.
 
-Fortmacs is co-written with Claude Code, Anthropic's coding agent, running
-on one of Claude's most capable models.
+AI has made breakthroughs once out of reach, from AlphaFold's 200 million
+protein structures (part of the 2024 Nobel Prize in Chemistry) to the
+antibiotic candidate halicin, yet AI-assisted coding still carries a
+stigma. Fortmacs judges its code like any other: it must build, pass
+Emacs's own tests and survive human review.
 
-Telling an assistant to "rewrite Emacs in Fortran" doesn't produce a working
-program by itself: a faithful port takes constant direction. Left alone, it
-drifted toward Lisp written in Fortran:
+Fortmacs is co-written with Claude Code, Anthropic's coding agent. It needs
+constant direction: left alone it drifted toward Lisp written in Fortran,
+such as `call put("upcase-region", "disabled", .false., status)` where
+Fortmacs now has `commands%upcase_region%disabled = .false.`. In return it:
 
-- Configuration calls like `call put("upcase-region", "disabled", .false.,
-  status)` with helper functions such as `nil()` and `sym()`, which became
-  plain component assignment: `commands%upcase_region%disabled = .false.`
-- Mode hooks reached through `call major_modes%text_mode%hook%add(...)`,
-  which made you know whether a mode is major or minor; they became objects
-  named after their Emacs variables: `call text_mode_hook%add(my_procedure)`.
+- reads C, Elisp and Fortran, porting each function with a citation to its
+  source and porting Emacs's tests with it;
+- applies the conventions consistently across thousands of functions, with
+  up to eight agents working in parallel;
+- wrote about 65,000 lines of Fortran and tests, not counting generated
+  tables, in the first three days; token cost, not typing, sets the pace.
 
-What an assistant changes:
-
-1. **It reads all three languages.** It ports an upstream C or Elisp
-   function to Fortran and cites the source, without someone learning each
-   codebase first.
-2. **It handles the mechanical bulk,** applying the project's conventions
-   consistently across thousands of functions.
-3. **It ports the tests too,** so each port is checked against Emacs's own
-   expectations.
-4. **It works in parallel.** Up to eight agents port separate modules at
-   once; one lead session reviews and combines their work.
-5. **It is faster.** About 65,000 lines of Fortran and tests, not
-   counting generated tables, in the first three days (roughly 850 an
-   hour), where a person porting by hand might manage a few hundred a day.
-   Review steers it through suggestions and directions; what limits the
-   pace is token usage and its cost.
-6. **The safeguards stay human.** Every change is built, tested and checked
-   for memory leaks in CI on two architectures, and a human reviews and
-   merges every pull request.
-
-GNU Emacs does not accept AI-generated contributions. Fortmacs respects
-that: upstream is a read-only reference, and nothing from this project is
-sent back to it.
+Every change is built, tested and checked for memory leaks in CI on two
+architectures, and a human reviews and merges every pull request. GNU Emacs
+does not accept AI-generated contributions, so upstream stays a read-only
+reference and nothing is sent back to it.
 
 ## Reference source
 
