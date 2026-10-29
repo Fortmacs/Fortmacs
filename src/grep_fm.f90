@@ -54,7 +54,7 @@ module grep_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, make_string, make_list, nil, t_value, nilp, consp, stringp, xstring, fixnump, &
+    use lisp_fm, only: value_type, make_string, make_list, list, nil, t_value, nilp, consp, stringp, xstring, fixnump, &
                        xfixnum, list_elements, make_fixnum
     use lread_fm, only: sym
     use data_fm, only: symbol_value, add_local_variables_killer
@@ -847,7 +847,7 @@ contains
         if (grep_find_abbreviate) then
             call add_text_properties(start, end, grep_find_abbreviate_properties(), changed, status)
         else
-            call add_text_properties(start, end, make_list([sym("face"), nil(), sym("abbreviated_command"), t_value()]), &
+            call add_text_properties(start, end, list(sym("face"), nil(), sym("abbreviated_command"), t_value()), &
                                      changed, status)
         end if
     end subroutine abbreviate_properties
@@ -857,10 +857,19 @@ contains
     !> grep-find-abbreviate-properties.
     function grep_find_abbreviate_properties() result(props)
         type(value_type) :: props
+        type(value_type) :: parts(10)
+        parts(1) = sym("face")
+        parts(2) = nil()
+        parts(3) = sym("display")
         ! (char-displayable-p ?…): the terminal's coding system is UTF-8.
-        props = make_list([sym("face"), nil(), sym("display"), make_string("[…]"), sym("mouse_face"), sym("highlight"), &
-                           sym("help_echo"), make_string("RET, mouse-2: show unabbreviated command"), &
-                           sym("abbreviated_command"), t_value()])
+        parts(4) = make_string("[…]")
+        parts(5) = sym("mouse_face")
+        parts(6) = sym("highlight")
+        parts(7) = sym("help_echo")
+        parts(8) = make_string("RET, mouse-2: show unabbreviated command")
+        parts(9) = sym("abbreviated_command")
+        parts(10) = t_value()
+        props = make_list(parts)
     end function grep_find_abbreviate_properties
 
     !> The mode line of grep buffers after the process state: the number
@@ -1258,9 +1267,9 @@ contains
                     ! process-file-shell-command.
                     if (.not. allocated(shell_file_name%value)) call init_callproc()
                     call call_process(shell_file_name%value, res, st, destination=t_value(), &
-                                      args=make_list([make_string(shell_command_switch%value), &
-                                                      make_string(grep_command//" "//shell_quote_argument("^Copyright")// &
-                                                                  " "//shell_quote_argument(hello))]))
+                                      args=list(make_string(shell_command_switch%value), &
+                                                make_string(grep_command//" "//shell_quote_argument("^Copyright")// &
+                                                            " "//shell_quote_argument(hello))))
                     if (st%ok() .and. fixnump(res)) ok = xfixnum(res) == 0
                 else
                     ! Otherwise use `grep_program'.
@@ -2519,9 +2528,8 @@ contains
         if (found .and. end > 0) then
             call get_text_property(beg, sym("display"), display, st)
             if (.not. nilp(display)) then
-                call remove_list_of_text_properties(beg, end, make_list([sym("display"), sym("help_echo"), &
-                                                                         sym("mouse_face"), sym("help_echo"), &
-                                                                         sym("keymap")]), changed, st)
+                call remove_list_of_text_properties(beg, end, list(sym("display"), sym("help_echo"), sym("mouse_face"), &
+                                                                   sym("help_echo"), sym("keymap")), changed, st)
             else
                 call add_text_properties(beg, end, grep_find_abbreviate_properties(), changed, st)
             end if

@@ -28,6 +28,7 @@ module face_table_fm
     use faces_fm, only: bold
     use faces_fm, only: bold_italic
     use bookmark_fm, only: bookmark_face
+    use bookmark_fm, only: bookmark_menu_bookmark
     use faces_fm, only: border
     use add_log_fm, only: change_log_acknowledgment
     use add_log_fm, only: change_log_conditionals
@@ -166,6 +167,7 @@ module face_table_fm
     use faces_fm, only: tab_line
     use faces_fm, only: tab_line_active
     use faces_fm, only: tab_line_inactive
+    use tabulated_list_fm, only: tabulated_list_fake_header
     use faces_fm, only: tool_bar
     use faces_fm, only: trailing_whitespace
     use faces_fm, only: tty_menu_disabled_face
@@ -201,6 +203,7 @@ module face_table_fm
         type(named_face_type), pointer :: bold => bold
         type(named_face_type), pointer :: bold_italic => bold_italic
         type(named_face_type), pointer :: bookmark_face => bookmark_face
+        type(named_face_type), pointer :: bookmark_menu_bookmark => bookmark_menu_bookmark
         type(named_face_type), pointer :: border => border
         type(named_face_type), pointer :: change_log_acknowledgment => change_log_acknowledgment
         type(named_face_type), pointer :: change_log_conditionals => change_log_conditionals
@@ -339,6 +342,7 @@ module face_table_fm
         type(named_face_type), pointer :: tab_line => tab_line
         type(named_face_type), pointer :: tab_line_active => tab_line_active
         type(named_face_type), pointer :: tab_line_inactive => tab_line_inactive
+        type(named_face_type), pointer :: tabulated_list_fake_header => tabulated_list_fake_header
         type(named_face_type), pointer :: tool_bar => tool_bar
         type(named_face_type), pointer :: trailing_whitespace => trailing_whitespace
         type(named_face_type), pointer :: tty_menu_disabled_face => tty_menu_disabled_face

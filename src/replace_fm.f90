@@ -128,7 +128,7 @@ module replace_fm
     use font_lock_fm, only: font_lock_ensure
     use regexp_opt_fm, only: regexp_opt_depth
     use xfaces_fm, only: face_differs_from_default_p
-    use faces_fm, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_CLASS_MONO, &
+    use faces_fm, only: named_face_type, display_when, face_attrs, init_faces, FACE_CLASS_COLOR, FACE_CLASS_MONO, &
                         FACE_BACKGROUND_LIGHT, FACE_BACKGROUND_DARK
     implicit none(type, external)
     private
@@ -2024,6 +2024,8 @@ contains
                               DARK = FACE_BACKGROUND_DARK
         type(status_type) :: st
         type(value_type) :: history
+        ! (faces.el is loaded before replace.el.)
+        call init_faces()
         call match%define("match", "Face used to highlight matches permanently.")
         call match%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[LIGHT]), &
                               face_attrs(background="khaki1"))

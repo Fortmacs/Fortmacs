@@ -459,7 +459,14 @@ module fortmacs
                            bookmark_search_size, bookmark_make_record_function, bookmark_inhibit_context_functions, &
                            bookmark_edit_annotation_text_func, bookmark_edit_annotation_mode_map, &
                            bookmark_edit_annotation_mode_hook, bookmark_after_jump_hook, &
-                           bookmark_after_load_file_hook, bookmark_exit_hook
+                           bookmark_after_load_file_hook, bookmark_exit_hook, bookmark_bmenu_buffer, &
+                           bookmark_bmenu_file_column, bookmark_bmenu_type_column_width, &
+                           bookmark_bmenu_toggle_filenames, bookmark_search_delay, bookmark_bmenu_mode_map, &
+                           bookmark_bmenu_mode_hook
+    use tabulated_list_fm, only: tabulated_list_gui_sort_indicator_asc, tabulated_list_gui_sort_indicator_desc, &
+                                 tabulated_list_tty_sort_indicator_asc, tabulated_list_tty_sort_indicator_desc, &
+                                 tabulated_list_mode_map, tabulated_list_mode_hook, tabulated_list_revert_hook
+    use mule_util_fm, only: vtruncate_string_ellipsis
     use repeat_fm, only: repeat_mode, repeat_mode_hook, repeat_too_dangerous, repeat_on_final_keystroke, &
                          repeat_exit_key, repeat_exit_timeout, repeat_keep_prefix, repeat_check_key, &
                          repeat_echo_function, repeat_echo_proc, repeat_echo_message, repeat_exit
@@ -782,7 +789,12 @@ module fortmacs
               bookmark_menu_confirm_deletion, bookmark_automatically_show_annotations, bookmark_fringe_mark, &
               bookmark_map, bookmark_search_size, bookmark_make_record_function, bookmark_inhibit_context_functions, &
               bookmark_edit_annotation_text_func, bookmark_edit_annotation_mode_map, bookmark_edit_annotation_mode_hook, &
-              bookmark_after_jump_hook, bookmark_after_load_file_hook, bookmark_exit_hook
+              bookmark_after_jump_hook, bookmark_after_load_file_hook, bookmark_exit_hook, bookmark_bmenu_buffer, &
+              bookmark_bmenu_file_column, bookmark_bmenu_type_column_width, bookmark_bmenu_toggle_filenames, &
+              bookmark_search_delay, bookmark_bmenu_mode_map, bookmark_bmenu_mode_hook
+    public :: tabulated_list_gui_sort_indicator_asc, tabulated_list_gui_sort_indicator_desc, &
+              tabulated_list_tty_sort_indicator_asc, tabulated_list_tty_sort_indicator_desc, tabulated_list_mode_map, &
+              tabulated_list_mode_hook, tabulated_list_revert_hook, vtruncate_string_ellipsis
     public :: repeat_mode, repeat_mode_hook, repeat_too_dangerous, repeat_on_final_keystroke, repeat_exit_key, &
               repeat_exit_timeout, repeat_keep_prefix, repeat_check_key, repeat_echo_function, repeat_echo_proc, &
               repeat_echo_message, repeat_exit, PROPERTY_UNSET, PROPERTY_TRUE, PROPERTY_NO, set_repeat_map, &
