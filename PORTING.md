@@ -213,7 +213,11 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
    50. Buttons (button.el: `insert-text-button`, `forward-button` TAB,
        `push-button` RET), then what waits on them: Help's cross-references
        and the help-xref stack (l, r), and the buttons at the end of VC logs.
-   51. The X11 GUI (the protocol over a Unix socket in Fortran, FreeType and
+   51. Mail: composing and sending (`compose-mail` C-x m, sendmail.el,
+       message.el, smtpmail.el over a socket in src/sys, mail-utils.el,
+       mailabbrev.el), then Rmail (rmail.el, rmailsum.el, rmailout.el,
+       rmailedit.el, rmailkwd.el, rmailmm.el; mbox files and movemail).
+   52. The X11 GUI (the protocol over a Unix socket in Fortran, FreeType and
        HarfBuzz fonts), then Wayland.
 
 The GUI (X11 protocol over a Unix socket from Fortran, our own font
@@ -850,6 +854,7 @@ Each lists the default being used meanwhile.
 
 ## Session log
 
+- 2026-10-29 — Roadmap: step 51 Mail and Rmail added at the user's request (composing and sending first, as Rmail's replies need it); the GUI moves to 52.  Calendar and diary were already step 45.
 - 2026-10-29 — Bookmarks (roadmap step 33e, `step33-bookmark`, based on main; the roadmap step 33 is now six PRs, the bookmark list moving to 33f with header lines and tabulated-list.el, as decided with the user): bookmark_fm (setting, jumping to, renaming, deleting, inserting, relocating, saving and loading bookmarks, annotations with Edit-Bookmark-Annotation mode, the fringe mark overlay; C-x r m, C-x r M, C-x r b and `bookmark_map`), saved in namelist syntax.  Redisplay hides text with a fringe display spec (a terminal has no fringes); error_fm gains the bookmark errors, sysdep_fm the real-time clock for the last-modified times.  Ports bookmark-tests.el but the bookmark list tests.  Next: 33f.
 - 2026-10-29 — Recentf (roadmap step 33d, `step33-recentf`, based on main): recentf_fm (Recentf mode, the list of recent files saved in namelist syntax, `recentf_open`, `recentf_open_most_recent_file`, `recentf_cleanup`); the exclude and keep lists are arrays of `recentf_check_type` (a regexp or a procedure pointer).  Own tests (no upstream recentf tests).  Next: 33e bookmarks.
 - 2026-10-29 — Savehist and saveplace (roadmap step 33c, `step33-savehist`, based on main): design decision "Saved state in namelist syntax" (recorded with the user: no Lisp data on disk, no name conversion); namelist_fm reads and writes that syntax; savehist_fm (Savehist mode, `savehist_save`, autosaving) and saveplace_fm (Save-Place mode and Save-Place-Local mode, places of files and Dired directories).  keyboard_fm gains `kill_emacs_hook` (run by emacs_fm when Fortmacs exits), minibuf_fm `minibuffer_setup_hook`, easy_mmode_fm `mode_called_interactively` for a mode's body.  Ports savehist-tests.el and saveplace-tests.el; own namelist tests.  Next: 33d recentf.
