@@ -32,6 +32,7 @@ Fortmacs: a rewrite of GNU Emacs 31.1 (tag emacs-31.1) in modern Fortran (2018+,
 ## Fortran conventions
 
 - Style: the fortran-lang and stdlib style guides (4-space indentation, 132-column limit). fprettify formats, Fortitude lints with its default rules.
+- Blank lines (tools/blank-lines.awk applies them; tools/check.sh checks): in a procedure body, one blank line after the declarations and one before and after every block construct (`if`, `do`, `select`, `associate`, `block`), at every nesting level and between two blocks; none between simple statements, at the start or end of a block body, or before the end of the procedure. A comment belongs to the statement below it (the blank line goes above the comment). One blank line around `contains` and between procedures.
 - `implicit none (type, external)` everywhere, including interface bodies; modules `private` by default with explicit `public`.
 - `intent` on every dummy argument; mark `recursive` explicitly (gfortran doesn't fully default to it).
 - Kinds: int64 from iso_fortran_env for buffer positions, sizes and counts (Emacs's ptrdiff_t; default integer is 32-bit in gfortran); default integer only for small values such as screen columns.

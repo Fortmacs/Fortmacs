@@ -952,9 +952,8 @@ END {
 }
 ' "$tmp.records" >"$tmp.f90"
 
-# No blank lines inside procedure bodies (PORTING.md, Style).
-awk '/^    (subroutine|function) / { body = 1 } /^    end (subroutine|function) / { body = 0 } !(body && /^$/)' \
-    "$tmp.f90" >"$tmp.out"
+# The blank lines of CLAUDE.md (tools/blank-lines.awk).
+awk -f tools/blank-lines.awk "$tmp.f90" >"$tmp.out"
 if command -v fprettify >/dev/null 2>&1; then
     fprettify --config-file .fprettify.rc "$tmp.out" 2>/dev/null
 fi
