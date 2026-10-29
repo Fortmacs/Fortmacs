@@ -460,6 +460,86 @@ module commands_fm
         type(command_type) :: help_mode
         type(command_type) :: help_quit
         type(command_type) :: how_many
+        type(command_type) :: ibuffer
+        type(command_type) :: ibuffer_add_to_tmp_hide
+        type(command_type) :: ibuffer_add_to_tmp_show
+        type(command_type) :: ibuffer_auto_mode
+        type(command_type) :: ibuffer_backward_filter_group
+        type(command_type) :: ibuffer_backward_line
+        type(command_type) :: ibuffer_backwards_next_marked
+        type(command_type) :: ibuffer_bury_buffer
+        type(command_type) :: ibuffer_change_marks
+        type(command_type) :: ibuffer_copy_buffername_as_kill
+        type(command_type) :: ibuffer_copy_filename_as_kill
+        type(command_type) :: ibuffer_diff_with_file
+        type(command_type) :: ibuffer_do_delete
+        type(command_type) :: ibuffer_do_kill_lines
+        type(command_type) :: ibuffer_do_kill_on_deletion_marks
+        type(command_type) :: ibuffer_do_occur
+        type(command_type) :: ibuffer_do_query_replace
+        type(command_type) :: ibuffer_do_query_replace_regexp
+        type(command_type) :: ibuffer_do_rename_uniquely
+        type(command_type) :: ibuffer_do_replace_regexp
+        type(command_type) :: ibuffer_do_revert
+        type(command_type) :: ibuffer_do_save
+        type(command_type) :: ibuffer_do_shell_command_file
+        type(command_type) :: ibuffer_do_shell_command_pipe
+        type(command_type) :: ibuffer_do_shell_command_pipe_replace
+        type(command_type) :: ibuffer_do_sort_by_alphabetic
+        type(command_type) :: ibuffer_do_sort_by_filename_process
+        type(command_type) :: ibuffer_do_sort_by_major_mode
+        type(command_type) :: ibuffer_do_sort_by_mode_name
+        type(command_type) :: ibuffer_do_sort_by_recency
+        type(command_type) :: ibuffer_do_sort_by_size
+        type(command_type) :: ibuffer_do_toggle_lock
+        type(command_type) :: ibuffer_do_toggle_modified
+        type(command_type) :: ibuffer_do_toggle_read_only
+        type(command_type) :: ibuffer_do_view
+        type(command_type) :: ibuffer_do_view_horizontally
+        type(command_type) :: ibuffer_find_file
+        type(command_type) :: ibuffer_forward_filter_group
+        type(command_type) :: ibuffer_forward_line
+        type(command_type) :: ibuffer_forward_next_marked
+        type(command_type) :: ibuffer_invert_sorting
+        type(command_type) :: ibuffer_jump
+        type(command_type) :: ibuffer_jump_to_buffer
+        type(command_type) :: ibuffer_jump_to_filter_group
+        type(command_type) :: ibuffer_list_buffers
+        type(command_type) :: ibuffer_mark_by_content_regexp
+        type(command_type) :: ibuffer_mark_by_file_name_regexp
+        type(command_type) :: ibuffer_mark_by_locked
+        type(command_type) :: ibuffer_mark_by_mode
+        type(command_type) :: ibuffer_mark_by_mode_regexp
+        type(command_type) :: ibuffer_mark_by_name_regexp
+        type(command_type) :: ibuffer_mark_compressed_file_buffers
+        type(command_type) :: ibuffer_mark_dired_buffers
+        type(command_type) :: ibuffer_mark_dissociated_buffers
+        type(command_type) :: ibuffer_mark_for_delete
+        type(command_type) :: ibuffer_mark_for_delete_backwards
+        type(command_type) :: ibuffer_mark_forward
+        type(command_type) :: ibuffer_mark_help_buffers
+        type(command_type) :: ibuffer_mark_modified_buffers
+        type(command_type) :: ibuffer_mark_old_buffers
+        type(command_type) :: ibuffer_mark_read_only_buffers
+        type(command_type) :: ibuffer_mark_special_buffers
+        type(command_type) :: ibuffer_mark_unsaved_buffers
+        type(command_type) :: ibuffer_mode
+        type(command_type) :: ibuffer_other_window
+        type(command_type) :: ibuffer_recompile_formats
+        type(command_type) :: ibuffer_redisplay
+        type(command_type) :: ibuffer_switch_format
+        type(command_type) :: ibuffer_toggle_filter_group
+        type(command_type) :: ibuffer_toggle_marks
+        type(command_type) :: ibuffer_toggle_sorting_mode
+        type(command_type) :: ibuffer_unmark_all
+        type(command_type) :: ibuffer_unmark_all_marks
+        type(command_type) :: ibuffer_unmark_backward
+        type(command_type) :: ibuffer_unmark_forward
+        type(command_type) :: ibuffer_update
+        type(command_type) :: ibuffer_visit_buffer
+        type(command_type) :: ibuffer_visit_buffer_1_window
+        type(command_type) :: ibuffer_visit_buffer_other_window
+        type(command_type) :: ibuffer_visit_buffer_other_window_noselect
         type(command_type) :: ignore
         type(command_type) :: increment_register
         type(command_type) :: indent_according_to_mode
@@ -888,7 +968,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(850) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(930) = [character(len=43) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -1317,6 +1397,86 @@ module commands_fm
                                                                  "help_mode", &
                                                                  "help_quit", &
                                                                  "how_many", &
+                                                                 "ibuffer", &
+                                                                 "ibuffer_add_to_tmp_hide", &
+                                                                 "ibuffer_add_to_tmp_show", &
+                                                                 "ibuffer_auto_mode", &
+                                                                 "ibuffer_backward_filter_group", &
+                                                                 "ibuffer_backward_line", &
+                                                                 "ibuffer_backwards_next_marked", &
+                                                                 "ibuffer_bury_buffer", &
+                                                                 "ibuffer_change_marks", &
+                                                                 "ibuffer_copy_buffername_as_kill", &
+                                                                 "ibuffer_copy_filename_as_kill", &
+                                                                 "ibuffer_diff_with_file", &
+                                                                 "ibuffer_do_delete", &
+                                                                 "ibuffer_do_kill_lines", &
+                                                                 "ibuffer_do_kill_on_deletion_marks", &
+                                                                 "ibuffer_do_occur", &
+                                                                 "ibuffer_do_query_replace", &
+                                                                 "ibuffer_do_query_replace_regexp", &
+                                                                 "ibuffer_do_rename_uniquely", &
+                                                                 "ibuffer_do_replace_regexp", &
+                                                                 "ibuffer_do_revert", &
+                                                                 "ibuffer_do_save", &
+                                                                 "ibuffer_do_shell_command_file", &
+                                                                 "ibuffer_do_shell_command_pipe", &
+                                                                 "ibuffer_do_shell_command_pipe_replace", &
+                                                                 "ibuffer_do_sort_by_alphabetic", &
+                                                                 "ibuffer_do_sort_by_filename_process", &
+                                                                 "ibuffer_do_sort_by_major_mode", &
+                                                                 "ibuffer_do_sort_by_mode_name", &
+                                                                 "ibuffer_do_sort_by_recency", &
+                                                                 "ibuffer_do_sort_by_size", &
+                                                                 "ibuffer_do_toggle_lock", &
+                                                                 "ibuffer_do_toggle_modified", &
+                                                                 "ibuffer_do_toggle_read_only", &
+                                                                 "ibuffer_do_view", &
+                                                                 "ibuffer_do_view_horizontally", &
+                                                                 "ibuffer_find_file", &
+                                                                 "ibuffer_forward_filter_group", &
+                                                                 "ibuffer_forward_line", &
+                                                                 "ibuffer_forward_next_marked", &
+                                                                 "ibuffer_invert_sorting", &
+                                                                 "ibuffer_jump", &
+                                                                 "ibuffer_jump_to_buffer", &
+                                                                 "ibuffer_jump_to_filter_group", &
+                                                                 "ibuffer_list_buffers", &
+                                                                 "ibuffer_mark_by_content_regexp", &
+                                                                 "ibuffer_mark_by_file_name_regexp", &
+                                                                 "ibuffer_mark_by_locked", &
+                                                                 "ibuffer_mark_by_mode", &
+                                                                 "ibuffer_mark_by_mode_regexp", &
+                                                                 "ibuffer_mark_by_name_regexp", &
+                                                                 "ibuffer_mark_compressed_file_buffers", &
+                                                                 "ibuffer_mark_dired_buffers", &
+                                                                 "ibuffer_mark_dissociated_buffers", &
+                                                                 "ibuffer_mark_for_delete", &
+                                                                 "ibuffer_mark_for_delete_backwards", &
+                                                                 "ibuffer_mark_forward", &
+                                                                 "ibuffer_mark_help_buffers", &
+                                                                 "ibuffer_mark_modified_buffers", &
+                                                                 "ibuffer_mark_old_buffers", &
+                                                                 "ibuffer_mark_read_only_buffers", &
+                                                                 "ibuffer_mark_special_buffers", &
+                                                                 "ibuffer_mark_unsaved_buffers", &
+                                                                 "ibuffer_mode", &
+                                                                 "ibuffer_other_window", &
+                                                                 "ibuffer_recompile_formats", &
+                                                                 "ibuffer_redisplay", &
+                                                                 "ibuffer_switch_format", &
+                                                                 "ibuffer_toggle_filter_group", &
+                                                                 "ibuffer_toggle_marks", &
+                                                                 "ibuffer_toggle_sorting_mode", &
+                                                                 "ibuffer_unmark_all", &
+                                                                 "ibuffer_unmark_all_marks", &
+                                                                 "ibuffer_unmark_backward", &
+                                                                 "ibuffer_unmark_forward", &
+                                                                 "ibuffer_update", &
+                                                                 "ibuffer_visit_buffer", &
+                                                                 "ibuffer_visit_buffer_1_window", &
+                                                                 "ibuffer_visit_buffer_other_window", &
+                                                                 "ibuffer_visit_buffer_other_window_noselect", &
                                                                  "ignore", &
                                                                  "increment_register", &
                                                                  "indent_according_to_mode", &
@@ -2605,6 +2765,166 @@ contains
             p => commands%help_quit
         case ("how_many")
             p => commands%how_many
+        case ("ibuffer")
+            p => commands%ibuffer
+        case ("ibuffer_add_to_tmp_hide")
+            p => commands%ibuffer_add_to_tmp_hide
+        case ("ibuffer_add_to_tmp_show")
+            p => commands%ibuffer_add_to_tmp_show
+        case ("ibuffer_auto_mode")
+            p => commands%ibuffer_auto_mode
+        case ("ibuffer_backward_filter_group")
+            p => commands%ibuffer_backward_filter_group
+        case ("ibuffer_backward_line")
+            p => commands%ibuffer_backward_line
+        case ("ibuffer_backwards_next_marked")
+            p => commands%ibuffer_backwards_next_marked
+        case ("ibuffer_bury_buffer")
+            p => commands%ibuffer_bury_buffer
+        case ("ibuffer_change_marks")
+            p => commands%ibuffer_change_marks
+        case ("ibuffer_copy_buffername_as_kill")
+            p => commands%ibuffer_copy_buffername_as_kill
+        case ("ibuffer_copy_filename_as_kill")
+            p => commands%ibuffer_copy_filename_as_kill
+        case ("ibuffer_diff_with_file")
+            p => commands%ibuffer_diff_with_file
+        case ("ibuffer_do_delete")
+            p => commands%ibuffer_do_delete
+        case ("ibuffer_do_kill_lines")
+            p => commands%ibuffer_do_kill_lines
+        case ("ibuffer_do_kill_on_deletion_marks")
+            p => commands%ibuffer_do_kill_on_deletion_marks
+        case ("ibuffer_do_occur")
+            p => commands%ibuffer_do_occur
+        case ("ibuffer_do_query_replace")
+            p => commands%ibuffer_do_query_replace
+        case ("ibuffer_do_query_replace_regexp")
+            p => commands%ibuffer_do_query_replace_regexp
+        case ("ibuffer_do_rename_uniquely")
+            p => commands%ibuffer_do_rename_uniquely
+        case ("ibuffer_do_replace_regexp")
+            p => commands%ibuffer_do_replace_regexp
+        case ("ibuffer_do_revert")
+            p => commands%ibuffer_do_revert
+        case ("ibuffer_do_save")
+            p => commands%ibuffer_do_save
+        case ("ibuffer_do_shell_command_file")
+            p => commands%ibuffer_do_shell_command_file
+        case ("ibuffer_do_shell_command_pipe")
+            p => commands%ibuffer_do_shell_command_pipe
+        case ("ibuffer_do_shell_command_pipe_replace")
+            p => commands%ibuffer_do_shell_command_pipe_replace
+        case ("ibuffer_do_sort_by_alphabetic")
+            p => commands%ibuffer_do_sort_by_alphabetic
+        case ("ibuffer_do_sort_by_filename_process")
+            p => commands%ibuffer_do_sort_by_filename_process
+        case ("ibuffer_do_sort_by_major_mode")
+            p => commands%ibuffer_do_sort_by_major_mode
+        case ("ibuffer_do_sort_by_mode_name")
+            p => commands%ibuffer_do_sort_by_mode_name
+        case ("ibuffer_do_sort_by_recency")
+            p => commands%ibuffer_do_sort_by_recency
+        case ("ibuffer_do_sort_by_size")
+            p => commands%ibuffer_do_sort_by_size
+        case ("ibuffer_do_toggle_lock")
+            p => commands%ibuffer_do_toggle_lock
+        case ("ibuffer_do_toggle_modified")
+            p => commands%ibuffer_do_toggle_modified
+        case ("ibuffer_do_toggle_read_only")
+            p => commands%ibuffer_do_toggle_read_only
+        case ("ibuffer_do_view")
+            p => commands%ibuffer_do_view
+        case ("ibuffer_do_view_horizontally")
+            p => commands%ibuffer_do_view_horizontally
+        case ("ibuffer_find_file")
+            p => commands%ibuffer_find_file
+        case ("ibuffer_forward_filter_group")
+            p => commands%ibuffer_forward_filter_group
+        case ("ibuffer_forward_line")
+            p => commands%ibuffer_forward_line
+        case ("ibuffer_forward_next_marked")
+            p => commands%ibuffer_forward_next_marked
+        case ("ibuffer_invert_sorting")
+            p => commands%ibuffer_invert_sorting
+        case ("ibuffer_jump")
+            p => commands%ibuffer_jump
+        case ("ibuffer_jump_to_buffer")
+            p => commands%ibuffer_jump_to_buffer
+        case ("ibuffer_jump_to_filter_group")
+            p => commands%ibuffer_jump_to_filter_group
+        case ("ibuffer_list_buffers")
+            p => commands%ibuffer_list_buffers
+        case ("ibuffer_mark_by_content_regexp")
+            p => commands%ibuffer_mark_by_content_regexp
+        case ("ibuffer_mark_by_file_name_regexp")
+            p => commands%ibuffer_mark_by_file_name_regexp
+        case ("ibuffer_mark_by_locked")
+            p => commands%ibuffer_mark_by_locked
+        case ("ibuffer_mark_by_mode")
+            p => commands%ibuffer_mark_by_mode
+        case ("ibuffer_mark_by_mode_regexp")
+            p => commands%ibuffer_mark_by_mode_regexp
+        case ("ibuffer_mark_by_name_regexp")
+            p => commands%ibuffer_mark_by_name_regexp
+        case ("ibuffer_mark_compressed_file_buffers")
+            p => commands%ibuffer_mark_compressed_file_buffers
+        case ("ibuffer_mark_dired_buffers")
+            p => commands%ibuffer_mark_dired_buffers
+        case ("ibuffer_mark_dissociated_buffers")
+            p => commands%ibuffer_mark_dissociated_buffers
+        case ("ibuffer_mark_for_delete")
+            p => commands%ibuffer_mark_for_delete
+        case ("ibuffer_mark_for_delete_backwards")
+            p => commands%ibuffer_mark_for_delete_backwards
+        case ("ibuffer_mark_forward")
+            p => commands%ibuffer_mark_forward
+        case ("ibuffer_mark_help_buffers")
+            p => commands%ibuffer_mark_help_buffers
+        case ("ibuffer_mark_modified_buffers")
+            p => commands%ibuffer_mark_modified_buffers
+        case ("ibuffer_mark_old_buffers")
+            p => commands%ibuffer_mark_old_buffers
+        case ("ibuffer_mark_read_only_buffers")
+            p => commands%ibuffer_mark_read_only_buffers
+        case ("ibuffer_mark_special_buffers")
+            p => commands%ibuffer_mark_special_buffers
+        case ("ibuffer_mark_unsaved_buffers")
+            p => commands%ibuffer_mark_unsaved_buffers
+        case ("ibuffer_mode")
+            p => commands%ibuffer_mode
+        case ("ibuffer_other_window")
+            p => commands%ibuffer_other_window
+        case ("ibuffer_recompile_formats")
+            p => commands%ibuffer_recompile_formats
+        case ("ibuffer_redisplay")
+            p => commands%ibuffer_redisplay
+        case ("ibuffer_switch_format")
+            p => commands%ibuffer_switch_format
+        case ("ibuffer_toggle_filter_group")
+            p => commands%ibuffer_toggle_filter_group
+        case ("ibuffer_toggle_marks")
+            p => commands%ibuffer_toggle_marks
+        case ("ibuffer_toggle_sorting_mode")
+            p => commands%ibuffer_toggle_sorting_mode
+        case ("ibuffer_unmark_all")
+            p => commands%ibuffer_unmark_all
+        case ("ibuffer_unmark_all_marks")
+            p => commands%ibuffer_unmark_all_marks
+        case ("ibuffer_unmark_backward")
+            p => commands%ibuffer_unmark_backward
+        case ("ibuffer_unmark_forward")
+            p => commands%ibuffer_unmark_forward
+        case ("ibuffer_update")
+            p => commands%ibuffer_update
+        case ("ibuffer_visit_buffer")
+            p => commands%ibuffer_visit_buffer
+        case ("ibuffer_visit_buffer_1_window")
+            p => commands%ibuffer_visit_buffer_1_window
+        case ("ibuffer_visit_buffer_other_window")
+            p => commands%ibuffer_visit_buffer_other_window
+        case ("ibuffer_visit_buffer_other_window_noselect")
+            p => commands%ibuffer_visit_buffer_other_window_noselect
         case ("ignore")
             p => commands%ignore
         case ("increment_register")

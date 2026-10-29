@@ -230,6 +230,26 @@ module docstrings_fm
                        GREP_ALWAYS, GREP_AUTO, rgrep_find_ignores_in_f, xargs_program
     use help_fm, only: help_map
     use help_mode_fm, only: help_mode_abbrev_table, help_mode_hook, help_mode_map
+    use ibuffer_fm, only: ibuffer_columns, ibuffer_always_compile_formats, &
+                          ibuffer_always_show_last_buffer, IBUFFER_SHOW_LAST_NEVER, IBUFFER_SHOW_LAST_ALWAYS, &
+                          IBUFFER_SHOW_LAST_NOMINI, ibuffer_always_show_predicates, ibuffer_case_fold_search, &
+                          ibuffer_compressed_file_name_regexp, ibuffer_default_directory, &
+                          ibuffer_default_display_maybe_show_predicates, ibuffer_default_shrink_to_minimum_size, &
+                          ibuffer_default_sorting_mode, ibuffer_default_sorting_reversep, ibuffer_deletion_face_def, &
+                          ibuffer_deletion_char, ibuffer_deletion_face, ibuffer_directory_abbrev_alist, &
+                          ibuffer_display_summary, ibuffer_eliding_string, ibuffer_expert, &
+                          ibuffer_filter_group_name_face_def, ibuffer_filter_group_name_face, &
+                          ibuffer_fontification_alist, ibuffer_formats, ibuffer_help_buffer_modes, ibuffer_hook, &
+                          ibuffer_human_readable_size, ibuffer_jump_offer_only_visible_buffers, ibuffer_locked_buffer, &
+                          ibuffer_locked_char, ibuffer_marked_face_def, ibuffer_marked_char, ibuffer_marked_face, &
+                          ibuffer_maybe_show_predicates, ibuffer_mode_filter_group_map, ibuffer_mode_hook, &
+                          ibuffer_mode_map, ibuffer_modified_char, ibuffer_movement_cycle, &
+                          ibuffer_never_search_content_mode, ibuffer_never_search_content_name, &
+                          ibuffer_never_show_predicates, ibuffer_old_time, ibuffer_read_only_char, &
+                          ibuffer_show_empty_filter_groups, ibuffer_sorting_functions, ibuffer_title_face_def, &
+                          ibuffer_title_face, ibuffer_truncate_lines, ibuffer_use_header_line, IBUFFER_HEADER_LINE_NIL, &
+                          IBUFFER_HEADER_LINE_T, IBUFFER_HEADER_LINE_TITLE, ibuffer_use_other_window, &
+                          ibuffer_view_ibuffer
     use indent_fm, only: indent_line_function, indent_line_function_name, indent_region_function, &
                          indent_tabs_mode, standard_indent, tab_always_indent, tab_stop_list
     use insdel_fm, only: after_change_functions, before_change_functions, first_change_hook, &
@@ -462,7 +482,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1078) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1160) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -541,16 +561,17 @@ module docstrings_fm
                                            "current_justification", "current_kill", "cycle_spacing", "dabbrev__same_major_mode_p", &
                                              "dabbrev__select_buffers", "dabbrev_completion", "dabbrev_expand", "deactivate_mark", &
                                                         "decode_coding_region", "decode_coding_string", "default_indent_new_line", &
-                                                       "define_coding_system_alias", "define_global_abbrev", "define_mode_abbrev", &
-                                                  "delete_all_space", "delete_backward_char", "delete_blank_lines", "delete_char", &
-                                                     "delete_extract_rectangle", "delete_forward_char", "delete_horizontal_space", &
-                                                       "delete_indentation", "delete_matching_lines", "delete_non_matching_lines", &
-                                                    "delete_other_windows", "delete_process", "delete_rectangle", "delete_region", &
-                                            "delete_whitespace_rectangle", "delete_window", "derived_mode_p", "describe_bindings", &
-                                                   "describe_coding_system", "describe_command", "describe_current_coding_system", &
-                                                     "describe_function", "describe_key", "describe_key_briefly", "describe_mode", &
-                                           "describe_symbol", "describe_variable", "detect_coding_region", "detect_coding_string", &
-                                           "diff", "diff_apply_buffer", "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", &
+                                                    "define_coding_system_alias", "define_global_abbrev", "define_ibuffer_column", &
+                                                                "define_ibuffer_sorter", "define_mode_abbrev", "delete_all_space", &
+                                          "delete_backward_char", "delete_blank_lines", "delete_char", "delete_extract_rectangle", &
+                                                           "delete_forward_char", "delete_horizontal_space", "delete_indentation", &
+                                                     "delete_matching_lines", "delete_non_matching_lines", "delete_other_windows", &
+                                             "delete_process", "delete_rectangle", "delete_region", "delete_whitespace_rectangle", &
+                                                 "delete_window", "derived_mode_p", "describe_bindings", "describe_coding_system", &
+                                                        "describe_command", "describe_current_coding_system", "describe_function", &
+                                                       "describe_key", "describe_key_briefly", "describe_mode", "describe_symbol", &
+                                                      "describe_variable", "detect_coding_region", "detect_coding_string", "diff", &
+                                                   "diff_apply_buffer", "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", &
                                                     "diff_buffers", "diff_delete_other_hunks", "diff_file_kill", "diff_file_next", &
                                                       "diff_file_prev", "diff_fixup_modifs", "diff_goto_source", "diff_hunk_kill", &
                                           "diff_hunk_next", "diff_hunk_prev", "diff_kill_junk", "diff_mode", "diff_restrict_view", &
@@ -617,7 +638,37 @@ module docstrings_fm
                                                        "goto_char", "grep", "grep_apply_setting", "grep_change_to_grep_edit_mode", &
                                                  "grep_compute_defaults", "grep_edit_mode", "grep_edit_save_changes", "grep_find", &
                                                   "grep_find_toggle_abbreviation", "grep_mode", "help_for_help", "help_form_show", &
-                                                             "help_mode", "help_quit", "how_many", "ignore", "increment_register", &
+                                                       "help_mode", "help_quit", "how_many", "ibuffer", "ibuffer_add_to_tmp_hide", &
+                                                  "ibuffer_add_to_tmp_show", "ibuffer_auto_mode", "ibuffer_backward_filter_group", &
+                                                  "ibuffer_backward_line", "ibuffer_backwards_next_marked", "ibuffer_bury_buffer", &
+                                                                    "ibuffer_change_marks", "ibuffer_copy_buffername_as_kill", &
+                                                   "ibuffer_copy_filename_as_kill", "ibuffer_diff_with_file", "ibuffer_do_delete", &
+                                                 "ibuffer_do_kill_lines", "ibuffer_do_kill_on_deletion_marks", "ibuffer_do_occur", &
+                                                                    "ibuffer_do_query_replace", "ibuffer_do_query_replace_regexp", &
+                                                   "ibuffer_do_rename_uniquely", "ibuffer_do_replace_regexp", "ibuffer_do_revert", &
+                                              "ibuffer_do_save", "ibuffer_do_shell_command_file", "ibuffer_do_shell_command_pipe", &
+                                                         "ibuffer_do_shell_command_pipe_replace", "ibuffer_do_sort_by_alphabetic", &
+                                                           "ibuffer_do_sort_by_filename_process", "ibuffer_do_sort_by_major_mode", &
+                                          "ibuffer_do_sort_by_mode_name", "ibuffer_do_sort_by_recency", "ibuffer_do_sort_by_size", &
+                                            "ibuffer_do_toggle_lock", "ibuffer_do_toggle_modified", "ibuffer_do_toggle_read_only", &
+                                                           "ibuffer_do_view", "ibuffer_do_view_horizontally", "ibuffer_find_file", &
+                                            "ibuffer_forward_filter_group", "ibuffer_forward_line", "ibuffer_forward_next_marked", &
+                                                               "ibuffer_invert_sorting", "ibuffer_jump", "ibuffer_jump_to_buffer", &
+                                         "ibuffer_jump_to_filter_group", "ibuffer_list_buffers", "ibuffer_mark_by_content_regexp", &
+                                             "ibuffer_mark_by_file_name_regexp", "ibuffer_mark_by_locked", "ibuffer_mark_by_mode", &
+                                                                    "ibuffer_mark_by_mode_regexp", "ibuffer_mark_by_name_regexp", &
+                                                             "ibuffer_mark_compressed_file_buffers", "ibuffer_mark_dired_buffers", &
+                                                                    "ibuffer_mark_dissociated_buffers", "ibuffer_mark_for_delete", &
+                                         "ibuffer_mark_for_delete_backwards", "ibuffer_mark_forward", "ibuffer_mark_help_buffers", &
+                                                                    "ibuffer_mark_modified_buffers", "ibuffer_mark_old_buffers", &
+                                                                 "ibuffer_mark_read_only_buffers", "ibuffer_mark_special_buffers", &
+                                                           "ibuffer_mark_unsaved_buffers", "ibuffer_mode", "ibuffer_other_window", &
+                                                        "ibuffer_recompile_formats", "ibuffer_redisplay", "ibuffer_switch_format", &
+                                             "ibuffer_toggle_filter_group", "ibuffer_toggle_marks", "ibuffer_toggle_sorting_mode", &
+                                                      "ibuffer_unmark_all", "ibuffer_unmark_all_marks", "ibuffer_unmark_backward", &
+                                                               "ibuffer_unmark_forward", "ibuffer_update", "ibuffer_visit_buffer", &
+                                                             "ibuffer_visit_buffer_1_window", "ibuffer_visit_buffer_other_window", &
+                                                     "ibuffer_visit_buffer_other_window_noselect", "ignore", "increment_register", &
                                          "indent_according_to_mode", "indent_for_tab_command", "indent_region", "indent_relative", &
                                                     "indent_relative_first_indent_point", "indent_rigidly", "indent_rigidly_left", &
                                                                     "indent_rigidly_left_to_tab_stop", "indent_rigidly_right", &
@@ -775,7 +826,7 @@ module docstrings_fm
                                                                     "yank_rectangle", "yes_or_no_p", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(937) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(987) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -876,8 +927,8 @@ module docstrings_fm
                                                                    "dabbrev_ignored_buffer_modes", "dabbrev_ignored_buffer_names", &
                                            "dabbrev_ignored_buffer_regexps", "dabbrev_limit", "dabbrev_search_these_buffers_only", &
                                               "dabbrev_upcase_means_case_search", "deactivate_mark_hook", "default_justification", &
-                                                    "default_process_coding_system", "defining_kbd_macro", "delete_active_region", &
-                                                                   "delete_exited_processes", "diff_advance_after_apply_hunk", &
+                                                   "default_process_coding_system", "define_ibuffer_column", "defining_kbd_macro", &
+                                               "delete_active_region", "delete_exited_processes", "diff_advance_after_apply_hunk", &
                                                  "diff_ask_before_revert_and_kill_hunk", "diff_command", "diff_default_read_only", &
                                                 "diff_entire_buffers", "diff_jump_to_old_file", "diff_mode_hook", "diff_mode_map", &
                                                          "diff_mode_read_only", "diff_mode_read_only_map", "diff_mode_shared_map", &
@@ -954,16 +1005,35 @@ module docstrings_fm
                                                   "grep_use_headings", "grep_use_null_device", "grep_use_null_filename_separator", &
                                                           "help_map", "help_mode_abbrev_table", "help_mode_hook", "help_mode_map", &
                                                            "history_add_new_input", "history_delete_duplicates", "history_length", &
-                                                             "indent_line_function", "indent_region_function", "indent_tabs_mode", &
-                                                           "indent_tabs_mode_hook", "inhibit_auto_fill", "inhibit_eol_conversion", &
-                                                                   "inhibit_field_text_motion", "inhibit_iso_escape_detection", &
-                                          "inhibit_modification_hooks", "inhibit_null_byte_detection", "insert_default_directory", &
-                                                         "insert_directory_program", "isearch_lax_whitespace", "isearch_mode_map", &
-                                             "isearch_regexp_lax_whitespace", "jit_lock_chunk_size", "kbd_macro_termination_hook", &
-                                                      "kill_buffer_hook", "kill_emacs_hook", "kill_read_only_ok", "kill_ring_max", &
-                                                                  "kill_ring_yank_pointer", "kill_whole_line", "killed_rectangle", &
-                                                        "kmacro_call_repeat_key", "kmacro_call_repeat_with_arg", "kmacro_counter", &
-                                             "kmacro_counter_format", "kmacro_counter_format_start", "kmacro_counter_value_start", &
+                                                              "ibuffer_always_compile_formats", "ibuffer_always_show_last_buffer", &
+                                                                   "ibuffer_always_show_predicates", "ibuffer_case_fold_search", &
+                                                               "ibuffer_compressed_file_name_regexp", "ibuffer_default_directory", &
+                                                                   "ibuffer_default_display_maybe_show_predicates", &
+                                                         "ibuffer_default_shrink_to_minimum_size", "ibuffer_default_sorting_mode", &
+                                                  "ibuffer_default_sorting_reversep", "ibuffer_deletion", "ibuffer_deletion_char", &
+                                             "ibuffer_deletion_face", "ibuffer_directory_abbrev_alist", "ibuffer_display_summary", &
+                                                          "ibuffer_eliding_string", "ibuffer_expert", "ibuffer_filter_group_name", &
+                                               "ibuffer_filter_group_name_face", "ibuffer_fontification_alist", "ibuffer_formats", &
+                                                       "ibuffer_help_buffer_modes", "ibuffer_hook", "ibuffer_human_readable_size", &
+                                                               "ibuffer_jump_offer_only_visible_buffers", "ibuffer_locked_buffer", &
+                                            "ibuffer_locked_char", "ibuffer_marked", "ibuffer_marked_char", "ibuffer_marked_face", &
+                                            "ibuffer_maybe_show_predicates", "ibuffer_mode_filter_group_map", "ibuffer_mode_hook", &
+                                                            "ibuffer_mode_map", "ibuffer_modified_char", "ibuffer_movement_cycle", &
+                                                         "ibuffer_never_search_content_mode", "ibuffer_never_search_content_name", &
+                                                    "ibuffer_never_show_predicates", "ibuffer_old_time", "ibuffer_read_only_char", &
+                                           "ibuffer_show_empty_filter_groups", "ibuffer_sorting_functions_alist", "ibuffer_title", &
+                                                        "ibuffer_title_face", "ibuffer_truncate_lines", "ibuffer_use_header_line", &
+                                                       "ibuffer_use_other_window", "ibuffer_view_ibuffer", "indent_line_function", &
+                                                            "indent_region_function", "indent_tabs_mode", "indent_tabs_mode_hook", &
+                                                       "inhibit_auto_fill", "inhibit_eol_conversion", "inhibit_field_text_motion", &
+                                                                   "inhibit_iso_escape_detection", "inhibit_modification_hooks", &
+                                            "inhibit_null_byte_detection", "insert_default_directory", "insert_directory_program", &
+                                                    "isearch_lax_whitespace", "isearch_mode_map", "isearch_regexp_lax_whitespace", &
+                                                          "jit_lock_chunk_size", "kbd_macro_termination_hook", "kill_buffer_hook", &
+                                                "kill_emacs_hook", "kill_read_only_ok", "kill_ring_max", "kill_ring_yank_pointer", &
+                                                                  "kill_whole_line", "killed_rectangle", "kmacro_call_repeat_key", &
+                                                         "kmacro_call_repeat_with_arg", "kmacro_counter", "kmacro_counter_format", &
+                                                                   "kmacro_counter_format_start", "kmacro_counter_value_start", &
                                                                   "kmacro_default_counter_format", "kmacro_execute_before_append", &
                                                            "kmacro_initial_counter_value", "kmacro_keymap", "kmacro_last_counter", &
                                                        "kmacro_repeat_no_prefix", "kmacro_ring", "kmacro_ring_max", "last_abbrev", &
@@ -1100,7 +1170,7 @@ module docstrings_fm
                                                                    "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(452) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(493) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1352,6 +1422,47 @@ module docstrings_fm
                                                                       "help_mode_hook", &
                                                                       "history_delete_duplicates", &
                                                                       "history_length", &
+                                                                      "ibuffer_always_compile_formats", &
+                                                                      "ibuffer_always_show_last_buffer", &
+                                                                      "ibuffer_always_show_predicates", &
+                                                                      "ibuffer_case_fold_search", &
+                                                                      "ibuffer_compressed_file_name_regexp", &
+                                                                      "ibuffer_default_directory", &
+                                                                      "ibuffer_default_display_maybe_show_predicates", &
+                                                                      "ibuffer_default_shrink_to_minimum_size", &
+                                                                      "ibuffer_default_sorting_mode", &
+                                                                      "ibuffer_default_sorting_reversep", &
+                                                                      "ibuffer_deletion_char", &
+                                                                      "ibuffer_deletion_face", &
+                                                                      "ibuffer_directory_abbrev_alist", &
+                                                                      "ibuffer_display_summary", &
+                                                                      "ibuffer_eliding_string", &
+                                                                      "ibuffer_expert", &
+                                                                      "ibuffer_filter_group_name_face", &
+                                                                      "ibuffer_fontification_alist", &
+                                                                      "ibuffer_formats", &
+                                                                      "ibuffer_help_buffer_modes", &
+                                                                      "ibuffer_hook", &
+                                                                      "ibuffer_human_readable_size", &
+                                                                      "ibuffer_jump_offer_only_visible_buffers", &
+                                                                      "ibuffer_locked_char", &
+                                                                      "ibuffer_marked_char", &
+                                                                      "ibuffer_marked_face", &
+                                                                      "ibuffer_maybe_show_predicates", &
+                                                                      "ibuffer_mode_hook", &
+                                                                      "ibuffer_modified_char", &
+                                                                      "ibuffer_movement_cycle", &
+                                                                      "ibuffer_never_search_content_mode", &
+                                                                      "ibuffer_never_search_content_name", &
+                                                                      "ibuffer_never_show_predicates", &
+                                                                      "ibuffer_old_time", &
+                                                                      "ibuffer_read_only_char", &
+                                                                      "ibuffer_show_empty_filter_groups", &
+                                                                      "ibuffer_title_face", &
+                                                                      "ibuffer_truncate_lines", &
+                                                                      "ibuffer_use_header_line", &
+                                                                      "ibuffer_use_other_window", &
+                                                                      "ibuffer_view_ibuffer", &
                                                                       "indent_tabs_mode", &
                                                                       "inhibit_eol_conversion", &
                                                                       "insert_default_directory", &
@@ -3724,6 +3835,18 @@ contains
             entry%doc = "Define ABBREV as a global abbreviation that expands into EXPANSION."//LF// &
                         "The characters in ABBREV must all be word constituents in the standard"//LF// &
                         "syntax table."
+        case ("define_ibuffer_column")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "call define_ibuffer_column(name, make, title, summarizer)"
+            entry%doc = "Add a column for use with `ibuffer_formats': NAME, its BODY (MAKE)"//LF// &
+                        "called with the buffer current, its TITLE (the capitalized NAME by"//LF// &
+                        "default) and an optional SUMMARIZER.  A column with the same name is"//LF// &
+                        "replaced."
+        case ("define_ibuffer_sorter")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "call define_ibuffer_sorter(name, description, less)"
+            entry%doc = "Add a method of sorting named NAME, described by DESCRIPTION, with"//LF// &
+                        "the predicate LESS."
         case ("define_mode_abbrev")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "call define_mode_abbrev(abbrev, expansion, status)"
@@ -5900,6 +6023,506 @@ contains
                         "form of replace.el:how-many."//LF// &
                         ""//LF// &
                         "Print the number of matches for a regexp following point."
+        case ("ibuffer")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Begin using Ibuffer to edit a list of buffers."//LF// &
+                        "Type \<ibuffer_mode_map>\[describe_mode] after entering ibuffer for"//LF// &
+                        "more information."//LF// &
+                        ""//LF// &
+                        "All arguments are optional."//LF// &
+                        "OTHER_WINDOW_P says to use another window."//LF// &
+                        "NAME specifies the name of the buffer (defaults to ""*Ibuffer*"")."//LF// &
+                        "NOSELECT means don't select the Ibuffer buffer."//LF// &
+                        "SHRINK means shrink the buffer to minimal size.  The special"//LF// &
+                        "  value IBUFFER_SHRINK_ONEWINDOW means always use another window."//LF// &
+                        "FORMATS is the value to use for `ibuffer_formats'."//LF// &
+                        "  If specified, then the variable `ibuffer_formats' will have"//LF// &
+                        "  that value locally in this buffer."
+        case ("ibuffer_add_to_tmp_hide")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Add REGEXP to `ibuffer_tmp_hide_regexps'."//LF// &
+                        "This means that buffers whose name matches REGEXP will not be shown"//LF// &
+                        "for this Ibuffer session."
+        case ("ibuffer_add_to_tmp_show")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Add REGEXP to `ibuffer_tmp_show_regexps'."//LF// &
+                        "This means that buffers whose name matches REGEXP will always be shown"//LF// &
+                        "for this Ibuffer session."
+        case ("ibuffer_auto_mode")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle use of Ibuffer's auto-update facility (Ibuffer Auto mode)."
+        case ("ibuffer_backward_filter_group")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point backwards by COUNT filtering groups."
+        case ("ibuffer_backward_line")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move backwards ARG lines, wrapping around the list if necessary."
+        case ("ibuffer_backwards_next_marked")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move backwards by COUNT marked buffers (default 1)."//LF// &
+                        ""//LF// &
+                        "If MARK is present, it should be a character denoting the type of"//LF// &
+                        "mark to move by.  The default is `ibuffer_marked_char'."
+        case ("ibuffer_bury_buffer")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Bury the buffer on this line."
+        case ("ibuffer_change_marks")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Change all OLD marks to NEW marks."//LF// &
+                        "OLD and NEW are both characters used to mark buffers."
+        case ("ibuffer_copy_buffername_as_kill")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Copy buffer names of marked (or next ARG) buffers into the kill ring."//LF// &
+                        "The names are separated by a space."//LF// &
+                        "You can then feed the file name(s) to other commands with \[yank]."
+        case ("ibuffer_copy_filename_as_kill")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Copy filenames of marked (or next ARG) buffers into the kill ring."//LF// &
+                        ""//LF// &
+                        "The names are separated by a space."//LF// &
+                        "If a buffer has no filename, it is ignored."//LF// &
+                        ""//LF// &
+                        "With no prefix arg, use the filename sans its directory of each marked file."//LF// &
+                        "With a zero prefix arg, use the complete filename of each marked file."//LF// &
+                        "With \[universal_argument], use the filename of each marked file relative"//LF// &
+                        "to `ibuffer_default_directory' if set, otherwise `default_directory'."//LF// &
+                        ""//LF// &
+                        "You can then feed the file name(s) to other commands with \[yank]."
+        case ("ibuffer_diff_with_file")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "View the differences between marked buffers and their associated"//LF// &
+                        "files.  If no buffers are marked, use buffer at point."//LF// &
+                        "This requires the external program `diff_command' to be in your"//LF// &
+                        "`exec_path'."
+        case ("ibuffer_do_delete")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Kill marked buffers as with `kill_this_buffer'."
+        case ("ibuffer_do_kill_lines")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Hide all of the currently marked lines."
+        case ("ibuffer_do_kill_on_deletion_marks")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Kill buffers marked for deletion as with `kill_this_buffer'."
+        case ("ibuffer_do_occur")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "View lines which match REGEXP in all marked buffers."//LF// &
+                        "Optional argument NLINES says how many lines of context to display:"//LF// &
+                        "it defaults to one."
+        case ("ibuffer_do_query_replace")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Perform a `query_replace' in marked buffers."
+        case ("ibuffer_do_query_replace_regexp")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Perform a `query_replace_regexp' in marked buffers."
+        case ("ibuffer_do_rename_uniquely")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Rename marked buffers as with `rename_uniquely'."
+        case ("ibuffer_do_replace_regexp")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Perform a `replace_regexp' in marked buffers."
+        case ("ibuffer_do_revert")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Revert marked buffers as with `revert_buffer'."
+        case ("ibuffer_do_save")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Save marked buffers as with `save_buffer'."
+        case ("ibuffer_do_shell_command_file")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Run shell command COMMAND separately on files of marked buffers."
+        case ("ibuffer_do_shell_command_pipe")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Pipe the contents of each marked buffer to shell command COMMAND."
+        case ("ibuffer_do_shell_command_pipe_replace")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Replace the contents of marked buffers with output of pipe to"//LF// &
+                        "COMMAND."
+        case ("ibuffer_do_sort_by_alphabetic")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Sort the buffers by their names."//LF// &
+                        "Ordering is lexicographic."
+        case ("ibuffer_do_sort_by_filename_process")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Sort the buffers by their file name/process name."
+        case ("ibuffer_do_sort_by_major_mode")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Sort the buffers by major modes."//LF// &
+                        "Ordering is lexicographic."
+        case ("ibuffer_do_sort_by_mode_name")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Sort the buffers by their mode name."//LF// &
+                        "Ordering is lexicographic."
+        case ("ibuffer_do_sort_by_recency")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Sort the buffers by how recently they've been used."
+        case ("ibuffer_do_sort_by_size")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Sort the buffers by their size."
+        case ("ibuffer_do_toggle_lock")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle locked status in marked buffers.  (emacs-lock.el is not"//LF// &
+                        "ported: this does nothing.)"
+        case ("ibuffer_do_toggle_modified")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle modification flag of marked buffers."
+        case ("ibuffer_do_toggle_read_only")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle read only status in marked buffers."//LF// &
+                        "If optional ARG is a non-negative integer, make buffers read only."//LF// &
+                        "If ARG is a negative integer or 0, make buffers writable."//LF// &
+                        "Otherwise, toggle read only status."
+        case ("ibuffer_do_view")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "View marked buffers, or the buffer on the current line."//LF// &
+                        "Display each buffer as a new window in the current frame, splitting"//LF// &
+                        "vertically."
+        case ("ibuffer_do_view_horizontally")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "As `ibuffer_do_view', but split windows horizontally."
+        case ("ibuffer_find_file")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Like `find_file', but default to the directory of the buffer at"//LF// &
+                        "point."
+        case ("ibuffer_forward_filter_group")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point forwards by COUNT filtering groups."
+        case ("ibuffer_forward_line")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move forward ARG lines, wrapping around the list if necessary."
+        case ("ibuffer_forward_next_marked")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move forward by COUNT marked buffers (default 1)."//LF// &
+                        ""//LF// &
+                        "If MARK is present, it should be a character denoting the type of"//LF// &
+                        "mark to move by.  The default is `ibuffer_marked_char'."//LF// &
+                        ""//LF// &
+                        "If DIRECTION is present, it should be an integer; negative integers"//LF// &
+                        "mean move backwards, non-negative integers mean move forwards."
+        case ("ibuffer_invert_sorting")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle whether or not sorting is in reverse order."
+        case ("ibuffer_jump")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Call Ibuffer and set point at the line listing the current buffer."//LF// &
+                        "If optional arg OTHER_WINDOW is true, then use another window."
+        case ("ibuffer_jump_to_buffer")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point to the buffer whose name is NAME."//LF// &
+                        ""//LF// &
+                        "If called interactively, prompt for a buffer name and go to the"//LF// &
+                        "corresponding line in the Ibuffer buffer.  If said buffer is in a"//LF// &
+                        "hidden group filter, open it."//LF// &
+                        ""//LF// &
+                        "If `ibuffer_jump_offer_only_visible_buffers' is true, only offer"//LF// &
+                        "visible buffers in the completion list.  Calling the command with"//LF// &
+                        "a prefix argument reverses the meaning of that variable."
+        case ("ibuffer_jump_to_filter_group")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point to the filter group whose name is NAME."
+        case ("ibuffer_list_buffers")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display a list of buffers, in another window."
+        case ("ibuffer_mark_by_content_regexp")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark all buffers whose content matches REGEXP."//LF// &
+                        "Optional arg ALL_BUFFERS, if true, then search in all buffers."//LF// &
+                        "Otherwise buffers whose name matches an element of"//LF// &
+                        "`ibuffer_never_search_content_name' or whose major mode is on"//LF// &
+                        "`ibuffer_never_search_content_mode' are excluded."
+        case ("ibuffer_mark_by_file_name_regexp")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark all buffers whose file name matches REGEXP."
+        case ("ibuffer_mark_by_locked")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark all locked buffers.  (emacs-lock.el is not ported: there are"//LF// &
+                        "none.)"
+        case ("ibuffer_mark_by_mode")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark all buffers whose major mode equals MODE."
+        case ("ibuffer_mark_by_mode_regexp")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark all buffers whose major mode matches REGEXP."
+        case ("ibuffer_mark_by_name_regexp")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark all buffers whose name matches REGEXP."
+        case ("ibuffer_mark_compressed_file_buffers")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark buffers whose associated file is compressed."
+        case ("ibuffer_mark_dired_buffers")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark all `dired' buffers."
+        case ("ibuffer_mark_dissociated_buffers")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark all buffers whose associated file does not exist."
+        case ("ibuffer_mark_for_delete")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark for deletion the buffers in the region, or ARG buffers."//LF// &
+                        "If point is on a group name, this function operates on that group."
+        case ("ibuffer_mark_for_delete_backwards")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark for deletion the ARG previous buffers."//LF// &
+                        "If point is on a group name, this function operates on that group."
+        case ("ibuffer_mark_forward")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark the buffers in the region, or ARG buffers."//LF// &
+                        "If point is on a group name, this function operates on that group."
+        case ("ibuffer_mark_help_buffers")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark buffers whose major mode is in variable"//LF// &
+                        "`ibuffer_help_buffer_modes'."
+        case ("ibuffer_mark_modified_buffers")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark all modified buffers."
+        case ("ibuffer_mark_old_buffers")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark buffers which have not been viewed in `ibuffer_old_time' hours."
+        case ("ibuffer_mark_read_only_buffers")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark all read-only buffers."
+        case ("ibuffer_mark_special_buffers")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark all buffers whose name begins and ends with `*'."
+        case ("ibuffer_mark_unsaved_buffers")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark all modified buffers that have an associated file."
+        case ("ibuffer_mode")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "A major mode for viewing a list of buffers."//LF// &
+                        "In Ibuffer, you can conveniently perform many operations on the"//LF// &
+                        "currently open buffers, in addition to filtering your view to a"//LF// &
+                        "particular subset of them, and sorting by various criteria."//LF// &
+                        ""//LF// &
+                        "Operations on marked buffers (see ""Marking commands"" below"//LF// &
+                        " for how to mark buffers):"//LF// &
+                        "\<ibuffer_mode_map>"//LF// &
+                        "  \[ibuffer_do_save] - Save the marked buffers."//LF// &
+                        "  \[ibuffer_do_view] - View the marked buffers in the selected frame."//LF// &
+                        "  \[ibuffer_do_revert] - Revert the marked buffers."//LF// &
+                        "  \[ibuffer_do_toggle_read_only] - Toggle read-only state of marked buffers."//LF// &
+                        "  \[ibuffer_do_delete] - Kill the marked buffers."//LF// &
+                        "  \[ibuffer_do_replace_regexp] - Replace by regexp in each of the marked"//LF// &
+                        "        buffers."//LF// &
+                        "  \[ibuffer_do_query_replace] - Query replace in each of the marked buffers."//LF// &
+                        "  \[ibuffer_do_query_replace_regexp] - As above, with a regular expression."//LF// &
+                        "  \[ibuffer_do_occur] - List lines in all marked buffers which match"//LF// &
+                        "        a given regexp (like the function `occur')."//LF// &
+                        "  \[ibuffer_do_shell_command_pipe] - Pipe the contents of the marked"//LF// &
+                        "        buffers to a shell command."//LF// &
+                        "  \[ibuffer_do_shell_command_pipe_replace] - Replace the contents of the marked"//LF// &
+                        "        buffers with the output of a shell command."//LF// &
+                        "  \[ibuffer_do_shell_command_file] - Run a shell command with the"//LF// &
+                        "        buffer's file as an argument."//LF// &
+                        "  \[ibuffer_do_kill_lines] - Remove the marked lines from the *Ibuffer* buffer,"//LF// &
+                        "        but don't kill the associated buffer."//LF// &
+                        "  \[ibuffer_do_kill_on_deletion_marks] - Kill all buffers marked for deletion."//LF// &
+                        ""//LF// &
+                        "Marking commands:"//LF// &
+                        ""//LF// &
+                        "  \[ibuffer_mark_forward] - Mark the buffer at point."//LF// &
+                        "  \[ibuffer_toggle_marks] - Unmark all currently marked buffers, and mark"//LF// &
+                        "        all unmarked buffers."//LF// &
+                        "  \[ibuffer_change_marks] - Change the mark used on marked buffers."//LF// &
+                        "  \[ibuffer_unmark_forward] - Unmark the buffer at point."//LF// &
+                        "  \[ibuffer_unmark_backward] - Unmark the previous buffer."//LF// &
+                        "  \[ibuffer_unmark_all] - Unmark buffers marked with MARK."//LF// &
+                        "  \[ibuffer_unmark_all_marks] - Unmark all marked buffers."//LF// &
+                        "  \[ibuffer_mark_by_mode] - Mark buffers by major mode."//LF// &
+                        "  \[ibuffer_mark_unsaved_buffers] - Mark all ""unsaved"" buffers."//LF// &
+                        "        This means that the buffer is modified, and has an associated file."//LF// &
+                        "  \[ibuffer_mark_modified_buffers] - Mark all modified buffers,"//LF// &
+                        "        regardless of whether they have an associated file."//LF// &
+                        "  \[ibuffer_mark_special_buffers] - Mark all buffers whose name begins and"//LF// &
+                        "        ends with `*'."//LF// &
+                        "  \[ibuffer_mark_dissociated_buffers] - Mark all buffers which have"//LF// &
+                        "        an associated file, but that file doesn't currently exist."//LF// &
+                        "  \[ibuffer_mark_read_only_buffers] - Mark all read-only buffers."//LF// &
+                        "  \[ibuffer_mark_dired_buffers] - Mark buffers in `dired_mode'."//LF// &
+                        "  \[ibuffer_mark_help_buffers] - Mark buffers in `help_mode', `apropos_mode', etc."//LF// &
+                        "  \[ibuffer_mark_old_buffers] - Mark buffers older than `ibuffer_old_time'."//LF// &
+                        "  \[ibuffer_mark_for_delete] - Mark the buffer at point for deletion."//LF// &
+                        "  \[ibuffer_mark_by_name_regexp] - Mark buffers by their name, using a regexp."//LF// &
+                        "  \[ibuffer_mark_by_mode_regexp] - Mark buffers by their major mode, using a regexp."//LF// &
+                        "  \[ibuffer_mark_by_file_name_regexp] - Mark buffers by their filename, using a regexp."//LF// &
+                        "  \[ibuffer_mark_by_content_regexp] - Mark buffers by their content, using a regexp."//LF// &
+                        ""//LF// &
+                        "Sorting commands:"//LF// &
+                        ""//LF// &
+                        "  \[ibuffer_toggle_sorting_mode] - Rotate between the various sorting modes."//LF// &
+                        "  \[ibuffer_invert_sorting] - Reverse the current sorting order."//LF// &
+                        "  \[ibuffer_do_sort_by_alphabetic] - Sort the buffers lexicographically."//LF// &
+                        "  \[ibuffer_do_sort_by_filename_process] - Sort the buffers by the file name."//LF// &
+                        "  \[ibuffer_do_sort_by_recency] - Sort the buffers by last viewing time."//LF// &
+                        "  \[ibuffer_do_sort_by_size] - Sort the buffers by size."//LF// &
+                        "  \[ibuffer_do_sort_by_major_mode] - Sort the buffers by major mode."//LF// &
+                        ""//LF// &
+                        "Other commands:"//LF// &
+                        ""//LF// &
+                        "  \[ibuffer_update] - Regenerate the list of all buffers."//LF// &
+                        "        Prefix arg means to toggle whether buffers that match"//LF// &
+                        "        `ibuffer_maybe_show_predicates' should be displayed."//LF// &
+                        "  \[ibuffer_auto_mode] - Toggle automatic updates."//LF// &
+                        ""//LF// &
+                        "  \[ibuffer_switch_format] - Change the current display format."//LF// &
+                        "  \[forward_line] - Move point to the next line."//LF// &
+                        "  \[previous_line] - Move point to the previous line."//LF// &
+                        "  \[describe_mode] - This help."//LF// &
+                        "  \[ibuffer_diff_with_file] - View the differences between this buffer"//LF// &
+                        "        and its associated file."//LF// &
+                        "  \[ibuffer_visit_buffer] - View the buffer on this line."//LF// &
+                        "  \[ibuffer_visit_buffer_other_window] - As above, but in another window."//LF// &
+                        "  \[ibuffer_visit_buffer_other_window_noselect] - As both above, but don't select"//LF// &
+                        "        the new window."//LF// &
+                        "  \[ibuffer_bury_buffer] - Bury (not kill!) the buffer on this line."
+        case ("ibuffer_other_window")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Like `ibuffer', but displayed in another window by default."
+        case ("ibuffer_recompile_formats")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Recompile `ibuffer_formats': check that their columns exist."//LF// &
+                        "(Fortmacs interprets the formats.)"
+        case ("ibuffer_redisplay")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Redisplay the current list of buffers."//LF// &
+                        "This does not show new buffers; use `ibuffer_update' for that."//LF// &
+                        ""//LF// &
+                        "If optional arg SILENT is true, do not display progress messages."
+        case ("ibuffer_switch_format")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Switch the current display format."
+        case ("ibuffer_toggle_filter_group")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle the display status of the filter group on this line."
+        case ("ibuffer_toggle_marks")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle which buffers are marked."//LF// &
+                        "In other words, unmarked buffers become marked, and marked buffers"//LF// &
+                        "become unmarked."//LF// &
+                        "If point is on a group name, then this function operates on that"//LF// &
+                        "group."
+        case ("ibuffer_toggle_sorting_mode")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle the current sorting mode."//LF// &
+                        "Default sorting modes are:"//LF// &
+                        " Recency - the last time the buffer was viewed"//LF// &
+                        " Name - the name of the buffer"//LF// &
+                        " Major Mode - the name of the major mode of the buffer"//LF// &
+                        " Size - the size of the buffer"
+        case ("ibuffer_unmark_all")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Unmark all buffers with mark MARK (RET means all)."
+        case ("ibuffer_unmark_all_marks")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Remove all marks from all marked buffers in Ibuffer."
+        case ("ibuffer_unmark_backward")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Unmark the buffers in the region, or previous ARG buffers."//LF// &
+                        "If point is on a group name, this function operates on that group."
+        case ("ibuffer_unmark_forward")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Unmark the buffers in the region, or ARG buffers."//LF// &
+                        "If point is on a group name, this function operates on that group."
+        case ("ibuffer_update")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Regenerate the list of all buffers."//LF// &
+                        ""//LF// &
+                        "ARG true means to toggle whether buffers that match"//LF// &
+                        "`ibuffer_maybe_show_predicates' should be displayed."//LF// &
+                        ""//LF// &
+                        "If optional arg SILENT is true, do not display progress messages."
+        case ("ibuffer_visit_buffer")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Visit the buffer on this line."//LF// &
+                        "If optional argument SINGLE is true, then also ensure there is only"//LF// &
+                        "one window."
+        case ("ibuffer_visit_buffer_1_window")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Visit the buffer on this line, and delete other windows."
+        case ("ibuffer_visit_buffer_other_window")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Visit the buffer on this line in another window."
+        case ("ibuffer_visit_buffer_other_window_noselect")
+            entry%file = "ibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Visit the buffer on this line in another window, but don't select"//LF// &
+                        "it."
         case ("ignore")
             entry%file = "subr_read_fm.f90"
             entry%interactive = .true.
@@ -13998,6 +14621,10 @@ contains
             entry%doc = "Cons of coding systems used for process I/O by default."//LF// &
                         "The first element is used for decoding a process output,"//LF// &
                         "the second is used for encoding a text to be sent to a process."
+        case ("define_ibuffer_column")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_columns"
+            entry%doc = "The columns for use with `ibuffer_formats'."
         case ("defining_kbd_macro")
             entry%file = "keyboard_fm.f90"
             entry%fortran = "defining_kbd_macro"
@@ -16404,6 +17031,453 @@ contains
                         "This variable only affects history lists that don't specify their own"//LF// &
                         "maximum lengths.  Setting the `history_length' property of a history"//LF// &
                         "variable overrides this default."
+        case ("ibuffer_always_compile_formats")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_always_compile_formats"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(ibuffer_always_compile_formats)
+            entry%doc = "If true, then use the byte-compiler to optimize `ibuffer_formats'."//LF// &
+                        "This will increase the redisplay speed, at the cost of loading the"//LF// &
+                        "elisp byte-compiler.  (Fortmacs interprets the formats; the value"//LF// &
+                        "has no effect.)"
+        case ("ibuffer_always_show_last_buffer")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_always_show_last_buffer"
+            entry%user_option = .true.
+            entry%original = "IBUFFER_SHOW_LAST_NEVER"
+            select case (ibuffer_always_show_last_buffer)
+            case (IBUFFER_SHOW_LAST_NEVER)
+                entry%value = "IBUFFER_SHOW_LAST_NEVER"
+            case (IBUFFER_SHOW_LAST_ALWAYS)
+                entry%value = "IBUFFER_SHOW_LAST_ALWAYS"
+            case (IBUFFER_SHOW_LAST_NOMINI)
+                entry%value = "IBUFFER_SHOW_LAST_NOMINI"
+            case default
+                entry%value = repr(ibuffer_always_show_last_buffer)
+            end select
+            entry%doc = "If not IBUFFER_SHOW_LAST_NEVER, always display the previous buffer:"//LF// &
+                        "IBUFFER_SHOW_LAST_ALWAYS always, IBUFFER_SHOW_LAST_NOMINI always"//LF// &
+                        "except a minibuffer.  This variable takes precedence over"//LF// &
+                        "filtering, and even `ibuffer_never_show_predicates'."
+        case ("ibuffer_always_show_predicates")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_always_show_predicates"
+            entry%user_option = .true.
+            entry%doc = "A list of predicates (a regexp or function) for buffers to always"//LF// &
+                        "display.  If a regexp, then it will be matched against the buffer's"//LF// &
+                        "name.  If a function, it will be called with the buffer as an"//LF// &
+                        "argument, and should return true if this buffer should be shown."//LF// &
+                        "Note that buffers matching one of these predicates will be shown"//LF// &
+                        "regardless of any active filters in this buffer."
+        case ("ibuffer_case_fold_search")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_case_fold_search"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(ibuffer_case_fold_search)
+            entry%doc = "If true, ignore case when searching."
+        case ("ibuffer_compressed_file_name_regexp")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_compressed_file_name_regexp"
+            entry%user_option = .true.
+            if (allocated(ibuffer_compressed_file_name_regexp)) then
+                entry%value = repr(ibuffer_compressed_file_name_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp to match compressed file names."
+        case ("ibuffer_default_directory")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_default_directory"
+            entry%user_option = .true.
+            if (allocated(ibuffer_default_directory)) then
+                entry%value = repr(ibuffer_default_directory)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The default directory to use for a new Ibuffer buffer."//LF// &
+                        "If unallocated, inherit the directory of the buffer in which"//LF// &
+                        "`ibuffer' was called.  Otherwise, this variable should be a string"//LF// &
+                        "naming a directory, like `default_directory'."
+        case ("ibuffer_default_display_maybe_show_predicates")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_default_display_maybe_show_predicates"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(ibuffer_default_display_maybe_show_predicates)
+            entry%doc = "True means show buffers that match `ibuffer_maybe_show_predicates'."
+        case ("ibuffer_default_shrink_to_minimum_size")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_default_shrink_to_minimum_size"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(ibuffer_default_shrink_to_minimum_size)
+            entry%doc = "If true, minimize the size of the Ibuffer window by default."
+        case ("ibuffer_default_sorting_mode")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_default_sorting_mode"
+            entry%user_option = .true.
+            if (allocated(ibuffer_default_sorting_mode)) then
+                entry%value = repr(ibuffer_default_sorting_mode)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The criteria by which to sort the buffers: ""recency"" (last view"//LF// &
+                        "time), ""alphabetic"" (lexicographic), ""size"" (buffer size),"//LF// &
+                        """filename/process"" (file name) or ""major_mode"" (major mode)."//LF// &
+                        ""//LF// &
+                        "Note that this variable is local to each Ibuffer buffer.  Thus, you"//LF// &
+                        "can have multiple Ibuffer buffers open, each with a different sorted"//LF// &
+                        "view of the buffers."
+        case ("ibuffer_default_sorting_reversep")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_default_sorting_reversep"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(ibuffer_default_sorting_reversep)
+            entry%doc = "If true, reverse the default sorting order."
+        case ("ibuffer_deletion")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_deletion_face_def"
+            entry%doc = "Face used by default in `ibuffer_deletion_face'."
+        case ("ibuffer_deletion_char")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_deletion_char"
+            entry%user_option = .true.
+            entry%original = """D"""
+            entry%value = repr(ibuffer_deletion_char)
+            entry%doc = "The character to display for buffers marked for deletion."
+        case ("ibuffer_deletion_face")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_deletion_face"
+            entry%user_option = .true.
+            if (allocated(ibuffer_deletion_face)) then
+                entry%value = repr(ibuffer_deletion_face)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Face used for displaying buffers marked for deletion."
+        case ("ibuffer_directory_abbrev_alist")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_directory_abbrev_alist"
+            entry%user_option = .true.
+            entry%doc = "An array of file name abbreviations like `directory_abbrev_alist'."
+        case ("ibuffer_display_summary")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_display_summary"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(ibuffer_display_summary)
+            entry%doc = "If true, summarize Ibuffer columns."
+        case ("ibuffer_eliding_string")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_eliding_string"
+            entry%user_option = .true.
+            if (allocated(ibuffer_eliding_string)) then
+                entry%value = repr(ibuffer_eliding_string)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The string to use for eliding long columns."
+        case ("ibuffer_expert")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_expert"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(ibuffer_expert)
+            entry%doc = "If true, don't ask for confirmation of ""dangerous"" operations."
+        case ("ibuffer_filter_group_name")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_filter_group_name_face_def"
+            entry%doc = "Face used by default in `ibuffer_filter_group_name_face'."
+        case ("ibuffer_filter_group_name_face")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_filter_group_name_face"
+            entry%user_option = .true.
+            if (allocated(ibuffer_filter_group_name_face)) then
+                entry%value = repr(ibuffer_filter_group_name_face)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Face used for displaying filtering group names."
+        case ("ibuffer_fontification_alist")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_fontification_alist"
+            entry%user_option = .true.
+            entry%doc = "An array describing how to fontify buffers."//LF// &
+                        "Each element has a PRIORITY, a FORM (a function evaluated in the"//LF// &
+                        "buffer), and the FACE to use for fontification.  If the FORM"//LF// &
+                        "returns true, then FACE will be put on the buffer name.  The"//LF// &
+                        "element with the highest PRIORITY takes precedence."//LF// &
+                        ""//LF// &
+                        "If you change this variable, you must kill the Ibuffer buffer and"//LF// &
+                        "recreate it for the change to take effect."
+        case ("ibuffer_formats")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_formats"
+            entry%user_option = .true.
+            entry%doc = "A list of ways to display buffer lines."//LF// &
+                        ""//LF// &
+                        "With Ibuffer, you are not limited to displaying just certain"//LF// &
+                        "attributes of a buffer such as size, name, and mode in a particular"//LF// &
+                        "order.  Through this variable, you can completely customize and"//LF// &
+                        "control the appearance of an Ibuffer buffer.  See also"//LF// &
+                        "`ibuffer_columns', which allows you to define your own columns"//LF// &
+                        "for display."//LF// &
+                        ""//LF// &
+                        "Each format added with `ibuffer_formats%add' is an array of"//LF// &
+                        "entries: `ibuffer_column(NAME, MIN_SIZE, MAX_SIZE, ALIGN, ELIDE)'"//LF// &
+                        "names a column, `ibuffer_text(STRING)' is a literal string to"//LF// &
+                        "display.  Predefined columns are: mark modified read_only locked"//LF// &
+                        "name size mode process filename.  MIN_SIZE and MAX_SIZE constrict"//LF// &
+                        "the size of a column.  If MAX_SIZE is -1, there is no upper bound."//LF// &
+                        "The default values are 0 and -1, respectively.  If MIN_SIZE is"//LF// &
+                        "negative, use the end of the string.  ALIGN describes the alignment"//LF// &
+                        "of the column (IBUFFER_ALIGN_LEFT, IBUFFER_ALIGN_CENTER or"//LF// &
+                        "IBUFFER_ALIGN_RIGHT); ELIDE describes whether or not to elide the"//LF// &
+                        "column if it is too long.  The default is false (don't elide)."//LF// &
+                        ""//LF// &
+                        "Some examples of valid formats:"//LF// &
+                        ""//LF// &
+                        " [ibuffer_column(""mark""), ibuffer_text("" ""), ibuffer_column(""name"")]"//LF// &
+                        "  This format just displays the current mark (if any) and the name of"//LF// &
+                        "  the buffer, separated by a space."//LF// &
+                        " [ibuffer_column(""mark""), ibuffer_column(""modified""),"//LF// &
+                        "  ibuffer_column(""read_only""), ibuffer_text("" ""),"//LF// &
+                        "  ibuffer_column(""name"", 16, 16, IBUFFER_ALIGN_LEFT), ibuffer_text("" ""),"//LF// &
+                        "  ibuffer_column(""size"", 6, -1, IBUFFER_ALIGN_RIGHT)]"//LF// &
+                        "  This format displays the current mark (if any), its modification"//LF// &
+                        "  and read-only status, as well as the name of the buffer and its"//LF// &
+                        "  size.  In this format, the name is restricted to 16 characters"//LF// &
+                        "  (longer names will be truncated, and shorter names will be padded"//LF// &
+                        "  with spaces), and the name is also aligned to the left.  The size"//LF// &
+                        "  of the buffer will be padded with spaces up to a minimum of six"//LF// &
+                        "  characters, but there is no upper limit on its size.  The size"//LF// &
+                        "  will also be aligned to the right."//LF// &
+                        ""//LF// &
+                        "Using \[ibuffer_switch_format], you can rotate the display between"//LF// &
+                        "the specified formats in the list."
+        case ("ibuffer_help_buffer_modes")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_help_buffer_modes"
+            entry%user_option = .true.
+            if (allocated(ibuffer_help_buffer_modes)) then
+                entry%value = repr(ibuffer_help_buffer_modes)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "List of ""Help"" major modes."
+        case ("ibuffer_hook")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_hook"
+            entry%user_option = .true.
+            entry%doc = "Hook run when `ibuffer' is called."
+        case ("ibuffer_human_readable_size")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_human_readable_size"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(ibuffer_human_readable_size)
+            entry%doc = "Show buffer sizes in human-readable format."//LF// &
+                        "Use the function `file_size_human_readable' for formatting."
+        case ("ibuffer_jump_offer_only_visible_buffers")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_jump_offer_only_visible_buffers"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(ibuffer_jump_offer_only_visible_buffers)
+            entry%doc = "If true, only offer buffers visible in the Ibuffer buffer"//LF// &
+                        "in completion lists of the `ibuffer_jump_to_buffer' command."
+        case ("ibuffer_locked_buffer")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_locked_buffer"
+            entry%doc = "Face used for locked buffers in Ibuffer."
+        case ("ibuffer_locked_char")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_locked_char"
+            entry%user_option = .true.
+            entry%original = """L"""
+            entry%value = repr(ibuffer_locked_char)
+            entry%doc = "The character to display for locked buffers."
+        case ("ibuffer_marked")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_marked_face_def"
+            entry%doc = "Face used by default in `ibuffer_marked_face'."
+        case ("ibuffer_marked_char")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_marked_char"
+            entry%user_option = .true.
+            entry%original = """>"""
+            entry%value = repr(ibuffer_marked_char)
+            entry%doc = "The character to display for marked buffers."
+        case ("ibuffer_marked_face")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_marked_face"
+            entry%user_option = .true.
+            if (allocated(ibuffer_marked_face)) then
+                entry%value = repr(ibuffer_marked_face)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Face used for displaying marked buffers."
+        case ("ibuffer_maybe_show_predicates")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_maybe_show_predicates"
+            entry%user_option = .true.
+            entry%doc = "An array of predicates for buffers to display conditionally."//LF// &
+                        ""//LF// &
+                        "A predicate can be a regexp or a function."//LF// &
+                        "If a regexp, then it will be matched against the buffer's name."//LF// &
+                        "If a function, it will be called with the buffer as an argument, and"//LF// &
+                        "should return true if this buffer should be shown."//LF// &
+                        ""//LF// &
+                        "Viewing of buffers hidden because of these predicates may be customized"//LF// &
+                        "via `ibuffer_default_display_maybe_show_predicates' and is toggled by"//LF// &
+                        "giving a prefix argument to `ibuffer_update'."//LF// &
+                        "Note that this specialized filtering occurs before real filtering."
+        case ("ibuffer_mode_filter_group_map")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_mode_filter_group_map"
+            entry%doc = "Keymap of the filter group names."
+        case ("ibuffer_mode_hook")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_mode_hook"
+            entry%user_option = .true.
+            entry%doc = "Hook run upon entry into `ibuffer_mode'."
+        case ("ibuffer_mode_map")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_mode_map"
+            entry%doc = "Keymap for `ibuffer_mode'."
+        case ("ibuffer_modified_char")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_modified_char"
+            entry%user_option = .true.
+            entry%original = """*"""
+            entry%value = repr(ibuffer_modified_char)
+            entry%doc = "The character to display for modified buffers."
+        case ("ibuffer_movement_cycle")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_movement_cycle"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(ibuffer_movement_cycle)
+            entry%doc = "If true, then forward and backwards movement commands cycle."
+        case ("ibuffer_never_search_content_mode")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_never_search_content_mode"
+            entry%user_option = .true.
+            if (allocated(ibuffer_never_search_content_mode)) then
+                entry%value = repr(ibuffer_never_search_content_mode)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "A list of major modes ignored by `ibuffer_mark_by_content_regexp'."//LF// &
+                        "Buffers whose major mode is in this list, are not searched."
+        case ("ibuffer_never_search_content_name")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_never_search_content_name"
+            entry%user_option = .true.
+            if (allocated(ibuffer_never_search_content_name)) then
+                entry%value = repr(ibuffer_never_search_content_name)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "A list of regexps for buffers ignored by"//LF// &
+                        "`ibuffer_mark_by_content_regexp'.  Buffers whose name matches a"//LF// &
+                        "regexp in this list, are not searched."
+        case ("ibuffer_never_show_predicates")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_never_show_predicates"
+            entry%user_option = .true.
+            entry%doc = "A list of predicates (a regexp or function) for buffers not to"//LF// &
+                        "display.  If a regexp, then it will be matched against the buffer's"//LF// &
+                        "name.  If a function, it will be called with the buffer as an"//LF// &
+                        "argument, and should return true if this buffer should not be"//LF// &
+                        "shown."
+        case ("ibuffer_old_time")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_old_time"
+            entry%user_option = .true.
+            entry%original = "72"
+            entry%value = repr(ibuffer_old_time)
+            entry%doc = "The number of hours before a buffer is considered ""old""."
+        case ("ibuffer_read_only_char")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_read_only_char"
+            entry%user_option = .true.
+            entry%original = """%"""
+            entry%value = repr(ibuffer_read_only_char)
+            entry%doc = "The character to display for read-only buffers."
+        case ("ibuffer_show_empty_filter_groups")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_show_empty_filter_groups"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(ibuffer_show_empty_filter_groups)
+            entry%doc = "If true, then show the names of filter groups which are empty."
+        case ("ibuffer_sorting_functions_alist")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_sorting_functions"
+            entry%doc = "The ways to sort buffers."
+        case ("ibuffer_title")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_title_face_def"
+            entry%doc = "Face used by default in `ibuffer_title_face'."
+        case ("ibuffer_title_face")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_title_face"
+            entry%user_option = .true.
+            if (allocated(ibuffer_title_face)) then
+                entry%value = repr(ibuffer_title_face)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Face used for the title string."
+        case ("ibuffer_truncate_lines")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_truncate_lines"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(ibuffer_truncate_lines)
+            entry%doc = "If true, do not display continuation lines.  (`truncate_lines' is"//LF// &
+                        "not ported.)"
+        case ("ibuffer_use_header_line")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_use_header_line"
+            entry%user_option = .true.
+            entry%original = "IBUFFER_HEADER_LINE_T"
+            select case (ibuffer_use_header_line)
+            case (IBUFFER_HEADER_LINE_NIL)
+                entry%value = "IBUFFER_HEADER_LINE_NIL"
+            case (IBUFFER_HEADER_LINE_T)
+                entry%value = "IBUFFER_HEADER_LINE_T"
+            case (IBUFFER_HEADER_LINE_TITLE)
+                entry%value = "IBUFFER_HEADER_LINE_TITLE"
+            case default
+                entry%value = repr(ibuffer_use_header_line)
+            end select
+            entry%doc = "If not IBUFFER_HEADER_LINE_NIL, display a header line."//LF// &
+                        "If the variable's value is IBUFFER_HEADER_LINE_T, the header line"//LF// &
+                        "displays the current filters.  For IBUFFER_HEADER_LINE_TITLE,"//LF// &
+                        "display the column titles."
+        case ("ibuffer_use_other_window")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_use_other_window"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(ibuffer_use_other_window)
+            entry%doc = "If true, display Ibuffer in another window by default."
+        case ("ibuffer_view_ibuffer")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_view_ibuffer"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(ibuffer_view_ibuffer)
+            entry%doc = "If true, display the current Ibuffer buffer itself."//LF// &
+                        "Note that this has a drawback - the data about the current Ibuffer"//LF// &
+                        "buffer will most likely be inaccurate.  This includes modification"//LF// &
+                        "state, size, etc."
         case ("indent_line_function")
             entry%file = "indent_fm.f90"
             entry%fortran = "indent_line_function"
@@ -21066,6 +22140,66 @@ contains
             kind = OPTION_LOGICAL
         case ("history_length")
             kind = OPTION_INTEGER
+        case ("ibuffer_always_compile_formats")
+            kind = OPTION_LOGICAL
+        case ("ibuffer_always_show_last_buffer")
+            kind = OPTION_CHOICE
+        case ("ibuffer_case_fold_search")
+            kind = OPTION_LOGICAL
+        case ("ibuffer_compressed_file_name_regexp")
+            kind = OPTION_STRING
+        case ("ibuffer_default_directory")
+            kind = OPTION_STRING
+        case ("ibuffer_default_display_maybe_show_predicates")
+            kind = OPTION_LOGICAL
+        case ("ibuffer_default_shrink_to_minimum_size")
+            kind = OPTION_LOGICAL
+        case ("ibuffer_default_sorting_mode")
+            kind = OPTION_STRING
+        case ("ibuffer_default_sorting_reversep")
+            kind = OPTION_LOGICAL
+        case ("ibuffer_deletion_char")
+            kind = OPTION_STRING
+        case ("ibuffer_deletion_face")
+            kind = OPTION_STRING
+        case ("ibuffer_display_summary")
+            kind = OPTION_LOGICAL
+        case ("ibuffer_eliding_string")
+            kind = OPTION_STRING
+        case ("ibuffer_expert")
+            kind = OPTION_LOGICAL
+        case ("ibuffer_filter_group_name_face")
+            kind = OPTION_STRING
+        case ("ibuffer_human_readable_size")
+            kind = OPTION_LOGICAL
+        case ("ibuffer_jump_offer_only_visible_buffers")
+            kind = OPTION_LOGICAL
+        case ("ibuffer_locked_char")
+            kind = OPTION_STRING
+        case ("ibuffer_marked_char")
+            kind = OPTION_STRING
+        case ("ibuffer_marked_face")
+            kind = OPTION_STRING
+        case ("ibuffer_modified_char")
+            kind = OPTION_STRING
+        case ("ibuffer_movement_cycle")
+            kind = OPTION_LOGICAL
+        case ("ibuffer_old_time")
+            kind = OPTION_INTEGER
+        case ("ibuffer_read_only_char")
+            kind = OPTION_STRING
+        case ("ibuffer_show_empty_filter_groups")
+            kind = OPTION_LOGICAL
+        case ("ibuffer_title_face")
+            kind = OPTION_STRING
+        case ("ibuffer_truncate_lines")
+            kind = OPTION_LOGICAL
+        case ("ibuffer_use_header_line")
+            kind = OPTION_CHOICE
+        case ("ibuffer_use_other_window")
+            kind = OPTION_LOGICAL
+        case ("ibuffer_view_ibuffer")
+            kind = OPTION_LOGICAL
         case ("indent_tabs_mode")
             kind = OPTION_LOGICAL
             setting = .true.
@@ -21750,6 +22884,34 @@ contains
             grep_use_headings = v
         case ("history_delete_duplicates")
             history_delete_duplicates = v
+        case ("ibuffer_always_compile_formats")
+            ibuffer_always_compile_formats = v
+        case ("ibuffer_case_fold_search")
+            ibuffer_case_fold_search = v
+        case ("ibuffer_default_display_maybe_show_predicates")
+            ibuffer_default_display_maybe_show_predicates = v
+        case ("ibuffer_default_shrink_to_minimum_size")
+            ibuffer_default_shrink_to_minimum_size = v
+        case ("ibuffer_default_sorting_reversep")
+            ibuffer_default_sorting_reversep = v
+        case ("ibuffer_display_summary")
+            ibuffer_display_summary = v
+        case ("ibuffer_expert")
+            ibuffer_expert = v
+        case ("ibuffer_human_readable_size")
+            ibuffer_human_readable_size = v
+        case ("ibuffer_jump_offer_only_visible_buffers")
+            ibuffer_jump_offer_only_visible_buffers = v
+        case ("ibuffer_movement_cycle")
+            ibuffer_movement_cycle = v
+        case ("ibuffer_show_empty_filter_groups")
+            ibuffer_show_empty_filter_groups = v
+        case ("ibuffer_truncate_lines")
+            ibuffer_truncate_lines = v
+        case ("ibuffer_use_other_window")
+            ibuffer_use_other_window = v
+        case ("ibuffer_view_ibuffer")
+            ibuffer_view_ibuffer = v
         case ("indent_tabs_mode")
             if (local) then
                 call indent_tabs_mode%set_local(v)
@@ -22130,6 +23292,12 @@ contains
                 return
             end if
             history_length = int(v)
+        case ("ibuffer_old_time")
+            if (v < -huge(0) - 1 .or. v > huge(0)) then
+                ok = .false.
+                return
+            end if
+            ibuffer_old_time = int(v)
         case ("jit_lock_chunk_size")
             jit_lock_chunk_size = v
         case ("kill_ring_max")
@@ -22495,6 +23663,32 @@ contains
             grep_match_regexp = v
         case ("grep_template")
             grep_template = v
+        case ("ibuffer_compressed_file_name_regexp")
+            ibuffer_compressed_file_name_regexp = v
+        case ("ibuffer_default_directory")
+            ibuffer_default_directory = v
+        case ("ibuffer_default_sorting_mode")
+            ibuffer_default_sorting_mode = v
+        case ("ibuffer_deletion_char")
+            ibuffer_deletion_char = v
+        case ("ibuffer_deletion_face")
+            ibuffer_deletion_face = v
+        case ("ibuffer_eliding_string")
+            ibuffer_eliding_string = v
+        case ("ibuffer_filter_group_name_face")
+            ibuffer_filter_group_name_face = v
+        case ("ibuffer_locked_char")
+            ibuffer_locked_char = v
+        case ("ibuffer_marked_char")
+            ibuffer_marked_char = v
+        case ("ibuffer_marked_face")
+            ibuffer_marked_face = v
+        case ("ibuffer_modified_char")
+            ibuffer_modified_char = v
+        case ("ibuffer_read_only_char")
+            ibuffer_read_only_char = v
+        case ("ibuffer_title_face")
+            ibuffer_title_face = v
         case ("insert_directory_program")
             insert_directory_program = v
         case ("list_matching_lines_buffer_name_face")
@@ -23253,6 +24447,28 @@ contains
                 grep_use_null_filename_separator = GREP_ALWAYS
             case ("GREP_AUTO")
                 grep_use_null_filename_separator = GREP_AUTO
+            case default
+                ok = .false.
+            end select
+        case ("ibuffer_always_show_last_buffer")
+            select case (constant)
+            case ("IBUFFER_SHOW_LAST_NEVER")
+                ibuffer_always_show_last_buffer = IBUFFER_SHOW_LAST_NEVER
+            case ("IBUFFER_SHOW_LAST_ALWAYS")
+                ibuffer_always_show_last_buffer = IBUFFER_SHOW_LAST_ALWAYS
+            case ("IBUFFER_SHOW_LAST_NOMINI")
+                ibuffer_always_show_last_buffer = IBUFFER_SHOW_LAST_NOMINI
+            case default
+                ok = .false.
+            end select
+        case ("ibuffer_use_header_line")
+            select case (constant)
+            case ("IBUFFER_HEADER_LINE_NIL")
+                ibuffer_use_header_line = IBUFFER_HEADER_LINE_NIL
+            case ("IBUFFER_HEADER_LINE_T")
+                ibuffer_use_header_line = IBUFFER_HEADER_LINE_T
+            case ("IBUFFER_HEADER_LINE_TITLE")
+                ibuffer_use_header_line = IBUFFER_HEADER_LINE_TITLE
             case default
                 ok = .false.
             end select

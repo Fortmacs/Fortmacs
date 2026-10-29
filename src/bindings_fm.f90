@@ -101,6 +101,7 @@ module bindings_fm
     use tabulated_list_fm, only: syms_of_tabulated_list
     use bookmark_fm, only: syms_of_bookmark, bookmark_map, bookmark_minibuffer_read_name_map
     use buff_menu_fm, only: syms_of_buff_menu
+    use ibuffer_fm, only: syms_of_ibuffer
     use register_fm, only: syms_of_register
     use abbrev_fm, only: syms_of_abbrev, edit_abbrevs_mode_map
     use dabbrev_fm, only: syms_of_dabbrev
@@ -316,6 +317,7 @@ contains
         call syms_of_tabulated_list()
         call syms_of_bookmark()
         call syms_of_buff_menu()
+        call syms_of_ibuffer()
         call syms_of_register()
         call syms_of_macros()
         call syms_of_kmacro()

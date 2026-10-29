@@ -645,16 +645,19 @@ contains
         async_command_p = command(k:k) == "&"
     end function async_command_p
 
-    !> Execute the shell command COMMAND synchronously in separate process,
-    !> inserting the output in the current buffer before point, with the
-    !> standard error in ERROR_FILE if present.  Port of
-    !> subr.el:call-process-shell-command (BUFFER t or (t ERROR-FILE)).
-    subroutine call_process_shell_command(command, result, status, error_file)
+    module subroutine call_process_shell_command(command, result, status, error_file, buffer)
         character(len=*), intent(in) :: command
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: error_file
-        call call_process(shell_program(), result, status, destination=t_value(), &
+        type(handle_type), intent(in), optional :: buffer
+        type(value_type) :: destination
+        if (present(buffer)) then
+            destination = make_buffer_ref(buffer)
+        else
+            destination = t_value()
+        end if
+        call call_process(shell_program(), result, status, destination=destination, &
                           args=list(make_string(shell_switch()), make_string(command)), &
                           error_file=error_file)
     end subroutine call_process_shell_command
@@ -944,12 +947,7 @@ contains
     end if
     end procedure shell_command_on_region
 
-    !> Send text from START to END as input to an inferior shell running
-    !> COMMAND.  Delete the text if DELETE is true.  Insert output in
-    !> BUFFER (the current buffer if absent) before point, the standard
-    !> error going to ERROR_FILE unless it is "".  Port of
-    !> subr.el:call-shell-region.
-    subroutine call_shell_region(start, end, command, delete, result, status, error_file, buffer)
+    module subroutine call_shell_region(start, end, command, delete, result, status, error_file, buffer)
         integer(int64), intent(in) :: start, end
         character(len=*), intent(in) :: command, error_file
         logical, intent(in) :: delete

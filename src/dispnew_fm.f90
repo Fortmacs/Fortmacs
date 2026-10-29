@@ -35,6 +35,7 @@
 !> optimization (scroll.c), child frames, menus, pausing for input, frame
 !> size changes.
 module dispnew_fm
+    use, intrinsic :: iso_fortran_env, only: int64
     use frame_fm, only: frame_type, selected_frame, frame_window_p
     use dispextern_fm, only: glyph_type, glyph_matrix_type, glyph_row_type, &
                              glyph_equal_p, char_glyph_space_p, &
@@ -51,6 +52,16 @@ module dispnew_fm
     public :: adjust_frame_glyphs, clear_current_matrices, clear_desired_matrices, &
               redraw_frame, update_frame, write_row, make_matrix_current, &
               set_desired_row, ding, frame_ring_bell, update_window_line
+    public :: frame_or_buffer_changed_p
+
+    !> The state `frame_or_buffer_changed_p' compares with: the buffers
+    !> (by serial number, in the order of the buffer list) and their
+    !> read-only and modified flags; VALID false for none yet (nil).
+    type, public :: frame_buffer_state_type
+        logical :: valid = .false.
+        integer(int64), allocatable :: serials(:)
+        logical, allocatable :: read_only(:), modified(:)
+    end type frame_buffer_state_type
 
 contains
 
@@ -476,4 +487,52 @@ contains
             call bitch_at_user(status)
         end if
     end subroutine ding
+
+    ! ------------------------------------------------------------------
+    ! Buffer menus
+    ! ------------------------------------------------------------------
+
+    !> Return true if the frame and buffer state appears to have changed.
+    !> STATE is a state object that will be updated to contain all buffers,
+    !> aside from buffers whose names start with space, along with the
+    !> buffers' read-only and modified flags.  This allows a fast check to
+    !> see whether buffer menus might need to be recomputed.  If this
+    !> function returns true, it updates STATE to reflect the current
+    !> state.  Port of dispnew.c:Fframe_or_buffer_changed_p (VARIABLE a
+    !> state object; there is one frame, whose name does not change).
+    logical function frame_or_buffer_changed_p(state) result(changed)
+        use buffer_fm, only: buffers, buffer_list, buffer_modified_p
+        use handle_fm, only: handle_type
+        type(frame_buffer_state_type), intent(inout) :: state
+        type(handle_type), allocatable :: bufs(:)
+        integer(int64), allocatable :: serials(:)
+        logical, allocatable :: read_only(:), modified(:)
+        type(status_type) :: st
+        integer :: k, n
+        bufs = buffer_list()
+        allocate (serials(size(bufs)), read_only(size(bufs)), modified(size(bufs)))
+        n = 0
+        do k = size(bufs), 1, -1
+            ! Ignore buffers that aren't included in buffer lists.
+            if (len(buffers(bufs(k)%index)%name) > 0) then
+                if (buffers(bufs(k)%index)%name(1:1) == " ") cycle
+            end if
+            n = n + 1
+            serials(n) = buffers(bufs(k)%index)%serial
+            read_only(n) = buffers(bufs(k)%index)%read_only
+            call buffer_modified_p(bufs(k), modified(n), st)
+        end do
+        changed = .true.
+        if (state%valid) then
+            if (size(state%serials) == n) then
+                changed = any(state%serials /= serials(1:n)) .or. any(state%read_only .neqv. read_only(1:n)) &
+                          .or. any(state%modified .neqv. modified(1:n))
+            end if
+        end if
+        if (.not. changed) return
+        state%valid = .true.
+        state%serials = serials(1:n)
+        state%read_only = read_only(1:n)
+        state%modified = modified(1:n)
+    end function frame_or_buffer_changed_p
 end module dispnew_fm
