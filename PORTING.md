@@ -893,7 +893,14 @@ ported. Their keys are unbound, as test_bindings_fm checks:
   of Fortmacs (step 34d) are made from upstream's Texinfo sources by an
   awk converter in tools/, not by makeinfo (texi2any is Perl).  Where a
   manual describes a feature not ported yet, its section carries a
-  "Deferred in Fortmacs" note.
+  "Deferred in Fortmacs" note.  The notes are generated, not written by
+  hand: the converter reads the Deferred column of the status table in
+  this file at build time, through a mapping from manual sections to
+  modules, so they cannot go stale.  Manuals: the Emacs manual and the
+  Info manual (info.texi) in 34d; each doc/misc manual in the PR that
+  ports its package; the Emacs Lisp reference and the Lisp introduction
+  are not applicable (no run-time Lisp).  Still open: whether the
+  converted text uses Fortmacs's underscore names.
 
 ## Open questions
 
