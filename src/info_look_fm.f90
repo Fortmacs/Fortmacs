@@ -49,6 +49,7 @@ module info_look_fm
     use data_fm, only: logical_setting, add_local_variables_killer
     use fileio_fm, only: file_name_nondirectory
     use derived_fm, only: major_mode_named, major_mode_type
+    use font_core_fm, only: major_mode_of_current
     use callint_fm, only: current_prefix_arg
     use commands_fm, only: commands
     use keyboard_fm, only: sit_for
@@ -301,7 +302,7 @@ contains
         if (present(mode)) then
             data%mode%mode = mode
         else if (cur > 0) then
-            data%mode%mode = buffers(cur)%major_mode
+            data%mode%mode = major_mode_of_current()
         else
             data%mode%mode = "fundamental_mode"
         end if
@@ -768,7 +769,7 @@ contains
         ! lookups, if one of its parents has some setups.
         mode = info_lookup_mode()
         if (.not. allocated(mode)) then
-            m => major_mode_named(buffers(cur)%major_mode)
+            m => major_mode_named(major_mode_of_current())
             do while (associated(m))
                 if (allocated(info_lookup_alist)) then
                     do t = 1, size(info_lookup_alist)
@@ -784,8 +785,8 @@ contains
         end if
         mode = info_lookup_mode()
         if (.not. allocated(mode)) then
-            call set_info_lookup_mode(buffers(cur)%major_mode)
-            mode = buffers(cur)%major_mode
+            call set_info_lookup_mode(major_mode_of_current())
+            mode = major_mode_of_current()
         end if
     end function info_lookup_select_mode
 
@@ -945,7 +946,7 @@ contains
         end if
         same = .false.
         if (present(same_window)) same = same_window
-        if (trim(buffers(cur)%major_mode) /= "info_mode") then
+        if (major_mode_of_current() /= "info_mode") then
             if (.not. info_lookup_other_window_flag%value) then
                 call info(status)
             else
