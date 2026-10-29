@@ -301,7 +301,6 @@ contains
         call syms_of_comint()
         call syms_of_shell()
         call syms_of_compile()
-        call syms_of_grep()
         call syms_of_diff_mode()
         call syms_of_diff()
         call syms_of_rect()
@@ -607,6 +606,9 @@ contains
         call define_key(ctl_x_map, key, make_keymap_ref(ctl_x_4_map), status)
         call syms_of_files(ctl_x_map, ctl_x_4_map)
         call syms_of_vc_hooks(ctl_x_map)
+        ! (After vc_hooks: `grep_find_ignored_directories' defaults to
+        ! `vc_directory_exclusion_list'.)
+        call syms_of_grep()
         call syms_of_vc()
         call syms_of_log_view()
         call syms_of_vc_dir()
