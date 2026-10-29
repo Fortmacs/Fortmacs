@@ -57,6 +57,12 @@ bookmark_sort_flag
 bookmark_use_annotations
 bookmark_version_control
 bookmark_watch_bookmark_file
+buffer_menu_human_readable_sizes
+buffer_menu_mode_width
+buffer_menu_name_width
+buffer_menu_size_width
+buffer_menu_use_frame_buffer_list
+buffer_menu_use_header_line
 case_fold_search
 case_replace
 change_major_mode_with_file_name

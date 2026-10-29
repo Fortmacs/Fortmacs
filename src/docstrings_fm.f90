@@ -63,6 +63,10 @@ module docstrings_fm
                            BOOKMARK_VERSION_CONTROL_NOSPECIAL, bookmark_watch_bookmark_file, &
                            BOOKMARK_WATCH_BOOKMARK_FILE_NIL, BOOKMARK_WATCH_BOOKMARK_FILE_T, &
                            BOOKMARK_WATCH_BOOKMARK_FILE_SILENT, bookmark_yank_point
+    use buff_menu_fm, only: buffer_menu_buffer_face, buffer_menu_del_char, &
+                            buffer_menu_human_readable_sizes, buffer_menu_marker_char, buffer_menu_mode_hook, &
+                            buffer_menu_mode_map, buffer_menu_mode_width, buffer_menu_name_width, buffer_menu_size_width, &
+                            buffer_menu_use_frame_buffer_list, buffer_menu_use_header_line
     use buffer_fm, only: auto_fill_function, fill_column, left_margin, transient_mark_mode
     use callint_fm, only: command_name_of, current_minibuffer_command, current_prefix_arg, &
                           mark_even_if_inactive, this_command
@@ -458,21 +462,21 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1050) = [character(len=50) :: &
-                                                     "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
-                                                                    "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", &
-                                                      "abbreviate_file_name_handler", "abort_minibuffers", "abort_recursive_edit", &
-                                                 "accept_process_output", "add_auto_mode", "add_global_abbrev", "add_mode_abbrev", &
-                                                       "add_name_to_file", "add_save_some_buffers_function", "append_to_register", &
-                                               "apply_on_rectangle", "apropos_command", "apropos_documentation", "apropos_follow", &
-                                             "apropos_function", "apropos_mode", "apropos_next_symbol", "apropos_previous_symbol", &
-                                               "apropos_user_option", "apropos_variable", "async_shell_command", "auto_fill_mode", &
-                                                             "auto_revert_mode", "auto_revert_set_timer", "auto_revert_tail_mode", &
-                                                          "back_to_indentation", "backward_char", "backward_delete_char_untabify", &
-                                                        "backward_kill_paragraph", "backward_kill_sentence", "backward_kill_sexp", &
-                                                     "backward_kill_word", "backward_list", "backward_page", "backward_paragraph", &
-                                                        "backward_sentence", "backward_sexp", "backward_up_list", "backward_word", &
-                                                             "beginning_of_buffer", "beginning_of_line", "beginning_of_line_text", &
+    character(len=50), parameter, public :: function_names(1078) = [character(len=50) :: &
+                                                  "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
+                                                            "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
+                                                         "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
+                                            "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
+                                                          "add_mode_abbrev", "add_name_to_file", "add_save_some_buffers_function", &
+                                           "append_to_register", "apply_on_rectangle", "apropos_command", "apropos_documentation", &
+                                                      "apropos_follow", "apropos_function", "apropos_mode", "apropos_next_symbol", &
+                                                             "apropos_previous_symbol", "apropos_user_option", "apropos_variable", &
+                                             "async_shell_command", "auto_fill_mode", "auto_revert_mode", "auto_revert_set_timer", &
+                                                                  "auto_revert_tail_mode", "back_to_indentation", "backward_char", &
+                                             "backward_delete_char_untabify", "backward_kill_paragraph", "backward_kill_sentence", &
+                                                     "backward_kill_sexp", "backward_kill_word", "backward_list", "backward_page", &
+                                                   "backward_paragraph", "backward_sentence", "backward_sexp", "backward_up_list", &
+                                            "backward_word", "beginning_of_buffer", "beginning_of_line", "beginning_of_line_text", &
                                                            "blink_matching_check_mismatch", "blink_matching_open", "bobp", "bolp", &
                                              "bookmark_bmenu_1_window", "bookmark_bmenu_2_window", "bookmark_bmenu_backup_unmark", &
                                           "bookmark_bmenu_delete", "bookmark_bmenu_delete_all", "bookmark_bmenu_delete_backwards", &
@@ -489,21 +493,30 @@ module docstrings_fm
                                                         "bookmark_insert_location", "bookmark_jump", "bookmark_jump_other_window", &
                                                        "bookmark_load", "bookmark_locate", "bookmark_relocate", "bookmark_rename", &
                                                    "bookmark_save", "bookmark_set", "bookmark_set_no_overwrite", "bookmark_write", &
-                                                    "bookmark_yank_word", "buffer_name", "buffer_substring", "buffer_to_register", &
-                                                 "bury_buffer", "call_last_kbd_macro", "cancel_timer", "canonically_space_region", &
-                                                              "capitalize", "capitalize_region", "capitalize_word", "char_syntax", &
-                                                                   "check_coding_system", "clear_rectangle", "coding_system_base", &
-                                                    "coding_system_change_eol_conversion", "coding_system_change_text_conversion", &
-                                                       "coding_system_eol_type", "coding_system_p", "coding_system_priority_list", &
-                                                        "coding_system_type", "comint_accumulate", "comint_append_output_to_file", &
-                                                     "comint_backward_matching_input", "comint_bol", "comint_bol_or_process_mark", &
-                                                    "comint_clear_buffer", "comint_copy_old_input", "comint_delchar_or_maybe_eof", &
-                                                           "comint_delete_output", "comint_exec", "comint_forward_matching_input", &
-                                            "comint_get_next_from_history", "comint_goto_process_mark", "comint_interrupt_subjob", &
-                                                                  "comint_kill_input", "comint_kill_region", "comint_kill_subjob", &
-                                                                    "comint_kill_whole_line", "comint_mode", "comint_next_input", &
-                                                            "comint_next_matching_input", "comint_next_matching_input_from_input", &
-                                              "comint_next_prompt", "comint_postoutput_scroll_to_bottom", "comint_previous_input", &
+                                              "bookmark_yank_word", "buffer_menu", "buffer_menu_1_window", "buffer_menu_2_window", &
+                                                            "buffer_menu_backup_unmark", "buffer_menu_bury", "buffer_menu_delete", &
+                                                        "buffer_menu_delete_backwards", "buffer_menu_execute", "buffer_menu_mark", &
+                                                   "buffer_menu_mode", "buffer_menu_mode_other_window", "buffer_menu_multi_occur", &
+                                                       "buffer_menu_not_modified", "buffer_menu_other_window", "buffer_menu_save", &
+                                               "buffer_menu_select", "buffer_menu_switch_other_window", "buffer_menu_this_window", &
+                                                                   "buffer_menu_toggle_files_only", "buffer_menu_toggle_internal", &
+                                                   "buffer_menu_toggle_read_only", "buffer_menu_unmark", "buffer_menu_unmark_all", &
+                                            "buffer_menu_unmark_all_buffers", "buffer_menu_view", "buffer_menu_view_other_window", &
+                                                           "buffer_name", "buffer_substring", "buffer_to_register", "bury_buffer", &
+                                                  "call_last_kbd_macro", "cancel_timer", "canonically_space_region", "capitalize", &
+                                                     "capitalize_region", "capitalize_word", "char_syntax", "check_coding_system", &
+                                                   "clear_rectangle", "coding_system_base", "coding_system_change_eol_conversion", &
+                                              "coding_system_change_text_conversion", "coding_system_eol_type", "coding_system_p", &
+                                                         "coding_system_priority_list", "coding_system_type", "comint_accumulate", &
+                                                   "comint_append_output_to_file", "comint_backward_matching_input", "comint_bol", &
+                                                     "comint_bol_or_process_mark", "comint_clear_buffer", "comint_copy_old_input", &
+                                                             "comint_delchar_or_maybe_eof", "comint_delete_output", "comint_exec", &
+                                                                  "comint_forward_matching_input", "comint_get_next_from_history", &
+                                                       "comint_goto_process_mark", "comint_interrupt_subjob", "comint_kill_input", &
+                                              "comint_kill_region", "comint_kill_subjob", "comint_kill_whole_line", "comint_mode", &
+                                                                    "comint_next_input", "comint_next_matching_input", &
+                                                                    "comint_next_matching_input_from_input", "comint_next_prompt", &
+                                                                    "comint_postoutput_scroll_to_bottom", "comint_previous_input", &
                                                     "comint_previous_matching_input", "comint_previous_matching_input_from_input", &
                                              "comint_previous_prompt", "comint_quit_subjob", "comint_restore_input", "comint_run", &
                                           "comint_send_eof", "comint_send_input", "comint_send_string", "comint_set_process_mark", &
@@ -637,20 +650,20 @@ module docstrings_fm
                                                                   "kmacro_set_counter", "kmacro_set_format", "kmacro_start_macro", &
                                                   "kmacro_start_macro_or_insert_counter", "kmacro_swap_ring", "kmacro_view_macro", &
                                             "kmacro_view_macro_repeat", "kmacro_view_ring_2nd", "left_char", "left_word", "lgrep", &
-                                                    "line_number_at_pos", "list_abbrevs", "list_bookmarks", "list_matching_lines", &
-                                                       "list_registers", "local_abbrev_table", "log_edit_comment_search_backward", &
-                                                      "log_edit_comment_search_forward", "log_edit_diff_fileset", "log_edit_done", &
-                                                                    "log_edit_done_strip_cvs_lines", "log_edit_insert_changelog", &
-                                                                "log_edit_insert_cvs_rcstemplate", "log_edit_insert_cvs_template", &
-                                                       "log_edit_insert_filenames", "log_edit_insert_filenames_without_changelog", &
-                                                      "log_edit_insert_message_template", "log_edit_kill_buffer", "log_edit_mode", &
-                                                       "log_edit_mode_help", "log_edit_next_comment", "log_edit_previous_comment", &
-                                                    "log_edit_show_diff", "log_edit_show_files", "log_view_copy_revision_as_kill", &
-                                                    "log_view_diff", "log_view_diff_changeset", "log_view_display_entry_and_diff", &
-                                                             "log_view_file_next", "log_view_file_prev", "log_view_find_revision", &
-                                                             "log_view_mark_entry", "log_view_mode", "log_view_msg_and_diff_next", &
-                                                           "log_view_msg_and_diff_prev", "log_view_msg_next", "log_view_msg_prev", &
-                                                                    "log_view_toggle_entry_display", "log_view_toggle_mark_entry", &
+                                                           "line_number_at_pos", "list_abbrevs", "list_bookmarks", "list_buffers", &
+                                                                    "list_matching_lines", "list_registers", "local_abbrev_table", &
+                                                            "log_edit_comment_search_backward", "log_edit_comment_search_forward", &
+                                                        "log_edit_diff_fileset", "log_edit_done", "log_edit_done_strip_cvs_lines", &
+                                                                   "log_edit_insert_changelog", "log_edit_insert_cvs_rcstemplate", &
+                                                                    "log_edit_insert_cvs_template", "log_edit_insert_filenames", &
+                                                "log_edit_insert_filenames_without_changelog", "log_edit_insert_message_template", &
+                                           "log_edit_kill_buffer", "log_edit_mode", "log_edit_mode_help", "log_edit_next_comment", &
+                                                         "log_edit_previous_comment", "log_edit_show_diff", "log_edit_show_files", &
+                                                     "log_view_copy_revision_as_kill", "log_view_diff", "log_view_diff_changeset", &
+                                                    "log_view_display_entry_and_diff", "log_view_file_next", "log_view_file_prev", &
+                                                                 "log_view_find_revision", "log_view_mark_entry", "log_view_mode", &
+                                                  "log_view_msg_and_diff_next", "log_view_msg_and_diff_prev", "log_view_msg_next", &
+                                               "log_view_msg_prev", "log_view_toggle_entry_display", "log_view_toggle_mark_entry", &
                                              "log_view_unmark_all_entries", "log_view_unmark_entry", "looking_at", "looking_at_p", &
                                                        "looking_back", "major_mode_named", "make_comint", "make_comint_in_buffer", &
                                                      "make_empty_file", "make_process", "make_symbolic_link", "make_syntax_table", &
@@ -762,7 +775,7 @@ module docstrings_fm
                                                                     "yank_rectangle", "yes_or_no_p", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(926) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(937) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -797,15 +810,18 @@ module docstrings_fm
                                                             "bookmark_save_flag", "bookmark_search_delay", "bookmark_search_size", &
                                                      "bookmark_sort_flag", "bookmark_use_annotations", "bookmark_version_control", &
                                                                    "bookmark_watch_bookmark_file", "bookmark_yank_point", &
-                                                                "buffer_auto_revert_by_notification", "buffer_file_coding_system", &
-                                             "buffer_stale_function", "case_fold_search", "case_replace", "case_symbols_as_words", &
-                                                       "change_log_date", "change_log_default_name", "change_log_directory_files", &
-                                                    "change_log_mode_hook", "change_log_mode_map", "change_log_mode_syntax_table", &
-                                                                   "change_major_mode_after_body_hook", "change_major_mode_hook", &
-                                          "change_major_mode_with_file_name", "coding_system_for_read", "coding_system_for_write", &
-                                              "coding_system_require_warning", "colon_double_space", "comint_buffer_maximum_size", &
-                                                       "comint_delimiter_argument_list", "comint_eol_on_send", "comint_exec_hook", &
-                                                                   "comint_highlight_input", "comint_inhibit_carriage_motion", &
+                                          "buffer_auto_revert_by_notification", "buffer_file_coding_system", "buffer_menu_buffer", &
+                                            "buffer_menu_del_char", "buffer_menu_human_readable_sizes", "buffer_menu_marker_char", &
+                                                        "buffer_menu_mode_hook", "buffer_menu_mode_map", "buffer_menu_mode_width", &
+                                          "buffer_menu_name_width", "buffer_menu_size_width", "buffer_menu_use_frame_buffer_list", &
+                                                       "buffer_menu_use_header_line", "buffer_stale_function", "case_fold_search", &
+                                            "case_replace", "case_symbols_as_words", "change_log_date", "change_log_default_name", &
+                                                      "change_log_directory_files", "change_log_mode_hook", "change_log_mode_map", &
+                                                              "change_log_mode_syntax_table", "change_major_mode_after_body_hook", &
+                                           "change_major_mode_hook", "change_major_mode_with_file_name", "coding_system_for_read", &
+                                                 "coding_system_for_write", "coding_system_require_warning", "colon_double_space", &
+                                             "comint_buffer_maximum_size", "comint_delimiter_argument_list", "comint_eol_on_send", &
+                                                   "comint_exec_hook", "comint_highlight_input", "comint_inhibit_carriage_motion", &
                                                                    "comint_input_filter_functions", "comint_input_history_ignore", &
                                                                    "comint_input_ignoredups", "comint_input_ring_file_name", &
                                          "comint_input_ring_file_prefix", "comint_input_ring_separator", "comint_input_ring_size", &
@@ -1084,7 +1100,7 @@ module docstrings_fm
                                                                    "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(446) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(452) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1132,6 +1148,12 @@ module docstrings_fm
                                                                       "bookmark_use_annotations", &
                                                                       "bookmark_version_control", &
                                                                       "bookmark_watch_bookmark_file", &
+                                                                      "buffer_menu_human_readable_sizes", &
+                                                                      "buffer_menu_mode_width", &
+                                                                      "buffer_menu_name_width", &
+                                                                      "buffer_menu_size_width", &
+                                                                      "buffer_menu_use_frame_buffer_list", &
+                                                                      "buffer_menu_use_header_line", &
                                                                       "case_fold_search", &
                                                                       "case_replace", &
                                                                       "change_major_mode_with_file_name", &
@@ -1549,6 +1571,12 @@ contains
         found = .true.
         entry%fortran = ""
         select case (name)
+        case ("Buffer_menu__dynamic_name_width")
+            entry%file = "buff_menu_fm.f90"
+            entry%fortran = "buffer_menu_dynamic_name_width(bufs)"
+            entry%doc = "Return a name column width based on the current window width."//LF// &
+                        "The width will never exceed the actual width of the buffer names,"//LF// &
+                        "but will never be narrower than 19 characters."
         case ("abbrev__default_expand")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "call abbrev_default_expand(abbrev, status)"
@@ -2465,6 +2493,187 @@ contains
             entry%doc = "Get the next word from buffer `bookmark_current_buffer' and append"//LF// &
                         "it to the name of the bookmark currently being set, advancing"//LF// &
                         "`bookmark_yank_point' by one word."
+        case ("buffer_menu")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Switch to the Buffer Menu."//LF// &
+                        "By default, the Buffer Menu lists all buffers except those whose"//LF// &
+                        "names start with a space (which are for internal use).  With"//LF// &
+                        "prefix argument ARG, show only buffers that are visiting files."//LF// &
+                        ""//LF// &
+                        "In the Buffer Menu, the first column (denoted ""C"") shows ""."""//LF// &
+                        "for the buffer from which you came, "">"" for buffers you mark to"//LF// &
+                        "be displayed, and ""D"" for those you mark for deletion."//LF// &
+                        ""//LF// &
+                        "The ""R"" column has a ""%"" if the buffer is read-only."//LF// &
+                        "The ""M"" column has a ""*"" if it is modified, or ""S"" if you"//LF// &
+                        "have marked it for saving."//LF// &
+                        ""//LF// &
+                        "The remaining columns show the buffer name, the buffer size in"//LF// &
+                        "characters, its major mode, and the visited file name (if any)."//LF// &
+                        ""//LF// &
+                        "See `buffer_menu_mode' for the keybindings available the Buffer"//LF// &
+                        "Menu."//LF// &
+                        ""//LF// &
+                        "The width of the various columns can be customized by changing"//LF// &
+                        "the `buffer_menu_name_width', `buffer_menu_size_width' and"//LF// &
+                        "`buffer_menu_mode_width' variables."
+        case ("buffer_menu_1_window")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Select this line's buffer, alone, in full frame."
+        case ("buffer_menu_2_window")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Select this line's buffer, with previous buffer in second window."
+        case ("buffer_menu_backup_unmark")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move up and cancel all requested operations on buffer on line"//LF// &
+                        "above."
+        case ("buffer_menu_bury")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Bury the buffer listed on this line."
+        case ("buffer_menu_delete")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("buffer_menu_delete_backwards")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("buffer_menu_execute")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Save and/or delete marked buffers in the Buffer Menu."//LF// &
+                        "Buffers marked with \<buffer_menu_mode_map>\[buffer_menu_save] are saved."//LF// &
+                        "Buffers marked with \<buffer_menu_mode_map>\[buffer_menu_delete] are deleted."
+        case ("buffer_menu_mark")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark the Buffer menu entry at point for later display."//LF// &
+                        "It will be displayed by the \<buffer_menu_mode_map>\[buffer_menu_select] command."
+        case ("buffer_menu_mode")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Major mode for Buffer Menu buffers."//LF// &
+                        "The Buffer Menu is invoked by the commands \[list_buffers],"//LF// &
+                        "\[buffer_menu], and \[buffer_menu_other_window]."//LF// &
+                        "See `buffer_menu' for a description of its contents."//LF// &
+                        ""//LF// &
+                        "In Buffer Menu mode, the following commands are defined:"//LF// &
+                        "\<buffer_menu_mode_map>"//LF// &
+                        "\[quit_window]    Remove the Buffer Menu from the display."//LF// &
+                        "\[buffer_menu_this_window]    Select current line's buffer in place of the buffer menu."//LF// &
+                        "\[buffer_menu_mode_other_window]    Select that buffer in another window,"//LF// &
+                        "     so the Buffer Menu remains visible in its window."//LF// &
+                        "\[buffer_menu_view]    Select current line's buffer, in `view_mode'."//LF// &
+                        "\[buffer_menu_view_other_window]    Select that buffer in another window, in `view_mode'."//LF// &
+                        "\[buffer_menu_switch_other_window]  Make another window display that buffer."//LF// &
+                        "\[buffer_menu_mark]    Mark current line's buffer to be displayed."//LF// &
+                        "\[buffer_menu_select]    Select current line's buffer."//LF// &
+                        "     Also show buffers marked with ""m"", in other windows."//LF// &
+                        "\[buffer_menu_1_window]    Select that buffer in full-frame window."//LF// &
+                        "\[buffer_menu_2_window]    Select that buffer in one window, together with the"//LF// &
+                        "     buffer selected before this one in another window."//LF// &
+                        "\[buffer_menu_multi_occur]    Show lines matching regexp in the marked buffers."//LF// &
+                        "\[buffer_menu_not_modified]    Clear modified-flag on that buffer."//LF// &
+                        "\[buffer_menu_save]    Mark that buffer to be saved, and move down."//LF// &
+                        "\[buffer_menu_delete]    Mark that buffer to be deleted, and move down."//LF// &
+                        "\[buffer_menu_delete_backwards]  Mark that buffer to be deleted, and move up."//LF// &
+                        "\[buffer_menu_execute]    Delete or save marked buffers."//LF// &
+                        "\[buffer_menu_unmark]    Remove all marks from current line."//LF// &
+                        "     With prefix argument, also move up one line."//LF// &
+                        "\[buffer_menu_unmark_all_buffers]    Remove a particular mark from all lines."//LF// &
+                        "\[buffer_menu_unmark_all]    Remove all marks from all lines."//LF// &
+                        "\[buffer_menu_backup_unmark]  Back up a line and remove marks."//LF// &
+                        "\[buffer_menu_toggle_read_only]    Toggle read-only status of buffer on this line."//LF// &
+                        "\[revert_buffer]    Update the list of buffers."//LF// &
+                        "\[buffer_menu_toggle_files_only]    Toggle whether the menu displays only file buffers."//LF// &
+                        "\[buffer_menu_bury]    Bury the buffer listed on this line."
+        case ("buffer_menu_mode_other_window")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Select this line's buffer in other window, leaving buffer menu"//LF// &
+                        "visible."
+        case ("buffer_menu_multi_occur")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("buffer_menu_not_modified")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("buffer_menu_other_window")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display the Buffer Menu in another window."//LF// &
+                        "See `buffer_menu' for a description of the Buffer Menu."//LF// &
+                        ""//LF// &
+                        "By default, all buffers are listed except those whose names start"//LF// &
+                        "with a space (which are for internal use).  With prefix argument"//LF// &
+                        "ARG, show only buffers that are visiting files."
+        case ("buffer_menu_save")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark the buffer on this Buffer Menu line for saving."//LF// &
+                        "A subsequent \<buffer_menu_mode_map>\[buffer_menu_execute]"//LF// &
+                        "command will save it."
+        case ("buffer_menu_select")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Select this line's buffer; also, display buffers marked with `>'."//LF// &
+                        "You can mark buffers with the \<buffer_menu_mode_map>\[buffer_menu_mark] command."//LF// &
+                        ""//LF// &
+                        "This command deletes and replaces all the previously existing windows"//LF// &
+                        "in the selected frame, and will remove any marks."
+        case ("buffer_menu_switch_other_window")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Make the other window select this line's buffer."//LF// &
+                        "The current window remains selected."
+        case ("buffer_menu_this_window")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Select this line's buffer in this window."
+        case ("buffer_menu_toggle_files_only")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle whether the current `buffer_menu' displays only file buffers."//LF// &
+                        "With a positive ARG, display only file buffers.  With zero or"//LF// &
+                        "negative ARG, display other buffers as well."
+        case ("buffer_menu_toggle_internal")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle whether the current `buffer_menu' displays internal buffers."//LF// &
+                        "With a positive ARG, don't show internal buffers.  With zero or"//LF// &
+                        "negative ARG, display internal buffers as well."
+        case ("buffer_menu_toggle_read_only")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle read-only status of buffer on this line."//LF// &
+                        "This behaves like invoking \[read_only_mode] in that buffer."
+        case ("buffer_menu_unmark")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("buffer_menu_unmark_all")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Cancel all requested operations on buffers."
+        case ("buffer_menu_unmark_all_buffers")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("buffer_menu_view")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "View this line's buffer in View mode."
+        case ("buffer_menu_view_other_window")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "View this line's buffer in View mode in another window."
         case ("buffer_name")
             entry%file = "buffer_fm.f90"
             entry%fortran = "call buffer_name(h, name, status)"
@@ -6649,6 +6858,16 @@ contains
                         "The list is displayed in a buffer named `*Bookmark List*'."//LF// &
                         "The leftmost column displays a D if the bookmark is flagged for"//LF// &
                         "deletion, or > if it is flagged for displaying."
+        case ("list_buffers")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display a list of existing buffers."//LF// &
+                        "The list is displayed in a buffer named ""*Buffer List*""."//LF// &
+                        "See `buffer_menu' for a description of the Buffer Menu."//LF// &
+                        ""//LF// &
+                        "By default, all buffers are listed except those whose names start"//LF// &
+                        "with a space (which are for internal use).  With prefix argument"//LF// &
+                        "ARG, show only buffers that are visiting files."
         case ("list_matching_lines")
             entry%file = "replace_fm.f90"
             entry%interactive = .true.
@@ -11879,6 +12098,79 @@ contains
                         "The variable `coding_system_for_write', if set, overrides this variable."//LF// &
                         ""//LF// &
                         "This variable is never applied to a way of decoding a file while reading it."
+        case ("buffer_menu_buffer")
+            entry%file = "buff_menu_fm.f90"
+            entry%fortran = "buffer_menu_buffer_face"
+            entry%doc = "Face for buffer names in the Buffer Menu."
+        case ("buffer_menu_del_char")
+            entry%file = "buff_menu_fm.f90"
+            entry%fortran = "buffer_menu_del_char"
+            entry%original = """D"""
+            entry%value = repr(buffer_menu_del_char)
+            entry%doc = "Character used to flag buffers for deletion."
+        case ("buffer_menu_human_readable_sizes")
+            entry%file = "buff_menu_fm.f90"
+            entry%fortran = "buffer_menu_human_readable_sizes"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(buffer_menu_human_readable_sizes)
+            entry%doc = "If true, show buffer sizes in human-readable format."//LF// &
+                        "That means to use `file_size_human_readable' (which see) to format the"//LF// &
+                        "buffer sizes in the buffer size column."
+        case ("buffer_menu_marker_char")
+            entry%file = "buff_menu_fm.f90"
+            entry%fortran = "buffer_menu_marker_char"
+            entry%original = """>"""
+            entry%value = repr(buffer_menu_marker_char)
+            entry%doc = "The mark character for marked buffers."
+        case ("buffer_menu_mode_hook")
+            entry%file = "buff_menu_fm.f90"
+            entry%fortran = "buffer_menu_mode_hook"
+            entry%doc = "Hook run when entering Buffer Menu mode."
+        case ("buffer_menu_mode_map")
+            entry%file = "buff_menu_fm.f90"
+            entry%fortran = "buffer_menu_mode_map"
+            entry%doc = "Local keymap for `buffer_menu_mode' buffers."
+        case ("buffer_menu_mode_width")
+            entry%file = "buff_menu_fm.f90"
+            entry%fortran = "buffer_menu_mode_width"
+            entry%user_option = .true.
+            entry%original = "16"
+            entry%value = repr(buffer_menu_mode_width)
+            entry%doc = "Width of mode name column in the Buffer Menu."
+        case ("buffer_menu_name_width")
+            entry%file = "buff_menu_fm.f90"
+            entry%fortran = "buffer_menu_name_width"
+            entry%user_option = .true.
+            entry%original = "19"
+            entry%value = repr(buffer_menu_name_width)
+            entry%doc = "Width of buffer name column in the Buffer Menu, used while"//LF// &
+                        "`buffer_menu_name_width_function' is null."
+        case ("buffer_menu_size_width")
+            entry%file = "buff_menu_fm.f90"
+            entry%fortran = "buffer_menu_size_width"
+            entry%user_option = .true.
+            entry%original = "7"
+            entry%value = repr(buffer_menu_size_width)
+            entry%doc = "Width of buffer size column in the Buffer Menu."
+        case ("buffer_menu_use_frame_buffer_list")
+            entry%file = "buff_menu_fm.f90"
+            entry%fortran = "buffer_menu_use_frame_buffer_list"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(buffer_menu_use_frame_buffer_list)
+            entry%doc = "If true, the Buffer Menu uses the selected frame's buffer list."//LF// &
+                        "Buffers that were never selected in that frame are listed at the end."//LF// &
+                        "If the value is false, the Buffer Menu uses the global buffer list."//LF// &
+                        "This variable matters if the Buffer Menu is sorted by visited order,"//LF// &
+                        "as it is by default."
+        case ("buffer_menu_use_header_line")
+            entry%file = "buff_menu_fm.f90"
+            entry%fortran = "buffer_menu_use_header_line"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(buffer_menu_use_header_line)
+            entry%doc = "If true, use the header line to display Buffer Menu column titles."
         case ("buffer_stale_function")
             entry%file = "files_fm.f90"
             entry%fortran = "buffer_stale_function"
@@ -20375,6 +20667,18 @@ contains
             kind = OPTION_CHOICE
         case ("bookmark_watch_bookmark_file")
             kind = OPTION_CHOICE
+        case ("buffer_menu_human_readable_sizes")
+            kind = OPTION_LOGICAL
+        case ("buffer_menu_mode_width")
+            kind = OPTION_INTEGER
+        case ("buffer_menu_name_width")
+            kind = OPTION_INTEGER
+        case ("buffer_menu_size_width")
+            kind = OPTION_INTEGER
+        case ("buffer_menu_use_frame_buffer_list")
+            kind = OPTION_LOGICAL
+        case ("buffer_menu_use_header_line")
+            kind = OPTION_LOGICAL
         case ("case_fold_search")
             kind = OPTION_LOGICAL
             setting = .true.
@@ -21214,6 +21518,12 @@ contains
             bookmark_menu_confirm_deletion = v
         case ("bookmark_use_annotations")
             bookmark_use_annotations = v
+        case ("buffer_menu_human_readable_sizes")
+            buffer_menu_human_readable_sizes = v
+        case ("buffer_menu_use_frame_buffer_list")
+            buffer_menu_use_frame_buffer_list = v
+        case ("buffer_menu_use_header_line")
+            buffer_menu_use_header_line = v
         case ("case_fold_search")
             if (local) then
                 call case_fold_search%set_local(v)
@@ -21672,6 +21982,24 @@ contains
                 return
             end if
             bookmark_bmenu_type_column_width = int(v)
+        case ("buffer_menu_mode_width")
+            if (v < -huge(0) - 1 .or. v > huge(0)) then
+                ok = .false.
+                return
+            end if
+            buffer_menu_mode_width = int(v)
+        case ("buffer_menu_name_width")
+            if (v < -huge(0) - 1 .or. v > huge(0)) then
+                ok = .false.
+                return
+            end if
+            buffer_menu_name_width = int(v)
+        case ("buffer_menu_size_width")
+            if (v < -huge(0) - 1 .or. v > huge(0)) then
+                ok = .false.
+                return
+            end if
+            buffer_menu_size_width = int(v)
         case ("comint_buffer_maximum_size")
             if (local) then
                 call comint_buffer_maximum_size%set_local(v)
