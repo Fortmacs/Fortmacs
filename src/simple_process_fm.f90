@@ -128,7 +128,7 @@ contains
     recursive module subroutine process_menu_delete_process(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: id
-        integer(int64) :: pos
+        integer(int64) :: pos, shortage
         pos = point()
         id = tabulated_list_get_id()
         call delete_process(get_process(id), status)
@@ -137,9 +137,9 @@ contains
         if (.not. status%ok()) return
         call goto_char(min(pos, point_max()))
         if (eobp()) then
-            call forward_line(-1_int64, status)
+            shortage = forward_line(-1_int64)
         else
-            call beginning_of_line(status)
+            call beginning_of_line()
         end if
     end subroutine process_menu_delete_process
 

@@ -514,7 +514,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1300) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1303) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -776,7 +776,7 @@ module docstrings_fm
                                                   "kmacro_start_macro_or_insert_counter", "kmacro_swap_ring", "kmacro_view_macro", &
                                             "kmacro_view_macro_repeat", "kmacro_view_ring_2nd", "left_char", "left_word", "lgrep", &
                                                            "line_number_at_pos", "list_abbrevs", "list_bookmarks", "list_buffers", &
-                                                                    "list_matching_lines", "list_registers", "local_abbrev_table", &
+                                                  "list_matching_lines", "list_processes", "list_registers", "local_abbrev_table", &
                                                             "log_edit_comment_search_backward", "log_edit_comment_search_forward", &
                                                         "log_edit_diff_fileset", "log_edit_done", "log_edit_done_strip_cvs_lines", &
                                                                    "log_edit_insert_changelog", "log_edit_insert_cvs_rcstemplate", &
@@ -815,23 +815,23 @@ module docstrings_fm
                                                           "previous_error_no_select", "previous_history_element", "previous_line", &
                                                     "previous_line_or_history_element", "process_buffer", "process_coding_system", &
                                          "process_command", "process_exit_status", "process_id", "process_list", "process_live_p", &
-                                                 "process_mark", "process_name", "process_query_on_exit_flag", "process_send_eof", &
-                                               "process_send_region", "process_send_string", "process_status", "process_tty_name", &
-                                                 "processp", "prog_mode", "provided_mode_derived_p", "push_mark", "query_replace", &
-                                                           "query_replace_regexp", "quit_process", "quit_window", "quoted_insert", &
-                                                                    "re_search_backward", "re_search_forward", "read_buffer", &
-                                                "read_char_from_minibuffer_insert_char", "read_char_from_minibuffer_insert_other", &
-                                                "read_file_name_default", "read_multiple_choice", "read_number", "read_only_mode", &
-                                         "read_passwd_mode", "read_passwd_toggle_visibility", "read_shell_command", "read_string", &
-                                                                  "recenter", "recenter_top_bottom", "recentf", "recentf_cleanup", &
-                                            "recentf_keep_default_predicate", "recentf_load_list", "recentf_mode", "recentf_open", &
-                                                                "recentf_open_most_recent_file", "recentf_save_list", "recompile", &
-                                           "rectangle_backward_char", "rectangle_dimensions", "rectangle_exchange_point_and_mark", &
-                                                         "rectangle_forward_char", "rectangle_intersect_p", "rectangle_left_char", &
-                                                           "rectangle_mark_mode", "rectangle_next_line", "rectangle_number_lines", &
-                                           "rectangle_position_as_coordinates", "rectangle_previous_line", "rectangle_right_char", &
-                                             "regexp_quote", "region_active_p", "region_beginning", "region_bounds", "region_end", &
-                                                                    "region_noncontiguous_p", "register_read_with_preview", &
+                                               "process_mark", "process_menu_delete_process", "process_menu_mode", "process_name", &
+                                                          "process_query_on_exit_flag", "process_send_eof", "process_send_region", &
+                                             "process_send_string", "process_status", "process_tty_name", "processp", "prog_mode", &
+                                                  "provided_mode_derived_p", "push_mark", "query_replace", "query_replace_regexp", &
+                                                             "quit_process", "quit_window", "quoted_insert", "re_search_backward", &
+                                                      "re_search_forward", "read_buffer", "read_char_from_minibuffer_insert_char", &
+                                                               "read_char_from_minibuffer_insert_other", "read_file_name_default", &
+                                                      "read_multiple_choice", "read_number", "read_only_mode", "read_passwd_mode", &
+                                                 "read_passwd_toggle_visibility", "read_shell_command", "read_string", "recenter", &
+                                            "recenter_top_bottom", "recentf", "recentf_cleanup", "recentf_keep_default_predicate", &
+                                             "recentf_load_list", "recentf_mode", "recentf_open", "recentf_open_most_recent_file", &
+                                              "recentf_save_list", "recompile", "rectangle_backward_char", "rectangle_dimensions", &
+                                           "rectangle_exchange_point_and_mark", "rectangle_forward_char", "rectangle_intersect_p", &
+                                                              "rectangle_left_char", "rectangle_mark_mode", "rectangle_next_line", &
+                                         "rectangle_number_lines", "rectangle_position_as_coordinates", "rectangle_previous_line", &
+                                                    "rectangle_right_char", "regexp_quote", "region_active_p", "region_beginning", &
+                                            "region_bounds", "region_end", "region_noncontiguous_p", "register_read_with_preview", &
                                                "reindent_then_newline_and_indent", "rename_file", "repeat", "repeat_echo_message", &
                                                 "repeat_exit", "repeat_mode", "replace_match", "replace_regexp", "replace_string", &
                                          "revert_buffer", "revert_buffer_with_coding_system", "rgrep", "right_char", "right_word", &
@@ -8636,6 +8636,13 @@ contains
                         ""//LF// &
                         "Show all lines in the current buffer containing a match for a"//LF// &
                         "regexp."
+        case ("list_processes")
+            entry%file = "simple_process_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display a list of all processes that are Emacs sub-processes."//LF// &
+                        "If optional argument QUERY_ONLY_ARG is true, only processes with"//LF// &
+                        "the query-on-exit flag set are listed.  Optional argument BUFFER"//LF// &
+                        "specifies a buffer to use, instead of ""*Process List*""."
         case ("list_registers")
             entry%file = "register_fm.f90"
             entry%fortran = "call list_registers(status)"
@@ -9791,6 +9798,14 @@ contains
             entry%file = "process_fm.f90"
             entry%fortran = "process_mark(process)"
             entry%doc = "Return the marker for the end of the last output from PROCESS."
+        case ("process_menu_delete_process")
+            entry%file = "simple_process_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Kill process at point in a `list_processes' buffer."
+        case ("process_menu_mode")
+            entry%file = "simple_process_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Major mode for listing the processes called by Emacs."
         case ("process_name")
             entry%file = "process_fm.f90"
             entry%fortran = "process_name(process)"
