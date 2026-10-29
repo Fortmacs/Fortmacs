@@ -148,7 +148,7 @@ module info_fm
               info_toc, info_history, info_fontify_node, syms_of_info, &
               info_search, info_search_backward, info_search_next, info_search_case_sensitively, &
               info_index, info_index_next, info_virtual_index, info_apropos, &
-              info_goto_emacs_command_node, info_goto_emacs_key_command_node
+              info_goto_emacs_command_node, info_goto_emacs_key_command_node, info_history_variable
 
     !> A node visited: the Info FILE (as `info_current_file'), the NODE name
     !> and the position POS of point in it.  An element of the stacks
