@@ -49,7 +49,7 @@ module emacs_fm
     use xfaces_fm, only: init_frame_faces
     use faces_fm, only: init_faces
     use modes_fm, only: minor_modes
-    use keyboard_fm, only: set_input_fd, command_loop, redisplay_hook, ring_bell_hook
+    use keyboard_fm, only: set_input_fd, command_loop, redisplay_hook, ring_bell_hook, kill_emacs_hook
     use process_fm, only: kill_buffer_processes
     use bindings_fm, only: init_bindings
     use term_xterm_fm, only: terminal_init_xterm
@@ -448,6 +448,8 @@ contains
         redisplay_hook => do_redisplay
         ring_bell_hook => frame_ring_bell
         call command_loop(st)
+        ! Fkill_emacs: run the hook.
+        call kill_emacs_hook%run(st)
         ring_bell_hook => null()
         redisplay_hook => null()
         call delete_tty(selected_frame%tty, status)

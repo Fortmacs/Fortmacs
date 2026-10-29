@@ -587,7 +587,12 @@ module commands_fm
         type(command_type) :: rotate_yank_pointer
         type(command_type) :: save_buffer
         type(command_type) :: save_buffers_kill_terminal
+        type(command_type) :: save_place_forget_unreadable_files
+        type(command_type) :: save_place_local_mode
+        type(command_type) :: save_place_mode
         type(command_type) :: save_some_buffers
+        type(command_type) :: savehist_mode
+        type(command_type) :: savehist_save
         type(command_type) :: scroll_down
         type(command_type) :: scroll_down_command
         type(command_type) :: scroll_other_window
@@ -760,7 +765,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(722) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(727) = [character(len=43) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -1316,7 +1321,12 @@ module commands_fm
                                                                  "rotate_yank_pointer", &
                                                                  "save_buffer", &
                                                                  "save_buffers_kill_terminal", &
+                                                                 "save_place_forget_unreadable_files", &
+                                                                 "save_place_local_mode", &
+                                                                 "save_place_mode", &
                                                                  "save_some_buffers", &
+                                                                 "savehist_mode", &
+                                                                 "savehist_save", &
                                                                  "scroll_down", &
                                                                  "scroll_down_command", &
                                                                  "scroll_other_window", &
@@ -2603,8 +2613,18 @@ contains
             p => commands%save_buffer
         case ("save_buffers_kill_terminal")
             p => commands%save_buffers_kill_terminal
+        case ("save_place_forget_unreadable_files")
+            p => commands%save_place_forget_unreadable_files
+        case ("save_place_local_mode")
+            p => commands%save_place_local_mode
+        case ("save_place_mode")
+            p => commands%save_place_mode
         case ("save_some_buffers")
             p => commands%save_some_buffers
+        case ("savehist_mode")
+            p => commands%savehist_mode
+        case ("savehist_save")
+            p => commands%savehist_save
         case ("scroll_down")
             p => commands%scroll_down
         case ("scroll_down_command")

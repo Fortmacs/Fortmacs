@@ -408,6 +408,16 @@ module fortmacs
                              global_auto_revert_non_file_buffers, global_auto_revert_ignore_modes, &
                              auto_revert_check_vc_info, global_auto_revert_ignore_buffer, auto_revert_remote_files, &
                              auto_revert_use_notify, auto_revert_notify_exclude_dir_regexp, auto_revert_avoid_polling
+    use savehist_fm, only: savehist_mode, savehist_save, savehist_save_minibuffer_history, savehist_variable_type, &
+                           savehist_additional_variables, savehist_ignored_variables, savehist_file, &
+                           savehist_file_modes, savehist_autosave_interval, savehist_mode_hook, savehist_save_hook
+    use saveplace_fm, only: save_place_mode, save_place_local_mode, save_place_file, save_place_limit, &
+                            SAVE_PLACE_NO_LIMIT, save_place_forget_unreadable_files_option, &
+                            save_place_abbreviate_file_names, save_place_save_skipped, save_place_skip_check_regexp, &
+                            save_place_ignore_files_regexp, save_place_autosave_interval, &
+                            save_place_after_find_file_hook, save_place_mode_hook, save_place_local_mode_hook, &
+                            save_place_version_control, SAVE_PLACE_VERSION_CONTROL_T, SAVE_PLACE_VERSION_CONTROL_NIL, &
+                            SAVE_PLACE_VERSION_CONTROL_NEVER, SAVE_PLACE_VERSION_CONTROL_NOSPECIAL
     use repeat_fm, only: repeat_mode, repeat_mode_hook, repeat_too_dangerous, repeat_on_final_keystroke, &
                          repeat_exit_key, repeat_exit_timeout, repeat_keep_prefix, repeat_check_key, &
                          repeat_echo_function, repeat_echo_proc, repeat_echo_message, repeat_exit
@@ -705,6 +715,15 @@ module fortmacs
               global_auto_revert_ignore_modes, auto_revert_check_vc_info, global_auto_revert_ignore_buffer, &
               auto_revert_remote_files, auto_revert_use_notify, auto_revert_notify_exclude_dir_regexp, &
               auto_revert_avoid_polling
+    public :: savehist_mode, savehist_save, savehist_save_minibuffer_history, savehist_variable_type, &
+              savehist_additional_variables, savehist_ignored_variables, savehist_file, savehist_file_modes, &
+              savehist_autosave_interval, savehist_mode_hook, savehist_save_hook
+    public :: save_place_mode, save_place_local_mode, save_place_file, save_place_limit, SAVE_PLACE_NO_LIMIT, &
+              save_place_forget_unreadable_files_option, save_place_abbreviate_file_names, save_place_save_skipped, &
+              save_place_skip_check_regexp, save_place_ignore_files_regexp, save_place_autosave_interval, &
+              save_place_after_find_file_hook, save_place_mode_hook, save_place_local_mode_hook, &
+              save_place_version_control, SAVE_PLACE_VERSION_CONTROL_T, SAVE_PLACE_VERSION_CONTROL_NIL, &
+              SAVE_PLACE_VERSION_CONTROL_NEVER, SAVE_PLACE_VERSION_CONTROL_NOSPECIAL
     public :: repeat_mode, repeat_mode_hook, repeat_too_dangerous, repeat_on_final_keystroke, repeat_exit_key, &
               repeat_exit_timeout, repeat_keep_prefix, repeat_check_key, repeat_echo_function, repeat_echo_proc, &
               repeat_echo_message, repeat_exit, PROPERTY_UNSET, PROPERTY_TRUE, PROPERTY_NO, set_repeat_map, &

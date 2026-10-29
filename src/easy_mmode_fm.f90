@@ -90,6 +90,11 @@ module easy_mmode_fm
         end function minor_mode_getter_proc
     end interface
 
+    !> Whether the body of the minor mode being turned on or off runs
+    !> because its command was called interactively (what
+    !> (called-interactively-p 'interactive) says in the body upstream).
+    logical, public :: mode_called_interactively = .false.
+
     !> A minor mode.  Port of what easy-mmode.el:define-minor-mode
     !> defines.
     type, public :: minor_mode_type
@@ -592,7 +597,7 @@ contains
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
         logical, intent(in) :: interactive
-        logical :: on, had_message
+        logical :: on, had_message, was_interactive
         character(len=:), allocatable :: before
         status = status_type()
         had_message = allocated(last_message)
@@ -615,7 +620,10 @@ contains
             call self%set_state(enable)
         end if
         if (associated(self%body)) then
+            was_interactive = mode_called_interactively
+            mode_called_interactively = interactive
             call self%body(enable, status)
+            mode_called_interactively = was_interactive
             if (.not. status%ok()) return
         end if
         on = self%enabled()
