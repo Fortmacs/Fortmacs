@@ -117,7 +117,8 @@ module simple_fm
     public :: fundamental_mode, special_mode, syms_of_simple_modes, messages_buffer_mode, messages_buffer
     public :: set_variable
     public :: read_only_mode, what_line, what_line_text
-    public :: read_shell_command, shell_command, shell_command_on_region, display_message_or_buffer, &
+    public :: read_shell_command, shell_command, shell_command_on_region, call_process_shell_command, call_shell_region, &
+              display_message_or_buffer, &
               syms_of_simple_shell
     public :: blink_matching_open, blink_matching_check_mismatch, blink_paren_open_paren_line_string, &
               blink_paren_post_self_insert_function, newline_and_indent, syms_of_simple_electric, &
@@ -613,6 +614,35 @@ module simple_fm
         !>
         !> OUTPUT_BUFFER, OUTPUT_BUFFER_NAME and INSERT_HERE are as for
         !> `shell_command' (INSERT_HERE inserts the output after START).
+        !> Execute the shell command COMMAND synchronously in separate process,
+        !> inserting the output in BUFFER before point (the current buffer if
+        !> absent), with the standard error in ERROR_FILE if present.  Port of
+        !> subr.el:call-process-shell-command (BUFFER a buffer, t, or
+        !> (t ERROR-FILE)).  (In simple_shell_fm.)
+        module subroutine call_process_shell_command(command, result, status, error_file, buffer)
+            implicit none(type, external)
+            character(len=*), intent(in) :: command
+            type(value_type), intent(out) :: result
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: error_file
+            type(handle_type), intent(in), optional :: buffer
+        end subroutine call_process_shell_command
+
+        !> Send text from START to END as input to an inferior shell running
+        !> COMMAND.  Delete the text if DELETE is true.  Insert output in
+        !> BUFFER (the current buffer if absent) before point, the standard
+        !> error going to ERROR_FILE unless it is "".  Port of
+        !> subr.el:call-shell-region.  (In simple_shell_fm.)
+        module subroutine call_shell_region(start, end, command, delete, result, status, error_file, buffer)
+            implicit none(type, external)
+            integer(int64), intent(in) :: start, end
+            character(len=*), intent(in) :: command, error_file
+            logical, intent(in) :: delete
+            type(value_type), intent(out) :: result
+            type(status_type), intent(out) :: status
+            type(handle_type), intent(in), optional :: buffer
+        end subroutine call_shell_region
+
         !> REPLACE true means to insert the output in place of text from
         !> START to END, putting point and mark around it (NO_MARK: don't
         !> set the mark).  ERROR_BUFFER names a buffer for the standard

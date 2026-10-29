@@ -198,6 +198,16 @@ module buffer_fm
         !> BVAR last_selected_window: the window that last showed the
         !> buffer while selected, or the null handle.
         type(handle_type) :: last_selected_window
+        !> BVAR display_count (`buffer_display_count'): a number incremented
+        !> each time this buffer is displayed in a window.
+        integer(int64) :: display_count = 0
+        !> BVAR display_time (`buffer_display_time'): the time when the
+        !> buffer was last displayed in a window, in seconds and nanoseconds
+        !> since the epoch (unset, nil upstream, while DISPLAY_TIME_SET is
+        !> false).
+        logical :: display_time_set = .false.
+        integer(int64) :: display_time_sec = 0
+        integer(int32) :: display_time_nsec = 0
         !> BVAR local_var_alist: the variables local to this buffer (symbol
         !> ids) and, while the buffer is not current, their values (data_fm
         !> swaps them in and out).

@@ -467,6 +467,30 @@ module fortmacs
                                  tabulated_list_tty_sort_indicator_asc, tabulated_list_tty_sort_indicator_desc, &
                                  tabulated_list_mode_map, tabulated_list_mode_hook, tabulated_list_revert_hook
     use mule_util_fm, only: vtruncate_string_ellipsis
+    use ibuffer_fm, only: ibuffer_formats, ibuffer_always_compile_formats, ibuffer_fontification_alist, &
+                          ibuffer_human_readable_size, ibuffer_use_other_window, &
+                          ibuffer_default_shrink_to_minimum_size, ibuffer_display_summary, ibuffer_truncate_lines, &
+                          ibuffer_case_fold_search, ibuffer_default_sorting_mode, ibuffer_default_sorting_reversep, &
+                          ibuffer_eliding_string, ibuffer_maybe_show_predicates, &
+                          ibuffer_default_display_maybe_show_predicates, ibuffer_movement_cycle, &
+                          ibuffer_modified_char, ibuffer_read_only_char, ibuffer_marked_char, ibuffer_locked_char, &
+                          ibuffer_deletion_char, ibuffer_expert, ibuffer_view_ibuffer, &
+                          ibuffer_always_show_last_buffer, IBUFFER_SHOW_LAST_NEVER, IBUFFER_SHOW_LAST_ALWAYS, &
+                          IBUFFER_SHOW_LAST_NOMINI, ibuffer_jump_offer_only_visible_buffers, ibuffer_use_header_line, &
+                          IBUFFER_HEADER_LINE_NIL, IBUFFER_HEADER_LINE_T, IBUFFER_HEADER_LINE_TITLE, &
+                          ibuffer_default_directory, ibuffer_help_buffer_modes, ibuffer_compressed_file_name_regexp, &
+                          ibuffer_hook, ibuffer_mode_hook, ibuffer_marked_face, ibuffer_deletion_face, &
+                          ibuffer_title_face, ibuffer_filter_group_name_face, ibuffer_directory_abbrev_alist, &
+                          ibuffer_never_show_predicates, ibuffer_always_show_predicates, &
+                          ibuffer_never_search_content_name, ibuffer_never_search_content_mode, ibuffer_old_time, &
+                          ibuffer_show_empty_filter_groups, ibuffer_mode_map, ibuffer_mode_filter_group_map, &
+                          ibuffer_columns, ibuffer_sorting_functions, define_ibuffer_column, define_ibuffer_sorter, &
+                          ibuffer_column, ibuffer_text
+    use ibuf_macs_fm, only: ibuffer_formats_type, ibuffer_column_spec_type, ibuffer_cell_type, ibuffer_column_proc, &
+                            ibuffer_summarizer_proc, ibuffer_sorter_proc, ibuffer_size_proc, &
+                            ibuffer_buffer_predicate_proc, ibuffer_form_proc, ibuffer_show_predicate_type, &
+                            ibuffer_fontification_type, ibuffer_directory_abbrev_type, IBUFFER_ALIGN_LEFT, &
+                            IBUFFER_ALIGN_CENTER, IBUFFER_ALIGN_RIGHT
     use buff_menu_fm, only: buffer_menu_marker_char, buffer_menu_del_char, buffer_menu_use_header_line, &
                             buffer_menu_name_width, buffer_menu_name_width_function, buffer_menu_name_width_proc, &
                             buffer_menu_dynamic_name_width, buffer_menu_size_width, buffer_menu_mode_width, &
@@ -800,6 +824,26 @@ module fortmacs
     public :: tabulated_list_gui_sort_indicator_asc, tabulated_list_gui_sort_indicator_desc, &
               tabulated_list_tty_sort_indicator_asc, tabulated_list_tty_sort_indicator_desc, tabulated_list_mode_map, &
               tabulated_list_mode_hook, tabulated_list_revert_hook, vtruncate_string_ellipsis
+    public :: ibuffer_formats, ibuffer_always_compile_formats, ibuffer_fontification_alist, &
+              ibuffer_human_readable_size, ibuffer_use_other_window, ibuffer_default_shrink_to_minimum_size, &
+              ibuffer_display_summary, ibuffer_truncate_lines, ibuffer_case_fold_search, &
+              ibuffer_default_sorting_mode, ibuffer_default_sorting_reversep, ibuffer_eliding_string, &
+              ibuffer_maybe_show_predicates, ibuffer_default_display_maybe_show_predicates, ibuffer_movement_cycle, &
+              ibuffer_modified_char, ibuffer_read_only_char, ibuffer_marked_char, ibuffer_locked_char, &
+              ibuffer_deletion_char, ibuffer_expert, ibuffer_view_ibuffer, ibuffer_always_show_last_buffer, &
+              IBUFFER_SHOW_LAST_NEVER, IBUFFER_SHOW_LAST_ALWAYS, IBUFFER_SHOW_LAST_NOMINI, &
+              ibuffer_jump_offer_only_visible_buffers, ibuffer_use_header_line, IBUFFER_HEADER_LINE_NIL, &
+              IBUFFER_HEADER_LINE_T, IBUFFER_HEADER_LINE_TITLE, ibuffer_default_directory, ibuffer_help_buffer_modes, &
+              ibuffer_compressed_file_name_regexp, ibuffer_hook, ibuffer_mode_hook, ibuffer_marked_face, &
+              ibuffer_deletion_face, ibuffer_title_face, ibuffer_filter_group_name_face, &
+              ibuffer_directory_abbrev_alist, ibuffer_never_show_predicates, ibuffer_always_show_predicates, &
+              ibuffer_never_search_content_name, ibuffer_never_search_content_mode, ibuffer_old_time, &
+              ibuffer_show_empty_filter_groups, ibuffer_mode_map, ibuffer_mode_filter_group_map, ibuffer_columns, &
+              ibuffer_sorting_functions, define_ibuffer_column, define_ibuffer_sorter, ibuffer_column, ibuffer_text, &
+              ibuffer_formats_type, ibuffer_column_spec_type, ibuffer_cell_type, ibuffer_column_proc, &
+              ibuffer_summarizer_proc, ibuffer_sorter_proc, ibuffer_size_proc, ibuffer_buffer_predicate_proc, &
+              ibuffer_form_proc, ibuffer_show_predicate_type, ibuffer_fontification_type, &
+              ibuffer_directory_abbrev_type, IBUFFER_ALIGN_LEFT, IBUFFER_ALIGN_CENTER, IBUFFER_ALIGN_RIGHT
     public :: buffer_menu_marker_char, buffer_menu_del_char, buffer_menu_use_header_line, buffer_menu_name_width, &
               buffer_menu_name_width_function, buffer_menu_name_width_proc, buffer_menu_dynamic_name_width, &
               buffer_menu_size_width, buffer_menu_mode_width, buffer_menu_use_frame_buffer_list, &

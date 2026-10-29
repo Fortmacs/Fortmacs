@@ -61,6 +61,7 @@ submodule(window_fm) window_display_fm
     use lisp_fm, only: value_type, t_value
     use minibuf_fm, only: minibuf_level
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
+    use sysdep_fm, only: emacs_clock_realtime
     use lisp_fm, only: nilp
     implicit none(type, external)
 
@@ -185,6 +186,10 @@ contains
             samebuf = same_handle(buffer, w%buffer)
             w%buffer = buffer
             if (selected_p(h)) buffers(bi)%last_selected_window = h
+            ! Update time stamps of buffer display.
+            buffers(bi)%display_count = buffers(bi)%display_count + 1
+            call emacs_clock_realtime(buffers(bi)%display_time_sec, buffers(bi)%display_time_nsec)
+            buffers(bi)%display_time_set = .true.
             w%window_end_pos = 0
             w%window_end_valid = .false.
             ! Discard BUFFER from WINDOW's previous and next buffers.

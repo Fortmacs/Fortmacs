@@ -123,6 +123,11 @@ module face_table_fm
     use faces_fm, only: help_key_binding
     use faces_fm, only: highlight
     use faces_fm, only: homoglyph
+    use ibuffer_fm, only: ibuffer_deletion_face_def
+    use ibuffer_fm, only: ibuffer_filter_group_name_face_def
+    use ibuffer_fm, only: ibuffer_locked_buffer
+    use ibuffer_fm, only: ibuffer_marked_face_def
+    use ibuffer_fm, only: ibuffer_title_face_def
     use faces_fm, only: internal_border
     use faces_fm, only: italic
     use isearch_fm, only: lazy_highlight
@@ -299,6 +304,11 @@ module face_table_fm
         type(named_face_type), pointer :: help_key_binding => help_key_binding
         type(named_face_type), pointer :: highlight => highlight
         type(named_face_type), pointer :: homoglyph => homoglyph
+        type(named_face_type), pointer :: ibuffer_deletion => ibuffer_deletion_face_def
+        type(named_face_type), pointer :: ibuffer_filter_group_name => ibuffer_filter_group_name_face_def
+        type(named_face_type), pointer :: ibuffer_locked_buffer => ibuffer_locked_buffer
+        type(named_face_type), pointer :: ibuffer_marked => ibuffer_marked_face_def
+        type(named_face_type), pointer :: ibuffer_title => ibuffer_title_face_def
         type(named_face_type), pointer :: internal_border => internal_border
         type(named_face_type), pointer :: italic => italic
         type(named_face_type), pointer :: lazy_highlight => lazy_highlight

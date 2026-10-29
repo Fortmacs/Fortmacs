@@ -59,6 +59,7 @@ module modes_fm
         type(major_mode_type) :: fundamental_mode
         type(major_mode_type) :: grep_mode
         type(major_mode_type) :: help_mode
+        type(major_mode_type) :: ibuffer_mode
         type(major_mode_type) :: log_edit_mode
         type(major_mode_type) :: log_view_mode
         type(major_mode_type) :: messages_buffer_mode
@@ -93,6 +94,7 @@ module modes_fm
         type(minor_mode_type) :: font_lock_mode
         type(minor_mode_type) :: global_auto_revert_mode
         type(minor_mode_type) :: global_font_lock_mode
+        type(minor_mode_type) :: ibuffer_auto_mode
         type(minor_mode_type) :: indent_tabs_mode
         type(minor_mode_type) :: read_only_mode
         type(minor_mode_type) :: recentf_mode
