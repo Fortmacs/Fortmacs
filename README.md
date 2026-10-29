@@ -77,7 +77,7 @@ running. Each generation is kept with the `init.f90` it was built from in
    compilers; code from decades ago still compiles.
 5. **Syntax.** Blocks say where they end (`end if`, `end do`) instead of
    ending where parentheses balance.
-   [Compare the two side by side](https://vermi-culous.github.io/Fortmacs/syntax.html).
+   [Compare the two side by side](https://fortmacs.github.io/Fortmacs/syntax.html).
    That's a preference, not a verdict on Elisp.
 
 6. **Help that speaks Fortran.** Emacs is at its best as an environment for

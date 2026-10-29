@@ -4,7 +4,7 @@ license = "GPL-3.0-or-later"
 author = "The Fortmacs authors"
 copyright = "Copyright (C) 2026 The Fortmacs authors"
 description = "A rewrite of GNU Emacs 31.1 in modern Fortran"
-homepage = "https://github.com/vermi-culous/Fortmacs"
+homepage = "https://github.com/Fortmacs/Fortmacs"
 
 [build]
 auto-executables = false
