@@ -120,6 +120,7 @@ module simple_fm
     public :: read_shell_command, shell_command, shell_command_on_region, call_process_shell_command, call_shell_region, &
               display_message_or_buffer, &
               syms_of_simple_shell
+    public :: process_menu_mode, process_menu_delete_process, list_processes, syms_of_simple_process
     public :: blink_matching_open, blink_matching_check_mismatch, blink_paren_open_paren_line_string, &
               blink_paren_post_self_insert_function, newline_and_indent, syms_of_simple_electric, &
               backward_delete_char_untabify, blink_matching_check_proc, reindent_then_newline_and_indent
@@ -721,6 +722,38 @@ module simple_fm
         module subroutine syms_of_simple_shell()
             implicit none(type, external)
         end subroutine syms_of_simple_shell
+
+        !> Major mode for listing the processes called by Emacs.  Port of
+        !> simple.el:process-menu-mode.  (In simple_process_fm.)
+        recursive module subroutine process_menu_mode(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine process_menu_mode
+
+        !> Kill process at point in a `list_processes' buffer.  Port of
+        !> simple.el:process-menu-delete-process.  (In simple_process_fm.)
+        recursive module subroutine process_menu_delete_process(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine process_menu_delete_process
+
+        !> Display a list of all processes that are Emacs sub-processes.
+        !> If optional argument QUERY_ONLY_ARG is true, only processes with
+        !> the query-on-exit flag set are listed.  Optional argument BUFFER
+        !> specifies a buffer to use, instead of "*Process List*".  Port of
+        !> simple.el:list-processes.  (In simple_process_fm.)
+        recursive module subroutine list_processes(status, query_only_arg, buffer)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: query_only_arg
+            type(handle_type), intent(in), optional :: buffer
+        end subroutine list_processes
+
+        !> Define Process Menu mode and register its commands (after
+        !> Tabulated List mode, its parent).  (In simple_process_fm.)
+        module subroutine syms_of_simple_process()
+            implicit none(type, external)
+        end subroutine syms_of_simple_process
 
         !> Momentarily highlight the beginning of the sexp before point.
         !> Port of simple.el:blink-matching-open.  (In simple_electric_fm,

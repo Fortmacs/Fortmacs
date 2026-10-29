@@ -66,6 +66,7 @@ module modes_fm
         type(major_mode_type) :: messages_buffer_mode
         type(major_mode_type) :: occur_edit_mode
         type(major_mode_type) :: occur_mode
+        type(major_mode_type) :: process_menu_mode
         type(major_mode_type) :: prog_mode
         type(major_mode_type) :: sh_base_mode
         type(major_mode_type) :: sh_mode
