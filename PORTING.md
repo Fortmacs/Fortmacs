@@ -213,7 +213,11 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
    50. Buttons (button.el: `insert-text-button`, `forward-button` TAB,
        `push-button` RET), then what waits on them: Help's cross-references
        and the help-xref stack (l, r), and the buttons at the end of VC logs.
-   51. The X11 GUI (the protocol over a Unix socket in Fortran, FreeType and
+   51. Mail: composing and sending (`compose-mail` C-x m, sendmail.el,
+       message.el, smtpmail.el over a socket in src/sys, mail-utils.el,
+       mailabbrev.el), then Rmail (rmail.el, rmailsum.el, rmailout.el,
+       rmailedit.el, rmailkwd.el, rmailmm.el; mbox files and movemail).
+   52. The X11 GUI (the protocol over a Unix socket in Fortran, FreeType and
        HarfBuzz fonts), then Wayland.
 
 The GUI (X11 protocol over a Unix socket from Fortran, our own font
@@ -871,6 +875,7 @@ Each lists the default being used meanwhile.
 ## Session log
 
 - 2026-10-29 — Grep (roadmap step 35, `step35-grep`, based on main): grep_fm (`grep`, `grep-find`, `lgrep`, `rgrep`, `zrgrep`, Grep mode, the defaults probed from grep, find and xargs, match highlighting, headings, the abbreviated find command); compile_fm runs commands in modes made by define-compilation-mode, which give their buffers their own rules, directory matcher, transforms, font-lock keywords, mode line, process setup and exit message (`compilation_set_mode_locals`); font_lock_fm's highlights take nil properties, a `display` string and match-dependent properties; replace_fm defines the `match` face; files_fm gains `wildcard_to_regexp`, minibuffer_fm `read_directory_name` and a defaults list for `completing_read`, `read_shell_command` an initial position.  Ports grep-tests.el (the GNU/Linux cases) and compile-test-grep-regexps.  Grep-Edit mode waits for Occur (step 37).  Next: 37 (Occur).
+- 2026-10-29 — Roadmap: step 51 Mail and Rmail added at the user's request (composing and sending first, as Rmail's replies need it); the GUI moves to 52.  Calendar and diary were already step 45.
 - 2026-10-29 — Header lines, Tabulated List mode and the bookmark list (roadmap step 33f, `step33-bmenu`, built on `step33-bookmark` while 33e waits): design decision "Header lines as typed segments" (chosen with the user); buffer_fm's `header_line_format`, drawn by redisplay at the top of the window (terminal and window system; the text area below it); mule_util_fm (`truncate_string_to_width`; the variable `vtruncate_string_ellipsis` takes the `v` prefix, as `vuser_full_name` and `vdeactivate_mark`); tabulated_list_fm (Tabulated List mode, printing, sorting, tags, columns); bookmark_fm's bookmark list (C-x r l, Bookmark Menu mode and its commands, the incremental search, the list rebuilt when bookmarks change).  Ports tabulated-list-tests.el but the group tests, the bookmark list tests of bookmark-tests.el and the truncate tests of mule-util-tests.el; own header line tests.  Step 33 is done.  Next: 34 (the Info reader).
 - 2026-10-29 — Bookmarks (roadmap step 33e, `step33-bookmark`, based on main; the roadmap step 33 is now six PRs, the bookmark list moving to 33f with header lines and tabulated-list.el, as decided with the user): bookmark_fm (setting, jumping to, renaming, deleting, inserting, relocating, saving and loading bookmarks, annotations with Edit-Bookmark-Annotation mode, the fringe mark overlay; C-x r m, C-x r M, C-x r b and `bookmark_map`), saved in namelist syntax.  Redisplay hides text with a fringe display spec (a terminal has no fringes); error_fm gains the bookmark errors, sysdep_fm the real-time clock for the last-modified times.  Ports bookmark-tests.el but the bookmark list tests.  Next: 33f.
 - 2026-10-29 — Recentf (roadmap step 33d, `step33-recentf`, based on main): recentf_fm (Recentf mode, the list of recent files saved in namelist syntax, `recentf_open`, `recentf_open_most_recent_file`, `recentf_cleanup`); the exclude and keep lists are arrays of `recentf_check_type` (a regexp or a procedure pointer).  Own tests (no upstream recentf tests).  Next: 33e bookmarks.
