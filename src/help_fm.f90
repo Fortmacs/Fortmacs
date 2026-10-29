@@ -1126,8 +1126,8 @@ contains
                       "Show the source for what's being described in *Help*", "Show help for variable", &
                       "Show help for function or variable"])
         call section("Manuals", &
-                     [character(len=40) :: "info_emacs_manual", "Info_goto_emacs_command_node", &
-                      "Info_goto_emacs_key_command_node", "info", "info_display_manual", "info_lookup_symbol"], &
+                     [character(len=40) :: "info_emacs_manual", "info_goto_emacs_command_node", &
+                      "info_goto_emacs_key_command_node", "info", "info_display_manual", "info_lookup_symbol"], &
                      [character(len=4) :: "r", "F", "K", "i", "R", "S"], &
                      [character(len=72) :: "Show Emacs manual", "Show Emacs manual section for command", &
                       "Show Emacs manual section for a key sequence", "Show all installed manuals", &
@@ -2047,6 +2047,8 @@ contains
         call keymap_set(help_map, "d", "apropos_documentation", status)
         call keymap_set(help_map, "e", "view_echo_area_messages", status)
         call keymap_set(help_map, "f", "describe_function", status)
+        call keymap_set(help_map, "i", "info", status)
+        call keymap_set(help_map, "4 i", "info_other_window", status)
         call keymap_set(help_map, "u", "apropos_user_option", status)
         call keymap_set(help_map, "k", "describe_key", status)
         call keymap_set(help_map, "l", "view_lossage", status)
@@ -2056,6 +2058,7 @@ contains
         call keymap_set(help_map, "w", "where_is", status)
         call keymap_set(help_map, "x", "describe_command", status)
         call keymap_set(help_map, "q", "help_quit", status)
+        call keymap_set(help_map, "r", "info_emacs_manual", status)
         call key_parse("C-h", key, status)
         call define_key(global_map, key, make_keymap_ref(help_map), status)
         call key_parse("<help>", key, status)

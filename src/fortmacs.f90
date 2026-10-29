@@ -467,6 +467,10 @@ module fortmacs
                                  tabulated_list_tty_sort_indicator_asc, tabulated_list_tty_sort_indicator_desc, &
                                  tabulated_list_mode_map, tabulated_list_mode_hook, tabulated_list_revert_hook
     use mule_util_fm, only: vtruncate_string_ellipsis
+    use info_fm, only: info_history_skip_intermediate_nodes, info_default_directory_list, info_directory_list, &
+                       info_additional_directory_list, info_scroll_prefer_subnodes, info_mode_hook, &
+                       info_selection_hook, info_url_alist, info_url_type, info_suffix_list, info_suffix_type, &
+                       info_streamline_headings, info_heading_type, info_mode_map, info_mode_syntax_table
     use ibuffer_fm, only: ibuffer_formats, ibuffer_always_compile_formats, ibuffer_fontification_alist, &
                           ibuffer_human_readable_size, ibuffer_use_other_window, &
                           ibuffer_default_shrink_to_minimum_size, ibuffer_display_summary, ibuffer_truncate_lines, &
@@ -836,6 +840,10 @@ module fortmacs
     public :: tabulated_list_gui_sort_indicator_asc, tabulated_list_gui_sort_indicator_desc, &
               tabulated_list_tty_sort_indicator_asc, tabulated_list_tty_sort_indicator_desc, tabulated_list_mode_map, &
               tabulated_list_mode_hook, tabulated_list_revert_hook, vtruncate_string_ellipsis
+    public :: info_history_skip_intermediate_nodes, info_default_directory_list, info_directory_list, &
+              info_additional_directory_list, info_scroll_prefer_subnodes, info_mode_hook, info_selection_hook, &
+              info_url_alist, info_url_type, info_suffix_list, info_suffix_type, info_streamline_headings, &
+              info_heading_type, info_mode_map, info_mode_syntax_table
     public :: ibuffer_formats, ibuffer_always_compile_formats, ibuffer_fontification_alist, &
               ibuffer_human_readable_size, ibuffer_use_other_window, ibuffer_default_shrink_to_minimum_size, &
               ibuffer_display_summary, ibuffer_truncate_lines, ibuffer_case_fold_search, &

@@ -99,7 +99,8 @@ module files_fm
     public :: save_some_buffers_proc, add_save_some_buffers_function, save_some_buffers_pred
     public :: find_file_other_window, backup_file_name_p, revert_buffer, revert_function_proc, find_directory_proc
     public :: insert_directory, insert_directory_clean, insert_directory_wildcard_in_dir_p, file_truename, &
-              delete_file, delete_directory, file_name_extension, wildcard_to_regexp, auto_save_file_name_p, &
+              delete_file, delete_directory, file_name_extension, file_name_sans_extension, wildcard_to_regexp, &
+              auto_save_file_name_p, &
               file_size_human_readable, byte_count_to_string, get_free_disk_space, split_string_and_unquote, &
               shell_quote_wildcard_pattern, string_prefix_p
     public :: copy_directory, file_in_directory_p, file_equal_p, make_empty_file, file_modes_symbolic_to_number, &
@@ -436,6 +437,19 @@ module files_fm
             type(status_type), intent(out) :: status
             logical, intent(in), optional :: recursive
         end subroutine delete_directory
+
+        !> Return FILENAME sans final "extension" and any backup version strings.
+        !> The extension, in a file name, is the part that begins with the last `.',
+        !> except that a leading `.' of the file name, if there is one, doesn't count.
+        !> Any extensions that indicate backup versions and version strings are
+        !> removed by calling `file_name_sans_versions', which see, before looking
+        !> for the "real" file extension.  Port of files.el:file-name-sans-extension.
+        !> (In files_dir_fm.)
+        module function file_name_sans_extension(filename) result(sans)
+            implicit none(type, external)
+            character(len=*), intent(in) :: filename
+            character(len=:), allocatable :: sans
+        end function file_name_sans_extension
 
         !> Return FILENAME's final "extension" sans any backup version strings.
         !> The extension, in a file name, is the part that begins with the last `.',
@@ -2171,7 +2185,7 @@ contains
     !> `ctl_x_4_map').
     !> Run `kill_buffer_hook' in the buffer H being killed (current).
     !> Part of buffer.c:Fkill_buffer.
-    subroutine run_kill_hook(h)
+    recursive subroutine run_kill_hook(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
         if (h%index == 0) return

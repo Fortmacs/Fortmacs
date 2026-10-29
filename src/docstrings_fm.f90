@@ -254,6 +254,10 @@ module docstrings_fm
                           ibuffer_view_ibuffer
     use indent_fm, only: indent_line_function, indent_line_function_name, indent_region_function, &
                          indent_tabs_mode, standard_indent, tab_always_indent, tab_stop_list
+    use info_fm, only: info_additional_directory_list, info_default_directory_list, &
+                       info_directory_list, info_history_skip_intermediate_nodes, info_mode_hook, info_mode_map, &
+                       info_mode_syntax_table, info_scroll_prefer_subnodes, info_selection_hook, &
+                       info_streamline_headings, info_suffix_list, info_url_alist
     use insdel_fm, only: after_change_functions, before_change_functions, first_change_hook, &
                          inhibit_modification_hooks
     use isearch_fm, only: isearch_lax_whitespace, isearch_mode_map, isearch_regexp_lax_whitespace, &
@@ -484,7 +488,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1234) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1267) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -699,7 +703,15 @@ module docstrings_fm
                                                          "indent_region", "indent_relative", "indent_relative_first_indent_point", &
                                                        "indent_rigidly", "indent_rigidly_left", "indent_rigidly_left_to_tab_stop", &
                                                    "indent_rigidly_right", "indent_rigidly_right_to_tab_stop", "indent_tabs_mode", &
-                                                       "indent_to", "insert", "insert_abbrev_table_description", "insert_abbrevs", &
+                                                         "indent_to", "info", "info_backward_node", "info_copy_current_node_name", &
+                                                       "info_directory", "info_emacs_bug", "info_emacs_manual", "info_final_node", &
+                                                         "info_follow_nearest_node", "info_follow_reference", "info_forward_node", &
+                                                       "info_goto_node", "info_help", "info_history_back", "info_history_forward", &
+                                               "info_last_menu_item", "info_last_preorder", "info_menu", "info_mode", "info_next", &
+                                         "info_next_menu_item", "info_next_preorder", "info_next_reference", "info_nth_menu_item", &
+                                                "info_on_current_buffer", "info_other_window", "info_prev", "info_prev_reference", &
+                                          "info_scroll_down", "info_scroll_up", "info_summary", "info_top_node", "info_undefined", &
+                                                         "info_up", "insert", "insert_abbrev_table_description", "insert_abbrevs", &
                                                                     "insert_rectangle", "insert_register", "interactive_region", &
                                                            "internal_default_process_filter", "internal_default_process_sentinel", &
                                                      "internal_default_signal_process", "interrupt_process", "inverse_add_abbrev", &
@@ -852,7 +864,7 @@ module docstrings_fm
                                                                     "yank_rectangle", "yes_or_no_p", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(996) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1008) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -864,16 +876,16 @@ module docstrings_fm
                                                      "async_shell_command_mode", "async_shell_command_width", "auto_coding_alist", &
                                                               "auto_coding_regexp_alist", "auto_fill_chars", "auto_fill_function", &
                                                 "auto_fill_inhibit_regexp", "auto_fill_mode_hook", "auto_mode_interpreter_regexp", &
-                                                                   "auto_revert__lockout_interval", "auto_revert_avoid_polling", &
+                                                                    "auto_revert__lockout_interval", "auto_revert_avoid_polling", &
                                             "auto_revert_buffer_in_progress", "auto_revert_check_vc_info", "auto_revert_interval", &
-                                                                   "auto_revert_mode_hook", "auto_revert_mode_text", &
+                                                                    "auto_revert_mode_hook", "auto_revert_mode_text", &
                                                               "auto_revert_notify_exclude_dir_regexp", "auto_revert_remote_files", &
                                                                    "auto_revert_stop_on_user_input", "auto_revert_tail_mode_hook", &
                                                     "auto_revert_tail_mode_text", "auto_revert_use_notify", "auto_revert_verbose", &
                                           "backward_delete_char_untabify_method", "before_change_functions", "before_revert_hook", &
                                                                "before_save_hook", "blink_matching_delay", "blink_matching_paren", &
                                                      "blink_matching_paren_distance", "blink_matching_paren_dont_ignore_comments", &
-                                                                   "blink_matching_paren_on_screen", "bookmark_after_jump_hook", &
+                                                                    "blink_matching_paren_on_screen", "bookmark_after_jump_hook", &
                                            "bookmark_after_load_file_hook", "bookmark_alist", "bookmark_alist_modification_count", &
                                                                "bookmark_automatically_show_annotations", "bookmark_bmenu_buffer", &
                                               "bookmark_bmenu_file_column", "bookmark_bmenu_mode_hook", "bookmark_bmenu_mode_map", &
@@ -881,12 +893,12 @@ module docstrings_fm
                                                                 "bookmark_bookmarks_timestamp", "bookmark_completion_ignore_case", &
                                          "bookmark_current_buffer", "bookmark_default_file", "bookmark_edit_annotation_mode_hook", &
                                                        "bookmark_edit_annotation_mode_map", "bookmark_exit_hook", "bookmark_face", &
-                                                                   "bookmark_file_coding_system", "bookmark_fringe_mark", &
+                                                                    "bookmark_file_coding_system", "bookmark_fringe_mark", &
                                                    "bookmark_inhibit_context_functions", "bookmark_map", "bookmark_menu_bookmark", &
                                                             "bookmark_menu_confirm_deletion", "bookmark_minibuffer_read_name_map", &
                                                             "bookmark_save_flag", "bookmark_search_delay", "bookmark_search_size", &
                                                      "bookmark_sort_flag", "bookmark_use_annotations", "bookmark_version_control", &
-                                                                   "bookmark_watch_bookmark_file", "bookmark_yank_point", &
+                                                                    "bookmark_watch_bookmark_file", "bookmark_yank_point", &
                                           "buffer_auto_revert_by_notification", "buffer_file_coding_system", "buffer_menu_buffer", &
                                             "buffer_menu_del_char", "buffer_menu_human_readable_sizes", "buffer_menu_marker_char", &
                                                         "buffer_menu_mode_hook", "buffer_menu_mode_map", "buffer_menu_mode_width", &
@@ -900,7 +912,7 @@ module docstrings_fm
                                              "comint_buffer_maximum_size", "comint_delimiter_argument_list", "comint_eol_on_send", &
                                                    "comint_exec_hook", "comint_highlight_input", "comint_inhibit_carriage_motion", &
                                                                    "comint_input_filter_functions", "comint_input_history_ignore", &
-                                                                   "comint_input_ignoredups", "comint_input_ring_file_name", &
+                                                                    "comint_input_ignoredups", "comint_input_ring_file_name", &
                                          "comint_input_ring_file_prefix", "comint_input_ring_separator", "comint_input_ring_size", &
                                                           "comint_input_sender_no_newline", "comint_mode_hook", "comint_mode_map", &
                                                            "comint_move_point_for_matching_input", "comint_move_point_for_output", &
@@ -919,12 +931,12 @@ module docstrings_fm
                                                                   "compilation_disable_input", "compilation_enter_directory_face", &
                                                                    "compilation_error_case_fold_search", "compilation_error_face", &
                                                          "compilation_error_regexp_alist", "compilation_error_regexp_alist_alist", &
-                                                                   "compilation_error_screen_columns", "compilation_filter_hook", &
+                                                                    "compilation_error_screen_columns", "compilation_filter_hook", &
                                                   "compilation_filter_start", "compilation_first_column", "compilation_info_face", &
                                           "compilation_leave_directory_face", "compilation_line_face", "compilation_message_face", &
                                              "compilation_minor_mode_hook", "compilation_minor_mode_map", "compilation_mode_hook", &
                                             "compilation_mode_map", "compilation_num_errors_found", "compilation_num_infos_found", &
-                                                                   "compilation_num_warnings_found", "compilation_read_command", &
+                                                                    "compilation_num_warnings_found", "compilation_read_command", &
                                                                 "compilation_scroll_output", "compilation_search_all_directories", &
                                                           "compilation_shell_minor_mode_hook", "compilation_shell_minor_mode_map", &
                                                                 "compilation_skip_threshold", "compilation_skip_to_next_location", &
@@ -938,17 +950,17 @@ module docstrings_fm
                                                        "conf_assignment_column", "conf_assignment_regexp", "conf_assignment_sign", &
                                            "conf_assignment_space", "conf_colon_assignment_column", "conf_colon_assignment_space", &
                                                                "conf_colon_font_lock_keywords", "conf_desktop_font_lock_keywords", &
-                                                                   "conf_font_lock_keywords", "conf_javaprop_assignment_column", &
+                                                                    "conf_font_lock_keywords", "conf_javaprop_assignment_column", &
                                           "conf_javaprop_font_lock_keywords", "conf_javaprop_mode_syntax_table", "conf_mode_hook", &
                                                         "conf_mode_map", "conf_mode_syntax_table", "conf_npmrc_mode_syntax_table", &
                                              "conf_ppd_mode_syntax_table", "conf_space_font_lock_keywords", "conf_space_keywords", &
-                                                                   "conf_space_keywords_alist", "conf_toml_font_lock_keywords", &
-                                                                   "conf_toml_mode_syntax_table", "conf_unix_mode_syntax_table", &
+                                                                    "conf_space_keywords_alist", "conf_toml_font_lock_keywords", &
+                                                                    "conf_toml_mode_syntax_table", "conf_unix_mode_syntax_table", &
                                                               "conf_xdefaults_mode_syntax_table", "copy_directory_create_symlink", &
                                                 "copy_region_blink_delay", "crm_local_completion_map", "crm_local_must_match_map", &
                                                 "crm_prompt", "crm_separator", "current_minibuffer_command", "current_prefix_arg", &
-                                                                   "cycle_spacing_actions", "dabbrev_abbrev_char_regexp", &
-                                                                   "dabbrev_abbrev_skip_leading_regexp", "dabbrev_backward_only", &
+                                                                    "cycle_spacing_actions", "dabbrev_abbrev_char_regexp", &
+                                                                    "dabbrev_abbrev_skip_leading_regexp", "dabbrev_backward_only", &
                                                    "dabbrev_case_distinction", "dabbrev_case_fold_search", "dabbrev_case_replace", &
                                          "dabbrev_check_all_buffers", "dabbrev_check_other_buffers", "dabbrev_eliminate_newlines", &
                                                                    "dabbrev_ignored_buffer_modes", "dabbrev_ignored_buffer_names", &
@@ -959,7 +971,7 @@ module docstrings_fm
                                                  "diff_ask_before_revert_and_kill_hunk", "diff_command", "diff_default_read_only", &
                                                 "diff_entire_buffers", "diff_jump_to_old_file", "diff_mode_hook", "diff_mode_map", &
                                                          "diff_mode_read_only", "diff_mode_read_only_map", "diff_mode_shared_map", &
-                                                                   "diff_read_only_map", "diff_switches", "diff_use_labels", &
+                                                                    "diff_read_only_map", "diff_switches", "diff_use_labels", &
                                                       "diff_valid_unified_empty_line", "directory_listing_before_filename_regexp", &
                                                       "dired__ls_error_buffer", "dired__ls_error_file", "dired_after_readin_hook", &
                                            "dired_always_read_filesystem", "dired_auto_revert_buffer", "dired_before_readin_hook", &
@@ -971,7 +983,7 @@ module docstrings_fm
                                             "dired_create_empty_file_in_current_directory", "dired_del_marker", "dired_directory", &
                                            "dired_directory_face", "dired_do_revert_buffer", "dired_dwim_target", "dired_flagged", &
                                            "dired_flagged_face", "dired_free_space", "dired_garbage_files_regexp", "dired_header", &
-                                                                   "dired_header_face", "dired_ignored", "dired_ignored_face", &
+                                                                    "dired_header_face", "dired_ignored", "dired_ignored_face", &
                                             "dired_initial_position_hook", "dired_keep_marker_copy", "dired_keep_marker_hardlink", &
                                           "dired_keep_marker_relsymlink", "dired_keep_marker_rename", "dired_keep_marker_symlink", &
                                            "dired_listing_switches", "dired_ls_f_marks_symlinks", "dired_mark", "dired_mark_face", &
@@ -985,7 +997,7 @@ module docstrings_fm
                                                                 "display_buffer_mark_dedicated", "edit_abbrevs_mode_abbrev_table", &
                                                           "edit_abbrevs_mode_hook", "edit_abbrevs_mode_map", "edmacro_eight_bits", &
                                                             "electric_indent_chars", "electric_indent_functions_without_reindent", &
-                                                                   "electric_indent_inhibit", "electric_indent_local_mode_hook", &
+                                                                    "electric_indent_inhibit", "electric_indent_local_mode_hook", &
                                           "electric_indent_mode_hook", "electric_pair_local_mode_hook", "electric_pair_mode_hook", &
                                                                 "electric_pair_open_newline_between_pairs", "electric_pair_pairs", &
                                                                 "electric_pair_preserve_balance", "electric_pair_skip_whitespace", &
@@ -1012,10 +1024,10 @@ module docstrings_fm
                                           "fill_separate_heterogeneous_words_with_space", "find_file_hook", "find_file_run_dired", &
                                                "find_name_arg", "find_program", "first_change_hook", "font_lock_comment_end_skip", &
                                                      "font_lock_comment_start_skip", "font_lock_defaults", "font_lock_dont_widen", &
-                                                                   "font_lock_extra_managed_props", "font_lock_global_modes", &
+                                                                    "font_lock_extra_managed_props", "font_lock_global_modes", &
                                                   "font_lock_maximum_decoration", "font_lock_mode_hook", "font_lock_support_mode", &
                                                           "font_lock_verbose", "fontification_functions", "forward_sexp_function", &
-                                                                   "fundamental_mode_abbrev_table", "global_abbrev_table", &
+                                                                    "fundamental_mode_abbrev_table", "global_abbrev_table", &
                                                             "global_auto_revert_ignore_buffer", "global_auto_revert_ignore_modes", &
                                                                    "global_auto_revert_mode_hook", "global_auto_revert_mode_text", &
                                                          "global_auto_revert_non_file_buffers", "global_disable_point_adjustment", &
@@ -1033,9 +1045,9 @@ module docstrings_fm
                                                           "help_map", "help_mode_abbrev_table", "help_mode_hook", "help_mode_map", &
                                                            "history_add_new_input", "history_delete_duplicates", "history_length", &
                                                               "ibuffer_always_compile_formats", "ibuffer_always_show_last_buffer", &
-                                                                   "ibuffer_always_show_predicates", "ibuffer_case_fold_search", &
+                                                                    "ibuffer_always_show_predicates", "ibuffer_case_fold_search", &
                                                                "ibuffer_compressed_file_name_regexp", "ibuffer_default_directory", &
-                                                                   "ibuffer_default_display_maybe_show_predicates", &
+                                                                    "ibuffer_default_display_maybe_show_predicates", &
                                                          "ibuffer_default_shrink_to_minimum_size", "ibuffer_default_sorting_mode", &
                                                   "ibuffer_default_sorting_reversep", "ibuffer_deletion", "ibuffer_deletion_char", &
                                              "ibuffer_deletion_face", "ibuffer_directory_abbrev_alist", "ibuffer_display_summary", &
@@ -1046,14 +1058,18 @@ module docstrings_fm
                                           "ibuffer_locked_buffer", "ibuffer_locked_char", "ibuffer_marked", "ibuffer_marked_char", &
                                           "ibuffer_marked_face", "ibuffer_maybe_show_predicates", "ibuffer_mode_filter_group_map", &
                                                                  "ibuffer_mode_hook", "ibuffer_mode_map", "ibuffer_modified_char", &
-                                                                   "ibuffer_movement_cycle", "ibuffer_never_search_content_mode", &
+                                                                    "ibuffer_movement_cycle", "ibuffer_never_search_content_mode", &
                                          "ibuffer_never_search_content_name", "ibuffer_never_show_predicates", "ibuffer_old_time", &
                                               "ibuffer_read_only_char", "ibuffer_save_with_custom", "ibuffer_saved_filter_groups", &
-                                                                   "ibuffer_saved_filters", "ibuffer_show_empty_filter_groups", &
+                                                                    "ibuffer_saved_filters", "ibuffer_show_empty_filter_groups", &
                                                          "ibuffer_sorting_functions_alist", "ibuffer_title", "ibuffer_title_face", &
                                                   "ibuffer_truncate_lines", "ibuffer_use_header_line", "ibuffer_use_other_window", &
                                                          "ibuffer_view_ibuffer", "indent_line_function", "indent_region_function", &
-                                                                 "indent_tabs_mode", "indent_tabs_mode_hook", "inhibit_auto_fill", &
+                                                    "indent_tabs_mode", "indent_tabs_mode_hook", "info_additional_directory_list", &
+                                                                    "info_default_directory_list", "info_directory_list", &
+                                                        "info_history_skip_intermediate_nodes", "info_mode_hook", "info_mode_map", &
+                                                   "info_mode_syntax_table", "info_scroll_prefer_subnodes", "info_selection_hook", &
+                                            "info_streamline_headings", "info_suffix_list", "info_url_alist", "inhibit_auto_fill", &
                                             "inhibit_eol_conversion", "inhibit_field_text_motion", "inhibit_iso_escape_detection", &
                                           "inhibit_modification_hooks", "inhibit_null_byte_detection", "insert_default_directory", &
                                                          "insert_directory_program", "isearch_lax_whitespace", "isearch_mode_map", &
@@ -1071,12 +1087,12 @@ module docstrings_fm
                                              "line_move_visual", "list_buffers_directory", "list_matching_lines_buffer_name_face", &
                                              "list_matching_lines_current_line_face", "list_matching_lines_default_context_lines", &
                                                            "list_matching_lines_face", "list_matching_lines_jump_to_current_line", &
-                                                                   "list_matching_lines_prefix_face", "locale_coding_system", &
+                                                                    "list_matching_lines_prefix_face", "locale_coding_system", &
                                                         "locate_dominating_stop_dir_regexp", "log_edit_changelog_full_paragraphs", &
                                                             "log_edit_comment_ring", "log_edit_common_indent", "log_edit_confirm", &
                                                             "log_edit_done_hook", "log_edit_font_lock_gnu_style", "log_edit_hook", &
                                                                 "log_edit_keep_buffer", "log_edit_mode_hook", "log_edit_mode_map", &
-                                                                   "log_edit_require_final_newline", "log_edit_rewrite_fixes", &
+                                                                    "log_edit_require_final_newline", "log_edit_rewrite_fixes", &
                                              "log_edit_rewrite_tiny_change", "log_edit_setup_add_author", "log_edit_setup_invert", &
                                                        "log_edit_strip_single_file_name", "log_edit_summary", "mail_host_address", &
                                                            "make_backup_files", "mark_even_if_inactive", "mark_ring_max", "match", &
@@ -1094,10 +1110,10 @@ module docstrings_fm
                                                 "parse_sexp_ignore_comments", "parse_sexp_lookup_properties", "pending_undo_list", &
                                                "pop_up_windows", "post_command_hook", "post_self_insert_hook", "pre_command_hook", &
                                                   "process_connection_type", "prog_indentation_context", "prog_mode_abbrev_table", &
-                                                                   "prog_mode_hook", "prog_mode_map", "query_replace_defaults", &
+                                                                    "prog_mode_hook", "prog_mode_map", "query_replace_defaults", &
                                                          "query_replace_from_history_variable", "query_replace_from_to_separator", &
                                                                  "query_replace_show_replacement", "query_replace_skip_read_only", &
-                                                                   "query_replace_to_history_variable", "read_answer_short", &
+                                                                    "query_replace_to_history_variable", "read_answer_short", &
                                                             "read_buffer_completion_ignore_case", "read_char_choice_use_read_key", &
                                                        "read_file_name_completion_ignore_case", "read_minibuffer_restore_windows", &
                                                           "read_only_mode_hook", "read_quoted_char_radix", "recentf_auto_cleanup", &
@@ -1124,13 +1140,13 @@ module docstrings_fm
                                               "savehist_minibuffer_history_variables", "savehist_mode_hook", "savehist_save_hook", &
                                               "savehist_save_minibuffer_history", "scroll_error_top_bottom", "search_exit_option", &
                                                        "search_nonincremental_instead", "search_ring_max", "search_spaces_regexp", &
-                                                                   "search_upper_case", "search_whitespace_regexp", &
+                                                                    "search_upper_case", "search_whitespace_regexp", &
                                                 "select_safe_coding_system_accept_default_p", "sentence_end", "sentence_end_base", &
                                          "sentence_end_double_space", "sentence_end_without_period", "sentence_end_without_space", &
                                               "sh_alias_alist", "sh_ancestor_alist", "sh_assignment_regexp", "sh_backslash_align", &
                                                 "sh_backslash_column", "sh_base_mode_hook", "sh_base_mode_map", "sh_basic_offset", &
-                                                                   "sh_beginning_of_command", "sh_builtins", "sh_end_of_command", &
-                                                                   "sh_font_lock_keywords_var", "sh_font_lock_keywords_var_1", &
+                                                                    "sh_beginning_of_command", "sh_builtins", "sh_end_of_command", &
+                                                                    "sh_font_lock_keywords_var", "sh_font_lock_keywords_var_1", &
                                                    "sh_font_lock_keywords_var_2", "sh_here_document_word", "sh_indent_after_case", &
                                                      "sh_indent_after_continuation", "sh_indent_after_do", "sh_indent_after_done", &
                                                          "sh_indent_after_else", "sh_indent_after_function", "sh_indent_after_if", &
@@ -1142,20 +1158,20 @@ module docstrings_fm
                                                         "sh_mode_syntax_table", "sh_mode_syntax_table_input", "sh_other_keywords", &
                                                       "sh_remember_variable_min", "sh_set_shell_hook", "sh_shell", "sh_shell_arg", &
                                                       "sh_shell_file", "sh_smie_rc_grammar", "sh_smie_sh_grammar", "sh_variables", &
-                                                                   "shell_cd_regexp", "shell_command_default_error_buffer", &
+                                                                    "shell_cd_regexp", "shell_command_default_error_buffer", &
                                            "shell_command_dont_erase_buffer", "shell_command_mode_hook", "shell_command_mode_map", &
-                                                                   "shell_command_prompt_show_cwd", "shell_command_regexp", &
-                                                                   "shell_command_separator_regexp", "shell_command_switch", &
+                                                                    "shell_command_prompt_show_cwd", "shell_command_regexp", &
+                                                                    "shell_command_separator_regexp", "shell_command_switch", &
                                               "shell_delimiter_argument_list", "shell_dirstack_query", "shell_dirtrack_mode_hook", &
                                                            "shell_dirtrack_verbose", "shell_dumb_shell_regexp", "shell_file_name", &
                                                             "shell_get_old_input_include_continuation_lines", "shell_has_auto_cd", &
                                                         "shell_history_file_name", "shell_kill_buffer_on_exit", "shell_mode_hook", &
                                             "shell_mode_map", "shell_popd_regexp", "shell_prompt_pattern", "shell_pushd_dextract", &
                                             "shell_pushd_dunique", "shell_pushd_regexp", "shell_pushd_tohome", "shell_repeat_map", &
-                                                                   "show_paren_context_when_offscreen", "show_paren_delay", &
+                                                                    "show_paren_context_when_offscreen", "show_paren_delay", &
                                            "show_paren_highlight_openparen", "show_paren_local_mode_hook", "show_paren_mode_hook", &
                                                                    "show_paren_not_in_comments_or_strings", "show_paren_priority", &
-                                                                   "show_paren_ring_bell_on_mismatch", "show_paren_style", &
+                                                                    "show_paren_ring_bell_on_mismatch", "show_paren_style", &
                                                        "show_paren_when_point_in_periphery", "show_paren_when_point_inside_paren", &
                                                      "smie_blink_matching_inners", "smie_blink_matching_triggers", "smie_grammar", &
                                                       "smie_indent_basic", "smie_indent_functions", "smie_rule_separator_outdent", &
@@ -1167,7 +1183,7 @@ module docstrings_fm
                                                         "syntax_wholeline_max", "tab_always_indent", "tab_stop_list", "tab_width", &
                                                             "tabulated_list_fake_header", "tabulated_list_gui_sort_indicator_asc", &
                                                              "tabulated_list_gui_sort_indicator_desc", "tabulated_list_mode_hook", &
-                                                                   "tabulated_list_mode_map", "tabulated_list_revert_hook", &
+                                                                    "tabulated_list_mode_map", "tabulated_list_revert_hook", &
                                                 "tabulated_list_tty_sort_indicator_asc", "tabulated_list_tty_sort_indicator_desc", &
                                             "text_mode_abbrev_table", "text_mode_hook", "text_mode_map", "text_mode_syntax_table", &
                                                   "text_mode_variant", "this_command", "timer_max_repeats", "transient_mark_mode", &
@@ -1182,7 +1198,7 @@ module docstrings_fm
                                           "vc_dir_mode_hook", "vc_dir_save_some_buffers_on_revert", "vc_directory_exclusion_list", &
                                               "vc_display_failed_async_commands", "vc_display_status", "vc_find_revision_no_save", &
                                                           "vc_finish_logentry_hook", "vc_follow_symlinks", "vc_git_diff_switches", &
-                                                                   "vc_git_log_edit_mode_map", "vc_git_log_edit_summary_max_len", &
+                                                                    "vc_git_log_edit_mode_map", "vc_git_log_edit_summary_max_len", &
                                                       "vc_git_log_edit_summary_max_warning", "vc_git_log_edit_summary_target_len", &
                                                                   "vc_git_log_edit_summary_target_warning", "vc_git_log_switches", &
                                             "vc_git_print_log_follow", "vc_git_program", "vc_git_revision_complete_only_branches", &
@@ -1195,10 +1211,10 @@ module docstrings_fm
                                                    "view_mode_hook", "view_mode_map", "view_no_disable_on_exit", "view_read_only", &
                                                  "view_scroll_auto_exit", "visible_bell", "window_min_height", "window_min_width", &
                                                             "words_include_escapes", "xargs_program", "y_or_n_p_history_variable", &
-                                                                   "y_or_n_p_use_read_key", "yes_or_no_prompt"]
+                                                                    "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(498) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(505) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1497,6 +1513,13 @@ module docstrings_fm
                                                                       "ibuffer_use_other_window", &
                                                                       "ibuffer_view_ibuffer", &
                                                                       "indent_tabs_mode", &
+                                                                      "info_additional_directory_list", &
+                                                                      "info_default_directory_list", &
+                                                                      "info_history_skip_intermediate_nodes", &
+                                                                      "info_mode_hook", &
+                                                                      "info_scroll_prefer_subnodes", &
+                                                                      "info_selection_hook", &
+                                                                      "info_url_alist", &
                                                                       "inhibit_eol_conversion", &
                                                                       "insert_default_directory", &
                                                                       "insert_directory_program", &
@@ -7229,6 +7252,231 @@ contains
                         "Whether this uses tabs or spaces depends on `indent_tabs_mode'."//LF// &
                         ""//LF// &
                         "The return value is the column where the insertion ends."
+        case ("info")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Enter Info, the documentation browser."//LF// &
+                        "Optional argument FILE_OR_NODE specifies the file to examine;"//LF// &
+                        "the default is the top-level directory of Info."//LF// &
+                        "Called from a program, FILE_OR_NODE may specify an Info node of the"//LF// &
+                        "form ""(FILENAME)NODENAME""."//LF// &
+                        "Optional argument BUFFER specifies the Info buffer name;"//LF// &
+                        "the default buffer name is *info*.  If BUFFER exists,"//LF// &
+                        "just switch to BUFFER.  Otherwise, create a new buffer"//LF// &
+                        "with the top-level Info directory."//LF// &
+                        ""//LF// &
+                        "In interactive use, a non-numeric prefix argument directs"//LF// &
+                        "this command to read a file name from the minibuffer."//LF// &
+                        ""//LF// &
+                        "A numeric prefix argument of N selects an Info buffer named"//LF// &
+                        """*info*<N>""."//LF// &
+                        ""//LF// &
+                        "The search path for Info files is in the variable"//LF// &
+                        "`info_directory_list'.  The top-level Info directory is made by"//LF// &
+                        "combining all the files named `dir' in all the directories in that"//LF// &
+                        "path."//LF// &
+                        ""//LF// &
+                        "See a list of available Info commands in `info_mode'."
+        case ("info_backward_node")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go backward one node, considering all nodes as forming one sequence."//LF// &
+                        "If the current node has a ""previous"" node, go to it, descending"//LF// &
+                        "into its last sub-node, if any; otherwise go ""up"" to the parent"//LF// &
+                        "node."
+        case ("info_copy_current_node_name")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("info_directory")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the Info directory node."
+        case ("info_emacs_bug")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display the ""Reporting Bugs"" section of the Emacs manual in Info"//LF// &
+                        "mode."
+        case ("info_emacs_manual")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display the Emacs manual in Info mode."
+        case ("info_final_node")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the final node in this file."
+        case ("info_follow_nearest_node")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("info_follow_reference")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("info_forward_node")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("info_goto_node")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("info_help")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Enter the Info tutorial."
+        case ("info_history_back")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go back in the history to the last node visited."
+        case ("info_history_forward")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go forward in the history of visited nodes."
+        case ("info_last_menu_item")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the node of the previous menu item."
+        case ("info_last_preorder")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the last node, popping up a level if there is none."
+        case ("info_menu")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("info_mode")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Info mode provides commands for browsing through the Info"//LF// &
+                        "documentation tree.  Documentation in Info is divided into ""nodes"","//LF// &
+                        "each of which discusses one topic and contains references to other"//LF// &
+                        "nodes which discuss related topics.  Info has commands to follow"//LF// &
+                        "the references and show you other nodes."//LF// &
+                        ""//LF// &
+                        "\<info_mode_map>\[info_help]        Invoke the Info tutorial."//LF// &
+                        "\[quit_window]        Quit Info: reselect previously selected buffer."//LF// &
+                        ""//LF// &
+                        "Selecting other nodes:"//LF// &
+                        "\[info_follow_nearest_node]        Follow a node reference near point."//LF// &
+                        "\[info_next]        Move to the ""next"" node of this node."//LF// &
+                        "\[info_prev]        Move to the ""previous"" node of this node."//LF// &
+                        "\[info_up]        Move ""up"" from this node."//LF// &
+                        "\[info_menu]        Pick menu item specified by name (or abbreviation)."//LF// &
+                        "          Picking a menu item causes another node to be selected."//LF// &
+                        "\[info_directory]        Go to the Info directory node."//LF// &
+                        "\[info_top_node]        Go to the Top node of this file."//LF// &
+                        "\[info_final_node]        Go to the final node in this file."//LF// &
+                        "\[info_backward_node]        Go backward one node, considering all nodes as forming one se"// &
+                        "quence."//LF// &
+                        "\[info_forward_node]        Go forward one node, considering all nodes as forming one sequ"// &
+                        "ence."//LF// &
+                        "\[info_next_reference]        Move cursor to next cross-reference or menu item."//LF// &
+                        "\[info_prev_reference]        Move cursor to previous cross-reference or menu item."//LF// &
+                        "\[info_follow_reference]        Follow a cross reference.  Reads name of reference."//LF// &
+                        "\[info_history_back]        Move back in history to the last node you were at."//LF// &
+                        "\[info_history_forward]        Move forward in history to the node you returned from after"// &
+                        " using \[info_history_back]."//LF// &
+                        ""//LF// &
+                        "Moving within a node:"//LF// &
+                        "\[info_scroll_up]        Normally, scroll forward a full screen."//LF// &
+                        "          Once you scroll far enough in a node that its menu appears on the"//LF// &
+                        "          screen but after point, the next scroll moves into its first"//LF// &
+                        "          subnode.  When after all menu items (or if there is no menu),"//LF// &
+                        "          move up to the parent node."//LF// &
+                        "\[info_scroll_down]        Normally, scroll backward.  If the beginning of the buffer is"//LF// &
+                        "          already visible, try to go to the previous menu entry, or up"//LF// &
+                        "          if there is none."//LF// &
+                        "\[beginning_of_buffer]        Go to beginning of node."//LF// &
+                        "\[end_of_buffer]        Go to end of node."//LF// &
+                        ""//LF// &
+                        "Advanced commands:"//LF// &
+                        "\[info_goto_node]        Move to node specified by name."//LF// &
+                        "          You may include a filename as well, as (FILENAME)NODENAME."//LF// &
+                        "1 .. 9        Pick first ... ninth item in node's menu."//LF// &
+                        "\[info_copy_current_node_name]        Put name of current Info node in the kill ring."//LF// &
+                        "\[universal_argument] \[info]        Move to new Info file with completion."//LF// &
+                        "\[universal_argument] N \[info]        Select Info buffer with prefix number in the name *"// &
+                        "info*<N>."
+        case ("info_next")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the ""next"" node, staying on the same hierarchical level."//LF// &
+                        "This command doesn't descend into sub-nodes, like"//LF// &
+                        "\<info_mode_map>\[info_forward_node] does."
+        case ("info_next_menu_item")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the node of the next menu item."
+        case ("info_next_preorder")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the next subnode or the next node, or go up a level."
+        case ("info_next_reference")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("info_nth_menu_item")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("info_on_current_buffer")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("info_other_window")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Like `info' but show the Info buffer in another window."
+        case ("info_prev")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the ""previous"" node, staying on the same hierarchical level."//LF// &
+                        "This command doesn't go up to the parent node, like"//LF// &
+                        "\<info_mode_map>\[info_backward_node] does."
+        case ("info_prev_reference")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("info_scroll_down")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Scroll one screenful back in Info, considering all nodes as one"//LF// &
+                        "sequence.  If point is within the menu of a node, and"//LF// &
+                        "`info_scroll_prefer_subnodes' is true, this goes to its last"//LF// &
+                        "subnode.  When you scroll past the beginning of a node, that goes to"//LF// &
+                        "the previous node or back up to the parent node."
+        case ("info_scroll_up")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Scroll one screenful forward in Info, considering all nodes as one"//LF// &
+                        "sequence.  Once you scroll far enough in a node that its menu"//LF// &
+                        "appears on the screen but after point, the next scroll moves into"//LF// &
+                        "its first subnode, unless `info_scroll_prefer_subnodes' is false."//LF// &
+                        ""//LF// &
+                        "When you scroll past the end of a node, that goes to the next node"//LF// &
+                        "if `info_scroll_prefer_subnodes' is true and to the first subnode"//LF// &
+                        "otherwise; if this node has no successor, it moves to the parent"//LF// &
+                        "node's successor, and so on.  If `info_scroll_prefer_subnodes' is"//LF// &
+                        "true and point is inside the menu of a node, it moves to subnode"//LF// &
+                        "indicated by the following menu item.  (That case won't normally"//LF// &
+                        "result from this command, but can happen in other ways.)"
+        case ("info_summary")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display a brief summary of all Info commands."
+        case ("info_top_node")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the Top node of this file."
+        case ("info_undefined")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Make command be undefined in Info."
+        case ("info_up")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
         case ("insert")
             entry%file = "insdel_fm.f90"
             entry%fortran = "call insert(string, status)"
@@ -18158,6 +18406,150 @@ contains
             entry%file = "simple_fm.f90"
             entry%fortran = "indent_tabs_mode_hook"
             entry%doc = "Hook run after entering or leaving `indent_tabs_mode'."
+        case ("info_additional_directory_list")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_additional_directory_list"
+            entry%user_option = .true.
+            if (allocated(info_additional_directory_list)) then
+                entry%value = repr(info_additional_directory_list)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "List of additional directories to search for Info documentation"//LF// &
+                        "files.  These directories are searched after those in"//LF// &
+                        "`info_directory_list'."
+        case ("info_default_directory_list")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_default_directory_list"
+            entry%user_option = .true.
+            if (allocated(info_default_directory_list)) then
+                entry%value = repr(info_default_directory_list)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Default list of directories to search for Info documentation files."//LF// &
+                        "They are searched in the order they are given in the list."//LF// &
+                        "Therefore, the directory of Info files that come with Fortmacs"//LF// &
+                        "normally should come last (so that local files override standard"//LF// &
+                        "ones), unless Fortmacs is installed into a non-standard directory."//LF// &
+                        "In the latter case, the directory of Info files that come with"//LF// &
+                        "Fortmacs should be first in this list."//LF// &
+                        ""//LF// &
+                        "Once Info is started, the list of directories to search comes from"//LF// &
+                        "the variable `info_directory_list'."//LF// &
+                        ""//LF// &
+                        "This variable is used as the default for initializing"//LF// &
+                        "`info_directory_list' when Info is started, unless the environment"//LF// &
+                        "variable INFOPATH is set."
+        case ("info_directory_list")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_directory_list"
+            if (allocated(info_directory_list)) then
+                entry%value = repr(info_directory_list)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "List of directories to search for Info documentation files."//LF// &
+                        "If unallocated, meaning not yet initialized, Info uses the"//LF// &
+                        "environment variable INFOPATH to initialize it, or"//LF// &
+                        "`info_default_directory_list' if there is no INFOPATH variable in"//LF// &
+                        "the environment, or the concatenation of the two if INFOPATH ends"//LF// &
+                        "with a `path_separator'."//LF// &
+                        ""//LF// &
+                        "When `info_directory_list' is initialized from the value of"//LF// &
+                        "`info_default_directory_list', and Fortmacs is installed in one of"//LF// &
+                        "the standard directories, the directory of Info files that come with"//LF// &
+                        "Fortmacs is put last (so that local Info files override standard"//LF// &
+                        "ones)."//LF// &
+                        ""//LF// &
+                        "When `info_directory_list' is initialized from the value of"//LF// &
+                        "`info_default_directory_list', and Fortmacs is not installed in one"//LF// &
+                        "of the standard directories, the first element of the resulting list"//LF// &
+                        "is the directory where Fortmacs installs the Info files that come"//LF// &
+                        "with it.  This is so that Fortmacs's own manual, which suits the"//LF// &
+                        "version of Fortmacs you are using, will always be found first.  This"//LF// &
+                        "is useful when you install an experimental version of Fortmacs"//LF// &
+                        "without removing the standard installation."//LF// &
+                        ""//LF// &
+                        "If you want to override the order of directories in"//LF// &
+                        "`info_default_directory_list', set INFOPATH in the environment."
+        case ("info_history_skip_intermediate_nodes")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_history_skip_intermediate_nodes"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(info_history_skip_intermediate_nodes%value)
+            entry%doc = "True means don't record intermediate Info nodes to the history."//LF// &
+                        "Intermediate Info nodes are nodes visited by Info internally in the"//LF// &
+                        "process of searching the node to display.  Intermediate nodes are"//LF// &
+                        "not presented to the user."
+        case ("info_mode_hook")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_mode_hook"
+            entry%user_option = .true.
+            entry%doc = "Hook run when activating Info Mode."
+        case ("info_mode_map")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_mode_map"
+            entry%doc = "The keymap of `info_mode'."
+        case ("info_mode_syntax_table")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_mode_syntax_table"
+            entry%doc = "The syntax table of `info_mode'."
+        case ("info_scroll_prefer_subnodes")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_scroll_prefer_subnodes"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(info_scroll_prefer_subnodes%value)
+            entry%doc = "If true, \<info_mode_map>\[info_scroll_up] in a menu visits the"//LF// &
+                        "first subnode of that menu.  If false, \[info_scroll_up] scrolls"//LF// &
+                        "the menu as long as it is not all visible and then visits the next"//LF// &
+                        "node (if any) (in this case, the menu's subnodes are skipped)."
+        case ("info_selection_hook")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_selection_hook"
+            entry%user_option = .true.
+            entry%doc = "Hook run when an Info node is selected as the current node."
+        case ("info_streamline_headings")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_streamline_headings"
+            entry%doc = "List of elements (RE NAME) to merge headings matching RE to NAME."
+        case ("info_suffix_list")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_suffix_list"
+            entry%doc = "List of file name suffixes and associated decoding commands.  Each"//LF// &
+                        "entry has a SUFFIX and the PROGRAM to which the file is given as"//LF// &
+                        "standard input, with the arguments ARGS.  If PROGRAM is empty, no"//LF// &
+                        "decoding is done.  Because the suffixes are tried in order, the"//LF// &
+                        "empty string should be last in the list."
+        case ("info_url_alist")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_url_alist"
+            entry%user_option = .true.
+            entry%doc = "List telling `info_mode' where manuals are accessible online."//LF// &
+                        ""//LF// &
+                        "Each element of this list has the names of one or more MANUALS and"//LF// &
+                        "a URL specification: a string URL in which the substring ""%m"" will"//LF// &
+                        "be expanded to the manual-name and ""%n"" to the node-name.  ""%e"" will"//LF// &
+                        "expand to the URL-encoded node-name, including the `.html'"//LF// &
+                        "extension; in case of the Top node, it will expand to the empty"//LF// &
+                        "string.  (The URL-encoding of the node-name mimics GNU Texinfo, as"//LF// &
+                        "documented at Info node `(texinfo)HTML Xref Node Name Expansion'.)"//LF// &
+                        "Alternatively, the URL specification can be a function FN which is"//LF// &
+                        "given manual-name, node-name and URL-encoded node-name as arguments,"//LF// &
+                        "and is expected to return the corresponding URL as a string."//LF// &
+                        ""//LF// &
+                        "This variable particularly affects the command"//LF// &
+                        "`info_goto_node_web', which see."//LF// &
+                        ""//LF// &
+                        "The default value of this variable refers to the official,"//LF// &
+                        "HTTPS-accessible HTML-representations of all manuals that Emacs"//LF// &
+                        "includes.  These URLs refer to the most recently released version"//LF// &
+                        "of Emacs, disregarding the version of the running Fortmacs.  In"//LF// &
+                        "other words, the content of your local Info node and the associated"//LF// &
+                        "online node may differ.  The resource represented by the generated"//LF// &
+                        "URL may even be not found by the gnu.org server."
         case ("inhibit_auto_fill")
             entry%file = "simple_fm.f90"
             entry%fortran = "inhibit_auto_fill"
@@ -22861,6 +23253,12 @@ contains
         case ("indent_tabs_mode")
             kind = OPTION_LOGICAL
             setting = .true.
+        case ("info_history_skip_intermediate_nodes")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("info_scroll_prefer_subnodes")
+            kind = OPTION_LOGICAL
+            setting = .true.
         case ("inhibit_eol_conversion")
             kind = OPTION_LOGICAL
             setting = .true.
@@ -23577,6 +23975,18 @@ contains
                 call indent_tabs_mode%set_local(v)
             else
                 indent_tabs_mode = v
+            end if
+        case ("info_history_skip_intermediate_nodes")
+            if (local) then
+                call info_history_skip_intermediate_nodes%set_local(v)
+            else
+                info_history_skip_intermediate_nodes = v
+            end if
+        case ("info_scroll_prefer_subnodes")
+            if (local) then
+                call info_scroll_prefer_subnodes%set_local(v)
+            else
+                info_scroll_prefer_subnodes = v
             end if
         case ("inhibit_eol_conversion")
             if (local) then

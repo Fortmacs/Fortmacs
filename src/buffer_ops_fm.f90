@@ -34,7 +34,7 @@ contains
     !> buffer.c:other_buffer_safely).  Its processes get SIGHUP and its
     !> overlays are deleted.  Hooks and indirect buffers are not handled
     !> yet.
-    module subroutine kill_buffer(h, status)
+    recursive module subroutine kill_buffer(h, status)
         type(handle_type), intent(in) :: h
         type(status_type), intent(out) :: status
         type(handle_type) :: other

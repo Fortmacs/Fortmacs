@@ -221,6 +221,12 @@ module buffer_fm
         !> shown at the top of each window that displays the buffer (see
         !> `header_line_format_type').
         type(header_line_format_type) :: header_line_format
+        !> `mode_line_buffer_identification': the buffer's own identification
+        !> in the mode line, as segments in which "%b" stands for the buffer
+        !> name and "%%" for "%" (the ALIGN_TO of a segment is ignored).
+        !> While SEGMENTS is unallocated the mode line shows the default,
+        !> the name in `mode_line_buffer_id' padded to 12 columns ("%12b").
+        type(header_line_format_type) :: mode_line_buffer_identification
         !> BVAR mode_name (`mode_name'): the major mode's name for the mode
         !> line.
         character(len=:), allocatable :: mode_name
@@ -309,7 +315,7 @@ module buffer_fm
 
     abstract interface
         !> Something to do with buffer `h'.
-        subroutine buffer_proc(h)
+        recursive subroutine buffer_proc(h)
             import :: handle_type
             implicit none(type, external)
             type(handle_type), intent(in) :: h
@@ -334,7 +340,7 @@ module buffer_fm
         !> Kill buffer `h': unchain its markers, free its text, and if it was
         !> current make another buffer current.  Port of the core of
         !> buffer.c:Fkill_buffer.  (In buffer_ops_fm.)
-        module subroutine kill_buffer(h, status)
+        recursive module subroutine kill_buffer(h, status)
             implicit none(type, external)
             type(handle_type), intent(in) :: h
             type(status_type), intent(out) :: status

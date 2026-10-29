@@ -668,6 +668,23 @@ contains
         end if
     end subroutine file_name_extension
 
+    module function file_name_sans_extension(filename) result(sans)
+        character(len=*), intent(in) :: filename
+        character(len=:), allocatable :: sans
+        character(len=:), allocatable :: file
+        integer(int64) :: b
+        type(status_type) :: st
+        file = file_name_sans_versions(file_name_nondirectory(filename))
+        b = string_match("\.[^.]*\'", file, st)
+        if (b > 1) then
+            ! Don't use expand-file-name here; if the directory is
+            ! relative, we don't want to expand it.
+            sans = file_name_directory(filename)//file(1:string_index_to_offset(file, b))
+        else
+            sans = filename
+        end if
+    end function file_name_sans_extension
+
     module function auto_save_file_name_p(filename) result(p)
         character(len=*), intent(in) :: filename
         logical :: p

@@ -63,6 +63,12 @@ module config_fm
     !> The compiler `--recompile' runs.
     character(len=*), parameter :: compiler = "gfortran"
 
+    !> The directory where the Info files that come with Fortmacs are
+    !> installed: PREFIX/share/info/ of the installation that is running
+    !> (set at startup), "/usr/local/share/info/" if it is not known.  The
+    !> counterpart of epaths.h's configure-info-directory.
+    character(len=:), allocatable, public :: configure_info_directory
+
 contains
 
     !> $VARIABLE/fortmacs/ if VARIABLE is set to an absolute directory,

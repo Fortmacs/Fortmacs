@@ -1,0 +1,28 @@
+This is split.info, produced by makeinfo version 7.1 from split.texi.
+
+INFO-DIR-SECTION Testing
+START-INFO-DIR-ENTRY
+* Split: (split).    A test manual.
+END-INFO-DIR-ENTRY
+
+
+Indirect:
+split.info-1: 173
+split.info-2: 672
+
+Tag Table:
+(Indirect)
+Node: Top173
+Node: First Chapter457
+Node: Section One672
+Ref: an anchor777
+Node: Second Chapter797
+Node: Index994
+
+End Tag Table
+
+
+
+Local Variables:
+coding: utf-8
+End:

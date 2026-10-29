@@ -2260,7 +2260,8 @@ contains
     !> is " ", the frame identification "  " (mode-line-frame-control) and
     !> there are no end dashes.  PREFIX is what `mode_line_modes' shows
     !> before its "(".
-    function mode_line_text(name, modified, read_only, position, line, width, modes, graphic, prefix, mule, vc) result(s)
+    function mode_line_text(name, modified, read_only, position, line, width, modes, graphic, prefix, mule, vc, &
+                            identification) result(s)
         character(len=*), intent(in) :: name, position, line
         logical, intent(in) :: modified, read_only
         integer, intent(in) :: width
@@ -2271,6 +2272,9 @@ contains
         character(len=*), intent(in), optional :: mule
         !> The buffer's `vc_mode' ((vc-mode vc-mode), after the position).
         character(len=*), intent(in), optional :: vc
+        !> The buffer identification instead of NAME padded to 12 columns
+        !> (`mode_line_identification').
+        character(len=*), intent(in), optional :: identification
         character(len=:), allocatable :: s, coding
         character(len=1) :: star, plus
         logical :: gui
@@ -2300,7 +2304,12 @@ contains
         else
             s = "-"//coding//star//plus//"-"//" F1  "
         end if
-        s = s//pad_chars(name, 12)//"   "//truncate_chars(position, 3)//pad_chars(" L"//line, 6)
+        if (present(identification)) then
+            s = s//identification
+        else
+            s = s//pad_chars(name, 12)
+        end if
+        s = s//"   "//truncate_chars(position, 3)//pad_chars(" L"//line, 6)
         if (present(vc)) s = s//vc
         s = s//"  "
         if (present(prefix)) s = s//prefix
@@ -2313,6 +2322,76 @@ contains
         s = s//") "
         if (.not. gui) s = s//repeat("-", max(0, width))
     end function mode_line_text
+
+    !> The buffer identification of buffer slot BI in the mode line
+    !> (mode-line-buffer-identification): the buffer's own
+    !> `mode_line_buffer_identification' segments, "%b" standing for the
+    !> buffer name and "%%" for "%", or by default the name padded to 12
+    !> columns ("%12b", from propertized-buffer-identification).  SPANS
+    !> give the characters of ID (counted from 1) that are in a face,
+    !> FACES the names of those faces.  Part of xdisp.c:display_mode_element
+    !> and decode_mode_spec.
+    subroutine mode_line_identification(bi, id, spans, faces)
+        integer(int64), intent(in) :: bi
+        character(len=:), allocatable, intent(out) :: id
+        type(face_span_type), allocatable, intent(out) :: spans(:)
+        character(len=64), allocatable, intent(out) :: faces(:)
+        character(len=:), allocatable :: part
+        integer(int32), allocatable :: chars(:)
+        integer :: k, n, nid, ns
+        if (.not. allocated(buffers(bi)%mode_line_buffer_identification%segments)) then
+            id = pad_chars(buffers(bi)%name, 12)
+            call decode_string(id, chars, n)
+            allocate (spans(1), faces(1))
+            spans(1) = face_span_type(first=1, last=n)
+            faces(1) = "mode_line_buffer_id"
+            return
+        end if
+        associate (segs => buffers(bi)%mode_line_buffer_identification%segments)
+            allocate (spans(size(segs)), faces(size(segs)))
+            id = ""
+            nid = 0
+            ns = 0
+            do k = 1, size(segs)
+                part = expand_identification(segs(k)%text, buffers(bi)%name)
+                call decode_string(part, chars, n)
+                if (len(segs(k)%face) > 0 .and. n > 0) then
+                    ns = ns + 1
+                    spans(ns) = face_span_type(first=nid + 1, last=nid + n)
+                    faces(ns) = segs(k)%face
+                end if
+                id = id//part
+                nid = nid + n
+            end do
+        end associate
+        spans = spans(1:ns)
+        faces = faces(1:ns)
+    contains
+
+        !> TEXT with %b replaced by NAME and %% by %.
+        function expand_identification(text, name) result(t)
+            character(len=*), intent(in) :: text, name
+            character(len=:), allocatable :: t
+            integer :: i
+            t = ""
+            i = 1
+            do while (i <= len(text))
+                if (text(i:i) == "%" .and. i < len(text)) then
+                    if (text(i + 1:i + 1) == "b") then
+                        t = t//name
+                        i = i + 2
+                        cycle
+                    else if (text(i + 1:i + 1) == "%") then
+                        t = t//"%"
+                        i = i + 2
+                        cycle
+                    end if
+                end if
+                t = t//text(i:i)
+                i = i + 1
+            end do
+        end function expand_identification
+    end subroutine mode_line_identification
 
     !> What %p shows: the percentage of the accessible text above window
     !> start `start', or All, Top or Bottom.  `at_end' says the window
@@ -2770,28 +2849,28 @@ contains
         type(window_type), intent(in) :: w
         integer(int64), intent(in) :: bi, start, pt
         logical, intent(in) :: selected
-        character(len=:), allocatable :: text, modes, mule
+        character(len=:), allocatable :: text, modes, mule, id
         type(glyph_type), allocatable :: row(:)
         integer(int32), allocatable :: chars(:)
-        type(face_span_type), allocatable :: spans(:)
-        character(len=64), allocatable :: faces(:)
+        type(face_span_type), allocatable :: spans(:), id_spans(:)
+        character(len=64), allocatable :: faces(:), id_faces(:)
         type(status_type) :: status
         type(glyph_row_type) :: line
         logical :: modified, gui
-        integer :: width, nname, nmodes, ntext, k, offset, name_at, asc, desc, height
-        integer(int32) :: face_id, id_face
+        integer :: width, nmodes, ntext, k, offset, name_at, asc, desc, height
+        integer(int32) :: face_id
         call buffer_modified_p(w%buffer, modified, status)
         gui = frame_window_p(f)
         width = window_text_cols(w)
         mule = mode_line_mule_info(bi, gui)
         call mode_line_modes_faces(bi, modes, spans, faces)
+        call mode_line_identification(bi, id, id_spans, id_faces)
         text = mode_line_text(buffers(bi)%name, modified, buffers(bi)%read_only, &
                               mode_line_percent(bi, start, w%window_end_valid), &
                               mode_line_line(bi, start, pt, w%total_lines), width, modes, gui, &
-                              mode_line_modes_prefix(), mule, buffer_vc_mode(bi))
+                              mode_line_modes_prefix(), mule, buffer_vc_mode(bi), id)
         face_id = MODE_LINE_INACTIVE_FACE_ID
         if (selected) face_id = MODE_LINE_ACTIVE_FACE_ID
-        id_face = merge_faces(f, "mode_line_buffer_id", 0_int32, face_id)
         ! The lighters with faces: the text ends with MODES, ") " and the
         ! dashes of %-.
         call decode_string(modes, chars, nmodes)
@@ -2806,17 +2885,25 @@ contains
             spans(k)%last = spans(k)%last + offset
             spans(k)%face_id = merge_faces(f, trim(faces(k)), 0_int32, face_id)
         end do
-        ! The buffer name, padded to 12, after "-UUU:**- F1  " (" U:**-  "
-        ! on a window-system frame).
-        call decode_string(buffers(bi)%name, chars, nname)
+        ! The buffer identification, after "-UUU:**- F1  " (" U:**-  " on a
+        ! window-system frame).
+        if (gui) then
+            name_at = len(mule) + 7
+        else
+            name_at = len(mule) + 10
+        end if
+        do k = 1, size(id_spans)
+            id_spans(k)%first = id_spans(k)%first + name_at - 1
+            id_spans(k)%last = id_spans(k)%last + name_at - 1
+            id_spans(k)%face_id = merge_faces(f, trim(id_faces(k)), 0_int32, face_id)
+        end do
+        spans = [id_spans, spans]
         if (gui) then
             ! A row spanning the whole window, the mode line's height off
             ! its bottom (compute_line_metrics).
-            name_at = len(mule) + 7
             width = window_pixel_width(f, w)
             allocate (line%glyphs(width/max(1, f%smallest_char_width) + 4))
-            call mode_line_row(text, width, line%glyphs, face_id, name_at, name_at - 1 + max(12, nname), id_face, &
-                               spans, f, line%used)
+            call mode_line_row(text, width, line%glyphs, face_id, spans=spans, f=f, used=line%used)
             asc = 0
             desc = 0
             line%pixel_width = 0
@@ -2837,7 +2924,7 @@ contains
             return
         end if
         allocate (row(w%total_cols))
-        call mode_line_row(text, width, row, face_id, len(mule) + 10, len(mule) + 9 + max(12, nname), id_face, spans)
+        call mode_line_row(text, width, row, face_id, spans=spans)
         if (width < w%total_cols) then
             row(width + 1:) = glyph_type(face_id=VERTICAL_BORDER_FACE_ID)
             row(w%total_cols)%ch = iachar("|")
