@@ -96,7 +96,12 @@ module error_fm
     integer(int32), parameter, public :: FM_BOOKMARK_ERRORS = 32
     integer(int32), parameter, public :: FM_BOOKMARK_ERROR_NO_FILENAME = 33
 
-    integer(int32), parameter :: last_code = FM_BOOKMARK_ERROR_NO_FILENAME
+    !> isearch.el's `user_search_failed' (a `user_error'; upstream also a
+    !> `search_failed', a second parent the single chain here leaves
+    !> out): a search of Info or Isearch found nothing.
+    integer(int32), parameter, public :: FM_USER_SEARCH_FAILED = 34
+
+    integer(int32), parameter :: last_code = FM_USER_SEARCH_FAILED
     integer, parameter :: name_len = 26, msg_len = 48
 
     !> `error_conditions' symbol names, indexed by code.
@@ -114,7 +119,7 @@ module error_fm
                                                                 "file_date_error", "end_of_file", "invalid_read_syntax", &
                                                                 "coding_system_error", "vc_not_supported", &
                                                                 "file_notify_error", "bookmark_errors", &
-                                                                "bookmark_error_no_filename"]
+                                                                "bookmark_error_no_filename", "user_search_failed"]
 
     !> `error_message' strings, indexed by code.
     character(len=msg_len), parameter :: messages(0:last_code) = [character(len=msg_len) :: &
@@ -136,7 +141,8 @@ module error_fm
                                                                   "Invalid read syntax", "Invalid coding system", &
                                                                   "VC method not implemented for backend", &
                                                                   "File notification error", "Bookmark error", &
-                                                                  "Bookmark has no associated file (or directory)"]
+                                                                  "Bookmark has no associated file (or directory)", &
+                                                                  "Search failed"]
 
     !> Parent condition of each code (the next element of its
     !> `error_conditions' list); -1 ends the chain.  `quit' is deliberately
@@ -152,7 +158,7 @@ module error_fm
                                  FM_GENERIC_ERROR, FM_FILE_ERROR, FM_FILE_ERROR, FM_GENERIC_ERROR, &
                                  FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_FILE_ERROR, FM_GENERIC_ERROR, FM_FILE_ERROR, &
                                  FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_FILE_ERROR, &
-                                 FM_GENERIC_ERROR, FM_BOOKMARK_ERRORS]
+                                 FM_GENERIC_ERROR, FM_BOOKMARK_ERRORS, FM_USER_ERROR]
 
     !> Outcome of a fallible operation.  `detail' plays the role of the
     !> signal's DATA (e.g. the offending arguments).

@@ -601,6 +601,7 @@ module commands_fm
         type(command_type) :: indent_tabs_mode
         type(command_type) :: indent_to
         type(command_type) :: info
+        type(command_type) :: info_apropos
         type(command_type) :: info_backward_node
         type(command_type) :: info_copy_current_node_name
         type(command_type) :: info_directory
@@ -610,11 +611,15 @@ module commands_fm
         type(command_type) :: info_follow_nearest_node
         type(command_type) :: info_follow_reference
         type(command_type) :: info_forward_node
+        type(command_type) :: info_goto_emacs_command_node
+        type(command_type) :: info_goto_emacs_key_command_node
         type(command_type) :: info_goto_node
         type(command_type) :: info_help
         type(command_type) :: info_history
         type(command_type) :: info_history_back
         type(command_type) :: info_history_forward
+        type(command_type) :: info_index
+        type(command_type) :: info_index_next
         type(command_type) :: info_last_menu_item
         type(command_type) :: info_last_preorder
         type(command_type) :: info_menu
@@ -630,11 +635,16 @@ module commands_fm
         type(command_type) :: info_prev_reference
         type(command_type) :: info_scroll_down
         type(command_type) :: info_scroll_up
+        type(command_type) :: info_search
+        type(command_type) :: info_search_backward
+        type(command_type) :: info_search_case_sensitively
+        type(command_type) :: info_search_next
         type(command_type) :: info_summary
         type(command_type) :: info_toc
         type(command_type) :: info_top_node
         type(command_type) :: info_undefined
         type(command_type) :: info_up
+        type(command_type) :: info_virtual_index
         type(command_type) :: insert_abbrevs
         type(command_type) :: insert_register
         type(command_type) :: inverse_add_global_abbrev
@@ -1049,7 +1059,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1011) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1021) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1619,6 +1629,7 @@ module commands_fm
                                                                   "indent_tabs_mode", &
                                                                   "indent_to", &
                                                                   "info", &
+                                                                  "info_apropos", &
                                                                   "info_backward_node", &
                                                                   "info_copy_current_node_name", &
                                                                   "info_directory", &
@@ -1628,11 +1639,15 @@ module commands_fm
                                                                   "info_follow_nearest_node", &
                                                                   "info_follow_reference", &
                                                                   "info_forward_node", &
+                                                                  "info_goto_emacs_command_node", &
+                                                                  "info_goto_emacs_key_command_node", &
                                                                   "info_goto_node", &
                                                                   "info_help", &
                                                                   "info_history", &
                                                                   "info_history_back", &
                                                                   "info_history_forward", &
+                                                                  "info_index", &
+                                                                  "info_index_next", &
                                                                   "info_last_menu_item", &
                                                                   "info_last_preorder", &
                                                                   "info_menu", &
@@ -1648,11 +1663,16 @@ module commands_fm
                                                                   "info_prev_reference", &
                                                                   "info_scroll_down", &
                                                                   "info_scroll_up", &
+                                                                  "info_search", &
+                                                                  "info_search_backward", &
+                                                                  "info_search_case_sensitively", &
+                                                                  "info_search_next", &
                                                                   "info_summary", &
                                                                   "info_toc", &
                                                                   "info_top_node", &
                                                                   "info_undefined", &
                                                                   "info_up", &
+                                                                  "info_virtual_index", &
                                                                   "insert_abbrevs", &
                                                                   "insert_register", &
                                                                   "inverse_add_global_abbrev", &
@@ -3209,6 +3229,8 @@ contains
             p => commands%indent_to
         case ("info")
             p => commands%info
+        case ("info_apropos")
+            p => commands%info_apropos
         case ("info_backward_node")
             p => commands%info_backward_node
         case ("info_copy_current_node_name")
@@ -3227,6 +3249,10 @@ contains
             p => commands%info_follow_reference
         case ("info_forward_node")
             p => commands%info_forward_node
+        case ("info_goto_emacs_command_node")
+            p => commands%info_goto_emacs_command_node
+        case ("info_goto_emacs_key_command_node")
+            p => commands%info_goto_emacs_key_command_node
         case ("info_goto_node")
             p => commands%info_goto_node
         case ("info_help")
@@ -3237,6 +3263,10 @@ contains
             p => commands%info_history_back
         case ("info_history_forward")
             p => commands%info_history_forward
+        case ("info_index")
+            p => commands%info_index
+        case ("info_index_next")
+            p => commands%info_index_next
         case ("info_last_menu_item")
             p => commands%info_last_menu_item
         case ("info_last_preorder")
@@ -3267,6 +3297,14 @@ contains
             p => commands%info_scroll_down
         case ("info_scroll_up")
             p => commands%info_scroll_up
+        case ("info_search")
+            p => commands%info_search
+        case ("info_search_backward")
+            p => commands%info_search_backward
+        case ("info_search_case_sensitively")
+            p => commands%info_search_case_sensitively
+        case ("info_search_next")
+            p => commands%info_search_next
         case ("info_summary")
             p => commands%info_summary
         case ("info_toc")
@@ -3277,6 +3315,8 @@ contains
             p => commands%info_undefined
         case ("info_up")
             p => commands%info_up
+        case ("info_virtual_index")
+            p => commands%info_virtual_index
         case ("insert_abbrevs")
             p => commands%insert_abbrevs
         case ("insert_register")

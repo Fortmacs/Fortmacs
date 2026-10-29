@@ -47,7 +47,8 @@ module test_info_fm
                        info_top_node, info_final_node, info_directory, info_index_node, info_index_nodes, &
                        info_copy_current_node_name, info_directory_list, info_next_reference, info_prev_reference, &
                        info_follow_nearest_node, info_extract_pointer, info_build_node_completions, info_toc, &
-                       info_history
+                       info_history, info_search, info_search_backward, info_index, info_index_next, &
+                       info_virtual_index
     implicit none(type, external)
     private
 
@@ -81,7 +82,11 @@ contains
                     new_unittest("info-fontify-node", test_fontify_node), &
                     new_unittest("info-breadcrumbs", test_breadcrumbs), &
                     new_unittest("info-toc", test_toc), &
-                    new_unittest("info-history-node", test_history_node) &
+                    new_unittest("info-history-node", test_history_node), &
+                    new_unittest("info-search", test_search), &
+                    new_unittest("info-search-split", test_search_split), &
+                    new_unittest("info-index", test_index), &
+                    new_unittest("info-virtual-index", test_virtual_index) &
                     ]
     end subroutine collect_info_fm
 
@@ -709,4 +714,81 @@ contains
         end if
         call done(old, config)
     end subroutine test_history_node
+
+    subroutine test_search(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: old
+        type(window_configuration_type) :: config
+        type(status_type) :: st
+        call visit("test", "Top", old, config, error)
+        ! A match in another node selects it.
+        call info_search("Some text", st)
+        call check_node(error, "Section One", st)
+        if (.not. allocated(error)) call check(error, index(current_line(), "Some text") > 0, "on the match")
+        ! Backward.
+        call info_search_backward("top node", st)
+        call check_node(error, "Top", st)
+        if (.not. allocated(error)) then
+            call info_search("no such text anywhere", st)
+            call check(error, format_error(st), "Search failed: ""no such text anywhere""")
+        end if
+        call check_node(error, "Top", status_type())
+        call done(old, config)
+    end subroutine test_search
+
+    subroutine test_search_split(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: old
+        type(window_configuration_type) :: config
+        type(status_type) :: st
+        call visit("split", "Top", old, config, error)
+        ! The match is in the other subfile.
+        call info_search("Second chapter text", st)
+        call check_node(error, "Second Chapter", st)
+        if (.not. allocated(error)) call check(error, info_current_subfile(), "split.info-2")
+        call done(old, config)
+    end subroutine test_search_split
+
+    subroutine test_index(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: old
+        type(window_configuration_type) :: config
+        type(status_type) :: st
+        call visit("test", "Top", old, config, error)
+        call info_index("section", st)
+        call check_node(error, "Section One", st)
+        if (.not. allocated(error)) call check(error, current_line(), "Some text.")
+        ! "chapter" matches one entry.
+        call info_index("chapter", st)
+        call check_node(error, "First Chapter", st)
+        if (.not. allocated(error)) then
+            call info_index_next(1_int64, st)
+            call check_node(error, "First Chapter", st)
+        end if
+        if (.not. allocated(error)) then
+            call info_index("nothing", st)
+            call check(error, format_error(st), "No `nothing' in index")
+        end if
+        ! An empty topic goes to the index.
+        call info_index("", st)
+        call check_node(error, "Index", st)
+        call done(old, config)
+    end subroutine test_index
+
+    subroutine test_virtual_index(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: old
+        type(window_configuration_type) :: config
+        type(status_type) :: st
+        character(len=:), allocatable :: text
+        call visit("test", "Top", old, config, error)
+        call info_virtual_index("e", st)
+        call check_node(error, "*Index for ‘e’*", st)
+        if (.not. allocated(error)) then
+            text = buffer_string()
+            call check(error, index(text, "* first chapter [Index]:") > 0, "the first entry:"//text)
+        end if
+        if (.not. allocated(error)) call check(error, index(text, "* section [Index]:") > 0, "the second entry")
+        call done(old, config)
+    end subroutine test_virtual_index
 end module test_info_fm
