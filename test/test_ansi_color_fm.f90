@@ -33,6 +33,7 @@ module test_ansi_color_fm
     use textprop_fm, only: get_char_property
     use itree_fm, only: overlays_at
     use bindings_fm, only: init_bindings
+    use faces_fm, only: face_spec_recalc_all
     use ansi_color_fm, only: ansi_color_apply_on_region, ansi_color_filter_region, ansi_color_filter_apply, &
                              ansi_color_apply, ansi_color_bold_is_bright, reset_ansi_color_context, &
                              ansi_color_apply_face_function, ansi_color_apply_text_property_face
@@ -69,6 +70,8 @@ contains
         type(case_type), allocatable, intent(out) :: cases(:)
         type(value_type) :: yellow, bright_yellow, custom_color
         call init_bindings()
+        ! The faces' attributes on the frame, as when the frame is made.
+        call face_spec_recalc_all()
         yellow = make_string("yellow3")
         bright_yellow = make_string("yellow2")
         custom_color = make_string("#87FFFF")
@@ -214,7 +217,7 @@ contains
     subroutine test_incomplete(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: strs(9) = [character(len=19) :: ESC//"[", "2;31m Hello World ", ESC, &
-                                                  "[108;5;12", "3m", "Greetings", ESC//"[0m"//ESC//"[35;6m", "Hello", ""]
+                                                             "[108;5;12", "3m", "Greetings", ESC//"[0m"//ESC//"[35;6m", "Hello", ""]
         integer, parameter :: lens(9) = [2, 18, 1, 9, 2, 9, 11, 5, 0]
         character(len=:), allocatable :: complete_str, filtered_str, joined
         type(value_type) :: propertized
@@ -225,7 +228,7 @@ contains
         call init_bindings()
         complete_str = ""
         do k = 1, 8
-            complete_str = complete_str//strs(k)(1:lens(k))
+            complete_str = complete_str//strs(k) (1:lens(k))
         end do
         filtered_str = " Hello World Greetings"//"Hello"
         ! Tests for `ansi_color_filter_apply'
@@ -236,7 +239,7 @@ contains
         call temp_buffer(old, b)
         joined = ""
         do k = 1, 8
-            joined = joined//ansi_color_filter_apply(strs(k)(1:lens(k)))
+            joined = joined//ansi_color_filter_apply(strs(k) (1:lens(k)))
         end do
         call check(error, joined, filtered_str)
         call end_temp_buffer(old, b)
@@ -251,7 +254,7 @@ contains
         call temp_buffer(old, b)
         do k = 1, 8
             opoint = point()
-            call insert(strs(k)(1:lens(k)), st)
+            call insert(strs(k) (1:lens(k)), st)
             call ansi_color_filter_region(opoint, point())
         end do
         call check(error, buffer_string(), filtered_str)
@@ -268,7 +271,7 @@ contains
         call ansi_color_apply_face_function%set_local(ansi_color_apply_text_property_face)
         do k = 1, 8
             opoint = point()
-            call insert(strs(k)(1:lens(k)), st)
+            call insert(strs(k) (1:lens(k)), st)
             call ansi_color_apply_on_region(opoint, point())
         end do
         call check(error, buffer_string(), filtered_str)

@@ -148,7 +148,6 @@ module ansi_color_fm
     !> Face used to render bright white color code.  Port of ansi-color.el:ansi-color-bright-white.
     type(named_face_type), target, public :: ansi_color_bright_white
 
-
     !> Faces used for SGR control sequences determining a face.
     !> This vector holds the faces used for SGR control sequence
     !> parameters 0 to 7 ("" is nil).
@@ -165,9 +164,9 @@ module ansi_color_fm
     !>
     !> Port of ansi-color.el ansi-color-basic-faces-vector.
     character(len=32), public :: ansi_color_basic_faces_vector(0:7) = [character(len=32) :: "", "ansi_color_bold", &
-                                                                       "ansi_color_faint", "ansi_color_italic", &
-                                                                       "ansi_color_underline", "ansi_color_slow_blink", &
-                                                                       "ansi_color_fast_blink", "ansi_color_inverse"]
+                                                                                          "ansi_color_faint", "ansi_color_italic", &
+                                                                                  "ansi_color_underline", "ansi_color_slow_blink", &
+                                                                                      "ansi_color_fast_blink", "ansi_color_inverse"]
 
     !> Faces used for SGR control sequences determining a color.
     !> This vector holds the faces used for SGR control sequence
@@ -186,10 +185,10 @@ module ansi_color_fm
     !>
     !> Port of ansi-color.el ansi-color-normal-colors-vector.
     character(len=32), public :: ansi_color_normal_colors_vector(0:7) = [character(len=32) :: "ansi_color_black", &
-                                                                         "ansi_color_red", "ansi_color_green", &
-                                                                         "ansi_color_yellow", "ansi_color_blue", &
-                                                                         "ansi_color_magenta", "ansi_color_cyan", &
-                                                                         "ansi_color_white"]
+                                                                                             "ansi_color_red", "ansi_color_green", &
+                                                                                           "ansi_color_yellow", "ansi_color_blue", &
+                                                                                          "ansi_color_magenta", "ansi_color_cyan", &
+                                                                                                                 "ansi_color_white"]
 
     !> Faces used for SGR control sequences determining a "bright"
     !> color.  This vector holds the faces used for SGR control sequence
@@ -866,7 +865,7 @@ contains
         if (point() /= mpos(start) .and. point() == mpos(end_marker)) then
             call set_marker(start, last_mb, st)
         else
-            call detach_marker(start)
+            call detach_marker(start, st)
         end if
         call goto_char(opoint)
         call free_marker(end_marker, st)
@@ -960,7 +959,7 @@ contains
             ! `codes' should not be applied to that overlap, so we need to
             ! know where they should really start.
             if (nilp(faces)) then
-                call detach_marker(start_marker)
+                call detach_marker(start_marker, st)
             else
                 call set_marker(start_marker, mpos(end_marker), st)
             end if
