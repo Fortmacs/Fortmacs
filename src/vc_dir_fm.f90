@@ -202,7 +202,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! The index of the current buffer's entry in `locals', made if MAKE
-    ! (0 if none).
+    ! (0 if none).  Not a port.
     integer function local_index(make) result(k)
         logical, intent(in) :: make
         type(local_type), allocatable :: grown(:)
@@ -239,6 +239,7 @@ contains
     end function local_index
 
     ! kill-all-local-variables: forget the current buffer's values.
+    ! Not a port.
     subroutine kill_vc_dir_locals()
         integer :: k
 
@@ -246,7 +247,7 @@ contains
         if (k > 0) locals(k) = local_type()
     end subroutine kill_vc_dir_locals
 
-    !> The current buffer's `vc_ewoc' (HAS false for nil).
+    !> The current buffer's `vc_ewoc' (HAS false for nil).  Not a port.
     subroutine vc_dir_ewoc(ewoc, has)
         type(ewoc_type), intent(out) :: ewoc
         logical, intent(out) :: has
@@ -261,7 +262,7 @@ contains
         end if
     end subroutine vc_dir_ewoc
 
-    ! The current buffer's ewoc (a stale handle if none).
+    ! The current buffer's ewoc (a stale handle if none).  Not a port.
     function ew() result(ewoc)
         type(ewoc_type) :: ewoc
         logical :: has
@@ -270,7 +271,7 @@ contains
     end function ew
 
     !> The current buffer's `vc_dir_backend': the backend used by the
-    !> current *vc-dir* buffer (0 for nil).
+    !> current *vc-dir* buffer (0 for nil).  Not a port.
     integer function vc_dir_backend()
         integer :: k
 
@@ -279,7 +280,7 @@ contains
         if (k > 0) vc_dir_backend = locals(k)%backend
     end function vc_dir_backend
 
-    ! The current buffer's `vc_dir_process_buffer'.
+    ! The current buffer's `vc_dir_process_buffer'.  Not a port.
     function process_buffer() result(h)
         type(handle_type) :: h
         integer :: k
@@ -290,7 +291,7 @@ contains
     end function process_buffer
 
     ! A new file information (vc-dir-create-fileinfo) from ENTRY, for a
-    ! directory DIRECTORY if given: its data for the ewoc.
+    ! directory DIRECTORY if given: its data for the ewoc.  Not a port.
     integer(int64) function new_info(entry, directory) result(id)
         type(vc_dir_entry_type), intent(in) :: entry
         character(len=*), intent(in), optional :: directory
@@ -336,7 +337,7 @@ contains
     end function new_info
 
     ! A directory entry for NAME (vc-dir-create-fileinfo NAME nil nil nil
-    ! DIRECTORY).
+    ! DIRECTORY).  Not a port.
     integer(int64) function new_dir_info(name, directory) result(id)
         character(len=*), intent(in) :: name, directory
         type(vc_dir_entry_type) :: entry
@@ -346,6 +347,7 @@ contains
     end function new_dir_info
 
     !> The file information of the ewoc's node NODE in the current buffer.
+    !> Not a port.
     function vc_dir_info(node) result(info)
         integer, intent(in) :: node
         type(vc_dir_fileinfo_type) :: info
@@ -355,14 +357,14 @@ contains
         if (id > 0) info = infos(id)
     end function vc_dir_info
 
-    ! The data of NODE.
+    ! The data of NODE.  Not a port.
     integer(int64) function did(node)
         integer, intent(in) :: node
 
         did = ewoc_data(ew(), node)
     end function did
 
-    ! Delete NODES from the ewoc and forget their information.
+    ! Delete NODES from the ewoc and forget their information.  Not a port.
     subroutine delete_nodes(nodes)
         integer, intent(in) :: nodes(:)
         integer(int64) :: id
@@ -380,7 +382,7 @@ contains
     ! Helpers
     ! ------------------------------------------------------------------
 
-    !> Insert TEXT with the face FACE (propertize).
+    !> Insert TEXT with the face FACE (propertize).  Not a port.
     subroutine insert_with_face(text, face)
         character(len=*), intent(in) :: text, face
         integer(int64) :: beg
@@ -392,6 +394,7 @@ contains
     end subroutine insert_with_face
 
     ! (string< A B): A sorts before B (a prefix before the longer string).
+    ! Not a port.
     logical function string_lessp(a, b)
         character(len=*), intent(in) :: a, b
         integer :: k
@@ -406,7 +409,7 @@ contains
         string_lessp = len(a) < len(b)
     end function string_lessp
 
-    ! (string-prefix-p PREFIX STRING).
+    ! (string-prefix-p PREFIX STRING).  Not a port.
     logical function string_prefix_p(prefix, string)
         character(len=*), intent(in) :: prefix, string
 
@@ -416,6 +419,7 @@ contains
     end function string_prefix_p
 
     ! (expand-file-name NAME): relative to the current buffer's directory.
+    ! Not a port.
     function expand(name) result(full)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: full
@@ -425,6 +429,7 @@ contains
     end function expand
 
     ! (file-name-directory (directory-file-name (expand-file-name NAME))).
+    ! Not a port.
     function entry_directory(name) result(dir)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: dir
@@ -432,7 +437,7 @@ contains
         dir = file_name_directory(directory_file_name(expand(name)))
     end function entry_directory
 
-    ! (let ((inhibit-read-only t)) ...).
+    ! (let ((inhibit-read-only t)) ...).  Not a port.
     subroutine bind_inhibit_read_only(saved)
         type(value_type), intent(out) :: saved
         type(status_type) :: st
@@ -442,6 +447,7 @@ contains
         call set(sym("inhibit_read_only"), t_value(), st)
     end subroutine bind_inhibit_read_only
 
+    ! Not a port.
     subroutine restore_inhibit_read_only(saved)
         type(value_type), intent(in) :: saved
         type(status_type) :: st
@@ -450,7 +456,7 @@ contains
     end subroutine restore_inhibit_read_only
 
     ! The value of `vc_dir_allow_mass_mark_changes' (nil while bound by
-    ! `vc_dir_mark_unmark').
+    ! `vc_dir_mark_unmark').  Not a port.
     integer function mass_mark()
         mass_mark = vc_dir_allow_mass_mark_changes
         if (mass_mark_bound_nil) mass_mark = VC_DIR_MASS_MARK_NIL
@@ -552,7 +558,7 @@ contains
         end if
     end function vc_dir_node_directory
 
-    ! Whether STATE is one of `vc_dir__up_to_date_states'.
+    ! Whether STATE is one of `vc_dir__up_to_date_states'.  Not a port.
     logical function up_to_date_state(state)
         integer, intent(in) :: state
 
@@ -990,8 +996,8 @@ contains
         end do
     end subroutine vc_dir_children
 
-    !> Mark ARG (0 for the current file) and move to the next line.  Port
-    !> of vc-dir.el:vc-dir-mark-file.
+    !> Mark ARG (0 for the current file) and move to the next line.  Port of
+    !> vc-dir.el:vc-dir-mark-file.
     recursive subroutine vc_dir_mark_file(status, arg)
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: arg
@@ -1068,6 +1074,7 @@ contains
         if (.not. present(arg)) call vc_dir_next_line(1, status)
     end subroutine vc_dir_mark_file
 
+    ! Not a port.
     recursive subroutine mark_file_current(status)
         type(status_type), intent(out) :: status
 
@@ -1084,12 +1091,14 @@ contains
         call vc_dir_mark_unmark(mark_file_current, status)
     end subroutine vc_dir_mark
 
+    ! Not a port.
     recursive logical function directory_marked(data)
         integer(int64), intent(in) :: data
 
         directory_marked = allocated(infos(data)%directory) .and. infos(data)%marked
     end function directory_marked
 
+    ! Not a port.
     recursive logical function mark_unmarked_file(data)
         integer(int64), intent(in) :: data
 
@@ -1162,6 +1171,7 @@ contains
         end if
     end subroutine vc_dir_mark_all_files
 
+    ! Not a port.
     recursive logical function mark_by_regexp_fn(data)
         integer(int64), intent(in) :: data
         type(status_type) :: st
@@ -1193,6 +1203,7 @@ contains
         call ewoc_map(mark_by_regexp_fn, ew())
     end subroutine vc_dir_mark_by_regexp
 
+    ! Not a port.
     recursive logical function mark_files_fn(data)
         integer(int64), intent(in) :: data
         character(len=:), allocatable :: name
@@ -1262,6 +1273,7 @@ contains
         call ewoc_map(mark_files_fn, ew())
     end subroutine vc_dir_mark_files
 
+    ! Not a port.
     recursive logical function mark_state_fn(data)
         integer(int64), intent(in) :: data
 
@@ -1404,6 +1416,7 @@ contains
         call vc_dir_move_to_goal_column()
     end subroutine vc_dir_unmark_file_up
 
+    ! Not a port.
     recursive logical function unmark_fn(data)
         integer(int64), intent(in) :: data
 
@@ -1413,6 +1426,7 @@ contains
         unmark_fn = .true.
     end function unmark_fn
 
+    ! Not a port.
     recursive logical function unmark_state_fn(data)
         integer(int64), intent(in) :: data
 
@@ -1610,6 +1624,7 @@ contains
         if (status%ok()) call view_file(file, status)
     end subroutine vc_dir_view_file
 
+    ! Not a port.
     recursive logical function ignore_marked_fn(data)
         integer(int64), intent(in) :: data
         type(status_type) :: st
@@ -1660,12 +1675,14 @@ contains
         file = expand(infos(did(node))%entry%name)
     end subroutine vc_dir_current_file
 
+    ! Not a port.
     recursive logical function marked_fn(data)
         integer(int64), intent(in) :: data
 
         marked_fn = infos(data)%marked
     end function marked_fn
 
+    ! Not a port.
     recursive logical function needs_update_fn(data)
         integer(int64), intent(in) :: data
 
@@ -1727,7 +1744,7 @@ contains
         end do
     end subroutine vc_dir_marked_only_files_and_states
 
-    ! Append (FILE . STATE).
+    ! Append (FILE . STATE).  Not a port.
     subroutine push_pair(files, states, file, state)
         type(vc_string_type), allocatable, intent(inout) :: files(:)
         integer, allocatable, intent(inout) :: states(:)
@@ -1978,7 +1995,7 @@ contains
         call major_modes%vc_dir_mode%finish(saved_mode, status)
     end subroutine vc_dir_mode
 
-    ! (add-to-list 'vc-dir-buffers BUF).
+    ! (add-to-list 'vc-dir-buffers BUF).  Not a port.
     subroutine add_vc_dir_buffer(buf)
         type(handle_type), intent(in) :: buf
         type(handle_type), allocatable :: grown(:)
@@ -2035,7 +2052,7 @@ contains
 
     ! The update function of `vc_dir_refresh_files': add ENTRIES and,
     ! when complete, remove the entries not updated at all and the
-    ! directories left without children.
+    ! directories left without children.  Not a port.
     recursive subroutine refresh_files_update(entries, buffer, more_to_come)
         type(vc_dir_entry_type), intent(in) :: entries(:)
         type(handle_type), intent(in) :: buffer
@@ -2080,7 +2097,7 @@ contains
         if (buffer_live_p(old)) call set_buffer(old, st)
     end subroutine refresh_files_update
 
-    ! The predicate of `ewoc_filter' in `refresh_files_update'.
+    ! The predicate of `ewoc_filter' in `refresh_files_update'.  Not a port.
     recursive logical function not_needs_update(data)
         integer(int64), intent(in) :: data
 
@@ -2097,7 +2114,7 @@ contains
         if (.not. not_needs_update) info_live(data) = .false.
     end function not_needs_update
 
-    ! The temporary buffer for the status process, made if needed.
+    ! The temporary buffer for the status process, made if needed.  Not a port.
     recursive subroutine ensure_process_buffer(backend, buf)
         integer, intent(in) :: backend
         type(handle_type), intent(out) :: buf
@@ -2158,7 +2175,7 @@ contains
         if (vc_dir_auto_hide_up_to_date /= VC_DIR_AUTO_HIDE_NIL) call vc_dir_hide_state()
     end subroutine vc_dir_revert_buffer_function
 
-    ! The update function of `vc_dir_refresh'.
+    ! The update function of `vc_dir_refresh'.  Not a port.
     recursive subroutine refresh_update(entries, buffer, more_to_come)
         type(vc_dir_entry_type), intent(in) :: entries(:)
         type(handle_type), intent(in) :: buffer
@@ -2193,6 +2210,7 @@ contains
         if (buffer_live_p(old)) call set_buffer(old, st)
     end subroutine refresh_update
 
+    ! Not a port.
     recursive logical function set_needs_update(data)
         integer(int64), intent(in) :: data
 
@@ -2596,6 +2614,7 @@ contains
     ! Commands
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     integer function count_arg()
         count_arg = int(prefix_numeric_value(current_prefix_arg))
     end function count_arg
@@ -2633,6 +2652,7 @@ contains
     end subroutine cmd_vc_dir
 
     ! (completing-read "Use VC backend: " vc-handled-backends nil t).
+    ! Not a port.
     recursive subroutine read_backend(name, status)
         use minibuf_fm, only: completion_list_table
         use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
@@ -2741,6 +2761,7 @@ contains
     ! Definitions
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     subroutine define_faces()
         type(named_face_type), pointer :: f
 
@@ -2777,6 +2798,7 @@ contains
     end subroutine define_faces
 
     !> Define VC-Dir mode, its keymap and faces, and register the commands.
+    !> Not a port.
     subroutine syms_of_vc_dir()
         use lisp_fm, only: make_keymap_ref
         type(handle_type) :: regexp_map, mark_map

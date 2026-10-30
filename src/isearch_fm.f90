@@ -203,7 +203,7 @@ module isearch_fm
         !> A search function, as `isearch_search_fun_function' returns:
         !> search for the first occurrence of STRING from point, BOUND (0
         !> for nil) and NOERROR as for `re_search_forward'.  POS is where
-        !> the search left point, 0 if it found nothing.
+        !> the search left point, 0 if it found nothing.  Not a port.
         recursive subroutine isearch_search_proc(string, bound, noerror, pos, status)
             import :: int64, status_type
             implicit none(type, external)
@@ -215,27 +215,27 @@ module isearch_fm
         end subroutine isearch_search_proc
 
         !> An `isearch_wrap_function': wrap the search when it has failed,
-        !> typically moving point.
+        !> typically moving point.  Not a port.
         recursive subroutine isearch_wrap_proc()
             implicit none(type, external)
         end subroutine isearch_wrap_proc
 
         !> The function an `isearch_push_state_function' saves: restore
-        !> the mode-specific state DATA it saved.
+        !> the mode-specific state DATA it saved.  Not a port.
         recursive subroutine isearch_pop_proc(data)
             implicit none(type, external)
             character(len=*), intent(in) :: data
         end subroutine isearch_pop_proc
 
         !> An `isearch_message_function': display the search prompt
-        !> (C_Q_HACK and ELLIPSIS as for `isearch_message').
+        !> (C_Q_HACK and ELLIPSIS as for `isearch_message').  Not a port.
         recursive subroutine isearch_message_proc(c_q_hack, ellipsis)
             implicit none(type, external)
             logical, intent(in) :: c_q_hack, ellipsis
         end subroutine isearch_message_proc
 
         !> An `isearch_filter_predicate': whether the match from BEG to
-        !> END is one to stop at.
+        !> END is one to stop at.  Not a port.
         recursive logical function isearch_filter_proc(beg, end)
             import :: int64
             implicit none(type, external)
@@ -245,7 +245,7 @@ module isearch_fm
 
     abstract interface
         !> An `isearch_search_fun_function': set FN to the search
-        !> function to use.
+        !> function to use.  Not a port.
         recursive subroutine isearch_search_fun_proc(fn)
             import :: isearch_search_proc
             implicit none(type, external)
@@ -253,7 +253,7 @@ module isearch_fm
         end subroutine isearch_search_fun_proc
 
         !> An `isearch_push_state_function': save the mode-specific
-        !> state as DATA, to be restored by POP.
+        !> state as DATA, to be restored by POP.  Not a port.
         recursive subroutine isearch_push_state_proc(data, pop)
             import :: isearch_pop_proc
             implicit none(type, external)
@@ -428,7 +428,7 @@ contains
     ! Strings
     ! ------------------------------------------------------------------
 
-    !> The characters of UTF-8 `s'.
+    !> The characters of UTF-8 `s'.  Not a port.
     subroutine decode(s, chars, n)
         character(len=*), intent(in) :: s
         integer(int32), allocatable, intent(out) :: chars(:)
@@ -448,7 +448,7 @@ contains
         end do
     end subroutine decode
 
-    !> The UTF-8 encoding of character `c'.
+    !> The UTF-8 encoding of character `c'.  Not a port.
     function encode(c) result(s)
         integer(int32), intent(in) :: c
         character(len=:), allocatable :: s
@@ -460,7 +460,7 @@ contains
         s = buf(1:nbytes)
     end function encode
 
-    !> Number of characters in UTF-8 `s'.
+    !> Number of characters in UTF-8 `s'.  Not a port.
     integer function nchars(s)
         character(len=*), intent(in) :: s
         integer(int32), allocatable :: chars(:)
@@ -468,7 +468,7 @@ contains
         call decode(s, chars, nchars)
     end function nchars
 
-    !> `s' without its last `n' characters.
+    !> `s' without its last `n' characters.  Not a port.
     function drop_chars(s, n) result(r)
         character(len=*), intent(in) :: s
         integer, intent(in) :: n
@@ -615,7 +615,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The name of the search ring for regexp search if `regexp', else of
-    !> the ordinary search ring.
+    !> the ordinary search ring.  Not a port.
     function ring_name(regexp) result(name)
         logical, intent(in) :: regexp
         character(len=:), allocatable :: name
@@ -628,7 +628,7 @@ contains
     end function ring_name
 
     !> The search ring (isearch.el search-ring or regexp-search-ring, as
-    !> for the current search), most recent first.
+    !> for the current search), most recent first.  Not a port.
     subroutine search_ring(elems)
         type(value_type), allocatable, intent(out) :: elems(:)
         type(value_type) :: ring
@@ -756,6 +756,7 @@ contains
         call goto_char(s%point)
     end subroutine set_state
 
+    ! Not a port.
     logical function same_state(a, b)
         type(isearch_state), intent(in) :: a, b
 
@@ -916,6 +917,7 @@ contains
         call pre_command_hook%add(isearch_pre_command_hook)
     end subroutine isearch_mode
 
+    ! Not a port.
     logical function same_handle(a, b)
         type(handle_type), intent(in) :: a, b
 
@@ -967,6 +969,7 @@ contains
         end if
     end subroutine isearch_done
 
+    ! Not a port.
     logical function flag(x)
         logical, intent(in), optional :: x
 
@@ -1098,6 +1101,7 @@ contains
         call message_nolog(isearch_message_string(c_q_hack, ellipsis))
     end subroutine isearch_message_display
 
+    ! Port of isearch.el:isearch-message, in part.
     function isearch_message_string(c_q_hack, ellipsis) result(m)
         logical, intent(in) :: c_q_hack
         logical, intent(in), optional :: ellipsis
@@ -1131,7 +1135,7 @@ contains
         end if
     end function isearch_fail_pos
 
-    !> The number of characters of `s'.
+    !> The number of characters of `s'.  Not a port.
     integer(int64) function schars_of(s)
         character(len=*), intent(in) :: s
         integer :: i
@@ -1266,6 +1270,7 @@ contains
     end function isearch_search_fun_default
 
     ! The function isearch-search-fun-default returns.
+    ! Port of isearch.el:isearch-search-fun-default (the function it returns).
     recursive subroutine default_search(string, bound, noerror, pos, status)
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: bound
@@ -1333,7 +1338,7 @@ contains
         end if
     end function isearch_search_string
 
-    ! (funcall isearch-filter-predicate BEG END).
+    ! (funcall isearch-filter-predicate BEG END).  Not a port.
     recursive logical function filter_accepts(beg, end) result(accepts)
         integer(int64), intent(in) :: beg, end
         procedure(isearch_filter_proc), pointer :: f
@@ -1430,6 +1435,7 @@ contains
 
     ! (setq isearch-error (nth 2 lossage)): the second datum of a
     ! search-failed error, whose data print as "REGEXP", "MESSAGE".
+    ! Not a port.
     subroutine failure_data(status)
         type(status_type), intent(in) :: status
         character(len=:), allocatable :: d
@@ -1476,7 +1482,7 @@ contains
 
     !> Whether the text at point matches the search string (as a regexp,
     !> or literally), folding case with `fold'; `mend' is where the match
-    !> ends.  An invalid regexp doesn't match.
+    !> ends.  An invalid regexp doesn't match.  Not a port.
     logical function looking_at_string(string, fold, mend) result(found)
         character(len=*), intent(in) :: string
         logical, intent(in) :: fold
@@ -1703,6 +1709,7 @@ contains
         end if
     end subroutine isearch_repeat_backward
 
+    ! Not a port.
     function make_count(n) result(v)
         integer(int64), intent(in) :: n
         type(value_type) :: v
@@ -2004,8 +2011,8 @@ contains
     end subroutine isearch_yank_internal
 
     !> Pull next character from buffer into search string.
-    !> If optional ARG is given, pull in the next ARG characters.  Port
-    !> of isearch.el:isearch-yank-char.
+    !> If optional ARG is given, pull in the next ARG characters.  Port of
+    !> isearch.el:isearch-yank-char.
     subroutine isearch_yank_char(arg)
         integer(int64), intent(in) :: arg
 
@@ -2022,7 +2029,7 @@ contains
     end subroutine isearch_yank_word_or_char
 
     !> The character at `pos', or 0 at the end of the accessible region
-    !> ((or (char-after POS) 0)).
+    !> ((or (char-after POS) 0)).  Not a port.
     integer function char_after(pos)
         integer(int64), intent(in) :: pos
 
@@ -2298,6 +2305,7 @@ contains
     ! Commands and the keymap
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     integer(int64) function arg_p()
         arg_p = prefix_numeric_value(current_prefix_arg)
     end function arg_p
@@ -2448,7 +2456,7 @@ contains
         call isearch_ring_retreat(status)
     end subroutine cmd_isearch_ring_retreat
 
-    !> Bind `keys' (kbd syntax) to command `cmd' in `map'.
+    !> Bind `keys' (kbd syntax) to command `cmd' in `map'.  Not a port.
     subroutine bind(map, keys, cmd)
         type(handle_type), intent(in) :: map
         character(len=*), intent(in) :: keys, cmd
@@ -2468,14 +2476,14 @@ contains
         isearch_wrapped = wrapped
     end subroutine set_isearch_wrapped
 
-    !> (setq isearch-barrier POS), for a search function.
+    !> (setq isearch-barrier POS), for a search function.  Not a port.
     subroutine set_isearch_barrier(pos)
         integer(int64), intent(in) :: pos
 
         isearch_barrier = pos
     end subroutine set_isearch_barrier
 
-    !> (setq isearch-opoint POS), for a search function.
+    !> (setq isearch-opoint POS), for a search function.  Not a port.
     subroutine set_isearch_opoint(pos)
         integer(int64), intent(in) :: pos
 
@@ -2487,7 +2495,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! The current buffer's entry in `local_functions', made if CREATE
-    ! (0 if none).
+    ! (0 if none).  Not a port.
     integer function local_slot(create) result(k)
         logical, intent(in) :: create
         type(local_functions_type), allocatable :: grown(:)
@@ -2523,6 +2531,7 @@ contains
     end function local_slot
 
     ! Forget the current buffer's values (kill-all-local-variables).
+    ! Not a port.
     subroutine kill_isearch_locals()
         integer :: k
 
@@ -2530,6 +2539,7 @@ contains
         if (k > 0) local_functions(k) = local_functions_type()
     end subroutine kill_isearch_locals
 
+    ! Not a port.
     subroutine search_fun_set_local(fn)
         procedure(isearch_search_fun_proc) :: fn
         integer :: k
@@ -2538,6 +2548,7 @@ contains
         if (k > 0) local_functions(k)%search_fun => fn
     end subroutine search_fun_set_local
 
+    ! Not a port.
     subroutine search_fun_get(fn)
         procedure(isearch_search_fun_proc), pointer, intent(out) :: fn
         integer :: k
@@ -2547,6 +2558,7 @@ contains
         if (k > 0) fn => local_functions(k)%search_fun
     end subroutine search_fun_get
 
+    ! Not a port.
     subroutine wrap_set_local(fn)
         procedure(isearch_wrap_proc) :: fn
         integer :: k
@@ -2555,6 +2567,7 @@ contains
         if (k > 0) local_functions(k)%wrap => fn
     end subroutine wrap_set_local
 
+    ! Not a port.
     function wrap_get() result(fn)
         procedure(isearch_wrap_proc), pointer :: fn
         integer :: k
@@ -2564,6 +2577,7 @@ contains
         if (k > 0) fn => local_functions(k)%wrap
     end function wrap_get
 
+    ! Not a port.
     subroutine push_state_set_local(fn)
         procedure(isearch_push_state_proc) :: fn
         integer :: k
@@ -2572,6 +2586,7 @@ contains
         if (k > 0) local_functions(k)%push_state => fn
     end subroutine push_state_set_local
 
+    ! Not a port.
     function push_state_get() result(fn)
         procedure(isearch_push_state_proc), pointer :: fn
         integer :: k
@@ -2581,6 +2596,7 @@ contains
         if (k > 0) fn => local_functions(k)%push_state
     end function push_state_get
 
+    ! Not a port.
     subroutine message_set_local(fn)
         procedure(isearch_message_proc) :: fn
         integer :: k
@@ -2589,6 +2605,7 @@ contains
         if (k > 0) local_functions(k)%message => fn
     end subroutine message_set_local
 
+    ! Not a port.
     function message_get() result(fn)
         procedure(isearch_message_proc), pointer :: fn
         integer :: k
@@ -2598,6 +2615,7 @@ contains
         if (k > 0) fn => local_functions(k)%message
     end function message_get
 
+    ! Not a port.
     subroutine search_fun_clear_local()
         integer :: k
 
@@ -2605,6 +2623,7 @@ contains
         if (k > 0) local_functions(k)%search_fun => null()
     end subroutine search_fun_clear_local
 
+    ! Not a port.
     subroutine wrap_clear_local()
         integer :: k
 
@@ -2612,6 +2631,7 @@ contains
         if (k > 0) local_functions(k)%wrap => null()
     end subroutine wrap_clear_local
 
+    ! Not a port.
     subroutine push_state_clear_local()
         integer :: k
 
@@ -2619,6 +2639,7 @@ contains
         if (k > 0) local_functions(k)%push_state => null()
     end subroutine push_state_clear_local
 
+    ! Not a port.
     subroutine filter_clear_local()
         integer :: k
 
@@ -2626,6 +2647,7 @@ contains
         if (k > 0) local_functions(k)%filter => null()
     end subroutine filter_clear_local
 
+    ! Not a port.
     subroutine message_clear_local()
         integer :: k
 
@@ -2633,6 +2655,7 @@ contains
         if (k > 0) local_functions(k)%message => null()
     end subroutine message_clear_local
 
+    ! Not a port.
     subroutine filter_set_local(fn)
         procedure(isearch_filter_proc) :: fn
         integer :: k
@@ -2641,6 +2664,7 @@ contains
         if (k > 0) local_functions(k)%filter => fn
     end subroutine filter_set_local
 
+    ! Not a port.
     function filter_get() result(fn)
         procedure(isearch_filter_proc), pointer :: fn
         integer :: k
@@ -2650,7 +2674,7 @@ contains
         if (k > 0) fn => local_functions(k)%filter
     end function filter_get
 
-    !> isearch-mode-map and global bindings.
+    !> isearch-mode-map and global bindings.  Not a port.
     subroutine syms_of_isearch(global_map)
         type(handle_type), intent(in) :: global_map
         type(handle_type) :: meta_map

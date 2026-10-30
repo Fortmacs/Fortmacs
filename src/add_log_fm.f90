@@ -80,6 +80,7 @@ module add_log_fm
 
     !> A function giving (in S) the date for a ChangeLog header.
     abstract interface
+        ! Not a port.
         subroutine add_log_time_function(s)
             implicit none(type, external)
             character(len=:), allocatable, intent(out) :: s
@@ -410,7 +411,7 @@ contains
         call major_modes%change_log_mode%finish(saved, status)
     end subroutine change_log_mode
 
-    !> The faces of add-log.el.
+    !> The faces of add-log.el.  Not a port.
     subroutine define_faces()
         type(named_face_type), pointer :: f
 
@@ -440,7 +441,7 @@ contains
         call f%spec_entry(display_when(), face_attrs(inherit="font_lock_comment_face"))
     end subroutine define_faces
 
-    !> Define Change Log mode, its syntax table and faces.
+    !> Define Change Log mode, its syntax table and faces.  Not a port.
     subroutine syms_of_add_log()
         type(status_type) :: st
 

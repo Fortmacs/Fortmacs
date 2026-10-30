@@ -228,7 +228,7 @@ contains
     ! Internal commands
     ! ------------------------------------------------------------------
 
-    !> Append S to LIST.
+    !> Append S to LIST.  Not a port.
     subroutine push(list, s)
         type(vc_string_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
@@ -243,7 +243,7 @@ contains
         call move_alloc(grown, list)
     end subroutine push
 
-    !> Append nil to LIST (a flag passing nothing).
+    !> Append nil to LIST (a flag passing nothing).  Not a port.
     subroutine push_nil(list)
         type(vc_string_type), allocatable, intent(inout) :: list(:)
         type(vc_string_type), allocatable :: grown(:)
@@ -256,7 +256,7 @@ contains
         call move_alloc(grown, list)
     end subroutine push_nil
 
-    !> The strings of A then B.
+    !> The strings of A then B.  Not a port.
     subroutine append(list, more)
         type(vc_string_type), allocatable, intent(inout) :: list(:)
         type(vc_string_type), intent(in) :: more(:)
@@ -378,7 +378,7 @@ contains
         call set_buffer_directory(saved)
     end subroutine vc_git_command
 
-    !> The current buffer's `default_directory'.
+    !> The current buffer's `default_directory'.  Not a port.
     function buffer_directory() result(dir)
         character(len=:), allocatable :: dir
 
@@ -387,6 +387,7 @@ contains
         if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
     end function buffer_directory
 
+    ! Not a port.
     subroutine set_buffer_directory(dir)
         character(len=*), intent(in) :: dir
 
@@ -449,7 +450,7 @@ contains
     end function vc_git_out_ok
 
     !> Make a temporary buffer current (with-temp-buffer); OLD is the
-    !> buffer to go back to.
+    !> buffer to go back to.  Not a port.
     subroutine temp_begin(old, tmp)
         type(handle_type), intent(out) :: old, tmp
         type(status_type) :: st
@@ -462,7 +463,7 @@ contains
         call set_buffer_directory(dir)
     end subroutine temp_begin
 
-    !> Kill the temporary buffer TMP and make OLD current again.
+    !> Kill the temporary buffer TMP and make OLD current again.  Not a port.
     subroutine temp_end(old, tmp)
         type(handle_type), intent(in) :: old, tmp
         type(status_type) :: st
@@ -498,7 +499,7 @@ contains
     end subroutine vc_git_run_command_string
 
     !> The strings ARGS as a list (a helper for the short lists of git
-    !> arguments).
+    !> arguments).  Not a port.
     function strings(a1, a2, a3, a4, a5, a6, a7) result(list)
         character(len=*), intent(in) :: a1
         character(len=*), intent(in), optional :: a2, a3, a4, a5, a6, a7
@@ -547,8 +548,8 @@ contains
     !> none).  Some Git versions append additional strings to the
     !> numerical version string. E.g., Git for Windows appends
     !> ".windows.N", while Git for Mac appends " (Apple Git-N)". Capture
-    !> numerical version and ignore the rest.  Part of
-    !> vc-git.el:vc-git--program-version.
+    !> numerical version and ignore the rest.  Port of
+    !> vc-git.el:vc-git--program-version, in part.
     function vc_git_parse_program_version(version_string) result(version)
         character(len=*), intent(in) :: version_string
         character(len=:), allocatable :: version
@@ -566,7 +567,7 @@ contains
     end function vc_git_parse_program_version
 
     !> Whether version A is lower than or equal to B (version<=, for
-    !> versions of numbers and dots).
+    !> versions of numbers and dots).  Not a port.
     logical function version_le(a, b)
         character(len=*), intent(in) :: a, b
         integer :: ia, ib, na, nb
@@ -818,7 +819,7 @@ contains
         found = .true.
     end subroutine vc_git_mode_line_string
 
-    !> The index of the Git backend.
+    !> The index of the Git backend.  Not a port.
     integer function git_backend_index() result(b)
         use vc_hooks_fm, only: vc_backend_named
 
@@ -1103,7 +1104,7 @@ contains
         call temp_end(old, tmp)
     end subroutine vc_git_revision_table
 
-    !> The text of group N of the last buffer match.
+    !> The text of group N of the last buffer match.  Not a port.
     function match_in_buffer(n) result(s)
         integer, intent(in) :: n
         character(len=:), allocatable :: s
@@ -1245,7 +1246,7 @@ contains
         call temp_end(old, tmp)
     end subroutine vc_git_symbolic_commit
 
-    !> N as a decimal string.
+    !> N as a decimal string.  Not a port.
     function itoa(n) result(s)
         integer, intent(in) :: n
         character(len=:), allocatable :: s
@@ -1268,8 +1269,8 @@ contains
         on = log_edit_toggle_header("Sign-Off", "yes", status)
     end subroutine vc_git_log_edit_toggle_signoff
 
-    !> Toggle whether to bypass the pre-commit and commit-msg hooks.  Port
-    !> of vc-git.el:vc-git-log-edit-toggle-no-verify.
+    !> Toggle whether to bypass the pre-commit and commit-msg hooks.  Port of
+    !> vc-git.el:vc-git-log-edit-toggle-no-verify.
     recursive subroutine vc_git_log_edit_toggle_no_verify(status)
         type(status_type), intent(out) :: status
         logical :: on
@@ -1329,7 +1330,7 @@ contains
         call major_modes%vc_git_log_edit_mode%finish(saved, status)
     end subroutine vc_git_log_edit_mode
 
-    ! Define Git's Log Edit mode, its keymap and faces.
+    ! Define Git's Log Edit mode, its keymap and faces.  Not a port.
     subroutine define_log_edit_mode()
         type(named_face_type), pointer :: f
         type(status_type) :: st
@@ -1356,7 +1357,7 @@ contains
     end subroutine define_log_edit_mode
 
     ! (boolean-arg-fn "--amend") and friends: the argument if the header's
-    ! value is "yes".
+    ! value is "yes".  Not a port.
     subroutine amend_arg(value, args)
         character(len=*), intent(in) :: value
         type(log_edit_string_type), allocatable, intent(out) :: args(:)
@@ -1364,6 +1365,7 @@ contains
         call boolean_arg(value, "--amend", args)
     end subroutine amend_arg
 
+    ! Not a port.
     subroutine no_verify_arg(value, args)
         character(len=*), intent(in) :: value
         type(log_edit_string_type), allocatable, intent(out) :: args(:)
@@ -1371,6 +1373,7 @@ contains
         call boolean_arg(value, "--no-verify", args)
     end subroutine no_verify_arg
 
+    ! Not a port.
     subroutine signoff_arg(value, args)
         character(len=*), intent(in) :: value
         type(log_edit_string_type), allocatable, intent(out) :: args(:)
@@ -1378,6 +1381,7 @@ contains
         call boolean_arg(value, "--signoff", args)
     end subroutine signoff_arg
 
+    ! Not a port.
     subroutine boolean_arg(value, argument, args)
         character(len=*), intent(in) :: value, argument
         type(log_edit_string_type), allocatable, intent(out) :: args(:)
@@ -1499,7 +1503,7 @@ contains
     ! History functions
     ! ------------------------------------------------------------------
 
-    ! (ensure-list SWITCHES) appended to FLAGS.
+    ! (ensure-list SWITCHES) appended to FLAGS.  Not a port.
     subroutine append_switches(flags, switches)
         type(vc_string_type), allocatable, intent(inout) :: flags(:)
         type(vc_switches_type), intent(in) :: switches
@@ -1756,7 +1760,7 @@ contains
         call temp_end(old, tmp)
     end subroutine vc_git_expanded_log_entry
 
-    ! Define Git's Log View mode.
+    ! Define Git's Log View mode.  Not a port.
     subroutine define_log_view_mode()
         use log_view_fm, only: syms_of_log_view
         use add_log_fm, only: syms_of_add_log
@@ -1770,7 +1774,7 @@ contains
         commands%vc_git_log_view_mode%run => vc_git_log_view_mode
     end subroutine define_log_view_mode
 
-    ! The default `vc_git_root_log_format'.
+    ! The default `vc_git_root_log_format'.  Not a port.
     subroutine init_root_log_format()
         if (allocated(vc_git_root_log_format%format)) return
         vc_git_root_log_format%format = "%d%h..: %an %ad %s"
@@ -2048,6 +2052,7 @@ contains
     end subroutine dir_status_update_file
 
     ! (vc-git-create-extra-fileinfo OLD-PERM NEW-PERM RENAME-STATE ORIG-NAME).
+    ! Not a port.
     function extra_fileinfo(old_perm, new_perm, rename_state, orig_name) result(info)
         use vc_hooks_fm, only: VC_RENAME_NIL
         integer, intent(in) :: old_perm, new_perm
@@ -2063,7 +2068,7 @@ contains
         if (present(orig_name)) info%orig_name = orig_name
     end function extra_fileinfo
 
-    ! (string-to-number S 8).
+    ! (string-to-number S 8).  Not a port.
     integer function octal(s)
         character(len=*), intent(in) :: s
         integer :: ios
@@ -2504,7 +2509,7 @@ contains
         end subroutine fmt
     end subroutine vc_git_dir_branch_headers
 
-    ! Append TEXT with FACE to PARTS.
+    ! Append TEXT with FACE to PARTS.  Not a port.
     subroutine add_part(parts, text, face)
         type(ewoc_part_type), allocatable, intent(inout) :: parts(:)
         character(len=*), intent(in) :: text, face
@@ -2528,8 +2533,8 @@ contains
     !> In particular, handle the case where this is a linked working
     !> tree, such that .git is a plain file.
     !>
-    !> See the --git-dir and --git-path options to git-rev-parse(1).  Port
-    !> of vc-git.el:vc-git--git-path.
+    !> See the --git-dir and --git-path options to git-rev-parse(1).  Port of
+    !> vc-git.el:vc-git--git-path.
     function vc_git_git_path(path) result(full)
         character(len=*), intent(in), optional :: path
         character(len=:), allocatable :: full
@@ -2569,8 +2574,8 @@ contains
         end function trim_right
     end function vc_git_git_path
 
-    ! Return headers for Git commands in progress in this worktree.  Port
-    ! of vc-git.el:vc-git-dir--in-progress-headers with
+    ! Return headers for Git commands in progress in this worktree.  Port of
+    ! vc-git.el:vc-git-dir--in-progress-headers with
     ! vc-git--cmds-in-progress (the commands it shows).
     subroutine vc_git_dir_in_progress_headers(parts)
         type(ewoc_part_type), allocatable, intent(inout) :: parts(:)
@@ -2625,7 +2630,7 @@ contains
         if (size(parts) > 0) parts = parts(1:size(parts) - 1)
     end subroutine vc_git_dir_extra_headers
 
-    !> Make the Git backend known to VC.
+    !> Make the Git backend known to VC.  Not a port.
     subroutine syms_of_vc_git()
         integer :: k
 
