@@ -590,6 +590,7 @@ contains
         character(len=24) :: num
         integer(int64) :: count
         real :: r
+        logical :: hidden
 
         if (present(ignore)) then
             if (same(name, ignore)) then
@@ -603,7 +604,10 @@ contains
             return
         end if
 
-        if (len(name) == 0 .or. name(1:1) /= " ") then
+        hidden = .false.
+        if (len(name) > 0) hidden = name(1:1) == " "
+
+        if (.not. hidden) then
             genbase = name
         else
             ! Hidden buffers get a random suffix first, to find a free name fast.

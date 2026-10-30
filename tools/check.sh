@@ -125,6 +125,12 @@ if $style; then
         exit 1
     fi
 
+    # Hazards (PORTING.md, "Hazards"): tools/hazards.awk.
+    if ! awk -f tools/hazards.awk $(find $DIRS -name '*.f90' | sort); then
+        echo "hazards found: fix them, or mark a justified exception with ! hazard-ok(NAME): why" >&2
+        exit 1
+    fi
+
     fortitude check $DIRS
 fi
 

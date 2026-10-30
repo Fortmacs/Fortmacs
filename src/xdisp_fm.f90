@@ -1842,6 +1842,7 @@ contains
 
         id = face_id
 
+        ! hazard-ok(short-circuit): char_byte8_p() takes any character code.
         if (c /= 9 .and. c /= 10 .and. (c < 32 .or. c == 127 .or. char_byte8_p(c))) then
             ! merge_escape_glyph_face.
             id = merge_faces(f, "escape_glyph", 0_int32, face_id)

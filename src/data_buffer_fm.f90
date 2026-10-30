@@ -420,16 +420,16 @@ contains
         case ("electric_indent_inhibit")
             call setting_value(electric_indent_inhibit, bool_value(electric_indent_inhibit%value), v, bound)
         case ("major_mode")
-            if (b > 0 .and. allocated(buffers(b)%major_mode)) then
-                v = sym(buffers(b)%major_mode)
-            else
-                v = sym("fundamental_mode")
+            v = sym("fundamental_mode")
+
+            if (b > 0) then
+                if (allocated(buffers(b)%major_mode)) v = sym(buffers(b)%major_mode)
             end if
         case ("mode_name")
-            if (b > 0 .and. allocated(buffers(b)%mode_name)) then
-                v = make_string(buffers(b)%mode_name)
-            else
-                v = make_string("Fundamental")
+            v = make_string("Fundamental")
+
+            if (b > 0) then
+                if (allocated(buffers(b)%mode_name)) v = make_string(buffers(b)%mode_name)
             end if
         case ("buffer_read_only")
             v = nil()

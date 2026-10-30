@@ -467,6 +467,7 @@ contains
         integer(int32), intent(in) :: c
 
         if (c < 128) then
+            ! hazard-ok(short-circuit): isalnum() takes any character code.
             ispunct = c > 32 .and. c < 127 .and. .not. isalnum(c)
         else
             ispunct = char_syntax_class(c) /= SWORD
@@ -1248,6 +1249,7 @@ contains
                 ! Could be the end of the bracket expression.
                 if (c == iachar("]") .and. p2 /= p1) exit
 
+                ! hazard-ok(short-circuit): byte_of() checks its bounds.
                 if (p < pend .and. byte_of(p) == iachar("-") .and. byte_of(p + 1) /= iachar("]")) then
                     ! Discard the '-' and fetch the character which ends
                     ! the range.
@@ -1488,6 +1490,7 @@ contains
                 reg = c - iachar("0")
 
                 ! Can't back reference to a subexp before its end.
+                ! hazard-ok(short-circuit): group_in_compile_stack() takes any number.
                 if (reg > bufp%re_nsub .or. reg < 1 .or. group_in_compile_stack(reg)) then
                     err = REG_ESUBREG
                     return
@@ -3011,6 +3014,7 @@ contains
                         end if
                     end if
                 case default
+                    ! hazard-ok(stop): a corrupt compiled pattern (emacs_abort upstream).
                     error stop "regex_emacs_fm: bad opcode"
                 end select
             end if
@@ -3040,6 +3044,7 @@ contains
                     ! A special frame used for nastyloops.
                     cycle fail
                 case default
+                    ! hazard-ok(stop): a corrupt failure stack (emacs_abort upstream).
                     error stop "regex_emacs_fm: bad failure point"
                 end select
 

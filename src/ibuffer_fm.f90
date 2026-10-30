@@ -3354,9 +3354,9 @@ contains
         cell%name_column = .true.
     end function column_name
 
-    function summarize_name(cells) result(text)
+    subroutine summarize_name(cells, text)
         type(ibuffer_cell_type), intent(in) :: cells(:)
-        character(len=:), allocatable :: text
+        character(len=:), allocatable, intent(out) :: text
         character(len=24) :: c
 
         if (size(cells) == 0) then
@@ -3367,7 +3367,7 @@ contains
             write (c, "(i0)") size(cells)
             text = trim(c)//" buffers"
         end if
-    end function summarize_name
+    end subroutine summarize_name
 
     ! define-ibuffer-column size.
     recursive function column_size(buffer, mark) result(cell)
@@ -3390,9 +3390,9 @@ contains
         cell%size = size
     end function column_size
 
-    function summarize_size(cells) result(text)
+    subroutine summarize_size(cells, text)
         type(ibuffer_cell_type), intent(in) :: cells(:)
-        character(len=:), allocatable :: text
+        character(len=:), allocatable, intent(out) :: text
         integer(int64) :: total
         integer :: k
         character(len=24) :: c
@@ -3409,7 +3409,7 @@ contains
             write (c, "(i0)") total
             text = trim(c)
         end if
-    end function summarize_size
+    end subroutine summarize_size
 
     ! define-ibuffer-column recency.
     recursive function column_recency(buffer, mark) result(cell)
@@ -3433,13 +3433,13 @@ contains
         end associate
     end function column_recency
 
-    function summarize_ignore(cells) result(text)
+    subroutine summarize_ignore(cells, text)
         type(ibuffer_cell_type), intent(in) :: cells(:)
-        character(len=:), allocatable :: text
+        character(len=:), allocatable, intent(out) :: text
 
         if (size(cells) < 0) continue
         text = ""
-    end function summarize_ignore
+    end subroutine summarize_ignore
 
     ! define-ibuffer-column mode.
     recursive function column_mode(buffer, mark) result(cell)
@@ -3483,12 +3483,12 @@ contains
         cell = text_cell(process_text(buffer))
     end function column_process
 
-    function summarize_process(cells) result(text)
+    subroutine summarize_process(cells, text)
         type(ibuffer_cell_type), intent(in) :: cells(:)
-        character(len=:), allocatable :: text
+        character(len=:), allocatable, intent(out) :: text
 
         text = count_text(cells, "No processes", "1 process", " processes")
-    end function summarize_process
+    end subroutine summarize_process
 
     ! "No ...", "1 ..." or "N ..." of the non-empty CELLS.
     function count_text(cells, none, one, many) result(text)
@@ -3524,12 +3524,12 @@ contains
         cell = text_cell(ibuffer_abbreviate_file_name(ibuffer_buffer_file_name()))
     end function column_filename
 
-    function summarize_filename(cells) result(text)
+    subroutine summarize_filename(cells, text)
         type(ibuffer_cell_type), intent(in) :: cells(:)
-        character(len=:), allocatable :: text
+        character(len=:), allocatable, intent(out) :: text
 
         text = count_text(cells, "No files", "1 file", " files")
-    end function summarize_filename
+    end subroutine summarize_filename
 
     ! define-ibuffer-column filename-and-process.
     recursive function column_filename_and_process(buffer, mark) result(cell)
@@ -3554,9 +3554,9 @@ contains
         end if
     end function column_filename_and_process
 
-    function summarize_filename_and_process(cells) result(text)
+    subroutine summarize_filename_and_process(cells, text)
         type(ibuffer_cell_type), intent(in) :: cells(:)
-        character(len=:), allocatable :: text
+        character(len=:), allocatable, intent(out) :: text
         integer :: procs, files, k
         character(len=24) :: c
 
@@ -3588,7 +3588,7 @@ contains
             write (c, "(i0)") procs
             text = text//trim(c)//" processes"
         end if
-    end function summarize_filename_and_process
+    end subroutine summarize_filename_and_process
 
     !> Add a column for use with `ibuffer_formats': NAME, its BODY (MAKE)
     !> called with the buffer current, its TITLE (the capitalized NAME by
@@ -3973,7 +3973,7 @@ contains
         if (associated(ibuffer_columns(column)%summarizer)) then
             if (.not. allocated(summaries)) call clear_summary_columns()
             ! (The summary list is pushed: the last line first.)
-            summary = ibuffer_columns(column)%summarizer(reversed(summaries(column)%cells(1:summaries(column)%n)))
+            call ibuffer_columns(column)%summarizer(reversed(summaries(column)%cells(1:summaries(column)%n)), summary)
         else
             title = trim(ibuffer_columns(column)%title)
             if (len(title) == 0) title = " "

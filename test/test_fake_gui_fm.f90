@@ -290,8 +290,9 @@ contains
         expected = mode_line_text("*fake-gui-ml*", .true., .false., "All", "1", 0, mode_line_modes(bi), graphic=.true.)
         ! Rows 0 to 3 of text, the mode line at y 64.
         shown = device%text_at(4*FAKE_LINE_HEIGHT)
-        call check(error, len(shown) == 60 .and. shown(1:len(expected)) == expected .and. &
-                   shown(len(expected) + 1:) == repeat(" ", 60 - len(expected)), shown)
+        call check(error, len(shown) == 60, shown)
+        if (.not. allocated(error)) call check(error, shown(1:len(expected)) == expected .and. &
+                                               shown(len(expected) + 1:) == repeat(" ", 60 - len(expected)), shown)
         if (allocated(error)) return
         call check(error, device%face(0, 4*FAKE_LINE_HEIGHT) == MODE_LINE_ACTIVE_FACE_ID .and. &
                    device%face(59*FAKE_COLUMN_WIDTH, 4*FAKE_LINE_HEIGHT) == MODE_LINE_ACTIVE_FACE_ID, "active face")

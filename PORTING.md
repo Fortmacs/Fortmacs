@@ -476,6 +476,50 @@ ported. Their keys are unbound, as test_bindings_fm checks:
   `if` continuations. Justified exceptions are marked in the source with
   `! allow(rule-name)` and a comment saying why.
 
+## Hazards
+
+The pitfalls of Fortran and gfortran that bit this port.  `tools/hazards.awk`
+(run by `tools/check.sh`, so by CI on every PR) reports those a script can
+find; a justified exception carries `! hazard-ok(NAME): why` on the
+statement or the comment line above it.  Checked:
+
+- `short-circuit`: `.and.` and `.or.` evaluate both sides, so the right
+  side must not use what the left side guards (allocated, associated,
+  present, a compared len or size, an index compared with a bound): nest
+  an `if` instead.
+- `implied-save`: an initialized local declaration implies `save`.
+- `deferred-result-pointer`: gfortran frees a procedure pointer to a
+  function with an allocatable or deferred-length result: make the
+  interface a subroutine with an `intent(out)` argument.
+- `allocatable-constructor`: a function result or structure constructor
+  of a type with allocatable components inside an array constructor
+  leaks: use `list(...)`, a variable or element assignment.
+- `recursive-allocatable-type`: an allocatable component of its own type
+  is copied shallowly.
+- `implicit-none`: `implicit none (type, external)` everywhere.
+- `stop`: errors return a status; `stop` only in a main program.
+- `obsolete`: no `common`, `equivalence` or `goto`.
+
+Checked by hand on every PR's diff (no script can tell):
+
+- The same variable passed to two dummies when one is `intent(out)` (it
+  is deallocated on entry).
+- An array constructor with no elements assigned to an allocatable
+  (`realloc()` with size 0, reported by valgrind): allocate the empty
+  array explicitly.
+- A guard the checker misses: an index passed to a procedure that
+  subscripts with it, a substring or element in the guarded part of a
+  nested expression.
+- A dummy argument that hides a module entity of the same name in another
+  case (`beg` and `BEG`).
+- Objects with explicit lifetimes (markers, overlays, timers, processes)
+  freed on every path, and handles checked for staleness.
+- `intent` on every dummy argument; `recursive` on procedures that can be
+  reentered (hooks, timers, the command loop).
+
+A newly learned hazard goes into `tools/hazards.awk` when a script can find
+it, otherwise into this checklist.
+
 ## Conventions learned while porting
 
 - GitHub runs no CI for a pull request that conflicts with its base (a
@@ -975,6 +1019,7 @@ Each lists the default being used meanwhile.
 
 ## Session log
 
+- 2026-10-30 — Hazards (`hazard-check`, based on main; asked by the user): `tools/hazards.awk` reports the hazards of CLAUDE.md and PORTING.md that a script can find (short-circuit guards, initialized locals, pointers to deferred-result functions, leaking array constructors, recursive allocatable types, the form of `implicit none`, `stop`, obsolete statements), run by `tools/check.sh`; justified exceptions carry `! hazard-ok(NAME): why`.  New section "Hazards" with the checklist of those checked by hand on every PR; CLAUDE.md says so.  Audit of the codebase: short-circuit guards fixed in buffer_fm (`generate-new-buffer-name` with an empty name), data_buffer_fm (`major-mode`, `mode-name` with no buffer) and eight tests; leaking array constructors fixed in easy_mmode_fm, f90_fm and vc_fm; the pointer interfaces of add-log's time format, Ibuffer's summarizers, `Info-url-alist` functions and VC's working revision symbol are subroutines; the rest are false positives marked hazard-ok.
 - 2026-10-29 — Searching Info and its indexes (roadmap step 34c, `step34c-info-search`, built on `step34b-info-display` while #139 waits; step 34 is now six PRs, Isearch across nodes becoming 34e and info-look.el with C-h R 34f): info_fm's `Info-search` (s, S) across subfiles, `Info-index` (i), `Info-index-next` (,), `Info-virtual-index` (I), `info-apropos`, C-h F and C-h K.  lisp_fm's `command_type` gains `info_file` (the `info-file` property); error_fm `user_search_failed`.  Own tests.  Next: 34d (the manuals).
 - 2026-10-29 — Blank lines (`blank-lines`, based on main; chosen with the user): CLAUDE.md sets where blank lines go (around block constructs and after the declarations in procedure bodies, one around `contains` and between procedures); `tools/blank-lines.awk` applies them, `tools/check.sh` fixes or checks them, and the generators run it on their output; the whole codebase and the docs/syntax.html example are reformatted (blank lines only).  Conventions: a PR that conflicts with main gets no CI run.
 - 2026-10-29 — The display of Info nodes (roadmap step 34b, `step34b-info-display`, built on `step34-info` while #139 waits; the table of contents and history nodes moved here from 34c, as breadcrumbs need the table of contents): info_fm's `Info-fontify-node` (header line, breadcrumbs, titles, references, menus, footnotes, URLs), the Info faces, `Info-toc` (T) and `Info-history` (L), virtual nodes.  xdisp_fm shows display strings in their faces.  Own tests.  Next: 34c (search and indexes).
