@@ -4,6 +4,7 @@
 ! `fortmacs --recompile`.  The module must be named `user_config` and
 ! provide `configure`; everything else is up to you.  See the `fortmacs`
 ! module (src/fortmacs.f90) for what you can use.
+
 module user_config
     ! The whole API, so that settings and functions need no list.
     ! allow(use-all)
