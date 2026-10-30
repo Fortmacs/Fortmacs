@@ -80,7 +80,7 @@ module textprop_fm
 
         !> Run the after-change hooks for a change of the properties of
         !> START..END (the signal_after_change calls of textprop.c).  (In
-        !> textprop_modify_fm.)
+        !> textprop_modify_fm.)  Not a port.
         recursive module subroutine signal_text_properties_change(start, end, status)
             implicit none(type, external)
             integer(int64), intent(in) :: start, end
@@ -94,6 +94,7 @@ contains
     ! Helpers
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     function qsym(name) result(v)
         character(len=*), intent(in) :: name
         type(value_type) :: v
@@ -101,6 +102,7 @@ contains
         v = make_symbol_ref(intern(name))
     end function qsym
 
+    ! Not a port.
     subroutine range_error(status, a, b)
         type(status_type), intent(inout) :: status
         integer(int64), intent(in) :: a, b
@@ -162,7 +164,7 @@ contains
         end if
     end subroutine validate_plist
 
-    !> True if `x' is eq to an element of list `set'.
+    !> True if `x' is eq to an element of list `set'.  Not a port.
     logical function memq_p(x, set)
         type(value_type), intent(in) :: x, set
         type(value_type), allocatable :: elems(:)
@@ -319,6 +321,7 @@ contains
 
     !> Index of the interval at `pos', or 0 if there is none (no intervals,
     !> empty accessible region, or `pos' at the end of the text).
+    !> Not a port.
     integer(int64) function interval_at(pos)
         integer(int64), intent(in) :: pos
 
@@ -369,6 +372,7 @@ contains
     !> among PREV_N intervals in a buffer of PREV_Z, is still as it was:
     !> a before-change function may have changed the intervals behind our
     !> back (the check after modify_text_properties in textprop.c).
+    !> Port of the interval check of textprop.c:add_text_properties_1.
     logical function interval_unchanged(k, prev_n, prev_pos, prev_len, prev_z) result(same)
         integer(int64), intent(in) :: k, prev_n, prev_pos, prev_len, prev_z
 
@@ -649,6 +653,8 @@ contains
         call remove_common(start, end, list, 1_int64, changed, status)
     end subroutine remove_list_of_text_properties
 
+    ! Port of textprop.c:Fremove_text_properties and
+    ! textprop.c:Fremove_list_of_text_properties (their shared body).
     recursive subroutine remove_common(start, end, names, step, changed, status)
         integer(int64), intent(in) :: start, end, step
         type(value_type), intent(in) :: names
@@ -736,6 +742,7 @@ contains
     ! Scanning for changes
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     subroutine check_position(position, status)
         integer(int64), intent(in) :: position
         type(status_type), intent(out) :: status
@@ -745,7 +752,7 @@ contains
         end if
     end subroutine check_position
 
-    !> Return LIMIT: `found' only if a limit was given.
+    !> Return LIMIT: `found' only if a limit was given.  Not a port.
     subroutine give_limit(result, found, limit)
         integer(int64), intent(out) :: result
         logical, intent(out) :: found
@@ -782,6 +789,8 @@ contains
         call next_change(position, result, found, status, prop, limit)
     end subroutine next_single_property_change
 
+    ! Port of textprop.c:Fnext_property_change and
+    ! textprop.c:Fnext_single_property_change (their shared body).
     subroutine next_change(position, result, found, status, prop, limit)
         integer(int64), intent(in) :: position
         integer(int64), intent(out) :: result
@@ -850,6 +859,8 @@ contains
         call previous_change(position, result, found, status, prop, limit)
     end subroutine previous_single_property_change
 
+    ! Port of textprop.c:Fprevious_property_change and
+    ! textprop.c:Fprevious_single_property_change (their shared body).
     subroutine previous_change(position, result, found, status, prop, limit)
         integer(int64), intent(in) :: position
         integer(int64), intent(out) :: result
@@ -920,6 +931,8 @@ contains
         call property_scan(start, end, prop, value, .false., result, found, status)
     end subroutine text_property_not_all
 
+    ! Port of textprop.c:Ftext_property_any and
+    ! textprop.c:Ftext_property_not_all (their shared body).
     subroutine property_scan(start, end, prop, value, want_eq, result, found, status)
         integer(int64), intent(in) :: start, end
         type(value_type), intent(in) :: prop, value
@@ -1579,6 +1592,7 @@ contains
     end function propertize
 
     !> The characters of STRING (a wrong-type-argument if not a string).
+    !> Not a port.
     subroutine string_chars(string, nchars, status)
         type(value_type), intent(in) :: string
         integer(int64), intent(out) :: nchars
@@ -1598,6 +1612,7 @@ contains
 
     !> Add the pairs of NEW to PLIST, replacing values of properties it
     !> has (textprop.c:add_properties on a plist).
+    !> Port of textprop.c:add_properties (on a plist, in part).
     subroutine plist_add(plist, new, changed)
         type(value_type), intent(inout) :: plist
         type(value_type), intent(in) :: new
@@ -1635,7 +1650,7 @@ contains
         end do
     end subroutine plist_add
 
-    !> Sort CUTS and drop repeated values.
+    !> Sort CUTS and drop repeated values.  Not a port.
     pure subroutine sort_unique(cuts)
         integer(int64), allocatable, intent(inout) :: cuts(:)
         integer(int64) :: t
@@ -1667,7 +1682,7 @@ contains
     end subroutine sort_unique
 
     !> Give STRING the pieces [CUTS(j), CUTS(j+1)) with plists PIECES(j),
-    !> adjacent pieces with equal plists as one interval.
+    !> adjacent pieces with equal plists as one interval.  Not a port.
     subroutine set_merged_intervals(string, cuts, pieces)
         type(value_type), intent(inout) :: string
         integer(int64), intent(in) :: cuts(:)
@@ -1794,7 +1809,7 @@ contains
     end function propertized_concat
 
     !> The byte (1-based) where character N (0-based) of TEXT starts; one
-    !> past the end for N at or past its end.
+    !> past the end for N at or past its end.  Not a port.
     pure integer(int64) function char_byte(text, n) result(byte)
         character(len=*), intent(in) :: text
         integer(int64), intent(in) :: n

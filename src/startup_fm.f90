@@ -49,6 +49,7 @@ contains
 
     !> Give `user_mail_address' its standard value unless it was set (the
     !> custom-initialize-delay of startup.el:command-line).
+    !> Port of part of startup.el:command-line.
     subroutine init_user_mail_address()
         integer :: n, st
 
@@ -66,6 +67,7 @@ contains
     end subroutine init_user_mail_address
 
     !> The value of `user_mail_address', initializing it first if needed.
+    !> Not a port.
     function user_mail_address_value() result(address)
         character(len=:), allocatable :: address
 

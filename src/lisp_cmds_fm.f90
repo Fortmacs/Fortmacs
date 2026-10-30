@@ -58,7 +58,7 @@ module lisp_cmds_fm
 
     abstract interface
         !> A `forward_sexp_function': move across ARG sexps, as
-        !> `forward_sexp' does.
+        !> `forward_sexp' does.  Not a port.
         subroutine forward_sexp_proc(arg, status)
             import :: int64, status_type
             implicit none(type, external)
@@ -99,6 +99,7 @@ module lisp_cmds_fm
 
 contains
 
+    ! Not a port.
     subroutine forward_sexp_set_local(self, fn)
         class(forward_sexp_function_type), intent(inout) :: self
         procedure(forward_sexp_proc), optional :: fn
@@ -137,7 +138,7 @@ contains
         end if
     end subroutine forward_sexp_set_local
 
-    ! The index of the current buffer's entry, 0 if none.
+    ! The index of the current buffer's entry, 0 if none.  Not a port.
     integer function local_entry(self) result(i)
         class(forward_sexp_function_type), intent(in) :: self
 
@@ -153,6 +154,7 @@ contains
         i = 0
     end function local_entry
 
+    ! Not a port.
     function forward_sexp_get(self) result(fn)
         class(forward_sexp_function_type), intent(in) :: self
         procedure(forward_sexp_proc), pointer :: fn
@@ -167,12 +169,14 @@ contains
         end if
     end function forward_sexp_get
 
+    ! Not a port.
     logical function forward_sexp_local_p(self)
         class(forward_sexp_function_type), intent(in) :: self
 
         forward_sexp_local_p = local_entry(self) > 0
     end function forward_sexp_local_p
 
+    ! Not a port.
     subroutine forward_sexp_kill_local(self)
         class(forward_sexp_function_type), intent(inout) :: self
         integer :: i
@@ -184,7 +188,7 @@ contains
     end subroutine forward_sexp_kill_local
 
     ! kill-all-local-variables: forget the current buffer's
-    ! `forward_sexp_function'.
+    ! `forward_sexp_function'.  Not a port.
     subroutine kill_lisp_cmds_locals()
         call forward_sexp_function%kill_local()
     end subroutine kill_lisp_cmds_locals
@@ -747,7 +751,7 @@ contains
         call mark_sexp(prefix_numeric_value(current_prefix_arg),.not. nilp(current_prefix_arg), .true., status)
     end subroutine cmd_mark_sexp
 
-    !> Register the commands.
+    !> Register the commands.  Not a port.
     subroutine syms_of_lisp_cmds()
         forward_sexp_function%value => forward_sexp_default_function
         call add_local_variables_killer(kill_lisp_cmds_locals)

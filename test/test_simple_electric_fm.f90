@@ -1,6 +1,7 @@
 ! test_simple_electric_fm.f90 -- tests for blinking parens,
 ! `newline_and_indent' and `backward_delete_char_untabify'
 ! (simple_electric_fm).
+! Own tests; simple-tests.el has no blink cases.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -49,6 +50,7 @@ module test_simple_electric_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_simple_electric_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

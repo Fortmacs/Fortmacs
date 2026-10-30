@@ -1,0 +1,74 @@
+name: Progress
+
+# After each merge, redraw the README's progress block and pie charts
+# (tools/progress.sh --update-readme) and commit them to main. Branches
+# never touch them, so open PRs don't conflict over them.
+#
+# The push uses the repository secret PROGRESS_TOKEN: a fine-grained
+# personal access token for this repository only, with Contents read and
+# write and nothing else (the organization keeps GITHUB_TOKEN read-only).
+# Secrets never reach pull_request runs, and this workflow runs only on
+# main. Its commit changes only README.md and docs/progress, which CI and
+# this workflow ignore, so it starts no further runs.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**.f90"
+      - tools/progress.sh
+      - tools/package-totals
+      - tools/ported-packages
+      - .github/workflows/progress.yml
+  workflow_dispatch:
+
+# One update at a time.
+concurrency:
+  group: progress
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check the token
+        env:
+          PROGRESS_TOKEN: ${{ secrets.PROGRESS_TOKEN }}
+        run: |
+          if [ -z "$PROGRESS_TOKEN" ]; then
+            echo "::error title=PROGRESS_TOKEN missing::add the repository secret PROGRESS_TOKEN (see .github/workflows/progress.yml)"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          token: ${{ secrets.PROGRESS_TOKEN }}
+
+      - name: Fetch upstream
+        run: tools/fetch-upstream.sh
+
+      - name: Update the progress block
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Another merge may land while this runs: redo the update on the
+          # new main and try again.
+          for attempt in 1 2 3; do
+            tools/progress.sh --update-readme
+            if git diff --quiet -- README.md docs/progress; then
+              echo "The progress block is current."
+              exit 0
+            fi
+            git add README.md docs/progress
+            git commit -q -m "README: update the progress block"
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            git fetch -q origin main
+            git reset -q --hard origin/main
+          done
+          echo "::error title=Progress not pushed::main refused the push; run tools/progress.sh --update-readme on main by hand"
+          exit 1

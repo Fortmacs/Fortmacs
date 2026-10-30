@@ -118,6 +118,7 @@ module window_fm
     !> A function that sets the height of a window `display_buffer' made
     !> (the `window_height' entry of an action alist).
     abstract interface
+        ! Not a port.
         subroutine window_height_function(window)
             import :: handle_type
             implicit none(type, external)
@@ -490,7 +491,7 @@ module window_fm
             type(status_type), intent(out) :: status
         end subroutine move_to_window_line_top_bottom
 
-        !> Register the scrolling commands and `quit_window'.
+        !> Register the scrolling commands and `quit_window'.  Not a port.
         module subroutine syms_of_window()
             implicit none(type, external)
         end subroutine syms_of_window
@@ -597,7 +598,7 @@ module window_fm
             logical, intent(in), optional :: norecord, force_same_window
         end subroutine switch_to_buffer
 
-        !> Register the window and buffer commands.
+        !> Register the window and buffer commands.  Not a port.
         module subroutine syms_of_window_cmds()
             implicit none(type, external)
         end subroutine syms_of_window_cmds
@@ -792,8 +793,8 @@ module window_fm
         !> nothing if the buffer contains more lines than the present window
         !> height, or if some of the window's contents are scrolled out of
         !> view, or if shrinking this window would also shrink another
-        !> window, or if the window is the only window of its frame.  Port
-        !> of window.el:shrink-window-if-larger-than-buffer.
+        !> window, or if the window is the only window of its frame.
+        !> Port of window.el:shrink-window-if-larger-than-buffer.
         !> (In window_display_fm.)
         module subroutine shrink_window_if_larger_than_buffer(window)
             implicit none(type, external)
@@ -818,6 +819,7 @@ module window_fm
         !> screen, as `scroll_up' and `scroll_down' with no argument do in
         !> the selected window; WINDOW's point moves as needed.  (Upstream
         !> runs them with WINDOW selected: with-selected-window.)
+        !> Not a port.
         module subroutine scroll_window(window, direction, status)
             implicit none(type, external)
             type(handle_type), intent(in) :: window
@@ -854,6 +856,8 @@ module window_fm
         end function get_largest_window
 
         !> Split a window as split-window-below or split-window-right do.
+        !> Port of window.el:split-window-below and
+        !> window.el:split-window-right, in part.
         module subroutine split_window_and_copy(h, horizontal, new, status)
             implicit none(type, external)
             type(handle_type), intent(in) :: h
@@ -863,13 +867,14 @@ module window_fm
         end subroutine split_window_and_copy
 
         !> "#<window N on BUFFER>" for window `h' (how prin1 prints it).
+        !> Not a port.
         module function window_description(h) result(s)
             implicit none(type, external)
             type(handle_type), intent(in) :: h
             character(len=:), allocatable :: s
         end function window_description
 
-        !> Copy a `quit_restore' parameter.
+        !> Copy a `quit_restore' parameter.  Not a port.
         module subroutine copy_quit_restore(from, to)
             implicit none(type, external)
             type(quit_restore_type), intent(in) :: from
@@ -932,7 +937,7 @@ module window_fm
         end subroutine unshow_buffer
 
         !> Register `quit_window', `bury_buffer', `previous_buffer' and
-        !> `next_buffer'.
+        !> `next_buffer'.  Not a port.
         module subroutine syms_of_window_display()
             implicit none(type, external)
         end subroutine syms_of_window_display
@@ -941,6 +946,7 @@ module window_fm
 contains
 
     !> Whether `a' and `b' are the same buffer (or window) handle.
+    !> Not a port.
     pure logical function same_handle(a, b)
         type(handle_type), intent(in) :: a, b
 
@@ -974,8 +980,9 @@ contains
         w%window_end_valid = .false.
     end subroutine set_window_start
 
-    !> The window's point marker position.  (The selected window's point
-    !> is its buffer's point; see window.c:Fwindow_point.)
+    !> The window's point marker position.  Port of window.c:Fwindow_point
+    !> for a non-selected window (the selected window's point is its
+    !> buffer's point).
     integer(int64) function window_point(w) result(pos)
         type(window_type), intent(in) :: w
         type(status_type) :: status
@@ -1047,7 +1054,7 @@ contains
         w%buffer = null_handle()
     end subroutine free_window
 
-    !> Free the markers of a previous-buffer entry.
+    !> Free the markers of a previous-buffer entry.  Not a port.
     subroutine free_prev_buffer(e)
         type(prev_buffer_type), intent(inout) :: e
         type(status_type) :: status
@@ -1058,7 +1065,7 @@ contains
     end subroutine free_prev_buffer
 
     !> Clear a `quit_restore' parameter (set it to nil), freeing its
-    !> marker.
+    !> marker.  Not a port.
     subroutine free_quit_restore(q)
         type(quit_restore_type), intent(inout) :: q
         type(status_type) :: status
@@ -1125,7 +1132,7 @@ contains
     end subroutine delete_window_object
 
     !> Window `h', or a null pointer if it doesn't exist.  Valid until the
-    !> next make_window.
+    !> next make_window.  Not a port.
     function window_ref(h) result(w)
         type(handle_type), intent(in) :: h
         type(window_type), pointer :: w
@@ -1155,6 +1162,7 @@ contains
         if (window_live_p) window_live_p = windows(h%index)%child%index == 0 .and. .not. windows(h%index)%dead
     end function window_live_p
 
+    !> Whether handles A and B name the same window.  Not a port.
     pure logical function same_window(a, b)
         type(handle_type), intent(in) :: a, b
 
@@ -1162,7 +1170,8 @@ contains
     end function same_window
 
     !> The live windows of the tree under `root', in cyclic order (top to
-    !> bottom, left to right).  window.c:window_list_1 for one frame.
+    !> bottom, left to right).  Port of window.c:window_list_1, in part
+    !> (one frame).
     recursive subroutine window_leaves(root, list)
         type(handle_type), intent(in) :: root
         type(handle_type), allocatable, intent(inout) :: list(:)
@@ -1189,6 +1198,7 @@ contains
     end subroutine window_leaves
 
     !> Columns for text in `w': its width less the vertical border.
+    !> Not a port.
     integer function window_text_cols(w)
         type(window_type), intent(in) :: w
 
@@ -1199,8 +1209,8 @@ contains
     !> Give the tree under `h' the place `top', `left', `lines' by `cols'
     !> on a frame `frame_cols' wide.  Children share the size along their
     !> combination in proportion to their sizes before (equally if they
-    !> had none), the last taking what is left.  The terminal part of
-    !> window.c:window_resize_apply.
+    !> had none), the last taking what is left.  Port of
+    !> window.c:window_resize_apply, in part (the terminal part).
     recursive subroutine resize_window_tree(h, top, left, lines, cols, frame_cols)
         type(handle_type), intent(in) :: h
         integer, intent(in) :: top, left, lines, cols, frame_cols
@@ -1391,8 +1401,9 @@ contains
     !> Take window `h' out of the tree: its space goes to the sibling
     !> before it (or else after it), and a parent left with one child is
     !> replaced by that child.  `root' is the frame's root window, updated
-    !> as needed.  `heir' is the sibling that got the space.  The tree part
-    !> of window.c:Fdelete_window_internal; `h' itself is not freed.
+    !> as needed.  `heir' is the sibling that got the space; `h' itself is
+    !> not freed.  Port of window.c:Fdelete_window_internal, in part (the
+    !> tree part).
     subroutine remove_window_from_tree(h, root, heir, frame_cols)
         type(handle_type), intent(in) :: h
         type(handle_type), intent(inout) :: root

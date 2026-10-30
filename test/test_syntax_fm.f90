@@ -1,6 +1,10 @@
 ! test_syntax_fm.f90 -- tests for syntax_fm, characters_fm and the word
 ! commands.
+! Ports GNU Emacs 31.1 test/src/syntax-tests.el in part; only
+! syntax-class-character-test; the rest need unibyte buffers, comments
+! or sexps.
 !
+! Copyright (C) 2017-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
 !
 ! This file is part of Fortmacs.
@@ -49,6 +53,7 @@ module test_syntax_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_syntax_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

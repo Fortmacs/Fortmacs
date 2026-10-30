@@ -58,13 +58,14 @@ function help_name(s) { return s }
 function declline(s) { gsub(/len=:/, "len=*", s); return s }
 
 # The docstring of comment block b (lines joined by \036): the text
-# before "Port of".
+# before "Port of" or "Not a port".
 function docstring(b,    n, i, lines, out, k, line) {
     n = split(b, lines, "\036")
     out = ""
     for (i = 1; i <= n; i++) {
         line = lines[i]
         k = index(line, "Port of")
+        if (k == 0) k = index(line, "Not a port")
         # "Port" at the end of a line, "of" starting the next.
         if (k == 0 && i < n && match(line, /(^|[ \t])Port$/) && lines[i + 1] ~ /^of /)
             k = length(line) - 3

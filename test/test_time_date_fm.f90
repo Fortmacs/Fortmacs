@@ -1,5 +1,7 @@
 ! test_time_date_fm.f90 -- tests for time_date_fm.
-! Ported from GNU Emacs 31.1 test/lisp/calendar/time-date-tests.el.
+! Ports GNU Emacs 31.1 test/lisp/calendar/time-date-tests.el in part;
+! only test-seconds-to-string; the others wait for the rest of
+! time-date.el.
 !
 ! Copyright (C) 2019-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -33,6 +35,7 @@ module test_time_date_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_time_date_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

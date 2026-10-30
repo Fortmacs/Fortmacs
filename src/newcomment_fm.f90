@@ -121,6 +121,7 @@ module newcomment_fm
 
     abstract interface
         !> Compute the desired indentation of the comment starting at point.
+        !> Not a port.
         subroutine comment_indent_proc(indent, status)
             import :: comment_indent_type, status_type
             implicit none(type, external)
@@ -130,7 +131,7 @@ module newcomment_fm
 
         !> Comment or uncomment BEG .. END (correctly ordered), with the
         !> prefix argument ARG (absent for nil; UNIVERSAL true when it was a
-        !> C-u list, ARG then its numeric value).
+        !> C-u list, ARG then its numeric value).  Not a port.
         subroutine comment_region_proc(beg, end, status, arg, universal)
             import :: int64, status_type
             implicit none(type, external)
@@ -141,7 +142,7 @@ module newcomment_fm
         end subroutine comment_region_proc
 
         !> Quote (or with UNP unquote) the comment delimiters CS and CE in
-        !> the buffer, narrowed to a single comment.
+        !> the buffer, narrowed to a single comment.  Not a port.
         subroutine comment_quote_nested_proc(cs, ce, unp, status)
             import :: status_type
             implicit none(type, external)
@@ -377,7 +378,7 @@ module newcomment_fm
                                              logical_setting(name="comment_auto_fill_only_comments", value=.false.)
 
     abstract interface
-        !> A procedure of no arguments.
+        !> A procedure of no arguments.  Not a port.
         subroutine no_arg_proc()
             implicit none(type, external)
         end subroutine no_arg_proc
@@ -395,7 +396,7 @@ module newcomment_fm
 contains
 
     !> Define the commenting commands and variables (bindings_fm binds
-    !> M-;, C-x ; and C-x C-;, as bindings.el does).
+    !> M-;, C-x ; and C-x C-;, as bindings.el does).  Not a port.
     subroutine syms_of_newcomment()
         call forward_setting(comment_use_syntax)
         call forward_setting(comment_column, local_if_set=.true.)
@@ -437,6 +438,7 @@ contains
 
     ! ------------------------------------------------------------------
     ! The buffer-local comment-indent-function.
+    ! Make FN the current buffer's local function.  Not a port.
     subroutine indent_function_set_local(self, fn)
         class(comment_indent_function_type), intent(inout) :: self
         procedure(comment_indent_proc) :: fn
@@ -475,6 +477,8 @@ contains
         call move_alloc(grown, self%entries)
     end subroutine indent_function_set_local
 
+    ! The function in effect in the current buffer: its local one, else
+    ! the default.  Not a port.
     function indent_function_get(self) result(fn)
         class(comment_indent_function_type), intent(in) :: self
         procedure(comment_indent_proc), pointer :: fn
@@ -491,6 +495,7 @@ contains
         end do
     end function indent_function_get
 
+    ! Whether the current buffer has a local function.  Not a port.
     logical function indent_function_local_p(self) result(local)
         class(comment_indent_function_type), intent(in) :: self
         integer :: i
@@ -507,6 +512,7 @@ contains
         end do
     end function indent_function_local_p
 
+    ! Forget the current buffer's local function.  Not a port.
     subroutine indent_function_kill_local(self)
         class(comment_indent_function_type), intent(inout) :: self
         integer :: i
@@ -523,7 +529,7 @@ contains
     end subroutine indent_function_kill_local
 
     !> kill-all-local-variables: forget the current buffer's
-    !> `comment_indent_function'.
+    !> `comment_indent_function'.  Not a port.
     subroutine kill_newcomment_locals()
         call comment_indent_function%kill_local()
     end subroutine kill_newcomment_locals
@@ -531,7 +537,7 @@ contains
     ! ------------------------------------------------------------------
     ! Small helpers.
     !> Lisp's (string-match RE S): the 0-based index of the match, -1 for
-    !> none.
+    !> none.  Not a port.
     integer(int64) function smatch(re, s) result(idx)
         character(len=*), intent(in) :: re, s
         type(status_type) :: st
@@ -541,7 +547,7 @@ contains
     end function smatch
 
     !> The 0-based (string) start of group N of the last string match, -1
-    !> if it did not match.
+    !> if it did not match.  Not a port.
     integer(int64) function smb(n)
         integer, intent(in) :: n
         type(status_type) :: st
@@ -550,7 +556,7 @@ contains
     end function smb
 
     !> The 0-based (string) end of group N of the last string match, -1 if
-    !> it did not match.
+    !> it did not match.  Not a port.
     integer(int64) function sme(n)
         integer, intent(in) :: n
         type(status_type) :: st
@@ -559,7 +565,7 @@ contains
     end function sme
 
     !> Buffer position of the start of group N of the last match (0 for
-    !> none).
+    !> none).  Not a port.
     integer(int64) function mb(n)
         integer, intent(in) :: n
         type(status_type) :: st
@@ -568,7 +574,7 @@ contains
     end function mb
 
     !> Buffer position of the end of group N of the last match (0 for
-    !> none).
+    !> none).  Not a port.
     integer(int64) function me(n)
         integer, intent(in) :: n
         type(status_type) :: st
@@ -576,7 +582,7 @@ contains
         me = match_end(n, st)
     end function me
 
-    !> Lisp's (looking-at RE).
+    !> Lisp's (looking-at RE).  Not a port.
     logical function looking(re)
         character(len=*), intent(in) :: re
         type(status_type) :: st
@@ -586,6 +592,7 @@ contains
     end function looking
 
     !> Lisp's (re-search-forward RE BOUND NOERROR); true when found.
+    !> Not a port.
     logical function re_forward(re, bound, noerror)
         character(len=*), intent(in) :: re
         integer(int64), intent(in), optional :: bound
@@ -598,6 +605,7 @@ contains
     end function re_forward
 
     !> Lisp's (re-search-backward RE BOUND NOERROR); true when found.
+    !> Not a port.
     logical function re_backward(re, bound, noerror)
         character(len=*), intent(in) :: re
         integer(int64), intent(in), optional :: bound
@@ -609,7 +617,7 @@ contains
         re_backward = st%ok() .and. found > 0
     end function re_backward
 
-    !> The character at POS (default point), -1 if none.
+    !> The character at POS (default point), -1 if none.  Not a port.
     integer function after(pos)
         integer(int64), intent(in), optional :: pos
         integer(int32) :: c
@@ -620,7 +628,7 @@ contains
         if (found) after = c
     end function after
 
-    !> The character before POS (default point), -1 if none.
+    !> The character before POS (default point), -1 if none.  Not a port.
     integer function before(pos)
         integer(int64), intent(in), optional :: pos
         integer(int32) :: c
@@ -631,7 +639,7 @@ contains
         if (found) before = c
     end function before
 
-    !> The text from FROM to TO.
+    !> The text from FROM to TO.  Not a port.
     function text(from, to) result(s)
         integer(int64), intent(in) :: from, to
         character(len=:), allocatable :: s
@@ -641,7 +649,7 @@ contains
         if (.not. allocated(s)) s = ""
     end function text
 
-    !> A string of N copies of character C (a byte string).
+    !> A string of N copies of character C (a byte string).  Not a port.
     function repeat_char(c, n) result(s)
         character(len=*), intent(in) :: c
         integer(int64), intent(in) :: n
@@ -651,6 +659,7 @@ contains
     end function repeat_char
 
     !> The 0-based characters FROM to TO (exclusive; default the end) of S.
+    !> Not a port.
     function sub(s, from, to) result(r)
         character(len=*), intent(in) :: s
         integer(int64), intent(in) :: from
@@ -662,7 +671,7 @@ contains
         if (.not. st%ok()) r = ""
     end function sub
 
-    !> The current buffer's comment-start, empty if it is nil.
+    !> The current buffer's comment-start, empty if it is nil.  Not a port.
     function cstart() result(s)
         character(len=:), allocatable :: s
 
@@ -670,7 +679,7 @@ contains
         if (allocated(comment_start%value)) s = comment_start%value
     end function cstart
 
-    !> The current buffer's comment-end.
+    !> The current buffer's comment-end.  Not a port.
     function cend() result(s)
         character(len=:), allocatable :: s
 
@@ -679,6 +688,7 @@ contains
     end function cend
 
     !> The current buffer's comment-start-skip, empty if it is nil.
+    !> Not a port.
     function cskip() result(s)
         character(len=:), allocatable :: s
 
@@ -686,7 +696,7 @@ contains
         if (allocated(comment_start_skip%value)) s = comment_start_skip%value
     end function cskip
 
-    !> The padding, as a string.
+    !> The padding, as a string.  Not a port.
     function cpad() result(s)
         character(len=:), allocatable :: s
 
@@ -695,13 +705,13 @@ contains
     end function cpad
 
     !> Whether comment-use-syntax is true (anything but nil: `undecided'
-    !> counts as true, as in Lisp).
+    !> counts as true, as in Lisp).  Not a port.
     logical function use_syntax()
         use_syntax = comment_use_syntax%value /= COMMENT_USE_SYNTAX_NIL
     end function use_syntax
 
     !> A marker at POS that advances when text is inserted at it if
-    !> INSERTION_TYPE.
+    !> INSERTION_TYPE.  Not a port.
     function marker_at(pos, insertion_type) result(m)
         integer(int64), intent(in) :: pos
         logical, intent(in), optional :: insertion_type
@@ -714,7 +724,7 @@ contains
         call copy_marker_at(pos, m, it, st)
     end function marker_at
 
-    !> The position of marker M.
+    !> The position of marker M.  Not a port.
     integer(int64) function mpos(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
@@ -722,7 +732,7 @@ contains
         call marker_position(m, mpos, st)
     end function mpos
 
-    !> Release marker M.
+    !> Release marker M.  Not a port.
     subroutine unmark(m)
         type(handle_type), intent(inout) :: m
         type(status_type) :: st
@@ -730,7 +740,7 @@ contains
         call free_marker(m, st)
     end subroutine unmark
 
-    !> Save the current restriction (save-restriction).
+    !> Save the current restriction (save-restriction).  Not a port.
     function save_restriction() result(r)
         type(restriction_type) :: r
 
@@ -742,7 +752,7 @@ contains
         end if
     end function save_restriction
 
-    !> Restore restriction R (the end of save-restriction).
+    !> Restore restriction R (the end of save-restriction).  Not a port.
     subroutine restore_restriction(r)
         type(restriction_type), intent(inout) :: r
         type(status_type) :: st
@@ -1327,7 +1337,7 @@ contains
     end subroutine comment_enter_backward
 
     !> The raw syntax code (with flags) of the character at POS (car of
-    !> syntax-after), 0 outside the buffer.
+    !> syntax-after), 0 outside the buffer.  Not a port.
     integer(int32) function syntax_code_at(pos)
         integer(int64), intent(in) :: pos
         type(syntax_descriptor_type) :: d
@@ -1340,7 +1350,7 @@ contains
         if (d%code > 0) syntax_code_at = d%code
     end function syntax_code_at
 
-    !> The UTF-8 string of character C (empty for -1).
+    !> The UTF-8 string of character C (empty for -1).  Not a port.
     function char_string(c) result(s)
         use character_fm, only: char_string_utf8 => char_string, MAX_MULTIBYTE_LENGTH
         integer, intent(in) :: c
@@ -1389,7 +1399,7 @@ contains
         end if
     end subroutine comment_indent_default
 
-    !> `fill_column', or `comment_fill_column' when it is set.
+    !> `fill_column', or `comment_fill_column' when it is set.  Not a port.
     integer(int64) function the_fill_column()
         the_fill_column = fill_column%value
         if (comment_fill_column%value >= 0) the_fill_column = comment_fill_column%value
@@ -1857,7 +1867,7 @@ contains
     end function comment_padright
 
     !> The regexp matching each character of S optionally, in order
-    !> (padding is not required).
+    !> (padding is not required).  Not a port.
     function optional_chars(s) result(r)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: r
@@ -1991,6 +2001,7 @@ contains
     end subroutine cmd_uncomment_region
 
     !> Call REGION_FN on BEG..END with the current prefix argument.
+    !> Not a port.
     recursive subroutine with_prefix(beg, end, status, region_fn)
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
@@ -2005,7 +2016,7 @@ contains
         end if
     end subroutine with_prefix
 
-    !> (region-beginning) and (region-end).
+    !> (region-beginning) and (region-end).  Not a port.
     subroutine region_bounds(beg, end, status)
         integer(int64), intent(out) :: beg, end
         type(status_type), intent(out) :: status
@@ -2224,6 +2235,7 @@ contains
     end subroutine uncomment_region_default_1
 
     !> `comment_continue' as an optional argument: absent when nil.
+    !> Not a port.
     function comment_continue_or_absent() result(s)
         character(len=:), allocatable :: s
 
@@ -2231,7 +2243,7 @@ contains
         if (allocated(comment_continue%value)) s = comment_continue%value
     end function comment_continue_or_absent
 
-    !> The number of lines between FROM and TO.
+    !> The number of lines between FROM and TO.  Not a port.
     integer(int64) function count_lines(from, to)
         integer(int64), intent(in) :: from, to
 
@@ -2337,7 +2349,7 @@ contains
     end subroutine comment_make_extra_lines
 
     !> (replace-match NEW t t S): S with the last string match replaced
-    !> by NEW, into R.
+    !> by NEW, into R.  Not a port.
     subroutine replace_in_string(new, s, r)
         character(len=*), intent(in) :: new, s
         character(len=:), allocatable, intent(out) :: r
@@ -2532,7 +2544,7 @@ contains
         call goto_char(min(opoint, point_max()))
     end subroutine comment_region_internal
 
-    !> Whether there is a TAB between point and LIMIT.
+    !> Whether there is a TAB between point and LIMIT.  Not a port.
     subroutine search_tab(limit, found)
         integer(int64), intent(in) :: limit
         logical, intent(out) :: found
@@ -3209,7 +3221,7 @@ contains
     end subroutine comment_indent_new_line
 
     !> The indentation of a comment continuing one on its own line:
-    !> `comment_column' unconditionally.
+    !> `comment_column' unconditionally.  Not a port.
     subroutine own_line_indent(indent, status)
         type(comment_indent_type), intent(out) :: indent
         type(status_type), intent(out) :: status
@@ -3229,6 +3241,7 @@ contains
     end subroutine cmd_comment_indent_new_line
 
     !> `comment_line_break_function': `comment_indent_new_line' with SOFT.
+    !> Not a port.
     recursive subroutine comment_line_break(status, soft)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: soft

@@ -1,4 +1,5 @@
 ! test_namelist_fm.f90 -- tests for namelist_fm.
+! Own tests; namelist_fm ports nothing.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -34,6 +35,7 @@ module test_namelist_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_namelist_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
@@ -109,8 +111,9 @@ contains
         associate (it => groups(1)%items)
             call check(error, size(it) == 3, "three objects")
             if (allocated(error)) return
-            call check(error, size(it(1)%values) == 2 .and. it(1)%values(1)%string == "x'y" .and. &
-                       it(1)%values(2)%string == "z", "a")
+            call check(error, size(it(1)%values) == 2, "a")
+            if (.not. allocated(error)) call check(error, it(1)%values(1)%string == "x'y" .and. &
+                                                   it(1)%values(2)%string == "z", "a")
             if (allocated(error)) return
             call check(error, it(2)%name == "b" .and. it(2)%values(1)%kind == NAMELIST_LOGICAL .and. &
                        it(2)%values(1)%logical, "b")
