@@ -94,6 +94,7 @@ module bindings_fm
     use diff_mode_fm, only: syms_of_diff_mode
     use diff_fm, only: syms_of_diff
     use comint_fm, only: syms_of_comint, comint_mode_map
+    use pcomplete_fm, only: syms_of_pcomplete
     use auth_source_fm, only: syms_of_auth_source
     use ansi_color_fm, only: syms_of_ansi_color
     use shell_fm, only: syms_of_shell, shell_mode_map
@@ -325,6 +326,7 @@ contains
         call syms_of_sh_script()
         call syms_of_process()
         call syms_of_comint()
+        call syms_of_pcomplete()
         call syms_of_ansi_color()
         call syms_of_shell()
         call syms_of_compile()

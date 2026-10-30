@@ -24,14 +24,16 @@
 !> submodule minibuffer_styles_fm), TAB, SPC, ? and RET in the completion
 !> maps, `minibuffer_message', the *Completions* list, and completion in
 !> buffers: `completion_at_point' with `completion_at_point_functions',
-!> `completion_in_region' and `completion_in_region_mode'.
+!> `completion_in_region' and `completion_in_region_mode', with the
+!> `:exit_function' of the completion data; tables with quoting
+!> (`completion_table_with_quoting', in minibuf_fm).
 !>
 !> Not ported yet: cycling, completion metadata other than the category
-!> (annotations, groups, sorting functions, `completion_extra_properties',
-!> `:exit-function'), moving through and choosing from *Completions*
-!> (M-<up>, M-<down>, M-RET, mouse), `completion_show_help', completion
-!> tables with quoting, and completion of environment variables and ~USER
-!> in file names.
+!> and identity sorting (annotations, groups, other sorting functions,
+!> the rest of `completion_extra_properties'), moving through and
+!> choosing from *Completions* (M-<up>, M-<down>, M-RET, mouse),
+!> `completion_show_help', and completion of environment variables and
+!> ~USER in file names.
 module minibuffer_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use commands_fm, only: commands
@@ -43,7 +45,7 @@ module minibuffer_fm
     use keymap_fm, only: define_key, key_parse, make_sparse_keymap, set_keymap_parent, keymap_live_p, &
                          free_keymap
     use lisp_fm, only: value_type, nil, t_value, make_string, make_fixnum, list, list_elements, list_length, &
-                       list_elt, fixnump, xfixnum, stringp, xstring, nilp, make_list
+                       list_elt, fixnump, xfixnum, stringp, xstring, nilp, make_list, symbolp
     use data_fm, only: value_eq, symbol_value, set
     use character_fm, only: string_char_and_length
     use editfns_fm, only: point, point_max, goto_char, buffer_substring
@@ -62,7 +64,7 @@ module minibuffer_fm
     use dired_fm, only: file_name_completion, file_name_all_completions
     use lread_fm, only: sym
     use keyboard_fm, only: throw_exit, command_loop_level, this_command, last_command, minibuffer_message_text, &
-                           minibuffer_message_timeout
+                           minibuffer_message_timeout, last_message
     use timer_fm, only: run_at_time, free_timer, timerp
     use minibuf_fm, only: minibufferp, minibuf_level, minibuffer_prompt_end, abort_minibuffers, &
                           minibuffer_innermost_command_loop_p, innermost_minibuffer_p, &
@@ -71,12 +73,13 @@ module minibuffer_fm
                           test_completion, completion_ignore_case, TABLE_FUNCTION, COMPLETE_TRY, COMPLETE_ALL, &
                           COMPLETE_TEST, COMPLETE_BOUNDARIES, minibuffer_calling_buffer, completion_list_table, &
                           minibuffer_setup_function, minibuffer_setup_proc, history_added, minibuffer_default, &
-                          minibuffer_string_type
+                          minibuffer_string_type, quoting_table_call
     use fileio_fm, only: file_name_absolute_p, expand_file_name, substitute_in_file_name, file_name_directory, &
                          file_name_nondirectory, file_exists_p, file_name_as_directory, file_directory_p
     use subr_fm, only: add_to_history, history_delete_duplicates
     use files_fm, only: abbreviate_file_name
-    use minibuf_table_fm, only: capf_data_type
+    use minibuf_table_fm, only: capf_data_type, COMPLETION_EXACT, COMPLETION_FINISHED, COMPLETION_UNKNOWN, &
+                                completion_exit_function_proc, TABLE_QUOTING
     use eval_fm, only: capf_hook_type, capf_function, capf_entry_type
     use marker_fm, only: copy_marker_at, copy_marker, free_marker, marker_buffer, marker_position
     use keymap_fm, only: push_minor_mode_overriding_map, remove_minor_mode_overriding_map
@@ -94,7 +97,7 @@ module minibuffer_fm
     public :: completion_in_region, completion_in_region_default, completion_at_point, completion_help_at_point, &
               completion_at_point_run, &
               cir_predicate_proc, completion_in_region_proc
-    public :: internal_complete_buffer, minibuffer_maybe_quote_filename
+    public :: internal_complete_buffer, minibuffer_maybe_quote_filename, completions_visible
     public :: completing_read, completion_try_completion, completion_all_completions, completion_boundaries, &
               completion_table_with_context, completion_complete_and_exit, completion_do_completion, &
               completion_prompt_end, completion_exit_proc, &
@@ -340,6 +343,11 @@ module minibuffer_fm
     !> we entered `completion_in_region_mode'.  Port of minibuffer.el
     !> completion-in-region-mode--predicate.
     procedure(cir_predicate_proc), pointer :: cir_mode_predicate => null()
+
+    !> The `:exit_function' of completion-extra-properties: function to
+    !> run after completion is performed (null for none).  Port of
+    !> minibuffer.el completion-extra-properties (its `:exit-function').
+    procedure(completion_exit_function_proc), pointer, public :: completion_exit_function => null()
 
     !> completion-in-region--data: the start and end markers, the table
     !> and the predicate (`cir_data' false for nil).
@@ -995,8 +1003,15 @@ contains
 
         bstart = 0
         bend = schars(suffix)
-        if (collection%kind /= TABLE_FUNCTION) return
-        call collection%fn(string, COMPLETE_BOUNDARIES, boundaries, status, pred, suffix)
+
+        if (collection%kind == TABLE_QUOTING) then
+            call quoting_table_call(collection, string, COMPLETE_BOUNDARIES, boundaries, status, pred, suffix)
+        else if (collection%kind == TABLE_FUNCTION) then
+            call collection%fn(string, COMPLETE_BOUNDARIES, boundaries, status, pred, suffix)
+        else
+            return
+        end if
+
         if (.not. status%ok() .or. list_length(boundaries) /= 2) return
         if (fixnump(list_elt(boundaries, 1_int64))) bstart = xfixnum(list_elt(boundaries, 1_int64))
         if (fixnump(list_elt(boundaries, 2_int64))) bend = xfixnum(list_elt(boundaries, 2_int64))
@@ -1135,11 +1150,54 @@ contains
         if (completion_show_inline_help) call minibuffer_message(msg)
     end subroutine completion_message
 
-    !> Port of minibuffer.el:completion--done (no :exit-function).
-    subroutine completion_done(msg)
+    !> Run the `:exit_function' of `completion_extra_properties' on STRING
+    !> with FINISHED (UNKNOWN finds out whether STRING is a finished
+    !> completion), and show MESSAGE unless that function showed one.
+    !> Port of minibuffer.el:completion--done.
+    recursive subroutine completion_done(string, finished, msg)
+        character(len=*), intent(in) :: string
+        integer, intent(in) :: finished
         character(len=*), intent(in), optional :: msg
+        character(len=:), allocatable :: pre_msg, post_msg
+        type(value_type) :: tried
+        type(status_type) :: st
+        integer :: how
+        logical :: show
 
-        if (present(msg)) call completion_message(msg)
+        how = finished
+        pre_msg = ""
+
+        if (associated(completion_exit_function)) then
+            if (allocated(last_message)) pre_msg = last_message
+
+            if (how == COMPLETION_UNKNOWN) then
+                if (associated(minibuffer_completion_predicate)) then
+                    call try_completion(string, minibuffer_completion_table, tried, st, minibuffer_completion_predicate)
+                else
+                    call try_completion(string, minibuffer_completion_table, tried, st)
+                end if
+
+                if (symbolp(tried) .and. .not. nilp(tried)) then
+                    how = COMPLETION_FINISHED
+                else
+                    how = COMPLETION_EXACT
+                end if
+            end if
+
+            call completion_exit_function(string, how)
+        end if
+
+        if (.not. present(msg)) return
+        ! Don't output any message if the exit-fun already did so.
+        show = .true.
+
+        if (associated(completion_exit_function)) then
+            post_msg = ""
+            if (allocated(last_message)) post_msg = last_message
+            show = pre_msg == post_msg .and. len(pre_msg) == len(post_msg)
+        end if
+
+        if (show) call completion_message(msg)
     end subroutine completion_done
 
     !> Replace the buffer text between BEG and END with NEWTEXT.
@@ -1220,9 +1278,9 @@ contains
             call goto_char(end)
 
             if (expect_exact) then
-                call completion_done()
+                call completion_done(string, COMPLETION_FINISHED)
             else
-                call completion_done("Sole completion")
+                call completion_done(string, COMPLETION_FINISHED, "Sole completion")
             end if
 
             ! Exact and unique match.
@@ -1271,9 +1329,16 @@ contains
 
             if (completed .or. only_changed_boundaries) then
                 call minibuffer_hide_completions()
+
                 ! If completion did not put point at end of field, it's a
                 ! sign that completion is not finished.
-                if (exact) call completion_done()
+                if (exact) then
+                    if (comp_pos < schars(comp%string)) then
+                        call completion_done(comp%string, COMPLETION_EXACT)
+                    else
+                        call completion_done(comp%string, COMPLETION_UNKNOWN)
+                    end if
+                end if
             else if (.not. exact) then
                 ! Show the completion table, if requested.
                 if (completion_auto_help) then
@@ -1291,9 +1356,9 @@ contains
                 end if
 
                 if (expect_exact) then
-                    call completion_done()
+                    call completion_done(comp%string, COMPLETION_EXACT)
                 else
-                    call completion_done("Complete, but not unique")
+                    call completion_done(comp%string, COMPLETION_EXACT, "Complete, but not unique")
                 end if
             end if
 
@@ -1724,6 +1789,7 @@ contains
         type(capf_data_type) :: data
         procedure(capf_function), pointer :: fn, saved_fun
         procedure(cir_predicate_proc), pointer :: saved_pred
+        procedure(completion_exit_function_proc), pointer :: saved_exit
         type(handle_type) :: saved_start
 
         status = status_type()
@@ -1731,6 +1797,14 @@ contains
         call run_capfs(data, fn, status, functions)
         if (.not. status%ok()) return
         if (.not. data%found) return
+
+        if (associated(data%perform)) then
+            res = data%perform()
+            return
+        end if
+
+        saved_exit => completion_exit_function
+        completion_exit_function => data%exit_function
         saved_fun => capf_field_fun
         saved_start = capf_field_start
         saved_pred => completion_in_region_mode_predicate
@@ -1748,6 +1822,7 @@ contains
         capf_field_fun => saved_fun
         capf_field_start = saved_start
         completion_in_region_mode_predicate => saved_pred
+        completion_exit_function => saved_exit
         status = status_type()
     end subroutine completion_at_point_run
 
@@ -2019,7 +2094,7 @@ contains
         if (completion_flex_sorting) then
             ! The display-sort-function of completion--flex-adjust-metadata.
             call sort_by_flex_cost(strings)
-        else
+        else if (.not. minibuffer_completion_table%unsorted) then
             ! minibuffer-sort-alphabetically.
             call sort_strings(strings)
         end if
