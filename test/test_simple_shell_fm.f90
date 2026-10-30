@@ -50,6 +50,7 @@ contains
 
     subroutine collect_simple_shell_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("simple-tests-shell-command-39067", test_39067), &
                     new_unittest("simple-tests-shell-command-dont-erase-buffer", test_dont_erase_buffer), &
@@ -69,6 +70,7 @@ contains
         character(len=*), intent(in) :: name
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call get_buffer_create(name, h, st)
         call set_buffer(h, st)
         call set_buffer_read_only(h, .false., st)
@@ -91,21 +93,26 @@ contains
         character(len=:), allocatable :: command, expected
         integer :: way, k, n, run
         integer(int64) :: expected_point
+
         command = "printf '%s' '"//str//"'"
         call fresh("caller-buf", caller)
+
         if (output_is_current) then
             output = caller
         else
             call get_buffer_create("output-buf", output, st)
         end if
+
         n = 2
         if (output_is_current) n = 3
+
         do way = 1, n
             do k = 1, size(SAVE_POS)
                 shell_command_dont_erase_buffer = SAVE_POS(k)
                 call set_buffer(output, st)
                 call erase_buffer(st)
                 call set_buffer(caller, st)
+
                 do run = 1, 2
                     select case (way)
                     case (1)
@@ -115,11 +122,14 @@ contains
                     case default
                         call shell_command(command, st, insert_here=.true.)
                     end select
+
                     call check(error, st%ok(), format_error(st))
                     if (allocated(error)) exit
                 end do
+
                 if (allocated(error)) exit
                 call set_buffer(output, st)
+
                 if (test_point) then
                     select case (SAVE_POS(k))
                     case (DONT_ERASE_BEG_LAST_OUT)
@@ -131,6 +141,7 @@ contains
                     case default
                         expected_point = 1 + len(str)
                     end select
+
                     call check(error, point(), expected_point)
                 else
                     if (SAVE_POS(k) == DONT_ERASE_ERASE) then
@@ -144,13 +155,17 @@ contains
                     else
                         expected = str//str
                     end if
+
                     call check(error, buffer_string(), expected)
                 end if
+
                 call set_buffer(caller, st)
                 if (allocated(error)) exit
             end do
+
             if (allocated(error)) exit
         end do
+
         shell_command_dont_erase_buffer = DONT_ERASE_NIL
         call kill_buffer(caller, st)
         if (buffer_live_p(output)) call kill_buffer(output, st)
@@ -160,6 +175,7 @@ contains
     !> `shell_command_dont_erase_buffer'.
     subroutine test_39067(error)
         type(error_type), allocatable, intent(out) :: error
+
         call with_dont_erase_buffer(error, "foo\n", .true., .false.)
         if (.not. allocated(error)) call with_dont_erase_buffer(error, "foo\n", .false., .false.)
     end subroutine test_39067
@@ -168,6 +184,7 @@ contains
     !> command.
     subroutine test_dont_erase_buffer(error)
         type(error_type), allocatable, intent(out) :: error
+
         call with_dont_erase_buffer(error, "foo\n", .false., .true.)
     end subroutine test_dont_erase_buffer
 
@@ -176,6 +193,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh("*shell-test*", h)
         last_message = ""
         call shell_command("true", st)
@@ -195,6 +213,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, out, win
         type(status_type) :: st
+
         call fresh("*shell-test*", h)
         last_message = ""
         call shell_command("echo hello", st)
@@ -227,6 +246,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh("*shell-test*", h)
         call insert("ab", st)
         call goto_char(2_int64)
@@ -244,15 +264,18 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer :: code
+
         call fresh("*shell-test*", h)
         call insert("c"//new_line("a")//"a"//new_line("a")//"b"//new_line("a")//"tail", st)
         call shell_command_on_region(1_int64, 7_int64, "sort", st, replace=.true., insert_here=.true., &
                                      exit_status=code)
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, code, 0)
+
         if (.not. allocated(error)) then
             call check(error, buffer_string(), "a"//new_line("a")//"b"//new_line("a")//"c"//new_line("a")//"tail")
         end if
+
         if (.not. allocated(error)) call check(error, point(), 1_int64)
         if (.not. allocated(error)) call check(error, mark_position(), 7_int64)
         call kill_buffer(h, st)
@@ -263,6 +286,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, eb
         type(status_type) :: st
+
         call fresh("*shell-test*", h)
         last_message = ""
         call shell_command_on_region(1_int64, 1_int64, "echo oops >&2", st, error_buffer="*Shell Errors*")
@@ -288,6 +312,7 @@ contains
         use editfns_fm, only: buffer_size_of
         type(handle_type), intent(in) :: buffer
         type(status_type) :: st
+
         call buffer_size_of(buffer, size_of, st)
     end function size_of
 
@@ -299,7 +324,9 @@ contains
         type(status_type) :: st
         integer(int64) :: start, now, rate
         logical :: got
+
         call system_clock(start, rate)
+
         do
             if (.not. buffer_live_p(buffer)) exit
             proc = get_buffer_process(buffer)
@@ -325,6 +352,7 @@ contains
         integer(int64) :: start, now, rate
         logical :: got
         integer :: k
+
         call init_bindings()
         call fresh("*shell-test*", h)
         async_shell_command_buffer = ASYNC_NEW_BUFFER
@@ -353,6 +381,7 @@ contains
         call check(error, buffer_live_p(buffer), "second buffer "//second)
         if (allocated(error)) return
         call system_clock(start, rate)
+
         do
             if (size_of(buffer) > 0) exit
             proc = get_buffer_process(buffer)
@@ -361,9 +390,11 @@ contains
             if ((now - start)/max(rate, 1_int64) > 60) exit
             call accept_process_output(got, st, proc, 1.0)
         end do
+
         call check(error, size_of(buffer) > 0, "second output")
         win = get_buffer_window(buffer)
         if (.not. allocated(error)) call check(error, win%index /= 0, "second window")
+
         do k = 1, 2
             if (k == 1) buffer = get_buffer(first)
             if (k == 2) buffer = get_buffer(second)
@@ -372,6 +403,7 @@ contains
             if (proc%index /= 0) call delete_process(proc, st)
             call kill_buffer(buffer, st)
         end do
+
         async_shell_command_buffer = ASYNC_CONFIRM_NEW_BUFFER
         async_shell_command_display_buffer = .true.
         call kill_buffer(h, st)
@@ -385,6 +417,7 @@ contains
         type(handle_type) :: h, buffer
         type(status_type) :: st
         character(len=:), allocatable :: text
+
         call init_bindings()
         call fresh("*shell-test*", h)
         last_message = ""
@@ -409,6 +442,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call init_bindings()
         call fresh("*shell-test*", h)
         call discard_input()

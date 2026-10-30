@@ -50,6 +50,7 @@ contains
 
     subroutine collect_undo_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("undo-test0", test_undo0), &
                     new_unittest("undo-test2", test_undo2), &
@@ -65,6 +66,7 @@ contains
     subroutine fresh(h)
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call get_buffer_create("*undo-test*", h, st)
         call kill_buffer(h, st)
         call get_buffer_create("*undo-test*", h, st)
@@ -80,6 +82,7 @@ contains
         character(len=*), intent(in) :: cmds(:)
         type(status_type) :: st
         integer :: k
+
         do k = 1, size(cmds)
             last_command = this_command
             this_command = sym(trim(cmds(k)))
@@ -93,6 +96,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call undo(nil(), st)
         if (st%ok()) call undo(nil(), st)
@@ -130,6 +134,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         character(len=:), allocatable :: before
+
         call fresh(h)
         call undo_boundary()
         call insert("One", st)
@@ -163,6 +168,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         logical :: modified
+
         call fresh(h)
         call insert("1", st)
         call undo_boundary()
@@ -182,6 +188,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: file
         logical :: modified
+
         file = temporary_file_directory()//"fortmacs-undo-test"
         call get_buffer_create(" *undo-file*", h, st)
         call set_buffer(h, st)
@@ -207,12 +214,15 @@ contains
         type(status_type) :: st
         character(len=1), parameter :: letters(5) = ["a", "b", "c", "d", "e"]
         integer :: k
+
         call fresh(h)
         call init_bindings()
+
         do k = 1, size(letters)
             call insert(letters(k), st)
             call undo_boundary()
         end do
+
         call check(error, buffer_string(), "abcde")
         if (allocated(error)) return
         call exec([character(len=16) :: "undo", "undo"])
@@ -257,6 +267,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call discard_input()
         prefix_arg = nil()
@@ -277,6 +288,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call discard_input()
         prefix_arg = nil()

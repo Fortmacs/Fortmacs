@@ -58,6 +58,7 @@ contains
     logical :: give_up, have_prefix, have_saved, matched, no_good, at_fill_point
     type(status_type) :: st
     type(handle_type) :: m
+
     status = status_type()
     ! Returns t if it really did any work.
     auto_fill_result = .false.
@@ -65,6 +66,7 @@ contains
     if (justify == JUSTIFY_NONE) return
     fc = current_fill_column()
     if (justify == JUSTIFY_LEFT .and. current_column() <= fc) return
+
     if (allocated(auto_fill_inhibit_regexp%value)) then
         opoint = point()
         call beginning_of_line()
@@ -72,17 +74,21 @@ contains
         call goto_char(opoint)
         if (matched) return
     end if
+
     ! (let ((fill-prefix fill-prefix)) ...)
     have_saved = allocated(fill_prefix%value)
     if (have_saved) saved_prefix = fill_prefix%value
+
     if (justify == JUSTIFY_FULL .or. justify == JUSTIFY_CENTER .or. justify == JUSTIFY_RIGHT) then
         opoint = point()
         call unjustify_current_line(st)
         call goto_char(min(opoint, point_max()))
     end if
+
     ! Choose a fill-prefix automatically.
     have_prefix = allocated(fill_prefix%value)
     if (have_prefix) have_prefix = len(fill_prefix%value) > 0
+
     if (adaptive_fill_mode%value .and. .not. have_prefix) then
         opoint = point()
         left = forward_paragraph(-1_int64)
@@ -92,13 +98,16 @@ contains
         to = point()
         call goto_char(opoint)
         call fill_context_prefix(from, to, prefix, have_prefix)
+
         if (have_prefix .and. len(prefix) > 0) then
             ! Use auto-indentation rather than a guessed empty prefix.
             if (.not. (fill_indent_according_to_mode .and. &
                        string_match("\`[ "//TAB//"]*\'", prefix, st) > 0)) fill_prefix%value = prefix
         end if
     end if
+
     give_up = .false.
+
     do while (.not. give_up .and. current_column() > fc)
         ! Determine where to split the line.
         opoint = point()
@@ -114,12 +123,15 @@ contains
         ! See whether the place we found is any good.
         call goto_char(fill_point)
         no_good = bolp()
+
         if (.not. no_good) then
             ! There is no use breaking at end of line.
             moved = skip_chars_forward(" ", st)
             no_good = eolp()
         end if
+
         call goto_char(opoint)
+
         if (no_good) then
             ! No good place to break => stop trying.
             give_up = .true.
@@ -132,12 +144,15 @@ contains
             moved = skip_chars_backward(" "//TAB, st)
             at_fill_point = point() == fill_point
             call goto_char(opoint)
+
             if (at_fill_point) then
                 call default_indent_new_line(status, .true.)
             else
                 call save_excursion_newline_at(fill_point, status)
             end if
+
             if (.not. status%ok()) exit
+
             ! Now do justification, if required
             if (justify /= JUSTIFY_LEFT) then
                 ! (save-excursion)
@@ -148,11 +163,13 @@ contains
                 call goto_char(opoint)
                 call free_marker(m, st)
             end if
+
             ! If making the new line didn't reduce the hpos of the end of
             ! the line, then give up now; trying again will not help.
             if (current_column() >= prev_column) give_up = .true.
         end if
     end do
+
     ! Justify last line.
     if (status%ok()) call justify_current_line(status, justify, .true., .true.)
     if (status%ok()) auto_fill_result = .true.
@@ -168,6 +185,7 @@ contains
         type(handle_type) :: m
         type(status_type) :: st
         integer(int64) :: pos
+
         call copy_marker_at(point(), m, .false., st)
         call goto_char(fill_point)
         call default_indent_new_line(status, .true.)
@@ -179,17 +197,22 @@ contains
     module procedure default_indent_new_line
     integer(int64) :: opoint
     logical :: noindent, saved
+
     status = status_type()
+
     if (allocated(comment_start%value) .and. associated(comment_line_break_function)) then
         saved = comment_auto_fill_only_comments%value
+
         ! Force breaking the line when called interactively.
         if (present(force)) then
             if (force) comment_auto_fill_only_comments%value = .false.
         end if
+
         call comment_line_break_function(status, soft)
         comment_auto_fill_only_comments%value = saved
         return
     end if
+
     ! Insert the newline before removing empty space so that markers get
     ! preserved better.
     if (present(soft)) then
@@ -201,6 +224,7 @@ contains
     else
         call newline(status, 1_int64)
     end if
+
     if (.not. status%ok()) return
     opoint = point()
     call goto_char(point() - 1)
@@ -209,6 +233,7 @@ contains
     call goto_char(point() + 1)
     call delete_horizontal_space(.false., status)
     if (.not. status%ok()) return
+
     if (allocated(fill_prefix%value) .and. .not. adaptive_fill_mode%value) then
         ! Blindly trust a non-adaptive fill-prefix.
         call indent_to_left_margin(status, noindent)
@@ -230,14 +255,17 @@ contains
     type(status_type) :: st
     type(value_type) :: saved_event
     type(hook_type) :: saved_hook
+
     call barf_if_buffer_read_only(status)
     if (.not. status%ok()) return
+
     if (present(arg)) then
         if (arg < 0) then
             call set_error(status, FM_GENERIC_ERROR, "Repetition argument has to be non-negative")
             return
         end if
     end if
+
     is_interactive = .false.
     if (present(interactive)) is_interactive = interactive
     ! Call self-insert so that auto-fill, abbrev expansion etc. happen.
@@ -253,6 +281,7 @@ contains
     if (present(arg)) inhibit_auto_fill = .true.
     n = 1
     if (present(arg)) n = arg
+
     if (.not. is_interactive) then
         ! For non-interactive uses, the rest is the only function of
         ! post-self-insert-hook (it runs last, after auto-fill).
@@ -268,6 +297,7 @@ contains
         call self_insert_command(n, 10_int64, status)
         call post_self_insert_hook%remove(newline_postproc, local=.true.)
     end if
+
     inhibit_auto_fill = saved_inhibit
     last_command_event = saved_event
     end procedure newline
@@ -282,6 +312,7 @@ contains
         integer(int64) :: pos
         type(handle_type) :: m
         type(status_type) :: st
+
         status = status_type()
         call post_self_insert_hook%remove(newline_postproc, local=.true.)
         ! If the newline leaves the previous line blank, and we have a left
@@ -306,36 +337,44 @@ contains
     integer(int64) :: k, pos, col
     type(handle_type) :: loc
     type(status_type) :: st
+
     do_fill_prefix = allocated(fill_prefix%value) .and. bolp()
     do_left_margin = bolp()
     if (do_left_margin) do_left_margin = current_left_margin() > 0
     call point_marker(loc)
     ! Don't expand an abbrev before point.
     saved_abbrev_mode = .false.
+
     if (associated(abbrev_mode)) then
         saved_abbrev_mode = abbrev_mode%value
         abbrev_mode%value = .false.
     end if
+
     call newline(status, n)
     if (associated(abbrev_mode)) abbrev_mode%value = saved_abbrev_mode
+
     if (status%ok()) then
         call marker_position(loc, pos, st)
         call goto_char(pos)
         k = n
+
         do while (k > 0)
             if (bolp()) then
                 if (do_left_margin) col = indent_to(current_left_margin(), status)
                 if (do_fill_prefix .and. status%ok()) call insert(fill_prefix%value, status)
                 if (.not. status%ok()) exit
             end if
+
             if (forward_line(1_int64) /= 0) continue
             k = k - 1
         end do
+
         call marker_position(loc, pos, st)
         call goto_char(pos)
         ! Necessary in case a margin or prefix was inserted.
         if (status%ok()) call end_of_line()
     end if
+
     call free_marker(loc, st)
     end procedure open_line
 
@@ -343,6 +382,7 @@ contains
     status = status_type()
     filled = .false.
     if (inhibit_auto_fill) return
+
     if (associated(auto_fill_function%value)) then
         auto_fill_result = .false.
         call auto_fill_function%value(status)
@@ -365,7 +405,9 @@ contains
     module procedure set_fill_column
     integer(int64) :: n
     character(len=24) :: a, b
+
     status = status_type()
+
     if (consp(arg)) then
         n = current_column()
     else if (fixnump(arg)) then
@@ -382,6 +424,7 @@ contains
         call set_error(status, FM_GENERIC_ERROR, "set_fill_column requires an explicit argument")
         return
     end if
+
     write (a, "(i0)") n
     write (b, "(i0)") fill_column%value
     call message("Fill column set to "//trim(a)//" (was "//trim(b)//")")
@@ -390,11 +433,13 @@ contains
 
     subroutine cmd_set_fill_column(status)
         type(status_type), intent(out) :: status
+
         call set_fill_column(current_prefix_arg, status)
     end subroutine cmd_set_fill_column
 
     subroutine cmd_default_indent_new_line(status)
         type(status_type), intent(out) :: status
+
         call barf_if_buffer_read_only(status)
         if (status%ok()) call default_indent_new_line(status, force=.true.)
     end subroutine cmd_default_indent_new_line
@@ -404,8 +449,10 @@ contains
     subroutine auto_fill_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
+
         status = status_type()
         call auto_fill_function%make_local()
+
         if (.not. enable) then
             auto_fill_function%value => null()
         else if (associated(normal_auto_fill_function%value)) then

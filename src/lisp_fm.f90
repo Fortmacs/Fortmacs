@@ -218,6 +218,7 @@ contains
     pure function scalar(atom) result(v)
         type(atom_type), intent(in) :: atom
         type(value_type) :: v
+
         allocate (v%a(1))
         v%a(1) = atom
     end function scalar
@@ -225,12 +226,14 @@ contains
     !> The empty list / false.  Port of lisp.h:Qnil.
     pure function nil() result(v)
         type(value_type) :: v
+
         if (allocated(v%a)) deallocate (v%a)
     end function nil
 
     !> The symbol t.  Port of lisp.h:Qt.
     pure function t_value() result(v)
         type(value_type) :: v
+
         v = make_symbol_ref(SYM_T)
     end function t_value
 
@@ -239,6 +242,7 @@ contains
         integer(int64), intent(in) :: n
         type(value_type) :: v
         type(atom_type) :: atom
+
         atom%tag = V_INT
         atom%i = n
         v = scalar(atom)
@@ -250,6 +254,7 @@ contains
         character(len=*), intent(in) :: text
         type(value_type) :: v
         type(atom_type) :: atom
+
         atom%tag = V_STRING
         atom%s = text
         v = scalar(atom)
@@ -261,6 +266,7 @@ contains
         integer(int64), intent(in) :: id
         type(value_type) :: v
         type(atom_type) :: atom
+
         if (id == SYM_NIL) return
         atom%tag = V_SYMBOL
         atom%i = id
@@ -272,6 +278,7 @@ contains
         type(handle_type), intent(in) :: h
         type(value_type) :: v
         type(atom_type) :: atom
+
         atom%tag = V_BUFFER
         atom%h = h
         v = scalar(atom)
@@ -282,6 +289,7 @@ contains
         type(handle_type), intent(in) :: h
         type(value_type) :: v
         type(atom_type) :: atom
+
         atom%tag = V_MARKER
         atom%h = h
         v = scalar(atom)
@@ -292,6 +300,7 @@ contains
         type(handle_type), intent(in) :: h
         type(value_type) :: v
         type(atom_type) :: atom
+
         atom%tag = V_KEYMAP
         atom%h = h
         v = scalar(atom)
@@ -302,6 +311,7 @@ contains
         type(handle_type), intent(in) :: h
         type(value_type) :: v
         type(atom_type) :: atom
+
         atom%tag = V_SYNTAX_TABLE
         atom%h = h
         v = scalar(atom)
@@ -312,6 +322,7 @@ contains
         type(handle_type), intent(in) :: h
         type(value_type) :: v
         type(atom_type) :: atom
+
         atom%tag = V_WINDOW
         atom%h = h
         v = scalar(atom)
@@ -322,6 +333,7 @@ contains
     pure subroutine element_atoms(v, atoms)
         type(value_type), intent(in) :: v
         type(atom_type), allocatable, intent(out) :: atoms(:)
+
         if (allocated(v%a)) then
             atoms = v%a
         else
@@ -336,14 +348,17 @@ contains
         type(value_type) :: v
         type(atom_type), allocatable :: atoms(:), part(:)
         integer :: k
+
         if (size(elements) == 0) return
         allocate (atoms(1))
         atoms(1)%tag = V_LIST
         atoms(1)%i = size(elements)
+
         do k = 1, size(elements)
             call element_atoms(elements(k), part)
             atoms = [atoms, part]
         end do
+
         atoms(1)%span = size(atoms)
         call move_alloc(atoms, v%a)
     end function make_list
@@ -356,36 +371,45 @@ contains
         type(value_type) :: v
         type(value_type) :: parts(8)
         integer :: n
+
         n = 1
         parts(1) = v1
+
         if (present(v2)) then
             n = n + 1
             parts(n) = v2
         end if
+
         if (present(v3)) then
             n = n + 1
             parts(n) = v3
         end if
+
         if (present(v4)) then
             n = n + 1
             parts(n) = v4
         end if
+
         if (present(v5)) then
             n = n + 1
             parts(n) = v5
         end if
+
         if (present(v6)) then
             n = n + 1
             parts(n) = v6
         end if
+
         if (present(v7)) then
             n = n + 1
             parts(n) = v7
         end if
+
         if (present(v8)) then
             n = n + 1
             parts(n) = v8
         end if
+
         v = make_list(parts(1:n))
     end function list
 
@@ -397,8 +421,10 @@ contains
         type(value_type), intent(out) :: v
         logical, intent(out) :: ok
         type(atom_type), allocatable :: head(:)
+
         ok = .true.
         call element_atoms(elt, head)
+
         select case (vtag(list))
         case (V_NIL)
             allocate (v%a(1))
@@ -412,6 +438,7 @@ contains
             ok = .false.
             return
         end select
+
         v%a(1)%span = size(v%a)
     end subroutine cons
 
@@ -422,6 +449,7 @@ contains
     !> Tag of `v' (V_NIL for nil).
     elemental integer(int32) function vtag(v)
         type(value_type), intent(in) :: v
+
         vtag = V_NIL
         if (allocated(v%a)) vtag = v%a(1)%tag
     end function vtag
@@ -429,72 +457,84 @@ contains
     !> Port of lisp.h:NILP.
     elemental logical function nilp(v)
         type(value_type), intent(in) :: v
+
         nilp = vtag(v) == V_NIL
     end function nilp
 
     !> Port of lisp.h:FIXNUMP.
     elemental logical function fixnump(v)
         type(value_type), intent(in) :: v
+
         fixnump = vtag(v) == V_INT
     end function fixnump
 
     !> Port of lisp.h:SYMBOLP (nil is a symbol).
     elemental logical function symbolp(v)
         type(value_type), intent(in) :: v
+
         symbolp = vtag(v) == V_SYMBOL .or. vtag(v) == V_NIL
     end function symbolp
 
     !> Port of lisp.h:STRINGP.
     elemental logical function stringp(v)
         type(value_type), intent(in) :: v
+
         stringp = vtag(v) == V_STRING
     end function stringp
 
     !> A non-empty list.  Port of lisp.h:CONSP.
     elemental logical function consp(v)
         type(value_type), intent(in) :: v
+
         consp = vtag(v) == V_LIST
     end function consp
 
     !> nil or a list.  Port of data.c:Flistp.
     elemental logical function listp(v)
         type(value_type), intent(in) :: v
+
         listp = vtag(v) == V_LIST .or. vtag(v) == V_NIL
     end function listp
 
     !> Port of lisp.h:BUFFERP.
     elemental logical function bufferp(v)
         type(value_type), intent(in) :: v
+
         bufferp = vtag(v) == V_BUFFER
     end function bufferp
 
     !> Port of lisp.h:MARKERP.
     elemental logical function markerp(v)
         type(value_type), intent(in) :: v
+
         markerp = vtag(v) == V_MARKER
     end function markerp
 
     !> True for a single keymap (not a list of keymaps); see keymap_fm.
     elemental logical function keymap_ref_p(v)
         type(value_type), intent(in) :: v
+
         keymap_ref_p = vtag(v) == V_KEYMAP
     end function keymap_ref_p
 
     !> Whether `v' refers to a syntax table.
     elemental logical function syntax_table_ref_p(v)
         type(value_type), intent(in) :: v
+
         syntax_table_ref_p = vtag(v) == V_SYNTAX_TABLE
     end function syntax_table_ref_p
 
     !> Port of lisp.h:WINDOWP.
     elemental logical function windowp(v)
         type(value_type), intent(in) :: v
+
         windowp = vtag(v) == V_WINDOW
     end function windowp
 
     !> The integer in `v', unchecked.  Port of lisp.h:XFIXNUM.
     elemental integer(int64) function xfixnum(v)
         type(value_type), intent(in) :: v
+
         xfixnum = 0
         if (vtag(v) == V_INT) xfixnum = v%a(1)%i
     end function xfixnum
@@ -503,6 +543,7 @@ contains
     !> Port of lisp.h:XSYMBOL.
     elemental integer(int64) function xsymbol(v)
         type(value_type), intent(in) :: v
+
         xsymbol = SYM_NIL
         if (vtag(v) == V_SYMBOL) xsymbol = v%a(1)%i
     end function xsymbol
@@ -511,6 +552,7 @@ contains
     pure function xstring(v) result(s)
         type(value_type), intent(in) :: v
         character(len=:), allocatable :: s
+
         if (vtag(v) == V_STRING) then
             s = v%a(1)%s
         else
@@ -522,12 +564,14 @@ contains
     elemental function xhandle(v) result(h)
         type(value_type), intent(in) :: v
         type(handle_type) :: h
+
         if (allocated(v%a)) h = v%a(1)%h
     end function xhandle
 
     !> Number of elements of list `v' (0 for nil and non-lists).
     elemental integer(int64) function list_length(v)
         type(value_type), intent(in) :: v
+
         list_length = 0
         if (vtag(v) == V_LIST) list_length = v%a(1)%i
     end function list_length
@@ -537,7 +581,9 @@ contains
         type(value_type), intent(in) :: v
         integer(int64), intent(in) :: k
         integer(int64) :: j
+
         p = 2
+
         do j = 1, k - 1
             p = p + v%a(p)%span
         end do
@@ -549,6 +595,7 @@ contains
         integer(int64), intent(in) :: k
         type(value_type) :: e
         integer(int64) :: p
+
         if (k >= 1 .and. k <= list_length(v)) then
             p = elt_start(v, k)
             if (v%a(p)%tag /= V_NIL) e%a = v%a(p:p + v%a(p)%span - 1)
@@ -560,8 +607,10 @@ contains
         type(value_type), intent(in) :: v
         type(value_type), allocatable, intent(out) :: elems(:)
         integer(int64) :: k, p
+
         allocate (elems(list_length(v)))
         p = 2
+
         do k = 1, size(elems, kind=int64)
             if (v%a(p)%tag /= V_NIL) elems(k)%a = v%a(p:p + v%a(p)%span - 1)
             p = p + v%a(p)%span
@@ -576,11 +625,14 @@ contains
         type(value_type) :: tail
         type(atom_type), allocatable :: atoms(:)
         integer(int64) :: p, len
+
         len = list_length(v)
+
         if (n <= 0) then
             tail = v
             return
         end if
+
         if (n >= len) return
         p = elt_start(v, n + 1)
         atoms = [v%a(1:1), v%a(p:)]
@@ -598,12 +650,15 @@ contains
         type(value_type), allocatable, intent(out) :: plists(:)
         type(value_type) :: child
         integer(int64) :: k, p
+
         if (vtag(v) /= V_STRING) then
             allocate (starts(0), ends(0), plists(0))
             return
         end if
+
         allocate (starts(v%a(1)%i), ends(v%a(1)%i), plists(v%a(1)%i))
         p = 2
+
         do k = 1, v%a(1)%i
             child%a = v%a(p:p + v%a(p)%span - 1)
             starts(k) = xfixnum(list_elt(child, 1_int64))
@@ -624,10 +679,12 @@ contains
         type(atom_type), allocatable :: atoms(:), part(:)
         type(value_type) :: child, head
         integer :: k
+
         if (vtag(v) /= V_STRING) return
         allocate (atoms(1))
         atoms(1) = v%a(1)
         atoms(1)%i = 0
+
         do k = 1, size(starts)
             if (ends(k) <= starts(k) .or. nilp(plists(k))) cycle
             head = list(make_fixnum(starts(k)), make_fixnum(ends(k)))
@@ -639,6 +696,7 @@ contains
             atoms = [atoms, part]
             atoms(1)%i = atoms(1)%i + 1
         end do
+
         atoms(1)%span = size(atoms)
         call move_alloc(atoms, v%a)
     end subroutine set_string_intervals
@@ -649,18 +707,22 @@ contains
         class(command_type), target, intent(inout) :: self
         type(command_ref_type), allocatable :: grown(:)
         integer :: i
+
         do i = 1, n_defined_commands
             if (same_name(defined_commands(i)%p%name, self%name)) then
                 defined_commands(i)%p => self
                 return
             end if
         end do
+
         if (.not. allocated(defined_commands)) allocate (defined_commands(16))
+
         if (n_defined_commands == size(defined_commands)) then
             allocate (grown(2*n_defined_commands))
             grown(1:n_defined_commands) = defined_commands
             call move_alloc(grown, defined_commands)
         end if
+
         n_defined_commands = n_defined_commands + 1
         defined_commands(n_defined_commands)%p => self
     end subroutine define_command
@@ -670,7 +732,9 @@ contains
         character(len=*), intent(in) :: name
         type(command_type), pointer :: p
         integer :: i
+
         p => null()
+
         do i = n_defined_commands, 1, -1
             if (same_name(defined_commands(i)%p%name, name)) then
                 p => defined_commands(i)%p
@@ -682,6 +746,7 @@ contains
     !> Whether A and B are the same string (`==' ignores trailing blanks).
     pure logical function same_name(a, b)
         character(len=*), intent(in) :: a, b
+
         same_name = len(a) == len(b)
         if (same_name) same_name = a == b
     end function same_name
@@ -692,9 +757,12 @@ contains
         procedure(command_proc) :: proc
         character(len=:), allocatable :: name
         integer :: i
+
         name = ""
+
         do i = n_defined_commands, 1, -1
             if (.not. associated(defined_commands(i)%p%run)) cycle
+
             if (associated(defined_commands(i)%p%run, proc)) then
                 name = defined_commands(i)%p%name
                 return

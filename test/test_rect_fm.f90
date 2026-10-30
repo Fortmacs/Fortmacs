@@ -57,6 +57,7 @@ contains
 
     subroutine collect_rect_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("extract-rectangle", test_extract), &
                     new_unittest("extract-rectangle-tabs", test_extract_tabs), &
@@ -87,6 +88,7 @@ contains
         type(handle_type), intent(out) :: h
         character(len=*), intent(in) :: text
         type(status_type) :: st
+
         call get_buffer_create("*rect-test*", h, st)
         call set_buffer(h, st)
         call set_buffer_read_only(h, .false., st)
@@ -103,7 +105,9 @@ contains
         type(rectangle_line_type), intent(in) :: rect(:)
         character(len=:), allocatable :: s
         integer :: k
+
         s = ""
+
         do k = 1, size(rect)
             if (k > 1) s = s//"|"
             s = s//rect(k)%text
@@ -115,6 +119,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(rectangle_line_type), allocatable :: rect(:)
+
         call fresh(h, grid)
         call goto_char(10_int64)
         call extract_rectangle(2_int64, 19_int64, rect, st)
@@ -143,6 +148,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(rectangle_line_type), allocatable :: rect(:)
+
         ! A TAB inside the rectangle becomes the spaces it takes.
         call fresh(h, "a"//tab//"b"//nl//"0123456789")
         call extract_rectangle(1_int64, 14_int64, rect, st)
@@ -160,6 +166,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, grid)
         call delete_rectangle(2_int64, 19_int64, st)
         call check(error, buffer_string(), "aef"//nl//"gkl"//nl//"mqr")
@@ -172,6 +179,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, "ab cdefgh"//nl//"a"//tab//"b"//nl//"abcde")
         call delete_rectangle(3_int64, 20_int64, st)
         call check(error, buffer_string(), "abefgh"//nl//"a    b"//nl//"ab")
@@ -188,6 +196,7 @@ contains
         type(status_type) :: st
         character(len=*), parameter :: a = char(227)//char(129)//char(130), i = char(227)//char(129)//char(132), &
                                        u = char(227)//char(129)//char(134)
+
         ! Columns 1 to 3: "あいう" loses い (columns 2-3).
         call fresh(h, "abcdef"//nl//a//i//u//nl//"abcdef")
         call delete_rectangle(2_int64, 15_int64, st)
@@ -199,6 +208,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         ! Without FILL a short line is left alone; with it, it is padded.
         call fresh(h, "abcdef"//nl//"g"//nl//"mnopqr")
         call delete_rectangle(3_int64, 15_int64, st)
@@ -215,6 +225,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(rectangle_line_type), allocatable :: rect(:)
+
         call fresh(h, "abcdef"//nl//"g"//nl//"mnopqr")
         call delete_extract_rectangle(2_int64, 14_int64, rect, st)
         call check(error, joined(rect), "bcd|   |nop")
@@ -235,6 +246,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, grid)
         call kill_rectangle(2_int64, 19_int64, st)
         call check(error, joined(killed_rectangle), "bcd|hij|nop")
@@ -255,6 +267,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, grid)
         if (allocated(killed_rectangle)) deallocate (killed_rectangle)
         call set_buffer_read_only(h, .true., st)
@@ -282,6 +295,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(rectangle_line_type) :: rect(3)
+
         rect(1)%text = "12"
         rect(2)%text = "34"
         rect(3)%text = "56"
@@ -298,6 +312,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, grid)
         indent_tabs_mode%value = .false.
         call goto_char(10_int64)
@@ -324,6 +339,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, grid)
         indent_tabs_mode%value = .false.
         call clear_rectangle(2_int64, 19_int64, st)
@@ -347,6 +363,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, grid)
         call string_rectangle(2_int64, 19_int64, "XY", st)
         call check(error, buffer_string(), "aXYef"//nl//"gXYkl"//nl//"mXYqr")
@@ -366,6 +383,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, grid)
         call string_insert_rectangle(2_int64, 19_int64, "XY", st)
         call check(error, buffer_string(), "aXYbcdef"//nl//"gXYhijkl"//nl//"mXYnopqr")
@@ -376,6 +394,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, "a   b"//nl//"c"//tab//"d"//nl//"e"//nl//"f  g")
         call delete_whitespace_rectangle(2_int64, 15_int64, st)
         call check(error, buffer_string(), "ab"//nl//"cd"//nl//"e"//nl//"fg")
@@ -386,6 +405,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, "a"//nl//"b"//nl//"c")
         call check(error, count_lines(1_int64, 5_int64), 2_int64)
         if (allocated(error)) return
@@ -418,6 +438,7 @@ contains
         type(status_type) :: st
         integer(int64) :: w, ht, col, line
         integer(int64), allocatable :: starts(:), ends(:)
+
         call fresh(h, grid)
         call rectangle_dimensions(2_int64, 19_int64, w, ht)
         call check(error, w == 3 .and. ht == 3, "dimensions")
@@ -446,6 +467,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         character(len=*), parameter :: cxr = achar(24)//"r"
+
         call fresh(h, grid)
         call discard_input()
         prefix_arg = nil()
@@ -515,6 +537,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         character(len=:), allocatable :: text
+
         call fresh(h, grid)
         call discard_input()
         prefix_arg = nil()
@@ -554,6 +577,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         character(len=:), allocatable :: text
+
         call fresh(h, "abcd"//nl//"ab"//nl//"abcd")
         call discard_input()
         prefix_arg = nil()
@@ -584,6 +608,7 @@ contains
         type(status_type) :: st
         integer(int64) :: b, e
         integer(int64), allocatable :: starts(:), ends(:)
+
         call fresh(h, grid)
         call discard_input()
         prefix_arg = nil()

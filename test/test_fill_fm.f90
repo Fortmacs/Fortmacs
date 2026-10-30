@@ -54,6 +54,7 @@ contains
 
     subroutine collect_fill_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("fill-test-no-fill-polish-nobreak-p", test_polish), &
                     new_unittest("fill-test-breakable-paragraph", test_breakable), &
@@ -73,6 +74,7 @@ contains
         character(len=*), intent(in) :: text
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call init_bindings()
         call get_buffer_create(" *fill-test*", h, st)
         call set_buffer(h, st)
@@ -90,6 +92,7 @@ contains
     subroutine leave(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
+
         fill_column = 70
         sentence_end_double_space = .true.
         fill_separate_heterogeneous_words_with_space = .false.
@@ -103,6 +106,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call temp_buffer("Abc d efg (h ijk).", h)
         fill_column = 8
         call fill_paragraph(st)
@@ -123,6 +127,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: pos, beg, end
+
         call temp_buffer("aaa =   baaaaaaaa aaaaaaaaaa aaaaaaaaaa"//LF, h)
         call goto_char(point_min())
         call search_forward("b", pos, st)
@@ -141,6 +146,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call syms_of_simple()
         call temp_buffer("", h)
         call minor_modes%auto_fill_mode%enable(st)
@@ -165,6 +171,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call temp_buffer("aaa bbb ccc ddd eee fff", h)
         fill_column = 10
         call fill_paragraph(st, 3)
@@ -215,21 +222,25 @@ contains
 
     subroutine test_erts_default(error)
         type(error_type), allocatable, intent(out) :: error
+
         call run_erts_file(error, "test/fill-resources/fill-region-as-paragraph-default.erts")
     end subroutine test_erts_default
 
     subroutine test_erts_frap(error)
         type(error_type), allocatable, intent(out) :: error
+
         call run_erts_file(error, "test/fill-resources/fill-region-as-paragraph.erts")
     end subroutine test_erts_frap
 
     subroutine test_erts_region(error)
         type(error_type), allocatable, intent(out) :: error
+
         call run_erts_file(error, "test/fill-resources/fill-region.erts")
     end subroutine test_erts_region
 
     subroutine test_erts_paragraph(error)
         type(error_type), allocatable, intent(out) :: error
+
         call run_erts_file(error, "test/fill-resources/fill-paragraph.erts")
     end subroutine test_erts_paragraph
 
@@ -242,6 +253,7 @@ contains
         character(len=:), allocatable :: data, line, code, name, before, after, point_char
         integer :: u, ios, pos, state, nl, ran
         integer(int64) :: fsize
+
         open (newunit=u, file=file, access="stream", form="unformatted", status="old", action="read", iostat=ios)
         call check(error, ios == 0, "can't open "//file)
         if (allocated(error)) return
@@ -260,8 +272,10 @@ contains
         state = 0
         ran = 0
         pos = 1
+
         do while (pos <= len(data))
             nl = index(data(pos:), LF)
+
             if (nl == 0) then
                 line = data(pos:)
                 pos = len(data) + 1
@@ -269,6 +283,7 @@ contains
                 line = data(pos:pos + nl - 2)
                 pos = pos + nl
             end if
+
             select case (state)
             case (2)
                 if (line == "=-=") then
@@ -277,6 +292,7 @@ contains
                 else
                     before = before//line//LF
                 end if
+
                 cycle
             case (3)
                 if (line == "=-=-=") then
@@ -288,6 +304,7 @@ contains
                 else
                     after = after//line//LF
                 end if
+
                 cycle
             case (1)
                 ! (.and. does not short-circuit: test the length first.)
@@ -297,10 +314,12 @@ contains
                         cycle
                     end if
                 end if
+
                 state = 0
             case default
                 continue
             end select
+
             if (index(line, "Name: ") == 1) then
                 name = line(7:)
             else if (index(line, "Point-Char: ") == 1) then
@@ -313,6 +332,7 @@ contains
                 state = 2
             end if
         end do
+
         call check(error, ran > 0, "no tests in "//file)
     end subroutine run_erts_file
 
@@ -328,11 +348,13 @@ contains
         integer(int64) :: start, end, shortage
         integer :: at
         character(len=:), allocatable :: expected, got
+
         ! The semantic-linefeed functions are not ported.
         if (index(code, "semlf") > 0) return
         call temp_buffer("", h)
         at = 0
         if (len(point_char) > 0) at = index(before, point_char)
+
         if (at > 0) then
             call insert(before(1:at - 1)//before(at + len(point_char):), st)
             call goto_char(int(at, int64))
@@ -340,12 +362,15 @@ contains
             call insert(before, st)
             call goto_char(point_min())
         end if
+
         if (index(code, "(setq-local fill-column 35)") > 0) fill_column%value = 35
         if (index(code, "(setq-local sentence-end-double-space nil)") > 0) sentence_end_double_space%value = .false.
         if (index(code, "(setq-local sentence-end-double-space t)") > 0) sentence_end_double_space%value = .true.
+
         if (index(code, "(setq-local fill-separate-heterogeneous-words-with-space t)") > 0) then
             fill_separate_heterogeneous_words_with_space = .true.
         end if
+
         if (index(code, "(point-min) (point-max)") > 0) then
             call fill_region_as_paragraph(point_min(), point_max(), st)
         else if (index(code, "(fill-paragraph)") > 0) then
@@ -357,17 +382,21 @@ contains
             shortage = forward_line(-1_int64)
             call beginning_of_line()
             end = point()
+
             if (index(code, "(fill-region-as-paragraph") > 0) then
                 call fill_region_as_paragraph(start, end, st)
             else
                 call fill_region(start, end, st)
             end if
         end if
+
         expected = after
+
         if (len(point_char) > 0) then
             at = index(after, point_char)
             if (at > 0) expected = after(1:at - 1)//after(at + len(point_char):)
         end if
+
         got = buffer_string()
         call check(error, got == expected .and. len(got) == len(expected), name//":"//LF//got)
         call leave(h)
@@ -382,6 +411,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: prefix
         logical :: found
+
         call get_buffer_create("*fill-prefix-length*", h, st)
         call set_buffer(h, st)
         call insert(achar(9)//"abc"//LF//achar(9)//"def"//LF, st)

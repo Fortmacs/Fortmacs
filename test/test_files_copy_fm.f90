@@ -49,6 +49,7 @@ contains
 
     subroutine collect_files_copy_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("files-tests-file-modes-symbolic-to-number", test_symbolic_to_number), &
                     new_unittest("files-tests-file-modes-number-to-symbolic", test_number_to_symbolic), &
@@ -64,11 +65,13 @@ contains
 
     function tdir() result(dir)
         character(len=:), allocatable :: dir
+
         dir = file_name_as_directory(file_name_as_directory(emacs_wd)//subdir)
     end function tdir
 
     subroutine setup()
         type(status_type) :: st
+
         call init_bindings()
         call init_fileio()
         if (file_directory_p(tdir())) call delete_directory(tdir(), st, .true.)
@@ -77,6 +80,7 @@ contains
 
     subroutine teardown()
         type(status_type) :: st
+
         if (file_directory_p(tdir())) call delete_directory(tdir(), st, .true.)
     end subroutine teardown
 
@@ -85,6 +89,7 @@ contains
         character(len=*), intent(in) :: name, text
         type(handle_type) :: buf, old
         type(status_type) :: st
+
         old = current_buffer()
         call get_buffer_create(" *files-copy-test*", buf, st)
         call set_buffer(buf, st)
@@ -108,16 +113,21 @@ contains
         type(status_type) :: st
         integer(int32) :: n
         integer :: k
+
         call init_fileio()
+
         do k = 1, size(modes)
             call file_modes_symbolic_to_number(trim(modes(k)), n, st)
+
             if (expected(k) < 0) then
                 call check(error,.not. st%ok(), trim(modes(k))//" is an error")
             else
                 call check(error, st%ok() .and. n == expected(k), trim(modes(k)))
             end if
+
             if (allocated(error)) return
         end do
+
         ! Relative to FROM.
         call file_modes_symbolic_to_number("og+rX-w", n, st, int(o'722', int32))
         call check(error, st%ok() .and. n == int(o'755', int32), "og+rX-w")
@@ -135,10 +145,12 @@ contains
                                                                            "-rw-r----T", "-rw-r----t", "-rwsr-S--t", "-rwSr-S--T", &
                                                                                                          "-rwSr-Sr--", "-r--r--r--"]
         integer :: k
+
         do k = 1, size(modes)
             call check(error, file_modes_number_to_symbolic(int(modes(k), int32)), expected(k))
             if (allocated(error)) return
         end do
+
         call check(error, file_modes_number_to_symbolic(int(o'40755', int32)), "drwxr-xr-x")
     end subroutine test_number_to_symbolic
 
@@ -147,7 +159,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=:), allocatable :: dirname, source, dest, source2, dest2, source3, dest3
+
         call setup()
+
         body: block
             dirname = tdir()
             source = dirname//"source"
@@ -175,6 +189,7 @@ contains
             call copy_directory(source3, dirname//"dest3/", st, keep_time=.true.)
             call check(error, st%ok(), format_error(st))
         end block body
+
         call teardown()
     end subroutine test_copy_directory
 
@@ -183,7 +198,9 @@ contains
     subroutine test_copy_file_exists(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call setup()
+
         body: block
             call make_file("a", "1")
             call make_file("b", "2")
@@ -202,6 +219,7 @@ contains
             call copy_file(tdir()//"d", tdir()//"e", st)
             call check(error, format_error(st), "Non-regular file: Is a directory, "//tdir()//"d")
         end block body
+
         call teardown()
     end subroutine test_copy_file_exists
 
@@ -211,7 +229,9 @@ contains
         type(status_type) :: st
         type(file_stat_type) :: a, b
         logical :: found
+
         call setup()
+
         body: block
             call make_file("a", "1")
             call set_file_times(tdir()//"a", st, 1000000000_int64, 0_int32)
@@ -227,6 +247,7 @@ contains
             call file_attributes(tdir()//"c", b, found)
             call check(error, b%mtime_sec /= a%mtime_sec, "not kept")
         end block body
+
         call teardown()
     end subroutine test_copy_keep_time
 
@@ -234,7 +255,9 @@ contains
     subroutine test_rename_exists(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call setup()
+
         body: block
             call make_file("a", "1")
             call make_file("b", "2")
@@ -248,6 +271,7 @@ contains
             call rename_file(tdir()//"b", tdir()//"d/", st)
             call check(error, st%ok() .and. file_exists_p(tdir()//"d/b"), format_error(st))
         end block body
+
         call teardown()
     end subroutine test_rename_exists
 
@@ -257,7 +281,9 @@ contains
         type(status_type) :: st
         type(file_stat_type) :: a
         logical :: found
+
         call setup()
+
         body: block
             call make_file("a", "1")
             call add_name_to_file(tdir()//"a", tdir()//"b", st)
@@ -270,6 +296,7 @@ contains
             call make_symbolic_link("a", tdir()//"l", st)
             call check(error, file_symlink_target(tdir()//"l"), "a")
         end block body
+
         call teardown()
     end subroutine test_add_name
 
@@ -277,7 +304,9 @@ contains
     subroutine test_in_directory(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call setup()
+
         body: block
             call make_directory_internal(tdir()//"d", st)
             call check(error, file_in_directory_p(tdir()//"d/x", tdir()//"d"), "inside")
@@ -288,6 +317,7 @@ contains
             if (allocated(error)) exit body
             call check(error,.not. file_in_directory_p(tdir(), tdir()//"d"), "parent")
         end block body
+
         call teardown()
     end subroutine test_in_directory
 
@@ -295,7 +325,9 @@ contains
     subroutine test_make_empty_file(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call setup()
+
         body: block
             call make_empty_file(tdir()//"x/z/y", st)
             call check(error,.not. st%ok(), "no parent")
@@ -306,6 +338,7 @@ contains
             call make_empty_file(tdir()//"x/y", st)
             call check(error, format_error(st), "File exists: "//tdir()//"x/y")
         end block body
+
         call teardown()
     end subroutine test_make_empty_file
 end module test_files_copy_fm

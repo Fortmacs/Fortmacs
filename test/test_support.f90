@@ -37,15 +37,18 @@ contains
     subroutine show_alone()
         type(status_type) :: st
         type(handle_type) :: buffer
+
         ! Deleting the other windows makes the selected window's buffer
         ! current: keep this one.
         buffer = current_buffer()
         call ensure_frame_windows()
         selected_frame%minibuffer_selected = .false.
         call delete_other_windows(selected_frame%selected_window, st)
+
         if (windows(selected_frame%root_window%index)%total_lines == 0) then
             call resize_window_tree(selected_frame%root_window, 0, 0, 23, 80, 80)
         end if
+
         call set_window_buffer(selected_frame%selected_window, buffer, st)
         call set_buffer(buffer, st)
     end subroutine show_alone

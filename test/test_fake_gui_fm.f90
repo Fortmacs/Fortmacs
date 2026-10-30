@@ -53,6 +53,7 @@ contains
 
     subroutine collect_fake_gui_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("fake-gui-same-text-as-tty", test_same_text), &
                     new_unittest("fake-gui-proportional-wrap", test_proportional), &
@@ -66,6 +67,7 @@ contains
         character(len=*), intent(in) :: name, text
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call get_buffer_create(name, h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
@@ -81,6 +83,7 @@ contains
         integer, intent(in) :: cols, lines
         type(handle_type), intent(in) :: h
         type(status_type) :: st
+
         call make_fake_frame(f, device, driver, cols, lines)
         call init_faces()
         call init_frame_faces(f, "dumb")
@@ -90,6 +93,7 @@ contains
 
     subroutine delete_frame_windows(f)
         type(frame_type), intent(inout) :: f
+
         call delete_window_tree(f%root_window)
         call delete_window_object(f%minibuffer_window)
     end subroutine delete_frame_windows
@@ -110,6 +114,7 @@ contains
         character(len=80) :: msg
         integer :: r, k
         integer(int32) :: codes(80)
+
         text = "first line"//achar(10)// &
                repeat("abcdefghij", 7)//"abcdefgh"//achar(9)//"after the tab"//achar(10)// &
                "ctrl "//achar(1)//" and tab"//achar(9)//"x"//achar(10)// &
@@ -133,8 +138,10 @@ contains
         call redisplay(f, st)
         call check(error, st%ok() .and. device%flushes == 1 .and. device%clears == 1, "drawn and flushed")
         if (allocated(error)) return
+
         do r = 0, 21
             codes = device%column_text(r*FAKE_LINE_HEIGHT, 80)
+
             do k = 1, 80
                 if (codes(k) /= tty%current_matrix%rows(r)%glyphs(k)%ch) then
                     write (msg, '("row ",i0,", column ",i0,": ",i0," /= ",i0)') r, k, codes(k), &
@@ -144,6 +151,7 @@ contains
                 end if
             end do
         end do
+
         ! The wide character moved to row 5 is one glyph over two columns.
         codes = device%column_text(5*FAKE_LINE_HEIGHT, 80)
         call check(error, codes(1) == 26085 .and. codes(2) == 26085 .and. device%starts(0, 5*FAKE_LINE_HEIGHT) .and. &
@@ -182,6 +190,7 @@ contains
         type(fake_font_driver_type), target :: driver
         type(handle_type) :: h
         type(status_type) :: st
+
         call buffer_with("*fake-gui-prop*", repeat("i", 19)//achar(10)//repeat("m", 7)//achar(10)//"ab", h)
         call goto_char(23_int64)
         driver%proportional = .true.
@@ -221,10 +230,13 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: text
         integer :: k
+
         text = "ab"//achar(10)//"cd"//achar(10)//"ef"
+
         do k = 1, 20
             text = text//achar(10)//"x"
         end do
+
         call buffer_with("*fake-gui-tall*", text, h)
         call put_text_property(4_int64, 6_int64, sym("face"), list(sym(":height"), make_fixnum(200_int64)), st)
         call goto_char(5_int64)
@@ -267,6 +279,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: expected, shown
         integer(int64) :: bi
+
         call buffer_with("*fake-gui-ml*", "text", h)
         call resolve_buffer(h, bi, st)
         call fake_frame(f, device, driver, 60, 6, h)
@@ -304,6 +317,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: row
         integer :: x
+
         call buffer_with("*fake-gui-split*", repeat("0123456789", 5)//achar(10)//"two", h)
         call goto_char(1_int64)
         call fake_frame(f, device, driver, 80, 12, h)

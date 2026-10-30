@@ -179,6 +179,7 @@ contains
         type(value_type), intent(in) :: list
         character(len=*), intent(in), optional :: category
         type(completion_table_type) :: table
+
         table%kind = TABLE_LIST
         table%list = list
         if (present(category)) table%category = category
@@ -201,6 +202,7 @@ contains
         procedure(completion_unquote_proc) :: unquote
         procedure(completion_requote_proc) :: requote
         type(completion_table_type) :: qtable
+
         qtable%kind = TABLE_QUOTING
         qtable%fn => table
         qtable%unquote => unquote
@@ -212,6 +214,7 @@ contains
     function completion_obarray_table(category) result(table)
         character(len=*), intent(in), optional :: category
         type(completion_table_type) :: table
+
         table%kind = TABLE_OBARRAY
         if (present(category)) table%category = category
     end function completion_obarray_table
@@ -222,6 +225,7 @@ contains
         procedure(completion_function) :: fn
         character(len=*), intent(in), optional :: category
         type(completion_table_type) :: table
+
         table%kind = TABLE_FUNCTION
         table%fn => fn
         if (present(category)) table%category = category

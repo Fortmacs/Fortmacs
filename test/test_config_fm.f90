@@ -44,6 +44,7 @@ contains
 
     subroutine collect_config_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("config-xdg-directories", test_directories), &
                     new_unittest("config-install-prefix", test_install_prefix), &
@@ -58,6 +59,7 @@ contains
         character(len=*), intent(in) :: name
         character(len=*), intent(in), optional :: value
         integer :: err
+
         if (present(value)) then
             err = sys_setenv(name, value)
         else
@@ -69,6 +71,7 @@ contains
     subroutine empty_buffer()
         type(handle_type) :: h
         type(status_type) :: st
+
         call get_buffer_create(" *config-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
@@ -78,6 +81,7 @@ contains
     subroutine restore(name, old, found)
         character(len=*), intent(in) :: name, old
         logical, intent(in) :: found
+
         if (found) then
             call setenv(name, old)
         else
@@ -89,10 +93,12 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: config, state, cache, home
         logical :: has_config, has_state, has_cache
+
         call getenv("XDG_CONFIG_HOME", config, has_config)
         call getenv("XDG_STATE_HOME", state, has_state)
         call getenv("XDG_CACHE_HOME", cache, has_cache)
         home = file_name_as_directory(get_homedir())
+
         body: block
             call setenv("XDG_CONFIG_HOME", "/xdg/config")
             call setenv("XDG_STATE_HOME", "/xdg/state/")
@@ -119,6 +125,7 @@ contains
             if (allocated(error)) exit body
             call check(error, cache_directory(), home//".cache/fortmacs/")
         end block body
+
         call restore("XDG_CONFIG_HOME", config, has_config)
         call restore("XDG_STATE_HOME", state, has_state)
         call restore("XDG_CACHE_HOME", cache, has_cache)
@@ -129,6 +136,7 @@ contains
         character(len=:), allocatable :: prefix, root, exe
         logical :: found
         type(status_type) :: st
+
         exe = running_executable()
         call check(error, index(exe, "/tester", back=.true.) == len(exe) - 6, exe)
         if (allocated(error)) return
@@ -145,11 +153,13 @@ contains
         call make_directory(root//"lib", st, parents=.true.)
         call install_prefix(root//"bin/fortmacs", prefix, found)
         call check(error,.not. found .and. prefix == root, "no library")
+
         if (.not. allocated(error)) then
             call write_region(root//"lib/libfortmacs.a", .false., st)
             call install_prefix(root//"bin/fortmacs", prefix, found)
             call check(error, found .and. prefix == root, "installed")
         end if
+
         call delete_file_internal(root//"lib/libfortmacs.a", st)
         call delete_directory_internal(root//"lib", st)
         call delete_directory_internal(root, st)
@@ -159,6 +169,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: text, long
         integer :: b, e
+
         text = driver_source("/usr/local/")
         call check(error, index(text, "use user_config, only: configure") > 0, "uses user_config")
         if (allocated(error)) return
@@ -172,6 +183,7 @@ contains
         long = "/"//repeat("abcdefghi/", 30)
         text = driver_source(long)
         b = 1
+
         do while (b <= len(text))
             e = index(text(b:), new_line("a"))
             if (e == 0) exit
@@ -179,6 +191,7 @@ contains
             if (allocated(error)) return
             b = b + e
         end do
+
         call check(error, index(text, '" // &') > 0, "continued")
     end subroutine test_driver_source
 
@@ -187,11 +200,13 @@ contains
         character(len=:), allocatable :: config, root, log
         logical :: has_config
         type(status_type) :: st
+
         call init_fileio()
         call empty_buffer()
         root = file_name_as_directory(emacs_wd)//testdir//"/xdg/"
         call getenv("XDG_CONFIG_HOME", config, has_config)
         call setenv("XDG_CONFIG_HOME", root)
+
         body: block
             call recompile("/fortmacs-no-such-prefix/", log, st)
             call check(error, format_error(st), "Opening init file: No such file or directory, "// &
@@ -203,6 +218,7 @@ contains
             call check(error, format_error(st), "Can't find /fortmacs-no-such-prefix/lib/libfortmacs.a; "// &
                        "install Fortmacs with `fpm install`")
         end block body
+
         call delete_file_internal(root//"fortmacs/init.f90", st)
         call delete_directory_internal(root//"fortmacs", st)
         call delete_directory_internal(root, st)
@@ -219,17 +235,20 @@ contains
         integer :: k, from, to
         logical :: has_state
         type(status_type) :: st
+
         call init_fileio()
         call empty_buffer()
         root = file_name_as_directory(emacs_wd)//testdir//"/state/"
         call getenv("XDG_STATE_HOME", state, has_state)
         call setenv("XDG_STATE_HOME", root)
         gens = generations_directory()
+
         do k = 1, size(made)
             call make_directory(gens//trim(made(k)), st, parents=.true.)
             call write_region(gens//trim(made(k))//"/fortmacs", .false., st)
             call set_file_modes(gens//trim(made(k))//"/fortmacs", int(o'755'), st)
         end do
+
         body: block
             call generation_numbers(numbers, st)
             call check(error, st%ok() .and. size(numbers) == 3, "three generations")
@@ -269,11 +288,14 @@ contains
             if (allocated(error)) exit body
             call check(error, generation_of("/usr/bin/fortmacs"), 0)
         end block body
+
         call delete_file_internal(gens//"current", st)
+
         do k = 1, size(made)
             call delete_file_internal(gens//trim(made(k))//"/fortmacs", st)
             call delete_directory_internal(gens//trim(made(k)), st)
         end do
+
         call delete_directory_internal(gens, st)
         call delete_directory_internal(root//"fortmacs", st)
         call delete_directory_internal(root, st)

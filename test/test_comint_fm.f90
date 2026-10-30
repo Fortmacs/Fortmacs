@@ -53,6 +53,7 @@ contains
 
     subroutine collect_comint_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("comint-arguments", test_arguments), &
                     new_unittest("comint-send-input", test_send_input), &
@@ -78,16 +79,21 @@ contains
         type(status_type) :: st
         integer(int64) :: start, now, rate
         logical :: got
+
         call system_clock(start, rate)
+
         do
             if (len(text) > 0) then
                 if (index(buffer_string(), text) > 0) exit
             end if
+
             proc = get_buffer_process(current())
             if (proc%index == 0) exit
+
             if (len(text) == 0) then
                 if (process_status(proc) /= "run") exit
             end if
+
             call system_clock(now)
             if ((now - start)/max(rate, 1_int64) > TIMEOUT) exit
             call accept_process_output(got, st, proc, 1.0)
@@ -97,6 +103,7 @@ contains
     function current() result(h)
         use buffer_fm, only: current_buffer
         type(handle_type) :: h
+
         h = current_buffer()
     end function current
 
@@ -105,6 +112,7 @@ contains
         type(handle_type), intent(in) :: h
         type(handle_type) :: proc
         type(status_type) :: st
+
         if (.not. buffer_live_p(h)) return
         proc = get_buffer_process(h)
         if (proc%index /= 0) call delete_process(proc, st)
@@ -114,6 +122,7 @@ contains
 
     subroutine test_arguments(error)
         type(error_type), allocatable, intent(out) :: error
+
         call init_bindings()
         call check(error, comint_arguments("ls -l /tmp", 0, 0), "ls")
         if (.not. allocated(error)) call check(error, comint_arguments("ls -l /tmp", 1, 2), "-l /tmp")
@@ -129,6 +138,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         logical :: saved
+
         call init_bindings()
         saved = process_connection_type%value
         process_connection_type = .false.
@@ -166,6 +176,7 @@ contains
         type(status_type) :: st
         logical :: saved
         integer(int64) :: input_start
+
         call init_bindings()
         saved = process_connection_type%value
         process_connection_type = .false.
@@ -197,6 +208,7 @@ contains
         type(status_type) :: st
         type(process_arg_type) :: switches(1)
         logical :: saved
+
         call init_bindings()
         saved = process_connection_type%value
         process_connection_type = .false.
@@ -216,6 +228,7 @@ contains
                                                buffer_string())
         call finish(h)
     end subroutine test_interrupt
+
     !> History references expand before point: !!, !!:N, !-N, !STRING,
     !> ^OLD^NEW; C-c . inserts the last argument of the previous input;
     !> RET expands the input with `comint_input_autoexpand' set to
@@ -226,6 +239,7 @@ contains
         type(status_type) :: st
         logical :: saved, done
         integer(int64) :: pm
+
         call init_bindings()
         saved = process_connection_type%value
         process_connection_type = .false.
@@ -247,6 +261,7 @@ contains
         done = comint_replace_by_expanded_history(st)
         call check(error, done, "expanded: "//format_error(st))
         if (.not. allocated(error)) call check(error, input_text(pm), "two")
+
         ! !! is the whole previous input.
         if (.not. allocated(error)) then
             call clear_input(pm)
@@ -254,6 +269,7 @@ contains
             done = comint_replace_by_expanded_history(st)
             call check(error, input_text(pm), "echo one two three")
         end if
+
         ! !ec is the most recent input starting with "ec".
         if (.not. allocated(error)) then
             call clear_input(pm)
@@ -261,6 +277,7 @@ contains
             done = comint_replace_by_expanded_history(st)
             call check(error, input_text(pm), "x three")
         end if
+
         ! ^two^2 substitutes in the previous input.
         if (.not. allocated(error)) then
             call clear_input(pm)
@@ -268,6 +285,7 @@ contains
             done = comint_replace_by_expanded_history(st)
             call check(error, input_text(pm), "echo one 2 three")
         end if
+
         ! Quoted references stay.
         if (.not. allocated(error)) then
             call clear_input(pm)
@@ -275,6 +293,7 @@ contains
             done = comint_replace_by_expanded_history(st)
             call check(error, input_text(pm), "echo '!!'")
         end if
+
         ! C-c . inserts the last argument.
         if (.not. allocated(error)) then
             call clear_input(pm)
@@ -282,6 +301,7 @@ contains
             call comint_insert_previous_argument(0, .false., st)
             call check(error, input_text(pm), "ls three")
         end if
+
         ! RET expands the input.
         if (.not. allocated(error)) then
             call clear_input(pm)
@@ -291,14 +311,18 @@ contains
             call wait_for("one"//new_line("a")//"one"//new_line("a"))
             call check(error, comint_input_ring_item(0), "one")
         end if
+
         call finish(h)
+
     contains
+
         ! The text from PM to the end of the buffer.
         function input_text(from) result(text)
             use editfns_fm, only: buffer_substring
             integer(int64), intent(in) :: from
             character(len=:), allocatable :: text
             type(status_type) :: st2
+
             call buffer_substring(from, point_max(), text, st2)
         end function input_text
 
@@ -307,6 +331,7 @@ contains
             use editfns_fm, only: delete_region
             integer(int64), intent(in) :: from
             type(status_type) :: st2
+
             call delete_region(from, point_max(), st2)
             call goto_char(point_max())
         end subroutine clear_input
@@ -318,6 +343,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call get_buffer_create(" comint quotes", h, st)
         call set_buffer(h, st)
         call insert("echo 'a b' ""c", st)
@@ -326,6 +352,7 @@ contains
         if (.not. allocated(error)) call check(error, comint_within_quotes(1_int64, 14_int64), "after a double quote")
         call kill_buffer(h, st)
     end subroutine test_within_quotes
+
     !> Test `comint_password_prompt_regexp' against common password
     !> strings.  Port of comint-tests.el comint-test-password-regexp
     !> (with comint-testsuite-password-strings).
@@ -369,7 +396,9 @@ contains
                                              22, 35, 17, 22, 22, 31, 20, 17, 16, 22, 14, 17, 14, 9]
         type(status_type) :: st
         integer :: k
+
         call init_bindings()
+
         do k = 1, size(strings)
             call check(error, string_match(comint_password_prompt_regexp, strings(k) (1:lengths(k)), st) > 0, &
                        "matches: "//strings(k) (1:lengths(k)))
@@ -387,6 +416,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         logical :: saved
+
         call init_bindings()
         saved = process_connection_type%value
         process_connection_type = .false.
@@ -401,10 +431,12 @@ contains
         call type_text("non-nil"//achar(13))
         call comint_send_invisible(st, "Password: ")
         call check(error, st%ok(), format_error(st))
+
         if (.not. allocated(error)) then
             call wait_for(expected//new_line("a"))
             call check(error, buffer_string(), expected//new_line("a"))
         end if
+
         call discard_input()
         call finish(h)
     end subroutine test_password_function
@@ -414,6 +446,7 @@ contains
     !> comint-test-no-password-function.
     subroutine test_no_password_function(error)
         type(error_type), allocatable, intent(out) :: error
+
         call test_password_function(error, expected="non-nil")
     end subroutine test_no_password_function
 
@@ -422,6 +455,7 @@ contains
     !> comint-tests.el comint-test-password-function-with-value.
     subroutine test_password_function_with_value(error)
         type(error_type), allocatable, intent(out) :: error
+
         call test_password_function(error, magic_password, "MaGiC-PaSsWoRd789")
     end subroutine test_password_function_with_value
 
@@ -430,6 +464,7 @@ contains
     !> comint-test-password-function-with-nil.
     subroutine test_password_function_with_nil(error)
         type(error_type), allocatable, intent(out) :: error
+
         call test_password_function(error, ignore_password, "non-nil")
     end subroutine test_password_function_with_nil
 
@@ -437,6 +472,7 @@ contains
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: password
         logical, intent(out) :: found
+
         password = "MaGiC-PaSsWoRd789"
         found = len(prompt) >= 0
     end subroutine magic_password
@@ -445,6 +481,7 @@ contains
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: password
         logical, intent(out) :: found
+
         password = ""
         found = len(prompt) < 0
     end subroutine ignore_password
@@ -457,6 +494,7 @@ contains
         character(len=*), intent(in) :: name
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call init_bindings()
         call get_buffer_create(name, h, st)
         call set_buffer(h, st)
@@ -480,40 +518,49 @@ contains
         procedure(completion_quote_proc), pointer :: qfun
         integer(int64) :: qpos
         logical :: found
+
         call completion_buffer("*comint-quoting*", h)
         call comint_quote_filename("a b c", word)
         call check(error, word, "a\ b\ c")
+
         if (.not. allocated(error)) then
             call comint_unquote_argument("a\ b", word)
             call check(error, word, "a b")
         end if
+
         if (.not. allocated(error)) then
             call getenv("HOME", home, found)
             call comint_unquote_argument("$HOME/x", word)
             call check(error, word, home//"/x")
+
             if (.not. allocated(error)) then
                 call comint_unquote_argument("${HOME}/x", word)
                 call check(error, word, home//"/x")
             end if
         end if
+
         ! Position 3 of "a bc" is position 4 of "a\ bc".
         if (.not. allocated(error)) then
             call comint_requote_argument(3_int64, "a\ bc", qpos, qfun)
             call check(error, qpos == 4, "requoted position")
+
             if (.not. allocated(error)) then
                 call qfun("x y", word)
                 call check(error, word, "x\ y")
             end if
         end if
+
         if (.not. allocated(error)) then
             call insert("ls a\ b", st)
             call comint_word("[]~/A-Za-z0-9+@:_.$#%,={}-", word, found)
             call check(error, found .and. word == "a\ b", "word: "//word)
         end if
+
         if (.not. allocated(error)) then
             call comint_match_partial_filename(word, found)
             call check(error, found .and. word == "a b", "file name: "//word)
         end if
+
         call kill_buffer(h, st)
     end subroutine test_quoting
 
@@ -529,6 +576,7 @@ contains
         type(handle_type) :: h, tmp
         type(status_type) :: st
         character(len=:), allocatable :: dir
+
         call init_fileio()
         call make_temp_file("comint-complete", dir, st)
         call delete_file_internal(dir, st)
@@ -543,12 +591,14 @@ contains
         call completion_at_point(st)
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "cat "//dir//"/alpha.txt ")
+
         if (.not. allocated(error)) then
             call erase_buffer(st)
             call insert("cat "//dir//"/my", st)
             call completion_at_point(st)
             call check(error, buffer_string(), "cat "//dir//"/my\ file ")
         end if
+
         call kill_buffer(h, st)
         call delete_file_internal(dir//"/alpha.txt", st)
         call delete_file_internal(dir//"/my file", st)
@@ -561,9 +611,11 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call completion_buffer("*comint-input-ring*", h)
         call comint_complete_input_ring(st)
         call check(error, format_error(st), "No history available")
+
         if (.not. allocated(error)) then
             call comint_add_to_input_history("echo hi")
             call comint_add_to_input_history("ls")
@@ -571,9 +623,11 @@ contains
             call comint_complete_input_ring(st)
             call check(error, st%ok(), format_error(st))
         end if
+
         if (.not. allocated(error)) call check(error, buffer_string(), "echo hi")
         call kill_buffer(h, st)
     end subroutine test_complete_input_ring
+
     !> Queue TEXT as input events (for the minibuffer).
     subroutine type_text(text)
         use lisp_fm, only: value_type, make_fixnum
@@ -581,10 +635,13 @@ contains
         character(len=*), intent(in) :: text
         type(value_type), allocatable :: evs(:)
         integer :: i
+
         allocate (evs(len(text)))
+
         do i = 1, len(text)
             evs(i) = make_fixnum(int(iachar(text(i:i)), int64))
         end do
+
         call unread_command_events(evs)
     end subroutine type_text
 end module test_comint_fm

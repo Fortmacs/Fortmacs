@@ -394,16 +394,20 @@ contains
         logical, intent(in) :: create
         type(local_functions_type), allocatable :: grown(:)
         integer :: i, n
+
         k = 0
         if (cur == 0) return
         if (.not. allocated(local_functions)) allocate (local_functions(0))
+
         do i = 1, size(local_functions)
             if (local_functions(i)%serial == buffers(cur)%serial) then
                 k = i
                 return
             end if
         end do
+
         if (.not. create) return
+
         do i = 1, size(local_functions)
             if (local_functions(i)%serial == 0) then
                 k = i
@@ -411,6 +415,7 @@ contains
                 return
             end if
         end do
+
         n = size(local_functions)
         allocate (grown(n + 1))
         grown(1:n) = local_functions
@@ -422,6 +427,7 @@ contains
     ! Forget the current buffer's values (kill-all-local-variables).
     subroutine kill_pcomplete_locals()
         integer :: k
+
         k = local_slot(.false.)
         if (k > 0) local_functions(k) = local_functions_type()
     end subroutine kill_pcomplete_locals
@@ -430,8 +436,10 @@ contains
         class(pcomplete_function_variable_type), intent(in) :: self
         procedure(pcomplete_function_proc) :: fn
         integer :: k
+
         k = local_slot(.true.)
         if (k == 0) return
+
         if (self%name == "pcomplete_command_completion_function") then
             local_functions(k)%command => fn
             local_functions(k)%has_command = .true.
@@ -445,9 +453,11 @@ contains
         class(pcomplete_function_variable_type), intent(in) :: self
         procedure(pcomplete_function_proc), pointer, intent(out) :: fn
         integer :: k
+
         fn => self%value
         k = local_slot(.false.)
         if (k == 0) return
+
         if (self%name == "pcomplete_command_completion_function") then
             if (local_functions(k)%has_command) fn => local_functions(k)%command
         else
@@ -458,6 +468,7 @@ contains
     subroutine parse_set_local(fn)
         procedure(pcomplete_parse_proc) :: fn
         integer :: k
+
         k = local_slot(.true.)
         if (k == 0) return
         local_functions(k)%parse => fn
@@ -468,6 +479,7 @@ contains
         class(pcomplete_parse_variable_type), intent(in) :: self
         procedure(pcomplete_parse_proc), pointer, intent(out) :: fn
         integer :: k
+
         fn => self%value
         k = local_slot(.false.)
         if (k == 0) return
@@ -481,6 +493,7 @@ contains
         character(len=*), intent(in), optional :: mode
         type(pcomplete_command_function_type), allocatable :: grown(:)
         integer :: n
+
         if (.not. allocated(self%entries)) allocate (self%entries(0))
         n = size(self%entries)
         allocate (grown(n + 1))
@@ -494,12 +507,14 @@ contains
     !> Do nothing (#'ignore, as a completion function).
     recursive subroutine pcomplete_ignore(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
     end subroutine pcomplete_ignore
 
     ! The default `pcomplete_command_completion_function'.
     recursive subroutine default_command_completion(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         if (pcomplete_here(executables_form)) continue
     end subroutine default_command_completion
@@ -507,7 +522,9 @@ contains
     ! The default `pcomplete_default_completion_function'.
     recursive subroutine default_default_completion(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
+
         do while (pcomplete_here(entries_form))
         end do
     end subroutine default_default_completion
@@ -516,6 +533,7 @@ contains
     recursive subroutine executables_form(table, found)
         type(completion_table_type), intent(out) :: table
         logical, intent(out) :: found
+
         call pcomplete_executables(table)
         found = .true.
     end subroutine executables_form
@@ -524,6 +542,7 @@ contains
     recursive subroutine entries_form(table, found)
         type(completion_table_type), intent(out) :: table
         logical, intent(out) :: found
+
         call pcomplete_entries(table)
         found = .true.
     end subroutine entries_form
@@ -543,8 +562,10 @@ contains
     integer function arg_position(which, index, offset) result(n)
         integer, intent(in), optional :: which, index, offset
         integer :: w
+
         w = PCOMPLETE_ARG_RELATIVE
         if (present(which)) w = which
+
         select case (w)
         case (PCOMPLETE_ARG_FIRST)
             n = 0
@@ -554,6 +575,7 @@ contains
             n = pcomplete_index
             if (present(index)) n = pcomplete_index - index
         end select
+
         if (present(offset)) n = n + offset
     end function arg_position
 
@@ -576,6 +598,7 @@ contains
         logical, intent(out), optional :: found
         character(len=:), allocatable :: arg
         integer :: n
+
         arg = ""
         if (present(found)) found = .false.
         if (.not. allocated(args)) return
@@ -591,6 +614,7 @@ contains
     integer(int64) function pcomplete_begin(index, offset, which) result(pos)
         integer, intent(in), optional :: index, offset, which
         integer :: n
+
         pos = 0
         if (.not. allocated(begins)) return
         n = arg_position(which, index, offset)
@@ -607,6 +631,7 @@ contains
         integer, intent(in), optional :: index, offset, which
         character(len=:), allocatable :: text
         type(status_type) :: st
+
         call buffer_substring(pcomplete_begin(index, offset, which), point(), text, st)
     end function pcomplete_actual_arg
 
@@ -615,6 +640,7 @@ contains
     recursive subroutine pcomplete_next_arg()
         pcomplete_index = pcomplete_index + 1
         pcomplete_stub = pcomplete_arg()
+
         if (pcomplete_index > pcomplete_last) then
             call message("No completions")
             thrown = THROWN_PCOMPLETED
@@ -625,6 +651,7 @@ contains
     !> pcomplete.el:pcomplete-command-name.
     recursive subroutine pcomplete_command_name(name)
         character(len=:), allocatable, intent(out) :: name
+
         name = file_name_nondirectory(pcomplete_arg(which=PCOMPLETE_ARG_FIRST))
     end subroutine pcomplete_command_name
 
@@ -640,14 +667,17 @@ contains
         type(status_type) :: st
         integer :: i
         logical :: found
+
         matched = .false.
         i = 1
         if (present(index)) i = index
         arg = pcomplete_arg(i, offset, which, found)
+
         if (.not. found) then
             thrown = THROWN_PCOMPLETED
             return
         end if
+
         if (present(start)) then
             matched = string_match(regexp, arg, st, start=start + 1) > 0
         else
@@ -664,14 +694,17 @@ contains
         character(len=:), allocatable :: arg
         integer :: i
         logical :: found
+
         text = ""
         i = 1
         if (present(index)) i = index
         arg = pcomplete_arg(i, offset, which, found)
+
         if (.not. found) then
             thrown = THROWN_PCOMPLETED
             return
         end if
+
         text = match_string(which_group, arg)
     end function pcomplete_match_string
 
@@ -686,14 +719,17 @@ contains
         character(len=:), allocatable :: arg
         type(status_type) :: st
         integer :: i, k
+
         ok = .false.
         i = 1
         if (present(index)) i = index
         arg = pcomplete_arg(i, offset, which)
+
         if (present(predicate)) then
             ok = predicate(arg)
             if (ok) return
         end if
+
         if (present(regexps)) then
             do k = 1, size(regexps)
                 if (string_match("^"//trim(regexps(k))//"$", arg, st) > 0) then
@@ -712,9 +748,11 @@ contains
         type(status_type) :: st
         integer(int64) :: opoint, start, moved
         character(len=:), allocatable :: text
+
         opoint = point()
         allocate (args(0), begins(0))
         call goto_char(1_int64)
+
         do while (point() < point_max())
             moved = skip_chars_forward(" "//achar(9)//achar(10), st)
             start = point()
@@ -722,6 +760,7 @@ contains
             call buffer_substring(start, point(), text, st)
             call push_arg(args, begins, text, start)
         end do
+
         call goto_char(opoint)
     end subroutine pcomplete_parse_buffer_arguments
 
@@ -736,14 +775,17 @@ contains
         integer(int32) :: c
         character(len=:), allocatable :: text
         logical :: have
+
         opoint = point()
         call comint_bol(.false.)
         begin = point()
         allocate (args(0), begins(0))
         call goto_char(begin)
+
         do while (point() < opoint)
             moved = skip_chars_forward(" "//achar(9)//achar(10), st)
             start = point()
+
             do
                 moved = skip_chars_forward("^ "//achar(9)//achar(10)//"\\", st)
                 call char_after(c, have)
@@ -752,9 +794,11 @@ contains
                 if (eolp()) exit
                 call goto_char(point() + 1)
             end do
+
             call buffer_substring(start, point(), text, st)
             call push_arg(args, begins, text, start)
         end do
+
         call goto_char(opoint)
     end subroutine pcomplete_parse_comint_arguments
 
@@ -766,11 +810,14 @@ contains
         integer(int64), intent(in) :: start
         type(process_arg_type), allocatable :: grown(:)
         integer :: n, k
+
         n = size(args)
         allocate (grown(n + 1))
+
         do k = 1, n
             call move_alloc(args(k)%s, grown(k)%s)
         end do
+
         grown(n + 1)%s = text
         call move_alloc(grown, args)
         begins = [begins, start]
@@ -787,16 +834,19 @@ contains
         integer(int64), allocatable :: parsed_begins(:)
         type(status_type) :: st
         integer(int64) :: begin
+
         ok = .false.
         call pcomplete_parse_arguments_function%get(fn)
         if (.not. associated(fn)) return
         call fn(parsed, parsed_begins)
         if (.not. allocated(parsed)) return
+
         if (size(parsed) == 0) then
             deallocate (parsed)
             allocate (parsed(1))
             parsed(1)%s = ""
         end if
+
         if (.not. allocated(parsed_begins)) allocate (parsed_begins(0))
         if (size(parsed_begins) == 0) parsed_begins = [point()]
         call move_alloc(parsed, args)
@@ -805,10 +855,12 @@ contains
         pcomplete_index = 0
         pcomplete_stub = pcomplete_arg(which=PCOMPLETE_ARG_LAST)
         begin = pcomplete_begin(which=PCOMPLETE_ARG_LAST)
+
         if (expand_p .and. begin > 0) then
             call delete_region(begin, point(), st)
             call insert(pcomplete_stub, st)
         end if
+
         ok = .true.
     end function pcomplete_parse_arguments
 
@@ -829,6 +881,7 @@ contains
         type(completion_table_type), intent(out) :: table
         character(len=*), intent(in), optional :: regexp
         procedure(pcomplete_file_predicate), optional :: predicate
+
         ! Capture the values for later use.
         entries_has_regexp = present(regexp)
         if (present(regexp)) entries_regexp = regexp
@@ -847,6 +900,7 @@ contains
         type(completion_table_type), intent(out) :: table
         character(len=*), intent(in), optional :: regexp
         procedure(pcomplete_file_predicate), optional :: predicate
+
         call pcomplete_entries(table, regexp, predicate)
         entries_has_file_ignore = .false.
         entries_has_dir_ignore = .false.
@@ -857,6 +911,7 @@ contains
     recursive subroutine pcomplete_dirs(table, regexp)
         type(completion_table_type), intent(out) :: table
         character(len=*), intent(in), optional :: regexp
+
         call pcomplete_entries(table, regexp, directory_p)
     end subroutine pcomplete_dirs
 
@@ -865,6 +920,7 @@ contains
     recursive subroutine pcomplete_executables(table, regexp)
         type(completion_table_type), intent(out) :: table
         character(len=*), intent(in), optional :: regexp
+
         call pcomplete_entries(table, regexp, executable_p)
     end subroutine pcomplete_executables
 
@@ -874,6 +930,7 @@ contains
         type(completion_table_type), intent(out) :: table
         character(len=*), intent(in), optional :: regexp
         procedure(pcomplete_file_predicate), optional :: predicate
+
         doe_has_regexp = present(regexp)
         if (present(regexp)) doe_regexp = regexp
         doe_predicate => null()
@@ -883,11 +940,13 @@ contains
 
     recursive logical function directory_p(file)
         character(len=*), intent(in) :: file
+
         directory_p = file_directory_p(file)
     end function directory_p
 
     recursive logical function executable_p(file)
         character(len=*), intent(in) :: file
+
         executable_p = file_executable_p(file)
     end function executable_p
 
@@ -895,11 +954,14 @@ contains
     recursive logical function dir_or_entry_p(file) result(ok)
         character(len=*), intent(in) :: file
         type(status_type) :: st
+
         ok = file_directory_p(file)
         if (ok) return
+
         if (doe_has_regexp) then
             if (string_match(doe_regexp, file, st) == 0) return
         end if
+
         if (associated(doe_predicate)) then
             ok = doe_predicate(file)
         else
@@ -913,11 +975,14 @@ contains
         type(value_type), intent(in) :: elt
         character(len=:), allocatable :: file
         type(status_type) :: st
+
         ok = .false.
         file = xstring(elt)
+
         if (entries_has_regexp) then
             if (string_match(entries_regexp, file, st) == 0) return
         end if
+
         if (len(file) > 0) then
             if (file(len(file):len(file)) == "/") then
                 if (entries_has_dir_ignore) then
@@ -927,6 +992,7 @@ contains
                 if (string_match(entries_file_ignore, file, st) > 0) return
             end if
         end if
+
         if (associated(entries_predicate)) then
             ok = entries_predicate(file)
         else
@@ -937,6 +1003,7 @@ contains
     ! PREDICATE of `pcomplete_entries' alone, as a completion predicate.
     recursive logical function entries_predicate_only(elt)
         type(value_type), intent(in) :: elt
+
         entries_predicate_only = entries_predicate(xstring(elt))
     end function entries_predicate_only
 
@@ -950,6 +1017,7 @@ contains
         character(len=*), intent(in), optional :: suffix
         type(completion_table_type) :: table
         character(len=len(completion_ignored_extensions)) :: saved_extensions(size(completion_ignored_extensions))
+
         ! `completion_file_name_table' calls `file_exists_p' when the
         ! predicate is absent.  So likewise, defer to PREDICATE if it's
         ! there, else take ourselves to be responsible for calling
@@ -957,6 +1025,7 @@ contains
         saved_extensions = completion_ignored_extensions
         completion_ignored_extensions = ""
         table = completion_function_table(comint_completion_file_name_table)
+
         if (entries_has_regexp .or. entries_has_file_ignore .or. entries_has_dir_ignore) then
             call completion_table_with_predicate(table, entries_filter, .true., string, action, result, status, &
                                                  pred, suffix)
@@ -967,6 +1036,7 @@ contains
             call completion_table_with_predicate(table, strict=.true., string=string, action=action, &
                                                  result=result, status=status, predicate=pred, suffix=suffix)
         end if
+
         completion_ignored_extensions = saved_extensions
     end subroutine entries_inner_table
 
@@ -987,12 +1057,14 @@ contains
         integer(int64) :: orig_length, envpos, bstart, len_env
         integer :: k
         logical :: found, expanded
+
         table = completion_function_table(entries_inner_table)
         orig_length = schars(string)
         rest = string
         newstring = ""
         envpos = 0
         expanded = .false.
+
         ! Perform env-var expansion.
         do while (string_match(ENV_REGEXP, rest, st) > 0)
             expanded = .true.
@@ -1002,20 +1074,26 @@ contains
             newstring = newstring//value
             rest = substring(rest, match_end(1, st) - 1)
         end do
+
         envpos = schars(newstring)
         newstring = newstring//rest
+
         if (.not. (expanded .and. (action == COMPLETE_ALL .or. action == COMPLETE_BOUNDARIES))) then
             call complete_with_action(action, table, newstring, result, status, pred, suffix)
             return
         end if
+
         usuffix = ""
         if (present(suffix)) usuffix = suffix
         call entries_inner_table(newstring, COMPLETE_BOUNDARIES, bounds, st, pred, usuffix)
         bstart = 0
+
         if (list_length(bounds) == 2) then
             if (fixnump(list_elt(bounds, 1_int64))) bstart = xfixnum(list_elt(bounds, 1_int64))
         end if
+
         status = status_type()
+
         if (bstart >= envpos) then
             ! The env-var is "out of bounds".
             if (action == COMPLETE_ALL) then
@@ -1031,9 +1109,11 @@ contains
                 ! Strip the part of each completion that's actually
                 ! coming from the env-var.
                 call list_elements(comps, elts)
+
                 do k = 1, size(elts)
                     elts(k) = make_string(substring(xstring(elts(k)), len_env))
                 end do
+
                 result = make_list(elts)
             else
                 result = list(make_fixnum(envpos + orig_length - schars(newstring)), list_elt(bounds, 2_int64))
@@ -1054,12 +1134,15 @@ contains
         procedure(pcomplete_function_proc), pointer, intent(out) :: fn
         character(len=:), allocatable :: mode
         integer :: k
+
         fn => null()
         if (.not. allocated(pcomplete_command_functions%entries)) return
         mode = "fundamental_mode"
+
         if (cur /= 0) then
             if (allocated(buffers(cur)%major_mode)) mode = buffers(cur)%major_mode
         end if
+
         do k = 1, size(pcomplete_command_functions%entries)
             associate (e => pcomplete_command_functions%entries(k))
                 if (trim(e%command) == command .and. trim(e%mode) == mode) then
@@ -1068,6 +1151,7 @@ contains
                 end if
             end associate
         end do
+
         do k = 1, size(pcomplete_command_functions%entries)
             associate (e => pcomplete_command_functions%entries(k))
                 if (trim(e%command) == command .and. len_trim(e%mode) == 0) then
@@ -1088,27 +1172,32 @@ contains
         procedure(pcomplete_function_proc), pointer :: fn
         procedure(pcomplete_name_proc), pointer :: name_fn
         character(len=:), allocatable :: name
+
         status = status_type()
         found = .false.
         thrown = THROWN_NONE
         has_thrown_table = .false.
+
         if (pcomplete_parse_arguments(pcomplete_expand_before_complete%value)) then
             if (pcomplete_index == pcomplete_last) then
                 call pcomplete_command_completion_function%get(fn)
                 if (associated(fn)) call fn(status)
             else
                 name_fn => pcomplete_command_name_function
+
                 if (associated(name_fn)) then
                     call name_fn(name)
                 else
                     call pcomplete_command_name(name)
                 end if
+
                 call pcomplete_find_completion_function(name, fn)
                 if (.not. associated(fn)) call pcomplete_default_completion_function%get(fn)
                 call pcomplete_next_arg()
                 if (thrown == THROWN_NONE .and. associated(fn)) call fn(status)
             end if
         end if
+
         if (thrown == THROWN_COMPLETIONS .and. has_thrown_table) then
             table = thrown_table
             found = .true.
@@ -1157,28 +1246,35 @@ contains
         type(status_type) :: st
         integer :: p
         logical :: only, found
+
         advanced = .false.
         if (thrown /= THROWN_NONE) return
         p = PCOMPLETE_PARING_DEFAULT
         if (present(paring)) p = paring
+
         if (pcomplete_index < pcomplete_last) then
             if (p == PCOMPLETE_PARING_CLEAR) then
                 if (allocated(seen)) deallocate (seen)
             else if (p /= PCOMPLETE_PARING_NONE) then
                 arg = pcomplete_arg()
+
                 if (present(paring_function)) then
                     call paring_function(arg, norm)
                 else
                     call file_truename(arg, norm, st)
                     if (.not. st%ok()) norm = arg
                 end if
+
                 call push_seen(seen, norm)
             end if
+
             call pcomplete_next_arg()
             advanced = thrown == THROWN_NONE
             return
         end if
+
         if (present(stub)) pcomplete_stub = stub
+
         if (p == PCOMPLETE_PARING_NONE .or. p == PCOMPLETE_PARING_CLEAR) then
             if (allocated(seen)) deallocate (seen)
         else if (present(paring_function)) then
@@ -1186,11 +1282,13 @@ contains
         else
             norm_func => truename_norm
         end if
+
         only = .false.
         if (present(form_only)) only = form_only
         if (.not. only) call pcomplete_try_first_hook%run(st)
         thrown = THROWN_COMPLETIONS
         has_thrown_table = .false.
+
         if (present(form)) then
             call form(thrown_table, found)
             has_thrown_table = found
@@ -1203,6 +1301,7 @@ contains
         procedure(pcomplete_form_proc), optional :: form
         character(len=*), intent(in), optional :: stub
         logical, intent(in), optional :: form_only
+
         advanced = pcomplete_here(form, stub, PCOMPLETE_PARING_NONE, form_only=form_only)
     end function pcomplete_here_star
 
@@ -1211,6 +1310,7 @@ contains
         character(len=*), intent(in) :: arg
         character(len=:), allocatable, intent(out) :: norm
         type(status_type) :: st
+
         call file_truename(arg, norm, st)
         if (.not. st%ok()) norm = arg
     end subroutine truename_norm
@@ -1221,13 +1321,16 @@ contains
         character(len=*), intent(in) :: s
         type(process_arg_type), allocatable :: grown(:)
         integer :: n, k
+
         if (.not. allocated(list)) allocate (list(0))
         n = size(list)
         allocate (grown(n + 1))
         grown(1)%s = s
+
         do k = 1, n
             call move_alloc(list(k)%s, grown(k + 1)%s)
         end do
+
         call move_alloc(grown, list)
     end subroutine push_seen
 
@@ -1244,10 +1347,12 @@ contains
         character(len=*), intent(in) :: string
         integer, intent(in) :: finished
         type(status_type) :: st
+
         ! (STRING is unused.)
         if (.not. allocated(pcomplete_termination_string%value)) return
         if (len(pcomplete_termination_string%value) == 0) return
         if (finished /= COMPLETION_FINISHED) return
+
         if (looking_at(regexp_quote(pcomplete_termination_string%value), st)) then
             call goto_char(match_end(0, st))
         else
@@ -1260,6 +1365,7 @@ contains
     recursive subroutine capf_exit(string, finished)
         character(len=*), intent(in) :: string
         integer, intent(in) :: finished
+
         if (associated(capf_exit_function)) call capf_exit_function(string, finished)
     end subroutine capf_exit
 
@@ -1269,9 +1375,11 @@ contains
     integer(int64) function common_suffix(s1, s2) result(n)
         character(len=*), intent(in) :: s1, s2
         integer(int64) :: n1, n2
+
         n1 = schars(s1)
         n2 = schars(s2)
         n = 0
+
         do while (n < n1 .and. n < n2)
             if (substring(s1, n1 - n - 1, n1 - n) /= substring(s2, n2 - n - 1, n2 - n)) exit
             n = n + 1
@@ -1286,6 +1394,7 @@ contains
         type(status_type), intent(out) :: status
         procedure(completion_predicate), optional :: pred
         character(len=*), intent(in), optional :: suffix
+
         if (capf_subvert) then
             call completion_table_subvert(capf_completions, capf_s1, capf_s2, string, action, result, status, &
                                           pred, suffix)
@@ -1300,8 +1409,10 @@ contains
         type(value_type), intent(in) :: elt
         character(len=:), allocatable :: norm
         integer :: k
+
         ok = .true.
         call capf_norm_func(directory_file_name(xstring(elt)), norm)
+
         do k = 1, size(capf_seen)
             if (capf_seen(k)%s == norm .and. len(capf_seen(k)%s) == len(norm)) then
                 ok = .false.
@@ -1324,6 +1435,7 @@ contains
         integer(int64) :: argbeg, beg, end, suf_len
         integer :: k
         logical :: found, saved_read_only
+
         status = status_type()
         data = capf_data_type()
         ! FIXME: it only completes the text before point, whereas the
@@ -1346,10 +1458,12 @@ contains
         buffers(cur)%read_only = saved_read_only
         capf_exit_function => pcomplete_exit_function
         pcomplete_exit_function => saved_exit
+
         if (thrown == THROWN_PCOMPLETED .or. .not. status%ok()) then
             status = status_type()
             return
         end if
+
         ! Since we use minibuffer-complete, which doesn't know
         ! `pcomplete_stub' and works from the buffer's text instead, we
         ! need to trick minibuffer-complete into using `pcomplete_stub'
@@ -1360,6 +1474,7 @@ contains
         argbeg = pcomplete_begin()
         beg = max(point() - schars(pcomplete_stub), argbeg)
         end = point()
+
         ! Try and improve our guess of `beg' in case the difference
         ! between `pcomplete_stub' and the buffer's text is simply due to
         ! some chars removed by unquoting.
@@ -1369,6 +1484,7 @@ contains
             if (.not. (beg > argbeg .and. schars(pcomplete_stub) > schars(buftext))) exit
             beg = max(argbeg, beg - (schars(pcomplete_stub) - schars(buftext)))
         end do
+
         ! Try and improve our guess of `end' in case it's not point.
         do while (schars(buftext) < schars(pcomplete_stub) .and. end < point_max())
             call buffer_substring(beg, end + 1, tmp, st)
@@ -1377,9 +1493,11 @@ contains
             end = end + 1
             buftext = norm
         end do
+
         if (.not. found) return
         capf_completions = completions
         capf_subvert = .not. (pcomplete_stub == buftext .and. len(pcomplete_stub) == len(buftext))
+
         if (capf_subvert) then
             ! This may not always be strictly right, but given the lack of
             ! any other info, it's about as good as it gets, and in
@@ -1388,11 +1506,13 @@ contains
             capf_s1 = substring(buftext, 0_int64, schars(buftext) - suf_len)
             capf_s2 = substring(pcomplete_stub, 0_int64, schars(pcomplete_stub) - suf_len)
         end if
+
         data%found = .true.
         data%start = beg
         data%end = end
         data%table = completion_table_with_quoting(capf_table, pcomplete_unquote_argument_function, &
                                                    pcomplete_requote_argument_function)
+
         ! Pare it down, if applicable.
         if (pcomplete_use_paring%value .and. allocated(seen)) then
             if (size(seen) > 0) then
@@ -1401,19 +1521,23 @@ contains
                 if (.not. associated(capf_norm_func)) capf_norm_func => truename_norm
                 if (allocated(capf_seen)) deallocate (capf_seen)
                 allocate (capf_seen(size(seen)))
+
                 do k = 1, size(seen)
                     call capf_norm_func(directory_file_name(seen(k)%s), norm)
                     capf_seen(k)%s = norm
                 end do
+
                 data%predicate => capf_pare
             end if
         end if
+
         data%exit_function => capf_exit
     end subroutine pcomplete_completions_at_point
 
     ! Whether PREFIX is a prefix of STRING (string-prefix-p).
     logical function prefix_of(prefix, string)
         character(len=*), intent(in) :: prefix, string
+
         prefix_of = .false.
         if (len(prefix) > len(string)) return
         prefix_of = string(1:len(prefix)) == prefix

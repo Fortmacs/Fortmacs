@@ -51,8 +51,10 @@ contains
     !> custom-initialize-delay of startup.el:command-line).
     subroutine init_user_mail_address()
         integer :: n, st
+
         if (allocated(user_mail_address)) return
         call get_environment_variable("EMAIL", length=n, status=st)
+
         if (st == 0) then
             allocate (character(len=n) :: user_mail_address)
             if (n > 0) call get_environment_variable("EMAIL", user_mail_address)
@@ -66,6 +68,7 @@ contains
     !> The value of `user_mail_address', initializing it first if needed.
     function user_mail_address_value() result(address)
         character(len=:), allocatable :: address
+
         call init_user_mail_address()
         address = user_mail_address
     end function user_mail_address_value

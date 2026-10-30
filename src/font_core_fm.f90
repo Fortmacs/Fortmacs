@@ -365,6 +365,7 @@ contains
     subroutine syms_of_font_core()
         type(status_type) :: st
         logical :: bound
+
         call minor_modes%font_lock_mode%define("font_lock_mode", body=font_lock_mode_body, hook=font_lock_mode_hook, &
                                                after_hook=font_lock_mode_after_hook)
         commands%font_lock_mode%run => font_lock_mode
@@ -402,16 +403,20 @@ contains
         logical, intent(in) :: make
         type(defaults_entry_type), allocatable :: grown(:)
         integer :: i, n
+
         k = 0
         if (cur == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
+
         do i = 1, size(self%entries)
             if (self%entries(i)%serial == buffers(cur)%serial) then
                 k = i
                 return
             end if
         end do
+
         if (.not. make) return
+
         ! Reuse the entry of a dead buffer.
         do i = 1, size(self%entries)
             if (.not. self%entries(i)%set) then
@@ -420,6 +425,7 @@ contains
                 return
             end if
         end do
+
         n = size(self%entries)
         allocate (grown(n + 1))
         grown(1:n) = self%entries
@@ -439,15 +445,18 @@ contains
         !> OTHER-VARS: the buffer's `font_lock_syntactic_face_function'.
         procedure(font_lock_syntactic_face_proc), optional :: syntactic_face_function
         integer :: k
+
         k = defaults_index(self, .true.)
         if (k == 0) return
         self%entries(k)%set = .true.
         self%entries(k)%value = font_lock_defaults_type()
+
         if (present(levels)) then
             allocate (self%entries(k)%value%levels(size(levels)))
             self%entries(k)%value%levels(:) = levels(:)
         else
             allocate (self%entries(k)%value%levels(1))
+
             if (present(keywords)) then
                 allocate (self%entries(k)%value%levels(1)%keywords(size(keywords)))
                 self%entries(k)%value%levels(1)%keywords(:) = keywords(:)
@@ -455,19 +464,23 @@ contains
                 allocate (self%entries(k)%value%levels(1)%keywords(0))
             end if
         end if
+
         if (present(keywords_only)) self%entries(k)%value%keywords_only = keywords_only
         if (present(case_fold)) self%entries(k)%value%case_fold = case_fold
+
         if (present(syntax_alist)) then
             self%entries(k)%value%syntax_alist = syntax_alist
         else
             allocate (self%entries(k)%value%syntax_alist(0))
         end if
+
         if (present(syntactic_face_function)) self%entries(k)%value%syntactic_face_function => syntactic_face_function
     end subroutine defaults_set_local
 
     logical function defaults_present_p(self) result(p)
         class(font_lock_defaults_setting), intent(inout) :: self
         integer :: k
+
         k = defaults_index(self, .false.)
         p = .false.
         if (k > 0) p = self%entries(k)%set
@@ -477,6 +490,7 @@ contains
         class(font_lock_defaults_setting), intent(inout) :: self
         type(font_lock_defaults_type) :: v
         integer :: k
+
         k = defaults_index(self, .false.)
         if (k == 0) return
         if (self%entries(k)%set) v = self%entries(k)%value
@@ -485,6 +499,7 @@ contains
     subroutine defaults_kill_local(self)
         class(font_lock_defaults_setting), intent(inout) :: self
         integer :: k
+
         k = defaults_index(self, .false.)
         if (k == 0) return
         self%entries(k)%set = .false.
@@ -496,6 +511,7 @@ contains
     function font_lock_keywords_level(keywords) result(level)
         type(font_lock_keyword_type), intent(in) :: keywords(:)
         type(font_lock_keywords_type) :: level
+
         allocate (level%keywords(size(keywords)))
         level%keywords(:) = keywords(:)
     end function font_lock_keywords_level
@@ -504,6 +520,7 @@ contains
     !> kept here.
     subroutine kill_font_core_locals()
         integer :: k
+
         call font_lock_defaults%kill_local()
         k = global_index(.false.)
         if (k > 0) global_entries(k)%set_explicitly = .false.
@@ -563,6 +580,7 @@ contains
     !> font-core.el:font-lock-mode.
     subroutine font_lock_mode(status)
         type(status_type), intent(out) :: status
+
         call minor_modes%font_lock_mode%command(status)
     end subroutine font_lock_mode
 
@@ -571,8 +589,10 @@ contains
         logical, intent(in) :: on
         type(status_type), intent(out) :: status
         logical :: mode
+
         status = status_type()
         mode = on
+
         ! Don't turn on Font Lock mode if the buffer is invisible (the
         ! name starts with a space).
         if (cur > 0) then
@@ -583,8 +603,10 @@ contains
                 end if
             end if
         end if
+
         call font_lock_function(mode, status)
         if (.not. status%ok()) return
+
         ! Arrange to unfontify this buffer if we change major mode later.
         if (mode) then
             call change_major_mode_hook%add(font_lock_change_mode, local=.true.)
@@ -596,6 +618,7 @@ contains
     !> Font Lock mode's :after-hook (font-lock-initial-fontify).
     subroutine font_lock_mode_after_hook(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         if (associated(font_lock_initial_fontify_proc)) call font_lock_initial_fontify_proc(status)
     end subroutine font_lock_mode_after_hook
@@ -604,6 +627,7 @@ contains
     !> major mode changes).  Port of font-core.el:font-lock-change-mode.
     subroutine font_lock_change_mode(status)
         type(status_type), intent(out) :: status
+
         call minor_modes%font_lock_mode%disable(status)
     end subroutine font_lock_change_mode
 
@@ -616,6 +640,7 @@ contains
         integer(int64) :: begv, zv
         logical :: modp, changed
         type(value_type) :: inhibit
+
         status = status_type()
         if (cur == 0) return
         call buffer_modified_p(current_buffer(), modp, status)
@@ -643,6 +668,7 @@ contains
         type(value_type), allocatable :: elts(:), members(:), kept(:)
         integer :: k, j, n, found
         logical :: has
+
         status = status_type()
         face = sym("face")
         flf = sym("font_lock_face")
@@ -651,26 +677,32 @@ contains
         allocate (elts(0))
         if (consp(alist)) call list_elements(alist, elts)
         found = 0
+
         do k = 1, size(elts)
             if (.not. consp(elts(k))) cycle
             call list_elements(elts(k), members)
+
             if (value_eq(members(1), face)) then
                 found = k
                 exit
             end if
         end do
+
         if (mode) then
             ! Add `font_lock_face' as an alias for the `face' property.
             if (found > 0) then
                 call list_elements(elts(found), members)
                 has = .false.
+
                 do j = 2, size(members)
                     if (value_eq(members(j), sym("font_lock_face"))) has = .true.
                 end do
+
                 if (.not. has) then
                     elt = append_symbol(members, sym("font_lock_face"))
                     elts(found) = elt
                 end if
+
                 alist = make_list(elts)
             else
                 elt = list(face, sym("font_lock_face"))
@@ -682,39 +714,50 @@ contains
             call list_elements(elts(found), members)
             allocate (kept(size(members)))
             n = 0
+
             do j = 1, size(members)
                 if (j > 1) then
                     if (value_eq(members(j), flf)) cycle
                 end if
+
                 n = n + 1
                 kept(n) = members(j)
             end do
+
             if (n <= 1) then
                 ! (The element goes.)
                 deallocate (kept)
                 allocate (kept(size(elts) - 1))
+
                 do j = 1, size(elts)
                     if (j < found) kept(j) = elts(j)
                     if (j > found) kept(j - 1) = elts(j)
                 end do
+
                 call move_alloc(kept, elts)
             else
                 elts(found) = make_list(kept(1:n))
             end if
+
             alist = make_list(elts)
         end if
+
         call setq_local("char_property_alias_alist", alist, status)
         if (.not. status%ok()) return
+
         ! Only do hard work if the mode has specified stuff in
         ! `font_lock_defaults'.
         if (associated(font_lock_specified_p_proc) .and. associated(font_lock_mode_internal_proc)) then
             if (font_lock_specified_p_proc(mode)) call font_lock_mode_internal_proc(mode, status)
         end if
+
     contains
+
         function append_symbol(items, s) result(v)
             type(value_type), intent(in) :: items(:), s
             type(value_type) :: v
             type(value_type), allocatable :: all(:)
+
             all = [items, s]
             v = make_list(all)
         end function append_symbol
@@ -723,6 +766,7 @@ contains
     !> The current buffer's major mode (`major_mode').
     function major_mode_of_current() result(mode)
         character(len=:), allocatable :: mode
+
         mode = "fundamental_mode"
         if (cur == 0) return
         if (allocated(buffers(cur)%major_mode)) mode = buffers(cur)%major_mode
@@ -732,6 +776,7 @@ contains
     !> of font-core.el:turn-on-font-lock.
     subroutine turn_on_font_lock(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         if (.not. minor_modes%font_lock_mode%enabled()) call minor_modes%font_lock_mode%enable(status)
     end subroutine turn_on_font_lock
@@ -743,19 +788,24 @@ contains
         type(status_type), intent(out) :: status
         logical :: desired, member
         integer :: k
+
         status = status_type()
         if (cur == 0) return
+
         if (font_lock_global_modes%all) then
             desired = .true.
         else
             member = .false.
+
             if (allocated(font_lock_global_modes%modes)) then
                 do k = 1, size(font_lock_global_modes%modes)
                     if (trim(font_lock_global_modes%modes(k)) == major_mode_of_current()) member = .true.
                 end do
             end if
+
             desired = member .neqv. font_lock_global_modes%negate
         end if
+
         if (desired) call turn_on_font_lock(status)
     end subroutine turn_on_font_lock_if_desired
 
@@ -768,15 +818,18 @@ contains
         logical, intent(in) :: make
         type(global_entry_type), allocatable :: grown(:)
         integer :: i, n
+
         k = 0
         if (cur == 0) return
         if (.not. allocated(global_entries)) allocate (global_entries(0))
+
         do i = 1, size(global_entries)
             if (global_entries(i)%serial == buffers(cur)%serial) then
                 k = i
                 return
             end if
         end do
+
         if (.not. make) return
         n = size(global_entries)
         allocate (grown(n + 1))
@@ -797,6 +850,7 @@ contains
     !> of font-core.el:global-font-lock-mode.
     subroutine global_font_lock_mode(status)
         type(status_type), intent(out) :: status
+
         call minor_modes%global_font_lock_mode%command(status)
     end subroutine global_font_lock_mode
 
@@ -809,28 +863,37 @@ contains
         type(handle_type), allocatable :: all(:)
         integer(int64) :: b, saved
         integer :: k
+
         status = status_type()
+
         if (on) then
             call after_change_major_mode_hook%add(global_font_lock_mode_enable_in_buffer)
         else
             call after_change_major_mode_hook%remove(global_font_lock_mode_enable_in_buffer)
         end if
+
         all = buffer_list()
         saved = cur
+
         do k = 1, size(all)
             call resolve_buffer(all(k), b, status)
+
             if (.not. status%ok()) then
                 status = status_type()
                 cycle
             end if
+
             call set_buffer_internal(b)
+
             if (on) then
                 call turn_on_font_lock_if_desired(status)
             else if (minor_modes%font_lock_mode%enabled()) then
                 call minor_modes%font_lock_mode%disable(status)
             end if
+
             if (.not. status%ok()) exit
         end do
+
         if (saved > 0) call set_buffer_internal(saved)
     end subroutine global_font_lock_mode_body
 
@@ -841,11 +904,14 @@ contains
         type(status_type), intent(out) :: status
         integer :: k
         logical :: saved
+
         status = status_type()
         k = global_index(.false.)
+
         if (k > 0) then
             if (global_entries(k)%set_explicitly) return
         end if
+
         ! We are not part of the major mode hook so we don't set it
         ! explicitly.
         saved = suppress_set_explicitly
@@ -860,6 +926,7 @@ contains
     subroutine font_lock_mode_set_explicitly(status)
         type(status_type), intent(out) :: status
         integer :: k
+
         status = status_type()
         if (suppress_set_explicitly) return
         k = global_index(.true.)

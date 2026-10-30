@@ -51,6 +51,7 @@ contains
 
     subroutine collect_simple_electric_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("blink-matching-check-mismatch", test_check_mismatch), &
                     new_unittest("blink-matching-open-messages", test_messages), &
@@ -64,6 +65,7 @@ contains
         type(handle_type), intent(out) :: h
         character(len=*), intent(in) :: text
         type(status_type) :: st
+
         call init_bindings()
         call discard_input()
         prefix_arg = nil()
@@ -77,6 +79,7 @@ contains
     subroutine keys(text)
         character(len=*), intent(in) :: text
         type(status_type) :: st
+
         call kbd_store_bytes(text)
         call command_loop(st)
     end subroutine keys
@@ -85,6 +88,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, "(a] (b) x) ""c""")
         call check(error, blink_matching_check_mismatch(1_int64, 4_int64), "( and ]")
         if (allocated(error)) return
@@ -102,6 +106,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, "(foo")
         call keys("]")
         call check(error, last_message, "Mismatched parentheses")
@@ -131,6 +136,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, "(defun foo ()"//repeat(achar(10)//"x", 60))
         call set_window_start(selected_window_ref(), 20_int64, st)
         call keys(")")
@@ -148,6 +154,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, "  foo  ")
         call newline_and_indent(st, 2_int64)
         call check(error, buffer_string(), "  foo"//achar(10)//"  "//achar(10))
@@ -162,6 +169,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, "a"//achar(9)//"b")
         call goto_char(3_int64)
         call backward_delete_char_untabify(1_int64, st)

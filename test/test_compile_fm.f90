@@ -58,6 +58,7 @@ contains
 
     subroutine collect_compile_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("compile-command-default", test_default_command), &
                     new_unittest("compile-finished", test_finished), &
@@ -80,6 +81,7 @@ contains
         type(handle_type), intent(out) :: h
         character(len=*), intent(in) :: dir
         type(status_type) :: st
+
         call get_buffer_create("*compile-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
@@ -97,8 +99,10 @@ contains
         type(status_type) :: st
         integer(int64) :: start, now, rate
         logical :: got
+
         buf = get_buffer("*compilation*")
         call system_clock(start, rate)
+
         do
             proc = get_buffer_process(buf)
             if (proc%index == 0) exit
@@ -113,6 +117,7 @@ contains
         character(len=:), allocatable :: text
         type(handle_type) :: old, buf
         type(status_type) :: st
+
         text = ""
         buf = get_buffer("*compilation*")
         if (.not. buffer_live_p(buf)) return
@@ -125,6 +130,7 @@ contains
     function buffers_current() result(h)
         use buffer_fm, only: current_buffer
         type(handle_type) :: h
+
         h = current_buffer()
     end function buffers_current
 
@@ -134,16 +140,22 @@ contains
         integer, intent(in) :: n
         character(len=:), allocatable :: l
         integer :: k, b, e
+
         b = 1
+
         do k = 1, n - 1
             e = index(text(b:), new_line("a"))
+
             if (e == 0) then
                 l = ""
                 return
             end if
+
             b = b + e
         end do
+
         e = index(text(b:), new_line("a"))
+
         if (e == 0) then
             l = text(b:)
         else
@@ -155,6 +167,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=16) :: n
         character(len=:), allocatable :: expected
+
         if (allocated(compile_command%value)) deallocate (compile_command%value)
         call init_bindings()
         write (n, "(i0)") (2*num_processors() + 2)/3
@@ -168,6 +181,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         character(len=:), allocatable :: text, dir
+
         call init_bindings()
         dir = file_name_as_directory(temporary_file_directory())
         call source_buffer(h, dir)
@@ -184,9 +198,11 @@ contains
         if (.not. allocated(error)) call check(error, line(text, 4), "echo built")
         if (.not. allocated(error)) call check(error, line(text, 5), "built")
         if (.not. allocated(error)) call check(error, line(text, 6), "")
+
         if (.not. allocated(error)) then
             call check(error, index(line(text, 7), "Compilation finished at ") == 1, line(text, 7))
         end if
+
         if (.not. allocated(error)) call check(error, index(line(text, 7), ", duration ") > 0, line(text, 7))
         if (.not. allocated(error)) call check(error, last_message, "Compilation finished")
         call kill_buffer(h, st)
@@ -197,6 +213,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         character(len=:), allocatable :: text
+
         call source_buffer(h, file_name_as_directory(temporary_file_directory()))
         call compile("exit 2", st)
         call check(error, st%ok(), format_error(st))
@@ -214,6 +231,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, buf
         type(status_type) :: st
+
         call source_buffer(h, "/")
         call compile("cd /tmp; pwd", st)
         call check(error, st%ok(), format_error(st))
@@ -231,6 +249,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, buf
         type(status_type) :: st
+
         call source_buffer(h, file_name_as_directory(temporary_file_directory()))
         call compile("echo again", st)
         call wait_compilation()
@@ -251,6 +270,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call source_buffer(h, file_name_as_directory(temporary_file_directory()))
         compilation_always_kill = .true.
         call compile("sleep 100", st)
@@ -270,6 +290,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call source_buffer(h, "/")
         call insert("abc"//achar(13)//"xy"//new_line("a")//"ab"//achar(8)//"c"//new_line("a")//"end"//achar(13), st)
         call comint_carriage_motion(1_int64, point_max())
@@ -284,6 +305,7 @@ contains
         type(status_type) :: st
         type(value_type), allocatable :: key(:)
         type(value_type) :: b
+
         call init_bindings()
         call source_buffer(h, file_name_as_directory(temporary_file_directory()))
         call compile("true", st)
@@ -292,20 +314,24 @@ contains
         call set_buffer(buf, st)
         call check(error, buffers(cur)%mode_name, "Compilation")
         if (.not. allocated(error)) call check(error, buffers(cur)%read_only, "read-only")
+
         if (.not. allocated(error)) then
             call key_parse("g", key, st)
             call key_binding(key, b, st)
             call check(error, symbolp(b), "bound")
             if (.not. allocated(error)) call check(error, trim(symbols(xsymbol(b))%name), "recompile")
         end if
+
         call set_buffer_read_only(buf, .false., st)
         call kill_buffer(buf, st)
         call kill_buffer(h, st)
     end subroutine test_mode
+
     !> A buffer for parsing, empty, in Fundamental mode.
     subroutine parse_buffer(h)
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call get_buffer_create("*compile-regexps*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
@@ -326,6 +352,7 @@ contains
         logical :: found, last_has
         integer(int64) :: last_line
         character(len=:), allocatable :: what
+
         what = "testcase "//rule//": "//str
         call erase_buffer(st)
         call compilation_forget_errors()
@@ -344,6 +371,7 @@ contains
         if (.not. allocated(error) .and. has_line) call check(error, info%line, line, what//": line")
         if (.not. allocated(error) .and. has_file) call check(error, info%file, file, what//": file")
         if (allocated(error)) return
+
         if (has_end_col) then
             ! The computed END-COL is exclusive; subtract one to get the
             ! number in the error message.
@@ -351,6 +379,7 @@ contains
             if (.not. allocated(error)) call check(error, info%end_column - 1, end_col, what//": end column")
             if (allocated(error)) return
         end if
+
         if (info%has_end) then
             last_has = info%has_end_line
             last_line = info%end_line
@@ -358,15 +387,18 @@ contains
             last_has = info%has_line
             last_line = info%line
         end if
+
         if (has_end_line) then
             call check(error, last_has .and. last_line == end_line, what//": end line")
         else
             call check(error, last_has .eqv. has_line, what//": end line")
             if (.not. allocated(error) .and. has_line) call check(error, last_line, line, what//": end line")
         end if
+
         if (allocated(error)) return
         if (type >= 0) call check(error, info%type, type, what//": type")
         if (allocated(error)) return
+
         if (len(rule) == 0) then
             call check(error,.not. allocated(info%rule), what//": rule")
         else
@@ -386,6 +418,7 @@ contains
         character(len=64), allocatable :: saved(:)
         character(len=*), parameter :: NL = achar(10), TB = achar(9)
         integer :: k
+
         call init_bindings()
         call parse_buffer(h)
         compilation_num_errors_found = 0
@@ -399,6 +432,7 @@ contains
         if (.not. allocated(error)) call check(error, compilation_num_warnings_found, 37_int64, "warnings")
         if (.not. allocated(error)) call check(error, compilation_num_infos_found, 36_int64, "infos")
         call kill_buffer(h, st)
+
     contains
 
         !> Test all built-in rules except `omake' to avoid interference.
@@ -1391,9 +1425,11 @@ contains
             saved = compilation_error_regexp_alist
             deallocate (compilation_error_regexp_alist)
             allocate (compilation_error_regexp_alist(size(compilation_error_regexp_alist_alist)))
+
             do k = 1, size(compilation_error_regexp_alist_alist)
                 compilation_error_regexp_alist(k) = compilation_error_regexp_alist_alist(k)%name
             end do
+
             s = "      alpha.c:5:15: error: expected ';' after expression"
             f = "alpha.c"
             call error_line(error, "gnu", s, 1_int64, .true., 15_int64, .false., 0_int64, .true., 5_int64, .false., &
@@ -1405,6 +1441,7 @@ contains
     subroutine my_file(filename, directory, found)
         character(len=:), allocatable, intent(out) :: filename, directory
         logical, intent(out) :: found
+
         filename = "my-file"
         found = .true.
         if (allocated(directory)) deallocate (directory)
@@ -1413,6 +1450,7 @@ contains
     subroutine line_start(number, found)
         integer(int64), intent(out) :: number
         logical, intent(out) :: found
+
         number = 123
         found = .true.
     end subroutine line_start
@@ -1420,6 +1458,7 @@ contains
     subroutine line_end(number, found)
         integer(int64), intent(out) :: number
         logical, intent(out) :: found
+
         number = 134
         found = .true.
     end subroutine line_end
@@ -1427,6 +1466,7 @@ contains
     subroutine col_start(number, found)
         integer(int64), intent(out) :: number
         logical, intent(out) :: found
+
         number = 39
         found = .true.
     end subroutine col_start
@@ -1434,6 +1474,7 @@ contains
     subroutine col_end(number, found)
         integer(int64), intent(out) :: number
         logical, intent(out) :: found
+
         number = 24
         found = .true.
     end subroutine col_end
@@ -1446,6 +1487,7 @@ contains
         character(len=64), allocatable :: saved_names(:)
         type(handle_type) :: h
         type(status_type) :: st
+
         call init_bindings()
         call parse_buffer(h)
         saved_rules = compilation_error_regexp_alist_alist
@@ -1483,6 +1525,7 @@ contains
         logical :: found
         character(len=*), parameter :: NL = achar(10)
         integer(int64) :: second
+
         call init_bindings()
         call parse_buffer(h)
         call compilation_forget_errors()
@@ -1512,6 +1555,7 @@ contains
         character(len=:), allocatable :: dir, path
         integer(int64) :: errors, warnings, infos
         integer :: unit
+
         call init_bindings()
         dir = file_name_as_directory(temporary_file_directory())
         path = dir//"fortmacs-compile-test.c"
@@ -1579,6 +1623,7 @@ contains
         character(len=:), allocatable :: text
         type(status_type) :: st
         integer :: k
+
         call buffer_substring(line_beginning_position(), line_end_position(), text, st)
         k = index(text, ":")
         if (k == 0) return
@@ -1593,6 +1638,7 @@ contains
         type(handle_type) :: h, buf
         type(status_type) :: st
         character(len=:), allocatable :: text
+
         call init_bindings()
         call source_buffer(h, file_name_as_directory(temporary_file_directory()))
         call compile("echo interactive", st, comint=.true.)
