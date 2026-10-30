@@ -31,6 +31,7 @@
 !> Deferred).  A submodule of coding_fm, which defines them when it
 !> starts.
 submodule(coding_fm) hebrew_fm
+    use mule_fm, only: set_language_info_alist
     implicit none(type, external)
 
 contains
@@ -55,4 +56,23 @@ contains
                                           doc="DOS codepage 862 (Hebrew)")
         call define_coding_system_alias("ibm862", "cp862")
     end subroutine syms_of_hebrew
+
+    !> Port of the language environments of hebrew.el (set-language-info-alist).
+    module subroutine language_info_hebrew()
+        call set_language_info_alist("Hebrew", &
+                                     documentation="Bidirectional editing is supported.", &
+                                     charsets=[character(len=40) :: "iso-8859-8"], &
+                                     sample_text="Hebrew"//achar(9)//"שלום", &
+                                     coding_systems=[character(len=40) :: "hebrew-iso-8bit", "windows-1255", "cp862"], &
+                                     coding_priority=[character(len=40) :: "hebrew-iso-8bit"], &
+                                     nonascii_translation="iso-8859-8", &
+                                     input_method="hebrew", &
+                                     unibyte_display="hebrew-iso-8bit", &
+                                     tutorial="TUTORIAL.he")
+        call set_language_info_alist("Windows-1255", &
+                                     documentation="Support for Windows-1255 encoding, e.g. for Yiddish."//achar(10)//"Bidirec" &
+                                     //"tional editing is supported.", &
+                                     coding_systems=[character(len=40) :: "windows-1255"], &
+                                     coding_priority=[character(len=40) :: "windows-1255"])
+    end subroutine language_info_hebrew
 end submodule hebrew_fm

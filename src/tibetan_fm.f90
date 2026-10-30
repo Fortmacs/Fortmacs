@@ -31,6 +31,7 @@
 !> Deferred).  A submodule of coding_fm, which defines them when it
 !> starts.
 submodule(coding_fm) tibetan_fm
+    use mule_fm, only: set_language_info_alist
     implicit none(type, external)
 
 contains
@@ -47,4 +48,20 @@ contains
                                            charsets=[character(len=CHARSET_NAME_LEN) :: "ascii", "tibetan"])
         call define_coding_system_alias("tibetan", "tibetan-iso-8bit")
     end subroutine syms_of_tibetan
+
+    !> Port of the language environments of tibetan.el (set-language-info-alist).
+    module subroutine language_info_tibetan()
+        call set_language_info_alist("Tibetan", &
+                    documentation_t=.true., &
+                    charsets=[character(len=40) :: "tibetan", "tibetan-1-column"], &
+                    sample_text="Tibetan (བོད་སྐ"//char(246)//""//char(144)//""//char(130)//""//char(142) &
+                    //"ད་) ༄༅༅༎བཀྲ"//char(246)//""//char(144)//""//char(130)//""//char(142) &
+                    //"་ཤིས་བདེ་ལེགས༎ཨོཾ་མ" &
+                    //char(246)//""//char(144)//""//char(130)//""//char(142)//"་ཎི་པ"//char(246)//""//char(144)//"" &
+                    //char(130)//""//char(142)//"དྨེ་ཧའ" &
+                    //"ུྂ༎", &
+                    coding_systems=[character(len=40) :: "tibetan-iso-8bit"], &
+                    coding_priority=[character(len=40) :: "iso-2022-7bit", "tibetan-iso-8bit"], &
+                    input_method="tibetan-wylie")
+    end subroutine language_info_tibetan
 end submodule tibetan_fm

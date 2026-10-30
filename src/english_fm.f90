@@ -31,6 +31,7 @@
 !> Deferred).  A submodule of coding_fm, which defines them when it
 !> starts.
 submodule(coding_fm) english_fm
+    use mule_fm, only: set_language_info_alist
     implicit none(type, external)
 
 contains
@@ -53,4 +54,18 @@ contains
         call define_coding_system_alias("ebcdic-int", "ibm038")
         call define_coding_system_alias("cp038", "ibm038")
     end subroutine syms_of_english
+
+    !> Port of the language environments of english.el (set-language-info-alist).
+    module subroutine language_info_english()
+        call set_language_info_alist("English", &
+                    documentation="Nothing special is needed to handle English.", &
+                    charsets=[character(len=40) :: "ascii"], &
+                    sample_text="Hello!, Hi!, How are you?", &
+                    tutorial="TUTORIAL")
+        call set_language_info_alist("ASCII", &
+                    documentation="Nothing special is needed to handle English.", &
+                    charsets=[character(len=40) :: "ascii"], &
+                    sample_text="Hello!, Hi!, How are you?", &
+                    tutorial="TUTORIAL")
+    end subroutine language_info_english
 end submodule english_fm

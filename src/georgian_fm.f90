@@ -24,6 +24,7 @@
 !> Deferred).  A submodule of coding_fm, which defines them when it
 !> starts.
 submodule(coding_fm) georgian_fm
+    use mule_fm, only: set_language_info_alist
     implicit none(type, external)
 
 contains
@@ -37,4 +38,14 @@ contains
                                           charsets=[character(len=CHARSET_NAME_LEN) :: "georgian-academy"], &
                                           doc="Georgian Academy encoding")
     end subroutine syms_of_georgian
+
+    !> Port of the language environments of georgian.el (set-language-info-alist).
+    module subroutine language_info_georgian()
+        call set_language_info_alist("Georgian", &
+                    documentation="Support for georgian-ps character set.", &
+                    coding_systems=[character(len=40) :: "georgian-ps"], &
+                    coding_priority=[character(len=40) :: "georgian-ps"], &
+                    nonascii_translation="georgian-ps", &
+                    input_method="georgian")
+    end subroutine language_info_georgian
 end submodule georgian_fm

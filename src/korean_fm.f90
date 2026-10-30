@@ -31,6 +31,7 @@
 !> Deferred).  A submodule of coding_fm, which defines them when it
 !> starts.
 submodule(coding_fm) korean_fm
+    use mule_fm, only: set_language_info_alist
     implicit none(type, external)
 
 contains
@@ -67,4 +68,23 @@ contains
                                           doc="CP949 (Microsoft Unified Hangul Code)")
         call define_coding_system_alias("cp949", "korean-cp949")
     end subroutine syms_of_korean
+
+    !> Port of the language environments of korean.el (set-language-info-alist).
+    module subroutine language_info_korean()
+        call set_language_info_alist("Korean", &
+                                     documentation="The following key bindings are available for controlling Kor" &
+                                     //"ean input methods:"//achar(10)//"  Shift-SPC, Hangul:"//achar(9)//"toggle-korean-input-" &
+                           //"method"//achar(10)//"  Control-F9:"//achar(9)//achar(9)//"quail-hangul-switch-symbol-ksc"//achar(10) &
+                                     //"  F9:"//achar(9)//achar(9) &
+                                     //achar(9)//"quail-hangul-switch-hanja"//achar(10)//"and the following key bindings ar" &
+                                     //"e available within Korean input methods:"//achar(10)//"  F9, Hangul_Hanja:" &
+                                     //achar(9)//"hangul-to-hanja-conversion", &
+                                     charsets=[character(len=40) :: "korean-ksc5601", "cp949"], &
+                                     sample_text="Hangul (한글)"//achar(9)//"안녕하세요, 안녕하십니까", &
+                                     coding_systems=[character(len=40) :: "iso-2022-kr", "korean-iso-8bit", "korean-cp949"], &
+                                     coding_priority=[character(len=40) :: "korean-iso-8bit", "korean-cp949", "iso-2022-kr"], &
+                                     input_method="korean-hangul", &
+                                     tutorial="TUTORIAL.ko", &
+                                     iso639_language="ko")
+    end subroutine language_info_korean
 end submodule korean_fm

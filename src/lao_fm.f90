@@ -31,6 +31,7 @@
 !> Deferred).  A submodule of coding_fm, which defines them when it
 !> starts.
 submodule(coding_fm) lao_fm
+    use mule_fm, only: set_language_info_alist
     implicit none(type, external)
 
 contains
@@ -41,4 +42,15 @@ contains
                                           charsets=[character(len=CHARSET_NAME_LEN) :: "lao"], &
                                           doc="8-bit encoding for ASCII (MSB=0) and LAO (MSB=1).")
     end subroutine syms_of_lao
+
+    !> Port of the language environments of lao.el (set-language-info-alist).
+    module subroutine language_info_lao()
+        call set_language_info_alist("Lao", &
+                    documentation_t=.true., &
+                    charsets=[character(len=40) :: "lao"], &
+                    coding_systems=[character(len=40) :: "lao"], &
+                    coding_priority=[character(len=40) :: "lao"], &
+                    input_method="lao", &
+                    unibyte_display="lao")
+    end subroutine language_info_lao
 end submodule lao_fm

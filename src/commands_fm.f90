@@ -288,6 +288,7 @@ module commands_fm
         type(command_type) :: describe_function
         type(command_type) :: describe_key
         type(command_type) :: describe_key_briefly
+        type(command_type) :: describe_language_environment
         type(command_type) :: describe_mode
         type(command_type) :: describe_symbol
         type(command_type) :: describe_variable
@@ -969,6 +970,7 @@ module commands_fm
         type(command_type) :: repeat_mode
         type(command_type) :: replace_regexp
         type(command_type) :: replace_string
+        type(command_type) :: reset_language_environment
         type(command_type) :: revert_buffer
         type(command_type) :: revert_buffer_with_coding_system
         type(command_type) :: rgrep
@@ -999,6 +1001,7 @@ module commands_fm
         type(command_type) :: set_fill_column
         type(command_type) :: set_fill_prefix
         type(command_type) :: set_keyboard_coding_system
+        type(command_type) :: set_language_environment
         type(command_type) :: set_mark_command
         type(command_type) :: set_terminal_coding_system
         type(command_type) :: set_variable
@@ -1198,7 +1201,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1160) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1163) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1455,6 +1458,7 @@ module commands_fm
                                                                   "describe_function", &
                                                                   "describe_key", &
                                                                   "describe_key_briefly", &
+                                                                  "describe_language_environment", &
                                                                   "describe_mode", &
                                                                   "describe_symbol", &
                                                                   "describe_variable", &
@@ -2136,6 +2140,7 @@ module commands_fm
                                                                   "repeat_mode", &
                                                                   "replace_regexp", &
                                                                   "replace_string", &
+                                                                  "reset_language_environment", &
                                                                   "revert_buffer", &
                                                                   "revert_buffer_with_coding_system", &
                                                                   "rgrep", &
@@ -2166,6 +2171,7 @@ module commands_fm
                                                                   "set_fill_column", &
                                                                   "set_fill_prefix", &
                                                                   "set_keyboard_coding_system", &
+                                                                  "set_language_environment", &
                                                                   "set_mark_command", &
                                                                   "set_terminal_coding_system", &
                                                                   "set_variable", &
@@ -2883,6 +2889,8 @@ contains
             p => commands%describe_key
         case ("describe_key_briefly")
             p => commands%describe_key_briefly
+        case ("describe_language_environment")
+            p => commands%describe_language_environment
         case ("describe_mode")
             p => commands%describe_mode
         case ("describe_symbol")
@@ -4245,6 +4253,8 @@ contains
             p => commands%replace_regexp
         case ("replace_string")
             p => commands%replace_string
+        case ("reset_language_environment")
+            p => commands%reset_language_environment
         case ("revert_buffer")
             p => commands%revert_buffer
         case ("revert_buffer_with_coding_system")
@@ -4305,6 +4315,8 @@ contains
             p => commands%set_fill_prefix
         case ("set_keyboard_coding_system")
             p => commands%set_keyboard_coding_system
+        case ("set_language_environment")
+            p => commands%set_language_environment
         case ("set_mark_command")
             p => commands%set_mark_command
         case ("set_terminal_coding_system")

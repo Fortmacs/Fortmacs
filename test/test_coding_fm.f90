@@ -52,6 +52,8 @@ module test_coding_fm
                          inhibit_eol_conversion, EOL_UNIX, EOL_DOS, EOL_MAC, EOL_UNDECIDED
     use mule_fm, only: find_auto_coding, set_buffer_file_coding_system, prefer_coding_system, describe_coding_system, &
                        set_buffer_process_coding_system, set_terminal_coding_system, set_keyboard_coding_system
+    use mule_fm, only: get_language_info, set_language_environment, describe_language_environment, language_info_type, &
+                       current_language_environment, default_input_method
     use coding_fm, only: terminal_coding_system, keyboard_coding_system
     use term_fm, only: encode_terminal_code
     use dispextern_fm, only: glyph_type
@@ -92,7 +94,8 @@ contains
                     new_unittest("charset-coding-systems", test_charset_coding), &
                     new_unittest("shift-jis-big5", test_sjis_big5), &
                     new_unittest("iso-2022", test_iso_2022), &
-                    new_unittest("emacs-mule", test_emacs_mule) &
+                    new_unittest("emacs-mule", test_emacs_mule), &
+                    new_unittest("language-environments", test_language_environments) &
                     ]
     end subroutine collect_coding_fm
 
@@ -1134,4 +1137,87 @@ contains
         call check(error, any([(names(k)%name == "emacs-mule", k=1, 3)]) &
                    .and. any([(names(k)%name == "japanese-shift-jis", k=1, 3)]) .and. names(3)%name == "raw-text")
     end subroutine test_emacs_mule
+
+    !> get_language_info, set-language-environment (coding priorities,
+    !> charset priority, the default input method, Catalan's setup and
+    !> exit functions), C-x RET l and describe-language-environment, as
+    !> in Emacs (whose input methods wait for them).
+    subroutine test_language_environments(error)
+        use buffer_fm, only: get_buffer
+        use charset_fm, only: charset_priority_list, set_charset_priority, CHARSET_NAME_LEN
+        use syntax_fm, only: char_syntax
+        type(error_type), allocatable, intent(out) :: error
+        type(coding_system_list_entry_type), allocatable :: saved(:), names(:)
+        character(len=CHARSET_NAME_LEN), allocatable :: charsets(:), prio(:)
+        type(language_info_type) :: info
+        type(handle_type) :: buf, help
+        type(status_type) :: st
+        character(len=:), allocatable :: text, old_env, old_method
+        logical :: found
+
+        call save_priority(saved)
+        charsets = charset_priority_list()
+        old_env = current_language_environment%value
+        old_method = default_input_method%value
+        call get_language_info("greek", info, found)
+        call check(error, found .and. info%name == "Greek" .and. info%input_method == "greek")
+        if (allocated(error)) return
+        call check(error, trim(info%coding_priority(1)), "greek-iso-8bit")
+        if (allocated(error)) return
+        call get_language_info("Klingon", info, found)
+        call check(error,.not. found)
+        if (allocated(error)) return
+        call set_language_environment("Klingon", st)
+        call check(error, format_error(st), "Language environment not defined: ""Klingon""")
+        if (allocated(error)) return
+        call get_buffer_create(" lang-env", buf, st)
+        call set_buffer(buf, st)
+        call show_alone()
+        call discard_input()
+        ! C-x RET l greek RET
+        call kbd_store_bytes(achar(24)//CR//"lgreek"//CR)
+        call command_loop(st)
+        call check(error, current_language_environment%value, "Greek")
+        if (.not. allocated(error)) call check(error, default_input_method%value, "greek")
+
+        if (.not. allocated(error)) then
+            call coding_system_priority_list(names)
+            call check(error, names(1)%name, "greek-iso-8bit")
+        end if
+
+        if (.not. allocated(error)) then
+            prio = charset_priority_list()
+            call check(error, trim(prio(1)), "iso-8859-7")
+        end if
+
+        if (.not. allocated(error)) then
+            call set_language_environment("Catalan", st)
+            call check(error, char_syntax(183), "w")
+        end if
+
+        if (.not. allocated(error)) then
+            call set_language_environment("English", st)
+            call check(error, char_syntax(183), "_")
+        end if
+
+        if (.not. allocated(error)) then
+            call describe_language_environment("English", st)
+            help = get_buffer("*Help*")
+            call set_buffer(help, st)
+            text = buffer_string()
+            call check(error, text, "English language environment"//LF//LF// &
+                       "Nothing special is needed to handle English."//LF//LF//"Sample text:"//LF// &
+                       "  Hello!, Hi!, How are you?"//LF//LF//"Character sets:"//LF//"  ascii: ASCII (ISO646 IRV)"//LF// &
+                       LF//"Coding systems:"//LF//"  nothing specific to English"//LF)
+            call kill_buffer(help, st)
+        end if
+
+        call kill_buffer(buf, st)
+        call show_alone()
+        current_language_environment%value = old_env
+        default_input_method%value = old_method
+        call prefer_coding_system("utf-8-unix", st)
+        call restore_priority(saved)
+        call set_charset_priority(charsets, st)
+    end subroutine test_language_environments
 end module test_coding_fm

@@ -93,6 +93,12 @@ module mule_fm
     use keyboard_fm, only: current_input_meta_mode, set_input_meta_mode
     use dispnew_fm, only: redraw_frame
     use frame_fm, only: selected_frame
+    use eval_fm, only: hook_type
+    use data_fm, only: string_setting
+    use minibuf_fm, only: completion_ignore_case
+    use help_fm, only: substitute_command_keys
+    use charset_fm, only: set_charset_priority, charset_description, charsetp, CHARSET_NAME_LEN, &
+                          set_current_iso639_language
     implicit none(type, external)
     private
 
@@ -103,6 +109,70 @@ module mule_fm
               revert_buffer_with_coding_system, prefer_coding_system, set_default_coding_systems, &
               select_safe_coding_system, describe_coding_system, describe_current_coding_system, read_coding_system, &
               buffer_file_coding_system_explicit
+    public :: set_language_info_alist, get_language_info, set_language_environment, reset_language_environment, &
+              describe_language_environment, read_language_name, language_names, language_proc, language_info_type
+
+    !> The definition of a language environment (an element of
+    !> `language_info_alist'): its name and the information under each
+    !> key, as typed fields ("" or unallocated when the key is absent).
+    type :: language_info_type
+        character(len=:), allocatable :: name
+        !> `documentation': a string, or true with an empty string for t.
+        character(len=:), allocatable :: documentation
+        logical :: documentation_t = .false.
+        character(len=CHARSET_NAME_LEN), allocatable :: charsets(:)
+        !> `sample-text': the string its expression gives.
+        character(len=:), allocatable :: sample_text
+        character(len=40), allocatable :: coding_systems(:), coding_priority(:)
+        character(len=:), allocatable :: nonascii_translation, input_method, unibyte_display, tutorial
+        character(len=:), allocatable :: iso639_language
+        procedure(language_proc), pointer, nopass :: setup_function => null(), exit_function => null()
+    end type language_info_type
+
+    abstract interface
+        !> A `setup-function' or `exit-function' of a language environment.
+        subroutine language_proc(status)
+            import :: status_type
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine language_proc
+    end interface
+
+    ! `language-info-alist', the latest defined first (held in the order
+    ! of definition).
+    type(language_info_type), allocatable :: language_info_alist(:)
+    integer :: nlanguages = 0
+    logical :: defining_languages = .false.
+
+    !> The last language environment specified with `set_language_environment'.
+    !> This variable should be set only with \[customize], which is equivalent
+    !> to using the function `set_language_environment'.  Port of
+    !> mule-cmds.el current-language-environment.
+    type(string_setting), public :: current_language_environment = string_setting(name="current_language_environment")
+
+    !> Default input method for multilingual text (a string).
+    !> This is the input method activated automatically by the command
+    !> `toggle_input_method' (\[toggle_input_method]).  Port of
+    !> mule-cmds.el default-input-method ("" for nil).
+    type(string_setting), public :: default_input_method = string_setting(name="default_input_method")
+
+    !> Normal hook run after some language environment is set.
+    !>
+    !> When you set some hook function here, that effect usually should not
+    !> be inherited to another language environment.  So, you had better set
+    !> another function in `exit_language_environment_hook' (which see) to
+    !> cancel the effect.
+    type(hook_type), target, public :: set_language_environment_hook = &
+                                       hook_type(name="set_language_environment_hook")
+
+    !> Normal hook run after exiting from some language environment.
+    !> When this hook is run, the variable `current_language_environment'
+    !> is still bound to the language environment being exited.
+    !>
+    !> This hook is mainly used for canceling the effect of
+    !> `set_language_environment_hook' (which see).
+    type(hook_type), target, public :: exit_language_environment_hook = &
+                                       hook_type(name="exit_language_environment_hook")
 
     !> An entry of `auto_coding_alist' or `auto_coding_regexp_alist'.
     type, public :: auto_coding_type
@@ -251,6 +321,9 @@ contains
         if (.not. allocated(default_terminal_coding_system)) default_terminal_coding_system = ""
         if (.not. allocated(default_keyboard_coding_system)) default_keyboard_coding_system = ""
         if (.not. allocated(keyboard_coding_system_variable)) keyboard_coding_system_variable = "utf-8-unix"
+        commands%set_language_environment%run => cmd_set_language_environment
+        commands%reset_language_environment%run => cmd_reset_language_environment
+        commands%describe_language_environment%run => cmd_describe_language_environment
         commands%set_terminal_coding_system%run => cmd_set_terminal_coding_system
         commands%set_keyboard_coding_system%run => cmd_set_keyboard_coding_system
         call make_sparse_keymap(mule_keymap)
@@ -260,10 +333,12 @@ contains
         call bind(mule_keymap, "p", "set_buffer_process_coding_system")
         call bind(mule_keymap, "t", "set_terminal_coding_system")
         call bind(mule_keymap, "k", "set_keyboard_coding_system")
+        call bind(mule_keymap, "l", "set_language_environment")
         ! Keep "C-x C-m ..." for mule specific commands.
         call key_parse("C-m", key, st)
         call define_key(ctl_x_map, key, keymap_value(mule_keymap), st)
         call bind(help_map, "C", "describe_coding_system")
+        call bind(help_map, "L", "describe_language_environment")
     end subroutine syms_of_mule
 
     !> MAP as a keymap value, for binding it as a prefix.
@@ -2131,4 +2206,474 @@ contains
 
         call describe_current_coding_system(status)
     end subroutine cmd_describe_current_coding_system
+
+    ! ------------------------------------------------------------------
+    ! Language environments
+    ! ------------------------------------------------------------------
+
+    ! Define the language environments of the language files once.
+    subroutine syms_of_language_info()
+        use coding_fm, only: define_language_environments
+
+        if (allocated(language_info_alist)) return
+        allocate (language_info_alist(128))
+        if (.not. allocated(current_language_environment%value)) current_language_environment%value = "English"
+        if (.not. allocated(default_input_method%value)) default_input_method%value = ""
+        defining_languages = .true.
+        call define_language_environments()
+        defining_languages = .false.
+    end subroutine syms_of_language_info
+
+    ! The position of language environment NAME in `language_info_alist'
+    ! (case-insensitive, as assoc-string with CASE-FOLD), 0 if none.
+    integer function language_index(name) result(k)
+        character(len=*), intent(in) :: name
+
+        do k = 1, nlanguages
+            if (lower(language_info_alist(k)%name) == lower(name)) return
+        end do
+
+        k = 0
+    end function language_index
+
+    !> Store the given information as the definition of language
+    !> environment LANG_ENV (the keys given replace those it had).  See
+    !> `language_info_alist' for the meanings of the keys.  Port of
+    !> mule-cmds.el:set-language-info-alist (the menus are Not applicable).
+    subroutine set_language_info_alist(lang_env, documentation, documentation_t, charsets, sample_text, &
+                                       coding_systems, coding_priority, nonascii_translation, input_method, &
+                                       unibyte_display, tutorial, iso639_language, setup_function, exit_function)
+        character(len=*), intent(in) :: lang_env
+        character(len=*), intent(in), optional :: documentation, sample_text, nonascii_translation, input_method
+        character(len=*), intent(in), optional :: unibyte_display, tutorial, iso639_language
+        logical, intent(in), optional :: documentation_t
+        character(len=*), intent(in), optional :: charsets(:), coding_systems(:), coding_priority(:)
+        procedure(language_proc), optional :: setup_function, exit_function
+        type(language_info_type), allocatable :: grown(:)
+        type(status_type) :: status
+        integer :: k, i
+
+        if (.not. defining_languages) call syms_of_language_info()
+        k = 0
+
+        do i = 1, nlanguages
+            if (language_info_alist(i)%name == lang_env) k = i
+        end do
+
+        if (k == 0) then
+            if (nlanguages == size(language_info_alist)) then
+                allocate (grown(2 * nlanguages))
+
+                do i = 1, nlanguages
+                    grown(i) = language_info_alist(i)
+                end do
+
+                call move_alloc(grown, language_info_alist)
+            end if
+
+            nlanguages = nlanguages + 1
+            k = nlanguages
+            language_info_alist(k)%name = lang_env
+        end if
+
+        associate (l => language_info_alist(k))
+            if (present(documentation)) l%documentation = documentation
+            if (present(documentation_t)) l%documentation_t = documentation_t
+            if (present(charsets)) l%charsets = charsets
+            if (present(sample_text)) l%sample_text = sample_text
+            if (present(coding_systems)) l%coding_systems = coding_systems
+            if (present(coding_priority)) l%coding_priority = coding_priority
+            if (present(nonascii_translation)) l%nonascii_translation = nonascii_translation
+            if (present(input_method)) l%input_method = input_method
+            if (present(unibyte_display)) l%unibyte_display = unibyte_display
+            if (present(tutorial)) l%tutorial = tutorial
+            if (present(iso639_language)) l%iso639_language = iso639_language
+            if (present(setup_function)) l%setup_function => setup_function
+            if (present(exit_function)) l%exit_function => exit_function
+        end associate
+
+        ! The language files are loaded with the current language
+        ! environment already set up (its state is GNU Emacs's at
+        ! startup).
+        if (.not. defining_languages .and. lang_env == current_language_environment%value) then
+            call set_language_environment(lang_env, status)
+        end if
+    end subroutine set_language_info_alist
+
+    !> The definition of language environment LANG_ENV (FOUND false if
+    !> there is none).  Port of mule-cmds.el:get-language-info for all its
+    !> keys.
+    subroutine get_language_info(lang_env, info, found)
+        character(len=*), intent(in) :: lang_env
+        type(language_info_type), intent(out) :: info
+        logical, intent(out) :: found
+        integer :: k
+
+        call syms_of_language_info()
+        k = language_index(lang_env)
+        found = k /= 0
+        if (found) info = language_info_alist(k)
+    end subroutine get_language_info
+
+    !> The names of the language environments, the latest defined first;
+    !> with KEY ("documentation", "input-method" and so on) only those
+    !> having information for it.
+    function language_names(key) result(names)
+        character(len=*), intent(in), optional :: key
+        character(len=40), allocatable :: names(:)
+        integer :: k, n
+
+        call syms_of_language_info()
+        allocate (names(nlanguages))
+        n = 0
+
+        do k = nlanguages, 1, -1
+            if (present(key)) then
+                if (.not. has_key(language_info_alist(k), key)) cycle
+            end if
+
+            n = n + 1
+            names(n) = language_info_alist(k)%name
+        end do
+
+        names = names(1:n)
+    end function language_names
+
+    logical function has_key(l, key)
+        type(language_info_type), intent(in) :: l
+        character(len=*), intent(in) :: key
+
+        select case (key)
+        case ("documentation")
+            has_key = allocated(l%documentation) .or. l%documentation_t
+        case ("charset")
+            has_key = allocated(l%charsets)
+        case ("sample-text")
+            has_key = allocated(l%sample_text)
+        case ("coding-system")
+            has_key = allocated(l%coding_systems)
+        case ("coding-priority")
+            has_key = allocated(l%coding_priority)
+        case ("input-method")
+            has_key = allocated(l%input_method)
+        case ("tutorial")
+            has_key = allocated(l%tutorial)
+        case default
+            has_key = .false.
+        end select
+    end function has_key
+
+    !> Read a language environment name which has information for KEY (any
+    !> language environment when KEY is "").  Prompt with PROMPT.  DEFAULT is
+    !> the default choice of language environment.  Return "" for an empty
+    !> answer.  Port of mule-cmds.el:read-language-name.
+    recursive subroutine read_language_name(key, prompt, default, name, status)
+        character(len=*), intent(in) :: key, prompt, default
+        character(len=:), allocatable, intent(out) :: name
+        type(status_type), intent(out) :: status
+        character(len=40), allocatable :: names(:)
+        type(value_type), allocatable :: items(:)
+        logical :: saved_case
+        integer :: k
+
+        if (len(key) > 0) then
+            names = language_names(key)
+        else
+            names = language_names()
+        end if
+
+        allocate (items(size(names)))
+
+        do k = 1, size(names)
+            items(k) = make_string(trim(names(k)))
+        end do
+
+        saved_case = completion_ignore_case%value
+        completion_ignore_case%value = .true.
+        call completing_read(prompt, completion_list_table(make_list(items)), name, status, &
+                             require_match=REQUIRE_MATCH_T, default=default)
+        completion_ignore_case%value = saved_case
+
+        if (.not. status%ok()) then
+            name = ""
+            return
+        end if
+
+        if (len(key) > 0 .and. len(name) > 0) then
+            if (language_index(name) == 0) name = ""
+        end if
+    end subroutine read_language_name
+
+    !> Reset multilingual environment of Emacs to the default status.
+    !>
+    !> The default status is as follows:
+    !>
+    !>   The default value of `buffer_file_coding_system' is "".
+    !>   The default coding system for process I/O is "".
+    !>   The default value for the command `set_terminal_coding_system' is "".
+    !>   The default value for the command `set_keyboard_coding_system' is "".
+    !>
+    !>   The order of priorities of coding systems are as follows:
+    !>         utf-8
+    !>         iso-2022-7bit
+    !>         iso-latin-1
+    !>         iso-2022-7bit-lock
+    !>         iso-2022-8bit-ss2
+    !>         emacs-mule
+    !>         raw-text
+    !>
+    !> Port of mule-cmds.el:reset-language-environment
+    !> (`default_sendmail_coding_system' and
+    !> `default_file_name_coding_system' wait for mail and file name
+    !> encoding).
+    subroutine reset_language_environment(status)
+        type(status_type), intent(out) :: status
+
+        call set_coding_system_priority([character(len=24) :: "utf-8", "iso-2022-7bit", "iso-latin-1", &
+                                         "iso-2022-7bit-lock", "iso-2022-8bit-ss2", "emacs-mule", "raw-text"], status)
+        if (.not. status%ok()) return
+        call set_default_coding_systems("", status)
+        if (.not. status%ok()) return
+        ! Preserve eol-type from existing default-process-coding-systems.
+        default_process_coding_system(1) = coding_system_change_text_conversion(trim(default_process_coding_system(1)), &
+                                                                                "undecided")
+        default_process_coding_system(2) = coding_system_change_text_conversion(trim(default_process_coding_system(2)), &
+                                                                                "utf-8")
+        ! Put the highest priority to the charset iso-8859-1 to prefer the
+        ! registry iso8859-1 over iso8859-2 in font selection.
+        call set_charset_priority([character(len=CHARSET_NAME_LEN) :: "iso-8859-1"], status)
+    end subroutine reset_language_environment
+
+    recursive subroutine cmd_reset_language_environment(status)
+        type(status_type), intent(out) :: status
+
+        call reset_language_environment(status)
+    end subroutine cmd_reset_language_environment
+
+    !> Set up multilingual environment for using LANGUAGE_NAME.
+    !> This sets the coding system priority and the default input method
+    !> and sometimes other things.  LANGUAGE_NAME should be a string
+    !> which is the name of a language environment.  For example, "Latin-1"
+    !> specifies the character set for the major languages of Western Europe.
+    !>
+    !> If there is a prior value for `current_language_environment', this
+    !> runs the hook `exit_language_environment_hook'.  After setting up
+    !> the new language environment, it runs `set_language_environment_hook'.
+    !> Port of mule-cmds.el:set-language-environment (its `features' are Not
+    !> applicable: there are no Lisp libraries to require).
+    recursive subroutine set_language_environment(language_name, status)
+        character(len=*), intent(in) :: language_name
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+        type(status_type) :: st
+        integer :: k, old
+
+        call syms_of_language_info()
+        name = language_name
+        if (len(name) == 0) name = "English"
+        k = language_index(name)
+
+        if (k == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "Language environment not defined: """//name//"""")
+            return
+        end if
+
+        name = language_info_alist(k)%name
+
+        if (len(current_language_environment%value) > 0) then
+            old = language_index(current_language_environment%value)
+            call exit_language_environment_hook%run(st)
+
+            if (old /= 0) then
+                if (associated(language_info_alist(old)%exit_function)) call language_info_alist(old)%exit_function(st)
+            end if
+        end if
+
+        call reset_language_environment(status)
+        if (.not. status%ok()) return
+        current_language_environment%value = name
+        call set_language_environment_coding_systems(k, status)
+        if (.not. status%ok()) return
+        ! set-language-environment-input-method.
+        if (allocated(language_info_alist(k)%input_method)) default_input_method%value = language_info_alist(k)%input_method
+        ! set-language-environment-nonascii-translation has no effect now.
+        call set_language_environment_charset(k, status)
+        if (.not. status%ok()) return
+        if (associated(language_info_alist(k)%setup_function)) call language_info_alist(k)%setup_function(st)
+        if (allocated(language_info_alist(k)%iso639_language)) then
+          call set_current_iso639_language(language_info_alist(k)%iso639_language)
+        end if
+        call set_language_environment_hook%run(st)
+    end subroutine set_language_environment
+
+    ! Do various coding system setups for language environment K.  Port of
+    ! mule-cmds.el:set-language-environment-coding-systems.
+    subroutine set_language_environment_coding_systems(k, status)
+        integer, intent(in) :: k
+        type(status_type), intent(out) :: status
+        type(value_type) :: v
+        character(len=:), allocatable :: default_coding, dflt
+        type(status_type) :: vst
+        integer :: eol
+
+        status = status_type()
+        if (.not. allocated(language_info_alist(k)%coding_priority)) return
+        if (size(language_info_alist(k)%coding_priority) == 0) return
+        default_coding = trim(language_info_alist(k)%coding_priority(1))
+        call default_value(sym("buffer_file_coding_system"), v, vst)
+        dflt = ""
+        if (stringp(v)) dflt = xstring(v)
+        if (len(dflt) == 0) dflt = "unix"
+        eol = coding_system_eol_type(dflt)
+        if (eol == EOL_UNIX .or. eol == EOL_DOS .or. eol == EOL_MAC) then
+          default_coding = coding_system_change_eol_conversion(default_coding, eol)
+        end if
+        call set_default_coding_systems(default_coding, status)
+        if (.not. status%ok()) return
+        call set_coding_system_priority(language_info_alist(k)%coding_priority, status)
+    end subroutine set_language_environment_coding_systems
+
+    ! Do various charset setups for language environment K: put higher
+    ! priorities to such charsets that are supported by the coding
+    ! systems of higher priorities in this environment.  Port of
+    ! mule-cmds.el:set-language-environment-charset.
+    subroutine set_language_environment_charset(k, status)
+        integer, intent(in) :: k
+        type(status_type), intent(out) :: status
+        character(len=CHARSET_NAME_LEN), allocatable :: charsets(:)
+        character(len=:), allocatable :: list
+        integer :: i, p, q
+
+        status = status_type()
+        allocate (charsets(0))
+        if (allocated(language_info_alist(k)%charsets)) charsets = language_info_alist(k)%charsets
+
+        if (allocated(language_info_alist(k)%coding_priority)) then
+            do i = 1, size(language_info_alist(k)%coding_priority)
+                list = coding_system_charset_list(trim(language_info_alist(k)%coding_priority(i)))
+                ! A list of charsets (not `iso-2022' or `emacs-mule').
+                if (list == "iso-2022" .or. list == "emacs-mule" .or. len(list) == 0) cycle
+                p = 1
+
+                do while (p <= len(list))
+                    q = index(list(p:), " ")
+
+                    if (q == 0) then
+                        q = len(list) + 1
+                    else
+                        q = p + q - 1
+                    end if
+
+                    charsets = [character(len=CHARSET_NAME_LEN) :: charsets, list(p:q - 1)]
+                    p = q + 1
+                end do
+            end do
+        end if
+
+        if (size(charsets) > 0) call set_charset_priority(charsets, status)
+    end subroutine set_language_environment_charset
+
+    recursive subroutine cmd_set_language_environment(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+
+        call read_language_name("", format_prompt("Set language environment", "English"), "", name, status)
+        if (.not. status%ok()) return
+        call set_language_environment(name, status)
+    end subroutine cmd_set_language_environment
+
+    !> Describe how Emacs supports language environment LANGUAGE_NAME.
+    !> Port of mule-cmds.el:describe-language-environment (the input
+    !> methods wait for them; the help buttons wait for buttons).
+    recursive subroutine describe_language_environment(language_name, status)
+        character(len=*), intent(in) :: language_name
+        type(status_type), intent(out) :: status
+        type(coding_system_list_entry_type), allocatable :: aliases(:)
+        character(len=:), allocatable :: name, s, sample
+        integer :: k, i, j
+
+        call syms_of_language_info()
+        name = language_name
+        if (len(name) == 0) name = current_language_environment%value
+        k = 0
+        if (len(name) > 0) k = language_index(name)
+
+        if (k /= 0) then
+            if (.not. has_key(language_info_alist(k), "documentation")) k = 0
+        end if
+
+        if (k == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "No documentation for the specified language")
+            return
+        end if
+
+        associate (l => language_info_alist(k))
+            s = name//" language environment"//LF//LF
+            if (allocated(l%documentation)) s = s//substitute_command_keys(l%documentation)//LF//LF
+
+            if (allocated(l%sample_text)) then
+                ! (string-replace "\n" "\n  " str)
+                sample = ""
+
+                do i = 1, len(l%sample_text)
+                    sample = sample//l%sample_text(i:i)
+                    if (l%sample_text(i:i) == LF) sample = sample//"  "
+                end do
+
+                s = s//"Sample text:"//LF//"  "//sample//LF//LF
+            end if
+
+            s = s//"Character sets:"//LF
+
+            if (.not. allocated(l%charsets)) then
+                s = s//"  nothing specific to "//name//LF
+            else if (size(l%charsets) == 0) then
+                s = s//"  nothing specific to "//name//LF
+            else
+                do i = 1, size(l%charsets)
+                    s = s//"  "//trim(l%charsets(i))//": "//charset_description(trim(l%charsets(i)))//LF
+                end do
+            end if
+
+            s = s//LF//"Coding systems:"//LF
+
+            if (.not. allocated(l%coding_systems)) then
+                s = s//"  nothing specific to "//name//LF
+            else if (size(l%coding_systems) == 0) then
+                s = s//"  nothing specific to "//name//LF
+            else
+                do i = 1, size(l%coding_systems)
+                    s = s//"  "//trim(l%coding_systems(i))//substitute_command_keys(" (`")// &
+                        achar(coding_system_mnemonic(trim(l%coding_systems(i))))// &
+                        substitute_command_keys("' in mode line):"//LF//TAB)// &
+                        substitute_command_keys(coding_system_doc_string(trim(l%coding_systems(i))))//LF
+                    call coding_system_aliases(trim(l%coding_systems(i)), aliases)
+
+                    if (size(aliases) > 0) then
+                        s = s//TAB//"(alias:"
+
+                        do j = 1, size(aliases)
+                            s = s//" "//aliases(j)%name
+                        end do
+
+                        s = s//")"//LF
+                    end if
+                end do
+            end if
+        end associate
+
+        call with_help_window(s, status)
+    end subroutine describe_language_environment
+
+    recursive subroutine cmd_describe_language_environment(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+
+        call syms_of_language_info()
+        call read_language_name("documentation", format_prompt("Describe language environment", &
+                                                               current_language_environment%value), &
+                                current_language_environment%value, name, status)
+        if (.not. status%ok()) return
+        call describe_language_environment(name, status)
+    end subroutine cmd_describe_language_environment
 end module mule_fm

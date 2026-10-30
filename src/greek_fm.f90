@@ -31,6 +31,7 @@
 !> Deferred).  A submodule of coding_fm, which defines them when it
 !> starts.
 submodule(coding_fm) greek_fm
+    use mule_fm, only: set_language_info_alist
     implicit none(type, external)
 
 contains
@@ -62,4 +63,17 @@ contains
                                           doc="DOS codepage 869 (Greek)")
         call define_coding_system_alias("ibm869", "cp869")
     end subroutine syms_of_greek
+
+    !> Port of the language environments of greek.el (set-language-info-alist).
+    module subroutine language_info_greek()
+        call set_language_info_alist("Greek", &
+                                     documentation="Support for Greek ISO-8859-7 using the greek input method.", &
+                                     charsets=[character(len=40) :: "iso-8859-7"], &
+                                     sample_text="Greek (ελληνικά)"//achar(9)//"Γειά σας", &
+                                     coding_systems=[character(len=40) :: "greek-iso-8bit", "windows-1253", "cp851", "cp869"], &
+                                     coding_priority=[character(len=40) :: "greek-iso-8bit"], &
+                                     nonascii_translation="iso-8859-7", &
+                                     input_method="greek", &
+                                     tutorial="TUTORIAL.el_GR")
+    end subroutine language_info_greek
 end submodule greek_fm

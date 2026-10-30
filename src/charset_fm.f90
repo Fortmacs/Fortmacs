@@ -63,7 +63,7 @@ module charset_fm
     public :: charset_code_space_of, charset_ascii_compatible_of, char_charset_among
     public :: iso_2022_charset_ids, iso_charset_id, charset_iso_final_of, charset_iso_revision_of
     public :: charset_iso_chars_96_of, emacs_mule_charset_ids, emacs_mule_charset_of, emacs_mule_bytes_of
-    public :: charset_emacs_mule_id_of
+    public :: charset_emacs_mule_id_of, set_current_iso639_language
 
     !> The longest charset name the arrays of names hold.
     integer, parameter, public :: CHARSET_NAME_LEN = 32
@@ -175,6 +175,12 @@ module charset_fm
     integer :: nunified = 0
 
     logical :: initialized = .false.
+
+    !> ISO639 language mnemonic symbol for the current language environment.
+    !> If the current language environment is for multiple languages (e.g. "Latin-1"),
+    !> the value may be a list of mnemonics.  Port of charset.c
+    !> current-iso639-language (a string, unallocated for nil).
+    character(len=:), allocatable, public, protected :: current_iso639_language
 
     interface
         !> Define the charsets of mule-conf.el (in mule_conf_charsets_fm).
@@ -1808,6 +1814,13 @@ contains
 
         charset_ascii_compatible_of = charsets(id)%ascii_compatible_p
     end function charset_ascii_compatible_of
+
+    !> Set `current_iso639_language'.
+    subroutine set_current_iso639_language(language)
+        character(len=*), intent(in) :: language
+
+        current_iso639_language = language
+    end subroutine set_current_iso639_language
 
     !> The ids of the ISO-2022 charsets in priority order
     !> (Viso_2022_charset_list).

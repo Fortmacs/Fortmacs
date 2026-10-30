@@ -86,7 +86,7 @@ module coding_fm
     implicit none(type, external)
     private
 
-    public :: define_charset_coding_system, define_iso_2022_coding_system
+    public :: define_charset_coding_system, define_iso_2022_coding_system, define_language_environments
     public :: set_terminal_coding_system_internal, terminal_coding_system, set_keyboard_coding_system_internal, &
               keyboard_coding_system
     public :: syms_of_coding, coding_system_p, check_coding_system, coding_system_id, coding_system_name, &
@@ -459,9 +459,149 @@ module coding_fm
         module subroutine syms_of_georgian()
             implicit none(type, external)
         end subroutine syms_of_georgian
+        !> The language environments of chinese.el (in chinese_fm).
+        module subroutine language_info_chinese()
+            implicit none(type, external)
+        end subroutine language_info_chinese
+        !> The language environments of cyrillic.el (in cyrillic_fm).
+        module subroutine language_info_cyrillic()
+            implicit none(type, external)
+        end subroutine language_info_cyrillic
+        !> The language environments of indian.el (in indian_fm).
+        module subroutine language_info_indian()
+            implicit none(type, external)
+        end subroutine language_info_indian
+        !> The language environments of sinhala.el (in sinhala_fm).
+        module subroutine language_info_sinhala()
+            implicit none(type, external)
+        end subroutine language_info_sinhala
+        !> The language environments of english.el (in english_fm).
+        module subroutine language_info_english()
+            implicit none(type, external)
+        end subroutine language_info_english
+        !> The language environments of ethiopic.el (in ethiopic_fm).
+        module subroutine language_info_ethiopic()
+            implicit none(type, external)
+        end subroutine language_info_ethiopic
+        !> The language environments of european.el (in european_fm).
+        module subroutine language_info_european()
+            implicit none(type, external)
+        end subroutine language_info_european
+        !> The language environments of czech.el (in czech_fm).
+        module subroutine language_info_czech()
+            implicit none(type, external)
+        end subroutine language_info_czech
+        !> The language environments of slovak.el (in slovak_fm).
+        module subroutine language_info_slovak()
+            implicit none(type, external)
+        end subroutine language_info_slovak
+        !> The language environments of romanian.el (in romanian_fm).
+        module subroutine language_info_romanian()
+            implicit none(type, external)
+        end subroutine language_info_romanian
+        !> The language environments of greek.el (in greek_fm).
+        module subroutine language_info_greek()
+            implicit none(type, external)
+        end subroutine language_info_greek
+        !> The language environments of hebrew.el (in hebrew_fm).
+        module subroutine language_info_hebrew()
+            implicit none(type, external)
+        end subroutine language_info_hebrew
+        !> The language environments of japanese.el (in japanese_fm).
+        module subroutine language_info_japanese()
+            implicit none(type, external)
+        end subroutine language_info_japanese
+        !> The language environments of korean.el (in korean_fm).
+        module subroutine language_info_korean()
+            implicit none(type, external)
+        end subroutine language_info_korean
+        !> The language environments of lao.el (in lao_fm).
+        module subroutine language_info_lao()
+            implicit none(type, external)
+        end subroutine language_info_lao
+        !> The language environments of tai-viet.el (in tai_viet_fm).
+        module subroutine language_info_tai_viet()
+            implicit none(type, external)
+        end subroutine language_info_tai_viet
+        !> The language environments of thai.el (in thai_fm).
+        module subroutine language_info_thai()
+            implicit none(type, external)
+        end subroutine language_info_thai
+        !> The language environments of tibetan.el (in tibetan_fm).
+        module subroutine language_info_tibetan()
+            implicit none(type, external)
+        end subroutine language_info_tibetan
+        !> The language environments of vietnamese.el (in vietnamese_fm).
+        module subroutine language_info_vietnamese()
+            implicit none(type, external)
+        end subroutine language_info_vietnamese
+        !> The language environments of misc-lang.el (in misc_lang_fm).
+        module subroutine language_info_misc_lang()
+            implicit none(type, external)
+        end subroutine language_info_misc_lang
+        !> The language environments of utf-8-lang.el (in utf_8_lang_fm).
+        module subroutine language_info_utf_8_lang()
+            implicit none(type, external)
+        end subroutine language_info_utf_8_lang
+        !> The language environments of georgian.el (in georgian_fm).
+        module subroutine language_info_georgian()
+            implicit none(type, external)
+        end subroutine language_info_georgian
+        !> The language environments of khmer.el (in khmer_fm).
+        module subroutine language_info_khmer()
+            implicit none(type, external)
+        end subroutine language_info_khmer
+        !> The language environments of burmese.el (in burmese_fm).
+        module subroutine language_info_burmese()
+            implicit none(type, external)
+        end subroutine language_info_burmese
+        !> The language environments of cham.el (in cham_fm).
+        module subroutine language_info_cham()
+            implicit none(type, external)
+        end subroutine language_info_cham
+        !> The language environments of philippine.el (in philippine_fm).
+        module subroutine language_info_philippine()
+            implicit none(type, external)
+        end subroutine language_info_philippine
+        !> The language environments of indonesian.el (in indonesian_fm).
+        module subroutine language_info_indonesian()
+            implicit none(type, external)
+        end subroutine language_info_indonesian
     end interface
 
 contains
+
+    !> Define the language environments of the language files, in the
+    !> order loadup.el loads them (mule_fm calls this once).
+    subroutine define_language_environments()
+        call language_info_chinese()
+        call language_info_cyrillic()
+        call language_info_indian()
+        call language_info_sinhala()
+        call language_info_english()
+        call language_info_ethiopic()
+        call language_info_european()
+        call language_info_czech()
+        call language_info_slovak()
+        call language_info_romanian()
+        call language_info_greek()
+        call language_info_hebrew()
+        call language_info_japanese()
+        call language_info_korean()
+        call language_info_lao()
+        call language_info_tai_viet()
+        call language_info_thai()
+        call language_info_tibetan()
+        call language_info_vietnamese()
+        call language_info_misc_lang()
+        call language_info_utf_8_lang()
+        call language_info_georgian()
+        call language_info_khmer()
+        call language_info_burmese()
+        call language_info_cham()
+        call language_info_philippine()
+        call language_info_indonesian()
+    end subroutine define_language_environments
 
     ! ------------------------------------------------------------------
     ! Defining coding systems
