@@ -1,4 +1,5 @@
 ! test_newcomment_fm.f90 -- tests for commenting (newcomment_fm).
+! Ports GNU Emacs 31.1 test/lisp/newcomment-tests.el.
 !
 ! Copyright (C) 2018-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -46,6 +47,7 @@ module test_newcomment_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_newcomment_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

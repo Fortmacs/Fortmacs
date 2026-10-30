@@ -322,6 +322,7 @@ contains
     end subroutine executable_make_buffer_file_executable_if_script_p
 
     !> Give the variables their defaults and register the commands.
+    !> Not a port.
     subroutine syms_of_executable()
         type(font_lock_highlight_type) :: h(1)
 

@@ -44,7 +44,7 @@ module characters_fm
 
     abstract interface
         !> Give the characters `from' to `to' the syntax `descriptor'
-        !> (as for `modify_syntax_entry').
+        !> (as for `modify_syntax_entry').  Not a port.
         subroutine syntax_entry_proc(from, to, descriptor)
             implicit none(type, external)
             integer, intent(in) :: from, to
@@ -55,7 +55,7 @@ module characters_fm
 contains
 
     !> Make characters.el's standard-syntax-table entries through
-    !> `entry', in characters.el's order.
+    !> `entry', in characters.el's order.  Not a port.
     subroutine characters_syntax(entry)
         procedure(syntax_entry_proc) :: entry
         ! CJK parentheses, in more than one charset.
@@ -220,7 +220,7 @@ contains
         end subroutine pair
     end subroutine characters_syntax
 
-    !> The UTF-8 encoding of character `c'.
+    !> The UTF-8 encoding of character `c'.  Not a port.
     pure function utf8(c) result(s)
         integer, intent(in) :: c
         character(len=:), allocatable :: s
@@ -238,7 +238,7 @@ contains
     end function utf8
 
     !> Whether character `c' has category `category' (one of ^, C, H, K,
-    !> l and | so far; false for others).
+    !> l and | so far; false for others).  Not a port.
     pure logical function char_has_category(c, category)
         integer, intent(in) :: c
         character, intent(in) :: category
@@ -297,6 +297,7 @@ contains
     end function char_has_category
 
     !> Whether `c' is in one of the sorted runs `starts(k)'..`ends(k)'.
+    !> Not a port.
     pure logical function in_runs(c, starts, ends, n)
         integer, intent(in) :: c, n
         integer, intent(in) :: starts(:), ends(:)

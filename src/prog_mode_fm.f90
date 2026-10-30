@@ -88,7 +88,7 @@ contains
     end subroutine prog_mode
 
     !> Define Prog mode.  Its parent is fundamental-mode, which
-    !> define-derived-mode takes as no parent.
+    !> define-derived-mode takes as no parent.  Not a port.
     subroutine syms_of_prog_mode()
         call major_modes%prog_mode%define("prog_mode", "Prog", prog_mode, prog_mode_hook, &
                                           abbrev_table=prog_mode_abbrev_table)

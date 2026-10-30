@@ -91,6 +91,7 @@ contains
     end subroutine cvs_insert_strings
 
     ! The number of characters of the UTF-8 string S (its `length').
+    ! Not a port.
     integer function nchars(s)
         character(len=*), intent(in) :: s
         integer :: i

@@ -184,6 +184,7 @@ module quail_fm
     !> that `quail_current_package' can hold a package's index.  Port of
     !> quail.el quail-package-alist.
     type(quail_package_type), allocatable, public :: quail_package_alist(:)
+    !> The number of packages in `quail_package_alist'.
     integer, public :: quail_npackages = 0
 
     abstract interface
@@ -554,8 +555,8 @@ contains
     end function map_child
 
     !> Add a child to NODE for the key character CH, first among its
-    !> children (as upstream conses the entry on); K is the new node.  Not
-    !> a port.
+    !> children (as upstream conses the entry on); K is the new node.
+    !> Not a port.
     subroutine map_add_child(map, node, ch, k)
         type(quail_map_type), intent(inout) :: map
         integer, intent(in) :: node
@@ -619,8 +620,8 @@ contains
     end subroutine map_set_translation
 
     !> The candidates of NODE's translation in MAP (none for no
-    !> translation; a character's translation is that character).  Not a
-    !> port.
+    !> translation; a character's translation is that character).
+    !> Not a port.
     subroutine node_candidates(map, node, cands)
         type(quail_map_type), intent(in) :: map
         integer, intent(in) :: node
@@ -804,7 +805,7 @@ contains
 
     !> Define the translation rule KEY -> TRANSLATION in SELF: a string,
     !> each of whose characters is a candidate (one character is the sole
-    !> translation of KEY).  One rule of quail.el:quail-define-rules
+    !> translation of KEY).  Port of one rule of quail.el:quail-define-rules
     !> (quail-defrule-internal with APPEND and a decode map).
     subroutine map_add_string(self, key, translation)
         class(quail_map_type), intent(inout) :: self
@@ -818,7 +819,7 @@ contains
     end subroutine map_add_string
 
     !> Define the translation rule KEY -> CANDIDATES in SELF: a vector of
-    !> strings, each a candidate.  One rule of quail.el:quail-define-rules
+    !> strings, each a candidate.  Port of one rule of quail.el:quail-define-rules
     !> (quail-defrule-internal with APPEND and a decode map).
     subroutine map_add_vector(self, key, candidates)
         class(quail_map_type), intent(inout) :: self
@@ -923,8 +924,8 @@ contains
         call quail_add_package(package)
     end subroutine quail_copy_package
 
-    !> Select Quail package named NAME as the current Quail package.  Port
-    !> of quail.el:quail-select-package (the setq-default is not ported).
+    !> Select Quail package named NAME as the current Quail package.
+    !> Port of quail.el:quail-select-package (the setq-default is not ported).
     subroutine quail_select_package(name, status)
         character(len=*), intent(in) :: name
         type(status_type), intent(out) :: status
@@ -1121,8 +1122,8 @@ contains
 
     !> Install the Quail map MAP in the current Quail package.
     !>
-    !> The installed map can be referred by the function `quail_map'.  Port
-    !> of quail.el:quail-install-map.
+    !> The installed map can be referred by the function `quail_map'.
+    !> Port of quail.el:quail-install-map.
     subroutine quail_install_map(map, status)
         type(quail_map_type), intent(in) :: map
         type(status_type), intent(out) :: status
@@ -1151,8 +1152,8 @@ contains
     !> current Quail package.
     !>
     !> APPEND, if true, appends TRANSLATION
-    !> to the current translations for KEY instead of replacing them.  Port
-    !> of quail.el:quail-defrule (TRANSLATION as a Quail map, a function or
+    !> to the current translations for KEY instead of replacing them.
+    !> Port of quail.el:quail-defrule (TRANSLATION as a Quail map, a function or
     !> a cons is not ported).
     subroutine quail_defrule(key, translation, status, candidates, name, append)
         character(len=*), intent(in) :: key
@@ -1655,8 +1656,8 @@ contains
         end if
     end subroutine quail_get_current_str
 
-    !> The width of the selected window's text area (window-width).  Not a
-    !> port.
+    !> The width of the selected window's text area (window-width).
+    !> Not a port.
     integer function window_width() result(w)
         type(handle_type) :: sw
 
@@ -1972,8 +1973,8 @@ contains
         call silent_modifications_end(silent)
     end subroutine quail_input_method
 
-    !> Delete the text in the current translation region of Quail.  Port
-    !> of quail.el:quail-delete-region.
+    !> Delete the text in the current translation region of Quail.
+    !> Port of quail.el:quail-delete-region.
     subroutine quail_delete_region()
         integer(int64) :: start, end
         type(status_type) :: st
@@ -2164,8 +2165,8 @@ contains
         if (flag /= CONTROL_NIL) call quail_terminate_translation()
     end subroutine quail_update_translation
 
-    !> Translate the typed key by the current Quail map, and insert.  Port
-    !> of quail.el:quail-self-insert-command.
+    !> Translate the typed key by the current Quail map, and insert.
+    !> Port of quail.el:quail-self-insert-command.
     recursive subroutine cmd_quail_self_insert_command(status)
         type(status_type), intent(out) :: status
 
@@ -2197,8 +2198,8 @@ contains
         call quail_terminate_translation()
     end subroutine unread_last_and_terminate
 
-    !> Select next translation in the current batch of candidates.  Port
-    !> of quail.el:quail-next-translation.
+    !> Select next translation in the current batch of candidates.
+    !> Port of quail.el:quail-next-translation.
     recursive subroutine cmd_quail_next_translation(status)
         type(status_type), intent(out) :: status
         integer :: p
@@ -2319,8 +2320,8 @@ contains
         call quail_update_translation(CONTROL_NIL)
     end subroutine cmd_quail_prev_translation_block
 
-    !> Abort translation and delete the current Quail key sequence.  Port
-    !> of quail.el:quail-abort-translation.
+    !> Abort translation and delete the current Quail key sequence.
+    !> Port of quail.el:quail-abort-translation.
     recursive subroutine cmd_quail_abort_translation(status)
         type(status_type), intent(out) :: status
 
@@ -2461,8 +2462,8 @@ contains
         if (allocated(buffers(cur)%current_input_method_title)) title = buffers(cur)%current_input_method_title
     end function buffer_title
 
-    !> `quail_show_guidance' as a function of `post_command_hook'.  Not a
-    !> port.
+    !> `quail_show_guidance' as a function of `post_command_hook'.
+    !> Not a port.
     recursive subroutine quail_show_guidance_hook(status)
         type(status_type), intent(out) :: status
 
@@ -2496,8 +2497,8 @@ contains
         end if
     end subroutine quail_update_guidance
 
-    !> Return a string containing the current possible translations.  Port
-    !> of quail.el:quail-get-translations (the current candidate is not
+    !> Return a string containing the current possible translations.
+    !> Port of quail.el:quail-get-translations (the current candidate is not
     !> highlighted; GUIDANCE as an alist is not ported).
     function quail_get_translations() result(str)
         character(len=:), allocatable :: str

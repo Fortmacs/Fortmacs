@@ -1,4 +1,6 @@
 ! test_fill_fm.f90 -- tests for filling (fill_fm) and auto-fill.
+! Ports GNU Emacs 31.1 test/lisp/textmodes/fill-tests.el in part; the
+! others are not ported yet.
 !
 ! Copyright (C) 2017-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -52,6 +54,7 @@ module test_fill_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_fill_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

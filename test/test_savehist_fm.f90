@@ -1,5 +1,5 @@
 ! test_savehist_fm.f90 -- tests for savehist_fm.
-! Ported from GNU Emacs 31.1 test/lisp/savehist-tests.el.
+! Ports GNU Emacs 31.1 test/lisp/savehist-tests.el.
 !
 ! Copyright (C) 2025-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -50,6 +50,7 @@ module test_savehist_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_savehist_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

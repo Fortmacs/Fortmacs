@@ -58,14 +58,14 @@ submodule(window_fm) window_scroll_fm
 contains
 
     !> The selected window: the minibuffer window while it is active,
-    !> else the frame's selected window.
+    !> else the frame's selected window.  Not a port.
     function selected_window() result(w)
         type(window_type), pointer :: w
 
         w => selected_window_ref()
     end function selected_window
 
-    !> Whether `w' shows the current buffer.
+    !> Whether `w' shows the current buffer.  Not a port.
     logical function shows_current_buffer(w)
         type(window_type), intent(in) :: w
         type(status_type) :: status
@@ -388,6 +388,7 @@ contains
 
     !> Advance recenter_last_op: the next position after the last one if
     !> this command repeats, else the first.
+    !> Port of part of window.el:recenter-top-bottom.
     subroutine next_recenter_op()
         if (value_eq(this_command, last_command)) then
             recenter_last_op = mod(recenter_last_op, size(recenter_positions)) + 1
@@ -564,6 +565,8 @@ contains
 
     !> Run `scroll_up_command' (DIRECTION 1) or `scroll_down_command' (-1)
     !> with LINES in the other window, as with-selected-window.
+    !> Port of window.el:scroll-other-window and
+    !> window.el:scroll-other-window-down.
     recursive subroutine scroll_other(lines, direction, status)
         type(value_type), intent(in) :: lines
         integer, intent(in) :: direction

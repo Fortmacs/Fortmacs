@@ -1,6 +1,6 @@
 ! test_values_fm.f90 -- tests for lisp_fm, lread_fm, data_fm and fns_fm.
-! Includes cases ported from GNU Emacs 31.1 test/src/fns-tests.el and
-! test/src/data-tests.el.
+! Ports GNU Emacs 31.1 test/src/fns-tests.el and test/src/data-tests.el
+! in part; only the cases of the ported value functions.
 !
 ! Copyright (C) 2008-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -40,6 +40,7 @@ module test_values_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_values_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

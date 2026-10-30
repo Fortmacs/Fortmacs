@@ -1,6 +1,5 @@
 ! test_rect_fm.f90 -- tests for the rectangle commands (rect_fm).
-! Upstream has no rect-tests.el; these are our own, checked against the
-! behaviour of GNU Emacs 31.1 lisp/rect.el.
+! Own tests; upstream has no rect tests.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -55,6 +54,7 @@ module test_rect_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_rect_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

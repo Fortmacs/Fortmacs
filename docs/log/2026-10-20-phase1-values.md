@@ -1,0 +1,1 @@
+2026-10-20 — Value model (lisp_fm, lread_fm, data_fm, fns_fm), valgrind CI gate, progress script, on `phase1-values` (based on main). Open: spurious gfortran `-Wmaybe-uninitialized` warnings in lisp_fm (no failures). Next: intervals/text properties.

@@ -1,6 +1,7 @@
 ! test_quail_fm.f90 -- tests for quail_fm and the built-in Quail input
-! methods.  Upstream has no tests for Quail; the expected results are
-! those of GNU Emacs typing the same keys.
+! methods.
+! Own tests; upstream has no tests for Quail, and the expected results
+! are those of GNU Emacs typing the same keys.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -18,6 +19,7 @@
 !
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
+
 module test_quail_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
@@ -43,6 +45,7 @@ module test_quail_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_quail_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

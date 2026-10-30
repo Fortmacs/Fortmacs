@@ -430,6 +430,7 @@ contains
 
     ! The index of the current buffer's entry in `locals' (made if MAKE),
     ! 0 if none.
+    ! Not a port.
     recursive integer function local_index(make) result(k)
         logical, intent(in) :: make
         type(js_local_type), allocatable :: grown(:)
@@ -467,6 +468,7 @@ contains
     end function local_index
 
     ! Move FROM to TO.
+    ! Not a port.
     subroutine move_local(from, to)
         type(js_local_type), intent(inout) :: from
         type(js_local_type), intent(out) :: to
@@ -482,6 +484,7 @@ contains
     end subroutine move_local
 
     ! Give L its initial state: an empty cache holding js--initial-pitem.
+    ! Not a port.
     subroutine reset_local(l)
         type(js_local_type), intent(inout) :: l
 
@@ -501,6 +504,7 @@ contains
 
     ! kill-all-local-variables: forget the current buffer's js.el
     ! variables.
+    ! Not a port.
     subroutine kill_js_locals()
         integer :: k
 
@@ -509,11 +513,13 @@ contains
     end subroutine kill_js_locals
 
     ! The current buffer's local state (made if needed).
+    ! Not a port.
     recursive integer function here() result(k)
         k = local_index(.true.)
     end function here
 
     ! Whether FRAMEWORK is in the current buffer's `js_enabled_frameworks'.
+    ! Not a port.
     recursive logical function framework_enabled(framework)
         character(len=*), intent(in) :: framework
         integer :: k, i
@@ -533,6 +539,7 @@ contains
     end function framework_enabled
 
     ! Whether any framework is enabled in the current buffer.
+    ! Not a port.
     recursive logical function any_framework_enabled()
         integer :: i
 
@@ -545,6 +552,7 @@ contains
 
     ! The name, class declaration regexp, :prototype and framework of the
     ! class style I (js--class-styles).
+    ! Not a port.
     subroutine class_style(i, name, decl, prototype, framework)
         integer, intent(in) :: i
         character(len=:), allocatable, intent(out) :: name, decl, framework
@@ -622,6 +630,7 @@ contains
     end function maybe_join
 
     ! STR if FRAMEWORK is enabled, "" otherwise.
+    ! Not a port.
     recursive function when_enabled(framework, str) result(s)
         character(len=*), intent(in) :: framework, str
         character(len=:), allocatable :: s
@@ -663,6 +672,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! A new pitem of the current buffer: its index.
+    ! Not a port.
     recursive integer function make_pitem(paren_depth, type, h_begin, name, anonymous) result(id)
         integer(int64), intent(in) :: paren_depth, h_begin
         integer, intent(in) :: type
@@ -699,6 +709,7 @@ contains
     end function make_pitem
 
     ! The type of pitem ID.
+    ! Not a port.
     recursive integer function pitem_type_of(id)
         integer, intent(in) :: id
 
@@ -706,6 +717,7 @@ contains
     end function pitem_type_of
 
     ! The h-begin of pitem ID.
+    ! Not a port.
     recursive integer(int64) function pitem_h_begin(id)
         integer, intent(in) :: id
 
@@ -713,6 +725,7 @@ contains
     end function pitem_h_begin
 
     ! The value of a js--pstate property: the list of the pitems ITEMS.
+    ! Not a port.
     function pstate_value(items) result(v)
         integer, intent(in) :: items(:)
         type(value_type) :: v
@@ -729,6 +742,7 @@ contains
     end function pstate_value
 
     ! The pitems of the js--pstate value V.
+    ! Not a port.
     function pstate_items(v) result(items)
         type(value_type), intent(in) :: v
         integer, allocatable :: items(:)
@@ -747,6 +761,7 @@ contains
     end function pstate_items
 
     ! The text property PROPNAME at POS.
+    ! Not a port.
     recursive function prop_at(pos, propname) result(v)
         integer(int64), intent(in) :: pos
         character(len=*), intent(in) :: propname
@@ -813,6 +828,7 @@ contains
     end function backward_text_property
 
     ! js--forward-pstate.
+    ! Port of js.el:js--forward-pstate.
     recursive function forward_pstate() result(items)
         integer, allocatable :: items(:)
 
@@ -820,6 +836,7 @@ contains
     end function forward_pstate
 
     ! js--backward-pstate.
+    ! Port of js.el:js--backward-pstate.
     recursive function backward_pstate() result(items)
         integer, allocatable :: items(:)
 
@@ -840,6 +857,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! The character after POS, -1 if none.
+    ! Not a port.
     recursive integer function after_char_at(pos)
         integer(int64), intent(in) :: pos
         integer(int32) :: c
@@ -852,6 +870,7 @@ contains
     end function after_char_at
 
     ! The character before POS, -1 if none.
+    ! Not a port.
     recursive integer function before_char_at(pos)
         integer(int64), intent(in) :: pos
         integer(int32) :: c
@@ -864,16 +883,19 @@ contains
     end function before_char_at
 
     ! The character after point, -1 at the end.
+    ! Not a port.
     recursive integer function next_char()
         next_char = after_char_at(point())
     end function next_char
 
     ! The character before point, -1 at the beginning.
+    ! Not a port.
     recursive integer function prev_char()
         prev_char = before_char_at(point())
     end function prev_char
 
     ! The start of subexpression N of the last match, 0 if it didn't match.
+    ! Not a port.
     integer(int64) function mb(n)
         integer, intent(in) :: n
         type(status_type) :: st
@@ -882,6 +904,7 @@ contains
     end function mb
 
     ! The end of subexpression N of the last match, 0 if it didn't match.
+    ! Not a port.
     integer(int64) function me(n)
         integer, intent(in) :: n
         type(status_type) :: st
@@ -890,6 +913,7 @@ contains
     end function me
 
     ! looking-at REGEXP.
+    ! Not a port.
     recursive logical function at(regexp)
         character(len=*), intent(in) :: regexp
         type(status_type) :: st
@@ -898,6 +922,7 @@ contains
     end function at
 
     ! looking-at-p REGEXP.
+    ! Not a port.
     recursive logical function at_p(regexp)
         character(len=*), intent(in) :: regexp
         type(status_type) :: st
@@ -906,6 +931,7 @@ contains
     end function at_p
 
     ! The parse state at point (syntax-ppss).
+    ! Not a port.
     recursive function ppss() result(state)
         type(parse_state_type) :: state
 
@@ -913,6 +939,7 @@ contains
     end function ppss
 
     ! The parse state at POS (syntax-ppss POS, which moves point there).
+    ! Not a port.
     recursive function ppss_at(pos) result(state)
         integer(int64), intent(in) :: pos
         type(parse_state_type) :: state
@@ -1221,8 +1248,8 @@ contains
         end do
     end subroutine forward_syntactic_ws
 
-    ! Like (up-list -1), but only considers lists that end nearby.  Port
-    ! of js.el:js--up-nearby-list.
+    ! Like (up-list -1), but only considers lists that end nearby.
+    ! Port of js.el:js--up-nearby-list.
     recursive subroutine up_nearby_list(status)
         type(status_type), intent(out) :: status
         integer(int64) :: begv, zv
@@ -1527,6 +1554,7 @@ contains
     end subroutine js_beginning_of_defun
 
     ! `js_beginning_of_defun' as a `beginning_of_defun_function'.
+    ! Not a port.
     recursive subroutine beginning_of_defun_proc(arg, found, status)
         integer(int64), intent(in) :: arg
         logical, intent(out) :: found
@@ -1552,6 +1580,7 @@ contains
     end subroutine js_flush_caches
 
     ! `js_flush_caches' in `before_change_functions'.
+    ! Not a port.
     recursive subroutine flush_caches_hook(beg, end, status)
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
@@ -1562,8 +1591,8 @@ contains
     end subroutine flush_caches_hook
 
     ! The pitems OPEN_ITEMS with the top one popped if it ended at
-    ! PAREN_DEPTH (putting js--pend on the character before point).  Port
-    ! of js.el:js--ensure-cache--pop-if-ended (the children are not kept).
+    ! PAREN_DEPTH (putting js--pend on the character before point).
+    ! Port of js.el:js--ensure-cache--pop-if-ended (the children are not kept).
     recursive subroutine pop_if_ended(open_items, paren_depth)
         integer, allocatable, intent(inout) :: open_items(:)
         integer(int64), intent(in) :: paren_depth
@@ -1585,8 +1614,8 @@ contains
 
     ! Split a JavaScript name into its dot-separated parts.  This also
     ! removes any prototype parts from the split name (unless the name is
-    ! just "prototype" to start with).  The parts are joined by ".".  Port
-    ! of js.el:js--split-name.
+    ! just "prototype" to start with).  The parts are joined by ".".
+    ! Port of js.el:js--split-name.
     function split_name(string) result(name)
         character(len=*), intent(in) :: string
         character(len=:), allocatable :: name
@@ -1977,6 +2006,7 @@ contains
     end subroutine js_end_of_defun
 
     ! `js_end_of_defun' as an `end_of_defun_function'.
+    ! Not a port.
     recursive subroutine end_of_defun_proc(status)
         type(status_type), intent(out) :: status
 
@@ -2192,6 +2222,7 @@ contains
     end function forward_destructuring_spec
 
     ! (font-lock-apply-highlight '(0 font-lock-variable-name-face)).
+    ! Port of js.el:js--font-lock-keywords-3 (in part).
     recursive subroutine highlight_variable()
         type(font_lock_highlight_type) :: hl
         type(status_type) :: st
@@ -2304,6 +2335,7 @@ contains
     end subroutine class_decl_matcher
 
     ! A matcher for REGEXP when FRAMEWORK is enabled (js--make-framework-matcher).
+    ! Port of js.el:js--make-framework-matcher.
     recursive subroutine framework_search(framework, regexp, limit, found, status)
         character(len=*), intent(in) :: framework, regexp
         integer(int64), intent(in) :: limit
@@ -2319,6 +2351,7 @@ contains
     end subroutine framework_search
 
     ! The three Dojo matchers.
+    ! Not a port.
     recursive subroutine dojo_matcher_1(limit, found, status)
         integer(int64), intent(in) :: limit
         logical, intent(out) :: found
@@ -2327,6 +2360,7 @@ contains
         call framework_search("dojo", DOJO_MATCH_1_RE, limit, found, status)
     end subroutine dojo_matcher_1
 
+    ! Not a port.
     recursive subroutine dojo_matcher_2(limit, found, status)
         integer(int64), intent(in) :: limit
         logical, intent(out) :: found
@@ -2335,6 +2369,7 @@ contains
         call framework_search("dojo", DOJO_MATCH_2_RE, limit, found, status)
     end subroutine dojo_matcher_2
 
+    ! Not a port.
     recursive subroutine dojo_matcher_3(limit, found, status)
         integer(int64), intent(in) :: limit
         logical, intent(out) :: found
@@ -2344,6 +2379,7 @@ contains
     end subroutine dojo_matcher_3
 
     ! The PRE-MATCH-FORM of the class parts: (goto-char (match-beginning 1)).
+    ! Port of js.el:js--font-lock-keywords-3 (in part).
     recursive subroutine class_part_pre(limit)
         integer(int64), intent(out) :: limit
 
@@ -2353,6 +2389,7 @@ contains
 
     ! The PRE-MATCH-FORM of the parent class parts: insert a "=" after the
     ! parent class to stop the search there.
+    ! Port of js.el:js--font-lock-keywords-3 (in part).
     recursive subroutine parent_part_pre(limit)
         integer(int64), intent(out) :: limit
         type(status_type) :: st
@@ -2371,6 +2408,7 @@ contains
     end subroutine parent_part_pre
 
     ! The POST-MATCH-FORM of the parent class parts: delete the "=".
+    ! Port of js.el:js--font-lock-keywords-3 (in part).
     recursive subroutine parent_part_post(limit)
         integer(int64), intent(out) :: limit
         type(status_type) :: st
@@ -2386,6 +2424,7 @@ contains
     end subroutine parent_part_post
 
     ! (backward-char) and (end-of-line) as anchored forms.
+    ! Port of js.el:js--font-lock-keywords-3 (in part).
     recursive subroutine backward_char_form(limit)
         integer(int64), intent(out) :: limit
         type(status_type) :: st
@@ -2394,6 +2433,7 @@ contains
         call forward_char(st, -1_int64)
     end subroutine backward_char_form
 
+    ! Port of js.el:js--font-lock-keywords-3 (in part).
     recursive subroutine end_of_line_form(limit)
         integer(int64), intent(out) :: limit
 
@@ -2402,6 +2442,7 @@ contains
     end subroutine end_of_line_form
 
     ! The PRE-MATCH-FORM of the continued Dojo base-class list.
+    ! Port of js.el:js--font-lock-keywords-3 (in part).
     recursive subroutine dojo_continued_pre(limit)
         integer(int64), intent(out) :: limit
         logical :: inside
@@ -2419,6 +2460,7 @@ contains
     end subroutine dojo_continued_pre
 
     ! The PRE-MATCH-FORM of the continued formal parameter list.
+    ! Port of js.el:js--font-lock-keywords-3 (in part).
     recursive subroutine params_continued_pre(limit)
         integer(int64), intent(out) :: limit
         logical :: inside
@@ -2436,6 +2478,7 @@ contains
     end subroutine params_continued_pre
 
     ! A highlight of subexpression N in FACE.
+    ! Not a port.
     function h(n, face, override, lax) result(hl)
         integer, intent(in) :: n
         character(len=*), intent(in) :: face
@@ -2447,10 +2490,12 @@ contains
     end function h
 
     ! The keywords of the three levels (js--font-lock-keywords-1, -2 and -3).
+    ! Not a port.
     subroutine init_keywords()
         character(len=*), parameter :: TY = "font_lock_type_face", VA = "font_lock_variable_name_face"
-        type(font_lock_keyword_type), allocatable :: cpp(:)
+        type(font_lock_keyword_type), allocatable :: cpp(:), grown(:)
         type(font_lock_keyword_type) :: kw(14)
+        integer :: n
         type(font_lock_highlight_type) :: h1(1), h2(2), a(1)
         type(font_lock_highlight_type), allocatable :: none(:)
 
@@ -2473,7 +2518,9 @@ contains
         ! will fontify commented-out directives as if they weren't
         ! commented out.
         cpp = cpp_font_lock_keywords()
-        keywords_3 = [cpp, keywords_2]
+        allocate (keywords_3(size(cpp) + size(keywords_2)))
+        keywords_3(1:size(cpp)) = cpp
+        keywords_3(size(cpp) + 1:) = keywords_2
         h1(1) = h(1, "font_lock_constant_face")
         kw(1) = font_lock_keyword("\.\(prototype\)\_>", highlights=h1)
         ! Highlights class being declared, in parts
@@ -2519,7 +2566,11 @@ contains
         a(1) = font_lock_anchored(h1, regexp=JS_NAME_RE, pre_match_form=params_continued_pre, &
                                   post_match_form=end_of_line_form)
         kw(12) = font_lock_keyword(CONTINUED_PARAMS_RE, highlights=a)
-        keywords_3 = [keywords_3, kw(1:12)]
+        n = size(keywords_3)
+        allocate (grown(n + 12))
+        grown(1:n) = keywords_3
+        grown(n + 1:) = kw(1:12)
+        call move_alloc(grown, keywords_3)
     end subroutine init_keywords
 
     !> Return syntactic face given STATE.  Port of
@@ -2573,6 +2624,7 @@ contains
     end subroutine syntax_propertize_regexp
 
     ! (string-to-syntax "\"/"): a string quote matching "/".
+    ! Not a port.
     recursive function string_fence() result(v)
         use syntax_fm, only: syntax_descriptor_value, syntax_descriptor_type, string_to_syntax
         type(value_type) :: v
@@ -2585,6 +2637,7 @@ contains
 
     ! The value of the regexp literal rule's highlight: treat a "/" as the
     ! start of a regexp after an operator or keyword that can precede one.
+    ! Port of js.el:js-syntax-propertize (in part: its regexp literal rule).
     recursive subroutine slash_value(property, status)
         type(syntax_property_type), intent(out) :: property
         type(status_type), intent(out) :: status
@@ -2709,6 +2762,7 @@ contains
     end function looking_at_operator_p
 
     ! save-match-data: the match data, in SAVED.
+    ! Not a port.
     subroutine save_match(saved)
         use search_fm, only: match_data
         integer, allocatable, intent(out) :: saved(:)
@@ -2719,6 +2773,7 @@ contains
     end subroutine save_match
 
     ! Restore the match data SAVED.
+    ! Not a port.
     subroutine restore_match(saved)
         use search_fm, only: set_match_data
         integer, intent(in) :: saved(:)
@@ -3376,6 +3431,7 @@ contains
 
     ! js-mode-syntax-table: C's syntax (c-populate-syntax-table) with $ a
     ! symbol constituent and ` a string quote.
+    ! Not a port.
     subroutine init_syntax_table()
         type(status_type) :: st
         type(handle_type) :: t
@@ -3399,6 +3455,7 @@ contains
     end subroutine init_syntax_table
 
     ! js-syntax-propertize's rules.
+    ! Not a port.
     subroutine init_rules()
         type(syntax_highlight_type) :: hl
 
@@ -3493,6 +3550,7 @@ contains
     end subroutine js_json_mode
 
     ! The `syntax_propertize_function' ignore.
+    ! Not a port.
     recursive subroutine ignore_propertize(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
@@ -3502,6 +3560,7 @@ contains
     end subroutine ignore_propertize
 
     ! `js_indent_line' as an `indent_line_function'.
+    ! Not a port.
     recursive subroutine indent_line_proc(status, noindent)
         type(status_type), intent(out) :: status
         logical, intent(out) :: noindent
@@ -3518,6 +3577,7 @@ contains
     end subroutine cmd_js_indent_line
 
     !> Define JavaScript mode: its variables, tables and commands.
+    !> Not a port.
     recursive subroutine syms_of_js()
         if (syntax_table_live_p(js_mode_syntax_table)) return
         call forward_setting(js_indent_level)

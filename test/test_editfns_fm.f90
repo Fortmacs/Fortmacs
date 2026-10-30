@@ -1,4 +1,6 @@
 ! test_editfns_fm.f90 -- tests for editfns_fm.
+! Own tests; editfns-tests.el's cases need `format', text properties,
+! undo or `transpose-regions'.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -50,6 +52,7 @@ module test_editfns_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_editfns_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

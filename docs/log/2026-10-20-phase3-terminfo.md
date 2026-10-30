@@ -1,0 +1,1 @@
+2026-10-20 — Open question 5 decided (pure-Fortran terminfo); `terminfo_fm` on `phase3-terminfo` (based on main after PRs #15, #16). Pure-Fortran rule recorded under design decisions. Next: Phase 3.2, `term.c`/`cm.c` output on top of it.

@@ -1,6 +1,6 @@
 ! test_charset_fm.f90 -- tests for charset_fm.
-! Ports test/src/charset-tests.el of GNU Emacs 31.1; the other expected
-! values are those GNU Emacs gives.
+! Ports GNU Emacs 31.1 test/src/charset-tests.el, with own tests whose
+! expected values are those GNU Emacs gives.
 !
 ! Copyright (C) 2017-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors

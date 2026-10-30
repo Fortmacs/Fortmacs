@@ -1,6 +1,7 @@
 ! test_data_buffer_fm.f90 -- tests for buffer-local variables (data_fm's
-! submodule data_buffer_fm).  Includes cases ported from GNU Emacs 31.1
-! test/src/data-tests.el.
+! submodule data_buffer_fm).
+! Ports GNU Emacs 31.1 test/src/data-tests.el in part; the `let' parts
+! of the binding tests need dynamic binding.
 !
 ! Copyright (C) 2008-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -48,6 +49,7 @@ module test_data_buffer_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_data_buffer_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

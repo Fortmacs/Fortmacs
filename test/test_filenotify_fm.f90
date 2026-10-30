@@ -1,5 +1,6 @@
 ! test_filenotify_fm.f90 -- tests for filenotify_fm.
-! Ported from GNU Emacs 31.1 test/lisp/filenotify-tests.el.
+! Ports GNU Emacs 31.1 test/lisp/filenotify-tests.el in part; only the
+! inotify tests for local files.
 !
 ! Copyright (C) 2013-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -75,6 +76,7 @@ module test_filenotify_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_filenotify_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

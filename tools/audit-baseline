@@ -1,0 +1,4 @@
+# audit-baseline -- the procedures of ported files that tools/audit.awk's
+# `port' rule tolerates: they say neither "Port of ..." nor "Not a port"
+# yet.  One FILE:PROCEDURE per line.  The list may only shrink: give a
+# procedure its citation and delete its line (PORTING.md, "Audit").
