@@ -1,4 +1,6 @@
 ! test_marker_fm.f90 -- tests for marker objects (marker_fm, insdel_fm).
+! Own tests; upstream's marker-tests.el needs windows and *Help*; its
+! point is covered by set-marker-from-other-buffer.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -44,6 +46,7 @@ module test_marker_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_marker_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

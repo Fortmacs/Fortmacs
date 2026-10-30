@@ -362,58 +362,72 @@ module coding_fm
 
     interface
         !> The `charset' coding systems of chinese.el (in chinese_fm).
+        !> Port of the define-coding-system forms of chinese.el.
         module subroutine syms_of_chinese()
             implicit none(type, external)
         end subroutine syms_of_chinese
         !> The `charset' coding systems of cyrillic.el (in cyrillic_fm).
+        !> Port of the define-coding-system forms of cyrillic.el.
         module subroutine syms_of_cyrillic()
             implicit none(type, external)
         end subroutine syms_of_cyrillic
         !> The `charset' coding systems of english.el (in english_fm).
+        !> Port of the define-coding-system forms of english.el.
         module subroutine syms_of_english()
             implicit none(type, external)
         end subroutine syms_of_english
         !> The `charset' coding systems of european.el (in european_fm).
+        !> Port of the define-coding-system forms of european.el.
         module subroutine syms_of_european()
             implicit none(type, external)
         end subroutine syms_of_european
         !> The `charset' coding systems of romanian.el (in romanian_fm).
+        !> Port of the define-coding-system forms of romanian.el.
         module subroutine syms_of_romanian()
             implicit none(type, external)
         end subroutine syms_of_romanian
         !> The `charset' coding systems of greek.el (in greek_fm).
+        !> Port of the define-coding-system forms of greek.el.
         module subroutine syms_of_greek()
             implicit none(type, external)
         end subroutine syms_of_greek
         !> The `charset' coding systems of hebrew.el (in hebrew_fm).
+        !> Port of the define-coding-system forms of hebrew.el.
         module subroutine syms_of_hebrew()
             implicit none(type, external)
         end subroutine syms_of_hebrew
         !> The `charset' coding systems of japanese.el (in japanese_fm).
+        !> Port of the define-coding-system forms of japanese.el.
         module subroutine syms_of_japanese()
             implicit none(type, external)
         end subroutine syms_of_japanese
         !> The `charset' coding systems of korean.el (in korean_fm).
+        !> Port of the define-coding-system forms of korean.el.
         module subroutine syms_of_korean()
             implicit none(type, external)
         end subroutine syms_of_korean
         !> The `charset' coding systems of lao.el (in lao_fm).
+        !> Port of the define-coding-system forms of lao.el.
         module subroutine syms_of_lao()
             implicit none(type, external)
         end subroutine syms_of_lao
         !> The `charset' coding systems of thai.el (in thai_fm).
+        !> Port of the define-coding-system forms of thai.el.
         module subroutine syms_of_thai()
             implicit none(type, external)
         end subroutine syms_of_thai
         !> The `charset' coding systems of vietnamese.el (in vietnamese_fm).
+        !> Port of the define-coding-system forms of vietnamese.el.
         module subroutine syms_of_vietnamese()
             implicit none(type, external)
         end subroutine syms_of_vietnamese
         !> The `charset' coding systems of misc-lang.el (in misc_lang_fm).
+        !> Port of the define-coding-system forms of misc-lang.el.
         module subroutine syms_of_misc_lang()
             implicit none(type, external)
         end subroutine syms_of_misc_lang
         !> The `charset' coding systems of georgian.el (in georgian_fm).
+        !> Port of the define-coding-system forms of georgian.el.
         module subroutine syms_of_georgian()
             implicit none(type, external)
         end subroutine syms_of_georgian
@@ -673,6 +687,7 @@ contains
                     default_char=default_char)
     end subroutine define_charset_coding_system
 
+    ! Not a port.
     integer function add_coding(c) result(id)
         type(coding_type), intent(in) :: c
         type(coding_type), allocatable :: grown(:)
@@ -688,6 +703,7 @@ contains
         id = ncodings
     end function add_coding
 
+    ! Not a port.
     subroutine add_alias(name, id)
         character(len=*), intent(in) :: name
         integer, intent(in) :: id
@@ -728,6 +744,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The id of the coding system called NAME (an alias included), or 0.
+    !> Not a port.
     recursive integer function coding_system_id(name) result(id)
         character(len=*), intent(in) :: name
         integer :: k
@@ -743,7 +760,7 @@ contains
         end do
     end function coding_system_id
 
-    !> The name of the coding system with id ID (not an alias).
+    !> The name of the coding system with id ID (not an alias).  Not a port.
     function coding_system_name(id) result(name)
         integer, intent(in) :: id
         character(len=:), allocatable :: name
@@ -799,7 +816,7 @@ contains
     end function coding_system_eol_type
 
     !> The -unix, -dos and -mac subsidiaries of CODING_SYSTEM, or empty
-    !> names if its end-of-line type is decided.
+    !> names if its end-of-line type is decided.  Not a port.
     subroutine coding_system_subsidiaries(coding_system, subs)
         character(len=*), intent(in) :: coding_system
         character(len=40), intent(out) :: subs(0:2)
@@ -885,7 +902,7 @@ contains
         if (id > 0) doc = codings(id)%doc
     end function coding_system_doc_string
 
-    !> The MIME charset of CODING_SYSTEM ("" if none).
+    !> The MIME charset of CODING_SYSTEM ("" if none).  Not a port.
     function coding_system_mime_charset(coding_system) result(m)
         character(len=*), intent(in) :: coding_system
         character(len=:), allocatable :: m
@@ -926,7 +943,7 @@ contains
 
     !> The `:bom' attribute of CODING_SYSTEM (BOM_NONE, BOM_WITH or
     !> BOM_DETECT), and for BOM_DETECT the coding systems with and without
-    !> a BOM.
+    !> a BOM.  Not a port.
     subroutine coding_system_bom(coding_system, bom, with, without)
         character(len=*), intent(in) :: coding_system
         integer, intent(out) :: bom
@@ -947,6 +964,7 @@ contains
     end subroutine coding_system_bom
 
     !> Whether CODING_SYSTEM is a UTF-16 one that is big endian.
+    !> Not a port.
     logical function coding_system_endian(coding_system) result(big)
         character(len=*), intent(in) :: coding_system
         integer :: id
@@ -957,6 +975,7 @@ contains
     end function coding_system_endian
 
     !> Whether CODING_SYSTEM reads files into unibyte buffers (`:for-unibyte').
+    !> Not a port.
     logical function coding_system_for_unibyte_p(coding_system)
         character(len=*), intent(in) :: coding_system
         integer :: id
@@ -967,6 +986,7 @@ contains
     end function coding_system_for_unibyte_p
 
     !> Whether CODING_SYSTEM is ASCII compatible (`:ascii-compatible-p').
+    !> Not a port.
     logical function coding_system_ascii_compatible_p(coding_system)
         character(len=*), intent(in) :: coding_system
         integer :: id
@@ -976,7 +996,7 @@ contains
         if (id > 0) coding_system_ascii_compatible_p = codings(id)%ascii_compatible
     end function coding_system_ascii_compatible_p
 
-    !> Whether CODING_SYSTEM prefers UTF-8 (`:prefer-utf-8').
+    !> Whether CODING_SYSTEM prefers UTF-8 (`:prefer-utf-8').  Not a port.
     logical function coding_system_prefer_utf_8_p(coding_system)
         character(len=*), intent(in) :: coding_system
         integer :: id
@@ -986,7 +1006,8 @@ contains
         if (id > 0) coding_system_prefer_utf_8_p = codings(id)%prefer_utf_8
     end function coding_system_prefer_utf_8_p
 
-    !> The coding category of CODING_SYSTEM (`:category').
+    !> The coding category of CODING_SYSTEM (`:category').  Port of
+    !> international/mule.el:coding-system-category.
     function coding_system_category(coding_system) result(cat)
         character(len=*), intent(in) :: coding_system
         character(len=:), allocatable :: cat
@@ -1075,7 +1096,7 @@ contains
     end subroutine coding_system_list
 
     !> Whether NAME, a name of subsidiary ID, was made from a base name
-    !> by adding -unix, -dos or -mac.
+    !> by adding -unix, -dos or -mac.  Not a port.
     logical function is_subsidiary_name(name, id)
         character(len=*), intent(in) :: name
         integer, intent(in) :: id
@@ -1330,6 +1351,7 @@ contains
 
     !> The source as coding.c's ONE_MORE_BYTE sees it: a byte (0 to 255),
     !> or, in multibyte text, minus a character that is not a raw byte.
+    !> Not a port.
     subroutine source_units(src, multibyte, units)
         character(len=*), intent(in) :: src
         logical, intent(in) :: multibyte
@@ -1380,6 +1402,7 @@ contains
     ! Detection
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     logical function has(mask, cat)
         integer, intent(in) :: mask, cat
 
@@ -1491,7 +1514,7 @@ contains
     end function detect_coding_utf_8
 
     !> Whether the UTF-8 sequence starting at UNITS(START) runs past the
-    !> end of the text.
+    !> end of the text.  Not a port.
     logical function sequence_cut(units, start)
         integer, intent(in) :: units(:)
         integer(int64), intent(in) :: start
@@ -1766,7 +1789,7 @@ contains
         ok = .true.
     end function detect_coding_big5
 
-    !> Run the detector of CATEGORY.
+    !> Run the detector of CATEGORY.  Not a port.
     logical function run_detector(category, units, head_ascii, info) result(ok)
         integer, intent(in) :: category
         integer, intent(in) :: units(:)
@@ -1861,7 +1884,7 @@ contains
 
     !> Combine the line end THIS_EOL with those seen before; false when
     !> they are mixed (EOL_SEEN becomes LF and detection stops).  Stray ^M
-    !> characters in DOS EOL files are allowed.
+    !> characters in DOS EOL files are allowed.  Not a port.
     logical function merge_eol(eol_seen, this_eol) result(go_on)
         integer, intent(inout) :: eol_seen
         integer, intent(in) :: this_eol
@@ -1901,7 +1924,7 @@ contains
     end function adjust_eol
 
     !> The subsidiary of ID with the end-of-line type EOL, if ID's is
-    !> undecided.
+    !> undecided.  Not a port.
     integer function with_eol(id, eol) result(sub)
         integer, intent(in) :: id, eol
 
@@ -1912,7 +1935,7 @@ contains
 
     !> Scan the head of the text as detect_coding and detect_coding_system
     !> do: count the leading ASCII bytes and look for null and 8-bit
-    !> bytes.  (ISO-2022 escape detection is Deferred.)
+    !> bytes.  (ISO-2022 escape detection is Deferred.)  Not a port.
     subroutine scan_head(src, head_ascii, null_byte_found, eight_bit_found, inhibit_nbd)
         character(len=*), intent(in) :: src
         integer(int64), intent(out) :: head_ascii
@@ -2053,6 +2076,7 @@ contains
 
     !> The coding system of the category found: for the auto categories,
     !> the one with or without a BOM (or of the endianness) found.
+    !> Not a port.
     integer function auto_choice(this, category, info) result(id)
         integer, intent(in) :: this, category
         type(detect_info_type), intent(in) :: info
@@ -2258,7 +2282,7 @@ contains
     ! Decoding
     ! ------------------------------------------------------------------
 
-    !> Append character C to CHARS(1:N).
+    !> Append character C to CHARS(1:N).  Not a port.
     subroutine push(chars, n, c)
         integer, allocatable, intent(inout) :: chars(:)
         integer(int64), intent(inout) :: n
@@ -2277,6 +2301,7 @@ contains
 
     !> A byte that could not be decoded, as a character: ASCII as is,
     !> others as raw bytes; a character of multibyte source stays.
+    !> Not a port.
     integer function invalid_char(u) result(c)
         integer, intent(in) :: u
 
@@ -2863,7 +2888,7 @@ contains
     end subroutine decode_eol
 
     !> Store the characters CHARS(1:N) as text: Emacs's internal encoding
-    !> if MULTIBYTE, else one byte each.
+    !> if MULTIBYTE, else one byte each.  Not a port.
     subroutine chars_to_text(chars, n, multibyte, text)
         integer, intent(in) :: chars(:)
         integer(int64), intent(in) :: n
@@ -2971,7 +2996,7 @@ contains
     ! Encoding
     ! ------------------------------------------------------------------
 
-    !> Append the bytes of BYTES to OUT(1:Q).
+    !> Append the bytes of BYTES to OUT(1:Q).  Not a port.
     subroutine emit(out, q, bytes)
         character(len=:), allocatable, intent(inout) :: out
         integer(int64), intent(inout) :: q
@@ -3034,7 +3059,7 @@ contains
         end do
     end subroutine consume_chars
 
-    !> The internal (multibyte) form of character C.
+    !> The internal (multibyte) form of character C.  Not a port.
     function internal_bytes(c) result(s)
         integer, intent(in) :: c
         character(len=:), allocatable :: s
@@ -3475,6 +3500,7 @@ contains
     end subroutine detect_coding_string
 
     !> The bytes of the current buffer between START and END, checked.
+    !> Not a port.
     subroutine region_bytes(start, end, from, to, bytes, status)
         integer(int64), intent(in) :: start, end
         integer(int64), intent(out) :: from, to
@@ -3551,8 +3577,8 @@ contains
         call convert_region(start, end, coding_system, .true., inserted, status)
     end subroutine encode_coding_region
 
-    !> Replace the region by its decoded or (ENCODE) encoded form.  Port
-    !> of coding.c:code_convert_region.
+    !> Replace the region by its decoded or (ENCODE) encoded form.
+    !> Port of coding.c:code_convert_region.
     subroutine convert_region(start, end, coding_system, encode, inserted, status)
         integer(int64), intent(in) :: start, end
         character(len=*), intent(in) :: coding_system
@@ -3651,8 +3677,8 @@ contains
         keyboard_coding = coding_system
     end subroutine set_keyboard_coding_system_internal
 
-    !> Return coding system specified for decoding keyboard input.  Port
-    !> of coding.c:Fkeyboard_coding_system.
+    !> Return coding system specified for decoding keyboard input.
+    !> Port of coding.c:Fkeyboard_coding_system.
     function keyboard_coding_system() result(name)
         character(len=:), allocatable :: name
 

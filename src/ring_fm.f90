@@ -146,8 +146,8 @@ contains
         if (allocated(self%vec)) ring_size = size(self%vec)
     end function ring_size
 
-    !> Add to RING the item ITEM, at the front, as the oldest item.  Port
-    !> of ring.el:ring-insert-at-beginning.
+    !> Add to RING the item ITEM, at the front, as the oldest item.
+    !> Port of ring.el:ring-insert-at-beginning.
     subroutine ring_insert_at_beginning(self, item)
         class(ring_type), intent(inout) :: self
         character(len=*), intent(in) :: item

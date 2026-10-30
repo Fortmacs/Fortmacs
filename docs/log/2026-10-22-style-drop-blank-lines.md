@@ -1,0 +1,1 @@
+2026-10-22 — Style: the blank-line rule is dropped (no Fortran style guide sets one): `tools/blank-lines.awk` and its check in `tools/check.sh` are gone, and the blank lines it put inside procedure bodies are removed everywhere (code, README example, docs/syntax.html); blank lines now separate procedures and module-level items only. On `style-drop-blank-lines`.

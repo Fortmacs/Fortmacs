@@ -1,0 +1,1 @@
+2026-10-20 — Phase 2 keymaps (`keymap_fm`), buffer-local keymap slot, threading decision recorded, on `phase2-keymap` (based on main after PR #12). Next: `keyboard_fm` subset (command loop: read events from the tty, look them up with `key_binding`, run Fortran command procedures), then `self-insert-command`. Terminal output still waits on open question 5.

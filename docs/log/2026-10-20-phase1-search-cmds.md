@@ -1,0 +1,1 @@
+2026-10-20 — `search_fm` newline scanning, line positions, `cmds_fm` motion/deletion on `phase1-search-cmds`, stacked on PR #7. Work that doesn't need an answer to open questions 2 (value model) or 5 (terminal capabilities) is now done; keymaps, the command loop, text properties and terminal output all wait on them.

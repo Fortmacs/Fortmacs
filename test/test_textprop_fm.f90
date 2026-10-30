@@ -1,5 +1,7 @@
 ! test_textprop_fm.f90 -- tests for intervals_fm and textprop_fm.
-! Includes a case ported from GNU Emacs 31.1 test/src/textprop-tests.el.
+! Ports GNU Emacs 31.1 test/src/textprop-tests.el in part;
+! textprop-tests-format needs `format' and the other test needs
+! font-lock--remove-face-from-text-property.
 !
 ! Copyright (C) 2015-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -50,6 +52,7 @@ module test_textprop_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_textprop_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

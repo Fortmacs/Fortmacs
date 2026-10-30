@@ -1,0 +1,1 @@
+2026-10-21 — Frame updates (`frame_fm`, `dispnew_fm`, ins/del character costs) on `phase3-dispnew` (based on main after PR #18). WIP kept aside: `window_fm` (window.c subset) for the next step. Next: `xdisp.c`/`window.c` subset; a style/CI PR (Fortitude lint gate, Fedora and Arch containers).

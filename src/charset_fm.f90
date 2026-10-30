@@ -160,10 +160,17 @@ module charset_fm
     integer :: emacs_mule_charset(0:255) = 0
     integer :: emacs_mule_bytes(0:255) = 0
 
-    ! The ids of the charsets charset.c knows by name.
+    !> The ids of ascii, iso-8859-1 and unicode (charset.c charset_ascii,
+    !> charset_iso_8859_1, charset_unicode).
     integer, public, protected :: charset_ascii = 0, charset_iso_8859_1 = 0, charset_unicode = 0
+    !> The ids of emacs, eight-bit and the unibyte charset (charset.c
+    !> charset_emacs, charset_eight_bit, charset_unibyte).
     integer, public, protected :: charset_emacs = 0, charset_eight_bit = 0, charset_unibyte = 0
+    !> The ids of latin-jisx0201 and japanese-jisx0208-1978
+    !> (charset.c charset_jisx0201_roman, charset_jisx0208_1978).
     integer, public, protected :: charset_jisx0201_roman = 0, charset_jisx0208_1978 = 0
+    !> The ids of japanese-jisx0208 and korean-ksc5601 (charset.c
+    !> charset_jisx0208, charset_ksc5601).
     integer, public, protected :: charset_jisx0208 = 0, charset_ksc5601 = 0
 
     ! The charsets unified with Unicode, latest last: Vchar_unify_table
@@ -175,6 +182,7 @@ module charset_fm
 
     interface
         !> Define the charsets of mule-conf.el (in mule_conf_charsets_fm).
+        !> Port of the charset definitions (the top-level forms) of mule-conf.el.
         module subroutine define_standard_charsets()
             implicit none(type, external)
         end subroutine define_standard_charsets
@@ -550,6 +558,7 @@ contains
 
     ! Put a new charset in Vcharset_ordered_list: a supplementary one at
     ! the end, another before the first supplementary one.
+    ! Port of charset.c:Fdefine_charset_internal (in part: the ordered list).
     subroutine insert_ordered(id)
         integer, intent(in) :: id
         integer :: i
@@ -579,6 +588,7 @@ contains
         end if
     end subroutine insert_ordered
 
+    ! Not a port.
     subroutine add_defined_name(name)
         character(len=*), intent(in) :: name
         character(len=CHARSET_NAME_LEN), allocatable :: grown(:)
@@ -593,6 +603,7 @@ contains
         defined_names(ndefined) = name
     end subroutine add_defined_name
 
+    ! Not a port.
     subroutine grow_charsets()
         type(charset_type), allocatable :: grown(:)
         integer :: i
@@ -606,6 +617,7 @@ contains
         call move_alloc(grown, charsets)
     end subroutine grow_charsets
 
+    ! Not a port.
     subroutine out_of_range(status, a, b, c)
         type(status_type), intent(inout) :: status
         integer(int64), intent(in) :: a, b, c
@@ -661,6 +673,7 @@ contains
     !> Set the `:docstring', `:short-name', `:long-name' or
     !> `preferred-coding-system' property of CHARSET (mule.el
     !> put-charset-property for these properties).
+    !> Port of mule.el:put-charset-property (in part: these properties).
     subroutine set_charset_properties(charset, docstring, short_name, long_name, preferred_coding_system)
         character(len=*), intent(in) :: charset
         character(len=*), intent(in), optional :: docstring, short_name, long_name, preferred_coding_system
@@ -676,6 +689,7 @@ contains
     end subroutine set_charset_properties
 
     ! The id of charset or alias NAME, 0 if there is none.
+    ! Not a port.
     integer function find_id(name) result(id)
         character(len=*), intent(in) :: name
         integer :: i
@@ -698,6 +712,7 @@ contains
     end function find_id
 
     ! The id of CHARSET, or 0 with a wrong-type-argument error.
+    ! Port of charset.h:CHECK_CHARSET_GET_ID.
     recursive integer function check_charset(charset, status) result(id)
         character(len=*), intent(in) :: charset
         type(status_type), intent(inout) :: status
@@ -717,6 +732,7 @@ contains
     end function charsetp
 
     !> `charset-list': the charsets and their aliases, the latest first.
+    !> Port of charset.c:Vcharset_list (its value).
     function charset_list() result(names)
         character(len=CHARSET_NAME_LEN), allocatable :: names(:)
 
@@ -807,8 +823,8 @@ contains
         charset_chars = charsets(id)%given_code_space(2*d) - charsets(id)%given_code_space(2*d - 1) + 1
     end function charset_chars
 
-    !> The final character of CHARSET in ISO-2022, -1 if it has none.  Port
-    !> of mule.el:charset-iso-final-char.
+    !> The final character of CHARSET in ISO-2022, -1 if it has none.
+    !> Port of mule.el:charset-iso-final-char.
     integer function charset_iso_final_char(charset, status)
         character(len=*), intent(in) :: charset
         type(status_type), intent(out) :: status
@@ -860,6 +876,7 @@ contains
     ! Code points and characters
     ! ------------------------------------------------------------------
 
+    ! Port of charset.h:CHARSET_FAST_MAP_SET.
     subroutine fast_map_set(c, fast_map)
         integer, intent(in) :: c
         integer, intent(inout) :: fast_map(0:189)
@@ -871,6 +888,7 @@ contains
         end if
     end subroutine fast_map_set
 
+    ! Port of charset.h:CHARSET_FAST_MAP_REF.
     logical function fast_map_ref(c, fast_map)
         integer, intent(in) :: c
         integer, intent(in) :: fast_map(0:189)
@@ -1121,6 +1139,7 @@ contains
     end subroutine load_charset
 
     ! The position of C in the sorted array CHARS, 0 if absent.
+    ! Not a port.
     integer function lookup(chars, c) result(pos)
         integer, intent(in) :: chars(:), c
         integer :: lo, hi, mid
@@ -1537,6 +1556,7 @@ contains
     end function char_charset_id
 
     ! CHAR_CHARSET: ascii for ASCII characters.
+    ! Port of charset.h:CHAR_CHARSET.
     integer function char_charset_macro(c, code, status) result(id)
         integer, intent(in) :: c
         integer(int64), intent(out) :: code
@@ -1673,8 +1693,8 @@ contains
         if (id /= 0) name = charsets(id)%name
     end function iso_charset
 
-    ! Check DIMENSION, CHARS and FINAL_CHAR; true if they are valid.  Port
-    ! of charset.c:check_iso_charset_parameter.
+    ! Check DIMENSION, CHARS and FINAL_CHAR; true if they are valid.
+    ! Port of charset.c:check_iso_charset_parameter.
     logical function check_iso_charset_parameter(dimension, chars, final_char, status) result(ok)
         integer, intent(in) :: dimension, chars, final_char
         type(status_type), intent(inout) :: status
@@ -1742,6 +1762,7 @@ contains
 
     !> The id of charset or alias NAME, 0 if there is none (the ids count
     !> from 1).
+    !> Not a port.
     integer function charset_id_of(name) result(id)
         character(len=*), intent(in) :: name
 
@@ -1750,6 +1771,7 @@ contains
     end function charset_id_of
 
     !> The name of charset ID.
+    !> Not a port.
     function charset_name_of(id) result(name)
         integer, intent(in) :: id
         character(len=:), allocatable :: name
@@ -1778,6 +1800,7 @@ contains
     end function charset_encode_id
 
     !> The dimension of charset ID.
+    !> Not a port.
     integer function charset_dimension_of(id)
         integer, intent(in) :: id
 
@@ -1787,6 +1810,7 @@ contains
     !> code_space[K] of charset ID: for each dimension (from the last byte
     !> of a code point) its minimum byte, maximum byte, count and product
     !> of counts.
+    !> Not a port.
     integer function charset_code_space_of(id, k)
         integer, intent(in) :: id, k
 
@@ -1794,6 +1818,7 @@ contains
     end function charset_code_space_of
 
     !> Whether charset ID is ASCII compatible.
+    !> Not a port.
     logical function charset_ascii_compatible_of(id)
         integer, intent(in) :: id
 
@@ -1826,6 +1851,7 @@ contains
 
     !> The charset of highest priority (`charset-priority-list' with
     !> HIGHESTP).
+    !> Port of charset.c:Fcharset_priority_list (with HIGHESTP).
     function charset_priority_highest() result(name)
         character(len=:), allocatable :: name
 
@@ -2001,6 +2027,7 @@ contains
         call map_charset_chars_id(function, id, from, to, status)
     end subroutine map_charset_chars
 
+    ! Port of charset.c:map_charset_chars (in part: by charset id).
     recursive subroutine map_charset_chars_id(function, id, from_code, to_code, status)
         procedure(charset_range_proc) :: function
         integer, intent(in) :: id
@@ -2210,6 +2237,7 @@ contains
         end do
     end subroutine find_charsets_in_text
 
+    ! Not a port.
     function seen_names(seen) result(names)
         logical, intent(in) :: seen(:)
         character(len=CHARSET_NAME_LEN), allocatable :: names(:)
@@ -2226,6 +2254,7 @@ contains
         end do
     end function seen_names
 
+    ! Not a port.
     function int_text(n) result(text)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: text
