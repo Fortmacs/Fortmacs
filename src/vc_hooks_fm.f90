@@ -253,11 +253,13 @@ module vc_hooks_fm
         subroutine vc_buffer_proc()
             implicit none(type, external)
         end subroutine vc_buffer_proc
-        !> A backend's `working_revision_symbol'.
-        function vc_symbol_function() result(s)
+        !> A backend's `working_revision_symbol', as S (a subroutine:
+        !> gfortran frees a pointer component to a function with a
+        !> deferred-length result).
+        subroutine vc_symbol_function(s)
             implicit none(type, external)
-            character(len=:), allocatable :: s
-        end function vc_symbol_function
+            character(len=:), allocatable, intent(out) :: s
+        end subroutine vc_symbol_function
         !> A backend operation on FILES: `revert_files', `delete_files',
         !> `mark_resolved'.
         recursive subroutine vc_files_proc(files, status)
@@ -1221,7 +1223,7 @@ contains
         if (b == 0) b = cached
 
         if (associated(vc_backends(b)%working_revision_symbol)) then
-            rev = vc_backends(b)%working_revision_symbol()
+            call vc_backends(b)%working_revision_symbol(rev)
             found = .true.
         else
             call vc_working_revision(file, rev, found, b)

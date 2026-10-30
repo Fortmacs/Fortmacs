@@ -729,12 +729,14 @@ module info_fm
 
     abstract interface
         !> A URL-specification function of `info_url_alist': the URL of
-        !> node NODE (URL-encoded as ENCODED) of manual MANUAL.
-        function info_url_proc(manual, node, encoded) result(url)
+        !> node NODE (URL-encoded as ENCODED) of manual MANUAL (a subroutine:
+        !> gfortran frees a pointer component to a function with a
+        !> deferred-length result).
+        subroutine info_url_proc(manual, node, encoded, url)
             implicit none(type, external)
             character(len=*), intent(in) :: manual, node, encoded
-            character(len=:), allocatable :: url
-        end function info_url_proc
+            character(len=:), allocatable, intent(out) :: url
+        end subroutine info_url_proc
     end interface
 
     !> An element of `info_url_alist': the names of one or more MANUALS
@@ -3908,7 +3910,7 @@ contains
                     end if
 
                     if (associated(info_url_alist(i)%fn)) then
-                        url = info_url_alist(i)%fn(manual, name, encoded)
+                        call info_url_alist(i)%fn(manual, name, encoded, url)
                     else
                         url = format_url(trim(info_url_alist(i)%url))
                     end if
@@ -5653,6 +5655,7 @@ contains
         call goto_char(opoint)
         fold = bind_case_fold(fold)
 
+        ! hazard-ok(short-circuit): visible() takes any position.
         if (virtual_end < start .or. visible(virtual_end)) then
             if (info_scroll_prefer_subnodes%value) then
                 call info_next_preorder(status)

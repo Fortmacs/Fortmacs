@@ -1141,8 +1141,10 @@ contains
         if (inhibit_field_text_motion .or. new_pos == old_pos) return
 
         if (nilp(char_property(new_pos, qfield())) .and. nilp(char_property(old_pos, qfield()))) then
+            ! hazard-ok(short-circuit): char_property() takes any position.
             if (.not. (new_pos > buffers(cur)%begv .and. &
                        .not. nilp(char_property(new_pos - 1, qfield())))) then
+                ! hazard-ok(short-circuit): char_property() takes any position.
                 if (.not. (old_pos > buffers(cur)%begv .and. &
                            .not. nilp(char_property(old_pos - 1, qfield())))) return
             end if

@@ -680,6 +680,7 @@ contains
             else
                 state = VC_EDITED
             end if
+            ! hazard-ok(short-circuit): size(codes) >= 2 here, so codes(2) is valid.
         else if (size(codes) == 2 .and. codes(1)%s == "D " .and. codes(2)%s == "??") then
             ! I know of two cases when git state returns more than one element,
             ! in both cases returning '("D " "??")':
@@ -757,11 +758,11 @@ contains
 
     !> The working revision's symbolic name: HEAD.  Port of vc-git.el
     !> vc-git-working-revision-symbol.
-    function vc_git_working_revision_symbol() result(s)
-        character(len=:), allocatable :: s
+    subroutine vc_git_working_revision_symbol(s)
+        character(len=:), allocatable, intent(out) :: s
 
         s = "HEAD"
-    end function vc_git_working_revision_symbol
+    end subroutine vc_git_working_revision_symbol
 
     !> The branch HEAD refers to (FOUND false when detached), cached in
     !> FILE's `vc-git-symbolic-ref'.  Port of
