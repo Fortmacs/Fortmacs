@@ -67,7 +67,10 @@ contains
                     new_unittest("comint-test-password-regexp", test_password_regexp), &
                     new_unittest("comint-test-no-password-function", test_no_password_function), &
                     new_unittest("comint-test-password-function-with-value", test_password_function_with_value), &
-                    new_unittest("comint-test-password-function-with-nil", test_password_function_with_nil) &
+                    new_unittest("comint-test-password-function-with-nil", test_password_function_with_nil), &
+                    new_unittest("comint-quoting", test_quoting), &
+                    new_unittest("comint-filename-completion", test_filename_completion), &
+                    new_unittest("comint-complete-input-ring", test_complete_input_ring) &
                     ]
     end subroutine collect_comint_fm
 
@@ -485,6 +488,148 @@ contains
         password = ""
         found = len(prompt) < 0
     end subroutine ignore_password
+
+    !> A new Comint buffer NAME (no process), current, with
+    !> `comint_file_name_quote_list' a space.
+    subroutine completion_buffer(name, h)
+        use buffer_fm, only: get_buffer_create
+        use comint_fm, only: comint_mode, comint_file_name_quote_list
+        character(len=*), intent(in) :: name
+        type(handle_type), intent(out) :: h
+        type(status_type) :: st
+
+        call init_bindings()
+        call get_buffer_create(name, h, st)
+        call set_buffer(h, st)
+        call show_alone()
+        call comint_mode(st)
+        call comint_file_name_quote_list%set_local(" ")
+    end subroutine completion_buffer
+
+    !> Quoting and unquoting file names: `\' quotes the characters of
+    !> `comint_file_name_quote_list', and environment variables are
+    !> substituted.
+    subroutine test_quoting(error)
+        use env_fm, only: getenv
+        use comint_fm, only: comint_quote_filename, comint_unquote_argument, comint_requote_argument, comint_word, &
+                             comint_match_partial_filename
+        use minibuf_table_fm, only: completion_quote_proc
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        character(len=:), allocatable :: home, word
+        procedure(completion_quote_proc), pointer :: qfun
+        integer(int64) :: qpos
+        logical :: found
+
+        call completion_buffer("*comint-quoting*", h)
+        call comint_quote_filename("a b c", word)
+        call check(error, word, "a\ b\ c")
+
+        if (.not. allocated(error)) then
+            call comint_unquote_argument("a\ b", word)
+            call check(error, word, "a b")
+        end if
+
+        if (.not. allocated(error)) then
+            call getenv("HOME", home, found)
+            call comint_unquote_argument("$HOME/x", word)
+            call check(error, word, home//"/x")
+
+            if (.not. allocated(error)) then
+                call comint_unquote_argument("${HOME}/x", word)
+                call check(error, word, home//"/x")
+            end if
+        end if
+
+        ! Position 3 of "a bc" is position 4 of "a\ bc".
+        if (.not. allocated(error)) then
+            call comint_requote_argument(3_int64, "a\ bc", qpos, qfun)
+            call check(error, qpos == 4, "requoted position")
+
+            if (.not. allocated(error)) then
+                call qfun("x y", word)
+                call check(error, word, "x\ y")
+            end if
+        end if
+
+        if (.not. allocated(error)) then
+            call insert("ls a\ b", st)
+            call comint_word("[]~/A-Za-z0-9+@:_.$#%,={}-", word, found)
+            call check(error, found .and. word == "a\ b", "word: "//word)
+        end if
+
+        if (.not. allocated(error)) then
+            call comint_match_partial_filename(word, found)
+            call check(error, found .and. word == "a b", "file name: "//word)
+        end if
+
+        call kill_buffer(h, st)
+    end subroutine test_quoting
+
+    !> File name completion at point in a Comint buffer: the file name is
+    !> quoted, and a space follows a finished completion.
+    subroutine test_filename_completion(error)
+        use buffer_fm, only: get_buffer_create, erase_buffer
+        use fileio_fm, only: init_fileio, write_region, make_directory_internal, delete_file_internal, &
+                             delete_directory_internal
+        use files_fm, only: make_temp_file
+        use minibuffer_fm, only: completion_at_point
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, tmp
+        type(status_type) :: st
+        character(len=:), allocatable :: dir
+
+        call init_fileio()
+        call make_temp_file("comint-complete", dir, st)
+        call delete_file_internal(dir, st)
+        call make_directory_internal(dir, st)
+        call get_buffer_create(" comint-complete-tmp", tmp, st)
+        call set_buffer(tmp, st)
+        call write_region(dir//"/alpha.txt", .false., st)
+        call write_region(dir//"/my file", .false., st)
+        call kill_buffer(tmp, st)
+        call completion_buffer("*comint-complete*", h)
+        call insert("cat "//dir//"/alp", st)
+        call completion_at_point(st)
+        call check(error, st%ok(), format_error(st))
+        if (.not. allocated(error)) call check(error, buffer_string(), "cat "//dir//"/alpha.txt ")
+
+        if (.not. allocated(error)) then
+            call erase_buffer(st)
+            call insert("cat "//dir//"/my", st)
+            call completion_at_point(st)
+            call check(error, buffer_string(), "cat "//dir//"/my\ file ")
+        end if
+
+        call kill_buffer(h, st)
+        call delete_file_internal(dir//"/alpha.txt", st)
+        call delete_file_internal(dir//"/my file", st)
+        call delete_directory_internal(dir, st)
+    end subroutine test_filename_completion
+
+    !> C-x <up> completes the input on the input history.
+    subroutine test_complete_input_ring(error)
+        use comint_fm, only: comint_add_to_input_history, comint_complete_input_ring
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+
+        call completion_buffer("*comint-input-ring*", h)
+        call comint_complete_input_ring(st)
+        call check(error, format_error(st), "No history available")
+
+        if (.not. allocated(error)) then
+            call comint_add_to_input_history("echo hi")
+            call comint_add_to_input_history("ls")
+            call insert("ec", st)
+            call comint_complete_input_ring(st)
+            call check(error, st%ok(), format_error(st))
+        end if
+
+        if (.not. allocated(error)) call check(error, buffer_string(), "echo hi")
+        call kill_buffer(h, st)
+    end subroutine test_complete_input_ring
 
     !> Queue TEXT as input events (for the minibuffer).
     subroutine type_text(text)

@@ -71,6 +71,10 @@ case_replace
 change_major_mode_with_file_name
 colon_double_space
 comint_buffer_maximum_size
+comint_completion_addsuffix
+comint_completion_autolist
+comint_completion_fignore
+comint_completion_recexact
 comint_eol_on_send
 comint_exec_hook
 comint_highlight_input

@@ -82,8 +82,11 @@ module docstrings_fm
                          eol_mnemonic_mac, eol_mnemonic_undecided, eol_mnemonic_unix, file_coding_system_alist, &
                          inhibit_eol_conversion, inhibit_iso_escape_detection, inhibit_null_byte_detection, &
                          last_coding_system_used, locale_coding_system
-    use comint_fm, only: comint_buffer_maximum_size, comint_delimiter_argument_list, &
-                         comint_eol_on_send, comint_exec_hook, comint_highlight_input, comint_history_isearch, &
+    use comint_fm, only: comint_buffer_maximum_size, comint_completion_addsuffix, &
+                         comint_completion_autolist, comint_completion_fignore, comint_completion_recexact, &
+                         comint_delimiter_argument_list, comint_dynamic_complete_functions, comint_eol_on_send, &
+                         comint_exec_hook, comint_file_name_chars, comint_file_name_prefix, &
+                         comint_file_name_quote_list, comint_highlight_input, comint_history_isearch, &
                          COMINT_HISTORY_ISEARCH_NIL, COMINT_HISTORY_ISEARCH_DWIM, COMINT_HISTORY_ISEARCH_T, &
                          comint_inhibit_carriage_motion, comint_input_autoexpand, COMINT_AUTOEXPAND_NIL, &
                          COMINT_AUTOEXPAND_T, COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY, &
@@ -517,7 +520,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1305) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1309) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -566,9 +569,11 @@ module docstrings_fm
                                               "coding_system_change_text_conversion", "coding_system_eol_type", "coding_system_p", &
                                                          "coding_system_priority_list", "coding_system_type", "comint_accumulate", &
                                                    "comint_append_output_to_file", "comint_backward_matching_input", "comint_bol", &
-                                                    "comint_bol_or_process_mark", "comint_clear_buffer", "comint_continue_subjob", &
-                                                   "comint_copy_old_input", "comint_delchar_or_maybe_eof", "comint_delete_output", &
-                                                   "comint_exec", "comint_forward_matching_input", "comint_get_next_from_history", &
+                                                "comint_bol_or_process_mark", "comint_clear_buffer", "comint_complete_input_ring", &
+                                                 "comint_continue_subjob", "comint_copy_old_input", "comint_delchar_or_maybe_eof", &
+                                                                    "comint_delete_output", "comint_dynamic_complete_filename", &
+                                                                    "comint_dynamic_list_filename_completions", "comint_exec", &
+                                                                  "comint_forward_matching_input", "comint_get_next_from_history", &
                                                                     "comint_goto_process_mark", "comint_history_isearch_backward", &
                                                       "comint_history_isearch_backward_regexp", "comint_insert_previous_argument", &
                                                              "comint_interrupt_subjob", "comint_kill_input", "comint_kill_region", &
@@ -577,21 +582,22 @@ module docstrings_fm
                                                                     "comint_next_matching_input_from_input", "comint_next_prompt", &
                                                                     "comint_postoutput_scroll_to_bottom", "comint_previous_input", &
                                                     "comint_previous_matching_input", "comint_previous_matching_input_from_input", &
-                                             "comint_previous_prompt", "comint_quit_subjob", "comint_replace_by_expanded_history", &
-                                                     "comint_restore_input", "comint_run", "comint_send_eof", "comint_send_input", &
-                                                         "comint_send_invisible", "comint_send_string", "comint_set_process_mark", &
-                                                         "comint_show_maximum_output", "comint_show_output", "comint_stop_subjob", &
-                                            "comint_strip_ctrl_m", "comint_truncate_buffer", "comint_write_output", "comment_box", &
-                                                      "comment_dwim", "comment_indent", "comment_indent_new_line", "comment_kill", &
-                                            "comment_line", "comment_or_uncomment_region", "comment_region", "comment_set_column", &
-                                                        "compilation_display_error", "compilation_minor_mode", "compilation_mode", &
-                                             "compilation_next_error", "compilation_next_error_function", "compilation_next_file", &
-                                                                    "compilation_previous_error", "compilation_previous_file", &
-                                            "compilation_set_skip_threshold", "compilation_shell_minor_mode", "compilation_start", &
-                                                   "compile", "compile_goto_error", "complete_symbol", "completing_read_multiple", &
-                                                   "completion_at_point", "completion_help_at_point", "completion_in_region_mode", &
-                                           "conf_align_assignments", "conf_colon_mode", "conf_desktop_mode", "conf_javaprop_mode", &
-                                          "conf_mode", "conf_mode_maybe", "conf_npmrc_mode", "conf_ppd_mode", "conf_quote_normal", &
+                                            "comint_previous_prompt", "comint_quit_subjob", "comint_replace_by_expanded_filename", &
+                                                       "comint_replace_by_expanded_history", "comint_restore_input", "comint_run", &
+                                            "comint_send_eof", "comint_send_input", "comint_send_invisible", "comint_send_string", &
+                                                    "comint_set_process_mark", "comint_show_maximum_output", "comint_show_output", &
+                                                            "comint_stop_subjob", "comint_strip_ctrl_m", "comint_truncate_buffer", &
+                                                           "comint_write_output", "comment_box", "comment_dwim", "comment_indent", &
+                                         "comment_indent_new_line", "comment_kill", "comment_line", "comment_or_uncomment_region", &
+                                                              "comment_region", "comment_set_column", "compilation_display_error", &
+                                                           "compilation_minor_mode", "compilation_mode", "compilation_next_error", &
+                                         "compilation_next_error_function", "compilation_next_file", "compilation_previous_error", &
+                                                                    "compilation_previous_file", "compilation_set_skip_threshold", &
+                                             "compilation_shell_minor_mode", "compilation_start", "compile", "compile_goto_error", &
+                                                             "complete_symbol", "completing_read_multiple", "completion_at_point", &
+                                                "completion_help_at_point", "completion_in_region_mode", "conf_align_assignments", &
+                                                        "conf_colon_mode", "conf_desktop_mode", "conf_javaprop_mode", "conf_mode", &
+                                                       "conf_mode_maybe", "conf_npmrc_mode", "conf_ppd_mode", "conf_quote_normal", &
                                                      "conf_space_keywords", "conf_space_mode", "conf_toml_mode", "conf_unix_mode", &
                                                 "conf_windows_mode", "conf_xdefaults_mode", "copy_abbrev_table", "copy_directory", &
                                                                     "copy_file", "copy_matching_lines", "copy_rectangle_as_kill", &
@@ -906,7 +912,7 @@ module docstrings_fm
                                                                     "yank_rectangle", "yes_or_no_p", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1068) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1076) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -954,9 +960,12 @@ module docstrings_fm
                                                               "change_log_mode_syntax_table", "change_major_mode_after_body_hook", &
                                            "change_major_mode_hook", "change_major_mode_with_file_name", "coding_system_for_read", &
                                                  "coding_system_for_write", "coding_system_require_warning", "colon_double_space", &
-                                             "comint_buffer_maximum_size", "comint_delimiter_argument_list", "comint_eol_on_send", &
-                                                           "comint_exec_hook", "comint_highlight_input", "comint_history_isearch", &
-                                                                    "comint_inhibit_carriage_motion", "comint_input_autoexpand", &
+                                                                    "comint_buffer_maximum_size", "comint_completion_addsuffix", &
+                                          "comint_completion_autolist", "comint_completion_fignore", "comint_completion_recexact", &
+                                                            "comint_delimiter_argument_list", "comint_dynamic_complete_functions", &
+                                                               "comint_eol_on_send", "comint_exec_hook", "comint_file_name_chars", &
+                                               "comint_file_name_prefix", "comint_file_name_quote_list", "comint_highlight_input", &
+                                            "comint_history_isearch", "comint_inhibit_carriage_motion", "comint_input_autoexpand", &
                                                                    "comint_input_filter_functions", "comint_input_history_ignore", &
                                                                     "comint_input_ignoredups", "comint_input_ring_file_name", &
                                          "comint_input_ring_file_prefix", "comint_input_ring_separator", "comint_input_ring_size", &
@@ -1276,7 +1285,7 @@ module docstrings_fm
                                                                     "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(526) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(530) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1338,6 +1347,10 @@ module docstrings_fm
                                                                       "change_major_mode_with_file_name", &
                                                                       "colon_double_space", &
                                                                       "comint_buffer_maximum_size", &
+                                                                      "comint_completion_addsuffix", &
+                                                                      "comint_completion_autolist", &
+                                                                      "comint_completion_fignore", &
+                                                                      "comint_completion_recexact", &
                                                                       "comint_eol_on_send", &
                                                                       "comint_exec_hook", &
                                                                       "comint_highlight_input", &
@@ -3155,6 +3168,12 @@ contains
             entry%file = "comint_fm.f90"
             entry%interactive = .true.
             entry%doc = "Clear the comint buffer."
+        case ("comint_complete_input_ring")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Complete a list of recent inputs entered into the current buffer."//LF// &
+                        "Like `minibuffer_complete_history' but completes on comint inputs."//LF// &
+                        "This function makes `comint_dynamic_list_input_ring' obsolete."
         case ("comint_continue_subjob")
             entry%file = "comint_fm.f90"
             entry%interactive = .true.
@@ -3177,6 +3196,27 @@ contains
             entry%doc = "The command: with a prefix argument, kill the output."//LF// &
                         ""//LF// &
                         "Delete all output from interpreter since last input."
+        case ("comint_dynamic_complete_filename")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Dynamically complete the filename at point."//LF// &
+                        "Completes if after a filename."//LF// &
+                        "This function is similar to `comint_replace_by_expanded_filename',"//LF// &
+                        "except that it won't change parts of the filename already entered"//LF// &
+                        "in the buffer; it just adds completion characters to the end of the"//LF// &
+                        "filename.  A completions listing may be shown in a separate buffer"//LF// &
+                        "if completion is ambiguous."//LF// &
+                        ""//LF// &
+                        "Completion is dependent on the value of"//LF// &
+                        "`comint_completion_addsuffix', `comint_completion_recexact' and"//LF// &
+                        "`comint_completion_fignore', and the timing of completions listing"//LF// &
+                        "is dependent on the value of `comint_completion_autolist'."//LF// &
+                        ""//LF// &
+                        "Returns true if successful."
+        case ("comint_dynamic_list_filename_completions")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display a list of possible completions for the filename at point."
         case ("comint_exec")
             entry%file = "comint_fm.f90"
             entry%fortran = "call comint_exec(buffer, name, command, switches, status, startfile, environment)"
@@ -3328,6 +3368,15 @@ contains
             entry%file = "comint_fm.f90"
             entry%interactive = .true.
             entry%doc = "Send quit signal to the current subjob."
+        case ("comint_replace_by_expanded_filename")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Dynamically expand and complete the filename at point."//LF// &
+                        "Replace the filename with an expanded, canonicalized and completed"//LF// &
+                        "replacement, i.e. substituting environment variables (e.g. $HOME),"//LF// &
+                        "`~'s, `..', and `.', and making the filename absolute.  For"//LF// &
+                        "expansion see `expand_file_name' and `substitute_in_file_name'."//LF// &
+                        "For completion see `comint_dynamic_complete_filename'."
         case ("comint_replace_by_expanded_history")
             entry%file = "comint_fm.f90"
             entry%interactive = .true.
@@ -14323,6 +14372,53 @@ contains
                         "Comint buffers are truncated from the top to be no greater than this"//LF// &
                         "number, if the function `comint_truncate_buffer' is on"//LF// &
                         "`comint_output_filter_functions'."
+        case ("comint_completion_addsuffix")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_completion_addsuffix"
+            entry%user_option = .true.
+
+            if (allocated(comint_completion_addsuffix%value)) then
+                entry%value = repr(comint_completion_addsuffix%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The string FILESUFFIX added to file names on unambiguous or exact"//LF// &
+                        "completion ("" "" by default; the empty string adds none)."//LF// &
+                        "This mirrors the optional behavior of tcsh."
+        case ("comint_completion_autolist")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_completion_autolist"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(comint_completion_autolist%value)
+            entry%doc = "If true, automatically list possibilities on partial completion."//LF// &
+                        "This mirrors the optional behavior of tcsh."
+        case ("comint_completion_fignore")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_completion_fignore"
+            entry%user_option = .true.
+
+            if (allocated(comint_completion_fignore)) then
+                entry%value = repr(comint_completion_fignore)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "List of suffixes to be disregarded during file completion."//LF// &
+                        "This mirrors the optional behavior of bash and tcsh."//LF// &
+                        ""//LF// &
+                        "Note that this applies to `comint_dynamic_complete_filename' only."
+        case ("comint_completion_recexact")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_completion_recexact"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(comint_completion_recexact%value)
+            entry%doc = "If true, use shortest completion if characters cannot be added."//LF// &
+                        "This mirrors the optional behavior of tcsh."//LF// &
+                        ""//LF// &
+                        "A true value is useful if `comint_completion_autolist' is true too."
         case ("comint_delimiter_argument_list")
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_delimiter_argument_list"
@@ -14340,6 +14436,14 @@ contains
                         "Defaults to the empty string."//LF// &
                         ""//LF// &
                         "For shells, a good value is ""|&<>();""."//LF// &
+                        ""//LF// &
+                        "This is a good thing to set in mode hooks."
+        case ("comint_dynamic_complete_functions")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_dynamic_complete_functions"
+            entry%doc = "List of functions called to perform completion."//LF// &
+                        "Works like `completion_at_point_functions'."//LF// &
+                        "See also `completion_at_point'."//LF// &
                         ""//LF// &
                         "This is a good thing to set in mode hooks."
         case ("comint_eol_on_send")
@@ -14360,6 +14464,47 @@ contains
                         "Comint mode buffer (e.g., `set_process_query_on_exit_flag').  In"//LF// &
                         "contrast, `comint_mode_hook' is only executed once, when the buffer"//LF// &
                         "is created."
+        case ("comint_file_name_chars")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_file_name_chars"
+
+            if (allocated(comint_file_name_chars%value)) then
+                entry%value = repr(comint_file_name_chars%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "String of characters valid in a file name."//LF// &
+                        "Note that all non-ASCII characters are considered valid in a file"//LF// &
+                        "name regardless of what this variable says."//LF// &
+                        ""//LF// &
+                        "This is a good thing to set in mode hooks."
+        case ("comint_file_name_prefix")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_file_name_prefix"
+
+            if (allocated(comint_file_name_prefix%value)) then
+                entry%value = repr(comint_file_name_prefix%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Prefix prepended to absolute file names taken from process input."//LF// &
+                        "This is used by Comint's and shell's completion functions, and by"//LF// &
+                        "shell's directory tracking functions."
+        case ("comint_file_name_quote_list")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_file_name_quote_list"
+
+            if (allocated(comint_file_name_quote_list%value)) then
+                entry%value = repr(comint_file_name_quote_list%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The characters to quote with `\' when in a file name."//LF// &
+                        ""//LF// &
+                        "This is a good thing to set in mode hooks."
         case ("comint_highlight_input")
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_highlight_input"
@@ -24363,6 +24508,15 @@ contains
         case ("comint_buffer_maximum_size")
             kind = OPTION_INTEGER
             setting = .true.
+        case ("comint_completion_addsuffix")
+            kind = OPTION_STRING
+            setting = .true.
+        case ("comint_completion_autolist")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("comint_completion_recexact")
+            kind = OPTION_LOGICAL
+            setting = .true.
         case ("comint_eol_on_send")
             kind = OPTION_LOGICAL
             setting = .true.
@@ -25324,6 +25478,18 @@ contains
             change_major_mode_with_file_name = v
         case ("colon_double_space")
             colon_double_space = v
+        case ("comint_completion_autolist")
+            if (local) then
+                call comint_completion_autolist%set_local(v)
+            else
+                comint_completion_autolist = v
+            end if
+        case ("comint_completion_recexact")
+            if (local) then
+                call comint_completion_recexact%set_local(v)
+            else
+                comint_completion_recexact = v
+            end if
         case ("comint_eol_on_send")
             if (local) then
                 call comint_eol_on_send%set_local(v)
@@ -26263,6 +26429,12 @@ contains
             bookmark_default_file = v
         case ("bookmark_fringe_mark")
             bookmark_fringe_mark = v
+        case ("comint_completion_addsuffix")
+            if (local) then
+                call comint_completion_addsuffix%set_local(v)
+            else
+                comint_completion_addsuffix = v
+            end if
         case ("comint_input_ring_file_name")
             if (local) then
                 call comint_input_ring_file_name%set_local(v)
