@@ -234,7 +234,7 @@ contains
         call backward_word(prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_left_word
 
-    !> Bind `keys' (kbd syntax) to command `cmd' in `map'.
+    !> Bind `keys' (kbd syntax) to command `cmd' in `map'.  Not a port.
     subroutine bind(map, keys, cmd)
         type(handle_type), intent(in) :: map
         character(len=*), intent(in) :: keys, cmd
@@ -245,7 +245,7 @@ contains
         call define_key(map, key, sym(cmd), status)
     end subroutine bind
 
-    !> Bind the single event `c' to command `cmd' in `map'.
+    !> Bind the single event `c' to command `cmd' in `map'.  Not a port.
     subroutine bind_char(map, c, cmd)
         type(handle_type), intent(in) :: map
         integer(int64), intent(in) :: c
@@ -258,6 +258,7 @@ contains
     end subroutine bind_char
 
     !> In `map', translate `from' (kbd syntax) to the event `to'.
+    !> Not a port.
     subroutine translate(map, from, to)
         type(handle_type), intent(in) :: map
         character(len=*), intent(in) :: from
@@ -271,6 +272,7 @@ contains
 
     !> Register the commands and install the default keymaps.  Safe to
     !> call again (the maps are rebuilt).
+    !> Port of the top-level key bindings of bindings.el (in part).
     subroutine init_bindings()
         type(status_type) :: status
         type(value_type) :: key(1)

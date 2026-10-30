@@ -297,6 +297,7 @@ contains
         call insert_text(string, .true., status)
     end subroutine insert_before_markers
 
+    ! Not a port.
     recursive subroutine insert_text(string, before_markers, status)
         character(len=*), intent(in) :: string
         logical, intent(in) :: before_markers
@@ -561,8 +562,8 @@ contains
     !> Run `prepare_to_modify_buffer' for deleting FROM..TO and correct
     !> the positions for what the before-change hooks did: FROM is kept
     !> in a marker, TO stays as far after it, within the accessible
-    !> region.  The part of insdel.c:del_range_byte and del_range_both
-    !> before the deletion.
+    !> region.  Port of insdel.c:del_range_byte and
+    !> insdel.c:del_range_both (the part before the deletion).
     recursive subroutine prepare_for_deletion(from, from_byte, to, to_byte, status)
         integer(int64), intent(inout) :: from, from_byte, to, to_byte
         type(status_type), intent(out) :: status
@@ -954,6 +955,7 @@ contains
 
     !> `prepare_to_modify_buffer' for FROM..TO, relocating FROM for what
     !> the before-change hooks do (upstream passes &from as PRESERVE_PTR).
+    !> Not a port.
     recursive subroutine prepare_preserving(from, to, status)
         integer(int64), intent(inout) :: from
         integer(int64), intent(in) :: to

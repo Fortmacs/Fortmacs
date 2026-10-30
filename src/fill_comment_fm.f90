@@ -45,7 +45,7 @@ contains
     if (allocated(comment_start_skip%value)) skip = comment_start_skip%value
     end procedure fill_comment_start_skip
 
-    !> The text from FROM to TO.
+    !> The text from FROM to TO.  Not a port.
     function text_of(from, to) result(s)
         integer(int64), intent(in) :: from, to
         character(len=:), allocatable :: s
@@ -56,7 +56,7 @@ contains
     end function text_of
 
     !> The default (global) value of the string variable NAME, "" if it is
-    !> not a string.
+    !> not a string.  Not a port.
     function default_string(name) result(s)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: s
@@ -258,7 +258,7 @@ contains
     done = .true.
     end procedure fill_comment_paragraph
 
-    !> The last character of S (UTF-8), as a string.
+    !> The last character of S (UTF-8), as a string.  Not a port.
     function last_char(s) result(c)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: c

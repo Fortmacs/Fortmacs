@@ -41,7 +41,7 @@ module cm_fm
 
 contains
 
-    !> The output cost of capability `cap'; BIG if absent.  cm.c's COST.
+    !> The output cost of capability `cap'; BIG if absent.  Port of cm.c:COST.
     integer function cost_of(cap) result(c)
         character(len=:), allocatable, intent(in) :: cap
 
@@ -49,7 +49,7 @@ contains
         if (allocated(cap)) c = len(delete_padding(cap))
     end function cost_of
 
-    !> The minimum cost of parameterized motion `cap'.  cm.c's CMCOST.
+    !> The minimum cost of parameterized motion `cap'.  Port of cm.c:CMCOST.
     integer function cmcost(cap) result(c)
         character(len=:), allocatable, intent(in) :: cap
 
@@ -77,7 +77,7 @@ contains
         end associate
     end subroutine cmcostinit
 
-    !> Assume the cursor is at `row', `col'.  cm.h:cmat.
+    !> Assume the cursor is at `row', `col'.  Port of cm.h:cmat.
     subroutine cmat(tty, row, col)
         type(tty_display_info), intent(inout) :: tty
         integer, intent(in) :: row, col
@@ -86,7 +86,7 @@ contains
         tty%wcm%cm_curx = col
     end subroutine cmat
 
-    !> Forget where the cursor is.  cm.h:losecursor.
+    !> Forget where the cursor is.  Port of cm.h:losecursor.
     subroutine losecursor(tty)
         type(tty_display_info), intent(inout) :: tty
 
@@ -94,7 +94,7 @@ contains
         tty%wcm%cm_cury = -1
     end subroutine losecursor
 
-    !> Account for `n' columns written.  cm.h:cmplus.
+    !> Account for `n' columns written.  Port of cm.h:cmplus.
     subroutine cmplus(tty, n)
         type(tty_display_info), intent(inout) :: tty
         integer, intent(in) :: n
@@ -134,7 +134,7 @@ contains
         tty%wcm%cm_cury = tty%wcm%cm_cury + 1
     end subroutine cmcheckmagic
 
-    !> Output `cap' `n' times.
+    !> Output `cap' `n' times.  Not a port.
     subroutine repeat_output(tty, cap, n)
         type(tty_display_info), intent(inout) :: tty
         character(len=:), allocatable, intent(in) :: cap

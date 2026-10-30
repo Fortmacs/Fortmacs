@@ -1,5 +1,7 @@
 ! test_electric_fm.f90 -- tests for Electric Indent mode (electric_fm)
 ! and `post_self_insert_hook' (cmds_fm).
+! Own tests; electric-tests.el's Electric Indent cases run in c-mode,
+! js-mode and python-mode.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -50,6 +52,7 @@ module test_electric_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_electric_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

@@ -71,7 +71,7 @@ contains
     ! Window helpers
     ! ------------------------------------------------------------------
 
-    !> Whether window `h' is the selected window.
+    !> Whether window `h' is the selected window.  Not a port.
     logical function selected_p(h)
         type(handle_type), intent(in) :: h
 
@@ -97,7 +97,7 @@ contains
         pos = window_point(windows(h%index))
     end function point_of
 
-    !> The name of the buffer of `h' (a live buffer), or "".
+    !> The name of the buffer of `h' (a live buffer), or "".  Not a port.
     function buffer_name_of(b) result(name)
         type(handle_type), intent(in) :: b
         character(len=:), allocatable :: name
@@ -111,7 +111,7 @@ contains
 
     !> The live ordinary windows of the frame in cyclic order, starting
     !> with `first' (the selected window if absent or not ordinary).
-    !> window.el:window-list-1 with MINIBUF `nomini'.
+    !> Port of window.el:window-list-1, with MINIBUF `nomini'.
     function window_list_from(first) result(list)
         type(handle_type), intent(in), optional :: first
         type(handle_type), allocatable :: list(:)
@@ -151,7 +151,7 @@ contains
     end function window_combined_p
 
     !> The window's total height if it is combined vertically, else its
-    !> width (what display-buffer-record-window stores).
+    !> width (what display-buffer-record-window stores).  Not a port.
     integer function combined_size(h)
         type(handle_type), intent(in) :: h
 
@@ -255,6 +255,7 @@ contains
     end subroutine unshow_buffer
 
     !> Set point of buffer slot `bi' to POS (temp_set_point_both).
+    !> Not a port.
     subroutine goto_in_buffer(bi, pos)
         integer(int64), intent(in) :: bi, pos
         type(handle_type) :: saved
@@ -369,7 +370,7 @@ contains
     end subroutine window_discard_buffer_from_window
 
     !> Whether a `quit_restore' parameter names BUFFER as its fourth
-    !> element or as the buffer of its quadruple.
+    !> element or as the buffer of its quadruple.  Not a port.
     logical function mentions(q, buffer)
         type(quit_restore_type), intent(in) :: q
         type(handle_type), intent(in) :: buffer
@@ -527,7 +528,7 @@ contains
         end if
     end subroutine set_point_of
 
-    !> The position of marker `m' (0 if it points nowhere).
+    !> The position of marker `m' (0 if it points nowhere).  Not a port.
     integer(int64) function marker_pos(m) result(pos)
         type(handle_type), intent(in) :: m
         type(status_type) :: status
@@ -542,7 +543,7 @@ contains
     ! Switching to previous and next buffers
     ! ------------------------------------------------------------------
 
-    !> Whether `b' is in the list `list'.
+    !> Whether `b' is in the list `list'.  Not a port.
     logical function member(list, b)
         type(handle_type), allocatable, intent(in) :: list(:)
         type(handle_type), intent(in) :: b
@@ -560,6 +561,7 @@ contains
     end function member
 
     !> The index of BUFFER in the previous buffers of `h', or 0.
+    !> Not a port.
     integer function prev_entry(h, buffer) result(k)
         type(handle_type), intent(in) :: h, buffer
         integer :: i
@@ -710,7 +712,7 @@ contains
         end if
     end function switch_to_prev_buffer
 
-    !> Append ENTRY to the previous buffers of window `h'.
+    !> Append ENTRY to the previous buffers of window `h'.  Not a port.
     subroutine append_prev(h, entry)
         type(handle_type), intent(in) :: h
         type(prev_buffer_type), intent(in) :: entry
@@ -725,7 +727,7 @@ contains
         call move_alloc(grown, windows(h%index)%prev_buffers)
     end subroutine append_prev
 
-    !> (cons b (delq b list))
+    !> (cons b (delq b list)) Not a port.
     subroutine push_front(list, b)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: b
@@ -1257,6 +1259,8 @@ contains
 
     !> The common part of `previous_buffer' and `next_buffer' (called
     !> interactively; the exception for keyboard macros is deferred).
+    !> Port of window.el:previous-buffer and window.el:next-buffer (their
+    !> common part).
     subroutine prev_or_next_buffer(previous, status)
         logical, intent(in) :: previous
         type(status_type), intent(out) :: status
@@ -1414,6 +1418,7 @@ contains
 
     !> Call the `body_function' of ALIST with window H, with
     !> `inhibit_read_only' and `inhibit_modification_hooks' true.
+    !> Not a port.
     subroutine run_body_function(alist, h)
         type(display_alist_type), intent(in) :: alist
         type(handle_type), intent(in) :: h
@@ -1430,7 +1435,7 @@ contains
         call set(sym("inhibit_read_only"), saved, st)
     end subroutine run_body_function
 
-    !> (set-window-prev-buffers h nil)
+    !> (set-window-prev-buffers h nil) Not a port.
     subroutine clear_prev_buffers(h)
         type(handle_type), intent(in) :: h
         integer :: k
@@ -1863,7 +1868,7 @@ contains
         pop_up_windows = saved
     end subroutine switch_to_buffer_other_window
 
-    !> Try action function ACTION for BUFFER with ALIST.
+    !> Try action function ACTION for BUFFER with ALIST.  Not a port.
     function display_buffer_action(action, buffer, alist, status) result(window)
         integer, intent(in) :: action
         type(handle_type), intent(in) :: buffer
@@ -2346,8 +2351,8 @@ contains
     end function split_window_sensibly
 
     !> Try to split WINDOW: return the new window if
-    !> `split_window_sensibly' made one, the null handle otherwise.  Port
-    !> of window.el:window--try-to-split-window.
+    !> `split_window_sensibly' made one, the null handle otherwise.
+    !> Port of window.el:window--try-to-split-window.
     function try_to_split_window(h) result(new)
         type(handle_type), intent(in) :: h
         type(handle_type) :: new
@@ -2381,7 +2386,7 @@ contains
         end if
     end subroutine window_even_window_sizes
 
-    !> The number of children of internal window `h'.
+    !> The number of children of internal window `h'.  Not a port.
     integer function child_count(h)
         type(handle_type), intent(in) :: h
         type(handle_type) :: c
