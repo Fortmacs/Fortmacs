@@ -63,6 +63,8 @@ module charset_fm
     public :: charset_dimension, charset_chars, charset_iso_final_char, charset_description
     public :: charset_short_name, charset_long_name
     public :: charset_range_proc, charset_info_type, syms_of_charset
+    public :: charset_id_of, charset_name_of, charset_decode_id, charset_encode_id, charset_dimension_of
+    public :: charset_code_space_of, charset_ascii_compatible_of, char_charset_among
 
     !> The longest charset name the arrays of names hold.
     integer, parameter, public :: CHARSET_NAME_LEN = 32
@@ -1736,6 +1738,80 @@ contains
         if (.not. check_iso_charset_parameter(dimension, chars, final_char, status)) return
         iso_charset_table(dimension, merge(1, 0, chars == 96), final_char) = id
     end subroutine declare_equiv_charset
+
+    ! ------------------------------------------------------------------
+    ! Charsets by id, for the coding systems
+    ! ------------------------------------------------------------------
+
+    !> The id of charset or alias NAME, 0 if there is none (the ids count
+    !> from 1).
+    integer function charset_id_of(name) result(id)
+        character(len=*), intent(in) :: name
+
+        call syms_of_charset()
+        id = find_id(name)
+    end function charset_id_of
+
+    !> The name of charset ID.
+    function charset_name_of(id) result(name)
+        integer, intent(in) :: id
+        character(len=:), allocatable :: name
+
+        name = charsets(id)%name
+    end function charset_name_of
+
+    !> The character of CODE in charset ID, -1 if none.  Port of
+    !> charset.h:DECODE_CHAR.
+    integer function charset_decode_id(id, code, status) result(c)
+        integer, intent(in) :: id
+        integer(int64), intent(in) :: code
+        type(status_type), intent(inout) :: status
+
+        c = decode_char_id(id, code, status)
+    end function charset_decode_id
+
+    !> The code point of C in charset ID, -1 if it has none.  Port of
+    !> charset.h:ENCODE_CHAR.
+    integer(int64) function charset_encode_id(id, c, status) result(code)
+        integer, intent(in) :: id, c
+        type(status_type), intent(inout) :: status
+
+        code = encode_char_id(id, c, status)
+        if (code == charsets(id)%invalid_code) code = -1
+    end function charset_encode_id
+
+    !> The dimension of charset ID.
+    integer function charset_dimension_of(id)
+        integer, intent(in) :: id
+
+        charset_dimension_of = charsets(id)%dimension
+    end function charset_dimension_of
+
+    !> code_space[K] of charset ID: for each dimension (from the last byte
+    !> of a code point) its minimum byte, maximum byte, count and product
+    !> of counts.
+    integer function charset_code_space_of(id, k)
+        integer, intent(in) :: id, k
+
+        charset_code_space_of = int(charsets(id)%code_space(k))
+    end function charset_code_space_of
+
+    !> Whether charset ID is ASCII compatible.
+    logical function charset_ascii_compatible_of(id)
+        integer, intent(in) :: id
+
+        charset_ascii_compatible_of = charsets(id)%ascii_compatible_p
+    end function charset_ascii_compatible_of
+
+    !> The first of the charsets IDS that contains C, with its code point in
+    !> CODE; 0 if none.  Port of charset.c:char_charset with a charset list.
+    integer function char_charset_among(c, ids, code, status) result(id)
+        integer, intent(in) :: c, ids(:)
+        integer(int64), intent(out) :: code
+        type(status_type), intent(inout) :: status
+
+        id = char_charset_id(c, code, status, ids)
+    end function char_charset_among
 
     !> The charsets ordered by priority.  Port of
     !> charset.c:Fcharset_priority_list.

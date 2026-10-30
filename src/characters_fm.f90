@@ -36,10 +36,11 @@
 module characters_fm
     use uni_category_fm, only: cased_letter_runs, cased_letter_starts, cased_letter_ends, &
                                nonspacing_mark_runs, nonspacing_mark_starts, nonspacing_mark_ends
+    use charset_fm, only: set_charset_properties
     implicit none(type, external)
     private
 
-    public :: syntax_entry_proc, characters_syntax, char_has_category
+    public :: syntax_entry_proc, characters_syntax, char_has_category, characters_preferred_coding_systems
 
     abstract interface
         !> Give the characters `from' to `to' the syntax `descriptor'
@@ -318,4 +319,58 @@ contains
             end if
         end do
     end function in_runs
+
+    !> For each character set, put the information of the most proper
+    !> coding system to encode it by `preferred-coding-system' property.
+    !> Port of characters.el (put-charset-property).
+    subroutine characters_preferred_coding_systems()
+        call set_charset_properties("latin-iso8859-1", preferred_coding_system="iso-latin-1")
+        call set_charset_properties("latin-iso8859-2", preferred_coding_system="iso-latin-2")
+        call set_charset_properties("latin-iso8859-3", preferred_coding_system="iso-latin-3")
+        call set_charset_properties("latin-iso8859-4", preferred_coding_system="iso-latin-4")
+        call set_charset_properties("thai-tis620", preferred_coding_system="thai-tis620")
+        call set_charset_properties("greek-iso8859-7", preferred_coding_system="greek-iso-8bit")
+        call set_charset_properties("arabic-iso8859-6", preferred_coding_system="iso-2022-7bit")
+        call set_charset_properties("hebrew-iso8859-8", preferred_coding_system="hebrew-iso-8bit")
+        call set_charset_properties("katakana-jisx0201", preferred_coding_system="japanese-shift-jis")
+        call set_charset_properties("latin-jisx0201", preferred_coding_system="japanese-shift-jis")
+        call set_charset_properties("cyrillic-iso8859-5", preferred_coding_system="cyrillic-iso-8bit")
+        call set_charset_properties("latin-iso8859-9", preferred_coding_system="iso-latin-5")
+        call set_charset_properties("japanese-jisx0208-1978", preferred_coding_system="iso-2022-jp")
+        call set_charset_properties("chinese-gb2312", preferred_coding_system="chinese-iso-8bit")
+        call set_charset_properties("chinese-gbk", preferred_coding_system="chinese-gbk")
+        call set_charset_properties("gb18030-2-byte", preferred_coding_system="chinese-gb18030")
+        call set_charset_properties("gb18030-4-byte-bmp", preferred_coding_system="chinese-gb18030")
+        call set_charset_properties("gb18030-4-byte-smp", preferred_coding_system="chinese-gb18030")
+        call set_charset_properties("gb18030-4-byte-ext-1", preferred_coding_system="chinese-gb18030")
+        call set_charset_properties("gb18030-4-byte-ext-2", preferred_coding_system="chinese-gb18030")
+        call set_charset_properties("japanese-jisx0208", preferred_coding_system="iso-2022-jp")
+        call set_charset_properties("korean-ksc5601", preferred_coding_system="iso-2022-kr")
+        call set_charset_properties("japanese-jisx0212", preferred_coding_system="iso-2022-jp")
+        call set_charset_properties("chinese-big5-1", preferred_coding_system="chinese-big5")
+        call set_charset_properties("chinese-big5-2", preferred_coding_system="chinese-big5")
+        call set_charset_properties("chinese-sisheng", preferred_coding_system="iso-2022-7bit")
+        call set_charset_properties("ipa", preferred_coding_system="iso-2022-7bit")
+        call set_charset_properties("vietnamese-viscii-lower", preferred_coding_system="vietnamese-viscii")
+        call set_charset_properties("vietnamese-viscii-upper", preferred_coding_system="vietnamese-viscii")
+        call set_charset_properties("arabic-digit", preferred_coding_system="iso-2022-7bit")
+        call set_charset_properties("arabic-1-column", preferred_coding_system="iso-2022-7bit")
+        call set_charset_properties("lao", preferred_coding_system="lao")
+        call set_charset_properties("arabic-2-column", preferred_coding_system="iso-2022-7bit")
+        call set_charset_properties("indian-is13194", preferred_coding_system="devanagari")
+        call set_charset_properties("indian-glyph", preferred_coding_system="devanagari")
+        call set_charset_properties("tibetan-1-column", preferred_coding_system="tibetan")
+        call set_charset_properties("ethiopic", preferred_coding_system="iso-2022-7bit")
+        call set_charset_properties("chinese-cns11643-1", preferred_coding_system="iso-2022-cn")
+        call set_charset_properties("chinese-cns11643-2", preferred_coding_system="iso-2022-cn")
+        call set_charset_properties("chinese-cns11643-3", preferred_coding_system="iso-2022-cn")
+        call set_charset_properties("chinese-cns11643-4", preferred_coding_system="iso-2022-cn")
+        call set_charset_properties("chinese-cns11643-5", preferred_coding_system="iso-2022-cn")
+        call set_charset_properties("chinese-cns11643-6", preferred_coding_system="iso-2022-cn")
+        call set_charset_properties("chinese-cns11643-7", preferred_coding_system="iso-2022-cn")
+        call set_charset_properties("indian-2-column", preferred_coding_system="devanagari")
+        call set_charset_properties("tibetan", preferred_coding_system="tibetan")
+        call set_charset_properties("latin-iso8859-14", preferred_coding_system="iso-latin-8")
+        call set_charset_properties("latin-iso8859-15", preferred_coding_system="iso-latin-9")
+    end subroutine characters_preferred_coding_systems
 end module characters_fm

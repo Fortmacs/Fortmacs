@@ -88,7 +88,8 @@ contains
                     new_unittest("prefer-coding-system", test_prefer), &
                     new_unittest("describe-coding-system", test_describe), &
                     new_unittest("universal-coding-system-argument", test_universal_coding_system_argument), &
-                    new_unittest("terminal-keyboard-coding", test_terminal_keyboard_coding) &
+                    new_unittest("terminal-keyboard-coding", test_terminal_keyboard_coding), &
+                    new_unittest("charset-coding-systems", test_charset_coding) &
                     ]
     end subroutine collect_coding_fm
 
@@ -468,7 +469,8 @@ contains
         character(len=:), allocatable :: uni, out, nocr, nolf
         character(len=*), parameter :: PLAIN(3) = [character(len=16) :: "us-ascii-unix", "iso-latin-1-unix", "utf-8-unix"]
         character(len=*), parameter :: BARE(3) = [character(len=16) :: "us-ascii", "iso-latin-1", "utf-8"]
-        character(len=*), parameter :: DOS(3) = [character(len=16) :: "us-ascii-dos", "iso-latin-1-dos", "utf-8-dos"]
+        character(len=*), parameter :: DOS(4) = [character(len=16) :: "us-ascii-dos", "iso-latin-1-dos", "utf-8-dos", &
+                                                                                                               "mac-roman-mac"]
         type(status_type) :: st
         integer :: k
 
@@ -508,8 +510,8 @@ contains
         if (allocated(error)) return
 
         ! Identity decoding with EOL conversion for ASCII except CR, and
-        ! encoding for ASCII except LF (mac-roman-mac is Deferred).
-        do k = 1, 3
+        ! encoding for ASCII except LF.
+        do k = 1, 4
             call decode_coding_string(nocr, trim(DOS(k)), out, st)
             call check(error, out == nocr, trim(DOS(k)))
             if (allocated(error)) return
@@ -904,4 +906,77 @@ contains
             call check(error, format_error(st), "Unsuitable coding system for keyboard: nil")
         end if
     end subroutine test_terminal_keyboard_coding
+
+    ! The coding systems of type `charset' (values as GNU Emacs gives
+    ! them).
+    subroutine test_charset_coding(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: out
+        type(coding_system_list_entry_type), allocatable :: names(:)
+        type(unencodable_type), allocatable :: result(:)
+        type(status_type) :: st
+
+        call init_bindings()
+        call decode_coding_string(char(161)//char(177)//char(128), "iso-latin-2", out, st)
+        call check(error, out == char(196)//char(132)//char(196)//char(133)//char(194)//char(128))
+        if (allocated(error)) return
+        call encode_coding_string(char(196)//char(132)//char(196)//char(133)//char(226)//char(130)//char(172), &
+                                  "iso-latin-2", out, st)
+        call check(error, out == char(161)//char(177)//" ")
+        if (allocated(error)) return
+        call encode_coding_string(char(226)//char(130)//char(172), "windows-1252", out, st)
+        call check(error, out == char(128))
+        if (allocated(error)) return
+        ! 0x81 is not in windows-1252: a raw byte.
+        call decode_coding_string(char(129), "windows-1252", out, st)
+        call check(error, out == char(int(z'C0'))//char(int(z'81')))
+        if (allocated(error)) return
+        call decode_coding_string(char(int(z'C1'))//char(int(z'C2')), "cyrillic-koi8", out, st)
+        call check(error, out == char(208)//char(176)//char(208)//char(177))
+        if (allocated(error)) return
+        call decode_coding_string(char(128)//char(129), "cp437", out, st)
+        call check(error, out == char(195)//char(135)//char(195)//char(188))
+        if (allocated(error)) return
+        call encode_coding_string("a"//char(208)//char(150), "us-ascii", out, st)
+        call check(error, out == "a?")
+        if (allocated(error)) return
+        call encode_coding_string(char(224)//char(184)//char(129), "thai-tis620", out, st)
+        call check(error, out == char(161))
+        if (allocated(error)) return
+        call check(error, coding_system_type("cyrillic-koi8") == "charset")
+        if (allocated(error)) return
+        call coding_system_aliases("iso-latin-2", names)
+        call check(error, size(names) == 3)
+        if (allocated(error)) return
+        call check(error, names(1)%name == "iso-latin-2" .and. names(2)%name == "iso-8859-2" &
+                   .and. names(3)%name == "latin-2")
+        if (allocated(error)) return
+        call check_coding_systems_text("a"//char(196)//char(132)//char(208)//char(150), 0_int64, &
+                                       [character(len=16) :: "iso-latin-2", "cyrillic-koi8", "windows-1250"], result, st)
+        call check(error, size(result) == 3)
+        if (allocated(error)) return
+        call check(error, result(1)%coding == "iso-latin-2" .and. result(2)%coding == "cyrillic-koi8" &
+                   .and. result(3)%coding == "windows-1250")
+        if (allocated(error)) return
+        call check(error, size(result(1)%positions) == 1 .and. size(result(2)%positions) == 1)
+        if (allocated(error)) return
+        call check(error, result(1)%positions(1) == 2 .and. result(2)%positions(1) == 1)
+        if (allocated(error)) return
+        ! Detection by the coding system of the charset category.
+        call set_coding_system_priority([character(len=16) :: "iso-latin-2"], st)
+        call detect_coding_string("abc"//char(161)//char(177), names, .false.)
+        call check(error, names(1)%name == "iso-latin-2")
+
+        if (.not. allocated(error)) then
+            call detect_coding_string("abc"//char(129), names, .false.)
+            call check(error, size(names) == 1)
+
+            if (.not. allocated(error)) then
+                call check(error, names(1)%name == "raw-text")
+            end if
+        end if
+
+        call set_coding_system_priority([character(len=16) :: "iso-latin-1"], st)
+        call set_coding_system_priority([character(len=16) :: "utf-8"], st)
+    end subroutine test_charset_coding
 end module test_coding_fm
