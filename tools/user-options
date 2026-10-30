@@ -474,6 +474,11 @@ sentence_end_base
 sentence_end_double_space
 sentence_end_without_period
 sentence_end_without_space
+sgml_attribute_offset
+sgml_basic_offset
+sgml_slash_distance
+sgml_validate_command
+sgml_xml_mode
 sh_alias_alist
 sh_ancestor_alist
 sh_assignment_regexp

@@ -494,6 +494,7 @@ module commands_fm
         type(command_type) :: help_mode
         type(command_type) :: help_quit
         type(command_type) :: how_many
+        type(command_type) :: html_mode
         type(command_type) :: ibuffer
         type(command_type) :: ibuffer_add_saved_filters
         type(command_type) :: ibuffer_add_to_tmp_hide
@@ -1001,6 +1002,24 @@ module commands_fm
         type(command_type) :: set_mark_command
         type(command_type) :: set_terminal_coding_system
         type(command_type) :: set_variable
+        type(command_type) :: sgml_close_tag
+        type(command_type) :: sgml_delete_tag
+        type(command_type) :: sgml_guess_indent
+        type(command_type) :: sgml_indent_line
+        type(command_type) :: sgml_maybe_end_tag
+        type(command_type) :: sgml_maybe_name_self
+        type(command_type) :: sgml_mode
+        type(command_type) :: sgml_name_8bit_mode
+        type(command_type) :: sgml_name_char
+        type(command_type) :: sgml_name_self
+        type(command_type) :: sgml_namify_char
+        type(command_type) :: sgml_pretty_print
+        type(command_type) :: sgml_quote
+        type(command_type) :: sgml_skip_tag_backward
+        type(command_type) :: sgml_skip_tag_forward
+        type(command_type) :: sgml_slash
+        type(command_type) :: sgml_slash_matching
+        type(command_type) :: sgml_validate
         type(command_type) :: sh_add
         type(command_type) :: sh_assignment
         type(command_type) :: sh_backslash_region
@@ -1179,7 +1198,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1141) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1160) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1642,6 +1661,7 @@ module commands_fm
                                                                   "help_mode", &
                                                                   "help_quit", &
                                                                   "how_many", &
+                                                                  "html_mode", &
                                                                   "ibuffer", &
                                                                   "ibuffer_add_saved_filters", &
                                                                   "ibuffer_add_to_tmp_hide", &
@@ -2149,6 +2169,24 @@ module commands_fm
                                                                   "set_mark_command", &
                                                                   "set_terminal_coding_system", &
                                                                   "set_variable", &
+                                                                  "sgml_close_tag", &
+                                                                  "sgml_delete_tag", &
+                                                                  "sgml_guess_indent", &
+                                                                  "sgml_indent_line", &
+                                                                  "sgml_maybe_end_tag", &
+                                                                  "sgml_maybe_name_self", &
+                                                                  "sgml_mode", &
+                                                                  "sgml_name_8bit_mode", &
+                                                                  "sgml_name_char", &
+                                                                  "sgml_name_self", &
+                                                                  "sgml_namify_char", &
+                                                                  "sgml_pretty_print", &
+                                                                  "sgml_quote", &
+                                                                  "sgml_skip_tag_backward", &
+                                                                  "sgml_skip_tag_forward", &
+                                                                  "sgml_slash", &
+                                                                  "sgml_slash_matching", &
+                                                                  "sgml_validate", &
                                                                   "sh_add", &
                                                                   "sh_assignment", &
                                                                   "sh_backslash_region", &
@@ -3257,6 +3295,8 @@ contains
             p => commands%help_quit
         case ("how_many")
             p => commands%how_many
+        case ("html_mode")
+            p => commands%html_mode
         case ("ibuffer")
             p => commands%ibuffer
         case ("ibuffer_add_saved_filters")
@@ -4271,6 +4311,42 @@ contains
             p => commands%set_terminal_coding_system
         case ("set_variable")
             p => commands%set_variable
+        case ("sgml_close_tag")
+            p => commands%sgml_close_tag
+        case ("sgml_delete_tag")
+            p => commands%sgml_delete_tag
+        case ("sgml_guess_indent")
+            p => commands%sgml_guess_indent
+        case ("sgml_indent_line")
+            p => commands%sgml_indent_line
+        case ("sgml_maybe_end_tag")
+            p => commands%sgml_maybe_end_tag
+        case ("sgml_maybe_name_self")
+            p => commands%sgml_maybe_name_self
+        case ("sgml_mode")
+            p => commands%sgml_mode
+        case ("sgml_name_8bit_mode")
+            p => commands%sgml_name_8bit_mode
+        case ("sgml_name_char")
+            p => commands%sgml_name_char
+        case ("sgml_name_self")
+            p => commands%sgml_name_self
+        case ("sgml_namify_char")
+            p => commands%sgml_namify_char
+        case ("sgml_pretty_print")
+            p => commands%sgml_pretty_print
+        case ("sgml_quote")
+            p => commands%sgml_quote
+        case ("sgml_skip_tag_backward")
+            p => commands%sgml_skip_tag_backward
+        case ("sgml_skip_tag_forward")
+            p => commands%sgml_skip_tag_forward
+        case ("sgml_slash")
+            p => commands%sgml_slash
+        case ("sgml_slash_matching")
+            p => commands%sgml_slash_matching
+        case ("sgml_validate")
+            p => commands%sgml_validate
         case ("sh_add")
             p => commands%sh_add
         case ("sh_assignment")

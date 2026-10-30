@@ -61,6 +61,7 @@ module modes_fm
         type(major_mode_type) :: fundamental_mode
         type(major_mode_type) :: grep_mode
         type(major_mode_type) :: help_mode
+        type(major_mode_type) :: html_mode
         type(major_mode_type) :: ibuffer_mode
         type(major_mode_type) :: info_mode
         type(major_mode_type) :: js_base_mode
@@ -82,6 +83,7 @@ module modes_fm
         type(major_mode_type) :: python_base_mode
         type(major_mode_type) :: python_mode
         type(major_mode_type) :: scss_mode
+        type(major_mode_type) :: sgml_mode
         type(major_mode_type) :: sh_base_mode
         type(major_mode_type) :: sh_mode
         type(major_mode_type) :: shell_command_mode
@@ -120,6 +122,7 @@ module modes_fm
         type(minor_mode_type) :: save_place_local_mode
         type(minor_mode_type) :: save_place_mode
         type(minor_mode_type) :: savehist_mode
+        type(minor_mode_type) :: sgml_name_8bit_mode
         type(minor_mode_type) :: sh_electric_here_document_mode
         type(minor_mode_type) :: shell_dirtrack_mode
         type(minor_mode_type) :: show_paren_local_mode

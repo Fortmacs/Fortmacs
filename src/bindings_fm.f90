@@ -84,6 +84,7 @@ module bindings_fm
     use python_fm, only: syms_of_python
     use css_mode_fm, only: syms_of_css_mode
     use js_fm, only: syms_of_js
+    use sgml_mode_fm, only: syms_of_sgml_mode
     use f90_fm, only: syms_of_f90
     use prog_mode_fm, only: syms_of_prog_mode
     use font_core_fm, only: syms_of_font_core
@@ -324,6 +325,7 @@ contains
         call syms_of_python()
         call syms_of_css_mode()
         call syms_of_js()
+        call syms_of_sgml_mode()
         call syms_of_f90()
         call syms_of_prog_mode()
         call syms_of_jit_lock()

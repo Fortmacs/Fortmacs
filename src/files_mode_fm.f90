@@ -123,11 +123,14 @@ contains
         call append_auto_mode("\`/tmp/Re", "text_mode")
         call append_auto_mode("/Message[0-9]*\'", "text_mode")
         call append_auto_mode("\`/tmp/fol/", "text_mode")
+        call append_auto_mode("\.sgml?\'", "sgml_mode")
+        call append_auto_mode("\.dtd\'", "sgml_mode")
         call append_auto_mode("\.js[mx]?\'", "javascript_mode")
         ! https://en.wikipedia.org/wiki/.har
         call append_auto_mode("\.har\'", "javascript_mode")
         call append_auto_mode("\.json\'", "js_json_mode")
         call append_auto_mode("/crontab\.X*[0-9]+\'", "shell_script_mode")
+        call append_auto_mode("\.docbook\'", "sgml_mode")
         call append_auto_mode("/config\.\(?:bat\|log\)\'", "fundamental_mode")
         ! Windows candidates may be opened case sensitively on Unix
         call append_auto_mode("\.\(?:[iI][nN][iI]\|[lL][sS][tT]\|[rR][eE][gG]\|[sS][yY][sS]\)\'", "conf_mode")
