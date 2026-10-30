@@ -112,13 +112,13 @@ module repeat_fm
     !> This component can override the value of this variable.
     !> When the variable value is true, but the component is `PROPERTY_NO',
     !> then don't check the last key.  Also when the variable value is false,
-    !> but the component is `PROPERTY_TRUE', then check the last key.  Port
-    !> of repeat.el repeat-check-key.
+    !> but the component is `PROPERTY_TRUE', then check the last key.
+    !> Port of repeat.el repeat-check-key.
     logical, public :: repeat_check_key = .true.
 
     abstract interface
         !> A `repeat_echo_function': display a hint about the keys of
-        !> KEYMAP, or (the null handle) that repeating ended.
+        !> KEYMAP, or (the null handle) that repeating ended.  Not a port.
         recursive subroutine repeat_echo_proc(keymap)
             import :: handle_type
             implicit none(type, external)
@@ -173,7 +173,7 @@ contains
         repeat_is_really_this_command = repeat_num_input_keys_at_repeat == num_input_keys
     end function repeat_is_really_this_command
 
-    !> The command named by symbol V (null if none).
+    !> The command named by symbol V (null if none).  Not a port.
     function command_of(v) result(p)
         type(value_type), intent(in) :: v
         type(command_type), pointer :: p
@@ -186,7 +186,7 @@ contains
         if (.not. associated(p)) p => builtin_command(name)
     end function command_of
 
-    !> The name of symbol V.
+    !> The name of symbol V.  Not a port.
     function name_of(v) result(name)
         type(value_type), intent(in) :: v
         character(len=:), allocatable :: name
@@ -273,7 +273,7 @@ contains
         end if
     end subroutine repeat
 
-    !> The printed form of prefix argument ARG (%S).
+    !> The printed form of prefix argument ARG (%S).  Not a port.
     function prefix_arg_text(arg) result(text)
         type(value_type), intent(in) :: arg
         character(len=:), allocatable :: text
@@ -291,6 +291,7 @@ contains
         end if
     end function prefix_arg_text
 
+    ! Not a port.
     integer(int64) function prefix_numeric_value_of(arg)
         use callint_fm, only: prefix_numeric_value
         type(value_type), intent(in) :: arg
@@ -298,7 +299,7 @@ contains
         prefix_numeric_value_of = prefix_numeric_value(arg)
     end function prefix_numeric_value_of
 
-    !> Like `message' (repeat.el:repeat-message, with
+    !> Like `message'.  Port of repeat.el:repeat-message (with
     !> `repeat-message-function' nil).
     recursive subroutine repeat_message(text)
         character(len=*), intent(in) :: text
@@ -340,7 +341,7 @@ contains
                                     " keymaps; see `describe_repeat_maps'"))
     end subroutine repeat_mode
 
-    !> The body of Repeat mode.
+    !> The body of Repeat mode.  Port of repeat.el:repeat-mode in part.
     recursive subroutine repeat_mode_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
@@ -357,7 +358,7 @@ contains
     end subroutine repeat_mode_body
 
     !> The number of commands with a repeat map, and of their distinct
-    !> maps.
+    !> maps.  Not a port.
     subroutine count_repeat_maps(ncommands, nmaps)
         integer, intent(out) :: ncommands, nmaps
         type(handle_type), allocatable :: maps(:)
@@ -390,6 +391,7 @@ contains
         nmaps = n
     end subroutine count_repeat_maps
 
+    ! Not a port.
     logical function same(a, b)
         type(handle_type), intent(in) :: a, b
 
@@ -398,6 +400,7 @@ contains
 
     !> The command `this_command' names, or else `real_this_command'
     !> (repeat--command-property's two places to look).
+    !> Port of repeat.el:repeat--command-property in part.
     function this_command_object() result(p)
         type(command_type), pointer :: p
 
@@ -616,8 +619,8 @@ contains
         end if
     end subroutine repeat_clear_prev
 
-    !> Return a string with the list of repeating keys in KEYMAP.  Port
-    !> of repeat.el:repeat-echo-message-string.
+    !> Return a string with the list of repeating keys in KEYMAP.
+    !> Port of repeat.el:repeat-echo-message-string.
     function repeat_echo_message_string(keymap) result(text)
         type(handle_type), intent(in) :: keymap
         character(len=:), allocatable :: text, keys_text, part
@@ -687,7 +690,7 @@ contains
         end subroutine collect
     end function repeat_echo_message_string
 
-    !> The keymap of keymap value V.
+    !> The keymap of keymap value V.  Not a port.
     function keymap_of(v) result(h)
         use lisp_fm, only: xhandle
         type(value_type), intent(in) :: v
@@ -727,7 +730,7 @@ contains
         end if
     end subroutine repeat_echo_message
 
-    !> Define Repeat mode and the `repeat' command.
+    !> Define Repeat mode and the `repeat' command.  Not a port.
     subroutine syms_of_repeat()
         if (.not. allocated(repeat_too_dangerous)) then
             allocate (character(len=16) :: repeat_too_dangerous(1))

@@ -1,4 +1,5 @@
 ! test_ansi_color_fm.f90 -- tests for ansi_color_fm.
+! Ports GNU Emacs 31.1 test/lisp/ansi-color-tests.el.
 !
 ! Copyright (C) 2020-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors

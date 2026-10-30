@@ -124,7 +124,7 @@ module data_fm
     abstract interface
         !> Forget the current buffer's values of some buffer-local
         !> variables kept outside the symbols (Fortran objects), as
-        !> `kill_all_local_variables' does.
+        !> `kill_all_local_variables' does.  Not a port.
         subroutine kill_locals_proc()
             implicit none(type, external)
         end subroutine kill_locals_proc
@@ -163,7 +163,7 @@ module data_fm
     interface
         !> The value of the Fortran variable forwarded to by the symbol
         !> with id ID: `found' is false if it is a plain variable.  (In
-        !> data_buffer_fm.)
+        !> data_buffer_fm.)  Not a port.
         module subroutine forwarded_get(id, v, found, bound)
             implicit none(type, external)
             integer(int64), intent(in) :: id
@@ -174,7 +174,7 @@ module data_fm
         end subroutine forwarded_get
 
         !> makunbound on the forwarded variable of symbol ID; `found' is
-        !> false if it is a plain variable.  (In data_buffer_fm.)
+        !> false if it is a plain variable.  (In data_buffer_fm.)  Not a port.
         module subroutine forwarded_makunbound(id, status, found)
             implicit none(type, external)
             integer(int64), intent(in) :: id
@@ -183,7 +183,7 @@ module data_fm
         end subroutine forwarded_makunbound
 
         !> Set the Fortran variable forwarded to by symbol ID; `found' is
-        !> false if it is a plain variable.  (In data_buffer_fm.)
+        !> false if it is a plain variable.  (In data_buffer_fm.)  Not a port.
         module subroutine forwarded_set(id, v, status, found)
             implicit none(type, external)
             integer(int64), intent(in) :: id
@@ -193,7 +193,7 @@ module data_fm
         end subroutine forwarded_set
 
         !> Whether the current buffer has a local value for symbol ID.
-        !> (In data_buffer_fm.)
+        !> (In data_buffer_fm.)  Not a port.
         module logical function local_in_current(id)
             implicit none(type, external)
             integer(int64), intent(in) :: id
@@ -201,7 +201,7 @@ module data_fm
 
         !> Whether symbol ID becomes buffer-local when set (made so by
         !> `make_variable_buffer_local', or a per-buffer variable of
-        !> buffer.c).  (In data_buffer_fm.)
+        !> buffer.c).  (In data_buffer_fm.)  Not a port.
         module logical function auto_local(id)
             implicit none(type, external)
             integer(int64), intent(in) :: id
@@ -293,7 +293,7 @@ module data_fm
         !> Whether VARIABLE is automatically buffer-local: it gets a local
         !> value in any buffer where it is set (`make_variable_buffer_local').
         !> (Ours; data.c's SYMBOL_LOCALIZED with local_if_set.)  (In
-        !> data_buffer_fm.)
+        !> data_buffer_fm.)  Not a port.
         module logical function automatically_local_p(variable)
             implicit none(type, external)
             type(value_type), intent(in) :: variable
@@ -301,7 +301,7 @@ module data_fm
 
         !> Whether VARIABLE is forwarded to a Fortran setting, so its
         !> buffer-local values are those of the setting object.  (Ours;
-        !> data.c's SYMBOL_FORWARDED.)  (In data_buffer_fm.)
+        !> data.c's SYMBOL_FORWARDED.)  (In data_buffer_fm.)  Not a port.
         module logical function forwarded_variable_p(variable)
             implicit none(type, external)
             type(value_type), intent(in) :: variable
@@ -392,7 +392,7 @@ contains
     !> buffer.  With LOCAL_IF_SET it is buffer-local whenever it is set
     !> (make-variable-buffer-local).  For the logical, integer and string
     !> settings of modules this one cannot see (data.c's DEFVAR_*
-    !> forwarding).
+    !> forwarding).  Not a port.
     subroutine forward_setting(s, local_if_set)
         class(setting_type), intent(inout), target :: s
         logical, intent(in), optional :: local_if_set
@@ -426,6 +426,7 @@ contains
     !> Have `kill_all_local_variables' run FN in the buffer whose local
     !> variables it kills (once, however often it is added): for modules
     !> keeping buffer-local variables of derived types in Fortran objects.
+    !> Not a port.
     subroutine add_local_variables_killer(fn)
         procedure(kill_locals_proc) :: fn
         type(killer_type), allocatable :: grown(:)
@@ -448,6 +449,7 @@ contains
     ! Settings
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     subroutine setting_make_local(self)
         class(setting_type), intent(inout) :: self
         type(status_type) :: st
@@ -455,6 +457,7 @@ contains
         call make_local_variable(sym(trim(self%name)), st)
     end subroutine setting_make_local
 
+    ! Not a port.
     subroutine setting_kill_local(self)
         class(setting_type), intent(inout) :: self
         type(status_type) :: st
@@ -462,6 +465,7 @@ contains
         call kill_local_variable(sym(trim(self%name)), st)
     end subroutine setting_kill_local
 
+    ! Not a port.
     logical function setting_local_p(self)
         class(setting_type), intent(in) :: self
 
@@ -469,7 +473,7 @@ contains
     end function setting_local_p
 
     !> Forget an exact Lisp value and voidness: the Fortran value is the
-    !> value now.
+    !> value now.  Not a port.
     subroutine settled(self)
         class(setting_type), intent(inout) :: self
 
@@ -478,6 +482,7 @@ contains
         self%exact = nil()
     end subroutine settled
 
+    ! Not a port.
     subroutine integer_assign_int(self, v)
         class(integer_setting), intent(inout) :: self
         integer, intent(in) :: v
@@ -486,6 +491,7 @@ contains
         call settled(self)
     end subroutine integer_assign_int
 
+    ! Not a port.
     subroutine integer_assign_int64(self, v)
         class(integer_setting), intent(inout) :: self
         integer(int64), intent(in) :: v
@@ -527,6 +533,7 @@ contains
         self%void = .false.
     end subroutine integer_set_local_setting
 
+    ! Not a port.
     subroutine logical_assign(self, v)
         class(logical_setting), intent(inout) :: self
         logical, intent(in) :: v
@@ -545,6 +552,7 @@ contains
         call settled(self)
     end subroutine logical_set_local
 
+    ! Not a port.
     subroutine string_assign(self, v)
         class(string_setting), intent(inout) :: self
         character(len=*), intent(in) :: v
@@ -563,6 +571,7 @@ contains
         call settled(self)
     end subroutine string_set_local
 
+    ! Not a port.
     subroutine string_clear(self)
         class(string_setting), intent(inout) :: self
 
@@ -584,6 +593,7 @@ contains
     ! Type checks (lisp.h CHECK_*)
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     subroutine wrong_type(status, predicate)
         type(status_type), intent(inout) :: status
         character(len=*), intent(in) :: predicate

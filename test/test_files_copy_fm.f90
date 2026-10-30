@@ -1,10 +1,9 @@
-! test_files_copy_fm.f90 -- tests for copying, renaming and linking files
-! (fileio_fm) and files.el's copy-directory and symbolic modes
+! test_files_copy_fm.f90 -- tests for copying, renaming and linking
+! files (fileio_fm) and files.el's copy-directory and symbolic modes
 ! (files_fm's submodule files_copy_fm).
-! Ported from GNU Emacs 31.1 test/lisp/files-tests.el
-! (files-tests-file-modes-symbolic-to-number,
-! files-tests-file-modes-number-to-symbolic, files-tests-copy-directory);
-! the others are our own.
+! Ports GNU Emacs 31.1 test/lisp/files-tests.el in part; only
+! files-tests-file-modes-symbolic-to-number, -number-to-symbolic and
+! -copy-directory concern this module.
 !
 ! Copyright (C) 2012-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -47,6 +46,7 @@ module test_files_copy_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_files_copy_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

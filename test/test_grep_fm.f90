@@ -1,5 +1,9 @@
 ! test_grep_fm.f90 -- tests for grep_fm.
+! Ports GNU Emacs 31.1 test/lisp/progmodes/grep-tests.el and
+! test/lisp/progmodes/compile-tests.el in part; the darwin and
+! windows-nt cases bind `system-type', which is always gnu/linux.
 !
+! Copyright (C) 2021-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
 !
 ! This file is part of Fortmacs.
@@ -60,6 +64,7 @@ module test_grep_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_grep_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

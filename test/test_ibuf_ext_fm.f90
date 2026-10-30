@@ -1,5 +1,6 @@
 ! test_ibuf_ext_fm.f90 -- tests for the Ibuffer filters (ibuf_ext_fm).
-! Ported from GNU Emacs 31.1 test/lisp/ibuffer-tests.el.
+! Ports GNU Emacs 31.1 test/lisp/ibuffer-tests.el in part; only the
+! filter tests.
 !
 ! Copyright (C) 2015-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -85,6 +86,7 @@ module test_ibuf_ext_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_ibuf_ext_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

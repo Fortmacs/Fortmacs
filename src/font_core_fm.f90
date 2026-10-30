@@ -78,6 +78,7 @@ module font_core_fm
         !> A keyword's MATCHER given as a function: search forward from
         !> point for something to highlight, not beyond LIMIT; on success
         !> set the match data and move point past the match (and FOUND).
+        !> Not a port.
         subroutine font_lock_matcher_proc(limit, found, status)
             import :: int64, status_type
             implicit none(type, external)
@@ -89,7 +90,7 @@ module font_core_fm
         !> A highlight's FACE given as a function of the match: FACE gets
         !> the name of the face to give it, or "" for none.  (A subroutine:
         !> gfortran mishandles procedure pointer components whose function
-        !> result is allocatable.)
+        !> result is allocatable.)  Not a port.
         subroutine font_lock_face_proc(face)
             implicit none(type, external)
             character(len=:), allocatable, intent(out) :: face
@@ -97,7 +98,7 @@ module font_core_fm
 
         !> An anchored highlighter's PRE-MATCH-FORM or POST-MATCH-FORM:
         !> run before or after its matcher's search; LIMIT, if positive, is
-        !> where the search ends (PRE-MATCH-FORM's value).
+        !> where the search ends (PRE-MATCH-FORM's value).  Not a port.
         subroutine font_lock_form_proc(limit)
             import :: int64
             implicit none(type, external)
@@ -105,7 +106,7 @@ module font_core_fm
         end subroutine font_lock_form_proc
 
         !> `font_lock_function': turn Font Lock on or off (MODE) in the
-        !> current buffer.
+        !> current buffer.  Not a port.
         subroutine font_lock_function_proc(mode, status)
             import :: status_type
             implicit none(type, external)
@@ -116,6 +117,7 @@ module font_core_fm
         !> The text properties of a FACENAME of the form (face FACE PROP
         !> VAL ...) that depend on the match: give the text from START to
         !> END its properties (the match data is that of the match).
+        !> Not a port.
         subroutine font_lock_properties_proc(start, end, status)
             import :: int64, status_type
             implicit none(type, external)
@@ -175,6 +177,7 @@ module font_core_fm
         !> A function giving the keywords of a decoration level (a
         !> function in KEYWORDS of `font_lock_defaults', which
         !> font-lock-eval-keywords calls when the keywords are set up).
+        !> Not a port.
         subroutine font_lock_keywords_function_proc(keywords)
             import :: font_lock_keyword_type
             implicit none(type, external)
@@ -183,7 +186,7 @@ module font_core_fm
 
         !> `font_lock_syntactic_face_function': FACE gets the name of the
         !> face to give the string or comment whose parse state (at its
-        !> start) is STATE ("" for none).
+        !> start) is STATE ("" for none).  Not a port.
         subroutine font_lock_syntactic_face_proc(state, face)
             import :: parse_state_type
             implicit none(type, external)
@@ -306,11 +309,13 @@ module font_core_fm
     procedure(after_hook_iface), pointer, public :: font_lock_initial_fontify_proc => null()
 
     abstract interface
+        ! Not a port.
         logical function specified_proc(mode)
             implicit none(type, external)
             logical, intent(in) :: mode
         end function specified_proc
 
+        ! Not a port.
         subroutine after_hook_iface(status)
             import :: status_type
             implicit none(type, external)
@@ -340,8 +345,8 @@ module font_core_fm
     !> font-core.el:font-lock-mode-hook.
     type(hook_type), target, public :: font_lock_mode_hook = hook_type(name="font_lock_mode_hook")
 
-    !> Hook run after entering or leaving `global_font_lock_mode'.  Port
-    !> of font-core.el:global-font-lock-mode-hook.
+    !> Hook run after entering or leaving `global_font_lock_mode'.
+    !> Port of font-core.el:global-font-lock-mode-hook.
     type(hook_type), target, public :: global_font_lock_mode_hook = hook_type(name="global_font_lock_mode_hook")
 
     !> The major mode Global Font Lock mode last turned Font Lock on for
@@ -361,7 +366,7 @@ module font_core_fm
 contains
 
     !> Define Font Lock mode and Global Font Lock mode (as loading
-    !> font-core.el does).
+    !> font-core.el does).  Not a port.
     subroutine syms_of_font_core()
         type(status_type) :: st
         logical :: bound
@@ -398,6 +403,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The index of the current buffer's entry, made if MAKE (0 if none).
+    !> Not a port.
     integer function defaults_index(self, make) result(k)
         class(font_lock_defaults_setting), intent(inout) :: self
         logical, intent(in) :: make
@@ -434,6 +440,7 @@ contains
         k = n + 1
     end function defaults_index
 
+    ! Not a port.
     subroutine defaults_set_local(self, keywords, levels, keywords_only, case_fold, syntax_alist, syntactic_face_function)
         class(font_lock_defaults_setting), intent(inout) :: self
         !> The keywords, for a mode with one decoration level.
@@ -477,6 +484,7 @@ contains
         if (present(syntactic_face_function)) self%entries(k)%value%syntactic_face_function => syntactic_face_function
     end subroutine defaults_set_local
 
+    ! Not a port.
     logical function defaults_present_p(self) result(p)
         class(font_lock_defaults_setting), intent(inout) :: self
         integer :: k
@@ -486,6 +494,7 @@ contains
         if (k > 0) p = self%entries(k)%set
     end function defaults_present_p
 
+    ! Not a port.
     function defaults_get(self) result(v)
         class(font_lock_defaults_setting), intent(inout) :: self
         type(font_lock_defaults_type) :: v
@@ -496,6 +505,7 @@ contains
         if (self%entries(k)%set) v = self%entries(k)%value
     end function defaults_get
 
+    ! Not a port.
     subroutine defaults_kill_local(self)
         class(font_lock_defaults_setting), intent(inout) :: self
         integer :: k
@@ -508,6 +518,7 @@ contains
     end subroutine defaults_kill_local
 
     !> A keyword list as one decoration level of `font_lock_defaults'.
+    !> Not a port.
     function font_lock_keywords_level(keywords) result(level)
         type(font_lock_keyword_type), intent(in) :: keywords(:)
         type(font_lock_keywords_type) :: level
@@ -517,7 +528,7 @@ contains
     end function font_lock_keywords_level
 
     !> kill-all-local-variables: the buffer-local variables of font-core.el
-    !> kept here.
+    !> kept here.  Not a port.
     subroutine kill_font_core_locals()
         integer :: k
 
@@ -531,7 +542,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Whether Font Lock mode is on in the current buffer (the variable
-    !> `font_lock_mode').
+    !> `font_lock_mode').  Not a port.
     logical function font_lock_mode_enabled() result(on)
         on = minor_modes%font_lock_mode%enabled()
     end function font_lock_mode_enabled
@@ -585,6 +596,7 @@ contains
     end subroutine font_lock_mode
 
     !> The body of Font Lock mode, with its new state ON.
+    !> Port of font-core.el:font-lock-mode in part.
     subroutine font_lock_mode_body(on, status)
         logical, intent(in) :: on
         type(status_type), intent(out) :: status
@@ -616,6 +628,7 @@ contains
     end subroutine font_lock_mode_body
 
     !> Font Lock mode's :after-hook (font-lock-initial-fontify).
+    !> Not a port.
     subroutine font_lock_mode_after_hook(status)
         type(status_type), intent(out) :: status
 
@@ -763,7 +776,7 @@ contains
         end function append_symbol
     end subroutine font_lock_default_function
 
-    !> The current buffer's major mode (`major_mode').
+    !> The current buffer's major mode (`major_mode').  Not a port.
     function major_mode_of_current() result(mode)
         character(len=:), allocatable :: mode
 
@@ -772,8 +785,8 @@ contains
         if (allocated(buffers(cur)%major_mode)) mode = buffers(cur)%major_mode
     end function major_mode_of_current
 
-    !> Turn on Font Lock mode (only if the terminal can display it).  Port
-    !> of font-core.el:turn-on-font-lock.
+    !> Turn on Font Lock mode (only if the terminal can display it).
+    !> Port of font-core.el:turn-on-font-lock.
     subroutine turn_on_font_lock(status)
         type(status_type), intent(out) :: status
 
@@ -814,6 +827,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The index of the current buffer's entry, made if MAKE (0 if none).
+    !> Not a port.
     integer function global_index(make) result(k)
         logical, intent(in) :: make
         type(global_entry_type), allocatable :: grown(:)
@@ -846,8 +860,8 @@ contains
     !> With prefix ARG, enable Global Font Lock mode if ARG is positive;
     !> otherwise, disable it.
     !>
-    !> See `font_lock_mode' for more information on Font Lock mode.  Port
-    !> of font-core.el:global-font-lock-mode.
+    !> See `font_lock_mode' for more information on Font Lock mode.
+    !> Port of font-core.el:global-font-lock-mode.
     subroutine global_font_lock_mode(status)
         type(status_type), intent(out) :: status
 
@@ -857,6 +871,7 @@ contains
     !> The body of Global Font Lock mode with its new state ON: set up the
     !> hook to handle future mode changes and new buffers, then go through
     !> the existing buffers.
+    !> Port of font-core.el:global-font-lock-mode in part.
     subroutine global_font_lock_mode_body(on, status)
         logical, intent(in) :: on
         type(status_type), intent(out) :: status

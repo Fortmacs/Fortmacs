@@ -290,6 +290,11 @@ program tester
         end do
     end if
 
+    ! The program's variables live on MAIN__'s stack, so what they hold
+    ! is lost, not reachable, when it returns.
+    if (allocated(suite_name)) deallocate (suite_name)
+    if (allocated(test_name)) deallocate (test_name)
+
     if (stat > 0) then
         write (error_unit, "(i0, 1x, a)") stat, "test(s) failed!"
         error stop 1

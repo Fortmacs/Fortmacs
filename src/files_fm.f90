@@ -231,7 +231,7 @@ module files_fm
         end function file_modes_number_to_symbolic
 
         !> Give fileio_fm's `rename_file' the files.el procedures it calls
-        !> across file systems.  (In files_copy_fm.)
+        !> across file systems.  (In files_copy_fm.) Not a port.
         module subroutine syms_of_files_copy()
             implicit none(type, external)
         end subroutine syms_of_files_copy
@@ -261,6 +261,7 @@ module files_fm
         end subroutine find_file_read_only_other_window
 
         !> Register `find_file_read_only' and its keys.  (In files_read_fm.)
+        !> Not a port.
         module subroutine syms_of_files_read(ctl_x_map, ctl_x_4_map)
             implicit none(type, external)
             type(handle_type), intent(in) :: ctl_x_map
@@ -271,7 +272,8 @@ module files_fm
         !> name that is not an existing file needs confirming right after
         !> completion (confirm-nonexistent-file-or-buffer's value
         !> `after_completion').  (In submodule files_read_fm, as the
-        !> minibuffer code depends on this module.)
+        !> minibuffer code depends on this module.) Not a port: a wrapper of
+        !> `read_file_name'.
         recursive module subroutine read_file_name_in_minibuffer(prompt, result, status, dir, &
                                                                  default_filename, initial, &
                                                                  confirm_nonexistent)
@@ -315,7 +317,7 @@ module files_fm
 
         !> Add REGEXP and MODE to the front of `auto_mode_alist', so files
         !> whose names match REGEXP get major mode MODE.  (In
-        !> files_mode_fm.)
+        !> files_mode_fm.) Not a port.
         module subroutine add_auto_mode(regexp, mode)
             implicit none(type, external)
             character(len=*), intent(in) :: regexp, mode
@@ -448,8 +450,8 @@ module files_fm
 
         !> Delete the directory named DIRECTORY.  Does not follow symlinks.
         !> If RECURSIVE is true, delete files in DIRECTORY as well, with
-        !> no error if something else is simultaneously deleting them.  Port
-        !> of files.el:delete-directory (TRASH deferred).  (In files_dir_fm.)
+        !> no error if something else is simultaneously deleting them.  Port of
+        !> files.el:delete-directory (TRASH deferred).  (In files_dir_fm.)
         recursive module subroutine delete_directory(directory, status, recursive)
             implicit none(type, external)
             character(len=*), intent(in) :: directory
@@ -546,8 +548,8 @@ module files_fm
         end function byte_count_to_string
 
         !> String describing the amount of free space on DIR's file system.
-        !> If DIR's free space cannot be obtained, FOUND is false.  Port
-        !> of files.el:get-free-disk-space.  (In files_dir_fm.)
+        !> If DIR's free space cannot be obtained, FOUND is false.  Port of
+        !> files.el:get-free-disk-space.  (In files_dir_fm.)
         module subroutine get_free_disk_space(dir, text, found, status)
             implicit none(type, external)
             character(len=*), intent(in) :: dir
@@ -697,6 +699,7 @@ module files_fm
     !> A procedure of the current buffer (vc-hooks.el's `vc_before_save'
     !> and `vc_after_save', which `basic_save_buffer' calls directly).
     abstract interface
+        ! Not a port.
         subroutine vc_save_proc()
             implicit none(type, external)
         end subroutine vc_save_proc
@@ -742,7 +745,7 @@ module files_fm
         !> tells whether there is something to be saved (but nothing is
         !> saved); else it saves according to ARG, the ARG argument with which
         !> `save_some_buffers' was called, and RESULT true inhibits the
-        !> message `save_some_buffers' gives.
+        !> message `save_some_buffers' gives.  Not a port.
         recursive subroutine save_some_buffers_proc(query, arg, result, status)
             import :: status_type
             implicit none(type, external)
@@ -752,7 +755,7 @@ module files_fm
         end subroutine save_some_buffers_proc
 
         !> A PRED of `save_some_buffers': whether to offer to save the
-        !> current buffer.
+        !> current buffer.  Not a port.
         logical function save_some_buffers_pred()
             implicit none(type, external)
         end function save_some_buffers_pred
@@ -784,6 +787,7 @@ module files_fm
     abstract interface
         !> A `revert_buffer_function': revert the current buffer, with
         !> the arguments IGNORE_AUTO and NOCONFIRM of `revert_buffer'.
+        !> Not a port.
         recursive subroutine revert_function_proc(ignore_auto, noconfirm, status)
             import :: status_type
             implicit none(type, external)
@@ -793,6 +797,7 @@ module files_fm
 
         !> A function of `find_directory_functions': visit DIRNAME,
         !> returning its buffer in BUF (the null handle for none).
+        !> Not a port.
         recursive subroutine find_directory_proc(dirname, buf, status)
             import :: handle_type, status_type
             implicit none(type, external)
@@ -841,7 +846,7 @@ module files_fm
     abstract interface
         !> A `buffer_stale_function': whether the current buffer needs
         !> reverting (a BUFFER_STALE_* value), NOCONFIRM being true if it
-        !> is going to be reverted without asking the user.
+        !> is going to be reverted without asking the user.  Not a port.
         recursive integer function buffer_stale_proc(noconfirm)
             implicit none(type, external)
             logical, intent(in) :: noconfirm
@@ -958,8 +963,8 @@ module files_fm
     !> GNU ls, or another version of ls that supports the "--dired"
     !> flag.  See `dired_use_ls_dired'.
     !>
-    !> On GNU/Linux and other capable systems, the default is "ls".  Port
-    !> of files.el insert-directory-program.
+    !> On GNU/Linux and other capable systems, the default is "ls".  Port of
+    !> files.el insert-directory-program.
     character(len=:), allocatable, public :: insert_directory_program
 
     !> Regular expression to match up to the file name in a directory listing.
@@ -973,8 +978,8 @@ module files_fm
     character(len=:), allocatable, public :: dired_ls_error_file
 
     !> Set if the current dired invocation yields an `ls' error: the
-    !> buffer containing the error message (else the null handle).  Port
-    !> of dired.el dired--ls-error-buffer (set by `insert_directory').
+    !> buffer containing the error message (else the null handle).  Port of
+    !> dired.el dired--ls-error-buffer (set by `insert_directory').
     type(handle_type), public :: dired_ls_error_buffer
 
 contains
@@ -1036,8 +1041,8 @@ contains
     !> Unlike `file_truename', this does not check whether a parent
     !> directory name is a symbolic link.
     !> If the optional argument LIMIT is present,
-    !> it means chase no more than that many links and then stop.  Port
-    !> of files.el:file-chase-links.
+    !> it means chase no more than that many links and then stop.  Port of
+    !> files.el:file-chase-links.
     recursive subroutine file_chase_links(filename, newname, status, limit)
         use fileio_fm, only: file_symlink_target
         character(len=*), intent(in) :: filename
@@ -1335,8 +1340,8 @@ contains
     end subroutine after_find_file
 
     !> Edit file FILENAME: visit it with `find_file_noselect' and switch to
-    !> its buffer in the selected window (`pop_to_buffer_same_window').  Port
-    !> of files.el:find-file (one file; WILDCARDS deferred).
+    !> its buffer in the selected window (`pop_to_buffer_same_window').
+    !> Port of files.el:find-file (one file; WILDCARDS deferred).
     recursive subroutine find_file(filename, status)
         character(len=*), intent(in) :: filename
         type(status_type), intent(out) :: status
@@ -1392,7 +1397,7 @@ contains
     end function make_backup_file_name
 
     !> The temporary directory, as a directory name: $TMPDIR, else "/tmp".
-    !> (callproc.c:init_callproc sets temporary-file-directory.)
+    !> (callproc.c:init_callproc sets temporary-file-directory.) Not a port.
     function temporary_file_directory() result(dir)
         character(len=:), allocatable :: dir
         integer :: length, stat
@@ -1693,7 +1698,7 @@ contains
 
     !> Add a newline at the end of the current buffer if
     !> `require_final_newline' says so (asking if it is neither t nor
-    !> visit-save).  Part of files.el:basic-save-buffer.
+    !> visit-save).  Port of part of files.el:basic-save-buffer.
     subroutine final_newline_on_save(status)
         type(status_type), intent(out) :: status
         logical :: add
@@ -1715,7 +1720,7 @@ contains
     end subroutine final_newline_on_save
 
     !> Whether the whole current buffer is non-empty, writable and does
-    !> not end in a newline.
+    !> not end in a newline.  Not a port.
     logical function missing_final_newline() result(missing)
         integer(int32) :: c
         logical :: found
@@ -1730,7 +1735,7 @@ contains
     end function missing_final_newline
 
     !> (save-excursion (save-restriction (widen) (goto-char (point-max))
-    !> (insert ?\n)))
+    !> (insert ?\n))) Not a port.
     subroutine insert_final_newline(status)
         type(status_type), intent(out) :: status
         integer(int64) :: opoint, savedb, savedz
@@ -1746,7 +1751,8 @@ contains
         call goto_char(opoint)
     end subroutine insert_final_newline
 
-    !> map-y-or-n-p prompter for save_some_buffers.
+    !> map-y-or-n-p prompter for save_some_buffers.  Port of the prompter
+    !> lambda of files.el:save-some-buffers.
     subroutine save_prompter(k, how, prompt)
         integer, intent(in) :: k
         integer, intent(out) :: how
@@ -1770,7 +1776,8 @@ contains
         end if
     end subroutine save_prompter
 
-    !> map-y-or-n-p actor for save_some_buffers: save that buffer.
+    !> map-y-or-n-p actor for save_some_buffers: save that buffer.  Port of
+    !> the actor lambda of files.el:save-some-buffers.
     subroutine save_actor(k, status)
         integer, intent(in) :: k
         type(status_type), intent(out) :: status
@@ -1785,7 +1792,7 @@ contains
     end subroutine save_actor
 
     !> Add FN to the front of `save_some_buffers_functions', unless it is
-    !> there (add-hook).
+    !> there (add-hook).  Not a port.
     subroutine add_save_some_buffers_function(fn)
         procedure(save_some_buffers_proc) :: fn
         type(save_some_buffers_function_type), allocatable :: grown(:)
@@ -1874,7 +1881,7 @@ contains
         if (n == 0 .and. called_interactively .and. .not. inhibit) call message("(No files need saving)")
     end subroutine save_some_buffers
 
-    !> Whether any live buffer visits a file and is modified.
+    !> Whether any live buffer visits a file and is modified.  Not a port.
     logical function modified_file_buffers_exist()
         type(handle_type), allocatable :: all(:)
         integer(int64) :: k, i
@@ -1927,7 +1934,7 @@ contains
         call request_exit()
     end subroutine save_buffers_kill_emacs
 
-    !> `name' in the current buffer's default directory.
+    !> `name' in the current buffer's default directory.  Not a port.
     function file_in_default_directory(name) result(file)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: file
@@ -2145,7 +2152,7 @@ contains
     ! revert-buffer-function
     ! ------------------------------------------------------------------
 
-    !> Whether a live buffer has serial number SERIAL.
+    !> Whether a live buffer has serial number SERIAL.  Not a port.
     logical function serial_live(serial)
         integer(int64), intent(in) :: serial
         integer(int64) :: k
@@ -2160,6 +2167,7 @@ contains
         end do
     end function serial_live
 
+    ! Set the current buffer's `revert_buffer_function' to FN.  Not a port.
     subroutine revert_set_local(self, fn)
         class(revert_buffer_function_type), intent(inout) :: self
         procedure(revert_function_proc) :: fn
@@ -2193,6 +2201,7 @@ contains
         call move_alloc(grown, self%entries)
     end subroutine revert_set_local
 
+    ! The current buffer's `revert_buffer_function'.  Not a port.
     function revert_get(self) result(fn)
         class(revert_buffer_function_type), intent(in) :: self
         procedure(revert_function_proc), pointer :: fn
@@ -2207,6 +2216,7 @@ contains
         end do
     end function revert_get
 
+    ! Set the current buffer's `buffer_stale_function' to FN.  Not a port.
     subroutine stale_set_local(self, fn)
         class(buffer_stale_function_type), intent(inout) :: self
         procedure(buffer_stale_proc) :: fn
@@ -2240,6 +2250,7 @@ contains
         call move_alloc(grown, self%entries)
     end subroutine stale_set_local
 
+    ! The current buffer's `buffer_stale_function'.  Not a port.
     function stale_get(self) result(fn)
         class(buffer_stale_function_type), intent(in) :: self
         procedure(buffer_stale_proc), pointer :: fn
@@ -2375,10 +2386,8 @@ contains
         call save_buffers_kill_emacs(.not. nilp(current_prefix_arg), status)
     end subroutine cmd_save_buffers_kill_terminal
 
-    !> Register the commands and their keys in `ctl_x_map' (and
-    !> `ctl_x_4_map').
     !> Run `kill_buffer_hook' in the buffer H being killed (current).
-    !> Part of buffer.c:Fkill_buffer.
+    !> Port of part of buffer.c:Fkill_buffer.
     recursive subroutine run_kill_hook(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
@@ -2387,6 +2396,9 @@ contains
         call kill_buffer_hook%run(st)
     end subroutine run_kill_hook
 
+    !> Set up files.el's variables and commands, and bind its keys in
+    !> CTL_X_MAP and CTL_X_4_MAP.  Not a port: upstream defines them where
+    !> files.el is loaded.
     subroutine syms_of_files(ctl_x_map, ctl_x_4_map)
         type(handle_type), intent(in) :: ctl_x_map
         type(handle_type), intent(in), optional :: ctl_x_4_map
@@ -2438,7 +2450,8 @@ contains
         call define_key(ctl_x_map, key, sym("save_buffers_kill_terminal"), status)
     end subroutine syms_of_files
 
-    !> Set `auto_mode_interpreter_regexp' to its standard value.
+    !> Set `auto_mode_interpreter_regexp' to its standard value.  Port of
+    !> the value of files.el's auto-mode-interpreter-regexp.
     subroutine init_auto_mode_interpreter_regexp()
         auto_mode_interpreter_regexp = "#![ "//achar(9)//"]*" &
                                        ! Optional group 1: env(1) invocation.
@@ -2458,6 +2471,8 @@ contains
     end subroutine init_auto_mode_interpreter_regexp
 
     !> Set `directory_listing_before_filename_regexp' to its standard value.
+    !> Port of the value of files.el's
+    !> directory-listing-before-filename-regexp.
     subroutine init_directory_listing_regexp()
         character(len=:), allocatable :: l, l_or_quote, month, sp, yyyy, dd, hh_mm, seconds, zone, iso_mm_dd, &
                                          iso_time, iso, western, western_comma, dd_mmm_yyyy, mm, east_asian

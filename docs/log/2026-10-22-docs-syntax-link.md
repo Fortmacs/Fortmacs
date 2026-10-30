@@ -1,0 +1,1 @@
+2026-10-22 — README: the side-by-side syntax link points at `docs/syntax.html` in the repository, since GitHub Pages is not enabled while the repository is private (the Pages URL gave a 404). On `docs-syntax-link`.
