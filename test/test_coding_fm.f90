@@ -97,7 +97,8 @@ contains
                     new_unittest("iso-2022", test_iso_2022), &
                     new_unittest("emacs-mule", test_emacs_mule), &
                     new_unittest("language-environments", test_language_environments), &
-                    new_unittest("set-locale-environment", test_set_locale_environment) &
+                    new_unittest("set-locale-environment", test_set_locale_environment), &
+                    new_unittest("charset-commands", test_charset_commands) &
                     ]
     end subroutine collect_coding_fm
 
@@ -1287,4 +1288,82 @@ contains
         call set_terminal_coding_system("utf-8-unix", st, inhibit_refresh=.true.)
         call set_keyboard_coding_system("utf-8", st)
     end subroutine test_set_locale_environment
+    !> describe-character-set, list-character-sets (with and without C-u)
+    !> and list-charset-chars, as in Emacs.
+    subroutine test_charset_commands(error)
+        use buffer_fm, only: get_buffer
+        use mule_fm, only: describe_character_set, list_character_sets, list_charset_chars
+        use xdisp_fm, only: tab_width
+        type(error_type), allocatable, intent(out) :: error
+        character(len=*), parameter :: TAB = achar(9)
+        type(handle_type) :: old, buf
+        type(status_type) :: st
+        character(len=:), allocatable :: text
+
+        call init_bindings()
+        old = current_buffer()
+        call describe_character_set("unicode", st)
+        call check(error, help_text("*Help*"), "Character set: unicode"//LF//LF//"Unicode (ISO10646)"//LF//LF// &
+                   "Number of contained characters: 256x256x17"//LF//"Aliases: ucs"//LF//"ASCII compatible."//LF// &
+                   "Code space: [0 255 0 255 0 16 0 0]"//LF//"Code offset: 0"//LF)
+        if (allocated(error)) return
+        call describe_character_set("chinese-big5-1", st)
+        call check(error, help_text("*Help*"), "Character set: chinese-big5-1"//LF//LF// &
+                   "Frequently used part (A141-C67E) of Big5 (Chinese traditional)"//LF//LF// &
+                   "Number of contained characters: 94x94"//LF//"Final char of ISO2022 designation sequence: ‘0’"//LF// &
+                   "Unification map file: BIG5-1"//LF//"Id in emacs-mule coding system: 152"//LF// &
+                   "Code space: [33 126 33 126]"//LF//"Code offset: 1265664"//LF// &
+                   "Used only as a parent or a subset of some other charset,"//LF// &
+                   "or provided just for backward compatibility."//LF)
+        if (allocated(error)) return
+        call describe_character_set("latin1", st)
+        call check(error, format_error(st), "Invalid charset: latin1")
+        if (allocated(error)) return
+        call list_character_sets(.false., st)
+        text = help_text("*Character Set List*")
+        call check(error, text(1:index(text, "alternativnyj") - 1), "Supplementary character sets are shown below."//LF// &
+                   "Use M-x help_follow:"//LF//"  on a column title to sort by that title,"//TAB//"+----DIMENSION"//LF// &
+                   "  on a charset name to list characters."//TAB//TAB//"| +--CHARS"//LF// &
+                   "CHARSET-NAME"//repeat(TAB, 5)//"D CH  FINAL-BYTE"//LF//"------------"//repeat(TAB, 5)// &
+                   "- --- ----------"//LF//"adobe-standard-encoding"//repeat(TAB, 4)//"1 224 none"//LF)
+        if (.not. allocated(error)) call check(error, index(text, LF//"ascii"//repeat(TAB, 6)//"1 128 B"//LF) > 0 &
+                                                .and. index(text, LF//"windows-936"//repeat(TAB, 5)//"2 191 none"//LF//LF// &
+                                                            "-------------- Supplementary Character Sets --------------" &
+                                                            //LF) > 0)
+        if (allocated(error)) return
+        call list_character_sets(.true., st)
+        text = help_text("*Character Set List*")
+        call check(error, index(text, "-1 means that no final character is assigned."//LF// &
+                                "##"//TAB//"DESCRIPTION (describing string of the charset)"//LF// &
+                                "chinese-cns11643-15:2:94:-1:CNS11643 Plane 15 Chinese Traditional"//LF) > 0)
+        if (allocated(error)) return
+        call list_charset_chars("ascii", st)
+        buf = get_buffer("*Character List*")
+        text = help_text("*Character List*")
+        call check(error, text(1:index(text, "     1x") - 1), "Characters in the coded character set ascii."//LF// &
+                   repeat("-", 71)//LF//"        0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F"//LF// &
+                   "     0x"//TAB//"C-@"//TAB//"C-a"//TAB//"C-b"//TAB//"C-c"//TAB//"C-d"//TAB//"C-e"//TAB//"C-f"//TAB// &
+                   "C-g"//TAB//"C-h"//TAB//"TAB"//TAB//"C-j"//TAB//"C-k"//TAB//"C-l"//TAB//"RET"//TAB//"C-n"//TAB//"C-o"//LF)
+        if (allocated(error)) return
+        call set_buffer(buf, st)
+        call check(error, tab_width%value == 4 .and. &
+                   coding_system_base(buffer_file_coding_system%value) == coding_system_base("ascii"))
+        call set_buffer(old, st)
+        call kill_buffer(buf, st)
+        call kill_buffer(get_buffer("*Character Set List*"), st)
+        call kill_buffer(get_buffer("*Help*"), st)
+        call show_alone()
+
+    contains
+
+        function help_text(name) result(t)
+            character(len=*), intent(in) :: name
+            character(len=:), allocatable :: t
+            type(status_type) :: s
+
+            call set_buffer(get_buffer(name), s)
+            t = buffer_string()
+            call set_buffer(old, s)
+        end function help_text
+    end subroutine test_charset_commands
 end module test_coding_fm

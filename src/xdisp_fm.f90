@@ -2626,16 +2626,26 @@ contains
         function expand_identification(text, name) result(t)
             character(len=*), intent(in) :: text, name
             character(len=:), allocatable :: t
-            integer :: i
+            integer :: i, j, width
 
             t = ""
             i = 1
 
             do while (i <= len(text))
                 if (text(i:i) == "%" .and. i < len(text)) then
-                    if (text(i + 1:i + 1) == "b") then
-                        t = t//name
-                        i = i + 2
+                    j = i + 1
+                    width = 0
+
+                    do while (j < len(text))
+                        if (text(j:j) < "0" .or. text(j:j) > "9") exit
+                        width = width*10 + iachar(text(j:j)) - iachar("0")
+                        j = j + 1
+                    end do
+
+                    if (text(j:j) == "b") then
+                        ! %b, %12b: the name padded to the width.
+                        t = t//pad_chars(name, width)
+                        i = j + 1
                         cycle
                     else if (text(i + 1:i + 1) == "%") then
                         t = t//"%"

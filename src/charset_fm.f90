@@ -89,6 +89,13 @@ module charset_fm
         integer :: code_offset = 0
         !> "offset", "map", "subset" or "superset".
         character(len=8) :: method = "offset"
+        !> The number of elements of `:code-space' as given, and whether
+        !> `:code-offset' and `:invalid-code' were given.
+        integer :: code_space_len = 8
+        logical :: has_code_offset = .false., has_invalid_code = .false.
+        !> Whether charset.c defines it (its plist has no
+        !> `:supplementary-p' or `:iso-revision-number').
+        logical :: internal = .false.
     end type charset_info_type
 
     type :: charset_type
@@ -99,7 +106,8 @@ module charset_fm
         !> byte, the maximum byte, their count and the product of the
         !> counts so far.
         integer(int64) :: code_space(0:15) = 0
-        integer :: given_code_space(8) = 0
+        integer :: given_code_space(8) = 0, code_space_len = 8
+        logical :: has_code_offset = .false., has_invalid_code = .false., internal = .false.
         logical :: code_linear_p = .true., iso_chars_96 = .false.
         integer :: code_space_mask(0:255) = 0
         integer(int64) :: min_code = 0, max_code = 0, char_index_offset = 0, invalid_code = 0
@@ -241,6 +249,7 @@ contains
                             emacs_mule_id=emacs_mule_id, ascii_compatible_p=ascii_compatible, &
                             supplementary_p=supplementary, code_offset=code_offset)
         id = find_id(name)
+        charsets(id)%internal = .true.
         ! Their plist has no :docstring, :short-name or :long-name until
         ! mule-conf.el puts them.
         deallocate (charsets(id)%short_name, charsets(id)%long_name)
@@ -281,6 +290,7 @@ contains
 
         if (present(code_space)) then
             cs%given_code_space(1:min(8, size(code_space))) = code_space(1:min(8, size(code_space)))
+            cs%code_space_len = min(8, size(code_space))
         else
             dim = 4
             if (present(dimension)) dim = dimension
@@ -380,6 +390,9 @@ contains
         end if
 
         cs%compact_codes_p = cs%max_code < 65536
+
+        cs%has_invalid_code = present(invalid_code)
+        cs%has_code_offset = present(code_offset)
 
         if (present(invalid_code)) then
             cs%invalid_code = invalid_code
@@ -780,6 +793,10 @@ contains
             info%ascii_compatible_p = cs%ascii_compatible_p
             info%supplementary_p = cs%supplementary_p
             info%code_offset = cs%code_offset
+            info%code_space_len = cs%code_space_len
+            info%has_code_offset = cs%has_code_offset
+            info%has_invalid_code = cs%has_invalid_code
+            info%internal = cs%internal
 
             select case (cs%method)
             case (METHOD_MAP)

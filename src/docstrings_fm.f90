@@ -571,7 +571,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1436) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1439) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -671,14 +671,14 @@ module docstrings_fm
                                                      "delete_matching_lines", "delete_non_matching_lines", "delete_other_windows", &
                                                              "delete_pair", "delete_process", "delete_rectangle", "delete_region", &
                                             "delete_whitespace_rectangle", "delete_window", "derived_mode_p", "describe_bindings", &
-                                                   "describe_coding_system", "describe_command", "describe_current_coding_system", &
-                                                                    "describe_function", "describe_key", "describe_key_briefly", &
-                                         "describe_language_environment", "describe_mode", "describe_symbol", "describe_variable", &
-                                                      "detect_coding_region", "detect_coding_string", "diff", "diff_apply_buffer", &
-                                                        "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", "diff_buffers", &
-                                                  "diff_delete_other_hunks", "diff_file_kill", "diff_file_next", "diff_file_prev", &
-                                                      "diff_fixup_modifs", "diff_goto_source", "diff_hunk_kill", "diff_hunk_next", &
-                                                            "diff_hunk_prev", "diff_kill_junk", "diff_mode", "diff_restrict_view", &
+                                                           "describe_character_set", "describe_coding_system", "describe_command", &
+                                                            "describe_current_coding_system", "describe_function", "describe_key", &
+                                                         "describe_key_briefly", "describe_language_environment", "describe_mode", &
+                                           "describe_symbol", "describe_variable", "detect_coding_region", "detect_coding_string", &
+                                           "diff", "diff_apply_buffer", "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", &
+                                                    "diff_buffers", "diff_delete_other_hunks", "diff_file_kill", "diff_file_next", &
+                                                      "diff_file_prev", "diff_fixup_modifs", "diff_goto_source", "diff_hunk_kill", &
+                                          "diff_hunk_next", "diff_hunk_prev", "diff_kill_junk", "diff_mode", "diff_restrict_view", &
                                                "diff_revert_and_kill_hunk", "diff_split_hunk", "diff_test_hunk", "digit_argument", &
                                                    "dired", "dired_backup_diff", "dired_build_subdir_alist", "dired_change_marks", &
                                                "dired_copy_filename_as_kill", "dired_create_directory", "dired_create_empty_file", &
@@ -845,19 +845,20 @@ module docstrings_fm
                                                   "kmacro_start_macro_or_insert_counter", "kmacro_swap_ring", "kmacro_view_macro", &
                                             "kmacro_view_macro_repeat", "kmacro_view_ring_2nd", "left_char", "left_word", "lgrep", &
                                                            "line_number_at_pos", "list_abbrevs", "list_bookmarks", "list_buffers", &
-                                                  "list_matching_lines", "list_processes", "list_registers", "local_abbrev_table", &
-                                                            "log_edit_comment_search_backward", "log_edit_comment_search_forward", &
-                                                        "log_edit_diff_fileset", "log_edit_done", "log_edit_done_strip_cvs_lines", &
-                                                                   "log_edit_insert_changelog", "log_edit_insert_cvs_rcstemplate", &
-                                                                    "log_edit_insert_cvs_template", "log_edit_insert_filenames", &
-                                                "log_edit_insert_filenames_without_changelog", "log_edit_insert_message_template", &
-                                           "log_edit_kill_buffer", "log_edit_mode", "log_edit_mode_help", "log_edit_next_comment", &
-                                                         "log_edit_previous_comment", "log_edit_show_diff", "log_edit_show_files", &
-                                                     "log_view_copy_revision_as_kill", "log_view_diff", "log_view_diff_changeset", &
-                                                    "log_view_display_entry_and_diff", "log_view_file_next", "log_view_file_prev", &
-                                                                 "log_view_find_revision", "log_view_mark_entry", "log_view_mode", &
-                                                  "log_view_msg_and_diff_next", "log_view_msg_and_diff_prev", "log_view_msg_next", &
-                                               "log_view_msg_prev", "log_view_toggle_entry_display", "log_view_toggle_mark_entry", &
+                                             "list_character_sets", "list_charset_chars", "list_matching_lines", "list_processes", &
+                                                       "list_registers", "local_abbrev_table", "log_edit_comment_search_backward", &
+                                                      "log_edit_comment_search_forward", "log_edit_diff_fileset", "log_edit_done", &
+                                                                    "log_edit_done_strip_cvs_lines", "log_edit_insert_changelog", &
+                                                                "log_edit_insert_cvs_rcstemplate", "log_edit_insert_cvs_template", &
+                                                       "log_edit_insert_filenames", "log_edit_insert_filenames_without_changelog", &
+                                                      "log_edit_insert_message_template", "log_edit_kill_buffer", "log_edit_mode", &
+                                                       "log_edit_mode_help", "log_edit_next_comment", "log_edit_previous_comment", &
+                                                    "log_edit_show_diff", "log_edit_show_files", "log_view_copy_revision_as_kill", &
+                                                    "log_view_diff", "log_view_diff_changeset", "log_view_display_entry_and_diff", &
+                                                             "log_view_file_next", "log_view_file_prev", "log_view_find_revision", &
+                                                             "log_view_mark_entry", "log_view_mode", "log_view_msg_and_diff_next", &
+                                                           "log_view_msg_and_diff_prev", "log_view_msg_next", "log_view_msg_prev", &
+                                                                    "log_view_toggle_entry_display", "log_view_toggle_mark_entry", &
                                              "log_view_unmark_all_entries", "log_view_unmark_entry", "looking_at", "looking_at_p", &
                                           "looking_back", "major_mode_named", "make_char", "make_comint", "make_comint_in_buffer", &
                                                      "make_empty_file", "make_process", "make_symbolic_link", "make_syntax_table", &
@@ -4714,6 +4715,10 @@ contains
             entry%interactive = .true.
             entry%doc = "Display a buffer showing a list of all defined keys, and their"//LF// &
                         "definitions.  The keys are displayed in order of precedence."
+        case ("describe_character_set")
+            entry%file = "mule_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display information about built-in character set CHARSET."
         case ("describe_coding_system")
             entry%file = "mule_fm.f90"
             entry%fortran = "call describe_coding_system(coding_system, status)"
@@ -9145,6 +9150,23 @@ contains
                         "By default, all buffers are listed except those whose names start"//LF// &
                         "with a space (which are for internal use).  With prefix argument"//LF// &
                         "ARG, show only buffers that are visiting files."
+        case ("list_character_sets")
+            entry%file = "mule_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display a list of all character sets."//LF// &
+                        ""//LF// &
+                        "The D column contains the dimension of this character set.  The CH"//LF// &
+                        "column contains the number of characters in a block of this character"//LF// &
+                        "set.  The FINAL-BYTE column contains an ISO-2022 <final-byte> to use"//LF// &
+                        "in the designation escape sequence for this character set in"//LF// &
+                        "ISO-2022-based coding systems."//LF// &
+                        ""//LF// &
+                        "With prefix ARG, the output format gets more cryptic,"//LF// &
+                        "but still shows the full information."
+        case ("list_charset_chars")
+            entry%file = "mule_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display a list of characters in character set CHARSET."
         case ("list_matching_lines")
             entry%file = "replace_fm.f90"
             entry%interactive = .true.

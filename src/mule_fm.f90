@@ -99,7 +99,10 @@ module mule_fm
     use minibuf_fm, only: completion_ignore_case
     use help_fm, only: substitute_command_keys
     use charset_fm, only: set_charset_priority, charset_description, charsetp, CHARSET_NAME_LEN, &
-                          set_current_iso639_language
+                          set_current_iso639_language, charset_info, charset_info_type, charset_list, charset_chars, &
+                          decode_char
+    use help_fm, only: with_output_to_temp_buffer
+    use buffer_fm, only: header_line_format_type
     implicit none(type, external)
     private
 
@@ -113,7 +116,8 @@ module mule_fm
     public :: set_language_info_alist, get_language_info, set_language_environment, reset_language_environment, &
               describe_language_environment, read_language_name, language_names, language_proc, language_info_type, &
               set_locale_environment, locale_name_match, locale_charset_to_coding_system, locale_translate, &
-              get_locale_names, set_display_table_and_terminal_coding_system
+              get_locale_names, set_display_table_and_terminal_coding_system, list_character_sets, list_charset_chars, &
+              describe_character_set, read_charset
 
     !> The definition of a language environment (an element of
     !> `language_info_alist'): its name and the information under each
@@ -438,6 +442,9 @@ module mule_fm
                                        locale_entry_type(regexp="jpn", language="", coding="japanese-shift-jis") &
                                        ]
 
+    ! The charset list_charset_chars shows.
+    character(len=:), allocatable :: listed_charset
+
     !> File name for the system's file of locale-name aliases, or "" if none.
     character(len=:), allocatable, public :: locale_translation_file_name
     !> The currently set locale environment.
@@ -595,6 +602,9 @@ contains
         if (.not. allocated(keyboard_coding_system_variable)) keyboard_coding_system_variable = "utf-8-unix"
         commands%set_language_environment%run => cmd_set_language_environment
         commands%set_locale_environment%run => cmd_set_locale_environment
+        commands%list_character_sets%run => cmd_list_character_sets
+        commands%list_charset_chars%run => cmd_list_charset_chars
+        commands%describe_character_set%run => cmd_describe_character_set
         commands%reset_language_environment%run => cmd_reset_language_environment
         commands%describe_language_environment%run => cmd_describe_language_environment
         commands%set_terminal_coding_system%run => cmd_set_terminal_coding_system
@@ -3337,4 +3347,437 @@ contains
         if (.not. status%ok()) return
         call set_locale_environment(name, status)
     end subroutine cmd_set_locale_environment
+    ! ------------------------------------------------------------------
+    ! Charsets (mule-diag.el)
+    ! ------------------------------------------------------------------
+
+    !> Display a list of all character sets.
+    !>
+    !> The D column contains the dimension of this character set.  The CH
+    !> column contains the number of characters in a block of this character
+    !> set.  The FINAL-BYTE column contains an ISO-2022 <final-byte> to use
+    !> in the designation escape sequence for this character set in
+    !> ISO-2022-based coding systems.
+    !>
+    !> With prefix ARG, the output format gets more cryptic,
+    !> but still shows the full information.
+    !>
+    !> Port of mule-diag.el:list-character-sets (its column titles and
+    !> charset names are not buttons: buttons wait for button.el).
+    subroutine list_character_sets(arg, status)
+        logical, intent(in) :: arg
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: s
+
+        if (arg) then
+            s = list_character_sets_2()
+        else
+            s = "Supplementary character sets are shown below."//LF// &
+                substitute_command_keys("Use \[help_follow]:"//LF)// &
+                "  on a column title to sort by that title,"//TAB//"+----DIMENSION"//LF// &
+                "  on a charset name to list characters."//TAB//TAB//"| +--CHARS"//LF// &
+                "CHARSET-NAME"//repeat(TAB, 5)//"D CH  FINAL-BYTE"//LF// &
+                "------------"//repeat(TAB, 5)//"- --- ----------"//LF// &
+                list_character_sets_1("name")
+        end if
+
+        call with_output_to_temp_buffer("*Character Set List*", s, status)
+    end subroutine list_character_sets
+
+    recursive subroutine cmd_list_character_sets(status)
+        use callint_fm, only: current_prefix_arg
+        type(status_type), intent(out) :: status
+
+        call list_character_sets(.not. nilp(current_prefix_arg), status)
+    end subroutine cmd_list_character_sets
+
+    !> The list of character sets sorted by SORT_KEY ("name" or
+    !> "iso-spec"), the supplementary ones after the others.  Port of
+    !> mule-diag.el:list-character-sets-1.
+    function list_character_sets_1(sort_key) result(s)
+        character(len=*), intent(in) :: sort_key
+        character(len=:), allocatable :: s
+        character(len=CHARSET_NAME_LEN), allocatable :: names(:)
+        integer, allocatable :: main(:), supplementary(:), dims(:), chars(:), finals(:)
+        type(charset_info_type) :: info
+        type(status_type) :: st
+        logical :: found
+        integer :: i, n
+
+        names = charset_list()
+        n = size(names)
+        allocate (dims(n), chars(n), finals(n), main(0), supplementary(0))
+
+        ! Pushed onto the lists: the earliest defined first.
+        do i = n, 1, -1
+            call charset_info(trim(names(i)), info, found)
+            dims(i) = info%dimension
+            chars(i) = charset_chars(trim(names(i)), st)
+            finals(i) = info%iso_final_char
+
+            if (info%supplementary_p .and. .not. info%internal) then
+                supplementary = [supplementary, i]
+            else
+                main = [main, i]
+            end if
+        end do
+
+        call sort_entries(main)
+        call sort_entries(supplementary)
+        s = ""
+
+        do i = 1, size(main)
+            s = s//entry_line(main(i))
+        end do
+
+        s = s//LF//"-------------- Supplementary Character Sets --------------"//LF// &
+            "Character sets for defining other charsets, or for backward compatibility"//LF//LF
+
+        do i = 1, size(supplementary)
+            s = s//entry_line(supplementary(i))
+        end do
+
+    contains
+
+        ! A stable insertion sort of the entries IDX by the sort key.
+        subroutine sort_entries(idx)
+            integer, intent(inout) :: idx(:)
+            integer :: j, k, v
+
+            do j = 2, size(idx)
+                v = idx(j)
+                k = j - 1
+
+                do while (k >= 1)
+                    if (.not. before(v, idx(k))) exit
+                    idx(k + 1) = idx(k)
+                    k = k - 1
+                end do
+
+                idx(k + 1) = v
+            end do
+        end subroutine sort_entries
+
+        logical function before(x, y)
+            integer, intent(in) :: x, y
+
+            if (sort_key == "iso-spec") then
+                ! By DIMENSION, CHARS and FINAL-CHAR.
+                if (dims(x) /= dims(y)) then
+                    before = dims(x) < dims(y)
+                else if (chars(x) /= chars(y)) then
+                    before = chars(x) < chars(y)
+                else
+                    before = finals(x) < finals(y)
+                end if
+            else
+                before = llt(trim(names(x)), trim(names(y)))
+            end if
+        end function before
+
+        ! NAME, a tab and tabs to column 48, the dimension, the chars and
+        ! the final char.
+        function entry_line(k) result(line)
+            integer, intent(in) :: k
+            character(len=:), allocatable :: line
+            character(len=16) :: buf
+            integer :: col
+
+            col = (len_trim(names(k))/8 + 1)*8
+            line = trim(names(k))//TAB//repeat(TAB, max(0, (48 - col + 7)/8))
+            write (buf, "(i0, 1x, i3, 1x)") dims(k), chars(k)
+            line = line//trim(buf)//" "
+
+            if (finals(k) < 0) then
+                line = line//"none"
+            else
+                line = line//achar(finals(k))
+            end if
+
+            line = line//LF
+        end function entry_line
+    end function list_character_sets_1
+
+    ! All character sets in a form that a program can easily parse.  Port
+    ! of mule-diag.el:list-character-sets-2.
+    function list_character_sets_2() result(s)
+        character(len=:), allocatable :: s
+        character(len=CHARSET_NAME_LEN), allocatable :: names(:)
+        type(charset_info_type) :: info
+        type(status_type) :: st
+        character(len=32) :: buf
+        logical :: found
+        integer :: i
+
+        s = "#########################"//LF//"## LIST OF CHARSETS"//LF// &
+            "## Each line corresponds to one charset."//LF// &
+            "## The following attributes are listed in this order"//LF// &
+            "## separated by a colon `:' in one line."//LF// &
+            "##"//TAB//"CHARSET-SYMBOL-NAME,"//LF// &
+            "##"//TAB//"DIMENSION (1-4)"//LF// &
+            "##"//TAB//"CHARS (number of characters in first dimension of charset)"//LF// &
+            "##"//TAB//"ISO-FINAL-CHAR (character code of ISO-2022's final character)"//LF// &
+            "##"//TAB//TAB//"-1 means that no final character is assigned."//LF// &
+            "##"//TAB//"DESCRIPTION (describing string of the charset)"//LF
+        names = charset_list()
+
+        do i = 1, size(names)
+            call charset_info(trim(names(i)), info, found)
+            write (buf, "(i0, ':', i0, ':', i0)") info%dimension, charset_chars(trim(names(i)), st), &
+                info%iso_final_char
+            s = s//trim(names(i))//":"//trim(buf)//":"//charset_description(trim(names(i)))//LF
+        end do
+    end function list_character_sets_2
+
+    !> Read a character set from the minibuffer, prompting with string PROMPT.
+    !> It must be an Emacs character set listed in `charset_list'.
+    !> Return the charset name ("" for empty input).  DEFAULT_VALUE is the
+    !> default value.  Port of mule-diag.el:read-charset.
+    recursive subroutine read_charset(prompt, charset, status, default_value, initial_input)
+        character(len=*), intent(in) :: prompt
+        character(len=:), allocatable, intent(out) :: charset
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: default_value, initial_input
+        character(len=CHARSET_NAME_LEN), allocatable :: names(:)
+        type(value_type), allocatable :: items(:)
+        integer :: i
+
+        names = charset_list()
+        allocate (items(size(names)))
+
+        do i = 1, size(names)
+            items(i) = make_string(trim(names(i)))
+        end do
+
+        call completing_read(prompt, completion_list_table(make_list(items)), charset, status, &
+                             require_match=REQUIRE_MATCH_T, initial=initial_input, history="charset_history", &
+                             default=default_value)
+    end subroutine read_charset
+
+    ! The characters of CHARSET with code points ROW*256+MIN to ROW*256+MAX
+    ! (ROW is the first byte of a 2-dimensional charset, 0 for a
+    ! 1-dimensional one).  Port of mule-diag.el:list-block-of-chars.
+    function list_block_of_chars(charset, row, min, max) result(s)
+        use keymap_fm, only: single_key_description
+        use lisp_fm, only: make_fixnum
+        use character_fm, only: char_string, MAX_MULTIBYTE_LENGTH
+        character(len=*), intent(in) :: charset
+        integer, intent(in) :: row, min, max
+        character(len=:), allocatable :: s
+        character(len=MAX_MULTIBYTE_LENGTH) :: buf
+        character(len=8) :: hex
+        type(status_type) :: st
+        integer :: i, ch, nbytes
+
+        s = repeat("-", 7 + 4*16)//LF//"     "
+
+        do i = 0, 15
+            write (hex, "(z4)") i
+            s = s//hex(1:4)
+        end do
+
+        i = (min/16)*16
+
+        do while (i <= max)
+            if (mod(i, 16) == 0) then
+                write (hex, "(z6)") (row*256 + i)/16
+                s = s//LF//hex(1:6)//"x"
+            end if
+
+            if (i < min) then
+                ch = 32
+            else
+                ch = decode_char(charset, int(row*256 + i, int64), st)
+                ! A gap in the mapping.
+                if (ch < 0) ch = 32
+            end if
+
+            s = s//TAB
+
+            ! Don't insert control codes, non-Unicode characters.
+            if (ch < 32 .or. ch == 127) then
+                s = s//single_key_description(make_fixnum(int(ch, int64)))
+            else if (ch >= 128 .and. ch < 160) then
+                write (hex, "(z2.2)") ch
+                s = s//hex(1:2)//"h"
+            else
+                if (ch > int(z'10FFFF')) ch = 32
+                call char_string(ch, buf, nbytes, st)
+                s = s//buf(1:nbytes)
+            end if
+
+            i = i + 1
+        end do
+
+        s = s//LF
+    end function list_block_of_chars
+
+    !> Display a list of characters in character set CHARSET.  Port of
+    !> mule-diag.el:list-charset-chars.
+    recursive subroutine list_charset_chars(charset, status)
+        character(len=*), intent(in) :: charset
+        type(status_type), intent(out) :: status
+        type(charset_info_type) :: info
+        character(len=:), allocatable :: s
+        logical :: found
+        integer :: i
+
+        call charset_info(charset, info, found)
+
+        if (.not. found) then
+            call set_error(status, FM_GENERIC_ERROR, "Invalid character set: "//charset)
+            return
+        end if
+
+        if (info%dimension > 2) then
+            call set_error(status, FM_GENERIC_ERROR, "Can only list 1- and 2-dimensional charsets")
+            return
+        end if
+
+        s = "Characters in the coded character set "//charset//"."//LF
+
+        if (info%dimension == 1) then
+            s = s//list_block_of_chars(charset, 0, info%code_space(1), info%code_space(2))
+        else
+            do i = info%code_space(3), info%code_space(4)
+                s = s//list_block_of_chars(charset, i, info%code_space(1), info%code_space(2))
+            end do
+        end if
+
+        listed_charset = charset
+        call with_output_to_temp_buffer("*Character List*", s, status, list_charset_chars_setup)
+    end subroutine list_charset_chars
+
+    ! The rest of list-charset-chars's body, in *Character List*: its coding
+    ! system (when the charset is also a coding system), the charset in
+    ! the mode line, a tab width of 4 and the `charset' property.
+    recursive subroutine list_charset_chars_setup(status)
+        use xdisp_fm, only: tab_width
+        use textprop_fm, only: put_text_property
+        use editfns_fm, only: point_min, point_max
+        type(status_type), intent(out) :: status
+        type(header_line_format_type) :: id
+
+        status = status_type()
+
+        if (coding_system_p(listed_charset)) then
+            call set_buffer_file_coding_system(listed_charset, .false., .false., .false., status)
+            if (.not. status%ok()) return
+        end if
+
+        call id%add("%12b", "mode_line_buffer_id")
+        call id%add(" ("//listed_charset//")")
+        buffers(cur)%mode_line_buffer_identification = id
+        call tab_width%set_local(4_int64)
+        call put_text_property(point_min(), point_max(), sym("charset"), sym(listed_charset), status)
+    end subroutine list_charset_chars_setup
+
+    recursive subroutine cmd_list_charset_chars(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: charset
+
+        call read_charset("Character set: ", charset, status)
+        if (.not. status%ok()) return
+        call list_charset_chars(charset, status)
+    end subroutine cmd_list_charset_chars
+
+    !> Display information about built-in character set CHARSET.  Port of
+    !> mule-diag.el:describe-character-set (`:parents' is never set).
+    recursive subroutine describe_character_set(charset, status)
+        use character_fm, only: char_string, MAX_MULTIBYTE_LENGTH
+        character(len=*), intent(in) :: charset
+        type(status_type), intent(out) :: status
+        character(len=CHARSET_NAME_LEN), allocatable :: names(:)
+        character(len=MAX_MULTIBYTE_LENGTH) :: buf
+        type(charset_info_type) :: info, other
+        type(status_type) :: st
+        character(len=:), allocatable :: s, aliases
+        character(len=24) :: num
+        logical :: found
+        integer :: i, nbytes
+
+        call charset_info(charset, info, found)
+
+        if (.not. found) then
+            call set_error(status, FM_GENERIC_ERROR, "Invalid charset: "//charset)
+            return
+        end if
+
+        s = "Character set: "//charset
+        if (info%name /= charset) s = s//" (alias of "//info%name//")"
+        s = s//LF//LF//charset_description(charset)//LF//LF//"Number of contained characters: "
+
+        do i = 1, info%dimension
+            if (i > 1) s = s//"x"
+            write (num, "(i0)") charset_chars(charset, st, i)
+            s = s//trim(num)
+        end do
+
+        s = s//LF
+        if (info%iso_final_char > 0) &
+            s = s//"Final char of ISO2022 designation sequence: "//format_message("`"//achar(info%iso_final_char)//"'")//LF
+        aliases = ""
+        names = charset_list()
+
+        ! Pushed onto the list: the earliest defined first.
+        do i = size(names), 1, -1
+            if (trim(names(i)) == charset) cycle
+            call charset_info(trim(names(i)), other, found)
+
+            if (other%name == charset) then
+                if (len(aliases) > 0) aliases = aliases//", "
+                aliases = aliases//trim(names(i))
+            end if
+        end do
+
+        if (len(aliases) > 0) s = s//"Aliases: "//aliases//LF
+        if (info%ascii_compatible_p) s = s//"ASCII compatible."//LF
+        if (len(info%map) > 0) s = s//"Map file: "//info%map//LF
+        if (len(info%unify_map) > 0) s = s//"Unification map file: "//info%unify_map//LF
+
+        if (info%has_invalid_code) then
+            call char_string(int(info%invalid_code, int32), buf, nbytes, st)
+            write (num, "(i0)") info%invalid_code
+            s = s//"Invalid character: "//buf(1:nbytes)//" (code "//trim(num)//")"//LF
+        end if
+
+        if (info%emacs_mule_id >= 0) then
+            write (num, "(i0)") info%emacs_mule_id
+            s = s//"Id in emacs-mule coding system: "//trim(num)//LF
+        end if
+
+        s = s//"Code space: ["
+
+        do i = 1, info%code_space_len
+            write (num, "(i0)") info%code_space(i)
+            if (i > 1) s = s//" "
+            s = s//trim(num)
+        end do
+
+        s = s//"]"//LF
+
+        if (info%has_code_offset) then
+            write (num, "(i0)") info%code_offset
+            s = s//"Code offset: "//trim(num)//LF
+        end if
+
+        if (info%iso_revision_number >= 0 .and. .not. info%internal) then
+            write (num, "(i0)") info%iso_revision_number
+            s = s//"ISO revision number: "//trim(num)//LF
+        end if
+
+        if (info%supplementary_p .and. .not. info%internal) &
+            s = s//"Used only as a parent or a subset of some other charset,"//LF// &
+            "or provided just for backward compatibility."//LF
+        call with_help_window(s, status)
+    end subroutine describe_character_set
+
+    recursive subroutine cmd_describe_character_set(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: charset
+
+        call read_charset("Charset: ", charset, status)
+        if (.not. status%ok()) return
+        call describe_character_set(charset, status)
+    end subroutine cmd_describe_character_set
 end module mule_fm
