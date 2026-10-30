@@ -4274,7 +4274,8 @@ contains
 
     ! Whether there are input command history references at point to
     ! expand (comint-c-a-p-replace-by-expanded-history returns the
-    ! function doing the expansion then).
+    ! function doing the expansion then).  Port of
+    ! comint.el:comint-c-a-p-replace-by-expanded-history, in part.
     recursive logical function history_references_p(silent, start) result(applies)
         logical, intent(in), optional :: silent
         integer(int64), intent(in), optional :: start
@@ -5624,7 +5625,7 @@ contains
     end subroutine file_name_table
 
     ! The current buffer's `comint_unquote_function' and
-    ! `comint_requote_function'.
+    ! `comint_requote_function'.  Not a port.
     subroutine quote_functions(unquote, requote)
         procedure(completion_unquote_proc), pointer, intent(out) :: unquote
         procedure(completion_requote_proc), pointer, intent(out) :: requote
@@ -5640,6 +5641,7 @@ contains
 
     !> Give the current buffer its own `comint_unquote_function' and
     !> `comint_requote_function' (setq-local), UNQUOTE and REQUOTE.
+    !> Not a port.
     subroutine set_comint_quote_functions(unquote, requote)
         procedure(completion_unquote_proc) :: unquote
         procedure(completion_requote_proc) :: requote
@@ -5733,9 +5735,9 @@ contains
 
     !> Expand input command history at point.
     !> For use on `completion_at_point_functions': DATA gives the function
-    !> performing the expansion when there are history references.  Port
-    !> of comint.el:comint-c-a-p-replace-by-expanded-history (SILENT and
-    !> START false).
+    !> performing the expansion when there are history references.
+    !> Port of comint.el:comint-c-a-p-replace-by-expanded-history (SILENT
+    !> and START false).
     recursive subroutine comint_c_a_p_replace_by_expanded_history(data, status)
         type(capf_data_type), intent(out) :: data
         type(status_type), intent(out) :: status

@@ -1406,7 +1406,7 @@ contains
         end if
     end subroutine completion_table_with_predicate
 
-    ! Both predicates of `completion_table_with_predicate'.
+    ! Both predicates of `completion_table_with_predicate'.  Not a port.
     recursive logical function both_preds(elt)
         type(value_type), intent(in) :: elt
         procedure(completion_predicate), pointer :: p2
@@ -1417,7 +1417,7 @@ contains
     end function both_preds
 
     ! Whether PREFIX is a prefix of STRING, ignoring case if IGNORE_CASE
-    ! (string-prefix-p).
+    ! (string-prefix-p).  Not a port.
     logical function prefix_p(prefix, string, ignore_case)
         character(len=*), intent(in) :: prefix, string
         logical, intent(in) :: ignore_case

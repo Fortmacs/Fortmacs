@@ -749,7 +749,8 @@ contains
     end subroutine shell_command_completion_function
 
     ! (pcomplete-entries nil (if shell-completion-execonly
-    ! #'file-executable-p)) as a FORM.
+    ! #'file-executable-p)) as a FORM.  Port of
+    ! shell.el:shell-command-completion-function, in part.
     recursive subroutine executable_entries_form(table, found)
         type(completion_table_type), intent(out) :: table
         logical, intent(out) :: found
@@ -763,13 +764,14 @@ contains
         found = .true.
     end subroutine executable_entries_form
 
+    ! `file_executable_p' as a file predicate.  Not a port.
     recursive logical function executable_p(file)
         character(len=*), intent(in) :: file
 
         executable_p = file_executable_p(file)
     end function executable_p
 
-    ! (nth 2 (shell--command-completion-data)) as a FORM.
+    ! (nth 2 (shell--command-completion-data)) as a FORM.  Not a port.
     recursive subroutine command_names_form(table, found)
         type(completion_table_type), intent(out) :: table
         logical, intent(out) :: found
@@ -780,8 +782,8 @@ contains
         found = .true.
     end subroutine command_names_form
 
-    !> Return the completion data for the command at point, if any.  Port
-    !> of shell.el:shell-command-completion.
+    !> Return the completion data for the command at point, if any.
+    !> Port of shell.el:shell-command-completion.
     recursive subroutine shell_command_completion(data, status)
         type(capf_data_type), intent(out) :: data
         type(status_type), intent(out) :: status
@@ -902,7 +904,7 @@ contains
         data%exit_function => command_exit
     end subroutine command_completion_data
 
-    ! Whether STRING is one of LIST.
+    ! Whether STRING is one of LIST.  Not a port.
     logical function member_string(list, string)
         type(value_type), intent(in) :: list(:)
         character(len=*), intent(in) :: string
@@ -918,7 +920,7 @@ contains
         end do
     end function member_string
 
-    ! Double the size of LIST.
+    ! Double the size of LIST.  Not a port.
     subroutine grow(list)
         type(value_type), allocatable, intent(inout) :: list(:)
         type(value_type), allocatable :: bigger(:)
@@ -933,7 +935,7 @@ contains
         call move_alloc(bigger, list)
     end subroutine grow
 
-    ! Add S at the start of LIST.
+    ! Add S at the start of LIST.  Not a port.
     subroutine push_front(list, s)
         type(process_arg_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
@@ -952,7 +954,8 @@ contains
     end subroutine push_front
 
     ! The table of shell--command-completion-data: file names for a
-    ! string with a slash, else the commands found.
+    ! string with a slash, else the commands found.  Port of
+    ! shell.el:shell--command-completion-data, in part.
     recursive subroutine command_table(string, action, result, status, pred, suffix)
         character(len=*), intent(in) :: string
         integer, intent(in) :: action
@@ -969,7 +972,8 @@ contains
         end if
     end subroutine command_table
 
-    ! The `:exit_function' of shell--command-completion-data.
+    ! The `:exit_function' of shell--command-completion-data.  Port of
+    ! shell.el:shell--command-completion-data, in part.
     recursive subroutine command_exit(string, finished)
         character(len=*), intent(in) :: string
         integer, intent(in) :: finished
@@ -1103,8 +1107,8 @@ contains
         done = shell_dynamic_complete_environment_variable(status)
     end subroutine cmd_shell_dynamic_complete_environment_variable
 
-    !> Completion data for an environment variable at point, if any.  Port
-    !> of shell.el:shell-environment-variable-completion.
+    !> Completion data for an environment variable at point, if any.
+    !> Port of shell.el:shell-environment-variable-completion.
     recursive subroutine shell_environment_variable_completion(data, status)
         type(capf_data_type), intent(out) :: data
         type(status_type), intent(out) :: status
@@ -1157,6 +1161,7 @@ contains
     end subroutine shell_environment_variable_completion
 
     ! The `:exit_function' of `shell_environment_variable_completion'.
+    ! Port of shell.el:shell-environment-variable-completion, in part.
     recursive subroutine variable_exit(string, finished)
         character(len=*), intent(in) :: string
         integer, intent(in) :: finished
@@ -1235,6 +1240,7 @@ contains
     end subroutine shell_c_a_p_replace_by_expanded_directory
 
     ! The function shell-c-a-p-replace-by-expanded-directory returns.
+    ! Port of shell.el:shell-c-a-p-replace-by-expanded-directory, in part.
     recursive logical function expand_directory() result(done)
         type(status_type) :: st
         integer(int64) :: opoint
