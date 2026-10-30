@@ -17,6 +17,9 @@ adaptive_fill_first_line_regexp
 adaptive_fill_mode
 adaptive_fill_regexp
 after_save_hook
+ansi_color_bold_is_bright
+ansi_color_for_comint_mode
+ansi_color_for_compilation_mode
 async_shell_command_buffer
 async_shell_command_display_buffer
 async_shell_command_width
