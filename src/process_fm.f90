@@ -56,8 +56,7 @@
 !> processes (`set_process_thread'); `set_process_window_size';
 !> `process_running_child_p'; adaptive read buffering; `inhibit_sentinels';
 !> the saving of the match data around filters and sentinels; quitting
-!> (C-g) in `accept_process_output'; `list_processes' and the
-!> `process_menu_mode'; `read_process_name' and the interactive form of
+!> (C-g) in `accept_process_output'; `read_process_name' and the interactive form of
 !> `kill_process'; the exec failure of a pty process is reported as an
 !> error, as for a pipe process, not as its output and exit status 126 or
 !> 127; `process-kill-buffer-query-function' (killing a buffer with a

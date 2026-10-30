@@ -101,6 +101,7 @@ module bindings_fm
     use saveplace_fm, only: syms_of_saveplace
     use recentf_fm, only: syms_of_recentf
     use tabulated_list_fm, only: syms_of_tabulated_list
+    use simple_fm, only: syms_of_simple_process
     use bookmark_fm, only: syms_of_bookmark, bookmark_map, bookmark_minibuffer_read_name_map
     use info_fm, only: syms_of_info
     use info_look_fm, only: syms_of_info_look
@@ -331,6 +332,7 @@ contains
         call syms_of_saveplace()
         call syms_of_recentf()
         call syms_of_tabulated_list()
+        call syms_of_simple_process()
         call syms_of_bookmark()
         call syms_of_buff_menu()
         call syms_of_ibuffer()

@@ -747,6 +747,7 @@ module commands_fm
         type(command_type) :: list_bookmarks
         type(command_type) :: list_buffers
         type(command_type) :: list_matching_lines
+        type(command_type) :: list_processes
         type(command_type) :: list_registers
         type(command_type) :: log_edit_comment_search_backward
         type(command_type) :: log_edit_comment_search_forward
@@ -844,6 +845,8 @@ module commands_fm
         type(command_type) :: previous_history_element
         type(command_type) :: previous_line
         type(command_type) :: previous_line_or_history_element
+        type(command_type) :: process_menu_delete_process
+        type(command_type) :: process_menu_mode
         type(command_type) :: prog_mode
         type(command_type) :: query_replace
         type(command_type) :: query_replace_regexp
@@ -1076,7 +1079,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1038) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1041) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1792,6 +1795,7 @@ module commands_fm
                                                                   "list_bookmarks", &
                                                                   "list_buffers", &
                                                                   "list_matching_lines", &
+                                                                  "list_processes", &
                                                                   "list_registers", &
                                                                   "log_edit_comment_search_backward", &
                                                                   "log_edit_comment_search_forward", &
@@ -1889,6 +1893,8 @@ module commands_fm
                                                                   "previous_history_element", &
                                                                   "previous_line", &
                                                                   "previous_line_or_history_element", &
+                                                                  "process_menu_delete_process", &
+                                                                  "process_menu_mode", &
                                                                   "prog_mode", &
                                                                   "query_replace", &
                                                                   "query_replace_regexp", &
@@ -3557,6 +3563,8 @@ contains
             p => commands%list_buffers
         case ("list_matching_lines")
             p => commands%list_matching_lines
+        case ("list_processes")
+            p => commands%list_processes
         case ("list_registers")
             p => commands%list_registers
         case ("log_edit_comment_search_backward")
@@ -3751,6 +3759,10 @@ contains
             p => commands%previous_line
         case ("previous_line_or_history_element")
             p => commands%previous_line_or_history_element
+        case ("process_menu_delete_process")
+            p => commands%process_menu_delete_process
+        case ("process_menu_mode")
+            p => commands%process_menu_mode
         case ("prog_mode")
             p => commands%prog_mode
         case ("query_replace")
