@@ -1,5 +1,7 @@
 ! test_files_fm.f90 -- tests for files_fm, subr_fm, map_ynp_fm and the
 ! command-line part of emacs_fm.
+! Own tests; files-tests.el exercises these functions through file name
+! handlers, the minibuffer and Lisp hooks.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -71,6 +73,7 @@ contains
         if (st%ok()) name = buffers(i)%name
     end function bname
 
+    !> Collect all exported unit tests.
     subroutine collect_files_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

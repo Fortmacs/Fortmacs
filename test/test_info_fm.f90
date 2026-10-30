@@ -1,5 +1,6 @@
 ! test_info_fm.f90 -- tests for info_fm.
-! Ported from GNU Emacs 31.1 test/lisp/info-tests.el.
+! Ports GNU Emacs 31.1 test/lisp/info-tests.el in part; only
+! test-info-urls.
 !
 ! Copyright (C) 2023-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -62,6 +63,7 @@ module test_info_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_info_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

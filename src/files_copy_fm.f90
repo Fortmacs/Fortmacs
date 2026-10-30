@@ -541,6 +541,7 @@ contains
     end function file_modes_number_to_symbolic
 
     !> `rename_file''s directory copy: (copy-directory FILE NEWNAME t nil).
+    !> Not a port.
     recursive subroutine copy_directory_for_rename(directory, newname, status)
         character(len=*), intent(in) :: directory, newname
         type(status_type), intent(out) :: status
@@ -549,6 +550,7 @@ contains
     end subroutine copy_directory_for_rename
 
     !> `rename_file''s deletion of a directory: (delete-directory FILE t).
+    !> Not a port.
     recursive subroutine delete_directory_for_rename(file, status)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
@@ -557,6 +559,7 @@ contains
     end subroutine delete_directory_for_rename
 
     !> `rename_file''s deletion of a file: (delete-file FILE nil).
+    !> Not a port.
     recursive subroutine delete_file_for_rename(file, status)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status

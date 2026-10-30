@@ -251,31 +251,32 @@ module diff_mode_fm
     end type diff_source_location_type
 
     interface
-        !> The current buffer's entry, made if need be.
+        !> The current buffer's entry, made if need be.  Not a port.
         module integer function entry_index() result(k)
             implicit none(type, external)
         end function entry_index
 
         !> (let ((inhibit-read-only t)) ...): bind it, keeping the old value
-        !> in SAVED.
+        !> in SAVED.  Not a port.
         module subroutine bind_inhibit_read_only(saved)
             implicit none(type, external)
             type(value_type), intent(out) :: saved
         end subroutine bind_inhibit_read_only
 
-        !> The end of the binding of `bind_inhibit_read_only'.
+        !> The end of the binding of `bind_inhibit_read_only'.  Not a port.
         module subroutine restore_inhibit_read_only(saved)
             implicit none(type, external)
             type(value_type), intent(in) :: saved
         end subroutine restore_inhibit_read_only
 
         !> Whether the regexp RE matches at point (keeping the match data).
+        !> Not a port.
         module logical function at(re)
             implicit none(type, external)
             character(len=*), intent(in) :: re
         end function at
 
-        !> Search forward for RE (no error); 0 if not found.
+        !> Search forward for RE (no error); 0 if not found.  Not a port.
         module integer(int64) function search_fwd(re, bound, count, move) result(found)
             implicit none(type, external)
             character(len=*), intent(in) :: re
@@ -283,7 +284,7 @@ module diff_mode_fm
             logical, intent(in), optional :: move
         end function search_fwd
 
-        !> Search backward for RE (no error); 0 if not found.
+        !> Search backward for RE (no error); 0 if not found.  Not a port.
         module integer(int64) function search_bwd(re, bound) result(found)
             implicit none(type, external)
             character(len=*), intent(in) :: re
@@ -291,28 +292,31 @@ module diff_mode_fm
         end function search_bwd
 
         !> The beginning and end of match group N (0 if it did not match).
+        !> Not a port.
         module integer(int64) function mb(n)
             implicit none(type, external)
             integer, intent(in) :: n
         end function mb
 
+        ! Not a port.
         module integer(int64) function me(n)
             implicit none(type, external)
             integer, intent(in) :: n
         end function me
 
-        !> The character after point (-1 at the end).
+        !> The character after point (-1 at the end).  Not a port.
         module integer(int32) function char_at_point() result(c)
             implicit none(type, external)
         end function char_at_point
 
         !> The value of the decimal number S (0 if none: string-to-number).
+        !> Not a port.
         module integer(int64) function string_to_number(s) result(n)
             implicit none(type, external)
             character(len=*), intent(in) :: s
         end function string_to_number
 
-        !> N as a decimal string.
+        !> N as a decimal string.  Not a port.
         module function number_to_string(n) result(s)
             implicit none(type, external)
             integer(int64), intent(in) :: n
@@ -397,6 +401,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> kill-all-local-variables: forget the current buffer's entry.
+    !> Not a port.
     subroutine kill_diff_locals()
         logical, allocatable :: keep(:)
         integer :: k
@@ -411,12 +416,12 @@ contains
         diff_buffers = pack(diff_buffers, keep)
     end subroutine kill_diff_locals
 
-    !> The current buffer's diff-buffer-type.
+    !> The current buffer's diff-buffer-type.  Not a port.
     integer function buffer_kind()
         buffer_kind = diff_buffers(entry_index())%kind
     end function buffer_kind
 
-    !> Set the current buffer's diff-default-directory.
+    !> Set the current buffer's diff-default-directory.  Not a port.
     subroutine set_diff_default_directory(dir)
         character(len=*), intent(in) :: dir
 
@@ -625,8 +630,8 @@ contains
 
     !> Move back to the previous hunk beginning, and return its position.
     !> If point is in a file header rather than a hunk, advance to the
-    !> next hunk if TRY_HARDER is true; otherwise signal an error.  Port
-    !> of diff-mode.el:diff-beginning-of-hunk.
+    !> next hunk if TRY_HARDER is true; otherwise signal an error.
+    !> Port of diff-mode.el:diff-beginning-of-hunk.
     recursive integer(int64) function diff_beginning_of_hunk(status, try_harder) result(pos)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: try_harder
@@ -720,12 +725,13 @@ contains
         pos = point()
     end function diff_end_of_file
 
-    !> diff-end-of-hunk as the ENDFUN of the hunk navigation.
+    !> diff-end-of-hunk as the ENDFUN of the hunk navigation.  Not a port.
     recursive integer(int64) function end_of_hunk_fun() result(pos)
         pos = diff_end_of_hunk()
     end function end_of_hunk_fun
 
     !> diff-restrict-view as the NARROWFUN of the hunk navigation.
+    !> Not a port.
     recursive subroutine restrict_view_fun(status)
         type(status_type), intent(out) :: status
 
@@ -762,7 +768,7 @@ contains
         call easy_mmode_prev(diff_hunk_header_re, "hunk", n, status, end_of_hunk_fun, restrict_view_fun)
     end subroutine diff_hunk_prev
 
-    !> diff-end-of-file as the ENDFUN of the file navigation.
+    !> diff-end-of-file as the ENDFUN of the file navigation.  Not a port.
     recursive integer(int64) function end_of_file_fun() result(pos)
         pos = diff_end_of_file()
     end function end_of_file_fun
@@ -902,8 +908,8 @@ contains
     !>
     !> When called from programs with BEG and END, kill all hunks
     !> overlapped by the region from BEG to END as though called
-    !> interactively with an active region delimited by BEG and END.  Port
-    !> of diff-mode.el:diff-hunk-kill.
+    !> interactively with an active region delimited by BEG and END.
+    !> Port of diff-mode.el:diff-hunk-kill.
     recursive subroutine diff_hunk_kill(status, beg, end)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: beg, end
@@ -1556,7 +1562,7 @@ contains
         end subroutine push
     end subroutine diff_hunk_file_names
 
-    !> Whether the lists of names A and B are `equal'.
+    !> Whether the lists of names A and B are `equal'.  Not a port.
     logical function same_names(a, b)
         type(diff_name_type), intent(in) :: a(:), b(:)
         integer :: k
@@ -1574,8 +1580,8 @@ contains
 
     !> Return the file corresponding to the current patch (FOUND false
     !> for none).  OLD true means that we want the old file.  NOPROMPT
-    !> true means to prefer returning nil than to prompt the user.  Port
-    !> of diff-mode.el:diff-find-file-name (no cvs-pcl-cvs).
+    !> true means to prefer returning nil than to prompt the user.
+    !> Port of diff-mode.el:diff-find-file-name (no cvs-pcl-cvs).
     recursive subroutine diff_find_file_name(file, found, status, old, noprompt)
         use minibuffer_fm, only: read_file_name, REQUIRE_MATCH_NIL, REQUIRE_MATCH_T
         character(len=:), allocatable, intent(out) :: file
@@ -1794,7 +1800,7 @@ contains
         if (present(rev2)) diff_buffers(k)%vc_rev2 = rev2
     end subroutine set_diff_vc_backend
 
-    !> The current buffer's `diff_vc_backend' ("" for nil).
+    !> The current buffer's `diff_vc_backend' ("" for nil).  Not a port.
     function diff_vc_backend() result(name)
         character(len=:), allocatable :: name
         integer :: k
@@ -1833,7 +1839,7 @@ contains
     end subroutine diff_next_error
 
     !> `read_only_mode_hook' in Diff buffers: diff-mode-read-only follows
-    !> buffer-read-only.
+    !> buffer-read-only.  Not a port.
     recursive subroutine track_read_only(status)
         type(status_type), intent(out) :: status
 
@@ -1961,7 +1967,7 @@ contains
     !> The face of the "!" line of a context diff at point: added after
     !> the hunk's middle header, else removed (diff-use-changed-face is
     !> false: `diff_changed' is not distinct).  INDICATOR asks for the
-    !> indicator face.
+    !> indicator face.  Not a port.
     subroutine bang_face(face, indicator)
         character(len=:), allocatable, intent(out) :: face
         logical, intent(in) :: indicator
@@ -1992,7 +1998,7 @@ contains
         call restore_match(mb0, me0)
     end subroutine bang_face
 
-    !> Put the match data back to [MB0, ME0) of the "!" line.
+    !> Put the match data back to [MB0, ME0) of the "!" line.  Not a port.
     subroutine restore_match(mb0, me0)
         integer(int64), intent(in) :: mb0, me0
         integer(int64) :: saved, found
@@ -2003,12 +2009,14 @@ contains
         call goto_char(saved)
     end subroutine restore_match
 
+    ! Not a port.
     subroutine bang_indicator_face(face)
         character(len=:), allocatable, intent(out) :: face
 
         call bang_face(face, .true.)
     end subroutine bang_indicator_face
 
+    ! Not a port.
     subroutine bang_line_face(face)
         character(len=:), allocatable, intent(out) :: face
 
@@ -2016,7 +2024,7 @@ contains
     end subroutine bang_line_face
 
     !> The file name of a header line gets `diff_file_header' unless it
-    !> is the "*** ... ****"/"--- ... ----" of a context hunk.
+    !> is the "*** ... ****"/"--- ... ----" of a context hunk.  Not a port.
     subroutine file_header_name_face(face)
         character(len=:), allocatable, intent(out) :: face
 
@@ -2080,6 +2088,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The region if it is active (interactive "R"), else absent.
+    !> Not a port.
     subroutine region_args(have, beg, end)
         logical, intent(out) :: have
         integer(int64), intent(out) :: beg, end
@@ -2095,7 +2104,7 @@ contains
         end if
     end subroutine region_args
 
-    !> The prefix numeric value (interactive "p").
+    !> The prefix numeric value (interactive "p").  Not a port.
     integer(int64) function p_arg()
         p_arg = prefix_numeric_value(current_prefix_arg)
     end function p_arg
@@ -2252,7 +2261,7 @@ contains
     ! Definitions
     ! ------------------------------------------------------------------
 
-    !> The faces of diff-mode.el.
+    !> The faces of diff-mode.el.  Not a port.
     subroutine define_faces()
         type(named_face_type), pointer :: f
         integer, parameter :: C = FACE_CLASS_COLOR, L = FACE_BACKGROUND_LIGHT, D = FACE_BACKGROUND_DARK
@@ -2338,6 +2347,7 @@ contains
     end subroutine define_faces
 
     !> Define Diff mode, its keymaps and faces, and register the commands.
+    !> Not a port.
     subroutine syms_of_diff_mode()
         type(status_type) :: st
 

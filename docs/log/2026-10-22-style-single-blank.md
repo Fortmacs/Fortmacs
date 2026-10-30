@@ -1,0 +1,1 @@
+2026-10-22 — Style: one blank line at most (none between a procedure's start or end and its body, one between procedures); `check.sh` no longer needs a copy for fprettify. On `style-single-blank` (based on main after PR #32). Next: features, in whatever order the user asks for.

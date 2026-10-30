@@ -87,7 +87,7 @@ module help_fns_fm
 contains
 
     !> Whether `name' is a function help knows: a documented one or a
-    !> command.
+    !> command.  Not a port.
     logical function function_known_p(name)
         character(len=*), intent(in) :: name
         integer :: k
@@ -101,7 +101,7 @@ contains
         function_known_p = fboundp(sym(name))
     end function function_known_p
 
-    !> Completion predicate for `describe_function'.
+    !> Completion predicate for `describe_function'.  Not a port.
     logical function function_symbol_p(elt)
         type(value_type), intent(in) :: elt
         character(len=:), allocatable :: name
@@ -113,7 +113,7 @@ contains
     end function function_symbol_p
 
     !> Whether event `ev' has no modifiers but shift: its
-    !> `event_modifiers' are nil or (shift).
+    !> `event_modifiers' are nil or (shift).  Not a port.
     logical function unmodified_event_p(ev)
         type(value_type), intent(in) :: ev
         type(value_type) :: head
@@ -230,7 +230,7 @@ contains
 
     !> `text' filled as a paragraph (help-fns.el fills its lines in the
     !> help buffer with fill-region-as-paragraph); `nosqueeze' keeps its
-    !> spaces.
+    !> spaces.  Not a port.
     function fill_text(text, nosqueeze) result(filled)
         character(len=*), intent(in) :: text
         logical, intent(in) :: nosqueeze
@@ -436,6 +436,7 @@ contains
     end subroutine cmd_describe_variable
 
     !> Whether `name' is a variable help knows (a documented one).
+    !> Not a port.
     logical function variable_known_p(name)
         character(len=*), intent(in) :: name
         integer :: k
@@ -572,7 +573,7 @@ contains
         end subroutine minor_modes
     end subroutine describe_mode_text
 
-    !> The index of the minor mode named `name'.
+    !> The index of the minor mode named `name'.  Not a port.
     integer function minor_mode_index_of(name) result(k)
         character(len=*), intent(in) :: name
         type(minor_mode_type), pointer :: m
@@ -586,7 +587,7 @@ contains
     end function minor_mode_index_of
 
     !> The name of minor mode `name' as describe-mode shows it: without
-    !> "_mode" or "_minor_mode" at the end, capitalized.
+    !> "_mode" or "_minor_mode" at the end, capitalized.  Not a port.
     function pretty_minor_mode(name) result(pretty)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: pretty
@@ -658,7 +659,7 @@ contains
     end subroutine describe_symbol
 
     !> Completion predicate for `describe_symbol': a function or a
-    !> variable.
+    !> variable.  Not a port.
     logical function symbol_known_p(elt)
         type(value_type), intent(in) :: elt
         character(len=:), allocatable :: name
@@ -727,6 +728,7 @@ contains
 
     !> Register the commands, intern the documented function and variable
     !> names (for completion and apropos) and install `describe_function_1' for describe-key.
+    !> Not a port.
     subroutine syms_of_help_fns()
         type(value_type) :: s
         integer :: k

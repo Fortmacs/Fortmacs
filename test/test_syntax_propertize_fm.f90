@@ -1,4 +1,6 @@
-! test_syntax_propertize_fm.f90 -- tests for syntax-propertize and syntax-ppss.
+! test_syntax_propertize_fm.f90 -- tests for syntax-propertize and
+! syntax-ppss.
+! Ports GNU Emacs 31.1 test/lisp/emacs-lisp/syntax-tests.el.
 !
 ! Copyright (C) 2021-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -54,6 +56,7 @@ module test_syntax_propertize_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_syntax_propertize_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

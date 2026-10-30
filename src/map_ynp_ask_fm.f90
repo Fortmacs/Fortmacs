@@ -236,7 +236,7 @@ contains
     end subroutine map_y_or_n_p
 
     !> Make `ynp_remap' (the remap keymap of map-y-or-n-p's minibuffer
-    !> path, flattened: keymap_fm has no command remapping).
+    !> path, flattened: keymap_fm has no command remapping).  Not a port.
     subroutine init_remap()
         type(value_type) :: key1(1)
         type(value_type), allocatable :: seq(:)
@@ -277,7 +277,7 @@ contains
         end do
     end subroutine init_remap
 
-    !> cmd-char: record the keys and exit the minibuffer.
+    !> cmd-char: record the keys and exit the minibuffer.  Not a port.
     subroutine ynp_char(status)
         type(status_type), intent(out) :: status
 
@@ -285,7 +285,7 @@ contains
         call exit_minibuffer(status)
     end subroutine ynp_char
 
-    !> cmd-help: say how to get help.
+    !> cmd-help: say how to get help.  Not a port.
     subroutine ynp_help(status)
         type(status_type), intent(out) :: status
 
@@ -430,7 +430,7 @@ contains
     end subroutine read_answer
 
     !> A short answer's key in read-answer's minibuffer: replace the input
-    !> with the long answer it stands for and exit.
+    !> with the long answer it stands for and exit.  Not a port.
     subroutine answer_select(status)
         type(status_type), intent(out) :: status
         integer :: k
@@ -450,7 +450,7 @@ contains
     end subroutine answer_select
 
     !> Any other key that would insert itself: clear the input, ring the
-    !> bell and show the message.
+    !> bell and show the message.  Not a port.
     subroutine answer_reject(status)
         type(status_type), intent(out) :: status
 
@@ -460,7 +460,7 @@ contains
         call sit_for(2000)
     end subroutine answer_reject
 
-    !> The text of character C.
+    !> The text of character C.  Not a port.
     function char_string_of(c) result(text)
         integer, intent(in) :: c
         character(len=:), allocatable :: text
@@ -472,7 +472,7 @@ contains
         text = buf(1:n)
     end function char_string_of
 
-    !> The character of event EV, or 0.
+    !> The character of event EV, or 0.  Not a port.
     integer(int64) function xfixnum_or_zero(ev) result(c)
         type(value_type), intent(in) :: ev
 

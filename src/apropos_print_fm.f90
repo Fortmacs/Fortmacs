@@ -176,7 +176,7 @@ contains
         hit = .true.
     end function documentation_internal
 
-    !> The first line of `doc'.
+    !> The first line of `doc'.  Not a port.
     function first_line(doc) result(s)
         character(len=*), intent(in) :: doc
         character(len=:), allocatable :: s
@@ -437,7 +437,7 @@ contains
         end subroutine mark_entries
     end subroutine apropos_print
 
-    !> The label of an apropos button type.
+    !> The label of an apropos button type.  Not a port.
     function type_label(type) result(label)
         character(len=*), intent(in) :: type
         character(len=:), allocatable :: label
@@ -456,6 +456,7 @@ contains
 
     !> Whether `a' sorts before `b': by name (string_lessp), or by score
     !> first when sorting by scores (only `apropos_documentation').
+    !> Not a port.
     logical function item_less(a, b, by_score)
         type(apropos_item_type), intent(in) :: a, b
         logical, intent(in) :: by_score
@@ -496,7 +497,7 @@ contains
         s = value(1:k - 1)//ELLIPSIS
     end function truncated
 
-    !> The number of characters in UTF-8 `s'.
+    !> The number of characters in UTF-8 `s'.  Not a port.
     integer function nchars(s) result(n)
         character(len=*), intent(in) :: s
         integer :: k
@@ -509,7 +510,7 @@ contains
     end function nchars
 
     !> The column at the end of `text' (characters since its last newline,
-    !> tabs to multiples of 8).
+    !> tabs to multiples of 8).  Not a port.
     integer function current_column(text) result(col)
         character(len=*), intent(in) :: text
         integer :: k
@@ -526,7 +527,7 @@ contains
     end function current_column
 
     !> What indent-to inserts at column `from' to reach `column', at least
-    !> `minimum' spaces, with tabs (indent-tabs-mode).
+    !> `minimum' spaces, with tabs (indent-tabs-mode).  Not a port.
     function indent_to(from, column, minimum) result(s)
         integer, intent(in) :: from, column, minimum
         character(len=:), allocatable :: s
@@ -547,7 +548,7 @@ contains
 
     !> LINE followed by DOC, the doc filled with a fill column of 70 and a
     !> fill prefix of OCOL spaces, as apropos-print-doc fills it
-    !> (fill-region with NOSQUEEZE).
+    !> (fill-region with NOSQUEEZE).  Not a port.
     function fill_doc(line, doc, ocol) result(out)
         character(len=*), intent(in) :: line, doc
         integer, intent(in) :: ocol

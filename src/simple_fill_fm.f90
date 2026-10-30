@@ -178,7 +178,7 @@ contains
     end procedure do_auto_fill
 
     ! (save-excursion (goto-char FILL-POINT) (default-indent-new-line t)),
-    ! point kept with a marker.
+    ! point kept with a marker.  Not a port.
     subroutine save_excursion_newline_at(fill_point, status)
         integer(int64), intent(in) :: fill_point
         type(status_type), intent(out) :: status
@@ -306,6 +306,7 @@ contains
     !> delete the left margin from a line the newline left blank, and
     !> indent the new line.  The newline-postproc of simple.el:newline
     !> (`use_hard_newlines' is not ported).
+    !> Port of simple.el:newline, in part.
     recursive subroutine newline_postproc(status)
         type(status_type), intent(out) :: status
         logical :: blank
@@ -446,6 +447,7 @@ contains
 
     !> auto-fill-mode's :variable setter: set `auto_fill_function'
     !> (buffer-locally) to `normal_auto_fill_function' or nil.
+    !> Port of simple.el:auto-fill-mode, in part (its :variable setter).
     subroutine auto_fill_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status

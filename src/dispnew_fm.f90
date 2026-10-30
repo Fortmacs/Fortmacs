@@ -69,6 +69,7 @@ contains
     ! Matrices
     ! ------------------------------------------------------------------
 
+    ! Allocate M with NROWS blank rows of NCOLS glyphs.  Not a port.
     subroutine allocate_matrix(m, nrows, ncols)
         type(glyph_matrix_type), intent(inout) :: m
         integer, intent(in) :: nrows, ncols
@@ -141,7 +142,7 @@ contains
 
     !> Make row `vpos' of the desired matrix show `glyphs' (at most a
     !> line; the rest of the line is blank).  What redisplay does through
-    !> its iterator; not a port.
+    !> its iterator.  Not a port.
     subroutine set_desired_row(f, vpos, glyphs)
         type(frame_type), intent(inout) :: f
         integer, intent(in) :: vpos
@@ -219,6 +220,7 @@ contains
     end function count_match
 
     !> Write `body(first+1:first+n)' at column `first' of row `vpos'.
+    !> Not a port.
     subroutine write_at(f, vpos, first, body, n)
         type(frame_type), intent(inout) :: f
         integer, intent(in) :: vpos, first, n
@@ -443,6 +445,7 @@ contains
     end subroutine write_row
 
     !> dispnew.c's char_ins_del_cost (f)[k].
+    !> Port of dispnew.c:char_ins_del_cost.
     integer function ins_del_cost(f, k)
         type(frame_type), intent(in) :: f
         integer, intent(in) :: k
@@ -528,6 +531,7 @@ contains
 
     !> Ring the bell of the selected frame's terminal; nothing without
     !> one.  The terminal's ring_bell_hook (term.c:tty_ring_bell).
+    !> Not a port.
     subroutine frame_ring_bell()
         if (selected_frame%tty%output < 0) return
         call tty_ring_bell(selected_frame%tty)
