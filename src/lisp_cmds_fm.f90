@@ -104,25 +104,32 @@ contains
         procedure(forward_sexp_proc), optional :: fn
         type(forward_sexp_entry_type), allocatable :: grown(:)
         integer :: i, n
+
         if (cur == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
         i = local_entry(self)
+
         if (i == 0) then
             do i = 1, size(self%entries)
                 if (.not. buffer_serial_live(self%entries(i)%serial)) exit
             end do
+
             if (i > size(self%entries)) then
                 n = size(self%entries)
                 allocate (grown(n + 1))
+
                 do i = 1, n
                     grown(i)%serial = self%entries(i)%serial
                     grown(i)%fn => self%entries(i)%fn
                 end do
+
                 call move_alloc(grown, self%entries)
                 i = n + 1
             end if
+
             self%entries(i)%serial = buffers(cur)%serial
         end if
+
         if (present(fn)) then
             self%entries(i)%fn => fn
         else
@@ -133,13 +140,16 @@ contains
     ! The index of the current buffer's entry, 0 if none.
     integer function local_entry(self) result(i)
         class(forward_sexp_function_type), intent(in) :: self
+
         if (cur == 0 .or. .not. allocated(self%entries)) then
             i = 0
             return
         end if
+
         do i = 1, size(self%entries)
             if (self%entries(i)%serial == buffers(cur)%serial) return
         end do
+
         i = 0
     end function local_entry
 
@@ -147,7 +157,9 @@ contains
         class(forward_sexp_function_type), intent(in) :: self
         procedure(forward_sexp_proc), pointer :: fn
         integer :: i
+
         i = local_entry(self)
+
         if (i > 0) then
             fn => self%entries(i)%fn
         else
@@ -157,12 +169,14 @@ contains
 
     logical function forward_sexp_local_p(self)
         class(forward_sexp_function_type), intent(in) :: self
+
         forward_sexp_local_p = local_entry(self) > 0
     end function forward_sexp_local_p
 
     subroutine forward_sexp_kill_local(self)
         class(forward_sexp_function_type), intent(inout) :: self
         integer :: i
+
         i = local_entry(self)
         if (i == 0) return
         self%entries(i)%serial = 0
@@ -179,6 +193,7 @@ contains
     !> positive, else its start.  Port of subr.el:buffer-end.
     integer(int64) function buffer_end(arg)
         integer(int64), intent(in) :: arg
+
         if (arg > 0) then
             buffer_end = point_max()
         else
@@ -192,6 +207,7 @@ contains
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         integer(int64) :: pos
+
         pos = scan_sexps(point(), arg, status)
         if (.not. status%ok()) return
         if (pos == 0) pos = buffer_end(arg)
@@ -215,13 +231,17 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
         procedure(forward_sexp_proc), pointer :: fn
+
         fn => forward_sexp_function%get()
+
         if (associated(fn)) then
             call fn(arg, status)
         else
             call forward_sexp_default_function(arg, status)
         end if
+
         if (.not. present(interactive)) return
+
         if (interactive .and. status%code == FM_SCAN_ERROR) then
             if (arg > 0) then
                 call set_error(status, FM_USER_ERROR, "No next sexp")
@@ -243,6 +263,7 @@ contains
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
+
         call forward_sexp(-arg, status, interactive)
     end subroutine backward_sexp
 
@@ -260,13 +281,17 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
         integer(int64) :: pos
+
         pos = scan_lists(point(), arg, 0_int64, status)
+
         if (status%ok()) then
             if (pos == 0) pos = buffer_end(arg)
             call goto_char(pos)
             return
         end if
+
         if (.not. present(interactive)) return
+
         if (interactive .and. status%code == FM_SCAN_ERROR) then
             if (arg > 0) then
                 call set_error(status, FM_USER_ERROR, "No next group")
@@ -290,6 +315,7 @@ contains
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
+
         call forward_list(-arg, status, interactive)
     end subroutine backward_list
 
@@ -308,15 +334,19 @@ contains
         logical, intent(in), optional :: interactive
         type(parse_state_type) :: ppss
         integer(int64) :: n, inc, pos
+
         status = status_type()
         call syntax_ppss(ppss)
+
         if (ppss%comstr_start /= 0) then
             call set_error(status, FM_USER_ERROR, "This command doesn't work in strings or comments")
             return
         end if
+
         n = arg
         inc = -1
         if (n > 0) inc = 1
+
         do while (n /= 0)
             pos = scan_lists(point(), inc, -1_int64, status)
             if (.not. status%ok()) exit
@@ -324,6 +354,7 @@ contains
             call goto_char(pos)
             n = n - inc
         end do
+
         if (.not. present(interactive)) return
         if (interactive .and. status%code == FM_SCAN_ERROR) call set_error(status, FM_USER_ERROR, "At bottom level")
     end subroutine down_list
@@ -347,6 +378,7 @@ contains
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: escape_strings, no_syntax_crossing
+
         call up_list(-arg, status, escape_strings, no_syntax_crossing)
     end subroutine backward_up_list
 
@@ -377,6 +409,7 @@ contains
         character(len=:), allocatable :: message
         integer(int64) :: beg, end
         character(len=24) :: buf
+
         escape = .false.
         if (present(escape_strings)) escape = escape_strings
         crossing = .false.
@@ -385,21 +418,26 @@ contains
         n = arg
         inc = -1
         if (n > 0) inc = 1
+
         do while (n /= 0)
             ! (save-restriction ...)
             savedb = buffers(cur)%begv
             savedz = buffers(cur)%text%z - buffers(cur)%zv
+
             ! If we've been asked not to cross string boundaries and we're
             ! inside a string, narrow to that string so that scan-lists
             ! doesn't find a match in a different string.
             if (crossing) then
                 call syntax_ppss(syntax)
+
                 if (syntax%comstr_start /= 0) then
                     opoint = point()
                     call goto_char(syntax%comstr_start)
+
                     if (syntax%instring /= -1) then
                         ! In string.
                         call forward_sexp(1_int64, st)
+
                         if (st%code == FM_SCAN_ERROR) then
                             limit = point_max()
                         else
@@ -409,15 +447,19 @@ contains
                         ok = forward_comment(1_int64)
                         limit = point()
                     end if
+
                     call narrow_to_region(syntax%comstr_start, limit, st)
                     call goto_char(opoint)
                 end if
             end if
+
             fn => forward_sexp_function%get()
             default_fn = .not. associated(fn)
             if (.not. default_fn) default_fn = associated(fn, forward_sexp_default_function)
+
             if (default_fn) then
                 pos = scan_lists(point(), inc, 1_int64, status)
+
                 if (status%ok()) then
                     if (pos == 0) pos = buffer_end(n)
                     call goto_char(pos)
@@ -429,56 +471,69 @@ contains
                     if (.not. status%ok()) exit
                     if (point() == pos) exit
                 end do
+
                 if (status%code == FM_SCAN_ERROR) then
                     call scan_error_data(status, message, beg, end)
                     status = status_type()
+
                     if (n > 0) then
                         call goto_char(end)
                     else
                         call goto_char(beg)
                     end if
                 end if
+
                 if (status%ok() .and. point() == pos) then
                     write (buf, "(i0)") point()
                     call set_error(status, FM_SCAN_ERROR, """Unbalanced parentheses"", "//trim(buf)//", "//trim(buf))
                 end if
             end if
+
             call widen()
             call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
+
             if (status%code == FM_SCAN_ERROR) then
                 handled = .false.
                 have_syntax = .false.
+
                 ! If we bumped up against the end of a list, see whether
                 ! we're inside a string: if so, just go to the beginning or
                 ! end of that string.
                 if (escape) then
                     call syntax_ppss(syntax)
                     have_syntax = .true.
+
                     if (syntax%instring /= -1) then
                         call goto_char(syntax%comstr_start)
+
                         if (inc > 0) then
                             call forward_sexp(1_int64, status)
                             if (.not. status%ok()) return
                         end if
+
                         handled = .true.
                     end if
                 end if
+
                 ! If we narrowed to a comment above and failed to escape it,
                 ! the error might be our fault, not an indication that we're
                 ! out of syntax.  Try again from beginning or end of the
                 ! comment.
                 if (.not. handled .and. crossing) then
                     if (.not. have_syntax) call syntax_ppss(syntax)
+
                     if (syntax%incomment /= 0) then
                         call goto_char(syntax%comstr_start)
                         ok = inc < 0
                         if (.not. ok) ok = forward_comment(1_int64)
+
                         if (ok) then
                             n = n + inc
                             handled = .true.
                         end if
                     end if
                 end if
+
                 if (handled) then
                     status = status_type()
                 else if (crossing) then
@@ -491,6 +546,7 @@ contains
             else if (.not. status%ok()) then
                 return
             end if
+
             n = n - inc
         end do
     end subroutine up_list
@@ -507,13 +563,17 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
         integer(int64) :: opoint
+
         opoint = point()
         call forward_sexp(arg, status)
+
         if (status%ok()) then
             call kill_region(opoint, point(), status)
             return
         end if
+
         if (.not. present(interactive)) return
+
         if (interactive .and. status%code == FM_SCAN_ERROR) then
             if (arg > 0) then
                 call set_error(status, FM_USER_ERROR, "No next sexp")
@@ -534,6 +594,7 @@ contains
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
+
         call kill_sexp(-arg, status, interactive)
     end subroutine backward_kill_sexp
 
@@ -560,8 +621,10 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: opoint, n, target
         logical :: extend
+
         opoint = point()
         extend = .false.
+
         if (allow_extend) then
             if (value_eq(last_command, this_command) .and. mark_position() /= 0) then
                 extend = .true.
@@ -569,6 +632,7 @@ contains
                 extend = .true.
             end if
         end if
+
         if (extend) then
             if (have_arg) then
                 n = arg
@@ -577,23 +641,28 @@ contains
             else
                 n = 1
             end if
+
             call goto_char(mark_position())
             call forward_sexp(n, status)
             target = point()
             call goto_char(opoint)
+
             if (.not. status%ok()) then
                 call to_user_error("No more sexp to select")
                 return
             end if
+
             call set_mark(target)
         else
             call forward_sexp(arg, status)
             target = point()
             call goto_char(opoint)
+
             if (.not. status%ok()) then
                 call to_user_error("No sexp to select")
                 return
             end if
+
             call push_mark(target, nomsg=.false., activate=.true.)
         end if
 
@@ -606,8 +675,10 @@ contains
             character(len=*), intent(in) :: premature
             character(len=:), allocatable :: message
             integer(int64) :: beg, end
+
             if (status%code /= FM_SCAN_ERROR) return
             call scan_error_data(status, message, beg, end)
+
             if (message == "Containing expression ends prematurely") then
                 call set_error(status, FM_USER_ERROR, premature)
             else
@@ -618,51 +689,61 @@ contains
 
     subroutine cmd_forward_sexp(status)
         type(status_type), intent(out) :: status
+
         call forward_sexp(prefix_numeric_value(current_prefix_arg), status, .true.)
     end subroutine cmd_forward_sexp
 
     subroutine cmd_backward_sexp(status)
         type(status_type), intent(out) :: status
+
         call backward_sexp(prefix_numeric_value(current_prefix_arg), status, .true.)
     end subroutine cmd_backward_sexp
 
     subroutine cmd_forward_list(status)
         type(status_type), intent(out) :: status
+
         call forward_list(prefix_numeric_value(current_prefix_arg), status, .true.)
     end subroutine cmd_forward_list
 
     subroutine cmd_backward_list(status)
         type(status_type), intent(out) :: status
+
         call backward_list(prefix_numeric_value(current_prefix_arg), status, .true.)
     end subroutine cmd_backward_list
 
     subroutine cmd_down_list(status)
         type(status_type), intent(out) :: status
+
         call down_list(prefix_numeric_value(current_prefix_arg), status, .true.)
     end subroutine cmd_down_list
 
     subroutine cmd_up_list(status)
         type(status_type), intent(out) :: status
+
         call up_list(prefix_numeric_value(current_prefix_arg), status, .true., .true.)
     end subroutine cmd_up_list
 
     subroutine cmd_backward_up_list(status)
         type(status_type), intent(out) :: status
+
         call backward_up_list(prefix_numeric_value(current_prefix_arg), status, .true., .true.)
     end subroutine cmd_backward_up_list
 
     subroutine cmd_kill_sexp(status)
         type(status_type), intent(out) :: status
+
         call kill_sexp(prefix_numeric_value(current_prefix_arg), status, .true.)
     end subroutine cmd_kill_sexp
 
     subroutine cmd_backward_kill_sexp(status)
         type(status_type), intent(out) :: status
+
         call backward_kill_sexp(prefix_numeric_value(current_prefix_arg), status, .true.)
     end subroutine cmd_backward_kill_sexp
 
     subroutine cmd_mark_sexp(status)
         type(status_type), intent(out) :: status
+
         call mark_sexp(prefix_numeric_value(current_prefix_arg),.not. nilp(current_prefix_arg), .true., status)
     end subroutine cmd_mark_sexp
 

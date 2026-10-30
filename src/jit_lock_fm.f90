@@ -122,8 +122,10 @@ contains
     subroutine set_jit_lock_mode(arg)
         logical, intent(in) :: arg
         integer(int64), allocatable :: kept(:)
+
         if (cur == 0) return
         if (.not. allocated(on)) allocate (on(0))
+
         if (arg) then
             if (.not. any(on == buffers(cur)%serial)) on = [on, buffers(cur)%serial]
         else
@@ -154,8 +156,10 @@ contains
     subroutine jit_lock_mode(arg, status)
         logical, intent(in) :: arg
         type(status_type), intent(out) :: status
+
         status = status_type()
         call set_jit_lock_mode(arg)
+
         if (arg) then
             ! Turn Just-in-time Lock mode on.
             ! Mark the buffer for refontification.
@@ -187,6 +191,7 @@ contains
             end subroutine fun
         end interface
         type(status_type), intent(out) :: status
+
         call jit_lock_functions%add(fun, local=.true.)
         call jit_lock_mode(.true., status)
     end subroutine jit_lock_register
@@ -206,6 +211,7 @@ contains
         end interface
         type(status_type), intent(out) :: status
         type(region_entry_type), allocatable :: fns(:)
+
         status = status_type()
         call jit_lock_functions%remove(fun, local=.true.)
         fns = jit_lock_functions%functions()
@@ -219,6 +225,7 @@ contains
         integer(int64), intent(in), optional :: beg, end
         type(silent_modifications_type) :: silent
         integer(int64) :: begv, zv, b, e
+
         call silent_modifications_begin(silent)
         begv = buffers(cur)%begv
         zv = buffers(cur)%zv
@@ -241,6 +248,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: cend, vend
         logical :: found
+
         status = status_type()
         if (.not. jit_lock_mode_p()) return
         ! No deferral.
@@ -263,6 +271,7 @@ contains
         integer(int64) :: this_beg, this_end
         logical :: have_tight
         integer :: i
+
         status = status_type()
         have_tight = .false.
         tight_beg = beg
@@ -270,11 +279,13 @@ contains
         loose_beg = beg
         loose_end = end
         fns = jit_lock_functions%functions()
+
         do i = 1, size(fns)
             this_beg = beg
             this_end = end
             call fns(i)%fn(beg, end, this_beg, this_end, status)
             if (.not. status%ok()) return
+
             ! If all functions don't fontify the same region, we currently
             ! just try to "still be correct".
             if (.not. have_tight) then
@@ -285,9 +296,11 @@ contains
                 tight_beg = max(tight_beg, this_beg)
                 tight_end = min(tight_end, this_end)
             end if
+
             loose_beg = min(loose_beg, this_beg)
             loose_end = max(loose_end, this_end)
         end do
+
         if (.not. have_tight) then
             tight_beg = beg
             tight_end = end
@@ -308,6 +321,7 @@ contains
         integer(int64) :: start, end, next, pt, tight_beg, tight_end, loose_beg, loose_end, pos
         logical :: found
         type(status_type) :: st
+
         status = status_type()
         call silent_modifications_begin(silent)
         pt = point()
@@ -320,10 +334,12 @@ contains
         ! END, or the start of a region before END that has already been
         ! fontified.
         found = .true.
+
         do while (found .and. start < end)
             ! Determine the end of this chunk.
             call text_property_any(start, end, sym("fontified"), t_value(), next, found, status)
             if (.not. found) next = end
+
             ! Avoid unnecessary work if the chunk is empty.
             if (next > start) then
                 ! Fontify the chunk, and mark it as fontified.  We mark it
@@ -332,18 +348,22 @@ contains
                 call put_text_property(start, next, sym("fontified"), t_value(), status)
                 call jit_lock_run_functions(start, next, tight_beg, tight_end, loose_beg, loose_end, status)
                 if (.not. status%ok()) exit
+
                 ! In case we fontified more than requested, take advantage
                 ! of the good news.
                 if (tight_beg < start .or. tight_end > next) then
                     call put_text_property(tight_beg, tight_end, sym("fontified"), t_value(), st)
                 end if
+
                 ! Skip to the end of the fully refontified part.
                 start = tight_end
             end if
+
             ! Find the start of the next chunk, if any.
             call text_property_any(start, end, sym("fontified"), nil(), pos, found, st)
             start = pos
         end do
+
         call set_match_data(saved_match)
         call goto_char(pt)
         call silent_modifications_end(silent)
@@ -362,6 +382,7 @@ contains
         type(status_type), intent(out) :: status
         type(silent_modifications_type) :: silent
         integer(int64) :: begv, zv, saved_start, saved_end
+
         status = status_type()
         if (.not. jit_lock_mode_p()) return
         saved_start = jit_lock_start
@@ -370,6 +391,7 @@ contains
         jit_lock_end = end
         call silent_modifications_begin(silent)
         call jit_lock_after_change_extend_region_functions%run(start, end, old_len, status)
+
         if (status%ok()) then
             ! Make sure we change at least one char (in case of deletions).
             jit_lock_end = min(max(jit_lock_end, start + 1), point_max())
@@ -380,6 +402,7 @@ contains
             call put_text_property(jit_lock_start, jit_lock_end, sym("fontified"), nil(), status)
             call narrow_to_region(begv, zv, status)
         end if
+
         call silent_modifications_end(silent)
         jit_lock_start = saved_start
         jit_lock_end = saved_end

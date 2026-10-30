@@ -63,6 +63,7 @@ contains
     !> Build text-mode-syntax-table.
     subroutine init_text_mode_syntax_table()
         type(status_type) :: st
+
         call make_syntax_table(text_mode_syntax_table, st)
         call modify_syntax_entry(iachar('"'), iachar('"'), ".   ", st, text_mode_syntax_table)
         call modify_syntax_entry(iachar("\"), iachar("\"), ".   ", st, text_mode_syntax_table)
@@ -89,6 +90,7 @@ contains
     recursive subroutine text_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
+
         if (.not. syntax_table_live_p(text_mode_syntax_table)) call syms_of_text_mode()
         call major_modes%text_mode%begin(saved, status)
         if (.not. status%ok()) return

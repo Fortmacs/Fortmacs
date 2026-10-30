@@ -78,6 +78,7 @@ contains
 
     subroutine collect_elec_pair_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("electric-pair-balanced-situation", test_balanced), &
                     new_unittest("electric-pair-too-many", test_too_many), &
@@ -100,12 +101,14 @@ contains
 
     subroutine no_bindings(bind)
         logical, intent(in) :: bind
+
         if (bind) continue
     end subroutine no_bindings
 
     !> The default FIXTURE-FN: #'electric-pair-mode.
     subroutine enable_pair_mode()
         type(status_type) :: st
+
         call minor_modes%electric_pair_mode%enable(st)
     end subroutine enable_pair_mode
 
@@ -115,12 +118,15 @@ contains
         character(len=*), intent(in) :: fixture
         logical, intent(in), optional :: text
         type(status_type) :: st
+
         call get_buffer_create("*elec-pair-test*", h, st)
         call set_buffer(h, st)
         call fundamental_mode(st)
+
         if (present(text)) then
             if (text) call text_mode(st)
         end if
+
         call insert(fixture, st)
         call show_alone()
     end subroutine temp_buffer
@@ -144,6 +150,7 @@ contains
         type(status_type) :: st
         procedure(command_proc), pointer :: saved_blink
         logical :: saved_indent
+
         call temp_buffer(h, fixture, text)
         ! save-electric-modes
         saved_blink => blink_paren_function
@@ -189,14 +196,17 @@ contains
         integer :: k, variant
         logical :: ok, strings, code
         character(len=16) :: buf
+
         strings = .true.
         if (present(in_strings)) strings = in_strings
         code = .true.
         if (present(in_code)) code = in_code
         mode = "fundamental-mode"
+
         if (present(text)) then
             if (text) mode = "text-mode"
         end if
+
         do variant = 1, 2
             if (variant == 1) then
                 if (.not. strings) cycle
@@ -209,9 +219,11 @@ contains
                 suffix = ""
                 desc = ""
             end if
+
             do k = 1, len(input)
                 if (input(k:k) == "-") cycle
                 pos = k - 1
+
                 if (present(skip_pair_string)) then
                     call expected_from_skip_pair_string(fixture, input(k:k), pos, skip_pair_string(k:k), &
                                                         expected, point_expected, bindings, text)
@@ -219,6 +231,7 @@ contains
                     expected = expected_string
                     point_expected = expected_point
                 end if
+
                 if (present(bindings) .and. present(fixture_fn)) then
                     call pair_test_for(prefix//fixture//suffix, len(prefix) + pos + 1, iachar(input(k:k)), &
                                        prefix//expected//suffix, len(prefix) + point_expected, bindings, &
@@ -236,6 +249,7 @@ contains
                                        prefix//expected//suffix, len(prefix) + point_expected, no_bindings, &
                                        enable_pair_mode, ok, text)
                 end if
+
                 if (.not. ok) then
                     write (buf, "(i0)") len(prefix) + pos + 1
                     call test_failed(error, "electric-pair-"//name//"-at-point-"//trim(buf)//"-in-"//mode//desc)
@@ -257,10 +271,12 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(electric_pair_info_type) :: info
+
         if (present(bindings)) call bindings(.true.)
         call temp_buffer(h, fixture, text)
         call goto_char(pos + 1)
         call insert(char, st)
+
         if (what == "p") then
             info = electric_pair_syntax_info(iachar(char))
             call insert(achar(info%pair), st)
@@ -269,6 +285,7 @@ contains
             call delete_char(-1_int64, st)
             call forward_char(st, 1_int64)
         end if
+
         expected = buffer_string()
         point_expected = point()
         call kill_buffer(h, st)
@@ -281,12 +298,14 @@ contains
 
     subroutine test_balanced(error)
         type(error_type), allocatable, intent(out) :: error
+
         call init_bindings()
         call pair_test(error, "balanced-situation", " (())  ", "(((((((", skip_pair_string="ppppppp")
     end subroutine test_balanced
 
     subroutine test_too_many(error)
         type(error_type), allocatable, intent(out) :: error
+
         call init_bindings()
         call pair_test(error, "too-many-openings", " ((()) ", "(((((((", skip_pair_string="ppppppp")
         if (allocated(error)) return
@@ -299,6 +318,7 @@ contains
 
     subroutine test_autoskipping(error)
         type(error_type), allocatable, intent(out) :: error
+
         call init_bindings()
         call pair_test(error, "balanced-autoskipping", " (())  ", "---))--", skip_pair_string="---ss--")
         if (allocated(error)) return
@@ -309,6 +329,7 @@ contains
 
     subroutine test_mixed_paren(error)
         type(error_type), allocatable, intent(out) :: error
+
         call init_bindings()
         call pair_test(error, "mixed-paren-1", "  ()]  ", "-(-(---", skip_pair_string="-p-p---")
         if (allocated(error)) return
@@ -323,6 +344,7 @@ contains
 
     subroutine test_different_types(error)
         type(error_type), allocatable, intent(out) :: error
+
         call init_bindings()
         call pair_test(error, "find-matching-different-paren-type", "  ()]  ", "-[-----", skip_pair_string="-------")
         if (allocated(error)) return
@@ -353,6 +375,7 @@ contains
 
     subroutine test_quotes(error)
         type(error_type), allocatable, intent(out) :: error
+
         call init_bindings()
         ! (electric-pair-text-syntax-table is prog-mode-syntax-table, the
         ! default here.)
@@ -372,6 +395,7 @@ contains
 
     subroutine skip_whitespace_t(bind)
         logical, intent(in) :: bind
+
         if (bind) then
             saved_skip_whitespace = electric_pair_skip_whitespace
             electric_pair_skip_whitespace = ELECTRIC_PAIR_SKIP_WHITESPACE_T
@@ -382,6 +406,7 @@ contains
 
     subroutine skip_whitespace_chomp(bind)
         logical, intent(in) :: bind
+
         if (bind) then
             saved_skip_whitespace = electric_pair_skip_whitespace
             electric_pair_skip_whitespace = ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP
@@ -392,6 +417,7 @@ contains
 
     subroutine test_whitespace(error)
         type(error_type), allocatable, intent(out) :: error
+
         call init_bindings()
         call pair_test(error, "whitespace-jumping", " (    )  ", "--))))---", expected_string=" (    )  ", &
                        expected_point=8_int64, bindings=skip_whitespace_t)
@@ -421,6 +447,7 @@ contains
 
     subroutine angle_pairs(bind)
         logical, intent(in) :: bind
+
         if (bind) then
             saved_pairs = electric_pair_pairs
             deallocate (electric_pair_pairs)
@@ -434,6 +461,7 @@ contains
 
     subroutine test_angle_brackets(error)
         type(error_type), allocatable, intent(out) :: error
+
         call init_bindings()
         call pair_test(error, "angle-brackets-everywhere", "<>", "<>", skip_pair_string="ps", bindings=angle_pairs)
         if (allocated(error)) return
@@ -447,6 +475,7 @@ contains
     !> (electric-pair-mode 1) (mark-sexp 1)
     subroutine mark_forward()
         type(status_type) :: st
+
         call minor_modes%electric_pair_mode%enable(st)
         call mark_sexp(1_int64, .true., .false., st)
     end subroutine mark_forward
@@ -455,11 +484,14 @@ contains
     !> "\"") (mark-sexp -1)
     subroutine mark_backward()
         type(status_type) :: st
+
         call minor_modes%electric_pair_mode%enable(st)
         call goto_char(point_max())
+
         if (point() > point_min()) then
             if (buffer_string_tail() == '"') call goto_char(point() - 1)
         end if
+
         call mark_sexp(-1_int64, .true., .false., st)
     end subroutine mark_backward
 
@@ -467,6 +499,7 @@ contains
     function buffer_string_tail() result(c)
         character :: c
         character(len=:), allocatable :: s
+
         s = buffer_string()
         c = s(len(s):len(s))
     end function buffer_string_tail
@@ -474,6 +507,7 @@ contains
     subroutine test_autowrapping(error)
         type(error_type), allocatable, intent(out) :: error
         logical :: ok
+
         call init_bindings()
         call pair_test(error, "autowrapping-1", "foo", "(", expected_string="(foo)", expected_point=2_int64, &
                        fixture_fn=mark_forward)
@@ -509,11 +543,13 @@ contains
 
     subroutine test_strings_pairs(error)
         type(error_type), allocatable, intent(out) :: error
+
         call strings_pairs(error, .false., "/**/")
     end subroutine test_strings_pairs
 
     subroutine test_strings_pairs_with_space(error)
         type(error_type), allocatable, intent(out) :: error
+
         call strings_pairs(error, .true., "/*  */")
     end subroutine test_strings_pairs_with_space
 
@@ -526,6 +562,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(electric_pair_type), allocatable :: saved(:)
+
         call init_bindings()
         call temp_buffer(h, "")
         call minor_modes%electric_indent_mode%disable(st)
@@ -533,12 +570,14 @@ contains
         deallocate (electric_pair_pairs)
         allocate (electric_pair_pairs(1))
         electric_pair_pairs(1)%open_string = "/\*"
+
         if (space) then
             electric_pair_pairs(1)%close_string = " */"
             electric_pair_pairs(1)%space = .true.
         else
             electric_pair_pairs(1)%close_string = "*/"
         end if
+
         call minor_modes%electric_pair_local_mode%enable(st)
         call insert("/", st)
         last_command_event = make_fixnum(int(iachar("*"), int64))
@@ -558,6 +597,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call init_bindings()
         call temp_buffer(h, "()")
         call goto_char(2_int64)
@@ -570,6 +610,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call init_bindings()
         call temp_buffer(h, "((()))")
         call goto_char(4_int64)
@@ -583,6 +624,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call init_bindings()
         call temp_buffer(h, "")
         call minor_modes%electric_pair_local_mode%enable(st)
@@ -607,6 +649,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call init_bindings()
         call temp_buffer(h, "")
         call minor_modes%electric_pair_mode%enable(st)
@@ -626,6 +669,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b
         type(status_type) :: st
+
         call init_bindings()
         call get_buffer_create("*elec-pair-a*", a, st)
         call get_buffer_create("*elec-pair-b*", b, st)

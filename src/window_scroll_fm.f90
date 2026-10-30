@@ -61,6 +61,7 @@ contains
     !> else the frame's selected window.
     function selected_window() result(w)
         type(window_type), pointer :: w
+
         w => selected_window_ref()
     end function selected_window
 
@@ -69,6 +70,7 @@ contains
         type(window_type), intent(in) :: w
         type(status_type) :: status
         integer(int64) :: bi
+
         call resolve_buffer(w%buffer, bi, status)
         shows_current_buffer = status%ok() .and. bi == cur
     end function shows_current_buffer
@@ -80,6 +82,7 @@ contains
         type(window_type), intent(in) :: w
         integer, intent(in) :: ht
         integer(int64) :: opoint, start, moved
+
         opoint = point()
         start = window_start(w)
         visible = .false.
@@ -103,6 +106,7 @@ contains
         integer(int64) :: nlines, opoint, startpos, pos, moved, bottom
         integer :: ht
         logical :: lose
+
         status = status_type()
         ht = window_body_lines(w)
         nlines = n
@@ -111,26 +115,32 @@ contains
         if (whole) nlines = n*max(1, ht - next_screen_context_lines)
         opoint = point()
         startpos = window_start(w)
+
         if (.not. point_visible_p(w, ht)) then
             call vertical_motion(-int(ht/2, int64), moved)
             startpos = point()
         end if
+
         call goto_char(startpos)
         lose = nlines < 0 .and. point() == buffers(cur)%begv
         call vertical_motion(nlines, moved)
         pos = point()
         call goto_char(opoint)
+
         if (lose) then
             call set_error(status, FM_BEGINNING_OF_BUFFER)
             return
         end if
+
         if (pos >= buffers(cur)%zv) then
             call set_error(status, FM_END_OF_BUFFER)
             return
         end if
+
         ! Set force_start so that redisplay keeps the new start.
         call set_window_start(w, pos, status)
         if (.not. status%ok()) return
+
         if (nlines > 0) then
             ! If we scrolled forward, put point enough lines down that it
             ! is outside the scroll margin.
@@ -142,6 +152,7 @@ contains
             call vertical_motion(int(ht, int64), moved)
             bottom = point()
             if (moved /= ht) bottom = bottom + 1
+
             if (bottom > opoint) then
                 call goto_char(opoint)
             else
@@ -160,15 +171,18 @@ contains
         type(handle_type) :: old
         type(status_type) :: st
         logical :: other
+
         w => selected_window()
         ! If selected window's buffer isn't current, make it current for
         ! the moment.
         other = .not. shows_current_buffer(w)
+
         if (other) then
             old = current_buffer()
             call set_buffer(w%buffer, status)
             if (.not. status%ok()) return
         end if
+
         if (nilp(arg)) then
             call window_scroll(w, direction, .true., status)
         else if (value_eq(arg, sym("-"))) then
@@ -176,18 +190,21 @@ contains
         else
             call window_scroll(w, prefix_numeric_value(arg)*direction, .false., status)
         end if
+
         if (other) call set_buffer(old, st)
     end subroutine scroll_command
 
     module subroutine scroll_up(arg, status)
         type(value_type), intent(in) :: arg
         type(status_type), intent(out) :: status
+
         call scroll_command(arg, 1_int64, status)
     end subroutine scroll_up
 
     module subroutine scroll_down(arg, status)
         type(value_type), intent(in) :: arg
         type(status_type), intent(out) :: status
+
         call scroll_command(arg, -1_int64, status)
     end subroutine scroll_down
 
@@ -199,14 +216,18 @@ contains
         integer(int64) :: iarg, opoint, charpos, moved
         integer :: ht
         logical :: center_p
+
         status = status_type()
         w => selected_window()
+
         if (.not. shows_current_buffer(w)) then
             call set_error(status, FM_GENERIC_ERROR, format_message("`recenter'ing a window that does not display current_buffer"))
             return
         end if
+
         center_p = .false.
         iarg = 0
+
         if (nilp(arg)) then
             ! recenter-redisplay is `tty': erase and redraw the frame.
             if (redisplay) selected_frame%garbaged = .true.
@@ -217,12 +238,15 @@ contains
         else
             iarg = prefix_numeric_value(arg)
         end if
+
         ht = window_body_lines(w)
+
         if (center_p) then
             iarg = ht/2
         else if (iarg < 0) then
             iarg = iarg + ht
         end if
+
         ! Don't let it get into the margin at either top or bottom.
         iarg = max(0_int64, min(iarg, int(ht - 1, int64)))
         opoint = point()
@@ -240,15 +264,19 @@ contains
         type(window_type), pointer :: w
         integer(int64) :: start, iarg, moved
         integer :: lines
+
         status = status_type()
         line = 0
         w => selected_window()
+
         if (.not. shows_current_buffer(w)) then
             call set_error(status, FM_GENERIC_ERROR, "move_to_window_line called from unrelated buffer")
             return
         end if
+
         lines = window_body_lines(w)
         start = window_start(w)
+
         if (start < buffers(cur)%begv .or. start > buffers(cur)%zv) then
             call vertical_motion(-int(lines/2, int64), moved)
             call set_window_start(w, point(), status)
@@ -256,12 +284,14 @@ contains
         else
             call goto_char(start)
         end if
+
         if (nilp(arg)) then
             iarg = lines/2
         else
             iarg = prefix_numeric_value(arg)
             if (iarg < 0) iarg = iarg + lines
         end if
+
         call vertical_motion(iarg, line)
     end subroutine move_to_window_line
 
@@ -273,7 +303,9 @@ contains
     !> window.el:scroll-command--goto-goal-column (truncate-lines nil).
     subroutine goto_goal_column()
         integer(int64) :: moved, reached
+
         if (goal_column < 0) return
+
         if (line_move_visual .and. truncate_partial_width_windows == 0) then
             call vertical_motion(0_int64, moved, int(goal_column))
         else if (goal_column == 0) then
@@ -288,6 +320,7 @@ contains
         type(value_type), intent(in) :: arg
         type(status_type), intent(out) :: status
         integer(int64) :: shortage
+
         if (.not. scroll_error_top_bottom) then
             call scroll_up(arg, status)
         else if (value_eq(arg, sym("-"))) then
@@ -299,8 +332,10 @@ contains
             call scroll_up(arg, status)
         else
             call scroll_up(arg, status)
+
             if (status%code == FM_END_OF_BUFFER) then
                 status = status_type()
+
                 if (nilp(arg)) then
                     ! When ARG is nil for full-screen scrolling, move to the
                     ! bottom of the buffer.
@@ -312,6 +347,7 @@ contains
                 end if
             end if
         end if
+
         if (status%ok()) call goto_goal_column()
     end subroutine scroll_up_command
 
@@ -319,6 +355,7 @@ contains
         type(value_type), intent(in) :: arg
         type(status_type), intent(out) :: status
         integer(int64) :: shortage
+
         if (.not. scroll_error_top_bottom) then
             call scroll_down(arg, status)
         else if (value_eq(arg, sym("-"))) then
@@ -330,8 +367,10 @@ contains
             call scroll_down(arg, status)
         else
             call scroll_down(arg, status)
+
             if (status%code == FM_BEGINNING_OF_BUFFER) then
                 status = status_type()
+
                 if (nilp(arg)) then
                     ! When ARG is nil for full-screen scrolling, move to the
                     ! top of the buffer.
@@ -343,6 +382,7 @@ contains
                 end if
             end if
         end if
+
         if (status%ok()) call goto_goal_column()
     end subroutine scroll_down_command
 
@@ -359,13 +399,16 @@ contains
     module subroutine recenter_top_bottom(arg, status)
         type(value_type), intent(in) :: arg
         type(status_type), intent(out) :: status
+
         ! Always respect ARG.
         if (.not. nilp(arg)) then
             call recenter(arg, .true., status)
             return
         end if
+
         ! (this-scroll-margin is 0.)
         call next_recenter_op()
+
         select case (recenter_positions(recenter_last_op))
         case (RECENTER_MIDDLE)
             call recenter(nil(), .true., status)
@@ -380,12 +423,15 @@ contains
         type(value_type), intent(in) :: arg
         type(status_type), intent(out) :: status
         integer(int64) :: line
+
         ! Always respect ARG.
         if (.not. nilp(arg)) then
             call move_to_window_line(arg, line, status)
             return
         end if
+
         call next_recenter_op()
+
         select case (recenter_positions(recenter_last_op))
         case (RECENTER_MIDDLE)
             call move_to_window_line(nil(), line, status)
@@ -398,42 +444,50 @@ contains
 
     subroutine cmd_scroll_up(status)
         type(status_type), intent(out) :: status
+
         call scroll_up(current_prefix_arg, status)
     end subroutine cmd_scroll_up
 
     subroutine cmd_scroll_down(status)
         type(status_type), intent(out) :: status
+
         call scroll_down(current_prefix_arg, status)
     end subroutine cmd_scroll_down
 
     subroutine cmd_scroll_up_command(status)
         type(status_type), intent(out) :: status
+
         call scroll_up_command(current_prefix_arg, status)
     end subroutine cmd_scroll_up_command
 
     subroutine cmd_scroll_down_command(status)
         type(status_type), intent(out) :: status
+
         call scroll_down_command(current_prefix_arg, status)
     end subroutine cmd_scroll_down_command
 
     subroutine cmd_recenter(status)
         type(status_type), intent(out) :: status
+
         call recenter(current_prefix_arg, .true., status)
     end subroutine cmd_recenter
 
     subroutine cmd_recenter_top_bottom(status)
         type(status_type), intent(out) :: status
+
         call recenter_top_bottom(current_prefix_arg, status)
     end subroutine cmd_recenter_top_bottom
 
     subroutine cmd_move_to_window_line(status)
         type(status_type), intent(out) :: status
         integer(int64) :: line
+
         call move_to_window_line(current_prefix_arg, line, status)
     end subroutine cmd_move_to_window_line
 
     subroutine cmd_move_to_window_line_top_bottom(status)
         type(status_type), intent(out) :: status
+
         call move_to_window_line_top_bottom(current_prefix_arg, status)
     end subroutine cmd_move_to_window_line_top_bottom
 
@@ -444,6 +498,7 @@ contains
         type(status_type) :: status
         integer(int64) :: opoint, start, moved
         integer :: ht
+
         visible = .false.
         if (.not. window_live_p(window)) return
         old = current_buffer()
@@ -451,6 +506,7 @@ contains
         if (.not. status%ok()) return
         start = window_start(windows(window%index))
         ht = window_body_lines(windows(window%index))
+
         if (pos >= start .and. start >= buffers(cur)%begv .and. start <= buffers(cur)%zv .and. ht > 0) then
             opoint = point()
             call goto_char(start)
@@ -458,6 +514,7 @@ contains
             visible = pos < point() .or. (moved < ht .and. pos <= point())
             call goto_char(opoint)
         end if
+
         if (buffer_live_p(old)) call set_buffer(old, status)
     end function pos_visible_in_window_p
 
@@ -468,6 +525,7 @@ contains
         type(handle_type) :: old
         type(window_type), pointer :: w
         type(status_type) :: st
+
         status = status_type()
         if (.not. window_live_p(window)) return
         old = current_buffer()
@@ -485,16 +543,19 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type), allocatable :: leaves(:)
         integer :: k
+
         status = status_type()
         window = null_handle()
         ! Look for a neighboring window on the same frame.
         call window_leaves(selected_frame%root_window, leaves)
+
         do k = 1, size(leaves)
             if (same_window(leaves(k), selected_frame%selected_window)) then
                 window = leaves(modulo(k, size(leaves)) + 1)
                 exit
             end if
         end do
+
         if (.not. window_live_p(window) .or. same_window(window, selected_frame%selected_window)) then
             call set_error(status, FM_GENERIC_ERROR, "There is no other window")
             window = null_handle()
@@ -509,21 +570,25 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: window, old_window, old_buffer
         type(status_type) :: st
+
         if (selected_frame%minibuffer_selected) then
             call set_error(status, FM_GENERIC_ERROR, format_message("Window commands don't work in the minibuffer yet"))
             return
         end if
+
         call other_window_for_scrolling(window, status)
         if (.not. status%ok()) return
         old_window = selected_frame%selected_window
         old_buffer = current_buffer()
         call select_window(window, status, norecord=.true.)
         if (.not. status%ok()) return
+
         if (direction > 0) then
             call scroll_up_command(lines, status)
         else
             call scroll_down_command(lines, status)
         end if
+
         if (window_live_p(old_window)) call select_window(old_window, st, norecord=.true.)
         if (buffer_live_p(old_buffer)) call set_buffer(old_buffer, st)
     end subroutine scroll_other
@@ -531,12 +596,14 @@ contains
     recursive module subroutine scroll_other_window(lines, status)
         type(value_type), intent(in) :: lines
         type(status_type), intent(out) :: status
+
         call scroll_other(lines, 1, status)
     end subroutine scroll_other_window
 
     recursive module subroutine scroll_other_window_down(lines, status)
         type(value_type), intent(in) :: lines
         type(status_type), intent(out) :: status
+
         call scroll_other(lines, -1, status)
     end subroutine scroll_other_window_down
 
@@ -545,6 +612,7 @@ contains
     !> window.el:scroll-other-window (interactive "P").
     recursive subroutine cmd_scroll_other_window(status)
         type(status_type), intent(out) :: status
+
         call scroll_other_window(current_prefix_arg, status)
     end subroutine cmd_scroll_other_window
 
@@ -553,6 +621,7 @@ contains
     !> window.el:scroll-other-window-down (interactive "P").
     recursive subroutine cmd_scroll_other_window_down(status)
         type(status_type), intent(out) :: status
+
         call scroll_other_window_down(current_prefix_arg, status)
     end subroutine cmd_scroll_other_window_down
 

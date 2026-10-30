@@ -249,11 +249,14 @@ contains
     pure integer function char_script(c)
         integer, intent(in) :: c
         integer :: lo, hi, mid
+
         char_script = 0
         lo = 1
         hi = script_runs
+
         do while (lo <= hi)
             mid = (lo + hi)/2
+
             if (c < script_starts(mid)) then
                 hi = mid - 1
             else if (c > script_ends(mid)) then

@@ -187,6 +187,7 @@ contains
     !> keyboard.c's redisplay before waiting for input.
     subroutine do_redisplay()
         type(status_type) :: status
+
         call redisplay(selected_frame, status)
     end subroutine do_redisplay
 
@@ -195,6 +196,7 @@ contains
     !> "xterm*" (and term/screen.el and term/tmux.el, which use it).
     logical function xterm_like(term)
         character(len=*), intent(in) :: term
+
         xterm_like = index(term, "xterm") == 1 .or. index(term, "screen") == 1 .or. &
                      index(term, "tmux") == 1
     end function xterm_like
@@ -206,6 +208,7 @@ contains
         character(len=*), intent(in) :: s
         integer(int64), intent(out) :: line, column
         integer :: colon, stat
+
         line_arg_p = .false.
         line = 0
         column = 0
@@ -214,19 +217,24 @@ contains
         colon = index(s, ":")
         if (colon == 0) colon = len(s) + 1
         if (.not. all_digits(s(2:colon - 1))) return
+
         if (colon <= len(s)) then
             if (.not. all_digits(s(colon + 1:))) return
         end if
+
         read (s(2:colon - 1), *, iostat=stat) line
         line_arg_p = stat == 0
+
         if (line_arg_p .and. colon <= len(s)) then
             read (s(colon + 1:), *, iostat=stat) column
             line_arg_p = stat == 0
         end if
+
     contains
 
         pure logical function all_digits(t)
             character(len=*), intent(in) :: t
+
             all_digits = len(t) > 0 .and. verify(t, "0123456789") == 0
         end function all_digits
     end function line_arg_p
@@ -247,29 +255,35 @@ contains
         integer(int64) :: line, n, column, c
         integer :: k
         logical :: just_files
+
         allocate (displayable(0))
         line = 0
         column = 0
         just_files = .false.
         k = 0
+
         do while (k < size(args))
             k = k + 1
             argi = args(k)%s
+
             if (.not. just_files .and. line_arg_p(argi, n, c)) then
                 line = n
                 column = c
                 cycle
             end if
+
             if (.not. just_files .and. len(argi) > 0) then
                 if (argi == "--") then
                     just_files = .true.
                     cycle
                 end if
+
                 if (argi(1:1) == "-") then
                     ! --foo is the same as -foo.
                     if (len(argi) > 2) then
                         if (argi(1:2) == "--") argi = argi(2:)
                     end if
+
                     select case (argi)
                     case ("-file", "-find-file", "-visit")
                         if (k == size(args)) then
@@ -277,6 +291,7 @@ contains
                                            format_message("' option"))
                             return
                         end if
+
                         k = k + 1
                         argi = args(k)%s
                     case default
@@ -285,12 +300,15 @@ contains
                     end select
                 end if
             end if
+
             ! process-file-arg
             dir = file_name_as_directory(emacs_wd)
+
             if (len(emacs_wd) == 0 .and. .not. file_name_absolute_p(argi)) then
                 call message("Ignoring relative file name ("//argi//") due to unset default_directory")
                 cycle
             end if
+
             call visit(argi, dir, line, column, status)
             if (.not. status%ok()) return
             ! `displayable-buffers' has the newest first.
@@ -299,6 +317,7 @@ contains
             line = 0
             column = 0
         end do
+
         call display_buffers(displayable, status)
     end subroutine command_line_1
 
@@ -308,11 +327,14 @@ contains
         type(handle_type), intent(in) :: displayable(:)
         type(status_type), intent(out) :: status
         integer :: k
+
         status = status_type()
+
         if (size(displayable) > 0) then
             call switch_to_buffer(buffers(displayable(1)%index)%name, status)
             if (.not. status%ok()) return
         end if
+
         if (size(displayable) == 2) then
             ! Two buffers; display them both.
             call switch_to_buffer_other_window(displayable(2), status)
@@ -327,10 +349,12 @@ contains
             ! the rest are in `next-buffer' in descending order.
             call switch_to_buffer_other_window(displayable(size(displayable)), status)
             if (.not. status%ok()) return
+
             do k = size(displayable) - 1, 2, -1
                 call switch_to_buffer(buffers(displayable(k)%index)%name, status, force_same_window=.true.)
                 if (.not. status%ok()) return
             end do
+
             ! Focus on the first buffer.
             call other_window(-1_int64, status)
         end if
@@ -344,18 +368,22 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: buf
         integer(int64) :: shortage, moved
+
         if (file_name_absolute_p(name)) then
             call find_file_noselect(name, buf, status)
         else
             call find_file_noselect(dir//name, buf, status)
         end if
+
         if (.not. status%ok()) return
         call set_buffer(buf, status)
         if (.not. status%ok()) return
+
         if (line /= 0) then
             call goto_char(point_min())
             shortage = forward_line(line - 1)
         end if
+
         if (column >= 1) call move_to_column(column - 1, moved)
     end subroutine visit
 
@@ -373,6 +401,7 @@ contains
         type(status_type) :: st, opt_status, color_status
         type(arg_type), allocatable :: rest(:)
         logical :: init
+
         call init_fileio()
         call init_bindings()
         call get_buffer_create("*scratch*", scratch, status)
@@ -411,6 +440,7 @@ contains
         ! is true when not in batch mode), before the init file.
         call minor_modes%global_font_lock_mode%enable(st)
         call tty_set_terminal_modes(selected_frame%tty)
+
         ! startup.el:command-line: the options, then the init file, then
         ! command-line-1 for the rest.  Errors are shown once the editor
         ! is up.
@@ -420,13 +450,16 @@ contains
             allocate (rest(0))
             init = .true.
         end if
+
         ! A reminder from `run`; errors from what follows replace it.
         if (allocated(startup_message)) then
             if (len(startup_message) > 0) call message(startup_message)
             startup_message = ""
         end if
+
         if (.not. color_status%ok()) call message(format_error(color_status))
         init_file_had_error = .false.
+
         if (opt_status%ok()) then
             if (init .and. present(configure)) then
                 call load_init_file(configure)
@@ -436,6 +469,7 @@ contains
                 ! (tty-run-terminal-initialization after the init file).
                 call init_frame_faces(selected_frame, terminal_type)
             end if
+
             ! If the abbrevs came entirely from the init file or the
             ! abbrevs file, they do not need saving.
             abbrevs_changed = .false.
@@ -445,6 +479,7 @@ contains
             ! An error in command-line's options ends it there.
             call message(format_error(opt_status))
         end if
+
         redisplay_hook => do_redisplay
         ring_bell_hook => frame_ring_bell
         call command_loop(st)
@@ -466,9 +501,11 @@ contains
     subroutine load_init_file(configure)
         procedure(init_proc) :: configure
         type(status_type) :: status
+
         init_file_had_error = .false.
         user_init_file = init_file_name()
         call configure(status)
+
         if (.not. status%ok()) then
             init_file_had_error = .true.
             call message("An error occurred while loading the init file: "//format_error(status))
@@ -496,10 +533,12 @@ contains
         character(len=:), allocatable :: argi, orig_argi, completion
         logical :: has_argval, done, exact
         integer :: k, eq
+
         status = status_type()
         init = .true.
         k = 0
         done = .false.
+
         do while (.not. done .and. k < size(args))
             k = k + 1
             argi = args(k)%s
@@ -507,13 +546,16 @@ contains
             has_argval = .false.
             ! Handle --OPTION=VALUE format.
             eq = index(argi, "=")
+
             if (index(argi, "--") == 1 .and. eq > 0) then
                 has_argval = .true.
                 argi = argi(1:eq - 1)
             end if
+
             if (len(orig_argi) >= 3) then
                 if (orig_argi(1:2) == "--") then
                     call try_completion_list(argi, longopts, completion, exact)
+
                     if (exact) then
                         argi = argi(2:)
                     else if (len(completion) > 0) then
@@ -522,6 +564,7 @@ contains
                                            format_message("' is ambiguous"))
                             return
                         end if
+
                         argi = completion(2:)
                     else
                         has_argval = .false.
@@ -529,6 +572,7 @@ contains
                     end if
                 end if
             end if
+
             select case (argi)
             case ("-Q", "-quick", "-q", "-no-init-file")
                 init = .false.
@@ -540,6 +584,7 @@ contains
                 k = k - 1
                 done = .true.
             end select
+
             ! Was argval set but not used?
             if (has_argval) then
                 call set_error(status, FM_GENERIC_ERROR, format_message("Option `")//argi// &
@@ -547,6 +592,7 @@ contains
                 return
             end if
         end do
+
         rest = args(k + 1:)
     end subroutine command_line
 
@@ -563,6 +609,7 @@ contains
         integer, allocatable :: options(:), priority(:)
         logical, allocatable :: used(:)
         integer :: argc, from, i, match, thislen, equals, to, incoming_used, best, best_priority
+
         ok = .true.
         error = ""
         argc = size(args)
@@ -573,9 +620,11 @@ contains
         ! Categorize all the options, and figure out which args are option
         ! arguments.
         from = 1
+
         categorize: do while (from <= argc)
             options(from) = -1
             priority(from) = 0
+
             if (index(args(from)%s, "-") == 1) then
                 ! If we have found "--", don't consider any more arguments
                 ! as options.
@@ -584,28 +633,34 @@ contains
                     options(from:) = -1
                     exit categorize
                 end if
+
                 ! Look for a match with a known old-fashioned option.
                 do i = 1, size(standard_args)
                     if (args(from)%s == trim(standard_args(i)%name)) then
                         options(from) = standard_args(i)%nargs
                         priority(from) = standard_args(i)%priority
+
                         if (from + standard_args(i)%nargs > argc) then
                             ok = .false.
                             error = "Option '"//args(from)%s//"' requires an argument"
                             return
                         end if
+
                         from = from + standard_args(i)%nargs + 1
                         cycle categorize
                     end if
                 end do
+
                 ! Look for a match with a known long option.
                 if (index(args(from)%s, "--") == 1) then
                     equals = index(args(from)%s, "=")
                     thislen = len(args(from)%s)
                     if (equals > 0) thislen = equals - 1
                     match = -1
+
                     do i = 1, size(standard_args)
                         if (len_trim(standard_args(i)%longname) == 0) cycle
+
                         if (standard_args(i)%longname(1:min(thislen, 24)) == args(from)%s(1:thislen) .and. &
                             thislen <= 24) then
                             if (match == -1) then
@@ -615,60 +670,75 @@ contains
                             end if
                         end if
                     end do
+
                     if (match > 0) then
                         options(from) = standard_args(match)%nargs
                         priority(from) = standard_args(match)%priority
                         ! If --OPTION=VALUE syntax is used, this option
                         ! uses just one argument.
                         if (equals > 0) options(from) = 0
+
                         if (from + options(from) > argc) then
                             ok = .false.
                             error = "Option '"//args(from)%s//"' requires an argument"
                             return
                         end if
+
                         from = from + options(from)
                     else if (match == -2) then
                         write (error_unit, "(a)") "Option '"//args(from)%s//"' matched multiple standard arguments"
                     end if
                 end if
             end if
+
             from = from + 1
         end do categorize
+
         ! Copy the arguments, in order of decreasing priority, to NEW.
         to = 0
         incoming_used = 0
+
         do while (incoming_used < argc)
             best = -1
             best_priority = -9999
             ! Find the highest priority remaining option.  If several have
             ! equal priority, take the first of them.
             from = 1
+
             do while (from <= argc)
                 if (.not. used(from) .and. priority(from) > best_priority) then
                     best_priority = priority(from)
                     best = from
                 end if
+
                 ! Skip option arguments: they are tied to the options.
                 if (options(from) > 0) from = from + options(from)
                 from = from + 1
             end do
+
             ! Copy it, with its args, unless it is a duplicate of the
             ! previous one.
             if (.not. dup_of_previous(best)) then
                 to = to + 1
                 new(to) = args(best)
+
                 do i = 1, options(best)
                     to = to + 1
                     new(to) = args(best + i)
                 end do
             end if
+
             incoming_used = incoming_used + 1 + max(options(best), 0)
             used(best:best + max(options(best), 0)) = .true.
         end do
+
         args = new(1:to)
+
     contains
+
         logical function dup_of_previous(b)
             integer, intent(in) :: b
+
             dup_of_previous = .false.
             if (options(b) /= 0 .or. to == 0) return
             dup_of_previous = new(to)%s == args(b)%s
@@ -685,14 +755,17 @@ contains
         integer, intent(in) :: minlen
         integer, intent(inout) :: skip
         character(len=:), allocatable :: arg
+
         found = .false.
         if (size(args) <= skip) return
         arg = args(skip + 1)%s
+
         if (arg == sstr .and. len(arg) == len(sstr)) then
             found = .true.
         else if (len(arg) >= minlen .and. len(arg) <= len(lstr)) then
             found = arg == lstr(1:len(arg))
         end if
+
         if (found) skip = skip + 1
     end function argmatch
 
@@ -707,27 +780,33 @@ contains
         integer :: i, n, j
         character(len=:), allocatable :: c
         logical :: first
+
         exact = .false.
         completion = ""
         n = 0
         first = .true.
+
         do i = 1, size(collection)
             c = trim(collection(i))
             if (len(c) < len(string)) cycle
             if (c(1:len(string)) /= string) cycle
             n = n + 1
+
             if (first) then
                 completion = c
                 first = .false.
             else
                 j = 0
+
                 do while (j < min(len(completion), len(c)))
                     if (completion(j + 1:j + 1) /= c(j + 1:j + 1)) exit
                     j = j + 1
                 end do
+
                 completion = completion(1:j)
             end if
         end do
+
         if (n == 1 .and. completion == string .and. len(completion) == len(string)) exact = .true.
     end subroutine try_completion_list
 
@@ -750,14 +829,17 @@ contains
         logical :: installed, ok
         character(len=:), allocatable :: error
         integer :: skip
+
         exit_code = 0
         nargs = command_argument_count()
         allocate (args(nargs))
+
         do k = 1, nargs
             call get_command_argument(k, length=arglen)
             allocate (character(len=arglen) :: args(k)%s)
             call get_command_argument(k, value=args(k)%s)
         end do
+
         ! Which installation this is: a user build knows; an installed
         ! fortmacs finds out from where it is.
         if (present(prefix)) then
@@ -766,12 +848,15 @@ contains
         else
             call install_prefix(running_executable(), install, installed)
         end if
+
         if (installed) configure_info_directory = install//"share/info/"
+
         if (nargs > 0) then
             if (args(1)%s == "--recompile" .or. args(1)%s == "-recompile") then
                 call do_recompile(installed, install, exit_code)
                 return
             end if
+
             select case (args(1)%s)
             case ("--list-generations", "-list-generations", "--rollback", "-rollback", &
                   "--switch-generation", "-switch-generation")
@@ -781,29 +866,37 @@ contains
                 ! Not a generation command.
             end select
         end if
+
         reminder = ""
         if (.not. present(prefix) .and. installed) call run_user_build(args, reminder)
+
         if (present(prefix)) then
             if (file_newer_than_file_p(init_file_name(), running_executable())) then
                 reminder = init_file_name()//" has changed; run fortmacs --recompile to use it"
             end if
         end if
+
         call sort_args(args, ok, error)
+
         if (.not. ok) then
             write (error_unit, "(a)") "fortmacs: "//error
             exit_code = 1
             return
         end if
+
         skip = 0
+
         if (argmatch(args, "-version", "--version", 3, skip)) then
             write (output_unit, "(a)") version_string()
             if (present(prefix)) call write_configuration()
             return
         end if
+
         ! -nw: Fortmacs only uses the terminal.
         if (.not. argmatch(args, "-nw", "--no-window-system", 6, skip)) then
             if (argmatch(args, "-nw", "--no-windows", 6, skip)) continue
         end if
+
         if (argmatch(args, "-help", "--help", 3, skip)) then
             write (output_unit, "(a)") usage
             write (output_unit, "(a)") "       fortmacs --recompile | --list-generations | --rollback | --switch-generation N"
@@ -815,24 +908,30 @@ contains
             write (output_unit, "(a)") "before, --switch-generation N to generation N."
             return
         end if
+
         ! Everything else is for startup.el:command-line.
         args = args(skip + 1:)
+
         ! emacs.c:main: a terminal is needed on standard input.
         if (.not. emacs_isatty(0_int32)) then
             write (error_unit, "(a)") "fortmacs: standard input is not a tty"
             exit_code = 1
             return
         end if
+
         call get_environment_variable("TERM", length=arglen, status=stat)
+
         if (stat /= 0 .or. arglen == 0) then
             write (error_unit, "(a)") "fortmacs: please set the environment variable TERM"
             exit_code = 1
             return
         end if
+
         allocate (character(len=arglen) :: term)
         call get_environment_variable("TERM", term)
         startup_message = reminder
         call emacs_main(term, 0_int32, status, args, configure)
+
         if (.not. status%ok()) then
             write (error_unit, "(a)") "fortmacs: "//format_error(status)
             exit_code = 1
@@ -848,19 +947,24 @@ contains
         character(len=:), allocatable :: log
         type(status_type) :: status
         integer :: generation
+
         exit_code = 1
+
         if (.not. installed) then
             write (error_unit, "(a)") "fortmacs: --recompile needs an installed Fortmacs "// &
                 "(fpm install puts PREFIX/bin/fortmacs next to PREFIX/lib/libfortmacs.a)"
             return
         end if
+
         call init_fileio()
         call recompile(install, log, status, generation)
         if (len(log) > 0) write (error_unit, "(a)", advance="no") log
+
         if (.not. status%ok()) then
             write (error_unit, "(a)") "fortmacs: "//format_error(status)
             return
         end if
+
         write (output_unit, "(a, i0)") "fortmacs: built and switched to generation ", generation
         exit_code = 0
     end subroutine do_recompile
@@ -868,7 +972,9 @@ contains
     !> --version in a user build: which configuration it carries.
     subroutine write_configuration()
         integer :: n
+
         n = generation_of(running_executable())
+
         if (n > 0) then
             write (output_unit, "(a, i0, a)") "With generation ", n, " of the configuration in "//init_file_name()
         else
@@ -884,10 +990,12 @@ contains
         character(len=:), allocatable :: text, command
         type(status_type) :: status
         integer :: from, to, stat
+
         exit_code = 1
         call init_fileio()
         command = args(1)%s
         if (command(1:2) == "--") command = command(2:)
+
         select case (command)
         case ("-list-generations")
             call list_generations(text, status)
@@ -898,20 +1006,25 @@ contains
             to = 0
             stat = 1
             if (size(args) >= 2) read (args(2)%s, *, iostat=stat) to
+
             if (stat /= 0 .or. to <= 0) then
                 write (error_unit, "(a)") "fortmacs: --switch-generation needs a generation number"
                 return
             end if
+
             from = current_generation()
             call switch_generation(to, status)
         end select
+
         if (.not. status%ok()) then
             write (error_unit, "(a)") "fortmacs: "//format_error(status)
             return
         end if
+
         if (command /= "-list-generations") then
             write (output_unit, "(a, i0, a, i0)") "switched from generation ", from, " to ", to
         end if
+
         exit_code = 0
     end subroutine do_generations
 
@@ -925,21 +1038,27 @@ contains
         character(len=:), allocatable :: build, init
         integer(int32) :: err
         integer :: k
+
         build = current_build_name()
         init = init_file_name()
+
         if (.not. file_executable_p(build)) then
             if (file_exists_p(init)) reminder = init//" is not built yet; run fortmacs --recompile to use it"
             return
         end if
+
         if (file_newer_than_file_p(running_executable(), build)) then
             reminder = "Fortmacs was updated since "//init//" was built; run fortmacs --recompile"
             return
         end if
+
         allocate (argv(size(args) + 1))
         argv(1)%s = build
+
         do k = 1, size(args)
             argv(k + 1)%s = args(k)%s
         end do
+
         err = emacs_execv(build, argv)
         reminder = "Can't run "//build//": "//emacs_strerror(err)
     end subroutine run_user_build

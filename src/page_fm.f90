@@ -50,14 +50,17 @@ contains
         integer(int64), intent(in), optional :: count
         integer(int64) :: n, here, mb, me, found
         logical :: at_delimiter
+
         status = status_type()
         call init_paragraph_variables()
         n = 1
         if (present(count)) n = count
+
         do while (n > 0 .and. .not. eobp())
             at_delimiter = looking_at(page_delimiter%value, status)
             if (.not. status%ok()) return
             if (at_delimiter) at_delimiter = match_end(0, status) > point()
+
             if (at_delimiter) then
                 ! If we're standing at the page delimiter, then just skip to
                 ! the end of it.  (But only if it's not a zero-length
@@ -72,8 +75,10 @@ contains
                 if (.not. status%ok()) return
                 if (found == 0) call goto_char(point_max())
             end if
+
             n = n - 1
         end do
+
         do while (n < 0 .and. .not. bobp())
             ! In case the page-delimiter matches the null string,
             ! don't find a match without moving.
@@ -82,19 +87,24 @@ contains
             if (.not. status%ok()) return
             mb = 0
             me = 0
+
             if (found /= 0) then
                 mb = match_beginning(0, status)
                 me = match_end(0, status)
             end if
+
             call goto_char(here)
+
             if (found /= 0) then
                 if (me == point()) call goto_char(mb)
             end if
+
             if (.not. bobp()) then
                 call forward_char(status, -1_int64)
                 if (.not. status%ok()) return
                 call re_search_backward(page_delimiter%value, found, status, noerror=SEARCH_NOERROR)
                 if (.not. status%ok()) return
+
                 if (found /= 0) then
                     ! We found one--move to the end of it.
                     call goto_char(match_end(0, status))
@@ -103,6 +113,7 @@ contains
                     call goto_char(point_min())
                 end if
             end if
+
             n = n + 1
         end do
     end subroutine forward_page
@@ -114,6 +125,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: count
         integer(int64) :: n
+
         n = 1
         if (present(count)) n = count
         call forward_page(status, -n)
@@ -121,11 +133,13 @@ contains
 
     recursive subroutine cmd_forward_page(status)
         type(status_type), intent(out) :: status
+
         call forward_page(status, prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_forward_page
 
     recursive subroutine cmd_backward_page(status)
         type(status_type), intent(out) :: status
+
         call backward_page(status, prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_backward_page
 

@@ -48,6 +48,7 @@ contains
 
     subroutine collect_cmds_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("find-newline-forward", test_find_forward), &
                     new_unittest("find-newline-backward", test_find_backward), &
@@ -65,6 +66,7 @@ contains
         character(len=*), intent(in) :: name
         type(handle_type), intent(out) :: h, old
         type(status_type) :: st
+
         old = current_buffer()
         call get_buffer_create(name, h, st)
         call set_buffer(h, st)
@@ -73,6 +75,7 @@ contains
     subroutine leave(h, old)
         type(handle_type), intent(in) :: h, old
         type(status_type) :: st
+
         if (buffer_live_p(old)) call set_buffer(old, st)
         call kill_buffer(h, st)
     end subroutine leave
@@ -80,6 +83,7 @@ contains
     !> Three lines with a multibyte char, gap placed mid-text.
     subroutine fill_lines()
         type(status_type) :: st
+
         ! chars:  a  €  \n  b  b  \n  c
         ! pos:    1  2  3   4  5  6   7   (Z = 8)
         call insert("a"//euro//nl//"bb"//nl//"c", st)
@@ -90,6 +94,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         integer(int64) :: pos, counted, bytepos
+
         call enter("tc-ff", h, old)
         call fill_lines()
         pos = find_newline(1_int64, count=1_int64, counted=counted, bytepos=bytepos)
@@ -107,6 +112,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         integer(int64) :: pos, counted
+
         call enter("tc-fb", h, old)
         call fill_lines()
         ! Backward results are positions *after* the newline found.
@@ -124,6 +130,7 @@ contains
     subroutine test_before_next(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
+
         call enter("tc-bnn", h, old)
         call fill_lines()
         call check(error, find_before_next_newline(1_int64, 1_int64), 3_int64)
@@ -136,6 +143,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("tc-bol", h, old)
         call fill_lines()
         call goto_char(5_int64)
@@ -158,6 +166,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("tc-chars", h, old)
         call insert("abc", st)
         call backward_char(st, 2_int64)
@@ -177,6 +186,7 @@ contains
     subroutine test_forward_line(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
+
         call enter("tc-fl", h, old)
         call fill_lines()
         call goto_char(2_int64)
@@ -204,6 +214,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("tc-bignum", h, old)
         call insert("x"//nl, st)
         call check(error, forward_line(most_negative_fixnum - 1), most_negative_fixnum)
@@ -215,6 +226,7 @@ contains
     subroutine test_bol_cmds(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
+
         call enter("tc-bolcmd", h, old)
         call fill_lines()
         call goto_char(5_int64)
@@ -233,6 +245,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("tc-del", h, old)
         call insert("abcdef", st)
         call goto_char(3_int64)

@@ -47,8 +47,10 @@ contains
     recursive integer function count_windows(h) result(n)
         type(handle_type), intent(in) :: h
         type(handle_type) :: w
+
         n = 0
         w = h
+
         do while (window_valid_p(w))
             n = n + 1
             if (window_valid_p(windows(w%index)%child)) n = n + count_windows(windows(w%index)%child)
@@ -68,9 +70,11 @@ contains
         type(status_type) :: status
         integer(int64) :: pos, bi
         integer :: prev
+
         next = i
         prev = 0
         w = h
+
         do while (window_valid_p(w))
             associate (p => saved(next), x => windows(w%index))
                 p%window = w
@@ -86,28 +90,34 @@ contains
                 p%parent = parent
                 p%prev = prev
                 x%config_refs = x%config_refs + 1
+
                 if (buffer_live_p(p%buffer)) then
                     ! Save w's value of point in the window
                     ! configuration.  If w is the selected window, then
                     ! get the value of point from the buffer; pointm is
                     ! garbage in the selected window.
                     call make_marker(p%pointm)
+
                     if (same_window(w, selected_frame%selected_window)) then
                         call resolve_buffer(p%buffer, bi, status)
                         pos = buffers(bi)%pt
                     else
                         pos = window_point(x)
                     end if
+
                     call set_marker(p%pointm, pos, status, p%buffer)
                     call make_marker(p%start)
                     call set_marker(p%start, window_start(x), status, p%buffer)
                 end if
             end associate
+
             prev = next
             next = next + 1
+
             if (window_valid_p(windows(w%index)%child)) then
                 next = save_window_save(windows(w%index)%child, saved, next, prev)
             end if
+
             w = windows(w%index)%next
         end do
     end function save_window_save
@@ -115,6 +125,7 @@ contains
     module subroutine current_window_configuration(config)
         type(window_configuration_type), intent(out) :: config
         integer :: n
+
         call ensure_frame_windows_here()
         allocate (config%saved(count_windows(selected_frame%root_window)))
         n = save_window_save(selected_frame%root_window, config%saved, 1, 0)
@@ -142,9 +153,11 @@ contains
         type(handle_type), intent(inout) :: old(:)
         integer, intent(inout) :: n
         type(status_type) :: status
+
         if (window_valid_p(windows(h%index)%next)) call delete_all_child_windows(windows(h%index)%next, old, n)
         n = n + 1
         old(n) = h
+
         associate (w => windows(h%index))
             if (window_valid_p(w%child)) then
                 call delete_all_child_windows(w%child, old, n)
@@ -171,6 +184,7 @@ contains
         integer(int64), intent(in) :: pos
         type(handle_type), intent(in) :: buffer
         type(status_type) :: status
+
         if (m%index == 0) call make_marker(m)
         call set_marker_restricted(m, pos, status, buffer)
     end subroutine restrict
@@ -179,6 +193,7 @@ contains
     integer(int64) function marker_pos(m) result(pos)
         type(handle_type), intent(in) :: m
         type(status_type) :: status
+
         pos = 1
         if (m%index == 0) return
         call marker_position(m, pos, status)
@@ -193,16 +208,21 @@ contains
         type(handle_type), allocatable :: all(:)
         type(status_type) :: status
         integer :: k
+
         all = buffer_list()
+
         do k = 1, size(all)
             if (.not. buffer_live_p(all(k))) cycle
             if (same_handle(all(k), buffer)) cycle
+
             if (len(buffers(all(k)%index)%name) > 0) then
                 if (buffers(all(k)%index)%name(1:1) == " ") cycle
             end if
+
             b = all(k)
             return
         end do
+
         call get_buffer_create("*scratch*", b, status)
     end function other_buffer_safely
 
@@ -213,11 +233,13 @@ contains
         type(status_type) :: status
         integer(int64) :: old_point, bi
         integer :: k, n, ndead
+
         if (.not. allocated(config%saved)) return
         if (size(config%saved) == 0) return
         old_point = -1
         new_current_buffer = config%current_buffer
         sw = selected_frame%selected_window
+
         if (.not. buffer_live_p(new_current_buffer)) then
             new_current_buffer = null_handle()
         else
@@ -227,6 +249,7 @@ contains
             ! The point of the window to be selected, if it shows the
             ! buffer and is not the selected window; else the buffer's.
             old_point = buffers(bi)%pt
+
             if (window_cur_shows(config%current_window, new_current_buffer) .and. &
                 .not. same_window(sw, config%current_window)) then
                 if (.not. same_handle(new_current_buffer, current_buffer())) then
@@ -236,6 +259,7 @@ contains
                 end if
             end if
         end if
+
         ! If a window we restore gets another buffer, record the window's
         ! old buffer.
         do k = 1, size(config%saved)
@@ -248,6 +272,7 @@ contains
                 call record_window_buffer(p%window)
             end associate
         end do
+
         ! "Swap out" point from the selected window's buffer into the
         ! window itself.
         if (window_live_p(sw)) then
@@ -256,52 +281,64 @@ contains
                 call set_window_point(windows(sw%index), buffers(bi)%pt, status)
             end if
         end if
+
         ! Mark all windows now on frame as "deleted".  Restoring the new
         ! configuration "undeletes" any that are in it.
         allocate (old(count_windows(selected_frame%root_window)))
         n = 0
+
         do k = 1, size(old)
             old(k) = null_handle()
         end do
+
         if (window_valid_p(selected_frame%root_window)) then
             call delete_all_child_windows(selected_frame%root_window, old, n)
         end if
+
         do k = 1, n
             windows(old(k)%index)%dead = .true.
             windows(old(k)%index)%parent = null_handle()
             windows(old(k)%index)%next = null_handle()
             windows(old(k)%index)%prev = null_handle()
         end do
+
         allocate (dead_windows(size(config%saved)))
         ndead = 0
+
         do k = 1, size(config%saved)
             associate (p => config%saved(k))
                 window = p%window
+
                 associate (w => windows(window%index))
                     w%dead = .false.
                     w%next = null_handle()
                     w%child = null_handle()
+
                     if (p%parent /= 0) then
                         w%parent = config%saved(p%parent)%window
                     else
                         w%parent = null_handle()
                     end if
+
                     if (p%prev /= 0) then
                         w%prev = config%saved(p%prev)%window
                         windows(w%prev%index)%next = window
                     else
                         w%prev = null_handle()
+
                         if (window_valid_p(w%parent)) then
                             windows(w%parent%index)%horizontal = &
                                 p%total_cols /= windows(w%parent%index)%total_cols
                             windows(w%parent%index)%child = window
                         end if
                     end if
+
                     ! If we squirreled away the buffer, restore it now.
                     if (w%kept_buffer%index /= 0) then
                         w%buffer = w%kept_buffer
                         w%kept_buffer = null_handle()
                     end if
+
                     w%left_col = p%left_col
                     w%top_line = p%top_line
                     w%total_cols = p%total_cols
@@ -311,14 +348,17 @@ contains
                     w%dedicated = p%dedicated
                     w%window_end_valid = .false.
                 end associate
+
                 if (buffer_live_p(p%buffer)) then
                     ! If saved buffer is alive, install it.
                     if (.not. same_handle(windows(window%index)%buffer, p%buffer)) then
                         windows(window%index)%buffer = p%buffer
                         call window_discard_buffer_from_window(p%buffer, window, .false.)
                     end if
+
                     call restrict(windows(window%index)%start, marker_pos(p%start), p%buffer)
                     call restrict(windows(window%index)%pointm, marker_pos(p%pointm), p%buffer)
+
                     ! Don't restore the location of point in the buffer
                     ! which was current when the configuration was
                     ! recorded.
@@ -331,9 +371,11 @@ contains
                     ! real.
                     b = windows(window%index)%buffer
                     call resolve_buffer(b, bi, status)
+
                     if (windows(window%index)%start%index == 0) then
                         call restrict(windows(window%index)%start, 0_int64, b)
                     end if
+
                     if (windows(window%index)%pointm%index == 0) then
                         call restrict(windows(window%index)%pointm, buffers(bi)%pt, b)
                     end if
@@ -344,22 +386,27 @@ contains
                     call window_discard_buffer_from_window(b, window, .false.)
                     call restrict(windows(window%index)%start, 0_int64, b)
                     call restrict(windows(window%index)%pointm, 0_int64, b)
+
                     ! Try to delete a window that was dedicated to its
                     ! killed buffer later.
                     if (p%dedicated /= DEDICATED_NONE) then
                         ndead = ndead + 1
                         dead_windows(ndead) = window
                     end if
+
                     windows(window%index)%dedicated = DEDICATED_NONE
                 end if
             end associate
         end do
+
         selected_frame%root_window = config%root_window
+
         ! Arrange *not* to restore point in the buffer that was current
         ! when the window configuration was saved.
         if (window_cur_shows(config%current_window, new_current_buffer)) then
             call restrict(windows(config%current_window%index)%pointm, old_point, new_current_buffer)
         end if
+
         ! Select the window without swapping out point in the old
         ! selected window, and without recording the buffer.
         selected_frame%selected_window = config%current_window
@@ -367,6 +414,7 @@ contains
         call goto_char(window_point(windows(config%current_window%index)))
         call resolve_buffer(windows(config%current_window%index)%buffer, bi, status)
         if (status%ok()) buffers(bi)%last_selected_window = config%current_window
+
         ! Free the windows that were not reused.
         do k = 1, n
             if (windows(old(k)%index)%dead) then
@@ -375,22 +423,27 @@ contains
                 end if
             end if
         end do
+
         ! Scan dead buffer windows.
         do k = 1, ndead
             if (window_live_p(dead_windows(k)) .and. .not. same_window(dead_windows(k), selected_frame%root_window)) then
                 call delete_window(dead_windows(k), status)
             end if
         end do
+
         ! Record the selected window's buffer.
         if (window_live_p(config%current_window)) call select_window(config%current_window, status)
+
         if (buffer_live_p(new_current_buffer)) then
             call set_buffer(new_current_buffer, status)
+
             ! If the new current buffer doesn't appear in the selected
             ! window, go to its old point (Bug#12208).
             if (.not. same_handle(windows(selected_frame%selected_window%index)%buffer, new_current_buffer)) then
                 call goto_char(old_point)
             end if
         end if
+
         minibuffer_scroll_window = config%minibuf_scroll_window
     end subroutine set_window_configuration
 
@@ -399,6 +452,7 @@ contains
     subroutine release_dead_window(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: status
+
         if (.not. wtable%is_live(h)) return
         if (.not. windows(h%index)%dead .or. windows(h%index)%config_refs > 0) return
         call free_window(windows(h%index))
@@ -409,6 +463,7 @@ contains
     !> Whether window `h' (valid) shows buffer `b'.
     logical function window_cur_shows(h, b)
         type(handle_type), intent(in) :: h, b
+
         window_cur_shows = .false.
         if (.not. wtable%is_live(h)) return
         if (b%index == 0) return
@@ -419,17 +474,21 @@ contains
         type(window_configuration_type), intent(inout) :: config
         type(status_type) :: status
         integer :: k
+
         if (.not. allocated(config%saved)) return
+
         do k = 1, size(config%saved)
             associate (p => config%saved(k))
                 if (p%start%index /= 0) call free_marker(p%start, status)
                 if (p%pointm%index /= 0) call free_marker(p%pointm, status)
+
                 if (wtable%is_live(p%window)) then
                     windows(p%window%index)%config_refs = max(0, windows(p%window%index)%config_refs - 1)
                     call release_dead_window(p%window)
                 end if
             end associate
         end do
+
         deallocate (config%saved)
         config%root_window = null_handle()
         config%current_window = null_handle()

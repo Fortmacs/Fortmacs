@@ -40,6 +40,7 @@ contains
 
     subroutine collect_dired_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("dired-test-directory-files", test_directory_files) &
                     ]
@@ -51,8 +52,10 @@ contains
         character(len=:), allocatable :: s
         type(value_type), allocatable :: names(:)
         integer :: k
+
         call list_elements(files, names)
         s = ""
+
         do k = 1, size(names)
             s = s//xstring(names(k))
         end do
@@ -66,20 +69,24 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer :: k
+
         testdir = temporary_file_directory()//"directory-files-test"
         call get_buffer_create(" *dired-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call make_directory_internal(testdir, st)
+
         body: block
             call directory_files(testdir, files, st)
             call check(error, st%ok() .and. list_length(files) == 2, "empty: . and ..")
             if (allocated(error)) exit body
             call check(error, joined(files), "...")
             if (allocated(error)) exit body
+
             do k = 1, size(made)
                 call write_region(testdir//"/"//made(k), .false., st)
             end do
+
             call directory_files(testdir, files, st)
             call check(error, list_length(files) == 6, "six")
             if (allocated(error)) exit body
@@ -108,9 +115,11 @@ contains
             call check(error, format_error(st), "Opening directory: No such file or directory, "// &
                        testdir//"/missing")
         end block body
+
         do k = 1, size(made)
             call delete_file_internal(testdir//"/"//made(k), st)
         end do
+
         call delete_directory_internal(testdir, st)
     end subroutine test_directory_files
 end module test_dired_fm

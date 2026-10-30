@@ -63,6 +63,7 @@ contains
 
     subroutine collect_xdisp_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("layout-lines-and-cursor", test_lines), &
                     new_unittest("layout-tab-control-wide", test_special_chars), &
@@ -96,6 +97,7 @@ contains
         type(handle_type), intent(out) :: h
         integer(int64), intent(out) :: bi
         type(status_type) :: st
+
         call get_buffer_create(name, h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
@@ -108,9 +110,12 @@ contains
         type(glyph_row_type), intent(in) :: row
         character(len=:), allocatable :: s
         integer :: k
+
         s = ""
+
         do k = 1, row%used
             if (row%glyphs(k)%padding) cycle
+
             if (row%glyphs(k)%ch < 128) then
                 s = s//achar(row%glyphs(k)%ch)
             else
@@ -127,10 +132,13 @@ contains
         integer(int64), intent(out) :: end_pos
         logical, intent(out) :: at_end
         integer :: r
+
         allocate (rows(nrows))
+
         do r = 1, nrows
             allocate (rows(r)%glyphs(width))
         end do
+
         call layout_window(bi, start, pt, width, rows, crow, ccol, end_pos, at_end)
     end subroutine layout
 
@@ -144,6 +152,7 @@ contains
         integer(int64) :: end_pos
         integer :: crow
         logical :: at_end
+
         call layout(bi, 1_int64, pt, 30, 2, rows, crow, ccol, end_pos, at_end)
         text = row_text(rows(1))
         if (crow /= 0) ccol = -1
@@ -159,6 +168,7 @@ contains
         integer(int64) :: bi
         character(len=:), allocatable :: text
         integer :: ccol
+
         call buffer_with("*xdisp-ov*", "abcdef", h, bi)
         call make_overlay(ov, 3_int64, 5_int64, st)
         call overlay_put(ov, "before_string", make_string("BS"), st)
@@ -195,6 +205,7 @@ contains
         character(len=:), allocatable :: text
         integer :: ccol, crow, r
         logical :: at_end
+
         call buffer_with("*xdisp-ov-props*", "ab"//achar(10)//"cd", h, bi)
         str = make_string(" ")
         call string_put_text_property(0_int64, 1_int64, sym("display"), &
@@ -215,9 +226,11 @@ contains
         ! Its face.
         call string_put_text_property(0_int64, 1_int64, sym("face"), sym("region"), str, st)
         call overlay_put(ov, "after_string", str, st)
+
         do r = 1, 2
             allocate (rows(r)%glyphs(8))
         end do
+
         call init_faces()
         call init_frame_faces(f, "dumb")
         call layout_window(bi, 1_int64, 3_int64, 8, rows, crow, ccol, end_pos, at_end, 0_int64, 0_int64, f)
@@ -247,6 +260,7 @@ contains
         integer(int64) :: bi
         character(len=:), allocatable :: text
         integer :: ccol
+
         call buffer_with("*xdisp-ellipsis*", "abcdef", h, bi)
         call add_to_invisibility_spec("foo", ellipsis=.true.)
         call put_text_property(2_int64, 5_int64, sym("invisible"), sym("foo"), st)
@@ -272,6 +286,7 @@ contains
         integer(int64) :: bi
         character(len=:), allocatable :: text
         integer :: ccol
+
         call buffer_with("*xdisp-invisible*", "abcdef", h, bi)
         call put_text_property(2_int64, 5_int64, sym("invisible"), t_value(), st)
         call layout1(bi, 3_int64, text, ccol)
@@ -300,6 +315,7 @@ contains
         integer(int64) :: bi
         character(len=:), allocatable :: text
         integer :: ccol
+
         call buffer_with("*xdisp-newline*", "ab"//achar(10)//"cd", h, bi)
         call put_text_property(3_int64, 4_int64, sym("invisible"), t_value(), st)
         call layout1(bi, 3_int64, text, ccol)
@@ -322,6 +338,7 @@ contains
         integer(int64) :: bi
         character(len=:), allocatable :: text
         integer :: ccol
+
         call buffer_with("*xdisp-display*", "abcdef", h, bi)
         call put_text_property(3_int64, 5_int64, sym("display"), make_string("XY"), st)
         call layout1(bi, 3_int64, text, ccol)
@@ -351,6 +368,7 @@ contains
         integer(int64) :: bi
         character(len=:), allocatable :: text
         integer :: ccol
+
         call buffer_with("*xdisp-space*", "ab"//achar(9)//"cd", h, bi)
         call put_text_property(3_int64, 4_int64, sym("display"), &
                                list(sym("space"), sym(":align-to"), make_fixnum(10_int64)), st)
@@ -373,10 +391,13 @@ contains
         logical :: at_end
         type(status_type) :: st
         type(frame_type) :: f
+
         call buffer_with("*xdisp-region*", "abc"//achar(10)//"def", h, bi)
+
         do r = 1, 2
             allocate (rows(r)%glyphs(8))
         end do
+
         ! A monochrome terminal: the region is in inverse video.
         call init_faces()
         call init_frame_faces(f, "dumb")
@@ -421,6 +442,7 @@ contains
         integer :: crow, ccol
         logical :: at_end
         type(status_type) :: st
+
         call buffer_with("*xdisp-lines*", "ab"//achar(10)//"cd", h, bi)
         call layout(bi, 1_int64, 4_int64, 10, 3, rows, crow, ccol, end_pos, at_end)
         call check(error, row_text(rows(1)) == "ab" .and. row_text(rows(2)) == "cd" .and. &
@@ -440,6 +462,7 @@ contains
         integer :: crow, ccol
         logical :: at_end
         type(status_type) :: st
+
         ! a TAB b, C-a, DEL, then a wide character and x.
         call buffer_with("*xdisp-chars*", "a"//achar(9)//"b"//achar(10)//achar(1)//achar(127)// &
                          achar(10)//char(230)//char(151)//char(165)//"x", h, bi)
@@ -466,6 +489,7 @@ contains
         integer :: crow, ccol
         logical :: at_end
         type(status_type) :: st
+
         call buffer_with("*xdisp-cont*", "abcdefgh", h, bi)
         call layout(bi, 1_int64, 7_int64, 6, 3, rows, crow, ccol, end_pos, at_end)
         ! Five characters and \ in the last column, then the rest.
@@ -486,6 +510,7 @@ contains
         integer :: crow, ccol
         logical :: at_end
         type(status_type) :: st
+
         call buffer_with("*xdisp-eob*", "ab"//achar(10), h, bi)
         call layout(bi, 1_int64, 4_int64, 10, 4, rows, crow, ccol, end_pos, at_end)
         call check(error, crow == 1 .and. ccol == 0 .and. at_end, "cursor after the newline")
@@ -506,6 +531,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: s
         type(glyph_type) :: row(60)
+
         ! bindings.el's standard-mode-line-format on a text terminal.
         s = mode_line_text("*scratch*", .false., .false., "All", "1", 60)
         call mode_line_row(s, 60, row)
@@ -543,7 +569,9 @@ contains
         type(glyph_type), intent(in) :: g(:)
         character(len=:), allocatable :: s
         integer :: k
+
         s = ""
+
         do k = 1, size(g)
             if (g(k)%ch < 128) then
                 s = s//achar(g(k)%ch)
@@ -560,6 +588,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: bi
+
         call buffer_with("*xdisp-pct*", repeat("x", 199)//achar(10), h, bi)
         call check(error, mode_line_percent(bi, 2_int64, .false.), " 1%")
         if (allocated(error)) return
@@ -590,6 +619,7 @@ contains
         integer :: crow, ccol
         logical :: at_end
         type(status_type) :: st
+
         call buffer_with("*xdisp-wide*", "abcd"//char(230)//char(188)//char(162)//achar(9)//"x", h, bi)
         call layout(bi, 1_int64, 5_int64, 6, 2, rows, crow, ccol, end_pos, at_end)
         call check(error, row_text(rows(1)), "abcd\\")
@@ -612,6 +642,7 @@ contains
         integer :: crow, ccol
         logical :: at_end
         type(status_type) :: st
+
         call buffer_with("*xdisp-split-chars*", "abcd"//achar(1)//"z", h, bi)
         call layout(bi, 1_int64, 5_int64, 6, 2, rows, crow, ccol, end_pos, at_end)
         call check(error, row_text(rows(1)), "abcd^\")
@@ -636,6 +667,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: bi
+
         ! "a" x 12 shows on three rows 6 columns wide (5 + 5 + 2).
         call buffer_with("*xdisp-recenter*", repeat("a", 12)//achar(10)//"b"//achar(10)//"c", h, bi)
         call check(error, recenter_start(bi, 16_int64, 5, 3) == 6_int64, "second row of the long line")
@@ -657,11 +689,14 @@ contains
         character(len=12) :: line
         integer(int64) :: bi
         integer :: k
+
         text = ""
+
         do k = 1, 100
             write (line, '("line ",i0)') k
             text = text//trim(line)//achar(10)
         end do
+
         call buffer_with("*xdisp-big*", text, h, bi)
         call builtin_xterm(ti)
         call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
@@ -693,12 +728,14 @@ contains
         call delete_window_tree(f%root_window)
         call delete_window_object(f%minibuffer_window)
         call kill_buffer(h, st)
+
     contains
 
         !> Position of the start of line `n` ("line 1" .. "line 9" take 7
         !> characters with the newline, "line 10" .. 8).
         integer(int64) function line_start(n)
             integer, intent(in) :: n
+
             if (n <= 10) then
                 line_start = 1 + 7*(n - 1)
             else
@@ -720,6 +757,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: out, row
         integer(int64) :: bi
+
         call buffer_with("*xdisp-header*", "first"//achar(10)//"second"//achar(10), h, bi)
         call buffers(bi)%header_line_format%add("Name", align_to=2)
         call buffers(bi)%header_line_format%add("Size", "bold", align_to=10)
@@ -730,6 +768,7 @@ contains
         call goto_char(1_int64)
         call redisplay(f, st)
         out = tty_take_output(f%tty)
+
         steps: block
             row = row_text(f%current_matrix%rows(0))
             call check(error, row(1:14), "  Name    Size")
@@ -745,6 +784,7 @@ contains
             call redisplay(f, st)
             call check(error, row_text(f%current_matrix%rows(0)), "first")
         end block steps
+
         call delete_window_tree(f%root_window)
         call delete_window_object(f%minibuffer_window)
         call kill_buffer(h, st)
@@ -760,6 +800,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: out, row
         integer(int64) :: bi
+
         call buffer_with("*xdisp-echo*", "", h, bi)
         call builtin_xterm(ti)
         call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
@@ -792,6 +833,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: bi
+
         call buffer_with(" *Minibuf-1*", "", h, bi)
         call ensure_frame_windows()
         last_message = ""
@@ -824,6 +866,7 @@ contains
         character(len=4096) :: buf
         character(len=:), allocatable :: out
         integer(int64) :: n
+
         call open_pty(master, slave, st)
         call check(error, st%ok(), "open_pty")
         if (allocated(error)) return
@@ -835,15 +878,18 @@ contains
         call check(error, st%ok(), "emacs_main: "//format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "hi")
         out = ""
+
         do while (input_available(master, 100_int32))
             call emacs_read(master, buf, n, st)
             if (n <= 0) exit
             out = out//buf(1:n)
         end do
+
         if (.not. allocated(error)) then
             call check(error, index(out, achar(27)//"[?1049h") > 0 .and. &
                        index(out, achar(27)//"[?1049l") > 0, "enters and leaves full screen")
         end if
+
         call reset_sys_modes(slave, old, st)
         call close_fd(slave)
         call close_fd(master)
@@ -861,11 +907,14 @@ contains
         character(len=12) :: line
         integer(int64) :: bi
         integer :: k
+
         text = ""
+
         do k = 1, 40
             write (line, '("line ",i0)') k
             text = text//trim(line)//achar(10)
         end do
+
         call buffer_with("*xdisp-split*", text, h, bi)
         call builtin_xterm(ti)
         call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)

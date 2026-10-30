@@ -57,6 +57,7 @@ contains
 
     subroutine collect_minibuffer_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("completion-test--pcm-bug38458", test_pcm_bug38458), &
                     new_unittest("completion-pcm-test-1", test_pcm_1), &
@@ -88,10 +89,13 @@ contains
         type(completion_table_type) :: table
         type(value_type), allocatable :: elts(:)
         integer :: k
+
         allocate (elts(size(names)))
+
         do k = 1, size(names)
             elts(k) = make_string(trim(names(k)))
         end do
+
         table = completion_list_table(make_list(elts))
     end function table_of
 
@@ -104,6 +108,7 @@ contains
         logical, intent(in), optional :: ignore_case
         character(len=24), allocatable :: saved(:)
         logical :: saved_case
+
         call completion_all_defaults()
         saved = completion_styles
         saved_case = completion_ignore_case%value
@@ -126,6 +131,7 @@ contains
         type(value_type) :: all
         type(value_type), allocatable :: elts(:)
         integer(int64) :: base_size
+
         call completion_all_defaults()
         saved = completion_styles
         completion_styles = [character(len=24) :: style]
@@ -141,6 +147,7 @@ contains
     subroutine completion_all_defaults()
         type(value_type) :: all
         integer(int64) :: base_size
+
         if (.not. allocated(completion_styles)) then
             call completion_all_completions("", table_of([character(len=1) :: "a"]), 0_int64, all, base_size)
         end if
@@ -152,6 +159,7 @@ contains
         type(try_result_type), intent(in) :: res
         character(len=*), intent(in) :: string, what
         integer(int64), intent(in) :: point
+
         call check(error, res%kind == TRY_STRING, what//": a string")
         if (allocated(error)) return
         call check(error, res%string == string .and. len(res%string) == len(string), &
@@ -163,6 +171,7 @@ contains
     subroutine test_pcm_bug38458(error)
         type(error_type), allocatable, intent(out) :: error
         type(try_result_type) :: res
+
         call style_try("partial-completion", "tes", [character(len=7) :: "Testing", "testing"], 3_int64, res, .true.)
         call check_try(error, res, "testing", 7_int64, "tes")
     end subroutine test_pcm_bug38458
@@ -171,6 +180,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: first
         integer :: n
+
         ! Point is at end, this does not match anything.
         call style_all("partial-completion", "foo", [character(len=9) :: "hello", "world", "barfoobar"], 3_int64, &
                        n, first)
@@ -181,6 +191,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: first
         integer :: n
+
         ! Point is at beginning, this matches "barfoobar".
         call style_all("partial-completion", "foo", [character(len=9) :: "hello", "world", "barfoobar"], 0_int64, &
                        n, first)
@@ -191,6 +202,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: first
         integer :: n
+
         call style_all("partial-completion", "R", [character(len=5) :: "R", "hello"], 1_int64, n, first)
         call check(error, n > 0, "a match")
     end subroutine test_pcm_3
@@ -199,6 +211,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: first
         integer :: n
+
         ! No match due to point being at the end.
         call style_all("partial-completion", "RO", [character(len=4) :: "RaOb"], 2_int64, n, first)
         call check(error, n == 0, "no match")
@@ -208,6 +221,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: first
         integer :: n
+
         ! Wildcards and delimiters work.
         call style_all("partial-completion", "li-pac*", [character(len=13) :: "list-packages"], 7_int64, n, first)
         call check(error, first == "list-packages", "got "//first)
@@ -220,6 +234,7 @@ contains
     subroutine test_pcm_7(error)
         type(error_type), allocatable, intent(out) :: error
         type(try_result_type) :: res
+
         ! Wildcards are preserved even when right before a delimiter.
         call style_try("partial-completion", "x*/", [character(len=5) :: "x1/y1", "x2/y2"], 3_int64, res)
         call check_try(error, res, "x*/y", 4_int64, "x*/")
@@ -233,6 +248,7 @@ contains
     subroutine test_pcm_8(error)
         type(error_type), allocatable, intent(out) :: error
         type(try_result_type) :: res
+
         ! try-completion inserts the common prefix and suffix at point.
         call style_try("partial-completion", "r", [character(len=7) :: "fooxbar", "fooybar"], 0_int64, res)
         call check_try(error, res, "foobar", 3_int64, "r")
@@ -245,6 +261,7 @@ contains
     subroutine test_pcm_anydelim(error)
         type(error_type), allocatable, intent(out) :: error
         type(try_result_type) :: res
+
         ! After each delimiter is a special wildcard which matches any
         ! sequence of delimiters.
         call style_try("partial-completion", "-x", [character(len=4) :: "-_.x", "-__x"], 2_int64, res)
@@ -254,6 +271,7 @@ contains
     subroutine test_pcm_bug4219(error)
         type(error_type), allocatable, intent(out) :: error
         type(try_result_type) :: res
+
         ! With `completion_ignore_case', try-completion should change the
         ! case of existing text when the completions have different
         ! casing.
@@ -282,6 +300,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: first
         integer :: n
+
         call style_all("substring", "foo", [character(len=9) :: "hello", "world", "barfoobar"], 3_int64, n, first)
         call check(error, first == "barfoobar", "got "//first)
     end subroutine test_substring_1
@@ -290,6 +309,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: first
         integer :: n
+
         call style_all("substring", "R", [character(len=5) :: "R", "hello"], 1_int64, n, first)
         call check(error, n > 0, "a match")
     end subroutine test_substring_2
@@ -298,6 +318,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: first
         integer :: n
+
         ! Substring match.
         call style_all("substring", "custgroup", [character(len=15) :: "customize-group"], 4_int64, n, first)
         call check(error, first == "customize-group", "got "//first)
@@ -309,6 +330,7 @@ contains
     subroutine test_substring_5(error)
         type(error_type), allocatable, intent(out) :: error
         type(try_result_type) :: res
+
         ! substring completion should successfully complete the entire
         ! string.
         call style_try("substring", "b", [character(len=2) :: "ab", "ab"], 0_int64, res)
@@ -319,6 +341,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: first
         integer :: n
+
         call style_all("flex", "foo", [character(len=9) :: "hello", "world", "fabrobazo"], 3_int64, n, first)
         call check(error, first == "fabrobazo", "got "//first)
     end subroutine test_flex_1
@@ -327,6 +350,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: first
         integer :: n
+
         call style_all("flex", "custgroup", [character(len=28) :: "customize-group-other-window"], 4_int64, n, first)
         call check(error, first == "customize-group-other-window", "got "//first)
     end subroutine test_flex_3
@@ -336,6 +360,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: first
         integer :: n
+
         call style_all("flex", "日本", [character(len=9) :: "日本語", "日本", "中国"], 2_int64, n, first)
         call check(error, n == 2, "two matches")
         if (allocated(error)) return
@@ -348,6 +373,7 @@ contains
     subroutine test_default_styles(error)
         type(error_type), allocatable, intent(out) :: error
         type(try_result_type) :: res
+
         call completion_all_defaults()
         call completion_try_completion("l-p", table_of([character(len=13) :: "list-packages", "load-file"]), 3_int64, res)
         call check_try(error, res, "list-packages", 13_int64, "l-p")
@@ -363,6 +389,7 @@ contains
         type(handle_type) :: buf
         type(status_type) :: st
         integer(int64) :: base_size
+
         call get_buffer_create("xyzzy-category-test", buf, st)
         call completion_all_completions("zzy-cat", completion_function_table(internal_complete_buffer, "buffer"), &
                                         7_int64, all, base_size)
@@ -377,13 +404,16 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
         integer(int64) :: start
+
         status = status_type()
         text = buffer_string()
         start = point()
+
         do while (start > 1)
             if (index("abcdefghijklmnopqrstuvwxyz0123456789", text(start - 1:start - 1)) == 0) exit
             start = start - 1
         end do
+
         data%found = .true.
         data%start = start
         data%end = point()
@@ -394,6 +424,7 @@ contains
     recursive subroutine test_capf_zzz(data, status)
         type(capf_data_type), intent(out) :: data
         type(status_type), intent(out) :: status
+
         status = status_type()
         call test_capf(data, status)
         data%table = table_of([character(len=3) :: "zzz"])
@@ -404,6 +435,7 @@ contains
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
+
         call key_parse(keys, evs, st)
         call unread_command_events(evs)
     end subroutine type_keys
@@ -412,6 +444,7 @@ contains
         type(handle_type), intent(out) :: buf
         character(len=*), intent(in) :: text
         type(status_type) :: st
+
         call init_bindings()
         call discard_input()
         call get_buffer_create("capf-test", buf, st)
@@ -427,6 +460,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf, comp
         type(status_type) :: st
+
         call capf_buffer(buf, "x fo")
         call completion_at_point_functions%add(test_capf, local=.true.)
         call type_keys("C-M-i")
@@ -457,6 +491,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
         type(status_type) :: st
+
         call capf_buffer(buf, "x b")
         call completion_at_point_functions%add(test_capf, local=.true.)
         call completion_at_point_functions%add(test_capf_zzz, local=.true.)
@@ -471,10 +506,13 @@ contains
         call check(error, buffer_string() == "x zzz", buffer_string())
         call kill_buffer(buf, st)
         call show_alone()
+
     contains
+
         subroutine erase_all()
             use buffer_fm, only: erase_buffer
             type(status_type) :: st2
+
             call erase_buffer(st2)
         end subroutine erase_all
     end subroutine test_capf_non_exclusive

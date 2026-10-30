@@ -358,7 +358,9 @@ contains
         type(handle_type), intent(out) :: h
         type(handle_type), intent(in) :: parent
         type(syntax_table_type), allocatable :: grown(:)
+
         call table%acquire(h)
+
         if (.not. allocated(tables)) then
             allocate (tables(table%capacity()))
         else if (size(tables, kind=int64) < table%capacity()) then
@@ -366,6 +368,7 @@ contains
             grown(1:size(tables)) = tables
             call move_alloc(grown, tables)
         end if
+
         tables(h%index) = syntax_table_type()
         allocate (tables(h%index)%starts(0), tables(h%index)%ends(0), tables(h%index)%entries(0))
         tables(h%index)%parent = parent
@@ -376,6 +379,7 @@ contains
         type(handle_type), intent(in) :: h
         integer(int64), intent(out) :: i
         type(status_type), intent(out) :: status
+
         call table%resolve(h, i, status)
         if (.not. status%ok()) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "syntax_table_p")
     end subroutine resolve_table
@@ -383,6 +387,7 @@ contains
     !> Whether `h' is a live syntax table.
     logical function syntax_table_live_p(h)
         type(handle_type), intent(in) :: h
+
         syntax_table_live_p = table%is_live(h)
     end function syntax_table_live_p
 
@@ -392,12 +397,15 @@ contains
         type(handle_type), intent(in) :: h
         type(status_type), intent(out) :: status
         integer(int64) :: i
+
         call resolve_table(h, i, status)
         if (.not. status%ok()) return
+
         if (h%index == standard%index .and. h%generation == standard%generation) then
             call set_error(status, FM_GENERIC_ERROR, "Can't free the standard syntax table")
             return
         end if
+
         tables(i) = syntax_table_type()
         call table%release(h, status)
     end subroutine free_syntax_table
@@ -408,6 +416,7 @@ contains
     !> init_syntax_once and characters.el).
     function standard_syntax_table() result(h)
         type(handle_type) :: h
+
         if (.not. table%is_live(standard)) call init_syntax_once()
         h = standard
     end function standard_syntax_table
@@ -416,27 +425,34 @@ contains
     !> then the entries characters.el makes.
     subroutine init_syntax_once()
         integer :: i
+
         call new_table(standard, null_handle())
+
         associate (t => tables(standard%index))
             ! Control characters should not be whitespace.
             do i = 0, 127
                 t%ascii(i) = syntax_descriptor_type(SPUNCT, -1)
             end do
+
             ! Except that a few really are whitespace.
             t%ascii(32) = syntax_descriptor_type(SWHITESPACE, -1)
             t%ascii(9) = syntax_descriptor_type(SWHITESPACE, -1)
             t%ascii(10) = syntax_descriptor_type(SWHITESPACE, -1)
             t%ascii(13) = syntax_descriptor_type(SWHITESPACE, -1)
             t%ascii(12) = syntax_descriptor_type(SWHITESPACE, -1)
+
             do i = iachar("a"), iachar("z")
                 t%ascii(i) = syntax_descriptor_type(SWORD, -1)
             end do
+
             do i = iachar("A"), iachar("Z")
                 t%ascii(i) = syntax_descriptor_type(SWORD, -1)
             end do
+
             do i = iachar("0"), iachar("9")
                 t%ascii(i) = syntax_descriptor_type(SWORD, -1)
             end do
+
             t%ascii(iachar("$")) = syntax_descriptor_type(SWORD, -1)
             t%ascii(iachar("%")) = syntax_descriptor_type(SWORD, -1)
             t%ascii(iachar("(")) = syntax_descriptor_type(SOPEN, iachar(")"))
@@ -447,14 +463,18 @@ contains
             t%ascii(iachar("}")) = syntax_descriptor_type(SCLOSE, iachar("{"))
             t%ascii(iachar("""")) = syntax_descriptor_type(SSTRING, -1)
             t%ascii(iachar("\")) = syntax_descriptor_type(SESCAPE, -1)
+
             do i = 1, 10
                 t%ascii(iachar("_-+*/&|<>=" (i:i))) = syntax_descriptor_type(SSYMBOL, -1)
             end do
+
             do i = 1, 12
                 t%ascii(iachar(".,;:?!#@~^'`" (i:i))) = syntax_descriptor_type(SPUNCT, -1)
             end do
+
             t%ascii(127) = syntax_descriptor_type(SPUNCT, -1)
         end associate
+
         ! All multibyte characters have syntax `word' by default.
         call paint(standard%index, 128, MAX_CHAR, syntax_descriptor_type(SWORD, -1))
         painting = standard%index
@@ -469,6 +489,7 @@ contains
         character(len=*), intent(in) :: descriptor
         type(syntax_descriptor_type) :: d
         type(status_type) :: status
+
         call string_to_syntax(descriptor, d, status)
         if (status%ok()) call set_range(painting, from, to, d)
     end subroutine characters_entry
@@ -482,6 +503,7 @@ contains
         type(handle_type), intent(in), optional :: from
         type(handle_type) :: source, parent
         integer(int64) :: i
+
         source = standard_syntax_table()
         if (present(from)) source = from
         call resolve_table(source, i, status)
@@ -510,12 +532,15 @@ contains
         type(handle_type), intent(in), optional :: oldtable
         type(handle_type) :: parent
         integer(int64) :: i
+
         parent = standard_syntax_table()
+
         if (present(oldtable)) then
             call resolve_table(oldtable, i, status)
             if (.not. status%ok()) return
             parent = oldtable
         end if
+
         status = status_type()
         call new_table(h, parent)
     end subroutine make_syntax_table
@@ -525,6 +550,7 @@ contains
     !> syntax.c:Fsyntax_table.
     function syntax_table() result(h)
         type(handle_type) :: h
+
         h = standard_syntax_table()
         if (cur == 0) return
         if (table%is_live(buffers(cur)%syntax_table)) h = buffers(cur)%syntax_table
@@ -536,6 +562,7 @@ contains
         type(handle_type), intent(in) :: h
         type(status_type), intent(out) :: status
         integer(int64) :: i
+
         call resolve_table(h, i, status)
         if (.not. status%ok()) return
         buffers(cur)%syntax_table = h
@@ -551,9 +578,11 @@ contains
         integer, intent(in) :: from, to
         type(syntax_descriptor_type), intent(in) :: d
         integer :: c
+
         do c = max(0, from), min(127, to)
             tables(t)%ascii(c) = d
         end do
+
         if (to >= 128) call paint(t, max(128, from), to, d)
     end subroutine set_range
 
@@ -566,9 +595,11 @@ contains
         integer(int32), allocatable :: s(:), e(:)
         type(syntax_descriptor_type), allocatable :: v(:)
         integer :: k, m
+
         associate (tb => tables(t))
             allocate (s(tb%n + 3), e(tb%n + 3), v(tb%n + 3))
             m = 0
+
             ! The runs (or their parts) before `from`, the new run, then the
             ! runs (or their parts) after `to`.
             do k = 1, tb%n
@@ -578,7 +609,9 @@ contains
                     call add(tb%starts(k), from - 1, tb%entries(k))
                 end if
             end do
+
             call add(from, to, d)
+
             do k = 1, tb%n
                 if (tb%starts(k) > to) then
                     call add(tb%starts(k), tb%ends(k), tb%entries(k))
@@ -586,6 +619,7 @@ contains
                     call add(to + 1, tb%ends(k), tb%entries(k))
                 end if
             end do
+
             tb%starts = s(1:m)
             tb%ends = e(1:m)
             tb%entries = v(1:m)
@@ -597,13 +631,16 @@ contains
         subroutine add(a, b, x)
             integer, intent(in) :: a, b
             type(syntax_descriptor_type), intent(in) :: x
+
             if (m + 1 > size(s)) call grow()
+
             if (m > 0) then
                 if (e(m) == a - 1 .and. same(v(m), x)) then
                     e(m) = b
                     return
                 end if
             end if
+
             m = m + 1
             s(m) = a
             e(m) = b
@@ -613,6 +650,7 @@ contains
         subroutine grow()
             integer(int32), allocatable :: s2(:), e2(:)
             type(syntax_descriptor_type), allocatable :: v2(:)
+
             allocate (s2(2*size(s) + 4), e2(2*size(s) + 4), v2(2*size(s) + 4))
             s2(1:size(s)) = s
             e2(1:size(s)) = e
@@ -625,6 +663,7 @@ contains
 
     pure logical function same(a, b)
         type(syntax_descriptor_type), intent(in) :: a, b
+
         same = a%code == b%code .and. a%match == b%match
     end function same
 
@@ -635,14 +674,18 @@ contains
         integer, intent(in) :: c
         type(syntax_descriptor_type) :: d
         integer :: lo, hi, mid
+
         if (c >= 0 .and. c < 128) then
             d = tables(t)%ascii(c)
             return
         end if
+
         lo = 1
         hi = tables(t)%n
+
         do while (lo <= hi)
             mid = (lo + hi)/2
+
             if (c < tables(t)%starts(mid)) then
                 hi = mid - 1
             else if (c > tables(t)%ends(mid)) then
@@ -665,11 +708,13 @@ contains
         type(status_type) :: status
         integer(int64) :: i
         integer :: depth
+
         if (present(table_h)) then
             h = table_h
         else
             h = syntax_table()
         end if
+
         do depth = 1, 100
             call resolve_table(h, i, status)
             if (.not. status%ok()) exit
@@ -677,6 +722,7 @@ contains
             if (d%code >= 0 .and. iand(d%code, 65535) /= SINHERIT) return
             h = tables(i)%parent
         end do
+
         d = syntax_descriptor_type(SWHITESPACE, -1)
     end function syntax_entry
 
@@ -692,6 +738,7 @@ contains
         type(syntax_descriptor_type), intent(out) :: d
         logical, intent(out) :: found
         type(value_type) :: code, match
+
         found = .false.
         if (.not. consp(v)) return
         code = list_elt(v, 1_int64)
@@ -708,6 +755,7 @@ contains
     function syntax_descriptor_value(d) result(v)
         type(syntax_descriptor_type), intent(in) :: d
         type(value_type) :: v
+
         if (d%match >= 0) then
             v = list(make_fixnum(int(d%code, int64)), make_fixnum(int(d%match, int64)))
         else
@@ -722,7 +770,9 @@ contains
     recursive subroutine parse_sexp_propertize(charpos)
         integer(int64), intent(in) :: charpos
         integer(int64) :: zv
+
         zv = buffers(cur)%zv
+
         if (syntax_propertize__done%value <= charpos .and. syntax_propertize__done%value < zv) then
             if (associated(internal_syntax_propertize)) call internal_syntax_propertize(min(zv, 1 + charpos))
         end if
@@ -743,16 +793,21 @@ contains
         type(value_type) :: prop
         type(status_type) :: st
         logical :: found
+
         if (.not. parse_sexp_lookup_properties%value) then
             d = syntax_entry(c)
             return
         end if
+
         call parse_sexp_propertize(pos)
+
         if (pos < 1 .or. pos >= buffers(cur)%text%z) then
             d = syntax_entry(c)
             return
         end if
+
         call get_text_property(pos, sym("syntax_table"), prop, st)
+
         if (st%ok()) then
             if (consp(prop)) then
                 call descriptor_of_value(prop, d, found)
@@ -764,6 +819,7 @@ contains
                 end if
             end if
         end if
+
         d = syntax_entry(c)
     end function syntax_entry_at
 
@@ -773,6 +829,7 @@ contains
         integer, intent(in) :: c
         integer(int64), intent(in) :: pos
         type(syntax_descriptor_type) :: d
+
         d = syntax_entry_at(c, pos)
         syntax_class_at = iand(d%code, 255)
         if (d%code < 0) syntax_class_at = SWHITESPACE
@@ -782,6 +839,7 @@ contains
     integer function char_syntax_class(c)
         integer, intent(in) :: c
         type(syntax_descriptor_type) :: d
+
         d = syntax_entry(c)
         char_syntax_class = iand(d%code, 255)
     end function char_syntax_class
@@ -794,6 +852,7 @@ contains
     !> Port of syntax.c:Fchar_syntax.
     character function char_syntax(c)
         integer, intent(in) :: c
+
         char_syntax = syntax_code_spec(char_syntax_class(c) + 1:char_syntax_class(c) + 1)
     end function char_syntax
 
@@ -805,11 +864,14 @@ contains
         integer, intent(in) :: class
         character, intent(out) :: ch
         type(status_type), intent(out) :: status
+
         ch = " "
+
         if (class < 0 .or. class >= len(syntax_code_spec)) then
             call set_error(status, FM_ARGS_OUT_OF_RANGE)
             return
         end if
+
         status = status_type()
         ch = syntax_code_spec(class + 1:class + 1)
     end subroutine syntax_class_to_char
@@ -819,6 +881,7 @@ contains
     integer function matching_paren(c)
         integer, intent(in) :: c
         type(syntax_descriptor_type) :: d
+
         d = syntax_entry(c)
         matching_paren = -1
         if (iand(d%code, 255) == SOPEN .or. iand(d%code, 255) == SCLOSE) matching_paren = d%match
@@ -835,23 +898,30 @@ contains
         type(status_type), intent(out) :: status
         integer :: val, p
         integer(int32) :: ch, length
+
         status = status_type()
+
         if (len(string) == 0) then
             call set_error(status, FM_GENERIC_ERROR, "Invalid syntax description letter: ")
             return
         end if
+
         val = syntax_spec_code(string(1:1))
+
         if (val < 0) then
             call set_error(status, FM_GENERIC_ERROR, "Invalid syntax description letter: "//string(1:1))
             return
         end if
+
         if (val == SINHERIT) return
         p = 2
+
         if (p <= len(string)) then
             call string_char_and_length(string, int(p, int64), ch, length)
             if (ch /= iachar(" ")) d%match = ch
             p = p + length
         end if
+
         do while (p <= len(string))
             select case (string(p:p))
             case ("1")
@@ -872,8 +942,10 @@ contains
                 val = ior(val, ishft(1, 23))
             case default
             end select
+
             p = p + 1
         end do
+
         d%code = val
     end subroutine string_to_syntax
 
@@ -903,16 +975,20 @@ contains
         type(syntax_descriptor_type) :: d
         type(handle_type) :: h
         integer(int64) :: i
+
         status = status_type()
+
         if (from < 0 .or. from > MAX_CHAR .or. to < 0 .or. to > MAX_CHAR) then
             call set_error(status, FM_ARGS_OUT_OF_RANGE)
             return
         end if
+
         if (present(syntax_table_h)) then
             h = syntax_table_h
         else
             h = syntax_table()
         end if
+
         call resolve_table(h, i, status)
         if (.not. status%ok()) return
         call string_to_syntax(newentry, d, status)
@@ -928,6 +1004,7 @@ contains
     !> `w' are word).
     integer function syntax_spec_code(c) result(class)
         character, intent(in) :: c
+
         select case (c)
         case ("-", " ")
             class = SWHITESPACE
@@ -948,6 +1025,7 @@ contains
     !> (C . H) (C . K)) and `word_separating_categories' ((H . K)).
     logical function word_boundary_p(c1, c2)
         integer, intent(in) :: c1, c2
+
         if (char_script(c1) == char_script(c2)) then
             word_boundary_p = between(c1, c2, "H", "K")
         else
@@ -962,6 +1040,7 @@ contains
         logical function between(a, b, cat1, cat2)
             integer, intent(in) :: a, b
             character, intent(in) :: cat1, cat2
+
             between = .true.
             if (cat1 /= " ") between = char_has_category(a, cat1) .and. .not. char_has_category(b, cat1)
             if (.not. between) return
@@ -972,6 +1051,7 @@ contains
     !> Whether syntax class `code' is part of a word.
     logical function word_code_p(code)
         integer, intent(in) :: code
+
         word_code_p = code == SWORD .or. (words_include_escapes .and. (code == SESCAPE .or. code == SCHARQUOTE))
     end function word_code_p
 
@@ -983,23 +1063,27 @@ contains
         integer(int64), intent(in) :: from_pos, count_in
         integer(int64) :: count, from_byte, beg, end
         integer :: ch0, ch1, code
+
         from = from_pos
         count = count_in
         beg = buffers(cur)%begv
         end = buffers(cur)%zv
         from_byte = char_to_byte(from)
+
         do while (count > 0)
             do
                 if (from == end) then
                     from = 0
                     return
                 end if
+
                 ch0 = buf_fetch_char(buffers(cur), from_byte)
                 code = syntax_class_at(ch0, from)
                 from_byte = from_byte + buf_next_char_len(buffers(cur), from_byte)
                 from = from + 1
                 if (word_code_p(code)) exit
             end do
+
             ! Now CH0 is a character which begins a word and FROM is the
             ! position of the next character.
             do
@@ -1012,20 +1096,24 @@ contains
                 from = from + 1
                 ch0 = ch1
             end do
+
             count = count - 1
         end do
+
         do while (count < 0)
             do
                 if (from == beg) then
                     from = 0
                     return
                 end if
+
                 from_byte = from_byte - buf_prev_char_len(buffers(cur), from_byte)
                 from = from - 1
                 ch1 = buf_fetch_char(buffers(cur), from_byte)
                 code = syntax_class_at(ch1, from)
                 if (word_code_p(code)) exit
             end do
+
             ! Now CH1 is a character which ends a word and FROM is the
             ! position of it.
             do
@@ -1034,13 +1122,16 @@ contains
                 from = from - 1
                 ch0 = buf_fetch_char(buffers(cur), from_byte)
                 code = syntax_class_at(ch0, from)
+
                 if (.not. word_code_p(code) .or. word_boundary_p(ch0, ch1)) then
                     from_byte = from_byte + buf_next_char_len(buffers(cur), from_byte)
                     from = from + 1
                     exit
                 end if
+
                 ch1 = ch0
             end do
+
             count = count + 1
         end do
     end function scan_words
@@ -1060,8 +1151,10 @@ contains
         integer(int64), intent(in) :: arg
         logical, intent(out), optional :: ok
         integer(int64) :: orig_val, val
+
         orig_val = scan_words(point(), arg)
         val = orig_val
+
         if (orig_val == 0) then
             if (arg > 0) then
                 val = buffers(cur)%zv
@@ -1069,6 +1162,7 @@ contains
                 val = buffers(cur)%begv
             end if
         end if
+
         ! Avoid jumping out of an input field.
         val = constrain_to_field(val, point(), .false., .false.)
         call goto_char(val)
@@ -1085,6 +1179,7 @@ contains
     !> Port of syntax.c:Fforward_word (the command).
     subroutine cmd_forward_word(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call forward_word(prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_forward_word
@@ -1114,6 +1209,7 @@ contains
         character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: lim
+
         moved = skip_chars(.true., string, status, lim)
     end function skip_chars_forward
 
@@ -1125,6 +1221,7 @@ contains
         character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: lim
+
         moved = skip_chars(.false., string, status, lim)
     end function skip_chars_backward
 
@@ -1137,6 +1234,7 @@ contains
     recursive integer(int64) function skip_syntax_forward(syntax, lim) result(moved)
         character(len=*), intent(in) :: syntax
         integer(int64), intent(in), optional :: lim
+
         moved = skip_syntaxes(.true., syntax, lim)
     end function skip_syntax_forward
 
@@ -1150,6 +1248,7 @@ contains
     recursive integer(int64) function skip_syntax_backward(syntax, lim) result(moved)
         character(len=*), intent(in) :: syntax
         integer(int64), intent(in), optional :: lim
+
         moved = skip_syntaxes(.false., syntax, lim)
     end function skip_syntax_backward
 
@@ -1158,6 +1257,7 @@ contains
     integer(int64) function skip_limit(forwardp, lim) result(limit)
         logical, intent(in) :: forwardp
         integer(int64), intent(in), optional :: lim
+
         associate (b => buffers(cur))
             limit = merge(b%zv, b%begv, forwardp)
             if (present(lim)) limit = lim
@@ -1174,23 +1274,28 @@ contains
         integer :: i, at
         integer(int64) :: limit, start, pos, pos_byte
         integer(int32) :: c
+
         classes = .false.
         negate = .false.
         i = 1
+
         if (len(syntax) > 0) then
             if (syntax(1:1) == "^") then
                 negate = .true.
                 i = 2
             end if
         end if
+
         do while (i <= len(syntax))
             at = syntax_spec_code(syntax(i:i))
             if (at >= 0) classes(at) = .true.
             i = i + 1
         end do
+
         limit = skip_limit(forwardp, lim)
         start = point()
         pos = start
+
         associate (b => buffers(cur))
             if (forwardp) then
                 do while (pos < limit)
@@ -1202,17 +1307,20 @@ contains
             else
                 do while (pos > limit)
                     pos_byte = char_to_byte(pos)
+
                     if (b%multibyte) then
                         pos_byte = pos_byte - buf_prev_char_len(b, pos_byte)
                     else
                         pos_byte = pos_byte - 1
                     end if
+
                     c = buf_fetch_char(b, pos_byte)
                     if (classes(syntax_class_at(int(c), pos - 1)) .eqv. negate) exit
                     pos = pos - 1
                 end do
             end if
         end associate
+
         call goto_char(pos)
         moved = pos - start
     end function skip_syntaxes
@@ -1224,8 +1332,10 @@ contains
         integer(int64) :: pos, opoint
         integer :: c
         type(syntax_descriptor_type) :: d
+
         opoint = point()
         pos = opoint
+
         do while (pos > buffers(cur)%begv)
             c = fetch_char_before(pos)
             if (char_quoted(pos - 1)) exit
@@ -1234,6 +1344,7 @@ contains
             pos = pos - 1
             opoint = pos
         end do
+
         call goto_char(opoint)
     end subroutine backward_prefix_chars
 
@@ -1245,6 +1356,7 @@ contains
         character(len=:), allocatable, intent(out) :: message
         integer(int64), intent(out) :: beg, end
         integer :: q, c, ios
+
         message = ""
         beg = 0
         end = 0
@@ -1268,13 +1380,16 @@ contains
     integer function fetch_char_before(pos) result(c)
         integer(int64), intent(in) :: pos
         integer(int64) :: pos_byte
+
         associate (b => buffers(cur))
             pos_byte = char_to_byte(pos)
+
             if (b%multibyte) then
                 pos_byte = pos_byte - buf_prev_char_len(b, pos_byte)
             else
                 pos_byte = pos_byte - 1
             end if
+
             c = int(buf_fetch_char(b, pos_byte))
         end associate
     end function fetch_char_before
@@ -1286,8 +1401,10 @@ contains
         integer(int64), intent(in) :: pos
         integer(int64) :: p
         integer :: k
+
         char_quoted = .false.
         p = pos
+
         do while (p > buffers(cur)%begv)
             k = syntax_class_at(fetch_char_before(p), p - 1)
             if (k /= SESCAPE .and. k /= SCHARQUOTE) exit

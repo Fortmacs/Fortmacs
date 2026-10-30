@@ -48,6 +48,7 @@ contains
 
     subroutine collect_itree_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("overlay-make-move-delete", test_basics), &
                     new_unittest("overlay-insert-advance", test_insert_advance), &
@@ -63,6 +64,7 @@ contains
         type(handle_type), intent(out) :: h
         character(len=*), intent(in) :: text
         type(status_type) :: st
+
         call get_buffer_create("*itree-test*", h, st)
         call set_buffer(h, st)
         call insert(text, st)
@@ -74,6 +76,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, ov
         type(status_type) :: st
+
         call fresh(h, "0123456789")
         call make_overlay(ov, 8_int64, 3_int64, st)
         call check(error, overlay_start(ov) == 3 .and. overlay_end(ov) == 8, "ordered")
@@ -105,6 +108,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, a, b, c, e
         type(status_type) :: st
+
         call fresh(h, "0123456789")
         call make_overlay(a, 3_int64, 6_int64, st)
         call make_overlay(b, 3_int64, 6_int64, st, front_advance=.true., rear_advance=.true.)
@@ -142,6 +146,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, a, b
         type(status_type) :: st
+
         call fresh(h, "0123456789")
         call make_overlay(a, 3_int64, 6_int64, st)
         call make_overlay(b, 4_int64, 6_int64, st)
@@ -165,6 +170,7 @@ contains
         type(handle_type) :: h, a, b, e
         type(handle_type), allocatable :: vec(:)
         type(status_type) :: st
+
         call fresh(h, "0123456789")
         call make_overlay(a, 2_int64, 6_int64, st)
         call make_overlay(b, 4_int64, 8_int64, st)
@@ -202,6 +208,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, a
         type(status_type) :: st
+
         call fresh(h, "0123456789")
         call make_overlay(a, 2_int64, 6_int64, st)
         call kill_buffer(h, st)
@@ -220,6 +227,7 @@ contains
         type(status_type) :: st
         integer(int64) :: bi, endpos
         integer(int32) :: id
+
         call init_faces()
         call init_frame_faces(f, "dumb")
         call fresh(h, "abcdefgh")

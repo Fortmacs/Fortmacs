@@ -56,6 +56,7 @@ contains
 
     subroutine collect_syntax_propertize_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("syntax-propertize--shift-groups-and-backrefs", test_shift), &
                     new_unittest("regexp-opt-depth", test_depth), &
@@ -70,6 +71,7 @@ contains
         character(len=*), intent(in) :: text
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call init_bindings()
         call get_buffer_create(" *syntax-test*", h, st)
         call set_buffer(h, st)
@@ -80,6 +82,7 @@ contains
     subroutine leave(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
+
         call kill_buffer(h, st)
     end subroutine leave
 
@@ -89,6 +92,7 @@ contains
         type(status_type) :: st
         character(len=*), parameter :: rx_with_class = "\(a\)[\1-2]", rx_with_rep = "\(a\)\{1,\1\}"
         character(len=:), allocatable :: s
+
         ! A numbered group must be shifted.
         call check(error, syntax_propertize_shift_groups_and_backrefs("\(?2:[abc]+\)foobar", 2, st), &
                    "\(?4:[abc]+\)foobar")
@@ -117,6 +121,7 @@ contains
     subroutine test_depth(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call check(error, regexp_opt_depth("abc", st), 0)
         if (allocated(error)) return
         call check(error, regexp_opt_depth("\(a\)\(b\(c\)\)", st), 3)
@@ -134,6 +139,7 @@ contains
     subroutine test_context(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call check(error, subregexp_context_p("a\(b", 2_int64, st), "after a")
         if (allocated(error)) return
         call check(error,.not. subregexp_context_p("a[b]", 3_int64, st), "in brackets")
@@ -149,11 +155,13 @@ contains
     subroutine comment_propertize(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
+
         call comment_rules%apply(start, end, status)
     end subroutine comment_propertize
 
     subroutine setup_comment_rules()
         type(syntax_highlight_type) :: hl
+
         if (allocated(comment_rules%rules)) return
         allocate (comment_rules%rules(2))
         hl%group = 0
@@ -173,9 +181,11 @@ contains
         type(value_type) :: prop
         type(status_type) :: st
         integer(int64) :: found
+
         call temp_buffer("a # b"//LF//"c # d"//LF//"e", h)
         call setup_comment_rules()
         call syntax_propertize_function%set_local(comment_propertize)
+
         checks: block
             call syntax_ppss(state, 6_int64)
             call check(error, syntax_ppss_context(state), SYNTAX_PPSS_COMMENT)
@@ -206,6 +216,7 @@ contains
             call re_search_forward("\s<", found, st, noerror=SEARCH_NOERROR)
             call check(error, found, 4_int64)
         end block checks
+
         call leave(h)
     end subroutine test_rules
 
@@ -216,14 +227,18 @@ contains
         type(status_type) :: st
         integer(int64) :: saved, positions(6), i
         character(len=:), allocatable :: text
+
         text = ""
+
         do i = 1, 20
             text = text//"((a) (b"//LF
         end do
+
         call temp_buffer(text, h)
         saved = syntax_ppss_max_span
         syntax_ppss_max_span = 10
         positions = [150_int64, 40_int64, 120_int64, 5_int64, 161_int64, 77_int64]
+
         checks: block
             do i = 1, size(positions)
                 call syntax_ppss(cached, positions(i))
@@ -233,9 +248,11 @@ contains
                 call check(error, cached%innermost_start, direct%innermost_start)
                 if (allocated(error)) exit checks
             end do
+
             ! A change flushes the cache.
             call goto_char(point_min())
             call insert("(", st)
+
             do i = 1, size(positions)
                 call syntax_ppss(cached, positions(i))
                 call parse_partial_sexp(point_min(), positions(i), direct, st)
@@ -243,6 +260,7 @@ contains
                 if (allocated(error)) exit checks
             end do
         end block checks
+
         syntax_ppss_max_span = saved
         call leave(h)
     end subroutine test_cache
@@ -252,7 +270,9 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: b, e
+
         call temp_buffer("abc"//LF//"def"//LF//"ghi", h)
+
         checks: block
             call syntax_propertize_wholelines(6_int64, 6_int64, b, e, st)
             call check(error, b, 5_int64)
@@ -264,6 +284,7 @@ contains
             if (allocated(error)) exit checks
             call check(error, point_max(), 12_int64)
         end block checks
+
         call leave(h)
     end subroutine test_wholelines
 end module test_syntax_propertize_fm

@@ -39,6 +39,7 @@ contains
 
     subroutine collect_shell_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("shell-tests-unquote-1", test_unquote_1), &
                     new_unittest("shell-tests-split-string", test_split_string), &
@@ -54,6 +55,7 @@ contains
         type(handle_type), intent(out) :: h
         character(len=*), intent(in) :: dir
         type(status_type) :: st
+
         call get_buffer_create(generate_new_buffer_name(" *temp*"), h, st)
         call set_buffer(h, st)
         buffers(cur)%directory = dir
@@ -61,6 +63,7 @@ contains
 
     subroutine test_unquote_1(error)
         type(error_type), allocatable, intent(out) :: error
+
         call init_bindings()
         call check(error, shell_unquote_argument("te'st"), "test")
     end subroutine test_unquote_1
@@ -72,17 +75,21 @@ contains
         type(process_arg_type), allocatable :: args(:)
         character(len=:), allocatable :: got
         integer :: k
+
         call split_string_shell_command(string, args)
         got = ""
+
         do k = 1, size(args)
             if (k > 1) got = got//"|"
             got = got//args(k)%s
         end do
+
         call check(error, got, expected, string)
     end subroutine split
 
     subroutine test_split_string(error)
         type(error_type), allocatable, intent(out) :: error
+
         call init_bindings()
         call split(error, "ls /tmp", "ls|/tmp")
         if (.not. allocated(error)) call split(error, "ls '/tmp/foo bar'", "ls|/tmp/foo bar")
@@ -98,6 +105,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call init_bindings()
         call temp_buffer(h, "/tmp/")
         call shell_mode(st)
@@ -110,6 +118,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call init_bindings()
         call temp_buffer(h, "/tmp/")
         call check(error,.not. minor_modes%shell_dirtrack_mode%enabled(), "dirtrack")
@@ -121,6 +130,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         character(len=*), parameter :: START_DIR = "/usr/bin/"
+
         call init_bindings()
         call temp_buffer(h, START_DIR)
         call check(error,.not. allocated(list_buffers_directory%value), "should-not")
@@ -130,9 +140,11 @@ contains
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, allocated(list_buffers_directory%value), "set")
         if (.not. allocated(error)) call check(error, list_buffers_directory%value /= START_DIR, "changed")
+
         if (.not. allocated(error)) then
             call check(error, index(START_DIR, list_buffers_directory%value) == 1, list_buffers_directory%value)
         end if
+
         call kill_buffer(h, st)
     end subroutine test_sets_list_buffers_directory
 
@@ -141,6 +153,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         character(len=*), parameter :: START_DIR = "/usr/bin/"
+
         call init_bindings()
         call temp_buffer(h, START_DIR)
         call check(error,.not. allocated(list_buffers_directory%value), "should-not")
@@ -150,9 +163,11 @@ contains
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, allocated(list_buffers_directory%value), "set")
         if (.not. allocated(error)) call check(error, list_buffers_directory%value /= START_DIR, "changed")
+
         if (.not. allocated(error)) then
             call check(error, index(START_DIR, list_buffers_directory%value) == 1, list_buffers_directory%value)
         end if
+
         call kill_buffer(h, st)
     end subroutine test_tracker_cd
 end module test_shell_fm
