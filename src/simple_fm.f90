@@ -751,6 +751,7 @@ module simple_fm
 
         !> Define Process Menu mode and register its commands (after
         !> Tabulated List mode, its parent).  (In simple_process_fm.)
+        !> Not a port.
         module subroutine syms_of_simple_process()
             implicit none(type, external)
         end subroutine syms_of_simple_process

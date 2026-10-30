@@ -1,4 +1,5 @@
 ! test_namelist_fm.f90 -- tests for namelist_fm.
+! Own tests; namelist_fm ports nothing.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -34,6 +35,7 @@ module test_namelist_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_namelist_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

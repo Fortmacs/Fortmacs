@@ -1,4 +1,6 @@
 ! test_window_fm.f90 -- tests for scrolling and recentering (window_fm).
+! Own tests; upstream has no ERT tests for scrolling (it needs a
+! display).
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -56,6 +58,7 @@ module test_window_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_window_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

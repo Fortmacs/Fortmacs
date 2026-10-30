@@ -156,6 +156,7 @@ module vc_dir_fm
     !> The keymap of `vc_dir_mode'.
     type(handle_type), public :: vc_dir_mode_map
 
+    !> The faces of `vc_dir_mode' (vc-dir.el's vc-dir-header and the rest).
     type(named_face_type), target, public :: vc_dir_header, vc_dir_header_value, vc_dir_header_urgent_value, &
                                              vc_dir_directory, vc_dir_file, vc_dir_mark_indicator, &
                                              vc_dir_status_warning, vc_dir_status_edited, vc_dir_status_up_to_date, &

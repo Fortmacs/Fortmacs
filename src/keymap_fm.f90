@@ -238,6 +238,7 @@ contains
         end if
     end subroutine resolve_keymap
 
+    !> Whether KM is the handle of a live keymap.  Not a port.
     logical function keymap_live_p(km)
         type(handle_type), intent(in) :: km
 

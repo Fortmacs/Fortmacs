@@ -1,5 +1,7 @@
 ! test_dabbrev_fm.f90 -- tests for dabbrev_fm.
-! Ports test/lisp/dabbrev-tests.el where the ported functionality allows.
+! Ports GNU Emacs 31.1 test/lisp/dabbrev-tests.el in part; the
+! dabbrev-completion and minibuffer tests and
+! dabbrev-expand-test-other-buffer-3 need commands and modes not ported.
 !
 ! Copyright (C) 2016-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -56,6 +58,7 @@ module test_dabbrev_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_dabbrev_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

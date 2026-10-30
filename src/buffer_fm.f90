@@ -128,6 +128,8 @@ module buffer_fm
         procedure :: clear => header_line_clear
     end type header_line_format_type
 
+    !> A buffer: its text, positions, mark and undo list, file, local
+    !> variables and modes.  Port of buffer.h struct buffer (in part).
     type, public :: buffer_type
         character(len=:), allocatable :: name, last_name
         type(buffer_text_type) :: text

@@ -1,4 +1,6 @@
 ! test_character_fm.f90 -- tests for character_fm.
+! Own tests; upstream's character-tests.el only covers `string-width',
+! which needs char-width tables.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -40,6 +42,7 @@ module test_character_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_character_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

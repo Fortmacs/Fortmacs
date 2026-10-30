@@ -8874,9 +8874,9 @@ contains
         call multibyte_chars_in_text(s, nchars_of, st)
     end function nchars_of
 
-    ! Fontify the node.  Port of info.el:Info-fontify-node
-    ! (`info_refill_paragraphs' and the keymaps of the links, which only
-    ! the mouse uses, are Deferred).
+    !> Fontify the node.  Port of info.el:Info-fontify-node
+    !> (`info_refill_paragraphs' and the keymaps of the links, which only
+    !> the mouse uses, are Deferred).
     recursive subroutine info_fontify_node()
         type(value_type) :: saved_ro, crumbs, prop
         type(handle_type) :: ov

@@ -130,6 +130,7 @@ module subr_fm
                                                            "q", "RET", "<return>", ".", "C-r", "C-w", "C-l", "!", "^", "u", "U", &
                                                           "d", "C-h", "<f1>", "<help>", "?", "C-g", "C-]", "C-v", "M-v", "<next>", &
                                                            "<prior>", "C-M-v", "M-<next>", "C-M-S-v", "M-<prior>", "<escape>"]
+    !> The answer each key of `QRM_KEYS' gives in `query_replace_map'.
     character(len=*), parameter, public :: QRM_ANSWERS(38) = [character(len=27) :: &
                                                               "act", "skip", "skip", "skip", "act", "skip", "act", "skip", &
                                                               "edit_replacement", "edit_replacement_exact_case", "act_and_show", &
@@ -140,7 +141,7 @@ module subr_fm
                                                               "scroll_other_window", "scroll_other_window_down", &
                                                               "scroll_other_window_down", "exit_prefix"]
 
-    ! The answers of `query_replace_map'.
+    !> The answers of `query_replace_map'.
     integer, parameter :: ANSWER_NONE = 0, ANSWER_ACT = 1, ANSWER_SKIP = 2, ANSWER_EXIT = 3, &
                           ANSWER_ACT_AND_EXIT = 4, ANSWER_AUTOMATIC = 5, ANSWER_RECENTER = 6, &
                           ANSWER_HELP = 7, ANSWER_QUIT = 8, ANSWER_EDIT_REPLACEMENT = 9, &
@@ -269,6 +270,8 @@ module subr_fm
             character(len=*), intent(in), optional :: help_form
         end subroutine read_char_choice
 
+        !> Set up subr.el's commands.  Not a port: upstream defines them where
+        !> subr.el is loaded.
         module subroutine syms_of_subr()
             implicit none(type, external)
         end subroutine syms_of_subr

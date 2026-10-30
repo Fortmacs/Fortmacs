@@ -1,6 +1,6 @@
 ! error_fm.f90 -- status values that replace Emacs's signal/throw.
-! The condition table is ported from GNU Emacs 31.1 src/data.c
-! (syms_of_data), src/fileio.c (syms_of_fileio) and src/alloc.c.
+! Ported from GNU Emacs 31.1 src/data.c (syms_of_data), src/fileio.c
+! (syms_of_fileio) and src/alloc.c (in part: their condition table).
 !
 ! Copyright (C) 1985-1986, 1988, 1993-1995, 1997-2026 Free Software
 ! Foundation, Inc.
@@ -45,28 +45,51 @@ module error_fm
     integer(int32), parameter, public :: FM_OK = 0
     !> The root `error' condition (named so it does not clash with the module).
     integer(int32), parameter, public :: FM_GENERIC_ERROR = 1
+    !> `quit': the user quit (C-g).
     integer(int32), parameter, public :: FM_QUIT = 2
+    !> `user_error': an error in the user's input.
     integer(int32), parameter, public :: FM_USER_ERROR = 3
+    !> `wrong_type_argument'.
     integer(int32), parameter, public :: FM_WRONG_TYPE_ARGUMENT = 4
+    !> `args_out_of_range'.
     integer(int32), parameter, public :: FM_ARGS_OUT_OF_RANGE = 5
+    !> `void_variable'.
     integer(int32), parameter, public :: FM_VOID_VARIABLE = 6
+    !> `setting_constant'.
     integer(int32), parameter, public :: FM_SETTING_CONSTANT = 7
+    !> `arith_error'.
     integer(int32), parameter, public :: FM_ARITH_ERROR = 8
+    !> `range_error' (an `arith_error').
     integer(int32), parameter, public :: FM_RANGE_ERROR = 9
+    !> `overflow_error' (an `arith_error').
     integer(int32), parameter, public :: FM_OVERFLOW_ERROR = 10
+    !> `beginning_of_buffer'.
     integer(int32), parameter, public :: FM_BEGINNING_OF_BUFFER = 11
+    !> `end_of_buffer'.
     integer(int32), parameter, public :: FM_END_OF_BUFFER = 12
+    !> `buffer_read_only'.
     integer(int32), parameter, public :: FM_BUFFER_READ_ONLY = 13
+    !> `text_read_only' (a `buffer_read_only').
     integer(int32), parameter, public :: FM_TEXT_READ_ONLY = 14
+    !> `file_error'.
     integer(int32), parameter, public :: FM_FILE_ERROR = 15
+    !> `memory_full'.
     integer(int32), parameter, public :: FM_MEMORY_FULL = 16
+    !> A stale or invalid handle (ours: handles replace pointers).
     integer(int32), parameter, public :: FM_INVALID_HANDLE = 17
+    !> `void_function'.
     integer(int32), parameter, public :: FM_VOID_FUNCTION = 18
+    !> `file_missing' (a `file_error').
     integer(int32), parameter, public :: FM_FILE_MISSING = 19
+    !> `file_already_exists' (a `file_error').
     integer(int32), parameter, public :: FM_FILE_ALREADY_EXISTS = 20
+    !> `mark_inactive'.
     integer(int32), parameter, public :: FM_MARK_INACTIVE = 21
+    !> `search_failed'.
     integer(int32), parameter, public :: FM_SEARCH_FAILED = 22
+    !> `invalid_regexp'.
     integer(int32), parameter, public :: FM_INVALID_REGEXP = 23
+    !> `permission_denied' (a `file_error').
     integer(int32), parameter, public :: FM_PERMISSION_DENIED = 24
     !> syntax.c's `scan-error': its data are the message, the start and
     !> the end of the obstacle, printed as print_error_message prints them
@@ -75,9 +98,11 @@ module error_fm
     !> fileio.c's `file-date-error' (a `file-error'): setting a file's times failed.
     integer(int32), parameter, public :: FM_FILE_DATE_ERROR = 26
 
-    !> lread.c's `end-of-file' and `invalid-read-syntax' (reading a value
-    !> typed in the minibuffer: `set_variable').
+    !> lread.c's `end_of_file' (reading a value typed in the minibuffer:
+    !> `set_variable').
     integer(int32), parameter, public :: FM_END_OF_FILE = 27
+    !> lread.c's `invalid_read_syntax' (reading a value typed in the
+    !> minibuffer: `set_variable').
     integer(int32), parameter, public :: FM_INVALID_READ_SYNTAX = 28
 
     !> coding.c's `coding-system-error': an invalid coding system.
@@ -91,9 +116,10 @@ module error_fm
     !> failed (report_file_notify_error).
     integer(int32), parameter, public :: FM_FILE_NOTIFY_ERROR = 31
 
-    !> bookmark.el's `bookmark_errors' and `bookmark_error_no_filename' (a
-    !> `bookmark_errors'): a bookmark has no associated file or directory.
+    !> bookmark.el's `bookmark_errors'.
     integer(int32), parameter, public :: FM_BOOKMARK_ERRORS = 32
+    !> bookmark.el's `bookmark_error_no_filename' (a `bookmark_errors'): a
+    !> bookmark has no associated file or directory.
     integer(int32), parameter, public :: FM_BOOKMARK_ERROR_NO_FILENAME = 33
 
     !> isearch.el's `user_search_failed' (a `user_error'; upstream also a

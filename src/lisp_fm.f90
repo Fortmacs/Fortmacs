@@ -1,6 +1,6 @@
 ! lisp_fm.f90 -- the value type and symbol storage.
-! After GNU Emacs 31.1 src/lisp.h (Lisp_Object, struct Lisp_Symbol) and
-! the constructors of src/alloc.c.
+! Ported from GNU Emacs 31.1 src/lisp.h (Lisp_Object, struct Lisp_Symbol)
+! and the constructors of src/alloc.c (in part).
 !
 ! Copyright (C) 1985-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -199,6 +199,7 @@ module lisp_fm
 
     !> Symbol storage, indexed by id; maintained by lread_fm.
     type(symbol_type), allocatable, public :: symbols(:)
+    !> The number of symbols in `symbols'.
     integer(int64), public :: nsymbols = 0
 
     public :: nil, t_value, make_fixnum, make_string, make_symbol_ref, &

@@ -1,5 +1,6 @@
 ! test_keymap_fm.f90 -- tests for keymap_fm.
-! Includes cases ported from GNU Emacs 31.1 test/src/keymap-tests.el.
+! Ports GNU Emacs 31.1 test/src/keymap-tests.el in part; the others are
+! not ported yet.
 !
 ! Copyright (C) 2015-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -50,6 +51,7 @@ module test_keymap_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_keymap_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

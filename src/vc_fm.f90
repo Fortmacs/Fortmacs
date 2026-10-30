@@ -1,4 +1,6 @@
 ! vc_fm.f90 -- drive a version-control system from within Fortmacs.
+! Ported from GNU Emacs 31.1 lisp/vc/vc.el (with dired-aux.el's
+! dired-vc-deduce-fileset and diff-mode.el's diff-vc-deduce-fileset).
 !
 ! Copyright (C) 1992-1998, 2000-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -2025,7 +2027,7 @@ contains
     end subroutine vc_checkout
 
     ! The one-element array of S (an array constructor holding a function
-    ! result would leak).
+    ! result would leak).  Not a port.
     function one_string(s) result(list)
         character(len=*), intent(in) :: s
         type(vc_string_type), allocatable :: list(:)
