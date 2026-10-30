@@ -36,6 +36,7 @@ contains
 
     subroutine collect_faces_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("face-list-order", test_face_list_order), &
                     new_unittest("color-256-light", test_color_light), &
@@ -75,10 +76,12 @@ contains
                                                    "show_paren_mismatch"]
         type(named_face_type), pointer :: face
         integer :: k
+
         call init_faces()
         ! (Faces of other files, such as font-lock.el's, may follow.)
         call check(error, face_count() >= size(names), "all of faces.el's faces")
         if (allocated(error)) return
+
         do k = 1, size(names)
             face => face_at(k)
             call check(error, trim(face%name), trim(names(k)))
@@ -89,6 +92,7 @@ contains
     !> A 256-color terminal with a light background.
     subroutine test_color_light(error)
         type(error_type), allocatable, intent(out) :: error
+
         call init_faces()
         call set_frame_display(FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, 256, "tty")
         call face_spec_recalc_all()
@@ -141,6 +145,7 @@ contains
     !> An 8-color terminal with a dark background.
     subroutine test_color_8_dark(error)
         type(error_type), allocatable, intent(out) :: error
+
         call init_faces()
         call set_frame_display(FACE_CLASS_COLOR, FACE_BACKGROUND_DARK, 8, "tty")
         call face_spec_recalc_all()
@@ -160,6 +165,7 @@ contains
     !> A monochrome terminal: the fallback alternatives.
     subroutine test_mono(error)
         type(error_type), allocatable, intent(out) :: error
+
         call init_faces()
         call set_frame_display(FACE_CLASS_MONO, FACE_BACKGROUND_LIGHT, 2, "tty")
         call face_spec_recalc_all()
@@ -186,6 +192,7 @@ contains
     !> other alternative matches.
     subroutine test_default_alternative(error)
         type(error_type), allocatable, intent(out) :: error
+
         call init_faces()
         call set_frame_display(FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, 256, "tty")
         call face_spec_recalc_all()
@@ -218,6 +225,7 @@ contains
     !> attributes through `face_underline' and `face_box'.
     subroutine test_config_faces(error)
         type(error_type), allocatable, intent(out) :: error
+
         call init_faces()
         faces%region%background = "blue"
         call check(error, associated(faces%region, region), "faces%region is the region face")
@@ -257,6 +265,7 @@ contains
     !> Float heights are relative.
     subroutine test_relative_height(error)
         type(error_type), allocatable, intent(out) :: error
+
         call init_faces()
         call set_frame_display(FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, 256, "x")
         call face_spec_recalc_all()

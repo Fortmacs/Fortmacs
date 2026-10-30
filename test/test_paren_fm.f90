@@ -54,6 +54,7 @@ contains
 
     subroutine collect_paren_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("paren-tests-unescaped-p", test_unescaped_p), &
                     new_unittest("paren-tests-categorize-paren", test_categorize_paren), &
@@ -73,6 +74,7 @@ contains
         type(handle_type), intent(out) :: h
         character(len=*), intent(in) :: text
         type(status_type) :: st
+
         call get_buffer_create("*paren-test*", h, st)
         call set_buffer(h, st)
         call fundamental_mode(st)
@@ -83,6 +85,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call temp_buffer(h, "(insert)")
         call goto_char(point() - 1)
         call check(error, show_paren_unescaped_p(point()), "unescaped")
@@ -98,6 +101,7 @@ contains
         type(status_type) :: st
         integer :: dir
         integer(int64) :: outside
+
         call temp_buffer(h, "(insert)")
         call goto_char(point() - 1)
         call show_paren_categorize_paren(point(), dir, outside)
@@ -115,6 +119,7 @@ contains
         integer(int64), intent(in) :: outside
         integer :: d
         integer(int64) :: o
+
         call show_paren_locate_near_paren(d, o)
         near = d == dir
         if (near .and. dir /= 0) near = o == outside
@@ -124,6 +129,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         show_paren_when_point_inside_paren = .false.
         show_paren_when_point_in_periphery = .false.
         call temp_buffer(h, "(insert)")
@@ -144,6 +150,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         show_paren_when_point_inside_paren = .true.
         show_paren_when_point_in_periphery = .false.
         call temp_buffer(h, "(insert)")
@@ -165,6 +172,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         show_paren_when_point_inside_paren = .false.
         show_paren_when_point_in_periphery = .true.
         call temp_buffer(h, " (insert) ")
@@ -192,6 +200,7 @@ contains
         logical, intent(in) :: mismatch
         type(show_paren_data_type) :: data
         logical :: found
+
         call show_paren_default(found, data)
         default_is = found .and. data%here_beg == here_beg .and. data%here_end == here_end .and. &
                      data%there_beg == there_beg .and. data%there_end == there_end .and. (data%mismatch .eqv. mismatch)
@@ -201,6 +210,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call temp_buffer(h, "(insert")
         call goto_char(point_min())
         call check(error, default_is(point(), point() + 1, 0_int64, 0_int64, .true.), "unmatched")
@@ -220,6 +230,7 @@ contains
         character(len=:), allocatable :: s
         type(show_paren_data_type) :: data
         logical :: found
+
         call show_paren_default(found, data)
         s = blink_paren_open_paren_line_string(min(data%here_beg, data%there_beg))
     end function open_paren_line
@@ -228,6 +239,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         ! Lisp-like
         call temp_buffer(h, "(defun foo ()"//achar(10)//"                  (dummy))")
         call goto_char(point_max())
@@ -255,8 +267,10 @@ contains
         type(handle_type), allocatable :: vec(:)
         type(value_type) :: face
         integer :: k
+
         name = ""
         call overlays_at(pos, vec, sorted=.true.)
+
         do k = 1, size(vec)
             face = overlay_get(vec(k), "face")
             if (value_eq(face, sym("show_paren_match"))) name = "show_paren_match"
@@ -273,6 +287,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call init_bindings()
         call temp_buffer(h, "(a (b) c)")
         call show_alone()
@@ -309,6 +324,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call init_bindings()
         call check(error, minor_modes%show_paren_mode%enabled(), "on by default")
         if (allocated(error)) return
@@ -338,6 +354,7 @@ contains
 
     subroutine write_x(status)
         type(status_type), intent(out) :: status
+
         call emacs_write(master, "x", status)
     end subroutine write_x
 
@@ -351,6 +368,7 @@ contains
         type(value_type) :: ev
         integer(int32) :: slave
         logical :: have
+
         call init_bindings()
         call temp_buffer(h, "(abc)")
         call show_alone()

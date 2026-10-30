@@ -110,13 +110,16 @@ contains
         character(len=*), intent(in), optional :: suffix
         integer(int64) :: beg, m, off
         type(status_type) :: st
+
         ! (BEG is the character index of the element.)
         beg = 1
+
         do
             m = string_match(crm_separator, string, st, beg)
             if (.not. st%ok() .or. m <= 0) exit
             beg = match_end(0, st)
         end do
+
         off = string_index_to_offset(string, beg)
         call completion_table_with_context(string(1:off), crm_completion_table, string(off + 1:), action, result, &
                                            status, pred, suffix)
@@ -128,21 +131,26 @@ contains
         integer(int64), intent(out) :: start, end
         integer(int64) :: bob, saved, found
         type(status_type) :: st
+
         bob = minibuffer_prompt_end()
         saved = point()
         call re_search_backward(crm_separator, found, st, bound=bob, noerror=1)
+
         if (st%ok() .and. found /= 0) then
             start = match_end(0, st)
         else
             start = bob
         end if
+
         call goto_char(saved)
         call re_search_forward(crm_separator, found, st, noerror=1)
+
         if (st%ok() .and. found /= 0) then
             end = match_beginning(0, st)
         else
             end = point_max()
         end if
+
         call goto_char(saved)
     end subroutine current_element
 
@@ -151,6 +159,7 @@ contains
     recursive subroutine crm_completion_help(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beg, end
+
         status = status_type()
         call current_element(beg, end)
         call minibuffer_completion_help(beg, end)
@@ -166,8 +175,10 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: beg, end
         logical :: valid
+
         status = status_type()
         call current_element(beg, end)
+
         if (associated(minibuffer_completion_predicate)) then
             valid = completion_in_region(beg, end, minibuffer_completion_table, minibuffer_completion_predicate)
         else
@@ -182,6 +193,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: beg, end
         integer :: bits
+
         status = status_type()
         call current_element(beg, end)
         ! (completion-in-region--single-word)
@@ -201,9 +213,11 @@ contains
         type(handle_type) :: endm
         type(status_type) :: st
         logical :: more
+
         status = status_type()
         doexit = nilp(current_prefix_arg)
         call goto_char(minibuffer_prompt_end())
+
         do
             if (.not. doexit) exit
             call current_element(beg, end)
@@ -222,11 +236,13 @@ contains
             m = match_end(0, st)
             call goto_char(m)
         end do
+
         if (doexit) call exit_minibuffer(status)
     end subroutine crm_complete_and_exit
 
     recursive subroutine set_doexit(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         doexit = .true.
     end subroutine set_doexit
@@ -235,6 +251,7 @@ contains
     subroutine crm_setup()
         procedure(minibuffer_setup_proc), pointer :: outer
         type(status_type) :: st
+
         call use_local_map(crm_map, st)
         outer => crm_outer_setup
         crm_outer_setup => null()
@@ -273,15 +290,18 @@ contains
         type(handle_type) :: saved_map
         character(len=:), allocatable :: input
         integer :: match
+
         match = REQUIRE_MATCH_NIL
         if (present(require_match)) match = require_match
         saved_table = crm_completion_table
         saved_map = crm_map
+
         if (match /= REQUIRE_MATCH_NIL) then
             crm_map = crm_local_must_match_map
         else
             crm_map = crm_local_completion_map
         end if
+
         crm_completion_table = table
         fn_table%kind = TABLE_FUNCTION
         fn_table%fn => crm_collection_fn
@@ -292,10 +312,12 @@ contains
         minibuffer_setup_function => null()
         crm_completion_table = saved_table
         crm_map = saved_map
+
         if (.not. status%ok()) then
             allocate (results(0))
             return
         end if
+
         ! Remove empty strings in the list of read strings.
         call split_string(input, results)
     end subroutine completing_read_multiple
@@ -306,8 +328,10 @@ contains
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable :: s
         integer :: k
+
         s = ""
         k = 1
+
         do while (k <= len(crm_prompt))
             if (crm_prompt(k:k) == "%" .and. k < len(crm_prompt)) then
                 select case (crm_prompt(k + 1:k + 1))
@@ -322,6 +346,7 @@ contains
                 case default
                     s = s//crm_prompt(k:k + 1)
                 end select
+
                 k = k + 2
             else
                 s = s//crm_prompt(k:k)
@@ -340,44 +365,59 @@ contains
         integer(int64) :: start, m, mb, me
         type(status_type) :: st
         integer :: n
+
         allocate (parts(8))
         n = 0
         start = 1
+
         do
             m = string_match(crm_separator, string, st, start)
+
             if (.not. st%ok() .or. m <= 0) then
                 call add(string(string_index_to_offset(string, start) + 1:))
                 exit
             end if
+
             mb = match_beginning(0, st)
             me = match_end(0, st)
+
             ! (An empty match at START does not split.)
             if (me == mb .and. mb == start) then
                 if (start > string_chars(string)) then
                     call add(string(string_index_to_offset(string, start) + 1:))
                     exit
                 end if
+
                 m = string_match(crm_separator, string, st, start + 1)
+
                 if (.not. st%ok() .or. m <= 0) then
                     call add(string(string_index_to_offset(string, start) + 1:))
                     exit
                 end if
+
                 mb = match_beginning(0, st)
                 me = match_end(0, st)
             end if
+
             call add(string(string_index_to_offset(string, start) + 1:string_index_to_offset(string, mb)))
             start = me
         end do
+
         parts = parts(1:n)
+
     contains
+
         subroutine add(part)
             character(len=*), intent(in) :: part
+
             if (len(part) == 0) return
+
             if (n == size(parts)) then
                 allocate (grown(2*n))
                 grown(1:n) = parts
                 call move_alloc(grown, parts)
             end if
+
             n = n + 1
             parts(n)%s = part
         end subroutine add
@@ -389,6 +429,7 @@ contains
         character(len=*), intent(in) :: command, new
         type(value_type), allocatable :: events(:)
         type(status_type) :: st
+
         call list_elements(list(sym("remap"), sym(command)), events)
         call define_key(map, events, sym(new), st)
     end subroutine remap
@@ -396,6 +437,7 @@ contains
     !> Define crm.el's variables, keymaps and commands.
     subroutine syms_of_crm()
         type(status_type) :: st
+
         if (.not. allocated(crm_separator)) crm_separator = "[ "//achar(9)//"]*,[ "//achar(9)//"]*"
         if (.not. allocated(crm_separator_string)) crm_separator_string = ","
         if (.not. allocated(crm_separator_description)) crm_separator_description = "comma-separated list"

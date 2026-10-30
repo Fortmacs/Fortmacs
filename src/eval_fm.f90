@@ -352,6 +352,7 @@ contains
         type(value_type), intent(in) :: fn
         type(status_type), intent(out) :: status
         type(value_type) :: saved
+
         saved = current_prefix_arg
         current_prefix_arg = nil()
         call funcall(fn, status)
@@ -365,8 +366,10 @@ contains
     !> Whether A and B are the same function (neither being `t').
     logical function same_function(a, b) result(same)
         type(hook_entry_type), intent(in) :: a, b
+
         same = .false.
         if (a%is_t .or. b%is_t) return
+
         if (associated(a%fn)) then
             if (associated(b%fn)) same = associated(a%fn, b%fn)
         else if (associated(a%change_fn)) then
@@ -391,7 +394,9 @@ contains
         type(hook_entry_type), intent(in) :: entries(:)
         type(hook_entry_type), intent(in) :: e
         integer :: i
+
         k = 0
+
         do i = 1, size(entries)
             if (same_function(entries(i), e)) then
                 k = i
@@ -404,7 +409,9 @@ contains
     logical function has_t(entries)
         type(hook_entry_type), intent(in) :: entries(:)
         integer :: i
+
         has_t = .false.
+
         do i = 1, size(entries)
             if (entries(i)%is_t) then
                 has_t = .true.
@@ -421,20 +428,25 @@ contains
         integer, intent(in) :: depth
         type(hook_entry_type), allocatable :: grown(:)
         integer :: n, at, i
+
         n = size(entries)
+
         if (depth > 0) then
             at = n + 1
+
             do i = n, 1, -1
                 if (entries(i)%depth <= depth) exit
                 at = i
             end do
         else
             at = 1
+
             do i = 1, n
                 if (entries(i)%depth >= depth) exit
                 at = i + 1
             end do
         end if
+
         allocate (grown(n + 1))
         grown(1:at - 1) = entries(1:at - 1)
         grown(at) = e
@@ -449,6 +461,7 @@ contains
         integer, intent(in) :: k
         type(hook_entry_type), allocatable :: kept(:)
         integer :: n
+
         n = size(entries)
         allocate (kept(n - 1))
         kept(1:k - 1) = entries(1:k - 1)
@@ -464,8 +477,10 @@ contains
     integer function local_index(hook) result(k)
         class(hook_base_type), intent(in) :: hook
         integer :: i
+
         k = 0
         if (cur == 0 .or. .not. allocated(hook%locals)) return
+
         do i = 1, size(hook%locals)
             if (hook%locals(i)%serial == buffers(cur)%serial) then
                 k = i
@@ -478,8 +493,10 @@ contains
     integer function local_depths_index(hook) result(k)
         class(hook_base_type), intent(in) :: hook
         integer :: i
+
         k = 0
         if (cur == 0 .or. .not. allocated(hook%local_depths)) return
+
         do i = 1, size(hook%local_depths)
             if (hook%local_depths(i)%serial == buffers(cur)%serial) then
                 k = i
@@ -493,6 +510,7 @@ contains
         type(hook_entry_type), allocatable, intent(in) :: depths(:)
         type(hook_entry_type), intent(in) :: e
         integer :: k
+
         d = 0
         if (.not. allocated(depths)) return
         k = find_entry(depths, e)
@@ -506,12 +524,15 @@ contains
         integer, intent(in) :: depth
         type(hook_entry_type), allocatable :: grown(:)
         integer :: k, n
+
         if (.not. allocated(depths)) allocate (depths(0))
         k = find_entry(depths, e)
+
         if (k > 0) then
             depths(k)%depth = depth
             return
         end if
+
         n = size(depths)
         allocate (grown(n + 1))
         grown(1:n) = depths
@@ -525,6 +546,7 @@ contains
         type(hook_entry_type), allocatable, intent(inout) :: depths(:)
         type(hook_entry_type), intent(in) :: e
         integer :: k
+
         if (.not. allocated(depths)) return
         k = find_entry(depths, e)
         if (k > 0) call delete_entry(depths, k)
@@ -541,21 +563,26 @@ contains
         logical, intent(in) :: local
         type(local_depths_type), allocatable :: grown(:)
         integer :: k, n
+
         d = depth
         k = 0
         if (local) k = local_depths_index(hook)
+
         if (depth == 0) then
             if (k > 0) then
                 d = depth_of(hook%local_depths(k)%depths, e)
             else
                 d = depth_of(hook%depths, e)
             end if
+
             return
         end if
+
         if (.not. local) then
             call remember_depth(hook%depths, e, depth)
             return
         end if
+
         if (k == 0) then
             ! (make-local-variable depth-sym): starts as the default.
             if (.not. allocated(hook%local_depths)) allocate (hook%local_depths(0))
@@ -563,14 +590,17 @@ contains
             allocate (grown(n + 1))
             grown(1:n) = hook%local_depths
             grown(n + 1)%serial = buffers(cur)%serial
+
             if (allocated(hook%depths)) then
                 grown(n + 1)%depths = hook%depths
             else
                 allocate (grown(n + 1)%depths(0))
             end if
+
             call move_alloc(grown, hook%local_depths)
             k = n + 1
         end if
+
         call remember_depth(hook%local_depths(k)%depths, e, depth)
     end function entry_depth
 
@@ -579,11 +609,14 @@ contains
         class(hook_base_type), intent(inout), target :: hook
         type(hook_ref_type), allocatable :: grown(:)
         integer :: i, n
+
         if (.not. allocated(local_hooks)) allocate (local_hooks(0))
         n = size(local_hooks)
+
         do i = 1, n
             if (associated(local_hooks(i)%p, hook)) return
         end do
+
         allocate (grown(n + 1))
         grown(1:n) = local_hooks
         grown(n + 1)%p => hook
@@ -596,7 +629,9 @@ contains
     subroutine kill_local_hooks(kill_permanent)
         logical, intent(in) :: kill_permanent
         integer :: i
+
         if (.not. allocated(local_hooks)) return
+
         do i = 1, size(local_hooks)
             ! The depth alist is not permanent.
             call kill_local_depths(local_hooks(i)%p)
@@ -610,6 +645,7 @@ contains
         class(hook_base_type), intent(inout) :: hook
         type(local_depths_type), allocatable :: kept(:)
         integer :: k, n
+
         k = local_depths_index(hook)
         if (k == 0) return
         n = size(hook%local_depths)
@@ -633,6 +669,7 @@ contains
         type(local_hook_type), allocatable :: grown(:)
         integer :: d, k, n
         logical :: loc
+
         d = 0
         if (present(depth)) d = depth
         loc = .false.
@@ -640,8 +677,10 @@ contains
         if (.not. allocated(self%entries)) allocate (self%entries(0))
         if (.not. allocated(self%locals)) allocate (self%locals(0))
         k = local_index(self)
+
         if (loc) then
             if (cur == 0) return
+
             if (k == 0) then
                 ! (set (make-local-variable hook) (list t))
                 n = size(self%locals)
@@ -659,6 +698,7 @@ contains
             ! change that value.
             if (.not. has_t(self%locals(k)%entries)) loc = .true.
         end if
+
         if (loc) then
             if (find_entry(self%locals(k)%entries, e) == 0) then
                 call insert_entry(self%locals(k)%entries, e, entry_depth(self, e, d, .true.))
@@ -676,15 +716,18 @@ contains
         logical, intent(in), optional :: local
         integer :: k, i, kd
         logical :: loc
+
         loc = .false.
         if (present(local)) loc = local
         k = local_index(self)
         ! Do nothing if LOCAL is true but this hook has no local binding.
         if (loc .and. k == 0) return
+
         ! A buffer's own value without `t': change that value.
         if (k > 0) then
             if (.not. has_t(self%locals(k)%entries)) loc = .true.
         end if
+
         if (loc) then
             i = find_entry(self%locals(k)%entries, e)
             if (i == 0) return
@@ -692,11 +735,13 @@ contains
             ! Remove auxiliary depth info too: the buffer's own if it has
             ! any, else the default.
             kd = local_depths_index(self)
+
             if (kd > 0) then
                 call forget_depth(self%local_depths(kd)%depths, e)
             else
                 call forget_depth(self%depths, e)
             end if
+
             ! A local value of just (t) is killed.
             if (size(self%locals(k)%entries) == 1) then
                 if (self%locals(k)%entries(1)%is_t) call self%kill_local()
@@ -715,6 +760,7 @@ contains
         class(hook_base_type), intent(in) :: self
         type(hook_entry_type), intent(in) :: e
         integer :: k
+
         found = .false.
         k = local_index(self)
         if (k > 0) found = find_entry(self%locals(k)%entries, e) > 0
@@ -736,10 +782,12 @@ contains
         type(hook_entry_type), allocatable :: entries(:), global(:)
         integer :: i, j, k
         logical :: keep_going
+
         status = status_type()
         keep_going = .false.
         if (present(safe)) keep_going = safe
         k = local_index(self)
+
         ! Copies, in case a function changes the hook.
         if (k > 0) then
             entries = self%locals(k)%entries
@@ -748,12 +796,14 @@ contains
         else
             return
         end if
+
         do i = 1, size(entries)
             if (entries(i)%is_t) then
                 ! t indicates this hook has a local binding; it means to
                 ! run the global binding too.
                 if (.not. allocated(self%entries)) cycle
                 global = self%entries
+
                 do j = 1, size(global)
                     ! In a global value, t should not occur.  If it does,
                     ! we must ignore it to avoid an endless loop.
@@ -778,7 +828,9 @@ contains
         integer(int64), intent(in) :: beg, end, old_len
         type(status_type), intent(out) :: status
         type(value_type) :: saved, saved_outer
+
         status = status_type()
+
         if (associated(e%fn)) then
             saved = current_prefix_arg
             saved_outer = hook_current_prefix_arg
@@ -800,6 +852,7 @@ contains
         class(hook_base_type), intent(inout) :: self
         type(local_hook_type), allocatable :: kept(:)
         integer :: k, n
+
         k = local_index(self)
         if (k == 0) return
         n = size(self%locals)
@@ -811,6 +864,7 @@ contains
 
     logical function hook_local_p(self)
         class(hook_base_type), intent(in) :: self
+
         hook_local_p = local_index(self) > 0
     end function hook_local_p
 
@@ -819,7 +873,9 @@ contains
     logical function hook_empty(self)
         class(hook_base_type), intent(in) :: self
         integer :: k
+
         k = local_index(self)
+
         if (k > 0) then
             hook_empty = size(self%locals(k)%entries) == 0
         else if (allocated(self%entries)) then
@@ -836,7 +892,9 @@ contains
     subroutine hook_clear(self)
         class(hook_base_type), intent(inout) :: self
         integer :: k
+
         k = local_index(self)
+
         if (k > 0) then
             deallocate (self%locals(k)%entries)
             allocate (self%locals(k)%entries(0))
@@ -874,6 +932,7 @@ contains
         integer, intent(in), optional :: depth
         logical, intent(in), optional :: local
         type(hook_entry_type) :: e
+
         e%fn => fn
         call self%add_entry(e, depth, local)
     end subroutine hook_add
@@ -889,6 +948,7 @@ contains
         procedure(command_proc) :: fn
         logical, intent(in), optional :: local
         type(hook_entry_type) :: e
+
         e%fn => fn
         call self%remove_entry(e, local)
     end subroutine hook_remove
@@ -900,6 +960,7 @@ contains
     recursive subroutine hook_run(self, status)
         class(hook_type), intent(in) :: self
         type(status_type), intent(out) :: status
+
         call self%run_entries(0_int64, 0_int64, 0_int64, status)
     end subroutine hook_run
 
@@ -907,6 +968,7 @@ contains
         class(hook_type), intent(in) :: self
         procedure(command_proc) :: fn
         type(hook_entry_type) :: e
+
         e%fn => fn
         found = self%member_entry(e)
     end function hook_member
@@ -922,6 +984,7 @@ contains
         integer, intent(in), optional :: depth
         logical, intent(in), optional :: local
         type(hook_entry_type) :: e
+
         e%change_fn => fn
         call self%add_entry(e, depth, local)
     end subroutine change_hook_add
@@ -933,6 +996,7 @@ contains
         procedure(change_function) :: fn
         logical, intent(in), optional :: local
         type(hook_entry_type) :: e
+
         e%change_fn => fn
         call self%remove_entry(e, local)
     end subroutine change_hook_remove
@@ -944,6 +1008,7 @@ contains
         class(change_hook_type), intent(in) :: self
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
+
         call self%run_entries(beg, end, 0_int64, status)
     end subroutine change_hook_run
 
@@ -951,6 +1016,7 @@ contains
         class(change_hook_type), intent(in) :: self
         procedure(change_function) :: fn
         type(hook_entry_type) :: e
+
         e%change_fn => fn
         found = self%member_entry(e)
     end function change_hook_member
@@ -962,6 +1028,7 @@ contains
         integer, intent(in), optional :: depth
         logical, intent(in), optional :: local
         type(hook_entry_type) :: e
+
         e%after_change_fn => fn
         call self%add_entry(e, depth, local)
     end subroutine after_change_hook_add
@@ -973,6 +1040,7 @@ contains
         procedure(after_change_function) :: fn
         logical, intent(in), optional :: local
         type(hook_entry_type) :: e
+
         e%after_change_fn => fn
         call self%remove_entry(e, local)
     end subroutine after_change_hook_remove
@@ -984,6 +1052,7 @@ contains
         class(after_change_hook_type), intent(in) :: self
         integer(int64), intent(in) :: beg, end, old_len
         type(status_type), intent(out) :: status
+
         call self%run_entries(beg, end, old_len, status)
     end subroutine after_change_hook_run
 
@@ -991,6 +1060,7 @@ contains
         class(after_change_hook_type), intent(in) :: self
         procedure(after_change_function) :: fn
         type(hook_entry_type) :: e
+
         e%after_change_fn => fn
         found = self%member_entry(e)
     end function after_change_hook_member
@@ -1006,6 +1076,7 @@ contains
         integer, intent(in), optional :: depth
         logical, intent(in), optional :: local
         type(hook_entry_type) :: e
+
         e%position_fn => fn
         call self%add_entry(e, depth, local)
     end subroutine position_hook_add
@@ -1017,6 +1088,7 @@ contains
         procedure(position_function) :: fn
         logical, intent(in), optional :: local
         type(hook_entry_type) :: e
+
         e%position_fn => fn
         call self%remove_entry(e, local)
     end subroutine position_hook_remove
@@ -1030,6 +1102,7 @@ contains
         type(status_type), intent(out) :: status
         !> Ignore errors, calling every function (redisplay's safe calls).
         logical, intent(in), optional :: safe
+
         call self%run_entries(pos, 0_int64, 0_int64, status, safe)
     end subroutine position_hook_run
 
@@ -1037,6 +1110,7 @@ contains
         class(position_hook_type), intent(in) :: self
         procedure(position_function) :: fn
         type(hook_entry_type) :: e
+
         e%position_fn => fn
         found = self%member_entry(e)
     end function position_hook_member
@@ -1048,6 +1122,7 @@ contains
         integer, intent(in), optional :: depth
         logical, intent(in), optional :: local
         type(hook_entry_type) :: e
+
         e%region_fn => fn
         call self%add_entry(e, depth, local)
     end subroutine region_hook_add
@@ -1059,6 +1134,7 @@ contains
         procedure(region_function) :: fn
         logical, intent(in), optional :: local
         type(hook_entry_type) :: e
+
         e%region_fn => fn
         call self%remove_entry(e, local)
     end subroutine region_hook_remove
@@ -1067,6 +1143,7 @@ contains
         class(region_hook_type), intent(in) :: self
         procedure(region_function) :: fn
         type(hook_entry_type) :: e
+
         e%region_fn => fn
         found = self%member_entry(e)
     end function region_hook_member
@@ -1078,8 +1155,10 @@ contains
         type(region_entry_type), allocatable :: fns(:)
         type(hook_entry_type), allocatable :: entries(:)
         integer :: i, j, k, n
+
         allocate (fns(0))
         k = local_index(self)
+
         if (k > 0) then
             entries = self%locals(k)%entries
         else if (allocated(self%entries)) then
@@ -1087,10 +1166,13 @@ contains
         else
             return
         end if
+
         n = 0
+
         do i = 1, size(entries)
             if (entries(i)%is_t) then
                 if (.not. allocated(self%entries)) cycle
+
                 do j = 1, size(self%entries)
                     if (self%entries(j)%is_t) cycle
                     call push(self%entries(j))
@@ -1099,10 +1181,13 @@ contains
                 call push(entries(i))
             end if
         end do
+
     contains
+
         subroutine push(e)
             type(hook_entry_type), intent(in) :: e
             type(region_entry_type), allocatable :: grown(:)
+
             allocate (grown(size(fns) + 1))
             grown(1:size(fns)) = fns
             grown(size(fns) + 1)%fn => e%region_fn
@@ -1118,6 +1203,7 @@ contains
         integer, intent(in), optional :: depth
         logical, intent(in), optional :: local
         type(hook_entry_type) :: e
+
         e%capf_fn => fn
         call self%add_entry(e, depth, local)
     end subroutine capf_hook_add
@@ -1129,6 +1215,7 @@ contains
         procedure(capf_function) :: fn
         logical, intent(in), optional :: local
         type(hook_entry_type) :: e
+
         e%capf_fn => fn
         call self%remove_entry(e, local)
     end subroutine capf_hook_remove
@@ -1137,6 +1224,7 @@ contains
         class(capf_hook_type), intent(in) :: self
         procedure(capf_function) :: fn
         type(hook_entry_type) :: e
+
         e%capf_fn => fn
         found = self%member_entry(e)
     end function capf_hook_member
@@ -1148,8 +1236,10 @@ contains
         type(capf_entry_type), allocatable :: fns(:)
         type(hook_entry_type), allocatable :: entries(:)
         integer :: i, j, k, n
+
         allocate (fns(0))
         k = local_index(self)
+
         if (k > 0) then
             entries = self%locals(k)%entries
         else if (allocated(self%entries)) then
@@ -1157,10 +1247,13 @@ contains
         else
             return
         end if
+
         n = 0
+
         do i = 1, size(entries)
             if (entries(i)%is_t) then
                 if (.not. allocated(self%entries)) cycle
+
                 do j = 1, size(self%entries)
                     if (self%entries(j)%is_t) cycle
                     call push(self%entries(j))
@@ -1169,10 +1262,13 @@ contains
                 call push(entries(i))
             end if
         end do
+
     contains
+
         subroutine push(e)
             type(hook_entry_type), intent(in) :: e
             type(capf_entry_type), allocatable :: grown(:)
+
             allocate (grown(size(fns) + 1))
             grown(1:size(fns)) = fns
             grown(size(fns) + 1)%fn => e%capf_fn
@@ -1190,8 +1286,10 @@ contains
         type(hook_entry_type), allocatable :: entries(:)
         logical, allocatable :: keep(:)
         integer :: i, k
+
         allocate (run(0))
         k = local_index(self)
+
         if (k > 0) then
             entries = self%locals(k)%entries
         else if (allocated(self%entries)) then
@@ -1199,6 +1297,7 @@ contains
         else
             return
         end if
+
         do i = 1, size(entries)
             if (entries(i)%is_t) then
                 ! In a global value, t should not occur.  If it does, we
@@ -1221,6 +1320,7 @@ contains
         integer, intent(in), optional :: depth
         logical, intent(in), optional :: local
         type(hook_entry_type) :: e
+
         e%string_fn => fn
         call self%add_entry(e, depth, local)
     end subroutine string_hook_add
@@ -1232,6 +1332,7 @@ contains
         procedure(string_function) :: fn
         logical, intent(in), optional :: local
         type(hook_entry_type) :: e
+
         e%string_fn => fn
         call self%remove_entry(e, local)
     end subroutine string_hook_remove
@@ -1245,8 +1346,10 @@ contains
         type(status_type), intent(out) :: status
         type(hook_entry_type), allocatable :: entries(:)
         integer :: i
+
         status = status_type()
         entries = effective_entries(self)
+
         do i = 1, size(entries)
             if (.not. associated(entries(i)%string_fn)) cycle
             call entries(i)%string_fn(string, status)
@@ -1258,6 +1361,7 @@ contains
         class(string_hook_type), intent(in) :: self
         procedure(string_function) :: fn
         type(hook_entry_type) :: e
+
         e%string_fn => fn
         found = self%member_entry(e)
     end function string_hook_member
@@ -1269,6 +1373,7 @@ contains
         integer, intent(in), optional :: depth
         logical, intent(in), optional :: local
         type(hook_entry_type) :: e
+
         e%string_filter_fn => fn
         call self%add_entry(e, depth, local)
     end subroutine string_filter_hook_add
@@ -1280,6 +1385,7 @@ contains
         procedure(string_filter_function) :: fn
         logical, intent(in), optional :: local
         type(hook_entry_type) :: e
+
         e%string_filter_fn => fn
         call self%remove_entry(e, local)
     end subroutine string_filter_hook_remove
@@ -1296,9 +1402,11 @@ contains
         type(hook_entry_type), allocatable :: entries(:)
         character(len=:), allocatable :: next
         integer :: i
+
         status = status_type()
         result = string
         entries = effective_entries(self)
+
         do i = 1, size(entries)
             if (.not. associated(entries(i)%string_filter_fn)) cycle
             call entries(i)%string_filter_fn(result, next, status)
@@ -1311,6 +1419,7 @@ contains
         class(string_filter_hook_type), intent(in) :: self
         procedure(string_filter_function) :: fn
         type(hook_entry_type) :: e
+
         e%string_filter_fn => fn
         found = self%member_entry(e)
     end function string_filter_hook_member

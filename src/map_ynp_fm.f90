@@ -162,5 +162,4 @@ module map_ynp_fm
     character(len=:), allocatable, public :: short_answer_message
     type(handle_type), public :: short_answer_map
     type(command_type), target, public :: cmd_answer_select, cmd_answer_reject
-
 end module map_ynp_fm

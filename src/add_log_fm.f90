@@ -166,13 +166,17 @@ contains
         character(len=:), allocatable :: tag
         integer(int64) :: moved
         logical :: tagged
+
         allocate (names(0))
+
         do
             moved = skip_chars_forward(":"//achar(10)//"[:blank:]", status, end)
             if (.not. status%ok()) return
+
             if (present(end)) then
                 if (point() >= end) exit
             end if
+
             tagged = looking_at(change_log_tag_re, status)
             if (.not. status%ok()) return
             if (.not. tagged) exit
@@ -180,21 +184,29 @@ contains
             call goto_char(match_end(0, status))
             call split_tag(tag)
         end do
+
         moved = skip_chars_backward(achar(10)//"[:blank:]", status)
+
     contains
+
         ! (split-string TAG ",[[:blank:]]*" t), appended to NAMES.
         subroutine split_tag(tag)
             character(len=*), intent(in) :: tag
             integer :: i, j
+
             i = 1
+
             do
                 j = index(tag(i:), ",")
+
                 if (j == 0) then
                     call add(tag(i:))
                     exit
                 end if
+
                 call add(tag(i:i + j - 2))
                 i = i + j
+
                 do while (i <= len(tag))
                     if (tag(i:i) /= " " .and. tag(i:i) /= achar(9)) exit
                     i = i + 1
@@ -206,6 +218,7 @@ contains
             character(len=*), intent(in) :: name
             type(change_log_string_type), allocatable :: grown(:)
             integer :: n
+
             if (len(name) == 0) return
             n = size(names)
             allocate (grown(n + 1))
@@ -222,6 +235,7 @@ contains
         character(len=:), allocatable :: s
         character(len=10) :: buf
         integer :: v(8)
+
         call date_and_time(values=v)
         write (buf, "(i4.4,'-',i2.2,'-',i2.2)") v(1), v(2), v(3)
         s = buf
@@ -231,6 +245,7 @@ contains
     !> Port of add-log.el:change-log-name.
     function change_log_name() result(name)
         character(len=:), allocatable :: name
+
         if (allocated(change_log_default_name%value)) then
             name = change_log_default_name%value
         else
@@ -263,6 +278,7 @@ contains
         type(status_type) :: st
         logical :: found
         integer :: k
+
         if (present(file_name_in)) then
             file_name = file_name_in
         else if (allocated(change_log_default_name%value)) then
@@ -270,25 +286,30 @@ contains
                 file_name = change_log_default_name%value
             end if
         end if
+
         if (.not. allocated(file_name)) then
             ! Chase links in the source file
             ! and use the change log in the dir where it points.
             source = ""
+
             if (present(buffer_file)) then
                 source = buffer_file
             else if (allocated(buffers(cur)%filename)) then
                 source = buffers(cur)%filename
             end if
+
             if (len(source) > 0) then
                 call file_chase_links(source, chased, st)
                 file_name = file_name_directory(chased)
             else
                 file_name = buffers(cur)%directory
             end if
+
             if (file_directory_p(file_name)) then
                 dir = file_name
                 call expand_file_name(change_log_name(), file_name, st, dir)
             end if
+
             ! Chase links before visiting the file.
             ! This makes it easier to use a single change log file
             ! for several related directories.
@@ -298,27 +319,33 @@ contains
             ! locate-dominating-file with the predicate.
             dir = file_name_directory(abbreviate_file_name(file_name))
             found = .false.
+
             do while (len(dir) > 0)
                 call expand_file_name(cbase, try, st, dir)
+
                 if (buffer_live_p(get_file_buffer(try)) .or. file_exists_p(try)) then
                     found = .true.
                 else if (allocated(change_log_directory_files)) then
                     ! Stop at VCS root?
                     do k = 1, size(change_log_directory_files)
                         call expand_file_name(trim(change_log_directory_files(k)), try, st, dir)
+
                         if (file_exists_p(try)) then
                             found = .true.
                             exit
                         end if
                     end do
                 end if
+
                 if (found) exit
                 up = file_name_directory(directory_file_name(dir))
                 if (up == dir) exit
                 dir = up
             end do
+
             if (found) call expand_file_name(cbase, file_name, st, file_name_as_directory(dir))
         end if
+
         ! Make a local variable in this buffer so we needn't search again.
         call change_log_default_name%set_local(file_name)
     end function find_change_log
@@ -330,6 +357,7 @@ contains
     function add_log_pseudo_changelog_buffer_name(changelog_file_name) result(name)
         character(len=*), intent(in) :: changelog_file_name
         character(len=:), allocatable :: name
+
         name = "*changes to "//abbreviate_file_name(file_name_directory(changelog_file_name))//"*"
     end function add_log_pseudo_changelog_buffer_name
 
@@ -340,7 +368,9 @@ contains
         character(len=*), intent(in) :: changelog_file_name
         type(handle_type), intent(out) :: buf
         type(status_type), intent(out) :: status
+
         status = status_type()
+
         if (file_exists_p(changelog_file_name) .or. .not. add_log_dont_create_changelog_file) then
             call find_file_noselect(changelog_file_name, buf, status)
         else
@@ -361,6 +391,7 @@ contains
     recursive subroutine change_log_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
+
         if (.not. associated(major_modes%change_log_mode%run)) call syms_of_add_log()
         call major_modes%change_log_mode%begin(saved, status)
         if (.not. status%ok()) return
@@ -381,6 +412,7 @@ contains
     !> The faces of add-log.el.
     subroutine define_faces()
         type(named_face_type), pointer :: f
+
         f => change_log_date
         call f%define("change_log_date", "Face used to highlight dates in date lines.")
         call f%spec_entry(display_when(), face_attrs(inherit="font_lock_string_face"))
@@ -410,16 +442,21 @@ contains
     !> Define Change Log mode, its syntax table and faces.
     subroutine syms_of_add_log()
         type(status_type) :: st
+
         call define_faces()
+
         if (.not. allocated(change_log_directory_files)) then
             change_log_directory_files = [character(len=8) :: ".bzr", ".git", ".hg", ".svn"]
         end if
+
         call forward_setting(change_log_default_name, local_if_set=.true.)
+
         if (change_log_mode_syntax_table%index == 0) then
             call make_syntax_table(change_log_mode_syntax_table, st)
             call modify_syntax_entry(iachar("`"), iachar("`"), "'   ", st, change_log_mode_syntax_table)
             call modify_syntax_entry(iachar("'"), iachar("'"), "'   ", st, change_log_mode_syntax_table)
         end if
+
         call major_modes%change_log_mode%define("change_log_mode", "Change Log", change_log_mode, &
                                                 change_log_mode_hook, parent=major_modes%text_mode, &
                                                 syntax_table=change_log_mode_syntax_table)

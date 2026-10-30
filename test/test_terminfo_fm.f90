@@ -36,6 +36,7 @@ contains
 
     subroutine collect_terminfo_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("tparm-xterm-strings", test_tparm_xterm), &
                     new_unittest("tparm-language", test_tparm_language), &
@@ -53,6 +54,7 @@ contains
         integer, intent(in) :: v
         character(len=2) :: s
         integer :: u
+
         u = v
         if (u < 0) u = u + 65536
         s = char(mod(u, 256))//char(u/256)
@@ -61,6 +63,7 @@ contains
     function le32(v) result(s)
         integer, intent(in) :: v
         character(len=4) :: s
+
         s = le16(mod(v, 65536))//le16(v/65536)
     end function le32
 
@@ -70,21 +73,26 @@ contains
         logical, intent(in) :: wide
         character(len=:), allocatable :: data, names, strtab, ext
         integer :: k
+
         names = "test|Test terminal"//NUL
         strtab = achar(7)//NUL//ESC//"[%i%p1%d;%p2%dH"//NUL
+
         if (wide) then
             data = le16(int(o'01036'))
         else
             data = le16(int(o'0432'))
         end if
+
         data = data//le16(len(names))//le16(2)//le16(1)//le16(11)//le16(len(strtab))
         data = data//names//char(0)//char(1)
         if (mod(len(data), 2) == 1) data = data//NUL
+
         if (wide) then
             data = data//le32(80)
         else
             data = data//le16(80)
         end if
+
         ! bel (2) at 0, cup (11) at 2, the rest absent.
         do k = 1, 11
             select case (k)
@@ -96,6 +104,7 @@ contains
                 data = data//le16(-1)
             end select
         end do
+
         data = data//strtab
         if (mod(len(data), 2) == 1) data = data//NUL
         ! Extended: one boolean (Tc), one string (smxx).
@@ -109,6 +118,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: setaf = &
                                        ESC//"[%?%p1%{8}%<%t3%p1%d%e%p1%{16}%<%t9%p1%{8}%-%d%e38;5;%p1%d%;m"
+
         call check(error, tparm(ESC//"[%i%p1%d;%p2%dH", 4_int64, 9_int64), ESC//"[5;10H")
         if (allocated(error)) return
         call check(error, tgoto(ESC//"[%i%p1%d;%p2%dH", 9_int64, 4_int64), ESC//"[5;10H")
@@ -128,6 +138,7 @@ contains
     subroutine test_tparm_language(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: cond = "%?%p1%t1%e%p2%t2%e3%;"
+
         call check(error, tparm(cond, 1_int64, 0_int64), "1")
         if (allocated(error)) return
         call check(error, tparm(cond, 0_int64, 1_int64), "2")
@@ -160,6 +171,7 @@ contains
 
     subroutine test_tparm_formats(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, tparm("%p1%02d", 5_int64), "05")
         if (allocated(error)) return
         call check(error, tparm("%p1%3d|", 5_int64), "  5|")
@@ -179,6 +191,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(terminfo_type) :: ti
         logical :: found
+
         call builtin_xterm(ti)
         call check(error, tgetstr(ti, "cm"), ESC//"[%i%p1%d;%p2%dH")
         if (allocated(error)) return
@@ -203,6 +216,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(terminfo_type) :: ti
         type(status_type) :: st
+
         call parse_terminfo(sample_entry(.false.), ti, st)
         call check(error, st%ok(), "parse")
         if (allocated(error)) return
@@ -227,6 +241,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(terminfo_type) :: ti
         type(status_type) :: st
+
         call parse_terminfo(sample_entry(.true.), ti, st)
         call check(error, st%ok() .and. tigetnum(ti, "cols") == 80, "32-bit")
         if (allocated(error)) return
@@ -238,6 +253,7 @@ contains
         type(terminfo_type) :: ti
         type(status_type) :: st
         character(len=:), allocatable :: data
+
         call parse_terminfo("not a terminfo file", ti, st)
         call check(error, st%detail, "Invalid terminfo entry")
         if (allocated(error)) return
@@ -253,6 +269,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(terminfo_type) :: ti
         type(status_type) :: st
+
         call tgetent("xterm-256color", ti, st)
         call check(error, st%ok(), "xterm-256color")
         if (allocated(error)) return
@@ -268,6 +285,7 @@ contains
 
     subroutine test_delete_padding(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, delete_padding(ESC//"[?5h$<100/>"//ESC//"[?5l"), &
                    ESC//"[?5h"//ESC//"[?5l")
         if (allocated(error)) return

@@ -51,6 +51,7 @@ contains
 
     subroutine collect_smie_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("smie-precs->prec2", test_precs), &
                     new_unittest("smie-bnf->prec2", test_bnf), &
@@ -66,6 +67,7 @@ contains
         character(len=*), intent(in) :: arg
         type(smie_rule_result_type), intent(out) :: result
         type(status_type), intent(out) :: status
+
         status = status_type()
         result = smie_rule_result_type()
         if (method < 0 .or. len(arg) < 0) continue
@@ -76,6 +78,7 @@ contains
         type(smie_bnf_type) :: bnf
         type(smie_precs_type) :: precs(1)
         type(smie_prec2_type) :: prec2
+
         status = status_type()
         if (have_grammar) return
         call bnf%add("inst", [character(len=6) :: "begin", "insts", "end"])
@@ -99,6 +102,7 @@ contains
         character(len=*), intent(in) :: text
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call init_bindings()
         call get_buffer_create(" *smie-test*", h, st)
         call set_buffer(h, st)
@@ -114,6 +118,7 @@ contains
     subroutine leave(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
+
         call kill_buffer(h, st)
     end subroutine leave
 
@@ -124,6 +129,7 @@ contains
         type(smie_grammar_type) :: g
         type(status_type) :: st
         integer :: lp, rp, lt, rt
+
         call precs%add(SMIE_LEFT, [character(len=1) :: "+"])
         call precs%add(SMIE_LEFT, [character(len=1) :: "*"])
         call smie_precs_to_prec2(precs, prec2)
@@ -143,8 +149,10 @@ contains
         character(len=*), intent(in) :: token
         integer, intent(out) :: left, right
         integer :: k
+
         left = -1
         right = -1
+
         do k = 1, size(g%tokens)
             if (g%tokens(k)%s == token) then
                 left = g%left(k)%value
@@ -160,7 +168,9 @@ contains
         type(handle_type) :: h
         integer :: k
         logical :: found
+
         call temp_buffer("", h)
+
         checks: block
             call make_grammar(st)
             call check(error, st%ok(), "the grammar")
@@ -180,11 +190,14 @@ contains
             call check(error, t%right%value == el%left%value, "then = else")
             if (allocated(error)) exit checks
             found = .false.
+
             do k = 1, size(pascal_grammar%openers)
                 if (pascal_grammar%openers(k)%s == "begin" .and. pascal_grammar%closers(k)%s == "end") found = .true.
             end do
+
             call check(error, found, "(begin . end) closes")
         end block checks
+
         call leave(h)
     end subroutine test_bnf
 
@@ -192,7 +205,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call temp_buffer("x := begin a := b; c end + 1", h)
+
         checks: block
             call goto_char(6_int64)
             call smie_forward_sexp_command(1_int64, st)
@@ -204,6 +219,7 @@ contains
             call forward_sexp(-1_int64, st)
             call check(error, point(), 6_int64)
         end block checks
+
         call leave(h)
     end subroutine test_sexp
 
@@ -211,6 +227,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call temp_buffer("begin"//LF//"a := b;"//LF//"c"//LF//"end"//LF, h)
         call indent_region(point_min(), point_max(), st)
         call check(error, buffer_string(), "begin"//LF//"    a := b;"//LF//"    c"//LF//"end"//LF)
@@ -221,7 +238,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call temp_buffer("begin"//LF//"    a", h)
+
         checks: block
             call goto_char(point_max())
             call smie_close_block(st)
@@ -229,6 +248,7 @@ contains
             if (allocated(error)) exit checks
             call check(error, buffer_string(), "begin"//LF//"    a"//LF//"end")
         end block checks
+
         call leave(h)
     end subroutine test_close_block
 end module test_smie_fm

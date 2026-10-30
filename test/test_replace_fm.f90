@@ -70,6 +70,7 @@ contains
 
     subroutine collect_replace_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("query-replace-tests", test_query_replace), &
                     new_unittest("perform-replace-tests", test_perform_replace), &
@@ -112,6 +113,7 @@ contains
         character(len=*), intent(in) :: text
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call init_bindings()
         call discard_input()
         prefix_arg = nil()
@@ -130,6 +132,7 @@ contains
     subroutine leave(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
+
         call discard_input()
         call kill_buffer(h, st)
     end subroutine leave
@@ -139,6 +142,7 @@ contains
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
+
         call key_parse(keys, evs, st)
         call unread_command_events(evs)
         call command_loop(st)
@@ -149,6 +153,7 @@ contains
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
+
         call key_parse(keys, evs, st)
         call unread_command_events(evs)
     end subroutine queue_keys
@@ -158,6 +163,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=*), intent(in) :: input, keys, expected
         type(handle_type) :: h
+
         call enter(input, h)
         call type_keys(keys)
         call check(error, buffer_string() == expected, input//" / "//keys//": got "//buffer_string())
@@ -166,6 +172,7 @@ contains
 
     subroutine test_query_replace(error)
         type(error_type), allocatable, intent(out) :: error
+
         ! query-replace
         call run_case(error, "aaa", "M-% a RET 1 RET !", "111")
         if (allocated(error)) return
@@ -226,6 +233,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         ! Test case from commit 5632eb272c7
         call enter("a a a ", h)
         call perform_replace("\ba ", "c", .false., .true., .false., st)
@@ -243,6 +251,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         logical :: re
+
         re = .true.
         if (present(regexp_flag)) re = regexp_flag
         call enter(input, h)
@@ -254,6 +263,7 @@ contains
 
     subroutine test_undo(error)
         type(error_type), allocatable, intent(out) :: error
+
         call with_undo(error, "111", "1", "2", "SPC SPC u q", "211")
         if (allocated(error)) return
         call with_undo(error, "111", "1", "2", "SPC , u q", "211")
@@ -261,17 +271,20 @@ contains
 
     subroutine test_undo_31073(error)
         type(error_type), allocatable, intent(out) :: error
+
         call with_undo(error, "aaa aaa", "a", "B", "SPC SPC SPC U q", "aaa aaa")
     end subroutine test_undo_31073
 
     subroutine test_undo_31492(error)
         type(error_type), allocatable, intent(out) :: error
+
         call with_undo(error, "a"//achar(10)//"b"//achar(10)//"c"//achar(10), "^\|\b\|$", "foo", &
                        "SPC SPC U q", "a"//achar(10)//"b"//achar(10)//"c"//achar(10))
     end subroutine test_undo_31492
 
     subroutine test_undo_31538(error)
         type(error_type), allocatable, intent(out) :: error
+
         ! read-string answers "Bfoo": the minibuffer starts with "B".
         call with_undo(error, "aaa aaa", "a", "B", "SPC SPC SPC E f o o RET U q", "aaa aaa")
     end subroutine test_undo_31538
@@ -283,6 +296,7 @@ contains
         character(len=:), allocatable :: text
         integer :: n
         character(len=:), allocatable :: digits
+
         digits = match_string(1)
         read (digits, *) n
         text = replace_quote("theorem \\ref{theo_"//itoa(n + 1)//"}")
@@ -295,6 +309,7 @@ contains
         character(len=:), allocatable :: text
         integer :: n
         character(len=:), allocatable :: digits
+
         digits = match_string(1)
         read (digits, *) n
         text = replace_quote(itoa(n + 1))
@@ -307,6 +322,7 @@ contains
         character(len=:), allocatable :: text
         logical :: matched
         character(len=:), allocatable :: ignored
+
         ignored = match_string(2, matched=matched)
         text = merge("R", "L", matched)
         if (count < 0) text = ""
@@ -316,6 +332,7 @@ contains
         integer, intent(in) :: n
         character(len=:), allocatable :: s
         character(len=12) :: buf
+
         write (buf, "(i0)") n
         s = trim(buf)
     end function itoa
@@ -323,6 +340,7 @@ contains
     subroutine test_undo_37073(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: input = "theorem 1"//achar(10)//"theorem 2"//achar(10)//"theorem 3"
+
         call with_undo(error, input, "theorem \([0-9]+\)", "", "SPC SPC U q", input, fn=theorem_replacement)
         if (allocated(error)) return
         ! Now run a test with regexp-flag arg in `perform_replace' set to nil
@@ -333,6 +351,7 @@ contains
 
     subroutine test_undo_37287(error)
         type(error_type), allocatable, intent(out) :: error
+
         call with_undo(error, "foo-1"//achar(10)//"foo-2"//achar(10)//"foo-3", "\([0-9]\)", "", &
                        "SPC SPC U SPC q", "foo-2"//achar(10)//"foo-2"//achar(10)//"foo-3", fn=increment_replacement)
     end subroutine test_undo_37287
@@ -341,6 +360,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call enter("1RB 1LC 1RC 1RB 1RD 0LE 1LA 1LD 1RH 0LA", h)
         call replace_regexp("\(\(L\)\|\(R\)\)", "", st, replacement_fn=swap_replacement)
         call check(error, buffer_string() == "1LB 1RC 1LC 1LB 1LD 0RE 1RA 1RD 1LH 0RA", buffer_string())
@@ -352,6 +372,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         logical :: counted
+
         call query_replace_compile_replacement("x\#y\\#", .true., counted, st)
         call check(error, st%ok() .and. counted)
         if (allocated(error)) return
@@ -368,6 +389,7 @@ contains
     !> changes how it is displayed), so undo finds it again.
     subroutine test_undo_control(error)
         type(error_type), allocatable, intent(out) :: error
+
         call with_undo(error, "aaa", "a", "x"//achar(10), "SPC u q", "aaa")
     end subroutine test_undo_control
 
@@ -376,6 +398,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call enter("a", h)
         call queue_keys("Z RET")
         call perform_replace("a", "x\?y", .false., .true., .false., st)
@@ -386,6 +409,7 @@ contains
     !> All the events of query-replace-map.
     subroutine test_map_events(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, answer_of("M-v") == ANSWER_SCROLL_DOWN .and. answer_of("<prior>") == ANSWER_SCROLL_DOWN &
                    .and. answer_of("<next>") == ANSWER_SCROLL_UP .and. answer_of("<delete>") == ANSWER_SKIP &
                    .and. answer_of("<backspace>") == ANSWER_SKIP .and. answer_of("<return>") == ANSWER_EXIT &
@@ -395,12 +419,14 @@ contains
                    .and. answer_of("C-M-S-v") == ANSWER_SCROLL_OTHER_WINDOW_DOWN &
                    .and. answer_of("M-<prior>") == ANSWER_SCROLL_OTHER_WINDOW_DOWN &
                    .and. answer_of("SPC") == ANSWER_ACT .and. answer_of("ESC") == ANSWER_NONE, "answers")
+
     contains
 
         integer function answer_of(keys)
             character(len=*), intent(in) :: keys
             type(value_type), allocatable :: evs(:)
             type(status_type) :: st
+
             call key_parse(keys, evs, st)
             answer_of = query_replace_answer(evs(1))
         end function answer_of
@@ -413,6 +439,7 @@ contains
         type(handle_type) :: h
         type(minibuffer_string_type), allocatable :: list(:)
         integer :: n
+
         call enter("foo_bar foo", h)
         call goto_char(2_int64)
         call query_replace_read_from_suggestions(list, n)
@@ -437,6 +464,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(value_type) :: v
+
         call enter("aa", h)
         call set(sym("query_replace_history"), nil(), st)
         call type_keys("M-x map_query_replace_regexp RET a RET x SPC y RET !")
@@ -449,6 +477,7 @@ contains
                    xstring(list_elt(v, 1_int64)))
         call leave(h)
     end subroutine test_map_history
+
     ! ------------------------------------------------------------------
     ! Occur
     ! ------------------------------------------------------------------
@@ -463,6 +492,7 @@ contains
         type(handle_type) :: h, occ
         type(status_type) :: st
         character(len=:), allocatable :: text
+
         call init_bindings()
         call get_buffer_create(" *test-occur*", h, st)
         call set_buffer(h, st)
@@ -484,6 +514,7 @@ contains
     !> The ;; text of replace-occur-revert-bug32543 and bug32987.
     function scratch_text() result(text)
         character(len=:), allocatable :: text
+
         text = ";; This buffer is for text that is not saved, and for Lisp evaluation."//LF// &
                ";; To create a file, visit it with C-x C-f and enter text in its buffer."//LF//LF
     end function scratch_text
@@ -497,6 +528,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: text
         logical :: saved
+
         call init_bindings()
         saved = list_matching_lines_jump_to_current_line
         list_matching_lines_jump_to_current_line = jump
@@ -506,12 +538,14 @@ contains
         call insert(scratch_text(), st)
         call occur("and", st)
         call check(error, st%ok(), format_error(st))
+
         if (.not. allocated(error)) then
             occ = get_buffer("*Occur*")
             call set_buffer(occ, st)
             call revert_buffer(st, noconfirm=.true.)
             call check(error, st%ok(), format_error(st))
         end if
+
         if (.not. allocated(error)) then
             occ = get_buffer("*Occur*")
             call set_buffer(occ, st)
@@ -520,6 +554,7 @@ contains
             call check(error, index(text, "2 matches for ""and"" in buffer: ") == 1, text)
             call kill_buffer(occ, st)
         end if
+
         list_matching_lines_jump_to_current_line = saved
         call kill_buffer(h, st)
     end subroutine revert_case
@@ -528,6 +563,7 @@ contains
     !> revert with `list_matching_lines_jump_to_current_line' true.
     subroutine test_revert_32543(error)
         type(error_type), allocatable, intent(out) :: error
+
         call revert_case(error, .true.)
     end subroutine test_revert_32543
 
@@ -535,6 +571,7 @@ contains
     !> revert with `list_matching_lines_jump_to_current_line' false.
     subroutine test_revert_32987(error)
         type(error_type), allocatable, intent(out) :: error
+
         call revert_case(error, .false.)
     end subroutine test_revert_32987
 
@@ -544,13 +581,16 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: n
+
         call enter("oooooooooo", h)
         call how_many("oo", n, st)
         call check(error, n, 5_int64)
+
         if (.not. allocated(error)) then
             call how_many("o+", n, st)
             call check(error, n, 1_int64)
         end if
+
         if (.not. allocated(error)) then
             call erase_buffer(st)
             call insert("o"//LF//LF//LF//LF//"o"//LF//LF, st)
@@ -558,6 +598,7 @@ contains
             call how_many("^$", n, st)
             call check(error, n, 4_int64)
         end if
+
         call leave(h)
     end subroutine test_count_matches
 
@@ -568,9 +609,11 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: n
+
         call enter("a1"//LF//"b2"//LF//"a3"//LF//"c4"//LF, h)
         call keep_lines("a", st)
         call check(error, buffer_string(), "a1"//LF//"a3"//LF)
+
         if (.not. allocated(error)) then
             call erase_buffer(st)
             call insert("a1"//LF//"b2"//LF//"a3"//LF//"c4"//LF, st)
@@ -579,6 +622,7 @@ contains
             call check(error, buffer_string(), "b2"//LF//"c4"//LF)
             if (.not. allocated(error)) call check(error, n, 2_int64)
         end if
+
         if (.not. allocated(error)) then
             call erase_buffer(st)
             call insert("x"//LF//"yes"//LF//"z"//LF//"yes too"//LF, st)
@@ -587,6 +631,7 @@ contains
             call check(error, buffer_string(), "x"//LF//"z"//LF)
             if (.not. allocated(error)) call check(error, n, 2_int64)
         end if
+
         if (.not. allocated(error)) then
             call erase_buffer(st)
             call insert("x"//LF//"yes"//LF//"z"//LF, st)
@@ -595,6 +640,7 @@ contains
             call check(error, buffer_string(), "x"//LF//"yes"//LF//"z"//LF)
             if (.not. allocated(error)) call check(error, n, 1_int64)
         end if
+
         call leave(h)
     end subroutine test_keep_lines
 
@@ -604,6 +650,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, occ
         type(status_type) :: st
+
         call init_bindings()
         call get_buffer_create(" *test-occur*", h, st)
         call set_buffer(h, st)
@@ -661,12 +708,14 @@ contains
     !> M-n from point in an Occur buffer.
     subroutine occur_find_next(status)
         type(status_type), intent(out) :: status
+
         call occur_next(status)
     end subroutine occur_find_next
 
     !> Port of replace-tests.el occur-test-00: element 0 of replace-occur-tests.
     subroutine test_occur_00(error)
         type(error_type), allocatable, intent(out) :: error
+
         call occur_case(error, "x", 0_int64, &
                         "xa"//LF//"b"//LF//"cx"//LF//"xd"//LF//"xex"//LF//"fx"//LF//"", &
                         "6 matches in 5 lines for ""x"" in buffer:  *test-occur*"//LF//"      1:xa"//LF &
@@ -676,6 +725,7 @@ contains
     !> Port of replace-tests.el occur-test-01: element 1 of replace-occur-tests.
     subroutine test_occur_01(error)
         type(error_type), allocatable, intent(out) :: error
+
         call occur_case(error, "a"//LF//"a", 0_int64, &
                         "a"//LF//"a"//LF//"a"//LF//"a"//LF//"a"//LF//"", &
                         "2 matches for ""a"//LF//"a"" in buffer:  *test-occur*"//LF//"      1:a"//LF &
@@ -685,6 +735,7 @@ contains
     !> Port of replace-tests.el occur-test-02: element 2 of replace-occur-tests.
     subroutine test_occur_02(error)
         type(error_type), allocatable, intent(out) :: error
+
         call occur_case(error, "a"//LF//"b", 0_int64, &
                         "a"//LF//"b"//LF//"c"//LF//"a"//LF//"b"//LF//"", &
                         "2 matches for ""a"//LF//"b"" in buffer:  *test-occur*"//LF//"      1:a"//LF &
@@ -694,6 +745,7 @@ contains
     !> Port of replace-tests.el occur-test-03: element 3 of replace-occur-tests.
     subroutine test_occur_03(error)
         type(error_type), allocatable, intent(out) :: error
+
         call occur_case(error, "a"//LF//"", 0_int64, &
                         "a"//LF//""//LF//"c"//LF//"a"//LF//""//LF//"", &
                         "2 matches for ""a"//LF//""" in buffer:  *test-occur*"//LF//"      1:a"//LF &
@@ -703,6 +755,7 @@ contains
     !> Port of replace-tests.el occur-test-04: element 4 of replace-occur-tests.
     subroutine test_occur_04(error)
         type(error_type), allocatable, intent(out) :: error
+
         call occur_case(error, "x"//LF//".x"//LF//"", 0_int64, &
                         "ax"//LF//"bx"//LF//"c"//LF//"d"//LF//"ex"//LF//"fx"//LF//"", &
                         "2 matches for ""x"//LF//".x"//LF//""" in buffer:  *test-occur*"//LF//"      1:ax"//LF &
@@ -713,6 +766,7 @@ contains
     !> Port of replace-tests.el occur-test-05: element 5 of replace-occur-tests.
     subroutine test_occur_05(error)
         type(error_type), allocatable, intent(out) :: error
+
         call occur_case(error, "x", 1_int64, &
                         "ax"//LF//"b"//LF//"c"//LF//"d"//LF//"ex"//LF//"f"//LF//"g"//LF//"hx"//LF//"", &
                         "3 matches for ""x"" in buffer:  *test-occur*"//LF//"      1:ax"//LF//"       :b"//LF &
@@ -723,6 +777,7 @@ contains
     !> Port of replace-tests.el occur-test-06: element 6 of replace-occur-tests.
     subroutine test_occur_06(error)
         type(error_type), allocatable, intent(out) :: error
+
         call occur_case(error, "x", 1_int64, &
                         "a"//LF//"bx"//LF//"c"//LF//"d"//LF//"ex"//LF//"f"//LF//"", &
                         "2 matches for ""x"" in buffer:  *test-occur*"//LF//"       :a"//LF//"      2:bx"//LF &
@@ -733,6 +788,7 @@ contains
     !> Port of replace-tests.el occur-test-07: element 7 of replace-occur-tests.
     subroutine test_occur_07(error)
         type(error_type), allocatable, intent(out) :: error
+
         call occur_case(error, "x", 2_int64, &
                         "ax"//LF//"bx"//LF//"c"//LF//"dx"//LF//"e"//LF//"f"//LF//"gx"//LF//"h"//LF//"i"//LF &
                         //"j"//LF//"kx"//LF//"", &
@@ -744,6 +800,7 @@ contains
     !> Port of replace-tests.el occur-test-08: element 8 of replace-occur-tests.
     subroutine test_occur_08(error)
         type(error_type), allocatable, intent(out) :: error
+
         call occur_case(error, "x", 2_int64, &
                         "a"//LF//"b"//LF//"cx"//LF//"d"//LF//"e"//LF//"f"//LF//"gx"//LF//"h"//LF//"i"//LF//"", &
                         "2 matches for ""x"" in buffer:  *test-occur*"//LF//"       :a"//LF//"       :b"//LF &
@@ -754,6 +811,7 @@ contains
     !> Port of replace-tests.el occur-test-09: element 9 of replace-occur-tests.
     subroutine test_occur_09(error)
         type(error_type), allocatable, intent(out) :: error
+
         call occur_case(error, "x", 2_int64, &
                         ""//LF//"b"//LF//"cx"//LF//"d"//LF//"e"//LF//"f"//LF//"gx"//LF//"h"//LF//""//LF//"", &
                         "2 matches for ""x"" in buffer:  *test-occur*"//LF//"       :"//LF//"       :b"//LF &
@@ -764,6 +822,7 @@ contains
     !> Port of replace-tests.el occur-test-10: element 10 of replace-occur-tests.
     subroutine test_occur_10(error)
         type(error_type), allocatable, intent(out) :: error
+
         call occur_case(error, "x"//LF//".x", 2_int64, &
                         "ax"//LF//"bx"//LF//"c"//LF//"d"//LF//"ex"//LF//"fx"//LF//"g"//LF//"h"//LF//"i"//LF &
                         //"jx"//LF//"kx"//LF//"", &
@@ -776,6 +835,7 @@ contains
     !> Port of replace-tests.el occur-test-11: element 11 of replace-occur-tests.
     subroutine test_occur_11(error)
         type(error_type), allocatable, intent(out) :: error
+
         call occur_case(error, "x"//LF//".x", 2_int64, &
                         "ax"//LF//"bx"//LF//"c"//LF//"d"//LF//"e"//LF//"f"//LF//"gx"//LF//"hx"//LF//"", &
                         "2 matches for ""x"//LF//".x"" in buffer:  *test-occur*"//LF//"      1:ax"//LF &
@@ -786,6 +846,7 @@ contains
     !> Port of replace-tests.el occur-test-12: element 12 of replace-occur-tests.
     subroutine test_occur_12(error)
         type(error_type), allocatable, intent(out) :: error
+
         call occur_case(error, "x", -2_int64, &
                         "a"//LF//"bx"//LF//"c"//LF//"d"//LF//"e"//LF//"fx"//LF//"g"//LF//"h"//LF//"ix"//LF//"", &
                         "3 matches for ""x"" in buffer:  *test-occur*"//LF//"       :a"//LF//"      2:bx"//LF &
@@ -796,6 +857,7 @@ contains
     !> Port of replace-tests.el occur-test-13: element 13 of replace-occur-tests.
     subroutine test_occur_13(error)
         type(error_type), allocatable, intent(out) :: error
+
         call occur_case(error, "x", -3_int64, &
                         "a"//LF//"bx"//LF//"c"//LF//"dx"//LF//"e"//LF//"f"//LF//"gx"//LF//"h"//LF//"", &
                         "3 matches for ""x"" in buffer:  *test-occur*"//LF//"       :a"//LF//"      2:bx"//LF &

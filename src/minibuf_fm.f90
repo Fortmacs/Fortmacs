@@ -178,11 +178,14 @@ contains
         integer, allocatable :: grown_levels(:)
         character(len=20) :: num
         integer(int64) :: i
+
         if (.not. allocated(minibuffers)) allocate (minibuffers(4))
+
         if (.not. allocated(minibuffer_loop_levels)) then
             allocate (minibuffer_loop_levels(4))
             minibuffer_loop_levels = 0
         end if
+
         if (depth + 1 > size(minibuffers)) then
             allocate (grown(2*(depth + 1)))
             grown(1:size(minibuffers)) = minibuffers
@@ -192,11 +195,14 @@ contains
             grown_levels(1:size(minibuffer_loop_levels)) = minibuffer_loop_levels
             call move_alloc(grown_levels, minibuffer_loop_levels)
         end if
+
         call resolve_buffer(minibuffers(depth + 1), i, status)
+
         if (status%ok()) then
             buf = minibuffers(depth + 1)
             return
         end if
+
         write (num, "(i0)") depth
         call get_buffer_create(" *Minibuf-"//trim(num)//"*", buf, status)
         if (.not. status%ok()) return
@@ -209,13 +215,16 @@ contains
         type(handle_type), intent(in), optional :: buf
         type(handle_type) :: b
         integer :: k
+
         if (present(buf)) then
             b = buf
         else
             b = current_buffer()
         end if
+
         minibufferp = .false.
         if (.not. allocated(minibuffers)) return
+
         do k = 1, size(minibuffers)
             if (minibuffers(k)%index == b%index .and. minibuffers(k)%generation == b%generation .and. &
                 b%index /= 0) then
@@ -232,13 +241,16 @@ contains
         type(handle_type), intent(in), optional :: buf
         type(handle_type) :: b
         integer :: k
+
         if (present(buf)) then
             b = buf
         else
             b = current_buffer()
         end if
+
         depth = 0
         if (.not. allocated(minibuffers) .or. b%index == 0) return
+
         do k = 2, min(minibuf_level + 1, size(minibuffers))
             if (minibuffers(k)%index == b%index .and. minibuffers(k)%generation == b%generation) then
                 depth = k - 1
@@ -253,6 +265,7 @@ contains
     logical function minibuffer_innermost_command_loop_p(buffer) result(innermost)
         type(handle_type), intent(in), optional :: buffer
         integer :: depth
+
         depth = minibuffer_depth_of(buffer)
         innermost = depth > 0
         if (innermost) innermost = minibuffer_loop_levels(depth + 1) == command_loop_level
@@ -264,6 +277,7 @@ contains
     !> minibuf.c:Finnermost_minibuffer_p.
     logical function innermost_minibuffer_p(buffer) result(innermost)
         type(handle_type), intent(in), optional :: buffer
+
         innermost = minibuffer_depth_of(buffer) == minibuf_level .and. minibuf_level > 0
     end function innermost_minibuffer_p
 
@@ -272,9 +286,11 @@ contains
     integer(int64) function minibuffer_prompt_end() result(pos)
         type(value_type) :: field
         type(status_type) :: status
+
         pos = buffers(cur)%begv
         if (.not. minibufferp()) return
         pos = field_end(buffers(cur)%begv, .false.)
+
         if (pos == buffers(cur)%zv) then
             call get_text_property(buffers(cur)%begv, sym("field"), field, status)
             if (nilp(field)) pos = buffers(cur)%begv
@@ -286,6 +302,7 @@ contains
     function minibuffer_contents() result(text)
         character(len=:), allocatable :: text
         type(status_type) :: status
+
         call buffer_substring(minibuffer_prompt_end(), buffers(cur)%zv, text, status)
     end function minibuffer_contents
 
@@ -325,8 +342,10 @@ contains
         logical :: had_default, had_before, have_histstring
         logical :: changed, old_selected, have_dir
         procedure(minibuffer_setup_proc), pointer :: setup
+
         result = ""
         history_added = .false.
+
         if (.not. enable_recursive_minibuffers .and. minibuf_level > 0) then
             if (selected_frame%minibuffer_selected) then
                 call set_error(status, FM_USER_ERROR, "Command attempted to use minibuffer while in minibuffer")
@@ -336,8 +355,10 @@ contains
                 call throw_exit_string("Command attempted to use minibuffer while in minibuffer")
                 call set_error(status, FM_GENERIC_ERROR, "Command attempted to use minibuffer while in minibuffer")
             end if
+
             return
         end if
+
         histvar = "minibuffer_history"
         if (present(history)) histvar = history
         calling_buffer = current_buffer()
@@ -351,24 +372,28 @@ contains
         minibuffer_loop_levels(minibuf_level + 1) = command_loop_level + 1
         saved_calling = minibuffer_calling_buffer
         minibuffer_calling_buffer = calling_buffer
+
         ! minibuf_save_list
         if (allocated(minibuffer_history_variable)) then
             saved_histvar = minibuffer_history_variable
         else
             saved_histvar = ""
         end if
+
         saved_histpos = minibuffer_history_position
         minibuffer_history_variable = histvar
         minibuffer_history_position = 0
         if (present(history_position)) minibuffer_history_position = history_position
         had_default = allocated(minibuffer_default)
         if (had_default) call move_alloc(minibuffer_default, saved_default)
+
         if (present(defaults)) then
             if (size(defaults) > 0) minibuffer_default = defaults
         else if (present(default)) then
             allocate (minibuffer_default(1))
             minibuffer_default(1)%s = default
         end if
+
         saved_goal = minibuffer_temporary_goal_position
         minibuffer_temporary_goal_position = 0
         had_before = allocated(minibuffer_text_before_history)
@@ -383,11 +408,13 @@ contains
         if (read_minibuffer_restore_windows) call current_window_configuration(config)
         minibuffer_scroll_window = selected_frame%selected_window
         call set_buffer(minibuffer, status)
+
         if (.not. status%ok()) then
             minibuf_level = minibuf_level - 1
             minibuffer_calling_buffer = saved_calling
             return
         end if
+
         ! set_minibuffer_mode
         call kill_all_local_variables()
         ! The minibuffer works in the caller's directory.
@@ -401,6 +428,7 @@ contains
         call set(sym("inhibit_read_only"), t_value(), st)
         call erase_buffer(st)
         buffers(cur)%multibyte = .true.
+
         ! Insert the prompt, record where it ends.
         if (len(prompt) > 0) then
             call insert(prompt, st)
@@ -413,9 +441,12 @@ contains
             call add_text_properties(1_int64, buffers(cur)%pt, list(sym("face"), sym("minibuffer_prompt")), &
                                      changed, st)
         end if
+
         call set(sym("inhibit_read_only"), nil(), st)
+
         if (present(initial)) then
             call insert(initial, st)
+
             if (present(position)) then
                 ! Convert to distance from end of input.
                 if (position < 1) then
@@ -426,13 +457,16 @@ contains
                 end if
             end if
         end if
+
         if (present(keymap)) then
             call use_local_map(keymap, st)
         else
             call use_local_map(minibuffer_local_map, st)
         end if
+
         ! The minibuffer replaces whatever the echo area showed.
         if (allocated(last_message)) last_message = ""
+
         ! minibuffer-setup-hook (a function `minibuffer_with_setup_hook'
         ! added for this minibuffer).
         if (associated(minibuffer_setup_function)) then
@@ -440,6 +474,7 @@ contains
             minibuffer_setup_function => null()
             call setup()
         end if
+
         call minibuffer_setup_hook%run(st)
         call recursive_edit_1(edit_status)
         ! Make the minibuffer contents into a string.
@@ -447,6 +482,7 @@ contains
         result = minibuffer_contents()
         ! Choose the string to add to the history.
         have_histstring = .true.
+
         if (len(result) /= 0) then
             histstring = result
         else if (present(defaults)) then
@@ -460,6 +496,7 @@ contains
         else
             have_histstring = .false.
         end if
+
         ! read_minibuf_unwind
         minibuf_level = minibuf_level - 1
         call set(sym("inhibit_read_only"), t_value(), st)
@@ -470,10 +507,12 @@ contains
         ! (Windows may have been made meanwhile: fetch them again.)
         mw => minibuffer_window_ref()
         mw%buffer = old_mini_buffer
+
         if (read_minibuffer_restore_windows) then
             call set_window_configuration(config)
             call free_window_configuration(config)
         end if
+
         call set_buffer(calling_buffer, st)
         minibuffer_history_variable = saved_histvar
         minibuffer_history_position = saved_histpos
@@ -482,11 +521,13 @@ contains
         minibuffer_temporary_goal_position = saved_goal
         if (allocated(minibuffer_text_before_history)) deallocate (minibuffer_text_before_history)
         if (had_before) call move_alloc(saved_before, minibuffer_text_before_history)
+
         if (.not. edit_status%ok()) then
             status = edit_status
             result = ""
             return
         end if
+
         ! Add the value to the appropriate history list, if any.
         if (history_add_new_input .and. have_histstring) then
             call add_to_history(histvar, histstring, added=history_added)
@@ -501,6 +542,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: initial, history, default
         integer(int64), intent(in), optional :: position
+
         call read_from_minibuffer(prompt, result, status, initial=initial, history=history, &
                                   default=default, position=position)
         if (.not. status%ok()) return
@@ -526,16 +568,20 @@ contains
         integer :: depth
         character(len=20) :: num
         logical :: answer
+
         status = status_type()
         depth = minibuffer_depth_of()
+
         if (depth == 0) then
             call set_error(status, FM_GENERIC_ERROR, "Not in a minibuffer")
             return
         end if
+
         if (.not. minibuffer_innermost_command_loop_p()) then
             call set_error(status, FM_GENERIC_ERROR, "Not in most nested command loop")
             return
         end if
+
         if (depth < minibuf_level) then
             write (num, "(i0)") minibuf_level - depth + 1
             call ask("Abort "//trim(num)//" minibuffer levels? ", answer, status)
@@ -568,26 +614,34 @@ contains
         type(value_type), allocatable :: parts(:)
         type(value_type) :: eltstring
         integer(int64) :: k
+
         if (table%kind == TABLE_OBARRAY) then
             allocate (elts(nsymbols), names(nsymbols), ok(nsymbols))
+
             do k = 1, nsymbols
                 elts(k) = make_symbol_ref(k)
                 names(k)%s = symbols(k)%name
                 ok(k) = .true.
             end do
+
             return
         end if
+
         call list_elements(table%list, elts)
         allocate (names(size(elts)), ok(size(elts)))
+
         do k = 1, size(elts, kind=int64)
             ! An alist element: its car is the completion.
             eltstring = elts(k)
+
             if (vtag(elts(k)) == V_LIST) then
                 call list_elements(elts(k), parts)
                 eltstring = nil()
                 if (size(parts) > 0) eltstring = parts(1)
             end if
+
             ok(k) = .true.
+
             if (stringp(eltstring)) then
                 names(k)%s = xstring(eltstring)
             else if (symbolp(eltstring)) then
@@ -603,6 +657,7 @@ contains
     logical function prefix_matches(string, name)
         character(len=*), intent(in) :: string, name
         integer(int64) :: n
+
         n = schars(string)
         prefix_matches = n <= schars(name)
         if (prefix_matches) prefix_matches = compare_strings(name, string, completion_ignore_case%value, end1=n) &
@@ -656,28 +711,35 @@ contains
         integer(int64) :: bestmatchsize, compare, matchsize, tem, k, nstring, neltstring, nbest
         integer :: matchcount
         logical :: have_best
+
         status = status_type()
         result = nil()
+
         if (collection%kind == TABLE_FUNCTION) then
             call collection%fn(string, COMPLETE_TRY, result, status, predicate)
             return
         end if
+
         call table_elements(collection, elts, names, ok)
         have_best = .false.
         bestmatchsize = 0
         matchcount = 0
         nstring = schars(string)
+
         do k = 1, size(elts, kind=int64)
             ! Is this element a possible completion?
             if (.not. ok(k)) cycle
             eltstring = names(k)%s
             if (.not. prefix_matches(string, eltstring)) cycle
+
             ! Ignore this element if there is a predicate and the
             ! predicate doesn't like it.
             if (present(predicate)) then
                 if (.not. predicate(elts(k))) cycle
             end if
+
             neltstring = schars(eltstring)
+
             ! Update computation of how much all possible completions match.
             if (.not. have_best) then
                 matchcount = 1
@@ -692,6 +754,7 @@ contains
                 if (tem /= COMPARE_EQUAL) matchsize = abs(tem) - 1
                 old_bestmatch = bestmatch
                 nbest = schars(bestmatch)
+
                 if (completion_ignore_case%value) then
                     ! If this is an exact match except for case, use it as
                     ! the best match rather than one that is not an exact
@@ -708,6 +771,7 @@ contains
                         bestmatch = eltstring
                     end if
                 end if
+
                 ! Don't count the same string multiple times.
                 if (bestmatchsize /= neltstring .or. bestmatchsize /= matchsize) then
                     if (matchcount <= 1) matchcount = matchcount + 1
@@ -715,20 +779,24 @@ contains
                     if (compare_strings(old_bestmatch, eltstring, end1=compare, end2=compare) /= COMPARE_EQUAL &
                         .and. matchcount <= 1) matchcount = matchcount + 1
                 end if
+
                 bestmatchsize = matchsize
                 ! No need to look any further (unless ignoring case, to find
                 ! the best possible match *including* case differences).
                 if (matchsize <= nstring .and. .not. completion_ignore_case%value .and. matchcount > 1) exit
             end if
         end do
+
         ! No completions found.
         if (.not. have_best) return
+
         ! Return t if the supplied string is an exact match (counting
         ! case); it does not require any change to be made.
         if (matchcount == 1 .and. bestmatch == string .and. len(bestmatch) == len(string)) then
             result = t_value()
             return
         end if
+
         ! Else extract the part in which all completions agree.
         result = make_string(substring(bestmatch, 0_int64, bestmatchsize))
     end subroutine try_completion
@@ -765,27 +833,34 @@ contains
         type(string_box), allocatable :: names(:)
         logical, allocatable :: ok(:)
         integer(int64) :: k, n
+
         status = status_type()
+
         if (collection%kind == TABLE_FUNCTION) then
             call collection%fn(string, COMPLETE_ALL, result, status, predicate)
             return
         end if
+
         call table_elements(collection, elts, names, ok)
         allocate (matches(size(elts)))
         n = 0
+
         do k = 1, size(elts, kind=int64)
             ! Is this element a possible completion?
             if (.not. ok(k)) cycle
             if (.not. prefix_matches(string, names(k)%s)) cycle
+
             ! Ignore this element if there is a predicate and the
             ! predicate doesn't like it.
             if (present(predicate)) then
                 if (.not. predicate(elts(k))) cycle
             end if
+
             ! Ok => put it on the list.
             n = n + 1
             matches(n) = make_string(names(k)%s)
         end do
+
         result = make_list(matches(1:n))
     end subroutine all_completions
 
@@ -808,7 +883,9 @@ contains
         type(value_type) :: tem, result
         type(status_type) :: status
         integer(int64) :: k, id
+
         valid = .false.
+
         select case (collection%kind)
         case (TABLE_FUNCTION)
             call collection%fn(string, COMPLETE_TEST, result, status, predicate)
@@ -816,6 +893,7 @@ contains
             return
         case (TABLE_OBARRAY)
             id = intern_soft(string)
+
             if (id /= 0) then
                 tem = make_symbol_ref(id)
             else if (completion_ignore_case%value) then
@@ -827,21 +905,26 @@ contains
                     end if
                 end do
             end if
+
             if (id == 0) return
         case default
             ! assoc-string
             call table_elements(collection, elts, names, ok)
             id = 0
+
             do k = 1, size(elts, kind=int64)
                 if (.not. ok(k)) cycle
+
                 if (compare_strings(string, names(k)%s, completion_ignore_case%value) == COMPARE_EQUAL) then
                     id = k
                     tem = elts(k)
                     exit
                 end if
             end do
+
             if (id == 0) return
         end select
+
         ! Finally, check the predicate.
         valid = .true.
         if (present(predicate)) valid = predicate(tem)

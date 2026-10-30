@@ -45,6 +45,7 @@ contains
 
     subroutine collect_search_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("search-forward", test_forward), &
                     new_unittest("search-backward", test_backward), &
@@ -64,6 +65,7 @@ contains
         character(len=*), intent(in) :: text
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call get_buffer_create("search-test", h, st)
         call set_buffer(h, st)
         call insert(text, st)
@@ -74,6 +76,7 @@ contains
     subroutine leave(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
+
         case_fold_search = .true.
         call kill_buffer(h, st)
     end subroutine leave
@@ -83,6 +86,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st, mst
         integer(int64) :: pos
+
         call enter("foo bar foo baz", h)
         call search_forward("foo", pos, st)
         call check(error, st%ok() .and. pos == 4 .and. point() == 4)
@@ -120,6 +124,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st, mst
         integer(int64) :: pos
+
         call enter("foo bar foo baz", h)
         call goto_char(16_int64)
         call search_backward("foo", pos, st)
@@ -143,6 +148,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: pos
+
         call enter("Foo FOO foo", h)
         call search_forward("foo", pos, st)
         call check(error, pos == 4, "folding")
@@ -162,6 +168,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: pos
+
         call enter("abc abc abc", h)
         ! The match must end by BOUND.
         call search_forward("abc", pos, st, bound=2_int64, noerror=SEARCH_NOERROR)
@@ -194,6 +201,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st, mst
         integer(int64) :: pos
+
         ! "Σίσυφος ΣΟΦΟΣ" with final sigmas: σ, ς and Σ all match.
         call enter("Σίσυφος ΣΟΦΟΣ", h)
         call search_forward("σοφος", pos, st)
@@ -206,15 +214,18 @@ contains
         call check(error, pos == 5, "lower-case final sigma")
         call leave(h)
     end subroutine test_multibyte
+
     integer(int64) function mb(n)
         integer, intent(in) :: n
         type(status_type) :: st
+
         mb = match_beginning(n, st)
     end function mb
 
     integer(int64) function me(n)
         integer, intent(in) :: n
         type(status_type) :: st
+
         me = match_end(n, st)
     end function me
 
@@ -226,7 +237,9 @@ contains
                                                   posts(4) = [character(len=1) :: "", "", "b", "b"]
         integer :: k
         integer(int64) :: beg0, beg4, end4, end0
+
         call enter("", h)
+
         do k = 1, 4
             call erase_buffer(st)
             call insert("hello ", st)
@@ -253,6 +266,7 @@ contains
             if (len_trim(pres(k)) > 0) call check(error, me(1) == beg0, "end 1")
             if (allocated(error)) exit
         end do
+
         call leave(h)
     end subroutine test_replace_match_update_data
 
@@ -261,7 +275,9 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: pos
+
         call enter("key = value; x = y", h)
+
         body: block
             call re_search_forward("\(\w+\) = \(\w+\)", pos, st)
             call replace_match("\2 := \1 (\&)", st)
@@ -279,6 +295,7 @@ contains
             call replace_match("lit\1", st, literal=.true.)
             call check(error, buffer_string() == "value := key (key = value); lit\1 = y", buffer_string())
         end block body
+
         call leave(h)
     end subroutine test_replace_match
 
@@ -288,7 +305,9 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: pos
+
         call enter("FOO Foo Bar foo X", h)
+
         body: block
             call search_forward("FOO", pos, st)
             call replace_match("new text", st)
@@ -310,6 +329,7 @@ contains
             call replace_match("ab", st, fixedcase=.true.)
             call check(error, buffer_string() == "NEW TEXT New Text new text ab", "fixedcase: "//buffer_string())
         end block body
+
         call leave(h)
     end subroutine test_replace_match_case
 
@@ -318,6 +338,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: r
         integer(int64) :: i
+
         i = string_match("\(é+\)b", "aéébc", st)
         call replace_match("[\1]", st, string="aéébc", result=r)
         call check(error, st%ok() .and. r == "a[éé]c", r)
@@ -337,6 +358,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: r
         integer(int64) :: i
+
         i = string_match(groups10, "abcdefghij", st)
         i = string_match("\(a\)b", "abc", st)
         call replace_match("[\5]", st, string="abc", result=r)
@@ -365,6 +387,7 @@ contains
         character(len=:), allocatable :: r
         integer(int64) :: i
         logical :: found
+
         i = string_match("b", "abc", st)
         call replace_match("x\", st, string="abc", result=r)
         call check(error, st%code == FM_GENERIC_ERROR .and. &

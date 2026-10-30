@@ -128,14 +128,17 @@ contains
         use callproc_fm, only: shell_file_name
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: shell, command
+
         command = "diff"
         if (allocated(diff_command)) command = diff_command
         have_diff = on_path(command)
+
         if (have_diff) then
             shell = "/bin/sh"
             if (allocated(shell_file_name%value)) shell = shell_file_name%value
             have_diff = on_path(shell)
         end if
+
         if (.not. have_diff) call skip_test(error, "no "//command//" or shell")
     end function have_diff
 
@@ -145,24 +148,30 @@ contains
         character(len=*), intent(in) :: program
         character(len=:), allocatable :: path, dir
         integer :: n, st, k
+
         found = .false.
+
         if (index(program, "/") == 1) then
             inquire (file=program, exist=found)
             return
         end if
+
         call get_environment_variable("PATH", length=n, status=st)
         if (st /= 0) return
         allocate (character(len=n) :: path)
         call get_environment_variable("PATH", path)
+
         do while (len(path) > 0)
             k = index(path, ":")
             if (k == 0) k = len(path) + 1
             dir = path(1:k - 1)
+
             if (k > len(path)) then
                 path = ""
             else
                 path = path(k + 1:)
             end if
+
             if (len(dir) == 0) cycle
             inquire (file=dir//"/"//program, exist=found)
             if (found) return
@@ -171,6 +180,7 @@ contains
 
     subroutine collect_diff_mode_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("diff-mode-test-ignore-trailing-dashes", test_ignore_trailing_dashes), &
                     new_unittest("diff-mode-test-hunk-text-no-newline", test_hunk_text_no_newline), &
@@ -193,12 +203,14 @@ contains
     !> The absolute name of the test directory, as a directory.
     function tdir() result(dir)
         character(len=:), allocatable :: dir
+
         dir = file_name_as_directory(file_name_as_directory(emacs_wd)//subdir)
     end function tdir
 
     !> A fresh, empty test directory; *scratch* current and shown alone.
     subroutine setup()
         type(status_type) :: st
+
         call init_bindings()
         call init_fileio()
         call discard_input()
@@ -212,11 +224,14 @@ contains
         type(status_type) :: st
         type(handle_type), allocatable :: bufs(:)
         integer :: k
+
         call discard_input()
         bufs = dired_buffers_for_dir(tdir())
+
         do k = 1, size(bufs)
             call kill_buffer(bufs(k), st)
         end do
+
         call scratch()
         if (file_directory_p(tdir())) call delete_directory(tdir(), st, .true.)
     end subroutine teardown
@@ -225,6 +240,7 @@ contains
     subroutine scratch()
         type(handle_type) :: buf
         type(status_type) :: st
+
         call get_buffer_create("*scratch*", buf, st)
         call set_buffer(buf, st)
         buffers(cur)%directory = file_name_as_directory(emacs_wd)
@@ -237,6 +253,7 @@ contains
         character(len=*), intent(in) :: name, text
         type(handle_type) :: buf, old
         type(status_type) :: st
+
         old = current_buffer()
         call get_buffer_create(" *diff-test-file*", buf, st)
         call set_buffer(buf, st)
@@ -253,6 +270,7 @@ contains
         character(len=:), allocatable :: s
         type(handle_type) :: old
         type(status_type) :: st
+
         old = current_buffer()
         call set_buffer(h, st)
         s = buffer_string()
@@ -264,6 +282,7 @@ contains
         type(handle_type), intent(in) :: h
         type(handle_type) :: old
         type(status_type) :: st
+
         if (.not. buffer_live_p(h)) return
         old = current_buffer()
         call set_buffer(h, st)
@@ -279,14 +298,17 @@ contains
         type(handle_type), intent(out) :: h
         character(len=*), intent(in), optional :: dir
         type(status_type) :: st
+
         call get_buffer_create(name, h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
+
         if (present(dir)) then
             buffers(cur)%directory = dir
         else
             buffers(cur)%directory = tdir()
         end if
+
         call insert(text, st)
     end subroutine temp_buffer
 
@@ -297,12 +319,15 @@ contains
         type(value_type) :: v
         type(value_type), allocatable :: elts(:)
         type(status_type) :: st
+
         name = ""
         call get_text_property(pos, sym("face"), v, st)
+
         if (consp(v)) then
             call list_elements(v, elts)
             v = elts(1)
         end if
+
         if (nilp(v)) return
         if (symbolp(v)) name = symbols(xsymbol(v))%name
     end function face_at
@@ -313,7 +338,9 @@ contains
         integer, intent(in) :: from, to
         character(len=*), intent(in) :: face
         integer :: k
+
         ok = .true.
+
         do k = from, to - 1
             if (face_at(point_min() + k) /= face) then
                 ok = .false.
@@ -330,13 +357,16 @@ contains
         integer(int64) :: p
         type(status_type) :: st
         logical :: back
+
         back = .false.
         if (present(backward)) back = backward
+
         if (back) then
             call re_search_backward(re, p, st)
         else
             call re_search_forward(re, p, st)
         end if
+
         name = "<not found>"
         if (p == 0 .or. .not. st%ok()) return
         name = face_at(match_beginning(0, st))
@@ -349,7 +379,9 @@ contains
         type(status_type) :: st
         integer(int64) :: start, now, rate
         logical :: got
+
         call system_clock(start, rate)
+
         do
             proc = get_buffer_process(buf)
             if (proc%index == 0) exit
@@ -451,23 +483,28 @@ contains
         type(handle_type) :: buf, buf2, tmp
         type(status_type) :: st
         integer :: k
+
         call setup()
         call make_file("fil", fil_before)
         call make_file("fil2", fil2_before)
         call find_file_noselect(tdir()//"fil", buf, st)
         call find_file_noselect(tdir()//"fil2", buf2, st)
+
         body: block
             call temp_buffer("*diff-test*", patch, tmp)
             call goto_char(point_min())
+
             do k = 1, 3
                 call diff_apply_hunk(st)
                 call check(error, st%ok(), "apply hunk: "//format_error(st))
                 if (allocated(error)) exit body
             end do
+
             call check(error, text_of(buf), fil_after)
             if (allocated(error)) exit body
             call check(error, text_of(buf2), fil2_after)
         end block body
+
         call kill_buffer(tmp, st)
         call discard(buf)
         call discard(buf2)
@@ -481,6 +518,7 @@ contains
         character(len=:), allocatable :: s
         type(diff_text_type) :: res
         type(status_type) :: st
+
         call diff_hunk_text(hunk, destp, -1_int64, res, st)
         s = "<error>"
         if (st%ok()) s = res%text
@@ -491,6 +529,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: nonl = "\ No newline at end of file"//LF
         character(len=:), allocatable :: hunk
+
         ! First check unified change/remove/add cases with newline
         hunk = "@@ -1 +1 @@"//LF//"-foo"//LF//"+bar"//LF
         call pair(hunk, "foo"//LF, "bar"//LF)
@@ -529,9 +568,12 @@ contains
         if (allocated(error)) return
         hunk = "@@ -1,2 +1,2 @@"//LF//"-foo"//LF//"-baz"//LF//"+bar"//LF//"+baz"//LF//nonl
         call pair(hunk, "foo"//LF//"baz"//LF, "bar"//LF//"baz")
+
     contains
+
         subroutine pair(h, old, new)
             character(len=*), intent(in) :: h, old, new
+
             call check(error, hunk_text(h, .false.), old, "source of "//h)
             if (allocated(error)) return
             call check(error, hunk_text(h, .true.), new, "destination of "//h)
@@ -549,6 +591,7 @@ contains
         type(handle_type) :: res, old_buf
         integer(int64) :: e
         character(len=:), allocatable :: dir
+
         call expand_file_name("test/diff-mode-resources/", dir, status, emacs_wd)
         if (.not. status%ok()) return
         old_buf = current_buffer()
@@ -579,11 +622,13 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: diff_beg
+
         if (.not. have_diff(error)) return
         call init_bindings()
         call init_fileio()
         call scratch()
         call resource_diff("hello_world.c", "hello_emacs.c", h, diff_beg, st)
+
         body: block
             call check(error, st%ok(), "diff: "//format_error(st))
             if (allocated(error)) exit body
@@ -602,6 +647,7 @@ contains
                        face_over(52, 81, "diff_removed") .and. face_over(81, 82, "diff_indicator_added") .and. &
                        face_over(82, 111, "diff_added") .and. face_over(111, 127, "diff_context"), "faces")
         end block body
+
         call set_buffer(h, st)
         call widen()
         call kill_buffer(h, st)
@@ -615,11 +661,13 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: diff_beg
+
         if (.not. have_diff(error)) return
         call init_bindings()
         call init_fileio()
         call scratch()
         call resource_diff("hello_world_1.c", "hello_emacs_1.c", h, diff_beg, st)
+
         body: block
             call check(error, st%ok(), "diff: "//format_error(st))
             if (allocated(error)) exit body
@@ -635,6 +683,7 @@ contains
                        face_over(65, 93, "diff_context") .and. face_over(93, 94, "diff_indicator_added") .and. &
                        face_over(94, 146, "diff_added") .and. face_over(146, 174, "diff_context"), "faces")
         end block body
+
         call set_buffer(h, st)
         call widen()
         call kill_buffer(h, st)
@@ -646,6 +695,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(diff_name_type), allocatable :: names(:)
+
         call temp_buffer("*diff-test*", "diff -c /tmp/ange-ftp13518wvE.el /tmp/ange-ftp1351895K.el"//LF, h, "/tmp/")
         call goto_char(point_min())
         call diff_hunk_file_names(names)
@@ -674,6 +724,7 @@ contains
         character(len=*), intent(in) :: patch, fixed
         type(handle_type) :: h
         type(status_type) :: st
+
         call temp_buffer("*diff-test*", patch, h, "/tmp/")
         call diff_fixup_modifs(point_min(), point_max(), st)
         call check(error, st%ok(), "fixup: "//format_error(st))
@@ -685,6 +736,7 @@ contains
     !> lines.
     subroutine test_fixups_added_lines(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check_fixup(error, "--- file"//LF//"+++ file"//LF//"@@ -0,0 +1,15 @@"//LF// &
                          "+1"//LF//"+2"//LF//"+3"//LF//"+4"//LF, &
                          "--- file"//LF//"+++ file"//LF//"@@ -0,0 +1,4 @@"//LF// &
@@ -701,6 +753,7 @@ contains
     !> Check that `diff_fixup_modifs' works well with empty hunks.
     subroutine test_fixups_empty_hunks(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check_fixup(error, "--- file"//LF//"+++ file"//LF//"@@ -1 +1 @@"//LF//"-1"//LF// &
                          "@@ -10 +10 @@"//LF//"-1"//LF//"+1"//LF// &
                          "--- otherfile"//LF//"+++ otherfile"//LF//"@@ -1 +1 @@"//LF//"+2"//LF// &
@@ -715,6 +768,7 @@ contains
     subroutine git_patch_buffer(h)
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call init_bindings()
         call temp_buffer("*diff-test*", git_patch, h, "/tmp/")
         call diff_mode(st)
@@ -727,6 +781,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call git_patch_buffer(h)
         call check(error, face_after_search("magic_number = 42"), "diff_removed")
         if (.not. allocated(error)) call check(error, face_after_search("magic_number = 73"), "diff_added")
@@ -741,6 +796,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call git_patch_buffer(h)
         call check(error, face_after_search("This is not a removed line"), "diff_context")
         call kill_buffer(h, st)
@@ -750,6 +806,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call git_patch_buffer(h)
         call goto_char(point_max())
         call check(error, face_after_search("^-- $", .true.), "diff_context")
@@ -763,9 +820,11 @@ contains
         character(len=*), intent(in) :: patch, before, after
         type(handle_type) :: buf_after, tmp
         type(status_type) :: st
+
         call setup()
         call make_file("fruits", after)
         call find_file_noselect(tdir()//"fruits", buf_after, st)
+
         body: block
             call temp_buffer("*diff-test*", patch, tmp)
             call goto_char(point_min())
@@ -790,6 +849,7 @@ contains
             if (allocated(error)) exit body
             call check(error, text_of(buf_after), before)
         end block body
+
         call kill_buffer(tmp, st)
         call discard(buf_after)
         call teardown()
@@ -797,6 +857,7 @@ contains
 
     subroutine test_topmost_addition_undo(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check_addition_undo(error, "diff --git a/fruits b/fruits"//LF//"index 0dcecd3..d0eb2e7 100644"//LF// &
                                  "--- a/fruits"//LF//"+++ b/fruits"//LF//"@@ -1,2 +1,3 @@"//LF// &
                                  "+fruits"//LF//" apple"//LF//" orange"//LF, &
@@ -805,6 +866,7 @@ contains
 
     subroutine test_bottommost_addition_undo(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check_addition_undo(error, "diff --git a/fruits b/fruits"//LF//"index 0dcecd3..6f210ff 100644"//LF// &
                                  "--- a/fruits"//LF//"+++ b/fruits"//LF//"@@ -1,2 +1,3 @@"//LF// &
                                  " apple"//LF//" orange"//LF//"+plum"//LF, &
@@ -816,6 +878,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call init_bindings()
         call temp_buffer("*diff-test*", "diff --git a/foo b/foo"//LF//"--- a/foo"//LF//"+++ b/foo"//LF, h, "/tmp/")
         call diff_mode(st)
@@ -840,6 +903,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         character(len=:), allocatable :: text
+
         if (.not. have_diff(error)) return
         call setup()
         call make_file("old.txt", "one"//LF//"two"//LF)
@@ -848,6 +912,7 @@ contains
         call kbd_store_bytes(achar(27)//"xdiff"//CR//"new.txt"//CR//"old.txt"//CR)
         call command_loop(st)
         h = get_buffer("*Diff*")
+
         body: block
             call check(error, buffer_live_p(h), "*Diff* exists")
             if (allocated(error)) exit body
@@ -861,6 +926,7 @@ contains
             if (allocated(error)) exit body
             call check(error, buffers(h%index)%major_mode, "diff_mode")
         end block body
+
         if (buffer_live_p(h)) call kill_buffer(h, st)
         call teardown()
     end subroutine test_diff_files
@@ -872,6 +938,7 @@ contains
         type(status_type) :: st
         integer(int64) :: p
         character(len=:), allocatable :: text
+
         if (.not. have_diff(error)) return
         call setup()
         call make_file("a.txt", "alpha2"//LF)
@@ -882,6 +949,7 @@ contains
         call kbd_store_bytes("="//CR)
         call command_loop(st)
         h = get_buffer("*Diff*")
+
         body: block
             call check(error, buffer_live_p(h), "*Diff* exists")
             if (allocated(error)) exit body
@@ -891,6 +959,7 @@ contains
             if (allocated(error)) exit body
             call check(error, index(text, LF//"-alpha"//LF//"+alpha2"//LF) > 0, text)
         end block body
+
         if (buffer_live_p(h)) call kill_buffer(h, st)
         call teardown()
     end subroutine test_dired_diff

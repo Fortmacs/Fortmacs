@@ -38,6 +38,7 @@ contains
 
     subroutine collect_mule_util_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [new_unittest("mule-util-test-truncate", test_truncate)]
     end subroutine collect_mule_util_fm
 
@@ -53,6 +54,7 @@ contains
         logical, intent(in), optional :: default_ellipsis
         character(len=:), allocatable :: got
         character(len=8) :: num
+
         n = n + 1
         if (allocated(error)) return
         got = truncate_string_to_width(str, end_column, start_column, padding, ellipsis, default_ellipsis)
@@ -65,6 +67,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: zhong = "中", wen = "文", kor = "kor한e글an", jp = "こhんeにlちlはo", &
                                        yue = "粵語", nihongo = "日本語"
+
         n = 0
         truncate_string_ellipsis_variable = "..."
         call truncate(error, "", 0, "")

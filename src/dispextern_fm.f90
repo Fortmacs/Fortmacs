@@ -220,12 +220,14 @@ contains
     !> Port of dispextern.h:face_tty_specified_color.
     elemental logical function face_tty_specified_color(color)
         integer(int64), intent(in) :: color
+
         face_tty_specified_color = color >= 0
     end function face_tty_specified_color
 
     !> dispextern.h:GLYPH_EQUAL_P for character and stretch glyphs.
     elemental logical function glyph_equal_p(x, y)
         type(glyph_type), intent(in) :: x, y
+
         glyph_equal_p = x%type == y%type .and. x%ch == y%ch .and. x%face_id == y%face_id .and. &
                         (x%padding .eqv. y%padding) .and. x%pixel_width == y%pixel_width
     end function glyph_equal_p
@@ -233,6 +235,7 @@ contains
     !> A blank in the default face.  dispextern.h:CHAR_GLYPH_SPACE_P.
     elemental logical function char_glyph_space_p(g)
         type(glyph_type), intent(in) :: g
+
         char_glyph_space_p = g%ch == 32 .and. g%face_id == DEFAULT_FACE_ID
     end function char_glyph_space_p
 end module dispextern_fm

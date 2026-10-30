@@ -46,6 +46,7 @@ contains
 
     subroutine collect_ewoc_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("ewoc-enter-and-walk", test_enter), &
                     new_unittest("ewoc-locate-and-goto", test_locate), &
@@ -58,23 +59,27 @@ contains
         integer(int64), intent(in) :: data
         type(status_type) :: st
         character(len=24) :: buf
+
         write (buf, "(i0)") data + doubled
         call insert("item "//trim(buf), st)
     end subroutine pp
 
     recursive logical function odd(data)
         integer(int64), intent(in) :: data
+
         odd = mod(data, 2_int64) == 1
     end function odd
 
     recursive logical function above_two(data)
         integer(int64), intent(in) :: data
+
         above_two = data > 2
     end function above_two
 
     subroutine temp_buffer(h)
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call get_buffer_create(" *ewoc-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
@@ -87,6 +92,7 @@ contains
         type(ewoc_type) :: e
         type(status_type) :: st
         integer :: n1, n2, n3
+
         call temp_buffer(h)
         call insert("before"//LF, st)
         e = ewoc_create(pp, "head", "foot")
@@ -116,6 +122,7 @@ contains
         type(ewoc_type) :: e
         type(status_type) :: st
         integer :: n1, n2, n3, node
+
         call temp_buffer(h)
         e = ewoc_create(pp, "head", "foot")
         call check(error, ewoc_locate(e, 1_int64) == 0, "empty")
@@ -154,6 +161,7 @@ contains
         type(status_type) :: st
         integer(int64), allocatable :: got(:)
         integer :: n1, n2, n3, n4
+
         call temp_buffer(h)
         e = ewoc_create(pp)
         n1 = ewoc_enter_last(e, 1_int64)
@@ -198,6 +206,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: header, footer
         integer :: n
+
         call temp_buffer(h)
         e = ewoc_create(pp, "[", "]", nosep=.true.)
         n = ewoc_enter_last(e, 1_int64)

@@ -437,20 +437,22 @@ contains
 
     ! ------------------------------------------------------------------
     ! The buffer-local comment-indent-function.
-
     subroutine indent_function_set_local(self, fn)
         class(comment_indent_function_type), intent(inout) :: self
         procedure(comment_indent_proc) :: fn
         type(indent_entry_type), allocatable :: grown(:)
         integer :: i, n
+
         if (cur == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
+
         do i = 1, size(self%entries)
             if (self%entries(i)%serial == buffers(cur)%serial) then
                 self%entries(i)%fn => fn
                 return
             end if
         end do
+
         ! Reuse the entry of a dead buffer.
         do i = 1, size(self%entries)
             if (.not. buffer_serial_live(self%entries(i)%serial)) then
@@ -459,12 +461,15 @@ contains
                 return
             end if
         end do
+
         n = size(self%entries)
         allocate (grown(n + 1))
+
         do i = 1, n
             grown(i)%serial = self%entries(i)%serial
             grown(i)%fn => self%entries(i)%fn
         end do
+
         grown(n + 1)%serial = buffers(cur)%serial
         grown(n + 1)%fn => fn
         call move_alloc(grown, self%entries)
@@ -474,9 +479,11 @@ contains
         class(comment_indent_function_type), intent(in) :: self
         procedure(comment_indent_proc), pointer :: fn
         integer :: i
+
         fn => self%value
         if (cur == 0) return
         if (.not. allocated(self%entries)) return
+
         do i = 1, size(self%entries)
             if (self%entries(i)%serial == buffers(cur)%serial) then
                 if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
@@ -487,9 +494,11 @@ contains
     logical function indent_function_local_p(self) result(local)
         class(comment_indent_function_type), intent(in) :: self
         integer :: i
+
         local = .false.
         if (cur == 0) return
         if (.not. allocated(self%entries)) return
+
         do i = 1, size(self%entries)
             if (self%entries(i)%serial == buffers(cur)%serial) then
                 local = associated(self%entries(i)%fn)
@@ -501,8 +510,10 @@ contains
     subroutine indent_function_kill_local(self)
         class(comment_indent_function_type), intent(inout) :: self
         integer :: i
+
         if (cur == 0) return
         if (.not. allocated(self%entries)) return
+
         do i = 1, size(self%entries)
             if (self%entries(i)%serial == buffers(cur)%serial) then
                 self%entries(i)%serial = 0
@@ -519,12 +530,12 @@ contains
 
     ! ------------------------------------------------------------------
     ! Small helpers.
-
     !> Lisp's (string-match RE S): the 0-based index of the match, -1 for
     !> none.
     integer(int64) function smatch(re, s) result(idx)
         character(len=*), intent(in) :: re, s
         type(status_type) :: st
+
         idx = string_match(re, s, st) - 1
         if (.not. st%ok()) idx = -1
     end function smatch
@@ -534,6 +545,7 @@ contains
     integer(int64) function smb(n)
         integer, intent(in) :: n
         type(status_type) :: st
+
         smb = match_beginning(n, st) - 1
     end function smb
 
@@ -542,6 +554,7 @@ contains
     integer(int64) function sme(n)
         integer, intent(in) :: n
         type(status_type) :: st
+
         sme = match_end(n, st) - 1
     end function sme
 
@@ -550,6 +563,7 @@ contains
     integer(int64) function mb(n)
         integer, intent(in) :: n
         type(status_type) :: st
+
         mb = match_beginning(n, st)
     end function mb
 
@@ -558,6 +572,7 @@ contains
     integer(int64) function me(n)
         integer, intent(in) :: n
         type(status_type) :: st
+
         me = match_end(n, st)
     end function me
 
@@ -565,6 +580,7 @@ contains
     logical function looking(re)
         character(len=*), intent(in) :: re
         type(status_type) :: st
+
         looking = looking_at(re, st)
         if (.not. st%ok()) looking = .false.
     end function looking
@@ -576,6 +592,7 @@ contains
         integer, intent(in) :: noerror
         integer(int64) :: found
         type(status_type) :: st
+
         call re_search_forward(re, found, st, bound=bound, noerror=noerror)
         re_forward = st%ok() .and. found > 0
     end function re_forward
@@ -587,6 +604,7 @@ contains
         integer, intent(in) :: noerror
         integer(int64) :: found
         type(status_type) :: st
+
         call re_search_backward(re, found, st, bound=bound, noerror=noerror)
         re_backward = st%ok() .and. found > 0
     end function re_backward
@@ -596,6 +614,7 @@ contains
         integer(int64), intent(in), optional :: pos
         integer(int32) :: c
         logical :: found
+
         call char_after(c, found, pos)
         after = -1
         if (found) after = c
@@ -606,6 +625,7 @@ contains
         integer(int64), intent(in), optional :: pos
         integer(int32) :: c
         logical :: found
+
         call char_before(c, found, pos)
         before = -1
         if (found) before = c
@@ -616,6 +636,7 @@ contains
         integer(int64), intent(in) :: from, to
         character(len=:), allocatable :: s
         type(status_type) :: st
+
         call buffer_substring(min(from, to), max(from, to), s, st)
         if (.not. allocated(s)) s = ""
     end function text
@@ -625,6 +646,7 @@ contains
         character(len=*), intent(in) :: c
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
+
         s = repeat(c, int(max(n, 0_int64)))
     end function repeat_char
 
@@ -635,6 +657,7 @@ contains
         integer(int64), intent(in), optional :: to
         character(len=:), allocatable :: r
         type(status_type) :: st
+
         r = substring(s, from, to, st)
         if (.not. st%ok()) r = ""
     end function sub
@@ -642,6 +665,7 @@ contains
     !> The current buffer's comment-start, empty if it is nil.
     function cstart() result(s)
         character(len=:), allocatable :: s
+
         s = ""
         if (allocated(comment_start%value)) s = comment_start%value
     end function cstart
@@ -649,6 +673,7 @@ contains
     !> The current buffer's comment-end.
     function cend() result(s)
         character(len=:), allocatable :: s
+
         s = ""
         if (allocated(comment_end%value)) s = comment_end%value
     end function cend
@@ -656,6 +681,7 @@ contains
     !> The current buffer's comment-start-skip, empty if it is nil.
     function cskip() result(s)
         character(len=:), allocatable :: s
+
         s = ""
         if (allocated(comment_start_skip%value)) s = comment_start_skip%value
     end function cskip
@@ -663,6 +689,7 @@ contains
     !> The padding, as a string.
     function cpad() result(s)
         character(len=:), allocatable :: s
+
         s = ""
         if (allocated(comment_padding%value)) s = comment_padding%value
     end function cpad
@@ -681,6 +708,7 @@ contains
         type(handle_type) :: m
         type(status_type) :: st
         logical :: it
+
         it = .false.
         if (present(insertion_type)) it = insertion_type
         call copy_marker_at(pos, m, it, st)
@@ -690,6 +718,7 @@ contains
     integer(int64) function mpos(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
+
         call marker_position(m, mpos, st)
     end function mpos
 
@@ -697,13 +726,16 @@ contains
     subroutine unmark(m)
         type(handle_type), intent(inout) :: m
         type(status_type) :: st
+
         call free_marker(m, st)
     end subroutine unmark
 
     !> Save the current restriction (save-restriction).
     function save_restriction() result(r)
         type(restriction_type) :: r
+
         r%narrowed = buffers(cur)%begv /= 1 .or. buffers(cur)%zv /= buffers(cur)%text%z
+
         if (r%narrowed) then
             r%beg = marker_at(buffers(cur)%begv)
             r%end = marker_at(buffers(cur)%zv, .true.)
@@ -714,7 +746,9 @@ contains
     subroutine restore_restriction(r)
         type(restriction_type), intent(inout) :: r
         type(status_type) :: st
+
         call widen()
+
         if (r%narrowed) then
             call narrow_to_region(mpos(r%beg), mpos(r%end), st)
             call unmark(r%beg)
@@ -724,7 +758,6 @@ contains
 
     ! ------------------------------------------------------------------
     ! Helpers.
-
     !> Strip STR of any leading (if BEFOREP) and/or trailing (if AFTERP) space.
     !> Port of newcomment.el:comment-string-strip.
     function comment_string_strip(str, beforep, afterp) result(s)
@@ -733,6 +766,7 @@ contains
         character(len=:), allocatable :: s
         character(len=:), allocatable :: re
         integer(int64) :: k
+
         re = "\`"
         if (beforep) re = re//"\s-*"
         re = re//"\(.*?\)"
@@ -749,17 +783,22 @@ contains
         character(len=:), allocatable :: r
         character(len=:), allocatable :: rev
         integer :: i, j
+
         rev = ""
         i = 1
+
         do while (i <= len(s))
             j = i + 1
+
             do while (j <= len(s))
                 if (iand(iachar(s(j:j)), 192) /= 128) exit
                 j = j + 1
             end do
+
             rev = s(i:j - 1)//rev
             i = j
         end do
+
         r = comment_string_strip(rev, .false., .true.)
     end function comment_string_reverse
 
@@ -776,21 +815,26 @@ contains
         logical :: noerr, ok
         type(handle_type) :: old, tmp, table
         type(status_type) :: st
+
         status = status_type()
         noerr = .false.
         if (present(noerror)) noerr = noerror
         if (associated(comment_setup_function)) call comment_setup_function()
         if (.not. allocated(comment_start%value) .and. noerr) return
+
         if (.not. allocated(comment_start%value)) then
             call read_string("No comment syntax is defined.  Use: ", cs, status)
             if (.not. status%ok()) return
+
             if (len(cs) == 0) then
                 call set_error(status, FM_GENERIC_ERROR, "No comment syntax defined")
                 return
             end if
+
             call comment_start%set_local(cs)
             call comment_start_skip%set_local(cs)
         end if
+
         ! comment-use-syntax
         if (comment_use_syntax%value == COMMENT_USE_SYNTAX_UNDECIDED) then
             ! Try to skip over a comment using forward-comment
@@ -809,17 +853,20 @@ contains
             if (ok) ok = eobp()
             call set_buffer(old, st)
             call kill_buffer(tmp, st)
+
             if (ok) then
                 call comment_use_syntax%set_local(COMMENT_USE_SYNTAX_T)
             else
                 call comment_use_syntax%set_local(COMMENT_USE_SYNTAX_NIL)
             end if
         end if
+
         ! comment-padding is a string here (nil is "").
         if (.not. allocated(comment_padding%value)) comment_padding = ""
         ! comment-continue
         cs = cstart()
         ce = cend()
+
         if (.not. allocated(comment_continue%value) .and. ce /= "") then
             if (smatch("\S-\S-", cs) >= 0) then
                 call comment_continue%set_local(" "//sub(cs, 1_int64))
@@ -827,23 +874,29 @@ contains
                 call comment_continue%set_local("|"//sub(cs, 1_int64))
             end if
         end if
+
         ! comment-skip regexps
         ok = allocated(comment_start_skip%value)
         if (ok) ok = smatch(comment_start_skip%value, cs) >= 0
+
         if (.not. ok) then
             skip = ""
+
             if (comment_use_syntax%value /= COMMENT_USE_SYNTAX_T) then
                 ! `syntax-ppss' will detect escaping.
                 skip = "\(\(^\|[^\"//LF//"]\)\(\\\\\)*\)"
             end if
+
             ! Let's not allow any \s- but only [ \t] since \n
             ! might be both a comment-end marker and \s-.
             skip = skip//"\(?:\s<+\|"//regexp_quote(comment_string_strip(cs, .true., .true.))//"+\)[ "//TAB//"]*"
             call comment_start_skip%set_local(skip)
         end if
+
         if (ce == "") ce = LF
         ok = allocated(comment_end_skip%value)
         if (ok) ok = smatch(comment_end_skip%value, ce) >= 0
+
         if (.not. ok) then
             if (cend() /= "") ce = comment_string_strip(cend(), .true., .true.)
             ! We use [ \t] rather than \s- because we don't want to
@@ -863,12 +916,15 @@ contains
         character(len=*), intent(in) :: str
         logical, intent(in) :: unp
         character(len=:), allocatable :: re
+
         re = regexp_quote(sub(str, 0_int64, 1_int64))//"\\"
+
         if (unp) then
             re = re//"+"
         else
             re = re//"*"
         end if
+
         re = re//regexp_quote(sub(str, 1_int64))
     end function comment_quote_re
 
@@ -880,9 +936,11 @@ contains
         logical, intent(in) :: unp
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: cs, ce
+
         status = status_type()
         cs = comment_string_strip(cs_in, .true., .true.)
         ce = comment_string_strip(ce_in, .true., .true.)
+
         if (comment_quote_nested%value .and. len(ce) > 0) then
             call comment_quote_nested_function(cs, ce, unp, status)
         end if
@@ -907,20 +965,25 @@ contains
         character(len=:), allocatable :: re
         integer(int64) :: b, e
         type(status_type) :: st
+
         status = status_type()
         re = comment_quote_re(ce, unp)//"\|"//comment_quote_re(cs, unp)
         call goto_char(point_min())
+
         do while (re_forward(re, noerror=SEARCH_NOERROR))
             b = mb(0)
             e = me(0)
             call goto_char(b)
             call forward_char(st, 1_int64)
+
             if (unp) then
                 call delete_char(1_int64, status)
             else
                 call insert("\", status)
             end if
+
             if (.not. status%ok()) return
+
             if (schars(ce) == 1) then
                 ! If the comment-end is a single char, adding a \ after that
                 ! "first" char won't deactivate it, so we turn such a CE
@@ -947,7 +1010,6 @@ contains
 
     ! ------------------------------------------------------------------
     ! Navigation.
-
     !> Find a comment start between point and LIMIT (0: no limit).
     !> Moves point to inside the comment and returns the position of the
     !> comment-starter.  If no comment is found, moves point to LIMIT
@@ -962,8 +1024,10 @@ contains
         type(parse_state_type) :: s, s2, old
         integer(int64) :: pt, to, pos, bol, end
         type(status_type) :: st
+
         status = status_type()
         start = 0
+
         if (.not. use_syntax()) then
             if (limit > 0) then
                 if (re_forward(cskip(), limit, SEARCH_NOERROR)) then
@@ -971,6 +1035,7 @@ contains
                     if (start == 0) start = mb(0)
                     return
                 end if
+
                 call goto_char(limit)
             else
                 if (re_forward(cskip(), noerror=SEARCH_NOERROR)) then
@@ -979,12 +1044,15 @@ contains
                     return
                 end if
             end if
+
             if (.not. noerror) call set_error(status, FM_GENERIC_ERROR, "No comment")
             return
         end if
+
         pt = point()
         to = point_max()
         if (limit > 0) to = limit
+
         ! Assume (at first) that pt is outside of any string.
         if (comment_use_global_state) then
             call syntax_ppss(old, pt)
@@ -992,6 +1060,7 @@ contains
         else
             call parse_partial_sexp(pt, to, s, st, commentstop=COMMENTSTOP_COMMENT)
         end if
+
         if (s%comstr_start > 0 .and. s%instring /= -1 .and. .not. comment_use_global_state) then
             ! The search ended at eol inside a string.  Try to see if it
             ! works better when we assume that pt is inside a string.
@@ -1001,20 +1070,24 @@ contains
             call parse_partial_sexp(pt, to, s2, st, oldstate=old, commentstop=COMMENTSTOP_COMMENT)
             s = s2
         end if
+
         if (.not. (s%comstr_start > 0 .and. s%instring == -1)) then
             if (.not. noerror) call set_error(status, FM_GENERIC_ERROR, "No comment")
             return
         end if
+
         ! Make sure the comment starts after PT.
         if (s%comstr_start < pt) then
             if (.not. noerror) call set_error(status, FM_GENERIC_ERROR, "No comment")
             return
         end if
+
         ! We found the comment.
         pos = point()
         start = s%comstr_start
         bol = line_beginning_position()
         end = 0
+
         do while (end == 0 .and. point() >= bol)
             if (looking(cskip())) then
                 end = min(to, me(0))
@@ -1023,6 +1096,7 @@ contains
                 call goto_char(point() - 1)
             end if
         end do
+
         if (end > 0) then
             call goto_char(end)
         else
@@ -1044,26 +1118,32 @@ contains
         integer(int64) :: end, pt
         logical :: found
         type(status_type) :: st
+
         status = status_type()
         cs = 0
+
         if (limit > 0) then
             found = re_backward(cskip(), limit, SEARCH_MOVE)
         else
             found = re_backward(cskip(), noerror=SEARCH_MOVE)
         end if
+
         if (.not. found) then
             if (.not. noerror) call set_error(status, FM_GENERIC_ERROR, "No comment")
             return
         end if
+
         end = me(0)
         call beginning_of_line(1_int64)
         cs = comment_search_forward(end, .true., st)
         pt = point()
+
         if (cs == 0) then
             call beginning_of_line(1_int64)
             cs = comment_search_backward(limit, noerror, status)
             return
         end if
+
         do
             call goto_char(cs)
             found = comment_forward(1_int64)
@@ -1072,6 +1152,7 @@ contains
             if (cs == 0) exit
             pt = point()
         end do
+
         call goto_char(pt)
     end function comment_search_backward
 
@@ -1086,10 +1167,13 @@ contains
         integer(int64) :: pt, cs
         logical :: is_cs, ok, fwd
         type(status_type) :: st
+
         start = 0
+
         if (use_syntax() .and. comment_use_global_state) then
             pt = point()
             call syntax_ppss(state, pt)
+
             if (state%incomment /= 0) then
                 call goto_char(state%comstr_start)
                 start = point()
@@ -1101,8 +1185,10 @@ contains
                 call restore_restriction(r)
                 if (ok) call goto_char(me(0))
             end if
+
             return
         end if
+
         ! Can't rely on the syntax table, let's guess based on font-lock.
         call get_text_property(point(), sym("face"), face, st)
         if (value_eq(face, sym("font_lock_string_face"))) return
@@ -1113,31 +1199,39 @@ contains
         ! For modes where comment-start and comment-end are the same,
         ! the search above may have found a `ce' rather than a `cs'.
         is_cs = .false.
+
         if (allocated(comment_end_skip%value)) then
             is_cs = .not. looking(comment_end_skip%value)
         end if
+
         if (.not. is_cs) then
             ! Maybe font-lock knows that it's a `cs'?
             call get_text_property(me(0), sym("face"), face, st)
             is_cs = value_eq(face, sym("font_lock_comment_face"))
         end if
+
         if (.not. is_cs) then
             call get_text_property(point(), sym("face"), face, st)
+
             if (.not. value_eq(face, sym("font_lock_comment_face"))) then
                 ! Let's assume it's a `cs' if we're on the same line.
                 is_cs = line_end_position() >= pt
             end if
         end if
+
         if (is_cs) then
             ! Make sure that PT is not past the end of the comment.
             fwd = comment_forward(1_int64)
+
             if (fwd) then
                 is_cs = point() > pt
             else
                 is_cs = eobp()
             end if
         end if
+
         call goto_char(cs)
+
         if (is_cs) then
             start = cs
         else
@@ -1153,25 +1247,31 @@ contains
         integer(int64), intent(in) :: n_in
         integer(int64) :: n
         logical :: ok
+
         n = n_in
+
         if (use_syntax()) then
             done = forward_comment(n)
             return
         end if
+
         do while (n > 0)
             ok = forward_comment(1_int64)
+
             if (.not. ok) then
                 if (looking(cskip())) then
                     call goto_char(me(0))
                     ok = re_forward(comment_end_skip%value, noerror=SEARCH_MOVE)
                 end if
             end if
+
             if (ok) then
                 n = n - 1
             else
                 n = -1
             end if
         end do
+
         done = n == 0
     end function comment_forward
 
@@ -1184,12 +1284,14 @@ contains
         integer(int64) :: moved, pt
         logical :: found
         type(status_type) :: st
+
         if (bolp()) then
             ! comment-end = ""
             call goto_char(point() - 1)
             moved = skip_syntax_backward(" ")
             return
         end if
+
         pt = point()
         r = save_restriction()
         call narrow_to_region(line_beginning_position(), pt, st)
@@ -1197,16 +1299,19 @@ contains
         found = .false.
         if (allocated(comment_end_skip%value)) found = re_forward(comment_end_skip%value//"\'", noerror=SEARCH_NOERROR)
         call restore_restriction(r)
+
         if (found) then
             call goto_char(mb(0))
             return
         end if
+
         call goto_char(pt)
         ! comment-end-skip not found probably because it was not set
         ! right.  Since \\s> should catch the single-char case, let's
         ! check that we're looking at a two-char comment ender.
         call string_to_syntax("  4", d4, st)
         call string_to_syntax("  3", d3, st)
+
         if (.not. (point_max() - line_beginning_position() <= 1 .or. &
                    iand(syntax_code_at(point() - 1), d4%code) == 0 .or. &
                    iand(syntax_code_at(point() - 2), d3%code) == 0)) then
@@ -1227,6 +1332,7 @@ contains
         integer(int64), intent(in) :: pos
         type(syntax_descriptor_type) :: d
         integer :: c
+
         syntax_code_at = 0
         c = after(pos)
         if (c < 0) return
@@ -1242,6 +1348,7 @@ contains
         character(len=MAX_MULTIBYTE_LENGTH) :: buf
         integer(int32) :: nbytes
         type(status_type) :: st
+
         s = ""
         if (c < 0) return
         call char_string_utf8(int(c, int32), buf, nbytes, st)
@@ -1250,24 +1357,27 @@ contains
 
     ! ------------------------------------------------------------------
     ! Commands.
-
     !> Default for `comment_indent_function'.  Port of
     !> newcomment.el:comment-indent-default.
     subroutine comment_indent_default(indent, status)
         type(comment_indent_type), intent(out) :: indent
         type(status_type), intent(out) :: status
         logical :: zero
+
         status = status_type()
         zero = .false.
+
         if (looking("\s<\s<\(\s<\)?")) then
             zero = me(1) > 0
             if (.not. zero) zero = current_column() /= current_indentation()
         end if
+
         if (zero) then
             indent%kind = COMMENT_INDENT_COLUMN
             indent%column = 0
             return
         end if
+
         if (current_column() /= current_indentation()) then
             indent%kind = COMMENT_INDENT_COLUMN
             indent%column = comment_column%value
@@ -1297,13 +1407,16 @@ contains
         integer(int64) :: indent, min, max, other, opoint, omax, omin, moved, eol_col
         logical :: have_other, is_range
         type(status_type) :: st
+
         indent = comment_column%value
         opoint = point()
         is_range = .false.
+
         if (present(indent_in)) then
             if (indent_in%kind == COMMENT_INDENT_COLUMN) indent = indent_in%column
             is_range = indent_in%kind == COMMENT_INDENT_RANGE
         end if
+
         if (is_range) then
             min = indent_in%min
             max = indent_in%max
@@ -1315,6 +1428,7 @@ contains
             call goto_char(opoint)
             max = current_column() + (the_fill_column() - eol_col)
             moved = skip_chars_backward(" "//TAB, st)
+
             ! Leave at least `comment-inline-offset' space after
             ! other nonwhite text on the line.
             if (bolp()) then
@@ -1322,8 +1436,10 @@ contains
             else
                 min = comment_inline_offset%value + current_column()
             end if
+
             call goto_char(opoint)
         end if
+
         ! Fix up the range.
         if (max < min) max = min
         ! Don't move past the fill column.
@@ -1332,15 +1448,19 @@ contains
         ! Let's try to align to a comment on the previous line.
         have_other = .false.
         other = 0
+
         if (forward_line(-1_int64) == 0) then
             other = comment_search_forward(line_end_position(), .true., st)
+
             if (other > 0) then
                 call goto_char(other)
                 other = current_column()
                 have_other = .true.
             end if
         end if
+
         call goto_char(opoint)
+
         if (have_other) then
             if (other <= max .and. other >= min) then
                 ! There is a comment and it's in the range: bingo!
@@ -1348,6 +1468,7 @@ contains
                 return
             end if
         end if
+
         ! Can't align to a previous comment: let's try to align to comments
         ! on the following lines, then.  These have not been re-indented yet,
         ! so we can't directly align ourselves with them.  All we do is to try
@@ -1365,6 +1486,7 @@ contains
             moved = skip_chars_backward(" "//TAB, st)
             omin = current_column() + 1
             call goto_char(other)
+
             if (omax >= min .and. omin <= max) then
                 min = merge(omin, min, omin > min)
                 max = merge(omax, max, omax < max)
@@ -1373,6 +1495,7 @@ contains
                 exit
             end if
         end do
+
         call goto_char(opoint)
         ! Return the closest point to indent within min..max.
         col = merge(indent, max, indent < max)
@@ -1393,6 +1516,7 @@ contains
         procedure(comment_indent_proc), pointer :: fn
         logical :: cont, in_multi, at_bol
         type(status_type) :: st
+
         cont = .false.
         if (present(continue)) cont = continue
         call barf_if_buffer_read_only(status)
@@ -1400,6 +1524,7 @@ contains
         call comment_normalize_vars(status)
         if (.not. status%ok()) return
         call beginning_of_line(1_int64)
+
         if (cont .and. allocated(comment_continue%value)) then
             starter = comment_continue%value
             ender = ""
@@ -1410,27 +1535,32 @@ contains
             call set_error(status, FM_GENERIC_ERROR, "No comment syntax defined")
             return
         end if
+
         begpos = comment_search_forward(line_end_position(), .true., st)
         ! If we couldn't find a comment *starting* on this line, see if we
         ! are already within a multiline comment at BOL (bug#78003).
         in_multi = .false.
+
         if (begpos == 0 .and. .not. cont .and. use_syntax() .and. comment_use_global_state) then
             opoint = point()
             call syntax_ppss(state, line_beginning_position())
             in_multi = state%incomment /= 0
             call goto_char(opoint)
         end if
+
         if (in_multi) then
             ! We don't know anything about the nature of the multiline
             ! construct, so immediately delegate to the mode.
             call indent_according_to_mode(status)
             return
         end if
+
         if (begpos == 0 .and. associated(comment_insert_comment_function%value)) then
             ! If no comment and c-i-c-f is set, let it do everything.
             call comment_insert_comment_function%value(status)
             return
         end if
+
         ! An existing comment?
         if (begpos > 0) then
             if (.not. looking("["//TAB//LF//" ]")) then
@@ -1442,6 +1572,7 @@ contains
                     call goto_char(point() + (-moved)/2)
                 end if
             end if
+
             cpos = marker_at(point())
         else
             ! If none, insert one.
@@ -1454,10 +1585,12 @@ contains
             ! Ensure there's a space before the comment for things
             ! like sh where it matters (as well as being neater).
             n = before()
+
             if (.not. (n == -1 .or. n == 10 .or. n == 9 .or. n == 32)) then
                 call insert(" ", status)
                 if (.not. status%ok()) return
             end if
+
             begpos = point()
             call insert(starter, status)
             if (.not. status%ok()) return
@@ -1466,6 +1599,7 @@ contains
             if (.not. status%ok()) return
             call goto_char(opoint)
         end if
+
         call goto_char(begpos)
         ! Compute desired indent.
         opoint = point()
@@ -1477,10 +1611,12 @@ contains
         moved = skip_chars_backward(" "//TAB, st)
         at_bol = bolp()
         call goto_char(opoint)
+
         if (indent%kind == COMMENT_INDENT_NONE .and. .not. at_bol) then
             indent%kind = COMMENT_INDENT_COLUMN
             indent%column = comment_column%value
         end if
+
         if (indent%kind == COMMENT_INDENT_NONE) then
             ! comment-indent-function refuses: delegate to line-indent.
             call indent_according_to_mode(status)
@@ -1495,6 +1631,7 @@ contains
                 ! cons, which upstream's `=' rejects; use MIN.
                 col = indent%min
             end if
+
             ! If that's different from comment's current position, change it.
             if (current_column() /= col) then
                 opoint = point()
@@ -1504,6 +1641,7 @@ contains
                 col = indent_to(col, status)
             end if
         end if
+
         call goto_char(mpos(cpos))
         call unmark(cpos)
     end subroutine comment_indent
@@ -1511,6 +1649,7 @@ contains
     !> `comment_indent' as a command.
     recursive subroutine cmd_comment_indent(status)
         type(status_type), intent(out) :: status
+
         call comment_indent(status)
     end subroutine cmd_comment_indent
 
@@ -1527,13 +1666,16 @@ contains
         integer(int64) :: opoint, cs
         character(len=24) :: buf
         type(status_type) :: st
+
         status = status_type()
+
         if (present(minus)) then
             if (minus) then
                 call comment_kill(status)
                 return
             end if
         end if
+
         if (present(arg)) then
             if (arg) then
                 call comment_normalize_vars(status)
@@ -1541,16 +1683,20 @@ contains
                 opoint = point()
                 call beginning_of_line(1_int64)
                 cs = comment_search_backward(0_int64, .false., status)
+
                 if (.not. status%ok()) then
                     call goto_char(opoint)
                     return
                 end if
+
                 call beginning_of_line(1_int64)
                 cs = comment_search_forward(line_end_position(), .false., status)
+
                 if (.not. status%ok()) then
                     call goto_char(opoint)
                     return
                 end if
+
                 call goto_char(cs)
                 call comment_column%set_local(current_column())
                 write (buf, "(i0)") comment_column%value
@@ -1560,6 +1706,7 @@ contains
                 return
             end if
         end if
+
         call comment_column%set_local(current_column())
         write (buf, "(i0)") comment_column%value
         call message("Comment column set to "//trim(buf))
@@ -1574,6 +1721,7 @@ contains
     !> Port of newcomment.el:comment-set-column (the command).
     recursive subroutine cmd_comment_set_column(status)
         type(status_type), intent(out) :: status
+
         if (nilp(current_prefix_arg)) then
             call comment_set_column(status)
         else if (value_eq(current_prefix_arg, sym("-"))) then
@@ -1592,14 +1740,17 @@ contains
         integer(int64) :: i, n, cs, opoint, moved, e, shortage
         logical :: done
         type(status_type) :: st
+
         call comment_normalize_vars(status)
         if (.not. status%ok()) return
         n = 1
         if (present(arg)) n = arg
+
         do i = 1, n
             opoint = point()
             call beginning_of_line(1_int64)
             cs = comment_search_forward(line_end_position(), .true., st)
+
             if (cs > 0) then
                 call goto_char(cs)
                 moved = skip_syntax_backward(" ")
@@ -1612,6 +1763,7 @@ contains
                 call indent_according_to_mode(status)
                 if (.not. status%ok()) return
             end if
+
             ! (save-excursion: point returns to where it was.)
             call goto_char(min(opoint, point_max()))
             if (present(arg)) shortage = forward_line(1_int64)
@@ -1623,6 +1775,7 @@ contains
     !> one.  Port of newcomment.el:comment-kill (the command).
     recursive subroutine cmd_comment_kill(status)
         type(status_type), intent(out) :: status
+
         if (nilp(current_prefix_arg)) then
             call comment_kill(status)
         else
@@ -1651,6 +1804,7 @@ contains
         integer(int64) :: k, m1b, m1e, m0e, count
         logical :: multi, want_re
         integer :: i
+
         r = ""
         if (present(found)) found = .false.
         if (.not. present(str)) return
@@ -1668,6 +1822,7 @@ contains
         s = match_string(1, str)
         lpad = sub(str, 0_int64, m1b)
         pad = cpad()
+
         if (smatch("\`\s-", pad) < 0) then
             ! If the padding isn't spaces, then don't
             ! shorten the padding.
@@ -1675,18 +1830,22 @@ contains
         else
             rpad = sub(str, m1e)//sub(pad, min(m0e - m1e, schars(pad)))
         end if
+
         ! We can only duplicate C if the comment-end has multiple chars
         ! or if comments can be nested, else the comment-end `}' would
         ! be turned into `}}}' where only the first ends the comment
         ! and the rest becomes bogus junk.
         multi = .not. (comment_quote_nested%value .and. smatch("\`\s-*\S-\s-*\'", cend()) >= 0)
+
         if (.not. want_re) then
             r = lpad//s
+
             if (multi) then
                 do i = 1, int(count)
                     r = r//sub(str, m1e - 1, m1e)
                 end do
             end if
+
             r = r//rpad
         else
             ! construct a regexp that would match anything from just S
@@ -1703,7 +1862,9 @@ contains
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: r
         integer(int64) :: k
+
         r = ""
+
         do k = 0, schars(s) - 1
             r = r//regexp_quote(sub(s, k, k + 1))//"?"
         end do
@@ -1729,6 +1890,7 @@ contains
         integer(int64) :: k, m0b, m0e, count
         logical :: multi, want_re
         integer :: i
+
         r = ""
         if (present(found)) found = .false.
         if (.not. present(str)) return
@@ -1744,6 +1906,7 @@ contains
         m0e = sme(0)
         s = sub(str, m0e)
         padding = cpad()
+
         if (smatch("\`\s-", padding) < 0) then
             ! If the padding isn't spaces, then don't
             ! shorten the padding.
@@ -1751,6 +1914,7 @@ contains
         else
             pad = sub(padding, min(m0e - m0b, schars(padding)))
         end if
+
         pad = pad//sub(str, m0b, m0e)
         c = sub(str, m0e, m0e + 1)
         ! We can only duplicate C if the comment-end has multiple chars
@@ -1758,13 +1922,16 @@ contains
         ! be turned into `}}}' where only the first ends the comment
         ! and the rest becomes bogus junk.
         multi = .not. (comment_quote_nested%value .and. smatch("\`\s-*\S-\s-*\'", cend()) >= 0)
+
         if (.not. want_re) then
             r = pad
+
             if (multi) then
                 do i = 1, int(count)
                     r = r//c
                 end do
             end if
+
             r = r//s
         else
             ! Construct a regexp that would match anything from just S
@@ -1790,6 +1957,7 @@ contains
         integer(int64) :: beg, end, opoint
         logical :: saved
         type(handle_type) :: om
+
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
         call comment_normalize_vars(status)
@@ -1816,6 +1984,7 @@ contains
     recursive subroutine cmd_uncomment_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beg, end
+
         call interactive_region(beg, end, status)
         if (.not. status%ok()) return
         call with_prefix(beg, end, status, uncomment_region)
@@ -1826,6 +1995,7 @@ contains
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
         procedure(comment_region_proc) :: region_fn
+
         if (nilp(current_prefix_arg)) then
             call region_fn(beg, end, status)
         else if (consp(current_prefix_arg)) then
@@ -1839,6 +2009,7 @@ contains
     subroutine region_bounds(beg, end, status)
         integer(int64), intent(out) :: beg, end
         type(status_type), intent(out) :: status
+
         call region_beginning(beg, status)
         if (.not. status%ok()) return
         call region_end(end, status)
@@ -1860,19 +2031,23 @@ contains
         logical :: box, box_equal, has_srei, ok, has_ere
         integer :: grp
         type(status_type) :: st
+
         status = status_type()
         call goto_char(beg)
         endm = marker_at(end_in)
         numarg = 1
         if (present(arg)) numarg = arg
         srei = comment_padright(comment_continue_or_absent(), re=.true., found=has_srei)
+
         if (.not. has_srei .and. allocated(comment_continue%value)) then
             srei = comment_continue%value
             has_srei = .true.
         end if
+
         csre = comment_padright(cstart(), re=.true.)
         sre = ""
         if (has_srei) sre = "^\s-*?\("//srei//"\)"
+
         do
             if (.not. (point() < mpos(endm))) exit
             spt = comment_search_forward(mpos(endm), .true., st)
@@ -1880,6 +2055,7 @@ contains
             ipt = point()
             ! Find the end of the comment.
             call goto_char(spt)
+
             if (.not. comment_forward(1_int64)) then
                 ! Allow non-terminated comments.
                 if (.not. eobp()) then
@@ -1887,6 +2063,7 @@ contains
                     exit
                 end if
             end if
+
             ept = point()
             box = .false.
             ! Whether we might be using `=' for boxes.
@@ -1898,8 +2075,10 @@ contains
             moved = skip_syntax_backward(" ")
             ! A box-comment starts with a looong comment-start marker.
             ok = .false.
+
             if (point() - point_min() == 1) then
                 box_equal = .true.
+
                 if (looking("=\{7\}")) then
                     if (before(point_max()) /= 10) then
                         moved = skip_chars_forward("=", st)
@@ -1907,6 +2086,7 @@ contains
                     end if
                 end if
             end if
+
             if (.not. ok) ok = point() - point_min() - schars(cstart()) > 7
             if (ok) ok = count_lines(point_min(), point_max()) > 2
             if (ok) box = .true.
@@ -1918,9 +2098,11 @@ contains
             call goto_char(pos)
             if (.not. ok) ok = looking(regexp_quote(cpad()))
             if (ok) call goto_char(me(0))
+
             if (has_srei) then
                 if (looking("\s-*"//LF//"\s-*"//srei)) call goto_char(me(0))
             end if
+
             if (.not. present(arg)) then
                 call delete_region(point_min(), point(), status)
             else
@@ -1928,34 +2110,42 @@ contains
                 moved = skip_syntax_backward(" ")
                 call delete_char(-numarg, status)
                 ok = .false.
+
                 if (.not. bobp()) then
                     pos = point()
                     call goto_char(point_min())
                     ok = looking(cskip())
                     call goto_char(pos)
                 end if
+
                 if (.not. ok) then
                     ! If there's something left but it doesn't look like
                     ! a comment-start any more, just remove it.
                     call delete_region(point_min(), mpos(opointm), status)
                 end if
+
                 call unmark(opointm)
             end if
+
             if (.not. status%ok()) then
                 call restore_restriction(r)
                 exit
             end if
+
             ! Remove the end-comment (and leading padding and such).
             call goto_char(point_max())
             call comment_enter_backward()
+
             ! Check for special `=' used sometimes in comment-box.
             if (box_equal .and. before(point_max()) /= 10) then
                 pos = point()
                 ! skip `=' but only if there are at least 7.
                 if (skip_chars_backward("=", st) > -7) call goto_char(pos)
             end if
+
             if (.not. looking("\("//LF//"\|\s-\)*\'")) then
                 if (bolp() .and. .not. bobp()) call goto_char(point() - 1)
+
                 if (.not. present(arg)) then
                     call delete_region(point(), point_max(), status)
                 else
@@ -1968,12 +2158,15 @@ contains
                     if (.not. ok .and. status%ok()) call delete_region(point(), point_max(), status)
                 end if
             end if
+
             if (.not. status%ok()) then
                 call restore_restriction(r)
                 exit
             end if
+
             ! Unquote any nested end-comment.
             call quote_nested(cstart(), cend(), .true., status)
+
             ! Eliminate continuation markers as well.
             if (has_srei) then
                 if (allocated(comment_continue%value)) then
@@ -1981,13 +2174,17 @@ contains
                 else
                     cce = comment_string_reverse(cstart())
                 end if
+
                 has_ere = .false.
                 ere = ""
+
                 if (box) then
                     erei = comment_padleft(cce, re=.true., found=has_ere)
                     if (has_ere) ere = "\("//erei//"\)\s-*$"
                 end if
+
                 call goto_char(point_min())
+
                 do
                     if (has_ere) then
                         if (re_forward(ere, line_end_position(), SEARCH_NOERROR)) then
@@ -1998,6 +2195,7 @@ contains
                             has_ere = .false.
                         end if
                     end if
+
                     e = forward_line(1_int64)
                     if (.not. re_forward(sre, line_end_position(), SEARCH_NOERROR)) exit
                     grp = 1
@@ -2005,9 +2203,11 @@ contains
                     call replace_match("", st, fixedcase=.true., literal=.true., subexp=grp)
                 end do
             end if
+
             ! Go to the end for the next comment.
             call goto_char(point_max())
             call restore_restriction(r)
+
             ! Remove any obtrusive spaces left preceding a tab at `spt'.
             if (after(spt) == 9 .and. before(spt) == 32 .and. tab_width%value > 0) then
                 pos = point()
@@ -2019,12 +2219,14 @@ contains
                 call goto_char(pos)
             end if
         end do
+
         call unmark(endm)
     end subroutine uncomment_region_default_1
 
     !> `comment_continue' as an optional argument: absent when nil.
     function comment_continue_or_absent() result(s)
         character(len=:), allocatable :: s
+
         s = ""
         if (allocated(comment_continue%value)) s = comment_continue%value
     end function comment_continue_or_absent
@@ -2032,6 +2234,7 @@ contains
     !> The number of lines between FROM and TO.
     integer(int64) function count_lines(from, to)
         integer(int64), intent(in) :: from, to
+
         count_lines = simple_count_lines(from, to)
     end function count_lines
 
@@ -2044,6 +2247,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg
         logical, intent(in), optional :: universal
+
         ! UNIVERSAL changes nothing here: C-u counts as its numeric value.
         if (present(universal)) continue
         call uncomment_region_default_1(beg, end, status, arg)
@@ -2055,6 +2259,7 @@ contains
     function comment_make_bol_ws(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
+
         if (indent_tabs_mode%value .and. tab_width%value > 0) then
             s = repeat_char(TAB, n/tab_width%value)//repeat_char(" ", mod(n, tab_width%value))
         else
@@ -2073,12 +2278,15 @@ contains
         character(len=:), allocatable :: cs2, ce2, s, e, re, fill, c
         integer(int64) :: eindent, width, lcs, k
         type(status_type) :: st
+
         eindent = 0
         cs2 = cs
         ce2 = ce
+
         if (.not. block) then
             ! Try to match CS and CE's content so they align aesthetically.
             ce2 = comment_string_strip(ce2, .true., .true.)
+
             if (smatch("\(.+\).*"//LF//"\(.*?\)\1", ce2//LF//cs2) >= 0) then
                 eindent = max(sme(2) - smb(2) - smb(0), 0_int64)
             end if
@@ -2087,6 +2295,7 @@ contains
             width = max_indent - min_indent
             s = cs2//"a=m"//cce
             e = ccs//"a=m"//ce2
+
             if (smatch(".*\S-\S-", cs2) >= 0) then
                 c = sub(cs2, sme(0) - 1, sme(0))
             else if (ce2 == "" .and. smatch(".*\S-", cs2) >= 0) then
@@ -2094,26 +2303,34 @@ contains
             else
                 c = "="
             end if
+
             re = "\s-*a=m\s-*"
             k = smatch(re, s)
             lcs = schars(cs2)
             fill = ""
+
             do k = 1, width + (sme(0) - smb(0) - lcs - 3)
                 fill = fill//c
             end do
+
             call replace_in_string(fill, s, cs2)
+
             if (smatch(cskip(), cs2) < 0 .and. smatch("a=m", s) >= 0) then
                 ! The whitespace around CS cannot be ignored: put it back.
                 re = "a=m"
                 fill = ""
+
                 do k = 1, width - lcs
                     fill = fill//c
                 end do
+
                 call replace_in_string(fill, s, cs2)
             end if
+
             k = smatch(re, e)
             call replace_in_string(fill, e, ce2)
         end if
+
         out_cs = cs2//LF//comment_make_bol_ws(min_indent)//ccs
         out_ce = cce//LF//comment_make_bol_ws(min_indent + eindent)//ce2
         st = status_type()
@@ -2124,6 +2341,7 @@ contains
     subroutine replace_in_string(new, s, r)
         character(len=*), intent(in) :: new, s
         character(len=:), allocatable, intent(out) :: r
+
         r = sub(s, 0_int64, smb(0))//new//sub(s, sme(0))
     end subroutine replace_in_string
 
@@ -2150,6 +2368,7 @@ contains
         type(handle_type) :: endm
         type(restriction_type) :: r
         type(status_type) :: st
+
         status = status_type()
         blk = .false.
         if (present(block)) blk = block
@@ -2173,30 +2392,37 @@ contains
         if (has_ce .and. ce == "") has_ce = .false.
         ce_sanitized = has_ce
         if (has_cce .and. cce == "") has_cce = .false.
+
         ! If CE is empty, multiline cannot be used.
         if (.not. has_ce) then
             has_ccs = .false.
             has_cce = .false.
         end if
+
         ! Should we mark empty lines as well ?
         if (has_ccs .or. blk .or. lns) no_empty = .false.
+
         ! Make sure we have end-markers for BLOCK mode.
         if (blk .and. .not. has_ce) then
             ce = comment_string_reverse(cs)
             has_ce = .true.
         end if
+
         ! If BLOCK is not requested, we don't need CCE.
         if (.not. blk) has_cce = .false.
+
         ! Continuation defaults to the same as CS and CE.
         if (.not. has_ccs) then
             ccs = cs
             cce = ce
             has_cce = has_ce
         end if
+
         if (.not. has_ce) ce = ""
         if (.not. has_cce) cce = ""
         opoint = point()
         call goto_char(end)
+
         ! If the end is not at the end of a line and the comment-end
         ! is implicit (i.e. a newline), explicitly insert a newline.
         if (.not. (ce_sanitized .or. eolp())) then
@@ -2205,6 +2431,7 @@ contains
             call indent_according_to_mode(status)
             if (.not. status%ok()) return
         end if
+
         endm = marker_at(end)
         ! comment-with-narrowing: the space added (and then removed) at
         ! the beginning keeps the text's indentation as it was.
@@ -2221,6 +2448,7 @@ contains
         call quote_nested(cstart(), cend(), .false., status)
         ! Loop over all lines to find the needed indentations.
         call goto_char(point_min())
+
         do
             if (.not. looking("[ "//TAB//"]*$")) min_indent = min(min_indent, current_indentation())
             call end_of_line(1_int64)
@@ -2228,6 +2456,7 @@ contains
             if (eobp()) exit
             sh = forward_line(1_int64)
         end do
+
         has_tab = .false.
         call goto_char(beg)
         call search_tab(mpos(endm), has_tab)
@@ -2236,6 +2465,7 @@ contains
         ! but only if there are TABs in the boxed text, of course.
         if (has_tab) max_indent = max_indent + tab_width%value - 1
         if (.not. ind) min_indent = 0
+
         ! make the leading and trailing lines if requested
         if (lns) then
             ! Trim trailing whitespace from cs if there's some.
@@ -2246,7 +2476,9 @@ contains
             ce = cce2
             has_ce = .true.
         end if
+
         call goto_char(point_min())
+
         ! Loop over all lines from BEG to END.
         do
             if (.not. (no_empty .and. looking("[ "//TAB//"]*$"))) then
@@ -2256,30 +2488,37 @@ contains
                 ! switch to CCS after the first line
                 cs = ccs
                 call end_of_line(1_int64)
+
                 if (eobp()) then
                     cce = ce
                     has_cce = has_ce .and. len(ce) > 0
                 end if
+
                 if (has_cce) then
                     if (blk) call move_to_column(max_indent, reached, force=.true.)
                     call insert(cce, status)
                     if (.not. status%ok()) exit
                 end if
             end if
+
             call end_of_line(1_int64)
             if (eobp()) exit
             sh = forward_line(1_int64)
         end do
+
         ! remove the bindent
         call goto_char(point_min())
+
         if (looking(" *")) then
             n = min(me(0) - mb(0), bindent)
             call delete_char(n, st)
             bindent = bindent - n
         end if
+
         call end_of_line(1_int64)
         col = point()
         call beginning_of_line(1_int64)
+
         do while (bindent > 0)
             if (.not. re_forward("   *", col, SEARCH_NOERROR)) exit
             n = min(bindent, me(0) - mb(0) - 1)
@@ -2287,6 +2526,7 @@ contains
             call delete_char(n, st)
             bindent = bindent - n
         end do
+
         call restore_restriction(r)
         call unmark(endm)
         call goto_char(min(opoint, point_max()))
@@ -2297,6 +2537,7 @@ contains
         integer(int64), intent(in) :: limit
         logical, intent(out) :: found
         integer(int64) :: pos
+
         pos = point()
         found = re_forward(TAB, limit, SEARCH_NOERROR)
         call goto_char(pos)
@@ -2323,6 +2564,7 @@ contains
         logical, intent(in), optional :: universal
         integer(int64) :: beg, end
         type(handle_type) :: om
+
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
         call comment_normalize_vars(status)
@@ -2353,6 +2595,7 @@ contains
     recursive subroutine cmd_comment_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beg, end
+
         call interactive_region(beg, end, status)
         if (.not. status%ok()) return
         call with_prefix(beg, end, status, comment_region)
@@ -2369,6 +2612,7 @@ contains
         logical :: lines, block, multi, multi_char, triple, indent, ok, cons_arg, has
         character(len=:), allocatable :: cs, ce, ccs, cce, s
         type(status_type) :: st
+
         status = status_type()
         numarg = 1
         if (present(arg)) numarg = arg
@@ -2390,31 +2634,39 @@ contains
         moved = skip_chars_backward(" "//TAB//LF//char(13), st)
         call end_of_line(1_int64)
         end = min(end_in, point())
+
         if (beg >= end) then
             call set_error(status, FM_GENERIC_ERROR, "Nothing to comment")
             return
         end if
+
         ! sanitize LINES
         if (lines) then
             call goto_char(beg)
             call beginning_of_line(1_int64)
             moved = skip_syntax_forward(" ")
             ok = point() >= beg
+
             if (ok) then
                 call goto_char(end)
                 call end_of_line(1_int64)
                 moved = skip_syntax_backward(" ")
                 ok = point() <= end
             end if
+
             if (ok) ok = block .or. cend() /= ""
+
             if (ok .and. .not. block) then
                 call goto_char(beg)
                 ok = re_forward("$", end, SEARCH_NOERROR)
             end if
+
             lines = ok
         end if
+
         ! don't add end-markers just because the user asked for `block'
         if (.not. (lines .or. cend() == "")) block = .false.
+
         if (cons_arg) then
             call uncomment_region(beg, end, status)
             return
@@ -2422,8 +2674,10 @@ contains
             call uncomment_region(beg, end, status, -numarg)
             return
         end if
+
         multi_char = smatch("[ "//TAB//"]*\'", cstart()) /= 1
         triple = .false.
+
         if (style_indent(style) == 2) then
             k = point()
             call goto_char(beg)
@@ -2436,6 +2690,7 @@ contains
         else
             indent = style_indent(style) == 1
         end if
+
         ! In Lisp and similar modes with one-character comment starters,
         ! double it by default if `comment-add' says so.
         ! If it isn't indented, triple it.
@@ -2445,13 +2700,17 @@ contains
         else
             numarg = numarg - 1
         end if
+
         s = comment_padright(cstart(), numarg)
+
         if (smatch(cskip(), s) >= 0) then
             cs = s
         else
             cs = comment_padright(cstart())
         end if
+
         s = comment_padleft(cend(), numarg, found=has)
+
         if (has) then
             if (smatch(comment_end_skip%value, s) >= 0) then
                 ce = s
@@ -2459,15 +2718,19 @@ contains
                 ce = comment_padright(cend(), found=has)
             end if
         end if
+
         if (multi) then
             ccs = comment_padright(comment_continue_or_absent(), numarg, found=ok)
+
             if (.not. ok .and. allocated(comment_continue%value)) then
                 ! `comment-padright' returns nil when
                 ! `comment-continue' contains only whitespace
                 ccs = comment_continue%value
                 ok = .true.
             end if
+
             cce = comment_padleft(comment_string_reverse(comment_continue_or_absent()), numarg)
+
             if (has .and. ok) then
                 call comment_region_internal(beg, end, cs, status, ce, ccs, cce, block=block, lines=lines, indent=indent)
             else if (has) then
@@ -2496,6 +2759,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg
         logical, intent(in), optional :: universal
+
         call comment_region_default_1(beg, end, status, arg, universal)
     end subroutine comment_region_default
 
@@ -2507,11 +2771,13 @@ contains
         integer(int64), intent(in) :: beg, end, arg
         type(status_type), intent(out) :: status
         integer(int64) :: saved
+
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
         call comment_normalize_vars(status)
         if (.not. status%ok()) return
         saved = comment_style%value
+
         if (saved >= 1 .and. saved <= 8) then
             if (style_multi(saved)) then
                 comment_style%value = COMMENT_STYLE_BOX_MULTI
@@ -2521,6 +2787,7 @@ contains
         else
             comment_style%value = COMMENT_STYLE_BOX
         end if
+
         call comment_region(beg, end, status, comment_add%value + arg)
         comment_style%value = saved
     end subroutine comment_box
@@ -2532,6 +2799,7 @@ contains
     recursive subroutine cmd_comment_box(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beg, end
+
         call interactive_region(beg, end, status)
         if (.not. status%ok()) return
         call comment_box(beg, end, prefix_numeric_value(current_prefix_arg), status)
@@ -2543,6 +2811,7 @@ contains
         integer(int64), intent(in) :: beg, end
         integer(int64) :: opoint
         logical :: done
+
         opoint = point()
         call goto_char(beg)
         done = comment_forward(point_max())
@@ -2559,10 +2828,12 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg
         logical, intent(in), optional :: universal
+
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
         call comment_normalize_vars(status)
         if (.not. status%ok()) return
+
         if (comment_only_p(beg, end)) then
             call uncomment_region(beg, end, status, arg, universal)
         else
@@ -2577,6 +2848,7 @@ contains
     recursive subroutine cmd_comment_or_uncomment_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beg, end
+
         call interactive_region(beg, end, status)
         if (.not. status%ok()) return
         call with_prefix(beg, end, status, comment_or_uncomment_region)
@@ -2602,20 +2874,24 @@ contains
         integer(int64) :: beg, end, add, opoint
         logical :: blank, has
         character(len=:), allocatable :: s
+
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
         call comment_normalize_vars(status)
         if (.not. status%ok()) return
+
         if (use_region_p()) then
             call region_bounds(beg, end, status)
             if (.not. status%ok()) return
             call with_prefix(beg, end, status, comment_or_uncomment_region)
             return
         end if
+
         opoint = point()
         call beginning_of_line(1_int64)
         blank = looking("\s-*$")
         call goto_char(opoint)
+
         if (.not. blank) then
             ! FIXME: If there's no comment to kill on this line and ARG is
             ! specified, calling comment-kill is not very clever.
@@ -2628,14 +2904,17 @@ contains
             else
                 call comment_indent(status)
             end if
+
             return
         end if
+
         ! Inserting a comment on a blank line. comment-indent calls
         ! c-i-c-f if needed in the non-blank case.
         if (associated(comment_insert_comment_function%value)) then
             call comment_insert_comment_function%value(status)
             return
         end if
+
         add = comment_add_count()
         ! Some modes insist on keeping column 0 comment in column 0
         ! so we need to move away from it before inserting the comment.
@@ -2644,11 +2923,13 @@ contains
         call insert(comment_padright(cstart(), add), status)
         if (.not. status%ok()) return
         opoint = point()
+
         if (cend() /= "") then
             s = comment_padleft(cend(), add, found=has)
             call insert(s, status)
             if (.not. status%ok()) return
         end if
+
         call indent_according_to_mode(status)
         call goto_char(opoint)
     end subroutine comment_dwim
@@ -2656,6 +2937,7 @@ contains
     !> `comment_dwim' as a command.
     recursive subroutine cmd_comment_dwim(status)
         type(status_type), intent(out) :: status
+
         call comment_dwim(status)
     end subroutine cmd_comment_dwim
 
@@ -2685,15 +2967,19 @@ contains
         integer(int64) :: opoint, prefix_indent, k, lm
         logical :: done
         type(status_type) :: st
+
         if (compos == 0) then
             ! We're not inside a comment: the prefix shouldn't match
             ! a comment-starter.
             valid = .true.
+
             if (allocated(comment_start%value) .and. allocated(comment_start_skip%value)) then
                 valid = smatch(comment_start_skip%value, prefix) < 0
             end if
+
             return
         end if
+
         opoint = point()
         ! Accept any prefix if the current comment is not EOL-terminated.
         call goto_char(compos)
@@ -2710,10 +2996,12 @@ contains
         prefix_indent = schars(prefix_space)
         prefix_comstart = sub(prefix_com, sme(0))
         call goto_char(compos)
+
         ! The comstart marker is the same.
         if (looking(regexp_quote(prefix_comstart))) then
             ! The indentation as well.
             valid = prefix_indent == current_column() - current_left_margin()
+
             if (.not. valid) then
                 ! Check the indentation in two different ways, just
                 ! to try and avoid most of the potential funny cases.
@@ -2722,6 +3010,7 @@ contains
                 valid = prefix_space == text(lm, point())
             end if
         end if
+
         call goto_char(opoint)
     end function comment_valid_prefix_p
 
@@ -2748,6 +3037,7 @@ contains
         type(handle_type) :: cm
         procedure(comment_indent_proc), pointer :: saved_fn
         type(status_type) :: st
+
         soft_nl = .false.
         if (present(soft)) soft_nl = soft
         inter = .false.
@@ -2756,6 +3046,7 @@ contains
         if (.not. status%ok()) return
         compos = 0
         comin = 0
+
         ! If we are not inside a comment and we only auto-fill comments,
         ! don't do anything (unless no comment syntax is defined).
         if (allocated(comment_start%value) .and. comment_auto_fill_only_comments%value .and. .not. inter) then
@@ -2765,6 +3056,7 @@ contains
             call goto_char(opoint)
             if (compos == 0) return
         end if
+
         ! Now we know we should auto-fill.
         ! Insert the newline before removing empty space so that markers
         ! get preserved better.
@@ -2773,6 +3065,7 @@ contains
         else
             call newline(status, 1_int64)
         end if
+
         if (.not. status%ok()) return
         opoint = point()
         call goto_char(point() - 1)
@@ -2782,12 +3075,14 @@ contains
         call goto_char(point())
         call delete_horizontal_space(.false., status)
         if (.not. status%ok()) return
+
         if (allocated(fill_prefix%value) .and. .not. adaptive_fill_mode%value) then
             ! Blindly trust a non-adaptive fill-prefix.
             call indent_to_left_margin(status, noindent)
             if (status%ok()) call insert_before_markers(fill_prefix%value, status)
             return
         end if
+
         ! If necessary check whether we're inside a comment.
         if (compos == 0 .and. allocated(comment_start%value)) then
             opoint = point()
@@ -2796,6 +3091,7 @@ contains
             comin = point()
             call goto_char(opoint)
         end if
+
         ! If there's an adaptive prefix, use it unless we're inside
         ! a comment and the prefix is not a comment starter.
         if (allocated(fill_prefix%value)) then
@@ -2805,13 +3101,16 @@ contains
                 return
             end if
         end if
+
         ! If we're not inside a comment, just try to indent.
         if (compos == 0) then
             call indent_according_to_mode(status)
             return
         end if
+
         comstart = text(compos, comin)
         normalp = smatch(regexp_quote(comment_string_strip(cstart(), .true., .true.)), comstart) >= 0
+
         if (normalp) then
             comend = cend()
         else
@@ -2820,6 +3119,7 @@ contains
             opoint = point()
             call goto_char(compos)
             fwd = comment_forward(1_int64)
+
             if (.not. fwd) then
                 comend = cend()
             else
@@ -2827,12 +3127,15 @@ contains
                 call comment_enter_backward()
                 comend = comment_string_strip(text(point(), endp), .false., .true.)
             end if
+
             call goto_char(opoint)
         end if
+
         if (comment_multi_line%value .and. len(comend) > 0) then
             call indent_according_to_mode(status)
             return
         end if
+
         call insert(LF, status)
         if (.not. status%ok()) return
         call goto_char(point() - 1)
@@ -2866,11 +3169,14 @@ contains
         ! FIXME: use prev line's continuation if available.
         if (allocated(comment_continue%value)) deallocate (comment_continue%value)
         continuep = comment_multi_line%value
+
         if (.not. continuep .and. comment_style%value >= 1 .and. comment_style%value <= 8) then
             continuep = style_multi(comment_style%value)
         end if
+
         call comment_indent(status, continuep)
         comment_column%value = saved_column
+
         if (own_line) then
             if (had_local) then
                 call comment_indent_function%set_local(saved_fn)
@@ -2878,13 +3184,16 @@ contains
                 call comment_indent_function%kill_local()
             end if
         end if
+
         comment_start%value = saved_start
         comment_end%value = saved_end
+
         if (has_continue) then
             comment_continue%value = saved_continue
         else if (allocated(comment_continue%value)) then
             deallocate (comment_continue%value)
         end if
+
         if (.not. status%ok()) return
         pt = point()
         cm = marker_at(pt)
@@ -2904,6 +3213,7 @@ contains
     subroutine own_line_indent(indent, status)
         type(comment_indent_type), intent(out) :: indent
         type(status_type), intent(out) :: status
+
         status = status_type()
         indent%kind = COMMENT_INDENT_COLUMN
         indent%column = comment_column%value
@@ -2914,6 +3224,7 @@ contains
     !> newcomment.el:comment-indent-new-line (interactive).
     recursive subroutine cmd_comment_indent_new_line(status)
         type(status_type), intent(out) :: status
+
         call comment_indent_new_line(status, interactive=.true.)
     end subroutine cmd_comment_indent_new_line
 
@@ -2921,6 +3232,7 @@ contains
     recursive subroutine comment_line_break(status, soft)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: soft
+
         call comment_indent_new_line(status, soft)
     end subroutine comment_line_break
 
@@ -2937,8 +3249,10 @@ contains
         integer(int64), intent(in) :: n_in
         type(status_type), intent(out) :: status
         integer(int64) :: n, b, e, a, z, sh
+
         status = status_type()
         n = n_in
+
         if (use_region_p()) then
             call region_bounds(b, e, status)
             if (.not. status%ok()) return
@@ -2949,6 +3263,7 @@ contains
             call comment_or_uncomment_region(a, z, status)
             return
         end if
+
         if (value_eq(last_command, sym("comment_line_backward")) .and. n >= 0) n = -n
         a = line_beginning_position()
         z = line_end_position(n)
@@ -2971,6 +3286,7 @@ contains
     !> newcomment.el:comment-line (the command).
     recursive subroutine cmd_comment_line(status)
         type(status_type), intent(out) :: status
+
         call comment_line(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_comment_line
 end module newcomment_fm

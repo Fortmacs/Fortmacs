@@ -56,6 +56,7 @@ contains
         character(len=21) :: buf
         character(len=:), allocatable :: text
         integer :: k
+
         select case (vtag(object))
         case (V_NIL)
             s = "nil"
@@ -71,13 +72,16 @@ contains
         case (V_LIST)
             call list_elements(object, elems)
             s = "("
+
             do k = 1, size(elems)
                 if (k > 1) s = s//" "
                 s = s//prin1_to_string(elems(k))
             end do
+
             s = s//")"
         case (V_BUFFER)
             call buffer_name(xhandle(object), text, status)
+
             if (status%ok()) then
                 s = "#<buffer "//text//">"
             else
@@ -108,11 +112,13 @@ contains
         type(value_type), allocatable :: elems(:)
         type(status_type) :: status
         integer :: k
+
         select case (vtag(object))
         case (V_NIL)
             s = ".false."
         case (V_SYMBOL)
             call symbol_name(object, s, status)
+
             if (.not. status%ok()) then
                 s = "#<symbol>"
             else if (s == "t") then
@@ -123,10 +129,12 @@ contains
         case (V_LIST)
             call list_elements(object, elems)
             s = "["
+
             do k = 1, size(elems)
                 if (k > 1) s = s//", "
                 s = s//fortran_repr(elems(k))
             end do
+
             s = s//"]"
         case default
             s = prin1_to_string(object)
@@ -139,11 +147,14 @@ contains
         character(len=*), intent(in) :: text
         character(len=:), allocatable :: s
         integer :: k
+
         s = """"
+
         do k = 1, len(text)
             s = s//text(k:k)
             if (text(k:k) == """") s = s//""""
         end do
+
         s = s//""""
     end function fortran_string
 
@@ -154,11 +165,14 @@ contains
         character(len=*), intent(in) :: text
         character(len=:), allocatable :: s
         integer :: k
+
         s = """"
+
         do k = 1, len(text)
             if (text(k:k) == """" .or. text(k:k) == "\") s = s//"\"
             s = s//text(k:k)
         end do
+
         s = s//""""
     end function prin1_string
 
@@ -172,13 +186,17 @@ contains
         type(status_type) :: status
         character(len=21) :: buf
         integer(int64) :: i
+
         s = "#<marker "
         call resolve_marker(m, i, status)
+
         if (.not. status%ok()) then
             s = s//"in no buffer>"
             return
         end if
+
         if (markers(i)%insertion_type) s = s//"(moves after insertion) "
+
         if (markers(i)%buffer == 0) then
             s = s//"in no buffer"
         else
@@ -186,6 +204,7 @@ contains
             call marker_buffer_name(markers(i)%buffer, name)
             s = s//"at "//trim(buf)//" in "//name
         end if
+
         s = s//">"
     end function marker_repr
 
@@ -193,6 +212,7 @@ contains
     subroutine marker_buffer_name(slot, name)
         integer(int64), intent(in) :: slot
         character(len=:), allocatable, intent(out) :: name
+
         name = buffers(slot)%name
     end subroutine marker_buffer_name
 
@@ -208,19 +228,24 @@ contains
         type(handle_type) :: parent
         character(len=21) :: a, b
         integer :: k
+
         s = "keymap"
         call keymap_entries(km, events, bindings, range_from, range_to, range_bindings)
+
         do k = 1, size(range_from)
             write (a, "(i0)") range_from(k)
             write (b, "(i0)") range_to(k)
             s = s//" "//cons_repr("("//trim(a)//" . "//trim(b)//")", range_bindings(k))
         end do
+
         do k = 1, size(events)
             s = s//" "//cons_repr(prin1_to_string(events(k)), bindings(k))
         end do
+
         prompt = keymap_prompt(km)
         if (vtag(prompt) /= V_NIL) s = s//" "//prin1_to_string(prompt)
         parent = keymap_parent(km)
+
         if (keymap_live_p(parent)) then
             if (keymap_full_p(parent)) then
                 s = s//" . #<keymap>"
@@ -237,6 +262,7 @@ contains
         type(value_type), intent(in) :: cdr
         character(len=:), allocatable :: s
         character(len=:), allocatable :: inner
+
         select case (vtag(cdr))
         case (V_NIL)
             s = "("//car//")"

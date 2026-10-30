@@ -65,6 +65,7 @@ contains
         character(len=:), allocatable :: name
         integer(int64) :: i
         type(status_type) :: st
+
         call resolve_buffer(h, i, st)
         name = "<dead>"
         if (st%ok()) name = buffers(i)%name
@@ -72,6 +73,7 @@ contains
 
     subroutine collect_files_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("abbreviate-file-name", test_abbreviate), &
                     new_unittest("create-file-buffer", test_create_file_buffer), &
@@ -101,6 +103,7 @@ contains
     function path(name) result(p)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: p
+
         p = file_name_as_directory(emacs_wd)//testdir//"/"//name
     end function path
 
@@ -112,6 +115,7 @@ contains
         character(len=5), parameter :: names(6) = [character(len=5) :: &
                                                    "a.txt", "b.txt", "c.txt", "new", "ro", "x"]
         integer :: i
+
         call init_bindings()
         call init_fileio()
         call discard_input()
@@ -119,11 +123,13 @@ contains
         call set_buffer(buf, st)
         buffers(cur)%directory = file_name_as_directory(emacs_wd)
         call make_directory_internal(testdir, st)
+
         do i = 1, size(names)
             call set_file_modes(path(trim(names(i))), int(o'644', int32), st)
             call delete_file_internal(path(trim(names(i))), st)
             call delete_file_internal(path(trim(names(i))//"~"), st)
         end do
+
         call delete_directory_internal(path("dir"), st)
         call get_buffer_create(" setup", buf, st)
         call set_buffer(buf, st)
@@ -142,6 +148,7 @@ contains
         type(handle_type) :: buf
         type(status_type) :: st
         integer :: i
+
         do i = 1, size(names)
             call find_file_noselect(path(trim(names(i))), buf, st)
             if (st%ok()) call kill_buffer(buf, st)
@@ -153,14 +160,17 @@ contains
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: text
         integer :: u, ios, n
+
         inquire (file=file, size=n)
         allocate (character(len=max(n, 0)) :: text)
         open (newunit=u, file=file, access="stream", form="unformatted", status="old", &
               action="read", iostat=ios)
+
         if (ios /= 0) then
             text = "<missing>"
             return
         end if
+
         if (n > 0) read (u, iostat=ios) text
         if (ios /= 0) text = "<unreadable>"
         close (u)
@@ -171,10 +181,13 @@ contains
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
         integer :: i
+
         allocate (evs(len(keys)))
+
         do i = 1, len(keys)
             evs(i) = make_fixnum(int(iachar(keys(i:i)), int64))
         end do
+
         call unread_command_events(evs)
     end subroutine type_keys
 
@@ -183,6 +196,7 @@ contains
         character(len=:), allocatable :: home
         integer(int32) :: e
         integer :: length, stat
+
         body: block
             call get_environment_variable("HOME", length=length, status=stat)
             allocate (character(len=max(length, 0)) :: home)
@@ -197,6 +211,7 @@ contains
             e = sys_setenv("HOME", "/")
             call check(error, abbreviate_file_name("/etc") == "/etc", "a home of / is not abbreviated")
         end block body
+
         if (stat == 0) then
             e = sys_setenv("HOME", home)
         else
@@ -208,6 +223,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: b1, b2, b3
         type(status_type) :: st
+
         call create_file_buffer("/x/notes.txt", b1, st)
         call create_file_buffer("/y/notes.txt", b2, st)
         call create_file_buffer("/z/ spaced", b3, st)
@@ -225,6 +241,7 @@ contains
         type(handle_type) :: buf, again, old, cb
         type(status_type) :: st
         integer(int64) :: i
+
         call setup()
         old = current_buffer()
         call find_file_noselect(testdir//"/a.txt", buf, st)
@@ -257,6 +274,7 @@ contains
         type(handle_type) :: buf
         type(status_type) :: st
         integer(int64) :: i
+
         call setup()
         last_message = ""
         call find_file_noselect(path("new"), buf, st)
@@ -281,6 +299,7 @@ contains
         type(handle_type) :: buf
         type(status_type) :: st
         integer(int64) :: i
+
         call setup()
         ! Without `find_file_run_dired', visiting a directory is an error.
         find_file_run_dired = .false.
@@ -304,6 +323,7 @@ contains
         type(handle_type) :: buf
         type(status_type) :: st
         integer(int64) :: i
+
         call setup()
         call write_region(path("ro"), .false., st)
         call set_file_modes(path("ro"), int(o'444', int32), st)
@@ -317,14 +337,17 @@ contains
     subroutine test_save_backup(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         body: block
             call setup()
+
             ! No backups under /tmp or temporary-file-directory, where a
             ! sandboxed build (Guix, Nix) may run the tests.
             if (.not. normal_backup_enable_predicate(path("a.txt"))) then
                 call skip_test(error, "test directory is under /tmp, where no backups are made")
                 exit body
             end if
+
             call set_file_modes(path("a.txt"), int(o'600', int32), st)
             call find_file(path("a.txt"), st)
             call goto_char(point_max())
@@ -350,12 +373,14 @@ contains
             call save_buffer(16_int64, .true., st)
             call check(error, index(slurp(path("a.txt~")), "gamma") > 0, "C-u C-u backs up the previous version")
         end block body
+
         call kill_file_buffers()
     end subroutine test_save_backup
 
     subroutine test_save_unmodified(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         body: block
             call setup()
             call find_file(path("a.txt"), st)
@@ -370,6 +395,7 @@ contains
             call save_buffer(1_int64, .true., st)
             call check(error, st%ok() .and. slurp(path("a.txt")) == "alpha"//new_line("a"), format_error(st))
         end block body
+
         call kill_file_buffers()
     end subroutine test_save_unmodified
 
@@ -377,6 +403,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
         type(status_type) :: st
+
         call setup()
         call get_buffer_create("nofile", buf, st)
         call set_buffer(buf, st)
@@ -399,6 +426,7 @@ contains
 
     subroutine test_backup_predicate(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error,.not. normal_backup_enable_predicate("/tmp/x"))
         if (allocated(error)) return
         call check(error,.not. normal_backup_enable_predicate(temporary_file_directory()//"x"))
@@ -415,6 +443,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         logical :: answer
+
         call discard_input()
         call type_keys("y")
         call y_or_n_p("Go?", answer, st)
@@ -438,6 +467,7 @@ contains
         integer, intent(out) :: how
         character(len=:), allocatable, intent(out) :: prompt
         character(len=12) :: num
+
         write (num, "(i0)") k
         how = YNP_ASK
         if (k == 2) how = YNP_SKIP
@@ -447,6 +477,7 @@ contains
     subroutine act(k, status)
         integer, intent(in) :: k
         type(status_type), intent(out) :: status
+
         status = status_type()
         acted(k) = .true.
     end subroutine act
@@ -455,6 +486,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer :: actions
+
         call discard_input()
         ! y on 1, (2 skipped by the prompter), n on 3, ! for 4 and 5
         acted = .false.
@@ -492,6 +524,7 @@ contains
     subroutine test_save_some_buffers(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         body: block
             call setup()
             call find_file(path("b.txt"), st)
@@ -515,12 +548,14 @@ contains
             call save_some_buffers(.false., .true., st)
             call check(error, last_message == "(No files need saving)", last_message)
         end block body
+
         call kill_file_buffers()
     end subroutine test_save_some_buffers
 
     subroutine test_kill_emacs(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         body: block
             call setup()
             call save_buffers_kill_emacs(.false., st)
@@ -539,6 +574,7 @@ contains
             call save_buffers_kill_emacs(.false., st)
             call check(error, st%ok() .and. exit_requested_p() .and. slurp(path("b.txt")) == "bee"//achar(10))
         end block body
+
         call kill_file_buffers()
         call reset_exit()
     end subroutine test_kill_emacs
@@ -548,6 +584,7 @@ contains
     subroutine reset_exit()
         use keyboard_fm, only: command_loop
         type(status_type) :: st
+
         call discard_input()
         call command_loop(st)
     end subroutine reset_exit
@@ -556,6 +593,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(arg_type), allocatable :: args(:)
         type(status_type) :: st
+
         body: block
             call setup()
             call set_buffer_text_file()
@@ -586,6 +624,7 @@ contains
             call check(error, format_error(st) == format_message("Unknown option `")//"--bogus"//format_message("'"), &
                        format_error(st))
         end block body
+
         call kill_file_buffers()
         call find_file(path("-dashed"), st)
         if (st%ok()) call kill_buffer(current_buffer(), st)
@@ -595,6 +634,7 @@ contains
     subroutine set_buffer_text_file()
         type(handle_type) :: buf
         type(status_type) :: st
+
         call get_buffer_create(" two", buf, st)
         call set_buffer(buf, st)
         call insert("line1"//new_line("a")//"line2"//new_line("a"), st)
@@ -609,6 +649,7 @@ contains
         character(len=:), allocatable :: dir, dirname, file, subdir1, subdir2, a_b
         type(status_type) :: st
         logical :: already
+
         dir = path("mkdir")
         dirname = dir//"/"
         file = dirname//"file"
@@ -617,6 +658,7 @@ contains
         a_b = dirname//"a/b"
         call make_directory_internal(dir, st)
         call write_region(file, .false., st)
+
         body: block
             call make_directory("/", st)
             call check(error,.not. st%ok(), "/")
@@ -654,6 +696,7 @@ contains
             call make_directory(a_b, st, parents=.true., already=already)
             call check(error, st%ok() .and. .not. already, "a/b with parents")
         end block body
+
         call delete_directory_internal(a_b, st)
         call delete_directory_internal(dirname//"a", st)
         call delete_directory_internal(subdir1, st)
@@ -671,6 +714,7 @@ contains
         type(status_type) :: st
         type(handle_type) :: buf
         character(len=*), parameter :: LF = achar(10)
+
         body: block
             call setup()
             call delete_file_internal(path("nl/f"), st)
@@ -712,6 +756,7 @@ contains
             call find_file(path("new"), st)
             call check(error, buffer_string() == "v"//LF, "visit")
         end block body
+
         require_final_newline = FINAL_NEWLINE_NEVER
         call find_file_noselect(path("x"), buf, st)
         if (st%ok()) call kill_buffer(buf, st)
@@ -730,6 +775,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         type(handle_type) :: buf
+
         body: block
             call setup()
             call get_buffer_create("ro", buf, st)
@@ -751,6 +797,7 @@ contains
             call write_file(path("c.txt"), .false., st)
             call check(error, buffers(cur)%major_mode == "text_mode", "mode from the new name")
         end block body
+
         call kill_file_buffers()
     end subroutine test_write_file
 
@@ -759,6 +806,7 @@ contains
         character(len=*), intent(in) :: file, text
         type(handle_type) :: old, buf
         type(status_type) :: st
+
         old = current_buffer()
         call get_buffer_create(" put", buf, st)
         call set_buffer(buf, st)
@@ -801,6 +849,7 @@ contains
                                        "The door of all subtleties!"//nl
         type(status_type) :: st
         type(handle_type) :: buf
+
         call setup()
         call get_buffer_create("x", buf, st)
         call set_buffer(buf, st)
@@ -824,6 +873,7 @@ contains
         character(len=*), parameter :: nl = achar(10)
         type(status_type) :: st
         type(handle_type) :: buf
+
         body: block
             call setup()
             call put_file(path("c.txt"), "abc"//nl//"def"//nl)
@@ -849,6 +899,7 @@ contains
             call revert_buffer(st, .true., .true.)
             call check(error, buffer_string() == "x"//nl .and. buffers(cur)%read_only, "still read-only")
         end block body
+
         call kill_file_buffers()
     end subroutine test_revert_buffer_replace
 
@@ -858,6 +909,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         type(handle_type) :: buf
+
         call setup()
         call find_file_noselect(path("new"), buf, st)
         call set_buffer(buf, st)
@@ -865,9 +917,11 @@ contains
         call check(error, format_error(st), "Cannot revert nonexistent file "//path("new"))
         call kill_file_buffers()
     end subroutine test_revert_nonexistent
+
     !> The current buffer's `major_mode'.
     function mode_name_of_current() result(mode)
         character(len=:), allocatable :: mode
+
         mode = "fundamental_mode"
         if (allocated(buffers(cur)%major_mode)) mode = buffers(cur)%major_mode
     end function mode_name_of_current

@@ -319,14 +319,17 @@ contains
         procedure(indent_region_proc) :: fn
         type(indent_region_entry_type), allocatable :: grown(:)
         integer :: i, n
+
         if (cur == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
+
         do i = 1, size(self%entries)
             if (self%entries(i)%serial == buffers(cur)%serial) then
                 self%entries(i)%fn => fn
                 return
             end if
         end do
+
         ! Reuse the entry of a dead buffer.
         do i = 1, size(self%entries)
             if (.not. buffer_serial_live(self%entries(i)%serial)) then
@@ -335,12 +338,15 @@ contains
                 return
             end if
         end do
+
         n = size(self%entries)
         allocate (grown(n + 1))
+
         do i = 1, n
             grown(i)%serial = self%entries(i)%serial
             grown(i)%fn => self%entries(i)%fn
         end do
+
         grown(n + 1)%serial = buffers(cur)%serial
         grown(n + 1)%fn => fn
         call move_alloc(grown, self%entries)
@@ -350,9 +356,11 @@ contains
         class(indent_region_function_type), intent(in) :: self
         procedure(indent_region_proc), pointer :: fn
         integer :: i
+
         fn => self%value
         if (cur == 0) return
         if (.not. allocated(self%entries)) return
+
         do i = 1, size(self%entries)
             if (self%entries(i)%serial == buffers(cur)%serial) then
                 if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
@@ -363,8 +371,10 @@ contains
     subroutine indent_region_kill_local(self)
         class(indent_region_function_type), intent(inout) :: self
         integer :: i
+
         if (cur == 0) return
         if (.not. allocated(self%entries)) return
+
         do i = 1, size(self%entries)
             if (self%entries(i)%serial == buffers(cur)%serial) then
                 self%entries(i)%serial = 0
@@ -383,6 +393,7 @@ contains
     subroutine indent_line_set_local(self, v)
         class(indent_line_setting), intent(inout) :: self
         procedure(indent_line_proc) :: v
+
         call self%make_local()
         self%value => v
         self%has_exact = .false.
@@ -395,6 +406,7 @@ contains
     !> Port of indent.c:Fcurrent_column (current_column).
     integer(int64) function current_column() result(col)
         integer(int64) :: pos, prev_pos, prev_col
+
         pos = buffers(cur)%pt
         call scan_for_column(pos, huge(0_int64), col, prev_pos, prev_col)
     end function current_column
@@ -410,11 +422,13 @@ contains
         integer(int64), intent(out) :: col, prev_pos, prev_col
         integer(int64) :: scan, byte, next_boundary, endp, width
         integer(int32) :: c
+
         scan = pos_bol()
         col = 0
         prev_col = 0
         next_boundary = scan
         prev_pos = scan
+
         ! Scan forward to the target position.
         do while (scan < end)
             ! Occasionally we may need to skip invisible text.
@@ -424,6 +438,7 @@ contains
                 scan = skip_invisible(scan, next_boundary, end)
                 if (scan >= end) exit
             end do
+
             if (scan >= end) exit
             ! Test reaching the goal column.  We do this after skipping
             ! invisible characters, so that we put point before the
@@ -433,20 +448,24 @@ contains
             prev_pos = scan
             ! Check display property.
             width = check_display_width(scan, col, endp)
+
             if (width >= 0) then
                 col = col + width
+
                 ! Avoid infinite loops with 0-width overlays.
                 if (endp > scan) then
                     scan = endp
                     cycle
                 end if
             end if
+
             byte = char_to_byte(scan)
             c = buf_fetch_char(buffers(cur), byte)
             if (c == 10) exit
             col = col + glyph_columns(c, int(col))
             scan = scan + 1
         end do
+
         end = scan
     end subroutine scan_for_column
 
@@ -460,6 +479,7 @@ contains
         integer(int64) :: overlay_limit, proplimit
         type(status_type) :: st
         logical :: found
+
         ! We must not advance farther than the next overlay change.  The
         ! overlay change might change the invisible property; or there
         ! might be overlay strings to be displayed there.
@@ -469,6 +489,7 @@ contains
         call next_property_change(pos, proplimit, found, st)
         if (.not. found) proplimit = buffers(cur)%zv
         proplimit = min(proplimit, overlay_limit)
+
         if (proplimit > pos + 100 .or. proplimit >= to) then
             next_boundary = proplimit
         else
@@ -478,6 +499,7 @@ contains
             call next_single_property_change(pos, sym("invisible"), next_boundary, found, st, proplimit)
             if (.not. found) next_boundary = proplimit
         end if
+
         ! If the `invisible' property is set, we can skip to the next
         ! property change; when counting columns, don't skip over
         ! ellipsis text.
@@ -497,12 +519,15 @@ contains
         type(handle_type) :: overlay
         integer(int64) :: start
         integer :: k
+
         width = -1
         endpos = pos
         call get_char_property_and_overlay(pos, sym("display"), val, overlay)
         if (nilp(val)) return
+
         if (consp(val)) then
             call list_elements(val, elts)
+
             ! Handle '(space ...)' display specs.
             if (value_eq(elts(1), sym("space"))) then
                 do k = 2, size(elts) - 1, 2
@@ -510,15 +535,18 @@ contains
                         if (fixnump(elts(k + 1))) then
                             if (xfixnum(elts(k + 1)) >= 0) width = xfixnum(elts(k + 1))
                         end if
+
                         exit
                     end if
                 end do
+
                 if (width < 0) then
                     do k = 2, size(elts) - 1, 2
                         if (value_eq(elts(k), sym(":align-to"))) then
                             if (fixnump(elts(k + 1))) then
                                 if (xfixnum(elts(k + 1)) >= col) width = xfixnum(elts(k + 1)) - col
                             end if
+
                             exit
                         end if
                     end do
@@ -528,6 +556,7 @@ contains
             ! Handle 'display' strings.
             width = display_string_width(xstring(val))
         end if
+
         if (width >= 0) then
             if (overlay%index /= 0) then
                 endpos = overlay_end(overlay)
@@ -542,8 +571,10 @@ contains
         character(len=*), intent(in) :: string
         integer(int64) :: i
         integer(int32) :: c, clen
+
         width = 0
         i = 1
+
         do while (i <= len(string, kind=int64))
             call string_char_and_length(string, i, c, clen)
             i = i + clen
@@ -582,6 +613,7 @@ contains
         integer(int32) :: c
         type(status_type) :: st
         logical :: split, pad
+
         pad = .false.
         if (present(force)) pad = force
         split = pad
@@ -593,6 +625,7 @@ contains
         call goto_char(pos)
         if (present(status)) status = status_type()
         if (.not. split) return
+
         ! If a tab char made us overshoot, change it to spaces and scan
         ! through it again.
         if (reached > column .and. c == 9 .and. prev_col < column .and. prev_pos < pos) then
@@ -607,6 +640,7 @@ contains
             call goto_char(goal_pt)
             reached = column
         end if
+
         ! If line ends prematurely, add space to the end.
         if (pad .and. reached < column .and. st%ok()) reached = indent_to(column, st)
         if (present(status)) status = st
@@ -625,6 +659,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: minimum
         integer(int64) :: fromcol, n, tw
+
         status = status_type()
         tw = sane_tab_width()
         fromcol = current_column()
@@ -632,14 +667,17 @@ contains
         if (present(minimum)) mincol = fromcol + minimum
         if (mincol < column) mincol = column
         if (fromcol == mincol) return
+
         if (indent_tabs_mode%value) then
             n = mincol/tw - fromcol/tw
+
             if (n /= 0) then
                 call insert_char_n(9, n, status)
                 if (.not. status%ok()) return
                 fromcol = (mincol/tw)*tw
             end if
         end if
+
         call insert_char_n(32, mincol - fromcol, status)
     end function indent_to
 
@@ -652,11 +690,14 @@ contains
     integer(int64) function current_indentation() result(col)
         integer(int64) :: byte, tw
         integer(int32) :: c
+
         tw = sane_tab_width()
         byte = char_to_byte(pos_bol())
         col = 0
+
         do while (byte < buffers(cur)%zv_byte)
             c = buf_fetch_char(buffers(cur), byte)
+
             if (c == 32 .or. (c == int(o'240') .and. .not. buffers(cur)%multibyte)) then
                 col = col + 1
             else if (c == 9) then
@@ -668,6 +709,7 @@ contains
             else
                 exit
             end if
+
             byte = byte + buf_next_char_len(buffers(cur), byte)
         end do
     end function current_indentation
@@ -682,6 +724,7 @@ contains
     !> less the last, which holds the continuation glyph.
     integer function window_text_width() result(width)
         type(window_type), pointer :: sw
+
         if (selected_frame%minibuffer_selected) then
             ! The minibuffer scrolls horizontally instead of continuing.
             width = huge(0)/2
@@ -698,6 +741,7 @@ contains
         type(row_start_type) :: row
         integer(int64) :: eol
         integer :: nrows, k, width, ends, used
+
         width = window_text_width()
         call display_line_rows(cur, line_beginning(cur, buffers(cur)%pt), width, rows, nrows, eol)
         k = display_row_of(buffers(cur)%pt, rows, nrows)
@@ -724,16 +768,19 @@ contains
         type(row_start_type) :: row
         integer(int64) :: bol, eol, target, pos
         integer :: nrows, width, ends, col, used
+
         if (present(window)) then
             width = window_text_cols(window) - 1
             if (width < 1) width = DEFAULT_WIDTH - 1
         else
             width = window_text_width()
         end if
+
         bol = line_beginning(cur, buffers(cur)%pt)
         call display_line_rows(cur, bol, width, rows, nrows, eol)
         target = display_row_of(buffers(cur)%pt, rows, nrows) + lines
         moved = lines
+
         ! Walk whole lines until the target row is in the current one.
         do while (target > nrows)
             if (eol >= buffers(cur)%zv) then
@@ -741,25 +788,31 @@ contains
                 target = nrows
                 exit
             end if
+
             target = target - nrows
             bol = eol + 1
             call display_line_rows(cur, bol, width, rows, nrows, eol)
         end do
+
         do while (target < 1)
             if (bol <= buffers(cur)%begv) then
                 moved = moved + (1 - target)
                 target = 1
                 exit
             end if
+
             bol = line_beginning(cur, bol - 1)
             call display_line_rows(cur, bol, width, rows, nrows, eol)
             target = target + nrows
         end do
+
         pos = rows(target)%pos
+
         if (present(goal)) then
             row = rows(target)
             call display_row(cur, row, width, -1_int64, ends, col, used, goal_x=goal, goal_pos=pos)
         end if
+
         call goto_char(pos)
     end subroutine vertical_motion
 end module indent_fm

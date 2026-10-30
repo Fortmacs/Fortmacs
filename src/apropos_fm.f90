@@ -198,29 +198,37 @@ contains
         character(len=:), allocatable :: re, others
         type(apropos_word_type), allocatable :: w(:)
         integer :: i, j, n
+
         ! (delete-dups (copy-sequence words))
         allocate (w(size(words)))
         n = 0
+
         do i = 1, size(words)
             do j = 1, n
                 if (w(j)%s == words(i)%s) exit
             end do
+
             if (j <= n) cycle
             n = n + 1
             w(n)%s = words(i)%s
         end do
+
         if (n == 1) then
             re = w(1)%s
             return
         end if
+
         re = ""
+
         do i = 1, n
             others = ""
+
             do j = 1, n
                 if (j == i) cycle
                 if (len(others) > 0) others = others//"\|"
                 others = others//w(j)%s
             end do
+
             if (i > 1) re = re//"\|"
             re = re//"\(?:"//w(i)%s//"\)"//wild//"\(?:"//others//"\)"
         end do
@@ -237,8 +245,10 @@ contains
         character(len=:), allocatable, intent(out) :: pattern
         type(apropos_word_type), allocatable, intent(out) :: words(:)
         type(status_type), intent(out) :: status
+
         call read_string("Search for "//subject//" (word list or regexp): ", pattern, status)
         if (.not. status%ok()) return
+
         if (regexp_quote(pattern) == pattern) then
             ! Split into words.
             call split_words(pattern, words)
@@ -252,18 +262,23 @@ contains
         type(apropos_word_type), allocatable, intent(out) :: words(:)
         type(apropos_word_type), allocatable :: grown(:)
         integer :: i, j, n
+
         allocate (words(0))
         i = 1
+
         do while (i <= len(s))
             if (s(i:i) == " " .or. s(i:i) == TAB) then
                 i = i + 1
                 cycle
             end if
+
             j = i
+
             do while (j < len(s))
                 if (s(j + 1:j + 1) == " " .or. s(j + 1:j + 1) == TAB) exit
                 j = j + 1
             end do
+
             n = size(words)
             allocate (grown(n + 1))
             grown(1:n) = words
@@ -287,21 +302,27 @@ contains
         type(apropos_word_type), allocatable :: syn(:)
         character(len=:), allocatable :: s, a
         integer :: i, k, n
+
         if (allocated(apropos_words)) deallocate (apropos_words)
         if (allocated(apropos_all_words)) deallocate (apropos_all_words)
+
         if (allocated(words)) then
             n = size(words)
             apropos_pattern = ""
+
             do i = 1, n
                 if (i > 1) apropos_pattern = apropos_pattern//" "
                 apropos_pattern = apropos_pattern//words(i)%s
             end do
+
             apropos_pattern_quoted = regexp_quote(apropos_pattern)
             ! The words are consed: the last one comes first.
             allocate (apropos_words(n), apropos_all_words(n))
+
             do i = 1, n
                 s = words(i)%s
                 a = words(i)%s
+
                 do k = 1, size(SYNONYMS)
                     call split_words(trim(SYNONYMS(k)), syn)
                     if (.not. member(words(i)%s, syn, 1)) cycle
@@ -309,9 +330,11 @@ contains
                     if (member(words(i)%s, syn, 2)) s = a
                     exit
                 end do
+
                 apropos_words(n + 1 - i)%s = s
                 apropos_all_words(n + 1 - i)%s = a
             end do
+
             ! The [^b-a] trick matches any character including a newline.
             if (multiline_p) then
                 apropos_all_words_regexp = apropos_words_to_regexp(apropos_all_words, "[^b-a]+?")
@@ -326,6 +349,7 @@ contains
             apropos_pattern = pattern
             apropos_regexp = pattern
         end if
+
     contains
 
         logical function member(w, list, from)
@@ -333,7 +357,9 @@ contains
             type(apropos_word_type), intent(in) :: list(:)
             integer, intent(in) :: from
             integer :: m
+
             member = .false.
+
             do m = from, size(list)
                 if (list(m)%s == w) member = .true.
             end do
@@ -343,7 +369,9 @@ contains
             type(apropos_word_type), intent(in) :: list(:)
             character(len=:), allocatable :: r
             integer :: m
+
             r = ""
+
             do m = 1, size(list)
                 if (m > 1) r = r//"\|"
                 r = r//list(m)%s
@@ -363,7 +391,9 @@ contains
         type(status_type) :: st
         integer(int64) :: i
         integer :: k
+
         allocate (scores(0))
+
         if (have_words .and. size(words) > 0) then
             do k = 1, size(words)
                 i = string_match(words(k)%s, str, st, inhibit_modify=.true.)
@@ -382,6 +412,7 @@ contains
         character(len=*), intent(in) :: str
         type(apropos_word_type), allocatable, intent(in) :: words(:)
         integer(int64), allocatable :: scores(:)
+
         hit = .true.
         if (.not. allocated(words)) return
         if (size(words) <= 1) return
@@ -397,11 +428,13 @@ contains
         type(status_type) :: st
         integer(int64) :: l
         integer :: k
+
         score = 0
         l = len(doc)
         if (l <= 0) return
         if (string_match(apropos_pattern_quoted, doc, st, inhibit_modify=.true.) > 0) score = 10000
         call apropos_calc_scores(doc, apropos_all_words, allocated(apropos_all_words), scores)
+
         do k = 1, size(scores)
             score = score + 50 + ((l - scores(k))*50)/l
         end do
@@ -415,12 +448,15 @@ contains
         integer(int64), allocatable :: scores(:)
         integer(int64) :: l
         integer :: k
+
         score = 0
         l = len(name)
         call apropos_calc_scores(name, apropos_words, allocated(apropos_words), scores)
+
         do k = 1, size(scores)
             score = score + (60 - l) + ((l - scores(k))*60)/l
         end do
+
         score = score*weight
     end function apropos_score_symbol
 
@@ -434,6 +470,7 @@ contains
     recursive subroutine apropos_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
+
         call major_modes%apropos_mode%begin(saved, status)
         if (.not. status%ok()) return
         call major_modes%apropos_mode%finish(saved, status)
@@ -446,6 +483,7 @@ contains
         character(len=:), allocatable, intent(out) :: type, name
         type(value_type) :: v
         type(status_type) :: st
+
         type = ""
         name = ""
         call get_text_property(pos, sym(P_BUTTON), v, st)
@@ -460,6 +498,7 @@ contains
         type(value_type), intent(in) :: v
         character(len=:), allocatable :: s
         type(status_type) :: st
+
         call symbol_name(v, s, st)
         if (.not. st%ok()) s = ""
     end function symbols_name
@@ -467,6 +506,7 @@ contains
     !> Whether the line at point starts with an entry's name.
     logical function at_symbol_p()
         character(len=:), allocatable :: type, name
+
         call button_at(buffers(cur)%pt, type, name)
         at_symbol_p = type == "apropos_symbol"
     end function at_symbol_p
@@ -476,8 +516,10 @@ contains
     subroutine apropos_next_symbol(status)
         type(status_type), intent(out) :: status
         integer(int64) :: shortage
+
         status = status_type()
         shortage = forward_line(1_int64)
+
         do while (.not. at_symbol_p() .and. buffers(cur)%pt < point_max())
             shortage = forward_line(1_int64)
         end do
@@ -488,8 +530,10 @@ contains
     subroutine apropos_previous_symbol(status)
         type(status_type), intent(out) :: status
         integer(int64) :: shortage
+
         status = status_type()
         shortage = forward_line(-1_int64)
+
         do while (.not. at_symbol_p() .and. buffers(cur)%pt > point_min())
             shortage = forward_line(-1_int64)
         end do
@@ -512,12 +556,15 @@ contains
         character(len=:), allocatable :: pattern
         type(apropos_word_type), allocatable :: words(:)
         logical :: do_all
+
         do_all = .not. nilp(current_prefix_arg)
+
         if (do_all) then
             call apropos_read_pattern("command or function", pattern, words, status)
         else
             call apropos_read_pattern("command", pattern, words, status)
         end if
+
         if (.not. status%ok()) return
         call apropos_command(pattern, words, do_all, VAR_NONE, status)
     end subroutine cmd_apropos_command
@@ -535,6 +582,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: pattern
         type(apropos_word_type), allocatable :: words(:)
+
         call apropos_read_pattern("function", pattern, words, status)
         if (.not. status%ok()) return
         call apropos_command(pattern, words, .true., VAR_NONE, status)
@@ -552,6 +600,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: pattern
         type(apropos_word_type), allocatable :: words(:)
+
         if (.not. nilp(current_prefix_arg)) then
             call apropos_read_pattern("variable", pattern, words, status)
             if (.not. status%ok()) return
@@ -571,6 +620,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: pattern
         type(apropos_word_type), allocatable :: words(:)
+
         if (.not. nilp(current_prefix_arg)) then
             call apropos_read_pattern("user option", pattern, words, status)
             if (.not. status%ok()) return
@@ -594,6 +644,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: pattern
         type(apropos_word_type), allocatable :: words(:)
+
         call apropos_read_pattern("documentation", pattern, words, status)
         if (.not. status%ok()) return
         call apropos_documentation(pattern, words, status)
@@ -602,6 +653,7 @@ contains
     !> Define Apropos mode and its keymap; register the commands.
     subroutine syms_of_apropos()
         type(status_type) :: st
+
         call major_modes%apropos_mode%define("apropos_mode", "Apropos", apropos_mode, apropos_mode_hook, &
                                              parent=major_modes%special_mode)
         apropos_mode_map = major_modes%apropos_mode%map

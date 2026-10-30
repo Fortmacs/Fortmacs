@@ -42,6 +42,7 @@ contains
 
     module procedure special_mode
     logical :: saved
+
     call major_modes%special_mode%begin(saved, status)
     if (.not. status%ok()) return
     buffers(cur)%read_only = .true.
@@ -50,6 +51,7 @@ contains
 
     module procedure messages_buffer_mode
     logical :: saved
+
     call major_modes%messages_buffer_mode%begin(saved, status)
     if (.not. status%ok()) return
     call major_modes%messages_buffer_mode%finish(saved, status)
@@ -58,6 +60,7 @@ contains
     module procedure messages_buffer
     type(handle_type) :: old
     type(status_type) :: st
+
     buffer = get_buffer(MESSAGES_BUFFER_NAME)
     status = status_type()
     if (buffer_live_p(buffer)) return
@@ -85,6 +88,7 @@ contains
     !> simple.el:transient-mark-mode.
     subroutine cmd_transient_mark_mode(status)
         type(status_type), intent(out) :: status
+
         call minor_modes%transient_mark_mode%command(status)
     end subroutine cmd_transient_mark_mode
 
@@ -92,6 +96,7 @@ contains
     !> simple.el:indent-tabs-mode.
     subroutine cmd_indent_tabs_mode(status)
         type(status_type), intent(out) :: status
+
         call minor_modes%indent_tabs_mode%command(status)
     end subroutine cmd_indent_tabs_mode
 
@@ -102,6 +107,7 @@ contains
     type(handle_type) :: map
     type(value_type) :: remap_key
     type(value_type), allocatable :: remap_events(:)
+
     commands%fundamental_mode%run => fundamental_mode
     commands%special_mode%run => special_mode
     ! Fundamental mode is not derived; it is defined so that other modes
@@ -138,6 +144,7 @@ contains
     call keymap_set(map, "<", "beginning_of_buffer", st)
     call keymap_set(map, ">", "end_of_buffer", st)
     call keymap_set(map, "-", "negative_argument", st)
+
     do d = 0, 9
         write (digit, "(i1)") d
         call keymap_set(map, digit, "digit_argument", st)
