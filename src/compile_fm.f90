@@ -157,7 +157,7 @@ module compile_fm
         !> A rule's LINE, END-LINE, COLUMN or END-COLUMN given as a function
         !> of no arguments: the number, or FOUND false for none.  It can
         !> assume the rule's regexp has just been matched (point is at the
-        !> end of the match), and should preserve the match data.
+        !> end of the match), and should preserve the match data.  Not a port.
         subroutine compilation_number_function(number, found)
             import :: int64
             implicit none(type, external)
@@ -167,6 +167,7 @@ module compile_fm
 
         !> A rule's FILE given as a function: FILENAME (relative to
         !> DIRECTORY if that is allocated), or FOUND false for none.
+        !> Not a port.
         subroutine compilation_file_function(filename, directory, found)
             implicit none(type, external)
             character(len=:), allocatable, intent(out) :: filename, directory
@@ -174,7 +175,7 @@ module compile_fm
         end subroutine compilation_file_function
 
         !> A HIGHLIGHT's FACE given as a function evaluated after each
-        !> match: the face's name (FACE unallocated for none).
+        !> match: the face's name (FACE unallocated for none).  Not a port.
         recursive subroutine compilation_face_function(face, status)
             import :: status_type
             implicit none(type, external)
@@ -187,7 +188,7 @@ module compile_fm
         !> compilation buffer current.  ENVIRONMENT holds the "NAME=VALUE"
         !> strings the process gets in front of `process_environment'; the
         !> function may add to it (as `setenv' does inside the binding of
-        !> `process_environment' in compilation-start).
+        !> `process_environment' in compilation-start).  Not a port.
         recursive subroutine compilation_process_setup_function(environment, status)
             import :: process_arg_type, status_type
             implicit none(type, external)
@@ -198,7 +199,7 @@ module compile_fm
         !> `compilation_exit_message_function': the message MESSAGE and
         !> the mode line string CODE for a compilation that ended with
         !> PROCESS_STATUS ("exit" or "signal") and EXIT_STATUS, MSG being
-        !> the default message.
+        !> the default message.  Not a port.
         subroutine compilation_exit_message_function(process_status, exit_status, msg, message, code)
             implicit none(type, external)
             character(len=*), intent(in) :: process_status, msg
@@ -207,7 +208,7 @@ module compile_fm
         end subroutine compilation_exit_message_function
 
         !> `compilation_mode_line_errors': the parts of the mode line that
-        !> follow the process state.
+        !> follow the process state.  Not a port.
         subroutine compilation_mode_line_errors_function(parts)
             import :: mode_line_part_type
             implicit none(type, external)
@@ -779,7 +780,7 @@ contains
     ! The rules
     ! ------------------------------------------------------------------
 
-    !> Add a rule NAME to `compilation_error_regexp_alist_alist'.
+    !> Add a rule NAME to `compilation_error_regexp_alist_alist'.  Not a port.
     subroutine add_rule(name, regexp, file, line, end_line, column, end_column, type, warning, info, hyperlink)
         character(len=*), intent(in) :: name, regexp
         integer, intent(in), optional :: file, line, end_line, column, end_column, type, warning, info, hyperlink
@@ -810,7 +811,7 @@ contains
     end subroutine add_rule
 
     !> Add a HIGHLIGHT to RULE: SUBMATCH in FACE (a name) or the face
-    !> FACE_FUNCTION gives.
+    !> FACE_FUNCTION gives.  Not a port.
     subroutine add_highlight(rule, submatch, face, face_function)
         type(compilation_rule_type), intent(inout) :: rule
         integer, intent(in) :: submatch
@@ -833,7 +834,7 @@ contains
         call move_alloc(grown, rule%highlights)
     end subroutine add_highlight
 
-    !> The last rule added.
+    !> The last rule added.  Not a port.
     integer function last_rule()
         last_rule = size(compilation_error_regexp_alist_alist)
     end function last_rule
@@ -979,6 +980,7 @@ contains
     !> The default `compilation_error_regexp_alist': every rule but
     !> `omake' (its mere presence triggers special processing and modifies
     !> the regexps of other rules, see `compilation_parse_errors').
+    !> Not a port.
     subroutine init_compilation_error_regexp_alist()
         integer :: k, n
 
@@ -1000,6 +1002,7 @@ contains
     end subroutine init_compilation_error_regexp_alist
 
     !> The column of point (the javac rule's COLUMN: #'current-column).
+    !> Not a port.
     subroutine current_column_function(number, found)
         integer(int64), intent(out) :: number
         logical, intent(out) :: found
@@ -1008,7 +1011,7 @@ contains
         found = .true.
     end subroutine current_column_function
 
-    !> (compilation-face '(2)) for a HIGHLIGHT.
+    !> (compilation-face '(2)) for a HIGHLIGHT.  Not a port.
     recursive subroutine face_of_type_2(face, status)
         character(len=:), allocatable, intent(out) :: face
         type(status_type), intent(out) :: status
@@ -1017,7 +1020,7 @@ contains
         face = compilation_face(2, 0)
     end subroutine face_of_type_2
 
-    !> (compilation-face '(3)) for a HIGHLIGHT.
+    !> (compilation-face '(3)) for a HIGHLIGHT.  Not a port.
     recursive subroutine face_of_type_3(face, status)
         character(len=:), allocatable, intent(out) :: face
         type(status_type), intent(out) :: status
@@ -1026,7 +1029,7 @@ contains
         face = compilation_face(3, 0)
     end subroutine face_of_type_3
 
-    !> `compilation_error_face' for a HIGHLIGHT.
+    !> `compilation_error_face' for a HIGHLIGHT.  Not a port.
     recursive subroutine error_face_value(face, status)
         character(len=:), allocatable, intent(out) :: face
         type(status_type), intent(out) :: status
@@ -1035,7 +1038,7 @@ contains
         if (allocated(compilation_error_face%value)) face = compilation_error_face%value
     end subroutine error_face_value
 
-    !> `compilation_warning_face' for a HIGHLIGHT.
+    !> `compilation_warning_face' for a HIGHLIGHT.  Not a port.
     recursive subroutine warning_face_value(face, status)
         character(len=:), allocatable, intent(out) :: face
         type(status_type), intent(out) :: status
@@ -1044,7 +1047,7 @@ contains
         if (allocated(compilation_warning_face%value)) face = compilation_warning_face%value
     end subroutine warning_face_value
 
-    !> `compilation_info_face' for a HIGHLIGHT.
+    !> `compilation_info_face' for a HIGHLIGHT.  Not a port.
     recursive subroutine info_face_value(face, status)
         character(len=:), allocatable, intent(out) :: face
         type(status_type), intent(out) :: status
@@ -1053,7 +1056,7 @@ contains
         if (allocated(compilation_info_face%value)) face = compilation_info_face%value
     end subroutine info_face_value
 
-    !> `compilation_line_face' for a HIGHLIGHT.
+    !> `compilation_line_face' for a HIGHLIGHT.  Not a port.
     recursive subroutine line_face_value(face, status)
         character(len=:), allocatable, intent(out) :: face
         type(status_type), intent(out) :: status
@@ -1064,6 +1067,7 @@ contains
 
     !> The HIGHLIGHT of the makepp rule: parse the other file names of the
     !> line (all but the first), then go to the end of the line; no face.
+    !> Not a port.
     recursive subroutine makepp_highlight(face, status)
         character(len=:), allocatable, intent(out) :: face
         type(status_type), intent(out) :: status
@@ -1094,7 +1098,7 @@ contains
     end subroutine makepp_highlight
 
     !> The HIGHLIGHT of the omake rule: forget the locations of the file
-    !> about to be recompiled; no face.
+    !> about to be recompiled; no face.  Not a port.
     recursive subroutine omake_highlight(face, status)
         character(len=:), allocatable, intent(out) :: face
         type(status_type), intent(out) :: status
@@ -1107,6 +1111,7 @@ contains
     ! Compilation buffers
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     logical function same(a, b)
         type(handle_type), intent(in) :: a, b
 
@@ -1114,6 +1119,7 @@ contains
     end function same
 
     !> The entry of buffer `h' in `compilation_buffers' (0 for none).
+    !> Not a port.
     integer function entry_of(h) result(k)
         type(handle_type), intent(in) :: h
 
@@ -1127,7 +1133,7 @@ contains
     end function entry_of
 
     !> The entry of the current buffer, made if needed (in the slot of a
-    !> dead buffer if there is one).
+    !> dead buffer if there is one).  Not a port.
     integer function current_entry() result(k)
         type(compilation_buffer_type), allocatable :: grown(:)
         integer :: n
@@ -1156,7 +1162,7 @@ contains
         k = n + 1
     end function current_entry
 
-    !> Free what entry K holds and make it unused.
+    !> Free what entry K holds and make it unused.  Not a port.
     subroutine reset_entry(k)
         integer, intent(in) :: k
         type(compilation_buffer_type) :: empty
@@ -1181,7 +1187,7 @@ contains
     end subroutine reset_entry
 
     !> Forget what the current buffer had as a compilation buffer, when
-    !> `kill_all_local_variables' runs.
+    !> `kill_all_local_variables' runs.  Not a port.
     subroutine kill_compilation_locals()
         integer :: k
 
@@ -1201,7 +1207,7 @@ contains
     !> and `compilation_exit_message_function'.  The settings
     !> (`compilation_error_face', `compilation_scroll_output',
     !> `compilation_first_column' and so on) take `set_local' directly.
-    !> Cf. compile.el:define-compilation-mode.
+    !> Cf. compile.el:define-compilation-mode.  Not a port.
     subroutine compilation_set_mode_locals(error_regexp_alist, directory_matcher, transform_file_match_alist, &
                                            error, mode_font_lock_keywords, mode_line_errors, process_setup_function, &
                                            exit_message_function)
@@ -1266,6 +1272,7 @@ contains
     end subroutine compilation_set_mode_locals
 
     !> The current buffer's `compilation_error': the word for a message.
+    !> Not a port.
     function error_stem() result(word)
         character(len=:), allocatable :: word
         integer :: k
@@ -1322,7 +1329,7 @@ contains
 
     !> The counts of errors, warnings and informational messages found so
     !> far in the current buffer (`compilation_num_errors_found' and
-    !> friends).
+    !> friends).  Not a port.
     subroutine compilation_message_counts(errors, warnings, infos)
         integer(int64), intent(out) :: errors, warnings, infos
         integer :: k
@@ -1342,7 +1349,7 @@ contains
     ! Messages, locations and file structures
     ! ------------------------------------------------------------------
 
-    !> A new message in entry K.
+    !> A new message in entry K.  Not a port.
     integer function new_message(k, loc, type, end_loc, rule) result(id)
         integer, intent(in) :: k, loc, type, end_loc
         character(len=*), intent(in), optional :: rule
@@ -1378,6 +1385,7 @@ contains
     end function new_message
 
     !> A new location of column COL (none unless HAS_COL) in entry K.
+    !> Not a port.
     integer function new_loc(k, has_col, col) result(id)
         integer, intent(in) :: k
         logical, intent(in) :: has_col
@@ -1402,6 +1410,7 @@ contains
     end function new_loc
 
     !> A new directory stack node in entry K: DIR (if present) on PARENT.
+    !> Not a port.
     integer function new_dir(k, parent, dir) result(id)
         integer, intent(in) :: k, parent
         character(len=*), intent(in), optional :: dir
@@ -1433,7 +1442,7 @@ contains
     end function new_dir
 
     !> The message whose index the `compilation_message' property at POS
-    !> holds (0 for none).
+    !> holds (0 for none).  Not a port.
     integer function message_at(pos) result(id)
         integer(int64), intent(in) :: pos
 
@@ -1445,7 +1454,7 @@ contains
     end function message_at
 
     !> The directory stack the `compilation_directory' property at POS
-    !> holds (0 for none).
+    !> holds (0 for none).  Not a port.
     integer function dir_at(pos) result(id)
         integer(int64), intent(in) :: pos
 
@@ -1457,7 +1466,7 @@ contains
     end function dir_at
 
     !> The index the property PROP at POS holds, 0 for none (or when the
-    !> current buffer has no entry).
+    !> current buffer has no entry).  Not a port.
     integer function property_id_at(pos, prop) result(id)
         integer(int64), intent(in) :: pos
         character(len=*), intent(in) :: prop
@@ -1475,7 +1484,7 @@ contains
     end function property_id_at
 
     !> The directory stack in effect at POS: the `compilation_directory'
-    !> property at the previous change of it (0 for none).  Cf.
+    !> property at the previous change of it (0 for none).  Port of
     !> compile.el:compilation--previous-directory (without its cache).
     integer function directory_before(pos) result(id)
         integer(int64), intent(in) :: pos
@@ -1546,6 +1555,7 @@ contains
     end function compilation_get_file_structure
 
     !> The file structure of the key FILENAME . DIRECTORY (0 for none).
+    !> Not a port.
     integer function find_key(k, filename, directory) result(fs)
         integer, intent(in) :: k
         character(len=*), intent(in) :: filename
@@ -1569,6 +1579,7 @@ contains
         end do
     end function find_key
 
+    ! Not a port.
     logical function same_string(a, b)
         character(len=*), intent(in) :: a, b
 
@@ -1576,6 +1587,7 @@ contains
         if (same_string) same_string = a == b
     end function same_string
 
+    ! Not a port.
     subroutine add_key(k, filename, fs, directory)
         integer, intent(in) :: k, fs
         character(len=*), intent(in) :: filename
@@ -1616,6 +1628,7 @@ contains
         compilation_buffers(k)%keys(n)%file = fs
     end subroutine add_key
 
+    ! Not a port.
     integer function new_file(k, filename, has_dir, directory) result(fs)
         integer, intent(in) :: k
         character(len=*), intent(in) :: filename
@@ -1687,7 +1700,7 @@ contains
 
     !> The line node of LINE (none unless HAS_LINE) in file structure FS
     !> of entry K, made if needed in its place: compilation-assq on the
-    !> loc tree.
+    !> loc tree.  Port of compile.el:compilation-assq, in part.
     integer function line_assq(k, fs, has_line, line) result(node)
         integer, intent(in) :: k, fs
         logical, intent(in) :: has_line
@@ -1739,6 +1752,7 @@ contains
         call move_alloc(grown, compilation_buffers(k)%files(fs)%lines)
     end function line_assq
 
+    ! Not a port.
     subroutine move_line_node(from, to)
         type(line_node_type), intent(inout) :: from
         type(line_node_type), intent(inout) :: to
@@ -1751,6 +1765,7 @@ contains
     !> The loc of column COL (none unless HAS_COL) in line node NODE of
     !> file structure FS of entry K, made if needed in its place:
     !> compilation-assq on a line.
+    !> Port of compile.el:compilation-assq, in part.
     integer function col_assq(k, fs, node, has_col, col) result(loc)
         integer, intent(in) :: k, fs, node
         logical, intent(in) :: has_col
@@ -1881,6 +1896,7 @@ contains
         end select
     end function compilation_face
 
+    ! Not a port.
     function setting_string(s) result(v)
         type(string_setting), intent(in) :: s
         character(len=:), allocatable :: v
@@ -1889,7 +1905,7 @@ contains
         if (allocated(s%value)) v = s%value
     end function setting_string
 
-    !> The face for messages of TYPE (2 error, 1 warning, 0 info).
+    !> The face for messages of TYPE (2 error, 1 warning, 0 info).  Not a port.
     function type_face(type) result(face)
         integer, intent(in) :: type
         character(len=:), allocatable :: face
@@ -1905,7 +1921,7 @@ contains
     end function type_face
 
     !> Match position of subexpression G in the match data MD (0 when it
-    !> didn't match): its beginning, or its end if END.
+    !> didn't match): its beginning, or its end if END.  Not a port.
     integer(int64) function md_pos(md, g, end) result(pos)
         integer(int64), intent(in) :: md(:)
         integer, intent(in) :: g
@@ -1923,7 +1939,7 @@ contains
     end function md_pos
 
     !> The number at the start of S (0 if none), as string-to-number reads
-    !> it.
+    !> it.  Not a port.
     integer(int64) function string_to_number(s) result(n)
         character(len=*), intent(in) :: s
         integer :: k, sign
@@ -1956,7 +1972,7 @@ contains
         n = sign*n
     end function string_to_number
 
-    !> The text of subexpression G of the match data MD.
+    !> The text of subexpression G of the match data MD.  Not a port.
     function md_string(md, g) result(s)
         integer(int64), intent(in) :: md(:)
         integer, intent(in) :: g
@@ -2081,7 +2097,7 @@ contains
     end subroutine compilation_parse_errors
 
     !> The index of the rule NAME in `compilation_error_regexp_alist_alist'
-    !> (0 for none).
+    !> (0 for none).  Not a port.
     integer function rule_index(name) result(j)
         character(len=*), intent(in) :: name
 
@@ -2098,6 +2114,7 @@ contains
 
     !> Parse the messages RULE matches between START and END (the body of
     !> the dolist of compile.el:compilation-parse-errors).
+    !> Port of compile.el:compilation-parse-errors, in part.
     recursive subroutine parse_rule(rule, start, end, omake_included, status)
         type(compilation_rule_type), intent(in) :: rule
         integer(int64), intent(in) :: start, end
@@ -2202,6 +2219,7 @@ contains
     end subroutine parse_rule
 
     !> The current buffer's `compilation_transform_file_match_alist'.
+    !> Not a port.
     function transform_file_match_alist() result(transforms)
         type(compilation_transform_type), allocatable :: transforms(:)
         integer :: k, i
@@ -2233,8 +2251,8 @@ contains
     end function transform_file_match_alist
 
     !> Note that a new message with severity TYPE was seen.
-    !> This updates the appropriate variable used by the mode-line.  Port
-    !> of compile.el:compilation--note-type.
+    !> This updates the appropriate variable used by the mode-line.  Port of
+    !> compile.el:compilation--note-type.
     subroutine compilation_note_type(type)
         integer, intent(in) :: type
         integer :: k
@@ -2620,6 +2638,7 @@ contains
         end if
     end subroutine compilation_internal_error_properties
 
+    ! Not a port.
     subroutine fill_loc(loc, has_line, line, fs, marker)
         type(loc_type), intent(inout) :: loc
         logical, intent(in) :: has_line
@@ -2665,6 +2684,7 @@ contains
     end subroutine compilation_remove_properties
 
     !> change-major-mode-hook: remove the properties of the whole buffer.
+    !> Not a port.
     subroutine remove_properties_hook(status)
         type(status_type), intent(out) :: status
 
@@ -2831,7 +2851,7 @@ contains
 
     !> Where (text-property-search-forward 'compilation-annotation) from
     !> the start of the buffer leaves point: the end of the first region
-    !> with a `compilation_annotation' property, or point-min.
+    !> with a `compilation_annotation' property, or point-min.  Not a port.
     integer(int64) function annotation_end() result(pos)
         type(value_type) :: v
         type(status_type) :: st
@@ -2881,7 +2901,7 @@ contains
     end subroutine compilation_flush_parse
 
     !> The font-lock MATCHER (compilation--ensure-parse): parse up to
-    !> LIMIT; it never matches.
+    !> LIMIT; it never matches.  Not a port.
     subroutine ensure_parse_matcher(limit, found, status)
         integer(int64), intent(in) :: limit
         logical, intent(out) :: found
@@ -2939,7 +2959,7 @@ contains
     end subroutine compilation_forget_errors
 
     !> What the `compilation_message' property at POS of the current
-    !> buffer says (FOUND false for none).
+    !> buffer says (FOUND false for none).  Not a port.
     subroutine compilation_message_info(pos, info, found)
         integer(int64), intent(in) :: pos
         type(compilation_message_info_type), intent(out) :: info
@@ -3052,6 +3072,7 @@ contains
     end subroutine compilation_next_error
 
     !> compilation-next-error, giving the message MSG found.
+    !> Port of compile.el:compilation-next-error.
     recursive subroutine next_error_1(n_in, status, msg, different_file, pt_in)
         integer(int64), intent(in) :: n_in
         type(status_type), intent(out) :: status
@@ -3219,7 +3240,7 @@ contains
     end subroutine next_error_1
 
     !> The file structure of the location of message MSG of entry K (0
-    !> for none).
+    !> for none).  Not a port.
     integer function loc_file(k, msg) result(fs)
         integer, intent(in) :: k, msg
 
@@ -3315,7 +3336,7 @@ contains
     end subroutine compilation_display_error
 
     !> Make compilation-current-error the position POS of the current
-    !> buffer.
+    !> buffer.  Not a port.
     subroutine set_current_error_pos(pos)
         integer(int64), intent(in) :: pos
         type(status_type) :: st
@@ -3398,8 +3419,8 @@ contains
     !> Update markers in LOC, and set MARKER to location pointed by LOC.
     !> SCREEN_COLUMNS and FIRST_COLUMN are the value of
     !> `compilation_error_screen_columns' and `compilation_first_column' to
-    !> use if they are not set buffer-locally in the target buffer.  Port
-    !> of compile.el:compilation--update-markers.
+    !> use if they are not set buffer-locally in the target buffer.  Port of
+    !> compile.el:compilation--update-markers.
     recursive subroutine compilation_update_markers(loc, marker, screen_columns, first_column, status)
         integer, intent(in) :: loc
         type(handle_type), intent(in) :: marker
@@ -3492,6 +3513,7 @@ contains
     !> the current compilation buffer (FOUND false for none), its markers
     !> updated (the file visited) if they are not set yet; what
     !> grep-edit--prepare-buffer computes with compilation--update-markers.
+    !> Not a port.
     recursive subroutine compilation_message_location(pos, buffer, position, found, status)
         integer(int64), intent(in) :: pos
         type(handle_type), intent(out) :: buffer
@@ -3844,7 +3866,7 @@ contains
         call set_buffer(old, st)
     end subroutine compilation_find_file_1
 
-    !> The current buffer's default directory.
+    !> The current buffer's default directory.  Not a port.
     function default_dir() result(dir)
         character(len=:), allocatable :: dir
 
@@ -3858,8 +3880,8 @@ contains
     !> Pop up the buffer containing MARKER and scroll to MARKER if we ask
     !> the user where to find the file.  The directory searched is
     !> DIRECTORY; if it is relative, it is combined with
-    !> `default_directory'; if absent, `default_directory' is used.  Port
-    !> of compile.el:compilation-find-file (FORMATS and
+    !> `default_directory'; if absent, `default_directory' is used.  Port of
+    !> compile.el:compilation-find-file (FORMATS and
     !> `compilation_search_path' are Deferred).
     recursive subroutine compilation_find_file(marker, filename, buffer, status, directory)
         use minibuffer_fm, only: read_file_name
@@ -4050,7 +4072,7 @@ contains
 
     !> Make H the MATCH-HIGHLIGHT of SUBEXP in FACE; OVERRIDE true for an
     !> optional (lax) highlight replacing the faces there, LAXMATCH true
-    !> for one that need not match.
+    !> for one that need not match.  Not a port.
     subroutine set_highlight(h, subexp, face, override, laxmatch)
         type(font_lock_highlight_type), intent(inout) :: h
         integer, intent(in) :: subexp
@@ -4081,7 +4103,8 @@ contains
         call minor_modes%compilation_minor_mode%command(status)
     end subroutine compilation_minor_mode
 
-    !> The body of Compilation minor mode.
+    !> The body of Compilation minor mode.  Port of
+    !> compile.el:compilation-minor-mode (its body).
     recursive subroutine compilation_minor_mode_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
@@ -4110,7 +4133,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The default value of `compile_command': "make -k -jN ", N being
-    !> the number of processors divided by 1.5, rounded up.
+    !> the number of processors divided by 1.5, rounded up.  Not a port.
     function default_compile_command() result(command)
         character(len=:), allocatable :: command
         character(len=16) :: n
@@ -4192,6 +4215,7 @@ contains
     end subroutine compile
 
     !> `compile_command', set to its default value first if needed.
+    !> Not a port.
     function compile_command_value() result(command)
         character(len=:), allocatable :: command
 
@@ -4305,7 +4329,7 @@ contains
         end subroutine restore_dir
     end subroutine recompile
 
-    !> The current buffer's `compilation_directory' ("" for nil).
+    !> The current buffer's `compilation_directory' ("" for nil).  Not a port.
     function compilation_directory_value() result(dir)
         character(len=:), allocatable :: dir
         integer :: k
@@ -4347,7 +4371,7 @@ contains
     end subroutine compilation_insert_annotation
 
     !> The first 19 characters of `current_time_string': "Sun Sep 16
-    !> 01:03:52".  Cf. editfns.c:Fcurrent_time_string.
+    !> 01:03:52".  Cf. editfns.c:Fcurrent_time_string.  Not a port.
     function current_time_19() result(s)
         character(len=:), allocatable :: s
         integer :: t(7)
@@ -4359,7 +4383,7 @@ contains
         s = buf
     end function current_time_19
 
-    !> The name of MODE (its mode-name) in lower case.  Cf.
+    !> The name of MODE (its mode-name) in lower case.  Port of
     !> compile.el:compilation--downcase-mode-name.
     function downcase_name(name) result(s)
         character(len=*), intent(in) :: name
@@ -4597,6 +4621,7 @@ contains
         call set_buffer(old, st)
     end subroutine compilation_start
 
+    ! Not a port.
     subroutine set_process_sentinel_and_filter(proc, filter)
         use process_fm, only: set_process_sentinel, set_process_filter
         type(handle_type), intent(in) :: proc
@@ -4609,6 +4634,7 @@ contains
         if (filter) call set_process_filter(proc, st, compilation_filter)
     end subroutine set_process_sentinel_and_filter
 
+    ! Not a port.
     subroutine push_in_progress(proc)
         type(handle_type), intent(in) :: proc
         type(handle_type), allocatable :: grown(:)
@@ -4623,7 +4649,7 @@ contains
     end subroutine push_in_progress
 
     !> Whether compilations are in progress (`compilation_in_progress' is
-    !> true), for the "[Compiling] " of the mode line.
+    !> true), for the "[Compiling] " of the mode line.  Not a port.
     logical function compilation_in_progress_p()
         compilation_in_progress_p = .false.
         if (allocated(compilation_in_progress)) compilation_in_progress_p = size(compilation_in_progress) > 0
@@ -4631,7 +4657,7 @@ contains
 
     !> Give entry K's buffer (the current buffer) the `mode_line_process'
     !> of its state: ":%s" or the exit status, then
-    !> `compilation_mode_line_errors' (the counts by default).
+    !> `compilation_mode_line_errors' (the counts by default).  Not a port.
     subroutine update_mode_line_process(k)
         integer, intent(in) :: k
         type(mode_line_part_type), allocatable :: parts(:), errors(:)
@@ -4663,7 +4689,7 @@ contains
     end subroutine update_mode_line_process
 
     !> The default `compilation_mode_line_errors' of entry K: the numbers
-    !> of errors, warnings and informational messages so far.
+    !> of errors, warnings and informational messages so far.  Not a port.
     subroutine compilation_mode_line_errors(k, parts)
         integer, intent(in) :: k
         type(mode_line_part_type), allocatable, intent(out) :: parts(:)
@@ -4688,7 +4714,7 @@ contains
     !> Show the current state of the current compilation buffer in its
     !> mode line again, after what `compilation_mode_line_errors' shows
     !> has changed (upstream the mode line evaluates it at each
-    !> redisplay).
+    !> redisplay).  Not a port.
     subroutine compilation_update_mode_line()
         integer :: k
 
@@ -4696,6 +4722,7 @@ contains
         if (k /= 0) call update_mode_line_process(k)
     end subroutine compilation_update_mode_line
 
+    ! Not a port.
     function count_string(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
@@ -4706,7 +4733,7 @@ contains
     end function count_string
 
     !> The directory a leading "cd DIR;" of COMMAND changes to (DEFAULT if
-    !> there is none): the cond of compile.el:compilation-start.
+    !> there is none): the cond of compile.el:compilation-start.  Not a port.
     subroutine command_cd_directory(command, default, dir)
         character(len=*), intent(in) :: command, default
         character(len=:), allocatable, intent(out) :: dir
@@ -5015,8 +5042,8 @@ contains
         end function code_string
     end subroutine compilation_handle_exit
 
-    !> Kill the process made by the \[compile] or \[grep] commands.  Port
-    !> of compile.el:kill-compilation.
+    !> Kill the process made by the \[compile] or \[grep] commands.  Port of
+    !> compile.el:kill-compilation.
     recursive subroutine kill_compilation(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer, proc, old
@@ -5041,7 +5068,7 @@ contains
     ! Definitions
     ! ------------------------------------------------------------------
 
-    !> The faces of compile.el.
+    !> The faces of compile.el.  Not a port.
     subroutine define_faces()
         type(named_face_type), pointer :: f
         integer, parameter :: C = FACE_CLASS_COLOR
@@ -5079,7 +5106,7 @@ contains
     end subroutine define_faces
 
     !> Define Compilation mode and the minor modes, and register the
-    !> commands.
+    !> commands.  Not a port.
     subroutine syms_of_compile()
         type(status_type) :: st
 
