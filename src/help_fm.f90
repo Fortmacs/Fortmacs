@@ -117,7 +117,7 @@ module help_fm
             type(status_type), intent(out) :: status
         end subroutine temp_buffer_body_proc
 
-        !> The text describing function `name', after `lead'.
+        !> The text describing function `name', after `lead'.  Not a port.
         subroutine describe_function_1_proc(name, text, lead)
             implicit none(type, external)
             character(len=*), intent(in) :: name
@@ -126,6 +126,7 @@ module help_fm
         end subroutine describe_function_1_proc
 
         !> The raw docstring of function `name' (`found' false if none).
+        !> Not a port.
         subroutine documentation_proc(name, doc, found)
             implicit none(type, external)
             character(len=*), intent(in) :: name
@@ -176,6 +177,7 @@ module help_fm
 contains
 
     !> Let \<`name'> and "found in `name'" refer to keymap `map'.
+    !> Not a port.
     subroutine register_keymap_name(name, map)
         character(len=*), intent(in) :: name
         type(handle_type), intent(in) :: map
@@ -198,7 +200,7 @@ contains
         call move_alloc(grown, named_keymaps)
     end subroutine register_keymap_name
 
-    !> The registered name of keymap `map', or "".
+    !> The registered name of keymap `map', or "".  Not a port.
     function keymap_name(map) result(name)
         type(handle_type), intent(in) :: map
         character(len=:), allocatable :: name
@@ -217,6 +219,7 @@ contains
     end function keymap_name
 
     !> The keymap registered as `name'; `found' false if there is none.
+    !> Not a port.
     subroutine named_keymap(name, map, found)
         character(len=*), intent(in) :: name
         type(handle_type), intent(out) :: map
@@ -237,7 +240,7 @@ contains
 
     !> The keys that run command `name', as "C-x C-f", searching `map' and
     !> the global map if `have_map', else the active maps; "M-x NAME" if
-    !> none.
+    !> none.  Not a port.
     function command_keys(name, map, have_map) result(s)
         character(len=*), intent(in) :: name
         type(handle_type), intent(in) :: map
@@ -374,6 +377,7 @@ contains
     !> registered as NAME, shadowed by the active maps that take precedence
     !> over it, or a line saying it is not defined.  The \{MAPVAR} case of
     !> help.el:substitute-command-keys.
+    !> Port of part of help.el:substitute-command-keys.
     function keymap_summary(name) result(s)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: s
@@ -419,7 +423,7 @@ contains
     end function keymap_summary
 
     !> Whether \`KEY' in a docstring shows KEY: a valid key sequence, a
-    !> mouse button or "M-x COMMAND".
+    !> mouse button or "M-x COMMAND".  Not a port.
     logical function literal_key_p(key)
         character(len=*), intent(in) :: key
 
@@ -430,7 +434,7 @@ contains
         if (len(key) > 4) literal_key_p = literal_key_p .or. key(1:4) == "M-x "
     end function literal_key_p
 
-    !> Length of the UTF-8 sequence that starts with byte `b'.
+    !> Length of the UTF-8 sequence that starts with byte `b'.  Not a port.
     integer function utf8_length(b)
         character, intent(in) :: b
         integer :: code
@@ -496,8 +500,8 @@ contains
     !> Show TEXT in buffer BUFNAME: the buffer is erased and put in Help
     !> mode, TEXT is inserted (it is what the body prints to
     !> `standard_output'), and the buffer is displayed with
-    !> `display_buffer' at its beginning, unmodified and read-only.  Port
-    !> of subr.el:with-output-to-temp-buffer with
+    !> `display_buffer' at its beginning, unmodified and read-only.
+    !> Port of subr.el:with-output-to-temp-buffer with
     !> window.c:temp_output_buffer_show and help.el's functions on
     !> `temp_buffer_setup_hook' and `temp_buffer_show_hook'
     !> (help-mode-setup, help-mode-finish; no xrefs, no
@@ -658,7 +662,7 @@ contains
 
     !> " (found in MAP)" for the keymap variable holding the active map
     !> in which `keys' is bound; "" if none holds it.  The locus of
-    !> help.el:describe-key.
+    !> help.el:describe-key.  Not a port.
     function found_in(keys) result(s)
         type(value_type), intent(in) :: keys(:)
         character(len=:), allocatable :: s
@@ -747,6 +751,7 @@ contains
         name = keymap_name(map)
     end function binding_locus
 
+    ! Not a port.
     logical function same_map(a, b)
         type(handle_type), intent(in) :: a, b
 
@@ -1067,7 +1072,7 @@ contains
         text = out
     end subroutine lossage_comment_indent
 
-    !> `line' padded with blanks to `n' characters.
+    !> `line' padded with blanks to `n' characters.  Not a port.
     function pad_to(line, n) result(s)
         character(len=*), intent(in) :: line
         integer, intent(in) :: n
@@ -1078,6 +1083,7 @@ contains
 
     !> The lines of `text' (without their newlines; no last empty line
     !> after a final newline) in `lines', their lengths in `lens'.
+    !> Not a port.
     subroutine split_lines(text, lines, lens, n)
         character(len=*), intent(in) :: text
         character(len=:), allocatable, intent(out) :: lines(:)
@@ -1124,7 +1130,7 @@ contains
         end if
     end subroutine split_lines
 
-    !> The length of `s' without trailing blanks and tabs.
+    !> The length of `s' without trailing blanks and tabs.  Not a port.
     integer function len_trim_ws(s) result(n)
         character(len=*), intent(in) :: s
 
@@ -1137,7 +1143,7 @@ contains
     end function len_trim_ws
 
     !> The column of the first non-blank character of `line' (as
-    !> current-indentation).
+    !> current-indentation).  Not a port.
     integer function line_indentation(line) result(col)
         character(len=*), intent(in) :: line
         integer :: k
@@ -1149,7 +1155,7 @@ contains
 
     !> The whitespace indent.c:Findent_to inserts to go from column
     !> `fromcol' to `mincol': tabs if `tabs' (indent-tabs-mode), then
-    !> spaces.
+    !> spaces.  Not a port.
     function indent_string(fromcol, mincol, tabw, tabs) result(s)
         integer, intent(in) :: fromcol, mincol, tabw
         logical, intent(in) :: tabs
@@ -1173,6 +1179,7 @@ contains
     end function indent_string
 
     !> The display columns `text' (one line) takes, tabs included.
+    !> Not a port.
     integer function text_columns(text) result(col)
         character(len=*), intent(in) :: text
         integer :: i, clen, tabw
@@ -1198,7 +1205,7 @@ contains
         end do
     end function text_columns
 
-    !> The code point of the UTF-8 sequence `s'.
+    !> The code point of the UTF-8 sequence `s'.  Not a port.
     integer(int32) function utf8_code(s) result(c)
         character(len=*), intent(in) :: s
         integer :: k, n
@@ -1214,7 +1221,7 @@ contains
     end function utf8_code
 
     !> The default values of `fill_column', `tab_width' and
-    !> `indent_tabs_mode' (those of a buffer such as *Help*).
+    !> `indent_tabs_mode' (those of a buffer such as *Help*).  Not a port.
     subroutine default_settings(fill, tabw, tabs)
         integer, intent(out) :: fill, tabw
         logical, intent(out) :: tabs
@@ -1240,7 +1247,7 @@ contains
     !> The text of the help-for-help screen, as help.el's help-for-help
     !> makes it.  A command that is not ported yet is listed under the
     !> key upstream's `help_map' gives it (help.el:help-map), which stays
-    !> unbound here.
+    !> unbound here.  Port of part of help.el:help-for-help (its text).
     function help_for_help_text() result(text)
         character(len=:), allocatable :: text
 
@@ -1449,7 +1456,7 @@ contains
 
     !> Whether event `ch' keeps the help screen reading keys: the help
     !> character, the `help_event_list' events (<help>, <f1>, ?) and the
-    !> scrolling keys.
+    !> scrolling keys.  Not a port.
     logical function help_screen_key_p(ch, keys) result(p)
         type(value_type), intent(in) :: ch
         type(value_type), allocatable, intent(in) :: keys(:)
@@ -1473,6 +1480,7 @@ contains
         end if
     end function help_screen_key_p
 
+    ! Not a port.
     logical function event_is(ev, c)
         type(value_type), intent(in) :: ev
         integer(int64), intent(in) :: c
@@ -1481,6 +1489,7 @@ contains
         if (fixnump(ev)) event_is = xfixnum(ev) == c
     end function event_is
 
+    ! Not a port.
     logical function event_named(ev, name)
         type(value_type), intent(in) :: ev
         character(len=*), intent(in) :: name
@@ -1489,7 +1498,7 @@ contains
         if (symbolp(ev)) event_named = value_eq(ev, sym(name))
     end function event_named
 
-    !> `n' as decimal digits.
+    !> `n' as decimal digits.  Not a port.
     function int_text(n) result(s)
         integer, intent(in) :: n
         character(len=:), allocatable :: s
@@ -1579,7 +1588,7 @@ contains
         end if
     end subroutine describe_buffer_bindings
 
-    !> Add keymap `map' to the front of the shadowing maps.
+    !> Add keymap `map' to the front of the shadowing maps.  Not a port.
     subroutine push_shadow(shadow, map)
         type(value_type), allocatable, intent(inout) :: shadow(:)
         type(handle_type), intent(in) :: map
@@ -1667,6 +1676,7 @@ contains
         text = text//LF//"Key             Binding"//LF//make_separator_line()//body
     end subroutine describe_map_tree
 
+    ! Not a port.
     subroutine append_shadow(list, v)
         type(value_type), allocatable, intent(inout) :: list(:)
         type(value_type), intent(in) :: v
@@ -1680,6 +1690,7 @@ contains
         call move_alloc(grown, list)
     end subroutine append_shadow
 
+    ! Not a port.
     logical function same_keys(a, b)
         type(value_type), intent(in) :: a(:), b(:)
         integer :: i
@@ -1896,7 +1907,7 @@ contains
     end subroutine shadow_lookup
 
     !> Whether `def' has a `suppress_keymap' property: `undefined'
-    !> (subr.el puts it there).
+    !> (subr.el puts it there).  Not a port.
     logical function suppressed_p(def)
         type(value_type), intent(in) :: def
 
@@ -1939,6 +1950,7 @@ contains
     !> Sort the bindings with help--describe-map-compare: characters in
     !> order first, then the other events by name in the "natural" way
     !> (string-version-lessp, so <f2> comes between <f1> and <f11>).
+    !> Port of help.el:help--describe-map-compare (as a sort).
     subroutine sort_entries(ev, def, shadowed, seen, n)
         type(value_type), intent(inout) :: ev(:), def(:)
         logical, intent(inout) :: shadowed(:), seen(:)
@@ -2042,13 +2054,14 @@ contains
         end do
     end function string_version_lessp
 
+    ! Not a port.
     logical function is_digit(c)
         character, intent(in) :: c
 
         is_digit = c >= "0" .and. c <= "9"
     end function is_digit
 
-    !> Compare two runs of digits as numbers: -1, 0 or 1.
+    !> Compare two runs of digits as numbers: -1, 0 or 1.  Not a port.
     integer function compare_digits(a, b) result(cmp)
         character(len=*), intent(in) :: a, b
         integer :: ka, kb
@@ -2160,7 +2173,7 @@ contains
         text = text//LF//block
     end subroutine describe_vector
 
-    !> The indices of `from' in increasing order.
+    !> The indices of `from' in increasing order.  Not a port.
     subroutine order_by_start(from, order)
         integer(int64), intent(in) :: from(:)
         integer, allocatable, intent(out) :: order(:)
@@ -2241,6 +2254,7 @@ contains
 
     !> The tabs and spaces describe-map--fill-columns inserts after a key
     !> ending at column `col' to reach column `width'.
+    !> Port of part of help.el:describe-map--fill-columns.
     function fill_string(col, width, tabw) result(s)
         integer, intent(in) :: col, width, tabw
         character(len=:), allocatable :: s
@@ -2279,6 +2293,7 @@ contains
     end function make_separator_line
 
     !> The width of the selected window's text area (window-width).
+    !> Not a port.
     integer function window_body_cols() result(w)
         type(handle_type) :: sw
 
@@ -2288,7 +2303,7 @@ contains
     end function window_body_cols
 
     !> Make `help_map' and put it on C-h, <help> and <f1> in `global_map'; name
-    !> the keymaps docstrings refer to; register the commands.
+    !> the keymaps docstrings refer to; register the commands.  Not a port.
     subroutine syms_of_help(global_map)
         type(handle_type), intent(in) :: global_map
         type(status_type) :: status

@@ -1,7 +1,10 @@
 ! test_simple_goto_fm.f90 -- tests for goto-line, the narrowing commands,
 ! count-words (simple_goto_fm) and number-at-point (thingatpt_fm).
+! Ports GNU Emacs 31.1 test/lisp/simple-tests.el and
+! test/lisp/thingatpt-tests.el in part; the count-words and
+! number-at-point tests.
 !
-! Copyright (C) 2015-2026 Free Software Foundation, Inc.
+! Copyright (C) 2013-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
 !
 ! This file is part of Fortmacs.
@@ -50,6 +53,7 @@ module test_simple_goto_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_simple_goto_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

@@ -1,4 +1,7 @@
 ! test_casetab_fm.f90 -- tests for the case tables (casetab_fm).
+! Ports GNU Emacs 31.1 test/src/casefiddle-tests.el in part; only
+! casefiddle-tests-case-table and the upcase and downcase part of
+! casefiddle-tests-char-casing concern case tables.
 !
 ! Copyright (C) 2016-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -32,6 +35,7 @@ module test_casetab_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_casetab_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

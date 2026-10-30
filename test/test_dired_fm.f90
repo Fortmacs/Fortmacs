@@ -1,6 +1,7 @@
 ! test_dired_fm.f90 -- tests for dired_fm.
-! Ported from GNU Emacs 31.1 test/lisp/dired-tests.el
-! (dired-test-directory-files, without the MATCH regexps).
+! Ports GNU Emacs 31.1 test/lisp/dired-tests.el in part; only
+! dired-test-directory-files concerns `directory_files', without the
+! MATCH regexps.
 !
 ! Copyright (C) 2015-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -38,6 +39,7 @@ module test_dired_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_dired_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

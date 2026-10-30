@@ -119,6 +119,7 @@ module tabulated_list_fm
 
     abstract interface
         !> A SORT predicate: whether entry A sorts before entry B.
+        !> Not a port.
         logical function tabulated_list_predicate(a, b)
             import :: tabulated_list_entry_type
             implicit none(type, external)
@@ -126,7 +127,7 @@ module tabulated_list_fm
         end function tabulated_list_predicate
 
         !> A function returning the entries (tabulated-list-entries as a
-        !> function).
+        !> function).  Not a port.
         recursive subroutine tabulated_list_entries_proc(entries, status)
             import :: tabulated_list_entry_type, status_type
             implicit none(type, external)
@@ -134,7 +135,7 @@ module tabulated_list_fm
             type(status_type), intent(out) :: status
         end subroutine tabulated_list_entries_proc
 
-        !> A `tabulated_list_printer': insert ENTRY at point.
+        !> A `tabulated_list_printer': insert ENTRY at point.  Not a port.
         recursive subroutine tabulated_list_printer_proc(entry, status)
             import :: tabulated_list_entry_type, status_type
             implicit none(type, external)
@@ -172,8 +173,8 @@ module tabulated_list_fm
     type(named_face_type), target, public :: tabulated_list_fake_header
 
     !> Hook run before reverting a Tabulated List buffer.
-    !> This is commonly used to recompute `tabulated_list_entries'.  Port
-    !> of tabulated-list.el tabulated-list-revert-hook.
+    !> This is commonly used to recompute `tabulated_list_entries'.
+    !> Port of tabulated-list.el tabulated-list-revert-hook.
     type(hook_type), target, public :: tabulated_list_revert_hook = hook_type(name="tabulated_list_revert_hook")
 
     !> Hook run when entering Tabulated List mode.
@@ -222,7 +223,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! The index of the current buffer's entry in `locals', made if MAKE
-    ! (0 if there is none).
+    ! (0 if there is none).  Not a port.
     integer function local_index(make) result(k)
         logical, intent(in) :: make
         type(local_type), allocatable :: grown(:)
@@ -259,7 +260,7 @@ contains
     end function local_index
 
     ! kill-all-local-variables: forget the current buffer's values but
-    ! the permanent-local ones.
+    ! the permanent-local ones.  Not a port.
     subroutine kill_tabulated_list_locals()
         integer :: k
 
@@ -287,6 +288,7 @@ contains
     end subroutine set_tabulated_list_format
 
     !> The current buffer's `tabulated_list_format' (empty for nil).
+    !> Not a port.
     function tabulated_list_format() result(columns)
         type(tabulated_list_column_type), allocatable :: columns(:)
         integer :: k, j
@@ -329,7 +331,7 @@ contains
         locals(k)%entries_function => fn
     end subroutine set_tabulated_list_entries_function
 
-    !> The current buffer's entries as last printed (or set).
+    !> The current buffer's entries as last printed (or set).  Not a port.
     function tabulated_list_entries() result(entries)
         type(tabulated_list_entry_type), allocatable :: entries(:)
         integer :: k
@@ -345,6 +347,7 @@ contains
         call copy_entries(locals(k)%entries, entries)
     end function tabulated_list_entries
 
+    ! Not a port.
     subroutine copy_entries(from, to)
         type(tabulated_list_entry_type), intent(in) :: from(:)
         type(tabulated_list_entry_type), allocatable, intent(out) :: to(:)
@@ -370,7 +373,7 @@ contains
         locals(k)%padding = n
     end subroutine set_tabulated_list_padding
 
-    !> The current buffer's `tabulated_list_padding'.
+    !> The current buffer's `tabulated_list_padding'.  Not a port.
     integer function tabulated_list_padding() result(n)
         integer :: k
 
@@ -396,7 +399,7 @@ contains
     end subroutine set_tabulated_list_sort_key
 
     !> Make the current buffer's `tabulated_list_sort_key' nil: no
-    !> additional sorting is performed.
+    !> additional sorting is performed.  Not a port.
     subroutine clear_tabulated_list_sort_key()
         integer :: k
 
@@ -407,7 +410,7 @@ contains
     end subroutine clear_tabulated_list_sort_key
 
     !> The current buffer's `tabulated_list_sort_key': its NAME (empty for
-    !> nil) and FLIP.
+    !> nil) and FLIP.  Not a port.
     subroutine tabulated_list_sort_key(name, flip)
         character(len=:), allocatable, intent(out) :: name
         logical, intent(out) :: flip
@@ -467,8 +470,8 @@ contains
     end function tabulated_list_get_id
 
     !> Return in ENTRY the Tabulated List entry at POS; FOUND false if
-    !> there is no entry at POS.  POS, if absent, defaults to point.  Port
-    !> of tabulated-list.el:tabulated-list-get-entry.
+    !> there is no entry at POS.  POS, if absent, defaults to point.
+    !> Port of tabulated-list.el:tabulated-list-get-entry.
     subroutine tabulated_list_get_entry(entry, found, pos)
         type(tabulated_list_entry_type), intent(out) :: entry
         logical, intent(out) :: found
@@ -483,7 +486,7 @@ contains
     end subroutine tabulated_list_get_entry
 
     ! The index in the current buffer's entries of the entry at POS
-    ! (point if absent), 0 for none.
+    ! (point if absent), 0 for none.  Not a port.
     integer function entry_index(pos) result(k)
         integer(int64), intent(in), optional :: pos
         type(value_type) :: v
@@ -554,6 +557,7 @@ contains
 
     ! Insert TEXT at point with the text properties of the character
     ! after it (as insert-and-inherit takes those of the line's entry).
+    ! Not a port.
     recursive subroutine insert_inheriting(text, status)
         use textprop_fm, only: text_properties_at
         character(len=*), intent(in) :: text
@@ -709,7 +713,7 @@ contains
         end subroutine add
     end subroutine tabulated_list_init_header
 
-    ! The column names as a row of descriptors (hcols).
+    ! The column names as a row of descriptors (hcols).  Not a port.
     subroutine header_row(format, row)
         type(tabulated_list_column_type), intent(in) :: format(:)
         type(tabulated_list_entry_type), intent(out) :: row
@@ -723,6 +727,7 @@ contains
         end do
     end subroutine header_row
 
+    ! Not a port.
     function asc_indicator() result(s)
         character(len=:), allocatable :: s
 
@@ -733,6 +738,7 @@ contains
         end if
     end function asc_indicator
 
+    ! Not a port.
     function desc_indicator() result(s)
         character(len=:), allocatable :: s
 
@@ -743,6 +749,7 @@ contains
         end if
     end function desc_indicator
 
+    ! Not a port.
     pure logical function same(a, b)
         character(len=*), intent(in) :: a, b
 
@@ -767,6 +774,7 @@ contains
         call tabulated_list_print(status, remember_pos=.true.)
     end subroutine tabulated_list_revert
 
+    ! Not a port.
     recursive subroutine revert_function(ignore_auto, noconfirm, status)
         logical, intent(in) :: ignore_auto, noconfirm
         type(status_type), intent(out) :: status
@@ -777,6 +785,7 @@ contains
 
     ! The index (1-based) of the column named NAME, 0 (and an error) if
     ! there is none.
+    ! Port of tabulated-list.el:tabulated-list--column-number.
     integer function column_number(format, name, status) result(n)
         type(tabulated_list_column_type), intent(in) :: format(:)
         character(len=*), intent(in) :: name
@@ -819,6 +828,7 @@ contains
     end function sorts_before
 
     ! string<: by character code (the order of the UTF-8 bytes).
+    ! Not a port.
     pure logical function string_less(a, b)
         character(len=*), intent(in) :: a, b
         integer :: k
@@ -835,6 +845,7 @@ contains
 
     ! The sort column of local K (0 for no sorter: no sort key, or an
     ! unsortable column).
+    ! Port of part of tabulated-list.el:tabulated-list--get-sorter.
     integer function sort_column(k, status) result(n)
         integer, intent(in) :: k
         type(status_type), intent(out) :: status
@@ -850,7 +861,7 @@ contains
         end if
     end function sort_column
 
-    ! Sort ENTRIES stably by column N of local K.
+    ! Sort ENTRIES stably by column N of local K.  Not a port.
     subroutine sort_entries(k, n, entries)
         integer, intent(in) :: k, n
         type(tabulated_list_entry_type), intent(inout) :: entries(:)
@@ -1223,7 +1234,7 @@ contains
         end subroutine insert_spaces
     end function tabulated_list_print_col
 
-    ! Insert string V at point with its text properties.
+    ! Insert string V at point with its text properties.  Not a port.
     recursive subroutine insert_value(v, status)
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
@@ -1464,6 +1475,7 @@ contains
         end if
     end subroutine cmd_tabulated_list_sort
 
+    ! Not a port.
     subroutine sort_by_original_index(entries)
         type(tabulated_list_entry_type), intent(inout) :: entries(:)
         type(tabulated_list_entry_type) :: t
@@ -1687,6 +1699,7 @@ contains
     end subroutine tabulated_list_mode
 
     !> Define the mode, its keymap and options, and register the commands.
+    !> Not a port.
     subroutine syms_of_tabulated_list()
         type(status_type) :: st
 

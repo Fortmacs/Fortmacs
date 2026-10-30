@@ -174,31 +174,31 @@ module keyboard_fm
 
     abstract interface
         !> Redisplay all frames (xdisp.c:redisplay); also the form of a
-        !> post-command hook.
+        !> post-command hook.  Not a port.
         subroutine redisplay_proc()
             implicit none(type, external)
         end subroutine redisplay_proc
 
-        !> The ON-EXIT function of a transient map.
+        !> The ON-EXIT function of a transient map.  Not a port.
         subroutine transient_exit_proc()
             implicit none(type, external)
         end subroutine transient_exit_proc
 
         !> A keyboard macro's LOOPFUNC: called before each iteration of the
-        !> macro, which stops when it returns false.
+        !> macro, which stops when it returns false.  Not a port.
         logical function kbd_macro_loop_proc()
             implicit none(type, external)
         end function kbd_macro_loop_proc
 
         !> Log `text' in the *Messages* buffer as echo-area output
-        !> (xdisp.c via print.c:printchar).
+        !> (xdisp.c via print.c:printchar).  Not a port.
         subroutine message_log_proc(text)
             implicit none(type, external)
             character(len=*), intent(in) :: text
         end subroutine message_log_proc
 
         !> Run a disabled command's handler instead of the command, if
-        !> CMD is disabled: `handled' says it was.
+        !> CMD is disabled: `handled' says it was.  Not a port.
         subroutine disabled_command_proc(cmd, handled, status)
             import :: value_type, status_type
             implicit none(type, external)
@@ -208,6 +208,7 @@ module keyboard_fm
         end subroutine disabled_command_proc
 
         !> Run when descriptor FD, given to `add_read_fd', is readable.
+        !> Not a port.
         recursive subroutine read_fd_proc(fd)
             import :: int32
             implicit none(type, external)
@@ -215,7 +216,7 @@ module keyboard_fm
         end subroutine read_fd_proc
 
         !> Handle the special event ARG (as `insert_special_event' was
-        !> given it).
+        !> given it).  Not a port.
         recursive subroutine special_event_proc(arg, status)
             import :: int64, status_type
             implicit none(type, external)
@@ -347,6 +348,8 @@ module keyboard_fm
     !> takes the output (runs filters and sentinels), as
     !> process.c:wait_reading_process_output does.  Set by process_fm.
     integer(int32), public :: process_wake_fd = -1
+    !> What the command loop calls when `process_wake_fd' is ready: it takes
+    !> the subprocess output.  Set by process_fm.
     procedure(redisplay_proc), pointer, public :: process_output_hook => null()
 
     !> macros.c:Vexecuting_kbd_macro: `macro_events' are the events of
@@ -446,6 +449,7 @@ module keyboard_fm
     !> macros.c:Fexecute_kbd_macro (MACRO is a string, a list of events or
     !> an array of events; no symbols' function definitions).
     interface execute_kbd_macro
+        ! Port of macros.c:Fexecute_kbd_macro.
         recursive module subroutine execute_kbd_macro_value(macro, count, status, loopfunc)
             implicit none(type, external)
             type(value_type), intent(in) :: macro, count
@@ -453,6 +457,7 @@ module keyboard_fm
             procedure(kbd_macro_loop_proc), optional :: loopfunc
         end subroutine execute_kbd_macro_value
 
+        ! Port of macros.c:Fexecute_kbd_macro.
         recursive module subroutine execute_kbd_macro_vector(macro, count, status, loopfunc)
             implicit none(type, external)
             type(value_type), intent(in) :: macro(:), count
@@ -542,6 +547,7 @@ module keyboard_fm
         end subroutine finish_kbd_macro
 
         !> Register the commands of macros.c (syms_of_macros).
+        !> Port of macros.c:syms_of_macros.
         module subroutine syms_of_macros()
             implicit none(type, external)
         end subroutine syms_of_macros
@@ -550,7 +556,7 @@ module keyboard_fm
 contains
 
     !> Whether a keyboard macro is being defined (`defining_kbd_macro' is
-    !> not nil).
+    !> not nil).  Not a port.
     logical function defining_kbd_macro_p()
         defining_kbd_macro_p = defining_kbd_macro /= DEFINING_KBD_MACRO_NIL
     end function defining_kbd_macro_p
@@ -574,7 +580,7 @@ contains
         current_input_meta_mode = meta_key
     end function current_input_meta_mode
 
-    !> Read keyboard input from `fd' (-1 for none).
+    !> Read keyboard input from `fd' (-1 for none).  Not a port.
     subroutine set_input_fd(fd)
         integer(int32), intent(in) :: fd
 
@@ -609,14 +615,14 @@ contains
         events(tail) = ev
     end subroutine store_event
 
-    !> Store character event `c'.
+    !> Store character event `c'.  Not a port.
     subroutine store_char(c)
         integer(int64), intent(in) :: c
 
         call store_event(make_fixnum(c))
     end subroutine store_char
 
-    !> Flush incomplete UTF-8 bytes as raw-byte characters.
+    !> Flush incomplete UTF-8 bytes as raw-byte characters.  Not a port.
     subroutine flush_pending()
         integer(int64) :: k
 
@@ -630,8 +636,8 @@ contains
     end subroutine flush_pending
 
     !> Decode byte `b' with the keyboard coding system (UTF-8): complete
-    !> characters become events, invalid bytes raw-byte characters.  The
-    !> decoding part of keyboard.c:read_decoded_event_from_main_queue.
+    !> characters become events, invalid bytes raw-byte characters.  Port of
+    !> keyboard.c:read_decoded_event_from_main_queue (the decoding part).
     subroutine decode_byte(b)
         integer(int32), intent(in) :: b
         integer(int32) :: need, ch, length
@@ -672,8 +678,8 @@ contains
     end subroutine decode_byte
 
     ! Decode the byte B of keyboard input with the keyboard coding system
-    ! (`set_keyboard_coding_system'), as
-    ! keyboard.c:read_decoded_event_from_main_queue does.
+    ! (`set_keyboard_coding_system').  Port of
+    ! keyboard.c:read_decoded_event_from_main_queue, in part.
     subroutine decode_keyboard_byte(b)
         integer(int32), intent(in) :: b
         character(len=:), allocatable :: coding, text
@@ -722,8 +728,8 @@ contains
         end select
     end subroutine decode_keyboard_byte
 
-    !> Turn terminal input `bytes' into events.  The per-byte part of
-    !> keyboard.c:tty_read_avail_input.
+    !> Turn terminal input `bytes' into events.  Port of
+    !> keyboard.c:tty_read_avail_input (the per-byte part).
     subroutine kbd_store_bytes(bytes)
         character(len=*), intent(in) :: bytes
         integer(int64) :: k
@@ -764,7 +770,7 @@ contains
     end subroutine tty_read_avail_input
 
     !> Push `evs' to be read before any other input, in order.
-    !> Like setting keyboard.c:Vunread_command_events.
+    !> Like setting keyboard.c:Vunread_command_events.  Not a port.
     subroutine unread_command_events(evs)
         type(value_type), intent(in) :: evs(:)
 
@@ -773,7 +779,7 @@ contains
 
     !> Push `evs' to be read before any other input, in order, without
     !> passing them to the input method.  Like setting
-    !> keyboard.c:Vunread_post_input_method_events.
+    !> keyboard.c:Vunread_post_input_method_events.  Not a port.
     subroutine unread_post_input_method_events(evs)
         type(value_type), intent(in) :: evs(:)
 
@@ -782,7 +788,7 @@ contains
 
     !> Push `evs' to be read after `unread_command_events', in order, and
     !> passed to the input method.  Like setting
-    !> keyboard.c:Vunread_input_method_events.
+    !> keyboard.c:Vunread_input_method_events.  Not a port.
     subroutine unread_input_method_events(evs)
         type(value_type), intent(in) :: evs(:)
 
@@ -840,7 +846,7 @@ contains
     end subroutine discard_input
 
     !> Whether `unread_command_events' holds events (the variable is
-    !> non-nil).
+    !> non-nil).  Not a port.
     logical function unread_command_events_p()
         unread_command_events_p = nunread > 0
     end function unread_command_events_p
@@ -864,10 +870,10 @@ contains
     !> space to 255 but DEL goes through the current buffer's
     !> `input_method_function': the first event it returns is read, the
     !> others are read next (`unread_post_input_method_events'), and if it
-    !> returns none another event is read.  The core of
-    !> keyboard.c:read_char, with the macro part of record_char (the echo
-    !> area and `this_command_keys' need no saving around the input
-    !> method: they are not set while a key is read).
+    !> returns none another event is read.  Port of keyboard.c:read_char
+    !> (its core) and keyboard.c:record_char (its macro part; the echo area
+    !> and `this_command_keys' need no saving around the input method:
+    !> they are not set while a key is read).
     recursive subroutine read_event(ev, have, status, seconds, input_method)
         type(value_type), intent(out) :: ev
         logical, intent(out) :: have
@@ -893,6 +899,8 @@ contains
             if (.not. present(input_method)) return
             if (.not. input_method .or. .not. fixnump(ev)) return
             if (xfixnum(ev) < 32 .or. xfixnum(ev) > 255 .or. xfixnum(ev) == 127) return
+            ! (No current buffer, no input method.)
+            if (cur == 0) return
             method => buffers(cur)%input_method_function
             if (.not. associated(method)) return
             call method(xfixnum(ev), evs, status)
@@ -907,8 +915,9 @@ contains
     end subroutine read_event
 
     !> Store `ev' (an event, or the command run if `command') into the
-    !> ring of recent keys.  The recent_keys part of keyboard.c:record_char
-    !> (no help-echo or mouse-movement events) and of command_loop_1.
+    !> ring of recent keys.  Port of keyboard.c:record_char (the
+    !> recent_keys part; no help-echo or mouse-movement events) and
+    !> keyboard.c:command_loop_1 in part.
     subroutine record_recent(ev, command)
         type(value_type), intent(in) :: ev
         logical, intent(in) :: command
@@ -961,7 +970,7 @@ contains
         lossage_size = LOSSAGE_LIMIT
     end function lossage_size
 
-    !> The next input event (read_event without recording it).
+    !> The next input event (read_event without recording it).  Not a port.
     recursive subroutine read_event_1(ev, have, status, seconds, post_input_method)
         type(value_type), intent(out) :: ev
         logical, intent(out) :: have
@@ -1103,6 +1112,7 @@ contains
     ! Key sequences
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     function map_value(km) result(v)
         type(handle_type), intent(in) :: km
         type(value_type) :: v
@@ -1129,6 +1139,7 @@ contains
     end function test_undefined
 
     !> Events of translation `next' (a list of events or a string).
+    !> Not a port.
     subroutine sequence_events(next, seq)
         type(value_type), intent(in) :: next
         type(value_type), allocatable, intent(out) :: seq(:)
@@ -1217,6 +1228,7 @@ contains
         end if
     end subroutine keyremap_step
 
+    ! Not a port.
     subroutine reset_remap(fk, pos)
         type(keyremap_type), intent(inout) :: fk
         integer, intent(in) :: pos
@@ -1486,6 +1498,7 @@ contains
 
     !> Deactivate transient map KM if it is still the active one: the
     !> exitfun that subr.el:set-transient-map returns.
+    !> Port of subr.el:set-transient-map in part.
     subroutine exit_transient_map(km)
         type(handle_type), intent(in) :: km
         type(value_type) :: none(0)
@@ -1501,6 +1514,7 @@ contains
     !> (repeating its message) when KEEP_PRED is t and the command is the
     !> map's binding of the keys, else deactivate it.  The clearfun of
     !> subr.el:set-transient-map, with its exitfun.
+    !> Port of subr.el:set-transient-map in part.
     subroutine clear_transient_map(keys)
         type(value_type), intent(in) :: keys(:)
         type(value_type) :: mc
@@ -1536,6 +1550,7 @@ contains
     !> timer function signaled, and redisplay if any timer ran, as
     !> process.c:wait_reading_process_output does.  The result is the
     !> number of milliseconds to wait for the next timer, or -1 for none.
+    !> Not a port.
     recursive integer(int32) function run_timers() result(ms)
         integer(int64) :: old_timers_run
 
@@ -1584,7 +1599,7 @@ contains
     !> Wait up to `timeout' milliseconds (negative: no limit) for terminal
     !> input, taking subprocess output and running the callbacks of the
     !> other descriptors if they are ready first (then redisplaying and
-    !> returning false, as for a timeout).
+    !> returning false, as for a timeout).  Not a port.
     recursive logical function wait_for_input(timeout) result(ready)
         integer(int32), intent(in) :: timeout
         integer(int32), allocatable :: fds(:)
@@ -1624,7 +1639,7 @@ contains
         if (any(got) .and. associated(redisplay_hook)) call redisplay_hook()
     end function wait_for_input
 
-    !> The number of descriptors given to `add_read_fd'.
+    !> The number of descriptors given to `add_read_fd'.  Not a port.
     integer function n_read_fds()
         n_read_fds = 0
         if (allocated(read_fds)) n_read_fds = size(read_fds)
@@ -1697,14 +1712,14 @@ contains
         special_events(n_special_events)%arg = arg
     end subroutine insert_special_event
 
-    !> Whether special events are waiting to be handled.
+    !> Whether special events are waiting to be handled.  Not a port.
     logical function special_events_pending_p()
         special_events_pending_p = n_special_events > 0
     end function special_events_pending_p
 
     !> Handle the queued special events, oldest first, including those
     !> queued meanwhile; an error is reported as the command loop does.
-    !> Part of keyboard.c:read_char.
+    !> Port of keyboard.c:read_char in part.
     recursive subroutine run_special_events()
         type(special_event_type) :: ev
         type(status_type) :: st
@@ -1718,12 +1733,12 @@ contains
         end do
     end subroutine run_special_events
 
-    !> Make `command_loop' return after the current command.
+    !> Make `command_loop' return after the current command.  Not a port.
     subroutine request_exit()
         exit_requested = .true.
     end subroutine request_exit
 
-    !> Whether a command asked the command loop to stop.
+    !> Whether a command asked the command loop to stop.  Not a port.
     logical function exit_requested_p()
         exit_requested_p = exit_requested
     end function exit_requested_p
@@ -1740,14 +1755,14 @@ contains
     end function at_end_of_macro_p
 
     !> Whether a keyboard macro is executing (`executing_kbd_macro'
-    !> true).
+    !> true).  Not a port.
     logical function executing_kbd_macro_p()
         executing_kbd_macro_p = macro_active
     end function executing_kbd_macro_p
 
     !> Make the selected window's buffer current (set_buffer_internal
     !> (XBUFFER (XWINDOW (selected_window)->contents)) in
-    !> keyboard.c:command_loop_1).
+    !> keyboard.c:command_loop_1).  Not a port.
     subroutine select_window_buffer()
         use frame_fm, only: selected_window
         use window_fm, only: windows, window_live_p
@@ -1816,8 +1831,8 @@ contains
     !> (or of the keyboard macro being executed).  Errors from the command
     !> are returned in `status'; the command loop's error handler reports
     !> them in `last_message', with the bell (`cmd_error'), except in a
-    !> keyboard macro, which they end.  One iteration of
-    !> keyboard.c:command_loop_1, with simple.el:command-execute.
+    !> keyboard macro, which they end.  Port of
+    !> keyboard.c:command_loop_1 (one iteration) and simple.el:command-execute.
     recursive subroutine command_loop_step(done, status)
         logical, intent(out) :: done
         type(status_type), intent(out) :: status
@@ -1975,7 +1990,7 @@ contains
         done = eof
     end subroutine command_loop_step
 
-    !> Whether the selected window shows the current buffer.
+    !> Whether the selected window shows the current buffer.  Not a port.
     logical function selected_window_shows_current() result(shows)
         use frame_fm, only: selected_window
         use window_fm, only: windows, window_live_p
@@ -1987,7 +2002,7 @@ contains
         shows = windows(sw%index)%buffer%index == buffer_handle_index()
     end function selected_window_shows_current
 
-    !> The handle index of the current buffer.
+    !> The handle index of the current buffer.  Not a port.
     integer function buffer_handle_index() result(k)
         use buffer_fm, only: current_buffer
         type(handle_type) :: b
@@ -2262,6 +2277,7 @@ contains
     !> innermost recursive edit once the current command returns.  With
     !> `abort', `levels' (default 1) is the number of nested recursive
     !> edits to quit (as minibuffer.el:minibuffer-quit-recursive-edit).
+    !> Not a port.
     subroutine throw_exit(abort, levels)
         logical, intent(in) :: abort
         integer, intent(in), optional :: levels

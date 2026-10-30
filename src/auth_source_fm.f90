@@ -203,7 +203,7 @@ contains
         call minor_modes%read_passwd_mode%command(status)
     end subroutine read_passwd_mode
 
-    ! The minibuffer setup of `read_passwd'.
+    ! The minibuffer setup of `read_passwd'.  Not a port.
     recursive subroutine read_passwd_setup()
         type(status_type) :: st
 
@@ -289,7 +289,7 @@ contains
     end subroutine read_passwd
 
     !> Define `read_passwd_mode' and its keymap `read_passwd_map'
-    !> (keymap used while reading passwords).
+    !> (keymap used while reading passwords).  Not a port.
     subroutine syms_of_auth_source()
         type(status_type) :: st
 

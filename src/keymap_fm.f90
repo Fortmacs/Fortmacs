@@ -97,7 +97,7 @@ module keymap_fm
     end interface keymap_global_set
 
     abstract interface
-        !> Structural equality of two values (fns.c:Fequal).
+        !> Structural equality of two values (fns.c:Fequal).  Not a port.
         recursive logical function value_equal_proc(a, b)
             import :: value_type
             implicit none(type, external)
@@ -188,6 +188,7 @@ contains
     ! Registry
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     subroutine new_keymap(km, full, prompt)
         type(handle_type), intent(out) :: km
         logical, intent(in) :: full
@@ -225,7 +226,7 @@ contains
         call new_keymap(km, .false., prompt)
     end subroutine make_sparse_keymap
 
-    !> Slot of keymap `km', or a wrong-type-argument error.
+    !> Slot of keymap `km', or a wrong-type-argument error.  Not a port.
     subroutine resolve_keymap(km, i, status)
         type(handle_type), intent(in) :: km
         integer(int64), intent(out) :: i
@@ -238,12 +239,14 @@ contains
         end if
     end subroutine resolve_keymap
 
+    !> Whether KM is the handle of a live keymap.  Not a port.
     logical function keymap_live_p(km)
         type(handle_type), intent(in) :: km
 
         keymap_live_p = table%is_live(km)
     end function keymap_live_p
 
+    ! Not a port.
     logical function same_handle(a, b)
         type(handle_type), intent(in) :: a, b
 
@@ -272,7 +275,7 @@ contains
         end do
     end subroutine free_keymap
 
-    !> The prompt string of `km' (nil if none).
+    !> The prompt string of `km' (nil if none).  Not a port.
     function keymap_prompt(km) result(v)
         type(handle_type), intent(in) :: km
         type(value_type) :: v
@@ -282,6 +285,7 @@ contains
 
     !> The bindings of `km' in upstream's list order, newest first: its
     !> events and their definitions, and its character ranges with theirs.
+    !> Not a port.
     subroutine keymap_entries(km, events, bindings, range_from, range_to, range_bindings)
         type(handle_type), intent(in) :: km
         type(value_type), allocatable, intent(out) :: events(:), bindings(:), range_bindings(:)
@@ -302,7 +306,7 @@ contains
 
     !> Whether keymaps `a' and `b' are `equal': the same bindings
     !> (compared with `equal'), prompt and parent, as fns.c:internal_equal
-    !> compares their lists (and a full keymap's char-tables).
+    !> compares their lists (and a full keymap's char-tables).  Not a port.
     recursive logical function keymap_equal(a, b, equal) result(eq)
         type(handle_type), intent(in) :: a, b
         procedure(value_equal_proc) :: equal
@@ -358,6 +362,7 @@ contains
     end function keymap_equal
 
     !> Whether `km' was made by make-keymap (upstream: has a char-table).
+    !> Not a port.
     logical function keymap_full_p(km)
         type(handle_type), intent(in) :: km
 
@@ -370,12 +375,14 @@ contains
     ! ------------------------------------------------------------------
 
     !> The symbol `keymap', which marks inherited parts of composites.
+    !> Not a port.
     function keymap_marker() result(v)
         type(value_type) :: v
 
         v = make_symbol_ref(intern("keymap"))
     end function keymap_marker
 
+    ! Not a port.
     logical function is_marker(v)
         type(value_type), intent(in) :: v
 
@@ -383,6 +390,7 @@ contains
         if (symbolp(v)) is_marker = xsymbol(v) == intern("keymap")
     end function is_marker
 
+    ! Not a port.
     logical function is_t(v)
         type(value_type), intent(in) :: v
 
@@ -431,7 +439,7 @@ contains
     !> The events `km' binds to non-nil definitions, as subr.el's
     !> set-transient-map collects them by pushing what map-keymap visits
     !> (so in the reverse order): the parent's first.  Character ranges
-    !> are not included.
+    !> are not included.  Not a port.
     recursive subroutine keymap_events(km, events)
         type(handle_type), intent(in) :: km
         type(value_type), allocatable, intent(out) :: events(:)
@@ -505,7 +513,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> "A-C-H-M-S-s-" restricted to the modifiers in `bits'.  The order of
-    !> keyboard.c:apply_modifiers_uncached.
+    !> keyboard.c:apply_modifiers_uncached.  Not a port.
     function modifier_prefix(bits) result(s)
         integer(int64), intent(in) :: bits
         character(len=:), allocatable :: s
@@ -519,7 +527,7 @@ contains
         if (iand(bits, M_SUPER) /= 0) s = s//"s-"
     end function modifier_prefix
 
-    !> Modifier bit for prefix letter `ch', or 0.
+    !> Modifier bit for prefix letter `ch', or 0.  Not a port.
     integer(int64) function modifier_bit(ch)
         character, intent(in) :: ch
 
@@ -594,7 +602,7 @@ contains
     end function reorder_modifiers
 
     !> Event `c' in the form keymaps store: high bits of characters
-    !> cleared, symbol modifiers reordered.
+    !> cleared, symbol modifiers reordered.  Not a port.
     function normalize_event(c) result(e)
         type(value_type), intent(in) :: c
         type(value_type) :: e
@@ -615,7 +623,7 @@ contains
 
     !> Record binding `val' found during a scan.  The "If we found a
     !> binding" part of keymap.c:access_keymap_1.  `stop' when it shadows
-    !> everything after it.
+    !> everything after it.  Port of keymap.c:access_keymap_1 in part.
     subroutine take_binding(st, val_in, stop)
         type(access_state), intent(inout) :: st
         type(value_type), intent(in) :: val_in
@@ -645,6 +653,7 @@ contains
     end subroutine take_binding
 
     !> Append `parts' to the composite being built, starting one if needed.
+    !> Not a port.
     subroutine add_parts(st, parts)
         type(access_state), intent(inout) :: st
         type(value_type), intent(in) :: parts(:)
@@ -668,6 +677,7 @@ contains
 
     !> Reached the start of an inherited part, whose bindings are `tail'.
     !> The `EQ (binding, Qkeymap)' case of keymap.c:access_keymap_1.
+    !> Port of keymap.c:access_keymap_1 in part.
     recursive subroutine at_parent(st, tail, idx, noinherit, stop)
         type(access_state), intent(inout) :: st
         type(value_type), intent(in) :: tail, idx
@@ -885,7 +895,7 @@ contains
     ! Definition
     ! ------------------------------------------------------------------
 
-    !> Append entry (ev, def) to keymap slot `i'.
+    !> Append entry (ev, def) to keymap slot `i'.  Not a port.
     subroutine append_entry(i, ev, def)
         integer(int64), intent(in) :: i
         type(value_type), intent(in) :: ev, def
@@ -1011,7 +1021,7 @@ contains
     end subroutine define_key_range
 
     !> Add the range `from'..`to' with binding `def' (nil: none, the
-    !> char-table's nil) to keymap slot `i'.
+    !> char-table's nil) to keymap slot `i'.  Not a port.
     subroutine add_range(i, from, to, def)
         integer(int64), intent(in) :: i, from, to
         type(value_type), intent(in) :: def
@@ -1043,7 +1053,7 @@ contains
 
     !> The keymap to define into when the prefix binding is `cmd': a
     !> keymap, or the first member of a composite (as store_in_keymap
-    !> descends into a leading sub-keymap).
+    !> descends into a leading sub-keymap).  Not a port.
     recursive subroutine prefix_target(cmd, km, ok)
         type(value_type), intent(in) :: cmd
         type(handle_type), intent(out) :: km
@@ -1313,7 +1323,7 @@ contains
 
     !> Make MAP the keymap of minor mode VARIABLE in the current buffer's
     !> minor-mode-overriding-map-alist (pushed to the front, replacing an
-    !> earlier entry for VARIABLE).
+    !> earlier entry for VARIABLE).  Not a port.
     subroutine push_minor_mode_overriding_map(variable, map)
         character(len=*), intent(in) :: variable
         type(handle_type), intent(in) :: map
@@ -1337,7 +1347,7 @@ contains
     end subroutine push_minor_mode_overriding_map
 
     !> Remove the entry of minor mode VARIABLE from the current buffer's
-    !> minor-mode-overriding-map-alist.
+    !> minor-mode-overriding-map-alist.  Not a port.
     subroutine remove_minor_mode_overriding_map(variable)
         character(len=*), intent(in) :: variable
         logical, allocatable :: keep(:)
@@ -1350,6 +1360,7 @@ contains
         overriding_maps = pack(overriding_maps, keep)
     end subroutine remove_minor_mode_overriding_map
 
+    ! Not a port.
     subroutine init_overriding()
         if (.not. allocated(overriding_vars)) allocate (overriding_vars(0), overriding_serials(0), overriding_maps(0))
     end subroutine init_overriding
@@ -1357,7 +1368,7 @@ contains
     !> The minor-mode keymaps in the order keymap.c:current_minor_maps
     !> looks at them (the current buffer's minor-mode-overriding-map-alist,
     !> then the minor-mode-map-alist maps of the other variables), with
-    !> their variables, whatever the variables' values.
+    !> their variables, whatever the variables' values.  Not a port.
     subroutine minor_mode_entries(vars, maps)
         integer(int64), allocatable, intent(out) :: vars(:)
         type(handle_type), allocatable, intent(out) :: maps(:)
@@ -1389,7 +1400,7 @@ contains
     end subroutine minor_mode_entries
 
     !> The variable of an enabled minor mode whose keymap (in
-    !> minor-mode-map-alist) is `map'; "" if none.
+    !> minor-mode-map-alist) is `map'; "" if none.  Not a port.
     function active_minor_mode_of_map(map) result(variable)
         type(handle_type), intent(in) :: map
         character(len=:), allocatable :: variable
@@ -1721,6 +1732,7 @@ contains
     ! Descriptions
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     function int_text(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
@@ -1934,6 +1946,7 @@ contains
     ! kbd
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     logical function is_space(ch)
         character, intent(in) :: ch
 
@@ -1941,7 +1954,7 @@ contains
                    ch == achar(12)
     end function is_space
 
-    !> Code points of UTF-8 string `s'.
+    !> Code points of UTF-8 string `s'.  Not a port.
     subroutine decode(s, codes)
         character(len=*), intent(in) :: s
         integer(int64), allocatable, intent(out) :: codes(:)
@@ -1963,6 +1976,7 @@ contains
     end subroutine decode
 
     !> End of a "<as df>" word starting at `wb' in `keys', or 0.
+    !> Not a port.
     integer(int64) function angle_end(keys, wb) result(q)
         character(len=*), intent(in) :: keys
         integer(int64), intent(in) :: wb
@@ -1983,7 +1997,7 @@ contains
     end function angle_end
 
     !> Whether `word' ends in one of the names NUL RET LFD TAB ESC SPC DEL
-    !> at a word boundary.
+    !> at a word boundary.  Not a port.
     logical function ends_in_name(word)
         character(len=*), intent(in) :: word
         character(len=3), parameter :: names(7) = &
@@ -2007,7 +2021,7 @@ contains
         end if
     end function ends_in_name
 
-    !> Append `n' copies of `key' to `events(1:nev)'.
+    !> Append `n' copies of `key' to `events(1:nev)'.  Not a port.
     subroutine push_events(events, nev, key, n)
         type(value_type), allocatable, intent(inout) :: events(:)
         integer(int64), intent(inout) :: nev
@@ -2030,7 +2044,7 @@ contains
         end do
     end subroutine push_events
 
-    !> Fixnum events for `codes'.
+    !> Fixnum events for `codes'.  Not a port.
     subroutine char_events(codes, key)
         integer(int64), intent(in) :: codes(:)
         type(value_type), allocatable, intent(out) :: key(:)
@@ -2238,6 +2252,7 @@ contains
                 if (w(1:1) == "-") s = 2
             end if
 
+            ! hazard-ok(short-circuit): s is at most len(w) + 1, so w(s:) is valid.
             numeric_word = len(w) >= s .and. verify(w(s:), "0123456789") == 0
         end function numeric_word
     end subroutine key_parse
@@ -2281,6 +2296,7 @@ contains
     end function key_valid_p
 
     !> Whether one space-free word of `key_valid_p' input is a valid key.
+    !> Not a port.
     pure logical function valid_key(word)
         character(len=*), intent(in) :: word
         integer :: s, m
@@ -2312,6 +2328,7 @@ contains
 
     !> Skip the modifier prefixes "A-C-H-M-S-s-" (each optional, in this
     !> order) starting at `start' of `word'; the position after them.
+    !> Not a port.
     pure integer function after_modifiers(word, start) result(s)
         character(len=*), intent(in) :: word
         integer, intent(in) :: start
@@ -2374,7 +2391,7 @@ contains
     end subroutine keymap_set_value
 
     !> Set KEY to the command named COMMAND in KEYMAP: `keymap_set' with
-    !> the symbol COMMAND as the definition.
+    !> the symbol COMMAND as the definition.  Not a port.
     subroutine keymap_set_command(keymap, key, command, status)
         type(handle_type), intent(in) :: keymap
         character(len=*), intent(in) :: key, command
@@ -2402,7 +2419,7 @@ contains
 
     !> Give KEY a global binding as the command named COMMAND, e.g.
     !>
-    !>     call keymap_global_set("C-c f", "find-file", status)
+    !>     call keymap_global_set("C-c f", "find-file", status)  Not a port.
     subroutine keymap_global_set_command(key, command, status)
         character(len=*), intent(in) :: key, command
         type(status_type), intent(out) :: status
@@ -2673,6 +2690,7 @@ contains
     end subroutine set_repeat_map
 
     !> `set_repeat_map' for the bindings of prefix map SUB of MAP.
+    !> Not a port.
     recursive subroutine set_repeat_map_of(sub, map, exit)
         type(handle_type), intent(in) :: sub, map
         character(len=*), intent(in), optional :: exit(:)
@@ -2706,7 +2724,7 @@ contains
     end subroutine set_repeat_map_of
 
     !> The `advertised_binding' of the command named `name' as events;
-    !> none if it has none (or it doesn't parse).
+    !> none if it has none (or it doesn't parse).  Not a port.
     subroutine advertised_key(name, key)
         character(len=*), intent(in) :: name
         type(value_type), allocatable, intent(out) :: key(:)
@@ -2724,7 +2742,7 @@ contains
     end subroutine advertised_key
 
     !> Whether entry event `ev' of a full keymap is in its char-table (a
-    !> character without modifiers).
+    !> character without modifiers).  Not a port.
     logical function char_table_event_p(ev)
         type(value_type), intent(in) :: ev
 
@@ -2735,6 +2753,7 @@ contains
     !> The runs of characters with the same non-nil binding in the
     !> char-table of full keymap `mp' (its single characters over its
     !> ranges), in character order, as map_char_table gives them.
+    !> Not a port.
     subroutine char_table_runs(mp, run_from, run_to, run_val)
         type(keymap_type), intent(in) :: mp
         integer(int64), allocatable, intent(out) :: run_from(:), run_to(:)
@@ -2835,6 +2854,7 @@ contains
 
     !> `keys' with each event replaced by its head (a character interval
     !> by its first character), as lookup sees them (EVENT_HEAD).
+    !> Not a port.
     function event_heads(keys) result(heads)
         type(value_type), intent(in) :: keys(:)
         type(value_type), allocatable :: heads(:)
@@ -2849,7 +2869,7 @@ contains
 
     !> The order upstream's map_keymap visits a keymap's entries in after
     !> a full keymap's char-table (see `char_table_runs'): the other
-    !> entries, newest first.
+    !> entries, newest first.  Not a port.
     subroutine entry_order(mp, order)
         type(keymap_type), intent(in) :: mp
         integer, allocatable, intent(out) :: order(:)
@@ -2871,6 +2891,7 @@ contains
         order = order(1:m)
     end subroutine entry_order
 
+    ! Not a port.
     logical function same_keys(a, b)
         type(value_type), intent(in) :: a(:), b(:)
         integer :: i
@@ -2886,7 +2907,7 @@ contains
         end do
     end function same_keys
 
-    !> Append `v' to the array `list'.
+    !> Append `v' to the array `list'.  Not a port.
     subroutine append_value(list, v)
         type(value_type), allocatable, intent(inout) :: list(:)
         type(value_type), intent(in) :: v
@@ -2901,6 +2922,7 @@ contains
     end subroutine append_value
 
     !> Append (`keys', `map') to `list', which holds `n' entries.
+    !> Not a port.
     subroutine push(list, n, keys, map)
         type(key_list_type), allocatable, intent(inout) :: list(:)
         integer, intent(inout) :: n

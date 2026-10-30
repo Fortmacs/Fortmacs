@@ -75,7 +75,7 @@ module map_ynp_fm
     end type read_answer_type
 
     abstract interface
-        !> Whether and how to ask about object `k'.
+        !> Whether and how to ask about object `k'.  Not a port.
         subroutine ynp_prompter(k, how, prompt)
             implicit none(type, external)
             integer, intent(in) :: k
@@ -83,7 +83,7 @@ module map_ynp_fm
             character(len=:), allocatable, intent(out) :: prompt
         end subroutine ynp_prompter
 
-        !> Act on object `k'.
+        !> Act on object `k'.  Not a port.
         subroutine ynp_actor(k, status)
             import :: status_type
             implicit none(type, external)
@@ -149,6 +149,7 @@ module map_ynp_fm
     !> (cmd-char upstream), keys that would self-insert say "Type C-h for
     !> help" (cmd-help).  Made on first use.
     type(handle_type), public :: ynp_remap
+    !> The commands cmd-char and cmd-help of `ynp_remap'.
     type(command_type), target, public :: cmd_char, cmd_help
     !> The keys cmd-char recorded (unallocated for none).
     type(value_type), allocatable, public :: chars(:)
@@ -159,7 +160,12 @@ module map_ynp_fm
     !> the anonymous commands `read_answer__select' and
     !> `read_answer__reject'.
     type(read_answer_type), allocatable, public :: short_answers(:)
+    !> The message for a key that is not one of the `short_answers'.
     character(len=:), allocatable, public :: short_answer_message
+    !> The minibuffer keymap of the `short_answers' (read-answer's
+    !> short-answer-map).
     type(handle_type), public :: short_answer_map
+    !> The anonymous commands `read_answer__select' and
+    !> `read_answer__reject' of `short_answer_map'.
     type(command_type), target, public :: cmd_answer_select, cmd_answer_reject
 end module map_ynp_fm

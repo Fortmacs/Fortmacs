@@ -53,24 +53,49 @@ module character_fm
     private
 
     ! character.h
+    !> The largest character code.  Port of character.h MAX_CHAR.
     integer(int32), parameter, public :: MAX_CHAR = int(z'3FFFFF', int32)
+    !> The largest Unicode character.  Port of character.h MAX_UNICODE_CHAR.
     integer(int32), parameter, public :: MAX_UNICODE_CHAR = int(z'10FFFF', int32)
+    !> The largest character whose multibyte form has 1 byte.  Port of
+    !> character.h MAX_1_BYTE_CHAR.
     integer(int32), parameter, public :: MAX_1_BYTE_CHAR = int(z'7F', int32)
+    !> The largest character whose multibyte form has 2 bytes.  Port of
+    !> character.h MAX_2_BYTE_CHAR.
     integer(int32), parameter, public :: MAX_2_BYTE_CHAR = int(z'7FF', int32)
+    !> The largest character whose multibyte form has 3 bytes.  Port of
+    !> character.h MAX_3_BYTE_CHAR.
     integer(int32), parameter, public :: MAX_3_BYTE_CHAR = int(z'FFFF', int32)
+    !> The largest character whose multibyte form has 4 bytes.  Port of
+    !> character.h MAX_4_BYTE_CHAR.
     integer(int32), parameter, public :: MAX_4_BYTE_CHAR = int(z'1FFFFF', int32)
+    !> The largest character whose multibyte form has 5 bytes.  Port of
+    !> character.h MAX_5_BYTE_CHAR.
     integer(int32), parameter, public :: MAX_5_BYTE_CHAR = int(z'3FFF7F', int32)
+    !> The smallest leading byte of a multibyte form.  Port of character.h
+    !> MIN_MULTIBYTE_LEADING_CODE.
     integer(int32), parameter, public :: MIN_MULTIBYTE_LEADING_CODE = int(z'C0', int32)
+    !> The largest leading byte of a multibyte form.  Port of character.h
+    !> MAX_MULTIBYTE_LEADING_CODE.
     integer(int32), parameter, public :: MAX_MULTIBYTE_LEADING_CODE = int(z'F8', int32)
+    !> The longest multibyte form, in bytes.  Port of character.h
+    !> MAX_MULTIBYTE_LENGTH.
     integer, parameter, public :: MAX_MULTIBYTE_LENGTH = 5
 
-    ! lisp.h: modifier bits of character events.
+    !> lisp.h: modifier bits of character events.
+    !> The alt modifier bit of a character event.  Port of lisp.h CHAR_ALT.
     integer(int32), parameter, public :: CHAR_ALT = int(z'0400000', int32)
+    !> The super modifier bit of a character event.  Port of lisp.h CHAR_SUPER.
     integer(int32), parameter, public :: CHAR_SUPER = int(z'0800000', int32)
+    !> The hyper modifier bit of a character event.  Port of lisp.h CHAR_HYPER.
     integer(int32), parameter, public :: CHAR_HYPER = int(z'1000000', int32)
+    !> The shift modifier bit of a character event.  Port of lisp.h CHAR_SHIFT.
     integer(int32), parameter, public :: CHAR_SHIFT = int(z'2000000', int32)
+    !> The control modifier bit of a character event.  Port of lisp.h CHAR_CTL.
     integer(int32), parameter, public :: CHAR_CTL = int(z'4000000', int32)
+    !> The meta modifier bit of a character event.  Port of lisp.h CHAR_META.
     integer(int32), parameter, public :: CHAR_META = int(z'8000000', int32)
+    !> All the modifier bits.  Port of lisp.h CHAR_MODIFIER_MASK.
     integer(int32), parameter, public :: CHAR_MODIFIER_MASK = &
                                          ior(ior(ior(CHAR_ALT, CHAR_SUPER), ior(CHAR_HYPER, CHAR_SHIFT)), &
                                              ior(CHAR_CTL, CHAR_META))
@@ -106,7 +131,7 @@ module character_fm
 
 contains
 
-    !> Byte value (0..255) at position `i' of `str'.
+    !> Byte value (0..255) at position `i' of `str'.  Not a port.
     pure integer(int32) function byte_at(str, i)
         character(len=*), intent(in) :: str
         integer(int64), intent(in) :: i
@@ -744,6 +769,7 @@ contains
     !> The Unicode general category of `c' (`UNICODE_CATEGORY_...'): Cn
     !> for an unassigned code point, UNKNOWN beyond Unicode.  What
     !> CHAR_TABLE_REF (Vunicode_category_table, c) gives upstream.
+    !> Not a port.
     pure integer function unicode_category(c) result(cat)
         integer(int32), intent(in) :: c
         integer :: lo, hi, mid
@@ -822,8 +848,8 @@ contains
     end function printablep
 
     !> Return true if C is a horizontal whitespace character, as defined
-    !> by https://www.unicode.org/reports/tr18/tr18-19.html#blank.  Port
-    !> of character.c:blankp.
+    !> by https://www.unicode.org/reports/tr18/tr18-19.html#blank.
+    !> Port of character.c:blankp.
     pure logical function blankp(c)
         integer(int32), intent(in) :: c
 
