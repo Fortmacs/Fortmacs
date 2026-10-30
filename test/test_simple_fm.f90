@@ -77,6 +77,7 @@ contains
 
     subroutine collect_simple_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("kill-whole-line-after-other-kill", test_kwl_after_other_kill), &
                     new_unittest("kill-whole-line-buffer-boundaries", test_kwl_buffer_boundaries), &
@@ -119,6 +120,7 @@ contains
     subroutine fresh(h)
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call get_buffer_create("*simple-test*", h, st)
         call set_buffer(h, st)
         call set_buffer_read_only(h, .false., st)
@@ -134,15 +136,19 @@ contains
         character(len=*), intent(in) :: description
         type(status_type) :: st
         integer :: k
+
         call erase_buffer(st)
         call insert(description, st)
         k = index(buffer_string(), mark_tag)
+
         if (k > 0) then
             call delete_region(int(k, int64), int(k + len(mark_tag), int64), st)
             call push_mark(int(k, int64), .true., .true.)
         end if
+
         k = index(buffer_string(), point_tag)
         call goto_char(point_min())
+
         if (k > 0) then
             call delete_region(int(k, int64), int(k + len(point_tag), int64), st)
             call goto_char(int(k, int64))
@@ -156,8 +162,10 @@ contains
         character(len=:), allocatable :: a, b, c
         integer(int64) :: m, p
         type(status_type) :: st
+
         p = point()
         m = mark_position()
+
         if (.not. buffers(cur)%mark_active) then
             call buffer_substring(point_min(), p, a, st)
             call buffer_substring(p, point_max(), b, st)
@@ -178,6 +186,7 @@ contains
     !> The car of the kill ring.
     function latest_kill() result(s)
         character(len=:), allocatable :: s
+
         s = "<empty>"
         if (list_length(kill_ring()) > 0) s = xstring(list_elt(kill_ring(), 1_int64))
     end function latest_kill
@@ -189,6 +198,7 @@ contains
         character(len=*), intent(in) :: label, before, after, killed
         integer(int64), intent(in) :: arg
         type(status_type) :: st
+
         if (allocated(error)) return
         call set_text_point_mark(before)
         last_command = sym("ignore")
@@ -207,6 +217,7 @@ contains
         integer(int64), intent(in) :: arg
         integer, intent(in) :: code
         type(status_type) :: st
+
         if (allocated(error)) return
         call set_text_point_mark(before)
         call kill_whole_line(arg, st)
@@ -217,6 +228,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call set_text_point_mark("A"//point_tag//"X"//mark_tag//"B")
         last_command = sym("ignore")
@@ -233,6 +245,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call kwl_error(error, "0", point_tag, -1_int64, FM_BEGINNING_OF_BUFFER)
         call kwl_error(error, "0", point_tag, 1_int64, FM_END_OF_BUFFER)
@@ -247,6 +260,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call kwl_case(error, "1a", "-1"//nl//point_tag//nl//"1"//nl, 1_int64, "-1"//nl//point_tag//"1"//nl, nl)
         call kwl_case(error, "1b", "-1"//nl//point_tag//nl//"1"//nl, -1_int64, "-1"//point_tag//nl//"1"//nl, nl)
@@ -266,6 +280,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         character(len=:), allocatable :: text
+
         call fresh(h)
         call current_kill(0_int64, text, st)
         call check(error, format_error(st), "Kill ring is empty")
@@ -303,6 +318,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call insert("abcdef", st)
         last_command = sym("ignore")
@@ -334,6 +350,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call insert("locked", st)
         call set_buffer_read_only(h, .true., st)
@@ -349,6 +366,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call set_text_point_mark(point_tag//"one"//nl//"  "//nl//"three")
         last_command = sym("ignore")
@@ -383,6 +401,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call kill_new("first")
         call kill_new("second")
@@ -420,6 +439,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call insert("0123456789", st)
         call push_mark(2_int64, .true.)
@@ -452,6 +472,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: b, e
+
         call fresh(h)
         call set_text_point_mark("ab"//point_tag//"cd"//mark_tag//"ef")
         call exchange_point_and_mark(.false., st)
@@ -476,6 +497,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call discard_input()
         prefix_arg = nil()
@@ -525,6 +547,7 @@ contains
         character(len=*), intent(in) :: before, after
         character(len=:), allocatable :: b, a
         type(status_type) :: st
+
         call buffer_substring(point_min(), point(), b, st)
         call buffer_substring(point(), point_max(), a, st)
         call check(error, b == before .and. a == after .and. len(b) == len(before) .and. len(a) == len(after), &
@@ -535,6 +558,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call insert(" first "//nl//" second "//nl//" third "//nl//" fourth ", st)
         ! Without prefix argument.
@@ -555,6 +579,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call insert(" first "//nl//" second "//nl//" third ", st)
         call set_mark(point_min())
@@ -568,6 +593,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call insert(nl//nl//" third "//nl//" "//nl//" "//nl//" sixth "//nl//nl, st)
         ! Without prefix argument.
@@ -601,6 +627,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: shortage
+
         call fresh(h)
         call insert(" first "//nl//" second "//nl//" third ", st)
         ! Stay at EOB.
@@ -629,6 +656,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         ! Empty region.
         call insert(" first ", st)
@@ -665,6 +693,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call insert("> first "//nl//"> second "//nl//"> third "//nl//"> fourth ", st)
         fill_prefix = ""
@@ -688,6 +717,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call set_text_point_mark("ab"//point_tag//"cd")
         call transpose_chars(1_int64, st)
@@ -746,6 +776,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call set_text_point_mark("a "//achar(9)//" "//point_tag//"  b")
         call delete_horizontal_space(.false., st)
@@ -811,6 +842,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call init_bindings()
         call fresh(h)
         call insert("ab cd", st)
@@ -851,12 +883,14 @@ contains
         call check(error, buffer_string() == "x"//nl//"cd BA"//nl, buffer_string())
         call kill_buffer(h, st)
     end subroutine test_space_keys
+
     !> A buffer holding "(a b" before point and " c d)" after, as
     !> simple-tests.el:simple-test--dummy-buffer (indent-tabs-mode nil
     !> does not matter here).
     subroutine dummy_buffer(h)
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call fresh(h)
         indent_tabs_mode = .false.
         call insert("(a b c d)", st)
@@ -868,6 +902,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call dummy_buffer(h)
         call newline(st, -1_int64)
         call check(error,.not. st%ok(), "(newline -1) signals")
@@ -896,6 +931,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call dummy_buffer(h)
         call open_line(-1_int64, st)
         call check(error,.not. st%ok(), "(open-line -1) signals")
@@ -920,6 +956,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call dummy_buffer(h)
         left_margin = 10_int64
         call open_line(3_int64, st)
@@ -952,6 +989,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call init_bindings()
         call turn_on_auto_fill(st)
@@ -974,6 +1012,7 @@ contains
     ! An auto-fill function that only counts its calls.
     subroutine count_fill(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         fill_calls = fill_calls + 1
     end subroutine count_fill
@@ -984,6 +1023,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call init_bindings()
         call check(error, allocated(auto_fill_chars), "auto_fill_chars set")
@@ -1018,6 +1058,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call insert("hello world", st)
         call goto_char(1_int64)
@@ -1047,6 +1088,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(value_type), allocatable :: events(:)
+
         call fresh(h)
         call init_bindings()
         call discard_input()
@@ -1096,6 +1138,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(value_type), allocatable :: events(:)
+
         call fresh(h)
         call init_bindings()
         call discard_input()
@@ -1114,6 +1157,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call insert("ab cd", st)
         call set_mark(1_int64)
@@ -1134,6 +1178,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call kill_new("one")
         call kill_new("two")
@@ -1154,11 +1199,14 @@ contains
         type(window_type), pointer :: w
         character(len=7) :: text
         integer :: k
+
         call fresh(h)
+
         do k = 1, 30
             write (text, '("line", i2.2, a)') k, achar(10)
             call insert(text, st)
         end do
+
         call goto_char(1_int64)
         selected_frame%minibuffer_selected = .false.
         call delete_window_tree(selected_frame%root_window)
@@ -1174,6 +1222,7 @@ contains
     subroutine leave_window(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
+
         call kill_buffer(h, st)
         call delete_window_tree(selected_frame%root_window)
         selected_frame%root_window = null_handle()
@@ -1185,6 +1234,7 @@ contains
     subroutine test_end_of_buffer(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
+
         call enter_window(h)
         call end_of_buffer(nil())
         ! Point (the empty last line, 31) on body line 8 of 10.
@@ -1202,6 +1252,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call enter_window(h)
         call set_window_start(frame_selected_window_ref(), 7_int64*20 + 1, st)
         call set_mark(1_int64)
@@ -1235,6 +1286,7 @@ contains
         type(status_type) :: st
         type(value_type) :: binding
         type(value_type), allocatable :: key(:)
+
         call fresh(h)
         call init_bindings()
         call discard_input()
@@ -1253,6 +1305,7 @@ contains
         call fundamental_mode(st)
         call kill_buffer(h, st)
     end subroutine test_special_mode_suppress
+
     !> Line motion over invisible text, as in GNU Emacs: C-n by buffer
     !> lines skips an invisible line; C-e and C-a treat an invisible
     !> newline as absent.
@@ -1263,6 +1316,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call init_bindings()
         call discard_input()
         call get_buffer_create("*line-motion-invisible*", h, st)
@@ -1288,6 +1342,7 @@ contains
         call get_buffer_create("*scratch*", h, st)
         call set_buffer(h, st)
         call show_alone()
+
     contains
 
         integer(int64) function after_keys(from, keys) result(pos)
@@ -1295,6 +1350,7 @@ contains
             character(len=*), intent(in) :: keys
             type(value_type), allocatable :: evs(:)
             type(status_type) :: st2
+
             call goto_char(from)
             call key_parse(keys, evs, st2)
             call unread_command_events(evs)

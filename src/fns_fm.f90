@@ -102,18 +102,23 @@ contains
     recursive logical function value_equal(a, b) result(eq)
         type(value_type), intent(in) :: a, b
         integer(int64) :: i, j
+
         eq = .false.
         if (vtag(a) /= vtag(b)) return
+
         if (vtag(a) == V_NIL) then
             eq = .true.
             return
         end if
+
         ! Same preorder atoms <=> same tree; a string's text properties
         ! (its children) don't count.
         i = 1
         j = 1
+
         do while (i <= size(a%a, kind=int64) .and. j <= size(b%a, kind=int64))
             if (.not. atom_equal(a%a(i), b%a(j))) return
+
             if (a%a(i)%tag == V_STRING) then
                 i = i + a%a(i)%span
                 j = j + b%a(j)%span
@@ -122,6 +127,7 @@ contains
                 j = j + 1
             end if
         end do
+
         eq = i > size(a%a, kind=int64) .and. j > size(b%a, kind=int64)
     end function value_equal
 
@@ -129,8 +135,10 @@ contains
         type(atom_type), intent(in) :: x, y
         integer(int64) :: ix, iy
         type(status_type) :: sx, sy
+
         eq = .false.
         if (x%tag /= y%tag) return
+
         select case (x%tag)
         case (V_NIL)
             eq = .true.
@@ -147,6 +155,7 @@ contains
         case (V_MARKER)
             call resolve_marker(x%h, ix, sx)
             call resolve_marker(y%h, iy, sy)
+
             if (.not. (sx%ok() .and. sy%ok())) then
                 eq = x%h%index == y%h%index .and. x%h%generation == y%h%generation
             else
@@ -165,7 +174,9 @@ contains
         integer(int64), intent(out) :: n
         type(status_type), intent(out) :: status
         type(status_type) :: st
+
         n = 0
+
         select case (vtag(sequence))
         case (V_NIL)
             n = 0
@@ -185,6 +196,7 @@ contains
         type(value_type), intent(in) :: list
         type(value_type), intent(out) :: v
         type(status_type), intent(out) :: status
+
         select case (vtag(list))
         case (V_NIL)
         case (V_LIST)
@@ -200,10 +212,12 @@ contains
         type(value_type), intent(in) :: list
         type(value_type), intent(out) :: v
         type(status_type), intent(out) :: status
+
         if (n <= 0) then
             v = list
             return
         end if
+
         select case (vtag(list))
         case (V_NIL)
         case (V_LIST)
@@ -220,7 +234,9 @@ contains
         type(value_type) :: tail
         type(value_type), allocatable :: elems(:)
         integer(int64) :: k
+
         call list_elements(list, elems)
+
         do k = 1, size(elems, kind=int64)
             if (value_eq(elems(k), elt)) then
                 tail = list_tail(list, k - 1)
@@ -235,7 +251,9 @@ contains
         type(value_type) :: tail
         type(value_type), allocatable :: elems(:)
         integer(int64) :: k
+
         call list_elements(list, elems)
+
         do k = 1, size(elems, kind=int64)
             if (value_equal(elems(k), elt)) then
                 tail = list_tail(list, k - 1)
@@ -249,7 +267,9 @@ contains
         type(value_type), intent(in) :: v
         character(len=:), allocatable, intent(out) :: text
         logical, intent(out) :: ok
+
         ok = .true.
+
         select case (vtag(v))
         case (V_STRING)
             text = v%a(1)%s
@@ -272,22 +292,27 @@ contains
         logical :: oka, okb
         integer(int64) :: pa, pb
         integer(int32) :: ca, cb, na, nb
+
         string_lessp = .false.
         call string_or_name(a, sa, oka)
         call string_or_name(b, sb, okb)
         if (.not. (oka .and. okb)) return
         pa = 1
         pb = 1
+
         do while (pa <= len(sa, kind=int64) .and. pb <= len(sb, kind=int64))
             call string_char_and_length(sa, pa, ca, na)
             call string_char_and_length(sb, pb, cb, nb)
+
             if (ca /= cb) then
                 string_lessp = ca < cb
                 return
             end if
+
             pa = pa + na
             pb = pb + nb
         end do
+
         ! Equal up to the shorter length: the shorter one is less.
         string_lessp = pa > len(sa, kind=int64) .and. pb <= len(sb, kind=int64)
     end function string_lessp
@@ -327,6 +352,7 @@ contains
         integer(int32) :: a, b
         logical :: fold, ok
         type(status_type) :: st
+
         r = COMPARE_EQUAL
         call string_chars(str1, c1)
         call string_chars(str2, c2)
@@ -344,25 +370,31 @@ contains
         if (.not. ok) return
         i1 = from1
         i2 = from2
+
         do while (i1 < to1 .and. i2 < to2)
             a = c1(i1 + 1)
             b = c2(i2 + 1)
             i1 = i1 + 1
             i2 = i2 + 1
             if (a == b) cycle
+
             if (fold) then
                 a = upcase(a)
                 b = upcase(b)
             end if
+
             if (a == b) cycle
+
             ! I1 has already been incremented past the character compared.
             if (a < b) then
                 r = -(i1 - from1)
             else
                 r = i1 - from1
             end if
+
             return
         end do
+
         if (i1 < to1) then
             r = i1 - from1 + 1
         else if (i2 < to2) then
@@ -387,22 +419,27 @@ contains
         integer(int64) :: f, t
         logical :: has_to
         character(len=:), allocatable :: from_text, to_text
+
         f = 0
         from_text = ".false."
+
         if (present(from)) then
             f = from
             from_text = int_text(from)
             if (f < 0) f = f + n
         end if
+
         has_to = present(to)
         if (present(to_given)) has_to = has_to .and. to_given
         t = n
         to_text = ".false."
+
         if (has_to) then
             t = to
             to_text = int_text(to)
             if (t < 0) t = t + n
         end if
+
         ok = 0 <= f .and. f <= t .and. t <= n
         ifrom = f
         ito = t
@@ -414,6 +451,7 @@ contains
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: text
         character(len=21) :: buf
+
         write (buf, "(i0)") n
         text = trim(buf)
     end function int_text
@@ -422,7 +460,9 @@ contains
     pure integer(int64) function schars(s)
         character(len=*), intent(in) :: s
         integer :: i
+
         schars = 0
+
         do i = 1, len(s)
             ! Count the bytes that start a character.
             if (iand(iachar(s(i:i)), 192) /= 128) schars = schars + 1
@@ -449,6 +489,7 @@ contains
         integer :: i, first, last
         logical :: ok
         type(status_type) :: st
+
         r = ""
         call validate_subarray(string, schars(string), a, b, ok, st, from, to)
         if (present(status)) status = st
@@ -457,16 +498,20 @@ contains
         first = len(string) + 1
         last = len(string) + 1
         count = 0
+
         do i = 1, len(string)
             if (iand(iachar(string(i:i)), 192) /= 128) then
                 if (count == a) first = min(first, i)
+
                 if (count == b) then
                     last = i
                     exit
                 end if
+
                 count = count + 1
             end if
         end do
+
         r = string(first:last - 1)
     end function substring
 
@@ -478,21 +523,25 @@ contains
         integer(int64) :: i
         integer(int32) :: c, clen
         integer :: n
+
         allocate (tmp(len(s)))
         n = 0
         i = 1
+
         do while (i <= len(s, kind=int64))
             call string_char_and_length(s, i, c, clen)
             n = n + 1
             tmp(n) = c
             i = i + clen
         end do
+
         chars = tmp(1:n)
     end subroutine string_chars
 
     !> Port of fns.c:Fstring_greaterp.
     logical function string_greaterp(a, b)
         type(value_type), intent(in) :: a, b
+
         string_greaterp = string_lessp(b, a)
     end function string_greaterp
 
@@ -500,6 +549,7 @@ contains
     logical function matches(a, b, predicate)
         type(value_type), intent(in) :: a, b
         procedure(value_predicate), optional :: predicate
+
         if (present(predicate)) then
             matches = predicate(a, b)
         else
@@ -515,7 +565,9 @@ contains
         type(value_type) :: v
         type(value_type), allocatable :: elems(:)
         integer(int64) :: k
+
         call list_elements(plist, elems)
+
         do k = 1, size(elems, kind=int64) - 1, 2
             if (matches(elems(k), prop, predicate)) then
                 v = elems(k + 1)
@@ -534,12 +586,15 @@ contains
         procedure(value_predicate), optional :: predicate
         type(value_type), allocatable :: elems(:)
         integer(int64) :: k, n
+
         if (.not. listp(plist)) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "plistp")
             return
         end if
+
         call list_elements(plist, elems)
         n = size(elems, kind=int64)
+
         do k = 1, n - 1, 2
             if (matches(elems(k), prop, predicate)) then
                 elems(k + 1) = val
@@ -547,10 +602,12 @@ contains
                 return
             end if
         end do
+
         if (mod(n, 2_int64) /= 0) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "plistp")
             return
         end if
+
         elems = [elems, prop, val]
         plist = make_list(elems)
     end subroutine plist_put
@@ -563,7 +620,9 @@ contains
         type(value_type) :: tail
         type(value_type), allocatable :: elems(:)
         integer(int64) :: k
+
         call list_elements(plist, elems)
+
         do k = 1, size(elems, kind=int64), 2
             if (matches(elems(k), prop, predicate)) then
                 tail = list_tail(plist, k - 1)
@@ -578,6 +637,7 @@ contains
         type(value_type), intent(in) :: symbol, prop
         type(value_type), intent(out) :: v
         type(status_type), intent(out) :: status
+
         call check_symbol(symbol, status)
         if (.not. status%ok()) return
         call ensure_obarray()
@@ -588,6 +648,7 @@ contains
     subroutine put(symbol, prop, val, status)
         type(value_type), intent(in) :: symbol, prop, val
         type(status_type), intent(out) :: status
+
         call check_symbol(symbol, status)
         if (.not. status%ok()) return
         call ensure_obarray()

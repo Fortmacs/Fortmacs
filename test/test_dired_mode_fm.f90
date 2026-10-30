@@ -66,6 +66,7 @@ contains
 
     subroutine collect_dired_mode_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("dired-buffer", test_dired_buffer), &
                     new_unittest("dired-marks", test_marks), &
@@ -90,6 +91,7 @@ contains
     !> The absolute name of the test directory, as a directory.
     function tdir() result(dir)
         character(len=:), allocatable :: dir
+
         dir = file_name_as_directory(file_name_as_directory(emacs_wd)//subdir)
     end function tdir
 
@@ -97,6 +99,7 @@ contains
     subroutine setup()
         type(handle_type) :: buf
         type(status_type) :: st
+
         call init_bindings()
         call init_fileio()
         call discard_input()
@@ -116,6 +119,7 @@ contains
     subroutine teardown()
         type(status_type) :: st
         type(handle_type) :: buf
+
         call kill_dired_buffers()
         call get_buffer_create("*scratch*", buf, st)
         call set_buffer(buf, st)
@@ -128,11 +132,15 @@ contains
         type(handle_type), allocatable :: bufs(:)
         type(status_type) :: st
         integer :: k
+
         bufs = dired_buffers_for_dir(tdir())
+
         do k = 1, size(bufs)
             call kill_buffer(bufs(k), st)
         end do
+
         bufs = dired_buffers_for_dir(tdir()//"sub/")
+
         do k = 1, size(bufs)
             call kill_buffer(bufs(k), st)
         end do
@@ -143,6 +151,7 @@ contains
         character(len=*), intent(in) :: prompt
         logical, intent(out) :: answer
         type(status_type), intent(out) :: status
+
         status = status_type()
         answer = len(prompt) >= 0
     end subroutine always_yes
@@ -152,6 +161,7 @@ contains
         character(len=*), intent(in) :: name, text
         type(handle_type) :: buf, old
         type(status_type) :: st
+
         old = current_buffer()
         call get_buffer_create(" *dired-mode-test-file*", buf, st)
         call set_buffer(buf, st)
@@ -167,22 +177,27 @@ contains
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
         integer :: i
+
         allocate (evs(len(keys)))
+
         do i = 1, len(keys)
             evs(i) = make_fixnum(int(iachar(keys(i:i)), int64))
         end do
+
         call unread_command_events(evs)
     end subroutine type_keys
 
     !> Whether handles A and B are the same.
     pure logical function same_handle(a, b)
         type(handle_type), intent(in) :: a, b
+
         same_handle = a%index == b%index .and. a%generation == b%generation
     end function same_handle
 
     !> The current line's text.
     function this_line() result(s)
         character(len=:), allocatable :: s
+
         s = buffer_string()
         s = s(line_beginning_position():line_end_position() - 1)
     end function this_line
@@ -191,6 +206,7 @@ contains
     function line_mark() result(c)
         character(len=:), allocatable :: line
         character :: c
+
         line = this_line()
         c = " "
         if (len(line) > 0) c = line(1:1)
@@ -202,8 +218,10 @@ contains
         type(dired_string_type), allocatable :: files(:)
         type(status_type) :: st
         integer :: k
+
         call dired_get_marked_files(files, st, localp=DIRED_LOCALP_NO_DIR)
         s = ""
+
         do k = 1, size(files)
             if (k > 1) s = s//" "
             s = s//files(k)%s
@@ -213,6 +231,7 @@ contains
     !> The standard test tree: a.txt, b.txt, c.el and sub/.
     subroutine make_tree()
         type(status_type) :: st
+
         call make_file("a.txt", "a")
         call make_file("b.txt", "b")
         call make_file("c.el", "c")
@@ -227,8 +246,10 @@ contains
         type(value_type) :: v
         logical :: found
         integer(int64) :: i, pos
+
         call setup()
         call make_tree()
+
         body: block
             call dired_noselect(tdir(), buf, st)
             call check(error, st%ok(), format_error(st))
@@ -270,6 +291,7 @@ contains
             call dired(tdir(), st)
             call check(error, st%ok() .and. same_handle(current_buffer(), buf), "same buffer")
         end block body
+
         call teardown()
     end subroutine test_dired_buffer
 
@@ -278,8 +300,10 @@ contains
         type(handle_type) :: buf
         type(status_type) :: st
         integer(int64) :: pos
+
         call setup()
         call make_tree()
+
         body: block
             call dired_noselect(tdir(), buf, st)
             call set_buffer(buf, st)
@@ -299,6 +323,7 @@ contains
             call dired_unmark_all_files(achar(13), st)
             call check(error, marked_count() == 0, "no marks left")
         end block body
+
         call teardown()
     end subroutine test_marks
 
@@ -306,14 +331,17 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
         type(status_type) :: st
+
         call setup()
         call make_tree()
+
         body: block
             call dired_noselect(tdir(), buf, st)
             call set_buffer(buf, st)
             call dired_mark_files_regexp("\.txt\'", st)
             call check(error, marked_names(), "a.txt b.txt")
         end block body
+
         call teardown()
     end subroutine test_mark_regexp
 
@@ -322,8 +350,10 @@ contains
         type(handle_type) :: buf
         type(status_type) :: st
         integer(int64) :: pos
+
         call setup()
         call make_tree()
+
         body: block
             call dired_noselect(tdir(), buf, st)
             call set_buffer(buf, st)
@@ -345,6 +375,7 @@ contains
             call dired_do_delete(DIRED_ARG_NIL, 0_int64, st)
             call check(error, st%ok() .and. .not. file_exists_p(tdir()//"b.txt"), format_error(st))
         end block body
+
         call teardown()
     end subroutine test_flag_and_delete
 
@@ -352,8 +383,10 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
         type(status_type) :: st
+
         call setup()
         call make_tree()
+
         body: block
             call dired_noselect(tdir(), buf, st)
             call set_buffer(buf, st)
@@ -366,6 +399,7 @@ contains
             call dired_create_directory(tdir()//"new", st)
             call check(error, format_error(st), "Cannot create directory "//tdir()//"new: file exists")
         end block body
+
         call teardown()
     end subroutine test_create_directory
 
@@ -375,8 +409,10 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: file
         logical :: found
+
         call setup()
         call make_tree()
+
         body: block
             call dired(tdir()//"sub/", st)
             call check(error, st%ok(), format_error(st))
@@ -388,6 +424,7 @@ contains
             call dired_get_filename(file, found, st, DIRED_LOCALP_NO_DIR)
             call check(error, found .and. file == "sub", "point on sub")
         end block body
+
         call teardown()
     end subroutine test_up_directory
 
@@ -395,8 +432,10 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
         type(status_type) :: st
+
         call setup()
         call make_tree()
+
         body: block
             call dired_noselect(tdir(), buf, st)
             call set_buffer(buf, st)
@@ -410,6 +449,7 @@ contains
             call dired_sort_toggle(st)
             call check(error, buffers(cur)%mode_name, "Dired by name")
         end block body
+
         call teardown()
     end subroutine test_sort_toggle
 
@@ -418,8 +458,10 @@ contains
         use keyboard_fm, only: kbd_store_bytes, command_loop
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call setup()
         call make_tree()
+
         body: block
             call dired(tdir(), st)
             call show_alone()
@@ -432,6 +474,7 @@ contains
             call command_loop(st)
             call check(error, marked_names(), "b.txt c.el sub")
         end block body
+
         call teardown()
     end subroutine test_keys
 
@@ -443,8 +486,10 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: file
         logical :: found
+
         call setup()
         call make_tree()
+
         body: block
             buffers(cur)%directory = tdir()
             dired_deletion_confirmer => null()
@@ -462,6 +507,7 @@ contains
             if (allocated(error)) exit body
             call check(error, file_exists_p(tdir()//"b.txt"), "b.txt kept")
         end block body
+
         call teardown()
     end subroutine test_cx_d
 
@@ -472,7 +518,9 @@ contains
         type(status_type) :: st
         type(dired_string_type), allocatable :: files(:)
         logical :: one
+
         call setup()
+
         body: block
             dired_always_read_filesystem = .true.
             call make_file("test", "foo")
@@ -486,6 +534,7 @@ contains
             call check(error, files(1)%s, tdir()//"test")
             call kill_buffer(fbuf, st)
         end block body
+
         call teardown()
     end subroutine test_bug22694
 
@@ -498,7 +547,9 @@ contains
         character(len=:), allocatable :: name
         logical :: found
         integer(int64) :: pt1, pt2
+
         call setup()
+
         body: block
             dired_auto_revert_buffer = .true.
             bufs = dired_buffers_for_dir(tdir())
@@ -535,6 +586,7 @@ contains
             call dired_find_file(st)
             call check(error, point() == pt2, "on test-file again")
         end block body
+
         call teardown()
     end subroutine test_bug27243_01
 
@@ -546,7 +598,9 @@ contains
         character(len=:), allocatable :: name
         logical :: found
         integer(int64) :: pt1
+
         call setup()
+
         body: block
             dired_auto_revert_buffer = .true.
             call find_file_noselect(tdir(), dirbuf, st)
@@ -566,6 +620,7 @@ contains
             call dired_file_name_at_point(name, found)
             call check(error, found .and. name == abbreviate_file_name(tdir()//"test-subdir/"), name)
         end block body
+
         call teardown()
     end subroutine test_bug27243_02
 
@@ -574,6 +629,7 @@ contains
         use window_fm, only: pop_to_buffer_same_window
         type(handle_type), intent(in) :: buf
         type(status_type) :: st
+
         call pop_to_buffer_same_window(buf, st)
     end subroutine pop_to
 
@@ -586,7 +642,9 @@ contains
         character(len=:), allocatable :: file, new_header
         logical :: found
         integer(int64) :: orig_len, len2, diff, pos, line_nb, shortage, opoint
+
         call setup()
+
         body: block
             call make_directory_internal(tdir()//"subdir", st)
             call dired_noselect(tdir()//"subdir", buf, st)
@@ -602,6 +660,7 @@ contains
             shortage = forward_line(1_int64)
             new_header = "  test-bug27968"
             if (orig_len == len(new_header)) new_header = new_header//" :-)"
+
             block
                 use data_fm, only: set
                 use lread_fm, only: sym
@@ -611,6 +670,7 @@ contains
                 call insert(new_header, st)
                 call set(sym("inhibit_read_only"), nil(), st)
             end block
+
             len2 = header_len()
             diff = len2 - orig_len
             ! (save-excursion: point moved with the text before it)
@@ -624,10 +684,14 @@ contains
             call dired_get_filename(file, found, st, DIRED_LOCALP_T, .true.)
             call check(error, found .and. file == "subdir", file)
         end block body
+
         call teardown()
+
     contains
+
         integer(int64) function header_len()
             integer(int64) :: p, s
+
             p = point()
             call goto_char(1_int64)
             s = forward_line(1_int64)
@@ -643,11 +707,14 @@ contains
         type(status_type) :: st
         character(len=1) :: d
         integer :: i
+
         call setup()
+
         do i = 0, 4
             write (d, "(i1)") i
             call make_directory_internal(tdir()//"empty-dir-"//d, st)
         end do
+
         if (.not. just_empty_dirs) then
             do i = 0, 4
                 write (d, "(i1)") i
@@ -655,6 +722,7 @@ contains
                 call make_directory_internal(tdir()//"non-empty-"//d//"/foo", st)
             end do
         end if
+
         call make_directory_internal(tdir()//"zeta-empty-dir", st)
         call dired(tdir(), st)
         call dired_toggle_marks(st)
@@ -665,6 +733,7 @@ contains
         type(dired_string_type), allocatable :: files(:)
         type(status_type) :: st
         logical :: one
+
         call dired_get_marked_files(files, st, distinguish_one_marked=.true., one_marked=one)
         marked_count = size(files)
         if (size(files) == 1 .and. .not. one) marked_count = 0
@@ -674,6 +743,7 @@ contains
     subroutine test_bug27940(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         body: block
             ! If just empty dirs we shouldn't be prompted.
             call bug27940_tree(.true.)
@@ -708,6 +778,7 @@ contains
             call dired_do_delete(DIRED_ARG_NIL, 0_int64, st)
             call check(error, marked_count() == 6, "quit: all empty dirs but zeta-empty-dir deleted")
         end block body
+
         call discard_input()
         call teardown()
     end subroutine test_bug27940
@@ -719,7 +790,9 @@ contains
         type(handle_type) :: errbuf
         type(status_type) :: st
         character(len=:), allocatable :: text
+
         call setup()
+
         body: block
             call dired(tdir()//"bla", st)
             errbuf = get_buffer("*ls error*")
@@ -732,6 +805,7 @@ contains
             call check(error, index(text, "bla") > 0, text)
             call kill_buffer(errbuf, st)
         end block body
+
         call teardown()
     end subroutine test_ls_error
 
@@ -742,6 +816,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: text
         integer :: saved
+
         call setup()
         call make_file("foo", "")
         call make_file("bar", "")
@@ -753,10 +828,12 @@ contains
         dired_free_space = saved
         text = buffer_string()
         call check(error, st%ok() .and. index(text, "foo") > 0 .and. index(text, "bar") > 0, text)
+
         if (.not. allocated(error)) then
             ! dired-free-space `separate': the total line says so, with the free space.
             call check(error, index(text, "total used in directory ") > 0 .and. index(text, " available ") > 0, text)
         end if
+
         call kill_buffer(buf, st)
         call teardown()
     end subroutine test_insert_directory_files
@@ -764,6 +841,7 @@ contains
     !> Port of files-tests-insert-directory-wildcard-in-dir-p.
     subroutine test_wildcard_in_dir_p(error)
         type(error_type), allocatable, intent(out) :: error
+
         call one("/home/user/*/.txt", "/home/user/", "*/.txt")
         if (allocated(error)) return
         call one("/home/user/.txt", "", "")
@@ -781,12 +859,16 @@ contains
         call one("c:/tmp/*/", "c:/tmp/", "*/")
         if (allocated(error)) return
         call one("c:/*/*.txt", "c:/", "*/*.txt")
+
     contains
+
         subroutine one(path, dir, wild)
             character(len=*), intent(in) :: path, dir, wild
             character(len=:), allocatable :: d, w
             logical :: found
+
             found = insert_directory_wildcard_in_dir_p(path, d, w)
+
             if (len(dir) == 0) then
                 call check(error,.not. found, path)
             else

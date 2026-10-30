@@ -1186,5 +1186,4 @@ module uni_category_fm
                                  22, 22, 22, 22, 9, 22, 5, 5, 5, 5, &
                                  5, 5, 5, 5, 27, 27, 6, 29, 29 &
                                  ]
-
 end module uni_category_fm

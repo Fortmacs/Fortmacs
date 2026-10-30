@@ -42,6 +42,7 @@ contains
 
     subroutine collect_character_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("utf8-known-encodings", test_known), &
                     new_unittest("roundtrip-boundaries", test_roundtrip), &
@@ -61,6 +62,7 @@ contains
         integer, intent(in) :: b(:)
         character(len=size(b)) :: s
         integer :: i
+
         do i = 1, size(b)
             s(i:i) = char(b(i))
         end do
@@ -73,12 +75,14 @@ contains
         character(len=MAX_MULTIBYTE_LENGTH) :: buf
         integer(int32) :: n
         type(status_type) :: st
+
         call char_string(c, buf, n, st)
         s = buf(1:n)
     end function enc
 
     subroutine test_known(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, enc(int(z'E9', int32)) == bytes([195, 169]), "U+00E9")
         if (allocated(error)) return
         call check(error, enc(int(z'20AC', int32)) == bytes([226, 130, 172]), "U+20AC")
@@ -97,6 +101,7 @@ contains
         integer(int32), parameter :: lengths(*) = [1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 2, 2]
         character(len=:), allocatable :: s
         integer(int32) :: i, n, c
+
         do i = 1, size(codes)
             s = enc(codes(i))
             call check(error, len(s), lengths(i))
@@ -119,6 +124,7 @@ contains
 
     subroutine test_raw_bytes(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, byte8_to_char(int(z'FF', int32)), int(z'3FFFFF', int32))
         if (allocated(error)) return
         call check(error, char_to_byte8(int(z'3FFF80', int32)), int(z'80', int32))
@@ -137,6 +143,7 @@ contains
 
     subroutine test_invalid(error)
         type(error_type), allocatable, intent(out) :: error
+
         ! Lone trailing byte.
         call check(error, multibyte_length(bytes([128]), 1_int64, .true.), 0_int32)
         if (allocated(error)) return
@@ -158,6 +165,7 @@ contains
         character(len=MAX_MULTIBYTE_LENGTH) :: buf
         integer(int32) :: n
         type(status_type) :: st
+
         ! Like upstream, MAX_CHAR + 1 is the CHAR_ALT bit, which is dropped.
         call char_string(MAX_CHAR + 1, buf, n, st)
         call check(error, st%ok() .and. n == 1 .and. buf(1:1) == char(0), "alt bit not dropped")
@@ -183,6 +191,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         integer(int64) :: nchars, nbytes
         type(status_type) :: st
+
         call multibyte_chars_in_text("a"//bytes([195, 169, 226, 130, 172, 193, 191]), nchars, st)
         call check(error, st%ok(), "valid text rejected")
         if (allocated(error)) return
@@ -202,6 +211,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         integer(int64) :: nchars
         character(len=:), allocatable :: s
+
         call str_as_multibyte("a"//bytes([255, 195, 169]), s, nchars)
         call check(error, s == "a"//bytes([193, 191, 195, 169]), "str_as_multibyte")
         if (allocated(error)) return
@@ -219,6 +229,7 @@ contains
     subroutine test_prev_len(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: s
+
         s = "a"//bytes([226, 130, 172])//"b"
         call check(error, raw_prev_char_len(s, 5_int64), 3_int32)
         if (allocated(error)) return
@@ -229,6 +240,7 @@ contains
 
     subroutine test_modifiers(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, char_resolve_modifier_mask(CHAR_CTL + iachar("a")), 1_int32)
         if (allocated(error)) return
         call check(error, char_resolve_modifier_mask(CHAR_CTL + iachar("A")), 1_int32)
@@ -256,6 +268,7 @@ contains
 
     subroutine test_predicates(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, char_hexdigit(int(iachar("f"), int32)), 15_int32)
         if (allocated(error)) return
         call check(error, char_hexdigit(int(iachar("G"), int32)), -1_int32)

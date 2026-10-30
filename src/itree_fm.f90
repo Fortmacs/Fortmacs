@@ -87,7 +87,9 @@ contains
         type(handle_type), intent(out) :: ov
         logical, intent(in) :: front_advance, rear_advance
         type(overlay_type), allocatable :: grown(:)
+
         call table%acquire(ov)
+
         if (.not. allocated(overlays)) then
             allocate (overlays(table%capacity()))
         else if (size(overlays, kind=int64) < table%capacity()) then
@@ -95,6 +97,7 @@ contains
             grown(1:size(overlays)) = overlays
             call move_alloc(grown, overlays)
         end if
+
         overlays(ov%index) = overlay_type()
         overlays(ov%index)%front_advance = front_advance
         overlays(ov%index)%rear_advance = rear_advance
@@ -104,18 +107,21 @@ contains
     !> (a live overlay handle).
     logical function overlayp(object)
         type(handle_type), intent(in) :: object
+
         overlayp = table%is_live(object)
     end function overlayp
 
     subroutine check_overlay(ov, status)
         type(handle_type), intent(in) :: ov
         type(status_type), intent(out) :: status
+
         if (.not. overlayp(ov)) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "overlayp")
     end subroutine check_overlay
 
     !> Whether overlay slot I is in buffer slot B.
     logical function in_buffer(i, b)
         integer(int64), intent(in) :: i, b
+
         in_buffer = .false.
         if (b <= 0) return
         if (overlays(i)%buffer%index /= b) return
@@ -128,28 +134,35 @@ contains
         integer(int64), intent(in) :: b
         integer(int64), allocatable, intent(out) :: idx(:)
         integer(int64) :: i, n, k, tmp
+
         if (.not. allocated(overlays)) then
             allocate (idx(0))
             return
         end if
+
         n = 0
         allocate (idx(size(overlays)))
+
         do i = 1, size(overlays, kind=int64)
             if (.not. table%is_live(table%handle_of(i))) cycle
             if (.not. in_buffer(i, b)) cycle
             n = n + 1
             idx(n) = i
         end do
+
         call shrink_indices(idx, int(n))
+
         ! Insertion sort by begin (stable).
         do i = 2, n
             tmp = idx(i)
             k = i - 1
+
             do while (k >= 1)
                 if (overlays(idx(k))%begin <= overlays(tmp)%begin) exit
                 idx(k + 1) = idx(k)
                 k = k - 1
             end do
+
             idx(k + 1) = tmp
         end do
     end subroutine buffer_nodes
@@ -160,6 +173,7 @@ contains
         integer(int64), allocatable, intent(inout) :: idx(:)
         integer, intent(in) :: n
         integer(int64), allocatable :: kept(:)
+
         allocate (kept(n))
         kept = idx(1:n)
         call move_alloc(kept, idx)
@@ -170,6 +184,7 @@ contains
         type(handle_type), allocatable, intent(inout) :: vec(:)
         integer, intent(in) :: n
         type(handle_type), allocatable :: kept(:)
+
         allocate (kept(n))
         kept = vec(1:n)
         call move_alloc(kept, vec)
@@ -178,10 +193,13 @@ contains
     !> Whether the current buffer has overlays (buffer.c:buffer_has_overlays).
     logical function buffer_has_overlays()
         integer(int64) :: i
+
         buffer_has_overlays = .false.
         if (.not. allocated(overlays) .or. cur == 0) return
+
         do i = 1, size(overlays, kind=int64)
             if (.not. table%is_live(table%handle_of(i))) cycle
+
             if (in_buffer(i, cur)) then
                 buffer_has_overlays = .true.
                 return
@@ -194,6 +212,7 @@ contains
     subroutine modify_overlay(b, start_in, end_in)
         integer(int64), intent(in) :: b, start_in, end_in
         integer(int64) :: start, end
+
         start = min(start_in, end_in)
         end = max(start_in, end_in)
         call buf_compute_unchanged(buffers(b), start, end)
@@ -219,21 +238,26 @@ contains
         logical, intent(in), optional :: front_advance, rear_advance
         integer(int64) :: b, obeg, oend, lo, hi
         logical :: fa, ra
+
         ov = null_handle()
         b = cur
+
         if (present(buffer)) then
             if (buffer%index /= 0) then
                 if (.not. buffer_live_p(buffer)) then
                     call set_error(status, FM_GENERIC_ERROR, "Attempt to create overlay in a dead buffer")
                     return
                 end if
+
                 b = buffer%index
             end if
         end if
+
         if (b == 0) then
             call set_error(status, FM_GENERIC_ERROR, "Attempt to create overlay in a dead buffer")
             return
         end if
+
         fa = .false.
         if (present(front_advance)) fa = front_advance
         ra = .false.
@@ -252,6 +276,7 @@ contains
 
     pure integer(int64) function clip(lo, x, hi)
         integer(int64), intent(in) :: lo, x, hi
+
         clip = max(lo, min(x, hi))
     end function clip
 
@@ -265,25 +290,31 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: buffer
         integer(int64) :: b, ob, n_beg, n_end, o_beg, o_end, lo, hi, i
+
         call check_overlay(overlay, status)
         if (.not. status%ok()) return
         i = overlay%index
         b = 0
         if (present(buffer)) b = buffer%index
+
         if (b == 0) then
             if (buffer_live_p(overlays(i)%buffer)) b = overlays(i)%buffer%index
         end if
+
         if (b == 0) b = cur
+
         if (b == 0) then
             call set_error(status, FM_GENERIC_ERROR, "Attempt to move overlay to a dead buffer")
             return
         end if
+
         if (present(buffer)) then
             if (buffer%index /= 0 .and. .not. buffer_live_p(buffer)) then
                 call set_error(status, FM_GENERIC_ERROR, "Attempt to move overlay to a dead buffer")
                 return
             end if
         end if
+
         lo = min(beg, end)
         hi = max(beg, end)
         ob = 0
@@ -292,13 +323,16 @@ contains
         n_end = clip(n_beg, hi, buffers(b)%text%z)
         o_beg = 0
         o_end = 0
+
         if (ob /= 0) then
             o_beg = overlays(i)%begin
             o_end = overlays(i)%end
         end if
+
         overlays(i)%buffer = buffer_handle(b)
         overlays(i)%begin = n_beg
         overlays(i)%end = n_end
+
         if (b /= ob) then
             ! If the overlay has changed buffers, do a thorough redisplay.
             ! Redisplay where the overlay was.
@@ -316,6 +350,7 @@ contains
                 call modify_overlay(b, min(o_beg, n_beg), max(o_end, n_end))
             end if
         end if
+
         ! Delete the overlay if it is empty after clipping and has the
         ! evaporate property.
         if (n_beg == n_end) then
@@ -326,9 +361,11 @@ contains
     !> Remove overlay slot I from its buffer (buffer.c:drop_overlay).
     subroutine drop_overlay(i)
         integer(int64), intent(in) :: i
+
         if (buffer_live_p(overlays(i)%buffer)) then
             call modify_overlay(overlays(i)%buffer%index, overlays(i)%begin, overlays(i)%end)
         end if
+
         overlays(i)%buffer = null_handle()
     end subroutine drop_overlay
 
@@ -336,6 +373,7 @@ contains
     !> buffer.c:Fdelete_overlay.
     subroutine delete_overlay(overlay)
         type(handle_type), intent(in) :: overlay
+
         if (.not. overlayp(overlay)) return
         if (.not. buffer_live_p(overlays(overlay%index)%buffer)) return
         call drop_overlay(overlay%index)
@@ -346,6 +384,7 @@ contains
     subroutine free_overlay(overlay)
         type(handle_type), intent(in) :: overlay
         type(status_type) :: st
+
         if (.not. overlayp(overlay)) return
         call delete_overlay(overlay)
         overlays(overlay%index) = overlay_type()
@@ -361,13 +400,17 @@ contains
         integer(int64), allocatable :: idx(:)
         integer(int64) :: b
         integer :: k
+
         b = cur
+
         if (present(buffer)) then
             b = 0
             if (buffer_live_p(buffer)) b = buffer%index
         end if
+
         if (b == 0) return
         call buffer_nodes(b, idx)
+
         do k = 1, size(idx)
             call drop_overlay(idx(k))
         end do
@@ -377,6 +420,7 @@ contains
     !> upstream's nil).  Port of buffer.c:Foverlay_start.
     integer(int64) function overlay_start(overlay)
         type(handle_type), intent(in) :: overlay
+
         overlay_start = 0
         if (.not. overlayp(overlay)) return
         if (buffer_live_p(overlays(overlay%index)%buffer)) overlay_start = overlays(overlay%index)%begin
@@ -386,6 +430,7 @@ contains
     !> upstream's nil).  Port of buffer.c:Foverlay_end.
     integer(int64) function overlay_end(overlay)
         type(handle_type), intent(in) :: overlay
+
         overlay_end = 0
         if (.not. overlayp(overlay)) return
         if (buffer_live_p(overlays(overlay%index)%buffer)) overlay_end = overlays(overlay%index)%end
@@ -397,6 +442,7 @@ contains
     function overlay_buffer(overlay) result(b)
         type(handle_type), intent(in) :: overlay
         type(handle_type) :: b
+
         b = null_handle()
         if (.not. overlayp(overlay)) return
         if (buffer_live_p(overlays(overlay%index)%buffer)) b = overlays(overlay%index)%buffer
@@ -408,6 +454,7 @@ contains
     function overlay_properties(overlay) result(plist)
         type(handle_type), intent(in) :: overlay
         type(value_type) :: plist
+
         if (overlayp(overlay)) plist = overlays(overlay%index)%plist
     end function overlay_properties
 
@@ -417,6 +464,7 @@ contains
         type(handle_type), intent(in) :: overlay
         character(len=*), intent(in) :: prop
         type(value_type) :: val
+
         if (.not. overlayp(overlay)) return
         val = textget(overlays(overlay%index)%plist, sym(prop))
     end function overlay_get
@@ -427,6 +475,7 @@ contains
     subroutine overlay_advance(overlay, front_advance, rear_advance)
         type(handle_type), intent(in) :: overlay
         logical, intent(out) :: front_advance, rear_advance
+
         front_advance = .false.
         rear_advance = .false.
         if (.not. overlayp(overlay)) return
@@ -439,6 +488,7 @@ contains
         type(handle_type), intent(in) :: overlay
         type(value_type), intent(in) :: prop
         type(value_type) :: val
+
         if (.not. overlayp(overlay)) return
         val = textget(overlays(overlay%index)%plist, prop)
     end function overlay_get_prop
@@ -455,6 +505,7 @@ contains
         integer :: k, n
         logical :: changed, found
         integer(int64) :: i
+
         call check_overlay(overlay, status)
         if (.not. status%ok()) return
         i = overlay%index
@@ -462,6 +513,7 @@ contains
         call list_elements(overlays(i)%plist, elems)
         found = .false.
         changed = .false.
+
         do k = 1, size(elems) - 1, 2
             if (value_eq(elems(k), key)) then
                 changed = .not. value_eq(elems(k + 1), value)
@@ -470,6 +522,7 @@ contains
                 exit
             end if
         end do
+
         if (.not. found) then
             ! It wasn't in the list, so add it to the front.
             changed = .not. nilp(value)
@@ -480,9 +533,12 @@ contains
             grown(3:n + 2) = elems
             call move_alloc(grown, elems)
         end if
+
         overlays(i)%plist = make_list(elems)
+
         if (buffer_live_p(overlays(i)%buffer)) then
             if (changed) call modify_overlay(overlays(i)%buffer%index, overlays(i)%begin, overlays(i)%end)
+
             if (prop == "evaporate" .and. .not. nilp(value) .and. overlays(i)%begin == overlays(i)%end) then
                 call delete_overlay(overlay)
             end if
@@ -508,6 +564,7 @@ contains
         integer(int64), allocatable :: idx(:)
         integer(int64) :: z, search_end, nb, ne
         integer :: k, n
+
         z = buffers(cur)%text%z
         next = z
         call buffer_nodes(cur, idx)
@@ -516,11 +573,13 @@ contains
         if (end >= z .and. (empty .or. trailing)) search_end = search_end + 1
         allocate (vec(size(idx)))
         n = 0
+
         do k = 1, size(idx)
             nb = overlays(idx(k))%begin
             ne = overlays(idx(k))%end
             ! ITREE_FOREACH (BEG, SEARCH_END): nodes intersecting it.
             if (.not. intersects(nb, ne, beg, search_end)) cycle
+
             if (nb > end) then
                 next = min(next, nb)
                 exit
@@ -529,10 +588,12 @@ contains
                 if ((.not. empty .or. end < z) .and. beg < end) exit
                 if (empty .and. nb /= ne) cycle
             end if
+
             if (.not. empty .and. nb == ne) cycle
             n = n + 1
             vec(n) = table%handle_of(idx(k))
         end do
+
         call shrink_handles(vec, n)
     end subroutine overlays_in_1
 
@@ -540,6 +601,7 @@ contains
     !> (itree.c:itree_node_intersects).
     pure logical function intersects(nb, ne, b, e)
         integer(int64), intent(in) :: nb, ne, b, e
+
         intersects = (b < ne .and. nb < e) .or. (nb == ne .and. b == nb)
     end function intersects
 
@@ -562,11 +624,13 @@ contains
         integer(int64) :: nxt
         integer :: k, n
         type(handle_type) :: tmp
+
         if (cur == 0) then
             allocate (vec(0))
             if (present(next)) next = 0
             return
         end if
+
         call overlays_in_1(pos, pos + 1, .false., .true., vec, nxt)
         if (present(next)) next = nxt
         if (.not. present(sorted)) return
@@ -574,6 +638,7 @@ contains
         call sort_overlays(vec)
         ! The list should be in decreasing order of priority.
         n = size(vec)
+
         do k = 1, n/2
             tmp = vec(k)
             vec(k) = vec(n + 1 - k)
@@ -601,10 +666,12 @@ contains
         integer(int64), intent(in) :: beg, end
         type(handle_type), allocatable, intent(out) :: vec(:)
         integer(int64) :: next
+
         if (cur == 0) then
             allocate (vec(0))
             return
         end if
+
         call overlays_in_1(beg, end, .true., .false., vec, next)
     end subroutine overlays_in
 
@@ -617,14 +684,17 @@ contains
         integer(int64), allocatable :: idx(:)
         integer(int64) :: nb, ne
         integer :: k
+
         next = 0
         if (cur == 0) return
         next = buffers(cur)%zv
         call buffer_nodes(cur, idx)
+
         do k = 1, size(idx)
             nb = overlays(idx(k))%begin
             ne = overlays(idx(k))%end
             if (.not. intersects(nb, ne, pos, next)) cycle
+
             if (nb > pos) then
                 ! NB must be the least upper bound of POS, because the
                 ! search is limited to [POS, NEXT).
@@ -645,14 +715,17 @@ contains
         integer(int64), allocatable :: idx(:)
         integer(int64) :: nb, ne
         integer :: k
+
         prev = 0
         if (cur == 0) return
         prev = buffers(cur)%begv
         call buffer_nodes(cur, idx)
+
         do k = size(idx), 1, -1
             nb = overlays(idx(k))%begin
             ne = overlays(idx(k))%end
             if (.not. intersects(nb, ne, prev, pos)) cycle
+
             if (ne < pos) then
                 prev = max(prev, ne)
             else
@@ -668,6 +741,7 @@ contains
         type(handle_type), intent(in) :: overlay
         integer(int64), intent(out) :: priority, spriority
         type(value_type) :: tem
+
         priority = 0
         spriority = 0
         tem = overlay_get(overlay, "priority")
@@ -683,25 +757,31 @@ contains
         type(handle_type) :: tmp
         integer(int64) :: tp, ts
         integer :: i, k, n
+
         ! Put the valid and relevant overlays first.
         n = 0
+
         do i = 1, size(vec)
             if (overlay_start(vec(i)) > 0 .and. overlay_end(vec(i)) > 0) then
                 n = n + 1
                 vec(n) = vec(i)
             end if
         end do
+
         call shrink_handles(vec, n)
         allocate (prio(n), sprio(n))
+
         do i = 1, n
             call overlay_priority(vec(i), prio(i), sprio(i))
         end do
+
         ! Sort the overlays into the proper order: increasing priority.
         do i = 2, n
             tmp = vec(i)
             tp = prio(i)
             ts = sprio(i)
             k = i - 1
+
             do while (k >= 1)
                 if (compare_overlays(prio(k), sprio(k), overlay_start(vec(k)), overlay_end(vec(k)), vec(k)%index, &
                                      tp, ts, overlay_start(tmp), overlay_end(tmp), tmp%index) <= 0) exit
@@ -710,6 +790,7 @@ contains
                 sprio(k + 1) = sprio(k)
                 k = k - 1
             end do
+
             vec(k + 1) = tmp
             prio(k + 1) = tp
             sprio(k + 1) = ts
@@ -723,6 +804,7 @@ contains
     !> Port of buffer.c:compare_overlays (on struct sortvec items).
     pure integer function compare_overlays(p1, s1, b1, e1, k1, p2, s2, b2, e2, k2) result(c)
         integer(int64), intent(in) :: p1, s1, b1, e1, k1, p2, s2, b2, e2, k2
+
         if (p1 /= p2) then
             c = merge(-1, 1, p1 < p2)
         else if (b1 < b2) then
@@ -761,10 +843,13 @@ contains
         integer(int64), intent(in) :: pos, length
         logical, intent(in) :: before_markers
         integer(int64) :: i
+
         if (length <= 0 .or. cur == 0 .or. .not. allocated(overlays)) return
+
         do i = 1, size(overlays, kind=int64)
             if (.not. table%is_live(table%handle_of(i))) cycle
             if (.not. in_buffer(i, cur)) cycle
+
             associate (node => overlays(i))
                 if (.not. before_markers .and. node%begin == pos .and. node%front_advance .and. &
                     (node%begin /= node%end .or. node%rear_advance)) then
@@ -781,6 +866,7 @@ contains
                     else if (node%begin > pos) then
                         node%begin = node%begin + length
                     end if
+
                     if (node%end > pos) then
                         node%end = node%end + length
                     else if (node%end == pos .and. (before_markers .or. node%rear_advance)) then
@@ -801,19 +887,24 @@ contains
         type(handle_type), allocatable :: hit_list(:)
         integer(int64) :: i
         integer :: n, k
+
         if (length <= 0 .or. cur == 0 .or. .not. allocated(overlays)) return
+
         do i = 1, size(overlays, kind=int64)
             if (.not. table%is_live(table%handle_of(i))) cycle
             if (.not. in_buffer(i, cur)) cycle
+
             associate (node => overlays(i))
                 if (pos < node%begin) node%begin = max(pos, node%begin - length)
                 if (node%end > pos) node%end = max(pos, node%end - length)
             end associate
         end do
+
         ! Delete any zero-sized overlays at position POS, if the
         ! `evaporate' property is set.
         allocate (hit_list(size(overlays)))
         n = 0
+
         do i = 1, size(overlays, kind=int64)
             if (.not. table%is_live(table%handle_of(i))) cycle
             if (.not. in_buffer(i, cur)) cycle
@@ -822,6 +913,7 @@ contains
             n = n + 1
             hit_list(n) = table%handle_of(i)
         end do
+
         do k = 1, n
             call delete_overlay(hit_list(k))
         end do

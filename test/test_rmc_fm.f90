@@ -41,6 +41,7 @@ contains
 
     subroutine collect_rmc_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("test-rmc--add-key-description/non-graphical-display", test_add_key_description), &
                     new_unittest("test-read-multiple-choice", test_read), &
@@ -55,6 +56,7 @@ contains
         character(len=*), intent(in) :: name
         character(len=*), intent(in), optional :: description
         type(rmc_choice_type) :: c
+
         c%key = iachar(key)
         c%name = name
         if (present(description)) c%description = description
@@ -64,6 +66,7 @@ contains
     subroutine setup()
         type(handle_type) :: h
         type(status_type) :: st
+
         call init_bindings()
         call discard_input()
         call get_buffer_create("*scratch*", h, st)
@@ -72,6 +75,7 @@ contains
 
     subroutine test_add_key_description(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, rmc_add_key_description(choice("y", "yes")), "[Y]es")
         if (allocated(error)) return
         call check(error, rmc_add_key_description(choice("n", "foo")), "n foo")
@@ -85,6 +89,7 @@ contains
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
         integer :: answer
+
         choices(1) = choice("y", "yes")
         choices(2) = choice("n", "no")
         call setup()
@@ -110,6 +115,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(rmc_choice_type) :: choices(3)
         character(len=*), parameter :: LF = achar(10)
+
         choices(1) = choice("a", "aaa")
         choices(2) = choice("b", "bbb")
         choices(3) = choice("c", "ccc", "a really long description of ccc")
@@ -129,6 +135,7 @@ contains
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
         integer :: answer
+
         choices(1) = choice("y", "yes")
         choices(2) = choice("n", "no")
         call discard_input()
@@ -149,6 +156,7 @@ contains
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
         integer :: answer
+
         choices(1) = choice("y", "yes")
         choices(2) = choice("n", "no")
         call setup()

@@ -49,6 +49,7 @@ contains
 
     subroutine collect_bindings_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("global-map-bindings", test_global_map), &
                     new_unittest("self-insert-and-motion", test_typing), &
@@ -68,6 +69,7 @@ contains
         character(len=*), intent(in) :: name, bytes
         type(handle_type), intent(out) :: buf
         type(status_type) :: st
+
         call discard_input()
         prefix_arg = nil()
         call init_bindings()
@@ -82,6 +84,7 @@ contains
     subroutine done_with(buf)
         type(handle_type), intent(in) :: buf
         type(status_type) :: st
+
         call kill_buffer(buf, st)
     end subroutine done_with
 
@@ -90,12 +93,14 @@ contains
         type(value_type) :: v
         type(value_type), allocatable :: key(:)
         type(status_type) :: st
+
         call key_parse(keys, key, st)
         call key_binding(key, v, st)
     end function binding_of
 
     subroutine test_global_map(error)
         type(error_type), allocatable, intent(out) :: error
+
         call init_bindings()
         call check(error, value_eq(binding_of("a"), sym("self_insert_command")), "a")
         if (allocated(error)) return
@@ -121,6 +126,7 @@ contains
     subroutine test_typing(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
+
         ! h é l l o, C-b C-b, DEL, C-a, C-d, C-e, x
         call type_into("*bindings-typing*", "h"//char(195)//char(169)//"llo"// &
                        char(2)//char(2)//char(127)//char(1)//char(4)//char(5)//"x", buf)
@@ -135,6 +141,7 @@ contains
     subroutine test_newline(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
+
         ! ab RET c C-a C-o
         call type_into("*bindings-newline*", "ab"//char(13)//"c"//char(1)//char(15), buf)
         call check(error, buffer_string(), "ab"//achar(10)//achar(10)//"c")
@@ -146,6 +153,7 @@ contains
     subroutine test_universal_argument(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
+
         ! C-u x, C-u C-u y, C-u 3 z, C-u 1 2 C-u 0 (C-u ends the digits)
         call type_into("*bindings-uarg*", char(21)//"x"//char(21)//char(21)//"y"// &
                        char(21)//"3z"//char(21)//"12"//char(21)//"0", buf)
@@ -161,6 +169,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
         type(status_type) :: st
+
         ! M-3 a, M-1 M-0 c (ESC as Meta).
         call type_into("*bindings-digits*", char(27)//"3a"//char(27)//"1"//char(27)//"0c", buf)
         call check(error, buffer_string(), "aaa"//repeat("c", 10))
@@ -193,6 +202,7 @@ contains
         type(handle_type) :: buf
         type(status_type) :: st
         logical :: done
+
         ! C-q C-a, C-u 2 C-q DEL
         call type_into("*bindings-quoted*", char(17)//char(1)//char(21)//"2"//char(17)//char(127), buf)
         call check(error, buffer_string(), char(1)//char(127)//char(127))
@@ -202,6 +212,7 @@ contains
         call check(error, st%code == FM_QUIT .and. last_message == "Quit", "C-g")
         call done_with(buf)
     end subroutine test_quoted_insert
+
     !> Count a ring of the bell.
     subroutine count_bell()
         bells = bells + 1
@@ -223,11 +234,14 @@ contains
                                                                                           "beginning_of_buffer", "search_forward", &
                                                                              "execute_extended_command", "execute_extended_command"]
         integer :: k
+
         call init_bindings()
+
         do k = 1, size(keys)
             call check(error, value_eq(binding_of(trim(keys(k))), sym(trim(cmds(k)))), trim(keys(k)))
             if (allocated(error)) return
         end do
+
         call check(error, value_eq(binding_of("<help> k"), sym("describe_key")), "<help> k")
     end subroutine test_function_keys
 
@@ -237,6 +251,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
         type(status_type) :: st
+
         call type_into("*bindings-lines*", "abc"//char(13)//"def"//char(13)//"ghi", buf)
         call goto_char(2_int64)
         call kbd_store_bytes(char(5))
@@ -272,6 +287,7 @@ contains
         type(handle_type) :: buf
         type(status_type) :: st
         logical :: done
+
         call type_into("*bindings-undefined*", "", buf)
         bells = 0
         ring_bell_hook => count_bell
@@ -299,11 +315,14 @@ contains
         character(len=20), parameter :: names(6) = [character(len=20) :: "eval_expression", "eval_last_sexp", &
                                                                                  "eval_buffer", "eval_region", "eval_defun", "ielm"]
         integer :: k
+
         call init_bindings()
+
         do k = 1, size(keys)
             call check(error, value_eq(binding_of(trim(keys(k))), nil()), trim(keys(k))//" is bound")
             if (allocated(error)) return
         end do
+
         do k = 1, size(names)
             call check(error,.not. command_defined_p(sym(trim(names(k)))), trim(names(k))//" is a command")
             if (allocated(error)) return

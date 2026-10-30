@@ -263,26 +263,33 @@ contains
         character(len=:), allocatable :: extension, dotted
         logical :: found
         integer :: k
+
         ignored = .false.
         call file_name_extension(file_name, extension, found)
         if (.not. found) return
         dotted = "."//extension
+
         if (allocated(recentf_exclude_ignored_extensions)) then
             if (size(recentf_exclude_ignored_extensions) > 0) then
                 do k = 1, size(recentf_exclude_ignored_extensions)
                     if (ends_with(dotted, trim(recentf_exclude_ignored_extensions(k)))) ignored = .true.
                 end do
+
                 return
             end if
         end if
+
         do k = 1, size(completion_ignored_extensions)
             if (ends_with(dotted, trim(completion_ignored_extensions(k)))) ignored = .true.
         end do
+
     contains
+
         !> Whether S ends with SUFFIX (the regexp-opt of the extensions
         !> anchored at the end).
         pure logical function ends_with(s, suffix)
             character(len=*), intent(in) :: s, suffix
+
             ends_with = len(suffix) > 0 .and. len(suffix) <= len(s)
             if (ends_with) ends_with = s(len(s) - len(suffix) + 1:) == suffix
         end function ends_with
@@ -292,6 +299,7 @@ contains
     !> recentf.el:recentf-keep-default-predicate (no remote files).
     logical function recentf_keep_default_predicate(file) result(keep)
         character(len=*), intent(in) :: file
+
         keep = file_readable_p(file)
     end function recentf_keep_default_predicate
 
@@ -300,6 +308,7 @@ contains
     !> false).
     pure logical function recentf_string_equal(s1, s2) result(same)
         character(len=*), intent(in) :: s1, s2
+
         same = len(s1) == len(s2)
         if (same) same = s1 == s2
     end function recentf_string_equal
@@ -308,11 +317,13 @@ contains
     !> recentf.el:recentf-string-member.
     integer function recentf_string_member(elt) result(k)
         character(len=*), intent(in) :: elt
+
         if (allocated(recentf_list)) then
             do k = 1, size(recentf_list)
                 if (recentf_string_equal(elt, recentf_list(k)%name)) return
             end do
         end if
+
         k = 0
     end function recentf_string_member
 
@@ -321,10 +332,13 @@ contains
         integer, intent(in) :: k
         type(recentf_file_type), allocatable :: kept(:)
         integer :: j
+
         allocate (kept(size(recentf_list) - 1))
+
         do j = 1, size(kept)
             call move_alloc(recentf_list(merge(j, j + 1, j < k))%name, kept(j)%name)
         end do
+
         call move_alloc(kept, recentf_list)
     end subroutine delete_entry
 
@@ -335,14 +349,17 @@ contains
         character(len=*), intent(in) :: filename
         type(recentf_file_type), allocatable :: grown(:)
         integer :: k
+
         if (.not. allocated(recentf_list)) allocate (recentf_list(0))
         k = recentf_string_member(filename)
         if (k > 0) call delete_entry(k)
         allocate (grown(size(recentf_list) + 1))
         grown(1)%name = filename
+
         do k = 1, size(recentf_list)
             call move_alloc(recentf_list(k)%name, grown(k + 1)%name)
         end do
+
         call move_alloc(grown, recentf_list)
     end subroutine recentf_push
 
@@ -354,15 +371,19 @@ contains
         character(len=:), allocatable :: filename, next
         type(status_type) :: st
         integer :: k
+
         filename = name
         if (.not. allocated(recentf_filename_handlers)) return
+
         do k = 1, size(recentf_filename_handlers)
             if (.not. associated(recentf_filename_handlers(k)%handler)) cycle
             call recentf_filename_handlers(k)%handler(filename, next, st)
+
             if (.not. st%ok()) then
                 filename = name
                 return
             end if
+
             filename = next
         end do
     end function recentf_apply_filename_handlers
@@ -375,6 +396,7 @@ contains
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: filename, expanded
         type(status_type) :: st
+
         call expand_file_name(name, expanded, st)
         if (.not. st%ok()) expanded = name
         filename = recentf_apply_filename_handlers(expanded)
@@ -385,6 +407,7 @@ contains
         type(recentf_check_type), intent(in) :: check
         character(len=*), intent(in) :: filename
         type(status_type) :: st
+
         if (len_trim(check%regexp) > 0) then
             matches = string_match(trim(check%regexp), filename, st) > 0
             if (.not. st%ok()) matches = .false.
@@ -401,8 +424,10 @@ contains
     logical function recentf_include_p(filename) result(keepit)
         character(len=*), intent(in) :: filename
         integer :: k
+
         keepit = .true.
         if (.not. allocated(recentf_exclude)) return
+
         do k = 1, size(recentf_exclude)
             if (check_matches(recentf_exclude(k), filename)) then
                 keepit = .false.
@@ -417,10 +442,12 @@ contains
     logical function recentf_keep_p(filename) result(keepit)
         character(len=*), intent(in) :: filename
         integer :: k
+
         keepit = .true.
         if (.not. allocated(recentf_keep)) return
         if (size(recentf_keep) == 0) return
         keepit = .false.
+
         do k = 1, size(recentf_keep)
             if (check_matches(recentf_keep(k), filename)) then
                 keepit = .true.
@@ -435,6 +462,7 @@ contains
     subroutine recentf_add_file(filename)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: name
+
         name = recentf_expand_file_name(filename)
         if (recentf_include_p(name)) call recentf_push(name)
     end subroutine recentf_add_file
@@ -446,6 +474,7 @@ contains
         character(len=*), intent(in) :: filename
         logical, intent(out), optional :: removed
         integer :: k
+
         if (present(removed)) removed = .false.
         if (recentf_keep_p(filename)) return
         k = recentf_string_member(recentf_expand_file_name(filename))
@@ -459,6 +488,7 @@ contains
         character(len=*), intent(in) :: name
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
+
         status = status_type()
         result = abbreviate_file_name(name)
     end subroutine abbreviate_file_name_handler
@@ -468,6 +498,7 @@ contains
         character(len=*), intent(in) :: name
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
+
         call file_truename(name, result, status)
     end subroutine file_truename_handler
 
@@ -475,9 +506,11 @@ contains
     !> recentf.el:recentf-auto-cleanup.
     subroutine recentf_auto_cleanup_run()
         type(status_type) :: st
+
         if (timerp(recentf_auto_cleanup_timer)) call free_timer(recentf_auto_cleanup_timer)
         recentf_auto_cleanup_timer = handle_type()
         if (.not. minor_modes%recentf_mode%enabled()) return
+
         if (recentf_auto_cleanup == RECENTF_AUTO_CLEANUP_MODE) then
             call recentf_cleanup()
         else if (recentf_auto_cleanup > 0) then
@@ -495,15 +528,19 @@ contains
         type(value_type), allocatable :: names(:)
         character(len=:), allocatable :: file
         integer :: k
+
         if (.not. minor_modes%recentf_mode%enabled()) then
             call minor_modes%recentf_mode%enable(status)
             if (.not. status%ok()) return
         end if
+
         if (.not. allocated(recentf_list)) allocate (recentf_list(0))
         allocate (names(size(recentf_list)))
+
         do k = 1, size(recentf_list)
             names(k) = make_string(recentf_list(k)%name)
         end do
+
         table%kind = TABLE_LIST
         table%list = make_list(names)
         table%category = "recentf"
@@ -522,7 +559,9 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: n
         character(len=24) :: buf
+
         n = n_in
+
         if (n == 0) then
             n = 10
         else if (.not. (n > 0 .and. n < 10)) then
@@ -530,16 +569,20 @@ contains
             call set_error(status, FM_GENERIC_ERROR, "Recent file number out of range [0-9], "//trim(buf))
             return
         end if
+
         if (.not. allocated(recentf_list)) allocate (recentf_list(0))
+
         if (n > size(recentf_list)) then
             call set_error(status, FM_GENERIC_ERROR, "Not that many recent files")
             return
         end if
+
         call recentf_menu_action(recentf_list(n)%name, status)
     end subroutine recentf_open_most_recent_file
 
     recursive subroutine cmd_recentf_open_most_recent_file(status)
         type(status_type), intent(out) :: status
+
         call recentf_open_most_recent_file(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_recentf_open_most_recent_file
 
@@ -547,6 +590,7 @@ contains
     !> list.  Port of recentf.el:recentf-track-opened-file.
     recursive subroutine recentf_track_opened_file(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         if (allocated(buffers(cur)%filename)) call recentf_add_file(buffers(cur)%filename)
     end subroutine recentf_track_opened_file
@@ -556,6 +600,7 @@ contains
     !> recentf.el:recentf-track-closed-file.
     recursive subroutine recentf_track_closed_file(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         if (allocated(buffers(cur)%filename)) call recentf_remove_if_non_kept(buffers(cur)%filename)
     end subroutine recentf_track_closed_file
@@ -572,6 +617,7 @@ contains
     !> timer.  Port of recentf.el:recentf--manage-autosave-timer.
     subroutine recentf_manage_autosave_timer()
         type(status_type) :: st
+
         if (minor_modes%recentf_mode%enabled() .and. recentf_autosave_interval > 0 .and. &
             .not. timerp(recentf_autosave_timer)) then
             call run_with_timer(recentf_autosave_timer, real(recentf_autosave_interval, real64), &
@@ -594,20 +640,24 @@ contains
         character(len=:), allocatable :: file, wrote
         logical :: inter
         integer :: k, n
+
         inter = .false.
         if (present(interactive)) inter = interactive
         if (.not. allocated(recentf_list)) allocate (recentf_list(0))
         group%name = "recentf"
         n = min(size(recentf_list), max(recentf_max_saved_items, 0))
+
         if (n == 0) then
             item = namelist_item_type(name="recentf_list")
             call item%add_logical(.false.)
         else
             item = namelist_item_type(name="recentf_list", subscripted=.true., lower=1, upper=n)
+
             do k = 1, n
                 call item%add_string(recentf_list(k)%name)
             end do
         end if
+
         call group%add(item)
         call expand_file_name(recentf_save_file, file, st)
         if (.not. st%ok()) file = recentf_save_file
@@ -628,12 +678,14 @@ contains
 
     recursive subroutine recentf_save_list_proc(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call recentf_save_list()
     end subroutine recentf_save_list_proc
 
     recursive subroutine cmd_recentf_save_list(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call recentf_save_list(.true.)
     end subroutine cmd_recentf_save_list
@@ -651,6 +703,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: file, text
         integer :: g, k, j
+
         status = status_type()
         call expand_file_name(recentf_save_file, file, st)
         if (.not. st%ok()) file = recentf_save_file
@@ -659,8 +712,10 @@ contains
         if (.not. status%ok()) return
         call read_namelist(text, groups, status)
         if (.not. status%ok()) return
+
         do g = 1, size(groups)
             if (groups(g)%name /= "recentf" .or. .not. allocated(groups(g)%items)) cycle
+
             do k = 1, size(groups(g)%items)
                 associate (it => groups(g)%items(k))
                     if (it%name /= "recentf_list") cycle
@@ -669,6 +724,7 @@ contains
                     if (.not. it%subscripted) cycle
                     deallocate (recentf_list)
                     allocate (recentf_list(size(it%values)))
+
                     do j = 1, size(it%values)
                         recentf_list(j)%name = ""
                         if (it%values(j)%kind == NAMELIST_STRING) recentf_list(j)%name = it%values(j)%string
@@ -676,18 +732,22 @@ contains
                 end associate
             end do
         end do
+
         if (.not. recentf_initialize_file_name_history) return
         call symbol_value(sym("file_name_history"), history, st)
         if (.not. nilp(history)) return
         allocate (names(size(recentf_list)))
+
         do k = 1, size(recentf_list)
             names(k) = make_string(abbreviate_file_name(recentf_list(k)%name))
         end do
+
         call set(sym("file_name_history"), make_list(names), st)
     end subroutine recentf_load_list
 
     recursive subroutine cmd_recentf_load_list(status)
         type(status_type), intent(out) :: status
+
         call recentf_load_list(status)
     end subroutine cmd_recentf_load_list
 
@@ -699,6 +759,7 @@ contains
         type(handle_type) :: old, h
         type(status_type) :: st
         integer(int64) :: inserted
+
         text = ""
         old = current_buffer()
         call get_buffer_create(generate_new_buffer_name(" *temp*"), h, st)
@@ -718,20 +779,24 @@ contains
         character(len=12) :: buf
         integer :: n, k, m, j
         logical :: dup
+
         call message("Cleaning up the recentf list...")
         if (.not. allocated(recentf_list)) allocate (recentf_list(0))
         allocate (newlist(size(recentf_list)))
         n = 0
         m = 0
+
         do k = 1, size(recentf_list)
             f = recentf_expand_file_name(recentf_list(k)%name)
             dup = .false.
+
             do j = 1, m
                 if (recentf_string_equal(newlist(j)%name, f)) then
                     dup = .true.
                     exit
                 end if
             end do
+
             if (recentf_include_p(f) .and. recentf_keep_p(f) .and. .not. dup) then
                 m = m + 1
                 newlist(m)%name = f
@@ -740,10 +805,12 @@ contains
                 call message("File "//f//" removed from the recentf list")
             end if
         end do
+
         write (buf, "(i0)") n
         call message("Cleaning up the recentf list...done ("//trim(buf)//" removed)")
         if (allocated(recentf_list)) deallocate (recentf_list)
         allocate (recentf_list(m))
+
         do k = 1, m
             call move_alloc(newlist(k)%name, recentf_list(k)%name)
         end do
@@ -751,6 +818,7 @@ contains
 
     recursive subroutine recentf_cleanup_proc(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call recentf_cleanup()
     end subroutine recentf_cleanup_proc
@@ -767,6 +835,7 @@ contains
     !> file.  Port of recentf.el:recentf-mode (no "Open Recent" menu).
     recursive subroutine recentf_mode(status)
         type(status_type), intent(out) :: status
+
         call minor_modes%recentf_mode%command(status)
     end subroutine recentf_mode
 
@@ -774,15 +843,19 @@ contains
     recursive subroutine recentf_mode_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
+
         status = status_type()
         if (enable .and. recentf_enabled_p()) return
+
         if (enable) then
             call recentf_load_list(status)
         else
             call recentf_save_list(mode_called_interactively)
         end if
+
         call recentf_auto_cleanup_run()
         call recentf_manage_autosave_timer()
+
         if (enable) then
             call find_file_hook%add(recentf_track_opened_file)
             call kill_buffer_hook%add(recentf_track_closed_file)
@@ -800,14 +873,17 @@ contains
         if (.not. allocated(recentf_list)) allocate (recentf_list(0))
         if (.not. allocated(recentf_exclude)) allocate (recentf_exclude(0))
         if (.not. allocated(recentf_exclude_ignored_extensions)) allocate (recentf_exclude_ignored_extensions(0))
+
         if (.not. allocated(recentf_keep)) then
             allocate (recentf_keep(1))
             recentf_keep(1)%predicate => recentf_keep_default_predicate
         end if
+
         if (.not. allocated(recentf_filename_handlers)) then
             allocate (recentf_filename_handlers(1))
             recentf_filename_handlers(1)%handler => abbreviate_file_name_handler
         end if
+
         call minor_modes%recentf_mode%define("recentf_mode", global=.true., hook=recentf_mode_hook, keymap=.true., &
                                              body=recentf_mode_body)
         recentf_mode_map = minor_modes%recentf_mode%map

@@ -37,6 +37,7 @@ contains
 
     subroutine collect_fns_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("fns-tests-compare-strings", test_compare_strings), &
                     new_unittest("substring", test_substring) &
@@ -47,6 +48,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: r
+
         r = compare_strings("xyzzy", "zyxxy", start1=0_int64, end1=10_int64, start2=0_int64, end2=5_int64, status=st)
         call check(error, st%ok() .and. r == -1, "end1 brought into range")
         if (allocated(error)) return
@@ -107,6 +109,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=:), allocatable :: r
+
         r = substring("héllo", 1_int64, 3_int64, st)
         call check(error, st%ok() .and. r == "él", r)
         if (allocated(error)) return

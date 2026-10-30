@@ -77,6 +77,7 @@ contains
 
     subroutine collect_filenotify_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("file-notify-test00-availability", test00_availability), &
                     new_unittest("file-notify-test01-add-watch", test01_add_watch), &
@@ -97,6 +98,7 @@ contains
         type(handle_type) :: old, h
         type(status_type) :: st
         character(len=:), allocatable :: msg
+
         old = current_buffer()
         call get_buffer_create(generate_new_buffer_name(" *filenotify-test*"), h, st)
         call set_buffer(h, st)
@@ -111,6 +113,7 @@ contains
         character(len=*), intent(in) :: prefix
         character(len=:), allocatable :: name
         type(status_type) :: st
+
         call make_temp_file(prefix, name, st)
         call delete_file(name, st)
     end function temp_name
@@ -118,6 +121,7 @@ contains
     !> with-file-notify-test: a fresh directory and a file in it.
     subroutine setup()
         type(status_type) :: st
+
         tmpdir = temp_name("file-notify-test-parent")
         call make_directory_internal(tmpdir, st)
         call make_temp_file(tmpdir//"/file-notify-test", tmpfile, st)
@@ -130,11 +134,14 @@ contains
     !> Cleanup after a test (file-notify--test-cleanup).
     subroutine cleanup()
         type(status_type) :: st
+
         call file_notify_rm_all_watches()
         if (file_exists_p(tmpfile)) call delete_file(tmpfile, st)
+
         if (len(tmpfile1) > 0) then
             if (file_exists_p(tmpfile1)) call delete_file(tmpfile1, st)
         end if
+
         if (file_directory_p(tmpdir)) call delete_directory(tmpdir, st, .true.)
         desc = watch_descriptor_type()
         desc1 = watch_descriptor_type()
@@ -145,6 +152,7 @@ contains
         type(value_type) :: ev
         type(status_type) :: st
         logical :: have
+
         call read_event(ev, have, st, seconds=0.01)
     end subroutine wait_event
 
@@ -154,6 +162,7 @@ contains
         real, intent(in) :: seconds
         procedure(pred_proc) :: until
         integer :: k
+
         do k = 1, int(seconds*100)
             if (until()) return
             call wait_event()
@@ -167,6 +176,7 @@ contains
     !> The environment has been cleaned up (file-notify--test-cleanup-p).
     subroutine check_cleanup(error)
         type(error_type), allocatable, intent(out) :: error
+
         call wait_for_events(3.0, no_descriptors)
         call check(error, no_descriptors(), "watch descriptors left")
     end subroutine check_cleanup
@@ -177,10 +187,12 @@ contains
         type(file_notify_event_type), intent(in) :: event
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
+
         status = status_type()
         file = directory_file_name(watched)
         if (event%action /= STOPPED .and. .not. (event%descriptor == desc)) bad_event = "descriptor"
         if (index(event%file, file) /= 1) bad_event = "file "//event%file
+
         if (event%action == RENAMED) then
             if (.not. allocated(event%file1)) then
                 bad_event = "no file1"
@@ -188,8 +200,10 @@ contains
                 bad_event = "file1 "//event%file1
             end if
         end if
+
         ! Do not add lock files, this would confuse the checks.
         if (index(event%file, ".#") > 0) return
+
         if (nactions < size(actions)) then
             nactions = nactions + 1
             actions(nactions) = event%action
@@ -202,6 +216,7 @@ contains
         integer, intent(in) :: flags
         type(watch_descriptor_type), intent(out) :: d
         type(status_type) :: st
+
         watched = file
         call file_notify_add_watch(file, flags, event_handler, d, st)
     end subroutine add_watch
@@ -209,6 +224,7 @@ contains
     recursive subroutine ignore(event, status)
         type(file_notify_event_type), intent(in) :: event
         type(status_type), intent(out) :: status
+
         status = status_type()
         if (event%action == 0) continue
     end subroutine ignore
@@ -233,20 +249,26 @@ contains
         integer, intent(in), optional :: alternative(:)
         logical :: ok
         character(len=200) :: got
+
         max_length = size(expected)
         if (present(alternative)) max_length = max(max_length, size(alternative))
         call wait_for_events(3.0, actions_done)
+
         if (allocated(bad_event)) then
             call check(error, .false., "bad event: "//bad_event)
             return
         end if
+
         ok = same(expected)
         if (present(alternative)) ok = ok .or. same(alternative)
         write (got, "(*(i0, :, ' '))") actions(1:nactions)
         call check(error, ok, "received actions "//trim(got))
+
     contains
+
         logical function same(list)
             integer, intent(in) :: list(:)
+
             same = size(list) == nactions
             if (same) same = all(list == actions(1:nactions))
         end function same
@@ -260,6 +282,7 @@ contains
     subroutine test00_availability(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call setup()
         call file_notify_add_watch(tmpdir, FILE_NOTIFY_CHANGE, ignore, desc, st)
         call check(error, st%ok(), format_error(st))
@@ -272,9 +295,11 @@ contains
     subroutine test01_add_watch(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call setup()
         tmpfile1 = tmpfile//"/0123456789abcdef"
         call delete_file(tmpfile, st)
+
         body: block
             ! Check, that different valid parameters are accepted.
             call file_notify_add_watch(tmpdir, FILE_NOTIFY_CHANGE, ignore, desc, st)
@@ -308,6 +333,7 @@ contains
             if (allocated(error)) exit body
             call check_cleanup(error)
         end block body
+
         tmpfile1 = ""
         call cleanup()
     end subroutine test01_add_watch
@@ -315,7 +341,9 @@ contains
     recursive subroutine first_callback(event, status)
         type(file_notify_event_type), intent(in) :: event
         type(status_type), intent(out) :: status
+
         status = status_type()
+
         if (event%action == DELETED) then
             nresults = nresults + 1
             results(nresults) = 1
@@ -325,7 +353,9 @@ contains
     recursive subroutine second_callback(event, status)
         type(file_notify_event_type), intent(in) :: event
         type(status_type), intent(out) :: status
+
         status = status_type()
+
         if (event%action == DELETED) then
             nresults = nresults + 1
             results(nresults) = 2
@@ -340,6 +370,7 @@ contains
     subroutine test02_rm_watch(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         ! Check, that `file_notify_rm_watch' works.
         call setup()
         call file_notify_add_watch(tmpdir, FILE_NOTIFY_CHANGE, ignore, desc, st)
@@ -399,6 +430,7 @@ contains
     subroutine test03_events(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         ! Check file creation, change and deletion.
         call setup()
         call delete_file(tmpfile, st)
@@ -506,6 +538,7 @@ contains
     subroutine test05_file_validity(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call setup()
         call write_file(tmpfile, "any text")
         call file_notify_add_watch(tmpfile, FILE_NOTIFY_CHANGE, ignore, desc, st)
@@ -521,10 +554,12 @@ contains
         call write_file(tmpfile, "any text")
         call add_watch(tmpfile, FILE_NOTIFY_CHANGE, desc)
         call check(error, file_notify_valid_p(desc), "valid")
+
         if (allocated(error)) then
             call cleanup()
             return
         end if
+
         call start_actions()
         call write_file(tmpfile, "another text")
         call wait_event()
@@ -541,10 +576,12 @@ contains
         call delete_file(tmpfile, st)
         call add_watch(tmpdir, FILE_NOTIFY_CHANGE, desc)
         call check(error, file_notify_valid_p(desc), "valid")
+
         if (allocated(error)) then
             call cleanup()
             return
         end if
+
         call start_actions()
         call write_file(tmpfile, "any text")
         call wait_event()
@@ -561,6 +598,7 @@ contains
     subroutine test06_dir_validity(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call setup()
         call file_notify_add_watch(tmpdir, FILE_NOTIFY_CHANGE, ignore, desc, st)
         call check(error, file_notify_valid_p(desc), "valid")

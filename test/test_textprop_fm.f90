@@ -52,6 +52,7 @@ contains
 
     subroutine collect_textprop_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("put-and-get", test_put_get), &
                     new_unittest("add-reports-change", test_add_change), &
@@ -73,6 +74,7 @@ contains
         character(len=*), intent(in) :: name
         type(handle_type), intent(out) :: h, old
         type(status_type) :: st
+
         old = current_buffer()
         call get_buffer_create(name, h, st)
         call set_buffer(h, st)
@@ -81,6 +83,7 @@ contains
     subroutine leave(h, old)
         type(handle_type), intent(in) :: h, old
         type(status_type) :: st
+
         if (buffer_live_p(old)) call set_buffer(old, st)
         call kill_buffer(h, st)
     end subroutine leave
@@ -90,6 +93,7 @@ contains
         character(len=*), intent(in) :: name
         type(value_type) :: v
         type(status_type) :: st
+
         call get_text_property(pos, sym(name), v, st)
     end function prop_at
 
@@ -98,6 +102,7 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
         type(value_type) :: plist
+
         call enter("tt-put", h, old)
         call insert("abcdefgh", st)
         call put_text_property(3_int64, 6_int64, sym("face"), sym("bold"), st)
@@ -127,6 +132,7 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
         logical :: changed
+
         call enter("tt-add", h, old)
         call insert("abcdef", st)
         call add_text_properties(1_int64, 4_int64, list(sym("a"), make_fixnum(1_int64)), changed, st)
@@ -149,6 +155,7 @@ contains
         type(status_type) :: st
         logical :: changed
         type(value_type) :: plist
+
         call enter("tt-set", h, old)
         call insert("abcdefgh", st)
         call put_text_property(1_int64, 9_int64, sym("face"), sym("bold"), st)
@@ -180,6 +187,7 @@ contains
         type(status_type) :: st
         integer(int64) :: r
         logical :: found
+
         ! a b c d e f g h i j:  [3,5) face bold, [5,7) face bold + x 1
         call enter("tt-changes", h, old)
         call insert("abcdefghij", st)
@@ -220,6 +228,7 @@ contains
         type(status_type) :: st
         integer(int64) :: r
         logical :: found
+
         call enter("tt-any", h, old)
         call insert("abcdefghij", st)
         call text_property_any(1_int64, 11_int64, sym("face"), nil(), r, found, st)
@@ -244,6 +253,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("tt-cat", h, old)
         call insert("abc", st)
         call put(sym("tt-my-category"), sym("face"), sym("italic"), st)
@@ -262,6 +272,7 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
         character(len=:), allocatable :: s
+
         call enter("tt-edits", h, old)
         call insert("abcdef", st)
         call put_text_property(3_int64, 5_int64, sym("face"), sym("bold"), st)   ! "cd"
@@ -290,6 +301,7 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
         integer(int64) :: tick, chars_tick
+
         call enter("tt-mod", h, old)
         call insert("abc", st)
         tick = buffers(cur)%text%modiff
@@ -317,6 +329,7 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
         logical :: changed
+
         call enter("tt-errors", h, old)
         call insert("abc", st)
         call add_text_properties(1_int64, 2_int64, list(sym("a"), sym("b"), sym("c")), changed, st)
@@ -333,6 +346,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("tt-ro-ins", h, old)
         call insert("abcdef", st)
         call put_text_property(3_int64, 5_int64, sym("read_only"), t_value(), st)
@@ -367,7 +381,9 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
         character(len=:), allocatable :: s
+
         call enter("tt-immutable", h, old)
+
         run: block
             call fill(st)
             call check(error, st%ok(), "building the template failed")
@@ -410,12 +426,15 @@ contains
             call delete_and_extract_region(26_int64, 37_int64, s, st)
             call check(error, st%code, FM_TEXT_READ_ONLY)
         end block run
+
         call set(sym("inhibit_read_only"), nil(), st)
         call leave(h, old)
+
     contains
 
         subroutine fill(st)
             type(status_type), intent(out) :: st
+
             call insert("1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ", st)
             call put_text_property(1_int64, 6_int64, sym("inhibit_read_only"), t_value(), st)
             call put_text_property(6_int64, 11_int64, sym("read_only"), sym("abcdefg"), st)
@@ -429,6 +448,7 @@ contains
         subroutine refill()
             type(value_type) :: saved
             type(status_type) :: st2
+
             saved = inhibit_read_only()
             call set(sym("inhibit_read_only"), t_value(), st2)
             call erase_buffer(st2)
@@ -444,6 +464,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("tt-nonsticky", h, old)
         call insert("abc", st)
         call put_text_property(1_int64, 2_int64, sym("cursor"), t_value(), st)
@@ -465,6 +486,7 @@ contains
         type(status_type) :: st
         integer(int64) :: pos
         logical :: found
+
         s = make_string("abcdef")
         call string_put_text_property(1_int64, 3_int64, sym("face"), sym("bold"), s, st)
         call check(error, st%ok(), "put")

@@ -59,17 +59,20 @@ contains
 
     integer function entry_of(bi) result(k)
         integer(int64), intent(in) :: bi
+
         if (allocated(entries) .and. bi > 0) then
             do k = 1, size(entries)
                 if (entries(k)%serial == buffers(bi)%serial) return
             end do
         end if
+
         k = 0
     end function entry_of
 
     integer function current_entry() result(k)
         type(next_error_entry_type), allocatable :: grown(:)
         integer :: n
+
         k = entry_of(cur)
         if (k /= 0) return
         if (.not. allocated(entries)) allocate (entries(0))
@@ -85,6 +88,7 @@ contains
     !> next-error-buffer (kill-all-local-variables).
     subroutine kill_next_error_locals()
         integer :: k
+
         k = entry_of(cur)
         if (k == 0) return
         entries(k)%fn => null()
@@ -93,6 +97,7 @@ contains
 
     module procedure set_next_error_function
     integer :: k
+
     if (cur == 0) return
     k = current_entry()
     entries(k)%fn => fn
@@ -100,6 +105,7 @@ contains
 
     module procedure has_next_error_function
     integer :: k
+
     has_next_error_function = .false.
     k = entry_of(bi)
     if (k /= 0) has_next_error_function = associated(entries(k)%fn)
@@ -113,6 +119,7 @@ contains
         type(handle_type) :: old
         type(status_type) :: st
         logical :: avoid
+
         avoid = .false.
         if (present(avoid_current)) avoid = avoid_current
         next_error_buffer_p = .false.
@@ -121,6 +128,7 @@ contains
         if (avoid .and. same_buffer(buffer, current_buffer())) return
         old = current_buffer()
         call set_buffer(buffer, st)
+
         if (has_next_error_function(cur)) then
             ! This is the normal test.  Optionally reject some buffers.
             next_error_buffer_p = .true.
@@ -129,11 +137,13 @@ contains
             ! Optionally accept some other buffers.
             if (present(extra_test_inclusive)) next_error_buffer_p = extra_test_inclusive()
         end if
+
         if (buffer_live_p(old)) call set_buffer(old, st)
     end function next_error_buffer_p
 
     logical function same_buffer(a, b)
         type(handle_type), intent(in) :: a, b
+
         same_buffer = a%index == b%index .and. a%generation == b%generation
     end function same_buffer
 
@@ -146,9 +156,11 @@ contains
         type(handle_type), allocatable :: all(:)
         logical :: avoid
         integer :: k
+
         status = status_type()
         avoid = .false.
         if (present(avoid_current)) avoid = avoid_current
+
         ! 1. If a customizable function returns a buffer, use it (its
         ! default, ignore, returns none).
         ! 2. If next-error-last-buffer is an acceptable buffer, use that.
@@ -156,19 +168,23 @@ contains
             buffer = next_error_last_buffer
             return
         end if
+
         ! 3. If the current buffer is acceptable, choose it.
         if (next_error_buffer_p(current_buffer(), avoid, extra_test_inclusive, extra_test_exclusive)) then
             buffer = current_buffer()
             return
         end if
+
         ! 4. Look for any acceptable buffer.
         all = buffer_list()
+
         do k = 1, size(all)
             if (next_error_buffer_p(all(k), avoid, extra_test_inclusive, extra_test_exclusive)) then
                 buffer = all(k)
                 return
             end if
         end do
+
         ! 5. Use the current buffer as a last resort if it qualifies, even
         ! despite AVOID-CURRENT.
         if (avoid) then
@@ -178,6 +194,7 @@ contains
                 return
             end if
         end if
+
         ! 6. Give up.
         buffer = null_handle()
         call set_error(status, FM_GENERIC_ERROR, "No buffers contain error message locations")
@@ -190,6 +207,7 @@ contains
     integer(int64) :: arg
     logical :: rst
     integer :: k
+
     arg = 1
     if (present(n)) arg = n
     rst = .false.
@@ -205,6 +223,7 @@ contains
     if (.not. status%ok()) return
     prev = next_error_last_buffer
     call next_error_found(st, buffer, current_buffer())
+
     if (next_error_verbose%value .or. .not. same_buffer(prev, next_error_last_buffer)) then
         if (rst) then
             what = "First"
@@ -215,6 +234,7 @@ contains
         else
             what = "Next"
         end if
+
         call message(what//" locus from "//buffers(next_error_last_buffer%index)%name)
     end if
     end procedure next_error
@@ -223,18 +243,22 @@ contains
     type(handle_type) :: buffer, prev
     type(status_type) :: st
     integer :: k
+
     buffer = current_buffer()
     ! We know here that next-error-function is a valid function we can
     ! call.
     k = entry_of(cur)
+
     if (k == 0) then
         call set_error(status, FM_VOID_FUNCTION, "null()")
         return
     end if
+
     call entries(k)%fn(0_int64, .false., status)
     if (.not. status%ok()) return
     prev = next_error_last_buffer
     call next_error_found(st, buffer, current_buffer())
+
     if (next_error_verbose%value .or. .not. same_buffer(prev, next_error_last_buffer)) then
         call message("Current locus from "//buffers(next_error_last_buffer%index)%name)
     end if
@@ -244,22 +268,27 @@ contains
     type(handle_type) :: old
     type(status_type) :: st
     integer :: k
+
     if (present(from_buffer)) then
         next_error_last_buffer = from_buffer
     else
         next_error_last_buffer = current_buffer()
     end if
+
     if (present(to_buffer)) then
         old = current_buffer()
         call set_buffer(to_buffer, st)
         k = current_entry()
+
         if (present(from_buffer)) then
             entries(k)%next_error_buffer = from_buffer
         else
             entries(k)%next_error_buffer = null_handle()
         end if
+
         call set_buffer(old, st)
     end if
+
     ! (next-error-recenter, next-error-found-function and the message
     ! highlight are Deferred.)
     call next_error_hook%run(status)
@@ -271,6 +300,7 @@ contains
     !> Visit next `next_error' message and corresponding source code.
     recursive subroutine cmd_next_error(status)
         type(status_type), intent(out) :: status
+
         if (consp(current_prefix_arg)) then
             call next_error(status, 1_int64, .true.)
         else
@@ -289,6 +319,7 @@ contains
     !> See `next_error' for the details.  Port of simple.el:previous-error.
     recursive subroutine previous_error(status)
         type(status_type), intent(out) :: status
+
         call next_error(status, -prefix_numeric_value(current_prefix_arg))
     end subroutine previous_error
 
@@ -299,6 +330,7 @@ contains
     !> instance.  Port of simple.el:first-error.
     recursive subroutine first_error(status)
         type(status_type), intent(out) :: status
+
         call next_error(status, prefix_numeric_value(current_prefix_arg), .true.)
     end subroutine first_error
 
@@ -309,6 +341,7 @@ contains
     !> buffer.  Port of simple.el:next-error-no-select.
     recursive subroutine next_error_no_select(status)
         type(status_type), intent(out) :: status
+
         call no_select(prefix_numeric_value(current_prefix_arg), status)
     end subroutine next_error_no_select
 
@@ -319,6 +352,7 @@ contains
     !> buffer.  Port of simple.el:previous-error-no-select.
     recursive subroutine previous_error_no_select(status)
         type(status_type), intent(out) :: status
+
         call no_select(-prefix_numeric_value(current_prefix_arg), status)
     end subroutine previous_error_no_select
 
@@ -328,6 +362,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: selected
         type(status_type) :: st
+
         selected = selected_frame%selected_window
         call next_error(status, n)
         call select_window(selected, st, norecord=.true.)

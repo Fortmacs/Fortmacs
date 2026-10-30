@@ -58,6 +58,7 @@ contains
 
     subroutine collect_dabbrev_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("dabbrev-expand-test", test_expand), &
                     new_unittest("dabbrev-completion-test", test_completion), &
@@ -91,7 +92,9 @@ contains
         type(handle_type), allocatable :: all(:)
         integer(int64) :: i
         integer :: k
+
         all = buffer_list()
+
         do k = 1, size(all)
             call resolve_buffer(all(k), i, st)
             if (.not. st%ok()) cycle
@@ -100,6 +103,7 @@ contains
             call restore_buffer_modified_p(.false.)
             call kill_buffer(all(k), st)
         end do
+
         call init_bindings()
         call discard_input()
         prefix_arg = nil()
@@ -120,6 +124,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: other, h
         type(status_type) :: st
+
         call fresh("dabbrev-other", other)
         call insert("axy", st)
         call get_buffer_create("dabbrev-test", h, st)
@@ -142,6 +147,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: other, h
         type(status_type) :: st
+
         call fresh("dabbrev-other", other)
         call insert("axy", st)
         call get_buffer_create("dabbrev-test", h, st)
@@ -162,6 +168,7 @@ contains
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
+
         call key_parse(keys, evs, st)
         call unread_command_events(evs)
         call command_loop(st)
@@ -172,6 +179,7 @@ contains
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: path
         type(status_type) :: st
+
         call init_fileio()
         call expand_file_name("test/dabbrev-resources/"//name, path, st, emacs_wd)
     end function resource
@@ -181,6 +189,7 @@ contains
         character(len=*), intent(in) :: name
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call find_file_noselect(resource(name), h, st)
         call set_buffer(h, st)
         call show_alone()
@@ -190,6 +199,7 @@ contains
     subroutine done(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
+
         if (.not. buffer_live_p(h)) return
         call set_buffer(h, st)
         call restore_buffer_modified_p(.false.)
@@ -201,6 +211,7 @@ contains
     function line() result(s)
         character(len=:), allocatable :: s
         type(status_type) :: st
+
         call buffer_substring(pos_bol(), pos_eol(), s, st)
     end function line
 
@@ -216,6 +227,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh("*dabbrev-test*", h)
         call insert("ab  x"//LF//"a"//LF//"ab  y", st)
         call goto_char(8_int64)
@@ -229,6 +241,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, s
         type(status_type) :: st
+
         call fresh("*dabbrev-test*", s)
         call find_resource("INSTALL_BEGIN", h)
         call goto_char(point_max())
@@ -247,6 +260,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, s
         type(status_type) :: st
+
         call fresh("*dabbrev-test*", s)
         call find_resource("INSTALL_BEGIN", h)
         call goto_char(point_max())
@@ -266,6 +280,7 @@ contains
         type(handle_type) :: h, s
         type(status_type) :: st
         integer(int64) :: inserted
+
         call fresh("*dabbrev-test*", s)
         call find_resource("INSTALL_BEGIN", h)
         call goto_char(point_max())
@@ -291,6 +306,7 @@ contains
     subroutine narrow_to_ind()
         integer(int64) :: b, e
         type(status_type) :: st
+
         call goto_char(point_min())
         call run("C-s Ind M-a C-SPC M-}")
         call region_beginning(b, st)
@@ -303,6 +319,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, s
         type(status_type) :: st
+
         call fresh("*dabbrev-test*", s)
         call find_resource("INSTALL_BEGIN", h)
         call narrow_to_ind()
@@ -322,6 +339,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, a
         type(status_type) :: st
+
         call fresh("*dabbrev-test*", a)
         call kill_buffer(a, st)
         call find_resource("INSTALL_BEGIN", h)
@@ -341,6 +359,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, a
         type(status_type) :: st
+
         call fresh("*dabbrev-test*", a)
         call kill_buffer(a, st)
         call find_resource("INSTALL_BEGIN", h)
@@ -360,6 +379,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, a
         type(status_type) :: st
+
         call fresh("*dabbrev-test*", a)
         call kill_buffer(a, st)
         call find_resource("INSTALL_BEGIN", h)
@@ -383,6 +403,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: foo, scratch
         type(status_type) :: st
+
         call fresh("foo", foo)
         call insert("abc abd", st)
         call get_buffer_create("*scratch*", scratch, st)
@@ -421,6 +442,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh("*dabbrev-test*", h)
         call insert("foo1 foo2 foo1 ", st)
         call run("fo M-/")
@@ -454,6 +476,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh("*dabbrev-test*", h)
         call insert("abcdef"//LF, st)
         call run("Ab M-/ SPC AB M-/")
@@ -465,6 +488,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh("*dabbrev-test*", h)
         call insert("Abc"//LF, st)
         dabbrev_case_fold_search = DABBREV_OFF

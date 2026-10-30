@@ -62,12 +62,15 @@ contains
         character(len=*), intent(in) :: regexp, mode
         logical, intent(in), optional :: strip
         type(auto_mode_type), allocatable :: grown(:)
+
         if (.not. allocated(auto_modes)) allocate (auto_modes(16))
+
         if (n_auto_modes == size(auto_modes)) then
             allocate (grown(2*n_auto_modes))
             grown(1:n_auto_modes) = auto_modes
             call move_alloc(grown, auto_modes)
         end if
+
         n_auto_modes = n_auto_modes + 1
         auto_modes(n_auto_modes)%regexp = regexp
         auto_modes(n_auto_modes)%mode = mode
@@ -150,10 +153,13 @@ contains
     module procedure add_auto_mode
     type(auto_mode_type), allocatable :: grown(:)
     integer :: i
+
     call init_auto_modes()
+
     do i = 1, n_auto_modes
         if (auto_modes(i)%regexp == regexp .and. auto_modes(i)%mode == mode) return
     end do
+
     call append_auto_mode(regexp, mode)
     ! Move it to the front.
     allocate (grown(n_auto_modes))
@@ -164,12 +170,14 @@ contains
 
     module procedure file_name_sans_versions
     integer :: n, i
+
     base = name
     n = len(base)
     if (n == 0) return
     if (base(n:n) /= "~") return
     ! NAME.~N~ (numbered backups)
     i = index(base(1:n - 1), ".~", back=.true.)
+
     if (i > 0) then
         if (i + 2 <= n - 1) then
             if (verify(base(i + 2:n - 1), "0123456789") == 0) then
@@ -178,6 +186,7 @@ contains
             end if
         end if
     end if
+
     ! NAME~ and NAME.~~
     base = base(1:n - 1)
     end procedure file_name_sans_versions
@@ -186,7 +195,9 @@ contains
         character(len=*), intent(in) :: s
         character(len=len(s)) :: d
         integer :: i
+
         d = s
+
         do i = 1, len(s)
             if (s(i:i) >= "A" .and. s(i:i) <= "Z") d(i:i) = achar(iachar(s(i:i)) + 32)
         end do
@@ -197,8 +208,10 @@ contains
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: t
         integer :: a, b
+
         a = verify(s, " "//char(9))
         b = verify(s, " "//char(9), back=.true.)
+
         if (a == 0) then
             t = ""
         else
@@ -210,44 +223,53 @@ contains
     character(len=:), allocatable :: line, rest, spec, lower, value
     integer :: a, nl, i, j, k
     logical :: skip
+
     mode = ""
     ! (skip-chars-forward " \t\n")
     a = verify(text, " "//char(9)//char(10))
     if (a == 0) return
     nl = index(text(a:), char(10))
+
     if (nl == 0) then
         line = text(a:)
     else
         line = text(a:a + nl - 2)
     end if
+
     ! If the file begins with "#!" or '\" (file-auto-mode-skip), look in
     ! the first two lines.
     skip = .false.
     if (len(line) >= 2) skip = line(1:2) == "#!"
     if (len(line) >= 3) skip = skip .or. line(1:3) == "'\"""
     i = index(line, "-*-")
+
     if (i == 0 .and. skip .and. nl > 0) then
         line = text(a + nl:)
         nl = index(line, char(10))
         if (nl > 0) line = line(1:nl - 1)
         i = index(line, "-*-")
     end if
+
     if (i == 0) return
     rest = line(i + 3:)
     j = index(rest, "-*-")
     if (j == 0) return
     spec = strip(rest(1:j - 1))
+
     if (index(spec, ":") == 0) then
         ! Simple -*-MODE-*- case.
         if (len(spec) > 0) mode = underscores(downcase(spec))//"_mode"
         return
     end if
+
     ! The first `mode:' entry: at the start or after [ \t;].
     lower = downcase(spec)
     k = 0
+
     if (len(lower) >= 5) then
         if (lower(1:5) == "mode:") k = 1
     end if
+
     if (k == 0) then
         do i = 2, len(lower) - 4
             if (lower(i:i + 4) == "mode:" .and. index(" "//char(9)//";", lower(i - 1:i - 1)) > 0) then
@@ -256,6 +278,7 @@ contains
             end if
         end do
     end if
+
     if (k == 0) return
     value = spec(k + 5:)
     j = index(value, ";")
@@ -270,7 +293,9 @@ contains
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: t
         integer :: i
+
         t = s
+
         do i = 1, len(t)
             if (t(i:i) == "-") t(i:i) = "_"
         end do
@@ -282,18 +307,22 @@ contains
         character(len=*), intent(in) :: mode
         logical, intent(in) :: keep_mode_if_same
         type(status_type), intent(out) :: status
+
         status = status_type()
         done = .false.
+
         if (keep_mode_if_same .and. allocated(buffers(cur)%major_mode)) then
             if (buffers(cur)%major_mode == mode) then
                 done = .true.
                 return
             end if
         end if
+
         if (.not. fboundp(sym(mode))) then
             call message(format_message("Ignoring unknown mode `"//mode//"'"))
             return
         end if
+
         call funcall_noargs(sym(mode), status)
         done = status%ok()
     end function set_auto_mode_0
@@ -308,6 +337,7 @@ contains
         integer(int64) :: here, idx
         integer :: i
         logical :: found
+
         mode = ""
         here = point()
         if (.not. allocated(auto_mode_interpreter_regexp)) call init_auto_mode_interpreter_regexp()
@@ -319,9 +349,11 @@ contains
         ! Map interpreter name to a mode, signaling we're done at the
         ! same time.
         name = file_name_nondirectory(interp)
+
         do i = 1, size(interpreter_regexps)
             idx = string_match("\`"//trim(interpreter_regexps(i))//"\'", name, status, inhibit_modify=.true.)
             if (.not. status%ok()) return
+
             if (idx > 0) then
                 mode = trim(interpreter_modes(i))
                 return
@@ -341,18 +373,22 @@ contains
         integer :: i
         integer(int64) :: mb
         logical :: done
+
         status = status_type()
         mode = ""
         rest = name
+
         do
             i = matching_entry(rest, mb)
             if (i == 0) exit
+
             if (len(mode) > 0) then
                 ! We had already found a mode but in a (REGEXP MODE t)
                 ! entry, so we still have to run MODE.  Let's do it now.
                 done = set_auto_mode_0(mode, .true., status)
                 if (.not. status%ok()) return
             end if
+
             mode = auto_modes(i)%mode
             if (.not. auto_modes(i)%strip) exit
             ! It's a (REGEXP MODE t): Keep looking but remember the MODE.
@@ -369,13 +405,17 @@ contains
         logical :: saved
         integer :: pass, i
         type(status_type) :: st
+
         found = 0
         mb = 0
         saved = case_fold_search%value
+
         do pass = 1, 2
             case_fold_search = pass == 2
+
             do i = 1, n_auto_modes
                 mb = string_match(auto_modes(i)%regexp, name, st, inhibit_modify=.true.)
+
                 if (mb > 0) then
                     found = i
                     case_fold_search = saved
@@ -383,6 +423,7 @@ contains
                 end if
             end do
         end do
+
         mb = 0
         case_fold_search = saved
     end function matching_entry
@@ -390,6 +431,7 @@ contains
     module procedure set_auto_mode
     character(len=:), allocatable :: text, mode, name
     logical :: keep
+
     status = status_type()
     if (cur == 0) return
     keep = .false.
@@ -398,26 +440,31 @@ contains
     call buffer_substring(point_min(), min(point_max(), point_min() + SPEC_LIMIT), text, status)
     if (.not. status%ok()) return
     mode = auto_mode_spec(text)
+
     if (len(mode) > 0) then
         if (set_auto_mode_0(mode, keep, status)) return
         if (.not. status%ok()) return
     end if
+
     ! If we didn't, look for an interpreter specified in the first line.
     ! As a special case, allow for things like "#!/bin/env perl", which
     ! finds the interpreter anywhere in $PATH.
     call interpreter_mode(mode, status)
     if (.not. status%ok()) return
+
     if (len(mode) > 0) then
         ! If we found an interpreter mode to use, invoke it now.
         if (set_auto_mode_0(mode, keep, status)) return
         if (.not. status%ok()) return
     end if
+
     ! Next compare the filename against the entries in auto-mode-alist.
     call init_auto_modes()
     if (.not. allocated(buffers(cur)%filename)) return
     name = file_name_sans_versions(buffers(cur)%filename)
     call find_matching_entry(name, mode, status)
     if (.not. status%ok()) return
+
     if (len(mode) > 0) then
         if (set_auto_mode_0(mode, keep, status)) return
     end if
@@ -425,17 +472,20 @@ contains
 
     module procedure normal_mode
     type(status_type) :: st
+
     status = status_type()
     if (cur == 0) return
     ! FIND_FILE only matters for file-local variables, not yet supported.
     if (present(find_file)) continue
     call kill_all_local_variables()
+
     if (.not. delaying_mode_hooks()) then
         call change_major_mode_after_body_hook%run(status)
         if (.not. status%ok()) return
         call after_change_major_mode_hook%run(status)
         if (.not. status%ok()) return
     end if
+
     ! (with-demoted-errors "File mode specification error: %S" ...)
     call set_auto_mode(st)
     if (.not. st%ok()) call message("File mode specification error: "//format_error(st))

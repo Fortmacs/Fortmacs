@@ -200,12 +200,15 @@ contains
         type(status_type) :: st
         type(save_place_type), allocatable :: places(:)
         integer :: g, k, n, idx
+
         if (save_place_loaded) return
         save_place_loaded = .true.
         file = expand(save_place_file)
+
         if (file_readable_p(file)) then
             call file_text(file, text, st)
             if (st%ok()) call read_namelist(text, groups, st)
+
             if (.not. st%ok()) then
                 ! (with-demoted-errors "Error reading save-place-file: %S")
                 call message("Error reading save-place-file: "//file)
@@ -213,21 +216,27 @@ contains
                 allocate (save_place_alist(0))
             else
                 n = 0
+
                 do g = 1, size(groups)
                     if (groups(g)%name /= "saveplace" .or. .not. allocated(groups(g)%items)) cycle
+
                     do k = 1, size(groups(g)%items)
                         if (groups(g)%items(k)%name == "place") n = max(n, int(groups(g)%items(k)%lower))
                     end do
                 end do
+
                 allocate (places(n))
+
                 do g = 1, size(groups)
                     if (groups(g)%name /= "saveplace" .or. .not. allocated(groups(g)%items)) cycle
+
                     do k = 1, size(groups(g)%items)
                         associate (it => groups(g)%items(k))
                             if (it%name /= "place" .or. .not. it%subscripted) cycle
                             if (size(it%values) == 0) cycle
                             idx = int(it%lower)
                             if (idx < 1) cycle
+
                             select case (it%component)
                             case ("file")
                                 if (it%values(1)%kind == NAMELIST_STRING) places(idx)%file = it%values(1)%string
@@ -244,11 +253,14 @@ contains
                         end associate
                     end do
                 end do
+
                 if (allocated(save_place_alist)) deallocate (save_place_alist)
                 allocate (save_place_alist(0))
+
                 do k = 1, n
                     if (allocated(places(k)%file)) call append_place(places(k))
                 end do
+
                 if (save_place_limit /= SAVE_PLACE_NO_LIMIT) then
                     if (save_place_limit <= 0) then
                         deallocate (save_place_alist)
@@ -259,6 +271,7 @@ contains
                 end if
             end if
         end if
+
         call save_place_normalize_alist()
     end subroutine save_place_load_alist_from_file
 
@@ -270,6 +283,7 @@ contains
         type(handle_type) :: old, h
         type(status_type) :: st
         integer(int64) :: inserted
+
         text = ""
         old = current_buffer()
         call get_buffer_create(generate_new_buffer_name(" *temp*"), h, st)
@@ -285,12 +299,15 @@ contains
         type(save_place_type), intent(in) :: place
         type(save_place_type), allocatable :: grown(:)
         integer :: k, n
+
         if (.not. allocated(save_place_alist)) allocate (save_place_alist(0))
         n = size(save_place_alist)
         allocate (grown(n + 1))
+
         do k = 1, n
             call move_place(save_place_alist(k), grown(k))
         end do
+
         grown(n + 1) = place
         call move_alloc(grown, save_place_alist)
     end subroutine append_place
@@ -298,6 +315,7 @@ contains
     subroutine move_place(from, to)
         type(save_place_type), intent(inout) :: from
         type(save_place_type), intent(out) :: to
+
         call move_alloc(from%file, to%file)
         to%position = from%position
         if (allocated(from%dired_filename)) call move_alloc(from%dired_filename, to%dired_filename)
@@ -308,10 +326,13 @@ contains
         integer, intent(in) :: n
         type(save_place_type), allocatable :: kept(:)
         integer :: k
+
         allocate (kept(n))
+
         do k = 1, n
             call move_place(save_place_alist(k), kept(k))
         end do
+
         call move_alloc(kept, save_place_alist)
     end subroutine truncate_places
 
@@ -320,10 +341,13 @@ contains
         integer, intent(in) :: k
         type(save_place_type), allocatable :: kept(:)
         integer :: j
+
         allocate (kept(size(save_place_alist) - 1))
+
         do j = 1, size(kept)
             call move_place(save_place_alist(merge(j, j + 1, j < k)), kept(j))
         end do
+
         call move_alloc(kept, save_place_alist)
     end subroutine delete_place
 
@@ -332,6 +356,7 @@ contains
     function normal_name(file) result(name)
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: name
+
         if (save_place_abbreviate_file_names) then
             name = abbreviate_file_name(file)
         else
@@ -345,22 +370,29 @@ contains
     subroutine save_place_normalize_alist()
         integer :: k, j
         logical :: dup
+
         if (.not. allocated(save_place_alist)) allocate (save_place_alist(0))
+
         do k = 1, size(save_place_alist)
             save_place_alist(k)%file = normal_name(save_place_alist(k)%file)
+
             if (allocated(save_place_alist(k)%dired_filename)) then
                 save_place_alist(k)%dired_filename = normal_name(save_place_alist(k)%dired_filename)
             end if
         end do
+
         k = 2
+
         do while (k <= size(save_place_alist))
             dup = .false.
+
             do j = 1, k - 1
                 if (same(save_place_alist(j)%file, save_place_alist(k)%file)) then
                     dup = .true.
                     exit
                 end if
             end do
+
             if (dup) then
                 call delete_place(k)
             else
@@ -374,12 +406,14 @@ contains
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: name
         type(status_type) :: st
+
         call expand_file_name(file, name, st)
         if (.not. st%ok()) name = file
     end function expand
 
     pure logical function same(a, b)
         character(len=*), intent(in) :: a, b
+
         same = len(a) == len(b)
         if (same) same = a == b
     end function same
@@ -387,11 +421,13 @@ contains
     !> The index of FILE's place in `save_place_alist', 0 for none.
     integer function place_index(file) result(k)
         character(len=*), intent(in) :: file
+
         if (allocated(save_place_alist)) then
             do k = 1, size(save_place_alist)
                 if (same(save_place_alist(k)%file, file)) return
             end do
         end if
+
         k = 0
     end function place_index
 
@@ -407,6 +443,7 @@ contains
     !> timer.  Port of saveplace.el:save-place--manage-timer.
     subroutine save_place_manage_timer()
         type(status_type) :: st
+
         if (save_place_mode_on() .and. save_place_autosave_interval > 0 .and. &
             .not. timerp(save_place_autosave_timer)) then
             call run_with_timer(save_place_autosave_timer, real(save_place_autosave_interval, real64), &
@@ -420,6 +457,7 @@ contains
     !> saveplace.el:save-place--autosave.
     recursive subroutine save_place_autosave(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call save_places_to_alist()
         call save_place_alist_to_file()
@@ -429,6 +467,7 @@ contains
     logical function save_place_mode_on() result(on)
         type(value_type) :: v
         type(status_type) :: st
+
         call symbol_value(sym("save_place_mode"), v, st)
         on = st%ok() .and. .not. nilp(v)
     end function save_place_mode_on
@@ -437,6 +476,7 @@ contains
     !> when the mode is turned off, as upstream).
     subroutine save_place_setup_hooks(add)
         logical, intent(in) :: add
+
         if (.not. add) return
         call find_file_hook%add(save_place_find_file_hook_proc, depth=90)
         call dired_initial_position_hook%add(save_place_dired_hook_proc)
@@ -450,6 +490,7 @@ contains
     !> saveplace.el:save-place-mode.
     recursive subroutine save_place_mode(status)
         type(status_type), intent(out) :: status
+
         call minor_modes%save_place_mode%command(status)
     end subroutine save_place_mode
 
@@ -457,6 +498,7 @@ contains
     recursive subroutine save_place_mode_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
+
         status = status_type()
         call save_place_setup_hooks(enable)
         call save_place_manage_timer()
@@ -471,6 +513,7 @@ contains
     !> `save_place_mode'.  Port of saveplace.el:save-place-local-mode.
     recursive subroutine save_place_local_mode(status)
         type(status_type), intent(out) :: status
+
         call minor_modes%save_place_local_mode%command(status)
     end subroutine save_place_local_mode
 
@@ -479,13 +522,16 @@ contains
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
         type(status_type) :: st
+
         status = status_type()
+
         ! (:variable save-place-mode: the body sets it.)
         if (enable) then
             call set(sym("save_place_mode"), t_value(), st)
         else
             call set(sym("save_place_mode"), nil(), st)
         end if
+
         if (.not. (allocated(buffers(cur)%filename) .or. len(dired_directory()) > 0)) then
             call message("Buffer `"//buffers(cur)%name//"' not visiting a file or directory")
         else
@@ -499,6 +545,7 @@ contains
         character(len=:), allocatable :: dir
         type(dired_string_type), allocatable :: dirs(:)
         type(status_type) :: st
+
         dir = ""
         if (.not. derived_mode_p("dired_mode")) return
         dirs = dired_subdir_dirs()
@@ -521,8 +568,10 @@ contains
         character(len=:), allocatable :: directory, item, filename
         logical :: found
         integer :: k, n
+
         if (.not. save_place_loaded) call save_place_load_alist_from_file()
         directory = dired_directory()
+
         if (allocated(buffers(cur)%filename)) then
             item = buffers(cur)%filename
         else if (len(directory) > 0) then
@@ -530,36 +579,45 @@ contains
         else
             return
         end if
+
         if (allocated(save_place_ignore_files_regexp)) then
             if (string_match(save_place_ignore_files_regexp, item, st) > 0) return
         end if
+
         if (save_place_abbreviate_file_names) item = abbreviate_file_name(item)
         place%file = item
         place%position = point()
+
         if (derived_mode_p("dired_mode") .and. len(directory) > 0) then
             call dired_get_filename(filename, found, st, no_error_if_not_filep=.true.)
+
             if (found) then
                 if (save_place_abbreviate_file_names) filename = abbreviate_file_name(filename)
                 place%dired_filename = filename
                 place%position = 0
             end if
         end if
+
         k = place_index(item)
         if (k > 0) call delete_place(k)
+
         ! Optimize out the degenerate case.
         if (save_place_mode_on() .and. .not. (.not. allocated(place%dired_filename) .and. place%position == 1)) then
             n = size(save_place_alist)
             allocate (grown(n + 1))
             grown(1) = place
+
             do k = 1, n
                 call move_place(save_place_alist(k), grown(k + 1))
             end do
+
             call move_alloc(grown, save_place_alist)
         end if
     end subroutine save_place_to_alist
 
     recursive subroutine save_place_to_alist_proc(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call save_place_to_alist()
     end subroutine save_place_to_alist_proc
@@ -568,6 +626,7 @@ contains
     logical function keep_place(file) result(keep)
         character(len=*), intent(in) :: file
         type(status_type) :: st
+
         if (string_match(save_place_skip_check_regexp, file, st) > 0) then
             keep = save_place_save_skipped
         else
@@ -581,8 +640,10 @@ contains
     !> saveplace.el:save-place-forget-unreadable-files.
     recursive subroutine save_place_forget_unreadable_files()
         integer :: k
+
         if (.not. allocated(save_place_alist)) return
         k = 1
+
         do while (k <= size(save_place_alist))
             if (keep_place(save_place_alist(k)%file)) then
                 k = k + 1
@@ -594,6 +655,7 @@ contains
 
     recursive subroutine cmd_save_place_forget_unreadable_files(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call save_place_forget_unreadable_files()
     end subroutine cmd_save_place_forget_unreadable_files
@@ -607,14 +669,17 @@ contains
         type(status_type) :: st, wst
         character(len=:), allocatable :: file, wrote
         integer :: k
+
         file = expand(save_place_file)
         if (save_place_forget_unreadable_files_option) call save_place_forget_unreadable_files()
         group%name = "saveplace"
+
         if (allocated(save_place_alist)) then
             do k = 1, size(save_place_alist)
                 item = namelist_item_type(name="place", component="file", subscripted=.true., lower=k, upper=k)
                 call item%add_string(save_place_alist(k)%file)
                 call group%add(item)
+
                 if (allocated(save_place_alist(k)%dired_filename)) then
                     item = namelist_item_type(name="place", component="dired_filename", subscripted=.true., &
                                               lower=k, upper=k)
@@ -624,9 +689,11 @@ contains
                                               lower=k, upper=k)
                     call item%add_integer(save_place_alist(k)%position)
                 end if
+
                 call group%add(item)
             end do
         end if
+
         old = current_buffer()
         call get_buffer_create(generate_new_buffer_name(" *temp*"), h, st)
         call set_buffer(h, st)
@@ -637,6 +704,7 @@ contains
         call coding_system_for_write%clear()
         call kill_buffer(h, st)
         call set_buffer(old, st)
+
         if (.not. wst%ok()) then
             call message("Saving places: can't write "//file)
         else if (mode_called_interactively) then
@@ -653,13 +721,16 @@ contains
         type(handle_type) :: old
         type(status_type) :: st
         integer :: k
+
         list = buffer_list()
         old = current_buffer()
+
         do k = 1, size(list)
             call set_buffer(list(k), st)
             if (.not. st%ok()) cycle
             if (allocated(buffers(cur)%filename) .or. len(dired_directory()) > 0) call save_place_to_alist()
         end do
+
         call set_buffer(old, st)
     end subroutine save_places_to_alist
 
@@ -670,8 +741,10 @@ contains
         type(status_type), intent(out) :: status
         type(status_type) :: st
         integer :: k
+
         if (.not. save_place_loaded) call save_place_load_alist_from_file()
         k = 0
+
         if (allocated(buffers(cur)%filename)) then
             if (save_place_abbreviate_file_names) then
                 k = place_index(abbreviate_file_name(buffers(cur)%filename))
@@ -679,17 +752,21 @@ contains
                 k = place_index(buffers(cur)%filename)
             end if
         end if
+
         if (k > 0) then
             if (.not. revert_buffer_in_progress .and. .not. allocated(save_place_alist(k)%dired_filename)) then
                 call goto_char(save_place_alist(k)%position)
             end if
+
             call set(sym("save_place_mode"), t_value(), st)
         end if
+
         call save_place_after_find_file_hook%run(status)
     end subroutine save_place_find_file_hook
 
     recursive subroutine save_place_find_file_hook_proc(status)
         type(status_type), intent(out) :: status
+
         call save_place_find_file_hook(status)
     end subroutine save_place_find_file_hook_proc
 
@@ -701,6 +778,7 @@ contains
         type(status_type) :: st
         integer(int64) :: pos
         integer :: k
+
         if (.not. save_place_loaded) call save_place_load_alist_from_file()
         directory = dired_directory()
         if (len(directory) == 0) return
@@ -708,6 +786,7 @@ contains
         if (save_place_abbreviate_file_names) item = abbreviate_file_name(item)
         k = place_index(item)
         if (k == 0) return
+
         if (.not. revert_buffer_in_progress) then
             if (allocated(save_place_alist(k)%dired_filename)) then
                 pos = dired_goto_file(expand(save_place_alist(k)%dired_filename), st)
@@ -715,11 +794,13 @@ contains
                 call goto_char(save_place_alist(k)%position)
             end if
         end if
+
         call set(sym("save_place_mode"), t_value(), st)
     end subroutine save_place_dired_hook
 
     recursive subroutine save_place_dired_hook_proc(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call save_place_dired_hook()
     end subroutine save_place_dired_hook_proc
@@ -732,6 +813,7 @@ contains
 
     recursive subroutine save_place_kill_emacs_hook_proc(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call save_place_kill_emacs_hook()
     end subroutine save_place_kill_emacs_hook_proc
@@ -739,14 +821,18 @@ contains
     !> Define the modes, the command and the options' defaults.
     subroutine syms_of_saveplace()
         type(status_type) :: st
+
         if (.not. allocated(save_place_file)) save_place_file = state_directory()//"places"
+
         if (.not. allocated(save_place_skip_check_regexp)) then
             save_place_skip_check_regexp = "\`/\(?:cdrom\|floppy\|mnt\|\(?:[^@/:]*@\)?[^@/:]*[^@/:.]:\)"
         end if
+
         if (.not. allocated(save_place_ignore_files_regexp)) then
             save_place_ignore_files_regexp = "\(?:COMMIT_EDITMSG\|hg-editor-[[:alnum:]]+\.txt\|svn-commit\.tmp\|" &
                                              //"bzr_log\.[[:alnum:]]+\)$"
         end if
+
         if (.not. allocated(save_place_alist)) allocate (save_place_alist(0))
         call minor_modes%save_place_mode%define("save_place_mode", global=.true., hook=save_place_mode_hook, &
                                                 body=save_place_mode_body)
