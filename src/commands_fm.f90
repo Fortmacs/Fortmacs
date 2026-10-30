@@ -915,6 +915,7 @@ module commands_fm
         type(command_type) :: search_forward
         type(command_type) :: self_insert_command
         type(command_type) :: set_buffer_file_coding_system
+        type(command_type) :: set_buffer_process_coding_system
         type(command_type) :: set_fill_column
         type(command_type) :: set_fill_prefix
         type(command_type) :: set_mark_command
@@ -988,6 +989,7 @@ module commands_fm
         type(command_type) :: universal_argument
         type(command_type) :: universal_argument_minus
         type(command_type) :: universal_argument_more
+        type(command_type) :: universal_coding_system_argument
         type(command_type) :: up_list
         type(command_type) :: upcase_initials_region
         type(command_type) :: upcase_region
@@ -1088,7 +1090,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1049) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1051) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1971,6 +1973,7 @@ module commands_fm
                                                                   "search_forward", &
                                                                   "self_insert_command", &
                                                                   "set_buffer_file_coding_system", &
+                                                                  "set_buffer_process_coding_system", &
                                                                   "set_fill_column", &
                                                                   "set_fill_prefix", &
                                                                   "set_mark_command", &
@@ -2044,6 +2047,7 @@ module commands_fm
                                                                   "universal_argument", &
                                                                   "universal_argument_minus", &
                                                                   "universal_argument_more", &
+                                                                  "universal_coding_system_argument", &
                                                                   "up_list", &
                                                                   "upcase_initials_region", &
                                                                   "upcase_region", &
@@ -3914,6 +3918,8 @@ contains
             p => commands%self_insert_command
         case ("set_buffer_file_coding_system")
             p => commands%set_buffer_file_coding_system
+        case ("set_buffer_process_coding_system")
+            p => commands%set_buffer_process_coding_system
         case ("set_fill_column")
             p => commands%set_fill_column
         case ("set_fill_prefix")
@@ -4060,6 +4066,8 @@ contains
             p => commands%universal_argument_minus
         case ("universal_argument_more")
             p => commands%universal_argument_more
+        case ("universal_coding_system_argument")
+            p => commands%universal_coding_system_argument
         case ("up_list")
             p => commands%up_list
         case ("upcase_initials_region")

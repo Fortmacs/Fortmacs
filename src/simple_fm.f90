@@ -283,6 +283,13 @@ module simple_fm
     !> Hook run after entering Special mode (`special_mode_hook').
     type(hook_type), target, public :: special_mode_hook = hook_type(name="special_mode_hook")
 
+    !> Normal hook run when a command needs to preserve the prefix.  Port
+    !> of simple.el prefix-command-preserve-state-hook (its
+    !> universal-argument--preserve is part of
+    !> `prefix_command_preserve_state').
+    type(hook_type), target, public :: prefix_command_preserve_state_hook = &
+                                       hook_type(name="prefix_command_preserve_state_hook")
+
     !> Keymap for `special_mode'.  Port of simple.el special-mode-map.
     type(handle_type), public :: special_mode_map
 
@@ -1542,10 +1549,16 @@ contains
         call kill_region(point(), point() + arg, status)
     end subroutine kill_forward_chars
 
-    !> Pass the prefix-argument state on to the next command, which keeps
-    !> `last_command' too.  Port of simple.el:prefix-command-preserve-state
-    !> with universal-argument--preserve as its hook.
-    subroutine prefix_command_preserve_state()
+    !> Pass the current prefix command state to the next command.
+    !> Should be called by all prefix commands.
+    !> Runs `prefix_command_preserve_state_hook'.  Port of
+    !> simple.el:prefix-command-preserve-state (with
+    !> universal-argument--preserve; the echo of the prefix state is
+    !> Deferred).
+    recursive subroutine prefix_command_preserve_state()
+        type(status_type) :: st
+
+        call prefix_command_preserve_state_hook%run(st)
         prefix_arg = current_prefix_arg
         current_prefix_arg = last_prefix_arg
         this_command = last_command
