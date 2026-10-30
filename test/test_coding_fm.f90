@@ -98,7 +98,8 @@ contains
                     new_unittest("emacs-mule", test_emacs_mule), &
                     new_unittest("language-environments", test_language_environments), &
                     new_unittest("set-locale-environment", test_set_locale_environment), &
-                    new_unittest("charset-commands", test_charset_commands) &
+                    new_unittest("charset-commands", test_charset_commands), &
+                    new_unittest("input-methods", test_input_methods) &
                     ]
     end subroutine collect_coding_fm
 
@@ -1369,4 +1370,112 @@ contains
             call set_buffer(old, s)
         end function help_text
     end subroutine test_charset_commands
+
+    !> The input method framework: registering, C-\ prompting for the
+    !> first input method and toggling it, the input method's events (one,
+    !> none or several for a key), C-u C-\, C-x RET C-\, describing it.
+    subroutine test_input_methods(error)
+        use mule_fm, only: register_input_method, describe_current_input_method, deactivate_input_method
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: buf
+        type(status_type) :: st
+
+        call init_bindings()
+        call discard_input()
+        call register_input_method("test-upcase", "English", activate_upcase, "TU", "Upcases letters.")
+        call register_input_method("test-plain", "English", activate_plain, "TP", "Inserts keys as typed.")
+        call get_buffer_create("*input methods*", buf, st)
+        call set_buffer(buf, st)
+        call show_alone()
+        default_input_method%value = ""
+        call describe_current_input_method(st)
+        call check(error, format_error(st), "No input method is activated now")
+        if (allocated(error)) return
+        ! C-\ asks for the input method the first time.
+        call kbd_store_bytes(achar(28)//"test-upcase"//CR//"abxw")
+        call command_loop(st)
+        call check(error, buffer_string(), "ABWW")
+        if (allocated(error)) return
+        call check(error, buffers(cur)%current_input_method == "test-upcase" .and. &
+                   buffers(cur)%current_input_method_title == "TU" .and. default_input_method%value == "test-upcase")
+        if (allocated(error)) return
+        call check(error, mode_line_mule_info(cur, .false.), "TUUUU:")
+        if (allocated(error)) return
+        ! C-\ turns it off, and on again without asking.
+        call kbd_store_bytes(achar(28)//"a"//achar(28)//"a")
+        call command_loop(st)
+        call check(error, buffer_string(), "ABWWaA")
+        if (allocated(error)) return
+        ! C-u C-\ asks, offering the previous one.
+        call kbd_store_bytes(achar(21)//achar(28)//"test-plain"//CR//"a")
+        call command_loop(st)
+        call check(error, buffer_string(), "ABWWaAa")
+        if (allocated(error)) return
+        call check(error, buffers(cur)%current_input_method == "test-plain" .and. &
+                   trim(buffers(cur)%input_method_history(1)) == "test-upcase")
+        if (allocated(error)) return
+        ! C-x RET C-\ sets the default too.
+        call kbd_store_bytes(achar(24)//CR//achar(28)//"test-upcase"//CR//"b")
+        call command_loop(st)
+        call check(error, buffer_string(), "ABWWaAaB")
+        if (allocated(error)) return
+        call check(error, default_input_method%value == "test-upcase" .and. &
+                   trim(buffers(cur)%input_method_history(1)) == "test-plain")
+        if (allocated(error)) return
+        call deactivate_input_method(st)
+        call check(error,.not. allocated(buffers(cur)%current_input_method) .and. &
+                   .not. associated(buffers(cur)%input_method_function))
+        call kill_buffer(buf, st)
+    end subroutine test_input_methods
+
+    !> Activate the test input method that upcases letters.
+    recursive subroutine activate_upcase(input_method, status)
+        character(len=*), intent(in) :: input_method
+        type(status_type), intent(out) :: status
+
+        if (len(input_method) < 0) return
+        buffers(cur)%input_method_function => upcase_method
+    end subroutine activate_upcase
+
+    !> Activate the test input method that changes nothing.
+    recursive subroutine activate_plain(input_method, status)
+        character(len=*), intent(in) :: input_method
+        type(status_type), intent(out) :: status
+
+        if (len(input_method) < 0) return
+        buffers(cur)%input_method_function => plain_method
+    end subroutine activate_plain
+
+    !> Upcase KEY; x gives no event, w two.
+    recursive subroutine upcase_method(key, events, status)
+        use lisp_fm, only: make_fixnum
+        integer(int64), intent(in) :: key
+        type(value_type), allocatable, intent(out) :: events(:)
+        type(status_type), intent(out) :: status
+
+        if (key == iachar("x")) then
+            allocate (events(0))
+        else if (key == iachar("w")) then
+            allocate (events(2))
+            events(1) = make_fixnum(int(iachar("W"), int64))
+            events(2) = make_fixnum(int(iachar("W"), int64))
+        else if (key >= iachar("a") .and. key <= iachar("z")) then
+            allocate (events(1))
+            events(1) = make_fixnum(key - 32)
+        else
+            allocate (events(1))
+            events(1) = make_fixnum(key)
+        end if
+    end subroutine upcase_method
+
+    !> KEY as it is.
+    recursive subroutine plain_method(key, events, status)
+        use lisp_fm, only: make_fixnum
+        integer(int64), intent(in) :: key
+        type(value_type), allocatable, intent(out) :: events(:)
+        type(status_type), intent(out) :: status
+
+        allocate (events(1))
+        events(1) = make_fixnum(key)
+    end subroutine plain_method
 end module test_coding_fm

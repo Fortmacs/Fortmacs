@@ -721,7 +721,7 @@ contains
         call syms_of_help(global_map)
         call syms_of_help_fns()
         call syms_of_apropos()
-        call syms_of_mule(ctl_x_map, help_map)
+        call syms_of_mule(global_map, ctl_x_map, help_map)
         ! The other keymap variables, for \<MAP> and help--binding-locus.
         call register_keymap_name("esc_map", esc_map)
         call register_keymap_name("ctl_x_map", ctl_x_map)

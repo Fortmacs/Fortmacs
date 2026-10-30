@@ -352,8 +352,9 @@ module docstrings_fm
     use mule_conf_fm, only: password_colon_equivalents, password_word_equivalents
     use mule_fm, only: auto_coding_alist, auto_coding_regexp_alist, current_language_environment, &
                        default_input_method, default_keyboard_coding_system, default_terminal_coding_system, &
-                       keyboard_coding_system_variable, last_coding_system_specified, mule_keymap, &
-                       select_safe_coding_system_accept_default_p
+                       default_transient_input_method, input_method_alist, keyboard_coding_system_variable, &
+                       last_coding_system_specified, mule_keymap, select_safe_coding_system_accept_default_p, &
+                       toggle_input_method_active
     use mule_util_fm, only: truncate_string_ellipsis_variable
     use newcomment_fm, only: comment_add, comment_auto_fill_only_comments, comment_column, &
                              comment_combine_change_calls, comment_continue, comment_empty_lines, COMMENT_EMPTY_LINES_NIL, &
@@ -571,47 +572,47 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1439) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1443) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
-                                            "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
-                                                          "add_mode_abbrev", "add_name_to_file", "add_save_some_buffers_function", &
-                                                             "ansi_color_compilation_filter", "ansi_color_for_comint_mode_filter", &
-                                                                "ansi_color_for_comint_mode_off", "ansi_color_for_comint_mode_on", &
-                                                          "ansi_color_process_output", "append_to_register", "apply_on_rectangle", &
-                                                 "apropos_command", "apropos_documentation", "apropos_follow", "apropos_function", &
-                                          "apropos_mode", "apropos_next_symbol", "apropos_previous_symbol", "apropos_user_option", &
-                                                  "apropos_variable", "async_shell_command", "auto_fill_mode", "auto_revert_mode", &
-                                         "auto_revert_set_timer", "auto_revert_tail_mode", "back_to_indentation", "backward_char", &
-                                             "backward_delete_char_untabify", "backward_kill_paragraph", "backward_kill_sentence", &
-                                                     "backward_kill_sexp", "backward_kill_word", "backward_list", "backward_page", &
-                                                   "backward_paragraph", "backward_sentence", "backward_sexp", "backward_up_list", &
-                                                                    "backward_word", "beginning_of_buffer", "beginning_of_defun", &
-                                                     "beginning_of_defun_comments", "beginning_of_defun_raw", "beginning_of_line", &
-                                         "beginning_of_line_text", "blink_matching_check_mismatch", "blink_matching_open", "bobp", &
-                                                                    "bolp", "bookmark_bmenu_1_window", "bookmark_bmenu_2_window", &
-                                             "bookmark_bmenu_backup_unmark", "bookmark_bmenu_delete", "bookmark_bmenu_delete_all", &
-                                                              "bookmark_bmenu_delete_backwards", "bookmark_bmenu_edit_annotation", &
-                                                 "bookmark_bmenu_execute_deletions", "bookmark_bmenu_list", "bookmark_bmenu_load", &
-                                                        "bookmark_bmenu_locate", "bookmark_bmenu_mark", "bookmark_bmenu_mark_all", &
-                                                  "bookmark_bmenu_mode", "bookmark_bmenu_other_window", "bookmark_bmenu_relocate", &
-                                                          "bookmark_bmenu_rename", "bookmark_bmenu_save", "bookmark_bmenu_search", &
-                                                                   "bookmark_bmenu_select", "bookmark_bmenu_show_all_annotations", &
-                                                           "bookmark_bmenu_show_annotation", "bookmark_bmenu_switch_other_window", &
-                                         "bookmark_bmenu_this_window", "bookmark_bmenu_toggle_filenames", "bookmark_bmenu_unmark", &
-                                                            "bookmark_bmenu_unmark_all", "bookmark_delete", "bookmark_delete_all", &
-                                                            "bookmark_edit_annotation_cancel", "bookmark_edit_annotation_confirm", &
-                                                   "bookmark_edit_annotation_mode", "bookmark_insert", "bookmark_insert_location", &
-                                                "bookmark_jump", "bookmark_jump_other_window", "bookmark_load", "bookmark_locate", &
-                                                          "bookmark_relocate", "bookmark_rename", "bookmark_save", "bookmark_set", &
-                                               "bookmark_set_no_overwrite", "bookmark_write", "bookmark_yank_word", "buffer_menu", &
-                                                      "buffer_menu_1_window", "buffer_menu_2_window", "buffer_menu_backup_unmark", &
-                                                         "buffer_menu_bury", "buffer_menu_delete", "buffer_menu_delete_backwards", &
-                                         "buffer_menu_execute", "buffer_menu_mark", "buffer_menu_mode", "buffer_menu_multi_occur", &
-                                                                    "buffer_menu_not_modified", "buffer_menu_other_window", &
-                                                     "buffer_menu_other_window_command", "buffer_menu_save", "buffer_menu_select", &
-                                                                    "buffer_menu_switch_other_window", "buffer_menu_this_window", &
+                                               "abort_recursive_edit", "accept_process_output", "activate_transient_input_method", &
+                                                      "add_auto_mode", "add_global_abbrev", "add_mode_abbrev", "add_name_to_file", &
+                                                                "add_save_some_buffers_function", "ansi_color_compilation_filter", &
+                                                            "ansi_color_for_comint_mode_filter", "ansi_color_for_comint_mode_off", &
+                                               "ansi_color_for_comint_mode_on", "ansi_color_process_output", "append_to_register", &
+                                               "apply_on_rectangle", "apropos_command", "apropos_documentation", "apropos_follow", &
+                                             "apropos_function", "apropos_mode", "apropos_next_symbol", "apropos_previous_symbol", &
+                                               "apropos_user_option", "apropos_variable", "async_shell_command", "auto_fill_mode", &
+                                                             "auto_revert_mode", "auto_revert_set_timer", "auto_revert_tail_mode", &
+                                                          "back_to_indentation", "backward_char", "backward_delete_char_untabify", &
+                                                        "backward_kill_paragraph", "backward_kill_sentence", "backward_kill_sexp", &
+                                                     "backward_kill_word", "backward_list", "backward_page", "backward_paragraph", &
+                                                        "backward_sentence", "backward_sexp", "backward_up_list", "backward_word", &
+                                                       "beginning_of_buffer", "beginning_of_defun", "beginning_of_defun_comments", &
+                                                          "beginning_of_defun_raw", "beginning_of_line", "beginning_of_line_text", &
+                                                           "blink_matching_check_mismatch", "blink_matching_open", "bobp", "bolp", &
+                                             "bookmark_bmenu_1_window", "bookmark_bmenu_2_window", "bookmark_bmenu_backup_unmark", &
+                                          "bookmark_bmenu_delete", "bookmark_bmenu_delete_all", "bookmark_bmenu_delete_backwards", &
+                                                             "bookmark_bmenu_edit_annotation", "bookmark_bmenu_execute_deletions", &
+                                                            "bookmark_bmenu_list", "bookmark_bmenu_load", "bookmark_bmenu_locate", &
+                                                          "bookmark_bmenu_mark", "bookmark_bmenu_mark_all", "bookmark_bmenu_mode", &
+                                                "bookmark_bmenu_other_window", "bookmark_bmenu_relocate", "bookmark_bmenu_rename", &
+                                                          "bookmark_bmenu_save", "bookmark_bmenu_search", "bookmark_bmenu_select", &
+                                                          "bookmark_bmenu_show_all_annotations", "bookmark_bmenu_show_annotation", &
+                                                               "bookmark_bmenu_switch_other_window", "bookmark_bmenu_this_window", &
+                                          "bookmark_bmenu_toggle_filenames", "bookmark_bmenu_unmark", "bookmark_bmenu_unmark_all", &
+                                                      "bookmark_delete", "bookmark_delete_all", "bookmark_edit_annotation_cancel", &
+                                           "bookmark_edit_annotation_confirm", "bookmark_edit_annotation_mode", "bookmark_insert", &
+                                                        "bookmark_insert_location", "bookmark_jump", "bookmark_jump_other_window", &
+                                                       "bookmark_load", "bookmark_locate", "bookmark_relocate", "bookmark_rename", &
+                                                   "bookmark_save", "bookmark_set", "bookmark_set_no_overwrite", "bookmark_write", &
+                                              "bookmark_yank_word", "buffer_menu", "buffer_menu_1_window", "buffer_menu_2_window", &
+                                                            "buffer_menu_backup_unmark", "buffer_menu_bury", "buffer_menu_delete", &
+                                                        "buffer_menu_delete_backwards", "buffer_menu_execute", "buffer_menu_mark", &
+                                                        "buffer_menu_mode", "buffer_menu_multi_occur", "buffer_menu_not_modified", &
+                                               "buffer_menu_other_window", "buffer_menu_other_window_command", "buffer_menu_save", &
+                                               "buffer_menu_select", "buffer_menu_switch_other_window", "buffer_menu_this_window", &
                                                                    "buffer_menu_toggle_files_only", "buffer_menu_toggle_internal", &
                                                    "buffer_menu_toggle_read_only", "buffer_menu_unmark", "buffer_menu_unmark_all", &
                                             "buffer_menu_unmark_all_buffers", "buffer_menu_view", "buffer_menu_view_other_window", &
@@ -672,8 +673,8 @@ module docstrings_fm
                                                              "delete_pair", "delete_process", "delete_rectangle", "delete_region", &
                                             "delete_whitespace_rectangle", "delete_window", "derived_mode_p", "describe_bindings", &
                                                            "describe_character_set", "describe_coding_system", "describe_command", &
-                                                            "describe_current_coding_system", "describe_function", "describe_key", &
-                                                         "describe_key_briefly", "describe_language_environment", "describe_mode", &
+                                                   "describe_current_coding_system", "describe_function", "describe_input_method", &
+                                         "describe_key", "describe_key_briefly", "describe_language_environment", "describe_mode", &
                                            "describe_symbol", "describe_variable", "detect_coding_region", "detect_coding_string", &
                                            "diff", "diff_apply_buffer", "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", &
                                                     "diff_buffers", "diff_delete_other_hunks", "diff_file_kill", "diff_file_next", &
@@ -937,7 +938,7 @@ module docstrings_fm
                                                               "set_buffer_file_coding_system", "set_buffer_process_coding_system", &
                                                      "set_charset_priority", "set_coding_system_priority", "set_command_disabled", &
                                                     "set_default_coding_systems", "set_error", "set_file_modes", "set_file_times", &
-                                                               "set_fill_column", "set_fill_prefix", "set_keyboard_coding_system", &
+                                           "set_fill_column", "set_fill_prefix", "set_input_method", "set_keyboard_coding_system", &
                                                    "set_language_environment", "set_local_abbrev_table", "set_locale_environment", &
                                                            "set_mark", "set_mark_command", "set_match_data", "set_process_buffer", &
                                               "set_process_coding_system", "set_process_filter", "set_process_query_on_exit_flag", &
@@ -967,13 +968,13 @@ module docstrings_fm
                                                      "switch_to_buffer", "syntax_table", "tab_to_tab_stop", "tabulated_list_mode", &
                                                              "tabulated_list_narrow_current_column", "tabulated_list_next_column", &
                                                  "tabulated_list_previous_column", "tabulated_list_revert", "tabulated_list_sort", &
-                                              "tabulated_list_widen_current_column", "text_mode", "timerp", "transient_mark_mode", &
-                                              "transpose_chars", "transpose_lines", "transpose_paragraphs", "transpose_sentences", &
-                                         "transpose_words", "turn_off_auto_fill", "turn_on_auto_fill", "turn_on_auto_revert_mode", &
-                                             "turn_on_auto_revert_tail_mode", "turn_on_font_lock", "turn_on_font_lock_if_desired", &
-                                               "uncomment_region", "undefined", "undo", "undo_boundary", "undo_only", "undo_redo", &
-                                                     "unexpand_abbrev", "unfill_paragraph", "unify_charset", "universal_argument", &
-                                                                    "universal_argument_minus", "universal_argument_more", &
+                                              "tabulated_list_widen_current_column", "text_mode", "timerp", "toggle_input_method", &
+                                              "transient_mark_mode", "transpose_chars", "transpose_lines", "transpose_paragraphs", &
+                                              "transpose_sentences", "transpose_words", "turn_off_auto_fill", "turn_on_auto_fill", &
+                                                 "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", "turn_on_font_lock", &
+                                         "turn_on_font_lock_if_desired", "uncomment_region", "undefined", "undo", "undo_boundary", &
+                                                 "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", "unify_charset", &
+                                                      "universal_argument", "universal_argument_minus", "universal_argument_more", &
                                                        "universal_coding_system_argument", "up_list", "upcase", "upcase_initials", &
                                                      "upcase_initials_region", "upcase_region", "upcase_word", "vc_clear_context", &
                                                     "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", "vc_dir_delete_file", &
@@ -1004,7 +1005,7 @@ module docstrings_fm
                                                  "y_or_n_p_insert_y", "yank", "yank_pop", "yank_rectangle", "yes_or_no_p", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1208) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1211) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                 "adaptive_fill_first_line_regexp", "adaptive_fill_function", "adaptive_fill_mode", &
@@ -1122,9 +1123,10 @@ module docstrings_fm
                                                           "dabbrev_search_these_buffers_only", "dabbrev_upcase_means_case_search", &
                                                           "deactivate_mark_hook", "default_input_method", "default_justification", &
                                                                 "default_keyboard_coding_system", "default_process_coding_system", &
-                                                  "default_terminal_coding_system", "define_ibuffer_column", "defining_kbd_macro", &
-                                                         "defun_prompt_regexp", "delete_active_region", "delete_exited_processes", &
-                                              "delete_pair_blink_delay", "delete_pair_push_mark", "diff_advance_after_apply_hunk", &
+                                                               "default_terminal_coding_system", "default_transient_input_method", &
+                                                             "define_ibuffer_column", "defining_kbd_macro", "defun_prompt_regexp", &
+                                                     "delete_active_region", "delete_exited_processes", "delete_pair_blink_delay", &
+                                                                    "delete_pair_push_mark", "diff_advance_after_apply_hunk", &
                                                  "diff_ask_before_revert_and_kill_hunk", "diff_command", "diff_default_read_only", &
                                                 "diff_entire_buffers", "diff_jump_to_old_file", "diff_mode_hook", "diff_mode_map", &
                                                          "diff_mode_read_only", "diff_mode_read_only_map", "diff_mode_shared_map", &
@@ -1237,20 +1239,20 @@ module docstrings_fm
                                                  "info_url_alist", "info_use_header_line", "info_warn_on_index_alternatives_wrap", &
                                                   "info_xref", "info_xref_visited", "inhibit_auto_fill", "inhibit_eol_conversion", &
                                                                     "inhibit_field_text_motion", "inhibit_iso_escape_detection", &
-                                          "inhibit_modification_hooks", "inhibit_null_byte_detection", "insert_default_directory", &
-                                                      "insert_directory_program", "insert_pair_alist", "isearch_filter_predicate", &
-                                               "isearch_lax_whitespace", "isearch_message_function", "isearch_message_prefix_add", &
-                                                       "isearch_mode_end_hook", "isearch_mode_end_hook_quit", "isearch_mode_hook", &
-                                               "isearch_mode_map", "isearch_push_state_function", "isearch_regexp_lax_whitespace", &
-                                                    "isearch_search_fun_function", "isearch_wrap_function", "jit_lock_chunk_size", &
-                                             "js_base_mode_hook", "js_base_mode_map", "js_chain_indent", "js_curly_indent_offset", &
-                                                            "js_enabled_frameworks", "js_expr_indent_offset", "js_flat_functions", &
-                                                   "js_indent_align_list_continuation", "js_indent_first_init", "js_indent_level", &
-                                                           "js_json_mode_hook", "js_json_mode_map", "js_mode_hook", "js_mode_map", &
-                                                      "js_mode_syntax_table", "js_paren_indent_offset", "js_square_indent_offset", &
-                                                "js_switch_indent_offset", "kbd_macro_termination_hook", "keyboard_coding_system", &
-                                                      "kill_buffer_hook", "kill_emacs_hook", "kill_read_only_ok", "kill_ring_max", &
-                                                                  "kill_ring_yank_pointer", "kill_whole_line", "killed_rectangle", &
+                                                "inhibit_modification_hooks", "inhibit_null_byte_detection", "input_method_alist", &
+                                                      "insert_default_directory", "insert_directory_program", "insert_pair_alist", &
+                                                 "isearch_filter_predicate", "isearch_lax_whitespace", "isearch_message_function", &
+                                              "isearch_message_prefix_add", "isearch_mode_end_hook", "isearch_mode_end_hook_quit", &
+                                                           "isearch_mode_hook", "isearch_mode_map", "isearch_push_state_function", &
+                                          "isearch_regexp_lax_whitespace", "isearch_search_fun_function", "isearch_wrap_function", &
+                                                "jit_lock_chunk_size", "js_base_mode_hook", "js_base_mode_map", "js_chain_indent", &
+                                                       "js_curly_indent_offset", "js_enabled_frameworks", "js_expr_indent_offset", &
+                                                 "js_flat_functions", "js_indent_align_list_continuation", "js_indent_first_init", &
+                                                       "js_indent_level", "js_json_mode_hook", "js_json_mode_map", "js_mode_hook", &
+                                                                  "js_mode_map", "js_mode_syntax_table", "js_paren_indent_offset", &
+                                               "js_square_indent_offset", "js_switch_indent_offset", "kbd_macro_termination_hook", &
+                                             "keyboard_coding_system", "kill_buffer_hook", "kill_emacs_hook", "kill_read_only_ok", &
+                                                 "kill_ring_max", "kill_ring_yank_pointer", "kill_whole_line", "killed_rectangle", &
                                                         "kmacro_call_repeat_key", "kmacro_call_repeat_with_arg", "kmacro_counter", &
                                              "kmacro_counter_format", "kmacro_counter_format_start", "kmacro_counter_value_start", &
                                                                   "kmacro_default_counter_format", "kmacro_execute_before_append", &
@@ -1398,19 +1400,19 @@ module docstrings_fm
                                                                     "tabulated_list_mode_map", "tabulated_list_revert_hook", &
                                                 "tabulated_list_tty_sort_indicator_asc", "tabulated_list_tty_sort_indicator_desc", &
                                             "text_mode_abbrev_table", "text_mode_hook", "text_mode_map", "text_mode_syntax_table", &
-                                                  "text_mode_variant", "this_command", "timer_max_repeats", "transient_mark_mode", &
-                                         "transient_mark_mode_hook", "truncate_partial_width_windows", "truncate_string_ellipsis", &
-                                                       "undo_auto__this_command_amalgamating", "undo_in_progress", "undo_no_redo", &
-                                                "use_short_answers", "user_init_file", "user_mail_address", "vc_allow_async_diff", &
-                                                        "vc_allow_async_revert", "vc_annotate_switches", "vc_before_checkin_hook", &
-                                             "vc_checkin_hook", "vc_checkin_switches", "vc_checkout_hook", "vc_checkout_switches", &
-                                                     "vc_command_messages", "vc_consult_headers", "vc_deduce_backend_nonvc_modes", &
-                                                             "vc_delete_logbuf_window", "vc_diff_added_files", "vc_diff_switches", &
-                                                "vc_dir_allow_mass_mark_changes", "vc_dir_auto_hide_up_to_date", "vc_dir_buffers", &
-                                          "vc_dir_mode_hook", "vc_dir_save_some_buffers_on_revert", "vc_directory_exclusion_list", &
-                                              "vc_display_failed_async_commands", "vc_display_status", "vc_find_revision_no_save", &
-                                                          "vc_finish_logentry_hook", "vc_follow_symlinks", "vc_git_diff_switches", &
-                                                                    "vc_git_log_edit_mode_map", "vc_git_log_edit_summary_max_len", &
+                                           "text_mode_variant", "this_command", "timer_max_repeats", "toggle_input_method_active", &
+                                              "transient_mark_mode", "transient_mark_mode_hook", "truncate_partial_width_windows", &
+                                           "truncate_string_ellipsis", "undo_auto__this_command_amalgamating", "undo_in_progress", &
+                                                       "undo_no_redo", "use_short_answers", "user_init_file", "user_mail_address", &
+                                                           "vc_allow_async_diff", "vc_allow_async_revert", "vc_annotate_switches", &
+                                           "vc_before_checkin_hook", "vc_checkin_hook", "vc_checkin_switches", "vc_checkout_hook", &
+                                                              "vc_checkout_switches", "vc_command_messages", "vc_consult_headers", &
+                                                "vc_deduce_backend_nonvc_modes", "vc_delete_logbuf_window", "vc_diff_added_files", &
+                                              "vc_diff_switches", "vc_dir_allow_mass_mark_changes", "vc_dir_auto_hide_up_to_date", &
+                                                       "vc_dir_buffers", "vc_dir_mode_hook", "vc_dir_save_some_buffers_on_revert", &
+                                           "vc_directory_exclusion_list", "vc_display_failed_async_commands", "vc_display_status", &
+                                                      "vc_find_revision_no_save", "vc_finish_logentry_hook", "vc_follow_symlinks", &
+                                            "vc_git_diff_switches", "vc_git_log_edit_mode_map", "vc_git_log_edit_summary_max_len", &
                                                       "vc_git_log_edit_summary_max_warning", "vc_git_log_edit_summary_target_len", &
                                                                   "vc_git_log_edit_summary_target_warning", "vc_git_log_switches", &
                                             "vc_git_print_log_follow", "vc_git_program", "vc_git_revision_complete_only_branches", &
@@ -2138,6 +2140,12 @@ contains
                         "GOT is true if we received any output from PROCESS (or, if PROCESS"//LF// &
                         "is absent, from any process) before the timeout expired or the"//LF// &
                         "corresponding connection was closed."
+        case ("activate_transient_input_method")
+            entry%file = "mule_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Select and enable a transient input method for the current buffer."//LF// &
+                        "If `default_transient_input_method' was not yet defined, prompt for"//LF// &
+                        "it."
         case ("add_auto_mode")
             entry%file = "files_fm.f90"
             entry%fortran = "call add_auto_mode(regexp, mode)"
@@ -4737,6 +4745,10 @@ contains
             entry%fortran = "call describe_function(function, status)"
             entry%interactive = .true.
             entry%doc = "Display the full documentation of FUNCTION (a name)."
+        case ("describe_input_method")
+            entry%file = "mule_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Describe input method INPUT_METHOD."
         case ("describe_key")
             entry%file = "help_fm.f90"
             entry%interactive = .true.
@@ -12040,6 +12052,18 @@ contains
                         "Filling expects lines to start with the fill prefix and"//LF// &
                         "reinserts the fill prefix in each resulting line."//LF// &
                         "With a prefix argument, cancel the fill prefix."
+        case ("set_input_method")
+            entry%file = "mule_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Select and activate input method INPUT_METHOD for the current buffer."//LF// &
+                        "This also sets the default input method to the one you specify."//LF// &
+                        "If INPUT_METHOD is empty, this function turns off the input method,"//LF// &
+                        "and also causes you to be prompted for a name of an input method the"//LF// &
+                        "next time you invoke \[toggle_input_method]."//LF// &
+                        ""//LF// &
+                        "To deactivate the input method interactively, use"//LF// &
+                        "\[toggle_input_method].  To deactivate it programmatically, use"//LF// &
+                        "`deactivate_input_method'."
         case ("set_keyboard_coding_system")
             entry%file = "mule_fm.f90"
             entry%interactive = .true.
@@ -13025,6 +13049,23 @@ contains
             entry%file = "timer_fm.f90"
             entry%fortran = "timerp(timer)"
             entry%doc = "Return true if TIMER is a timer."
+        case ("toggle_input_method")
+            entry%file = "mule_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Enable or disable multilingual text input method for the current"//LF// &
+                        "buffer.  Only one input method can be enabled at any time in a given"//LF// &
+                        "buffer."//LF// &
+                        ""//LF// &
+                        "The normal action is to enable an input method if none was enabled,"//LF// &
+                        "and disable the current one otherwise.  Which input method to enable"//LF// &
+                        "can be determined in various ways--either the one most recently used,"//LF// &
+                        "or the one specified by `default_input_method', or as a last resort"//LF// &
+                        "by reading the name of an input method in the minibuffer."//LF// &
+                        ""//LF// &
+                        "With a prefix argument ARG, read an input method name with the"//LF// &
+                        "minibuffer and enable that one.  The default is the most recent input"//LF// &
+                        "method specified (not including the currently active input method,"//LF// &
+                        "if any)."
         case ("transient_mark_mode")
             entry%file = "simple_modes_fm.f90"
             entry%interactive = .true.
@@ -17709,6 +17750,19 @@ contains
             entry%doc = "Default value for the terminal coding system ("""" for nil).  This is"//LF// &
                         "normally set according to the selected language environment.  See"//LF// &
                         "also the command `set_terminal_coding_system'."
+        case ("default_transient_input_method")
+            entry%file = "mule_fm.f90"
+            entry%fortran = "default_transient_input_method"
+
+            if (allocated(default_transient_input_method%value)) then
+                entry%value = repr(default_transient_input_method%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Default transient input method."//LF// &
+                        "This is the input method activated by the command"//LF// &
+                        "`activate_transient_input_method' (\[activate_transient_input_method])."
         case ("define_ibuffer_column")
             entry%file = "ibuffer_fm.f90"
             entry%fortran = "ibuffer_columns"
@@ -21343,6 +21397,12 @@ contains
                         "Examples are Index nodes of Info files and null-byte delimited output"//LF// &
                         "from GNU Find and GNU Grep.  Emacs will then ignore the null bytes and"//LF// &
                         "decode text as usual."
+        case ("input_method_alist")
+            entry%file = "mule_fm.f90"
+            entry%fortran = "input_method_alist"
+            entry%doc = "Input method names vs how to use them, the most recently registered"//LF// &
+                        "first.  See the procedure `register_input_method' for the meanings"//LF// &
+                        "of the elements."
         case ("insert_default_directory")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "insert_default_directory"
@@ -26029,6 +26089,12 @@ contains
                         "or because the system's time changes.  If such an occurrence makes it"//LF// &
                         "appear that many invocations are overdue, this variable controls"//LF// &
                         "how many will really happen."
+        case ("toggle_input_method_active")
+            entry%file = "mule_fm.f90"
+            entry%fortran = "toggle_input_method_active"
+            entry%original = ".false."
+            entry%value = repr(toggle_input_method_active)
+            entry%doc = "True inside `toggle_input_method'."
         case ("transient_mark_mode")
             entry%file = "buffer_fm.f90"
             entry%fortran = "transient_mark_mode"

@@ -103,11 +103,16 @@ module mule_fm
                           decode_char
     use help_fm, only: with_output_to_temp_buffer
     use buffer_fm, only: header_line_format_type
+    use buffer_fm, only: input_method_hook_proc
+    use keyboard_fm, only: ring_bell
     implicit none(type, external)
     private
 
     public :: universal_coding_system_argument, set_buffer_process_coding_system, set_terminal_coding_system, &
               set_keyboard_coding_system
+    public :: register_input_method, read_input_method_name, activate_input_method, deactivate_input_method, &
+              set_input_method, toggle_input_method, activate_transient_input_method, &
+              deactivate_transient_input_method, describe_input_method, describe_current_input_method
     public :: syms_of_mule, find_auto_coding, set_auto_coding, auto_coding_alist_lookup, after_insert_file_set_coding_1, &
               find_new_buffer_file_coding_system, merge_coding_systems, set_buffer_file_coding_system, &
               revert_buffer_with_coding_system, prefer_coding_system, set_default_coding_systems, &
@@ -162,6 +167,59 @@ module mule_fm
     !> `toggle_input_method' (\[toggle_input_method]).  Port of
     !> mule-cmds.el default-input-method ("" for nil).
     type(string_setting), public :: default_input_method = string_setting(name="default_input_method")
+
+    !> Default transient input method.
+    !> This is the input method activated by the command
+    !> `activate_transient_input_method' (\[activate_transient_input_method]).
+    !> Port of mule-cmds.el default-transient-input-method ("" for nil).
+    type(string_setting), public :: default_transient_input_method = &
+                                    string_setting(name="default_transient_input_method")
+
+    !> Normal hook run just after an input method is activated.
+    !>
+    !> The variable `current_input_method' keeps the input method name
+    !> just activated.
+    type(hook_type), target, public :: input_method_activate_hook = hook_type(name="input_method_activate_hook")
+
+    !> Normal hook run just after an input method is deactivated.
+    !>
+    !> The variable `current_input_method' still keeps the input method name
+    !> just deactivated.
+    type(hook_type), target, public :: input_method_deactivate_hook = hook_type(name="input_method_deactivate_hook")
+
+    abstract interface
+        !> The procedure that activates an input method, given its name (the
+        !> ACTIVATE-FUNC of `register_input_method').
+        recursive subroutine activate_input_method_proc(input_method, status)
+            import :: status_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: input_method
+            type(status_type), intent(out) :: status
+        end subroutine activate_input_method_proc
+    end interface
+
+    public :: activate_input_method_proc
+
+    !> An entry of `input_method_alist': an input method's name, its
+    !> language environment, the procedure that activates it, its mode
+    !> line title and its description.
+    type, public :: input_method_entry_type
+        character(len=64) :: name = "", lang_env = "", title = ""
+        procedure(activate_input_method_proc), pointer, nopass :: activate => null()
+        character(len=:), allocatable :: description
+    end type input_method_entry_type
+
+    !> Input method names vs how to use them, the most recently registered
+    !> first.  See the procedure `register_input_method' for the meanings
+    !> of the elements.  Port of mule-cmds.el input-method-alist.
+    type(input_method_entry_type), allocatable, public :: input_method_alist(:)
+
+    !> True inside `toggle_input_method'.  Port of mule-cmds.el
+    !> toggle-input-method-active.
+    logical, public :: toggle_input_method_active = .false.
+
+    ! subr.el's history-length, which bounds input-method-history.
+    integer, parameter :: INPUT_METHOD_HISTORY_LENGTH = 100
 
     !> Normal hook run after some language environment is set.
     !>
@@ -544,8 +602,8 @@ contains
     !> Set up the coding systems and the Mule commands: C-x RET (C-x C-m)
     !> in CTL_X_MAP and C-h C in HELP_MAP.  Port of the top-level forms of
     !> mule.el, mule-cmds.el and mule-diag.el.
-    subroutine syms_of_mule(ctl_x_map, help_map)
-        type(handle_type), intent(in) :: ctl_x_map, help_map
+    subroutine syms_of_mule(global_map, ctl_x_map, help_map)
+        type(handle_type), intent(in) :: global_map, ctl_x_map, help_map
         type(value_type), allocatable :: key(:)
         type(status_type) :: st
 
@@ -609,6 +667,10 @@ contains
         commands%describe_language_environment%run => cmd_describe_language_environment
         commands%set_terminal_coding_system%run => cmd_set_terminal_coding_system
         commands%set_keyboard_coding_system%run => cmd_set_keyboard_coding_system
+        commands%set_input_method%run => cmd_set_input_method
+        commands%toggle_input_method%run => cmd_toggle_input_method
+        commands%activate_transient_input_method%run => cmd_activate_transient_input_method
+        commands%describe_input_method%run => cmd_describe_input_method
         call make_sparse_keymap(mule_keymap)
         call bind(mule_keymap, "f", "set_buffer_file_coding_system")
         call bind(mule_keymap, "c", "universal_coding_system_argument")
@@ -617,11 +679,15 @@ contains
         call bind(mule_keymap, "t", "set_terminal_coding_system")
         call bind(mule_keymap, "k", "set_keyboard_coding_system")
         call bind(mule_keymap, "l", "set_language_environment")
+        call bind(mule_keymap, "C-\", "set_input_method")
         ! Keep "C-x C-m ..." for mule specific commands.
         call key_parse("C-m", key, st)
         call define_key(ctl_x_map, key, keymap_value(mule_keymap), st)
         call bind(help_map, "C", "describe_coding_system")
         call bind(help_map, "L", "describe_language_environment")
+        call bind(help_map, "I", "describe_input_method")
+        call bind(global_map, "C-\", "toggle_input_method")
+        call bind(ctl_x_map, "\", "activate_transient_input_method")
     end subroutine syms_of_mule
 
     !> MAP as a keymap value, for binding it as a prefix.
@@ -3786,4 +3852,445 @@ contains
         if (.not. status%ok()) return
         call describe_character_set(charset, status)
     end subroutine cmd_describe_character_set
+
+    ! ------------------------------------------------------------------
+    ! Input methods
+    ! ------------------------------------------------------------------
+
+    !> Register INPUT_METHOD as an input method for language environment
+    !> LANG_ENV.
+    !>
+    !> ACTIVATE is the procedure called to activate this method, with
+    !> INPUT_METHOD as its argument.  TITLE is a string to show in the mode
+    !> line when this method is active.  DESCRIPTION is a string describing
+    !> this method and what it is good for.
+    !>
+    !> In case you want to register a new Quail input method by yourself, be
+    !> careful to use the same input method title as given in the third
+    !> parameter of `quail_define_package'.  (If the values are different,
+    !> the string specified in this function takes precedence.)
+    !>
+    !> The commands `describe_input_method' and `list_input_methods' need
+    !> these duplicated values to show some information about input methods
+    !> without loading the relevant Quail packages.  Port of
+    !> mule-cmds.el:register-input-method (the ARGS passed on to the
+    !> activate function are the package's own: a Quail package is built
+    !> in, not loaded from a file).
+    subroutine register_input_method(input_method, lang_env, activate, title, description)
+        character(len=*), intent(in) :: input_method, lang_env, title, description
+        procedure(activate_input_method_proc) :: activate
+        type(input_method_entry_type), allocatable :: grown(:)
+        integer :: k
+
+        if (.not. allocated(input_method_alist)) allocate (input_method_alist(0))
+        k = input_method_index(input_method)
+
+        if (k == 0) then
+            ! New entries go first, as upstream conses them on.
+            allocate (grown(size(input_method_alist) + 1))
+
+            do k = 1, size(input_method_alist)
+                grown(k + 1) = input_method_alist(k)
+            end do
+
+            call move_alloc(grown, input_method_alist)
+            k = 1
+            input_method_alist(1)%name = input_method
+        end if
+
+        input_method_alist(k)%lang_env = lang_env
+        input_method_alist(k)%activate => activate
+        input_method_alist(k)%title = title
+        input_method_alist(k)%description = description
+    end subroutine register_input_method
+
+    !> The index of INPUT_METHOD in `input_method_alist', 0 if it is not
+    !> registered.  Not a port.
+    integer function input_method_index(input_method) result(k)
+        character(len=*), intent(in) :: input_method
+
+        if (allocated(input_method_alist)) then
+            do k = 1, size(input_method_alist)
+                if (trim(input_method_alist(k)%name) == input_method) return
+            end do
+        end if
+
+        k = 0
+    end function input_method_index
+
+    !> Read a name of input method from a minibuffer prompting with PROMPT.
+    !> If DEFAULT is not empty, use that as the default.  If INHIBIT_NULL
+    !> is true, null input signals an error.  The result is empty for null
+    !> input.  Port of mule-cmds.el:read-input-method-name (the prompt
+    !> comes with the default substituted; `input_method_history' is not
+    !> the minibuffer history yet).
+    recursive subroutine read_input_method_name(prompt, default, inhibit_null, input_method, status)
+        character(len=*), intent(in) :: prompt, default
+        logical, intent(in) :: inhibit_null
+        character(len=:), allocatable, intent(out) :: input_method
+        type(status_type), intent(out) :: status
+        type(value_type), allocatable :: items(:)
+        logical :: saved_case
+        integer :: k
+
+        if (.not. allocated(input_method_alist)) allocate (input_method_alist(0))
+        allocate (items(size(input_method_alist)))
+
+        do k = 1, size(input_method_alist)
+            items(k) = make_string(trim(input_method_alist(k)%name))
+        end do
+
+        saved_case = completion_ignore_case%value
+        completion_ignore_case%value = .true.
+        call completing_read(prompt, completion_list_table(make_list(items)), input_method, status, &
+                             require_match=REQUIRE_MATCH_T, default=default)
+        completion_ignore_case%value = saved_case
+
+        if (.not. status%ok()) then
+            input_method = ""
+            return
+        end if
+
+        if (len(input_method) == 0 .and. inhibit_null) then
+            call set_error(status, FM_GENERIC_ERROR, "No valid input method is specified")
+        end if
+    end subroutine read_input_method_name
+
+    !> Switch to input method INPUT_METHOD for the current buffer.
+    !> If some other input method is already active, turn it off first.
+    !> If INPUT_METHOD is empty, deactivate any current input method.
+    !> Port of mule-cmds.el:activate-input-method.
+    recursive subroutine activate_input_method(input_method, status)
+        character(len=*), intent(in) :: input_method
+        type(status_type), intent(out) :: status
+        type(status_type) :: st
+        integer :: k
+
+        if (allocated(buffers(cur)%current_input_method)) then
+            if (buffers(cur)%current_input_method /= input_method) then
+                call deactivate_input_method(status)
+                if (.not. status%ok()) return
+            end if
+        end if
+
+        if (allocated(buffers(cur)%current_input_method) .or. len(input_method) == 0) return
+        k = input_method_index(input_method)
+
+        if (k == 0) then
+            call set_error(status, FM_GENERIC_ERROR, format_message("Can't activate input method `"//input_method//"'"))
+            return
+        end if
+
+        if (.not. associated(input_method_alist(k)%activate)) then
+            call set_error(status, FM_GENERIC_ERROR, format_message("Can't activate input method `"//input_method//"'"))
+            return
+        end if
+
+        if (allocated(buffers(cur)%current_input_method_title)) deallocate (buffers(cur)%current_input_method_title)
+        call input_method_alist(k)%activate(input_method, status)
+        if (.not. status%ok()) return
+        buffers(cur)%current_input_method = input_method
+
+        if (.not. allocated(buffers(cur)%current_input_method_title)) then
+            buffers(cur)%current_input_method_title = trim(input_method_alist(k)%title)
+        end if
+
+        call input_method_activate_hook%run(st)
+    end subroutine activate_input_method
+
+    !> Turn off the current input method.  Port of
+    !> mule-cmds.el:deactivate-input-method.
+    recursive subroutine deactivate_input_method(status)
+        type(status_type), intent(out) :: status
+        procedure(input_method_hook_proc), pointer :: deactivate
+        type(status_type) :: st
+
+        if (.not. allocated(buffers(cur)%current_input_method)) return
+
+        if (.not. allocated(buffers(cur)%current_transient_input_method)) then
+            call add_input_method_history(buffers(cur)%current_input_method)
+        end if
+
+        buffers(cur)%input_method_function => null()
+        if (allocated(buffers(cur)%current_input_method_title)) deallocate (buffers(cur)%current_input_method_title)
+        deactivate => buffers(cur)%deactivate_current_input_method_function
+        if (associated(deactivate)) call deactivate(status)
+        call input_method_deactivate_hook%run(st)
+        deallocate (buffers(cur)%current_input_method)
+    end subroutine deactivate_input_method
+
+    !> Put INPUT_METHOD at the front of the current buffer's
+    !> `input_method_history', as add-to-history does (no duplicate of
+    !> the first element, at most `history_length' elements).  Not a port.
+    subroutine add_input_method_history(input_method)
+        character(len=*), intent(in) :: input_method
+        character(len=64), allocatable :: history(:)
+        integer :: n
+
+        associate (b => buffers(cur))
+            if (.not. allocated(b%input_method_history)) allocate (b%input_method_history(0))
+
+            if (size(b%input_method_history) > 0) then
+                if (trim(b%input_method_history(1)) == input_method) return
+            end if
+
+            n = min(size(b%input_method_history), INPUT_METHOD_HISTORY_LENGTH - 1)
+            allocate (history(n + 1))
+            history(1) = input_method
+            history(2:) = b%input_method_history(1:n)
+            call move_alloc(history, b%input_method_history)
+        end associate
+    end subroutine add_input_method_history
+
+    !> The input method to offer by default: the most recent one, else
+    !> `default_input_method' ("" for none).  Not a port.
+    function input_method_default() result(default)
+        character(len=:), allocatable :: default
+
+        default = ""
+
+        if (allocated(buffers(cur)%input_method_history)) then
+            if (size(buffers(cur)%input_method_history) > 0) then
+                default = trim(buffers(cur)%input_method_history(1))
+                return
+            end if
+        end if
+
+        if (allocated(default_input_method%value)) default = default_input_method%value
+    end function input_method_default
+
+    !> Select and activate input method INPUT_METHOD for the current buffer.
+    !> This also sets the default input method to the one you specify.
+    !> If INPUT_METHOD is empty, this function turns off the input method,
+    !> and also causes you to be prompted for a name of an input method the
+    !> next time you invoke \[toggle_input_method].
+    !>
+    !> To deactivate the input method interactively, use
+    !> \[toggle_input_method].  To deactivate it programmatically, use
+    !> `deactivate_input_method'.  Port of mule-cmds.el:set-input-method
+    !> (INTERACTIVE marks nothing for Custom, which is not ported).
+    recursive subroutine set_input_method(input_method, status)
+        character(len=*), intent(in) :: input_method
+        type(status_type), intent(out) :: status
+
+        call activate_input_method(input_method, status)
+        if (.not. status%ok()) return
+        default_input_method%value = input_method
+    end subroutine set_input_method
+
+    recursive subroutine cmd_set_input_method(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: default, input_method
+
+        default = input_method_default()
+        call read_input_method_name(format_prompt("Select input method", default), default, .true., &
+                                    input_method, status)
+        if (.not. status%ok()) return
+        call set_input_method(input_method, status)
+    end subroutine cmd_set_input_method
+
+    !> Enable or disable multilingual text input method for the current
+    !> buffer.  Only one input method can be enabled at any time in a given
+    !> buffer.
+    !>
+    !> The normal action is to enable an input method if none was enabled,
+    !> and disable the current one otherwise.  Which input method to enable
+    !> can be determined in various ways--either the one most recently used,
+    !> or the one specified by `default_input_method', or as a last resort
+    !> by reading the name of an input method in the minibuffer.
+    !>
+    !> With a prefix argument ARG, read an input method name with the
+    !> minibuffer and enable that one.  The default is the most recent input
+    !> method specified (not including the currently active input method,
+    !> if any).  Port of mule-cmds.el:toggle-input-method (INTERACTIVE marks
+    !> nothing for Custom, which is not ported).
+    recursive subroutine toggle_input_method(arg, status)
+        logical, intent(in) :: arg
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: default, input_method
+
+        if (toggle_input_method_active) then
+            call set_error(status, FM_GENERIC_ERROR, "Recursive use of `toggle_input_method'")
+            return
+        end if
+
+        if (allocated(buffers(cur)%current_input_method) .and. .not. arg) then
+            if (allocated(buffers(cur)%current_transient_input_method)) then
+                call deactivate_transient_input_method(status)
+            else
+                call deactivate_input_method(status)
+            end if
+
+            return
+        end if
+
+        toggle_input_method_active = .true.
+        default = input_method_default()
+
+        if (arg .and. len(default) > 0 .and. allocated(buffers(cur)%current_input_method)) then
+            if (buffers(cur)%current_input_method == default .and. &
+                size(buffers(cur)%input_method_history) > 1) then
+                default = trim(buffers(cur)%input_method_history(2))
+            end if
+        end if
+
+        if (arg .or. len(default) == 0) then
+            call read_input_method_name(format_prompt("Input method", default), default, .true., &
+                                        input_method, status)
+        else
+            input_method = default
+        end if
+
+        if (status%ok()) call activate_input_method(input_method, status)
+        toggle_input_method_active = .false.
+        if (.not. status%ok()) return
+        if (.not. allocated(default_input_method%value)) default_input_method%value = ""
+
+        if (len(default_input_method%value) == 0 .and. allocated(buffers(cur)%current_input_method)) then
+            default_input_method%value = buffers(cur)%current_input_method
+        end if
+    end subroutine toggle_input_method
+
+    recursive subroutine cmd_toggle_input_method(status)
+        type(status_type), intent(out) :: status
+
+        call toggle_input_method(.not. nilp(current_prefix_arg), status)
+    end subroutine cmd_toggle_input_method
+
+    !> Select and enable a transient input method for the current buffer.
+    !> If `default_transient_input_method' was not yet defined, prompt for
+    !> it.  Port of mule-cmds.el:activate-transient-input-method (the input
+    !> method is turned off after inserting a chunk once
+    !> `input_method_after_insert_chunk_hook' is run by Quail).
+    recursive subroutine activate_transient_input_method(arg, status)
+        logical, intent(in) :: arg
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: default, input_method
+
+        if (.not. allocated(default_transient_input_method%value)) default_transient_input_method%value = ""
+
+        if (arg .or. len(default_transient_input_method%value) == 0) then
+            default = input_method_default()
+            call read_input_method_name(format_prompt("Transient input method", default), default, .true., &
+                                        input_method, status)
+            if (.not. status%ok()) return
+            default_transient_input_method%value = input_method
+        end if
+
+        associate (b => buffers(cur))
+            if (allocated(b%current_input_method)) then
+                b%previous_transient_input_method = b%current_input_method
+                call deactivate_input_method(status)
+                if (.not. status%ok()) return
+            else if (allocated(b%previous_transient_input_method)) then
+                deallocate (b%previous_transient_input_method)
+            end if
+        end associate
+
+        call activate_input_method(default_transient_input_method%value, status)
+        if (.not. status%ok()) return
+        buffers(cur)%current_transient_input_method = default_transient_input_method%value
+    end subroutine activate_transient_input_method
+
+    recursive subroutine cmd_activate_transient_input_method(status)
+        type(status_type), intent(out) :: status
+
+        call activate_transient_input_method(.not. nilp(current_prefix_arg), status)
+    end subroutine cmd_activate_transient_input_method
+
+    !> Disable currently active transient input method for the current
+    !> buffer.  Port of mule-cmds.el:deactivate-transient-input-method.
+    recursive subroutine deactivate_transient_input_method(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: previous
+
+        if (.not. allocated(buffers(cur)%current_transient_input_method)) return
+        call deactivate_input_method(status)
+        if (.not. status%ok()) return
+
+        if (allocated(buffers(cur)%previous_transient_input_method)) then
+            previous = buffers(cur)%previous_transient_input_method
+            call activate_input_method(previous, status)
+            if (.not. status%ok()) return
+            deallocate (buffers(cur)%previous_transient_input_method)
+        end if
+
+        deallocate (buffers(cur)%current_transient_input_method)
+    end subroutine deactivate_transient_input_method
+
+    !> Describe input method INPUT_METHOD.  Port of
+    !> mule-cmds.el:describe-input-method (no help cross-references).
+    recursive subroutine describe_input_method(input_method, status)
+        character(len=*), intent(in) :: input_method
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: current
+        type(status_type) :: st
+        integer :: k
+
+        if (len(input_method) == 0) then
+            call describe_current_input_method(status)
+            return
+        end if
+
+        current = ""
+        if (allocated(buffers(cur)%current_input_method)) current = buffers(cur)%current_input_method
+        call activate_input_method(input_method, status)
+        if (status%ok()) call describe_current_input_method(status)
+
+        if (status%ok()) then
+            call activate_input_method(current, status)
+            return
+        end if
+
+        call activate_input_method(current, st)
+        k = input_method_index(input_method)
+        status = status_type()
+
+        if (k == 0) then
+            ! Not registered: what upstream shows for its missing entry.
+            call with_output_to_temp_buffer("*Help*", "Input method: "//input_method// &
+                                            format_message(" (`' in mode line) for ")//LF//"  "//LF, status)
+        else
+            associate (e => input_method_alist(k))
+                call with_output_to_temp_buffer("*Help*", "Input method: "//input_method//format_message(" (`")// &
+                                                trim(e%title)//format_message("' in mode line) for ")// &
+                                                trim(e%lang_env)//LF//"  "//e%description//LF, status)
+            end associate
+        end if
+    end subroutine describe_input_method
+
+    recursive subroutine cmd_describe_input_method(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: current, input_method
+
+        current = ""
+        if (allocated(buffers(cur)%current_input_method)) current = buffers(cur)%current_input_method
+        call read_input_method_name(format_prompt("Describe input method", current), current, .false., &
+                                    input_method, status)
+        if (.not. status%ok()) return
+        call describe_input_method(input_method, status)
+    end subroutine cmd_describe_input_method
+
+    !> Describe the input method currently in use.
+    !> This is a subroutine for `describe_input_method'.  Port of
+    !> mule-cmds.el:describe-current-input-method.
+    recursive subroutine describe_current_input_method(status)
+        type(status_type), intent(out) :: status
+        procedure(input_method_hook_proc), pointer :: describe
+
+        if (.not. allocated(buffers(cur)%current_input_method)) then
+            call set_error(status, FM_GENERIC_ERROR, "No input method is activated now")
+            return
+        end if
+
+        describe => buffers(cur)%describe_current_input_method_function
+
+        if (associated(describe)) then
+            call describe(status)
+        else
+            call message(format_message("No way to describe the current input method `"// &
+                                        buffers(cur)%current_input_method//"'"))
+            call ring_bell()
+        end if
+    end subroutine describe_current_input_method
 end module mule_fm
