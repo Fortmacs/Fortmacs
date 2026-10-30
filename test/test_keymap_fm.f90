@@ -607,16 +607,20 @@ contains
         call check(error, xfixnum(k(1)), 65_int64)
         if (allocated(error)) return
         k = kbd("abc")
-        call check(error, size(k) == 3 .and. xfixnum(k(3)) == 99, "abc")
+        call check(error, size(k) == 3, "abc")
+        if (.not. allocated(error)) call check(error, xfixnum(k(3)) == 99, "abc")
         if (allocated(error)) return
         k = kbd("M-10")
-        call check(error, size(k) == 2 .and. xfixnum(k(2)) == META + 48, "M-10")
+        call check(error, size(k) == 2, "M-10")
+        if (.not. allocated(error)) call check(error, xfixnum(k(2)) == META + 48, "M-10")
         if (allocated(error)) return
         k = kbd("C-x REM comment"//achar(10)//"x")
-        call check(error, size(k) == 2 .and. xfixnum(k(2)) == 120, "REM")
+        call check(error, size(k) == 2, "REM")
+        if (.not. allocated(error)) call check(error, xfixnum(k(2)) == 120, "REM")
         if (allocated(error)) return
         k = kbd("o"//char(195)//char(161))
-        call check(error, size(k) == 2 .and. xfixnum(k(2)) == 225, "multibyte")
+        call check(error, size(k) == 2, "multibyte")
+        if (.not. allocated(error)) call check(error, xfixnum(k(2)) == 225, "multibyte")
         if (allocated(error)) return
         k = kbd("<mouse 1>")
         call check(error, value_eq(k(1), sym("mouse 1")), "<as df>")

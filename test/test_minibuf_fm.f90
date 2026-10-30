@@ -1223,8 +1223,9 @@ contains
         if (w%index == 0) return
         ! A window of its own at the bottom of the frame.
         call window_leaves(selected_frame%root_window, leaves)
-        showing_completions = size(leaves) == 2 .and. same_window(w, leaves(2)) .and. &
-                              .not. same_window(w, selected_frame%selected_window)
+        showing_completions = .false.
+        if (size(leaves) == 2) showing_completions = same_window(w, leaves(2)) .and. &
+                                                     .not. same_window(w, selected_frame%selected_window)
     end function showing_completions
 
     !> Fresh scratch with <f9> recording the completion state.

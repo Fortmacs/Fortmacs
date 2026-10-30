@@ -44,7 +44,7 @@ module easy_mmode_fm
     use xdisp_fm, only: message, add_minor_mode_lighter
     use subr_fm, only: after_hook_proc, add_delayed_after_hook, delaying_mode_hooks
     use error_fm, only: set_error, FM_USER_ERROR
-    use lisp_fm, only: make_list, make_fixnum
+    use lisp_fm, only: make_list, make_fixnum, list
     use buffer_fm, only: current_buffer
     use editfns_fm, only: point, goto_char, widen, buffer_narrowed_p
     use search_fm, only: looking_at, re_search_forward, re_search_backward, match_beginning, match_end, SEARCH_NOERROR
@@ -227,7 +227,7 @@ contains
 
                 if (.not. pos_visible_in_window_p(endpt, selected_window())) then
                     ws = window_start(w)
-                    call recenter(make_list([make_fixnum(0_int64)]), .false., st)
+                    call recenter(list(make_fixnum(0_int64)), .false., st)
                     ! recenter scrolled in the wrong direction!
                     if (window_start(w) < ws) call set_window_start(w, ws, st)
                 end if

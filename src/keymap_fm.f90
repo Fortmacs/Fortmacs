@@ -2238,6 +2238,7 @@ contains
                 if (w(1:1) == "-") s = 2
             end if
 
+            ! hazard-ok(short-circuit): s is at most len(w) + 1, so w(s:) is valid.
             numeric_word = len(w) >= s .and. verify(w(s:), "0123456789") == 0
         end function numeric_word
     end subroutine key_parse

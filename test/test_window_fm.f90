@@ -469,8 +469,9 @@ contains
         ! C-u 5 C-x 2: the upper window gets 5 lines.
         call run_keys("C-u 5 C-x 2")
         ws = leaves()
-        call check(error, size(ws) == 4 .and. windows(ws(1)%index)%total_lines == 5 .and. &
-                   windows(ws(2)%index)%total_lines == 7, "C-u 5 C-x 2")
+        call check(error, size(ws) == 4, "C-u 5 C-x 2")
+        if (.not. allocated(error)) call check(error, windows(ws(1)%index)%total_lines == 5 .and. &
+                                               windows(ws(2)%index)%total_lines == 7, "C-u 5 C-x 2")
         if (allocated(error)) return
         ! A window too small to split.
         call run_keys("C-x 2 C-x 2")
@@ -520,20 +521,24 @@ contains
         ! The third (bottom) window is selected; delete it.
         call run_keys("C-x 0")
         ws = leaves()
-        call check(error, size(ws) == 2 .and. windows(ws(1)%index)%total_lines == 23 .and. &
-                   windows(ws(2)%index)%total_lines == 23, "the top windows take the space")
+        call check(error, size(ws) == 2, "the top windows take the space")
+        if (.not. allocated(error)) call check(error, windows(ws(1)%index)%total_lines == 23 .and. &
+                                               windows(ws(2)%index)%total_lines == 23, "the top windows take the space")
         if (allocated(error)) return
         call check(error, same_window(selected_frame%selected_window, ws(2)), "the most recently used")
         if (allocated(error)) return
         call run_keys("C-x 0")
         ws = leaves()
-        call check(error, size(ws) == 1 .and. windows(ws(1)%index)%total_cols == 80 .and. &
-                   same_window(ws(1), selected_frame%root_window), "one window again")
+        call check(error, size(ws) == 1, "one window again")
+        if (.not. allocated(error)) call check(error, windows(ws(1)%index)%total_cols == 80 .and. &
+                                               same_window(ws(1), selected_frame%root_window), "one window again")
         if (allocated(error)) return
         call run_keys("C-x 2 C-x 3 C-x o C-x 1")
         ws = leaves()
-        call check(error, size(ws) == 1 .and. same_window(ws(1), selected_frame%selected_window) .and. &
-                   windows(ws(1)%index)%total_lines == 23 .and. windows(ws(1)%index)%total_cols == 80, "C-x 1")
+        call check(error, size(ws) == 1, "C-x 1")
+        if (.not. allocated(error)) call check(error, same_window(ws(1), selected_frame%selected_window) .and. &
+                                               windows(ws(1)%index)%total_lines == 23 .and. &
+                                               windows(ws(1)%index)%total_cols == 80, "C-x 1")
         call leave_frame()
     end subroutine test_delete
 
@@ -611,8 +616,9 @@ contains
         call get_buffer_create("other-test", o, st)
         call display_buffer(o, w, st)
         ws = leaves()
-        call check(error, st%ok() .and. size(ws) == 2 .and. same_window(w, ws(2)) .and. &
-                   windows(w%index)%buffer%index == o%index, "a new window below")
+        call check(error, st%ok() .and. size(ws) == 2, "a new window below")
+        if (.not. allocated(error)) call check(error, same_window(w, ws(2)) .and. &
+                                               windows(w%index)%buffer%index == o%index, "a new window below")
         if (allocated(error)) return
         call check(error, same_window(selected_frame%selected_window, ws(1)) .and. buffers(cur)%name == "split-test" &
                    .and. windows(w%index)%quit_restore%kind == QR_WINDOW, "selection unchanged")
@@ -623,8 +629,9 @@ contains
         call select_window(w, st)
         call quit_window(.false., st)
         ws = leaves()
-        call check(error, st%ok() .and. size(ws) == 1 .and. windows(ws(1)%index)%buffer%index == h%index .and. &
-                   buffers(cur)%name == "split-test", "quit-window deletes it")
+        call check(error, st%ok() .and. size(ws) == 1, "quit-window deletes it")
+        if (.not. allocated(error)) call check(error, windows(ws(1)%index)%buffer%index == h%index .and. &
+                                               buffers(cur)%name == "split-test", "quit-window deletes it")
         call leave_frame()
     end subroutine test_display_buffer
 
@@ -672,9 +679,10 @@ contains
         if (allocated(error)) return
         call switch_to_buffer("other-test", st)
         ws = leaves()
-        call check(error, st%ok() .and. size(ws) == 2 .and. same_window(selected_frame%selected_window, ws(2)) .and. &
-                   buffers(cur)%name == "other-test" .and. windows(ws(1)%index)%buffer%index == h%index, &
-                   "popped to another window")
+        call check(error, st%ok() .and. size(ws) == 2, "popped to another window")
+        if (.not. allocated(error)) call check(error, same_window(selected_frame%selected_window, ws(2)) .and. &
+                                               buffers(cur)%name == "other-test" .and. &
+                                               windows(ws(1)%index)%buffer%index == h%index, "popped to another window")
         call leave_frame()
     end subroutine test_switch_dedicated
 
@@ -732,8 +740,9 @@ contains
         call set_window_configuration(config)
         call free_window_configuration(config)
         ws = leaves()
-        call check(error, size(ws) == 2 .and. window_live_p(ws(2)) .and. same_window(ws(1), top) .and. &
-                   same_window(selected_frame%selected_window, top), "two windows again")
+        call check(error, size(ws) == 2, "two windows again")
+        if (.not. allocated(error)) call check(error, window_live_p(ws(2)) .and. same_window(ws(1), top) .and. &
+                                               same_window(selected_frame%selected_window, top), "two windows again")
         if (allocated(error)) return
         call check(error, buffers(cur)%name == "split-test" .and. windows(ws(2)%index)%buffer%index == h%index .and. &
                    windows(ws(1)%index)%total_lines == 12 .and. windows(ws(2)%index)%total_lines == 11, &

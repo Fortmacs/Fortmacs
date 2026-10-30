@@ -508,6 +508,50 @@ ported. Their keys are unbound, as test_bindings_fm checks:
   `if` continuations. Justified exceptions are marked in the source with
   `! allow(rule-name)` and a comment saying why.
 
+## Hazards
+
+The pitfalls of Fortran and gfortran that bit this port.  `tools/hazards.awk`
+(run by `tools/check.sh`, so by CI on every PR) reports those a script can
+find; a justified exception carries `! hazard-ok(NAME): why` on the
+statement or the comment line above it.  Checked:
+
+- `short-circuit`: `.and.` and `.or.` evaluate both sides, so the right
+  side must not use what the left side guards (allocated, associated,
+  present, a compared len or size, an index compared with a bound): nest
+  an `if` instead.
+- `implied-save`: an initialized local declaration implies `save`.
+- `deferred-result-pointer`: gfortran frees a procedure pointer to a
+  function with an allocatable or deferred-length result: make the
+  interface a subroutine with an `intent(out)` argument.
+- `allocatable-constructor`: a function result or structure constructor
+  of a type with allocatable components inside an array constructor
+  leaks: use `list(...)`, a variable or element assignment.
+- `recursive-allocatable-type`: an allocatable component of its own type
+  is copied shallowly.
+- `implicit-none`: `implicit none (type, external)` everywhere.
+- `stop`: errors return a status; `stop` only in a main program.
+- `obsolete`: no `common`, `equivalence` or `goto`.
+
+Checked by hand on every PR's diff (no script can tell):
+
+- The same variable passed to two dummies when one is `intent(out)` (it
+  is deallocated on entry).
+- An array constructor with no elements assigned to an allocatable
+  (`realloc()` with size 0, reported by valgrind): allocate the empty
+  array explicitly.
+- A guard the checker misses: an index passed to a procedure that
+  subscripts with it, a substring or element in the guarded part of a
+  nested expression.
+- A dummy argument that hides a module entity of the same name in another
+  case (`beg` and `BEG`).
+- Objects with explicit lifetimes (markers, overlays, timers, processes)
+  freed on every path, and handles checked for staleness.
+- `intent` on every dummy argument; `recursive` on procedures that can be
+  reentered (hooks, timers, the command loop).
+
+A newly learned hazard goes into `tools/hazards.awk` when a script can find
+it, otherwise into this checklist.
+
 ## Conventions learned while porting
 
 - Newer valgrind (Fedora's) reports `realloc() with size 0`, which
@@ -1017,6 +1061,7 @@ Each lists the default being used meanwhile.
 
 ## Session log
 
+- 2026-10-30 — Hazards (`hazard-check`, based on main; asked by the user): `tools/hazards.awk` reports the hazards of CLAUDE.md and PORTING.md that a script can find (short-circuit guards, initialized locals, pointers to deferred-result functions, leaking array constructors, recursive allocatable types, the form of `implicit none`, `stop`, obsolete statements), run by `tools/check.sh`; justified exceptions carry `! hazard-ok(NAME): why`.  New section "Hazards" with the checklist of those checked by hand on every PR; CLAUDE.md says so.  Audit of the codebase: short-circuit guards fixed in buffer_fm (`generate-new-buffer-name` with an empty name), data_buffer_fm (`major-mode`, `mode-name` with no buffer) and eight tests; leaking array constructors fixed in easy_mmode_fm, f90_fm and vc_fm; the pointer interfaces of add-log's time format, Ibuffer's summarizers, `Info-url-alist` functions and VC's working revision symbol are subroutines; the rest are false positives marked hazard-ok.
 - 2026-10-30 — Roadmap: step 42 "Terminal core C" added at the user's request (finish the terminal-relevant C files before more Elisp features, after the citation burn-down and the rest of steps 40 and 41); the later steps move to 43–53.  Counts at the time: 909 of 8547 C functions cited, of which about 1,300 are the Lisp engine (Not applicable), 2,300 the GUI and 250 external libraries; about 2,500 remain in the terminal core.
 - 2026-10-30 — Faster CI (`ci-parallel`, based on main; asked by the user): `tools/check.sh` runs the suites alone, and under valgrind each suite alone, in parallel (one job per CPU), printing the log of each failing suite; pushes to main add `--valgrind-combined`, which also runs every suite in one valgrind process so leaks across suites are still caught. The release build in `tools/test-recompile.sh` stays, as it is the only release-profile build per PR. The per-suite valgrind run found test/main.f90 leaking the suite and test names (main-program variables live on the stack of MAIN__), now freed.
 - 2026-10-30 — Header blank line (`header-blank-line`, based on main; asked by the user): CLAUDE.md now says the file's header comment ends with one blank line, as every file in src/ already did; `tools/blank-lines.awk` applies it, so `tools/check.sh` fixes or flags it; docs/init.f90 was the only file without it.  Learned: a convention every file follows but no rule states goes unchecked, and examples outside src/ drift from it; consistency rules belong in CLAUDE.md and in the checker.
