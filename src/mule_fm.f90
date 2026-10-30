@@ -77,7 +77,8 @@ module mule_fm
                          coding_system_priority_list, set_coding_system_priority, coding_system_mime_charset, &
                          coding_system_charset_list, coding_system_list, coding_system_prefer_utf_8_p, &
                          coding_system_ascii_compatible_p, find_coding_systems_text, check_coding_systems_text, &
-                         coding_system_list_entry_type, unencodable_type, EOL_UNIX, EOL_DOS, EOL_MAC, EOL_UNDECIDED
+                         coding_system_list_entry_type, unencodable_type, EOL_UNIX, EOL_DOS, EOL_MAC, EOL_UNDECIDED, &
+                         coding_system_iso_7_bit_p, coding_system_suitable_for_keyboard_p
     use fileio_fm, only: set_auto_coding_function, after_insert_file_set_coding, &
                          select_safe_coding_system_function, file_name_match_p
     use files_fm, only: revert_buffer
@@ -110,7 +111,9 @@ module mule_fm
               select_safe_coding_system, describe_coding_system, describe_current_coding_system, read_coding_system, &
               buffer_file_coding_system_explicit
     public :: set_language_info_alist, get_language_info, set_language_environment, reset_language_environment, &
-              describe_language_environment, read_language_name, language_names, language_proc, language_info_type
+              describe_language_environment, read_language_name, language_names, language_proc, language_info_type, &
+              set_locale_environment, locale_name_match, locale_charset_to_coding_system, locale_translate, &
+              get_locale_names, set_display_table_and_terminal_coding_system
 
     !> The definition of a language environment (an element of
     !> `language_info_alist'): its name and the information under each
@@ -173,6 +176,275 @@ module mule_fm
     !> `set_language_environment_hook' (which see).
     type(hook_type), target, public :: exit_language_environment_hook = &
                                        hook_type(name="exit_language_environment_hook")
+
+    !> An entry of `locale_language_names', `locale_charset_language_names'
+    !> or `locale_preferred_coding_systems': a regexp matched against the
+    !> start of a downcased locale name, and the language environment
+    !> and coding system it names ("" when absent).
+    type, public :: locale_entry_type
+        character(len=40) :: regexp = ""
+        character(len=24) :: language = ""
+        character(len=24) :: coding = ""
+    end type locale_entry_type
+
+    !> List of pairs of locale regexps and language names.  The first
+    !> element whose locale regexp matches the start of a downcased locale
+    !> specifies the language name and the coding system (when given)
+    !> corresponding to that locale.  If the locale specifies only a
+    !> language name, the coding system comes from the locale's codeset or
+    !> from `locale_preferred_coding_systems'.
+    type(locale_entry_type), public :: locale_language_names(194) = [ &
+                                   locale_entry_type(regexp="aa_DJ", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="aa", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="af", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="am", language="Ethiopic", coding="utf-8"), &
+                                   locale_entry_type(regexp="an", language="Latin-9", coding=""), &
+                                   locale_entry_type(regexp="arn", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="ar", language="Arabic", coding=""), &
+                                   locale_entry_type(regexp="as", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="az", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="ba", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="be", language="Belarusian", coding="cp1251"), &
+                                   locale_entry_type(regexp="bg", language="Bulgarian", coding="cp1251"), &
+                                   locale_entry_type(regexp="bn", language="Bengali", coding="utf-8"), &
+                                   locale_entry_type(regexp="bo", language="Tibetan", coding=""), &
+                                   locale_entry_type(regexp="br", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="bs", language="Latin-2", coding=""), &
+                                   locale_entry_type(regexp="byn", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="ca", language="Catalan", coding="iso-8859-1"), &
+                                   locale_entry_type(regexp="co", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="cs", language="Czech", coding="iso-8859-2"), &
+                                   locale_entry_type(regexp="cy", language="Welsh", coding="iso-8859-14"), &
+                                   locale_entry_type(regexp="da", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="de", language="German", coding="iso-8859-1"), &
+                                   locale_entry_type(regexp="dv", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="ee", language="Latin-4", coding=""), &
+                                   locale_entry_type(regexp="el", language="Greek", coding="iso-8859-7"), &
+                                   locale_entry_type(regexp="en_IN", language="English", coding="utf-8"), &
+                                   locale_entry_type(regexp="en", language="English", coding="iso-8859-1"), &
+                                   locale_entry_type(regexp="eo", language="Esperanto", coding=""), &
+                                   locale_entry_type(regexp="es", language="Spanish", coding="iso-8859-1"), &
+                                   locale_entry_type(regexp="et", language="Latin-9", coding=""), &
+                                   locale_entry_type(regexp="eu", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="fa", language="Persian", coding="utf-8"), &
+                                   locale_entry_type(regexp="fil", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="fpo", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="fi", language="Latin-9", coding=""), &
+                                   locale_entry_type(regexp="fj", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="fo", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="fr", language="French", coding="iso-8859-1"), &
+                                   locale_entry_type(regexp="fy", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="ga", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="gd", language="Latin-9", coding=""), &
+                                   locale_entry_type(regexp="gez", language="Ethiopic", coding="utf-8"), &
+                                   locale_entry_type(regexp="gla", language="Latin-9", coding=""), &
+                                   locale_entry_type(regexp="gl", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="gu", language="Gujarati", coding="utf-8"), &
+                                   locale_entry_type(regexp="gv", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="he", language="Hebrew", coding="iso-8859-8"), &
+                                   locale_entry_type(regexp="hi", language="Devanagari", coding="utf-8"), &
+                                   locale_entry_type(regexp="hni_IN", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="hr", language="Croatian", coding="iso-8859-2"), &
+                                   locale_entry_type(regexp="hu", language="Latin-2", coding=""), &
+                                   locale_entry_type(regexp="hy", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="id", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="ig", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="ibo", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="is", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="it", language="Italian", coding="iso-8859-1"), &
+                                   locale_entry_type(regexp="iw", language="Hebrew", coding="iso-8859-8"), &
+                                   locale_entry_type(regexp="ja", language="Japanese", coding="euc-jp"), &
+                                   locale_entry_type(regexp="kal", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="ka", language="Georgian", coding="georgian-ps"), &
+                                   locale_entry_type(regexp="kk", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="kl", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="km", language="Khmer", coding="utf-8"), &
+                                   locale_entry_type(regexp="knk", language="Devanagari", coding="utf-8"), &
+                                   locale_entry_type(regexp="kok", language="Devanagari", coding="utf-8"), &
+                                   locale_entry_type(regexp="kn", language="Kannada", coding="utf-8"), &
+                                   locale_entry_type(regexp="ko", language="Korean", coding="euc-kr"), &
+                                   locale_entry_type(regexp="ks", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="kw", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="ky", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="lao", language="Lao", coding="utf-8"), &
+                                   locale_entry_type(regexp="la", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="lb", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="lg", language="Latin-6", coding=""), &
+                                   locale_entry_type(regexp="lo", language="Lao", coding="utf-8"), &
+                                   locale_entry_type(regexp="lt", language="Lithuanian", coding="iso-8859-13"), &
+                                   locale_entry_type(regexp="lv", language="Latvian", coding="iso-8859-13"), &
+                                   locale_entry_type(regexp="mi", language="Latin-7", coding=""), &
+                                   locale_entry_type(regexp="mk", language="Cyrillic-ISO", coding="iso-8859-5"), &
+                                   locale_entry_type(regexp="mlt", language="Latin-3", coding=""), &
+                                   locale_entry_type(regexp="ml", language="Malayalam", coding="utf-8"), &
+                                   locale_entry_type(regexp="mn", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="mri", language="Latin-7", coding=""), &
+                                   locale_entry_type(regexp="mr", language="Devanagari", coding="utf-8"), &
+                                   locale_entry_type(regexp="ms", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="mt", language="Latin-3", coding=""), &
+                                   locale_entry_type(regexp="mym", language="Malayalam", coding="utf-8"), &
+                                   locale_entry_type(regexp="my", language="Burmese", coding="utf-8"), &
+                                   locale_entry_type(regexp="nb", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="ne", language="Devanagari", coding="utf-8"), &
+                                   locale_entry_type(regexp="nl", language="Dutch", coding="iso-8859-1"), &
+                                   locale_entry_type(regexp="nn", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="non", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="no", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="nr_ZA", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="nso_ZA", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="oc", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="om_ET", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="om", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="or", language="Oriya", coding="utf-8"), &
+                                   locale_entry_type(regexp="pa", language="Punjabi", coding="utf-8"), &
+                                   locale_entry_type(regexp="pl", language="Polish", coding="iso-8859-2"), &
+                                   locale_entry_type(regexp="ps", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="pas", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="pt_BR", language="Brazilian Portuguese", coding="iso-8859-1"), &
+                                   locale_entry_type(regexp="pt", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="rm", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="ro", language="Romanian", coding="iso-8859-2"), &
+                                   locale_entry_type(regexp="ru_RU.koi8r", language="Cyrillic-KOI8", coding="koi8-r"), &
+                                   locale_entry_type(regexp="ru_RU", language="Russian", coding="iso-8859-5"), &
+                                   locale_entry_type(regexp="ru_UA", language="Russian", coding="koi8-u"), &
+                                   locale_entry_type(regexp="rw", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="sa", language="Devanagari", coding=""), &
+                                   locale_entry_type(regexp="se", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="sh", language="Latin-2", coding=""), &
+                                   locale_entry_type(regexp="si", language="Sinhala", coding="utf-8"), &
+                                   locale_entry_type(regexp="sid", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="sk", language="Slovak", coding="iso-8859-2"), &
+                                   locale_entry_type(regexp="sl", language="Slovenian", coding="iso-8859-2"), &
+                                   locale_entry_type(regexp="so_ET", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="so", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="sq", language="Latin-2", coding=""), &
+                                   locale_entry_type(regexp="sr", language="Latin-2", coding=""), &
+                                   locale_entry_type(regexp="st", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="sv", language="Swedish", coding="iso-8859-1"), &
+                                   locale_entry_type(regexp="sw", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="taj", language="Tajik", coding="koi8-t"), &
+                                   locale_entry_type(regexp="ta", language="Tamil", coding="utf-8"), &
+                                   locale_entry_type(regexp="te", language="Telugu", coding="utf-8"), &
+                                   locale_entry_type(regexp="tg", language="Tajik", coding="koi8-t"), &
+                                   locale_entry_type(regexp="th_TH.tis620", language="Thai", coding="tis-620"), &
+                                   locale_entry_type(regexp="th_TH.TIS-620", language="Thai", coding="tis-620"), &
+                                   locale_entry_type(regexp="th_TH", language="Thai", coding="iso-8859-11"), &
+                                   locale_entry_type(regexp="th", language="Thai", coding="iso-8859-11"), &
+                                   locale_entry_type(regexp="ti", language="Ethiopic", coding="utf-8"), &
+                                   locale_entry_type(regexp="tig_ER", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="tk", language="Latin-5", coding=""), &
+                                   locale_entry_type(regexp="tuk", language="Latin-5", coding=""), &
+                                   locale_entry_type(regexp="tl", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="tn", language="Latin-9", coding=""), &
+                                   locale_entry_type(regexp="tr", language="Turkish", coding="iso-8859-9"), &
+                                   locale_entry_type(regexp="tsn", language="Latin-9", coding=""), &
+                                   locale_entry_type(regexp="ts", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="tt", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="ug", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="uk", language="Ukrainian", coding="koi8-u"), &
+                                   locale_entry_type(regexp="ur", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="uz_UZ@cyrillic", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="uz", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="ve", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="vi", language="Vietnamese", coding="utf-8"), &
+                                   locale_entry_type(regexp="wa", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="wo", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="xh", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="yi", language="Windows-1255", coding=""), &
+                                   locale_entry_type(regexp="yo", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="zh_HK", language="Chinese-Big5", coding=""), &
+                                   locale_entry_type(regexp="zh_TW", language="Chinese-Big5", coding=""), &
+                                   locale_entry_type(regexp="zh_CN.GB2312", language="Chinese-GB", coding=""), &
+                                   locale_entry_type(regexp="zh_CN.GBK", language="Chinese-GBK", coding=""), &
+                                   locale_entry_type(regexp="zh_CN.GB18030", language="Chinese-GB18030", coding=""), &
+                                   locale_entry_type(regexp="zh_CN.UTF-8", language="Chinese-GBK", coding=""), &
+                                   locale_entry_type(regexp="zh_CN", language="Chinese-GB", coding=""), &
+                                   locale_entry_type(regexp="zhh", language="Chinese-Big5", coding=""), &
+                                   locale_entry_type(regexp="zhi", language="Chinese-GBK", coding=""), &
+                                   locale_entry_type(regexp="zhm", language="Chinese-Big5", coding=""), &
+                                   locale_entry_type(regexp="zh", language="Chinese-GB", coding=""), &
+                                   locale_entry_type(regexp="zu", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="c$", language="ASCII", coding=""), &
+                                   locale_entry_type(regexp="posix$", language="ASCII", coding=""), &
+                                   locale_entry_type(regexp="ipa$", language="IPA", coding=""), &
+                                   locale_entry_type(regexp="cz", language="Czech", coding=""), &
+                                   locale_entry_type(regexp="iw", language="Hebrew", coding=""), &
+                                   locale_entry_type(regexp="sp", language="Cyrillic-ISO", coding=""), &
+                                   locale_entry_type(regexp="su", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="jp", language="Japanese", coding=""), &
+                                   locale_entry_type(regexp="chs", language="Chinese-GBK", coding=""), &
+                                   locale_entry_type(regexp="cht", language="Chinese-BIG5", coding=""), &
+                                   locale_entry_type(regexp="gbz", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="div", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="wee", language="Latin-2", coding=""), &
+                                   locale_entry_type(regexp="wen", language="Latin-2", coding=""), &
+                                   locale_entry_type(regexp="ind", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="sme", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="smf", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="smg", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="kdi", language="Kannada", coding="utf-8"), &
+                                   locale_entry_type(regexp="mar", language="Devanagari", coding="utf-8"), &
+                                   locale_entry_type(regexp="khm", language="Khmer", coding="utf-8"), &
+                                   locale_entry_type(regexp="iri", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp="uig", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp="kin", language="UTF-8", coding="") &
+                                   ]
+
+    !> List of pairs of locale regexps and charset language names.
+    !> The first element whose locale regexp matches the start of a downcased
+    !> locale specifies the language name whose charset corresponds to that
+    !> locale.  This language name is used if the locale is not listed in
+    !> `locale_language_names'.
+    type(locale_entry_type), public :: locale_charset_language_names(9) = [ &
+                                   locale_entry_type(regexp=".*8859[-_]?1\>", language="Latin-1", coding=""), &
+                                   locale_entry_type(regexp=".*8859[-_]?2\>", language="Latin-2", coding=""), &
+                                   locale_entry_type(regexp=".*8859[-_]?3\>", language="Latin-3", coding=""), &
+                                   locale_entry_type(regexp=".*8859[-_]?4\>", language="Latin-4", coding=""), &
+                                   locale_entry_type(regexp=".*8859[-_]?9\>", language="Latin-5", coding=""), &
+                                   locale_entry_type(regexp=".*8859[-_]?14\>", language="Latin-8", coding=""), &
+                                   locale_entry_type(regexp=".*8859[-_]?15\>", language="Latin-9", coding=""), &
+                                   locale_entry_type(regexp=".*utf\(?:-?8\)?\>", language="UTF-8", coding=""), &
+                                   locale_entry_type(regexp=".*@euro\>", language="Latin-9", coding="") &
+                                   ]
+
+    !> List of pairs of locale regexps and preferred coding systems.
+    !> The first element whose locale regexp matches the start of a downcased
+    !> locale specifies the coding system to prefer when using that locale.
+    !> This coding system is used if the locale specifies a specific charset.
+    type(locale_entry_type), public :: locale_preferred_coding_systems(24) = [ &
+                                   locale_entry_type(regexp=".*8859[-_]?1\>", language="", coding="iso-8859-1"), &
+                                   locale_entry_type(regexp=".*8859[-_]?2\>", language="", coding="iso-8859-2"), &
+                                   locale_entry_type(regexp=".*8859[-_]?3\>", language="", coding="iso-8859-3"), &
+                                   locale_entry_type(regexp=".*8859[-_]?4\>", language="", coding="iso-8859-4"), &
+                                   locale_entry_type(regexp=".*8859[-_]?9\>", language="", coding="iso-8859-9"), &
+                                   locale_entry_type(regexp=".*8859[-_]?14\>", language="", coding="iso-8859-14"), &
+                                   locale_entry_type(regexp=".*8859[-_]?15\>", language="", coding="iso-8859-15"), &
+                                   locale_entry_type(regexp=".*utf\(?:-?8\)?", language="", coding="utf-8"), &
+                                   locale_entry_type(regexp=".*@euro", language="", coding="iso-8859-15"), &
+                                   locale_entry_type(regexp="koi8-?r", language="", coding="koi8-r"), &
+                                   locale_entry_type(regexp="koi8-?u", language="", coding="koi8-u"), &
+                                   locale_entry_type(regexp="tcvn", language="", coding="tcvn"), &
+                                   locale_entry_type(regexp="big5[-_]?hkscs", language="", coding="big5-hkscs"), &
+                                   locale_entry_type(regexp="big5", language="", coding="big5"), &
+                                   locale_entry_type(regexp="euc-?tw", language="", coding="euc-tw"), &
+                                   locale_entry_type(regexp="euc-?cn", language="", coding="euc-cn"), &
+                                   locale_entry_type(regexp="gb2312", language="", coding="gb2312"), &
+                                   locale_entry_type(regexp="gbk", language="", coding="gbk"), &
+                                   locale_entry_type(regexp="gb18030", language="", coding="gb18030"), &
+                                   locale_entry_type(regexp="ja.*[._]euc", language="", coding="japanese-iso-8bit"), &
+                                   locale_entry_type(regexp="ja.*[._]jis7", language="", coding="iso-2022-jp"), &
+                                   locale_entry_type(regexp="ja.*[._]pck", language="", coding="japanese-shift-jis"), &
+                                   locale_entry_type(regexp="ja.*[._]sjis", language="", coding="japanese-shift-jis"), &
+                                   locale_entry_type(regexp="jpn", language="", coding="japanese-shift-jis") &
+                                   ]
+
+    !> File name for the system's file of locale-name aliases, or "" if none.
+    character(len=:), allocatable, public :: locale_translation_file_name
+    !> The currently set locale environment.
+    character(len=:), allocatable, public :: current_locale_environment
+    !> System locale for messages and for time formats ("" for the
+    !> environment's).
+    character(len=:), allocatable, public :: system_messages_locale, system_time_locale
 
     !> An entry of `auto_coding_alist' or `auto_coding_regexp_alist'.
     type, public :: auto_coding_type
@@ -322,6 +594,7 @@ contains
         if (.not. allocated(default_keyboard_coding_system)) default_keyboard_coding_system = ""
         if (.not. allocated(keyboard_coding_system_variable)) keyboard_coding_system_variable = "utf-8-unix"
         commands%set_language_environment%run => cmd_set_language_environment
+        commands%set_locale_environment%run => cmd_set_locale_environment
         commands%reset_language_environment%run => cmd_reset_language_environment
         commands%describe_language_environment%run => cmd_describe_language_environment
         commands%set_terminal_coding_system%run => cmd_set_terminal_coding_system
@@ -1216,9 +1489,7 @@ contains
     !> `raw-text', the decoding of keyboard input is disabled.
     !>
     !> The setting has no effect on graphical terminals.  Port of
-    !> mule.el:set-keyboard-coding-system (the one terminal; no coding
-    !> system is `:suitable-for-keyboard' without being ASCII compatible,
-    !> as the ISO-2022 family is Deferred).
+    !> mule.el:set-keyboard-coding-system (the one terminal).
     recursive subroutine set_keyboard_coding_system(coding_system, status)
         character(len=*), intent(in) :: coding_system
         type(status_type), intent(out) :: status
@@ -1235,7 +1506,7 @@ contains
             return
         end if
 
-        if (.not. coding_system_ascii_compatible_p(cs)) then
+        if (.not. (coding_system_suitable_for_keyboard_p(cs) .or. coding_system_ascii_compatible_p(cs))) then
             call set_error(status, FM_GENERIC_ERROR, "Unsuitable coding system for keyboard: "//name)
             return
         end if
@@ -1245,6 +1516,8 @@ contains
         select case (coding_type)
         case ("raw-text", "charset", "utf-8", "shift-jis", "big5", "ccl")
             accept_8_bit = .true.
+        case ("iso-2022")
+            accept_8_bit = .not. coding_system_iso_7_bit_p(cs)
         case default
             call set_error(status, FM_GENERIC_ERROR, "Unsupported coding system for keyboard: "//name)
             return
@@ -2680,4 +2953,384 @@ contains
         if (.not. status%ok()) return
         call describe_language_environment(name, status)
     end subroutine cmd_describe_language_environment
+    !> Search for KEY in ALIST, which should be a list of regexp-value pairs.
+    !> Return the index of the first entry whose regexp matches the start of
+    !> KEY, or 0 if there is no match.  Port of mule-cmds.el:locale-name-match.
+    integer function locale_name_match(key, alist) result(k)
+        character(len=*), intent(in) :: key
+        type(locale_entry_type), intent(in) :: alist(:)
+        type(status_type) :: st
+
+        do k = 1, size(alist)
+            if (string_match("\`\(?:"//trim(alist(k)%regexp)//"\)", key, st, inhibit_modify=.true.) > 0) return
+        end do
+
+        k = 0
+    end function locale_name_match
+
+    !> Whether charset names (strings) CHARSET1 and CHARSET2 are equivalent.
+    !> Matching is done ignoring case and any hyphens and underscores in the
+    !> names.  E.g. `ISO_8859-1' and `iso88591' both match `iso-8859-1'.
+    !> Port of mule-cmds.el:locale-charset-match-p.
+    logical function locale_charset_match_p(charset1, charset2)
+        character(len=*), intent(in) :: charset1, charset2
+
+        locale_charset_match_p = lower(squeeze(charset1)) == lower(squeeze(charset2))
+    end function locale_charset_match_p
+
+    ! S without `-' and `_'.
+    pure function squeeze(s) result(t)
+        character(len=*), intent(in) :: s
+        character(len=:), allocatable :: t
+        integer :: i
+
+        t = ""
+
+        do i = 1, len(s)
+            if (s(i:i) /= "-" .and. s(i:i) /= "_") t = t//s(i:i)
+        end do
+    end function squeeze
+
+    !> Find coding system corresponding to CHARSET.
+    !> CHARSET is any sort of non-Emacs charset name, such as might be used
+    !> in a locale codeset, or elsewhere.  It is matched to a coding system
+    !> in the coding system list, treating case and the characters `-' and
+    !> `_' as insignificant.  The coding system base is returned ("" if
+    !> none).  Thus, for instance, if charset "ISO8859-2", `iso-latin-2' is
+    !> returned.  Port of mule-cmds.el:locale-charset-to-coding-system
+    !> (`locale-charset-alist' is empty in Emacs, so it is not kept).
+    function locale_charset_to_coding_system(charset) result(cs)
+        character(len=*), intent(in) :: charset
+        character(len=:), allocatable :: cs
+        type(coding_system_list_entry_type), allocatable :: names(:)
+        integer :: k
+
+        cs = ""
+        call coding_system_list(names)
+
+        ! `coding-system-alist' has the latest defined first.
+        do k = size(names), 1, -1
+            if (locale_charset_match_p(charset, names(k)%name)) then
+                cs = coding_system_base(names(k)%name)
+                return
+            end if
+        end do
+    end function locale_charset_to_coding_system
+
+    !> Expand LOCALE according to `locale_translation_file_name', if possible.
+    !> For example, translate "swedish" into "sv_SE.ISO8859-1".  Port of
+    !> mule-cmds.el:locale-translate.
+    function locale_translate(locale) result(translated)
+        character(len=*), intent(in) :: locale
+        character(len=:), allocatable :: translated, line
+        character(len=1024) :: buffer
+        integer :: unit, ios, n, i
+        logical :: exists
+
+        translated = locale
+        if (.not. allocated(locale_translation_file_name)) return
+        if (len(locale_translation_file_name) == 0) return
+        inquire (file=locale_translation_file_name, exist=exists)
+        if (.not. exists) return
+        open (newunit=unit, file=locale_translation_file_name, status="old", action="read", iostat=ios)
+        if (ios /= 0) return
+        n = len(locale)
+
+        do
+            read (unit, "(a)", iostat=ios) buffer
+            if (ios /= 0) exit
+            line = trim(buffer)
+            if (len(line) <= n) cycle
+            if (line(1:n) /= locale) cycle
+            ! ^LOCALE:?[ \t]+
+            i = n + 1
+            if (line(i:i) == ":") i = i + 1
+            if (i > len(line)) cycle
+            if (line(i:i) /= " " .and. line(i:i) /= TAB) cycle
+
+            do while (i <= len(line))
+                if (line(i:i) /= " " .and. line(i:i) /= TAB) exit
+                i = i + 1
+            end do
+
+            translated = line(i:)
+            exit
+        end do
+
+        close (unit)
+    end function locale_translate
+
+    !> Return a list of locale names (the output of `locale -a').  Port of
+    !> mule-cmds.el:get-locale-names (the locale.alias fallback for
+    !> systems without `locale' is not needed on Linux).
+    subroutine get_locale_names(names)
+        use buffer_fm, only: get_buffer_create, kill_buffer
+        use callproc_fm, only: call_process
+        use editfns_fm, only: buffer_string
+        character(len=80), allocatable, intent(out) :: names(:)
+        character(len=:), allocatable :: text
+        type(handle_type) :: buf, old
+        type(value_type) :: result, args(1)
+        type(status_type) :: st
+        integer :: i, j
+
+        allocate (names(0))
+        old = current_buffer()
+        call get_buffer_create(" *locale-names*", buf, st)
+        if (.not. st%ok()) return
+        call set_buffer(buf, st)
+        args(1) = make_string("-a")
+        call call_process("locale", result, st, destination=t_value(), args=make_list(args))
+        text = buffer_string()
+        call set_buffer(old, st)
+        call kill_buffer(buf, st)
+        i = 1
+
+        do while (i <= len(text))
+            if (index(" "//TAB//LF, text(i:i)) > 0) then
+                i = i + 1
+                cycle
+            end if
+
+            j = i
+
+            do while (j <= len(text))
+                if (index(" "//TAB//LF, text(j:j)) > 0) exit
+                j = j + 1
+            end do
+
+            names = [character(len=80) :: names, text(i:j - 1)]
+            i = j
+        end do
+    end subroutine get_locale_names
+
+    !> Set up the display table and terminal coding system for
+    !> LANGUAGE_NAME.  If INHIBIT_REFRESH, don't redraw the current frame.
+    !> Port of mule-cmds.el:set-display-table-and-terminal-coding-system
+    !> (the 8-bit display of `standard-display-european-internal' waits
+    !> for display tables).
+    recursive subroutine set_display_table_and_terminal_coding_system(language_name, coding_system, status, &
+                                                                     inhibit_refresh)
+        character(len=*), intent(in) :: language_name, coding_system
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: inhibit_refresh
+        character(len=:), allocatable :: coding
+        integer :: k
+
+        coding = ""
+        k = language_index(language_name)
+
+        if (k /= 0) then
+            if (allocated(language_info_alist(k)%unibyte_display)) coding = language_info_alist(k)%unibyte_display
+        end if
+
+        if (len(coding_system) > 0) then
+            call set_terminal_coding_system(coding_system, status, inhibit_refresh)
+        else
+            call set_terminal_coding_system(coding, status, inhibit_refresh)
+        end if
+    end subroutine set_display_table_and_terminal_coding_system
+
+    !> Set up multilingual environment for using LOCALE_NAME.
+    !> This sets the language environment, the coding system priority,
+    !> the default input method and sometimes other things.
+    !>
+    !> LOCALE_NAME should be a string which is the name of a locale supported
+    !> by the system.  Often it is of the form xx_XX.CODE, where xx is a
+    !> language, XX is a country, and CODE specifies a character set and
+    !> coding system.  For example, the locale name "ja_JP.EUC" might name
+    !> a locale for Japanese in Japan using the `japanese-iso-8bit'
+    !> coding-system.  The name may also have a modifier suffix, e.g. `@euro'
+    !> or `@cyrillic'.
+    !>
+    !> If LOCALE_NAME is "", its value is taken from the environment
+    !> variables LC_ALL, LC_CTYPE and LANG (the first one that is set).
+    !>
+    !> The locale names supported by your system can typically be found in a
+    !> directory named `/usr/share/locale' or `/usr/lib/locale'.  LOCALE_NAME
+    !> will be translated according to the table specified by
+    !> `locale_translation_file_name'.
+    !>
+    !> This function sets the `current_locale_environment' variable.
+    !>
+    !> By default, this function will redraw the current frame.  If
+    !> INHIBIT_REFRESH is true, this isn't done.
+    !>
+    !> See also `locale_charset_language_names', `locale_language_names',
+    !> `locale_preferred_coding_systems' and `locale_coding_system'.
+    !>
+    !> Port of mule-cmds.el:set-locale-environment (FRAME waits for more
+    !> than one terminal; `woman-locale' and `ps-paper-type' wait for
+    !> woman and ps-print; `default-sendmail-coding-system' waits for
+    !> mail).
+    recursive subroutine set_locale_environment(locale_name, status, inhibit_refresh)
+        use env_fm, only: getenv
+        use coding_fm, only: locale_coding_system
+        character(len=*), intent(in) :: locale_name
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: inhibit_refresh
+        character(len=*), parameter :: FILES(5) = [character(len=40) :: "/usr/share/X11/locale/locale.alias", &
+                                                    "/usr/lib/X11/locale/locale.alias", &
+                                                    "/usr/X11R6/lib/X11/locale/locale.alias", &
+                                                    "/usr/openwin/lib/locale/locale.alias", &
+                                                    "/usr/share/locale/locale.alias"]
+        character(len=*), parameter :: VARS(3) = [character(len=8) :: "LC_ALL", "LC_CTYPE", "LANG"]
+        character(len=:), allocatable :: locale, language_name, coding_system, kcs, dflt
+        type(value_type) :: v
+        type(status_type) :: vst
+        logical :: exists, found
+        integer :: i, li, ci, pi, eol, k
+
+        status = status_type()
+        call syms_of_language_info()
+        locale_translation_file_name = ""
+
+        do i = 1, size(FILES)
+            inquire (file=trim(FILES(i)), exist=exists)
+
+            if (exists) then
+                locale_translation_file_name = trim(FILES(i))
+                exit
+            end if
+        end do
+
+        locale = locale_name
+
+        ! Use the first of these three environment variables that has a
+        ! nonempty value.
+        do i = 1, size(VARS)
+            if (len(locale) > 0) exit
+            call getenv(trim(VARS(i)), locale, found)
+            if (.not. found) locale = ""
+        end do
+
+        if (len(locale) == 0) return
+        locale = locale_translate(locale)
+        current_locale_environment = locale
+
+        ! Leave the system locales alone if the caller did not specify an
+        ! explicit locale name.
+        if (len(locale_name) > 0) then
+            system_messages_locale = locale
+            system_time_locale = locale
+        end if
+
+        if (len(locale) >= 2) then
+            if (is_lower_letter(locale(1:1)) .and. is_lower_letter(locale(2:2))) &
+                call set_current_iso639_language(locale(1:2))
+        end if
+
+        locale = lower(locale)
+        li = locale_name_match(locale, locale_language_names)
+        ci = locale_name_match(locale, locale_charset_language_names)
+        call default_value(sym("buffer_file_coding_system"), v, vst)
+        dflt = ""
+        if (stringp(v)) dflt = xstring(v)
+        eol = EOL_UNDECIDED
+        if (len(dflt) > 0) eol = coding_system_eol_type(dflt)
+        pi = locale_name_match(locale, locale_preferred_coding_systems)
+        coding_system = ""
+
+        if (pi /= 0) then
+            coding_system = trim(locale_preferred_coding_systems(pi)%coding)
+        else
+            i = index(locale, ".")
+
+            if (i > 0 .and. i < len(locale)) then
+                k = index(locale(i + 1:), "@")
+
+                if (k == 0) then
+                    coding_system = locale_charset_to_coding_system(locale(i + 1:))
+                else if (k > 1) then
+                    coding_system = locale_charset_to_coding_system(locale(i + 1:i + k - 1))
+                end if
+            end if
+        end if
+
+        language_name = ""
+
+        if (li /= 0) then
+            language_name = trim(locale_language_names(li)%language)
+            ! What locale_preferred_coding_systems specifies has higher
+            ! priority.
+            if (len(coding_system) == 0) coding_system = trim(locale_language_names(li)%coding)
+        else if (ci /= 0) then
+            ! Otherwise use what locale_charset_language_names lists.
+            language_name = trim(locale_charset_language_names(ci)%language)
+        end if
+
+        ! If a specific EOL conversion was specified in the default
+        ! buffer-file-coding-system, preserve it in the coding system we
+        ! will be using from now on.
+        if ((eol == EOL_UNIX .or. eol == EOL_DOS .or. eol == EOL_MAC) .and. len(coding_system) > 0) then
+            if (coding_system_p(coding_system)) coding_system = coding_system_change_eol_conversion(coding_system, eol)
+        end if
+
+        if (len(language_name) > 0) then
+            ! Set up for this character set.
+            call set_language_environment(language_name, status)
+            if (.not. status%ok()) return
+            call set_display_table_and_terminal_coding_system(language_name, coding_system, status, inhibit_refresh)
+            if (.not. status%ok()) return
+            ! Set the keyboard coding system if appropriate.
+            kcs = coding_system
+            k = language_index(language_name)
+
+            if (len(kcs) == 0) then
+                if (allocated(language_info_alist(k)%coding_systems)) then
+                    if (size(language_info_alist(k)%coding_systems) > 0) &
+                        kcs = trim(language_info_alist(k)%coding_systems(1))
+                end if
+            end if
+
+            if (len(kcs) > 0) then
+                call set_keyboard_coding_system(kcs, status)
+                if (.not. status%ok()) return
+            end if
+
+            locale_coding_system%value = ""
+
+            if (allocated(language_info_alist(k)%coding_priority)) then
+                if (size(language_info_alist(k)%coding_priority) > 0) &
+                    locale_coding_system%value = trim(language_info_alist(k)%coding_priority(1))
+            end if
+        end if
+
+        if (len(coding_system) > 0) then
+            found = .false.
+            if (len(locale_coding_system%value) > 0) found = coding_system_equal(coding_system, locale_coding_system%value)
+
+            if (.not. found) then
+                call prefer_coding_system(coding_system, status)
+                if (.not. status%ok()) return
+                locale_coding_system%value = coding_system
+            end if
+        end if
+    end subroutine set_locale_environment
+
+    ! Whether C is a lower-case ASCII letter.
+    pure logical function is_lower_letter(c)
+        character, intent(in) :: c
+
+        is_lower_letter = c >= "a" .and. c <= "z"
+    end function is_lower_letter
+
+    recursive subroutine cmd_set_locale_environment(status)
+        type(status_type), intent(out) :: status
+        character(len=80), allocatable :: names(:)
+        type(value_type), allocatable :: items(:)
+        character(len=:), allocatable :: name
+        integer :: i
+
+        call get_locale_names(names)
+        allocate (items(size(names)))
+
+        do i = 1, size(names)
+            items(i) = make_string(trim(names(i)))
+        end do
+
+        call completing_read("Set environment for locale: ", completion_list_table(make_list(items)), name, status)
+        if (.not. status%ok()) return
+        call set_locale_environment(name, status)
+    end subroutine cmd_set_locale_environment
 end module mule_fm

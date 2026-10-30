@@ -53,8 +53,9 @@ module test_coding_fm
     use mule_fm, only: find_auto_coding, set_buffer_file_coding_system, prefer_coding_system, describe_coding_system, &
                        set_buffer_process_coding_system, set_terminal_coding_system, set_keyboard_coding_system
     use mule_fm, only: get_language_info, set_language_environment, describe_language_environment, language_info_type, &
-                       current_language_environment, default_input_method
-    use coding_fm, only: terminal_coding_system, keyboard_coding_system
+                       current_language_environment, default_input_method, set_locale_environment, locale_name_match, &
+                       locale_language_names, locale_charset_to_coding_system
+    use coding_fm, only: terminal_coding_system, keyboard_coding_system, eol_mnemonic_dos, eol_mnemonic_mac
     use term_fm, only: encode_terminal_code
     use dispextern_fm, only: glyph_type
     use lisp_fm, only: value_type, xfixnum
@@ -95,7 +96,8 @@ contains
                     new_unittest("shift-jis-big5", test_sjis_big5), &
                     new_unittest("iso-2022", test_iso_2022), &
                     new_unittest("emacs-mule", test_emacs_mule), &
-                    new_unittest("language-environments", test_language_environments) &
+                    new_unittest("language-environments", test_language_environments), &
+                    new_unittest("set-locale-environment", test_set_locale_environment) &
                     ]
     end subroutine collect_coding_fm
 
@@ -720,7 +722,9 @@ contains
         call check(error, text == "one"//LF//"two"//LF .and. buffer_file_coding_system%value == "undecided-dos", &
                    buffer_file_coding_system%value)
         if (allocated(error)) return
-        call check(error, mode_line_mule_info(cur, .false.), "UU-\")
+        ! As startup.el:command-line sets it on GNU/Linux.
+        eol_mnemonic_dos = "(DOS)"
+        call check(error, mode_line_mule_info(cur, .false.), "UU-(DOS)")
         if (allocated(error)) return
         call goto_char(point_max())
         call insert("thrée"//LF, st)
@@ -780,7 +784,8 @@ contains
         if (allocated(error)) return
         call buffer_file_coding_system%set_local("raw-text-mac")
         buffers(cur)%multibyte = .false.
-        call check(error, mode_line_mule_info(cur, .false.), "UU /")
+        eol_mnemonic_mac = "(Mac)"
+        call check(error, mode_line_mule_info(cur, .false.), "UU (Mac)")
         call kill_buffer(buf, st)
     end subroutine test_mode_line
 
@@ -1220,4 +1225,65 @@ contains
         call restore_priority(saved)
         call set_charset_priority(charsets, st)
     end subroutine test_language_environments
+    !> set-locale-environment, as in Emacs: the language environment, the
+    !> preferred, locale, terminal and keyboard coding systems for locales
+    !> naming a language and a codeset, and the codeset names it knows.
+    subroutine test_set_locale_environment(error)
+        use charset_fm, only: charset_priority_list, set_charset_priority, CHARSET_NAME_LEN, current_iso639_language
+        use coding_fm, only: locale_coding_system
+        type(error_type), allocatable, intent(out) :: error
+        type(coding_system_list_entry_type), allocatable :: saved(:), names(:)
+        character(len=CHARSET_NAME_LEN), allocatable :: charsets(:)
+        character(len=:), allocatable :: old_env, old_method, old_locale_coding
+        type(status_type) :: st
+        integer :: k
+
+        k = locale_name_match("de_de.utf-8", locale_language_names)
+        call check(error, trim(locale_language_names(k)%language), "German")
+        if (allocated(error)) return
+        call check(error, locale_charset_to_coding_system("ISO8859-2"), "iso-latin-2")
+        if (allocated(error)) return
+        call check(error, locale_charset_to_coding_system("eucJP"), "japanese-iso-8bit")
+        if (allocated(error)) return
+        call save_priority(saved)
+        charsets = charset_priority_list()
+        old_env = current_language_environment%value
+        old_method = default_input_method%value
+        old_locale_coding = locale_coding_system%value
+        call set_locale_environment("de_DE.ISO-8859-1", st, inhibit_refresh=.true.)
+        call check(error, st%ok(), format_error(st))
+
+        if (.not. allocated(error)) then
+            call coding_system_priority_list(names)
+            call check(error, current_language_environment%value//" "//locale_coding_system%value//" "//names(1)%name &
+                       //" "//default_input_method%value//" "//buffer_file_coding_system%value//" " &
+                       //terminal_coding_system()//" "//keyboard_coding_system()//" "//current_iso639_language, &
+                       "German iso-latin-1-unix iso-latin-1 german-postfix iso-latin-1-unix iso-latin-1-unix " &
+                       //"iso-latin-1-unix de")
+        end if
+
+        if (.not. allocated(error)) then
+            call set_locale_environment("ja_JP.eucJP", st, inhibit_refresh=.true.)
+            call coding_system_priority_list(names)
+            call check(error, current_language_environment%value//" "//locale_coding_system%value//" "//names(1)%name &
+                       //" "//keyboard_coding_system(), &
+                       "Japanese japanese-iso-8bit-unix japanese-iso-8bit japanese-iso-8bit-unix")
+        end if
+
+        if (.not. allocated(error)) then
+            call set_locale_environment("ru_RU.KOI8-R", st, inhibit_refresh=.true.)
+            call check(error, current_language_environment%value//" "//locale_coding_system%value, &
+                       "Russian cyrillic-koi8-unix")
+        end if
+
+        call set_language_environment("English", st)
+        current_language_environment%value = old_env
+        default_input_method%value = old_method
+        locale_coding_system%value = old_locale_coding
+        call prefer_coding_system("utf-8-unix", st)
+        call restore_priority(saved)
+        call set_charset_priority(charsets, st)
+        call set_terminal_coding_system("utf-8-unix", st, inhibit_refresh=.true.)
+        call set_keyboard_coding_system("utf-8", st)
+    end subroutine test_set_locale_environment
 end module test_coding_fm

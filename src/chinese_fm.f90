@@ -50,7 +50,7 @@ contains
                                                   "locking-shift", "single-shift", "init-at-bol"], &
                                      charsets=[character(len=CHARSET_NAME_LEN) :: "ascii", "chinese-gb2312", "chinese-cns11643-1", &
                                                      "chinese-cns11643-2"], &
-                                           mime_charset="iso-2022-cn")
+                                           mime_charset="iso-2022-cn", suitable_for_keyboard=.true.)
         call define_coding_system_alias("chinese-iso-7bit", "iso-2022-cn")
         call define_iso_2022_coding_system("iso-2022-cn-ext", iachar("C"), &
                                            doc="ISO 2022 based 7bit encoding for Chinese GB and CNS (MIME:IS" &
@@ -66,7 +66,7 @@ contains
                                      charsets=[character(len=CHARSET_NAME_LEN) :: "ascii", "chinese-gb2312", "chinese-cns11643-1", &
                                            "chinese-cns11643-2", "chinese-cns11643-3", "chinese-cns11643-4", "chinese-cns11643-5", &
                                                      "chinese-cns11643-6", "chinese-cns11643-7"], &
-                                           mime_charset="iso-2022-cn-ext")
+                                           mime_charset="iso-2022-cn-ext", suitable_for_keyboard=.true.)
         call define_iso_2022_coding_system("chinese-iso-8bit", iachar("c"), &
                                            doc="ISO 2022 based EUC encoding for Chinese GB2312 (MIME:GB2312)" &
                                            //".", &

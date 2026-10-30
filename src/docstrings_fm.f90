@@ -571,7 +571,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1435) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1436) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -937,26 +937,27 @@ module docstrings_fm
                                                      "set_charset_priority", "set_coding_system_priority", "set_command_disabled", &
                                                     "set_default_coding_systems", "set_error", "set_file_modes", "set_file_times", &
                                                                "set_fill_column", "set_fill_prefix", "set_keyboard_coding_system", &
-                                             "set_language_environment", "set_local_abbrev_table", "set_mark", "set_mark_command", &
-                                                              "set_match_data", "set_process_buffer", "set_process_coding_system", &
-                                                   "set_process_filter", "set_process_query_on_exit_flag", "set_process_sentinel", &
-                                               "set_register", "set_repeat_map", "set_syntax_table", "set_terminal_coding_system", &
-                                                         "set_variable", "sgml_close_tag", "sgml_delete_tag", "sgml_guess_indent", &
-                                                    "sgml_indent_line", "sgml_maybe_end_tag", "sgml_maybe_name_self", "sgml_mode", &
-                                                    "sgml_name_8bit_mode", "sgml_name_char", "sgml_name_self", "sgml_namify_char", &
-                                             "sgml_pretty_print", "sgml_quote", "sgml_skip_tag_backward", "sgml_skip_tag_forward", &
-                                                  "sgml_slash", "sgml_slash_matching", "sgml_validate", "sh_add", "sh_assignment", &
-                                         "sh_backslash_region", "sh_base_mode", "sh_basic_indent_line", "sh_beginning_of_command", &
-                                         "sh_cd_here", "sh_electric_here_document_mode", "sh_end_of_command", "sh_execute_region", &
-                                                                "sh_load_style", "sh_make_vars_local", "sh_mode", "sh_name_style", &
-                                                              "sh_reset_indent_vars_to_global_values", "sh_save_styles_to_buffer", &
-                                                      "sh_send_line_or_region_and_step", "sh_set_shell", "sh_show_shell", "shell", &
-                                                                  "shell_backward_command", "shell_command", "shell_command_mode", &
-                                               "shell_command_on_region", "shell_dirtrack_mode", "shell_dynamic_complete_command", &
-                                             "shell_dynamic_complete_environment_variable", "shell_forward_command", "shell_mode", &
-                                             "shell_narrow_to_prompt", "shell_replace_by_expanded_directory", "shell_script_mode", &
-                                                   "show_paren__default", "show_paren_default_predicate", "show_paren_local_mode", &
-                                           "show_paren_mode", "skip_chars_backward", "skip_chars_forward", "skip_syntax_backward", &
+                                                   "set_language_environment", "set_local_abbrev_table", "set_locale_environment", &
+                                                           "set_mark", "set_mark_command", "set_match_data", "set_process_buffer", &
+                                              "set_process_coding_system", "set_process_filter", "set_process_query_on_exit_flag", &
+                                                     "set_process_sentinel", "set_register", "set_repeat_map", "set_syntax_table", &
+                                                "set_terminal_coding_system", "set_variable", "sgml_close_tag", "sgml_delete_tag", &
+                                            "sgml_guess_indent", "sgml_indent_line", "sgml_maybe_end_tag", "sgml_maybe_name_self", &
+                                                           "sgml_mode", "sgml_name_8bit_mode", "sgml_name_char", "sgml_name_self", &
+                                                  "sgml_namify_char", "sgml_pretty_print", "sgml_quote", "sgml_skip_tag_backward", &
+                                          "sgml_skip_tag_forward", "sgml_slash", "sgml_slash_matching", "sgml_validate", "sh_add", &
+                                                   "sh_assignment", "sh_backslash_region", "sh_base_mode", "sh_basic_indent_line", &
+                                                        "sh_beginning_of_command", "sh_cd_here", "sh_electric_here_document_mode", &
+                                                  "sh_end_of_command", "sh_execute_region", "sh_load_style", "sh_make_vars_local", &
+                                                              "sh_mode", "sh_name_style", "sh_reset_indent_vars_to_global_values", &
+                                                    "sh_save_styles_to_buffer", "sh_send_line_or_region_and_step", "sh_set_shell", &
+                                                              "sh_show_shell", "shell", "shell_backward_command", "shell_command", &
+                                                           "shell_command_mode", "shell_command_on_region", "shell_dirtrack_mode", &
+                                                  "shell_dynamic_complete_command", "shell_dynamic_complete_environment_variable", &
+                                                                  "shell_forward_command", "shell_mode", "shell_narrow_to_prompt", &
+                                                "shell_replace_by_expanded_directory", "shell_script_mode", "show_paren__default", &
+                                                       "show_paren_default_predicate", "show_paren_local_mode", "show_paren_mode", &
+                                                              "skip_chars_backward", "skip_chars_forward", "skip_syntax_backward", &
                                                   "skip_syntax_forward", "smie__next_indent_change", "smie_backward_sexp_command", &
                                                "smie_close_block", "smie_down_list", "smie_forward_sexp_command", "spaces_string", &
                                          "special_mode", "split_char", "split_window", "split_window_below", "split_window_right", &
@@ -12048,6 +12049,36 @@ contains
             entry%fortran = "call set_local_abbrev_table(table)"
             entry%doc = "Make TABLE the local abbrev table of the current buffer, as"//LF// &
                         "`(setq local-abbrev-table TABLE)'."
+        case ("set_locale_environment")
+            entry%file = "mule_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Set up multilingual environment for using LOCALE_NAME."//LF// &
+                        "This sets the language environment, the coding system priority,"//LF// &
+                        "the default input method and sometimes other things."//LF// &
+                        ""//LF// &
+                        "LOCALE_NAME should be a string which is the name of a locale supported"//LF// &
+                        "by the system.  Often it is of the form xx_XX.CODE, where xx is a"//LF// &
+                        "language, XX is a country, and CODE specifies a character set and"//LF// &
+                        "coding system.  For example, the locale name ""ja_JP.EUC"" might name"//LF// &
+                        "a locale for Japanese in Japan using the `japanese-iso-8bit'"//LF// &
+                        "coding-system.  The name may also have a modifier suffix, e.g. `@euro'"//LF// &
+                        "or `@cyrillic'."//LF// &
+                        ""//LF// &
+                        "If LOCALE_NAME is """", its value is taken from the environment"//LF// &
+                        "variables LC_ALL, LC_CTYPE and LANG (the first one that is set)."//LF// &
+                        ""//LF// &
+                        "The locale names supported by your system can typically be found in a"//LF// &
+                        "directory named `/usr/share/locale' or `/usr/lib/locale'.  LOCALE_NAME"//LF// &
+                        "will be translated according to the table specified by"//LF// &
+                        "`locale_translation_file_name'."//LF// &
+                        ""//LF// &
+                        "This function sets the `current_locale_environment' variable."//LF// &
+                        ""//LF// &
+                        "By default, this function will redraw the current frame.  If"//LF// &
+                        "INHIBIT_REFRESH is true, this isn't done."//LF// &
+                        ""//LF// &
+                        "See also `locale_charset_language_names', `locale_language_names',"//LF// &
+                        "`locale_preferred_coding_systems' and `locale_coding_system'."
         case ("set_mark")
             entry%file = "simple_fm.f90"
             entry%fortran = "call set_mark(pos)"
