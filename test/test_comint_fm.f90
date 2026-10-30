@@ -1,5 +1,7 @@
 ! test_comint_fm.f90 -- tests for comint_fm.
+! Ports GNU Emacs 31.1 test/lisp/comint-tests.el.
 !
+! Copyright (C) 2010-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
 !
 ! This file is part of Fortmacs.
@@ -17,9 +19,9 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Own tests: upstream's comint-tests.el tests password prompts, which
-!> are not ported.  The processes are `cat' and `sleep' over pipes; the
-!> waits are bounded by a wall-clock limit, not fixed delays.
+!> Ports the four password-prompt tests of comint-tests.el; own tests of
+!> the rest.  The processes are `cat' and `sleep' over pipes; the waits
+!> are bounded by a wall-clock limit, not fixed delays.
 module test_comint_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
@@ -51,6 +53,7 @@ module test_comint_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_comint_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

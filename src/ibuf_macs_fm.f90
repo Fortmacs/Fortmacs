@@ -105,14 +105,15 @@ module ibuf_macs_fm
             type(ibuffer_cell_type) :: cell
         end function ibuffer_column_proc
 
-        !> A column's SUMMARIZER: the text to display at the bottom of the
-        !> column, from the column's CELLS.
-        function ibuffer_summarizer_proc(cells) result(text)
+        !> A column's SUMMARIZER: the TEXT to display at the bottom of the
+        !> column, from the column's CELLS (a subroutine: gfortran frees a
+        !> pointer component to a function with a deferred-length result).
+        subroutine ibuffer_summarizer_proc(cells, text)
             import :: ibuffer_cell_type
             implicit none(type, external)
             type(ibuffer_cell_type), intent(in) :: cells(:)
-            character(len=:), allocatable :: text
-        end function ibuffer_summarizer_proc
+            character(len=:), allocatable, intent(out) :: text
+        end subroutine ibuffer_summarizer_proc
 
         !> A sorting method: whether buffer A is "less than" buffer B
         !> (`define-ibuffer-sorter').

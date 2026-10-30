@@ -128,6 +128,8 @@ module buffer_fm
         procedure :: clear => header_line_clear
     end type header_line_format_type
 
+    !> A buffer: its text, positions, mark and undo list, file, local
+    !> variables and modes.  Port of buffer.h struct buffer (in part).
     type, public :: buffer_type
         character(len=:), allocatable :: name, last_name
         type(buffer_text_type) :: text
@@ -590,6 +592,7 @@ contains
         character(len=24) :: num
         integer(int64) :: count
         real :: r
+        logical :: hidden
 
         if (present(ignore)) then
             if (same(name, ignore)) then
@@ -603,7 +606,10 @@ contains
             return
         end if
 
-        if (len(name) == 0 .or. name(1:1) /= " ") then
+        hidden = .false.
+        if (len(name) > 0) hidden = name(1:1) == " "
+
+        if (.not. hidden) then
             genbase = name
         else
             ! Hidden buffers get a random suffix first, to find a free name fast.

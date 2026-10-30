@@ -318,6 +318,8 @@ module keyboard_fm
     !> takes the output (runs filters and sentinels), as
     !> process.c:wait_reading_process_output does.  Set by process_fm.
     integer(int32), public :: process_wake_fd = -1
+    !> What the command loop calls when `process_wake_fd' is ready: it takes
+    !> the subprocess output.  Set by process_fm.
     procedure(redisplay_proc), pointer, public :: process_output_hook => null()
 
     !> macros.c:Vexecuting_kbd_macro: `macro_events' are the events of

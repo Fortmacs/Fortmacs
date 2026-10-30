@@ -55,6 +55,8 @@ module terminfo_fm
     public :: tparm, tparam, tgoto, delete_padding
     public :: BOOLCOUNT, NUMCOUNT, STRCOUNT
 
+    !> The numbers of boolean, numeric and string capabilities of a terminfo
+    !> entry (ncurses's BOOLCOUNT, NUMCOUNT and STRCOUNT).
     integer, parameter :: BOOLCOUNT = 44, NUMCOUNT = 39, STRCOUNT = 414
 
     !> Magic numbers of compiled entries: 16-bit and 32-bit numbers.

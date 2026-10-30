@@ -1,5 +1,7 @@
 ! test_elec_pair_fm.f90 -- tests for Electric Pair mode (elec_pair_fm).
-! Includes cases ported from GNU Emacs 31.1 test/lisp/electric-tests.el.
+! Ports GNU Emacs 31.1 test/lisp/electric-tests.el in part; its cases
+! run in Fundamental mode only, as ruby-mode, js-mode, python-mode and
+! c-mode are not ported.
 !
 ! Copyright (C) 2013-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -76,6 +78,7 @@ module test_elec_pair_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_elec_pair_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

@@ -1,4 +1,5 @@
 ! test_info_look_fm.f90 -- tests for info_look_fm.
+! Own tests; upstream has no info-look tests.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !

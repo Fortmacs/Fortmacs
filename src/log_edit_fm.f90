@@ -1825,7 +1825,7 @@ contains
             mail = user_mail_address_value()
         end if
 
-        time = add_log_time_format()
+        call add_log_time_format(time)
 
         if (.not. changelog_use_first) then
             ours = looking_at(regexp_quote(time//"  "//name//"  <"//mail//">"), st)

@@ -156,10 +156,13 @@ module fileio_fm
     procedure(select_safe_coding_system_proc), pointer, public :: select_safe_coding_system_function => null()
 
     !> What `rename_file' calls (through Lisp upstream) to move a
-    !> directory, or delete a file or a directory, across file systems;
-    !> set by files_fm.
+    !> directory across file systems; set by files_fm.
     procedure(copy_directory_proc), pointer :: copy_directory_hook => null()
+    !> What `rename_file' calls to delete a directory it moved across file
+    !> systems; set by files_fm.
     procedure(file_operation_proc), pointer :: delete_directory_hook => null()
+    !> What `rename_file' calls to delete a file it moved across file systems;
+    !> set by files_fm.
     procedure(file_operation_proc), pointer :: delete_file_hook => null()
 
     !> fileio.c's realmask: the file mode creation mask (-1 until read).

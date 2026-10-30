@@ -1155,6 +1155,7 @@ contains
         if (window_live_p) window_live_p = windows(h%index)%child%index == 0 .and. .not. windows(h%index)%dead
     end function window_live_p
 
+    !> Whether handles A and B name the same window.  Not a port.
     pure logical function same_window(a, b)
         type(handle_type), intent(in) :: a, b
 

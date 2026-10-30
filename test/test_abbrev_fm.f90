@@ -1,5 +1,8 @@
 ! test_abbrev_fm.f90 -- tests for abbrev_fm.
-! Ports test/lisp/abbrev-tests.el where the ported functionality allows.
+! Ports GNU Emacs 31.1 test/lisp/abbrev-tests.el in part;
+! abbrev-table-p, abbrev-table-get/put and reading abbrev files do not
+! apply to typed tables, and edit-abbrevs-redefine and define-abbrevs
+! are not ported.
 !
 ! Copyright (C) 2015-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -76,6 +79,7 @@ module test_abbrev_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_abbrev_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

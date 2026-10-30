@@ -3366,6 +3366,7 @@ contains
         use lisp_fm, only: make_fixnum
         type(status_type), intent(out) :: status
         type(handle_type) :: map
+        type(value_type) :: key(1)
         type(status_type) :: st
 
         call barf_if_buffer_read_only(status)
@@ -3376,8 +3377,10 @@ contains
         if (associated(abbrev_mode)) then
             if (abbrev_mode%value) then
                 call make_sparse_keymap(map)
-                call define_key(map, [make_fixnum(int(iachar("?"), int64))], sym("f90_abbrev_help"), st)
-                call define_key(map, [make_fixnum(HELP_CHAR)], sym("f90_abbrev_help"), st)
+                key(1) = make_fixnum(int(iachar("?"), int64))
+                call define_key(map, key, sym("f90_abbrev_help"), st)
+                key(1) = make_fixnum(HELP_CHAR)
+                call define_key(map, key, sym("f90_abbrev_help"), st)
                 call set_transient_map(map)
             end if
         end if

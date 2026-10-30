@@ -1,6 +1,7 @@
 ! test_bindings_fm.f90 -- tests for bindings_fm, simple_fm and the
-! command side of cmds_fm: typing into a buffer through the command loop.
-! Own tests: simple-tests.el's newline/open-line cases need margins,
+! command side of cmds_fm: typing into a buffer through the command
+! loop.
+! Own tests; simple-tests.el's newline and open-line cases need margins,
 ! fill prefixes and undo.
 !
 ! Copyright (C) 2026 The Fortmacs authors
@@ -47,6 +48,7 @@ module test_bindings_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_bindings_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

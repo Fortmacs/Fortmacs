@@ -125,10 +125,11 @@ module minibuffer_fm
     end type string_box
 
     !> The completion table of the active minibuffer (minibuffer.el
-    !> minibuffer-completion-table), its predicate (null for none) and
-    !> minibuffer-completion-confirm (a REQUIRE_MATCH_ value).
+    !> minibuffer-completion-table).
     type(completion_table_type), public :: minibuffer_completion_table
+    !> The predicate of `minibuffer_completion_table' (null for none).
     procedure(completion_predicate), pointer, public :: minibuffer_completion_predicate => null()
+    !> minibuffer.el minibuffer-completion-confirm (a REQUIRE_MATCH_ value).
     integer, public :: minibuffer_completion_confirm = REQUIRE_MATCH_NIL
 
     !> Whether the minibuffer is completing a file name.  Port of

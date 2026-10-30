@@ -166,15 +166,24 @@ module isearch_fm
     !> Keymap for `isearch_mode'.  Port of isearch.el isearch-mode-map.
     type(handle_type), public, protected :: isearch_mode_map
 
-    !> The search state, as isearch.el's global variables.  Strings are
-    !> UTF-8; an unallocated `isearch_error' is nil; position 0 is nil.
+    !> The search string and the message shown for it (isearch.el's
+    !> isearch-string and isearch-message), in UTF-8.
     character(len=:), allocatable, public, protected :: isearch_string, isearch_message
+    !> Why the search string fails (isearch-error; unallocated for nil).
     character(len=:), allocatable, public, protected :: isearch_error
+    !> Searching forward (isearch-forward), and whether the search succeeds
+    !> (isearch-success).
     logical, public, protected :: isearch_forward = .true., isearch_success = .true.
+    !> Whether the search wrapped (isearch-wrapped).
     logical, public, protected :: isearch_wrapped = .false.
     !> Searching for a regexp (isearch-regexp).
     logical, public, protected :: isearch_regexp = .false.
+    !> The other end of the match, where the search started and the
+    !> barrier (isearch-other-end, isearch-opoint, isearch-barrier; 0 for
+    !> nil).
     integer(int64), public, protected :: isearch_other_end = 0, isearch_opoint = 0, isearch_barrier = 0
+    !> Whether the search ignores case (isearch-case-fold-search; a CASE_FOLD_
+    !> value).
     integer, public, protected :: isearch_case_fold_search = CASE_FOLD_T
     integer :: isearch_last_case_fold_search = CASE_FOLD_T
     !> isearch-adjusted: nil, t (shows "pending"), or a toggle.

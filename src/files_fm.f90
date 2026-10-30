@@ -2356,6 +2356,9 @@ contains
         call kill_buffer_hook%run(st)
     end subroutine run_kill_hook
 
+    !> Set up files.el's variables and commands, and bind its keys in
+    !> CTL_X_MAP and CTL_X_4_MAP.  Not a port: upstream defines them where
+    !> files.el is loaded.
     subroutine syms_of_files(ctl_x_map, ctl_x_4_map)
         type(handle_type), intent(in) :: ctl_x_map
         type(handle_type), intent(in), optional :: ctl_x_4_map
