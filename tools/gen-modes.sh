@@ -114,4 +114,5 @@ EOF
 if command -v fprettify >/dev/null 2>&1; then
     fprettify --config-file .fprettify.rc "$tmp.f90" 2>/dev/null
 fi
+awk -f tools/blank-lines.awk "$tmp.f90" >"$tmp.bl" && mv "$tmp.bl" "$tmp.f90"
 mv "$tmp.f90" "$out"
