@@ -1,5 +1,5 @@
 ! test_repeat_fm.f90 -- tests for repeat_fm.
-! Ported from GNU Emacs 31.1 test/lisp/repeat-tests.el.
+! Ports GNU Emacs 31.1 test/lisp/repeat-tests.el.
 !
 ! Copyright (C) 2021-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -50,6 +50,7 @@ module test_repeat_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_repeat_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

@@ -55,7 +55,7 @@ module minibuf_table_fm
 
     abstract interface
         !> A completion predicate: whether the element `elt' (the list
-        !> element or the symbol) is an acceptable completion.
+        !> element or the symbol) is an acceptable completion.  Not a port.
         logical function completion_predicate(elt)
             import :: value_type
             implicit none(type, external)
@@ -66,7 +66,7 @@ module minibuf_table_fm
         !> STRING: COMPLETE_TRY (the `try_completion' value: nil, t or a
         !> string), COMPLETE_ALL (a list of strings), COMPLETE_TEST (t or
         !> nil) or COMPLETE_BOUNDARIES (a list (START END) for STRING and
-        !> SUFFIX, or nil for the default).
+        !> SUFFIX, or nil for the default).  Not a port.
         recursive subroutine completion_function(string, action, result, status, pred, suffix)
             import :: value_type, status_type, completion_predicate
             implicit none(type, external)
@@ -174,7 +174,7 @@ contains
 
     !> A completion table holding the list `list' (strings, symbols, or
     !> lists whose first element is the completion), in completion
-    !> category `category'.
+    !> category `category'.  Not a port.
     function completion_list_table(list, category) result(table)
         type(value_type), intent(in) :: list
         character(len=*), intent(in), optional :: category
@@ -210,7 +210,7 @@ contains
     end function completion_table_with_quoting
 
     !> A completion table holding the names of all interned symbols, in
-    !> completion category `category'.
+    !> completion category `category'.  Not a port.
     function completion_obarray_table(category) result(table)
         character(len=*), intent(in), optional :: category
         type(completion_table_type) :: table
@@ -220,7 +220,7 @@ contains
     end function completion_obarray_table
 
     !> A completion table computed by `fn' (programmed completion), in
-    !> completion category `category' (the table's metadata).
+    !> completion category `category' (the table's metadata).  Not a port.
     function completion_function_table(fn, category) result(table)
         procedure(completion_function) :: fn
         character(len=*), intent(in), optional :: category

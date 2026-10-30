@@ -266,7 +266,7 @@ contains
         call bind(help_map, "C", "describe_coding_system")
     end subroutine syms_of_mule
 
-    !> MAP as a keymap value, for binding it as a prefix.
+    !> MAP as a keymap value, for binding it as a prefix.  Not a port.
     function keymap_value(map) result(v)
         use lisp_fm, only: make_keymap_ref
         type(handle_type), intent(in) :: map
@@ -275,6 +275,8 @@ contains
         v = make_keymap_ref(map)
     end function keymap_value
 
+    ! Bind KEYS (in `kbd' form) to the command named CMD in MAP.
+    ! Not a port.
     subroutine bind(map, keys, cmd)
         type(handle_type), intent(in) :: map
         character(len=*), intent(in) :: keys, cmd
@@ -462,6 +464,7 @@ contains
     end function auto_mode_region
 
     !> The coding system the `coding:' tag of -*- spec SPEC names, or "".
+    !> Port of mule.el:find-auto-coding, in part.
     function coding_tag(spec) result(coding)
         character(len=*), intent(in) :: spec
         character(len=:), allocatable :: coding
@@ -485,7 +488,7 @@ contains
     !> The coding system the local variables list in TAIL (the last 3K
     !> bytes) names, or "".  Here we must pay attention to the case that
     !> the end-of-line is just "\r" and we can't use "^" nor "$" in regexp.
-    !> Part of mule.el:find-auto-coding.
+    !> Port of mule.el:find-auto-coding, in part.
     function local_variables_coding(tail) result(coding)
         character(len=*), intent(in) :: tail
         character(len=:), allocatable :: coding, prefix, suffix, re_coding, re_end, rest
@@ -541,7 +544,7 @@ contains
         end do
     end function regexp_quote
 
-    !> S in lower case (ASCII).
+    !> S in lower case (ASCII).  Not a port.
     pure function lower(s) result(t)
         character(len=*), intent(in) :: s
         character(len=len(s)) :: t
@@ -574,7 +577,7 @@ contains
     end subroutine set_auto_coding
 
     !> The explicit coding systems of the current buffer (an entry is
-    !> made if MAKE).
+    !> made if MAKE).  Not a port.
     integer function explicit_index(make) result(k)
         logical, intent(in) :: make
         type(explicit_type), allocatable :: grown(:)
@@ -722,7 +725,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Every coding system name, as completion candidates
-    !> (Vcoding_system_alist).
+    !> (Vcoding_system_alist).  Not a port.
     function coding_system_alist() result(list)
         type(value_type) :: list
         type(coding_system_list_entry_type), allocatable :: names(:), aliases(:)
@@ -790,7 +793,7 @@ contains
         if (.not. status%ok()) coding = ""
     end subroutine read_coding_system
 
-    !> The prompt "PROMPT (default DEFAULT): ", or "PROMPT: ".
+    !> The prompt "PROMPT (default DEFAULT): ", or "PROMPT: ".  Not a port.
     function format_prompt(prompt, default) result(full)
         character(len=*), intent(in) :: prompt, default
         character(len=:), allocatable :: full
@@ -800,14 +803,14 @@ contains
         full = full//": "
     end function format_prompt
 
-    !> The whole text of the current buffer.
+    !> The whole text of the current buffer.  Not a port.
     function buffer_text() result(text)
         character(len=:), allocatable :: text
 
         text = buf_bytes(buffers(cur), BEG_BYTE, buffers(cur)%text%z_byte)
     end function buffer_text
 
-    !> Whether NAME is in NAMES.
+    !> Whether NAME is in NAMES.  Not a port.
     logical function member(name, names)
         character(len=*), intent(in) :: name
         type(coding_system_list_entry_type), intent(in) :: names(:)
@@ -1002,7 +1005,8 @@ contains
 
     ! The command run in place of CMD: CMD with `coding_system_for_read'
     ! and `coding_system_for_write' bound to the coding system (the
-    ! lambda of mule-cmds--prefixed-command-pch).
+    ! lambda of mule-cmds--prefixed-command-pch).  Port of
+    ! international/mule-cmds.el:mule-cmds--prefixed-command-pch, in part.
     recursive subroutine prefixed_command(cmd, status)
         type(value_type), intent(in) :: cmd
         type(status_type), intent(out) :: status
@@ -1617,7 +1621,7 @@ contains
         end subroutine merge_auto_cs
     end subroutine select_safe_coding_system
 
-    !> Ask "Really proceed with writing? ".
+    !> Ask "Really proceed with writing? ".  Not a port.
     subroutine yes_or_no(ok, status)
         logical, intent(out) :: ok
         type(status_type), intent(out) :: status
@@ -1625,6 +1629,7 @@ contains
         call yes_or_no_prompt("Really proceed with writing? ", ok, status)
     end subroutine yes_or_no
 
+    ! Ask PROMPT, to be answered yes or no.  Not a port.
     subroutine yes_or_no_prompt(prompt, ok, status)
         use fns_fm, only: yes_or_no_p
         character(len=*), intent(in) :: prompt
@@ -1634,7 +1639,7 @@ contains
         call yes_or_no_p(prompt, ok, status)
     end subroutine yes_or_no_prompt
 
-    !> The text between FROM and TO of the current buffer.
+    !> The text between FROM and TO of the current buffer.  Not a port.
     function region_text(from, to) result(text)
         use marker_fm, only: char_to_byte
         integer(int64), intent(in) :: from, to
@@ -1643,6 +1648,7 @@ contains
         text = buf_bytes(buffers(cur), char_to_byte(from), char_to_byte(to))
     end function region_text
 
+    ! Append the coding system NAME to LIST (N used).  Not a port.
     subroutine append(list, n, name)
         type(coding_system_list_entry_type), allocatable, intent(inout) :: list(:)
         integer, intent(inout) :: n
@@ -1656,7 +1662,7 @@ contains
         n = n + 1
     end subroutine append
 
-    !> Whether a coding system in LIST has base BASE (rassq).
+    !> Whether a coding system in LIST has base BASE (rassq).  Not a port.
     logical function has_base(list, base)
         type(coding_system_list_entry_type), intent(in) :: list(:)
         character(len=*), intent(in) :: base
@@ -1669,7 +1675,7 @@ contains
         end do
     end function has_base
 
-    !> Move NAME to the front of LIST.
+    !> Move NAME to the front of LIST.  Not a port.
     subroutine to_front(list, name)
         type(coding_system_list_entry_type), intent(inout) :: list(:)
         character(len=*), intent(in) :: name
@@ -1692,8 +1698,8 @@ contains
     !> CODINGS is the list of base coding systems known to be safe for this region,
     !>   typically obtained with `find_coding_systems_region'.
     !> UNSAFE is a list of coding systems known to be unsafe for this region.
-    !> DEFAULT is the coding system to use by default in the query.  Port
-    !> of mule-cmds.el:select-safe-coding-system-interactively (no
+    !> DEFAULT is the coding system to use by default in the query.
+    !> Port of mule-cmds.el:select-safe-coding-system-interactively (no
     !> REJECTED coding systems; the problematic characters are not
     !> buttons).
     recursive subroutine select_safe_coding_system_interactively(from, to, codings, unsafe, default, coding, status)
@@ -1794,6 +1800,7 @@ contains
 
     !> The coding system names of LINE, filled as fill-region-as-paragraph
     !> fills them with a fill prefix of two spaces (at `fill_column' 70).
+    !> Not a port.
     function fill_list(line) result(filled)
         character(len=*), intent(in) :: line
         character(len=:), allocatable :: filled, word, current
@@ -1831,6 +1838,7 @@ contains
     end function fill_list
 
     !> Show TEXT in the "*Warning*" buffer (with-output-to-temp-buffer).
+    !> Not a port.
     subroutine show_warning(text, status)
         use buffer_fm, only: get_buffer_create
         use insdel_fm, only: insert
@@ -1852,6 +1860,7 @@ contains
         if (buffer_live_p(previous)) call set_buffer(previous, st)
     end subroutine show_warning
 
+    ! Kill the "*Warning*" buffer, if any.  Not a port.
     subroutine kill_warning()
         use buffer_fm, only: get_buffer, kill_buffer
         type(handle_type) :: buf
@@ -1861,6 +1870,7 @@ contains
         if (buffer_live_p(buf)) call kill_buffer(buf, st)
     end subroutine kill_warning
 
+    ! N as a decimal string.  Not a port.
     function itoa(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s

@@ -94,12 +94,14 @@ module recentf_fm
 
     abstract interface
         !> A predicate on a file name for `recentf_exclude' and `recentf_keep'.
+        !> Not a port.
         logical function recentf_predicate_proc(file)
             implicit none(type, external)
             character(len=*), intent(in) :: file
         end function recentf_predicate_proc
 
         !> A function of `recentf_filename_handlers': NAME transformed.
+        !> Not a port.
         subroutine recentf_filename_handler_proc(name, result, status)
             import :: status_type
             implicit none(type, external)
@@ -108,7 +110,7 @@ module recentf_fm
             type(status_type), intent(out) :: status
         end subroutine recentf_filename_handler_proc
 
-        !> `recentf_menu_action': open FILE.
+        !> `recentf_menu_action': open FILE.  Not a port.
         recursive subroutine recentf_action_proc(file, status)
             import :: status_type
             implicit none(type, external)
@@ -327,7 +329,7 @@ contains
         k = 0
     end function recentf_string_member
 
-    !> Remove element K of `recentf_list'.
+    !> Remove element K of `recentf_list'.  Not a port.
     subroutine delete_entry(k)
         integer, intent(in) :: k
         type(recentf_file_type), allocatable :: kept(:)
@@ -403,6 +405,7 @@ contains
     end function recentf_expand_file_name
 
     !> Whether FILENAME matches CHECK (a regexp, or a predicate).
+    !> Not a port.
     logical function check_matches(check, filename) result(matches)
         type(recentf_check_type), intent(in) :: check
         character(len=*), intent(in) :: filename
@@ -484,6 +487,7 @@ contains
     end subroutine recentf_remove_if_non_kept
 
     !> abbreviate-file-name as a `recentf_filename_handlers' element.
+    !> Not a port.
     subroutine abbreviate_file_name_handler(name, result, status)
         character(len=*), intent(in) :: name
         character(len=:), allocatable, intent(out) :: result
@@ -493,7 +497,7 @@ contains
         result = abbreviate_file_name(name)
     end subroutine abbreviate_file_name_handler
 
-    !> file-truename as a `recentf_filename_handlers' element.
+    !> file-truename as a `recentf_filename_handlers' element.  Not a port.
     subroutine file_truename_handler(name, result, status)
         character(len=*), intent(in) :: name
         character(len=:), allocatable, intent(out) :: result
@@ -676,6 +680,7 @@ contains
         if (recentf_save_file_modes >= 0) call set_file_modes(recentf_save_file, recentf_save_file_modes, st)
     end subroutine recentf_save_list
 
+    ! Not a port.
     recursive subroutine recentf_save_list_proc(status)
         type(status_type), intent(out) :: status
 
@@ -751,7 +756,7 @@ contains
         call recentf_load_list(status)
     end subroutine cmd_recentf_load_list
 
-    !> The text of FILE.
+    !> The text of FILE.  Not a port.
     recursive subroutine file_text(file, text, status)
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: text
@@ -816,6 +821,7 @@ contains
         end do
     end subroutine recentf_cleanup
 
+    ! Not a port.
     recursive subroutine recentf_cleanup_proc(status)
         type(status_type), intent(out) :: status
 
@@ -839,7 +845,8 @@ contains
         call minor_modes%recentf_mode%command(status)
     end subroutine recentf_mode
 
-    !> The body of Recentf mode.
+    !> The body of Recentf mode.  Port of recentf.el:recentf-mode (its
+    !> body).
     recursive subroutine recentf_mode_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
@@ -867,7 +874,7 @@ contains
         end if
     end subroutine recentf_mode_body
 
-    !> Define the mode, the commands and the options' defaults.
+    !> Define the mode, the commands and the options' defaults.  Not a port.
     subroutine syms_of_recentf()
         if (.not. allocated(recentf_save_file)) recentf_save_file = state_directory()//"recentf"
         if (.not. allocated(recentf_list)) allocate (recentf_list(0))

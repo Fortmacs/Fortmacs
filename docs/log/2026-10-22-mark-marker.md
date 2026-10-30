@@ -1,0 +1,1 @@
+2026-10-22 — Phase 5.2.1: the mark, the region and the kill ring (simple_fm; `mark-marker`, `region-beginning/end` in editfns_fm; Transient Mark mode with deactivation after changes and C-g; region highlighting; `mark-inactive`), on `phase5-killing` (based on main after PR #33). The following feature PRs are each based on main as it stands and may need main merged in. Next: undo.

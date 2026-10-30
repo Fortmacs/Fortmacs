@@ -1,0 +1,1 @@
+2026-10-21 — Guix CI fixed: the installer moved to guix.gnu.org/install.sh, pulls come from Codeberg, and the build shell gets nss-certs and git (curl and fpm need TLS). A run on the branch passed. On `ci-guix-main`.

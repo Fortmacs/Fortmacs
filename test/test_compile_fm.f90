@@ -1,5 +1,8 @@
 ! test_compile_fm.f90 -- tests for compile_fm.
+! Ports GNU Emacs 31.1 test/lisp/progmodes/compile-tests.el in part;
+! compile-test-grep-regexps is in test_grep_fm.
 !
+! Copyright (C) 2011-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
 !
 ! This file is part of Fortmacs.
@@ -56,6 +59,7 @@ module test_compile_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_compile_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

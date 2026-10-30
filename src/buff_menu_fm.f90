@@ -89,7 +89,7 @@ module buff_menu_fm
 
     abstract interface
         !> A `buffer_menu_name_width_function': the width of the name column
-        !> for the BUFFERS listed.
+        !> for the BUFFERS listed.  Not a port.
         integer function buffer_menu_name_width_proc(bufs)
             import :: handle_type
             implicit none(type, external)
@@ -97,6 +97,7 @@ module buff_menu_fm
         end function buffer_menu_name_width_proc
 
         !> A `Buffer-menu-filter-predicate': whether to list BUFFER.
+        !> Not a port.
         logical function buffer_menu_filter_proc(buffer)
             import :: handle_type
             implicit none(type, external)
@@ -104,6 +105,7 @@ module buff_menu_fm
         end function buffer_menu_filter_proc
 
         !> A `Buffer-menu-buffer-list' function: the buffers to list.
+        !> Not a port.
         subroutine buffer_menu_buffer_list_proc(bufs)
             import :: handle_type
             implicit none(type, external)
@@ -193,7 +195,7 @@ module buff_menu_fm
 contains
 
     ! The index of the current buffer's entry in `locals', made if MAKE
-    ! (0 if there is none).
+    ! (0 if there is none).  Not a port.
     integer function local_index(make) result(k)
         logical, intent(in) :: make
         type(local_type), allocatable :: grown(:)
@@ -229,7 +231,7 @@ contains
         k = n + 1
     end function local_index
 
-    ! The ID of buffer slot BI's entries: its serial number.
+    ! The ID of buffer slot BI's entries: its serial number.  Not a port.
     function buffer_id(bi) result(id)
         integer(int64), intent(in) :: bi
         character(len=:), allocatable :: id
@@ -240,6 +242,7 @@ contains
     end function buffer_id
 
     ! The live buffer an entry ID names (the null handle for none).
+    ! Not a port.
     function id_buffer(id) result(h)
         character(len=*), intent(in) :: id
         type(handle_type) :: h
@@ -259,7 +262,7 @@ contains
     end function id_buffer
 
     ! Whether the entry ID names a buffer, live or killed (non-nil
-    ! tabulated-list-get-id).
+    ! tabulated-list-get-id).  Not a port.
     logical function has_id(id)
         character(len=*), intent(in) :: id
 
@@ -339,6 +342,7 @@ contains
         call major_modes%buffer_menu_mode%finish(saved, status)
     end subroutine buffer_menu_mode
 
+    ! Not a port.
     recursive integer function stale_fast(noconfirm) result(stale)
         logical, intent(in) :: noconfirm
 
@@ -346,13 +350,14 @@ contains
         stale = BUFFER_STALE_FAST
     end function stale_fast
 
+    ! Not a port.
     recursive subroutine refresh_hook(status)
         type(status_type), intent(out) :: status
 
         call list_buffers_refresh(status)
     end subroutine refresh_hook
 
-    ! buffer-menu--display-help.
+    ! Port of buff-menu.el:buffer-menu--display-help.
     recursive subroutine display_help()
         call message(substitute_command_keys("Commands: " &
                                              //"\<buffer_menu_mode_map>" &
@@ -371,7 +376,7 @@ contains
                                              //"\[quit_window] to quit; \[describe_mode] for help"))
     end subroutine display_help
 
-    ! FILES-ONLY from the raw prefix argument (nil if not ARG).
+    ! FILES-ONLY from the raw prefix argument (nil if not ARG).  Not a port.
     logical function prefix_files_only() result(files_only)
         files_only = .not. nilp(current_prefix_arg)
         if (files_only) files_only = prefix_numeric_value(current_prefix_arg) >= 0
@@ -446,7 +451,7 @@ contains
         call display_buffer(buf, window, status)
     end subroutine list_buffers
 
-    ! Buffer-menu--selection-message.
+    ! Port of buff-menu.el:Buffer-menu--selection-message.
     subroutine selection_message()
         integer :: k
 
@@ -525,7 +530,7 @@ contains
         end if
     end function buffer_menu_buffer
 
-    ! Buffer-menu-beginning.
+    ! Port of buff-menu.el:Buffer-menu-beginning.
     subroutine buffer_menu_beginning()
         integer(int64) :: shortage
 
@@ -533,7 +538,7 @@ contains
         if (.not. buffer_menu_use_header_line) shortage = forward_line()
     end subroutine buffer_menu_beginning
 
-    ! (tabulated-list-set-col COL TEXT t).
+    ! (tabulated-list-set-col COL TEXT t).  Not a port.
     recursive subroutine set_col(col, text, status)
         integer, intent(in) :: col
         character(len=*), intent(in) :: text
@@ -690,7 +695,7 @@ contains
     end subroutine unmark
 
     ! (char-equal MARK (string-to-char TEXT)), case folding as
-    ! case-fold-search does.
+    ! case-fold-search does.  Not a port.
     logical function first_char_equal(mark, text) result(equal)
         use casefiddle_fm, only: downcase_char
         character, intent(in) :: mark
@@ -708,8 +713,8 @@ contains
     !> will delete it.
     !>
     !> If prefix argument ARG is true, it specifies the number of
-    !> buffers to delete; a negative ARG means to delete backwards.  Port
-    !> of buff-menu.el:Buffer-menu-delete.
+    !> buffers to delete; a negative ARG means to delete backwards.
+    !> Port of buff-menu.el:Buffer-menu-delete.
     recursive subroutine buffer_menu_delete(status, arg)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg
@@ -1084,8 +1089,8 @@ contains
     end subroutine buffer_menu_2_window
 
     !> Toggle read-only status of buffer on this line.
-    !> This behaves like invoking \[read_only_mode] in that buffer.  Port
-    !> of buff-menu.el:Buffer-menu-toggle-read-only.
+    !> This behaves like invoking \[read_only_mode] in that buffer.
+    !> Port of buff-menu.el:Buffer-menu-toggle-read-only.
     recursive subroutine buffer_menu_toggle_read_only(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buf, old
@@ -1361,6 +1366,7 @@ contains
     end subroutine list_buffers_refresh
 
     ! A sortable column NAME, WIDTH wide, PAD_RIGHT spaces after it.
+    ! Not a port.
     function column(name, width, pad_right) result(c)
         character(len=*), intent(in) :: name
         integer, intent(in) :: width, pad_right
@@ -1372,6 +1378,7 @@ contains
         c%pad_right = pad_right
     end function column
 
+    ! Not a port.
     logical function any_index(bufs, bi) result(found)
         type(handle_type), intent(in) :: bufs(:)
         integer(int64), intent(in) :: bi
@@ -1394,7 +1401,7 @@ contains
     end function tabulated_list_entry_size_greater
 
     ! string-to-number: the number at the start of TEXT (after spaces and
-    ! tabs; 0 if there is none).
+    ! tabs; 0 if there is none).  Not a port.
     real(real64) function string_to_number(text) result(x)
         character(len=*), intent(in) :: text
         integer :: k, e, ios
@@ -1422,7 +1429,8 @@ contains
         if (e > k .and. ios /= 0) x = 0
     end function string_to_number
 
-    ! Buffer-menu--pretty-file-name, in the current buffer.
+    ! Port of buff-menu.el:Buffer-menu--pretty-file-name, in the current
+    ! buffer.
     function pretty_file_name(file) result(text)
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: text
@@ -1441,7 +1449,7 @@ contains
     end function pretty_file_name
 
     ! Read a character in the echo area after PROMPT (read-char): C-g
-    ! quits, other non-characters are an error.
+    ! quits, other non-characters are an error.  Not a port.
     subroutine read_char(prompt, c, status)
         character(len=*), intent(in) :: prompt
         integer(int64), intent(out) :: c
@@ -1470,6 +1478,7 @@ contains
     end subroutine read_char
 
     !> Define Buffer Menu mode, its keymap and commands, and C-x C-b.
+    !> Not a port.
     subroutine syms_of_buff_menu()
         type(status_type) :: st
 

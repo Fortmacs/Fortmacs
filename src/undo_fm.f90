@@ -56,6 +56,7 @@ module undo_fm
     !> undo.c point_before_last_command_or_undo and
     !> buffer_before_last_command_or_undo.
     integer(int64), public :: point_before_last_command_or_undo = 0
+    !> The buffer of `point_before_last_command_or_undo' (its serial number).
     integer(int64), public :: buffer_before_last_command_or_undo = -1
 
     !> The maximum number of changes to possibly amalgamate when undoing
@@ -83,13 +84,13 @@ module undo_fm
 contains
 
     !> The kind of the newest entry of the current buffer's undo list, or
-    !> UE_BOUNDARY if it is empty.
+    !> UE_BOUNDARY if it is empty.  Not a port.
     integer function undo_last_kind() result(kind)
         kind = UE_BOUNDARY
         if (buffers(cur)%undo_count > 0) kind = buffers(cur)%undo_list(buffers(cur)%undo_count)%kind
     end function undo_last_kind
 
-    !> Push `entry' onto the current buffer's undo list.
+    !> Push `entry' onto the current buffer's undo list.  Not a port.
     subroutine push_undo_entry(entry)
         type(undo_entry_type), intent(in) :: entry
         type(undo_entry_type), allocatable :: grown(:)
@@ -243,7 +244,7 @@ contains
         if (.not. member(changed_buffers, h)) call add_handle(changed_buffers, h)
     end subroutine undo_auto_undoable_change
 
-    !> Whether `h' is in `list'.
+    !> Whether `h' is in `list'.  Not a port.
     logical function member(list, h)
         type(handle_type), allocatable, intent(in) :: list(:)
         type(handle_type), intent(in) :: h
@@ -257,6 +258,7 @@ contains
         end do
     end function member
 
+    ! Not a port.
     subroutine add_handle(list, h)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: h

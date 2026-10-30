@@ -109,7 +109,7 @@ module process_fm
 
     abstract interface
         !> A process filter: called with the process and each piece of its
-        !> output (decoded text).
+        !> output (decoded text).  Not a port.
         subroutine process_filter_proc(process, string, status)
             import :: handle_type, status_type
             implicit none(type, external)
@@ -119,7 +119,7 @@ module process_fm
         end subroutine process_filter_proc
 
         !> A process sentinel: called with the process and a string
-        !> describing the change of its state ("finished\n").
+        !> describing the change of its state ("finished\n").  Not a port.
         subroutine process_sentinel_proc(process, event, status)
             import :: handle_type, status_type
             implicit none(type, external)
@@ -207,7 +207,7 @@ contains
     ! The registry
     ! ------------------------------------------------------------------
 
-    !> Slot of process `proc', or an error for a freed one.
+    !> Slot of process `proc', or an error for a freed one.  Not a port.
     subroutine resolve(proc, i, status)
         type(handle_type), intent(in) :: proc
         integer(int64), intent(out) :: i
@@ -224,7 +224,7 @@ contains
         processp = table%is_live(object)
     end function processp
 
-    !> Make room for slot `n'.
+    !> Make room for slot `n'.  Not a port.
     subroutine grow(n)
         integer(int64), intent(in) :: n
         type(process_type), allocatable :: bigger(:)
@@ -244,6 +244,7 @@ contains
         end if
     end subroutine grow
 
+    ! Not a port.
     subroutine move_process(from, to)
         type(process_type), intent(inout) :: from
         type(process_type), intent(out) :: to
@@ -286,6 +287,7 @@ contains
         procs(i)%listed = .true.
     end subroutine new_process
 
+    ! Not a port.
     subroutine alist_push(h)
         type(handle_type), intent(in) :: h
         type(handle_type), allocatable :: bigger(:)
@@ -335,7 +337,7 @@ contains
 
     !> Free process `proc' (deleting it first if it is listed): the
     !> handle, and every copy of it, becomes invalid.  Ours: process
-    !> objects are not garbage collected.
+    !> objects are not garbage collected.  Not a port.
     subroutine free_process(proc, status)
         type(handle_type), intent(in) :: proc
         type(status_type), intent(out) :: status
@@ -389,6 +391,7 @@ contains
         msg = status_message_1(i)
     end function status_message
 
+    ! Port of process.c:status_message (for slot I).
     function status_message_1(i) result(msg)
         integer(int64), intent(in) :: i
         character(len=:), allocatable :: msg
@@ -739,8 +742,8 @@ contains
         end do
     end function get_buffer_process
 
-    !> Return an array of all processes that are Emacs sub-processes.  Port
-    !> of process.c:Fprocess_list.
+    !> Return an array of all processes that are Emacs sub-processes.
+    !> Port of process.c:Fprocess_list.
     function process_list() result(list)
         type(handle_type), allocatable :: list(:)
 
@@ -965,8 +968,8 @@ contains
     !> without a program (Deferred).  Remaining arguments ARGS are strings
     !> to give the program as arguments.
     !>
-    !> The process runs in `default_directory' of the current buffer.  Port
-    !> of subr.el:start-process.
+    !> The process runs in `default_directory' of the current buffer.
+    !> Port of subr.el:start-process.
     subroutine start_process(name, buffer, program, process, status, args)
         character(len=*), intent(in) :: name, program
         type(handle_type), intent(in) :: buffer
@@ -996,8 +999,8 @@ contains
     !> on new output, record exits, then report status changes
     !> (status_notify).  `got' is true if output (or, for `wait_proc' a
     !> process's change) arrived from `wait_proc' (any process if absent).
-    !> The part of process.c:wait_reading_process_output that reads
-    !> process output, with handle_child_signal's status recording.
+    !> Port of process.c:wait_reading_process_output, in part (the part that
+    !> reads process output, with handle_child_signal's status recording).
     recursive subroutine take_output(got, wait_proc)
         logical, intent(out) :: got
         integer(int64), intent(in), optional :: wait_proc
@@ -1041,12 +1044,14 @@ contains
         end do
     end subroutine take_output
 
+    ! Not a port.
     integer(int64) function next_tick()
         process_tick = process_tick + 1
         next_tick = process_tick
     end function next_tick
 
     !> The process whose output worker `w' reads (0 if none: deleted).
+    !> Not a port.
     integer(int64) function process_of_worker(w) result(i)
         integer(int32), intent(in) :: w
         integer :: k
@@ -1132,6 +1137,7 @@ contains
     end subroutine read_process_output
 
     !> The length of `s' without an incomplete UTF-8 sequence at its end.
+    !> Not a port.
     pure integer(int64) function complete_utf8_length(s) result(n)
         character(len=*), intent(in) :: s
         integer(int64) :: k
@@ -1346,7 +1352,7 @@ contains
     end subroutine internal_default_process_sentinel
 
     !> Take what the workers reported, for keyboard_fm while it waits for
-    !> input (and for tests).
+    !> input (and for tests).  Not a port.
     recursive subroutine dispatch_process_output()
         logical :: got
 
@@ -1477,6 +1483,7 @@ contains
         call emacs_kill_group(i, 9)
     end subroutine record_kill_process
 
+    ! Not a port.
     subroutine emacs_kill_group(i, sig)
         integer(int64), intent(in) :: i
         integer, intent(in) :: sig
@@ -1586,8 +1593,8 @@ contains
     end subroutine interrupt_process
 
     !> Kill process PROCESS.  May be process or name of one.
-    !> See function `interrupt_process' for more details on usage.  Port
-    !> of process.c:Fkill_process.
+    !> See function `interrupt_process' for more details on usage.
+    !> Port of process.c:Fkill_process.
     subroutine kill_process(status, process, current_group)
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: process
@@ -1599,8 +1606,8 @@ contains
     end subroutine kill_process
 
     !> Send QUIT signal to process PROCESS.  May be process or name of one.
-    !> See function `interrupt_process' for more details on usage.  Port
-    !> of process.c:Fquit_process.
+    !> See function `interrupt_process' for more details on usage.
+    !> Port of process.c:Fquit_process.
     subroutine quit_process(status, process, current_group)
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: process
@@ -1612,8 +1619,8 @@ contains
     end subroutine quit_process
 
     !> Stop process PROCESS.  May be process or name of one.
-    !> See function `interrupt_process' for more details on usage.  Port
-    !> of process.c:Fstop_process (a subprocess: network, serial and pipe
+    !> See function `interrupt_process' for more details on usage.
+    !> Port of process.c:Fstop_process (a subprocess: network, serial and pipe
     !> connections are not ported).
     subroutine stop_process(status, process, current_group)
         type(status_type), intent(out) :: status
@@ -1626,8 +1633,8 @@ contains
     end subroutine stop_process
 
     !> Continue process PROCESS.  May be process or name of one.
-    !> See function `interrupt_process' for more details on usage.  Port
-    !> of process.c:Fcontinue_process (a subprocess).
+    !> See function `interrupt_process' for more details on usage.
+    !> Port of process.c:Fcontinue_process (a subprocess).
     subroutine continue_process(status, process, current_group)
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: process
@@ -1714,7 +1721,7 @@ contains
         call send_process(i, encode_for_process(i, text, status), status)
     end subroutine process_send_region
 
-    !> TEXT encoded by process I's coding system for encoding.
+    !> TEXT encoded by process I's coding system for encoding.  Not a port.
     function encode_for_process(i, text, status) result(bytes)
         integer(int64), intent(in) :: i
         character(len=*), intent(in) :: text
@@ -1862,7 +1869,8 @@ contains
     end subroutine syms_of_process
 
     !> What %s in a mode line shows for buffer slot BI: the status of its
-    !> process, or "no process".  The %s case of xdisp.c:decode_mode_spec.
+    !> process, or "no process".  Port of xdisp.c:decode_mode_spec, in
+    !> part (the %s case).
     subroutine mode_line_status(bi, status_name)
         integer(int64), intent(in) :: bi
         character(len=:), allocatable, intent(out) :: status_name
@@ -1880,6 +1888,7 @@ contains
     !> Kill every process still running with `sig' (SIGKILL if absent),
     !> and wait for the workers to finish (for exiting, and for tests).
     !> Statuses are not reported (upstream's inhibit_sentinels on exit).
+    !> Not a port.
     subroutine process_shutdown(sig)
         integer, intent(in), optional :: sig
         type(worker_message_type), allocatable :: msgs(:)

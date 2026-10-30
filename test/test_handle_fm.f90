@@ -1,4 +1,5 @@
 ! test_handle_fm.f90 -- tests for handle_fm.
+! Own tests; handles replace pointers and have no upstream counterpart.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -29,6 +30,7 @@ module test_handle_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_handle_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

@@ -46,6 +46,7 @@ module test_pcomplete_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_pcomplete_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

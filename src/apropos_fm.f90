@@ -256,7 +256,7 @@ contains
         end if
     end subroutine apropos_read_pattern
 
-    !> The words of `s', separated by spaces and tabs.
+    !> The words of `s', separated by spaces and tabs.  Not a port.
     subroutine split_words(s, words)
         character(len=*), intent(in) :: s
         type(apropos_word_type), allocatable, intent(out) :: words(:)
@@ -477,7 +477,7 @@ contains
     end subroutine apropos_mode
 
     !> The apropos button at `pos': its type (`apropos_symbol' or a
-    !> label's type, "" for none) and the entry's name.
+    !> label's type, "" for none) and the entry's name.  Not a port.
     subroutine button_at(pos, type, name)
         integer(int64), intent(in) :: pos
         character(len=:), allocatable, intent(out) :: type, name
@@ -493,6 +493,7 @@ contains
         if (stringp(v)) name = xstring(v)
     end subroutine button_at
 
+    ! Not a port.
     function symbols_name(v) result(s)
         use data_fm, only: symbol_name
         type(value_type), intent(in) :: v
@@ -503,7 +504,7 @@ contains
         if (.not. st%ok()) s = ""
     end function symbols_name
 
-    !> Whether the line at point starts with an entry's name.
+    !> Whether the line at point starts with an entry's name.  Not a port.
     logical function at_symbol_p()
         character(len=:), allocatable :: type, name
 
@@ -650,7 +651,7 @@ contains
         call apropos_documentation(pattern, words, status)
     end subroutine cmd_apropos_documentation
 
-    !> Define Apropos mode and its keymap; register the commands.
+    !> Define Apropos mode and its keymap; register the commands.  Not a port.
     subroutine syms_of_apropos()
         type(status_type) :: st
 

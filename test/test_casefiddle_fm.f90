@@ -1,4 +1,7 @@
 ! test_casefiddle_fm.f90 -- tests for case conversion (casefiddle_fm).
+! Ports GNU Emacs 31.1 test/src/casefiddle-tests.el in part; the
+! char-property, case-table, region-extract-function and Turkish tests
+! need features not ported.
 !
 ! Copyright (C) 2016-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -45,6 +48,7 @@ module test_casefiddle_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_casefiddle_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
