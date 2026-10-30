@@ -82,8 +82,10 @@ contains
     !> that exist so far (in its order).
     subroutine init_auto_modes()
         if (allocated(auto_modes)) return
-        ! (The autoloaded add-to-list of python.el comes first.)
+        ! (The autoloaded add-to-list entries of python.el and css-mode.el come
+        ! first.)
         call append_auto_mode("\(?:\.\(?:p\(?:th\|y[iw]?\)\)\|/\(?:SCons\(?:\(?:crip\|truc\)t\)\)\)\'", "python_mode")
+        call append_auto_mode("\.scss\'", "scss_mode")
         call append_auto_mode("\.te?xt\'", "text_mode")
         call append_auto_mode("Imakefile\'", "makefile_imake_mode")
         ! Put this before .mk
@@ -94,6 +96,7 @@ contains
         call append_auto_mode("\.make\'", "makefile_gmake_mode")
         call append_auto_mode("[Mm]akefile\'", "makefile_gmake_mode")
         call append_auto_mode("\.am\'", "makefile_automake_mode")
+        call append_auto_mode("\.css\'", "css_mode")
         call append_auto_mode("\.[ckz]?sh\'\|\.shar\'\|/\.z?profile\'", "sh_mode")
         call append_auto_mode("\.bash\'", "sh_mode")
         ! Bash builtin 'fc' creates a temp file named "bash-fc.XXXXXX"

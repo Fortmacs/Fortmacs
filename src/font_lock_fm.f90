@@ -88,7 +88,7 @@ module font_lock_fm
     use syntax_propertize_fm, only: syntax_propertize, syntax_ppss_table, syntax_propertize_wholelines, syntax_ppss_flush_cache
     implicit none(type, external)
     private
-    public :: font_lock_forget_defaults
+    public :: font_lock_forget_defaults, font_lock_fontify_region_proc, set_local_font_lock_fontify_region_function
     public :: syms_of_font_lock, font_lock_specified_p, font_lock_mode_internal, font_lock_set_defaults, &
               font_lock_fontify_buffer, font_lock_unfontify_buffer, font_lock_fontify_region, font_lock_unfontify_region, &
               font_lock_flush, font_lock_ensure, font_lock_update, font_lock_default_fontify_region, &
@@ -175,6 +175,18 @@ module font_lock_fm
             type(parse_state_type), intent(in) :: state
             character(len=:), allocatable, intent(out) :: face
         end subroutine syntactic_face_iface
+
+        !> A `font_lock_fontify_region_function': fontify the text between
+        !> BEG and END (messages if LOUDLY); DONE_BEG and DONE_END give the
+        !> region actually fontified (jit-lock-bounds).
+        subroutine font_lock_fontify_region_proc(beg, end, loudly, status, done_beg, done_end)
+            import :: int64, status_type
+            implicit none(type, external)
+            integer(int64), intent(in) :: beg, end
+            logical, intent(in) :: loudly
+            type(status_type), intent(out) :: status
+            integer(int64), intent(out) :: done_beg, done_end
+        end subroutine font_lock_fontify_region_proc
     end interface
 
     !> The buffer-local variables of font-lock.el, by buffer.
@@ -205,6 +217,9 @@ module font_lock_fm
         !> OTHER-VARS of `font_lock_defaults').
         logical :: has_syntactic_face = .false.
         procedure(syntactic_face_iface), pointer, nopass :: syntactic_face => null()
+        !> The buffer's own `font_lock_fontify_region_function' (null for
+        !> `font_lock_default_fontify_region').
+        procedure(font_lock_fontify_region_proc), pointer, nopass :: fontify_region => null()
     end type locals_type
 
     type(locals_type), allocatable :: locals(:)
@@ -469,6 +484,18 @@ contains
         k = n + 1
     end function local_index
 
+    !> Give the current buffer its own `font_lock_fontify_region_function'
+    !> FN (setq-local).  Port of font-lock.el
+    !> font-lock-fontify-region-function (buffer-local; its default is
+    !> `font_lock_default_fontify_region').
+    subroutine set_local_font_lock_fontify_region_function(fn)
+        procedure(font_lock_fontify_region_proc) :: fn
+        integer :: k
+
+        k = local_index(.true.)
+        if (k > 0) locals(k)%fontify_region => fn
+    end subroutine set_local_font_lock_fontify_region_function
+
     !> kill-all-local-variables: forget the current buffer's font-lock.el
     !> variables.
     subroutine kill_font_lock_locals()
@@ -606,7 +633,7 @@ contains
         ! Don't fontify eagerly (and don't abort if the buffer is large).
         locals(k)%fontified = .true.
         ! Use jit-lock.
-        call jit_lock_register(font_lock_fontify_region_function, status)
+        call jit_lock_register(jit_fontify_region, status)
         if (.not. status%ok()) return
         ! Tell jit-lock how we extend the region to refontify.
         call jit_lock_after_change_extend_region_functions%add(font_lock_extend_jit_lock_region_after_change, &
@@ -621,7 +648,7 @@ contains
 
         status = status_type()
         if (.not. jit_lock_mode_p()) return
-        call jit_lock_unregister(font_lock_fontify_region_function, status)
+        call jit_lock_unregister(jit_fontify_region, status)
         ! Reset local vars to the non-jit-lock case.
         k = local_index(.false.)
         if (k > 0) locals(k)%jit_lock = .false.
@@ -630,13 +657,13 @@ contains
     !> `font_lock_fontify_region' as a function of `jit_lock_functions':
     !> DONE_BEG and DONE_END give the region actually fontified
     !> (jit-lock-bounds).
-    subroutine font_lock_fontify_region_function(beg, end, done_beg, done_end, status)
+    subroutine jit_fontify_region(beg, end, done_beg, done_end, status)
         integer(int64), intent(in) :: beg, end
         integer(int64), intent(out) :: done_beg, done_end
         type(status_type), intent(out) :: status
 
         call font_lock_fontify_region(beg, end, status, done_beg=done_beg, done_end=done_end)
-    end subroutine font_lock_fontify_region_function
+    end subroutine jit_fontify_region
 
     !> Function meant for `jit_lock_after_change_extend_region_functions'.
     !> This function does 2 things:
@@ -999,6 +1026,8 @@ contains
         integer(int64), intent(out), optional :: done_beg, done_end
         integer(int64) :: begv, zv, b, e
         logical :: loud
+        procedure(font_lock_fontify_region_proc), pointer :: fn
+        integer :: k
 
         loud = .false.
         if (present(loudly)) loud = loudly
@@ -1007,7 +1036,16 @@ contains
         begv = buffers(cur)%begv
         zv = buffers(cur)%zv
         if (.not. font_lock_dont_widen) call widen()
-        call font_lock_default_fontify_region(beg, end, loud, status, b, e)
+        k = local_index(.false.)
+        fn => null()
+        if (k > 0) fn => locals(k)%fontify_region
+
+        if (associated(fn)) then
+            call fn(beg, end, loud, status, b, e)
+        else
+            call font_lock_default_fontify_region(beg, end, loud, status, b, e)
+        end if
+
         call restore_restriction(begv, zv)
         if (present(done_beg)) done_beg = b
         if (present(done_end)) done_end = e

@@ -42,6 +42,7 @@ program tester
     use test_conf_mode_fm, only: collect_conf_mode_fm
     use test_make_mode_fm, only: collect_make_mode_fm
     use test_python_fm, only: collect_python_fm
+    use test_css_mode_fm, only: collect_css_mode_fm
     use test_lisp_cmds_fm, only: collect_lisp_cmds_fm
     use test_page_fm, only: collect_page_fm
     use test_simple_goto_fm, only: collect_simple_goto_fm
@@ -213,6 +214,7 @@ program tester
                  new_testsuite("conf_mode_fm", collect_conf_mode_fm), &
                  new_testsuite("make_mode_fm", collect_make_mode_fm), &
                  new_testsuite("python_fm", collect_python_fm), &
+                 new_testsuite("css_mode_fm", collect_css_mode_fm), &
                  new_testsuite("lisp_cmds_fm", collect_lisp_cmds_fm), &
                  new_testsuite("page_fm", collect_page_fm), &
                  new_testsuite("simple_goto_fm", collect_simple_goto_fm), &
