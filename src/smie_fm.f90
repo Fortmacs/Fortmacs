@@ -242,7 +242,7 @@ module smie_fm
     abstract interface
         !> A token function (`smie_forward_token_function',
         !> `smie_backward_token_function'): move over the next token and
-        !> return it (unallocated for nil).
+        !> return it (unallocated for nil).  Not a port.
         subroutine smie_token_proc(token, status)
             import :: status_type
             implicit none(type, external)
@@ -251,6 +251,7 @@ module smie_fm
         end subroutine smie_token_proc
 
         !> A `smie_rules_function': METHOD and ARG as documented there.
+        !> Not a port.
         subroutine smie_rules_proc(method, arg, result, status)
             import :: smie_rule_result_type, status_type
             implicit none(type, external)
@@ -261,13 +262,14 @@ module smie_fm
         end subroutine smie_rules_proc
 
         !> smie--hanging-eolp-function: move over what may follow a
-        !> hanging token and tell whether the line ends there.
+        !> hanging token and tell whether the line ends there.  Not a port.
         logical function smie_hanging_eolp_proc()
             implicit none(type, external)
         end function smie_hanging_eolp_proc
 
         !> A function of `smie_indent_functions': the column point should
         !> be indented to, or nil, or `noindent'.  It shouldn't move point.
+        !> Not a port.
         subroutine smie_indent_proc(indent, status)
             import :: smie_indent_type, status_type
             implicit none(type, external)
@@ -450,6 +452,7 @@ contains
     ! Building the grammar data
     ! ------------------------------------------------------------------
 
+    ! Add the rule NT -> ITEMS to the BNF grammar SELF.  Not a port.
     subroutine bnf_add(self, nt, items)
         class(smie_bnf_type), intent(inout) :: self
         character(len=*), intent(in) :: nt
@@ -489,6 +492,7 @@ contains
         call move_alloc(grown, self%rules)
     end subroutine bnf_add
 
+    ! Make NT a nonterminal of the BNF grammar SELF.  Not a port.
     subroutine bnf_add_nonterminal(self, nt)
         class(smie_bnf_type), intent(inout) :: self
         character(len=*), intent(in) :: nt
@@ -509,6 +513,7 @@ contains
         call move_alloc(grown, self%rules)
     end subroutine bnf_add_nonterminal
 
+    ! The right-hand side RHS made of ITEMS.  Not a port.
     subroutine make_items(items, rhs)
         character(len=*), intent(in) :: items(:)
         type(smie_rhs_type), intent(out) :: rhs
@@ -521,6 +526,8 @@ contains
         end do
     end subroutine make_items
 
+    ! Add the precedence level of OPS, with associativity ASSOC, to SELF.
+    ! Not a port.
     subroutine precs_add(self, assoc, ops)
         class(smie_precs_type), intent(inout) :: self
         integer, intent(in) :: assoc
@@ -547,7 +554,7 @@ contains
         call move_alloc(grown, self%precs)
     end subroutine precs_add
 
-    ! The index of the pair (X . Y) in TABLE, 0 if none.
+    ! The index of the pair (X . Y) in TABLE, 0 if none.  Not a port.
     integer function prec2_index(table, x, y) result(k)
         type(smie_prec2_type), intent(in) :: table
         character(len=*), intent(in) :: x, y
@@ -561,7 +568,7 @@ contains
         k = 0
     end function prec2_index
 
-    ! (puthash (X . Y) REL TABLE).
+    ! (puthash (X . Y) REL TABLE).  Not a port.
     subroutine prec2_put(table, x, y, rel)
         type(smie_prec2_type), intent(inout) :: table
         character(len=*), intent(in) :: x, y
@@ -735,6 +742,7 @@ contains
         end do
     end subroutine smie_merge_prec2s
 
+    ! Whether the prec2 tables A and B have the same classes.  Not a port.
     logical function same_classes(a, b) result(same)
         type(smie_prec2_type), intent(in) :: a, b
         integer :: i
@@ -748,6 +756,7 @@ contains
         end do
     end function same_classes
 
+    ! Whether the pairs (A1 . A2) and (B1 . B2) are equal.  Not a port.
     logical function same_pairs(a1, a2, b1, b2) result(same)
         type(smie_string_type), intent(in) :: a1(:), a2(:), b1(:), b2(:)
         integer :: i
@@ -761,6 +770,7 @@ contains
         end do
     end function same_pairs
 
+    ! Whether A and B are the same string, lengths included.  Not a port.
     pure logical function str_eq(a, b)
         character(len=*), intent(in) :: a, b
 
@@ -768,7 +778,7 @@ contains
         if (str_eq) str_eq = a == b
     end function str_eq
 
-    ! Whether S is one of LIST.
+    ! Whether S is one of LIST.  Not a port.
     pure logical function member(s, list)
         character(len=*), intent(in) :: s
         type(smie_string_type), intent(in) :: list(:)
@@ -785,6 +795,7 @@ contains
     end function member
 
     ! cl-pushnew S onto LIST (at the front, if it is not there).
+    ! Not a port.
     subroutine pushnew(s, list)
         character(len=*), intent(in) :: s
         type(smie_string_type), allocatable, intent(inout) :: list(:)
@@ -793,6 +804,7 @@ contains
         call push_front(s, list)
     end subroutine pushnew
 
+    ! Push S onto the front of LIST.  Not a port.
     subroutine push_front(s, list)
         character(len=*), intent(in) :: s
         type(smie_string_type), allocatable, intent(inout) :: list(:)
@@ -1016,7 +1028,7 @@ contains
         end subroutine push_table
     end subroutine smie_bnf_to_prec2
 
-    ! (assoc NT TABLE): the first entry for NT.
+    ! (assoc NT TABLE): the first entry for NT.  Not a port.
     integer function table_index(table, nt) result(k)
         type(nt_ops_type), intent(in) :: table(:)
         character(len=*), intent(in) :: nt
@@ -1029,7 +1041,7 @@ contains
     end function table_index
 
     ! Propagate the ops of OPS_TABLE along the nonterminals of NTS_TABLE
-    ! until nothing changes.
+    ! until nothing changes.  Port of part of smie.el:smie-bnf->prec2.
     subroutine propagate(nts_table, ops_table)
         type(nt_ops_type), intent(in) :: nts_table(:)
         type(nt_ops_type), intent(inout) :: ops_table(:)
@@ -1568,6 +1580,7 @@ contains
     end subroutine smie_prec2_to_grammar
 
     ! (setf (car cons) (list (car cons))): LEVEL becomes a list level.
+    ! Not a port.
     subroutine make_list_level(level)
         type(smie_level_type), intent(inout) :: level
 
@@ -1576,7 +1589,7 @@ contains
         level%id = level_ids
     end subroutine make_list_level
 
-    !> The index of TOKEN in GRAMMAR (assoc), 0 if none.
+    !> The index of TOKEN in GRAMMAR (assoc), 0 if none.  Not a port.
     integer function smie_grammar_index(grammar, token) result(k)
         type(smie_grammar_type), intent(in) :: grammar
         character(len=*), intent(in) :: token
@@ -1595,13 +1608,14 @@ contains
     ! Levels
     ! ------------------------------------------------------------------
 
+    ! Whether LEVEL is a number.  Not a port.
     pure logical function numberp(level)
         type(smie_level_type), intent(in) :: level
 
         numberp = level%kind == SMIE_LEVEL_NUMBER
     end function numberp
 
-    ! (eq A B) of two levels.
+    ! (eq A B) of two levels.  Not a port.
     pure logical function level_eq(a, b)
         type(smie_level_type), intent(in) :: a, b
 
@@ -1618,7 +1632,7 @@ contains
         end select
     end function level_eq
 
-    ! (or LEVEL t).
+    ! (or LEVEL t).  Not a port.
     pure function level_or_t(level) result(l)
         type(smie_level_type), intent(in) :: level
         type(smie_level_type) :: l
@@ -1632,7 +1646,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! The index in `locals' of the current buffer's (created if MAKE; 0 if
-    ! none).
+    ! none).  Not a port.
     integer function local_index(make) result(k)
         logical, intent(in) :: make
         type(smie_local_type), allocatable :: grown(:)
@@ -1669,6 +1683,7 @@ contains
     end function local_index
 
     ! kill-all-local-variables: forget the current buffer's values.
+    ! Not a port.
     subroutine kill_smie_locals()
         integer :: k
 
@@ -1678,7 +1693,7 @@ contains
         if (k > 0) smie_indent_functions%locals(k)%serial = 0
     end subroutine kill_smie_locals
 
-    ! The current buffer's `smie_grammar'.
+    ! The current buffer's `smie_grammar'.  Not a port.
     function grammar() result(g)
         type(smie_grammar_type), pointer :: g
         integer :: k
@@ -1691,7 +1706,7 @@ contains
         end if
     end function grammar
 
-    ! Whether the current buffer has a `smie_closer_alist'.
+    ! Whether the current buffer has a `smie_closer_alist'.  Not a port.
     logical function closer_alist_p()
         integer :: k
         type(smie_grammar_type), pointer :: g
@@ -1705,6 +1720,7 @@ contains
     end function closer_alist_p
 
     !> Whether TOKEN is a closer of `smie_closer_alist' (rassoc).
+    !> Not a port.
     logical function smie_closer_p(token)
         character(len=*), intent(in) :: token
         type(smie_grammar_type), pointer :: g
@@ -1716,6 +1732,7 @@ contains
     end function smie_closer_p
 
     !> Whether TOKEN is an opener of `smie_closer_alist' (assoc).
+    !> Not a port.
     logical function smie_opener_p(token)
         character(len=*), intent(in) :: token
         type(smie_grammar_type), pointer :: g
@@ -1726,7 +1743,7 @@ contains
         smie_opener_p = member(token, g%openers)
     end function smie_opener_p
 
-    ! Whether (OPENER . CLOSER) is in `smie_closer_alist'.
+    ! Whether (OPENER . CLOSER) is in `smie_closer_alist'.  Not a port.
     logical function closer_pair_p(opener, closer)
         character(len=*), intent(in) :: opener, closer
         type(smie_grammar_type), pointer :: g
@@ -1745,7 +1762,7 @@ contains
     end function closer_pair_p
 
     !> TOKEN's levels in the current buffer's grammar (assoc TOKEN
-    !> smie-grammar); `null' if it has none.
+    !> smie-grammar); `null' if it has none.  Not a port.
     function smie_grammar_token(token) result(t)
         character(len=*), intent(in) :: token
         type(smie_toklevels_type) :: t
@@ -1762,7 +1779,7 @@ contains
     end function smie_grammar_token
 
     !> Move over the next token with the current buffer's
-    !> `smie_forward_token_function'.
+    !> `smie_forward_token_function'.  Not a port.
     recursive subroutine smie_forward_token(token, status)
         character(len=:), allocatable, intent(out) :: token
         type(status_type), intent(out) :: status
@@ -1784,7 +1801,7 @@ contains
     end subroutine smie_forward_token
 
     !> Move over the previous token with the current buffer's
-    !> `smie_backward_token_function'.
+    !> `smie_backward_token_function'.  Not a port.
     recursive subroutine smie_backward_token(token, status)
         character(len=:), allocatable, intent(out) :: token
         type(status_type), intent(out) :: status
@@ -1805,7 +1822,7 @@ contains
         end if
     end subroutine smie_backward_token
 
-    ! (funcall smie-rules-function METHOD ARG).
+    ! (funcall smie-rules-function METHOD ARG).  Not a port.
     recursive subroutine call_rules(method, arg, result, status)
         integer, intent(in) :: method
         character(len=*), intent(in) :: arg
@@ -1825,7 +1842,7 @@ contains
         if (associated(fn)) call fn(method, arg, result, status)
     end subroutine call_rules
 
-    ! The current buffer's `smie_blink_matching_triggers'.
+    ! The current buffer's `smie_blink_matching_triggers'.  Not a port.
     function triggers() result(t)
         character(len=:), allocatable :: t
         integer :: k
@@ -1842,7 +1859,7 @@ contains
     ! Parsing using a precedence level table
     ! ------------------------------------------------------------------
 
-    ! (buffer-substring-no-properties A B) (either order).
+    ! (buffer-substring-no-properties A B) (either order).  Not a port.
     function substring(a, b) result(text)
         integer(int64), intent(in) :: a, b
         character(len=:), allocatable :: text
@@ -1895,14 +1912,15 @@ contains
     ! To distinguish the two cases, we made smie-prec2->grammar choose
     ! different levels for each part of "if a then b else c", so that
     ! by checking if the left-level is equal to the right level, we can
-    ! figure out that it's an associative operator.
+    ! figure out that it's an associative operator.  Port of
+    ! smie.el:smie--associative-p.
     pure logical function associative_p(left, right)
         type(smie_level_type), intent(in) :: left, right
 
         associative_p = level_eq(left, right)
     end function associative_p
 
-    ! Signal `scan_error' with MESSAGE, A and B.
+    ! Signal `scan_error' with MESSAGE, A and B.  Not a port.
     subroutine signal_scan_error(status, message, a, b)
         type(status_type), intent(inout) :: status
         character(len=*), intent(in) :: message
@@ -2300,7 +2318,7 @@ contains
     end subroutine smie_forward_sexp_command
 
     !> The character of SYNTAX entry D matches (cdr (syntax-after POS)),
-    !> as a string; "" if it has none.
+    !> as a string; "" if it has none.  Not a port.
     function matching_char(pos) result(s)
         integer(int64), intent(in) :: pos
         character(len=:), allocatable :: s
@@ -2315,7 +2333,7 @@ contains
         if (d%match >= 0) s = char_text(d%match)
     end function matching_char
 
-    ! The UTF-8 text of character C.
+    ! The UTF-8 text of character C.  Not a port.
     function char_text(c) result(s)
         integer, intent(in) :: c
         character(len=:), allocatable :: s
@@ -2332,7 +2350,7 @@ contains
         end if
     end function char_text
 
-    ! The characters of the UTF-8 string S.
+    ! The characters of the UTF-8 string S.  Not a port.
     function string_chars_of(s) result(cs)
         character(len=*), intent(in) :: s
         integer, allocatable :: cs(:)
@@ -2371,6 +2389,7 @@ contains
     end function string_chars_of
 
     ! The character before point, or -1 at the beginning (char-before).
+    ! Not a port.
     integer function before_char()
         integer(int32) :: c
         logical :: found
@@ -2380,7 +2399,7 @@ contains
         if (found) before_char = int(c)
     end function before_char
 
-    ! The character after point, or -1 at the end (char-after).
+    ! The character after point, or -1 at the end (char-after).  Not a port.
     integer function after_char()
         integer(int32) :: c
         logical :: found
@@ -2391,12 +2410,14 @@ contains
     end function after_char
 
     ! The character of `last_command_event', -1 if it is not one.
+    ! Not a port.
     integer function command_char()
         command_char = -1
         if (fixnump(last_command_event)) command_char = int(xfixnum(last_command_event))
     end function command_char
 
     ! Whether C is one of the characters of the string S (memq).
+    ! Not a port.
     logical function char_in(c, s)
         integer, intent(in) :: c
         character(len=*), intent(in) :: s
@@ -2615,6 +2636,7 @@ contains
     end subroutine smie_down_list
 
     ! (nth N LEVELS) of (TOKEN LEFT RIGHT): 1 is LEFT, 2 is RIGHT.
+    ! Not a port.
     function side(levels, n) result(l)
         type(smie_toklevels_type), intent(in) :: levels
         integer, intent(in) :: n
@@ -2794,7 +2816,7 @@ contains
         call goto_char(opoint)
     end subroutine smie_blink_matching_open
 
-    ! The number of characters of S.
+    ! The number of characters of S.  Not a port.
     integer function char_count_of(s)
         character(len=*), intent(in) :: s
 
@@ -2803,7 +2825,7 @@ contains
 
     ! smie--opener/closer-at-point: (OPENER TOKEN START END), or nil
     ! (FOUND false).  OPENER is true if TOKEN is an opener and false if
-    ! it's a closer.
+    ! it's a closer.  Port of smie.el:smie--opener/closer-at-point.
     recursive subroutine opener_closer_at_point(found, opener, token, start_pos, end_pos, status)
         logical, intent(out) :: found, opener
         character(len=:), allocatable, intent(out) :: token
@@ -2875,7 +2897,8 @@ contains
     end subroutine opener_closer_at_point
 
     ! The `show_paren_data_function' of SMIE modes: smie--matching-block-data
-    ! around the function it advises.
+    ! around the function it advises.  Port of
+    ! smie.el:smie--matching-block-data.
     recursive subroutine smie_matching_block_data(found, data)
         logical, intent(out) :: found
         type(show_paren_data_type), intent(out) :: data
@@ -3001,7 +3024,7 @@ contains
         call advised_paren_data(k, found, data)
     end subroutine smie_matching_block_data
 
-    ! The `show_paren_data_function' SMIE's advice wraps.
+    ! The `show_paren_data_function' SMIE's advice wraps.  Not a port.
     recursive subroutine advised_paren_data(k, found, data)
         integer, intent(in) :: k
         logical, intent(out) :: found
@@ -3024,7 +3047,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! (funcall smie--hanging-eolp-function): the buffer's advised one, or
-    ! the default.
+    ! the default.  Not a port.
     recursive logical function hanging_eolp()
         integer :: k
 
@@ -3042,7 +3065,8 @@ contains
 
     !> The default smie--hanging-eolp-function: skip blanks; true at the
     !> end of a line (or a comment up to it).  (A quick hack upstream,
-    !> undocumented there.)
+    !> undocumented there.) Port of the default value of smie.el's
+    !> smie--hanging-eolp-function.
     recursive logical function smie_default_hanging_eolp() result(eol)
         type(status_type) :: st
         integer(int64) :: moved
@@ -3055,7 +3079,7 @@ contains
 
     !> Advise smie--hanging-eolp-function in the current buffer with FN
     !> (add-function :around (local ...)): FN calls
-    !> `smie_default_hanging_eolp' for the original.
+    !> `smie_default_hanging_eolp' for the original.  Not a port.
     subroutine smie_set_hanging_eolp_function(fn)
         procedure(smie_hanging_eolp_proc) :: fn
         integer :: k
@@ -3186,7 +3210,7 @@ contains
         call goto_char(here)
     end subroutine smie_parent
 
-    !> The level of the parent: (car (smie-indent--parent)).
+    !> The level of the parent: (car (smie-indent--parent)).  Not a port.
     recursive function smie_parent_level(status) result(level)
         type(status_type), intent(out) :: status
         type(smie_level_type) :: level
@@ -3211,7 +3235,7 @@ contains
         if (allocated(parent%token)) p = in_list(parent%token, parents)
     end function smie_rule_parent_p
 
-    ! Whether S is one of the trimmed strings of LIST.
+    ! Whether S is one of the trimmed strings of LIST.  Not a port.
     pure logical function in_list(s, list)
         character(len=*), intent(in) :: s
         character(len=*), intent(in) :: list(:)
@@ -3319,6 +3343,7 @@ contains
     end function smie_rule_parent
 
     ! The error of arithmetic on an indentation that is not a number.
+    ! Not a port.
     subroutine number_error(status, v)
         type(status_type), intent(out) :: status
         type(smie_indent_type), intent(in) :: v
@@ -3330,7 +3355,8 @@ contains
         end if
     end subroutine number_error
 
-    ! smie-indent--separator-outdent.
+    ! smie-indent--separator-outdent.  Port of
+    ! smie.el:smie-indent--separator-outdent.
     recursive integer function separator_outdent(status) result(n)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: tok
@@ -3443,6 +3469,7 @@ contains
     ! the position after TOKEN, if known (0 if not).  PARENT is the parent
     ! info returned by `smie_backward_sexp', if known.  BASE_POS is the
     ! position relative to which offsets should be applied (0 for none).
+    ! Port of smie.el:smie-indent--rule.
     recursive function indent_rule(method, token, status, after, parent, base_pos) result(indent)
         integer, intent(in) :: method
         character(len=*), intent(in) :: token
@@ -3512,7 +3539,8 @@ contains
     end function indent_rule
 
     ! smie-indent--rule-1: call `smie_rules_function' with smie--parent,
-    ! smie--token and smie--after bound.
+    ! smie--token and smie--after bound.  Port of
+    ! smie.el:smie-indent--rule-1.
     recursive subroutine indent_rule_1(method, token, result, status, after, parent)
         integer, intent(in) :: method
         character(len=*), intent(in) :: token
@@ -3644,7 +3672,7 @@ contains
         end if
     end function smie_indent_backward_token
 
-    ! (syntax-class (syntax-after POS)), -1 for nil.
+    ! (syntax-class (syntax-after POS)), -1 for nil.  Not a port.
     integer function syntax_class_after(pos)
         integer(int64), intent(in) :: pos
         type(syntax_descriptor_type) :: d
@@ -3659,7 +3687,7 @@ contains
         syntax_class_after = iand(d%code, 65535)
     end function syntax_class_after
 
-    ! (car (syntax-after POS)), -1 for nil.
+    ! (car (syntax-after POS)), -1 for nil.  Not a port.
     integer function syntax_code_after(pos)
         integer(int64), intent(in) :: pos
         type(syntax_descriptor_type) :: d
@@ -3692,7 +3720,7 @@ contains
         end if
     end function smie_indent_virtual
 
-    ! A column as an indentation.
+    ! A column as an indentation.  Not a port.
     pure function column_of(col) result(indent)
         integer(int64), intent(in) :: col
         type(smie_indent_type) :: indent
@@ -3782,7 +3810,7 @@ contains
         call goto_char(here)
     end subroutine smie_indent_close
 
-    ! Whether two token levels are `equal'.
+    ! Whether two token levels are `equal'.  Not a port.
     logical function toklevels_equal(a, b)
         type(smie_toklevels_type), intent(in) :: a, b
 
@@ -3791,6 +3819,7 @@ contains
         toklevels_equal = str_eq(a%token, b%token) .and. level_equal(a%left, b%left) .and. level_equal(a%right, b%right)
     end function toklevels_equal
 
+    ! Whether two levels are `equal'.  Not a port.
     pure logical function level_equal(a, b)
         type(smie_level_type), intent(in) :: a, b
 
@@ -3991,7 +4020,7 @@ contains
         end function merge_level
     end subroutine smie_indent_keyword
 
-    ! `smie_indent_keyword' as an indentation function.
+    ! `smie_indent_keyword' as an indentation function.  Not a port.
     recursive subroutine indent_keyword_function(indent, status)
         type(smie_indent_type), intent(out) :: indent
         type(status_type), intent(out) :: status
@@ -4351,6 +4380,8 @@ contains
     ! `smie_indent_functions'
     ! ------------------------------------------------------------------
 
+    ! The index in SELF's local values of the current buffer's, 0 if none.
+    ! Not a port.
     integer function indent_functions_local_index(self) result(k)
         class(smie_indent_functions_type), intent(in) :: self
 
@@ -4364,7 +4395,7 @@ contains
         k = 0
     end function indent_functions_local_index
 
-    ! The functions run in the current buffer, in order.
+    ! The functions run in the current buffer, in order.  Not a port.
     function indent_functions_current(self) result(list)
         class(smie_indent_functions_type), intent(in) :: self
         type(indent_entry_type), allocatable :: list(:)
@@ -4391,6 +4422,7 @@ contains
         end do
     end function indent_functions_current
 
+    ! The %add of `smie_indent_functions' (add-hook).  Not a port.
     subroutine indent_functions_add(self, fn, append, local)
         class(smie_indent_functions_type), intent(inout) :: self
         procedure(smie_indent_proc) :: fn
@@ -4462,6 +4494,7 @@ contains
         end if
     end subroutine indent_functions_add
 
+    ! The %remove of `smie_indent_functions' (remove-hook).  Not a port.
     subroutine indent_functions_remove(self, fn, local)
         class(smie_indent_functions_type), intent(inout) :: self
         procedure(smie_indent_proc) :: fn
@@ -4580,14 +4613,14 @@ contains
     end subroutine smie_indent_line
 
     ! smie-auto-fill around the function it advises (the
-    ! `normal_auto_fill_function' of SMIE modes).
+    ! `normal_auto_fill_function' of SMIE modes).  Not a port.
     recursive subroutine smie_auto_fill_function(status)
         type(status_type), intent(out) :: status
 
         call smie_auto_fill(status)
     end subroutine smie_auto_fill_function
 
-    ! The auto-fill function SMIE's advice wraps.
+    ! The auto-fill function SMIE's advice wraps.  Not a port.
     recursive subroutine do_advised_auto_fill(status)
         type(status_type), intent(out) :: status
         procedure(command_proc), pointer :: fn
@@ -4706,7 +4739,7 @@ contains
         if (current_column() > fc) call do_advised_auto_fill(status)
     end subroutine smie_auto_fill
 
-    ! smie--matching-block-data around the function it advises.
+    ! smie--matching-block-data around the function it advises.  Not a port.
     recursive subroutine smie_paren_data_function(found, data)
         logical, intent(out) :: found
         type(show_paren_data_type), intent(out) :: data
@@ -4714,7 +4747,7 @@ contains
         call smie_matching_block_data(found, data)
     end subroutine smie_paren_data_function
 
-    ! string-lessp.
+    ! string-lessp.  Not a port.
     pure logical function string_lessp(a, b)
         character(len=*), intent(in) :: a, b
         integer :: i
@@ -4844,6 +4877,7 @@ contains
     end subroutine smie_next_indent_change
 
     !> Give the variables their defaults and register the commands.
+    !> Not a port.
     subroutine syms_of_smie()
         smie_forward_token_function => smie_default_forward_token
         smie_backward_token_function => smie_default_backward_token

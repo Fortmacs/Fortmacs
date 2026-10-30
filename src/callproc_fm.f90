@@ -379,7 +379,7 @@ contains
     end subroutine locate_program
 
     !> Insert the program output `bytes' at point, decoded as UTF-8 in a
-    !> multibyte buffer.
+    !> multibyte buffer.  Not a port.
     subroutine insert_output(bytes, status)
         character(len=*), intent(in) :: bytes
         type(status_type), intent(out) :: status

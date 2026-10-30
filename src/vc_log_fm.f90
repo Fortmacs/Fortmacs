@@ -167,7 +167,8 @@ contains
 
     ! (vc-run-delayed ...) of `vc-log-internal-common': set up the buttons
     ! (deferred), go to the working revision, and run
-    ! `vc_log_finish_functions'.
+    ! `vc_log_finish_functions'.  Port of the delayed part of
+    ! vc.el:vc-log-internal-common.
     recursive subroutine log_finish(action, status)
         type(vc_action_type), intent(in) :: action
         type(status_type), intent(out) :: status
@@ -198,6 +199,8 @@ contains
     end subroutine log_finish
 
     ! The `revert_buffer_function' of a log buffer: show the log again.
+    ! Port of the revert-buffer-function lambda of
+    ! vc.el:vc-log-internal-common.
     recursive subroutine log_revert(ignore_auto, noconfirm, status)
         logical, intent(in) :: ignore_auto, noconfirm
         type(status_type), intent(out) :: status
@@ -344,7 +347,7 @@ contains
     end if
     end procedure cmd_vc_print_root_log
 
-    ! (thing-at-point 'word t): the word around point, or "".
+    ! (thing-at-point 'word t): the word around point, or "".  Not a port.
     function word_at_point() result(word)
         use syntax_fm, only: skip_syntax_forward, skip_syntax_backward
         use editfns_fm, only: buffer_substring
