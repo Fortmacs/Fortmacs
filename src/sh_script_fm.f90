@@ -300,8 +300,8 @@ module sh_script_fm
     !> Port of sh-script.el sh-shell-arg.
     type(sh_string_feature_type), public :: sh_shell_arg
 
-    !> The shell being programmed.  This is set by \[sh_set_shell].  Port
-    !> of sh-script.el sh-shell.
+    !> The shell being programmed.  This is set by \[sh_set_shell].
+    !> Port of sh-script.el sh-shell.
     type(string_setting), target, public :: sh_shell = string_setting(name="sh_shell")
 
     !> The abbrev table of Shell-script mode.  Port of sh-script.el
@@ -344,8 +344,8 @@ module sh_script_fm
     character(len=:), allocatable, public :: sh_beginning_of_command
 
     !> Regexp to determine the end of a shell command.
-    !> The actual command ends at the end of the first \(grouping\).  Port
-    !> of sh-script.el sh-end-of-command.
+    !> The actual command ends at the end of the first \(grouping\).
+    !> Port of sh-script.el sh-end-of-command.
     character(len=:), allocatable, public :: sh_end_of_command
 
     !> Word to delimit here documents.
@@ -483,14 +483,14 @@ module sh_script_fm
     type(integer_setting), target, public :: sh_indent_after_done = integer_setting(name="sh_indent_after_done", value=0)
 
     !> How much to indent a case label statement.
-    !> This is relative to the line containing the `case' statement.  Port
-    !> of sh-script.el sh-indent-for-case-label.
+    !> This is relative to the line containing the `case' statement.
+    !> Port of sh-script.el sh-indent-for-case-label.
     type(integer_setting), target, public :: sh_indent_for_case_label = &
                                              integer_setting(name="sh_indent_for_case_label", value=SH_PLUS)
 
     !> How much to indent statements after the case label.
-    !> This is relative to the line containing the `case' statement.  Port
-    !> of sh-script.el sh-indent-for-case-alt.
+    !> This is relative to the line containing the `case' statement.
+    !> Port of sh-script.el sh-indent-for-case-alt.
     type(integer_setting), target, public :: sh_indent_for_case_alt = &
                                              integer_setting(name="sh_indent_for_case_alt", value=SH_PLUS_PLUS)
 
@@ -591,7 +591,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Define Shell-script mode: its options, feature tables, faces, syntax
-    !> tables, keymap, grammars and commands.
+    !> tables, keymap, grammars and commands.  Not a port.
     subroutine syms_of_sh_script()
         type(status_type) :: st
         character(len=:), allocatable :: shell
@@ -684,7 +684,7 @@ contains
         call add_local_variables_killer(kill_sh_locals)
     end subroutine syms_of_sh_script
 
-    ! Bind [remap FROM] to COMMAND in `sh_mode_map'.
+    ! Bind [remap FROM] to COMMAND in `sh_mode_map'.  Not a port.
     subroutine bind_remap(from, command)
         character(len=*), intent(in) :: from, command
         type(value_type), allocatable :: events(:)
@@ -695,6 +695,7 @@ contains
     end subroutine bind_remap
 
     ! Append the pair (SHELL . ANCESTOR) to `sh_ancestor_alist'.
+    ! Not a port.
     subroutine add_ancestor(shell, ancestor)
         character(len=*), intent(in) :: shell, ancestor
         type(sh_ancestor_type), allocatable :: grown(:)
@@ -714,7 +715,7 @@ contains
         call move_alloc(grown, sh_ancestor_alist)
     end subroutine add_ancestor
 
-    ! Append (KEY . SHELL) to `sh_alias_alist'.
+    ! Append (KEY . SHELL) to `sh_alias_alist'.  Not a port.
     subroutine add_alias(key, shell, basename)
         character(len=*), intent(in) :: key, shell
         logical, intent(in) :: basename
@@ -737,7 +738,7 @@ contains
         call move_alloc(grown, sh_alias_alist)
     end subroutine add_alias
 
-    ! `sh_ancestor_alist' and `sh_alias_alist'.
+    ! `sh_ancestor_alist' and `sh_alias_alist'.  Not a port.
     subroutine init_shells()
         if (allocated(sh_ancestor_alist)) return
         call add_ancestor("ash", "sh")
@@ -771,7 +772,7 @@ contains
         call add_alias("^/system/bin/sh$", "mksh", .false.)
     end subroutine init_shells
 
-    ! The feature tables of strings.
+    ! The feature tables of strings.  Not a port.
     subroutine init_features()
         if (allocated(sh_builtins%entries)) return
         call sh_shell_arg%add("bash")
@@ -914,7 +915,7 @@ contains
     end subroutine init_features
 
     ! `sh_mode_syntax_table', `sh_base_mode_syntax_table' and
-    ! `sh_mode_syntax_table_input'.
+    ! `sh_mode_syntax_table_input'.  Not a port.
     subroutine init_syntax_tables(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: t
@@ -967,7 +968,7 @@ contains
         end subroutine punct
     end subroutine init_syntax_tables
 
-    ! The faces.
+    ! The faces.  Not a port.
     subroutine define_faces()
         type(named_face_type), pointer :: f
         integer, parameter :: C = FACE_CLASS_COLOR, LIGHT = FACE_BACKGROUND_LIGHT, DARK = FACE_BACKGROUND_DARK
@@ -989,7 +990,7 @@ contains
         call f%spec_entry(display_when(), face_attrs(inherit="font_lock_string_face"))
     end subroutine define_faces
 
-    ! A highlight of subexpression N in FACE.
+    ! A highlight of subexpression N in FACE.  Not a port.
     function h(n, face, override, lax) result(hl)
         integer, intent(in) :: n
         character(len=*), intent(in) :: face
@@ -1001,7 +1002,7 @@ contains
     end function h
 
     ! `sh_font_lock_keywords_var', `sh_font_lock_keywords_var_1' and
-    ! `sh_font_lock_keywords_var_2'.
+    ! `sh_font_lock_keywords_var_2'.  Not a port.
     subroutine init_font_lock_keywords()
         character(len=*), parameter :: VA = "font_lock_variable_name_face", KW = "font_lock_keyword_face", &
                                        FN = "font_lock_function_name_face", ST = "font_lock_string_face"
@@ -1050,7 +1051,7 @@ contains
         allocate (sh_font_lock_keywords_var_2%entries(0))
     end subroutine init_font_lock_keywords
 
-    ! Append the keywords B to A.
+    ! Append the keywords B to A.  Not a port.
     subroutine append_keywords(a, b)
         type(font_lock_keyword_type), allocatable, intent(inout) :: a(:)
         type(font_lock_keyword_type), intent(in) :: b(:)
@@ -1139,13 +1140,14 @@ contains
         call sh_font_lock_keywords_1(result, .true.)
     end subroutine sh_font_lock_keywords_2
 
-    ! The decoration levels of `font_lock_defaults'.
+    ! The decoration levels of `font_lock_defaults'.  Not a port.
     subroutine keywords_level_0(keywords)
         type(font_lock_keyword_type), allocatable, intent(out) :: keywords(:)
 
         call sh_font_lock_keywords(keywords)
     end subroutine keywords_level_0
 
+    ! Not a port.
     subroutine keywords_level_1(keywords)
         type(font_lock_keyword_type), allocatable, intent(out) :: keywords(:)
 
@@ -1153,7 +1155,7 @@ contains
     end subroutine keywords_level_1
 
     ! The strings of FEATURE for the current shell, as an array of
-    ! characters.
+    ! characters.  Not a port.
     function strings_of(feature) result(a)
         type(sh_strings_feature_type), intent(in) :: feature
         character(len=:), allocatable :: a(:)
@@ -1164,6 +1166,7 @@ contains
     end function strings_of
 
     ! (append (sh-feature sh-leading-keywords) (sh-feature sh-other-keywords)).
+    ! Not a port.
     function leading_and_other() result(a)
         character(len=:), allocatable :: a(:)
         type(sh_string_type), allocatable :: s1(:), s2(:), s(:)
@@ -1184,7 +1187,7 @@ contains
         a = to_chars(s)
     end function leading_and_other
 
-    ! STRINGS as a character array.
+    ! STRINGS as a character array.  Not a port.
     function to_chars(strings) result(a)
         type(sh_string_type), intent(in) :: strings(:)
         character(len=:), allocatable :: a(:)
@@ -1209,8 +1212,8 @@ contains
 
     !> The shell whose entry of a feature table with entries for SHELLS
     !> applies to SHELL: SHELL itself, else its successive ancestors (see
-    !> `sh_ancestor_alist'), finally sh (0 when there is none).  The lookup
-    !> part of sh-script.el:sh-feature.
+    !> `sh_ancestor_alist'), finally sh (0 when there is none).  Port of
+    !> sh-script.el:sh-feature (the lookup part).
     integer function sh_feature_shell(shells, shell) result(k)
         character(len=*), intent(in) :: shells(:)
         character(len=*), intent(in) :: shell
@@ -1230,7 +1233,7 @@ contains
         k = find_shell(shells, "sh")
     end function sh_feature_shell
 
-    ! The index of SHELL in SHELLS, 0 if none.
+    ! The index of SHELL in SHELLS, 0 if none.  Not a port.
     integer function find_shell(shells, shell) result(k)
         character(len=*), intent(in) :: shells(:)
         character(len=*), intent(in) :: shell
@@ -1242,7 +1245,7 @@ contains
         k = 0
     end function find_shell
 
-    ! The direct ancestor of SHELL ("" for none).
+    ! The direct ancestor of SHELL ("" for none).  Not a port.
     function ancestor_of(shell) result(a)
         character(len=*), intent(in) :: shell
         character(len=:), allocatable :: a
@@ -1259,7 +1262,7 @@ contains
         end do
     end function ancestor_of
 
-    ! The current shell.
+    ! The current shell.  Not a port.
     function current_shell() result(s)
         character(len=:), allocatable :: s
 
@@ -1270,6 +1273,7 @@ contains
         end if
     end function current_shell
 
+    ! Not a port.
     subroutine strings_feature_add(self, shell, strings, append)
         class(sh_strings_feature_type), intent(inout) :: self
         character(len=*), intent(in) :: shell
@@ -1297,7 +1301,7 @@ contains
         call move_alloc(grown, self%entries)
     end subroutine strings_feature_add
 
-    ! The shells of the entries of a strings feature.
+    ! The shells of the entries of a strings feature.  Not a port.
     function strings_shells(self) result(shells)
         class(sh_strings_feature_type), intent(in) :: self
         character(len=16), allocatable :: shells(:)
@@ -1350,6 +1354,7 @@ contains
         end do
     end subroutine strings_feature_get
 
+    ! Not a port.
     subroutine keywords_feature_add(self, shell, keywords, append)
         class(sh_keywords_feature_type), intent(inout) :: self
         character(len=*), intent(in) :: shell
@@ -1405,6 +1410,7 @@ contains
         end if
     end subroutine keywords_feature_get
 
+    ! Not a port.
     subroutine string_feature_add(self, shell, value)
         class(sh_string_feature_type), intent(inout) :: self
         character(len=*), intent(in) :: shell
@@ -1446,7 +1452,7 @@ contains
     end function string_feature_get
 
     ! The entry of `sh_mode_syntax_table_input' for the current shell (0
-    ! for none).
+    ! for none).  Not a port.
     integer function syntax_input_index() result(k)
         character(len=16), allocatable :: shells(:)
         integer :: i
@@ -1466,6 +1472,7 @@ contains
     ! Buffer-local variables
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     integer function local_index(make) result(k)
         logical, intent(in) :: make
         type(sh_local_type), allocatable :: grown(:)
@@ -1502,7 +1509,7 @@ contains
         k = n + 1
     end function local_index
 
-    ! Free the objects of locals(K).
+    ! Free the objects of locals(K).  Not a port.
     subroutine free_local(k)
         integer, intent(in) :: k
         type(status_type) :: st
@@ -1514,6 +1521,7 @@ contains
     end subroutine free_local
 
     ! kill-all-local-variables: forget the current buffer's values.
+    ! Not a port.
     subroutine kill_sh_locals()
         integer :: k
 
@@ -1560,7 +1568,7 @@ contains
     ! Syntax properties
     ! ------------------------------------------------------------------
 
-    ! The position of marker M.
+    ! The position of marker M.  Not a port.
     integer(int64) function mpos(m) result(pos)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
@@ -1568,7 +1576,7 @@ contains
         call marker_position(m, pos, st)
     end function mpos
 
-    ! (char-after POS), -1 for nil.
+    ! (char-after POS), -1 for nil.  Not a port.
     integer function ca(pos) result(c)
         integer(int64), intent(in) :: pos
         integer(int32) :: ch
@@ -1579,7 +1587,7 @@ contains
         if (found) c = ch
     end function ca
 
-    ! (char-before POS), -1 for nil.
+    ! (char-before POS), -1 for nil.  Not a port.
     integer function cb(pos) result(c)
         integer(int64), intent(in) :: pos
         integer(int32) :: ch
@@ -1591,7 +1599,7 @@ contains
     end function cb
 
     ! Put the `syntax_table' property SYNTAX (a descriptor string) on
-    ! START..END.
+    ! START..END.  Not a port.
     subroutine put_syntax(start, end, syntax)
         integer(int64), intent(in) :: start, end
         character(len=*), intent(in) :: syntax
@@ -1603,6 +1611,7 @@ contains
     end subroutine put_syntax
 
     ! Mark START..END to be refontified together (syntax-multiline).
+    ! Not a port.
     subroutine put_multiline(start, end)
         integer(int64), intent(in) :: start, end
         type(status_type) :: st
@@ -1610,7 +1619,7 @@ contains
         call put_text_property(start, end, sym("syntax_multiline"), t_value(), st)
     end subroutine put_multiline
 
-    ! (nth 1 (syntax-ppss POS)) and the like.
+    ! (nth 1 (syntax-ppss POS)) and the like.  Not a port.
     function ppss(pos) result(state)
         integer(int64), intent(in), optional :: pos
         type(parse_state_type) :: state
@@ -1941,7 +1950,7 @@ contains
         call goto_char(here)
     end subroutine sh_font_lock_paren
 
-    ! (let ((forward-sexp-function nil)) (forward-sexp N)).
+    ! (let ((forward-sexp-function nil)) (forward-sexp N)).  Not a port.
     recursive subroutine plain_forward_sexp(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
@@ -1970,6 +1979,7 @@ contains
     end subroutine backslash_quote_value
 
     ! (2 (sh-font-lock-open-heredoc (1+ (match-beginning 0)) (match-string 1) (match-beginning 2))).
+    ! Not a port.
     recursive subroutine open_heredoc_value(prop, status)
         type(syntax_property_type), intent(out) :: prop
         type(status_type), intent(out) :: status
@@ -1983,7 +1993,7 @@ contains
         call sh_font_lock_open_heredoc(start, word, eol, prop)
     end subroutine open_heredoc_value
 
-    ! (0 (prog1 nil (sh-syntax-propertize-here-doc end))).
+    ! (0 (prog1 nil (sh-syntax-propertize-here-doc end))).  Not a port.
     recursive subroutine here_doc_after(status)
         type(status_type), intent(out) :: status
 
@@ -1991,7 +2001,7 @@ contains
         call sh_syntax_propertize_here_doc(propertize_end)
     end subroutine here_doc_after
 
-    ! (0 (sh-font-lock-paren (match-beginning 0))).
+    ! (0 (sh-font-lock-paren (match-beginning 0))).  Not a port.
     recursive subroutine paren_value(prop, status)
         type(syntax_property_type), intent(out) :: prop
         type(status_type), intent(out) :: status
@@ -2003,7 +2013,7 @@ contains
     end subroutine paren_value
 
     ! Highlight (possibly nested) subshells inside "" quoted regions
-    ! correctly.
+    ! correctly.  Not a port.
     recursive subroutine quoted_subshell_after(status)
         type(status_type), intent(out) :: status
         type(parse_state_type) :: state
@@ -2025,7 +2035,7 @@ contains
         end if
     end subroutine quoted_subshell_after
 
-    ! The rules of `sh_syntax_propertize_function'.
+    ! The rules of `sh_syntax_propertize_function'.  Not a port.
     subroutine init_rules()
         type(syntax_highlight_type) :: hl
         character(len=*), parameter :: META = "|&;<>(`\""' "//TAB//LF
@@ -2096,8 +2106,8 @@ contains
         propertize_end = saved
     end subroutine sh_syntax_propertize_function
 
-    !> The `font_lock_syntactic_face_function' of Shell-script mode.  Port
-    !> of sh-script.el:sh-font-lock-syntactic-face-function.
+    !> The `font_lock_syntactic_face_function' of Shell-script mode.
+    !> Port of sh-script.el:sh-font-lock-syntactic-face-function.
     subroutine sh_font_lock_syntactic_face_function(state, face)
         type(parse_state_type), intent(in) :: state
         character(len=:), allocatable, intent(out) :: face
@@ -2134,7 +2144,7 @@ contains
     ! Indentation and navigation with SMIE
     ! ------------------------------------------------------------------
 
-    ! (zerop (length TOK)).
+    ! (zerop (length TOK)).  Not a port.
     logical function empty(tok)
         character(len=:), allocatable, intent(in) :: tok
 
@@ -2142,7 +2152,7 @@ contains
         if (allocated(tok)) empty = len(tok) == 0
     end function empty
 
-    ! (assoc TOK smie-grammar).
+    ! (assoc TOK smie-grammar).  Not a port.
     logical function in_grammar(tok)
         character(len=:), allocatable, intent(in) :: tok
         type(smie_toklevels_type) :: t
@@ -2153,7 +2163,7 @@ contains
         in_grammar = .not. t%null
     end function in_grammar
 
-    ! (string-match "\\`[a-z]" TOK).
+    ! (string-match "\\`[a-z]" TOK).  Not a port.
     logical function starts_lower(tok)
         character(len=:), allocatable, intent(in) :: tok
 
@@ -2163,7 +2173,7 @@ contains
         starts_lower = tok(1:1) >= "a" .and. tok(1:1) <= "z"
     end function starts_lower
 
-    ! Whether TOK is allocated and equal to S.
+    ! Whether TOK is allocated and equal to S.  Not a port.
     logical function is(tok, s)
         character(len=:), allocatable, intent(in) :: tok
         character(len=*), intent(in) :: s
@@ -2483,6 +2493,7 @@ contains
     end function sh_smie_looking_back_at_continuation_p
 
     ! (equal (syntax-after (1- (point))) (string-to-syntax "|")).
+    ! Not a port.
     logical function after_fence()
         type(syntax_descriptor_type) :: d
 
@@ -2625,7 +2636,7 @@ contains
         call goto_char(here)
     end subroutine sh_smie_indent_continuation
 
-    ! A rule result: OFFSET.
+    ! A rule result: OFFSET.  Not a port.
     function offset_result(offset) result(r)
         integer, intent(in) :: offset
         type(smie_rule_result_type) :: r
@@ -2634,7 +2645,7 @@ contains
         r%value = offset
     end function offset_result
 
-    ! A rule result: (column . INDENT), nil if INDENT is nil.
+    ! A rule result: (column . INDENT), nil if INDENT is nil.  Not a port.
     function column_result(indent) result(r)
         type(smie_indent_type), intent(in) :: indent
         type(smie_rule_result_type) :: r
@@ -2644,7 +2655,7 @@ contains
         r%value = indent%column
     end function column_result
 
-    ! A rule result: (column . COLUMN).
+    ! A rule result: (column . COLUMN).  Not a port.
     function column_at(column) result(r)
         integer(int64), intent(in) :: column
         type(smie_rule_result_type) :: r
@@ -2787,8 +2798,8 @@ contains
     end subroutine sh_smie_sh_rules
 
     ! Check if we're after the first arg of an if/while/for/... construct.
-    ! Returns the construct's token and moves point before it, if so.  Port
-    ! of sh-script.el:sh-smie--rc-after-special-arg-p.
+    ! Returns the construct's token and moves point before it, if so.
+    ! Port of sh-script.el:sh-smie--rc-after-special-arg-p.
     recursive subroutine sh_smie_rc_after_special_arg_p(construct)
         character(len=:), allocatable, intent(out) :: construct
         character(len=:), allocatable :: tok
@@ -2835,7 +2846,7 @@ contains
         call goto_char(here)
     end function sh_smie_rc_newline_semi_p
 
-    ! (forward-word-strictly 1).
+    ! (forward-word-strictly 1).  Not a port.
     subroutine forward_word_strictly()
         call forward_word(1_int64)
     end subroutine forward_word_strictly
@@ -3026,7 +3037,7 @@ contains
         ! sh-indent-after-switch: handled implicitly by the default { rule.
     end subroutine sh_smie_rc_rules
 
-    ! The grammars.
+    ! The grammars.  Not a port.
     subroutine init_grammars(status)
         type(status_type), intent(out) :: status
         type(smie_bnf_type) :: bnf
@@ -3137,7 +3148,7 @@ contains
         end function operator_p
     end subroutine init_grammars
 
-    ! The around advice sh puts on smie--hanging-eolp-function.
+    ! The around advice sh puts on smie--hanging-eolp-function.  Not a port.
     recursive logical function sh_hanging_eolp() result(eol)
         type(status_type) :: st
 
@@ -3576,7 +3587,7 @@ contains
         if (current_column() < current_indentation()) moved = skip_chars_forward(" "//TAB, status)
     end subroutine sh_basic_indent_line
 
-    ! `sh_basic_indent_line' as an `indent_line_function'.
+    ! `sh_basic_indent_line' as an `indent_line_function'.  Not a port.
     recursive subroutine sh_basic_indent_line_function(status, noindent)
         type(status_type), intent(out) :: status
         logical, intent(out) :: noindent
@@ -3734,6 +3745,7 @@ contains
 
     ! The variables `sh_make_vars_local' and
     ! `sh_reset_indent_vars_to_global_values' handle (sh-var-list).
+    ! Not a port.
     subroutine for_var_list(make, kill)
         logical, intent(in) :: make, kill
 
@@ -3824,6 +3836,7 @@ contains
     end subroutine sh_shell_initialize_variables
 
     ! Whether `sh_shell_variables' is initialized (sh-shell-variables-initialized).
+    ! Not a port.
     logical function variables_initialized()
         integer :: k
 
@@ -4020,7 +4033,7 @@ contains
         end if
     end subroutine sh_electric_here_document_mode
 
-    ! The body of `sh_electric_here_document_mode'.
+    ! The body of `sh_electric_here_document_mode'.  Not a port.
     recursive subroutine sh_electric_here_document_mode_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
@@ -4157,7 +4170,7 @@ contains
         call free_marker(mark, st)
     end subroutine cmd_sh_backslash_region
 
-    ! The width of the selected window (window-width).
+    ! The width of the selected window (window-width).  Not a port.
     integer function window_width()
         window_width = window_text_cols(frame_selected_window_ref())
     end function window_width

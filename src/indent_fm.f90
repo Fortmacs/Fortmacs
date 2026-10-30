@@ -74,7 +74,7 @@ module indent_fm
 
     abstract interface
         !> An `indent_line_function': indent the current line; `noindent'
-        !> says it could not (the value `noindent').
+        !> says it could not (the value `noindent').  Not a port.
         subroutine indent_line_proc(status, noindent)
             import :: status_type
             implicit none(type, external)
@@ -82,7 +82,7 @@ module indent_fm
             logical, intent(out) :: noindent
         end subroutine indent_line_proc
 
-        !> An `indent_region_function'.
+        !> An `indent_region_function'.  Not a port.
         subroutine indent_region_proc(start, end, status)
             import :: int64, status_type
             implicit none(type, external)
@@ -235,24 +235,24 @@ module indent_fm
             type(status_type), intent(out) :: status
         end subroutine indent_rigidly_left
 
-        !> Indent all lines between BEG and END rightward by one space.  Port
-        !> of indent.el:indent-rigidly-right.
+        !> Indent all lines between BEG and END rightward by one space.
+        !> Port of indent.el:indent-rigidly-right.
         module subroutine indent_rigidly_right(beg, end, status)
             implicit none(type, external)
             integer(int64), intent(in) :: beg, end
             type(status_type), intent(out) :: status
         end subroutine indent_rigidly_right
 
-        !> Indent all lines between BEG and END leftward to a tab stop.  Port
-        !> of indent.el:indent-rigidly-left-to-tab-stop.
+        !> Indent all lines between BEG and END leftward to a tab stop.
+        !> Port of indent.el:indent-rigidly-left-to-tab-stop.
         module subroutine indent_rigidly_left_to_tab_stop(beg, end, status)
             implicit none(type, external)
             integer(int64), intent(in) :: beg, end
             type(status_type), intent(out) :: status
         end subroutine indent_rigidly_left_to_tab_stop
 
-        !> Indent all lines between BEG and END rightward to a tab stop.  Port
-        !> of indent.el:indent-rigidly-right-to-tab-stop.
+        !> Indent all lines between BEG and END rightward to a tab stop.
+        !> Port of indent.el:indent-rigidly-right-to-tab-stop.
         module subroutine indent_rigidly_right_to_tab_stop(beg, end, status)
             implicit none(type, external)
             integer(int64), intent(in) :: beg, end
@@ -281,8 +281,8 @@ module indent_fm
         !> With optional argument, move forward N-1 lines first.
         !> The column moved to is the one given by the `current_left_margin' function.
         !> If the line's indentation appears to be wrong, and this command is called
-        !> interactively or with optional argument FORCE, it will be fixed.  Port
-        !> of indent.el:move-to-left-margin.
+        !> interactively or with optional argument FORCE, it will be fixed.
+        !> Port of indent.el:move-to-left-margin.
         module subroutine move_to_left_margin(status, n, force)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -381,6 +381,7 @@ module indent_fm
 
         !> The name of indent-line function P: `indent_relative' for null,
         !> "" for a procedure without a name.  (In indent_cmds_fm.)
+        !> Not a port.
         module function indent_line_function_name(p) result(name)
             implicit none(type, external)
             procedure(indent_line_proc), pointer, intent(in) :: p
@@ -389,6 +390,7 @@ module indent_fm
 
         !> Point P at the indent-line function named NAME; any other
         !> function is called by name with `funcall'.  (In indent_cmds_fm.)
+        !> Not a port.
         module subroutine indent_line_function_named(name, p)
             implicit none(type, external)
             character(len=*), intent(in) :: name
@@ -442,6 +444,7 @@ module indent_fm
         end subroutine move_to_tab_stop
 
         !> Register the indentation commands.
+        !> Port of indent.c:syms_of_indent in part.
         module subroutine syms_of_indent()
             implicit none(type, external)
         end subroutine syms_of_indent
@@ -452,6 +455,7 @@ module indent_fm
 
 contains
 
+    ! Not a port.
     subroutine indent_region_set_local(self, fn)
         class(indent_region_function_type), intent(inout) :: self
         procedure(indent_region_proc) :: fn
@@ -490,6 +494,7 @@ contains
         call move_alloc(grown, self%entries)
     end subroutine indent_region_set_local
 
+    ! Not a port.
     function indent_region_get(self) result(fn)
         class(indent_region_function_type), intent(in) :: self
         procedure(indent_region_proc), pointer :: fn
@@ -506,6 +511,7 @@ contains
         end do
     end function indent_region_get
 
+    ! Not a port.
     subroutine indent_region_kill_local(self)
         class(indent_region_function_type), intent(inout) :: self
         integer :: i
@@ -522,7 +528,7 @@ contains
     end subroutine indent_region_kill_local
 
     !> kill-all-local-variables: forget the current buffer's
-    !> `indent_region_function'.
+    !> `indent_region_function'.  Not a port.
     subroutine kill_indent_locals()
         call indent_region_function%kill_local()
     end subroutine kill_indent_locals
@@ -705,6 +711,7 @@ contains
     end function check_display_width
 
     !> Columns STRING takes on display.  (character.c:Fstring_width.)
+    !> Not a port.
     integer(int64) function display_string_width(string) result(width)
         character(len=*), intent(in) :: string
         integer(int64) :: i
@@ -853,13 +860,14 @@ contains
     end function current_indentation
 
     !> tab-width, or 8 if it is not in 1..1000 (SANE_TAB_WIDTH).
+    !> Port of buffer.h:SANE_TAB_WIDTH.
     integer(int64) function sane_tab_width() result(tw)
         tw = tab_width%value
         if (tw <= 0 .or. tw > 1000) tw = 8
     end function sane_tab_width
 
     !> The width available for text in the selected window: its columns
-    !> less the last, which holds the continuation glyph.
+    !> less the last, which holds the continuation glyph.  Not a port.
     integer function window_text_width() result(width)
         type(window_type), pointer :: sw
 
@@ -874,6 +882,7 @@ contains
     end function window_text_width
 
     !> Point's column on its screen line (the cursor's x in the window).
+    !> Not a port.
     integer function screen_column() result(x)
         type(row_start_type), allocatable :: rows(:)
         type(row_start_type) :: row

@@ -131,7 +131,7 @@ module character_fm
 
 contains
 
-    !> Byte value (0..255) at position `i' of `str'.
+    !> Byte value (0..255) at position `i' of `str'.  Not a port.
     pure integer(int32) function byte_at(str, i)
         character(len=*), intent(in) :: str
         integer(int64), intent(in) :: i
@@ -769,6 +769,7 @@ contains
     !> The Unicode general category of `c' (`UNICODE_CATEGORY_...'): Cn
     !> for an unassigned code point, UNKNOWN beyond Unicode.  What
     !> CHAR_TABLE_REF (Vunicode_category_table, c) gives upstream.
+    !> Not a port.
     pure integer function unicode_category(c) result(cat)
         integer(int32), intent(in) :: c
         integer :: lo, hi, mid
@@ -847,8 +848,8 @@ contains
     end function printablep
 
     !> Return true if C is a horizontal whitespace character, as defined
-    !> by https://www.unicode.org/reports/tr18/tr18-19.html#blank.  Port
-    !> of character.c:blankp.
+    !> by https://www.unicode.org/reports/tr18/tr18-19.html#blank.
+    !> Port of character.c:blankp.
     pure logical function blankp(c)
         integer(int32), intent(in) :: c
 
