@@ -569,7 +569,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1421) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1432) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -615,16 +615,17 @@ module docstrings_fm
                                             "buffer_menu_unmark_all_buffers", "buffer_menu_view", "buffer_menu_view_other_window", &
                                                            "buffer_name", "buffer_substring", "buffer_to_register", "bury_buffer", &
                                                   "call_last_kbd_macro", "cancel_timer", "canonically_space_region", "capitalize", &
-                                                     "capitalize_region", "capitalize_word", "char_syntax", "check_coding_system", &
-                                                                    "check_parens", "clear_rectangle", "coding_system_base", &
-                                                    "coding_system_change_eol_conversion", "coding_system_change_text_conversion", &
-                                                       "coding_system_eol_type", "coding_system_p", "coding_system_priority_list", &
-                                                        "coding_system_type", "comint_accumulate", "comint_append_output_to_file", &
-                                                     "comint_backward_matching_input", "comint_bol", "comint_bol_or_process_mark", &
-                                                    "comint_clear_buffer", "comint_complete_input_ring", "comint_continue_subjob", &
-                                                   "comint_copy_old_input", "comint_delchar_or_maybe_eof", "comint_delete_output", &
-                                                   "comint_dynamic_complete_filename", "comint_dynamic_list_filename_completions", &
-                                                   "comint_exec", "comint_forward_matching_input", "comint_get_next_from_history", &
+                                                            "capitalize_region", "capitalize_word", "char_charset", "char_syntax", &
+                                                       "charset_priority_list", "charsetp", "check_coding_system", "check_parens", &
+                                                   "clear_rectangle", "coding_system_base", "coding_system_change_eol_conversion", &
+                                              "coding_system_change_text_conversion", "coding_system_eol_type", "coding_system_p", &
+                                                         "coding_system_priority_list", "coding_system_type", "comint_accumulate", &
+                                                   "comint_append_output_to_file", "comint_backward_matching_input", "comint_bol", &
+                                                "comint_bol_or_process_mark", "comint_clear_buffer", "comint_complete_input_ring", &
+                                                 "comint_continue_subjob", "comint_copy_old_input", "comint_delchar_or_maybe_eof", &
+                                                                    "comint_delete_output", "comint_dynamic_complete_filename", &
+                                                                    "comint_dynamic_list_filename_completions", "comint_exec", &
+                                                                  "comint_forward_matching_input", "comint_get_next_from_history", &
                                                                     "comint_goto_process_mark", "comint_history_isearch_backward", &
                                                       "comint_history_isearch_backward_regexp", "comint_insert_previous_argument", &
                                                              "comint_interrupt_subjob", "comint_kill_input", "comint_kill_region", &
@@ -659,22 +660,22 @@ module docstrings_fm
                                              "current_buffer", "current_fill_column", "current_global_map", "current_indentation", &
                                            "current_justification", "current_kill", "cycle_spacing", "dabbrev__same_major_mode_p", &
                                              "dabbrev__select_buffers", "dabbrev_completion", "dabbrev_expand", "deactivate_mark", &
-                                                        "decode_coding_region", "decode_coding_string", "default_indent_new_line", &
-                                                    "define_coding_system_alias", "define_global_abbrev", "define_ibuffer_column", &
-                                                           "define_ibuffer_filter", "define_ibuffer_sorter", "define_mode_abbrev", &
-                                                  "delete_all_space", "delete_backward_char", "delete_blank_lines", "delete_char", &
-                                                     "delete_extract_rectangle", "delete_forward_char", "delete_horizontal_space", &
-                                                       "delete_indentation", "delete_matching_lines", "delete_non_matching_lines", &
-                                                      "delete_other_windows", "delete_pair", "delete_process", "delete_rectangle", &
-                                                "delete_region", "delete_whitespace_rectangle", "delete_window", "derived_mode_p", &
-                                                                "describe_bindings", "describe_coding_system", "describe_command", &
-                                                            "describe_current_coding_system", "describe_function", "describe_key", &
-                                                  "describe_key_briefly", "describe_mode", "describe_symbol", "describe_variable", &
-                                                      "detect_coding_region", "detect_coding_string", "diff", "diff_apply_buffer", &
-                                                        "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", "diff_buffers", &
-                                                  "diff_delete_other_hunks", "diff_file_kill", "diff_file_next", "diff_file_prev", &
-                                                      "diff_fixup_modifs", "diff_goto_source", "diff_hunk_kill", "diff_hunk_next", &
-                                                            "diff_hunk_prev", "diff_kill_junk", "diff_mode", "diff_restrict_view", &
+                                         "decode_char", "decode_coding_region", "decode_coding_string", "default_indent_new_line", &
+                                                           "define_charset", "define_charset_alias", "define_coding_system_alias", &
+                                                         "define_global_abbrev", "define_ibuffer_column", "define_ibuffer_filter", &
+                                                                "define_ibuffer_sorter", "define_mode_abbrev", "delete_all_space", &
+                                          "delete_backward_char", "delete_blank_lines", "delete_char", "delete_extract_rectangle", &
+                                                           "delete_forward_char", "delete_horizontal_space", "delete_indentation", &
+                                                     "delete_matching_lines", "delete_non_matching_lines", "delete_other_windows", &
+                                                             "delete_pair", "delete_process", "delete_rectangle", "delete_region", &
+                                            "delete_whitespace_rectangle", "delete_window", "derived_mode_p", "describe_bindings", &
+                                                   "describe_coding_system", "describe_command", "describe_current_coding_system", &
+                                                     "describe_function", "describe_key", "describe_key_briefly", "describe_mode", &
+                                           "describe_symbol", "describe_variable", "detect_coding_region", "detect_coding_string", &
+                                           "diff", "diff_apply_buffer", "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", &
+                                                    "diff_buffers", "diff_delete_other_hunks", "diff_file_kill", "diff_file_next", &
+                                                      "diff_file_prev", "diff_fixup_modifs", "diff_goto_source", "diff_hunk_kill", &
+                                          "diff_hunk_next", "diff_hunk_prev", "diff_kill_junk", "diff_mode", "diff_restrict_view", &
                                                "diff_revert_and_kill_hunk", "diff_split_hunk", "diff_test_hunk", "digit_argument", &
                                                    "dired", "dired_backup_diff", "dired_build_subdir_alist", "dired_change_marks", &
                                                "dired_copy_filename_as_kill", "dired_create_directory", "dired_create_empty_file", &
@@ -703,8 +704,8 @@ module docstrings_fm
                                                         "electric_newline_and_maybe_indent", "electric_pair_conservative_inhibit", &
                                                                "electric_pair_default_inhibit", "electric_pair_default_skip_self", &
                                                     "electric_pair_delete_pair", "electric_pair_local_mode", "electric_pair_mode", &
-                                                "enable_command", "encode_coding_region", "encode_coding_string", "end_kbd_macro", &
-                                                                   "end_of_buffer", "end_of_defun", "end_of_line", "eobp", "eolp", &
+                                                  "enable_command", "encode_char", "encode_coding_region", "encode_coding_string", &
+                                                  "end_kbd_macro", "end_of_buffer", "end_of_defun", "end_of_line", "eobp", "eolp", &
                                                   "exchange_point_and_mark", "executable_make_buffer_file_executable_if_script_p", &
                                                     "executable_self_display", "executable_set_magic", "execute_extended_command", &
                                                  "exit_minibuffer", "expand_abbrev", "expand_region_abbrevs", "extract_rectangle", &
@@ -855,7 +856,7 @@ module docstrings_fm
                                                   "log_view_msg_and_diff_next", "log_view_msg_and_diff_prev", "log_view_msg_next", &
                                                "log_view_msg_prev", "log_view_toggle_entry_display", "log_view_toggle_mark_entry", &
                                              "log_view_unmark_all_entries", "log_view_unmark_entry", "looking_at", "looking_at_p", &
-                                                       "looking_back", "major_mode_named", "make_comint", "make_comint_in_buffer", &
+                                          "looking_back", "major_mode_named", "make_char", "make_comint", "make_comint_in_buffer", &
                                                      "make_empty_file", "make_process", "make_symbolic_link", "make_syntax_table", &
                                                    "makefile_automake_mode", "makefile_backslash_region", "makefile_bsdmake_mode", &
                                                                  "makefile_create_up_to_date_overview", "makefile_electric_colon", &
@@ -929,9 +930,9 @@ module docstrings_fm
                                                "scroll_up", "scroll_up_command", "scss_mode", "search_backward", "search_forward", &
                                                         "select_window", "selected_window", "self_insert_command", "sentence_end", &
                                                                    "set_auto_mode", "set_buffer", "set_buffer_file_coding_system", &
-                                         "set_buffer_process_coding_system", "set_coding_system_priority", "set_command_disabled", &
-                                                    "set_default_coding_systems", "set_error", "set_file_modes", "set_file_times", &
-                                                               "set_fill_column", "set_fill_prefix", "set_keyboard_coding_system", &
+                                         "set_buffer_process_coding_system", "set_charset_priority", "set_coding_system_priority", &
+                                              "set_command_disabled", "set_default_coding_systems", "set_error", "set_file_modes", &
+                                             "set_file_times", "set_fill_column", "set_fill_prefix", "set_keyboard_coding_system", &
                                                        "set_local_abbrev_table", "set_mark", "set_mark_command", "set_match_data", &
                                                           "set_process_buffer", "set_process_coding_system", "set_process_filter", &
                                                          "set_process_query_on_exit_flag", "set_process_sentinel", "set_register", &
@@ -954,7 +955,7 @@ module docstrings_fm
                                            "show_paren_mode", "skip_chars_backward", "skip_chars_forward", "skip_syntax_backward", &
                                                   "skip_syntax_forward", "smie__next_indent_change", "smie_backward_sexp_command", &
                                                "smie_close_block", "smie_down_list", "smie_forward_sexp_command", "spaces_string", &
-                                                       "special_mode", "split_window", "split_window_below", "split_window_right", &
+                                         "special_mode", "split_char", "split_window", "split_window_below", "split_window_right", &
                                            "standard_syntax_table", "start_kbd_macro", "start_process", "string_insert_rectangle", &
                                                   "string_match", "string_match_p", "string_rectangle", "substitute_command_keys", &
                                                      "switch_to_buffer", "syntax_table", "tab_to_tab_stop", "tabulated_list_mode", &
@@ -965,36 +966,36 @@ module docstrings_fm
                                          "transpose_words", "turn_off_auto_fill", "turn_on_auto_fill", "turn_on_auto_revert_mode", &
                                              "turn_on_auto_revert_tail_mode", "turn_on_font_lock", "turn_on_font_lock_if_desired", &
                                                "uncomment_region", "undefined", "undo", "undo_boundary", "undo_only", "undo_redo", &
-                                          "unexpand_abbrev", "unfill_paragraph", "universal_argument", "universal_argument_minus", &
-                                               "universal_argument_more", "universal_coding_system_argument", "up_list", "upcase", &
-                                                      "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
-                                                      "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", &
-                                                                  "vc_dir_delete_file", "vc_dir_display_file", "vc_dir_find_file", &
-                                                       "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", "vc_dir_ignore", &
-                                                              "vc_dir_kill_dir_status_process", "vc_dir_kill_line", "vc_dir_mark", &
-                                                 "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", "vc_dir_mark_registered_files", &
-                                                         "vc_dir_mark_unregistered_files", "vc_dir_mode", "vc_dir_next_directory", &
-                                                          "vc_dir_next_line", "vc_dir_previous_directory", "vc_dir_previous_line", &
-                                              "vc_dir_refresh", "vc_dir_root", "vc_dir_root_next_action", "vc_dir_show_fileentry", &
-                                          "vc_dir_unmark", "vc_dir_unmark_all_files", "vc_dir_unmark_file_up", "vc_dir_view_file", &
-                                                                    "vc_git_log_edit_mode", "vc_git_log_edit_toggle_no_verify", &
-                                          "vc_git_log_edit_toggle_signoff", "vc_git_log_view_mode", "vc_ignore", "vc_next_action", &
-                                         "vc_print_log", "vc_print_root_log", "vc_refresh_state", "vc_register", "vc_rename_file", &
-                                                            "vc_restore", "vc_revert", "vc_revision_other_window", "vc_root_diff", &
-                                                    "vc_root_version_diff", "vc_version_diff", "view_back_to_mark", "view_buffer", &
-                                         "view_buffer_other_window", "view_echo_area_messages", "view_exit", "view_exit_and_edit", &
-                                                     "view_file", "view_file_other_window", "view_goto_line", "view_goto_percent", &
-                                                    "view_kill_and_leave", "view_leave", "view_lossage", "view_mode", "view_quit", &
-                                                               "view_quit_all", "view_register", "view_scroll_half_page_backward", &
-                                         "view_scroll_half_page_forward", "view_scroll_line_backward", "view_scroll_line_forward", &
-                                                           "view_scroll_page_backward", "view_scroll_page_backward_set_page_size", &
-                                                             "view_scroll_page_forward", "view_scroll_page_forward_set_page_size", &
-                                                                  "view_scroll_to_buffer_end", "view_search_last_regexp_backward", &
-                                                                 "view_search_last_regexp_forward", "view_search_regexp_backward", &
-                                                      "view_search_regexp_forward", "what_line", "what_page", "where_is", "widen", &
-                                                "window_configuration_to_register", "write_abbrev_file", "write_file", "y_or_n_p", &
-                                            "y_or_n_p_insert_n", "y_or_n_p_insert_other", "y_or_n_p_insert_y", "yank", "yank_pop", &
-                                                                    "yank_rectangle", "yes_or_no_p", "zrgrep"]
+                                                     "unexpand_abbrev", "unfill_paragraph", "unify_charset", "universal_argument", &
+                                                                    "universal_argument_minus", "universal_argument_more", &
+                                                       "universal_coding_system_argument", "up_list", "upcase", "upcase_initials", &
+                                                     "upcase_initials_region", "upcase_region", "upcase_word", "vc_clear_context", &
+                                                    "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", "vc_dir_delete_file", &
+                                                       "vc_dir_display_file", "vc_dir_find_file", "vc_dir_find_file_other_window", &
+                                                      "vc_dir_hide_up_to_date", "vc_dir_ignore", "vc_dir_kill_dir_status_process", &
+                                              "vc_dir_kill_line", "vc_dir_mark", "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", &
+                                                  "vc_dir_mark_registered_files", "vc_dir_mark_unregistered_files", "vc_dir_mode", &
+                                                         "vc_dir_next_directory", "vc_dir_next_line", "vc_dir_previous_directory", &
+                                               "vc_dir_previous_line", "vc_dir_refresh", "vc_dir_root", "vc_dir_root_next_action", &
+                                                              "vc_dir_show_fileentry", "vc_dir_unmark", "vc_dir_unmark_all_files", &
+                                                              "vc_dir_unmark_file_up", "vc_dir_view_file", "vc_git_log_edit_mode", &
+                                                             "vc_git_log_edit_toggle_no_verify", "vc_git_log_edit_toggle_signoff", &
+                                                            "vc_git_log_view_mode", "vc_ignore", "vc_next_action", "vc_print_log", &
+                                           "vc_print_root_log", "vc_refresh_state", "vc_register", "vc_rename_file", "vc_restore", &
+                                                  "vc_revert", "vc_revision_other_window", "vc_root_diff", "vc_root_version_diff", &
+                                                "vc_version_diff", "view_back_to_mark", "view_buffer", "view_buffer_other_window", &
+                                                        "view_echo_area_messages", "view_exit", "view_exit_and_edit", "view_file", &
+                                           "view_file_other_window", "view_goto_line", "view_goto_percent", "view_kill_and_leave", &
+                                         "view_leave", "view_lossage", "view_mode", "view_quit", "view_quit_all", "view_register", &
+                                                                "view_scroll_half_page_backward", "view_scroll_half_page_forward", &
+                                             "view_scroll_line_backward", "view_scroll_line_forward", "view_scroll_page_backward", &
+                                                            "view_scroll_page_backward_set_page_size", "view_scroll_page_forward", &
+                                                            "view_scroll_page_forward_set_page_size", "view_scroll_to_buffer_end", &
+                                                            "view_search_last_regexp_backward", "view_search_last_regexp_forward", &
+                                            "view_search_regexp_backward", "view_search_regexp_forward", "what_line", "what_page", &
+                                                     "where_is", "widen", "window_configuration_to_register", "write_abbrev_file", &
+                                                           "write_file", "y_or_n_p", "y_or_n_p_insert_n", "y_or_n_p_insert_other", &
+                                                 "y_or_n_p_insert_y", "yank", "yank_pop", "yank_rectangle", "yes_or_no_p", "zrgrep"]
 
     !> The documented variables, sorted.
     character(len=48), parameter, public :: variable_names(1205) = [character(len=48) :: &
@@ -3291,6 +3292,11 @@ contains
                         "point is ignored when moving forward."//LF// &
                         ""//LF// &
                         "With negative argument, capitalize previous words but do not move."
+        case ("char_charset")
+            entry%file = "charset_fm.f90"
+            entry%fortran = "char_charset(c, status)"
+            entry%doc = "The charset of highest priority that contains C (`ascii' for ASCII"//LF// &
+                        "characters)."
         case ("char_syntax")
             entry%file = "syntax_fm.f90"
             entry%fortran = "char_syntax(c)"
@@ -3299,6 +3305,14 @@ contains
                         "character `w' (119) is returned."//LF// &
                         "The characters that correspond to various syntax codes"//LF// &
                         "are listed in the documentation of `modify_syntax_entry'."
+        case ("charset_priority_list")
+            entry%file = "charset_fm.f90"
+            entry%fortran = "charset_priority_list()"
+            entry%doc = "The charsets ordered by priority."
+        case ("charsetp")
+            entry%file = "charset_fm.f90"
+            entry%fortran = "charsetp(name)"
+            entry%doc = "True if NAME is a charset or an alias of one."
         case ("check_coding_system")
             entry%file = "coding_fm.f90"
             entry%fortran = "call check_coding_system(coding_system, status)"
@@ -4444,6 +4458,11 @@ contains
             entry%doc = "Deactivate the mark."//LF// &
                         "If Transient Mark mode is disabled, this function normally does"//LF// &
                         "nothing; but if FORCE is true, it deactivates the mark anyway."
+        case ("decode_char")
+            entry%file = "charset_fm.f90"
+            entry%fortran = "decode_char(charset, code, status)"
+            entry%doc = "The character of CODE (a code point) in CHARSET, -1 if CODE is not"//LF// &
+                        "valid in it."
         case ("decode_coding_region")
             entry%file = "coding_fm.f90"
             entry%fortran = "call decode_coding_region(start, end, coding_system, inserted, status)"
@@ -4475,6 +4494,23 @@ contains
                         "unless optional argument SOFT is true.  FORCE (an interactive call)"//LF// &
                         "breaks the line even where `comment_auto_fill_only_comments' is"//LF// &
                         "true."
+        case ("define_charset")
+            entry%file = "charset_fm.f90"
+            entry%fortran = "call define_charset(name, docstring, status, code_space, dimension, min_code, max_code, is"// &
+                            "o_final_char, iso_revision_number, emacs_mule_id, ascii_compatible_p, supplementary_p, inv"// &
+                            "alid_code, code_offset, map, subset_parent, subset_min_code, subset_max_code, subset_offse"// &
+                            "t, superset, superset_offsets, unify_map, short_name, long_name)"
+            entry%doc = "Define NAME as a charset documented by DOCSTRING.  CODE_SPACE gives"//LF// &
+                        "the minimum and maximum byte of each dimension; one of CODE_OFFSET,"//LF// &
+                        "MAP, SUBSET_PARENT (with SUBSET_MIN_CODE, SUBSET_MAX_CODE and"//LF// &
+                        "SUBSET_OFFSET) or SUPERSET (the parent charsets, with"//LF// &
+                        "SUPERSET_OFFSETS) says how its code points map to characters.  The"//LF// &
+                        "other arguments are the attributes of the same names; a -1"//LF// &
+                        "ISO_FINAL_CHAR, ISO_REVISION_NUMBER or EMACS_MULE_ID means none."
+        case ("define_charset_alias")
+            entry%file = "charset_fm.f90"
+            entry%fortran = "call define_charset_alias(alias, charset, status)"
+            entry%doc = "Make ALIAS another name of CHARSET."
         case ("define_coding_system_alias")
             entry%file = "coding_fm.f90"
             entry%fortran = "call define_coding_system_alias(alias, coding_system)"
@@ -5653,6 +5689,11 @@ contains
                         "COMMAND is a command name."//LF// &
                         "This command alters the user's init file so that this will apply"//LF// &
                         "to future sessions."
+        case ("encode_char")
+            entry%file = "charset_fm.f90"
+            entry%fortran = "encode_char(c, charset, status)"
+            entry%doc = "The code point of character C in CHARSET, -1 if CHARSET does not"//LF// &
+                        "support C."
         case ("encode_coding_region")
             entry%file = "coding_fm.f90"
             entry%fortran = "call encode_coding_region(start, end, coding_system, inserted, status)"
@@ -9377,6 +9418,12 @@ contains
             entry%file = "derived_fm.f90"
             entry%fortran = "major_mode_named(name)"
             entry%doc = "The defined major mode named NAME, or null."
+        case ("make_char")
+            entry%file = "charset_fm.f90"
+            entry%fortran = "make_char(charset, status, code1, code2, code3, code4)"
+            entry%doc = "The character of CHARSET whose position codes are CODE1 to CODE4"//LF// &
+                        "(the minimum code of each dimension for those omitted, -1 for"//LF// &
+                        "omitted)."
         case ("make_comint")
             entry%file = "comint_fm.f90"
             entry%fortran = "call make_comint(name, program, result, status, startfile, switches)"
@@ -11886,6 +11933,10 @@ contains
                         ""//LF// &
                         "For a list of possible coding systems, use"//LF// &
                         "\[list_coding_systems]."
+        case ("set_charset_priority")
+            entry%file = "charset_fm.f90"
+            entry%fortran = "call set_charset_priority(names, status)"
+            entry%doc = "Give CHARSETS higher priority, in their order."
         case ("set_coding_system_priority")
             entry%file = "coding_fm.f90"
             entry%fortran = "call set_coding_system_priority(coding_systems, status)"
@@ -12627,6 +12678,11 @@ contains
                         ""//LF// &
                         "A special major mode is intended to view specially formatted data"//LF// &
                         "rather than files.  These modes usually use read-only buffers."
+        case ("split_char")
+            entry%file = "charset_fm.f90"
+            entry%fortran = "call split_char(c, charset, codes, status)"
+            entry%doc = "The charset of C by the current priority of charsets, with the"//LF// &
+                        "position code of each of its dimensions in CODES."
         case ("split_window")
             entry%file = "window_fm.f90"
             entry%fortran = "call split_window(window, size, have_size, horizontal, new, status)"
@@ -13025,6 +13081,11 @@ contains
                         "lines within, or if ARG is 0, optional arguments BEG and END present"//LF// &
                         "means to join the lines of each paragraph in the region delimited by BEG"//LF// &
                         "and END."
+        case ("unify_charset")
+            entry%file = "charset_fm.f90"
+            entry%fortran = "call unify_charset(charset, status, unify_map, deunify)"
+            entry%doc = "Unify the characters of CHARSET with Unicode by its `:unify-map'"//LF// &
+                        "(or UNIFY_MAP), or with DEUNIFY undo that."
         case ("universal_argument")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
