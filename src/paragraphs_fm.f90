@@ -25,14 +25,15 @@
 !> the left margin.
 !>
 !> Deferred: `use_hard_newlines', `repunctuate_sentences' (query-replace),
-!> `count_sentences', `forward_sentence_function'.
+!> `forward_sentence_function'.
 module paragraphs_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use buffer_fm, only: buffers, cur, buf_fetch_char, transient_mark_mode, barf_if_buffer_read_only
     use marker_fm, only: char_to_byte
-    use editfns_fm, only: point, goto_char, bobp, eobp, bolp, point_min, point_max, constrain_to_field
+    use editfns_fm, only: point, goto_char, bobp, eobp, bolp, point_min, point_max, constrain_to_field, &
+                          narrow_to_region, widen, inhibit_field_text_motion
     use cmds_fm, only: forward_line, beginning_of_line, end_of_line
     use indent_fm, only: current_column, move_to_left_margin, current_left_margin
     use simple_fm, only: kill_region, set_mark, push_mark, transpose_subr, fill_prefix
@@ -45,7 +46,7 @@ module paragraphs_fm
     implicit none(type, external)
     private
 
-    public :: transpose_paragraphs, transpose_sentences, init_paragraph_variables
+    public :: transpose_paragraphs, transpose_sentences, init_paragraph_variables, count_sentences
     public :: forward_paragraph, backward_paragraph, mark_paragraph, kill_paragraph, backward_kill_paragraph, &
               start_of_paragraph_text, end_of_paragraph_text, syms_of_paragraphs
     public :: sentence_end_regexp, forward_sentence, backward_sentence, kill_sentence, backward_kill_sentence, &
@@ -617,6 +618,43 @@ contains
             back_twice = re_search_back(send, SEARCH_NOERROR, par_beg)
         end function back_twice
     end subroutine forward_sentence
+
+    !> Count sentences in current buffer from START to END.  Port of
+    !> paragraphs.el:count-sentences.
+    integer(int64) function count_sentences(start, end) result(sentences)
+        integer(int64), intent(in) :: start, end
+        integer(int64) :: opoint, begv, zv_from_end, prev, next, before
+        type(status_type) :: st
+        logical :: saved
+
+        sentences = 0
+        saved = inhibit_field_text_motion
+        inhibit_field_text_motion = .true.
+        opoint = point()
+        begv = buffers(cur)%begv
+        zv_from_end = buffers(cur)%text%z - buffers(cur)%zv
+        call narrow_to_region(start, end, st)
+        call goto_char(point_min())
+        prev = point()
+        call forward_sentence(1_int64)
+        next = point()
+
+        do while (prev /= next)
+            prev = next
+            call forward_sentence(1_int64)
+            next = point()
+            sentences = sentences + 1
+        end do
+
+        ! Remove last possibly empty sentence
+        before = point()
+        call skip_whitespace_backward()
+        if (point() /= before) sentences = sentences - 1
+        call widen()
+        call narrow_to_region(begv, buffers(cur)%text%z - zv_from_end, st)
+        call goto_char(opoint)
+        inhibit_field_text_motion = saved
+    end function count_sentences
 
     !> skip-chars-backward " \t\n".
     subroutine skip_whitespace_backward()

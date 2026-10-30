@@ -117,6 +117,7 @@ module simple_fm
     public :: fundamental_mode, special_mode, syms_of_simple_modes, messages_buffer_mode, messages_buffer
     public :: set_variable
     public :: read_only_mode, what_line, what_line_text
+    public :: goto_line, goto_line_relative, count_words, count_words_format
     public :: read_shell_command, shell_command, shell_command_on_region, call_process_shell_command, call_shell_region, &
               display_message_or_buffer, &
               syms_of_simple_shell
@@ -153,6 +154,15 @@ module simple_fm
     !> True while performing an undo.  Port of simple.el
     !> undo-in-progress.
     logical, public :: undo_in_progress = .false.
+
+    !> True means it is ok for commands to call `widen' when they want to.
+    !> Some commands will do this in order to go to positions outside
+    !> the current accessible part of the buffer.
+    !>
+    !> If `widen_automatically' is .false., these commands will do something else
+    !> as a fallback, and won't change the buffer bounds.  Port of simple.el
+    !> widen-automatically.
+    logical, public :: widen_automatically = .true.
     ! Values of undo-equiv-table besides list positions: nil, t, `empty`.
     integer(int64), parameter :: EQUIV_NONE = -2, EQUIV_T = -1, EQUIV_EMPTY = -4
     public :: mark, region_active_p, use_region_p, deactivate_mark, activate_mark, set_mark, &
@@ -563,6 +573,88 @@ module simple_fm
         module subroutine syms_of_simple_view()
             implicit none(type, external)
         end subroutine syms_of_simple_view
+
+        !> Go to LINE, counting from line 1 at beginning of buffer.
+        !> If called interactively, a numeric prefix argument specifies
+        !> LINE; without a numeric prefix argument, read LINE from the
+        !> minibuffer.
+        !>
+        !> If called interactively with \[universal_argument], switch to the
+        !> most recently selected other buffer and move to line LINE there.
+        !>
+        !> If optional argument RELATIVE is true, counting starts at the beginning
+        !> of the accessible portion of the (potentially narrowed) buffer.
+        !>
+        !> If the variable `widen_automatically' is true, cancel narrowing and
+        !> leave all lines accessible.  If `widen_automatically' is .false., just move
+        !> point to the edge of visible portion and don't change the buffer bounds.
+        !>
+        !> Prior to moving point, this function sets the mark (without
+        !> activating it), unless Transient Mark mode is enabled and the
+        !> mark is already active.
+        !>
+        !> A true INTERACTIVE argument pushes the mark and switches the buffer
+        !> if optional argument BUFFER is present.
+        !>
+        !> This function is usually the wrong thing to use in a program.
+        !> What you probably want instead is something like:
+        !>   call goto_char(point_min())
+        !>   shortage = forward_line(n - 1)
+        !> If at all possible, an even better solution is to use char counts
+        !> rather than line counts.  Port of simple.el:goto-line.  (In
+        !> simple_goto_fm.)
+        module subroutine goto_line(line, status, buffer, relative, interactive)
+            implicit none(type, external)
+            integer(int64), intent(in) :: line
+            type(status_type), intent(out) :: status
+            type(handle_type), intent(in), optional :: buffer
+            logical, intent(in), optional :: relative, interactive
+        end subroutine goto_line
+
+        !> Go to LINE, counting from line at (point-min).
+        !> The line number is relative to the accessible portion of the narrowed
+        !> buffer.  The arguments BUFFER and INTERACTIVE are the same as in the
+        !> function `goto_line'.  Port of simple.el:goto-line-relative.  (In
+        !> simple_goto_fm.)
+        module subroutine goto_line_relative(line, status, buffer, interactive)
+            implicit none(type, external)
+            integer(int64), intent(in) :: line
+            type(status_type), intent(out) :: status
+            type(handle_type), intent(in), optional :: buffer
+            logical, intent(in), optional :: interactive
+        end subroutine goto_line_relative
+
+        !> Count words between START and END.
+        !> If called interactively, START and END are normally the start and
+        !> end of the buffer; but if the region is active, START and END are
+        !> the start and end of the region.  Print a message reporting the
+        !> number of lines, sentences, words, and chars.  With prefix
+        !> argument, also include the data for the entire (un-narrowed)
+        !> buffer.
+        !>
+        !> If called from a program, return the number of words between START
+        !> and END, without printing any message.  Port of
+        !> simple.el:count-words.  (In simple_goto_fm.)
+        module integer(int64) function count_words(start, end) result(words)
+            implicit none(type, external)
+            integer(int64), intent(in) :: start, end
+        end function count_words
+
+        !> The message of `count_words' about the text from START to END
+        !> called STR.  Port of simple.el:count-words--format.  (In
+        !> simple_goto_fm.)
+        module function count_words_format(str, start, end) result(text)
+            implicit none(type, external)
+            character(len=*), intent(in) :: str
+            integer(int64), intent(in) :: start, end
+            character(len=:), allocatable :: text
+        end function count_words_format
+
+        !> Define the goto, narrowing and word counting commands.  (In
+        !> simple_goto_fm.)
+        module subroutine syms_of_simple_goto()
+            implicit none(type, external)
+        end subroutine syms_of_simple_goto
         !> Read a shell command from the minibuffer, and return it as a
         !> string.  The arguments are the same as the ones of
         !> `read_from_minibuffer', except READ and KEYMAP are missing and
@@ -3067,6 +3159,7 @@ contains
         call syms_of_simple_fill()
         call syms_of_simple_modes()
         call syms_of_simple_view()
+        call syms_of_simple_goto()
         call syms_of_simple_shell()
         call syms_of_simple_next_error()
         call syms_of_simple_electric()

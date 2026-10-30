@@ -281,10 +281,12 @@ module subr_fm
         !> `read_from_minibuffer' for details of the HIST argument.
         !>
         !> DEFAULTS, in place of DEFAULT, is an array of defaults: the first
-        !> is the default, all are offered by M-n.  Port of
-        !> subr.el:read-number (the answer is read as upstream's reader reads
-        !> an integer; floats are not ported).  (In subr_read_fm.)
-        module subroutine read_number(prompt, n, status, default, hist, defaults)
+        !> is the default, all are offered by M-n; with NO_DEFAULT, the list
+        !> starts with a nil default (there is none, the others are offered
+        !> by M-n).  Port of subr.el:read-number (the answer is read as
+        !> upstream's reader reads an integer; floats are not ported).  (In
+        !> subr_read_fm.)
+        module subroutine read_number(prompt, n, status, default, hist, defaults, no_default)
             implicit none(type, external)
             character(len=*), intent(in) :: prompt
             integer(int64), intent(out) :: n
@@ -292,6 +294,7 @@ module subr_fm
             integer(int64), intent(in), optional :: default
             character(len=*), intent(in), optional :: hist
             integer(int64), intent(in), optional :: defaults(:)
+            logical, intent(in), optional :: no_default
         end subroutine read_number
 
         !> Run mode hooks `delayed_mode_hooks' and HOOK, or delay HOOK.

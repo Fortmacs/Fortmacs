@@ -34,9 +34,7 @@
 !> Deferred: the F90 menu, Imenu (`f90_imenu_generic_expression',
 !> `f90_add_imenu_menu', `f90_imenu_type_matcher'), Hideshow
 !> (`hs_block_start_regexp' with `f90_start_block_re' and
-!> `f90_end_block_re'), Add Log (`f90_current_defun'),
-!> `beginning_of_defun_function' and `end_of_defun_function' (C-M-a and
-!> C-M-e are bound to F90's own commands), `f90_backslash_not_special'
+!> `f90_end_block_re'), Add Log (`f90_current_defun'), `f90_backslash_not_special'
 !> (obsolete), the `delete_selection' property of
 !> `f90_electric_insert', and `f90_cache_position' as a buffer-local
 !> variable (it is set only while a region command runs).
@@ -80,7 +78,7 @@ module f90_fm
                             FONT_LOCK_OVERRIDE_KEEP, FONT_LOCK_OVERRIDE_APPEND
     use font_lock_fm, only: font_lock_keyword, font_lock_highlight, font_lock_anchored, font_lock_flush
     use fill_fm, only: fill_paragraph_function, fill_comment_paragraph
-    use lisp_cmds_fm, only: forward_sexp
+    use lisp_cmds_fm, only: forward_sexp, beginning_of_defun_function, end_of_defun_function
     use regexp_opt_fm, only: regexp_opt, REGEXP_OPT_T
     use newcomment_fm, only: comment_start, comment_start_skip, comment_indent_function, comment_indent_type, &
                              comment_column, comment_auto_fill_only_comments, COMMENT_INDENT_COLUMN
@@ -1970,6 +1968,29 @@ contains
         b = f90_beginning_of_subprogram(.true.)
     end subroutine cmd_f90_beginning_of_subprogram
 
+    ! `f90_beginning_of_subprogram' as `beginning_of_defun_function'
+    ! (called with ARG, so INTERACTIVE is true).
+    recursive subroutine f90_beginning_of_defun(arg, found, status)
+        integer(int64), intent(in) :: arg
+        logical, intent(out) :: found
+        type(status_type), intent(out) :: status
+        type(f90_block_type) :: b
+
+        status = status_type()
+        ! ARG is the INTERACTIVE argument: true, as any number is.
+        b = f90_beginning_of_subprogram(arg == arg)
+        found = b%found
+    end subroutine f90_beginning_of_defun
+
+    ! `f90_end_of_subprogram' as `end_of_defun_function'.
+    recursive subroutine f90_end_of_defun(status)
+        type(status_type), intent(out) :: status
+        type(f90_block_type) :: b
+
+        status = status_type()
+        b = f90_end_of_subprogram()
+    end subroutine f90_end_of_defun
+
     !> Move point to the end of the current subprogram.
     !> Return (TYPE NAME), or nil if not found.  Port of
     !> f90.el:f90-end-of-subprogram.
@@ -3786,6 +3807,8 @@ contains
         call normal_auto_fill_function%set_local(f90_do_auto_fill)
         call indent_tabs_mode%set_local(.false.) ! auto buffer local
         call fill_paragraph_function%set_local(f90_fill_paragraph)
+        call beginning_of_defun_function%set_local(f90_beginning_of_defun)
+        call end_of_defun_function%set_local(f90_end_of_defun)
         levels(1) = font_lock_keywords_level(f90_font_lock_keywords)
         levels(2) = font_lock_keywords_level(f90_font_lock_keywords_1)
         levels(3) = font_lock_keywords_level(f90_font_lock_keywords_2)
