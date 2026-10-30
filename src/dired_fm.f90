@@ -86,13 +86,16 @@ contains
         integer(int32) :: err
         integer :: n, k, j, key
         logical :: absolute, sorted
+
         files = nil()
+
         if (present(count)) then
             if (count < 0) then
                 call set_error(status, FM_WRONG_TYPE_ARGUMENT, "wholenump")
                 return
             end if
         end if
+
         absolute = .false.
         if (present(full)) absolute = full
         sorted = .true.
@@ -101,30 +104,38 @@ contains
         if (.not. status%ok()) return
         dirfilename = directory_file_name(dir)
         err = emacs_directory_entries(dirfilename, names)
+
         if (err /= 0) then
             call report_file_errno("Opening directory", dirfilename, err, status)
             return
         end if
+
         n = size(names)
         if (present(count)) n = int(min(count, int(n, int64)))
         ! The list is consed up as entries are read: the last read first.
         order = [(k, k=n, 1, -1)]
+
         ! Sorted with string-lessp (by character codes): an insertion sort
         ! of (nreverse list).
         if (sorted) then
             order = [(k, k=1, n)]
+
             do k = 2, n
                 key = order(k)
                 j = k - 1
+
                 do while (j >= 1)
                     if (.not. lessp(names(key)%s, names(order(j))%s)) exit
                     order(j + 1) = order(j)
                     j = j - 1
                 end do
+
                 order(j + 1) = key
             end do
         end if
+
         allocate (elems(n))
+
         do k = 1, n
             if (absolute) then
                 elems(k) = make_string(file_name_as_directory(dirfilename)//names(order(k))%s)
@@ -132,6 +143,7 @@ contains
                 elems(k) = make_string(names(order(k))%s)
             end if
         end do
+
         files = make_list(elems)
     end subroutine directory_files
 
@@ -140,12 +152,14 @@ contains
     pure logical function lessp(a, b)
         character(len=*), intent(in) :: a, b
         integer :: k
+
         do k = 1, min(len(a), len(b))
             if (a(k:k) /= b(k:k)) then
                 lessp = iachar(a(k:k)) < iachar(b(k:k))
                 return
             end if
         end do
+
         lessp = len(a) < len(b)
     end function lessp
 
@@ -166,6 +180,7 @@ contains
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
         procedure(completion_predicate), optional :: predicate
+
         call file_name_completion_1(file, directory, .false., result, status, predicate)
     end subroutine file_name_completion
 
@@ -176,6 +191,7 @@ contains
         character(len=*), intent(in) :: file, directory
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
+
         call file_name_completion_1(file, directory, .true., result, status)
     end subroutine file_name_all_completions
 
@@ -187,19 +203,24 @@ contains
         character(len=:), allocatable :: ext
         integer(int64) :: skip, elen
         integer :: k
+
         ignored = .false.
+
         do k = 1, size(completion_ignored_extensions)
             ext = trim(completion_ignored_extensions(k))
             if (len(ext) == 0) cycle
+
             if (directoryp) then
                 ! Directories match the extensions that end in a slash.
                 if (ext(len(ext):len(ext)) /= "/") cycle
                 ext = ext(1:len(ext) - 1)
                 if (len(ext) == 0) cycle
             end if
+
             elen = schars(ext)
             skip = schars(name) - elen
             if (skip < 0) cycle
+
             if (compare_strings(name, ext, completion_ignore_case%value, start1=skip) == COMPARE_EQUAL) then
                 ignored = .true.
                 return
@@ -222,16 +243,19 @@ contains
         integer(int32) :: err
         integer :: k, matchcount, nall
         logical :: directoryp, canexclude, includeall, have_best
+
         result = nil()
         call expand_file_name(dirname, dir, status)
         if (.not. status%ok()) return
         dir = file_name_as_directory(dir)
         dirfilename = directory_file_name(dir)
         err = emacs_directory_entries(dirfilename, names)
+
         if (err /= 0) then
             call report_file_errno("Opening directory", dirfilename, err, status)
             return
         end if
+
         ! If not INCLUDEALL, exclude files in completion-ignored-extensions
         ! as well as "." and "..".  Until shown otherwise, assume we can't
         ! exclude anything.
@@ -242,11 +266,13 @@ contains
         nfile = schars(file)
         allocate (all(size(names)))
         nall = 0
+
         do k = 1, size(names)
             name = names(k)%s
             if (schars(name) < nfile) cycle
             if (compare_strings(name, file, completion_ignore_case%value, end1=nfile) /= COMPARE_EQUAL) cycle
             directoryp = file_directory_p(dir//name)
+
             ! If all_flag is set, always include all.  It would not actually
             ! be helpful to the user to ignore any possible completions when
             ! making a list of them.
@@ -254,14 +280,17 @@ contains
                 ! "." and ".." are never interesting as completions, and are
                 ! actually in the way in a directory with only one file.
                 canexclude = .false.
+
                 if (directoryp .and. (name == "." .or. name == "..")) then
                     canexclude = .true.
                 else if (len(name) > len(file)) then
                     canexclude = ignored_extension(name, directoryp)
                 end if
+
                 ! We're not including all files and this file can be
                 ! excluded.
                 if (.not. includeall .and. canexclude) cycle
+
                 if (includeall .and. .not. canexclude) then
                     ! If we have one non-excludable file, we want to exclude
                     ! the excludable files.
@@ -272,15 +301,19 @@ contains
                     matchcount = 0
                 end if
             end if
+
             ! This completion is a directory; make it end with '/'.
             if (directoryp) name = file_name_as_directory(name)
+
             ! Test the predicate, if any.
             if (present(predicate)) then
                 if (.not. predicate(make_string(name))) cycle
             end if
+
             ! Suitably record this match.
             if (matchcount <= 1) matchcount = matchcount + 1
             nname = schars(name)
+
             if (all_flag) then
                 nall = nall + 1
                 all(nall) = make_string(name)
@@ -293,6 +326,7 @@ contains
                 cmp = compare_strings(bestmatch, name, completion_ignore_case%value, end1=compare, end2=compare)
                 matchsize = compare
                 if (cmp /= COMPARE_EQUAL) matchsize = abs(cmp) - 1
+
                 if (completion_ignore_case%value) then
                     ! If this is an exact match except for case, use it as
                     ! the best match rather than one that is not an exact
@@ -305,6 +339,7 @@ contains
                         bestmatch = name
                     end if
                 end if
+
                 bestmatchsize = matchsize
                 ! If the best completion so far is reduced to the string
                 ! we're trying to complete, then we already know there's no
@@ -313,18 +348,22 @@ contains
                     (.not. completion_ignore_case%value .or. matchsize == 0) .and. matchcount > 1) exit
             end if
         end do
+
         if (all_flag) then
             ! Upstream conses the matches, so the list is in reverse order.
             result = make_list(all(nall:1:-1))
             return
         end if
+
         if (.not. have_best) return
+
         ! Return t if the supplied string is an exact match (counting
         ! case); it does not require any change to be made.
         if (matchcount == 1 .and. bestmatch == file .and. len(bestmatch) == len(file)) then
             result = t_value()
             return
         end if
+
         result = make_string(substring(bestmatch, 0_int64, bestmatchsize))
     end subroutine file_name_completion_1
 
@@ -339,8 +378,10 @@ contains
         character(len=:), allocatable :: me
         logical :: found
         integer :: k, n
+
         call system_user_names(names)
         n = size(names)
+
         if (n == 0) then
             ! At least current user is always known.
             call passwd_name_of_user(me, found)
@@ -349,11 +390,14 @@ contains
             users = make_list(elems)
             return
         end if
+
         allocate (elems(n))
+
         ! Consed: the last entry first.
         do k = 1, n
             elems(k) = make_string(names(n + 1 - k)%s)
         end do
+
         users = make_list(elems)
     end subroutine system_users
 
@@ -365,12 +409,15 @@ contains
         type(sys_string_type), allocatable :: names(:)
         type(value_type), allocatable :: elems(:)
         integer :: k, n
+
         call system_group_names(names)
         n = size(names)
         allocate (elems(n))
+
         do k = 1, n
             elems(k) = make_string(names(n + 1 - k)%s)
         end do
+
         groups = make_list(elems)
     end subroutine system_groups
 
@@ -385,16 +432,20 @@ contains
         type(file_stat_type) :: st
         character(len=12) :: num
         logical :: named
+
         user = ""
         group = ""
         call file_attributes(filename, st, found, nofollow=.true.)
         if (.not. found) return
         call user_name_of_uid(st%uid, user, named)
+
         if (.not. named) then
             write (num, "(i0)") st%uid
             user = trim(num)
         end if
+
         call group_name_of_gid(st%gid, group, named)
+
         if (.not. named) then
             write (num, "(i0)") st%gid
             group = trim(num)

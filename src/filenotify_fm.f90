@@ -118,8 +118,10 @@ contains
     integer function find_watch(desc) result(k)
         type(watch_descriptor_type), intent(in) :: desc
         integer :: i
+
         k = 0
         if (.not. allocated(file_notify_descriptors)) return
+
         do i = 1, size(file_notify_descriptors)
             if (file_notify_descriptors(i)%used) then
                 if (file_notify_descriptors(i)%desc == desc) then
@@ -143,6 +145,7 @@ contains
         integer, intent(in) :: k
         character(len=:), allocatable :: name
         type(status_type) :: st
+
         if (allocated(file_notify_descriptors(k)%filename)) then
             call expand_file_name(file_notify_descriptors(k)%filename, name, st, file_notify_descriptors(k)%directory)
         else
@@ -158,18 +161,22 @@ contains
         type(watch_descriptor_type), intent(in) :: descriptor
         type(stopped_type), allocatable :: grown(:)
         integer :: k, i, slot
+
         k = find_watch(descriptor)
         if (k == 0) return
         if (.not. allocated(stopped)) allocate (stopped(0))
         slot = 0
+
         do i = 1, size(stopped)
             if (.not. stopped(i)%used) then
                 slot = i
                 exit
             end if
         end do
+
         if (slot == 0) then
             allocate (grown(size(stopped) + 1))
+
             do i = 1, size(stopped)
                 grown(i)%used = stopped(i)%used
                 grown(i)%event%descriptor = stopped(i)%event%descriptor
@@ -177,9 +184,11 @@ contains
                 if (allocated(stopped(i)%event%file)) call move_alloc(stopped(i)%event%file, grown(i)%event%file)
                 grown(i)%callback => stopped(i)%callback
             end do
+
             call move_alloc(grown, stopped)
             slot = size(stopped)
         end if
+
         stopped(slot)%used = .true.
         stopped(slot)%event%descriptor = descriptor
         stopped(slot)%event%action = FILE_NOTIFY_STOPPED
@@ -199,6 +208,7 @@ contains
         type(status_type), intent(out) :: status
         type(file_notify_event_type) :: event
         procedure(file_notify_callback_proc), pointer :: callback
+
         status = status_type()
         event%descriptor = stopped(slot)%event%descriptor
         event%action = stopped(slot)%event%action
@@ -216,6 +226,7 @@ contains
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: name
         type(status_type) :: st
+
         if (file_name_absolute_p(file)) then
             name = directory_file_name(file)
         else
@@ -238,13 +249,16 @@ contains
                                                    FILE_NOTIFY_DELETED, FILE_NOTIFY_CHANGED, FILE_NOTIFY_DELETED, &
                                                    FILE_NOTIFY_DELETED, FILE_NOTIFY_CREATED, FILE_NOTIFY_ATTRIBUTE_CHANGED]
         integer :: actions(NBITS), n, k
+
         n = 0
+
         do k = 1, NBITS
             if (iand(event%aspects, bits(k)) /= 0) then
                 n = n + 1
                 actions(n) = actions_of(k)
             end if
         end do
+
         call file_notify_handle_event(event%descriptor, actions(1:n), event%name, event%cookie, status)
     end subroutine file_notify_callback_inotify
 
@@ -260,6 +274,7 @@ contains
         type(file_notify_event_type) :: ev
         procedure(file_notify_callback_proc), pointer :: callback
         logical :: wanted
+
         wanted = .not. allocated(file_notify_descriptors(k)%filename)
         if (.not. wanted) wanted = file_notify_descriptors(k)%filename == file_name_nondirectory(file)
         if (.not. wanted .and. present(file1)) wanted = file_notify_descriptors(k)%filename == file_name_nondirectory(file1)
@@ -283,6 +298,7 @@ contains
         character(len=*), intent(in), optional :: file1
         type(file_notify_event_type) :: ev
         integer :: k
+
         k = find_watch(desc)
         if (k == 0) return
         if (.not. associated(file_notify_descriptors(k)%callback)) return
@@ -313,19 +329,24 @@ contains
         type(watch_descriptor_type) :: p_desc
         integer :: i, k, action
         logical :: have_file1
+
         status = status_type()
         k = find_watch(desc)
         if (k == 0) return
         file = notify_expand_file_name(k, file_in)
+
         do i = 1, size(actions)
             action = actions(i)
+
             if (pending_rename) then
                 if (.not. (pending_cookie == cookie .and. action == RENAMED_TO)) then
                     pending_rename = .false.
                     call call_callback(pending_desc, FILE_NOTIFY_DELETED, pending_from_file, status)
                 end if
             end if
+
             have_file1 = .false.
+
             select case (action)
             case (FILE_NOTIFY_STOPPED)
                 call file_notify_rm_watch(desc)
@@ -344,17 +365,21 @@ contains
                     have_file1 = .true.
                     file = from_file
                     pending_rename = .false.
+
                     if (.not. (desc == p_desc)) then
                         call call_callback(p_desc, FILE_NOTIFY_RENAMED, file, status, file1)
                     end if
+
                     action = FILE_NOTIFY_RENAMED
                 else
                     action = FILE_NOTIFY_CREATED
                 end if
             case default
             end select
+
             ! The watch may have been removed by a callback.
             k = find_watch(desc)
+
             if (action /= 0 .and. k /= 0) then
                 if (have_file1) then
                     call call_handler(k, desc, action, file, status, file1)
@@ -362,12 +387,15 @@ contains
                     call call_handler(k, desc, action, file, status)
                 end if
             end if
+
             k = find_watch(desc)
             if (k == 0) cycle
+
             if (action == FILE_NOTIFY_DELETED .or. action == FILE_NOTIFY_RENAMED) then
                 if (have_file1) then
                     if (backup_file_name_p(file1)) cycle
                 end if
+
                 if (file == watch_absolute_filename(k)) call file_notify_rm_watch(desc)
             end if
         end do
@@ -422,35 +450,44 @@ contains
         character(len=16) :: buf
         integer(int32) :: aspect
         integer :: k, i
+
         call expand_file_name(file_in, file, status)
         if (.not. status%ok()) return
+
         if (flags == 0 .or. iand(flags, not(ior(FILE_NOTIFY_CHANGE, FILE_NOTIFY_ATTRIBUTE_CHANGE))) /= 0) then
             write (buf, "(i0)") flags
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "("//trim(buf)//")")
             return
         end if
+
         if (file_directory_p(file)) then
             dir = directory_file_name(file)
         else
             dir = directory_file_name(file_name_directory(file))
         end if
+
         if (.not. file_directory_p(dir)) then
             call set_error(status, FM_FILE_NOTIFY_ERROR, "Directory does not exist: "//dir)
             return
         end if
+
         ! file-notify--add-watch-inotify.
         aspect = ior(INOTIFY_DONT_FOLLOW, ior(INOTIFY_IGNORED, INOTIFY_UNMOUNT))
+
         if (iand(flags, FILE_NOTIFY_CHANGE) /= 0) then
             aspect = ior(aspect, ior(ior(INOTIFY_CREATE, INOTIFY_DELETE), ior(INOTIFY_DELETE_SELF, INOTIFY_MODIFY)))
             aspect = ior(aspect, ior(INOTIFY_MOVE_SELF, INOTIFY_MOVE))
         end if
+
         if (iand(flags, FILE_NOTIFY_ATTRIBUTE_CHANGE) /= 0) aspect = ior(aspect, INOTIFY_ATTRIB)
         call inotify_add_watch(dir, aspect, file_notify_callback_inotify, desc, status)
         if (.not. status%ok()) return
         ! puthash: replace an entry for the same descriptor.
         k = find_watch(desc)
+
         if (k == 0) then
             if (.not. allocated(file_notify_descriptors)) allocate (file_notify_descriptors(0))
+
             do i = 1, size(file_notify_descriptors)
                 if (.not. file_notify_descriptors(i)%used) then
                     k = i
@@ -458,22 +495,29 @@ contains
                 end if
             end do
         end if
+
         if (k == 0) then
             allocate (grown(size(file_notify_descriptors) + 1))
+
             do i = 1, size(file_notify_descriptors)
                 grown(i)%used = file_notify_descriptors(i)%used
                 grown(i)%desc = file_notify_descriptors(i)%desc
+
                 if (allocated(file_notify_descriptors(i)%directory)) then
                     call move_alloc(file_notify_descriptors(i)%directory, grown(i)%directory)
                 end if
+
                 if (allocated(file_notify_descriptors(i)%filename)) then
                     call move_alloc(file_notify_descriptors(i)%filename, grown(i)%filename)
                 end if
+
                 grown(i)%callback => file_notify_descriptors(i)%callback
             end do
+
             call move_alloc(grown, file_notify_descriptors)
             k = size(file_notify_descriptors)
         end if
+
         file_notify_descriptors(k)%used = .true.
         file_notify_descriptors(k)%desc = desc
         file_notify_descriptors(k)%directory = dir
@@ -489,6 +533,7 @@ contains
         type(watch_descriptor_type), intent(in) :: descriptor
         type(status_type) :: st
         integer :: k
+
         k = find_watch(descriptor)
         if (k == 0) return
         if (.not. associated(file_notify_descriptors(k)%callback)) return
@@ -501,10 +546,13 @@ contains
     !> filenotify.el:file-notify-rm-all-watches.
     subroutine file_notify_rm_all_watches()
         integer :: k
+
         if (.not. allocated(file_notify_descriptors)) return
+
         do k = 1, size(file_notify_descriptors)
             if (file_notify_descriptors(k)%used) call file_notify_rm_watch(file_notify_descriptors(k)%desc)
         end do
+
         deallocate (file_notify_descriptors)
     end subroutine file_notify_rm_all_watches
 
@@ -513,6 +561,7 @@ contains
     !> Port of filenotify.el:file-notify-valid-p.
     logical function file_notify_valid_p(descriptor)
         type(watch_descriptor_type), intent(in) :: descriptor
+
         file_notify_valid_p = .false.
         if (find_watch(descriptor) == 0) return
         file_notify_valid_p = inotify_valid_p(descriptor)

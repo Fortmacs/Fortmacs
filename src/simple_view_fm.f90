@@ -40,6 +40,7 @@ contains
         type(status_type), intent(out) :: status
         type(major_mode_type), pointer :: p
         logical :: special
+
         status = status_type()
         buffers(cur)%read_only = enable
         ! We're saving this value here so that we can restore the
@@ -47,6 +48,7 @@ contains
         ! been explicitly set by the user.
         buffers(cur)%read_only_mode_state = buffers(cur)%read_only
         buffers(cur)%read_only_mode_state_set = .true.
+
         if (.not. buffers(cur)%read_only .and. view_mode_enabled()) then
             call view_exit_and_edit(status)
             ! Must leave view mode.
@@ -54,10 +56,12 @@ contains
         else if (buffers(cur)%read_only .and. view_read_only_value() .and. .not. view_mode_enabled()) then
             ! If view-mode is already active, `view_mode_enter' is a nop.
             special = .false.
+
             if (allocated(buffers(cur)%major_mode)) then
                 p => major_mode_named(buffers(cur)%major_mode)
                 if (associated(p)) special = p%special
             end if
+
             if (.not. special) call view_mode_enter(status)
         end if
     end subroutine read_only_body
@@ -68,6 +72,7 @@ contains
 
     module procedure what_line
     character(len=:), allocatable :: text
+
     status = status_type()
     call what_line_text(text)
     end procedure what_line
@@ -76,9 +81,11 @@ contains
     integer(int64) :: start, n, begv, zv
     character(len=24) :: a, b
     type(status_type) :: status
+
     start = point_min()
     n = line_number_at_pos()
     write (a, "(i0)") n
+
     if (start == 1) then
         text = "Line "//trim(a)
         call message(text)

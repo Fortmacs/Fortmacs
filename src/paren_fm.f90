@@ -200,9 +200,11 @@ contains
     integer function data_local_index() result(i)
         i = 0
         if (cur == 0 .or. .not. allocated(data_locals)) return
+
         do i = 1, size(data_locals)
             if (data_locals(i)%serial == buffers(cur)%serial) return
         end do
+
         i = 0
     end function data_local_index
 
@@ -212,25 +214,32 @@ contains
         procedure(show_paren_data_proc), optional :: fn
         type(data_entry_type), allocatable :: grown(:)
         integer :: i, n
+
         if (cur == 0) return
         if (.not. allocated(data_locals)) allocate (data_locals(0))
         i = data_local_index()
+
         if (i == 0) then
             do i = 1, size(data_locals)
                 if (.not. buffer_serial_live(data_locals(i)%serial)) exit
             end do
+
             if (i > size(data_locals)) then
                 n = size(data_locals)
                 allocate (grown(n + 1))
+
                 do i = 1, n
                     grown(i)%serial = data_locals(i)%serial
                     grown(i)%fn => data_locals(i)%fn
                 end do
+
                 call move_alloc(grown, data_locals)
                 i = n + 1
             end if
+
             data_locals(i)%serial = buffers(cur)%serial
         end if
+
         if (present(fn)) then
             data_locals(i)%fn => fn
         else
@@ -243,7 +252,9 @@ contains
     function current_show_paren_data_function() result(fn)
         procedure(show_paren_data_proc), pointer :: fn
         integer :: i
+
         i = data_local_index()
+
         if (i > 0) then
             fn => data_locals(i)%fn
         else
@@ -260,6 +271,7 @@ contains
     !> (also what `kill_all_local_variables' does to it).
     subroutine kill_local_show_paren_data_function()
         integer :: i
+
         i = data_local_index()
         if (i == 0) return
         data_locals(i)%serial = 0
@@ -292,6 +304,7 @@ contains
     !> use `show_paren_local_mode'.  Port of paren.el:show-paren-mode.
     subroutine show_paren_mode(status)
         type(status_type), intent(out) :: status
+
         call minor_modes%show_paren_mode%command(status)
     end subroutine show_paren_mode
 
@@ -299,6 +312,7 @@ contains
     subroutine show_paren_mode_body(on, status)
         logical, intent(in) :: on
         type(status_type), intent(out) :: status
+
         status = status_type()
         if (on) continue
         ! First get rid of the old idle timer.
@@ -319,6 +333,7 @@ contains
     !> paren.el:show-paren-local-mode.
     subroutine show_paren_local_mode(status)
         type(status_type), intent(out) :: status
+
         call minor_modes%show_paren_local_mode%command(status)
     end subroutine show_paren_local_mode
 
@@ -329,9 +344,11 @@ contains
         type(status_type), intent(out) :: status
         type(value_type) :: default
         type(status_type) :: st
+
         status = status_type()
         call minor_modes%show_paren_mode%state%set_local(val)
         call default_value(sym("show_paren_mode"), default, st)
+
         if (minor_modes%show_paren_mode%state%value .eqv. .not. nilp(default)) then
             if (.not. minor_modes%show_paren_mode%state%value) then
                 call show_paren_delete_overlays()
@@ -353,6 +370,7 @@ contains
     logical function show_paren_unescaped_p(pos) result(unescaped)
         integer(int64), intent(in) :: pos
         integer(int64) :: opoint, moved
+
         opoint = point()
         call goto_char(pos)
         moved = skip_syntax_backward("/\")
@@ -367,6 +385,7 @@ contains
         integer :: c
         logical :: found
         type(syntax_descriptor_type) :: d
+
         syntax_class = -1
         if (pos < point_min() .or. pos >= point_max()) return
         call char_after(c, found, pos)
@@ -382,9 +401,11 @@ contains
         integer :: c
         logical :: found
         type(syntax_descriptor_type) :: d
+
         m = -1
         if (pos < point_min() .or. pos >= point_max()) return
         call char_after(c, found, pos)
+
         if (found) then
             d = syntax_entry(c)
             m = d%match
@@ -400,8 +421,10 @@ contains
         integer(int64), intent(in) :: pos
         integer, intent(out) :: dir
         integer(int64), intent(out) :: outside
+
         dir = 0
         outside = 0
+
         if (syntax_class_after(pos) == SOPEN) then
             if (show_paren_unescaped_p(pos)) then
                 dir = 1
@@ -425,6 +448,7 @@ contains
         integer(int64) :: ind_pos, eol_pos, opoint, moved, before_outside, after_outside
         integer :: before_dir, after_dir
         type(status_type) :: st
+
         opoint = point()
         call back_to_indentation()
         ind_pos = point()
@@ -436,6 +460,7 @@ contains
         call show_paren_categorize_paren(opoint, after_dir, after_outside)
         dir = 0
         outside = 0
+
         if (before_dir == -1) then
             ! Point is immediately outside a paren.
             dir = before_dir
@@ -472,6 +497,7 @@ contains
         integer(int64) :: outside, pos, back, beg, end, opoint, savedb, savedz
         integer :: dir, cb, ca
         logical :: saved_ignore, mismatch, have_pos, fb, fa
+
         found = .false.
         call show_paren_locate_near_paren(dir, outside)
         ! If we're inside a comment, then we probably want to blink a
@@ -482,6 +508,7 @@ contains
         call goto_char(opoint)
         saved_ignore = parse_sexp_ignore_comments%value
         if (ppss%incomment /= 0) parse_sexp_ignore_comments%value = .false.
+
         ! Find the other end of the sexp.
         if (dir /= 0) then
             if (dir == 1) then
@@ -491,8 +518,10 @@ contains
                 data%here_beg = outside - 1
                 data%here_end = outside
             end if
+
             savedb = buffers(cur)%begv
             savedz = buffers(cur)%text%z - buffers(cur)%zv
+
             ! Determine the range within which to look for a match.
             if (blink_matching_paren_distance >= 0) then
                 beg = max(point_min(), point() - blink_matching_paren_distance)
@@ -501,16 +530,19 @@ contains
                 call syntax_propertize(beg, st)
                 call narrow_to_region(beg, min(point_max(), point() + blink_matching_paren_distance), st)
             end if
+
             ! Scan across one sexp within that range.  Errors or nil mean
             ! there is a mismatch.
             mismatch = .false.
             have_pos = .false.
             pos = scan_sexps(outside, int(dir, int64), st)
+
             if (.not. st%ok()) then
                 mismatch = .true.
             else if (pos /= 0) then
                 have_pos = .true.
             end if
+
             ! Move back the other way and verify we get back to the
             ! starting point.  If not, these two parens don't really
             ! match.  Maybe the one at point is escaped and doesn't really
@@ -519,6 +551,7 @@ contains
                 back = scan_sexps(pos, int(-dir, int64), st)
                 if (.not. st%ok() .or. back /= outside) have_pos = .false.
             end if
+
             ! If found a "matching" paren, see if it is the right kind of
             ! paren to match the one we started at.
             if (.not. have_pos) then
@@ -529,23 +562,29 @@ contains
             else
                 beg = min(pos, outside)
                 end = max(pos, outside)
+
                 if (syntax_class_after(beg) /= SMATH) then
                     call char_before(cb, fb, end)
                     call char_after(ca, fa, beg)
                     mismatch = .true.
+
                     ! (The cdrs can give nil.)
                     if (fb .and. syntax_match_after(beg) >= 0) then
                         if (cb == syntax_match_after(beg)) mismatch = .false.
                     end if
+
                     if (fa .and. syntax_match_after(end - 1) >= 0) then
                         if (ca == syntax_match_after(end - 1)) mismatch = .false.
                     end if
+
                     ! The cdr might hold a new paren-class info rather
                     ! than a matching-char info, in which case the two
                     ! CDRs should match.
                     if (syntax_match_after(end - 1) == syntax_match_after(beg)) mismatch = .false.
                 end if
+
                 found = .true.
+
                 if (dir == 1) then
                     data%there_beg = pos - 1
                     data%there_end = pos
@@ -553,11 +592,14 @@ contains
                     data%there_beg = pos
                     data%there_end = pos + 1
                 end if
+
                 data%mismatch = mismatch
             end if
+
             call widen()
             call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
         end if
+
         parse_sexp_ignore_comments%value = saved_ignore
     end subroutine show_paren_default
 
@@ -586,6 +628,7 @@ contains
         integer(int64), intent(in) :: pos
         type(parse_state_type) :: ppss
         integer(int64) :: opoint
+
         opoint = point()
         call syntax_ppss(ppss, pos)
         call goto_char(opoint)
@@ -596,10 +639,12 @@ contains
     !> front-advance as upstream's (make-overlay (point) (point) nil t).
     subroutine ensure_overlays()
         type(status_type) :: st
+
         if (.not. overlayp(overlay)) then
             call make_overlay(overlay, point(), point(), st, front_advance=.true.)
             call delete_overlay(overlay)
         end if
+
         if (.not. overlayp(overlay_1)) then
             call make_overlay(overlay_1, point(), point(), st, front_advance=.true.)
             call delete_overlay(overlay_1)
@@ -609,6 +654,7 @@ contains
     !> `show_paren_function' as the idle timer's function.
     subroutine show_paren_function_timer(status)
         type(status_type), intent(out) :: status
+
         call show_paren_function(status)
     end subroutine show_paren_function_timer
 
@@ -617,6 +663,7 @@ contains
     integer(int64) function last_pos()
         type(value_type) :: v
         type(status_type) :: st
+
         last_pos = 0
         if (.not. local_variable_p(sym("show_paren__last_pos"))) return
         call symbol_value(sym("show_paren__last_pos"), v, st)
@@ -626,6 +673,7 @@ contains
     subroutine set_last_pos(pos)
         integer(int64), intent(in) :: pos
         type(status_type) :: st
+
         call make_local_variable(sym("show_paren__last_pos"), st)
         call set(sym("show_paren__last_pos"), make_fixnum(pos), st)
     end subroutine set_last_pos
@@ -640,14 +688,17 @@ contains
         logical :: found, highlight_expression
         procedure(show_paren_data_proc), pointer :: data_fn
         type(status_type) :: st
+
         status = status_type()
         if (cur == 0) return
         call ensure_overlays()
         found = .false.
+
         if (show_paren_enabled_p()) then
             data_fn => current_show_paren_data_function()
             if (associated(data_fn)) call data_fn(found, data)
         end if
+
         if (.not. found) then
             ! If show-paren-mode is nil in this buffer or if not at a paren
             ! that has a match, turn off any previous paren highlighting.
@@ -656,20 +707,25 @@ contains
             call set_last_pos(point())
             return
         end if
+
         ! Found something to highlight.
         highlight_expression = show_paren_style == SHOW_PAREN_EXPRESSION
+
         if (.not. highlight_expression .and. data%there_beg /= 0 .and. show_paren_style == SHOW_PAREN_MIXED) then
             if (data%there_beg < data%here_beg) then
                 closest = data%there_end - 1
             else
                 closest = data%there_beg + 1
             end if
+
             highlight_expression = .not. pos_visible_in_window_p(closest, selected_window())
         end if
+
         if (data%mismatch) then
             if (show_paren_not_in_comments_or_strings == SHOW_PAREN_COMMENTS_STRINGS_ON_MISMATCH) then
                 if (in_string_or_comment(data%here_beg)) return
             end if
+
             if (show_paren_ring_bell_on_mismatch) call ding()
             face = "show_paren_mismatch"
         else if (highlight_expression) then
@@ -677,9 +733,11 @@ contains
         else
             face = "show_paren_match"
         end if
+
         if (show_paren_not_in_comments_or_strings == SHOW_PAREN_COMMENTS_STRINGS_ALL) then
             if (in_string_or_comment(data%here_beg)) return
         end if
+
         ! If matching backwards, highlight the closeparen before point as
         ! well as its matching open.  If matching forward, and the
         ! openparen is unbalanced, highlight the paren at point to
@@ -693,12 +751,14 @@ contains
             call overlay_put(overlay_1, "priority", make_fixnum(int(show_paren_priority, int64)), st)
             call overlay_put(overlay_1, "face", sym(face), st)
         end if
+
         ! Turn on highlighting for the matching paren, if found.  If it's
         ! an unmatched paren, turn off any such highlighting.
         if (data%there_beg == 0) then
             call delete_overlay(overlay)
             return
         end if
+
         if (highlight_expression) then
             if (data%there_beg < data%here_beg) then
                 call move_overlay(overlay, data%here_end, data%there_beg, st)
@@ -708,15 +768,18 @@ contains
         else
             call move_overlay(overlay, data%there_beg, data%there_end, st)
         end if
+
         ! If `show_paren_context_when_offscreen' is true and point is at a
         ! closing paren, show the context around the opening paren.
         openparen = min(data%here_beg, data%there_beg)
+
         if (show_paren_context_when_offscreen .and. last_pos() /= point() .and. data%there_beg < data%here_beg) then
             if (.not. pos_visible_in_window_p(openparen, selected_window())) then
                 context = blink_paren_open_paren_line_string(openparen)
                 call minibuffer_message("Matches "//context)
             end if
         end if
+
         call set_last_pos(point())
         ! Always set the overlay face, since it varies.
         call overlay_put(overlay, "priority", make_fixnum(int(show_paren_priority, int64)), st)

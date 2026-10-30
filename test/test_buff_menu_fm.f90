@@ -49,6 +49,7 @@ contains
 
     subroutine collect_buff_menu_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("buff-menu-24962", test_24962), &
                     new_unittest("buff-menu-listing", test_listing), &
@@ -64,6 +65,7 @@ contains
         character(len=*), intent(in) :: name, text
         type(handle_type) :: h, old
         type(status_type) :: st
+
         old = current_buffer()
         call get_buffer_create(name, h, st)
         call set_buffer(h, st)
@@ -78,6 +80,7 @@ contains
         logical, intent(out) :: found
         integer(int64) :: pos
         type(status_type) :: st
+
         call goto_char(point_min())
         call search_forward(" "//name//" ", pos, st, noerror=1)
         found = st%ok() .and. pos /= 0
@@ -87,6 +90,7 @@ contains
     function current_line() result(line)
         character(len=:), allocatable :: line
         type(status_type) :: st
+
         call buffer_substring(pos_bol(), pos_eol(), line, st)
     end function current_line
 
@@ -96,6 +100,7 @@ contains
         character(len=:), allocatable :: file, actual
         type(handle_type) :: buf, old, list, b
         type(status_type) :: st
+
         call init_bindings()
         old = current_buffer()
         call make_temp_file("foo", file, st)
@@ -109,6 +114,7 @@ contains
         call rename_buffer(" foo", .false., actual, st)
         call list_buffers(st)
         call check(error, st%ok(), format_error(st))
+
         if (.not. allocated(error)) then
             list = get_buffer("*Buffer List*")
             call set_buffer(list, st)
@@ -117,6 +123,7 @@ contains
             call check(error, b%index /= 0, "no buffer on the first line")
             if (.not. allocated(error)) call check(error, buffers(b%index)%name == " foo", buffers(b%index)%name)
         end if
+
         if (buffer_live_p(buf)) call kill_buffer(buf, st)
         call delete_file(file, st)
         call set_buffer(old, st)
@@ -130,6 +137,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: line
         logical :: found
+
         call init_bindings()
         old = current_buffer()
         a = make_buffer("bm-alpha", "12345")
@@ -142,6 +150,7 @@ contains
         call set_buffer(list, st)
         call goto_entry("bm-alpha", found)
         call check(error, found, "bm-alpha not listed")
+
         if (.not. allocated(error)) then
             line = current_line()
             ! C (the buffer it was called from), R, M, name, size, mode.
@@ -149,14 +158,17 @@ contains
             if (.not. allocated(error)) call check(error, index(line, " 5 ") > 0, line)
             if (.not. allocated(error)) call check(error, index(line, "Fundamental") > 0, line)
         end if
+
         if (.not. allocated(error)) then
             call goto_entry("bm-internal", found)
             call check(error,.not. found, "internal buffer listed")
         end if
+
         if (.not. allocated(error)) then
             call goto_entry("*Buffer List*", found)
             call check(error,.not. found, "the Buffer Menu lists itself")
         end if
+
         call set_buffer(a, st)
         call restore_buffer_modified_p(.false.)
         call kill_buffer(a, st)
@@ -173,6 +185,7 @@ contains
         type(handle_type), allocatable :: marked(:)
         type(status_type) :: st
         logical :: found
+
         call init_bindings()
         old = current_buffer()
         a = make_buffer("bm-beta", "text")
@@ -185,28 +198,33 @@ contains
         call goto_entry("bm-beta", found)
         line = current_line()
         call check(error, line(1:1) == ">", line)
+
         if (.not. allocated(error)) then
             call buffer_menu_marked_buffers(marked, st)
             call check(error, size(marked) == 1, "marked buffers")
             if (.not. allocated(error)) call check(error, marked(1)%index == a%index, "marked buffer")
         end if
+
         if (.not. allocated(error)) then
             call buffer_menu_save(st)
             call goto_entry("bm-beta", found)
             line = current_line()
             call check(error, line(1:3) == "> S", line)
         end if
+
         if (.not. allocated(error)) then
             call buffer_menu_not_modified(st)
             line = current_line()
             call check(error, line(1:3) == ">  ", line)
         end if
+
         if (.not. allocated(error)) then
             call buffer_menu_unmark_all(st)
             call goto_entry("bm-beta", found)
             line = current_line()
             call check(error, line(1:3) == "   ", line)
         end if
+
         call kill_buffer(a, st)
         call kill_buffer(list, st)
         call set_buffer(old, st)
@@ -219,6 +237,7 @@ contains
         type(handle_type) :: a, b, old, list
         type(status_type) :: st
         logical :: found
+
         call init_bindings()
         old = current_buffer()
         a = make_buffer("bm-gamma", "")
@@ -230,16 +249,20 @@ contains
         call goto_entry("bm-gamma", found)
         line = current_line()
         call check(error, line(1:1) == "D", line)
+
         if (.not. allocated(error)) then
             call buffer_menu_execute(st)
             call check(error, st%ok(), format_error(st))
         end if
+
         if (.not. allocated(error)) call check(error,.not. buffer_live_p(a), "bm-gamma not killed")
         if (.not. allocated(error)) call check(error, buffer_live_p(b), "bm-delta killed")
+
         if (.not. allocated(error)) then
             call goto_entry("bm-gamma", found)
             call check(error,.not. found, "bm-gamma still listed")
         end if
+
         if (buffer_live_p(a)) call kill_buffer(a, st)
         call kill_buffer(b, st)
         call kill_buffer(list, st)
@@ -252,6 +275,7 @@ contains
         type(handle_type) :: internal, old, list
         type(status_type) :: st
         logical :: found
+
         call init_bindings()
         old = current_buffer()
         internal = make_buffer(" bm-hidden", "")
@@ -259,10 +283,12 @@ contains
         call set_buffer(list, st)
         call buffer_menu_toggle_internal(st)
         call check(error, st%ok(), format_error(st))
+
         if (.not. allocated(error)) then
             call goto_entry("bm-hidden", found)
             call check(error, found, "internal buffer not listed")
         end if
+
         call kill_buffer(internal, st)
         call kill_buffer(list, st)
         call set_buffer(old, st)
@@ -273,13 +299,16 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(tabulated_list_entry_type) :: a, b
         integer :: k
+
         allocate (a%cols(7), b%cols(7))
+
         do k = 1, 7
             a%cols(k)%text = ""
             a%cols(k)%face = ""
             b%cols(k)%text = ""
             b%cols(k)%face = ""
         end do
+
         a%cols(5)%text = "120"
         b%cols(5)%text = "9"
         call check(error, tabulated_list_entry_size_greater(a, b), "120 > 9")

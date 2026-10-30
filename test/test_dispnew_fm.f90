@@ -43,6 +43,7 @@ contains
 
     subroutine collect_dispnew_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("first-update-redraws", test_first_update), &
                     new_unittest("unchanged-sends-nothing", test_unchanged), &
@@ -61,6 +62,7 @@ contains
         character(len=*), intent(in) :: text
         type(glyph_type) :: glyphs(len(text))
         integer :: k
+
         do k = 1, len(text)
             glyphs(k)%ch = iachar(text(k:k))
         end do
@@ -74,6 +76,7 @@ contains
         type(terminfo_type) :: ti
         type(status_type) :: st
         character(len=:), allocatable :: discarded
+
         call builtin_xterm(ti)
         call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
         call adjust_frame_glyphs(f)
@@ -88,6 +91,7 @@ contains
         character(len=*), intent(in) :: line
         character(len=:), allocatable :: out
         type(status_type) :: st
+
         call set_desired_row(f, 0, g(line))
         call update_frame(f, st)
         out = tty_take_output(f%tty)
@@ -98,6 +102,7 @@ contains
         type(frame_type) :: f
         type(terminfo_type) :: ti
         type(status_type) :: st
+
         call builtin_xterm(ti)
         call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
         call adjust_frame_glyphs(f)
@@ -114,6 +119,7 @@ contains
     subroutine test_unchanged(error)
         type(error_type), allocatable, intent(out) :: error
         type(frame_type) :: f
+
         call frame_showing(f, "hello")
         call check(error, update_row0(f, "hello"), "")
     end subroutine test_unchanged
@@ -121,6 +127,7 @@ contains
     subroutine test_changed_tail(error)
         type(error_type), allocatable, intent(out) :: error
         type(frame_type) :: f
+
         call frame_showing(f, "hello")
         ! Only "p!" is new; the cursor backs up two columns to write it.
         call check(error, update_row0(f, "help!"), achar(8)//achar(8)//HIDE//"p!"//SHOW)
@@ -130,6 +137,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(frame_type) :: f
         character(len=*), parameter :: tail = "0123456789abcdefghijklmnopqrst"
+
         call frame_showing(f, "ab"//tail)
         ! A long unchanged suffix: insert one character instead.
         call check(error, update_row0(f, "abX"//tail), ESC//"[1;3H"//HIDE//ESC//"[1@X"//SHOW)
@@ -139,6 +147,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(frame_type) :: f
         character(len=*), parameter :: tail = "0123456789abcdefghijklmnopqrst"
+
         call frame_showing(f, "abX"//tail)
         call check(error, update_row0(f, "ab"//tail), ESC//"[1;3H"//HIDE//ESC//"[1P"//SHOW)
     end subroutine test_delete
@@ -147,6 +156,7 @@ contains
     subroutine test_short_suffix(error)
         type(error_type), allocatable, intent(out) :: error
         type(frame_type) :: f
+
         call frame_showing(f, "abcdefgh")
         call check(error, update_row0(f, "abXcdefgh"), ESC//"[1;3H"//HIDE//"Xcdefgh"//SHOW)
     end subroutine test_short_suffix
@@ -154,6 +164,7 @@ contains
     subroutine test_shorter(error)
         type(error_type), allocatable, intent(out) :: error
         type(frame_type) :: f
+
         call frame_showing(f, "hello")
         call check(error, update_row0(f, "he"), achar(8)//achar(8)//achar(8)//ESC//"[K")
     end subroutine test_shorter
@@ -162,6 +173,7 @@ contains
     subroutine test_no_ins_del(error)
         type(error_type), allocatable, intent(out) :: error
         type(frame_type) :: f
+
         call frame_showing(f, "abcdef")
         f%tty%char_ins_del_ok = .false.
         ! From column 6: CR and one right is cheapest to column 1.
@@ -173,6 +185,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(frame_type) :: f
         type(status_type) :: st
+
         call frame_showing(f, "")
         call set_desired_row(f, 1, g("top"))
         call set_desired_row(f, 23, g("echo"))
@@ -192,10 +205,13 @@ contains
         type(status_type) :: st
         character(len=80) :: line
         integer :: k
+
         call frame_showing(f, "")
+
         do k = 1, 80
             line(k:k) = achar(iachar("a") + mod(k - 1, 26))
         end do
+
         call set_desired_row(f, 23, g(line))
         call update_frame(f, st)
         call check(error, tty_take_output(f%tty), ESC//"[24d"//HIDE//line(2:80)//achar(13)// &

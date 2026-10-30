@@ -56,6 +56,7 @@ contains
 
     subroutine collect_sh_script_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("test-sh-script-indentation", test_script_indentation), &
                     new_unittest("test-basic-sh-indentation", test_basic_indentation), &
@@ -74,6 +75,7 @@ contains
         character(len=*), intent(in) :: text
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call init_bindings()
         call get_buffer_create(" *sh-test*", h, st)
         call set_buffer(h, st)
@@ -86,6 +88,7 @@ contains
         character(len=*), intent(in) :: text
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call temp_buffer(text, h)
         call sh_mode(st)
     end subroutine script
@@ -93,6 +96,7 @@ contains
     subroutine leave(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
+
         call kill_buffer(h, st)
     end subroutine leave
 
@@ -101,19 +105,23 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: shortage
+
         call script("relative-path/to/configure --prefix=$prefix\"//LF// &
                     "             --with-x", h)
+
         checks: block
             if (len(sh_indent_supported_here()) == 0) then
                 call skip_test(error, "sh-indent-supported-here")
                 exit checks
             end if
+
             call goto_char(point_min())
             shortage = forward_line(1_int64)
             call indent_for_tab_command(nil(), st)
             call check(error, buffer_string(), "relative-path/to/configure --prefix=$prefix\"//LF// &
                        TAB//TAB//TAB//"   --with-x")
         end block checks
+
         call leave(h)
     end subroutine test_script_indentation
 
@@ -121,15 +129,19 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call script("myecho () {"//LF//"echo foo"//LF//"}"//LF, h)
+
         checks: block
             if (len(sh_indent_supported_here()) == 0) then
                 call skip_test(error, "sh-indent-supported-here")
                 exit checks
             end if
+
             call indent_region(point_min(), point_max(), st)
             call check(error, buffer_string(), "myecho () {"//LF//"    echo foo"//LF//"}"//LF)
         end block checks
+
         call leave(h)
     end subroutine test_basic_indentation
 
@@ -139,18 +151,22 @@ contains
         character(len=*), intent(in) :: name, text
         type(handle_type) :: h
         type(status_type) :: st
+
         call script(text, h)
+
         if (len(sh_indent_supported_here()) == 0) then
             call skip_test(error, "sh-indent-supported-here")
         else
             call indent_region(point_min(), point_max(), st)
             call check(error, buffer_string(), text, name)
         end if
+
         call leave(h)
     end subroutine erts_case
 
     subroutine test_indentation(error)
         type(error_type), allocatable, intent(out) :: error
+
         call erts_case(error, "sh-indents1", "if test;then"//LF//"    something"//LF//"fi"//LF//"other"//LF)
         if (allocated(error)) return
         call erts_case(error, "sh-indents2", "if test; then"//LF//"    something"//LF//"fi"//LF//"other"//LF)
@@ -177,13 +193,16 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer :: saved
+
         saved = sh_indent_after_continuation
         call script("for f \"//LF//"in a; do \"//LF//"toto; \"//LF//"done"//LF, h)
+
         checks: block
             if (len(sh_indent_supported_here()) == 0) then
                 call skip_test(error, "sh-indent-supported-here")
                 exit checks
             end if
+
             sh_indent_for_continuation = SH_PLUS_PLUS
             sh_indent_after_continuation = SH_CONTINUATION_T
             call indent_region(point_min(), point_max(), st)
@@ -197,6 +216,7 @@ contains
             call indent_region(point_min(), point_max(), st)
             call check(error, buffer_string(), "for f \"//LF//"in a; do \"//LF//"    toto; \"//LF//"done"//LF)
         end block checks
+
         sh_indent_after_continuation = saved
         call leave(h)
     end subroutine test_after_continuation
@@ -208,6 +228,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         character(len=:), allocatable :: token
+
         call script("", h)
         call insert(string, st)
         call sh_smie_default_backward_token(token, st)
@@ -217,6 +238,7 @@ contains
 
     subroutine test_backward_token(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, sh_back("foo"), "foo")
         if (allocated(error)) return
         call check(error, sh_back("foo.bar"), "foo.bar")
@@ -240,12 +262,15 @@ contains
         type(value_type) :: v
         type(value_type), allocatable :: elts(:)
         type(status_type) :: st
+
         name = ""
         call get_text_property(point(), sym("face"), v, st)
+
         if (consp(v)) then
             call list_elements(v, elts)
             v = elts(1)
         end if
+
         if (nilp(v)) return
         if (symbolp(v)) name = symbols(xsymbol(v))%name
     end function face
@@ -256,6 +281,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: found
+
         call script("", h)
         call insert("for i do echo 1; done", st)
         call minor_modes%font_lock_mode%enable(st)
@@ -274,7 +300,9 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(sh_string_type), allocatable :: b(:)
+
         call script("", h)
+
         checks: block
             call sh_set_shell("bash", st)
             call sh_builtins%get(b)
@@ -291,13 +319,18 @@ contains
             if (allocated(error)) exit checks
             call check(error,.not. any_is(b, "command"), "no command in dash")
         end block checks
+
         call leave(h)
+
     contains
+
         logical function any_is(strings, s)
             type(sh_string_type), intent(in) :: strings(:)
             character(len=*), intent(in) :: s
             integer :: i
+
             any_is = .false.
+
             do i = 1, size(strings)
                 if (strings(i)%s == s) any_is = .true.
             end do
@@ -309,7 +342,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(parse_state_type) :: state
+
         call script("cat <<EOF"//LF//"it's $x"//LF//"EOF"//LF//"echo done"//LF, h)
+
         checks: block
             call syntax_ppss(state, 14_int64)
             call check(error, state%instring == ST_STRING_STYLE, "inside the here document")
@@ -317,11 +352,13 @@ contains
             call syntax_ppss(state, 25_int64)
             call check(error, state%instring, -1, "after it")
         end block checks
+
         call leave(h)
     end subroutine test_here_doc
 
     subroutine test_canonicalize(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, sh_canonicalize_shell("/bin/bash"), "bash")
         if (allocated(error)) return
         call check(error, sh_canonicalize_shell("/usr/bin/csh"), "tcsh")

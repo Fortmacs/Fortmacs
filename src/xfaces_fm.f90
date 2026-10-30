@@ -134,8 +134,10 @@ contains
     integer function frame_background_mode(term_type, bg_color) result(mode)
         character(len=*), intent(in) :: term_type, bg_color
         logical :: xterm_like
+
         xterm_like = starts_with(term_type, "xterm") .or. starts_with(term_type, "rxvt") .or. &
                      starts_with(term_type, "dtterm") .or. starts_with(term_type, "eterm")
+
         if (bg_color == "unspecified-fg") then
             ! Inverted colors.
             mode = FACE_BACKGROUND_LIGHT
@@ -144,9 +146,12 @@ contains
             mode = FACE_BACKGROUND_DARK
             if (xterm_like) mode = FACE_BACKGROUND_LIGHT
         end if
+
     contains
+
         logical function starts_with(s, prefix)
             character(len=*), intent(in) :: s, prefix
+
             starts_with = .false.
             if (len(s) >= len(prefix)) starts_with = s(1:len(prefix)) == prefix
         end function starts_with
@@ -162,6 +167,7 @@ contains
         type(frame_type), intent(inout) :: f
         character(len=*), intent(in) :: term_type
         integer :: class
+
         display_supports_face_attributes_p => tty_supports_face_attributes_p
         clear_face_cache_hook => clear_face_cache
         ! display-color-p: tty-display-color-p.
@@ -186,6 +192,7 @@ contains
     !> Port of xfaces.c:recompute_basic_faces.
     subroutine recompute_basic_faces(f)
         type(frame_type), intent(inout) :: f
+
         if (allocated(f%faces)) deallocate (f%faces)
         call realize_basic_faces(f)
     end subroutine recompute_basic_faces
@@ -196,9 +203,11 @@ contains
     subroutine realize_basic_faces(f)
         type(frame_type), intent(inout) :: f
         integer(int32) :: id
+
         if (allocated(f%faces)) deallocate (f%faces)
         allocate (f%faces(0:BASIC_FACE_ID_SENTINEL - 1))
         call realize_default_face(f)
+
         do id = MODE_LINE_ACTIVE_FACE_ID, MARGIN_FACE_ID
             call realize_named_face(f, trim(basic_face_names(id)), id)
         end do
@@ -213,6 +222,7 @@ contains
     !> part of xfaces.c:realize_default_face.
     subroutine realize_default_face(f)
         type(frame_type), intent(inout) :: f
+
         associate (lface => default%lface)
             lface%family = "default"
             lface%foundry = lface%family
@@ -230,6 +240,7 @@ contains
             if (.not. allocated(lface%foreground)) lface%foreground = "unspecified-fg"
             if (.not. allocated(lface%background)) lface%background = "unspecified-bg"
         end associate
+
         call realize_face(f, default%lface, DEFAULT_FACE_ID)
     end subroutine realize_default_face
 
@@ -243,6 +254,7 @@ contains
         integer(int32), intent(in) :: id
         type(face_attributes_type) :: attrs
         type(named_face_type), pointer :: face
+
         attrs = f%faces(DEFAULT_FACE_ID)%lface
         face => face_named(name)
         ! Merge NAME's face with the default face.
@@ -261,14 +273,18 @@ contains
         integer(int32), intent(out), optional :: new_id
         type(face_type), allocatable :: grown(:)
         integer(int32) :: k
+
         k = id
+
         if (k < 0) then
             k = int(ubound(f%faces, 1), int32) + 1
             allocate (grown(0:k))
             grown(0:k - 1) = f%faces
             call move_alloc(grown, f%faces)
         end if
+
         f%faces(k) = realize_tty_face(attrs)
+
         ! On a window-system frame, the font part of
         ! xfaces.c:realize_gui_face (font_load_for_lface); its other parts
         ! (colors, box, overline, stipple) are Deferred with the GUI, so
@@ -276,6 +292,7 @@ contains
         if (frame_window_p(f)) then
             if (associated(f%font_driver)) f%faces(k)%font = f%font_driver%load_for_lface(attrs)
         end if
+
         if (present(new_id)) new_id = k
     end subroutine realize_face
 
@@ -285,12 +302,14 @@ contains
         type(face_attributes_type), intent(in) :: attrs
         type(face_type) :: face
         integer(int64) :: tem
+
         face%lface = attrs
         ! Map face attributes to TTY appearances.
         if (face_weight_numeric(attrs%weight) > 100) face%tty_bold_p = .true.
         if (face_slant_numeric(attrs%slant) /= 100) face%tty_italic_p = .true.
         if (attrs%inverse_video%state /= FACE_NIL) face%tty_reverse_p = .true.
         if (attrs%strike_through%state /= FACE_NIL) face%tty_strike_through_p = .true.
+
         ! Text underline.
         select case (attrs%underline%state)
         case (FACE_NIL)
@@ -305,12 +324,14 @@ contains
         case (FACE_PLIST)
             ! (:color COLOR :style STYLE).
             face%underline_color = 0
+
             if (allocated(attrs%underline%color)) then
                 ! An empty color is foreground-color.
                 if (len(attrs%underline%color) > 0) then
                     face%underline_color = map_tty_color(attrs%underline%color, .true.)
                 end if
             end if
+
             select case (attrs%underline%style)
             case (FACE_STYLE_DOUBLE_LINE)
                 face%underline = FACE_UNDERLINE_DOUBLE_LINE
@@ -326,15 +347,18 @@ contains
         case default
             continue
         end select
+
         ! Map color names to color indices.
         face%foreground = map_tty_color(attrs%foreground, .true.)
         face%background = map_tty_color(attrs%background, .false.)
+
         ! Swap colors if face is inverse-video.
         if (face%tty_reverse_p) then
             tem = face%foreground
             face%foreground = face%background
             face%background = tem
         end if
+
         if (tty_suppress_bold_inverse_default_colors_p .and. face%tty_bold_p .and. &
             face%background == FACE_TTY_DEFAULT_FG_COLOR .and. face%foreground == FACE_TTY_DEFAULT_BG_COLOR) then
             face%tty_bold_p = .false.
@@ -353,16 +377,19 @@ contains
         integer :: index, r, g, b
         logical :: found
         type(emacs_color_type) :: def
+
         default_pixel = FACE_TTY_DEFAULT_BG_COLOR
         if (foreground) default_pixel = FACE_TTY_DEFAULT_FG_COLOR
         pixel = default_pixel
         if (.not. allocated(color)) return
+
         if (len(color) > 0 .and. tty_defined_color_count > 0) then
             ! Associations in tty-defined-color-alist are of the form
             ! (NAME INDEX R G B).  We need the INDEX part.
             call tty_color_assoc(color, found, index, r, g, b)
             if (found) pixel = index
         end if
+
         if (pixel == default_pixel) then
             ! load_color: a color that can't be loaded gives the frame's
             ! foreground or background.
@@ -376,9 +403,12 @@ contains
     logical function tty_defined_color(color, def) result(status)
         character(len=*), intent(in) :: color
         type(emacs_color_type), intent(out) :: def
+
         status = .true.
+
         if (len(color) > 0) then
             status = tty_lookup_color(color, def)
+
             if (def%pixel == FACE_TTY_DEFAULT_COLOR) then
                 if (color == "unspecified-fg") then
                     def%pixel = FACE_TTY_DEFAULT_FG_COLOR
@@ -387,6 +417,7 @@ contains
                 end if
             end if
         end if
+
         if (def%pixel /= FACE_TTY_DEFAULT_COLOR) status = .true.
     end function tty_defined_color
 
@@ -401,17 +432,21 @@ contains
         character(len=:), allocatable :: name
         integer :: index, r, g, b
         logical :: found, has_rgb
+
         ok = .false.
         call tty_color_desc(color, found, index, r, g, b, name, has_rgb)
+
         if (found) then
             tty_color%pixel = index
             if (.not. has_rgb) return
             tty_color%red = r
             tty_color%green = g
             tty_color%blue = b
+
             if (present(std_color)) then
                 ! Default STD_COLOR to the same as TTY_COLOR.
                 std_color = tty_color
+
                 ! If the descriptor isn't exactly COLOR, look up STD_COLOR
                 ! separately.
                 if (.not. (name == color .and. len(name) == len(color))) then
@@ -422,6 +457,7 @@ contains
                     std_color%blue = b
                 end if
             end if
+
             ok = .true.
         else if (tty_defined_color_count == 0) then
             ! Called before the colors are set up: not a failure.
@@ -434,6 +470,7 @@ contains
     pure integer(int64) function color_distance(x, y) result(d)
         type(emacs_color_type), intent(in) :: x, y
         integer(int64) :: r, g, b, r_mean
+
         r = x%red - y%red
         g = x%green - y%green
         b = x%blue - y%blue
@@ -456,6 +493,7 @@ contains
         integer, intent(in) :: depth
         integer :: k
         logical :: ok
+
         ! If FROM inherits from some other faces, merge their attributes
         ! into TO before merging FROM's direct attributes.
         if (from%inherit%state == FACE_LIST) then
@@ -464,14 +502,17 @@ contains
                 call merge_named_face(trim(from%inherit%names(k)), to, depth + 1, .false., ok)
             end do
         end if
+
         if (allocated(from%family)) to%family = from%family
         if (allocated(from%foundry)) to%foundry = from%foundry
         if (allocated(from%width)) to%width = from%width
+
         if (from%height%state == FACE_VALUE) then
             to%height = from%height
         else if (from%height%state == FACE_PLIST) then
             call merge_face_heights(from, to)
         end if
+
         if (allocated(from%weight)) to%weight = from%weight
         if (allocated(from%slant)) to%slant = from%slant
         if (from%underline%state /= FACE_UNSPECIFIED) to%underline = from%underline
@@ -492,6 +533,7 @@ contains
     subroutine merge_face_heights(from, to)
         type(face_attributes_type), intent(in) :: from
         type(face_attributes_type), intent(inout) :: to
+
         if (to%height%state == FACE_VALUE) then
             to%height = int(from%height%factor*real(to%height%absolute))
         else if (to%height%state == FACE_PLIST) then
@@ -512,12 +554,14 @@ contains
         logical, intent(in) :: extend_only
         logical, intent(out) :: ok
         type(named_face_type), pointer :: face
+
         ok = .false.
         ! Too deep: a face inheriting from itself.
         if (depth > MAX_MERGE_DEPTH) return
         face => face_named(name)
         if (.not. associated(face)) return
         ok = .true.
+
         if (extend_only) then
             ! Filter, but specified; or unspecified, but inherited.
             if (face%lface%extend%state /= FACE_T) then
@@ -525,6 +569,7 @@ contains
                 if (face_inherited_extend(face%lface, depth + 1) /= FACE_T) return
             end if
         end if
+
         call merge_face_vectors(face%lface, to, depth)
     end subroutine merge_named_face
 
@@ -539,15 +584,19 @@ contains
         character(len=64), allocatable :: names(:)
         integer :: k, guard
         logical :: ok
+
         inherited = attrs
         state = inherited%extend%state
         guard = depth
+
         do while (state == FACE_UNSPECIFIED .and. inherited%inherit%state == FACE_LIST)
             guard = guard + 1
             if (guard > MAX_MERGE_DEPTH) exit
             names = inherited%inherit%names
+
             if (size(names) > 1) then
                 ok = .false.
+
                 do k = 1, size(names)
                     parent => face_named(trim(names(k)))
                     ok = associated(parent)
@@ -556,6 +605,7 @@ contains
                     state = face_inherited_extend(inherited, guard)
                     if (state /= FACE_UNSPECIFIED) exit
                 end do
+
                 ! A bad face?
                 if (.not. ok) exit
             else
@@ -583,23 +633,29 @@ contains
         type(value_type), allocatable :: elts(:)
         logical :: filter, sub_ok
         integer :: d, k
+
         ok = .true.
         filter = .false.
         if (present(extend_only)) filter = extend_only
         d = 0
         if (present(depth)) d = depth
+
         if (d > MAX_MERGE_DEPTH) then
             ok = .false.
             return
         end if
+
         if (nilp(face_ref)) return
+
         if (consp(face_ref)) then
             call list_elements(face_ref, elts)
+
             if (keywordp(elts(1))) then
                 ! Assume this is the property list form.
                 call merge_plist(elts, to, ok, filter, d)
                 return
             end if
+
             ! This is a list of face refs.  Those at the beginning of the
             ! list take precedence over what follows, so we have to merge
             ! from the end backwards.
@@ -607,21 +663,26 @@ contains
                 call merge_face_ref(elts(k), to, sub_ok, filter, d)
                 if (.not. sub_ok) ok = .false.
             end do
+
             return
         end if
+
         if (symbolp(face_ref)) then
             ! FACE_REF ought to be a face name.
             call merge_named_face(symbols(xsymbol(face_ref))%name, to, d + 1, filter, ok)
             return
         end if
+
         ok = .false.
     end subroutine merge_face_ref
 
     !> Whether V is a keyword (a symbol whose name starts with `:').
     logical function keywordp(v)
         type(value_type), intent(in) :: v
+
         keywordp = .false.
         if (.not. symbolp(v)) return
+
         associate (name => symbols(xsymbol(v))%name)
             if (len(name) > 0) keywordp = name(1:1) == ":"
         end associate
@@ -631,6 +692,7 @@ contains
     logical function is_symbol(v, name)
         type(value_type), intent(in) :: v
         character(len=*), intent(in) :: name
+
         is_symbol = .false.
         if (symbolp(v)) is_symbol = symbols(xsymbol(v))%name == name
     end function is_symbol
@@ -639,6 +701,7 @@ contains
     function symbol_name(v) result(name)
         type(value_type), intent(in) :: v
         character(len=:), allocatable :: name
+
         name = ""
         if (symbolp(v)) name = symbols(xsymbol(v))%name
     end function symbol_name
@@ -659,35 +722,45 @@ contains
         logical :: seen, err, sub_ok
         integer :: k
         character(len=:), allocatable :: keyword
+
         ok = .true.
+
         if (filter) then
             ! Don't merge this face if `extend' is nil, or not mentioned,
             ! or if it's unspecified and the face doesn't inherit from a
             ! face whose `extend' is non-nil.
             seen = .false.
             k = 1
+
             do while (k + 1 <= size(elts))
                 keyword = symbol_name(elts(k))
+
                 if (keyword == ":extend") then
                     seen = .true.
                     if (nilp(elts(k + 1))) return
                 else if (keyword == ":inherit") then
                     parent_face = elts(k + 1)
                 end if
+
                 k = k + 2
             end do
+
             if (.not. seen) then
                 if (nilp(parent_face)) return
                 call merge_face_ref(parent_face, scratch, sub_ok, .false., depth + 1)
+
                 if (.not. sub_ok) then
                     ok = .false.
                     return
                 end if
+
                 if (scratch%extend%state /= FACE_T) return
             end if
         end if
+
         ! (Once the filter is passed, `:inherit' merges without it.)
         k = 1
+
         do while (k + 1 <= size(elts))
             keyword = symbol_name(elts(k))
             call merge_attribute(keyword, elts(k + 1), to, err, depth)
@@ -705,9 +778,11 @@ contains
         logical, intent(out) :: err
         integer, intent(in) :: depth
         logical :: sub_ok
+
         err = .false.
         ! Specifying `unspecified' is a no-op.
         if (is_symbol(value, "unspecified")) return
+
         select case (keyword)
         case (":family")
             if (stringp(value)) then
@@ -723,6 +798,7 @@ contains
             end if
         case (":width")
             err = .true.
+
             if (face_width_numeric(symbol_name(value)) >= 0) then
                 to%width = symbol_name(value)
                 err = .false.
@@ -736,12 +812,14 @@ contains
             end if
         case (":weight")
             err = .true.
+
             if (face_weight_numeric(symbol_name(value)) >= 0) then
                 to%weight = symbol_name(value)
                 err = .false.
             end if
         case (":slant")
             err = .true.
+
             if (face_slant_numeric(symbol_name(value)) >= 0) then
                 to%slant = symbol_name(value)
                 err = .false.
@@ -854,10 +932,12 @@ contains
         type(face_attributes_type), intent(inout) :: to
         type(value_type), allocatable :: elts(:)
         integer :: k
+
         call list_elements(value, elts)
         to%underline = .true.
         to%underline%state = FACE_PLIST
         k = 1
+
         do while (k + 1 <= size(elts))
             select case (symbol_name(elts(k)))
             case (":color")
@@ -886,6 +966,7 @@ contains
             case default
                 continue
             end select
+
             k = k + 2
         end do
     end subroutine underline_from_plist
@@ -894,6 +975,7 @@ contains
     !> Port of font.c's width_table (FONT_WIDTH_NAME_NUMERIC).
     integer function face_width_numeric(name) result(n)
         character(len=*), intent(in) :: name
+
         select case (name)
         case ("ultra-condensed", "ultracondensed")
             n = 50
@@ -928,13 +1010,16 @@ contains
         type(frame_type), intent(inout) :: f
         type(face_attributes_type), intent(in) :: attrs
         integer(int32) :: k
+
         if (.not. allocated(f%faces)) call realize_basic_faces(f)
+
         do k = 0, int(ubound(f%faces, 1), int32)
             if (faces_equal(f%faces(k)%lface, attrs)) then
                 id = k
                 return
             end if
         end do
+
         ! If not found, realize a new face.
         call realize_face(f, attrs, -1_int32, id)
     end function lookup_face
@@ -947,6 +1032,7 @@ contains
         character(len=*), intent(in) :: name
         type(face_attributes_type) :: attrs
         type(named_face_type), pointer :: face
+
         id = -1
         if (.not. allocated(f%faces)) call realize_basic_faces(f)
         face => face_named(name)
@@ -967,11 +1053,13 @@ contains
         integer(int32), intent(in) :: face_id, base_face_id
         type(face_attributes_type) :: attrs
         logical :: ok
+
         id = base_face_id
         if (.not. allocated(f%faces)) return
         if (base_face_id < 0 .or. base_face_id > ubound(f%faces, 1)) return
         ! Begin with attributes from the base face.
         attrs = f%faces(base_face_id)%lface
+
         if (len(face_name) > 0) then
             call merge_named_face(face_name, attrs, 0, .false., ok)
             if (.not. ok) return
@@ -979,6 +1067,7 @@ contains
             if (face_id < 0 .or. face_id > ubound(f%faces, 1)) return
             call merge_face_vectors(f%faces(face_id)%lface, attrs, 0)
         end if
+
         id = lookup_face(f, attrs)
     end function merge_faces
 
@@ -993,6 +1082,7 @@ contains
         integer(int32), intent(in) :: base_face_id
         type(face_attributes_type) :: attrs
         logical :: ok
+
         id = base_face_id
         if (nilp(prop)) return
         if (.not. allocated(f%faces)) call realize_basic_faces(f)
@@ -1031,6 +1121,7 @@ contains
         integer(int64) :: saved, end, next_overlay, oendpos, rbeg, rend, p, s
         integer :: i
         logical :: found, filter, in_region, ok, region_merged
+
         filter = .false.
         if (present(extend_only)) filter = extend_only
         if (.not. allocated(f%faces)) call realize_basic_faces(f)
@@ -1053,6 +1144,7 @@ contains
         in_region = .false.
         rbeg = 0
         rend = 0
+
         if (present(region_start) .and. present(region_end)) then
             if (region_start < region_end) then
                 if (pos < region_start) then
@@ -1064,12 +1156,15 @@ contains
                 end if
             end if
         end if
+
         id = DEFAULT_FACE_ID
+
         ! Optimize common cases where we can use the default face.
         if (.not. in_region .and. size(overlay_vec) == 0 .and. nilp(prop)) then
             if (saved /= 0) call set_buffer_internal(saved)
             return
         end if
+
         ! Begin with attributes from the default face.
         attrs = f%faces(DEFAULT_FACE_ID)%lface
         ! Merge in attributes specified via text properties.
@@ -1077,41 +1172,51 @@ contains
         ! Now merge the overlay data.
         call sort_overlays(overlay_vec)
         region_merged = .not. in_region
+
         do i = 1, size(overlay_vec)
             if (.not. region_merged) then
                 call overlay_priority(overlay_vec(i), p, s)
                 if (compare_overlays(0_int64, 100_int64, rbeg, rend, 0_int64, p, s, overlay_start(overlay_vec(i)), &
                                      overlay_end(overlay_vec(i)), overlay_vec(i)%index) < 0) call merge_region()
             end if
+
             prop = overlay_get(overlay_vec(i), "face")
             if (.not. nilp(prop)) call merge_face_ref(prop, attrs, ok, filter)
             oendpos = overlay_end(overlay_vec(i))
             if (oendpos < endpos) endpos = oendpos
         end do
+
         if (.not. region_merged) call merge_region()
         if (saved /= 0) call set_buffer_internal(saved)
         ! Look up a realized face with the given face attributes, or
         ! realize a new one.
         id = lookup_face(f, attrs)
+
     contains
+
         !> Remove the overlays for other windows than WINDOW from
         !> OVERLAY_VEC (their end still limits ENDPOS, as upstream's
         !> overlays_at did).
         subroutine drop_other_windows()
             type(handle_type) :: h
             integer :: k, n
+
             n = 0
+
             do k = 1, size(overlay_vec)
                 owner = overlay_get(overlay_vec(k), "window")
+
                 if (windowp(owner)) then
                     h = xhandle(owner)
                     if (h%index /= window%index .or. h%generation /= window%generation) cycle
                 else if (.not. nilp(owner)) then
                     cycle
                 end if
+
                 n = n + 1
                 overlay_vec(n) = overlay_vec(k)
             end do
+
             overlay_vec = overlay_vec(1:n)
         end subroutine drop_other_windows
 
@@ -1138,6 +1243,7 @@ contains
         type(emacs_color_type) :: fg_tty_color, fg_std_color, bg_tty_color, bg_std_color, def_color
         integer :: weight, def_weight, slant, def_slant, test_caps
         integer(int64) :: delta_delta
+
         supports = .false.
         if (.not. allocated(selected_frame%faces)) call realize_basic_faces(selected_frame)
         def_attrs = selected_frame%faces(DEFAULT_FACE_ID)%lface
@@ -1148,11 +1254,14 @@ contains
         if (allocated(attrs%family) .or. allocated(attrs%foundry) .or. &
             attrs%height%state /= FACE_UNSPECIFIED .or. allocated(attrs%width) .or. &
             attrs%overline%state /= FACE_UNSPECIFIED .or. attrs%box%state /= FACE_UNSPECIFIED) return
+
         ! Font weight (bold/dim).
         if (allocated(attrs%weight)) then
             weight = face_weight_numeric(attrs%weight)
+
             if (weight >= 0) then
                 def_weight = face_weight_numeric(def_attrs%weight)
+
                 if (weight > 100) then
                     ! Same as default?
                     if (def_weight > 100) return
@@ -1165,15 +1274,18 @@ contains
                 end if
             end if
         end if
+
         ! Font slant.
         if (allocated(attrs%slant)) then
             slant = face_slant_numeric(attrs%slant)
+
             if (slant >= 0) then
                 def_slant = face_slant_numeric(def_attrs%slant)
                 if (slant == 100 .or. slant == def_slant) return
                 test_caps = ior(test_caps, TTY_CAP_ITALIC)
             end if
         end if
+
         ! Underlining.
         if (attrs%underline%state /= FACE_UNSPECIFIED) then
             if (attrs%underline%state == FACE_COLOR) then
@@ -1183,6 +1295,7 @@ contains
                 if (attrs%underline%style < FACE_STYLE_LINE .or. attrs%underline%style > FACE_STYLE_DASHES) then
                     return
                 end if
+
                 test_caps = ior(test_caps, TTY_CAP_UNDERLINE_STYLED)
             else if (attrs%underline%state == def_attrs%underline%state) then
                 return
@@ -1190,22 +1303,26 @@ contains
                 test_caps = ior(test_caps, TTY_CAP_UNDERLINE)
             end if
         end if
+
         ! Inverse video.
         if (attrs%inverse_video%state /= FACE_UNSPECIFIED) then
             if (attrs%inverse_video%state == def_attrs%inverse_video%state) return
             test_caps = ior(test_caps, TTY_CAP_INVERSE)
         end if
+
         ! Strike through.
         if (attrs%strike_through%state /= FACE_UNSPECIFIED) then
             if (attrs%strike_through%state == def_attrs%strike_through%state) return
             test_caps = ior(test_caps, TTY_CAP_STRIKE_THROUGH)
         end if
+
         ! Check if foreground color is close enough.
         if (allocated(attrs%foreground)) then
             if (same_color_name(attrs%foreground, def_attrs%foreground)) return
             if (.not. tty_lookup_color(attrs%foreground, fg_tty_color, fg_std_color)) return
             ! Displayed color is too different?
             if (color_distance(fg_tty_color, fg_std_color) > TTY_SAME_COLOR_THRESHOLD) return
+
             ! Make sure the color is really different from the default.
             if (allocated(def_attrs%foreground)) then
                 if (tty_lookup_color(def_attrs%foreground, def_color)) then
@@ -1213,32 +1330,40 @@ contains
                 end if
             end if
         end if
+
         ! Check if background color is close enough.
         if (allocated(attrs%background)) then
             if (same_color_name(attrs%background, def_attrs%background)) return
             if (.not. tty_lookup_color(attrs%background, bg_tty_color, bg_std_color)) return
             if (color_distance(bg_tty_color, bg_std_color) > TTY_SAME_COLOR_THRESHOLD) return
+
             if (allocated(def_attrs%background)) then
                 def_color = emacs_color_type()
+
                 if (tty_lookup_color(def_attrs%background, def_color)) then
                     if (color_distance(bg_tty_color, def_color) <= TTY_SAME_COLOR_THRESHOLD) return
                 end if
             end if
         end if
+
         ! If both foreground and background are requested, see if the
         ! distance between them is OK.
         if (allocated(attrs%foreground) .and. allocated(attrs%background)) then
             delta_delta = color_distance(fg_std_color, bg_std_color) - color_distance(fg_tty_color, bg_tty_color)
             if (delta_delta > TTY_SAME_COLOR_THRESHOLD .or. delta_delta < -TTY_SAME_COLOR_THRESHOLD) return
         end if
+
         ! See if the capabilities we selected above are supported, with
         ! the given colors.
         supports = tty_capable_p(selected_frame%tty, test_caps)
+
     contains
+
         !> face_attr_equal_p for two color names.
         logical function same_color_name(a, b)
             character(len=*), intent(in) :: a
             character(len=:), allocatable, intent(in) :: b
+
             same_color_name = .false.
             if (allocated(b)) same_color_name = a == b .and. len(a) == len(b)
         end function same_color_name
@@ -1252,92 +1377,110 @@ contains
         character(len=*), intent(in) :: name
         type(face_attributes_type) :: attrs, one
         logical :: ok
+
         differs = .false.
         ! The value of :inherit teaches us nothing about how the face
         ! looks compared to the default face: the other attributes are
         ! taken with inheritance (and :extend only matters with them).
         call merge_named_face(name, attrs, 0, .false., ok)
         if (.not. ok) return
+
         if (allocated(attrs%family)) then
             one = face_attributes_type()
             one%family = attrs%family
             if (supported(one)) return
         end if
+
         if (allocated(attrs%foundry)) then
             one = face_attributes_type()
             one%foundry = attrs%foundry
             if (supported(one)) return
         end if
+
         if (allocated(attrs%width)) then
             one = face_attributes_type()
             one%width = attrs%width
             if (supported(one)) return
         end if
+
         if (attrs%height%state /= FACE_UNSPECIFIED) then
             one = face_attributes_type()
             one%height = attrs%height
             if (supported(one)) return
         end if
+
         if (allocated(attrs%weight)) then
             one = face_attributes_type()
             one%weight = attrs%weight
             if (supported(one)) return
         end if
+
         if (allocated(attrs%slant)) then
             one = face_attributes_type()
             one%slant = attrs%slant
             if (supported(one)) return
         end if
+
         if (attrs%underline%state /= FACE_UNSPECIFIED) then
             one = face_attributes_type()
             one%underline = attrs%underline
             if (supported(one)) return
         end if
+
         if (attrs%overline%state /= FACE_UNSPECIFIED) then
             one = face_attributes_type()
             one%overline = attrs%overline
             if (supported(one)) return
         end if
+
         if (attrs%strike_through%state /= FACE_UNSPECIFIED) then
             one = face_attributes_type()
             one%strike_through = attrs%strike_through
             if (supported(one)) return
         end if
+
         if (attrs%box%state /= FACE_UNSPECIFIED) then
             one = face_attributes_type()
             one%box = attrs%box
             if (supported(one)) return
         end if
+
         if (attrs%inverse_video%state /= FACE_UNSPECIFIED) then
             one = face_attributes_type()
             one%inverse_video = attrs%inverse_video
             if (supported(one)) return
         end if
+
         if (allocated(attrs%foreground)) then
             one = face_attributes_type()
             one%foreground = attrs%foreground
             if (supported(one)) return
         end if
+
         if (allocated(attrs%distant_foreground)) then
             one = face_attributes_type()
             one%distant_foreground = attrs%distant_foreground
             if (supported(one)) return
         end if
+
         if (allocated(attrs%background)) then
             one = face_attributes_type()
             one%background = attrs%background
             if (supported(one)) return
         end if
+
     contains
 
         !> display-supports-face-attributes-p for ATTRS; sets DIFFERS.
         logical function supported(a)
             type(face_attributes_type), intent(in) :: a
+
             if (frame_window_p(selected_frame)) then
                 supported = .true.
             else
                 supported = tty_supports_face_attributes_p(a)
             end if
+
             differs = supported
         end function supported
     end function face_differs_from_default_p

@@ -37,6 +37,7 @@ contains
     recursive module subroutine modify_text_properties(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
+
         call prepare_to_modify_buffer_1(start, end, status)
         if (.not. status%ok()) return
         call buf_compute_unchanged(buffers(cur), start - 1, end)
@@ -49,6 +50,7 @@ contains
     recursive module subroutine signal_text_properties_change(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
+
         call signal_after_change(start, end - start, end - start, status)
     end subroutine signal_text_properties_change
 end submodule textprop_modify_fm

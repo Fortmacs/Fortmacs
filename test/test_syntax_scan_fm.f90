@@ -63,6 +63,7 @@ contains
 
     subroutine collect_syntax_scan_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("parse-partial-sexp-continue-over-comment-marker", test_continue_over_marker), &
                     new_unittest("parse-partial-sexp-paren-comments", test_paren_comments), &
@@ -95,6 +96,7 @@ contains
         type(handle_type), intent(inout) :: table
         type(handle_type) :: buf
         type(status_type) :: st
+
         call init_bindings()
         call discard_input()
         call get_buffer_create(" *syntax-scan-test*", buf, st)
@@ -114,6 +116,7 @@ contains
     subroutine done_buffer(table)
         type(handle_type), intent(in) :: table
         type(status_type) :: st
+
         call set_syntax_table(standard_syntax_table(), st)
         call free_syntax_table(table, st)
         parse_sexp_ignore_comments = .false.
@@ -125,12 +128,14 @@ contains
         character(len=*), intent(in) :: descriptor
         type(handle_type), intent(in) :: table
         type(status_type) :: st
+
         call modify_syntax_entry(iachar(c), iachar(c), descriptor, st, table)
     end subroutine entry
 
     !> Whether two parse states are `equal'.
     logical function same_state(a, b)
         type(parse_state_type), intent(in) :: a, b
+
         same_state = a%depth == b%depth .and. a%innermost_start == b%innermost_start .and. &
                      a%last_sexp_start == b%last_sexp_start .and. a%instring == b%instring .and. &
                      a%incomment == b%incomment .and. (a%quoted .eqv. b%quoted) .and. a%mindepth == b%mindepth .and. &
@@ -143,6 +148,7 @@ contains
 
     character(len=24) function str(n)
         integer(int64), intent(in) :: n
+
         write (str, "(i0)") n
     end function str
 
@@ -159,6 +165,7 @@ contains
         type(status_type) :: st
         type(parse_state_type) :: pps_c, pps_pre_c, pps_aft_c, pps_x, s
         integer(int64) :: point_c, pre_c, point_x, aft_c
+
         call temp_buffer("/*C*/"//achar(10)//"X", table)
         call entry("/", ". 124", table)
         call entry("*", ". 23b", table)
@@ -200,6 +207,7 @@ contains
         type(status_type) :: st
         type(parse_state_type) :: pps_c, pps_x, s
         integer(int64) :: point_c, point_x
+
         call temp_buffer("{-C-}"//achar(10)//"X", table)
         call entry("{", "(}1nb", table)
         call entry("}", "){4nb", table)
@@ -225,6 +233,7 @@ contains
         type(handle_type) :: table
         type(status_type) :: st
         type(parse_state_type) :: s
+
         call temp_buffer("foo", table)
         call parse_partial_sexp(1_int64, 1_int64, s, st)
         call check(error, st%ok())
@@ -248,6 +257,7 @@ contains
         character(len=:), allocatable :: data
         integer :: u, ios
         integer(int64) :: fsize
+
         open (newunit=u, file="test/syntax-resources/syntax-comments.txt", access="stream", form="unformatted", &
               status="old", action="read", iostat=ios)
         call check(error, ios == 0, "can't open syntax-comments.txt")
@@ -260,6 +270,7 @@ contains
         if (allocated(error)) return
         call temp_buffer(data, table)
         parse_sexp_ignore_comments = .true.
+
         select case (kind)
         case (PASCAL)
             comment_end_can_be_escaped = .false.
@@ -300,42 +311,54 @@ contains
         logical, intent(in) :: forw
         character(len=:), allocatable :: text, s
         integer :: i, l
+
         pos = 0
+
         if (n == 0) then
             pos = point()
             return
         end if
+
         text = buffer_string()
         s = trim(str(abs(n)))
         l = len(s)
+
         if (forw) then
             do i = 1, len(text) - l + 1
                 if (i > 1) then
                     if (text(i - 1:i - 1) /= achar(10)) cycle
                 end if
+
                 if (text(i:i + l - 1) /= s) cycle
+
                 if (i + l <= len(text)) then
                     if (index("0123456789", text(i + l:i + l)) > 0) cycle
                 end if
+
                 pos = i + l
                 exit
             end do
         else
             do i = len(text) - l + 1, 1, -1
                 if (text(i:i + l - 1) /= s) cycle
+
                 if (i + l <= len(text)) then
                     if (text(i + l:i + l) /= achar(10)) cycle
                 end if
+
                 if (i > 1) then
                     if (index("0123456789", text(i - 1:i - 1)) > 0) cycle
                 end if
+
                 pos = i
                 exit
             end do
         end if
+
         if (pos == 0 .or. n > 0) return
         ! (end-of-line)
         i = index(text(pos:), achar(10))
+
         if (i == 0) then
             pos = len(text) + 1
         else
@@ -350,18 +373,23 @@ contains
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: text, s
         integer :: i, l
+
         pos = 0
         text = buffer_string()
         s = trim(str(n))
         l = len(s)
+
         do i = 1, len(text) - l + 1
             if (text(i:i + l - 1) /= s) cycle
+
             if (i > 1) then
                 if (index("0123456789", text(i - 1:i - 1)) > 0) cycle
             end if
+
             if (i + l <= len(text)) then
                 if (index("0123456789", text(i + l:i + l)) > 0) cycle
             end if
+
             pos = i
             exit
         end do
@@ -380,27 +408,33 @@ contains
         integer(int64) :: stop_pos, last
         logical :: forw, got
         character(len=:), allocatable :: name
+
         call visit_comments_file(kind, table, error)
         if (allocated(error)) return
+
         do k = 1, size(start)
             forw = dirs(k:k) == "f"
             name = "syntax-comments-"//section//"-"//dirs(k:k)//trim(str(int(abs(start(k)), int64)))
             call goto_char(label_point(int(start(k), int64), forw))
+
             if (stop(k) == NONE) then
                 stop_pos = label_point(int(start(k), int64),.not. forw)
             else
                 stop_pos = label_point(int(stop(k), int64),.not. forw)
             end if
+
             if (forw) then
                 got = forward_comment(1_int64)
             else
                 got = forward_comment(-1_int64)
             end if
+
             last = point()
             call check(error, (got .eqv. res(k)) .and. last == stop_pos, name//": point "//trim(str(last))// &
                        ", expected "//trim(str(stop_pos)))
             if (allocated(error)) exit
         end do
+
         call done_buffer(table)
     end subroutine run_comments
 
@@ -418,30 +452,37 @@ contains
         integer(int64) :: start_pos, stop_pos, got
         logical :: forw
         character(len=:), allocatable :: name
+
         call visit_comments_file(kind, table, error)
         if (allocated(error)) return
+
         do k = 1, size(start)
             forw = dirs(k:k) == "f"
             name = "syntax-br-comments-"//section//"-"//dirs(k:k)//trim(str(int(abs(start(k)), int64)))
             start_pos = label_point(int(start(k), int64), forw)
+
             if (forw) then
                 got = scan_lists(start_pos, 1_int64, 0_int64, st)
             else
                 got = scan_lists(start_pos, -1_int64, 0_int64, st)
             end if
+
             if (res(k)) then
                 if (stop(k) == NONE) then
                     stop_pos = label_point(int(start(k), int64),.not. forw)
                 else
                     stop_pos = label_point(int(stop(k), int64),.not. forw)
                 end if
+
                 call check(error, st%ok() .and. got == stop_pos, name//": "//trim(str(got))//", expected "// &
                            trim(str(stop_pos)))
             else
                 call check(error, st%code == FM_SCAN_ERROR, name//": no scan-error")
             end if
+
             if (allocated(error)) exit
         end do
+
         call done_buffer(table)
     end subroutine run_br_comments
 
@@ -460,18 +501,22 @@ contains
         integer :: k
         integer(int64) :: start_pos, open_pos, close_pos, stop_pos
         character(len=:), allocatable :: name
+
         call visit_comments_file(kind, table, error)
         if (allocated(error)) return
+
         do k = 1, size(start)
             name = "syntax-pps-comments-"//section//"-"//trim(str(int(start(k), int64)))
             start_pos = label_point(int(start(k), int64), .true.)
             open_pos = label_midpoint(int(open (k), int64))
             close_pos = label_midpoint(int(close (k), int64))
+
             if (stop(k) == NONE) then
                 stop_pos = label_point(int(start(k), int64), .false.)
             else
                 stop_pos = label_point(int(stop(k), int64), .false.)
             end if
+
             call parse_partial_sexp(start_pos, point_max(), s1, st, targetdepth=0_int64, &
                                     commentstop=COMMENTSTOP_SYNTAX_TABLE)
             call check(error, point() == open_pos, name//": opener at "//trim(str(point()))//", expected "// &
@@ -487,6 +532,7 @@ contains
                        trim(str(stop_pos)))
             if (allocated(error)) exit
         end do
+
         call done_buffer(table)
     end subroutine run_pps_comments
 
@@ -494,6 +540,7 @@ contains
     !> delimiter not being newline.
     subroutine test_comments_pascal(error)
         type(error_type), allocatable, intent(out) :: error
+
         call run_comments(error, PASCAL, "pascal", "fbfbfbfbfbfb", &
                           [.false., .false., .true., .true., .true., .true., .true., .true., .true., .true., .true., .true.], &
                           [20, 20, 21, 21, 22, 22, 23, 23, 24, 24, 26, 26], &
@@ -504,6 +551,7 @@ contains
     !> comments.
     subroutine test_comments_lisp(error)
         type(error_type), allocatable, intent(out) :: error
+
         call run_comments(error, LISP, "lisp", "bfbfbfb", [.false., .true., .true., .true., .true., .true., .true.], &
                           [30, 31, 31, 32, 32, 33, 33], [30, NONE, NONE, NONE, NONE, NONE, NONE])
     end subroutine test_comments_lisp
@@ -511,6 +559,7 @@ contains
     !> "Lisp" style comments inside lists.
     subroutine test_br_comments_lisp(error)
         type(error_type), allocatable, intent(out) :: error
+
         call run_br_comments(error, LISP, "lisp", "bfbfbf", [.false., .true., .true., .true., .true., .false.], &
                              [40, 41, 41, 42, 42, 43], [NONE, NONE, NONE, NONE, NONE, NONE])
     end subroutine test_br_comments_lisp
@@ -518,6 +567,7 @@ contains
     !> "Lisp" style comments parsed by `parse_partial_sexp'.
     subroutine test_pps_comments_lisp(error)
         type(error_type), allocatable, intent(out) :: error
+
         call run_pps_comments(error, LISP, "lisp", [41, 42, 43], [90, 92, 94], [91, 93, 95], [NONE, NONE, -999])
     end subroutine test_pps_comments_lisp
 
@@ -525,6 +575,7 @@ contains
     !> "Lisp" style (nested and unnested) comments.
     subroutine test_comments_lisp_n(error)
         type(error_type), allocatable, intent(out) :: error
+
         call run_comments(error, LISP_N, "lisp-n", "fbffbfbfbfbfbfbfbfb", &
                           [.false., .false., .false., .true., .true., .true., .true., .true., .true., .false., .true., &
                            .true., .true., .true., .true., .true., .true., .true., .true.], &
@@ -536,6 +587,7 @@ contains
     !> Emacs 27 "C" style comments - `comment_end_can_be_escaped' is true.
     subroutine test_comments_c(error)
         type(error_type), allocatable, intent(out) :: error
+
         call run_comments(error, C_STYLE, "c", "fbfbfbfbfbfbfbfbfbfbfbfbfb", &
                           [.true., .true., .true., .true., .true., .true., .true., .true., .true., .false., .false., &
                            .true., .true., .false., .false., .true., .true., .true., .false., .false., .true., .true., &
@@ -548,6 +600,7 @@ contains
     !> Emacs 27 "C" style comments inside brace lists.
     subroutine test_br_comments_c(error)
         type(error_type), allocatable, intent(out) :: error
+
         call run_br_comments(error, C_STYLE, "c", "fbfbfbfbfbfbfbbfb", &
                              [.true., .true., .true., .true., .true., .true., .true., .true., .true., .true., .true., &
                               .true., .true., .true., .false., .true., .true.], &
@@ -559,6 +612,7 @@ contains
     !> Emacs 27 "C" style comments parsed by `parse_partial_sexp'.
     subroutine test_pps_comments_c(error)
         type(error_type), allocatable, intent(out) :: error
+
         call run_pps_comments(error, C_STYLE, "c", [50, 52, 54, 56, 60], [70, 72, 74, 76, 78], [71, 73, 55, 77, 79], &
                               [NONE, NONE, 20, 58, NONE])
     end subroutine test_pps_comments_c
@@ -574,6 +628,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: table
         type(status_type) :: st
+
         call temp_buffer("()", table)
         call forward_sexp(1_int64, st)
         call check(error, st%ok(), "lisp-forward-sexp-1-empty-parens")
@@ -630,6 +685,7 @@ contains
         type(status_type) :: st
         type(parse_state_type) :: s
         logical :: ok
+
         call temp_buffer("#| a #| b |# c |# x", table)
         call entry("#", ". 14", table)
         call entry("|", ". 23n", table)
@@ -665,6 +721,7 @@ contains
         type(parse_state_type) :: s
         integer(int64) :: pos
         logical :: ok
+
         call temp_buffer("a /* x /* y */ b // c"//achar(10)//"d /**/ /**/ e", table)
         call entry("/", ". 124b", table)
         call entry("*", ". 23", table)
@@ -726,6 +783,7 @@ contains
         type(status_type) :: st
         integer(int64) :: pos, beg, end
         character(len=:), allocatable :: message
+
         call temp_buffer("(a (b) ""c)"" d)", table)
         pos = scan_lists(1_int64, 1_int64, 0_int64, st)
         call check(error, st%ok() .and. pos == 15, "forward over the list: "//trim(str(pos)))
@@ -767,6 +825,7 @@ contains
         type(handle_type) :: table
         type(status_type) :: st
         integer(int64) :: pos
+
         call temp_buffer("foo-bar ""x\""y"" 'baz a\ b", table)
         call entry("'", "'", table)
         pos = scan_sexps(1_int64, 1_int64, st)
@@ -797,6 +856,7 @@ contains
         type(handle_type) :: table
         type(status_type) :: st
         type(parse_state_type) :: s, s2
+
         call temp_buffer("(a (b ""c\", table)
         call parse_partial_sexp(1_int64, point_max(), s, st)
         call check(error, st%ok() .and. s%depth == 2 .and. s%innermost_start == 4 .and. s%instring == iachar("""") &
@@ -833,6 +893,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: table
         type(status_type) :: st
+
         call temp_buffer("", table)
         call set(sym("comment_end_can_be_escaped"), t_value(), st)
         call check(error, st%ok() .and. comment_end_can_be_escaped%value .and. comment_end_can_be_escaped%local_p())
@@ -846,6 +907,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: table
         type(status_type) :: st
+
         call temp_buffer("(a ""b c"" (d) e)", table)
         call goto_char(7_int64)
         ! Out of the string, then out of the list.
@@ -904,6 +966,7 @@ contains
         type(handle_type) :: table
         type(status_type) :: st
         type(value_type), allocatable :: evs(:)
+
         call temp_buffer("(a (b c) d) e", table)
         call key_parse("C-M-f", evs, st)
         call unread_command_events(evs)

@@ -299,18 +299,24 @@ contains
         if (.not. allocated(electric_pair_text_pairs)) call default_pairs(electric_pair_text_pairs)
         if (.not. allocated(electric_pair_skip_whitespace_chars)) electric_pair_skip_whitespace_chars = [9, 32, 10]
         if (.not. associated(electric_pair_skip_self)) electric_pair_skip_self => electric_pair_default_skip_self
+
         if (.not. associated(electric_pair_inhibit_predicate)) then
             electric_pair_inhibit_predicate => electric_pair_default_inhibit
         end if
+
         if (.not. associated(electric_pair_skip_whitespace_function)) then
             electric_pair_skip_whitespace_function => electric_pair_skip_whitespace_default
         end if
+
         if (.not. associated(electric_pair_string_bound_function)) then
             electric_pair_string_bound_function => string_bound_point_max
         end if
+
     contains
+
         subroutine default_pairs(pairs)
             type(electric_pair_type), allocatable, intent(out) :: pairs(:)
+
             allocate (pairs(3))
             pairs(1)%open = iachar('"')
             pairs(1)%close = iachar('"')
@@ -347,6 +353,7 @@ contains
         integer(int64), intent(in), optional :: pos
         integer(int32) :: c
         logical :: found
+
         call char_after(c, found, pos)
         after = -1
         if (found) after = int(c)
@@ -357,6 +364,7 @@ contains
         integer(int64), intent(in), optional :: pos
         integer(int32) :: c
         logical :: found
+
         call char_before(c, found, pos)
         before = -1
         if (found) before = int(c)
@@ -365,6 +373,7 @@ contains
     !> The syntax descriptor character of C in the current syntax table.
     character function syntax_char(c)
         integer, intent(in) :: c
+
         syntax_char = " "
         if (c >= 0) syntax_char = char_syntax(c)
     end function syntax_char
@@ -372,6 +381,7 @@ contains
     !> (matching-paren C): -1 for nil.
     integer function matching(c)
         integer, intent(in) :: c
+
         matching = -1
         if (c >= 0) matching = matching_paren(c)
     end function matching
@@ -383,6 +393,7 @@ contains
         character(len=MAX_MULTIBYTE_LENGTH) :: buf
         integer(int32) :: n
         type(status_type) :: st
+
         call char_string(int(c, int32), buf, n, st)
         s = buf(1:n)
     end function char_text
@@ -395,12 +406,14 @@ contains
     subroutine with_syntax_begin(string_or_comment, saved)
         integer(int64), intent(in) :: string_or_comment
         type(handle_type), intent(out) :: saved
+
         saved = buffers(cur)%syntax_table
         if (string_or_comment /= 0) buffers(cur)%syntax_table = electric_pair_text_syntax_table
     end subroutine with_syntax_begin
 
     subroutine with_syntax_end(saved)
         type(handle_type), intent(in) :: saved
+
         buffers(cur)%syntax_table = saved
     end subroutine with_syntax_end
 
@@ -408,6 +421,7 @@ contains
     subroutine save_excursion_begin(here)
         type(handle_type), intent(out) :: here
         type(status_type) :: st
+
         call copy_marker_at(point(), here, .false., st)
     end subroutine save_excursion_begin
 
@@ -416,6 +430,7 @@ contains
         type(handle_type), intent(in) :: here
         type(status_type) :: st
         integer(int64) :: p
+
         call marker_position(here, p, st)
         call goto_char(p)
         call free_marker(here, st)
@@ -425,6 +440,7 @@ contains
     subroutine ppss_at(pos, state)
         integer(int64), intent(in) :: pos
         type(parse_state_type), intent(out) :: state
+
         call syntax_ppss(state, pos)
     end subroutine ppss_at
 
@@ -441,14 +457,17 @@ contains
         integer(int64) :: saved, string_or_comment, moved
         character(len=:), allocatable :: chars
         integer :: k
+
         status = status_type()
         saved = point()
         call ppss_at(saved, state)
         string_or_comment = state%comstr_start
         chars = ""
+
         do k = 1, size(electric_pair_skip_whitespace_chars)
             chars = chars//char_text(electric_pair_skip_whitespace_chars(k))
         end do
+
         moved = skip_chars_forward(chars, status)
         call ppss_at(point(), state)
         if (string_or_comment /= state%comstr_start) call goto_char(saved)
@@ -471,39 +490,49 @@ contains
         integer(int64) :: opoint, pre_string_or_comment, post_string_or_comment, string_or_comment
         integer :: k, table_syntax, table_pair, direct, reverse
         logical :: pre_t
+
         opoint = point()
         pre_t = bobp()
         pre_string_or_comment = 0
+
         if (.not. pre_t) then
             call ppss_at(opoint - 1, state)
             pre_string_or_comment = state%comstr_start
             call goto_char(opoint)
         end if
+
         call ppss_at(opoint, state)
         post_string_or_comment = state%comstr_start
         string_or_comment = 0
+
         if (post_string_or_comment /= 0 .and. (pre_t .or. pre_string_or_comment /= 0)) then
             string_or_comment = post_string_or_comment
         end if
+
         call with_syntax_begin(string_or_comment, saved)
         table_syntax = iachar(syntax_char(command_event))
         table_pair = matching(command_event)
         if (table_pair < 0) table_pair = command_event
         call with_syntax_end(saved)
+
         if (string_or_comment /= 0) then
             fallback = [electric_pair_text_pairs, electric_pair_pairs]
         else
             fallback = electric_pair_pairs
         end if
+
         direct = 0
         reverse = 0
+
         do k = 1, size(fallback)
             if (allocated(fallback(k)%open_string)) cycle
             if (direct == 0 .and. fallback(k)%open == command_event) direct = k
             if (reverse == 0 .and. fallback(k)%close == command_event) reverse = k
         end do
+
         do k = 1, size(fallback)
             if (.not. allocated(fallback(k)%open_string)) cycle
+
             if (looking_back(fallback(k)%open_string, st, line_beginning_position())) then
                 info%found = .true.
                 info%syntax = SYNTAX_STR
@@ -516,6 +545,7 @@ contains
                 return
             end if
         end do
+
         if (table_syntax == iachar('"') .or. table_syntax == iachar("(") .or. table_syntax == iachar(")") &
             .or. table_syntax == iachar("$")) then
             info = electric_pair_info_type(found=.true., syntax=table_syntax, pair=table_pair, &
@@ -543,6 +573,7 @@ contains
         type(value_type) :: saved_event
         integer :: saved_blink
         logical :: saved_mode
+
         saved_event = last_command_event
         saved_blink = blink_matching_paren
         saved_mode = minor_modes%electric_pair_mode%state%value
@@ -569,15 +600,19 @@ contains
         type(status_type) :: st
         integer(int64) :: p, s_or_c_start, moved
         logical :: in_string, in_comment, found
+
         p = point()
         if (present(pos)) p = pos
         call ppss_at(p, quick_ppss)
         in_string = quick_ppss%instring >= 0
+
         if (present(comments_only)) then
             if (comments_only) in_string = .false.
         end if
+
         in_comment = quick_ppss%incomment /= 0
         s_or_c_start = 0
+
         if (in_string) then
             s_or_c_start = quick_ppss%comstr_start + 1
         else if (in_comment) then
@@ -586,6 +621,7 @@ contains
             moved = skip_syntax_forward(" >!")
             s_or_c_start = point()
         end if
+
         if (s_or_c_start /= 0) then
             call with_syntax_begin(s_or_c_start, saved)
             call parse_partial_sexp(s_or_c_start, p, state, st)
@@ -616,16 +652,20 @@ contains
         type(parse_state_type) :: state
         character(len=:), allocatable :: msg
         integer(int64) :: opoint, pos, beg, end, count, r
+
         opoint = point()
+
         do while (.not. outermost%set)
             if (direction > 0) then
                 count = point_max()
             else
                 count = -point_max()
             end if
+
             call with_syntax_begin(string_or_comment, saved)
             r = scan_sexps(point(), count, st)
             call with_syntax_end(saved)
+
             if (st%ok()) then
                 call at_top_level_or_equivalent()
             else if (st%code /= FM_SCAN_ERROR) then
@@ -635,6 +675,7 @@ contains
                 pos = point()
                 call ppss_at(pos, state)
                 call goto_char(pos)
+
                 if (index(msg, "ends prematurely") == 0 .or. (string_or_comment /= 0 .and. state%comstr_start == 0)) then
                     ! Some error happened and it is not of the "ended
                     ! prematurely" kind, or we were in a comment and just
@@ -647,8 +688,11 @@ contains
                 end if
             end if
         end do
+
         call goto_char(opoint)
+
     contains
+
         !> Called when `scan_sexps' ran perfectly, when it found a
         !> parenthesis pointing in the direction of travel.  Also when
         !> travel started inside a comment and exited it.
@@ -668,11 +712,14 @@ contains
             integer(int64) :: p, q, start
             integer :: opener, m, actual_pair
             logical :: matched
+
             p = point()
             matched = .false.
+
             if (direction < 0) then
                 q = scan_sexps(point(), 1_int64, st2)
                 if (q == 0) q = point()
+
                 if (st2%ok()) then
                     call with_syntax_begin(string_or_comment, saved2)
                     m = matching(before(q))
@@ -685,9 +732,11 @@ contains
                 ! uses the quicker `syntax_ppss' in some cases).
                 call electric_pair_syntax_ppss(ppss, point() - 1)
                 start = 0
+
                 if (allocated(ppss%open_parens)) then
                     if (size(ppss%open_parens) > 0) start = ppss%open_parens(size(ppss%open_parens))
                 end if
+
                 if (start /= 0) then
                     opener = after(start)
                     call with_syntax_begin(string_or_comment, saved2)
@@ -697,12 +746,15 @@ contains
                     matched = before(p) == m
                 end if
             end if
+
             call goto_char(p)
+
             if (direction > 0) then
                 actual_pair = before()
             else
                 actual_pair = after()
             end if
+
             if (.not. innermost%set) innermost = balance_type(set=.true., matched=matched, pair=actual_pair)
             if (.not. matched) outermost = balance_type(set=.true., matched=matched, pair=actual_pair)
         end subroutine ended_prematurely
@@ -715,8 +767,10 @@ contains
         type(parse_state_type) :: selector_ppss, relevant_ppss
         integer(int64) :: opoint, moved
         logical :: found
+
         opoint = point()
         call ppss_at(opoint, selector_ppss)
+
         if (selector_ppss%incomment /= 0) then
             ! A comment.
             call goto_char(selector_ppss%comstr_start)
@@ -726,6 +780,7 @@ contains
         else
             call ppss_at(electric_pair_string_bound_function(), relevant_ppss)
         end if
+
         call goto_char(opoint)
         unbalanced_strings_p = relevant_ppss%instring == ST_STRING_STYLE .or. relevant_ppss%instring == char
     end function unbalanced_strings_p
@@ -738,6 +793,7 @@ contains
     logical function inside_string_p(char)
         integer, intent(in) :: char
         type(parse_state_type) :: ppss
+
         call electric_pair_syntax_ppss(ppss, point(), comments_only=.true.)
         inside_string_p = ppss%instring == ST_STRING_STYLE .or. ppss%instring == char
     end function inside_string_p
@@ -757,6 +813,7 @@ contains
         character(len=:), allocatable :: text
         integer(int64) :: opoint, beg
         logical :: modified, undo_enabled
+
         inhibit = .false.
         info = electric_pair_syntax_info(char)
         if (.not. info%found) return
@@ -767,8 +824,10 @@ contains
         buffers(cur)%undo_enabled = .false.
         call buffer_substring(beg, opoint, text, st)
         call delete_region(beg, opoint, st)
+
         if (info%syntax == iachar("(")) then
             call electric_pair_balance_info(1_int64, info%string_or_comment, innermost, outermost)
+
             if (outermost%matched) then
                 inhibit = .false.
             else
@@ -777,6 +836,7 @@ contains
         else if (info%syntax == iachar('"')) then
             inhibit = unbalanced_strings_p(char)
         end if
+
         call goto_char(beg)
         call insert(text, st)
         buffers(cur)%undo_enabled = undo_enabled
@@ -794,13 +854,16 @@ contains
         type(balance_type) :: innermost, outermost
         type(status_type) :: st
         integer(int64) :: num, k
+
         skip = .false.
         num = psi_num()
         info = electric_pair_syntax_info(char)
         if (.not. info%found) return
         call delete_char(-num, st)
+
         if (info%syntax == iachar(")")) then
             call electric_pair_balance_info(-num, info%string_or_comment, innermost, outermost)
+
             if (outermost%matched) then
                 skip = innermost%matched
             else if (innermost%matched) then
@@ -809,6 +872,7 @@ contains
         else if (info%syntax == iachar('"')) then
             skip = inside_string_p(char)
         end if
+
         do k = 1, num
             call insert(char_text(char), st)
         end do
@@ -818,6 +882,7 @@ contains
     !> elec-pair.el:electric-pair-default-skip-self.
     logical function electric_pair_default_skip_self(char) result(skip)
         integer, intent(in) :: char
+
         if (electric_pair_preserve_balance) then
             skip = electric_pair_skip_if_helps_balance(char)
         else
@@ -829,6 +894,7 @@ contains
     !> of elec-pair.el:electric-pair-default-inhibit.
     logical function electric_pair_default_inhibit(char) result(inhibit)
         integer, intent(in) :: char
+
         if (electric_pair_preserve_balance) then
             inhibit = electric_pair_inhibit_if_helps_balance(char)
         else
@@ -841,6 +907,7 @@ contains
     logical function electric_pair_conservative_inhibit(char) result(inhibit)
         integer, intent(in) :: char
         integer :: fc
+
         ! I find it more often preferable not to pair when the same char
         ! is next.
         inhibit = char == after()
@@ -890,6 +957,7 @@ contains
         type(value_type) :: saved_arg
         type(handle_type) :: here
         type(status_type) :: st
+
         status = status_type()
         pos = 0
         if (minor_modes%electric_pair_mode%state%value) pos = electric_after_char_pos()
@@ -902,9 +970,11 @@ contains
         syntax = info%syntax
         if (pos == 0) return
         if (num == 0) return
+
         if (is_any(syntax, '()"$') .and. use_region_p()) then
             ! Wrap a pair around the active region.
             call mark(m, st)
+
             if (syntax == iachar('"') .or. (syntax == iachar(")") .and. point() >= m) .or. &
                 (syntax /= iachar(")") .and. m >= point())) then
                 call save_excursion_begin(here)
@@ -920,13 +990,16 @@ contains
                 call goto_char(m)
                 call electric_pair_insert(ev, num, status)
             end if
+
             return
         end if
+
         ! Backslash-escaped: no pairing, no skipping.
         opoint = point()
         call goto_char(beg)
         moved = skip_syntax_backward("\")
         call goto_char(opoint)
+
         if (modulo(moved, 2_int64) /= 0) then
             saved_arg = hook_current_prefix_arg
             hook_current_prefix_arg = make_fixnum(num - 1)
@@ -934,40 +1007,50 @@ contains
             hook_current_prefix_arg = saved_arg
             return
         end if
+
         ! Skip self.
         skip_whitespace_info = ELECTRIC_PAIR_SKIP_WHITESPACE_NIL
+
         if (is_any(syntax, ')"$')) then
             ok = info%unconditional
+
             if (.not. ok .and. associated(electric_pair_skip_self)) then
                 saved_point = point()
                 call goto_char(pos)
                 ok = electric_pair_skip_self(ev)
                 call goto_char(saved_point)
             end if
+
             if (ok) then
                 opoint = point()
+
                 if (.not. (info%unconditional .and. syntax == iachar('"'))) then
                     skip_whitespace_info = electric_pair_skip_whitespace
                     if (skip_whitespace_info /= ELECTRIC_PAIR_SKIP_WHITESPACE_NIL .and. &
                         associated(electric_pair_skip_whitespace_function)) call electric_pair_skip_whitespace_function(st)
                 end if
+
                 skip = after() == ev
                 call goto_char(opoint)
+
                 if (skip) then
                     ! This is too late: rather than insert&delete we'd want
                     ! to only skip (or insert in overwrite mode).
                     if (skip_whitespace_info /= ELECTRIC_PAIR_SKIP_WHITESPACE_NIL .and. &
                         associated(electric_pair_skip_whitespace_function)) call electric_pair_skip_whitespace_function(st)
+
                     if (skip_whitespace_info == ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP) then
                         call delete_region(beg, point(), status)
                     else
                         call delete_region(beg, pos, status)
                     end if
+
                     if (status%ok()) call forward_char(status, num)
                     return
                 end if
             end if
         end if
+
         ! Insert matching pair.
         if (syntax == SYNTAX_STR) then
             ! String pairs.
@@ -979,25 +1062,31 @@ contains
         else if (is_any(syntax, '("$')) then
             ! Char pairs.
             inhibited = .false.
+
             if (.not. info%unconditional .and. associated(electric_pair_inhibit_predicate)) then
                 saved_point = point()
                 call goto_char(pos)
                 inhibited = electric_pair_inhibit_predicate(ev)
                 call goto_char(saved_point)
             end if
+
             if (.not. inhibited) then
                 call save_excursion_begin(here)
                 call electric_pair_insert(info%pair, num, status)
                 call save_excursion_end(here)
             end if
         end if
+
     contains
+
         !> Whether character code S is one of the characters of SET.
         logical function is_any(s, set)
             integer, intent(in) :: s
             character(len=*), intent(in) :: set
             integer :: k
+
             is_any = .false.
+
             do k = 1, len(set)
                 if (s == iachar(set(k:k))) is_any = .true.
             end do
@@ -1013,6 +1102,7 @@ contains
         integer(int64) :: opoint, moved
         integer :: b, m
         type(handle_type) :: here
+
         status = status_type()
         if (.not. electric_pair_open_newline_between_pairs) return
         if (event_char() /= 10) return
@@ -1026,15 +1116,20 @@ contains
         call save_excursion_begin(here)
         call newline(status, 1_int64, interactive=.true.)
         call save_excursion_end(here)
+
     contains
+
         !> (skip-chars-backward "\t\s").
         integer(int64) function skip_chars_backward_tabs() result(n)
             integer(int64) :: p
+
             p = point()
+
             do while (p > point_min())
                 if (before(p) /= 9 .and. before(p) /= 32) exit
                 p = p - 1
             end do
+
             n = p - point()
             call goto_char(p)
         end function skip_chars_backward_tabs
@@ -1048,6 +1143,7 @@ contains
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: killp
+
         call delete_char(arg, status)
         if (status%ok()) call backward_delete_char_untabify(arg, status, killp)
     end subroutine electric_pair_delete_pair
@@ -1058,6 +1154,7 @@ contains
     !> elec-pair.el:electric-pair-delete-pair (the command, "*p\nP").
     subroutine cmd_electric_pair_delete_pair(status)
         type(status_type), intent(out) :: status
+
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
         call electric_pair_delete_pair(prefix_numeric_value(current_prefix_arg), status, &
@@ -1079,6 +1176,7 @@ contains
     !> `electric_pair_local_mode'.  Port of elec-pair.el:electric-pair-mode.
     subroutine electric_pair_mode(status)
         type(status_type), intent(out) :: status
+
         call minor_modes%electric_pair_mode%command(status)
     end subroutine electric_pair_mode
 
@@ -1086,8 +1184,10 @@ contains
     subroutine electric_pair_mode_body(on, status)
         logical, intent(in) :: on
         type(status_type), intent(out) :: status
+
         status = status_type()
         if (on) continue
+
         if (minor_modes%electric_pair_mode%state%value) then
             ! Prioritize this to kick in after
             ! `electric_layout_post_self_insert_function': that
@@ -1106,6 +1206,7 @@ contains
     !> elec-pair.el:electric-pair-local-mode.
     subroutine electric_pair_local_mode(status)
         type(status_type), intent(out) :: status
+
         call minor_modes%electric_pair_local_mode%command(status)
     end subroutine electric_pair_local_mode
 
@@ -1122,9 +1223,11 @@ contains
         type(status_type), intent(out) :: status
         type(value_type) :: default
         type(status_type) :: st
+
         status = status_type()
         call minor_modes%electric_pair_mode%state%set_local(val)
         call default_value(sym("electric_pair_mode"), default, st)
+
         if (minor_modes%electric_pair_mode%state%value .eqv. .not. nilp(default)) then
             call kill_local_variable(sym("electric_pair_mode"), st)
         else if (nilp(default)) then

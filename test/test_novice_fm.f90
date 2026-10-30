@@ -51,6 +51,7 @@ contains
 
     subroutine collect_novice_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("disabled-command-answers", test_answers), &
                     new_unittest("enable-and-disable-command", test_enable_disable), &
@@ -61,6 +62,7 @@ contains
     subroutine enter(h)
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call init_bindings()
         call discard_input()
         prefix_arg = nil()
@@ -77,6 +79,7 @@ contains
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
+
         call push_mark(1_int64, .true., .true.)
         call goto_char(point_max())
         call key_parse(keys, evs, st)
@@ -87,6 +90,7 @@ contains
     logical function disabled(name)
         character(len=*), intent(in) :: name
         type(command_type), pointer :: p
+
         p => find_command(name)
         disabled = p%disabled
     end function disabled
@@ -95,6 +99,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call enter(h)
         ! n: cancel.
         call run("C-x C-u n")
@@ -133,6 +138,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: text, path
         character(len=*), parameter :: LF = achar(10)
+
         call init_fileio()
         call expand_file_name("build/test-novice", path, st, emacs_wd)
         call make_directory_internal(path, st)
@@ -177,6 +183,7 @@ contains
     subroutine write_text(file, text)
         character(len=*), intent(in) :: file, text
         integer :: u
+
         open (newunit=u, file=file, access="stream", form="unformatted", status="replace", action="write")
         write (u) text
         close (u)
@@ -186,18 +193,21 @@ contains
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: text
         integer :: u, n
+
         open (newunit=u, file=file, access="stream", form="unformatted", status="old", action="read")
         inquire (unit=u, size=n)
         allocate (character(len=n) :: text)
         read (u) text
         close (u)
     end function read_text
+
     !> A string `disabled' property disables the command too; y clears it.
     subroutine test_disabled_message(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
         character(len=:), allocatable :: saved
+
         call enter(h)
         commands%upcase_region%disabled = .false.
         commands%upcase_region%disabled_message = "Not for you."
@@ -208,11 +218,13 @@ contains
         ! (No init file: y enables it for the session.)
         user_init_file = ""
         call run("C-x C-u y")
+
         if (allocated(saved)) then
             user_init_file = saved
         else
             deallocate (user_init_file)
         end if
+
         call check(error, buffer_string() == "ABC" .and. .not. allocated(commands%upcase_region%disabled_message), &
                    buffer_string())
         commands%upcase_region%disabled = .true.

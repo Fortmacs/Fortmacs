@@ -36,6 +36,7 @@ contains
 
     subroutine collect_namelist_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("namelist-write-read", test_write_read), &
                     new_unittest("namelist-syntax", test_syntax), &
@@ -51,6 +52,7 @@ contains
         type(namelist_group_type), allocatable :: groups(:)
         type(status_type) :: st
         character(len=:), allocatable :: text
+
         group%name = "savehist"
         item = namelist_item_type(name="file_name_history", subscripted=.true., lower=1, upper=2)
         call item%add_string('~/say "hi".txt')
@@ -73,6 +75,7 @@ contains
         if (allocated(error)) return
         call check(error, size(groups) == 1 .and. size(groups(1)%items) == 3, "one group, three objects")
         if (allocated(error)) return
+
         associate (it => groups(1)%items)
             call check(error, it(1)%name == "file_name_history" .and. it(1)%subscripted .and. it(1)%lower == 1 .and. &
                        it(1)%upper == 2 .and. size(it(1)%values) == 2, "the history")
@@ -95,12 +98,14 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(namelist_group_type), allocatable :: groups(:)
         type(status_type) :: st
+
         call read_namelist("! a comment"//nl//"&one a = 'x''y' 'z' ! more"//nl//" b=T c = .f. /"//nl// &
                            "&two t(1:1)='!'/", groups, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, size(groups) == 2, "two groups")
         if (allocated(error)) return
+
         associate (it => groups(1)%items)
             call check(error, size(it) == 3, "three objects")
             if (allocated(error)) return
@@ -113,6 +118,7 @@ contains
             call check(error, it(3)%values(1)%kind == NAMELIST_LOGICAL .and. .not. it(3)%values(1)%logical, "c")
             if (allocated(error)) return
         end associate
+
         call check(error, groups(2)%name == "two" .and. groups(2)%items(1)%values(1)%kind == NAMELIST_STRING .and. &
                    groups(2)%items(1)%values(1)%string == "!", "a ! in a string")
     end subroutine test_syntax
@@ -123,6 +129,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(namelist_group_type), allocatable :: groups(:)
         type(status_type) :: st
+
         call read_namelist("&g a = 1", groups, st)
         call check(error, condition_matches(st%code, FM_INVALID_READ_SYNTAX), "no /")
         if (allocated(error)) return

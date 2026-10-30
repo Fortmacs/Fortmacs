@@ -65,6 +65,7 @@ contains
 
     subroutine collect_insdel_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("insert-ascii", test_insert_ascii), &
                     new_unittest("insert-multibyte", test_insert_multibyte), &
@@ -98,6 +99,7 @@ contains
         character(len=*), intent(in) :: name
         type(handle_type), intent(out) :: h, old
         type(status_type) :: st
+
         old = current_buffer()
         call get_buffer_create(name, h, st)
         call set_buffer(h, st)
@@ -106,6 +108,7 @@ contains
     subroutine leave(h, old)
         type(handle_type), intent(in) :: h, old
         type(status_type) :: st
+
         if (buffer_live_p(old)) call set_buffer(old, st)
         call kill_buffer(h, st)
     end subroutine leave
@@ -113,12 +116,14 @@ contains
     !> Whole buffer text.
     function contents() result(s)
         character(len=:), allocatable :: s
+
         s = buf_bytes(buffers(cur), 1_int64, buffers(cur)%text%z_byte)
     end function contents
 
     !> Move point to char position `pos`.
     subroutine goto(pos)
         integer(int64), intent(in) :: pos
+
         call temp_set_point_both(buffers(cur), pos, char_to_byte(pos))
     end subroutine goto
 
@@ -126,6 +131,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("ti-ascii", h, old)
         call insert("hello", st)
         call check(error, st%ok(), "insert failed")
@@ -145,6 +151,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("ti-mb", h, old)
         call insert("a"//e_acute//euro//"b", st)
         call check(error, contents(), "a"//e_acute//euro//"b")
@@ -166,6 +173,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("ti-mid", h, old)
         call insert("ad", st)
         call goto(2_int64)
@@ -191,6 +199,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("ti-char", h, old)
         call insert_char(int(z'20AC', int32), st)
         call insert_char(int(iachar("x"), int32), st)
@@ -208,13 +217,16 @@ contains
         type(status_type) :: st
         integer :: k
         character(len=:), allocatable :: s
+
         call enter("ti-grow", h, old)
+
         do k = 1, 3000
             call insert("xy", st)
             if (.not. st%ok()) exit
             ! Alternate insertion points to keep moving the gap.
             if (mod(k, 7) == 0) call goto(int(k, int64))
         end do
+
         call check(error, st%ok(), "insert failed while growing")
         if (allocated(error)) return
         call check(error, buffers(cur)%text%z, 6001_int64)
@@ -227,13 +239,16 @@ contains
         call check(error, len(buffers(cur)%text%beg, kind=int64), &
                    buffers(cur)%text%z_byte - 1 + buffers(cur)%text%gap_size)
         call leave(h, old)
+
     contains
 
         pure integer function count_char(str, c)
             character(len=*), intent(in) :: str
             character, intent(in) :: c
             integer :: i
+
             count_char = 0
+
             do i = 1, len(str)
                 if (str(i:i) == c) count_char = count_char + 1
             end do
@@ -245,6 +260,7 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
         character(len=:), allocatable :: gone
+
         call enter("ti-del", h, old)
         call insert("a"//e_acute//"bcd"//euro//"e", st)
         call del_range_1(2_int64, 4_int64, .true., st, gone)
@@ -265,6 +281,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("ti-delpt", h, old)
         call insert("abcdefgh", st)
         ! Point after the range: shifts down.
@@ -291,6 +308,7 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
         integer(int64) :: tick
+
         call enter("ti-clamp", h, old)
         call insert("abc", st)
         tick = buffers(cur)%text%modiff
@@ -309,6 +327,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("ti-delb", h, old)
         call insert("x"//euro//"y", st)
         ! Bytes 2..4 are the euro sign.
@@ -325,6 +344,7 @@ contains
         type(status_type) :: st
         integer(int64), parameter :: bytepos(*) = [1, 2, 4, 7, 8, 9]
         integer(int64) :: c
+
         call enter("ti-conv", h, old)
         ! chars: a é € b c  -> bytes 1 2 4 7 8 (and Z_BYTE 9)
         call insert("a"//e_acute//euro//"bc", st)
@@ -332,12 +352,14 @@ contains
         call goto(3_int64)
         call insert("", st)
         call move_gap_both(3_int64, 4_int64)
+
         do c = 1, 6
             call check(error, char_to_byte(c), bytepos(c))
             if (allocated(error)) return
             call check(error, byte_to_char(bytepos(c)), c)
             if (allocated(error)) return
         end do
+
         ! The far end of the buffer, scanning backwards.
         call goto(1_int64)
         call check(error, buf_charpos_to_bytepos(cur, 5_int64), 8_int64)
@@ -348,6 +370,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("ti-ro", h, old)
         call insert("abc", st)
         call set_buffer_read_only(h, .true., st)
@@ -369,6 +392,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("ti-shrink", h, old)
         call insert("abcdef", st)
         call goto(4_int64)
@@ -389,6 +413,7 @@ contains
         type(handle_type) :: a, b, keep, old, prev
         type(status_type) :: st
         integer(int64) :: slot, tick
+
         ! A live, visible buffer to fall back to, so killing A does not
         ! create *scratch* in A's slot.
         call enter("ti-cache-keep", keep, prev)
@@ -418,6 +443,7 @@ contains
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
         character(len=21) :: buf
+
         write (buf, "(i0)") n
         s = trim(buf)
     end function num
@@ -426,6 +452,7 @@ contains
     subroutine rec_before(beg, end, status)
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
+
         status = status_type()
         trace = trace//" B"//num(beg)//","//num(end)
         if (.not. inhibit_modification_hooks%value) trace = trace//"!"
@@ -435,6 +462,7 @@ contains
     subroutine rec_after(beg, end, old_len, status)
         integer(int64), intent(in) :: beg, end, old_len
         type(status_type), intent(out) :: status
+
         status = status_type()
         trace = trace//" A"//num(beg)//","//num(end)//","//num(old_len)
         if (.not. inhibit_modification_hooks%value) trace = trace//"!"
@@ -443,6 +471,7 @@ contains
     !> Records "F" (first_change_hook).
     subroutine rec_first(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         trace = trace//" F"
     end subroutine rec_first
@@ -451,6 +480,7 @@ contains
     subroutine rec_global(beg, end, status)
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
+
         status = status_type()
         trace = trace//" G"//num(beg)//","//num(end)
     end subroutine rec_global
@@ -459,6 +489,7 @@ contains
     subroutine fail_before(beg, end, status)
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
+
         trace = trace//" X"//num(beg)//","//num(end)
         call set_error(status, FM_GENERIC_ERROR, "before failed")
     end subroutine fail_before
@@ -467,6 +498,7 @@ contains
     subroutine fail_after(beg, end, old_len, status)
         integer(int64), intent(in) :: beg, end, old_len
         type(status_type), intent(out) :: status
+
         trace = trace//" Y"//num(beg)//","//num(end)//","//num(old_len)
         call set_error(status, FM_GENERIC_ERROR, "after failed")
     end subroutine fail_after
@@ -476,6 +508,7 @@ contains
     subroutine widen_deletion(beg, end, status)
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
+
         call delete_region(beg - 1, end + 1, status)
     end subroutine widen_deletion
 
@@ -484,6 +517,7 @@ contains
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
         integer(int64) :: opoint
+
         trace = trace//" I"//num(beg)//","//num(end)
         opoint = buffers(cur)%pt
         call goto(1_int64)
@@ -495,6 +529,7 @@ contains
     subroutine rec_match_end(beg, end, old_len, status)
         integer(int64), intent(in) :: beg, end, old_len
         type(status_type), intent(out) :: status
+
         trace = trace//" M"//num(match_end(0, status))//" "//num(beg)//","//num(end)//","//num(old_len)
     end subroutine rec_match_end
 
@@ -519,6 +554,7 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
         character(len=:), allocatable :: deleted
+
         call enter("ti-hooks", h, old)
         call record_changes()
         call insert("abc", st)
@@ -571,6 +607,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old, h2, old2
         type(status_type) :: st
+
         call before_change_functions%add(rec_global)
         call enter("ti-hooks-local", h, old)
         call record_changes()
@@ -592,6 +629,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("ti-hooks-inhibit", h, old)
         call record_changes()
         call first_change_hook%add(rec_first, local=.true.)
@@ -610,6 +648,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("ti-hooks-first", h, old)
         call record_changes()
         call first_change_hook%add(rec_first, local=.true.)
@@ -634,6 +673,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call before_change_functions%add(rec_global)
         call enter("ti-hooks-error", h, old)
         call insert("abc", st)
@@ -670,6 +710,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("ti-hooks-after-error", h, old)
         call after_change_functions%add(fail_after)
         trace = ""
@@ -693,6 +734,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("ti-undo-markers-2", h, old)
         call insert("1234567890", st)
         call before_change_functions%add(widen_deletion, local=.true.)
@@ -711,6 +753,7 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
         type(value_type) :: v
+
         call enter("ti-hooks-props", h, old)
         call insert("abcd", st)
         call before_change_functions%add(insert_at_start, local=.true.)
@@ -735,6 +778,7 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
         integer(int64) :: found
+
         call enter("ti-hooks-replace-match", h, old)
         call insert("abc", st)
         call goto(1_int64)
@@ -749,7 +793,6 @@ contains
 
     ! editfns-tests.el: the sanity checks of the before/after change
     ! functions.
-
     !> sanity-check-change-functions-check-size.
     subroutine sanity_check_size()
         if (.not. sc_size_known) then
@@ -765,6 +808,7 @@ contains
     subroutine sanity_before(beg, end, status)
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
+
         status = status_type()
         if (.not. (point_min() <= beg .and. beg <= end .and. end <= point_max())) sc_errors = sc_errors + 1
         call sanity_check_size()
@@ -778,6 +822,7 @@ contains
         integer(int64), intent(in) :: beg, end, len
         type(status_type), intent(out) :: status
         integer(int64) :: bend, offset
+
         status = status_type()
         if (.not. (point_min() <= beg .and. beg <= end .and. end <= point_max())) sc_errors = sc_errors + 1
         if (len < 0) sc_errors = sc_errors + 1
@@ -797,6 +842,7 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
         integer(int64) :: beg, found
+
         call enter("ti-sanity", h, old)
         call before_change_functions%add(sanity_before, local=.true.)
         call after_change_functions%add(sanity_after, local=.true.)

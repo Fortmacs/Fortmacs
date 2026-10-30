@@ -86,6 +86,7 @@ contains
         type(fake_device_type), target, intent(inout) :: device
         type(fake_font_driver_type), target, intent(inout) :: driver
         integer, intent(in) :: cols, lines
+
         f%rif => device
         f%font_driver => driver
         f%column_width = FAKE_COLUMN_WIDTH
@@ -109,7 +110,9 @@ contains
     integer function fake_load_for_lface(self, lface) result(id)
         class(fake_font_driver_type), intent(inout) :: self
         type(face_attributes_type), intent(in) :: lface
+
         id = FAKE_DEFAULT_FONT
+
         if (lface%height%state == FACE_VALUE) then
             if (lface%height%absolute > 1) id = FAKE_BIG_FONT
         end if
@@ -120,6 +123,7 @@ contains
         integer, intent(in) :: id
         type(font_type) :: ft
         integer :: scale
+
         scale = 1
         if (id == FAKE_BIG_FONT) scale = 2
         ft%pixel_size = 16*scale
@@ -140,10 +144,12 @@ contains
         type(font_metrics_type), intent(out) :: metrics
         logical, intent(out) :: found
         integer :: scale
+
         scale = 1
         if (id == FAKE_BIG_FONT) scale = 2
         found = .true.
         metrics%width = 8
+
         if (glyph_width(c) == 2) then
             metrics%width = 16
         else if (self%proportional) then
@@ -152,6 +158,7 @@ contains
                 if (index("mwMW@", achar(c)) > 0) metrics%width = 12
             end if
         end if
+
         metrics%width = metrics%width*scale
         metrics%lbearing = 0
         metrics%rbearing = metrics%width
@@ -164,6 +171,7 @@ contains
         class(fake_device_type), intent(inout) :: self
         integer, intent(in) :: x0, x1, y0, y1
         integer :: a, b, c, d
+
         a = max(0, x0)
         b = min(self%width, x1) - 1
         c = max(0, y0)
@@ -177,6 +185,7 @@ contains
 
     subroutine fake_clear_frame(self)
         class(fake_device_type), intent(inout) :: self
+
         call blank(self, 0, self%width, 0, self%height)
         self%cursor_type = NO_CURSOR
         self%clears = self%clears + 1
@@ -188,11 +197,14 @@ contains
         integer, intent(in) :: start, len, x, y, clip_x
         integer :: k, gx, x1, c, d
         integer(int32) :: ch
+
         gx = x
         c = max(0, y)
         d = min(self%height, y + row%height) - 1
+
         do k = start, start + len - 1
             x1 = min(gx + row%glyphs(k)%pixel_width, clip_x, self%width)
+
             if (gx >= 0 .and. x1 > gx .and. c <= d) then
                 ch = row%glyphs(k)%ch
                 if (row%glyphs(k)%type == STRETCH_GLYPH) ch = 32
@@ -202,6 +214,7 @@ contains
                 self%starts(gx, c:d) = .true.
                 self%border(gx:x1 - 1, c:d) = .false.
             end if
+
             gx = gx + row%glyphs(k)%pixel_width
         end do
     end subroutine fake_write_glyphs
@@ -209,6 +222,7 @@ contains
     subroutine fake_clear_end_of_line(self, x, y, height, to_x)
         class(fake_device_type), intent(inout) :: self
         integer, intent(in) :: x, y, height, to_x
+
         call blank(self, x, to_x, y, y + height)
     end subroutine fake_clear_end_of_line
 
@@ -216,6 +230,7 @@ contains
         class(fake_device_type), intent(inout) :: self
         integer, intent(in) :: x, y0, y1
         integer(int32), intent(in) :: face_id
+
         if (x < 0 .or. x >= self%width) return
         self%border(x, max(0, y0):min(self%height - 1, y1)) = .true.
         self%face(x, max(0, y0):min(self%height - 1, y1)) = face_id
@@ -225,6 +240,7 @@ contains
         class(fake_device_type), intent(inout) :: self
         integer, intent(in) :: x, y, width, height, cursor_type
         logical, intent(in) :: on_p, active_p
+
         if (.not. on_p .or. .not. active_p) return
         self%cursor_x = x
         self%cursor_y = y
@@ -235,6 +251,7 @@ contains
 
     subroutine fake_flush_display(self)
         class(fake_device_type), intent(inout) :: self
+
         self%flushes = self%flushes + 1
     end subroutine fake_flush_display
 
@@ -247,13 +264,16 @@ contains
         integer, intent(in), optional :: x0, x1
         character(len=:), allocatable :: s
         integer :: x, a, b
+
         a = 0
         b = self%width - 1
         if (present(x0)) a = x0
         if (present(x1)) b = x1 - 1
         s = ""
+
         do x = a, b
             if (.not. self%starts(x, y)) cycle
+
             if (self%ch(x, y) < 128) then
                 s = s//achar(self%ch(x, y))
             else
@@ -270,6 +290,7 @@ contains
         integer, intent(in) :: y, n
         integer(int32) :: codes(n)
         integer :: k
+
         do k = 1, n
             codes(k) = self%ch((k - 1)*FAKE_COLUMN_WIDTH, y)
         end do

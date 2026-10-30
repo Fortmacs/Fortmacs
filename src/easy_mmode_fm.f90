@@ -156,6 +156,7 @@ module easy_mmode_fm
 
     ! Characters of whitespace syntax in the standard syntax table.
     character(len=*), parameter :: WHITESPACE = " "//achar(9)//achar(10)//achar(12)//achar(13)
+
 contains
 
     !> Go to the next COUNT'th occurrence of RE.
@@ -178,21 +179,27 @@ contains
         logical :: re_narrow, inter
         type(status_type) :: st
         type(window_type), pointer :: w
+
         status = status_type()
+
         if (count < 0) then
             call easy_mmode_prev(re, name, -count, status, endfun, narrowfun)
             return
         end if
+
         inter = .false.
         if (present(interactive)) inter = interactive
         n = count
         if (looking_at(re, st)) n = n + 1
         re_narrow = .false.
+
         if (present(narrowfun)) then
             re_narrow = buffer_narrowed_p()
             call widen()
         end if
+
         call re_search_forward(re, found, st, noerror=SEARCH_NOERROR, count=n)
+
         if (found == 0) then
             if (looking_at(re, st)) then
                 endpt = buffers(cur)%zv
@@ -205,15 +212,19 @@ contains
         else
             call goto_char(match_beginning(0, st))
             w => frame_selected_window_ref()
+
             if (inter .and. w%buffer%index == current_buffer_index()) then
                 saved = point()
+
                 if (present(endfun)) then
                     endpt = endfun()
                 else
                     call re_search_forward(re, endpt, st, noerror=SEARCH_NOERROR, count=2_int64)
                 end if
+
                 call goto_char(saved)
                 if (endpt == 0) endpt = buffers(cur)%zv
+
                 if (.not. pos_visible_in_window_p(endpt, selected_window())) then
                     ws = window_start(w)
                     call recenter(make_list([make_fixnum(0_int64)]), .false., st)
@@ -222,11 +233,14 @@ contains
                 end if
             end if
         end if
+
         if (re_narrow) call narrowfun(status)
+
     contains
 
         integer function current_buffer_index() result(k)
             type(handle_type) :: b
+
             b = current_buffer()
             k = b%index
         end function current_buffer_index
@@ -248,46 +262,59 @@ contains
         integer(int64) :: n, found, saved, mb, me
         logical :: re_narrow, inside
         type(status_type) :: st
+
         status = status_type()
+
         if (count < 0) then
             call easy_mmode_next(re, name, -count, status, endfun, narrowfun)
             return
         end if
+
         n = count
         re_narrow = .false.
+
         if (present(narrowfun)) then
             re_narrow = buffer_narrowed_p()
             call widen()
         end if
+
         ! If point is inside a match for RE, move to its beginning like
         ! `backward-sexp' and other movement commands.
         if (n /= 0) then
             saved = point()
             ! Make sure we're out of the current match if any.
             call re_search_backward(re, found, st, noerror=SEARCH_NOERROR, count=1_int64)
+
             if (found /= 0) then
                 call goto_char(match_end(0, st))
             else
                 call goto_char(buffers(cur)%begv)
             end if
+
             call re_search_forward(re, found, st, noerror=SEARCH_NOERROR, count=1_int64)
             inside = .false.
+
             if (found /= 0) then
                 mb = match_beginning(0, st)
                 me = match_end(0, st)
                 inside = mb < saved .and. saved < me
             end if
+
             call goto_char(saved)
+
             if (inside) then
                 call goto_char(mb)
                 n = n - 1
             end if
         end if
+
         call re_search_backward(re, found, st, noerror=SEARCH_NOERROR, count=n)
+
         if (found == 0 .and. n > 0) then
             call set_error(status, FM_USER_ERROR, "No previous "//name)
             return
         end if
+
         if (re_narrow) call narrowfun(status)
     end subroutine easy_mmode_prev
 
@@ -301,15 +328,19 @@ contains
         character(len=:), allocatable :: name, base, light
         integer :: i
         logical :: word_start
+
         ! The name with Emacs's hyphens (the result is prose, as upstream's).
         base = mode
+
         do i = 1, len(base)
             if (base(i:i) == "_") base(i:i) = "-"
         end do
+
         ! "foo-bar-minor-mode" -> "foo-bar-minor": the matches of
         ! "toggle-\\|-mode\\'" (ignoring case), left to right.
         name = ""
         i = 1
+
         do while (i <= len(base))
             if (i + 6 <= len(base)) then
                 if (lower(base(i:i + 6)) == "toggle-") then
@@ -317,16 +348,20 @@ contains
                     cycle
                 end if
             end if
+
             if (i == len(base) - 4) then
                 if (lower(base(i:)) == "-mode") exit
             end if
+
             name = name//base(i:i)
             i = i + 1
         end do
+
         base = name
         ! "foo-bar-minor" -> "Foo-Bar-Minor"
         name = base
         word_start = .true.
+
         do i = 1, len(name)
             if (is_alnum(name(i:i))) then
                 if (word_start) then
@@ -334,35 +369,44 @@ contains
                 else
                     name(i:i) = downcase(name(i:i))
                 end if
+
                 word_start = .false.
             else
                 word_start = .true.
             end if
         end do
+
         ! "-Minor" -> " minor"
         do
             i = index(name, "-Minor")
             if (i == 0) exit
             name = name(1:i - 1)//" minor"//name(i + 6:)
         end do
+
         name = name//" mode"
+
         if (len(name) >= 7) then
             if (name(1:7) == "Global-") name = "Global "//name(8:)
         end if
+
         if (.not. present(lighter)) return
         ! Strip leading and trailing whitespace from LIGHTER, then replace
         ! any (case-insensitive) matches for it in NAME with it.
         light = lighter
+
         do while (len(light) > 0)
             if (verify(light(1:1), WHITESPACE) /= 0) exit
             light = light(2:)
         end do
+
         do while (len(light) > 0)
             if (verify(light(len(light):), WHITESPACE) /= 0) exit
             light = light(1:len(light) - 1)
         end do
+
         if (len(light) == 0) return
         i = 1
+
         do while (i + len(light) - 1 <= len(name))
             if (lower(name(i:i + len(light) - 1)) == lower(light)) then
                 name = name(1:i - 1)//light//name(i + len(light):)
@@ -375,17 +419,20 @@ contains
 
     logical function is_alnum(c)
         character, intent(in) :: c
+
         is_alnum = (c >= "a" .and. c <= "z") .or. (c >= "A" .and. c <= "Z") .or. (c >= "0" .and. c <= "9")
     end function is_alnum
 
     character function upcase(c)
         character, intent(in) :: c
+
         upcase = c
         if (c >= "a" .and. c <= "z") upcase = achar(iachar(c) - 32)
     end function upcase
 
     character function downcase(c)
         character, intent(in) :: c
+
         downcase = c
         if (c >= "A" .and. c <= "Z") downcase = achar(iachar(c) + 32)
     end function downcase
@@ -394,6 +441,7 @@ contains
         character(len=*), intent(in) :: s
         character(len=len(s)) :: t
         integer :: i
+
         do i = 1, len(s)
             t(i:i) = downcase(s(i:i))
         end do
@@ -404,8 +452,10 @@ contains
         character(len=*), intent(in) :: name
         type(minor_mode_type), pointer :: p
         integer :: i
+
         p => null()
         if (.not. allocated(defined)) return
+
         do i = 1, size(defined)
             if (trim(defined(i)%p%name) == name) then
                 p => defined(i)%p
@@ -418,8 +468,10 @@ contains
     integer function minor_mode_index(name) result(k)
         character(len=*), intent(in) :: name
         integer :: i
+
         k = 0
         if (.not. allocated(defined)) return
+
         do i = 1, size(defined)
             if (trim(defined(i)%p%name) == name) then
                 k = i
@@ -439,6 +491,7 @@ contains
     function minor_mode_at(k) result(p)
         integer, intent(in) :: k
         type(minor_mode_type), pointer :: p
+
         p => defined(k)%p
     end function minor_mode_at
 
@@ -464,6 +517,7 @@ contains
         type(status_type) :: st
         integer :: n
         integer(int64) :: id
+
         self%name = name
         self%state%name = name
         self%lighter = ""
@@ -477,33 +531,41 @@ contains
         self%getter => null()
         if (present(getter)) self%getter => getter
         self%hook => null()
+
         if (present(hook)) then
             self%hook => hook
             if (len_trim(hook%name) == 0) hook%name = name//"_hook"
         end if
+
         self%on_hook%name = name//"_on_hook"
         self%off_hook%name = name//"_off_hook"
+
         if (.not. associated(minor_mode_named(name))) then
             if (.not. allocated(defined)) allocate (defined(0))
             n = size(defined)
             allocate (grown(n + 1))
             grown(1:n) = defined
+
             select type (self)
             type is (minor_mode_type)
                 grown(n + 1)%p => self
             end select
+
             call move_alloc(grown, defined)
         end if
+
         ! A mode with another variable makes that variable local when set
         ! (a buffer-local mode).
         if (len_trim(self%variable) > 0 .and. .not. self%global) then
             call make_variable_buffer_local(sym(trim(self%variable)), st)
         end if
+
         ! The mode's variable is now known by its name (data_fm forwards it
         ! to `state`).
         id = intern(name)
         symbols(id)%fwd = 0
         if (len(self%lighter) > 0) call add_minor_mode_lighter(state_name(self), self%lighter)
+
         if (present(keymap)) then
             if (keymap .and. .not. keymap_live_p(self%map)) then
                 call make_sparse_keymap(self%map)
@@ -516,6 +578,7 @@ contains
     function state_name(self) result(name)
         class(minor_mode_type), intent(in) :: self
         character(len=:), allocatable :: name
+
         if (len_trim(self%variable) > 0) then
             name = trim(self%variable)
         else
@@ -529,7 +592,9 @@ contains
         integer(int64), intent(in) :: b
         type(value_type) :: v
         type(status_type) :: st
+
         on = .false.
+
         if (associated(self%getter)) then
             on = getter_in(self, b)
         else if (len_trim(self%variable) == 0 .and. self%global) then
@@ -544,6 +609,7 @@ contains
         class(minor_mode_type), intent(in) :: self
         type(value_type) :: v
         type(status_type) :: st
+
         if (associated(self%getter)) then
             on = self%getter()
         else if (len_trim(self%variable) > 0) then
@@ -563,6 +629,7 @@ contains
         class(minor_mode_type), intent(in) :: self
         integer(int64), intent(in) :: b
         integer(int64) :: saved
+
         on = .false.
         if (b <= 0) return
         saved = cur
@@ -577,6 +644,7 @@ contains
         class(minor_mode_type), intent(inout) :: self
         logical, intent(in) :: on
         type(status_type) :: st
+
         if (self%global) then
             ! (setq-default MODE ON)
             if (self%state%local_p()) then
@@ -599,9 +667,11 @@ contains
         logical, intent(in) :: interactive
         logical :: on, had_message, was_interactive
         character(len=:), allocatable :: before
+
         status = status_type()
         had_message = allocated(last_message)
         if (had_message) before = last_message
+
         if (associated(self%getter)) then
             ! The state is an expression: the body is its setter.
             continue
@@ -614,11 +684,13 @@ contains
                 else
                     call set(sym(trim(self%variable)), bool(enable), status)
                 end if
+
                 if (.not. status%ok()) return
             end if
         else
             call self%set_state(enable)
         end if
+
         if (associated(self%body)) then
             was_interactive = mode_called_interactively
             mode_called_interactively = interactive
@@ -626,17 +698,21 @@ contains
             mode_called_interactively = was_interactive
             if (.not. status%ok()) return
         end if
+
         on = self%enabled()
         ! The on/off hooks are here for backward compatibility only.
         if (associated(self%hook)) call self%hook%run(status)
         if (.not. status%ok()) return
+
         if (on) then
             call self%on_hook%run(status)
         else
             call self%off_hook%run(status)
         end if
+
         if (.not. status%ok()) return
         if (interactive) call say(on)
+
         if (associated(self%after_hook)) then
             if (delaying_mode_hooks()) then
                 call add_delayed_after_hook(self%after_hook)
@@ -644,17 +720,21 @@ contains
                 call self%after_hook(status)
             end if
         end if
+
     contains
+
         !> Say whether the mode is now on, avoiding overwriting a message
         !> shown by the body, but overwriting previous messages.
         subroutine say(on)
             logical, intent(in) :: on
+
             if (allocated(last_message)) then
                 if (len(last_message) > 0) then
                     if (.not. had_message) return
                     if (last_message /= before) return
                 end if
             end if
+
             if (on) then
                 call message(easy_mmode_pretty_mode_name(trim(self%name), self%lighter)//" enabled"//local_text(self))
             else
@@ -666,6 +746,7 @@ contains
     function bool(b) result(v)
         logical, intent(in) :: b
         type(value_type) :: v
+
         if (b) then
             v = t_value()
         else
@@ -676,6 +757,7 @@ contains
     function local_text(self) result(s)
         class(minor_mode_type), intent(in) :: self
         character(len=:), allocatable :: s
+
         if (self%global) then
             s = ""
         else
@@ -687,6 +769,7 @@ contains
     recursive subroutine minor_mode_enable(self, status)
         class(minor_mode_type), intent(inout) :: self
         type(status_type), intent(out) :: status
+
         call set_mode(self, .true., status, .false.)
     end subroutine minor_mode_enable
 
@@ -694,6 +777,7 @@ contains
     recursive subroutine minor_mode_disable(self, status)
         class(minor_mode_type), intent(inout) :: self
         type(status_type), intent(out) :: status
+
         call set_mode(self, .false., status, .false.)
     end subroutine minor_mode_disable
 
@@ -701,6 +785,7 @@ contains
     recursive subroutine minor_mode_toggle(self, status)
         class(minor_mode_type), intent(inout) :: self
         type(status_type), intent(out) :: status
+
         call set_mode(self,.not. self%enabled(), status, .false.)
     end subroutine minor_mode_toggle
 
@@ -711,11 +796,13 @@ contains
         class(minor_mode_type), intent(inout) :: self
         type(status_type), intent(out) :: status
         logical :: enable
+
         if (nilp(current_prefix_arg)) then
             enable = .not. self%enabled()
         else
             enable = prefix_numeric_value(current_prefix_arg) >= 1
         end if
+
         call set_mode(self, enable, status, .true.)
     end subroutine minor_mode_command
 end module easy_mmode_fm

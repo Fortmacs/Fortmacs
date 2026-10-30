@@ -315,6 +315,7 @@ contains
     !> keywords (as loading f90.el does).
     subroutine syms_of_f90()
         type(status_type) :: st
+
         if (syntax_table_live_p(f90_mode_syntax_table)) return
         call forward_setting(f90_do_indent)
         call forward_setting(f90_if_indent)
@@ -540,6 +541,7 @@ contains
                                                                          "interface", "module", "program", "select", "subroutine", &
                                                                        "type", "where", "enum", "associate", "submodule", "block", &
                                                                                                                          "critical"]
+
         f90_keywords_re = "\_<"//regexp_opt(keywords)//"\_>"
         f90_keywords_level_3_re = "\_<"//regexp_opt(level3)//"\_>"
         ! A left parenthesis to avoid highlighting non-procedures.
@@ -586,6 +588,7 @@ contains
     subroutine init_syntax_table()
         type(status_type) :: st
         type(handle_type) :: t
+
         call make_syntax_table(f90_mode_syntax_table, st)
         t = f90_mode_syntax_table
         call modify_syntax_entry(iachar("!"), iachar("!"), "<", st, t) ! begin comment
@@ -613,6 +616,7 @@ contains
         integer, intent(in), optional :: override
         logical, intent(in), optional :: lax
         type(font_lock_highlight_type) :: hl
+
         hl = font_lock_highlight(n, face=face, override=override, laxmatch=lax)
     end function h
 
@@ -624,6 +628,7 @@ contains
                                        CO = "font_lock_constant_face", PP = "font_lock_preprocessor_face"
         character(len=*), parameter :: B = "[ "//TAB//"]"
         integer :: n
+
         allocate (f90_font_lock_keywords_1(8))
         ! Special highlighting of "module procedure".
         h2(1) = h(1, KW)
@@ -840,9 +845,12 @@ contains
         call a("`vo", "volatile")
         call a("`wh", "where")
         call a("`wr", "write")
+
     contains
+
         subroutine a(abbrev, expansion)
             character(len=*), intent(in) :: abbrev, expansion
+
             call f90_mode_abbrev_table%define(abbrev, expansion, system=.true.)
         end subroutine a
     end subroutine init_abbrevs
@@ -855,6 +863,7 @@ contains
     logical function looking(re)
         character(len=*), intent(in) :: re
         type(status_type) :: st
+
         looking = looking_at(re, st)
         if (.not. st%ok()) looking = .false.
     end function looking
@@ -863,6 +872,7 @@ contains
     logical function matched(n)
         integer, intent(in) :: n
         type(status_type) :: st
+
         matched = match_beginning(n, st) > 0
     end function matched
 
@@ -873,6 +883,7 @@ contains
         character(len=:), allocatable :: s
         integer(int64) :: b, e
         type(status_type) :: st
+
         s = ""
         b = match_beginning(n, st)
         if (b <= 0) return
@@ -885,6 +896,7 @@ contains
     integer(int64) function me(n)
         integer, intent(in) :: n
         type(status_type) :: st
+
         me = match_end(n, st)
     end function me
 
@@ -892,6 +904,7 @@ contains
     integer(int64) function mb(n)
         integer, intent(in) :: n
         type(status_type) :: st
+
         mb = match_beginning(n, st)
     end function mb
 
@@ -900,8 +913,10 @@ contains
         integer, intent(in) :: kind
         integer, intent(in), optional :: name
         type(f90_block_type) :: b
+
         b%found = .true.
         if (matched(kind)) b%kind = ms(kind)
+
         if (present(name)) then
             if (matched(name)) b%name = ms(name)
         end if
@@ -912,6 +927,7 @@ contains
         character(len=*), intent(in) :: kind
         character(len=*), intent(in), optional :: name
         type(f90_block_type) :: b
+
         b%found = .true.
         b%kind = kind
         if (present(name)) b%name = name
@@ -922,7 +938,9 @@ contains
         character(len=*), intent(in) :: s
         character(len=len(s)) :: d
         integer :: i
+
         d = s
+
         do i = 1, len(s)
             if (s(i:i) >= "A" .and. s(i:i) <= "Z") d(i:i) = achar(iachar(s(i:i)) + 32)
         end do
@@ -933,6 +951,7 @@ contains
         character(len=*), intent(in) :: chars
         integer(int64) :: moved
         type(status_type) :: st
+
         moved = skip_chars_forward(chars, st)
     end subroutine skip_forward
 
@@ -941,6 +960,7 @@ contains
         character(len=*), intent(in) :: chars
         integer(int64) :: moved
         type(status_type) :: st
+
         moved = skip_chars_backward(chars, st)
     end subroutine skip_backward
 
@@ -948,6 +968,7 @@ contains
     integer function preceding()
         integer(int32) :: c
         logical :: found
+
         call char_before(c, found)
         preceding = 0
         if (found) preceding = c
@@ -957,6 +978,7 @@ contains
     integer function following()
         integer(int32) :: c
         logical :: found
+
         call char_after(c, found)
         following = 0
         if (found) following = c
@@ -967,6 +989,7 @@ contains
         integer(int64), intent(in) :: pos
         type(handle_type) :: m
         type(status_type) :: st
+
         call copy_marker_at(pos, m, .false., st)
     end function marker_at
 
@@ -974,6 +997,7 @@ contains
     integer(int64) function mpos(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
+
         call marker_position(m, mpos, st)
     end function mpos
 
@@ -981,6 +1005,7 @@ contains
     subroutine unmark(m)
         type(handle_type), intent(inout) :: m
         type(status_type) :: st
+
         call free_marker(m, st)
     end subroutine unmark
 
@@ -991,6 +1016,7 @@ contains
         integer, intent(in) :: noerror
         integer(int64) :: found
         type(status_type) :: st
+
         call re_search_forward(re, found, st, bound=bound, noerror=noerror)
         search_re = st%ok() .and. found > 0
     end function search_re
@@ -1000,6 +1026,7 @@ contains
         character(len=*), intent(in) :: re
         integer(int64) :: found
         type(status_type) :: st
+
         call re_search_backward(re, found, st, noerror=SEARCH_MOVE)
         search_re_backward_move = st%ok() .and. found > 0
     end function search_re_backward_move
@@ -1007,12 +1034,14 @@ contains
     !> Bind `case_fold_search' to true; SAVED is for `restore_case'.
     subroutine fold_case(saved)
         logical, intent(out) :: saved
+
         saved = case_fold_search%value
         case_fold_search%value = .true.
     end subroutine fold_case
 
     subroutine restore_case(saved)
         logical, intent(in) :: saved
+
         case_fold_search%value = saved
     end subroutine restore_case
 
@@ -1023,6 +1052,7 @@ contains
     !> The start of the parse for f90-in-string and f90-in-comment.
     integer(int64) function parse_start()
         parse_start = point_min()
+
         if (f90_cache_position > 0) then
             if (point() > f90_cache_position) parse_start = f90_cache_position
         end if
@@ -1035,6 +1065,7 @@ contains
         type(parse_state_type) :: state
         integer(int64) :: pt
         type(status_type) :: st
+
         pt = point()
         call parse_partial_sexp(parse_start(), pt, state, st)
         call goto_char(pt)
@@ -1048,6 +1079,7 @@ contains
         type(parse_state_type) :: state
         integer(int64) :: pt
         type(status_type) :: st
+
         pt = point()
         call parse_partial_sexp(parse_start(), pt, state, st)
         call goto_char(pt)
@@ -1061,17 +1093,22 @@ contains
     logical function f90_line_continued() result(continued)
         integer(int64) :: opoint, found
         type(status_type) :: st
+
         opoint = point()
         call beginning_of_line(1_int64)
+
         do while (looking("[ "//TAB//"]*\([!#]\|$\)"))
             if (forward_line(-1_int64) /= 0) exit
         end do
+
         call end_of_line(1_int64)
+
         do while (f90_in_comment())
             call search_backward_bol("!", found)
             if (found <= 0) exit
             call skip_backward("!")
         end do
+
         call skip_backward(" "//TAB)
         continued = preceding() == iachar("&")
         call goto_char(opoint)
@@ -1084,6 +1121,7 @@ contains
         character(len=*), intent(in) :: s
         integer(int64), intent(out) :: found
         type(status_type) :: st
+
         call search_backward(s, found, st, bound=line_beginning_position())
         if (.not. st%ok()) found = 0
     end subroutine search_backward_bol
@@ -1094,6 +1132,7 @@ contains
     integer(int64) function f90_current_indentation() result(n)
         integer(int64) :: opoint
         type(status_type) :: st
+
         opoint = point()
         call beginning_of_line(1_int64)
         n = skip_chars_forward(" "//TAB//"0-9", st)
@@ -1109,12 +1148,14 @@ contains
         logical, intent(in), optional :: no_line_number
         logical :: nln
         integer(int64) :: c
+
         nln = .false.
         if (present(no_line_number)) nln = no_line_number
         call beginning_of_line(1_int64)
         if (.not. nln) call skip_forward(" "//TAB//"0-9")
         call delete_horizontal_space(.false., status)
         if (.not. status%ok()) return
+
         ! Leave >= 1 space after line number.
         if (current_column() == 0) then
             c = indent_to(col, status, 0_int64)
@@ -1132,23 +1173,28 @@ contains
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
         integer(int64) :: opoint, f
+
         status = status_type()
         s = ""
         found = .false.
         opoint = point()
+
         ! Include the whitespace for consistent auto-filling of comment blocks.
         if (f90_in_comment()) then
             call beginning_of_line(1_int64)
             call re_search_forward("!+[ "//TAB//"]*", f, status, bound=line_end_position())
+
             do while (status%ok())
                 if (.not. f90_in_string()) exit
                 call re_search_forward("!+[ "//TAB//"]*", f, status, bound=line_end_position())
             end do
+
             if (status%ok()) then
                 s = ms(0)
                 found = .true.
             end if
         end if
+
         call goto_char(opoint)
     end subroutine f90_get_present_comment_type
 
@@ -1156,6 +1202,7 @@ contains
     !> (unallocated).  Port of f90.el:f90-equal-symbols.
     logical function f90_equal_symbols(a, b) result(equal)
         character(len=:), allocatable, intent(in) :: a, b
+
         if (.not. allocated(a) .or. .not. allocated(b)) then
             equal = .not. allocated(a) .and. .not. allocated(b)
         else
@@ -1168,6 +1215,7 @@ contains
     !> f90.el:f90-looking-at-do.
     function f90_looking_at_do() result(b)
         type(f90_block_type) :: b
+
         if (looking("\(\("//SYMRE//"+\)[ "//TAB//"]*:\)?[ "//TAB//"]*\(do\)\_>")) b = blk(3, 2)
     end function f90_looking_at_do
 
@@ -1176,6 +1224,7 @@ contains
     !> f90.el:f90-looking-at-select-case.
     function f90_looking_at_select_case() result(b)
         type(f90_block_type) :: b
+
         if (looking("\(\("//SYMRE//"+\)[ "//TAB//"]*:\)?[ "//TAB//"]*\(select\)[ "//TAB//"]*\(case\|type\)[ "//TAB// &
                     "]*(")) b = blk(3, 2)
     end function f90_looking_at_select_case
@@ -1189,18 +1238,23 @@ contains
         type(f90_block_type) :: s
         integer(int64) :: opoint, pos
         logical :: ok, moved
+
         status = status_type()
         opoint = point()
+
         if (looking("\(\("//SYMRE//"+\)[ "//TAB//"]*:\)?[ "//TAB//"]*\(if\)\_>")) then
             s = blk(3, 2)
             pos = scan_lists(point(), 1_int64, 0_int64, status)
+
             if (.not. status%ok()) then
                 call goto_char(opoint)
                 return
             end if
+
             if (pos > 0) call goto_char(pos)
             call skip_forward(" "//TAB)
             ok = looking("then\_>")
+
             if (.not. ok) then
                 if (f90_line_continued()) then
                     moved = f90_next_statement()
@@ -1208,8 +1262,10 @@ contains
                     ok = looking("then\_>")
                 end if
             end if
+
             if (ok) b = s
         end if
+
         call goto_char(opoint)
     end subroutine f90_looking_at_if_then
 
@@ -1217,6 +1273,7 @@ contains
     !> Port of f90.el:f90-looking-at-associate.
     function f90_looking_at_associate() result(b)
         type(f90_block_type) :: b
+
         if (looking("\_<\(associate\)[ "//TAB//"]*(")) b = blk(1)
     end function f90_looking_at_associate
 
@@ -1227,15 +1284,18 @@ contains
         type(f90_block_type) :: s
         integer(int64) :: opoint
         logical :: ok
+
         if (looking("\(\("//SYMRE//"+\)[ "//TAB//"]*:\)?[ "//TAB//"]*\(critical\|block\)\_>")) then
             s = blk(3, 2)
             ok = s%kind /= "block"
+
             if (.not. ok) then
                 opoint = point()
                 call skip_forward(" "//TAB)
                 ok = .not. looking("data\_>")
                 call goto_char(opoint)
             end if
+
             if (ok) b = s
         end if
     end function f90_looking_at_critical
@@ -1244,9 +1304,12 @@ contains
     !> f90.el:f90-looking-at-end-critical.
     logical function f90_looking_at_end_critical() result(ends)
         integer(int64) :: opoint
+
         ends = .false.
+
         if (looking("end[ "//TAB//"]*\(critical\|block\)\_>")) then
             ends = ms(1) /= "block"
+
             if (.not. ends) then
                 opoint = point()
                 call skip_forward(" "//TAB)
@@ -1264,19 +1327,24 @@ contains
         type(status_type), intent(out) :: status
         type(f90_block_type) :: s
         integer(int64) :: opoint, pos
+
         status = status_type()
         opoint = point()
+
         if (looking("\(\("//SYMRE//"+\)[ "//TAB//"]*:\)?[ "//TAB//"]*\(where\|forall\)\_>")) then
             s = blk(3, 2)
             pos = scan_lists(point(), 1_int64, 0_int64, status)
+
             if (.not. status%ok()) then
                 call goto_char(opoint)
                 return
             end if
+
             if (pos > 0) call goto_char(pos)
             call skip_forward(" "//TAB)
             if (looking("\(!\|$\)")) b = s
         end if
+
         call goto_char(opoint)
     end subroutine f90_looking_at_where_or_forall
 
@@ -1288,17 +1356,22 @@ contains
         integer(int64) :: opoint
         logical :: ok
         character(len=:), allocatable :: kind
+
         opoint = point()
         ok = .false.
+
         if (looking("\_<type\_>[ "//TAB//"]*")) then
             call goto_char(me(0))
+
             if (.not. looking("\(is\_>\|(\)")) then
                 ok = looking("\("//SYMRE//"+\)")
                 if (.not. ok) ok = search_re("[ "//TAB//"]*::[ "//TAB//"]*\("//SYMRE//"+\)", line_end_position(), &
                                              SEARCH_NOERROR)
             end if
         end if
+
         call goto_char(opoint)
+
         if (ok) then
             b = blk_of("type")
             if (matched(1)) b%name = ms(1)
@@ -1306,11 +1379,13 @@ contains
             kind = ms(1)
             b = blk_of(kind)
             call goto_char(me(0))
+
             if (looking("\(operator\|assignment\|read\|write\)[ "//TAB//"]*([^)"//LF//"]*)")) then
                 b%name = ms(0)
             else if (looking(SYMRE//"+")) then
                 b%name = ms(0)
             end if
+
             call goto_char(opoint)
         else if (looking("\(enum\|block[ "//TAB//"]*data\)\_>")) then
             b = blk(1)
@@ -1323,6 +1398,7 @@ contains
     !> Port of f90.el:f90-looking-at-program-block-start.
     function f90_looking_at_program_block_start() result(b)
         type(f90_block_type) :: b
+
         if (looking("\(program\)[ "//TAB//"]+\("//SYMRE//"+\)\_>")) then
             b = blk(1, 2)
         else if (.not. looking("module[ "//TAB//"]*\(procedure\|function\|subroutine\)\_>") .and. &
@@ -1343,6 +1419,7 @@ contains
     !> Port of f90.el:f90-looking-at-program-block-end.
     function f90_looking_at_program_block_end() result(b)
         type(f90_block_type) :: b
+
         if (looking("end[ "//TAB//"]*\(interface\)[ "//TAB//"]*\(\(?:assignment\|operator\|read\|write\)[ "//TAB// &
                     "]*([^)"//LF//"]*)\)")) then
             b = blk(1, 2)
@@ -1354,6 +1431,7 @@ contains
     !> Whether `f90_looking_at_associate' finds a block.
     logical function found_associate()
         type(f90_block_type) :: b
+
         b = f90_looking_at_associate()
         found_associate = b%found
     end function found_associate
@@ -1361,6 +1439,7 @@ contains
     !> Whether `f90_looking_at_do' finds a block.
     logical function found_do()
         type(f90_block_type) :: b
+
         b = f90_looking_at_do()
         found_do = b%found
     end function found_do
@@ -1368,6 +1447,7 @@ contains
     !> Whether `f90_looking_at_type_like' finds a block.
     logical function found_type_like()
         type(f90_block_type) :: b
+
         b = f90_looking_at_type_like()
         found_type_like = b%found
     end function found_type_like
@@ -1375,6 +1455,7 @@ contains
     !> Whether `f90_looking_at_program_block_start' finds a block.
     logical function found_program_block_start()
         type(f90_block_type) :: b
+
         b = f90_looking_at_program_block_start()
         found_program_block_start = b%found
     end function found_program_block_start
@@ -1382,6 +1463,7 @@ contains
     !> Whether `f90_looking_at_program_block_end' finds a block.
     logical function found_program_block_end()
         type(f90_block_type) :: b
+
         b = f90_looking_at_program_block_end()
         found_program_block_end = b%found
     end function found_program_block_end
@@ -1397,6 +1479,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: opoint
         logical :: at_bol, directive
+
         status = status_type()
         col = 0
         if (looking("!!!")) return
@@ -1408,17 +1491,21 @@ contains
         call skip_backward(" "//TAB)
         at_bol = bolp()
         call goto_char(opoint)
+
         if (looking(f90_indented_comment_re%value) .and. at_bol) then
             ! Don't attempt to indent trailing comment as code.
             call f90_calculate_indent(col, status)
             return
         end if
+
         call skip_backward(" "//TAB)
+
         if (bolp()) then
             col = max(0_int64, comment_column%value)
         else
             col = max(1 + current_column(), comment_column%value)
         end if
+
         call goto_char(opoint)
     end subroutine f90_comment_indent
 
@@ -1427,6 +1514,7 @@ contains
         type(comment_indent_type), intent(out) :: indent
         type(status_type), intent(out) :: status
         integer(int64) :: col
+
         call f90_comment_indent(col, status)
         indent%kind = COMMENT_INDENT_COLUMN
         indent%column = col
@@ -1443,11 +1531,13 @@ contains
     integer function f90_present_statement_cont() result(kind)
         logical :: pcont, cont
         integer(int64) :: opoint
+
         opoint = point()
         pcont = .false.
         if (f90_previous_statement()) pcont = f90_line_continued()
         call goto_char(opoint)
         cont = f90_line_continued()
+
         if (.not. pcont .and. .not. cont) then
             kind = CONT_SINGLE
         else if (.not. pcont .and. cont) then
@@ -1464,9 +1554,11 @@ contains
     !> Call from beginning of line.  Port of f90.el:f90-indent-line-no.
     subroutine f90_indent_line_no()
         type(status_type) :: st
+
         if (.not. f90_leave_line_no%value .and. looking("[ "//TAB//"]+[0-9]")) then
             call delete_horizontal_space(.false., st)
         end if
+
         call skip_forward(" "//TAB//"0-9")
     end subroutine f90_indent_line_no
 
@@ -1476,6 +1568,7 @@ contains
     logical function f90_no_block_limit() result(no_limit)
         integer(int64) :: opoint
         logical :: limit
+
         opoint = point()
         limit = looking("end")
         if (.not. limit) limit = looking("\(do\|if\|else\(if\|where\)?\|select[ "//TAB//"]*\(case\|type\)\|case\|" &
@@ -1494,7 +1587,9 @@ contains
     !> f90.el:f90-update-line.
     subroutine f90_update_line(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
+
         if (f90_auto_keyword_case%value /= F90_KEYWORD_CASE_NIL) then
             call f90_change_keywords(int(f90_auto_keyword_case%value), status, line_beginning_position(), &
                                      line_end_position())
@@ -1513,12 +1608,14 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg
         integer(int64) :: n, c
+
         n = 1
         if (present(arg)) n = arg
         c = -1
         if (fixnump(last_command_event)) c = xfixnum(last_command_event)
         call self_insert_command(n, c, status)
         if (.not. status%ok()) return
+
         if (associated(auto_fill_function%value)) then
             call f90_do_auto_fill(status) ! also updates line
         else
@@ -1530,6 +1627,7 @@ contains
     !> (the command).  Port of f90.el:f90-electric-insert.
     recursive subroutine cmd_f90_electric_insert(status)
         type(status_type), intent(out) :: status
+
         call barf_if_buffer_read_only(status)
         if (status%ok()) call f90_electric_insert(status, prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_f90_electric_insert
@@ -1539,6 +1637,7 @@ contains
     recursive logical function if_like(status) result(yes)
         type(status_type), intent(out) :: status
         type(f90_block_type) :: b
+
         call f90_looking_at_if_then(b, status)
         yes = b%found
         if (yes .or. .not. status%ok()) return
@@ -1558,21 +1657,26 @@ contains
         integer(int64) :: epnt, opoint
         logical :: more
         type(f90_block_type) :: b
+
         status = status_type()
         epnt = line_end_position()
         opoint = point()
+
         do
             if (.not. f90_previous_statement()) exit
             more = any(f90_present_statement_cont() == [CONT_MIDDLE, CONT_END])
             if (.not. more) more = looking("[ "//TAB//"]*[0-9]")
             if (.not. more) exit
         end do
+
         icol = current_indentation()
         call beginning_of_line(1_int64)
+
         if (search_re("\(if\|do\|select\|where\|forall\)", line_end_position(), SEARCH_NOERROR)) then
             call beginning_of_line(1_int64)
             call skip_forward(" "//TAB)
             b = f90_looking_at_do()
+
             if (b%found) then
                 icol = icol + f90_do_indent%value
             else if (if_like(status)) then
@@ -1582,16 +1686,20 @@ contains
                 ! only for if/do/select/where/forall ?
                 icol = icol + f90_associate_indent%value
             end if
+
             if (.not. status%ok()) then
                 call goto_char(opoint)
                 return
             end if
+
             call end_of_line(1_int64)
         end if
+
         do while (search_re("\(if\|do\|select\|where\|forall\)", epnt, SEARCH_NOERROR))
             call beginning_of_line(1_int64)
             call skip_forward(" "//TAB//"0-9")
             b = f90_looking_at_do()
+
             if (b%found) then
                 icol = icol + f90_do_indent%value
             else if (if_like(status)) then
@@ -1609,9 +1717,11 @@ contains
             else if (looking("end[ "//TAB//"]*do\_>")) then
                 icol = icol - f90_do_indent%value
             end if
+
             if (.not. status%ok()) exit
             call end_of_line(1_int64)
         end do
+
         call goto_char(opoint)
     end subroutine f90_get_correct_indent
 
@@ -1624,10 +1734,12 @@ contains
         integer :: cont
         logical :: saved, start, moved, has_start
         type(f90_block_type) :: b
+
         status = status_type()
         call fold_case(saved)
         pnt = point()
         icol = 0
+
         if (.not. f90_previous_statement()) then
             ! If f90-previous-statement returns nil, we must have been
             ! called from on or before the first line of the first statement.
@@ -1637,6 +1749,7 @@ contains
             start = looking("[ "//TAB//"]*#")
             call goto_char(point_min())
             call beginning_of_line(1_int64)
+
             if (.not. start) then
                 ! f90-previous-statement has moved us over
                 ! comment/blank lines, so we need to get
@@ -1647,6 +1760,7 @@ contains
             else
                 has_start = .true.
             end if
+
             if (has_start) then
                 icol = 0
             else
@@ -1655,11 +1769,13 @@ contains
             end if
         else
             cont = f90_present_statement_cont()
+
             if (cont == CONT_END) then
                 do while (f90_present_statement_cont() /= CONT_BEGIN)
                     if (.not. f90_previous_statement()) exit
                 end do
             end if
+
             if (cont == CONT_BEGIN) then
                 icol = f90_current_indentation() + f90_continuation_indent%value
             else if (cont == CONT_MIDDLE) then
@@ -1667,6 +1783,7 @@ contains
             else
                 icol = f90_current_indentation()
                 call skip_forward(" "//TAB)
+
                 if (looking("[0-9]")) then
                     call f90_get_correct_indent(icol, status)
                 else
@@ -1682,6 +1799,7 @@ contains
                         icol = icol + f90_associate_indent%value
                     else
                         b = f90_looking_at_critical()
+
                         if (b%found) then
                             icol = icol + f90_critical_indent%value
                         else if (found_program_block_start() .or. &
@@ -1690,8 +1808,10 @@ contains
                         end if
                     end if
                 end if
+
                 call goto_char(pnt)
                 call beginning_of_line(1_int64)
+
                 if (status%ok()) then
                     if (looking("[ "//TAB//"]*$")) then
                         continue
@@ -1700,6 +1820,7 @@ contains
                         icol = 0
                     else
                         call skip_forward(" "//TAB//"0-9")
+
                         if (looking(f90_else_like_re) .or. looking(f90_end_if_re)) then
                             icol = icol - f90_if_indent%value
                         else if (looking("end[ "//TAB//"]*do\_>")) then
@@ -1718,6 +1839,7 @@ contains
                 end if
             end if
         end if
+
         call goto_char(pnt)
         call restore_case(saved)
     end subroutine f90_calculate_indent
@@ -1727,6 +1849,7 @@ contains
     recursive subroutine cmd_f90_calculate_indent(status)
         type(status_type), intent(out) :: status
         integer(int64) :: icol
+
         call f90_calculate_indent(icol, status)
     end subroutine cmd_f90_calculate_indent
 
@@ -1737,6 +1860,7 @@ contains
     !> comment.  Port of f90.el:f90-previous-statement.
     logical function f90_previous_statement() result(not_first_statement)
         call beginning_of_line(1_int64)
+
         do
             not_first_statement = forward_line(-1_int64) == 0
             if (.not. not_first_statement) exit
@@ -1749,6 +1873,7 @@ contains
     subroutine cmd_f90_previous_statement(status)
         type(status_type), intent(out) :: status
         logical :: moved
+
         status = status_type()
         moved = f90_previous_statement()
     end subroutine cmd_f90_previous_statement
@@ -1758,6 +1883,7 @@ contains
     !> f90.el:f90-next-statement.
     logical function f90_next_statement() result(not_last_statement)
         call beginning_of_line(1_int64)
+
         do
             not_last_statement = forward_line(1_int64) == 0
             if (not_last_statement) not_last_statement = .not. eobp()
@@ -1771,6 +1897,7 @@ contains
     subroutine cmd_f90_next_statement(status)
         type(status_type), intent(out) :: status
         logical :: moved
+
         status = status_type()
         moved = f90_next_statement()
     end subroutine cmd_f90_next_statement
@@ -1784,26 +1911,31 @@ contains
         type(f90_block_type) :: b
         integer :: count
         logical :: saved
+
         call fold_case(saved)
         count = 1
         call beginning_of_line(1_int64)
         ! Check whether we're already at the start of a subprogram.
         matching_beg = f90_looking_at_program_block_start()
+
         if (matching_beg%found) then
             call restore_case(saved)
             return
         end if
+
         ! We're not; search backwards.
         do while (count > 0)
             if (.not. search_re_backward_move(f90_program_block_re)) exit
             call beginning_of_line(1_int64)
             call skip_forward(" "//TAB//"0-9")
+
             ! Check if in string in case using non-standard feature where
             ! continued strings do not need "&" at start of continuations.
             if (f90_in_string()) then
                 continue
             else
                 b = f90_looking_at_program_block_start()
+
                 if (b%found) then
                     matching_beg = b
                     count = count - 1
@@ -1812,15 +1944,19 @@ contains
                 end if
             end if
         end do
+
         call beginning_of_line(1_int64)
+
         if (count /= 0) then
             ! Note this includes the case of an un-named main program,
             ! in which case we go to (point-min).
             if (present(interactive)) then
                 if (interactive) call message("No beginning found")
             end if
+
             matching_beg = f90_block_type()
         end if
+
         call restore_case(saved)
     end function f90_beginning_of_subprogram
 
@@ -1829,6 +1965,7 @@ contains
     subroutine cmd_f90_beginning_of_subprogram(status)
         type(status_type), intent(out) :: status
         type(f90_block_type) :: b
+
         status = status_type()
         b = f90_beginning_of_subprogram(.true.)
     end subroutine cmd_f90_beginning_of_subprogram
@@ -1842,34 +1979,42 @@ contains
         type(f90_block_type) :: b
         integer :: count
         logical :: saved
+
         call fold_case(saved)
         count = 1
         call end_of_line(1_int64)
+
         do while (count > 0)
             if (.not. search_re(f90_program_block_re, noerror=SEARCH_MOVE)) exit
             call beginning_of_line(1_int64)
             call skip_forward(" "//TAB//"0-9")
+
             if (f90_in_string()) then
                 continue
             else if (found_program_block_start()) then
                 count = count + 1
             else
                 b = f90_looking_at_program_block_end()
+
                 if (b%found) then
                     matching_end = b
                     count = count - 1
                 end if
             end if
+
             call end_of_line(1_int64)
         end do
+
         ! This means f90-end-of-subprogram followed by f90-start-of-subprogram
         ! has a net non-zero effect, which seems odd.
         if (count /= 0) then
             if (present(interactive)) then
                 if (interactive) call message("No end found")
             end if
+
             matching_end = f90_block_type()
         end if
+
         call restore_case(saved)
     end function f90_end_of_subprogram
 
@@ -1878,6 +2023,7 @@ contains
     subroutine cmd_f90_end_of_subprogram(status)
         type(status_type), intent(out) :: status
         type(f90_block_type) :: b
+
         status = status_type()
         b = f90_end_of_subprogram(.true.)
     end subroutine cmd_f90_end_of_subprogram
@@ -1887,6 +2033,7 @@ contains
     recursive subroutine block_start(b, status)
         type(f90_block_type), intent(out) :: b
         type(status_type), intent(out) :: status
+
         status = status_type()
         b = f90_looking_at_do()
         if (b%found) return
@@ -1909,6 +2056,7 @@ contains
     function or_nil(s) result(r)
         character(len=:), allocatable, intent(in) :: s
         character(len=:), allocatable :: r
+
         if (allocated(s)) then
             r = s
         else
@@ -1932,17 +2080,21 @@ contains
         character(len=:), allocatable :: end_type, end_label
         integer(int64) :: count, saved_smart, opoint
         logical :: saved
+
         status = status_type()
+
         ! Can move some distance.
         if (present(interactive)) then
             if (interactive) call push_mark(point(), .true.)
         end if
+
         if (present(num)) then
             if (num < 0) then
                 call f90_beginning_of_block(status, -num)
                 if (.not. status%ok()) return
             end if
         end if
+
         saved_smart = f90_smart_end%value
         ! for final match-end
         if (f90_smart_end%value /= F90_SMART_END_NIL) f90_smart_end%value = F90_SMART_END_NO_BLINK
@@ -1951,15 +2103,18 @@ contains
         if (present(num)) count = num
         allocate (start_list(0))
         call end_of_line(1_int64) ! probably want this
+
         do while (count > 0)
             if (.not. search_re(f90_blocks_re, noerror=SEARCH_MOVE)) exit
             call beginning_of_line(1_int64)
             call skip_forward(" "//TAB//"0-9")
+
             if (f90_in_string() .or. f90_in_comment()) then
                 continue
             else
                 call block_start(start_this, status)
                 if (.not. status%ok()) exit
+
                 if (start_this%found) then
                     ! not add-to-list!
                     start_list = [start_this, start_list]
@@ -1968,16 +2123,19 @@ contains
                     if (matched(1)) end_type = ms(1)
                     if (matched(2)) end_label = ms(2)
                     count = count - 1
+
                     ! Check any internal blocks.
                     if (size(start_list) > 0) then
                         start_this = start_list(1)
                         start_list = start_list(2:)
+
                         if (.not. f90_equal_symbols(start_this%kind, end_type)) then
                             call set_error(status, FM_GENERIC_ERROR, format_message("End type `"//or_nil(end_type)// &
                                                                                     "' does not match start type `"// &
                                                                                     or_nil(start_this%kind)//"'"))
                             exit
                         end if
+
                         if (.not. f90_equal_symbols(start_this%name, end_label)) then
                             call set_error(status, FM_GENERIC_ERROR, format_message("End label `"//or_nil(end_label)// &
                                                                                     "' does not match start label `"// &
@@ -1985,13 +2143,17 @@ contains
                             exit
                         end if
                     end if
+
                     if (allocated(end_type)) deallocate (end_type)
                     if (allocated(end_label)) deallocate (end_label)
                 end if
             end if
+
             call end_of_line(1_int64)
         end do
+
         if (status%ok() .and. count > 0) call set_error(status, FM_GENERIC_ERROR, "Missing block end")
+
         ! Check outermost block.
         if (status%ok() .and. f90_smart_end%value /= F90_SMART_END_NIL) then
             opoint = point()
@@ -2000,6 +2162,7 @@ contains
             call f90_match_end(status)
             call goto_char(opoint)
         end if
+
         f90_smart_end%value = saved_smart
         call restore_case(saved)
     end subroutine f90_end_of_block
@@ -2008,6 +2171,7 @@ contains
     !> command).  Port of f90.el:f90-end-of-block.
     recursive subroutine cmd_f90_end_of_block(status)
         type(status_type), intent(out) :: status
+
         call f90_end_of_block(status, prefix_numeric_value(current_prefix_arg), .true.)
     end subroutine cmd_f90_end_of_block
 
@@ -2026,25 +2190,31 @@ contains
         type(f90_block_type) :: end_this, start_this
         integer(int64) :: count
         logical :: saved
+
         status = status_type()
+
         if (present(interactive)) then
             if (interactive) call push_mark(point(), .true.)
         end if
+
         if (present(num)) then
             if (num < 0) then
                 call f90_end_of_block(status, -num)
                 if (.not. status%ok()) return
             end if
         end if
+
         call fold_case(saved)
         count = 1
         if (present(num)) count = num
         allocate (end_list(0))
         call beginning_of_line(1_int64) ! probably want this
+
         do while (count > 0)
             if (.not. search_re_backward_move(f90_blocks_re)) exit
             call beginning_of_line(1_int64)
             call skip_forward(" "//TAB//"0-9")
+
             if (f90_in_string() .or. f90_in_comment()) then
                 continue
             else if (looking("end[ "//TAB//"]*"//f90_blocks_re//"[ "//TAB//"]*\("//SYMRE//"+\)?")) then
@@ -2054,12 +2224,15 @@ contains
             else
                 call block_start(start_this, status)
                 if (.not. status%ok()) exit
+
                 if (start_this%found) then
                     count = count - 1
+
                     ! Check any internal blocks.
                     if (size(end_list) > 0) then
                         end_this = end_list(1)
                         end_list = end_list(2:)
+
                         if (.not. f90_equal_symbols(start_this%kind, end_this%kind)) then
                             call set_error(status, FM_GENERIC_ERROR, format_message("Start type `"// &
                                                                                     or_nil(start_this%kind)// &
@@ -2067,6 +2240,7 @@ contains
                                                                                     or_nil(end_this%kind)//"'"))
                             exit
                         end if
+
                         if (.not. f90_equal_symbols(start_this%name, end_this%name)) then
                             call set_error(status, FM_GENERIC_ERROR, format_message("Start label `"// &
                                                                                     or_nil(start_this%name)// &
@@ -2078,6 +2252,7 @@ contains
                 end if
             end if
         end do
+
         ! Includes an un-named main program block.
         if (status%ok() .and. count > 0) call set_error(status, FM_GENERIC_ERROR, "Missing block start")
         call restore_case(saved)
@@ -2087,6 +2262,7 @@ contains
     !> command).  Port of f90.el:f90-beginning-of-block.
     recursive subroutine cmd_f90_beginning_of_block(status)
         type(status_type), intent(out) :: status
+
         call f90_beginning_of_block(status, prefix_numeric_value(current_prefix_arg), .true.)
     end subroutine cmd_f90_beginning_of_block
 
@@ -2101,18 +2277,22 @@ contains
         type(f90_block_type) :: b
         integer(int64) :: count
         logical :: saved, found
+
         status = status_type()
         call fold_case(saved)
         count = abs(num)
+
         do while (count > 0)
             if (num > 0) then
                 found = search_re(f90_blocks_re, noerror=SEARCH_MOVE)
             else
                 found = search_re_backward_move(f90_blocks_re)
             end if
+
             if (.not. found) exit
             call beginning_of_line(1_int64)
             call skip_forward(" "//TAB//"0-9")
+
             if (f90_in_string() .or. f90_in_comment()) then
                 continue
             else if (looking("end[ "//TAB//"]*")) then
@@ -2122,12 +2302,14 @@ contains
                 if (.not. status%ok()) exit
                 if (b%found) count = count - 1
             end if
+
             if (num > 0) then
                 call end_of_line(1_int64)
             else
                 call beginning_of_line(1_int64)
             end if
         end do
+
         call restore_case(saved)
     end subroutine f90_next_block
 
@@ -2135,6 +2317,7 @@ contains
     !> command).  Port of f90.el:f90-next-block.
     recursive subroutine cmd_f90_next_block(status)
         type(status_type), intent(out) :: status
+
         call f90_next_block(status, prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_f90_next_block
 
@@ -2147,6 +2330,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: num
         integer(int64) :: n
+
         n = 1
         if (present(num)) n = num
         call f90_next_block(status, -n)
@@ -2156,6 +2340,7 @@ contains
     !> (the command).  Port of f90.el:f90-previous-block.
     recursive subroutine cmd_f90_previous_block(status)
         type(status_type), intent(out) :: status
+
         call f90_previous_block(status, prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_f90_previous_block
 
@@ -2166,6 +2351,7 @@ contains
         type(f90_block_type) :: program
         type(f90_block_type) :: b
         integer(int64) :: pos
+
         pos = point()
         b = f90_end_of_subprogram()
         call push_mark()
@@ -2180,6 +2366,7 @@ contains
     subroutine cmd_f90_mark_subprogram(status)
         type(status_type), intent(out) :: status
         type(f90_block_type) :: b
+
         status = status_type()
         b = f90_mark_subprogram()
     end subroutine cmd_f90_mark_subprogram
@@ -2193,19 +2380,24 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: end
         character(len=:), allocatable :: re
+
         status = status_type()
         end = marker_at(end_region)
         re = regexp_quote(f90_comment_region%value)
         call goto_char(beg_region)
         call beginning_of_line(1_int64)
         call toggle()
+
         do while (status%ok())
             if (forward_line(1_int64) /= 0) exit
             if (.not. (point() < mpos(end))) exit
             call toggle()
         end do
+
         call unmark(end)
+
     contains
+
         subroutine toggle()
             if (looking(re)) then
                 call delete_region(point(), me(0), status)
@@ -2220,6 +2412,7 @@ contains
     subroutine cmd_f90_comment_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
+
         call barf_if_buffer_read_only(status)
         if (status%ok()) call interactive_region(b, e, status)
         if (status%ok()) call f90_comment_region_command(b, e, status)
@@ -2234,6 +2427,7 @@ contains
         type(handle_type) :: pos
         integer(int64) :: indent, opoint
         logical :: saved, no_line_number, cont, noupd
+
         status = status_type()
         noupd = .false.
         if (present(no_update)) noupd = no_update
@@ -2245,12 +2439,14 @@ contains
         cont = .false.
         if (f90_previous_statement()) cont = f90_line_continued()
         call goto_char(opoint)
+
         if (.not. cont) then
             call f90_indent_line_no()
         else
             no_line_number = .true.
             call skip_forward(" "//TAB)
         end if
+
         ! FIXME This means f90-calculate-indent gives different answers
         ! for comments and preprocessor lines to this function.
         ! Better to make f90-calculate-indent return the correct answer?
@@ -2262,12 +2458,15 @@ contains
             if (f90_smart_end%value /= F90_SMART_END_NIL .and. looking("end")) call f90_match_end(status)
             if (status%ok()) call f90_calculate_indent(indent, status)
         end if
+
         if (status%ok()) then
             if (indent /= current_column()) call f90_indent_to(indent, status, no_line_number)
         end if
+
         ! If initial point was within line's indentation,
         ! position after the indentation.  Else stay at same point in text.
         if (point() < mpos(pos)) call goto_char(mpos(pos))
+
         if (status%ok()) then
             if (associated(auto_fill_function%value)) then
                 ! GM NO-UPDATE not honored, since this calls f90-update-line.
@@ -2276,6 +2475,7 @@ contains
                 call f90_update_line(status)
             end if
         end if
+
         call unmark(pos)
         call restore_case(saved)
     end subroutine f90_indent_line
@@ -2284,6 +2484,7 @@ contains
     recursive subroutine f90_indent_line_function(status, noindent)
         type(status_type), intent(out) :: status
         logical, intent(out) :: noindent
+
         noindent = .false.
         call f90_indent_line(status)
     end subroutine f90_indent_line_function
@@ -2292,6 +2493,7 @@ contains
     !> f90.el:f90-indent-line.
     recursive subroutine cmd_f90_indent_line(status)
         type(status_type), intent(out) :: status
+
         call barf_if_buffer_read_only(status)
         if (status%ok()) call f90_indent_line(status,.not. nilp(current_prefix_arg))
     end subroutine cmd_f90_indent_line
@@ -2303,10 +2505,13 @@ contains
     recursive subroutine f90_indent_new_line(status)
         type(status_type), intent(out) :: status
         logical :: string, cont
+
         status = status_type()
+
         if (associated(abbrev_mode)) then
             if (abbrev_mode%value) call expand_abbrev(status)
         end if
+
         if (.not. status%ok()) return
         call beginning_of_line(1_int64) ! reindent where likely to be needed
         call f90_indent_line(status) ! calls indent-line-no, update-line
@@ -2327,6 +2532,7 @@ contains
     !> command).  Port of f90.el:f90-indent-new-line.
     recursive subroutine cmd_f90_indent_new_line(status)
         type(status_type), intent(out) :: status
+
         call barf_if_buffer_read_only(status)
         if (status%ok()) call f90_indent_new_line(status)
     end subroutine cmd_f90_indent_new_line
@@ -2339,56 +2545,72 @@ contains
         logical, intent(out) :: has_ind
         type(status_type), intent(out) :: status
         logical, intent(in) :: else_like, contains_too
+
         status = status_type()
         has_ind = .true.
         struct = f90_looking_at_do()
+
         if (struct%found) then
             ind_b = f90_do_indent%value
             return
         end if
+
         call f90_looking_at_if_then(struct, status)
         if (.not. status%ok()) return
         if (.not. struct%found) struct = f90_looking_at_select_case()
+
         if (.not. struct%found) then
             call f90_looking_at_where_or_forall(struct, status)
             if (.not. status%ok()) return
         end if
+
         if (struct%found) then
             ind_b = f90_if_indent%value
             return
         end if
+
         if (else_like) then
             if (looking(f90_else_like_re)) then
                 ind_b = f90_if_indent%value
                 return
             end if
         end if
+
         struct = f90_looking_at_type_like()
+
         if (struct%found) then
             ind_b = f90_type_indent%value
             return
         end if
+
         struct = f90_looking_at_associate()
+
         if (struct%found) then
             ind_b = f90_associate_indent%value
             return
         end if
+
         struct = f90_looking_at_critical()
+
         if (struct%found) then
             ind_b = f90_critical_indent%value
             return
         end if
+
         struct = f90_looking_at_program_block_start()
+
         if (struct%found) then
             ind_b = f90_program_indent%value
             return
         end if
+
         if (contains_too) then
             if (looking("contains[ "//TAB//"]*\($\|!\)")) then
                 ind_b = f90_program_indent%value
                 return
             end if
         end if
+
         has_ind = .false.
         ind_b = 0
     end subroutine region_block
@@ -2404,26 +2626,32 @@ contains
         integer(int64) :: ind_lev, ind_curr, ind_b, col
         integer :: cont
         logical :: saved, has_ind
+
         status = status_type()
         end_region_mark = marker_at(end_region)
         save_point = marker_at(point())
         call fold_case(saved)
         allocate (block_list(0))
+
         body: block
             call goto_char(beg_region)
             ! First find a line which is not a continuation line or comment.
             call beginning_of_line(1_int64)
+
             do while (looking("[ "//TAB//"]*[0-9]*\(!\|#\|[ "//TAB//"]*$\)"))
                 call f90_indent_line(status, .true.)
                 if (.not. status%ok()) exit body
                 if (forward_line(1_int64) /= 0) exit
                 if (.not. (point() < mpos(end_region_mark))) exit
             end do
+
             cont = f90_present_statement_cont()
+
             do while (any(cont == [CONT_MIDDLE, CONT_END]))
                 if (.not. f90_previous_statement()) exit
                 cont = f90_present_statement_cont()
             end do
+
             ! Process present line for beginning of block.
             f90_cache_position = point()
             call f90_indent_line(status, .true.)
@@ -2436,18 +2664,22 @@ contains
             if (.not. status%ok()) exit body
             if (has_ind) ind_lev = ind_lev + ind_b
             if (struct%found) block_list = [struct, block_list]
+
             do
                 if (.not. f90_line_continued()) exit
                 if (forward_line(1_int64) /= 0) exit
                 if (.not. (point() < mpos(end_region_mark))) exit
+
                 if (looking("[ "//TAB//"]*!")) then
                     call f90_comment_indent(col, status)
                     if (status%ok()) call f90_indent_to(col, status)
                 else if (current_indentation() /= ind_curr + f90_continuation_indent%value) then
                     call f90_indent_to(ind_curr + f90_continuation_indent%value, status, .true.)
                 end if
+
                 if (.not. status%ok()) exit body
             end do
+
             ! Process all following lines.
             do
                 if (forward_line(1_int64) /= 0) exit
@@ -2455,6 +2687,7 @@ contains
                 call beginning_of_line(1_int64)
                 call f90_indent_line_no()
                 f90_cache_position = point()
+
                 if (looking("[ "//TAB//"]*$")) then
                     ind_curr = 0
                 else if (looking("[ "//TAB//"]*#")) then
@@ -2470,18 +2703,22 @@ contains
                 else
                     call region_block(struct, ind_b, has_ind, status, .false., .false.)
                     if (.not. status%ok()) exit body
+
                     if (has_ind) then
                         ind_curr = ind_lev
                         ind_lev = ind_lev + ind_b
                         block_list = [struct, block_list]
                     else
                         end_struct = f90_looking_at_program_block_end()
+
                         if (end_struct%found) then
                             beg_struct = f90_block_type()
+
                             if (size(block_list) > 0) then
                                 beg_struct = block_list(1)
                                 block_list = block_list(2:)
                             end if
+
                             if (f90_smart_end%value /= F90_SMART_END_NIL) then
                                 col = point()
                                 call f90_block_match(beg_struct%kind, beg_struct%name, end_struct%kind, end_struct%name, &
@@ -2489,7 +2726,9 @@ contains
                                 call goto_char(col)
                                 if (.not. status%ok()) exit body
                             end if
+
                             has_ind = .true.
+
                             if (looking(f90_end_if_re)) then
                                 ind_b = f90_if_indent%value
                             else if (looking("end[ "//TAB//"]*do\_>")) then
@@ -2505,6 +2744,7 @@ contains
                             else
                                 has_ind = .false.
                             end if
+
                             if (has_ind) ind_lev = ind_lev - ind_b
                             ind_curr = ind_lev
                         else
@@ -2512,14 +2752,17 @@ contains
                         end if
                     end if
                 end if
+
                 if (.not. status%ok()) exit body
                 ! Do the indentation if necessary.
                 if (ind_curr /= current_column()) call f90_indent_to(ind_curr, status)
                 if (.not. status%ok()) exit body
+
                 do
                     if (.not. f90_line_continued()) exit
                     if (forward_line(1_int64) /= 0) exit
                     if (.not. (point() < mpos(end_region_mark))) exit
+
                     if (looking("[ "//TAB//"]*#")) then
                         call f90_indent_to(0_int64, status)
                     else if (looking("[ "//TAB//"]*!")) then
@@ -2528,11 +2771,13 @@ contains
                     else if (current_indentation() /= ind_curr + f90_continuation_indent%value) then
                         call f90_indent_to(ind_curr + f90_continuation_indent%value, status, .true.)
                     end if
+
                     if (.not. status%ok()) exit body
                 end do
             end do
             ! Restore point, etc.
         end block body
+
         f90_cache_position = 0
         call goto_char(mpos(save_point))
         call unmark(end_region_mark)
@@ -2546,6 +2791,7 @@ contains
     recursive subroutine cmd_f90_indent_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
+
         call barf_if_buffer_read_only(status)
         if (status%ok()) call interactive_region(b, e, status)
         if (status%ok()) call f90_indent_region(b, e, status)
@@ -2560,15 +2806,18 @@ contains
         type(handle_type) :: opoint
         integer(int64) :: m
         character(len=:), allocatable :: what
+
         status = status_type()
         opoint = marker_at(point())
         program = f90_mark_subprogram()
         call mark(m, status)
+
         if (.not. status%ok()) then
             call goto_char(mpos(opoint))
             call unmark(opoint)
             return
         end if
+
         if (program%found) then
             what = or_nil(program%kind)//" "//or_nil(program%name)
             call message("Indenting "//what//"...")
@@ -2579,6 +2828,7 @@ contains
             call indent_region(min(point(), m), max(point(), m), status)
             if (status%ok()) call message("Indenting the whole file...done")
         end if
+
         call goto_char(mpos(opoint))
         call unmark(opoint)
     end subroutine f90_indent_subprogram
@@ -2587,6 +2837,7 @@ contains
     !> of f90.el:f90-indent-subprogram.
     recursive subroutine cmd_f90_indent_subprogram(status)
         type(status_type), intent(out) :: status
+
         call barf_if_buffer_read_only(status)
         if (status%ok()) call f90_indent_subprogram(status)
     end subroutine cmd_f90_indent_subprogram
@@ -2600,9 +2851,11 @@ contains
         logical, intent(in), optional :: no_update
         character(len=:), allocatable :: ctype
         logical :: found, noupd
+
         noupd = .false.
         if (present(no_update)) noupd = no_update
         status = status_type()
+
         if (f90_in_string()) then
             call insert("&"//LF//"&", status)
         else if (f90_in_comment()) then
@@ -2617,6 +2870,7 @@ contains
             ! Or respect f90-no-break-re.
             if (status%ok() .and. f90_beginning_ampersand%value) call insert("&", status)
         end if
+
         if (status%ok()) call indent_according_to_mode(status)
     end subroutine f90_break_line
 
@@ -2624,6 +2878,7 @@ contains
     !> command).  Port of f90.el:f90-break-line.
     recursive subroutine cmd_f90_break_line(status)
         type(status_type), intent(out) :: status
+
         call barf_if_buffer_read_only(status)
         if (status%ok()) call f90_break_line(status,.not. nilp(current_prefix_arg))
     end subroutine cmd_f90_break_line
@@ -2633,12 +2888,14 @@ contains
     subroutine f90_find_breakpoint(status)
         type(status_type), intent(out) :: status
         integer(int64) :: found
+
         ! Commented text more likely than commented code.
         if (f90_in_comment()) then
             call re_search_backward("\s-", found, status, bound=line_beginning_position())
         else
             call re_search_backward(f90_break_delimiters%value, found, status, bound=line_beginning_position())
             if (.not. status%ok()) return
+
             if (.not. f90_break_before_delimiters%value) then
                 if (looking(f90_no_break_re)) then
                     call forward_char(status, 2_int64)
@@ -2658,6 +2915,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: pos_mark
         integer(int64) :: col
+
         ! Break line before or after last delimiter (non-word char) if
         ! position is beyond fill-column.
         ! Will not break **, //, or => (as specified by f90-no-break-re).
@@ -2665,6 +2923,7 @@ contains
         if (.not. status%ok()) return
         ! Need this for `f90-electric-insert' and other f90- callers.
         if (comment_auto_fill_only_comments%value .and. .not. f90_in_comment()) return
+
         do while (current_column() > fill_column%value)
             pos_mark = marker_at(point())
             call move_to_column(fill_column%value, col)
@@ -2680,6 +2939,7 @@ contains
     !> command).  Port of f90.el:f90-do-auto-fill.
     recursive subroutine cmd_f90_do_auto_fill(status)
         type(status_type), intent(out) :: status
+
         call barf_if_buffer_read_only(status)
         if (status%ok()) call f90_do_auto_fill(status)
     end subroutine cmd_f90_do_auto_fill
@@ -2692,11 +2952,14 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: arg
         integer(int64) :: shortage
+
         status = status_type()
         call beginning_of_line(1_int64)
+
         if (present(arg)) then
             if (arg) shortage = forward_line(1_int64)
         end if
+
         if (preceding() == 10) then
             call skip_forward(" "//TAB)
             if (looking("&")) call delete_char(1_int64, status)
@@ -2707,10 +2970,12 @@ contains
             call skip_backward(" "//TAB)
             if (preceding() == iachar("&")) call delete_char(-1_int64, status)
             if (.not. status%ok()) return
+
             if (f90_in_comment()) then
                 if (looking("[ "//TAB//"]*!+")) call replace_match("", status)
                 if (.not. status%ok()) return
             end if
+
             if (.not. f90_in_string()) call fixup_whitespace(status)
         end if
     end subroutine f90_join_lines
@@ -2719,6 +2984,7 @@ contains
     !> (the command).  Port of f90.el:f90-join-lines.
     recursive subroutine cmd_f90_join_lines(status)
         type(status_type), intent(out) :: status
+
         call barf_if_buffer_read_only(status)
         if (status%ok()) call f90_join_lines(status,.not. nilp(current_prefix_arg))
     end subroutine cmd_f90_join_lines
@@ -2732,6 +2998,7 @@ contains
         integer(int64) :: saved_smart, saved_case, col, eol_col, opoint
         procedure(command_proc), pointer :: saved_fill
         logical :: go_on
+
         status = status_type()
         end_region_mark = marker_at(end_region)
         go_on = .true.
@@ -2742,6 +3009,7 @@ contains
         f90_auto_keyword_case%value = F90_KEYWORD_CASE_NIL
         auto_fill_function%value => null()
         call goto_char(beg_region)
+
         do while (go_on)
             ! Join as much as possible.
             do
@@ -2751,7 +3019,9 @@ contains
                 call f90_join_lines(status, .true.)
                 if (.not. status%ok()) exit
             end do
+
             if (.not. status%ok()) exit
+
             ! Chop the line if necessary.
             do
                 opoint = point()
@@ -2764,11 +3034,13 @@ contains
                 if (status%ok()) call f90_break_line(status, .true.)
                 if (.not. status%ok()) exit
             end do
+
             if (.not. status%ok()) exit
             go_on = point() < mpos(end_region_mark)
             if (go_on) go_on = forward_line(1_int64) == 0
             f90_cache_position = point()
         end do
+
         f90_cache_position = 0
         call unmark(end_region_mark)
         call deactivate_mark()
@@ -2782,6 +3054,7 @@ contains
     recursive subroutine cmd_f90_fill_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
+
         call barf_if_buffer_read_only(status)
         if (status%ok()) call interactive_region(b, e, status)
         if (status%ok()) call f90_fill_region(b, e, status)
@@ -2798,18 +3071,23 @@ contains
         integer, intent(in), optional :: justify
         integer(int64) :: opoint, end
         logical :: moved
+
         call fill_comment_paragraph(status, done, justify)
+
         if (done .or. .not. status%ok()) then
             done = .true.
             return
         end if
+
         opoint = point()
         moved = f90_next_statement()
+
         if (bobp()) then
             end = point()
         else
             end = point() - 1
         end if
+
         moved = f90_previous_statement()
         call f90_fill_region(point(), end, status)
         call goto_char(min(opoint, point_max()))
@@ -2822,8 +3100,10 @@ contains
         use fill_fm, only: JUSTIFY_FULL
         type(status_type), intent(out) :: status
         logical :: done
+
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
+
         if (nilp(current_prefix_arg)) then
             call f90_fill_paragraph(status, done)
         else
@@ -2835,7 +3115,9 @@ contains
     logical function optional_name_block(s)
         character(len=*), intent(in) :: s
         integer :: i
+
         optional_name_block = .false.
+
         do i = 1, size(f90_end_block_optional_name)
             if (downcase(s) == trim(f90_end_block_optional_name(i))) optional_name_block = .true.
         end do
@@ -2847,6 +3129,7 @@ contains
         character(len=*), intent(in) :: s
         type(status_type), intent(out) :: status
         integer(int64) :: found
+
         call search_forward(s, found, status, bound=line_end_position())
     end subroutine search_eol
 
@@ -2855,6 +3138,7 @@ contains
         character(len=*), intent(in) :: s
         type(status_type), intent(out) :: status
         integer(int64) :: found
+
         call search_forward(s, found, status)
     end subroutine search_fwd
 
@@ -2871,7 +3155,9 @@ contains
         character(len=:), allocatable, intent(in) :: beg_block_in, beg_name, end_block, end_name
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: beg_block
+
         status = status_type()
+
         ! Hack to deal with the case when this is called from
         ! f90-indent-region on a program block without an explicit PROGRAM
         ! statement at the start. Should really be an error (?).
@@ -2880,8 +3166,10 @@ contains
         else
             beg_block = "program"
         end if
+
         call search_eol("end", status)
         if (.not. status%ok()) return
+
         no_match: block
             if (allocated(end_block)) then
                 if (f90_equal_symbols(beg_block, end_block)) then
@@ -2897,6 +3185,7 @@ contains
                 call insert(" "//beg_block, status)
                 if (.not. status%ok()) return
             end if
+
             if (f90_equal_symbols(beg_name, end_name)) then
                 if (allocated(end_name)) call search_fwd(end_name, status)
                 if (.not. status%ok()) return
@@ -2917,6 +3206,7 @@ contains
                 if (status%ok()) call replace_match("", status)
                 if (.not. status%ok()) return
             end if
+
             if (.not. looking("[ "//TAB//"]*!")) call delete_horizontal_space(.false., status)
         end block no_match
     end subroutine f90_block_match
@@ -2930,6 +3220,7 @@ contains
         type(handle_type) :: opoint
         character(len=:), allocatable :: text, line
         logical :: saved, has_end, found
+
         status = status_type()
         count = 1
         top_of_window = 1
@@ -2942,24 +3233,30 @@ contains
         call beginning_of_line(1_int64)
         call skip_forward(" "//TAB//"0-9")
         has_end = .false.
+
         if (.not. f90_in_string()) then
             end_struct = f90_looking_at_program_block_end()
             has_end = end_struct%found
         end if
+
         call goto_char(mpos(opoint))
+
         if (has_end) then
             call beginning_of_line(1_int64)
+
             do while (count > 0)
                 if (line_beginning_position() == point_min()) exit
                 found = search_re_backward_move(f90_blocks_re)
                 call beginning_of_line(1_int64)
                 ! GM not a line number if continued line.
                 call skip_forward(" "//TAB//"0-9")
+
                 if (f90_in_string() .or. f90_in_comment()) then
                     continue
                 else
                     call match_beg(matching_beg, status)
                     if (.not. status%ok()) exit
+
                     if (matching_beg%found) then
                         count = count - 1
                     else if (looking("end[ "//TAB//"]*"//f90_blocks_re)) then
@@ -2967,11 +3264,13 @@ contains
                     end if
                 end if
             end do
+
             if (status%ok()) then
                 if (count > 0) then
                     call message("No matching beginning.")
                 else
                     call f90_update_line(status)
+
                     if (status%ok() .and. f90_smart_end%value == F90_SMART_END_BLINK) then
                         if (point() < top_of_window) then
                             call what_line_text(line)
@@ -2981,6 +3280,7 @@ contains
                             call sit_for(int(blink_matching_delay*1000, int32))
                         end if
                     end if
+
                     if (status%ok()) then
                         call goto_char(end_point)
                         call beginning_of_line(1_int64)
@@ -2990,13 +3290,17 @@ contains
                 end if
             end if
         end if
+
         call goto_char(mpos(opoint))
         call unmark(opoint)
         call restore_case(saved)
+
     contains
+
         recursive subroutine match_beg(b, st)
             type(f90_block_type), intent(out) :: b
             type(status_type), intent(out) :: st
+
             st = status_type()
             b = f90_looking_at_do()
             if (b%found) return
@@ -3025,6 +3329,7 @@ contains
     !> (the command).  Port of f90.el:f90-match-end.
     recursive subroutine cmd_f90_match_end(status)
         type(status_type), intent(out) :: status
+
         call f90_match_end(status)
     end subroutine cmd_f90_match_end
 
@@ -3033,6 +3338,7 @@ contains
     recursive subroutine f90_insert_end(status)
         type(status_type), intent(out) :: status
         integer(int64) :: saved
+
         saved = f90_smart_end%value
         if (f90_smart_end%value == F90_SMART_END_NIL) f90_smart_end%value = F90_SMART_END_BLINK
         call insert("end", status)
@@ -3044,6 +3350,7 @@ contains
     !> (the command).  Port of f90.el:f90-insert-end.
     recursive subroutine cmd_f90_insert_end(status)
         type(status_type), intent(out) :: status
+
         call barf_if_buffer_read_only(status)
         if (status%ok()) call f90_insert_end(status)
     end subroutine cmd_f90_insert_end
@@ -3060,10 +3367,12 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: map
         type(status_type) :: st
+
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
         call self_insert_command(1_int64, int(iachar("`"), int64), status)
         if (.not. status%ok()) return
+
         if (associated(abbrev_mode)) then
             if (abbrev_mode%value) then
                 call make_sparse_keymap(map)
@@ -3079,6 +3388,7 @@ contains
     recursive subroutine cmd_f90_abbrev_help(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer, window
+
         call message("Listing abbrev table...")
         call f90_prepare_abbrev_list_buffer(buffer, status)
         if (status%ok()) call display_buffer(buffer, window, status)
@@ -3092,17 +3402,20 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: old
         type(status_type) :: st
+
         old = current_buffer()
         call get_buffer_create("*Abbrevs*", buffer, status)
         if (.not. status%ok()) return
         call set_buffer(buffer, status)
         if (status%ok()) call erase_buffer(status)
         if (status%ok()) call insert_abbrev_table_description(f90_mode_abbrev_table, status, .true.)
+
         if (status%ok()) then
             call goto_char(point_min())
             call restore_buffer_modified_p(.false.)
             call edit_abbrevs_mode(status)
         end if
+
         call set_buffer(old, st)
     end subroutine f90_prepare_abbrev_list_buffer
 
@@ -3110,6 +3423,7 @@ contains
     !> f90.el:f90-upcase-keywords.
     subroutine cmd_f90_upcase_keywords(status)
         type(status_type), intent(out) :: status
+
         call barf_if_buffer_read_only(status)
         if (status%ok()) call f90_change_keywords(F90_KEYWORD_CASE_UPCASE_WORD, status)
     end subroutine cmd_f90_upcase_keywords
@@ -3118,6 +3432,7 @@ contains
     !> f90.el:f90-capitalize-keywords.
     subroutine cmd_f90_capitalize_keywords(status)
         type(status_type), intent(out) :: status
+
         call barf_if_buffer_read_only(status)
         if (status%ok()) call f90_change_keywords(F90_KEYWORD_CASE_CAPITALIZE_WORD, status)
     end subroutine cmd_f90_capitalize_keywords
@@ -3126,6 +3441,7 @@ contains
     !> f90.el:f90-downcase-keywords.
     subroutine cmd_f90_downcase_keywords(status)
         type(status_type), intent(out) :: status
+
         call barf_if_buffer_read_only(status)
         if (status%ok()) call f90_change_keywords(F90_KEYWORD_CASE_DOWNCASE_WORD, status)
     end subroutine cmd_f90_downcase_keywords
@@ -3135,6 +3451,7 @@ contains
         integer, intent(in) :: change_word
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
+
         call barf_if_buffer_read_only(status)
         if (status%ok()) call interactive_region(b, e, status)
         if (status%ok()) call f90_change_keywords(change_word, status, b, e)
@@ -3144,6 +3461,7 @@ contains
     !> f90.el:f90-upcase-region-keywords.
     subroutine cmd_f90_upcase_region_keywords(status)
         type(status_type), intent(out) :: status
+
         call region_keywords(F90_KEYWORD_CASE_UPCASE_WORD, status)
     end subroutine cmd_f90_upcase_region_keywords
 
@@ -3151,6 +3469,7 @@ contains
     !> f90.el:f90-capitalize-region-keywords.
     subroutine cmd_f90_capitalize_region_keywords(status)
         type(status_type), intent(out) :: status
+
         call region_keywords(F90_KEYWORD_CASE_CAPITALIZE_WORD, status)
     end subroutine cmd_f90_capitalize_region_keywords
 
@@ -3158,6 +3477,7 @@ contains
     !> f90.el:f90-downcase-region-keywords.
     subroutine cmd_f90_downcase_region_keywords(status)
         type(status_type), intent(out) :: status
+
         call region_keywords(F90_KEYWORD_CASE_DOWNCASE_WORD, status)
     end subroutine cmd_f90_downcase_region_keywords
 
@@ -3175,20 +3495,24 @@ contains
         integer(int64) :: b, ref_point, back_point, pt, found
         logical :: modified, skip
         type(status_type) :: st
+
         status = status_type()
         opoint = marker_at(point())
         b = point_min()
         if (present(beg)) b = beg
+
         if (present(end)) then
             endm = marker_at(end)
         else
             endm = marker_at(point_max())
         end if
+
         keyword_re = "\("//f90_keywords_re//"\|"//f90_procedures_re//"\|"//f90_hpf_keywords_re//"\|"// &
                      f90_operators_re//"\)"
         ref_point = point_min()
         call buffer_modified_p(current_buffer(), modified, st)
         call goto_char(b)
+
         do
             call re_search_forward(keyword_re, found, st, bound=mpos(endm), noerror=SEARCH_NOERROR)
             if (.not. st%ok() .or. found <= 0) exit
@@ -3196,6 +3520,7 @@ contains
             call parse_partial_sexp(ref_point, pt, state, st)
             call goto_char(pt)
             skip = state%instring /= -1 .or. state%incomment /= 0
+
             if (.not. skip) then
                 ! GM f90-directive-comment-re?
                 ! check for cpp directive
@@ -3204,6 +3529,7 @@ contains
                 skip = looking("#")
                 call goto_char(pt)
             end if
+
             if (skip) cycle
             ref_point = point()
             ! FIXME this does not work for constructs with
@@ -3212,6 +3538,7 @@ contains
             back_point = point()
             call goto_char(ref_point)
             call buffer_substring(back_point, ref_point, saveword, st)
+
             select case (change_word)
             case (F90_KEYWORD_CASE_UPCASE_WORD)
                 call upcase_word(-1_int64, status)
@@ -3222,10 +3549,12 @@ contains
             case default
                 continue
             end select
+
             if (.not. status%ok()) exit
             call buffer_substring(back_point, ref_point, now, st)
             if (now /= saveword) modified = .true.
         end do
+
         if (.not. modified) call restore_buffer_modified_p(.false.)
         call goto_char(mpos(opoint))
         call unmark(opoint)
@@ -3246,11 +3575,14 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), allocatable :: l(:)
         logical :: ok
+
         status = status_type()
         found = .false.
+
         do
             if (.not. search_re("\_<\(\(?:end[ "//TAB//"]*\)?type\)\_>[ "//TAB//"]*", limit, SEARCH_NOERROR)) exit
             l = match_data()
+
             if (.not. looking("\(is\_>\|(\)")) then
                 if (looking("\("//SYMRE//"+\)")) then
                     call goto_char(me(0))
@@ -3258,6 +3590,7 @@ contains
                 else
                     ok = search_re("[ "//TAB//"]*::[ "//TAB//"]*\("//SYMRE//"+\)", line_end_position(), SEARCH_NOERROR)
                 end if
+
                 if (ok) then
                     ! 0 is wrong, but we don't use it.
                     call set_match_data([l, mb(1), me(1)])
@@ -3280,10 +3613,12 @@ contains
         integer(int64) :: l(2), m0
         logical :: ok
         type(status_type) :: st
+
         ! Matcher functions must return nil only when there are no more
         ! matches within the search range.
         status = status_type()
         found = .false.
+
         do
             if (.not. search_re("\_<\(type\|class\)[ "//TAB//"]*(", limit, SEARCH_NOERROR)) exit
             m0 = mb(0)
@@ -3294,6 +3629,7 @@ contains
             if (.not. st%ok()) cycle
             l = [m0, point()]
             call skip_forward(" "//TAB)
+
             if (looking(SYMRE//"+")) then
                 ! type (foo) bar, qux
                 ok = search_re("\("//NOT_CONT//"+\)", line_end_position(), SEARCH_NOERROR)
@@ -3301,6 +3637,7 @@ contains
                 ! type (foo), stuff :: bar, qux
                 ok = search_re("::[ "//TAB//"]*\("//NOT_CONT//"+\)", line_end_position(), SEARCH_NOERROR)
             end if
+
             if (ok) then
                 call set_match_data([l(1), me(1), l(1), l(2), mb(1), me(1)])
                 found = .true.
@@ -3316,8 +3653,10 @@ contains
         use font_lock_fm, only: set_font_lock_keywords
         integer, intent(in) :: n
         type(status_type), intent(out) :: status
+
         call minor_modes%font_lock_mode%enable(status)
         if (.not. status%ok()) return
+
         select case (n)
         case (1)
             call set_font_lock_keywords(f90_font_lock_keywords_1)
@@ -3330,6 +3669,7 @@ contains
         case default
             continue
         end select
+
         call font_lock_flush(status)
     end subroutine f90_font_lock_n
 
@@ -3337,6 +3677,7 @@ contains
     !> f90.el:f90-font-lock-1.
     subroutine cmd_f90_font_lock_1(status)
         type(status_type), intent(out) :: status
+
         call f90_font_lock_n(1, status)
     end subroutine cmd_f90_font_lock_1
 
@@ -3344,6 +3685,7 @@ contains
     !> f90.el:f90-font-lock-2.
     subroutine cmd_f90_font_lock_2(status)
         type(status_type), intent(out) :: status
+
         call f90_font_lock_n(2, status)
     end subroutine cmd_f90_font_lock_2
 
@@ -3351,6 +3693,7 @@ contains
     !> f90.el:f90-font-lock-3.
     subroutine cmd_f90_font_lock_3(status)
         type(status_type), intent(out) :: status
+
         call f90_font_lock_n(3, status)
     end subroutine cmd_f90_font_lock_3
 
@@ -3358,6 +3701,7 @@ contains
     !> f90.el:f90-font-lock-4.
     subroutine cmd_f90_font_lock_4(status)
         type(status_type), intent(out) :: status
+
         call f90_font_lock_n(4, status)
     end subroutine cmd_f90_font_lock_4
 
@@ -3429,6 +3773,7 @@ contains
         type(status_type), intent(out) :: status
         type(font_lock_keywords_type) :: levels(5)
         logical :: saved
+
         if (.not. syntax_table_live_p(f90_mode_syntax_table)) call syms_of_f90()
         call major_modes%f90_mode%begin(saved, status)
         if (.not. status%ok()) return
