@@ -26,6 +26,7 @@ module test_fileio_fm
                         FM_FILE_ALREADY_EXISTS, &
                         FM_FILE_MISSING, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
+    use coding_fm, only: last_coding_system_used
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, &
                          buffer_modified_p, current_buffer
     use insdel_fm, only: insert, after_change_functions
@@ -437,7 +438,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
         type(status_type) :: st
-        character(len=:), allocatable :: bytes, back
+        character(len=:), allocatable :: bytes
         integer(int64) :: inserted
         integer :: u, ios
 
@@ -450,19 +451,14 @@ contains
         write (u) bytes
         close (u)
         call insert_file_contents(testdir//"/f3", .true., inserted, st)
-        ! Neither UTF-8 nor Latin-1: raw text, eight raw-byte characters (GNU
-        ! Emacs detects emacs-mule, which is Deferred).
-        call check(error, st%ok() .and. inserted == 8 .and. buffers(cur)%multibyte, "8 raw bytes")
+        ! Neither UTF-8 nor Latin-1: emacs-mule, as GNU Emacs detects it,
+        ! with seven characters: a, three raw bytes, b, a raw byte and Ź
+        ! (latin-iso8859-2 0xAC).
+        call check(error, st%ok() .and. inserted == 7 .and. buffers(cur)%multibyte, "7 characters")
         if (allocated(error)) return
-        call write_region(testdir//"/f4", .true., st)
-        allocate (character(len=len(bytes)) :: back)
-        open (newunit=u, file=testdir//"/f4", access="stream", form="unformatted", status="old", &
-              action="read", iostat=ios)
-        call check(error, ios == 0, "open f4")
-        if (allocated(error)) return
-        read (u, iostat=ios) back
-        close (u)
-        call check(error, ios == 0 .and. back == bytes, "round trip")
+        call check(error, last_coding_system_used%value == "emacs-mule", "emacs-mule")
+        ! (Writing it back asks for a coding system in GNU Emacs, as
+        ! select-safe-coding-system does not offer emacs-mule.)
         call teardown(buf)
     end subroutine test_raw_bytes
 

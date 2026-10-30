@@ -62,7 +62,8 @@ module charset_fm
     public :: charset_id_of, charset_name_of, charset_decode_id, charset_encode_id, charset_dimension_of
     public :: charset_code_space_of, charset_ascii_compatible_of, char_charset_among
     public :: iso_2022_charset_ids, iso_charset_id, charset_iso_final_of, charset_iso_revision_of
-    public :: charset_iso_chars_96_of
+    public :: charset_iso_chars_96_of, emacs_mule_charset_ids, emacs_mule_charset_of, emacs_mule_bytes_of
+    public :: charset_emacs_mule_id_of
 
     !> The longest charset name the arrays of names hold.
     integer, parameter, public :: CHARSET_NAME_LEN = 32
@@ -194,6 +195,12 @@ contains
         initialized = .true.
         allocate (charsets(200), aliases(16), defined_names(256), ordered(200), unified(32))
         allocate (iso_2022_list(0), emacs_mule_list(0))
+        ! coding.c:syms_of_coding.
+        emacs_mule_bytes = 1
+        emacs_mule_bytes(int(z'9A')) = 3
+        emacs_mule_bytes(int(z'9B')) = 3
+        emacs_mule_bytes(int(z'9C')) = 4
+        emacs_mule_bytes(int(z'9D')) = 4
         charset_ascii = define_charset_internal("ascii", 1, [0, 127, 0, 0, 0, 0, 0, 0], 0_int64, 127_int64, &
                                                 iachar("B"), -1, 0, .true., .false., 0)
         charset_iso_8859_1 = define_charset_internal("iso-8859-1", 1, [0, 255, 0, 0, 0, 0, 0, 0], 0_int64, &
@@ -1844,6 +1851,39 @@ contains
 
         charset_iso_chars_96_of = charsets(id)%iso_chars_96
     end function charset_iso_chars_96_of
+
+    !> The ids of the charsets with an emacs-mule id, in priority order
+    !> (Vemacs_mule_charset_list).
+    function emacs_mule_charset_ids() result(ids)
+        integer, allocatable :: ids(:)
+
+        call syms_of_charset()
+        ids = emacs_mule_list
+    end function emacs_mule_charset_ids
+
+    !> The id of the charset whose emacs-mule id is B (0 for none).
+    integer function emacs_mule_charset_of(b)
+        integer, intent(in) :: b
+
+        call syms_of_charset()
+        emacs_mule_charset_of = 0
+        if (b >= 0 .and. b <= 255) emacs_mule_charset_of = emacs_mule_charset(b)
+    end function emacs_mule_charset_of
+
+    !> The length of an emacs-mule sequence whose leading byte is B.
+    integer function emacs_mule_bytes_of(b)
+        integer, intent(in) :: b
+
+        call syms_of_charset()
+        emacs_mule_bytes_of = emacs_mule_bytes(b)
+    end function emacs_mule_bytes_of
+
+    !> The emacs-mule id of charset ID (-1 for none).
+    integer function charset_emacs_mule_id_of(id)
+        integer, intent(in) :: id
+
+        charset_emacs_mule_id_of = charsets(id)%emacs_mule_id
+    end function charset_emacs_mule_id_of
 
     !> The first of the charsets IDS that contains C, with its code point in
     !> CODE; 0 if none.  Port of charset.c:char_charset with a charset list.

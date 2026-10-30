@@ -81,6 +81,8 @@ module coding_fm
     use charset_fm, only: iso_2022_charset_ids, iso_charset_id, charset_iso_final_of, charset_iso_revision_of, &
                           charset_iso_chars_96_of, charset_ascii, charset_jisx0201_roman, charset_jisx0208_1978, &
                           charset_jisx0208
+    use charset_fm, only: emacs_mule_charset_ids, emacs_mule_charset_of, emacs_mule_bytes_of, charset_emacs_mule_id_of, &
+                          charset_eight_bit
     implicit none(type, external)
     private
 
@@ -103,7 +105,7 @@ module coding_fm
     !> Coding types (the `:coding-type' attribute).
     integer, parameter, public :: CODING_UNDECIDED = 0, CODING_UTF_8 = 1, CODING_UTF_16 = 2, &
                                   CODING_CHARSET = 3, CODING_RAW_TEXT = 4, CODING_SJIS = 5, CODING_BIG5 = 6, &
-                                  CODING_ISO_2022 = 7
+                                  CODING_ISO_2022 = 7, CODING_EMACS_MULE = 8
     !> End-of-line types: `coding_system_eol_type' returns one of the
     !> first three, or EOL_UNDECIDED for a coding system that has
     !> subsidiaries (upstream's vector).
@@ -470,7 +472,7 @@ contains
     !> systems mule-conf.el defines, and reset-language-environment's
     !> priorities.
     recursive subroutine syms_of_coding()
-        integer :: id
+        integer :: id, k
 
         if (ncodings > 0) return
         allocate (codings(64), aliases(160))
@@ -517,6 +519,18 @@ contains
                     doc="ISO 2022 based 8-bit encoding for Latin-1 (MIME:ISO-8859-1).")
         call define_coding_system_alias("iso-8859-1", "iso-latin-1")
         call define_coding_system_alias("latin-1", "iso-latin-1")
+        id = define("emacs-mule", CODING_EMACS_MULE, iachar("M"), CAT_EMACS_MULE, ascii_compatible=.true., &
+                    doc="Emacs 21 internal format used in buffer and string.")
+        codings(id)%charset = CS_LIST
+        codings(id)%charset_names = [character(len=CHARSET_NAME_LEN) :: "emacs-mule"]
+        allocate (codings(id)%charset_ids(0))
+
+        do k = 0, 2
+            codings(codings(id)%subsidiaries(k))%charset = CS_LIST
+            codings(codings(id)%subsidiaries(k))%charset_names = codings(id)%charset_names
+            allocate (codings(codings(id)%subsidiaries(k))%charset_ids(0))
+        end do
+
         id = define("utf-8", CODING_UTF_8, iachar("U"), CAT_UTF_8_NOSIG, ascii_compatible=.true., charset=CS_UNICODE, &
                     mime_charset="utf-8", doc="UTF-8 (no signature (BOM))")
         id = define("utf-8-with-signature", CODING_UTF_8, iachar("U"), CAT_UTF_8_SIG, bom=BOM_WITH, charset=CS_UNICODE, &
@@ -656,6 +670,7 @@ contains
         category_id(CAT_CHARSET) = coding_system_id("iso-latin-1")
         category_id(CAT_ISO_7_ELSE) = coding_system_id("iso-2022-7bit-lock")
         category_id(CAT_ISO_8_ELSE) = coding_system_id("iso-2022-8bit-ss2")
+        category_id(CAT_EMACS_MULE) = coding_system_id("emacs-mule")
         category_id(CAT_RAW_TEXT) = coding_system_id("raw-text")
     end subroutine syms_of_coding
 
@@ -897,6 +912,8 @@ contains
 
         if (iand(codings(id)%iso_flags, ISO_FULL_SUPPORT) /= 0) then
             ids = iso_2022_charset_ids()
+        else if (codings(id)%ctype == CODING_EMACS_MULE) then
+            ids = emacs_mule_charset_ids()
         else
             ids = codings(id)%charset_ids
         end if
@@ -1131,6 +1148,8 @@ contains
             t = "big5"
         case (CODING_ISO_2022)
             t = "iso-2022"
+        case (CODING_EMACS_MULE)
+            t = "emacs-mule"
         case default
             t = "raw-text"
         end select
@@ -2180,6 +2199,105 @@ contains
         end subroutine check_extra_latin
     end function detect_coding_iso_2022
 
+    !> Whether the text is in emacs-mule: each leading code is followed by
+    !> the bytes of 0xA0 and above its length needs; 0x80 starts a
+    !> composition of more than 4 bytes; ESC, SI and SO rule it out.  Port
+    !> of coding.c:detect_coding_emacs_mule.
+    logical function detect_coding_emacs_mule(units, head_ascii, info) result(ok)
+        integer, intent(in) :: units(:)
+        integer(int64), intent(in) :: head_ascii
+        type(detect_info_type), intent(inout) :: info
+        integer(int64) :: src, nu, src_start
+        integer :: c, found, more_bytes
+
+        info%checked = ior(info%checked, 2**CAT_EMACS_MULE)
+        ok = .false.
+        nu = size(units, kind=int64)
+        ! A coding system of this category is always ASCII compatible.
+        src = head_ascii + 1
+        found = 0
+
+        do while (src <= nu)
+            c = units(src)
+            src = src + 1
+            if (c < 0) cycle
+
+            if (c == 128) then
+                ! Perhaps the start of composite character.  We simply
+                ! skip it because analyzing it is too heavy for detecting.
+                ! But, at least, we check that the composite character
+                ! constitutes of more than 4 bytes.
+                do
+                    src_start = src
+
+                    do
+                        if (src > nu) then
+                            call reject_if_started()
+                            return
+                        end if
+
+                        c = units(src)
+                        src = src + 1
+                        if (c < int(z'A0')) exit
+                    end do
+
+                    if (src - src_start <= 4) then
+                        info%rejected = ior(info%rejected, 2**CAT_EMACS_MULE)
+                        return
+                    end if
+
+                    found = 2**CAT_EMACS_MULE
+                    if (c /= 128) exit
+                end do
+            end if
+
+            if (c < 128) then
+                if (c == ISO_CODE_ESC .or. c == ISO_CODE_SI .or. c == ISO_CODE_SO) then
+                    info%rejected = ior(info%rejected, 2**CAT_EMACS_MULE)
+                    return
+                end if
+            else
+                more_bytes = emacs_mule_bytes_of(c) - 1
+
+                do while (more_bytes > 0)
+                    if (src > nu) then
+                        call reject_if_started()
+                        return
+                    end if
+
+                    c = units(src)
+                    src = src + 1
+
+                    if (c < int(z'A0')) then
+                        ! Unread the last byte.
+                        src = src - 1
+                        exit
+                    end if
+
+                    more_bytes = more_bytes - 1
+                end do
+
+                if (more_bytes /= 0) then
+                    info%rejected = ior(info%rejected, 2**CAT_EMACS_MULE)
+                    return
+                end if
+
+                found = 2**CAT_EMACS_MULE
+            end if
+        end do
+
+        info%found = ior(info%found, found)
+        ok = .true.
+
+    contains
+
+        ! The source ended in the middle of a sequence (the last block):
+        ! rejected.
+        subroutine reject_if_started()
+            info%rejected = ior(info%rejected, 2**CAT_EMACS_MULE)
+        end subroutine reject_if_started
+    end function detect_coding_emacs_mule
+
     !> Whether the text is in Shift-JIS: 0x81..0x9F and 0xE0..0xEF (0xFC
     !> with a fourth charset) start two bytes, 0xA1..0xDF are kana.  Port of
     !> coding.c:detect_coding_sjis.
@@ -2291,6 +2409,8 @@ contains
             ok = detect_coding_charset(units, head_ascii, info)
         case (CAT_ISO_7, CAT_ISO_7_TIGHT, CAT_ISO_8_1, CAT_ISO_8_2, CAT_ISO_7_ELSE, CAT_ISO_8_ELSE)
             ok = detect_coding_iso_2022(units, head_ascii, info)
+        case (CAT_EMACS_MULE)
+            ok = detect_coding_emacs_mule(units, head_ascii, info)
         case (CAT_SJIS)
             ok = detect_coding_sjis(units, head_ascii, info)
         case (CAT_BIG5)
@@ -3775,6 +3895,174 @@ contains
         end subroutine decode_designation
     end subroutine decode_iso_2022
 
+    !> Decode emacs-mule: a leading code (with the extended leading code of
+    !> a private charset) and the position codes of 0xA0 and above.  The
+    !> compositions 0x80 starts are Deferred: 0x80 decodes as a raw byte.
+    !> Port of coding.c:decode_coding_emacs_mule and emacs_mule_char (with
+    !> decode_coding's flushing of an incomplete sequence at the end).
+    subroutine decode_emacs_mule(units, chars, n, status)
+        integer, intent(in) :: units(:)
+        integer, allocatable, intent(inout) :: chars(:)
+        integer(int64), intent(inout) :: n
+        type(status_type), intent(inout) :: status
+        integer(int64) :: src, src_base, nu
+        integer :: c, cs, code
+
+        nu = size(units, kind=int64)
+        src = 1
+
+        main: do while (src <= nu)
+            src_base = src
+            c = units(src)
+            src = src + 1
+
+            if (c < 0) then
+                call push(chars, n, -c)
+                cycle main
+            end if
+
+            if (c < 128) then
+                call push(chars, n, c)
+                cycle main
+            end if
+
+            ! emacs_mule_char.
+            cs = 0
+
+            if (c == 128 .or. c >= int(z'A0')) then
+                call invalid()
+                cycle main
+            end if
+
+            select case (emacs_mule_bytes_of(c))
+            case (2)
+                cs = emacs_mule_charset_of(c)
+
+                if (cs == 0) then
+                    call invalid()
+                    cycle main
+                end if
+
+                if (.not. more(c)) exit main
+
+                if (c < int(z'A0')) then
+                    call invalid()
+                    cycle main
+                end if
+
+                code = iand(c, 127)
+            case (3)
+                if (c == int(z'9A') .or. c == int(z'9B')) then
+                    if (.not. more(c)) exit main
+                    if (c >= int(z'A0')) cs = emacs_mule_charset_of(c)
+
+                    if (cs == 0) then
+                        call invalid()
+                        cycle main
+                    end if
+
+                    if (.not. more(c)) exit main
+
+                    if (c < int(z'A0')) then
+                        call invalid()
+                        cycle main
+                    end if
+
+                    code = iand(c, 127)
+                else
+                    cs = emacs_mule_charset_of(c)
+
+                    if (cs == 0) then
+                        call invalid()
+                        cycle main
+                    end if
+
+                    if (.not. more(c)) exit main
+
+                    if (c < int(z'A0')) then
+                        call invalid()
+                        cycle main
+                    end if
+
+                    code = ishft(iand(c, 127), 8)
+                    if (.not. more(c)) exit main
+
+                    if (c < int(z'A0')) then
+                        call invalid()
+                        cycle main
+                    end if
+
+                    code = ior(code, iand(c, 127))
+                end if
+            case (4)
+                if (.not. more(c)) exit main
+                if (c >= 0) cs = emacs_mule_charset_of(c)
+
+                if (cs == 0) then
+                    call invalid()
+                    cycle main
+                end if
+
+                if (.not. more(c)) exit main
+
+                if (c < int(z'A0')) then
+                    call invalid()
+                    cycle main
+                end if
+
+                code = ishft(iand(c, 127), 8)
+                if (.not. more(c)) exit main
+
+                if (c < int(z'A0')) then
+                    call invalid()
+                    cycle main
+                end if
+
+                code = ior(code, iand(c, 127))
+            case default
+                code = c
+                cs = charset_eight_bit
+            end select
+
+            c = charset_decode_id(cs, int(code, int64), status)
+            if (status%code /= 0) return
+
+            if (c < 0) then
+                call invalid()
+                cycle main
+            end if
+
+            call push(chars, n, c)
+        end do main
+
+    contains
+
+        logical function more(b)
+            integer, intent(out) :: b
+            integer(int64) :: k
+
+            b = 0
+            more = src <= nu
+
+            if (.not. more) then
+                ! Flush out unprocessed data as binary chars.
+                do k = src_base, nu
+                    call push(chars, n, invalid_char(units(k)))
+                end do
+
+                return
+            end if
+
+            b = units(src)
+            src = src + 1
+        end function more
+
+        subroutine invalid()
+            src = src_base + 1
+            call push(chars, n, invalid_char(units(src_base)))
+        end subroutine invalid
+    end subroutine decode_emacs_mule
+
     ! Port of coding.h:SJIS_TO_JIS.
     integer function sjis_to_jis(code) result(j)
         integer, intent(in) :: code
@@ -4075,6 +4363,9 @@ contains
         case (CODING_ISO_2022)
             call decode_iso_2022(id, units, chars, n, status)
             if (status%code /= 0) return
+        case (CODING_EMACS_MULE)
+            call decode_emacs_mule(units, chars, n, status)
+            if (status%code /= 0) return
         case default
             call decode_raw_text(units, chars, n)
         end select
@@ -4263,6 +4554,35 @@ contains
         case (CODING_ISO_2022)
             call encode_iso_2022(id, chars, n, eol, out, q, status)
             if (status%code /= 0) return
+        case (CODING_EMACS_MULE)
+            ! encode_coding_emacs_mule (the preferred charsets of charset
+            ! annotations are Deferred).
+            do k = 1, n
+                c = chars(k)
+
+                if (c < 128) then
+                    call emit(out, q, char(c))
+                else if (char_byte8_p(c)) then
+                    call emit(out, q, char(char_to_byte8(c)))
+                else
+                    cs = char_charset_among(c, emacs_mule_charset_ids(), code, status)
+                    if (status%code /= 0) return
+
+                    if (cs == 0) then
+                        c = codings(id)%default_char
+
+                        if (c < 128) then
+                            call emit(out, q, char(c))
+                            cycle
+                        end if
+
+                        cs = char_charset_among(c, emacs_mule_charset_ids(), code, status)
+                        if (status%code /= 0) return
+                    end if
+
+                    call emit_emacs_mule(cs, code)
+                end if
+            end do
         case (CODING_SJIS, CODING_BIG5)
             ! encode_coding_sjis and encode_coding_big5.
             do k = 1, n
@@ -4306,6 +4626,43 @@ contains
         used = codings(id)%name
 
     contains
+
+        ! The leading codes of charset CS (EMACS_MULE_LEADING_CODES) and its
+        ! position codes.
+        subroutine emit_emacs_mule(cs, code)
+            integer, intent(in) :: cs
+            integer(int64), intent(in) :: code
+            integer :: mule_id, c0, c1, v
+
+            mule_id = charset_emacs_mule_id_of(cs)
+
+            if (mule_id < int(z'A0')) then
+                c0 = mule_id
+                c1 = 0
+            else if (mule_id < int(z'E0')) then
+                c0 = int(z'9A')
+                c1 = mule_id
+            else if (mule_id < int(z'F0')) then
+                c0 = int(z'9B')
+                c1 = mule_id
+            else if (mule_id < int(z'F5')) then
+                c0 = int(z'9C')
+                c1 = mule_id
+            else
+                c0 = int(z'9D')
+                c1 = mule_id
+            end if
+
+            call emit(out, q, char(c0))
+            if (c1 /= 0) call emit(out, q, char(c1))
+
+            if (charset_dimension_of(cs) == 1) then
+                call emit(out, q, char(ior(int(code), 128)))
+            else
+                v = ior(int(code), int(z'8080'))
+                call emit(out, q, char(ishft(v, -8))//char(iand(v, 255)))
+            end if
+        end subroutine emit_emacs_mule
 
         subroutine emit_sjis_big5(cs, code)
             integer, intent(in) :: cs, code

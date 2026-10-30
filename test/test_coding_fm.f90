@@ -91,7 +91,8 @@ contains
                     new_unittest("terminal-keyboard-coding", test_terminal_keyboard_coding), &
                     new_unittest("charset-coding-systems", test_charset_coding), &
                     new_unittest("shift-jis-big5", test_sjis_big5), &
-                    new_unittest("iso-2022", test_iso_2022) &
+                    new_unittest("iso-2022", test_iso_2022), &
+                    new_unittest("emacs-mule", test_emacs_mule) &
                     ]
     end subroutine collect_coding_fm
 
@@ -633,10 +634,9 @@ contains
         call check(error, names(1)%name//" "//names(2)%name//" "//names(3)%name, "utf-8 mule-utf-8 cp65001")
         if (allocated(error)) return
         call coding_system_priority_list(names)
-        ! As GNU Emacs lists them, without emacs-mule (not ported yet) and
-        ! in-is13194-devanagari (Deferred).
+        ! As GNU Emacs lists them, without in-is13194-devanagari (Deferred).
         call check(error, joined(names), "utf-8 iso-2022-7bit iso-latin-1 iso-2022-7bit-lock iso-2022-8bit-ss2 "// &
-                   "raw-text iso-2022-jp chinese-iso-8bit utf-8-auto utf-8-with-signature utf-16 "// &
+                   "emacs-mule raw-text iso-2022-jp chinese-iso-8bit utf-8-auto utf-8-with-signature utf-16 "// &
                    "utf-16be-with-signature utf-16le-with-signature utf-16be utf-16le japanese-shift-jis chinese-big5 " &
                    //"undecided")
 
@@ -1096,4 +1096,42 @@ contains
         if (allocated(error)) return
         call check(error, names(1)%name == "iso-2022-7bit-lock" .and. names(2)%name == "iso-2022-8bit-ss2")
     end subroutine test_iso_2022
+
+    ! The emacs-mule coding system (values as GNU Emacs gives them).
+    subroutine test_emacs_mule(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: out
+        type(coding_system_list_entry_type), allocatable :: names(:)
+        type(status_type) :: st
+        integer :: k
+        ! é, 亜, €, ก, ā.
+        character(len=*), parameter :: EA = char(195)//char(169), A = char(228)//char(186)//char(156), &
+                                       EURO = char(226)//char(130)//char(172), KO = char(224)//char(184)//char(129), &
+                                       AMACRON = char(196)//char(129)
+
+        call init_bindings()
+        call encode_coding_string("a"//EA//A//EURO, "emacs-mule", out, st)
+        call check(error, out == "a"//char(129)//char(233)//char(157)//char(246)//char(164)//char(194)//char(134) &
+                   //char(164))
+        if (allocated(error)) return
+        call decode_coding_string("a"//char(129)//char(233)//char(146)//char(176)//char(161), "emacs-mule", out, st)
+        call check(error, out == "a"//EA//A)
+        if (allocated(error)) return
+        ! An incomplete sequence at the end: raw bytes.
+        call decode_coding_string(char(146)//char(176), "emacs-mule", out, st)
+        call check(error, out == char(int(z'C0'))//char(146)//char(int(z'C0'))//char(176))
+        if (allocated(error)) return
+        call encode_coding_string(KO//AMACRON, "emacs-mule", out, st)
+        call check(error, out == char(133)//char(161)//char(132)//char(224))
+        if (allocated(error)) return
+        call check(error, coding_system_type("emacs-mule") == "emacs-mule")
+        if (allocated(error)) return
+        call detect_coding_string("abc"//char(129)//char(233)//char(146)//char(176)//char(161), names, .false.)
+        ! GNU Emacs gives (emacs-mule japanese-shift-jis raw-text); the
+        ! tests before this one change the priority of the categories.
+        call check(error, size(names) == 3)
+        if (allocated(error)) return
+        call check(error, any([(names(k)%name == "emacs-mule", k=1, 3)]) &
+                   .and. any([(names(k)%name == "japanese-shift-jis", k=1, 3)]) .and. names(3)%name == "raw-text")
+    end subroutine test_emacs_mule
 end module test_coding_fm
