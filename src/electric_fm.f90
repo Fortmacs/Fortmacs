@@ -99,6 +99,7 @@ contains
         type(handle_type), intent(in) :: global_map
         type(value_type), allocatable :: key(:)
         type(status_type) :: st
+
         call minor_modes%electric_indent_mode%define("electric_indent_mode", global=.true., &
                                                      body=electric_indent_mode_body, hook=electric_indent_mode_hook)
         commands%electric_indent_mode%run => electric_indent_mode
@@ -110,11 +111,13 @@ contains
         commands%electric_indent_just_newline%run => electric_indent_just_newline
         commands%electric_newline_and_maybe_indent%run => electric_newline_and_maybe_indent
         if (.not. allocated(electric_indent_chars)) electric_indent_chars = [10]
+
         if (.not. allocated(electric_indent_functions_without_reindent)) then
             electric_indent_functions_without_reindent = [character(len=40) :: "indent_relative", &
                                                           "indent_to_left_margin", "indent_relative_maybe", &
                                                           "indent_relative_first_indent_point", "yaml_indent_line"]
         end if
+
         call key_parse("C-j", key, st)
         call define_key(global_map, key, sym("electric_newline_and_maybe_indent"), st)
     end subroutine syms_of_electric
@@ -133,23 +136,28 @@ contains
         integer :: c
         logical :: found, ok
         type(status_type) :: st
+
         opoint = point()
         pos = opoint
         call char_before(c, found)
         ok = found .and. c == event_char()
+
         if (.not. ok) then
             moved = skip_chars_backward(" "//achar(9), st)
             pos = point()
             call char_before(c, found)
             ok = found .and. c == event_char()
+
             if (.not. ok) then
                 moved = skip_chars_backward(" "//achar(10)//achar(9), st)
                 pos = point()
                 call char_before(c, found)
                 ok = found .and. c == event_char()
             end if
+
             call goto_char(opoint)
         end if
+
         if (.not. ok) pos = 0
     end function electric_after_char_pos
 
@@ -158,9 +166,11 @@ contains
     logical function electric_indent_can_reindent_p() result(can)
         character(len=:), allocatable :: name
         integer :: k
+
         can = .not. electric_indent_inhibit%value
         if (.not. can) return
         name = indent_line_function_name(indent_line_function%value)
+
         do k = 1, size(electric_indent_functions_without_reindent)
             if (name == trim(electric_indent_functions_without_reindent(k))) can = .false.
         end do
@@ -178,9 +188,11 @@ contains
         logical :: go, at_newline
         type(handle_type) :: before, saved
         type(status_type) :: st
+
         status = status_type()
         if (.not. minor_modes%electric_indent_mode%state%value) return
         ev = event_char()
+
         ! Don't reindent while inserting spaces at beginning of line.
         if (ev == 32 .or. ev == 9) then
             opoint = point()
@@ -189,6 +201,7 @@ contains
             call goto_char(opoint)
             if (.not. go) return
         end if
+
         pos = electric_after_char_pos()
         if (pos == 0) return
         if (.not. any(electric_indent_chars == ev)) return
@@ -198,20 +211,24 @@ contains
         ! like reindent-then-newline-and-indent (whose code we hence
         ! copied).
         at_newline = pos <= line_beginning_position()
+
         if (at_newline) then
             call copy_marker_at(pos - 1, before, .true., st)
             call copy_marker_at(point(), saved, .false., st)
+
             if (electric_indent_can_reindent_p()) then
                 ! Don't reindent the previous line if the indentation
                 ! function is not a real one.
                 call marker_position(before, bpos, st)
                 call goto_char(bpos)
                 call indent_according_to_mode(st)
+
                 if (.not. st%ok()) then
                     call restore()
                     return
                 end if
             end if
+
             ! The goal here will be to remove the trailing whitespace after
             ! reindentation of the previous line because that may have
             ! (re)introduced it.
@@ -224,12 +241,16 @@ contains
             call restore()
             if (.not. status%ok()) return
         end if
+
         if (electric_indent_inhibit%value .and. .not. at_newline) return
         call indent_according_to_mode(st)
+
     contains
+
         !> End the save-excursion and free the markers.
         subroutine restore()
             integer(int64) :: p
+
             call marker_position(saved, p, st)
             call goto_char(p)
             call free_marker(saved, st)
@@ -242,15 +263,18 @@ contains
     subroutine electric_indent_just_newline(status)
         type(status_type), intent(out) :: status
         logical :: saved
+
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
         saved = minor_modes%electric_indent_mode%state%value
         minor_modes%electric_indent_mode%state%value = .false.
+
         if (nilp(current_prefix_arg)) then
             call newline(status, interactive=.true.)
         else
             call newline(status, prefix_numeric_value(current_prefix_arg), interactive=.true.)
         end if
+
         minor_modes%electric_indent_mode%state%value = saved
     end subroutine electric_indent_just_newline
 
@@ -265,8 +289,10 @@ contains
     subroutine electric_newline_and_maybe_indent(status)
         type(status_type), intent(out) :: status
         type(value_type) :: saved
+
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
+
         if (minor_modes%electric_indent_mode%state%value) then
             saved = current_prefix_arg
             current_prefix_arg = nil()
@@ -293,6 +319,7 @@ contains
     !> electric.el:electric-indent-mode.
     subroutine electric_indent_mode(status)
         type(status_type), intent(out) :: status
+
         call minor_modes%electric_indent_mode%command(status)
     end subroutine electric_indent_mode
 
@@ -306,20 +333,25 @@ contains
         integer(int64) :: b
         integer :: k
         logical :: found
+
         status = status_type()
         if (on) continue
+
         if (.not. minor_modes%electric_indent_mode%state%value) then
             found = .false.
             all = buffer_list()
+
             do k = 1, size(all)
                 call resolve_buffer(all(k), b, st)
                 if (.not. st%ok()) cycle
                 call buffer_local_value(sym("electric_indent_mode"), b, v, st)
+
                 if (st%ok() .and. .not. nilp(v)) then
                     found = .true.
                     exit
                 end if
             end do
+
             if (.not. found) call post_self_insert_hook%remove(electric_indent_post_self_insert_function)
         else
             call post_self_insert_hook%add(electric_indent_post_self_insert_function, depth=60)
@@ -330,6 +362,7 @@ contains
     !> electric.el:electric-indent-local-mode.
     subroutine electric_indent_local_mode(status)
         type(status_type), intent(out) :: status
+
         call minor_modes%electric_indent_local_mode%command(status)
     end subroutine electric_indent_local_mode
 
@@ -346,9 +379,11 @@ contains
         type(status_type), intent(out) :: status
         type(value_type) :: default
         type(status_type) :: st
+
         status = status_type()
         call minor_modes%electric_indent_mode%state%set_local(val)
         call default_value(sym("electric_indent_mode"), default, st)
+
         if (minor_modes%electric_indent_mode%state%value .eqv. .not. nilp(default)) then
             call kill_local_variable(sym("electric_indent_mode"), st)
         else if (nilp(default)) then

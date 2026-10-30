@@ -534,12 +534,14 @@ contains
     !> encoded).
     subroutine set_input_meta_mode(mode)
         integer, intent(in) :: mode
+
         meta_key = mode
     end subroutine set_input_meta_mode
 
     !> Read keyboard input from `fd' (-1 for none).
     subroutine set_input_fd(fd)
         integer(int32), intent(in) :: fd
+
         input_fd = fd
     end subroutine set_input_fd
 
@@ -548,9 +550,12 @@ contains
         type(value_type), intent(in) :: ev
         type(value_type), allocatable :: grown(:)
         integer(int64) :: n
+
         if (.not. allocated(events)) allocate (events(64))
+
         if (tail == size(events, kind=int64)) then
             n = tail - head + 1
+
             if (head > 1 .and. n < size(events, kind=int64)/2) then
                 ! Compact in place.
                 events(1:n) = events(head:tail)
@@ -559,9 +564,11 @@ contains
                 grown(1:n) = events(head:tail)
                 call move_alloc(grown, events)
             end if
+
             head = 1
             tail = n
         end if
+
         tail = tail + 1
         events(tail) = ev
     end subroutine store_event
@@ -569,16 +576,20 @@ contains
     !> Store character event `c'.
     subroutine store_char(c)
         integer(int64), intent(in) :: c
+
         call store_event(make_fixnum(c))
     end subroutine store_char
 
     !> Flush incomplete UTF-8 bytes as raw-byte characters.
     subroutine flush_pending()
         integer(int64) :: k
+
         if (.not. allocated(pending_bytes)) return
+
         do k = 1, len(pending_bytes, kind=int64)
             call store_char(int(byte8_to_char(ichar(pending_bytes(k:k), int32)), int64))
         end do
+
         deallocate (pending_bytes)
     end subroutine flush_pending
 
@@ -588,27 +599,33 @@ contains
     subroutine decode_byte(b)
         integer(int32), intent(in) :: b
         integer(int32) :: need, ch, length
+
         if (allocated(pending_bytes)) then
             if (iand(b, int(z'C0', int32)) /= int(z'80', int32)) then
                 ! Not a trailing byte: the pending sequence is invalid.
                 call flush_pending()
             end if
         end if
+
         if (.not. allocated(pending_bytes)) then
             if (b < 128) then
                 call store_char(int(b, int64))
                 return
             end if
+
             if (iand(b, int(z'C0', int32)) == int(z'80', int32)) then
                 call store_char(int(byte8_to_char(b), int64))
                 return
             end if
+
             pending_bytes = char(b)
             return
         end if
+
         pending_bytes = pending_bytes//char(b)
         need = bytes_by_char_head(ichar(pending_bytes(1:1), int32))
         if (len(pending_bytes) < need) return
+
         if (multibyte_length(pending_bytes, 1_int64, .false.) == need) then
             call string_char_and_length(pending_bytes, 1_int64, ch, length)
             call store_char(int(ch, int64))
@@ -624,8 +641,10 @@ contains
         character(len=*), intent(in) :: bytes
         integer(int64) :: k
         integer(int32) :: b
+
         do k = 1, len(bytes, kind=int64)
             b = ichar(bytes(k:k), int32)
+
             select case (meta_key)
             case (1)
                 if (b >= 128) then
@@ -648,6 +667,7 @@ contains
         integer(int64), intent(out) :: nread
         type(status_type), intent(out) :: status
         character(len=4096) :: buf
+
         nread = 0
         if (input_fd < 0) return
         if (.not. input_available(input_fd, 0_int32)) return
@@ -662,6 +682,7 @@ contains
         type(value_type), intent(in) :: evs(:)
         type(value_type), allocatable :: merged(:)
         integer(int64) :: n
+
         n = size(evs, kind=int64)
         allocate (merged(n + nunread))
         merged(1:n) = evs
@@ -679,6 +700,7 @@ contains
             call cancel_kbd_macro_events()
             call finish_kbd_macro()
         end if
+
         nunread = 0
         if (allocated(unread)) deallocate (unread)
         head = 1
@@ -714,6 +736,7 @@ contains
         logical, intent(out) :: have
         type(status_type), intent(out) :: status
         real, intent(in), optional :: seconds
+
         call read_event_1(ev, have, status, seconds)
         if (.not. have) return
         ! Now that we have read an event, Emacs is not idle.
@@ -730,6 +753,7 @@ contains
     subroutine record_recent(ev, command)
         type(value_type), intent(in) :: ev
         logical, intent(in) :: command
+
         if (total_keys < LOSSAGE_LIMIT) total_keys = total_keys + 1
         recent_events(recent_keys_index) = ev
         recent_is_command(recent_keys_index) = command
@@ -746,22 +770,26 @@ contains
         type(value_type), allocatable, intent(out) :: keys(:)
         logical, allocatable, intent(out) :: is_command(:)
         integer :: i, k, n, first
+
         if (total_keys < LOSSAGE_LIMIT) then
             first = 1
         else
             first = recent_keys_index
         end if
+
         n = total_keys
         if (.not. include_cmds) n = total_keys - count(recent_is_command(1:total_keys))
         allocate (keys(n), is_command(n))
         n = 0
         i = first
+
         do k = 1, total_keys
             if (include_cmds .or. .not. recent_is_command(i)) then
                 n = n + 1
                 keys(n) = recent_events(i)
                 is_command(n) = recent_is_command(i)
             end if
+
             i = i + 1
             if (i > LOSSAGE_LIMIT) i = 1
         end do
@@ -782,10 +810,13 @@ contains
         real, intent(in), optional :: seconds
         integer(int64) :: nread, start, now, rate
         integer(int32) :: timeout
+
         have = .false.
         call system_clock(start, rate)
+
         reading: do
             call run_special_events()
+
             if (nunread > 0) then
                 ev = unread(1)
                 unread(1:nunread - 1) = unread(2:nunread)
@@ -794,32 +825,39 @@ contains
                 have = .true.
                 return
             end if
+
             ! If we're executing a macro, process it unless we are at its
             ! end.
             if (macro_active) then
                 if (.not. at_end_of_macro_p()) then
                     executing_kbd_macro_index = executing_kbd_macro_index + 1
                     ev = macro_events(executing_kbd_macro_index)
+
                     if (macro_string .and. fixnump(ev)) then
                         if (iand(xfixnum(ev), 128_int64) /= 0 .and. xfixnum(ev) <= 255) then
                             ev = make_fixnum(ior(M_META, iand(xfixnum(ev), not(128_int64))))
                         end if
                     end if
+
                     have = .true.
                     return
                 end if
             end if
+
             if (tail >= head) then
                 ev = events(head)
                 events(head) = nil()
                 head = head + 1
+
                 if (head > tail) then
                     head = 1
                     tail = 0
                 end if
+
                 have = .true.
                 return
             end if
+
             if (input_fd < 0) then
                 if (.not. present(seconds)) return
                 ! Wait for the other descriptors and the timers only.
@@ -827,6 +865,7 @@ contains
                 if (wait_for_input(timeout)) cycle reading
                 cycle reading
             end if
+
             ! C-g on the terminal arrives as SIGINT; while waiting for
             ! input it reads as the quit character (keyboard.c:
             ! handle_interrupt's quit_throw_to_read_char).
@@ -835,16 +874,19 @@ contains
                 have = .true.
                 return
             end if
+
             ! Nothing typed yet: show the screen before waiting (read_char's
             ! redisplay).
             if (associated(redisplay_hook)) then
                 if (.not. input_available(input_fd, 0_int32)) call redisplay_hook()
             end if
+
             ! Emacs is idle while it waits for input; the timers run while
             ! waiting, and the wait ends when the next one is due
             ! (read_char's timer_start_idle, wait_reading_process_output's
             ! timer_check).
             call timer_start_idle()
+
             waiting: do
                 if (present(seconds)) then
                     if (time_left(timeout) < 0) return
@@ -852,26 +894,32 @@ contains
                 else
                     if (wait_for_input(run_timers())) exit waiting
                 end if
+
                 ! A timer or subprocess may have queued events, or C-g came.
                 if (nunread > 0 .or. tail >= head) cycle reading
+
                 if (interrupt_pending()) then
                     ev = make_fixnum(7_int64)
                     have = .true.
                     return
                 end if
             end do waiting
+
             call tty_read_avail_input(nread, status)
             if (.not. status%ok()) return
             ! End of file: the terminal went away.
             if (nread == 0) return
         end do reading
+
     contains
+
         !> The milliseconds left until SECONDS have passed (negative when
         !> they have), and in MS how long to wait: until then or until
         !> the next timer, after running the ripe timers.
         recursive integer(int64) function time_left(ms) result(left)
             integer(int32), intent(out) :: ms
             integer(int32) :: next_timer
+
             call system_clock(now)
             left = int(seconds*1000, int64) - (now - start)*1000/max(rate, 1_int64)
             ms = int(max(left, 0_int64), int32)
@@ -887,6 +935,7 @@ contains
     function map_value(km) result(v)
         type(handle_type), intent(in) :: km
         type(value_type) :: v
+
         if (keymap_live_p(km)) v = make_keymap_ref(km)
     end function map_value
 
@@ -895,9 +944,12 @@ contains
     logical function test_undefined(binding)
         type(value_type), intent(in) :: binding
         type(value_type) :: remapped
+
         test_undefined = nilp(binding)
+
         if (.not. test_undefined .and. symbolp(binding)) then
             test_undefined = xsymbol(binding) == intern("undefined")
+
             if (.not. test_undefined) then
                 call command_remapping(binding, remapped)
                 if (symbolp(remapped)) test_undefined = xsymbol(remapped) == intern("undefined")
@@ -912,20 +964,24 @@ contains
         character(len=:), allocatable :: s
         integer(int64) :: pos, n
         integer(int32) :: ch, length
+
         if (vtag(next) == V_LIST) then
             call list_elements(next, seq)
             return
         end if
+
         s = xstring(next)
         allocate (seq(len(s)))
         n = 0
         pos = 1
+
         do while (pos <= len(s, kind=int64))
             call string_char_and_length(s, pos, ch, length)
             n = n + 1
             seq(n) = make_fixnum(int(ch, int64))
             pos = pos + length
         end do
+
         seq = seq(1:n)
     end subroutine sequence_events
 
@@ -945,20 +1001,24 @@ contains
         type(value_type) :: key, next
         type(value_type), allocatable :: seq(:)
         integer :: i, n
+
         done = .false.
         diff = 0
         key = keybuf(fk%end + 1)
         fk%end = fk%end + 1
         if (keymapp(fk%parent)) next = access_keymap(fk%map, key, .true., .false.)
+
         if (doit .and. (stringp(next) .or. (vtag(next) == V_LIST .and. &
                                             .not. keymapp(next)))) then
             call sequence_events(next, seq)
             n = size(seq)
             diff = n - (fk%end - fk%start)
+
             if (READ_KEY_ELTS - input <= diff) then
                 call set_error(status, FM_GENERIC_ERROR, "Key sequence too long")
                 return
             end if
+
             if (diff < 0) then
                 do i = fk%end, input - 1
                     keybuf(i + diff + 1) = keybuf(i + 1)
@@ -968,6 +1028,7 @@ contains
                     keybuf(i + diff + 1) = keybuf(i + 1)
                 end do
             end if
+
             keybuf(fk%start + 1:fk%start + n) = seq
             fk%end = fk%end + diff
             fk%start = fk%end
@@ -975,6 +1036,7 @@ contains
             done = .true.
             return
         end if
+
         if (keymapp(next)) then
             fk%map = next
         else
@@ -987,6 +1049,7 @@ contains
     subroutine reset_remap(fk, pos)
         type(keyremap_type), intent(inout) :: fk
         integer, intent(in) :: pos
+
         fk%start = pos
         fk%end = pos
         fk%map = fk%parent
@@ -1012,6 +1075,7 @@ contains
                    original_uppercase_position
         integer(int64) :: k, c, bits
         logical :: have, done, shift_translated, macro_end
+
         eof = .false.
         t = 0
         mock_input = 0
@@ -1023,34 +1087,41 @@ contains
         call reset_remap(indec, 0)
         call reset_remap(fkey, 0)
         call reset_remap(keytran, 0)
+
         replay: do
             first_unbound = READ_KEY_ELTS + 1
             current_binding = current_active_maps()
             t = 0
+
             keyloop: do
                 if (nilp(current_binding)) then
                     if (keytran%start >= t) exit replay
                 else if (.not. keymapp(current_binding)) then
                     exit replay
                 end if
+
                 if (first_unbound < keytran%start) then
                     ! The prefix up to first_unbound is unbound and has no
                     ! translation left: drop it and start over.
                     do i = first_unbound + 1, t - 1
                         keybuf(i - first_unbound) = keybuf(i + 1)
                     end do
+
                     mock_input = t - first_unbound - 1
                     call reset_remap(indec, indec%start - (first_unbound + 1))
                     call reset_remap(fkey, fkey%start - (first_unbound + 1))
                     call reset_remap(keytran, keytran%start - (first_unbound + 1))
                     cycle replay
                 end if
+
                 if (t >= READ_KEY_ELTS) then
                     call set_error(status, FM_GENERIC_ERROR, "Key sequence too long")
                     return
                 end if
+
                 macro_end = .false.
                 if (macro_active .and. nunread == 0) macro_end = at_end_of_macro_p()
+
                 if (t < mock_input) then
                     key = keybuf(t + 1)
                 else if (macro_end) then
@@ -1062,31 +1133,38 @@ contains
                 else
                     call read_event(key, have, status)
                     if (.not. status%ok()) return
+
                     if (.not. have) then
                         eof = .true.
                         exit replay
                     end if
                 end if
+
                 ! keyboard.c:follow_key
                 new_binding = access_keymap(current_binding, key, .true., .false.)
+
                 if (.not. nilp(new_binding)) then
                     first_unbound = max(t + 1, first_unbound)
                 else
                     first_unbound = min(t, first_unbound)
                 end if
+
                 current_binding = new_binding
                 keybuf(t + 1) = key
                 t = t + 1
+
                 ! input-decode-map: applies wherever it matches.
                 do while (indec%end < t)
                     call keyremap_step(keybuf, indec, max(t, mock_input), .true., &
                                        diff, done, status)
                     if (.not. status%ok()) return
+
                     if (done) then
                         mock_input = diff + max(t, mock_input)
                         cycle replay
                     end if
                 end do
+
                 ! local-function-key-map: only for undefined sequences.
                 if (.not. keymapp(current_binding) .and. &
                     .not. test_undefined(current_binding) .and. indec%start >= t) then
@@ -1098,6 +1176,7 @@ contains
                                            test_undefined(current_binding), &
                                            diff, done, status)
                         if (.not. status%ok()) return
+
                         if (done) then
                             mock_input = diff + max(t, mock_input)
                             indec%end = indec%end + diff
@@ -1106,11 +1185,13 @@ contains
                         end if
                     end do
                 end if
+
                 ! key-translation-map.
                 do while (keytran%end < fkey%start)
                     call keyremap_step(keybuf, keytran, max(t, mock_input), .true., &
                                        diff, done, status)
                     if (.not. status%ok()) return
+
                     if (done) then
                         mock_input = diff + max(t, mock_input)
                         indec%end = indec%end + diff
@@ -1120,12 +1201,14 @@ contains
                         cycle replay
                     end if
                 end do
+
                 ! An undefined upper-case or shifted character: try it without
                 ! the shift.
                 if (nilp(current_binding) .and. keytran%start >= t .and. &
                     fixnump(key)) then
                     k = xfixnum(key)
                     c = iand(k, not(M_MASK))
+
                     if (iand(k, M_SHIFT) /= 0) then
                         k = k - M_SHIFT
                     else if (c >= iachar("A") .and. c <= iachar("Z")) then
@@ -1133,6 +1216,7 @@ contains
                     else
                         cycle keyloop
                     end if
+
                     original_uppercase = key
                     original_uppercase_position = t - 1
                     keybuf(t) = make_fixnum(k)
@@ -1140,10 +1224,12 @@ contains
                     shift_translated = .true.
                     cycle replay
                 end if
+
                 ! An undefined shifted function key: try it unshifted.
                 if (nilp(current_binding) .and. keytran%start >= t .and. &
                     symbolp(key)) then
                     call parse_modifiers(key, bits, base)
+
                     if (iand(bits, M_SHIFT) /= 0) then
                         original_uppercase = key
                         original_uppercase_position = t - 1
@@ -1157,12 +1243,14 @@ contains
                 end if
             end do keyloop
         end do replay
+
         ! An undefined key keeps its original case.
         if (nilp(current_binding) .and. t > 0 .and. &
             t - 1 == original_uppercase_position) then
             keybuf(t) = original_uppercase
             shift_translated = .false.
         end if
+
         this_command_keys_shift_translated = shift_translated
         binding = current_binding
         if (keymapp(binding)) binding = nil()
@@ -1198,6 +1286,7 @@ contains
         type(value_type), allocatable :: events(:), key(:)
         character(len=:), allocatable :: keys
         integer :: k, at
+
         ! internal-push-keymap: the old map stays active below.
         if (.not. transient_active) pushed_terminal_local_map = overriding_terminal_local_map
         overriding_terminal_local_map = km
@@ -1210,11 +1299,13 @@ contains
         if (.not. present(message)) return
         call keymap_events(km, events)
         keys = ""
+
         do k = 1, size(events)
             key = [events(k)]
             if (k > 1) keys = keys//", "
             keys = keys//key_description(key)
         end do
+
         ! format-spec with %k.
         transient_message = message
         at = index(transient_message, "%k")
@@ -1227,6 +1318,7 @@ contains
     subroutine exit_transient_map(km)
         type(handle_type), intent(in) :: km
         type(value_type) :: none(0)
+
         if (.not. transient_active) return
         if (overriding_terminal_local_map%index /= km%index .or. &
             overriding_terminal_local_map%generation /= km%generation) return
@@ -1243,22 +1335,27 @@ contains
         type(value_type) :: mc
         type(status_type) :: st
         procedure(transient_exit_proc), pointer :: on_exit
+
         if (transient_keep) then
             call lookup_key(map_value(overriding_terminal_local_map), keys, mc, st)
+
             if (st%ok() .and. .not. nilp(mc) .and. value_eq(this_command, mc)) then
                 ! Repeat the message for the next command.
                 if (allocated(transient_message)) last_message = transient_message
                 return
             end if
         end if
+
         overriding_terminal_local_map = pushed_terminal_local_map
         pushed_terminal_local_map = null_handle()
         transient_active = .false.
+
         ! Clear the prompt after exiting.
         if (allocated(transient_message)) then
             last_message = ""
             deallocate (transient_message)
         end if
+
         on_exit => transient_on_exit
         transient_on_exit => null()
         if (associated(on_exit)) call on_exit()
@@ -1270,12 +1367,15 @@ contains
     !> number of milliseconds to wait for the next timer, or -1 for none.
     recursive integer(int32) function run_timers() result(ms)
         integer(int64) :: old_timers_run
+
         old_timers_run = timers_run
         ms = timer_check()
+
         if (allocated(timer_error_message)) then
             last_message = timer_error_message
             deallocate (timer_error_message)
         end if
+
         if (timers_run /= old_timers_run .and. associated(redisplay_hook)) call redisplay_hook()
     end function run_timers
 
@@ -1288,11 +1388,15 @@ contains
         integer(int32), intent(in) :: ms
         integer(int64) :: start, now, rate, left
         integer(int32) :: timeout, next_timer
+
         if (associated(redisplay_hook)) call redisplay_hook()
+
         if (input_fd >= 0) then
             if (input_pending_p()) return
         end if
+
         call system_clock(start, rate)
+
         do
             call run_special_events()
             call system_clock(now)
@@ -1315,22 +1419,28 @@ contains
         integer(int32), allocatable :: fds(:)
         logical, allocatable :: got(:)
         integer :: k, n
+
         n = n_read_fds()
+
         if (n == 0 .and. (process_wake_fd < 0 .or. .not. associated(process_output_hook))) then
             ready = input_available(input_fd, timeout)
             return
         end if
+
         allocate (fds(2 + n), got(2 + n))
         fds(1) = input_fd
         fds(2) = -1
         if (associated(process_output_hook)) fds(2) = process_wake_fd
+
         do k = 1, n
             fds(2 + k) = read_fds(k)%fd
         end do
+
         call inputs_available(fds, timeout, got)
         ready = got(1)
         if (ready) return
         if (got(2)) call process_output_hook()
+
         do k = 1, n
             if (.not. got(2 + k)) cycle
             ! A callback may have removed descriptors.
@@ -1338,6 +1448,7 @@ contains
             if (read_fds(k)%fd /= fds(2 + k)) cycle
             call read_fds(k)%callback(fds(2 + k))
         end do
+
         call run_special_events()
         if (any(got) .and. associated(redisplay_hook)) call redisplay_hook()
     end function wait_for_input
@@ -1356,14 +1467,17 @@ contains
         procedure(read_fd_proc) :: callback
         type(read_fd_type), allocatable :: grown(:)
         integer :: k, n
+
         if (.not. allocated(read_fds)) allocate (read_fds(0))
         n = size(read_fds)
+
         do k = 1, n
             if (read_fds(k)%fd == fd) then
                 read_fds(k)%callback => callback
                 return
             end if
         end do
+
         allocate (grown(n + 1))
         grown(1:n) = read_fds
         grown(n + 1)%fd = fd
@@ -1376,14 +1490,17 @@ contains
         integer(int32), intent(in) :: fd
         type(read_fd_type), allocatable :: kept(:)
         integer :: k, j
+
         if (.not. allocated(read_fds)) return
         allocate (kept(count(read_fds%fd /= fd)))
         j = 0
+
         do k = 1, size(read_fds)
             if (read_fds(k)%fd == fd) cycle
             j = j + 1
             kept(j) = read_fds(k)
         end do
+
         call move_alloc(kept, read_fds)
     end subroutine delete_read_fd
 
@@ -1395,12 +1512,15 @@ contains
         procedure(special_event_proc) :: handler
         integer(int64), intent(in) :: arg
         type(special_event_type), allocatable :: grown(:)
+
         if (.not. allocated(special_events)) allocate (special_events(8))
+
         if (n_special_events == size(special_events)) then
             allocate (grown(2*n_special_events))
             grown(1:n_special_events) = special_events
             call move_alloc(grown, special_events)
         end if
+
         n_special_events = n_special_events + 1
         special_events(n_special_events)%handler => handler
         special_events(n_special_events)%arg = arg
@@ -1417,6 +1537,7 @@ contains
     recursive subroutine run_special_events()
         type(special_event_type) :: ev
         type(status_type) :: st
+
         do while (n_special_events > 0)
             ev = special_events(1)
             special_events(1:n_special_events - 1) = special_events(2:n_special_events)
@@ -1441,6 +1562,7 @@ contains
     !> macros.c:at_end_of_macro_p.
     logical function at_end_of_macro_p()
         at_end_of_macro_p = macro_forced_end .or. .not. allocated(macro_events)
+
         if (.not. at_end_of_macro_p) then
             at_end_of_macro_p = executing_kbd_macro_index >= size(macro_events, kind=int64)
         end if
@@ -1461,6 +1583,7 @@ contains
         use buffer_fm, only: set_buffer, buffer_live_p
         type(handle_type) :: sw
         type(status_type) :: st
+
         sw = selected_window()
         if (.not. window_live_p(sw)) return
         if (buffer_live_p(windows(sw%index)%buffer)) call set_buffer(windows(sw%index)%buffer, st)
@@ -1476,6 +1599,7 @@ contains
     !> an error.  Port of dispnew.c:bitch_at_user.
     subroutine bitch_at_user(status)
         type(status_type), intent(inout) :: status
+
         if (macro_active) then
             ! Stop executing a keyboard macro.
             call set_error(status, FM_USER_ERROR, "Keyboard macro terminated by a command ringing the bell")
@@ -1493,7 +1617,9 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: macroerror
         character(len=24) :: buf
+
         macroerror = ""
+
         if (macro_started) then
             if (executing_kbd_macro_iterations == 1) then
                 macroerror = "After 1 kbd macro iteration: "
@@ -1502,6 +1628,7 @@ contains
                 macroerror = "After "//trim(buf)//" kbd macro iterations: "
             end if
         end if
+
         macro_active = .false.
         macro_started = .false.
         if (allocated(macro_events)) deallocate (macro_events)
@@ -1528,38 +1655,47 @@ contains
         logical :: eof, handled
         type(status_type) :: hook_status
         integer(int64) :: last_point_position, prev_serial, prev_modiff
+
         done = .false.
         ! Make sure the current window's buffer is selected.
         call select_window_buffer()
         this_command = nil()
         real_this_command = nil()
         call read_key_sequence(keys, cmd, eof, status)
+
         if (.not. status%ok()) then
             if (loop_handles_errors) call cmd_error(status)
             return
         end if
+
         if (eof .and. size(keys) == 0) then
             done = .true.
             return
         end if
+
         ! A new command clears the echo area (read_char wipes it, except
         ! for events from a keyboard macro).
         if (.not. macro_active) then
             if (allocated(last_message)) last_message = ""
         end if
+
         ! minibuffer--delete-message-overlay runs from pre-command-hook.
         if (allocated(minibuffer_message_text)) deallocate (minibuffer_message_text)
+
         ! read_char's clear_message runs clear-message-function.
         if (.not. macro_active) then
             if (allocated(set_minibuffer_message_text)) deallocate (set_minibuffer_message_text)
         end if
+
         ! Input ended in the middle of a key sequence: it is unbound.
         if (eof) cmd = nil()
+
         ! Remap command through active keymaps (read_key_sequence_remapped).
         if (symbolp(cmd) .and. .not. nilp(cmd)) then
             call command_remapping(cmd, remapped)
             if (.not. nilp(remapped)) cmd = remapped
         end if
+
         last_command_event = keys(size(keys))
         this_command_keys = keys
         ! Execute the command: recorded in recent_keys as (nil . cmd).
@@ -1581,11 +1717,13 @@ contains
         last_point_position = 0
         prev_serial = -1
         prev_modiff = 0
+
         if (cur /= 0) then
             last_point_position = buffers(cur)%pt
             prev_serial = buffers(cur)%serial
             prev_modiff = buffers(cur)%text%modiff
         end if
+
         ! keyboard.c:command_loop_1: undo boundaries for the changes of the
         ! last command, and where point is for record_point.
         if (cur /= 0) then
@@ -1593,7 +1731,9 @@ contains
             point_before_last_command_or_undo = buffers(cur)%pt
             buffer_before_last_command_or_undo = buffers(cur)%serial
         end if
+
         deactivate_mark_variable = .false.
+
         if (nilp(cmd)) then
             ! nil means key is undefined.
             call funcall(sym("undefined"), status)
@@ -1601,6 +1741,7 @@ contains
             ! simple.el:command-execute
             current_prefix_arg = prefix_arg
             prefix_arg = nil()
+
             if (stringp(cmd) .or. vtag(cmd) == V_LIST) then
                 call execute_kbd_macro(cmd, current_prefix_arg, status)
             else
@@ -1609,6 +1750,7 @@ contains
                 if (.not. handled) call call_interactively(cmd, status)
             end if
         end if
+
         if (.not. status%ok()) then
             ! The error leaves command_loop_1: in a keyboard macro's loop it
             ! ends the macro; else the handler reports it and the next
@@ -1622,12 +1764,14 @@ contains
             done = eof
             return
         end if
+
         last_prefix_arg = current_prefix_arg
         last_command = this_command
         real_last_command = real_this_command
         if (vtag(last_command_event) /= V_LIST) last_repeatable_command = real_this_command
         ! post-command-hook
         call post_command_hook%run(hook_status)
+
         ! A command that changed the buffer (or asked to) ends an active
         ! region in Transient Mark mode (simple.el:deactivate-mark).
         if (cur /= 0) then
@@ -1639,6 +1783,7 @@ contains
                 end if
             end if
         end if
+
         ! finalize: point moved into text that should be intangible.
         if (cur /= 0) then
             if (buffers(cur)%serial == prev_serial .and. selected_window_shows_current() .and. &
@@ -1648,6 +1793,7 @@ contains
                 end if
             end if
         end if
+
         ! Install chars successfully executed in kbd macro.
         if (defining_kbd_macro /= DEFINING_KBD_MACRO_NIL .and. nilp(prefix_arg)) call finalize_kbd_macro_chars()
         done = eof
@@ -1658,6 +1804,7 @@ contains
         use frame_fm, only: selected_window
         use window_fm, only: windows, window_live_p
         type(handle_type) :: sw
+
         shows = .false.
         sw = selected_window()
         if (.not. window_live_p(sw)) return
@@ -1668,6 +1815,7 @@ contains
     integer function buffer_handle_index() result(k)
         use buffer_fm, only: current_buffer
         type(handle_type) :: b
+
         b = current_buffer()
         k = b%index
     end function buffer_handle_index
@@ -1679,6 +1827,7 @@ contains
     logical function display_prop_intangible_p(prop) result(replaces)
         type(value_type), intent(in) :: prop
         type(value_type), allocatable :: elts(:)
+
         replaces = stringp(prop)
         if (replaces .or. vtag(prop) /= V_LIST) return
         call list_elements(prop, elts)
@@ -1699,17 +1848,20 @@ contains
         type(handle_type) :: overlay
         logical :: check_display, check_invisible, ellipsis, shown, ok
         integer :: inv
+
         check_display = .true.
         check_invisible = .true.
         orig_pt = pt()
         pt_before_invis = pt()
         begv = buffers(cur)%begv
         zv = buffers(cur)%zv
+
         do while (check_display .or. check_invisible)
             if (check_display .and. pt() > begv .and. pt() < zv) then
                 call get_char_property_and_overlay(pt(), sym("display"), val, overlay)
                 ok = .false.
                 if (.not. nilp(val)) ok = display_prop_intangible_p(val)
+
                 if (ok) then
                     if (overlay%index == 0) then
                         call get_property_and_range(pt(), sym("display"), val, beg, end)
@@ -1717,6 +1869,7 @@ contains
                         beg = overlay_start(overlay)
                         end = overlay_end(overlay)
                     end if
+
                     if (beg < pt() .or. (beg <= pt() .and. empty_string(val))) then
                         if (pt() < last_pt) then
                             if (empty_string(val)) then
@@ -1727,16 +1880,20 @@ contains
                         else
                             call goto_char(end)
                         end if
+
                         check_invisible = .true.
                     end if
                 end if
             end if
+
             check_display = .false.
             pt_before_invis = pt()
+
             if (check_invisible .and. pt() > begv .and. pt() < zv) then
                 ellipsis = .false.
                 beg = pt()
                 end = pt()
+
                 ! Find boundaries `beg' and `end' of the invisible area, if
                 ! any.
                 do while (end < zv)
@@ -1747,6 +1904,7 @@ contains
                     ellipsis = ellipsis .or. inv > 1 .or. overlay_strings_p(overlay)
                     end = next_single_char_property_change(end, sym("invisible"))
                 end do
+
                 do while (beg > begv)
                     call get_char_property_and_overlay(beg - 1, sym("invisible"), val, overlay)
                     if (nilp(val)) exit
@@ -1755,6 +1913,7 @@ contains
                     ellipsis = ellipsis .or. inv > 1 .or. overlay_strings_p(overlay)
                     beg = previous_single_char_property_change(beg, sym("invisible"))
                 end do
+
                 ! Move away from the inside area.
                 if (beg < pt() .and. end > pt()) then
                     if (orig_pt == pt() .and. (last_pt < beg .or. last_pt > end)) then
@@ -1766,6 +1925,7 @@ contains
                         ! we still have more freedom below in choosing which
                         ! end of the range to go to.
                         orig_pt = -1
+
                         if (pt() < last_pt) then
                             call goto_char(end)
                         else
@@ -1781,8 +1941,10 @@ contains
                             call goto_char(end)
                         end if
                     end if
+
                     check_display = .true.
                 end if
+
                 ! Pretend the area doesn't exist if the buffer is not
                 ! modified, but only if the invisible text is not shown on
                 ! display.  Invisible text might be "shown on display" if
@@ -1794,6 +1956,7 @@ contains
                 ! adjustments due to invisible property, as cursor
                 ! positioning by the display engine will do a better job.
                 if (shown) call goto_char(pt_before_invis)
+
                 if (.not. modified .and. .not. shown .and. .not. ellipsis .and. beg < end) then
                     if (last_pt == beg .and. pt() == end .and. end < zv) then
                         check_display = .true.
@@ -1815,8 +1978,10 @@ contains
                     end if
                 end if
             end if
+
             check_invisible = .false.
         end do
+
     contains
 
         integer(int64) function pt()
@@ -1825,6 +1990,7 @@ contains
 
         logical function empty_string(v)
             type(value_type), intent(in) :: v
+
             empty_string = .false.
             if (stringp(v)) empty_string = len(xstring(v)) == 0
         end function empty_string
@@ -1832,6 +1998,7 @@ contains
         !> Whether OVERLAY has an after-string or a before-string.
         logical function overlay_strings_p(ov)
             type(handle_type), intent(in) :: ov
+
             overlay_strings_p = .false.
             if (ov%index == 0) return
             overlay_strings_p = .not. nilp(overlay_get(ov, "after_string")) .or. &
@@ -1845,13 +2012,16 @@ contains
         type(status_type), intent(out) :: status
         type(status_type) :: step_status
         logical :: done, saved_handles
+
         exit_requested = .false.
         saved_handles = loop_handles_errors
         loop_handles_errors = .true.
+
         do
             call command_loop_step(done, step_status)
             if (done .or. exit_requested) exit
         end do
+
         macro_started = .false.
         loop_handles_errors = saved_handles
         exit_requested = .false.
@@ -1867,6 +2037,7 @@ contains
         type(status_type), intent(out) :: status
         type(status_type) :: step_status
         logical :: done, saved_handles, macro_end
+
         command_loop_level = command_loop_level + 1
         exit_pending = .false.
         saved_handles = loop_handles_errors
@@ -1874,27 +2045,33 @@ contains
         macro_end = .false.
         exit_levels = 1
         if (allocated(exit_string)) deallocate (exit_string)
+
         do
             call command_loop_step(done, step_status)
             if (done .and. macro_active) macro_end = at_end_of_macro_p()
             if (exit_pending .or. done .or. exit_requested) exit
         end do
+
         loop_handles_errors = saved_handles
         ! command_loop: executing_kbd_macro = Qnil.
         macro_started = .false.
+
         if (macro_end .and. .not. exit_pending) then
             ! command_loop_1 returned at the end of the macro: as (throw
             ! 'exit nil).
             exit_pending = .true.
             exit_abort = .false.
         end if
+
         if (allocated(exit_string)) then
             call set_error(status, FM_GENERIC_ERROR, exit_string)
             deallocate (exit_string)
         else if (.not. exit_pending .or. exit_abort) then
             call set_error(status, FM_QUIT)
         end if
+
         command_loop_level = command_loop_level - 1
+
         if (exit_pending .and. exit_abort .and. exit_levels > 1) then
             ! Quit the enclosing recursive edits too.
             exit_levels = exit_levels - 1
@@ -1912,6 +2089,7 @@ contains
     subroutine throw_exit(abort, levels)
         logical, intent(in) :: abort
         integer, intent(in), optional :: levels
+
         exit_pending = .true.
         exit_abort = abort
         exit_levels = 1
@@ -1924,6 +2102,7 @@ contains
     !> to `exit'.
     subroutine throw_exit_string(msg)
         character(len=*), intent(in) :: msg
+
         exit_pending = .true.
         exit_abort = .false.
         exit_levels = 1
@@ -1934,6 +2113,7 @@ contains
     !> Port of keyboard.c:Fexit_recursive_edit.
     subroutine exit_recursive_edit(status)
         type(status_type), intent(out) :: status
+
         if (command_loop_level > 0) then
             call throw_exit(.false.)
         else
@@ -1945,6 +2125,7 @@ contains
     !> minibuffer.  Port of keyboard.c:Fabort_recursive_edit.
     subroutine abort_recursive_edit(status)
         type(status_type), intent(out) :: status
+
         if (command_loop_level > 0) then
             call throw_exit(.true.)
         else

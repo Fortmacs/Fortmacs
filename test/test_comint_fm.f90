@@ -48,6 +48,7 @@ contains
 
     subroutine collect_comint_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("comint-arguments", test_arguments), &
                     new_unittest("comint-send-input", test_send_input), &
@@ -64,16 +65,21 @@ contains
         type(status_type) :: st
         integer(int64) :: start, now, rate
         logical :: got
+
         call system_clock(start, rate)
+
         do
             if (len(text) > 0) then
                 if (index(buffer_string(), text) > 0) exit
             end if
+
             proc = get_buffer_process(current())
             if (proc%index == 0) exit
+
             if (len(text) == 0) then
                 if (process_status(proc) /= "run") exit
             end if
+
             call system_clock(now)
             if ((now - start)/max(rate, 1_int64) > TIMEOUT) exit
             call accept_process_output(got, st, proc, 1.0)
@@ -83,6 +89,7 @@ contains
     function current() result(h)
         use buffer_fm, only: current_buffer
         type(handle_type) :: h
+
         h = current_buffer()
     end function current
 
@@ -91,6 +98,7 @@ contains
         type(handle_type), intent(in) :: h
         type(handle_type) :: proc
         type(status_type) :: st
+
         if (.not. buffer_live_p(h)) return
         proc = get_buffer_process(h)
         if (proc%index /= 0) call delete_process(proc, st)
@@ -100,6 +108,7 @@ contains
 
     subroutine test_arguments(error)
         type(error_type), allocatable, intent(out) :: error
+
         call init_bindings()
         call check(error, comint_arguments("ls -l /tmp", 0, 0), "ls")
         if (.not. allocated(error)) call check(error, comint_arguments("ls -l /tmp", 1, 2), "-l /tmp")
@@ -115,6 +124,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         logical :: saved
+
         call init_bindings()
         saved = process_connection_type%value
         process_connection_type = .false.
@@ -152,6 +162,7 @@ contains
         type(status_type) :: st
         logical :: saved
         integer(int64) :: input_start
+
         call init_bindings()
         saved = process_connection_type%value
         process_connection_type = .false.
@@ -183,6 +194,7 @@ contains
         type(status_type) :: st
         type(process_arg_type) :: switches(1)
         logical :: saved
+
         call init_bindings()
         saved = process_connection_type%value
         process_connection_type = .false.

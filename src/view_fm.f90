@@ -152,8 +152,10 @@ contains
     logical function serial_live(serial)
         integer(int64), intent(in) :: serial
         integer(int64) :: k
+
         serial_live = .false.
         if (.not. allocated(buffers)) return
+
         do k = 1, size(buffers, kind=int64)
             if (buffers(k)%serial /= serial) cycle
             serial_live = buffer_live_p(buffer_handle(k))
@@ -167,27 +169,33 @@ contains
         logical, intent(in) :: make
         type(view_local_type), allocatable :: grown(:)
         integer :: i, n
+
         k = 0
         if (cur == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
+
         do i = 1, size(locals)
             if (locals(i)%set .and. locals(i)%serial == buffers(cur)%serial) then
                 k = i
                 return
             end if
         end do
+
         if (.not. make) return
+
         ! Reuse the entry of a dead buffer.
         do i = 1, size(locals)
             if (locals(i)%set) then
                 if (serial_live(locals(i)%serial)) cycle
             end if
+
             locals(i) = view_local_type()
             locals(i)%set = .true.
             locals(i)%serial = buffers(cur)%serial
             k = i
             return
         end do
+
         n = size(locals)
         allocate (grown(n + 1))
         grown(1:n) = locals
@@ -201,6 +209,7 @@ contains
     !> kill-all-local-variables: View mode's buffer-local variables.
     subroutine kill_view_locals()
         integer :: k
+
         k = local_index(.false.)
         if (k > 0) locals(k) = view_local_type()
     end subroutine kill_view_locals
@@ -209,6 +218,7 @@ contains
     !> buffer-local value if it has one.
     logical function view_read_only_value()
         integer :: k
+
         view_read_only_value = view_read_only
         k = local_index(.false.)
         if (k == 0) return
@@ -219,6 +229,7 @@ contains
     subroutine set_view_read_only_local(value)
         logical, intent(in) :: value
         integer :: k
+
         k = local_index(.true.)
         if (k == 0) return
         locals(k)%has_view_read_only = .true.
@@ -241,6 +252,7 @@ contains
         type(handle_type), intent(in) :: buf
         type(status_type), intent(out) :: status
         logical :: modified
+
         status = status_type()
         if (.not. buffer_live_p(buf)) return
         call buffer_modified_p(buf, modified, status)
@@ -252,6 +264,7 @@ contains
     recursive subroutine kill_buffer_action(buf, status)
         type(handle_type), intent(in) :: buf
         type(status_type), intent(out) :: status
+
         call kill_buffer(buf, status)
     end subroutine kill_buffer_action
 
@@ -259,6 +272,7 @@ contains
     !> `mode_class' property is `special').
     logical function special_major_mode()
         type(major_mode_type), pointer :: p
+
         special_major_mode = .false.
         if (.not. allocated(buffers(cur)%major_mode)) return
         p => major_mode_named(buffers(cur)%major_mode)
@@ -273,16 +287,20 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: absname
         type(handle_type) :: had_a_buf, buffer
+
         status = status_type()
+
         if (.not. file_exists_p(file)) then
             call set_error(status, FM_GENERIC_ERROR, file//" does not exist")
             return
         end if
+
         call expand_file_name(file, absname, status)
         if (.not. status%ok()) return
         had_a_buf = get_file_buffer(absname)
         call find_file_noselect(file, buffer, status)
         if (.not. status%ok()) return
+
         if (had_a_buf%index == 0) then
             call view_buffer(buffer, status, kill_buffer_if_not_modified)
         else
@@ -302,6 +320,7 @@ contains
     recursive subroutine cmd_view_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
+
         call read_file_name("View file: ", file, status, mustmatch=REQUIRE_MATCH_T)
         if (.not. status%ok()) return
         call view_file(file, status)
@@ -316,16 +335,20 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: absname
         type(handle_type) :: had_a_buf, buf_to_view
+
         status = status_type()
+
         if (.not. file_exists_p(file)) then
             call set_error(status, FM_GENERIC_ERROR, file//" does not exist")
             return
         end if
+
         call expand_file_name(file, absname, status)
         if (.not. status%ok()) return
         had_a_buf = get_file_buffer(absname)
         call find_file_noselect(file, buf_to_view, status)
         if (.not. status%ok()) return
+
         if (had_a_buf%index == 0) then
             call view_buffer_other_window(buf_to_view, status, kill_buffer_if_not_modified)
         else
@@ -352,6 +375,7 @@ contains
     recursive subroutine cmd_view_file_other_window(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
+
         call read_file_name("In other window view file: ", file, status, mustmatch=REQUIRE_MATCH_T)
         if (.not. status%ok()) return
         call view_file_other_window(file, status)
@@ -366,12 +390,16 @@ contains
         type(status_type), intent(out) :: status
         procedure(view_exit_action_proc), optional :: exit_action
         integer(int64) :: b
+
         call resolve_buffer(buffer, b, status)
+
         if (.not. status%ok()) then
             return
         end if
+
         call switch_to_buffer(buffers(b)%name, status)
         if (.not. status%ok()) return
+
         if (special_major_mode()) then
             call message("Not using View mode because the major mode is special")
         else
@@ -397,14 +425,17 @@ contains
         character(len=:), allocatable :: name
         type(handle_type) :: other
         integer(int64) :: b
+
         other = other_buffer(current_buffer())
         call resolve_buffer(other, b, st)
         if (.not. st%ok()) b = 0
+
         if (b > 0) then
             call read_buffer("View buffer: ", name, status, def=buffers(b)%name, require_match=REQUIRE_MATCH_T)
         else
             call read_buffer("View buffer: ", name, status, require_match=REQUIRE_MATCH_T)
         end if
+
         if (.not. status%ok()) return
         call view_buffer(buffer_by_name(name), status)
     end subroutine cmd_view_buffer
@@ -414,10 +445,13 @@ contains
         character(len=*), intent(in) :: name
         type(handle_type) :: h
         integer(int64) :: k
+
         h = handle_type()
+
         do k = 1, size(buffers, kind=int64)
             if (.not. buffer_live_p(buffer_handle(k))) cycle
             if (.not. allocated(buffers(k)%name)) cycle
+
             if (buffers(k)%name == name .and. len(buffers(k)%name) == len(name)) then
                 h = buffer_handle(k)
                 return
@@ -433,10 +467,12 @@ contains
         type(status_type), intent(out) :: status
         procedure(view_exit_action_proc), optional :: exit_action
         type(display_alist_type) :: alist
+
         ! (let ((pop-up-windows t)) (pop-to-buffer buffer t))
         alist%inhibit_same_window = .true.
         call pop_to_buffer(buffer, status, alist=alist)
         if (.not. status%ok()) return
+
         if (special_major_mode()) then
             call message("Not using View mode because the major mode is special")
         else
@@ -467,15 +503,18 @@ contains
         character(len=:), allocatable :: name
         type(handle_type) :: other
         integer(int64) :: b
+
         other = other_buffer(current_buffer())
         call resolve_buffer(other, b, st)
         if (.not. st%ok()) b = 0
+
         if (b > 0) then
             call read_buffer("In other window view buffer: ", name, status, def=buffers(b)%name, &
                              require_match=REQUIRE_MATCH_T)
         else
             call read_buffer("In other window view buffer: ", name, status, require_match=REQUIRE_MATCH_T)
         end if
+
         if (.not. status%ok()) return
         call view_buffer_other_window(buffer_by_name(name), status)
     end subroutine cmd_view_buffer_other_window
@@ -558,6 +597,7 @@ contains
     !> view.el:view-mode.
     recursive subroutine view_mode(status)
         type(status_type), intent(out) :: status
+
         call minor_modes%view_mode%command(status)
     end subroutine view_mode
 
@@ -565,7 +605,9 @@ contains
     recursive subroutine view_mode_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
+
         status = status_type()
+
         if (enable) then
             call view_enable()
         else
@@ -576,6 +618,7 @@ contains
     !> Port of view.el:view--enable.
     subroutine view_enable()
         integer :: k
+
         ! Always leave view mode before changing major mode.
         ! This is to guarantee that the buffer-read-only variable is restored.
         call change_major_mode_hook%add(view_disable, local=.true.)
@@ -592,6 +635,7 @@ contains
     recursive subroutine view_disable(status)
         type(status_type), intent(out) :: status
         integer :: k
+
         status = status_type()
         call change_major_mode_hook%remove(view_disable, local=.true.)
         ! Calling read-only-mode while View mode is enabled
@@ -605,6 +649,7 @@ contains
         ! Reset the read-only state memory as well, so that `revert_buffer'
         ! won't make the buffer read-only again.
         if (buffers(cur)%read_only_mode_state_set) buffers(cur)%read_only_mode_state = .false.
+
         if (buffers(cur)%read_only) then
             buffers(cur)%read_only = .false.
             if (k > 0) buffers(cur)%read_only = locals(k)%old_read_only
@@ -625,14 +670,18 @@ contains
         type(status_type), intent(out) :: status
         procedure(view_exit_action_proc), optional :: exit_action
         integer :: k
+
         status = status_type()
+
         if (present(exit_action)) then
             k = local_index(.true.)
             locals(k)%exit_action => exit_action
         end if
+
         if (.not. view_mode_enabled()) then
             call minor_modes%view_mode%enable(status)
             if (.not. status%ok()) return
+
             ! Avoid spamming the echo area if `view_mode' is entered
             ! non-interactively, e.g., in a temporary buffer (bug#44629).
             if (.not. view_inhibit_help_message .and. .not. nilp(this_command)) then
@@ -665,6 +714,7 @@ contains
         type(handle_type), allocatable :: wins(:)
         logical :: only, all, old_read_only
         integer :: k
+
         status = status_type()
         only = .false.
         if (present(exit_only)) only = exit_only
@@ -675,15 +725,18 @@ contains
         old_read_only = .false.
         k = local_index(.false.)
         if (k > 0) old_read_only = locals(k)%old_read_only
+
         ! When `view_read_only' is true, we don't want to leave a buffer
         ! read-only but not in `view_mode'.
         if (.not. (view_no_disable_on_exit .or. (view_read_only_value() .and. old_read_only))) then
             call minor_modes%view_mode%disable(status)
             if (.not. status%ok()) return
         end if
+
         if (.not. only) then
             if (all .or. view_exits_all_viewing_windows) then
                 wins = buffer_window_list(current_buffer())
+
                 do k = 1, size(wins)
                     if (window_live_p(wins(k))) call quit_window(.false., status, wins(k))
                     if (.not. status%ok()) return
@@ -692,6 +745,7 @@ contains
                 call quit_window(.false., status)
                 if (.not. status%ok()) return
             end if
+
             if (present(exit_action)) call exit_action(buffer, status)
         end if
     end subroutine view_mode_exit
@@ -700,6 +754,7 @@ contains
     function window_buffer(window) result(buffer)
         type(handle_type), intent(in) :: window
         type(handle_type) :: buffer
+
         buffer = handle_type()
         if (window_live_p(window)) buffer = windows(window%index)%buffer
     end function window_buffer
@@ -712,13 +767,16 @@ contains
         type(handle_type), allocatable :: list(:)
         type(handle_type), allocatable :: leaves(:)
         integer :: k, n, first, j
+
         call window_leaves(selected_frame%root_window, leaves)
         allocate (list(0))
         n = size(leaves)
         first = 1
+
         do k = 1, n
             if (same_handle(leaves(k), selected_window())) first = k
         end do
+
         do j = 0, n - 1
             k = mod(first - 1 + j, n) + 1
             if (same_handle(windows(leaves(k)%index)%buffer, buffer)) list = [list, leaves(k)]
@@ -731,26 +789,33 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved_no_disable, saved_global, had_local, saved_local
         integer :: k
+
         ! (let ((view-read-only nil) (view-no-disable-on-exit nil)) ...)
         saved_no_disable = view_no_disable_on_exit
         view_no_disable_on_exit = .false.
         k = local_index(.false.)
         had_local = .false.
         saved_local = .false.
+
         if (k > 0) then
             had_local = locals(k)%has_view_read_only
             saved_local = locals(k)%view_read_only
         end if
+
         saved_global = view_read_only
+
         if (had_local) then
             locals(k)%view_read_only = .false.
         else
             view_read_only = .false.
         end if
+
         call view_mode_exit(status, exit_only=.true.)
         view_no_disable_on_exit = saved_no_disable
+
         if (had_local) then
             k = local_index(.false.)
+
             if (k > 0) then
                 if (locals(k)%has_view_read_only) locals(k)%view_read_only = saved_local
             end if
@@ -765,6 +830,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved_no_disable, saved_old
         integer :: k
+
         ! (let ((view-old-buffer-read-only nil) (view-no-disable-on-exit nil)) ...)
         saved_no_disable = view_no_disable_on_exit
         view_no_disable_on_exit = .false.
@@ -781,6 +847,7 @@ contains
     !> Port of view.el:View-leave.
     recursive subroutine view_leave(status)
         type(status_type), intent(out) :: status
+
         call view_mode_exit(status)
     end subroutine view_leave
 
@@ -791,9 +858,11 @@ contains
         type(status_type), intent(out) :: status
         procedure(view_exit_action_proc), pointer :: action
         integer :: k
+
         action => null()
         k = local_index(.false.)
         if (k > 0) action => locals(k)%exit_action
+
         if (associated(action)) then
             call view_mode_exit(status, exit_action=action)
         else
@@ -809,9 +878,11 @@ contains
         type(status_type), intent(out) :: status
         procedure(view_exit_action_proc), pointer :: action
         integer :: k
+
         action => null()
         k = local_index(.false.)
         if (k > 0) action => locals(k)%exit_action
+
         if (associated(action)) then
             call view_mode_exit(status, exit_action=action, all_windows=.true.)
         else
@@ -825,11 +896,14 @@ contains
         type(status_type), intent(out) :: status
         procedure(view_exit_action_proc), pointer :: action
         integer :: k
+
         action => kill_buffer_action
         k = local_index(.false.)
+
         if (k > 0) then
             if (associated(locals(k)%exit_action)) action => locals(k)%exit_action
         end if
+
         call view_mode_exit(status, exit_action=action, all_windows=.true.)
     end subroutine view_kill_and_leave
 
@@ -841,6 +915,7 @@ contains
     !> of view.el:view-window-size.
     integer(int64) function view_window_size()
         type(handle_type) :: w
+
         view_window_size = 1
         w = selected_window()
         if (window_live_p(w)) view_window_size = window_body_lines(windows(w%index))
@@ -850,6 +925,7 @@ contains
     !> view.el:view-recenter.
     subroutine view_recenter()
         type(status_type) :: st
+
         call recenter(list(make_fixnum(1_int64)), .false., st)
     end subroutine view_recenter
 
@@ -861,6 +937,7 @@ contains
         integer(int64), intent(in) :: lines
         logical, intent(out) :: has
         integer(int64), intent(out) :: n
+
         has = .false.
         n = 0
         if (.not. has_lines) return
@@ -878,22 +955,28 @@ contains
         logical, intent(out) :: has
         integer(int64), intent(out) :: n
         integer :: k
+
         k = local_index(.true.)
+
         if (.not. has_lines) then
             has = .true.
+
             if (locals(k)%has_half_page_size) then
                 n = locals(k)%half_page_size
             else
                 n = view_window_size()/2
             end if
+
             return
         end if
+
         if (lines == 0) then
             has = .true.
             n = view_window_size()/2
         else
             call view_page_size_default(.true., lines, has, n)
         end if
+
         locals(k)%has_half_page_size = has
         locals(k)%half_page_size = n
     end subroutine view_set_half_page_size_default
@@ -903,6 +986,7 @@ contains
     subroutine raw_prefix(has, n)
         logical, intent(out) :: has
         integer(int64), intent(out) :: n
+
         has = .not. nilp(current_prefix_arg)
         n = prefix_numeric_value(current_prefix_arg)
     end subroutine raw_prefix
@@ -919,15 +1003,18 @@ contains
         type(status_type), intent(out) :: status
         logical :: has
         integer(int64) :: percent
+
         status = status_type()
         call raw_prefix(has, percent)
         call push_mark()
+
         if (has) then
             call goto_char(point_min() + floor(real(point_max() - point_min(), real64)*0.01_real64* &
                                                real(max(0_int64, min(100_int64, percent)), real64), int64))
         else
             call goto_char(point_max())
         end if
+
         call view_recenter()
     end subroutine view_goto_percent
 
@@ -938,6 +1025,7 @@ contains
     subroutine view_goto_line(status)
         type(status_type), intent(out) :: status
         integer(int64) :: line, shortage
+
         status = status_type()
         line = prefix_numeric_value(current_prefix_arg)
         call push_mark()
@@ -955,6 +1043,7 @@ contains
         type(status_type), intent(out) :: status
         type(status_type) :: st
         integer(int64) :: pos
+
         status = status_type()
         call mark(pos, st, force=.true.)
         if (.not. st%ok() .or. pos <= 0) pos = point_min()
@@ -977,23 +1066,29 @@ contains
         logical :: has_lines, backward
         integer(int64) :: lines
         type(value_type) :: arg
+
         has_lines = has_lines_in
         lines = lines_in
         backward = backward_in
+
         if (.not. has_lines .or. lines == 0) then
             has_lines = has_default
             lines = default
         end if
+
         if (has_lines .and. lines < 0) then
             backward = .not. backward
             lines = -lines
         end if
+
         if (maxdefault .and. has_lines .and. lines > view_window_size()) has_lines = .false.
+
         if (has_lines) then
             arg = make_fixnum(lines)
         else
             arg = nil()
         end if
+
         if (backward) then
             call scroll_down_command(arg, status)
         else if (view_really_at_end()) then
@@ -1025,10 +1120,12 @@ contains
     subroutine view_end_message()
         type(handle_type) :: w
         logical :: quit_restore
+
         call goto_char(point_max())
         w = selected_window()
         quit_restore = .false.
         if (window_live_p(w)) quit_restore = windows(w%index)%quit_restore%kind /= QR_NONE
+
         if (quit_restore) then
             if (view_scroll_auto_exit) then
                 call message("End of buffer.  Type "//substitute_command_keys("\[view_scroll_page_forward]")// &
@@ -1047,6 +1144,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: p
         logical :: visible
+
         visible = pos_visible_in_window_p(point_max(), selected_window())
         p = point()
         call goto_char(point_max())
@@ -1063,6 +1161,7 @@ contains
     !> Port of view.el:View-scroll-page-forward.
     recursive subroutine view_scroll_page_forward(status)
         type(status_type), intent(out) :: status
+
         call page_scroll(.false., .false., status)
     end subroutine view_scroll_page_forward
 
@@ -1071,6 +1170,7 @@ contains
     !> view.el:View-scroll-page-backward.
     recursive subroutine view_scroll_page_backward(status)
         type(status_type), intent(out) :: status
+
         call page_scroll(.true., .false., status)
     end subroutine view_scroll_page_backward
 
@@ -1084,6 +1184,7 @@ contains
     !> view.el:View-scroll-page-forward-set-page-size.
     recursive subroutine view_scroll_page_forward_set_page_size(status)
         type(status_type), intent(out) :: status
+
         call page_scroll(.false., .true., status)
     end subroutine view_scroll_page_forward_set_page_size
 
@@ -1092,6 +1193,7 @@ contains
     !> view.el:View-scroll-page-backward-set-page-size.
     recursive subroutine view_scroll_page_backward_set_page_size(status)
         type(status_type), intent(out) :: status
+
         call page_scroll(.true., .true., status)
     end subroutine view_scroll_page_backward_set_page_size
 
@@ -1103,8 +1205,10 @@ contains
         logical :: has_lines, has_default
         integer(int64) :: lines, default
         integer :: k
+
         call raw_prefix(has_lines, lines)
         k = local_index(.true.)
+
         if (set_size) then
             call view_page_size_default(has_lines, lines, has_default, default)
             locals(k)%has_page_size = has_default
@@ -1112,6 +1216,7 @@ contains
         else
             call view_page_size_default(locals(k)%has_page_size, locals(k)%page_size, has_default, default)
         end if
+
         call view_scroll_lines(has_lines, lines, backward, has_default, default, .false., status)
     end subroutine page_scroll
 
@@ -1123,6 +1228,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: has_lines
         integer(int64) :: lines
+
         call raw_prefix(has_lines, lines)
         call view_scroll_lines(has_lines, lines, .false., .true., 1_int64, .true., status)
     end subroutine view_scroll_line_forward
@@ -1134,6 +1240,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: has_lines
         integer(int64) :: lines
+
         call raw_prefix(has_lines, lines)
         call view_scroll_lines(has_lines, lines, .true., .true., 1_int64, .true., status)
     end subroutine view_scroll_line_backward
@@ -1147,6 +1254,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: has_lines, has_default
         integer(int64) :: lines, default
+
         call raw_prefix(has_lines, lines)
         call view_set_half_page_size_default(has_lines, lines, has_default, default)
         call view_scroll_lines(has_lines, lines, .false., has_default, default, .true., status)
@@ -1159,6 +1267,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: has_lines, has_default
         integer(int64) :: lines, default
+
         call raw_prefix(has_lines, lines)
         call view_set_half_page_size_default(has_lines, lines, has_default, default)
         call view_scroll_lines(has_lines, lines, .true., has_default, default, .true., status)
@@ -1185,6 +1294,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: regexp
         integer(int64) :: n
+
         n = prefix_numeric_value(current_prefix_arg)
         call read_string("Search forward (regexp): ", regexp, status)
         if (.not. status%ok()) return
@@ -1208,6 +1318,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: regexp
         integer(int64) :: n
+
         n = prefix_numeric_value(current_prefix_arg)
         call read_string("Search backward (regexp): ", regexp, status)
         if (.not. status%ok()) return
@@ -1220,6 +1331,7 @@ contains
     !> (the match is not highlighted).
     recursive subroutine view_search_last_regexp_forward(status)
         type(status_type), intent(out) :: status
+
         call view_search(prefix_numeric_value(current_prefix_arg), status)
     end subroutine view_search_last_regexp_forward
 
@@ -1229,6 +1341,7 @@ contains
     !> (the match is not highlighted).
     recursive subroutine view_search_last_regexp_backward(status)
         type(status_type), intent(out) :: status
+
         call view_search(-prefix_numeric_value(current_prefix_arg), status)
     end subroutine view_search_last_regexp_backward
 
@@ -1250,13 +1363,16 @@ contains
         type(status_type) :: st
         logical :: no, end, have, first
         integer :: k, ln
+
         status = status_type()
         no = .false.
         end = .false.
         k = local_index(.true.)
         first = .false.
+
         if (present(regexp_in)) then
             regexp = regexp_in
+
             if (len(regexp) > 0) then
                 if (regexp(1:1) /= "!" .and. regexp(1:1) /= "@") then
                     first = .true.
@@ -1265,6 +1381,7 @@ contains
                         call set_error(status, FM_ARGS_OUT_OF_RANGE, fortran_string(regexp)//", 0, 2")
                         return
                     end if
+
                     if (regexp(1:2) == "!@" .or. regexp(1:2) == "@!") then
                         end = .true.
                         no = .true.
@@ -1274,12 +1391,15 @@ contains
                         no = .not. end
                         ln = 1
                     end if
+
                     regexp = regexp(ln + 1:)
                     first = len(regexp) > 0
                 end if
             end if
         end if
+
         have = .true.
+
         if (first) then
             locals(k)%has_last_regexp = .true.
             locals(k)%last_regexp = regexp
@@ -1294,12 +1414,15 @@ contains
         else
             have = .false.
         end if
+
         if (.not. have) then
             call set_error(status, FM_GENERIC_ERROR, "No previous View-mode search")
             return
         end if
+
         where = 0
         opoint = point()
+
         if (end) then
             if (times < 0) then
                 call goto_char(point_max())
@@ -1311,17 +1434,21 @@ contains
         else
             call end_of_line()
         end if
+
         if (no) then
             if (view_search_no_match_lines(times, regexp, st)) where = point()
         else
             call re_search_forward(regexp, found, st, noerror=SEARCH_NOERROR, count=times)
             if (st%ok() .and. found /= 0) where = point()
         end if
+
         call goto_char(opoint)
+
         if (.not. st%ok()) then
             status = st
             return
         end if
+
         if (where /= 0) then
             call push_mark()
             call goto_char(where)
@@ -1329,11 +1456,13 @@ contains
             call view_recenter()
         else
             write (timestr, "(i0)") times
+
             if (no) then
                 call message("Can't find occurrence "//trim(timestr)//" of no "//regexp)
             else
                 call message("Can't find occurrence "//trim(timestr)//" of "//regexp)
             end if
+
             call sit_for(4000)
         end if
     end subroutine view_search
@@ -1347,30 +1476,38 @@ contains
         character(len=*), intent(in) :: regexp
         type(status_type), intent(out) :: status
         integer(int64) :: times, step, found
+
         status = status_type()
         times = times_in
+
         if (times >= 0) then
             step = 1
         else
             times = -times
             step = -1
         end if
+
         ! Note that we do not check the current line.
         do while (times > 0)
             if (forward_line(step) /= 0) exit
+
             ! (forward-line 1) returns 0 on moving within the last line.
             if (eobp()) then
                 times = -1
             else
                 call re_search_forward(regexp, found, status, bound=line_end_position(), noerror=SEARCH_NOERROR)
+
                 if (.not. status%ok()) then
                     found_line = .false.
                     return
                 end if
+
                 if (found == 0) times = times - 1
             end if
         end do
+
         found_line = .false.
+
         if (times == 0) then
             found_line = looking_at(".*", status)
             found_line = found_line .and. status%ok()
@@ -1386,6 +1523,7 @@ contains
         type(status_type) :: st
         integer :: d
         character(len=1) :: digit
+
         call minor_modes%view_mode%define("view_mode", " View", hook=view_mode_hook, keymap=.true., &
                                           body=view_mode_body)
         view_mode_map = minor_modes%view_mode%map
@@ -1452,6 +1590,7 @@ contains
         call keymap_set(view_mode_map, ">", "end_of_buffer", st)
         call keymap_set(view_mode_map, "<", "beginning_of_buffer", st)
         call keymap_set(view_mode_map, "-", "negative_argument", st)
+
         do d = 9, 0, -1
             write (digit, "(i1)") d
             call keymap_set(view_mode_map, digit, "digit_argument", st)

@@ -51,6 +51,7 @@ contains
 
     subroutine collect_font_lock_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("global-font-lock-mode", test_global), &
                     new_unittest("font-lock-face-alias", test_alias), &
@@ -67,6 +68,7 @@ contains
         character(len=*), intent(in) :: name, text
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call get_buffer_create(name, h, st)
         call set_buffer(h, st)
         call insert(text, st)
@@ -79,12 +81,15 @@ contains
         type(value_type) :: v
         type(value_type), allocatable :: elts(:)
         type(status_type) :: st
+
         name = ""
         call get_text_property(pos, sym("face"), v, st)
+
         if (consp(v)) then
             call list_elements(v, elts)
             v = elts(1)
         end if
+
         if (nilp(v)) return
         if (symbolp(v)) name = symbols(xsymbol(v))%name
     end function face_at
@@ -93,6 +98,7 @@ contains
     subroutine set_foo_keywords(keywords_only)
         logical, intent(in) :: keywords_only
         type(font_lock_keyword_type) :: k(1)
+
         k(1) = font_lock_keyword("foo")
         call font_lock_defaults%set_local(k, keywords_only=keywords_only)
     end subroutine set_foo_keywords
@@ -103,6 +109,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, hidden
         type(status_type) :: st
+
         call init_bindings()
         call buffer_with(" *hidden-fl*", "x", hidden)
         call buffer_with("*fl-global*", "x", h)
@@ -124,6 +131,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call init_bindings()
         call buffer_with("*fl-alias*", "abc", h)
         call put_text_property(1_int64, 3_int64, sym("font_lock_face"), sym("bold"), st)
@@ -142,6 +150,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call init_bindings()
         call buffer_with("*fl-keywords*", "a foo b foo", h)
         call set_foo_keywords(.true.)
@@ -164,6 +173,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call init_bindings()
         call buffer_with("*fl-syntactic*", 'x "foo" y', h)
         call set_foo_keywords(.false.)
@@ -184,6 +194,7 @@ contains
         type(font_lock_highlight_type) :: hl(1)
         type(value_type) :: v
         type(value_type), allocatable :: elts(:)
+
         call init_bindings()
         call buffer_with("*fl-overrides*", "foo bar", h)
         k(1) = font_lock_keyword("foo", face="bold")
@@ -211,6 +222,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(value_type) :: v
+
         call init_bindings()
         call buffer_with("*fl-change*", "foo"//achar(10)//"bar"//achar(10), h)
         call set_foo_keywords(.true.)
@@ -239,6 +251,7 @@ contains
         integer(int64) :: bi, end_pos
         integer :: crow, ccol, r
         logical :: at_end
+
         call init_bindings()
         call init_faces()
         call init_frame_faces(f, "dumb")
@@ -246,9 +259,11 @@ contains
         call set_foo_keywords(.true.)
         call minor_modes%font_lock_mode%enable(st)
         call resolve_buffer(h, bi, st)
+
         do r = 1, 2
             allocate (rows(r)%glyphs(10))
         end do
+
         call layout_window(bi, 1_int64, point_max(), 10, rows, crow, ccol, end_pos, at_end, f=f)
         call check(error, rows(1)%glyphs(1)%face_id == DEFAULT_FACE_ID .and. rows(1)%glyphs(3)%face_id /= DEFAULT_FACE_ID &
                    .and. f%faces(rows(1)%glyphs(3)%face_id)%tty_bold_p, "foo in bold (mono keyword face)")

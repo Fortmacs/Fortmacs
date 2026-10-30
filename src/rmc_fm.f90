@@ -92,10 +92,12 @@ contains
         character(len=:), allocatable :: altered, desc
         type(value_type) :: key
         integer :: pos
+
         key = make_fixnum(int(choice%key, int64))
         desc = single_key_description(key)
         pos = 0
         if (choice%key < 128) pos = index(choice%name, achar(choice%key))
+
         if (pos == 0 .or. desc == "ESC" .or. desc == "TAB" .or. desc == "RET" .or. desc == "DEL" .or. &
             desc == "SPC") then
             altered = desc//" "//choice%name
@@ -107,6 +109,7 @@ contains
     pure function upcase_ascii(c) result(u)
         character, intent(in) :: c
         character :: u
+
         u = c
         if (c >= "a" .and. c <= "z") u = achar(iachar(c) - 32)
     end function upcase_ascii
@@ -147,10 +150,12 @@ contains
         logical, intent(in), optional :: long_form
         type(status_type) :: st
         logical :: long
+
         answer = 0
         status = status_type()
         long = .false.
         if (present(long_form)) long = long_form
+
         if (long) then
             call long_answers(prompt, choices, answer, status)
         else
@@ -161,15 +166,19 @@ contains
             if (rmc_have_help_string) rmc_help_string = help_string
             rmc_have_show_help = present(show_help)
             rmc_buf_name = "*Multiple Choice Help*"
+
             if (present(show_help)) then
                 if (len(show_help) > 0) rmc_buf_name = show_help
             end if
+
             rmc_shown = .false.
+
             if (read_char_choice_use_read_key) then
                 call short_answers(answer, status)
             else
                 call from_minibuffer(answer, status)
             end if
+
             if (rmc_shown) then
                 if (window_live_p(rmc_help_window)) call delete_window(rmc_help_window, st)
                 call kill_buffer(rmc_buf, st)
@@ -183,17 +192,21 @@ contains
         character(len=:), allocatable :: full
         type(rmc_choice_type) :: question
         integer :: k
+
         full = rmc_prompt//" ("
+
         do k = 1, size(rmc_choices)
             if (k > 1) full = full//", "
             full = full//rmc_add_key_description(rmc_choices(k))
         end do
+
         if (.not. rmc_have_show_help) then
             question%key = iachar("?")
             question%name = "?"
             if (size(rmc_choices) > 0) full = full//", "
             full = full//rmc_add_key_description(question)
         end if
+
         full = full//"): "
     end function full_prompt
 
@@ -205,24 +218,30 @@ contains
         type(status_type) :: st
         logical :: wrong_char, again
         integer :: k, c
+
         answer = 0
         status = status_type()
         if (rmc_have_show_help) call show_help_window()
         wrong_char = .false.
+
         do
             if (wrong_char) then
                 call read_key("Invalid choice.  "//full_prompt(), key, status)
             else
                 call read_key(full_prompt(), key, status)
             end if
+
             if (.not. status%ok()) return
             c = -1
             if (fixnump(key)) c = int(xfixnum(key))
+
             if (c == 7) then
                 call set_error(status, FM_QUIT)
                 return
             end if
+
             again = .true.
+
             select case (query_replace_answer(key))
             case (ANSWER_RECENTER)
                 call recenter(nil(), .false., st)
@@ -240,13 +259,16 @@ contains
             case default
                 again = .false.
             end select
+
             if (again) then
                 wrong_char = .false.
                 cycle
             end if
+
             do k = 1, size(rmc_choices)
                 if (rmc_choices(k)%key == c) answer = k
             end do
+
             if (answer /= 0) exit
             ! The user has entered an invalid choice, so display the help
             ! messages.
@@ -272,30 +294,37 @@ contains
         integer :: k
         integer(int64) :: c
         logical :: saved_enable
+
         answer = 0
         rmc_tchar = -1
         call define_commands()
         if (rmc_have_show_help) call show_help_window()
         call make_sparse_keymap(map)
         call set_keymap_parent(map, minibuffer_local_map, st)
+
         ! [remap self-insert-command]
         do c = 0, 127
             key1(1) = make_fixnum(c)
             call lookup_key(make_keymap_ref(minibuffer_local_map), key1, b, st)
             if (nilp(b)) call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
+
             if (value_eq(b, sym("self_insert_command"))) then
                 call define_key(map, key1, sym("rmc__wrong"), st)
             end if
         end do
+
         key1(1) = make_fixnum(128_int64)
         call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
+
         if (value_eq(b, sym("self_insert_command"))) then
             call define_key_range(map, 128_int64, int(MAX_CHAR, int64), sym("rmc__wrong"), st)
         end if
+
         do k = 1, size(rmc_choices)
             key1(1) = make_fixnum(int(rmc_choices(k)%key, int64))
             call define_key(map, key1, sym("rmc__char"), st)
         end do
+
         key1(1) = make_fixnum(int(iachar("?"), int64))
         if (.not. rmc_have_show_help) call define_key(map, key1, &
                                                       sym("rmc__help"), st)
@@ -309,6 +338,7 @@ contains
         real_this_command = saved_real_this
         call free_keymap(map, st)
         if (.not. status%ok()) return
+
         do k = 1, size(rmc_choices)
             if (rmc_choices(k)%key == rmc_tchar) answer = k
         end do
@@ -328,6 +358,7 @@ contains
     !> cmd-char: the key is the answer.
     subroutine rmc_char(status)
         type(status_type), intent(out) :: status
+
         rmc_tchar = -1
         if (fixnump(last_command_event)) rmc_tchar = int(xfixnum(last_command_event))
         call exit_minibuffer(status)
@@ -336,6 +367,7 @@ contains
     !> cmd-help: show the help.
     subroutine rmc_help(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call show_help_window()
     end subroutine rmc_help
@@ -343,6 +375,7 @@ contains
     !> cmd-wrong: an invalid choice.
     subroutine rmc_wrong(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call ding()
         call show_help_window()
@@ -359,18 +392,22 @@ contains
         type(value_type), allocatable :: names(:)
         character(len=:), allocatable :: full, result
         integer :: k
+
         answer = 0
         allocate (names(size(choices)))
         full = prompt//" ("
+
         do k = 1, size(choices)
             names(k) = make_string(choices(k)%name)
             if (k > 1) full = full//"/"
             full = full//choices(k)%name
         end do
+
         full = full//") "
         call completing_read(full, completion_list_table(make_list(names)), result, status, &
                              require_match=REQUIRE_MATCH_T)
         if (.not. status%ok()) return
+
         do k = 1, size(choices)
             if (choices(k)%name == result .and. len(choices(k)%name) == len(result)) then
                 answer = k
@@ -385,41 +422,52 @@ contains
         character(len=:), allocatable :: text
         type(status_type) :: st
         integer :: lines, i
+
         previous = current_buffer()
         call get_buffer_create(rmc_buf_name, rmc_buf, st)
         if (.not. st%ok()) return
         call set_buffer(rmc_buf, st)
         call set_buffer_read_only(rmc_buf, .false., st)
         call erase_buffer(st)
+
         if (rmc_have_help_string) then
             text = rmc_help_string
         else
             text = rmc_prompt//achar(10)//achar(10)//generated_help(rmc_choices, help_columns())
         end if
+
         call insert(text, st)
         call goto_char(1_int64)
         call set_buffer_read_only(rmc_buf, .true., st)
         call set_buffer(previous, st)
+
         if (rmc_shown) then
             if (window_live_p(rmc_help_window)) return
         end if
+
         rmc_shown = .true.
         ! A window as high as the text (and its mode line) below the
         ! selected one; none if it doesn't fit.
         lines = 1
+
         do i = 1, len(text) - 1
             if (text(i:i) == achar(10)) lines = lines + 1
         end do
+
         call split_window(selected_window(), -(lines + 1), .true., .false., rmc_help_window, st)
+
         if (.not. st%ok()) then
             call split_window(selected_window(), 0, .false., .false., rmc_help_window, st)
             if (.not. st%ok()) return
         end if
+
         call set_window_buffer(rmc_help_window, rmc_buf, st)
     end subroutine show_help_window
+
     ! (/ (window-width) 25): the columns of the generated help.
     integer function help_columns() result(columns)
         type(window_type), pointer :: w
+
         columns = 80/25
         if (.not. window_live_p(selected_window())) return
         w => window_ref(selected_window())
@@ -430,7 +478,9 @@ contains
     pure integer function nchars(s)
         character(len=*), intent(in) :: s
         integer :: i
+
         nchars = 0
+
         do i = 1, len(s)
             if (iand(iachar(s(i:i)), 192) /= 128) nchars = nchars + 1
         end do
@@ -442,15 +492,19 @@ contains
         character(len=*), intent(in) :: text
         character(len=:), allocatable :: filled, line, word
         integer :: i, j
+
         filled = ""
         line = ""
         i = 1
+
         do while (i <= len(text))
             if (text(i:i) == " ") then
                 i = i + 1
                 cycle
             end if
+
             j = index(text(i:), " ")
+
             if (j == 0) then
                 word = text(i:)
                 i = len(text) + 1
@@ -458,6 +512,7 @@ contains
                 word = text(i:i + j - 2)
                 i = i + j
             end if
+
             if (len(line) == 0) then
                 line = word
             else if (nchars(line) + 1 + nchars(word) <= 21) then
@@ -467,6 +522,7 @@ contains
                 line = word
             end if
         end do
+
         filled = filled//line//achar(10)
     end function fill21
 
@@ -482,10 +538,12 @@ contains
         end type line_type
         type(line_type), allocatable :: lines(:), grown(:)
         integer :: times, start, n, k, row, i, j, pad
+
         allocate (lines(0))
         n = 0
         start = 1
         times = 0
+
         do k = 1, size(choices)
             if (times /= 0) then
                 if (mod(times, columns) == 0) then
@@ -498,15 +556,18 @@ contains
                     end do
                 end if
             end if
+
             times = times + 1
             entry = fill21(achar(choices(k)%key)//": "//rmc_add_key_description(choices(k)))
             if (allocated(choices(k)%description)) entry = entry//fill21(choices(k)%description)
             pad = mod(times - 1, columns)*25
             row = start
             i = 1
+
             ! (split-string text "\n"): the lines, then a last empty one.
             do
                 j = index(entry(i:), achar(10))
+
                 if (row <= n) then
                     if (len(lines(row)%s) > 0) then
                         if (j > 0) then
@@ -514,20 +575,24 @@ contains
                         else
                             lines(row)%s = lines(row)%s//entry(i:)
                         end if
+
                         row = row + 1
                         if (j == 0) exit
                         i = i + j
                         cycle
                     end if
                 end if
+
                 ! At the beginning of a line: a new line before it.
                 allocate (grown(n + 1))
                 grown(1:row - 1) = lines(1:row - 1)
+
                 if (j > 0) then
                     grown(row)%s = repeat(" ", pad)//entry(i:i + j - 2)
                 else
                     grown(row)%s = repeat(" ", pad)//entry(i:)
                 end if
+
                 if (row <= n) grown(row + 1:) = lines(row:)
                 call move_alloc(grown, lines)
                 n = n + 1
@@ -536,7 +601,9 @@ contains
                 i = i + j
             end do
         end do
+
         text = ""
+
         do row = 1, n
             text = text//lines(row)%s//achar(10)
         end do

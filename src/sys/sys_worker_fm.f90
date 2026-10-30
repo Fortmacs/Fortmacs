@@ -127,9 +127,11 @@ contains
         integer(int32), intent(out) :: worker, err
         integer(c_int64_t) :: all(16), old(16), ignored(16)
         integer(c_int) :: r, r2, slot
+
         call note_main_thread()
         worker = 0
         err = 0
+
         if (wake_pipe(1) < 0) then
             if (c_pipe2(wake_pipe, ior(O_CLOEXEC, O_NONBLOCK)) /= 0) then
                 err = errno()
@@ -137,13 +139,16 @@ contains
                 return
             end if
         end if
+
         slot = findloc(in_use, .false., dim=1)
+
         if (slot == 0) then
             ! As upstream when FD_SETSIZE is reached.
             err = EMFILE
             r = c_close(fd)
             return
         end if
+
         jobs(slot)%slot = slot
         jobs(slot)%pid = pid
         jobs(slot)%fd = fd
@@ -153,12 +158,14 @@ contains
         r = c_pthread_sigmask(SIG_BLOCK, all, old)
         r = c_pthread_create(threads(slot), c_null_ptr, c_funloc(reader_main), c_loc(jobs(slot)))
         r2 = c_pthread_sigmask(SIG_SETMASK, old, ignored)
+
         if (r /= 0) then
             err = r
             r = c_close(fd)
             if (jobs(slot)%pidfd >= 0) r = c_close(jobs(slot)%pidfd)
             return
         end if
+
         in_use(slot) = .true.
         active = active + 1
         worker = slot
@@ -181,15 +188,18 @@ contains
         integer(int32), intent(in) :: timeout_ms
         type(pollfd_type) :: pfd(1)
         integer(c_int) :: r
+
         wait_for_worker_messages = .false.
         if (wake_pipe(1) < 0) return
         pfd(1)%fd = wake_pipe(1)
         pfd(1)%events = POLLIN
+
         do
             pfd(1)%revents = 0
             r = c_poll(pfd, 1_c_long, timeout_ms)
             if (r >= 0 .or. errno() /= EINTR) exit
         end do
+
         wait_for_worker_messages = r > 0
     end function wait_for_worker_messages
 
@@ -201,29 +211,36 @@ contains
         integer(c_long) :: n
         integer(c_int) :: r
         integer :: k, count, slot
+
         if (wake_pipe(1) >= 0) then
             do
                 n = c_read(wake_pipe(1), junk, 64_c_size_t)
+
                 if (n <= 0) then
                     if (n < 0) then
                         if (errno() == EINTR) cycle
                     end if
+
                     exit
                 end if
             end do
         end if
+
         r = c_pthread_mutex_lock(queue_mutex)
         count = queue_count
         allocate (msgs(count))
+
         do k = 1, count
             msgs(k)%worker = queue(k)%worker
             msgs(k)%kind = queue(k)%kind
             msgs(k)%wait_status = queue(k)%wait_status
             if (allocated(queue(k)%bytes)) call move_alloc(queue(k)%bytes, msgs(k)%bytes)
         end do
+
         if (allocated(queue)) deallocate (queue)
         queue_count = 0
         r = c_pthread_mutex_unlock(queue_mutex)
+
         do k = 1, count
             if (msgs(k)%kind == WORKER_EXIT) then
                 slot = msgs(k)%worker
@@ -250,6 +267,7 @@ contains
         integer(c_int) :: r, wstatus, timeout
         integer(c_int32_t) :: w
         logical :: exited
+
         ret = c_null_ptr
         call c_f_pointer(arg, job)
         allocate (buf(READMAX))
@@ -261,35 +279,44 @@ contains
         if (job%pidfd < 0) timeout = 50
         exited = .false.
         wstatus = 0
+
         do
             pfd(1)%revents = 0
             pfd(2)%revents = 0
             r = c_poll(pfd, 2_c_long, timeout)
+
             if (r < 0) then
                 if (errno() == EINTR) cycle
                 exit
             end if
+
             if (pfd(1)%fd >= 0 .and. pfd(1)%revents /= 0) then
                 if (.not. read_some(job%slot, pfd(1)%fd, buf)) pfd(1)%fd = -1
             end if
+
             if (job%pidfd >= 0) then
                 exited = pfd(2)%revents /= 0
             else
                 w = c_waitpid(job%pid, wstatus, WNOHANG)
                 exited = w == job%pid
             end if
+
             if (exited) exit
         end do
+
         ! The child has exited: read what output is left, without waiting.
         do while (pfd(1)%fd >= 0)
             pfd(1)%revents = 0
             r = c_poll(pfd(1:1), 1_c_long, 0_c_int)
+
             if (r < 0) then
                 if (errno() == EINTR) cycle
             end if
+
             if (r <= 0) exit
             if (.not. read_some(job%slot, pfd(1)%fd, buf)) exit
         end do
+
         if (job%pidfd >= 0 .or. .not. exited) then
             do
                 w = c_waitpid(job%pid, wstatus, 0_c_int)
@@ -297,6 +324,7 @@ contains
                 if (errno() /= EINTR) exit
             end do
         end if
+
         r = c_close(job%fd)
         if (job%pidfd >= 0) r = c_close(job%pidfd)
         call post(job%slot, WORKER_EXIT, buf, 0, wstatus)
@@ -309,7 +337,9 @@ contains
         character(kind=c_char), intent(inout) :: buf(:)
         integer(c_long) :: n
         integer(c_int) :: e
+
         more = .true.
+
         do
             n = c_read(fd, buf, int(size(buf), c_size_t))
             if (n >= 0) exit
@@ -318,10 +348,12 @@ contains
             more = e == EAGAIN
             return
         end do
+
         if (n == 0) then
             more = .false.
             return
         end if
+
         call post(slot, WORKER_OUTPUT, buf, int(n), 0_c_int)
     end function read_some
 
@@ -336,26 +368,33 @@ contains
         integer(c_int) :: r
         integer(c_long) :: written
         integer :: k
+
         r = c_pthread_mutex_lock(queue_mutex)
         if (.not. allocated(queue)) allocate (queue(16))
+
         if (queue_count == size(queue)) then
             allocate (grown(2*queue_count))
+
             do k = 1, queue_count
                 grown(k)%worker = queue(k)%worker
                 grown(k)%kind = queue(k)%kind
                 grown(k)%wait_status = queue(k)%wait_status
                 if (allocated(queue(k)%bytes)) call move_alloc(queue(k)%bytes, grown(k)%bytes)
             end do
+
             call move_alloc(grown, queue)
         end if
+
         queue_count = queue_count + 1
         queue(queue_count)%worker = slot
         queue(queue_count)%kind = kind
         queue(queue_count)%wait_status = wait_status
         allocate (character(len=n) :: queue(queue_count)%bytes)
+
         do k = 1, n
             queue(queue_count)%bytes(k:k) = buf(k)
         end do
+
         r = c_pthread_mutex_unlock(queue_mutex)
         one(1) = char(1)
         ! A full pipe already wakes the main thread.

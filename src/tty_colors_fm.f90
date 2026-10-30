@@ -128,6 +128,7 @@ contains
     !> without registering any.  `tty_register_colors' does this too.
     subroutine set_tty_display_color_cells(ncolors)
         integer, intent(in) :: ncolors
+
         tty_display_color_cells = ncolors
     end subroutine set_tty_display_color_cells
 
@@ -135,6 +136,7 @@ contains
     !> trailing blanks).
     pure logical function same_string(a, b)
         character(len=*), intent(in) :: a, b
+
         same_string = .false.
         if (len(a) == len(b)) same_string = a == b
     end function same_string
@@ -144,7 +146,9 @@ contains
     integer function alist_position(name) result(pos)
         character(len=*), intent(in) :: name
         integer :: i
+
         pos = 0
+
         do i = 1, tty_defined_color_count
             if (same_string(tty_defined_color_alist(i)%name, name)) then
                 pos = i
@@ -167,7 +171,9 @@ contains
     function tty_color_alist() result(colors)
         type(tty_color_type), allocatable :: colors(:)
         integer :: i
+
         allocate (colors(tty_defined_color_count))
+
         do i = 1, tty_defined_color_count
             colors(i) = tty_defined_color_alist(i)
         end do
@@ -185,26 +191,34 @@ contains
         integer, intent(in), optional :: rgb(3)
         type(tty_color_type), allocatable :: grown(:)
         integer :: pos, i
+
         pos = alist_position(name)
+
         if (pos == 0) then
             ! Keep the colors in the order they are registered.
             if (.not. allocated(tty_defined_color_alist)) allocate (tty_defined_color_alist(16))
+
             if (tty_defined_color_count == size(tty_defined_color_alist)) then
                 allocate (grown(2*size(tty_defined_color_alist)))
+
                 do i = 1, tty_defined_color_count
                     call move_alloc(tty_defined_color_alist(i)%name, grown(i)%name)
                     grown(i)%index = tty_defined_color_alist(i)%index
                     grown(i)%has_rgb = tty_defined_color_alist(i)%has_rgb
                     grown(i)%rgb = tty_defined_color_alist(i)%rgb
                 end do
+
                 call move_alloc(grown, tty_defined_color_alist)
             end if
+
             tty_defined_color_count = tty_defined_color_count + 1
             pos = tty_defined_color_count
             tty_defined_color_alist(pos)%name = name
         end if
+
         tty_defined_color_alist(pos)%index = index
         tty_defined_color_alist(pos)%has_rgb = present(rgb)
+
         if (present(rgb)) then
             tty_defined_color_alist(pos)%rgb = rgb
         else
@@ -217,10 +231,12 @@ contains
     subroutine tty_register_default_colors()
         type(status_type) :: status
         integer :: i
+
         do i = 1, size(tty_standard_color_names)
             call tty_color_define(trim(tty_standard_color_names(i)), tty_standard_color_indices(i), status, &
                                   tty_standard_color_rgbs(:, i))
         end do
+
         ! Modifying color mappings means realized faces don't use the
         ! right colors, so clear them.
         if (associated(clear_face_cache_hook)) call clear_face_cache_hook()
@@ -235,26 +251,32 @@ contains
         character(len=:), allocatable :: lower, buf
         integer :: i, n
         logical :: match
+
         match = .false.
+
         do i = 1, len(color)
             if ((color(i:i) >= "A" .and. color(i:i) <= "Z") .or. color(i:i) == " ") then
                 match = .true.
                 exit
             end if
         end do
+
         if (.not. match) then
             canon = color
             return
         end if
+
         lower = downcase_string(color)
         allocate (character(len=len(lower)) :: buf)
         n = 0
+
         do i = 1, len(lower)
             if (lower(i:i) /= " ") then
                 n = n + 1
                 buf(n:n) = lower(i:i)
             end if
         end do
+
         canon = buf(1:n)
     end function tty_color_canonicalize
 
@@ -263,7 +285,9 @@ contains
     !> term/tty-colors.el:tty-color-24bit.
     integer function tty_color_24bit(rgb) result(pixel)
         integer, intent(in) :: rgb(3)
+
         pixel = -1
+
         if (tty_display_color_cells == 16777216) then
             pixel = ior(ior(ishft(shifta(rgb(1), 8), 16), ishft(shifta(rgb(2), 8), 8)), shifta(rgb(3), 8))
         end if
@@ -285,11 +309,13 @@ contains
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: rgb(:)
         integer :: pixel
+
         if (present(rgb)) then
             if (size(rgb) /= 3) then
                 call set_error(status, FM_GENERIC_ERROR, 'Invalid specification for tty color "'//name//'"')
                 return
             end if
+
             pixel = tty_color_24bit(rgb)
             if (pixel < 0) pixel = index
             call tty_modify_color_alist(tty_color_canonicalize(name), pixel, rgb)
@@ -315,11 +341,14 @@ contains
     real(real64) function tty_color_off_gray_diag(r, g, b) result(angle)
         integer, intent(in) :: r, g, b
         real(real64) :: mag, cosine
+
         mag = sqrt(real(3*(r*r + g*g + b*b), real64))
+
         if (mag < 1) then
             angle = 0
         else
             cosine = real(r + g + b, real64)/mag
+
             if (abs(cosine) > 1) then
                 ! acos's domain error: a NaN.
                 angle = ieee_value(angle, ieee_quiet_nan)
@@ -335,6 +364,7 @@ contains
         integer, intent(in) :: rgb(3)
         integer :: best_distance, r, g, b, try_r, try_g, try_b, dif_r, dif_g, dif_b, dist, i
         logical :: favor_non_gray
+
         best = 0
         best_distance = 195076 ! 3 * 255^2 + 15
         r = shifta(rgb(1), 8)
@@ -344,6 +374,7 @@ contains
         ! diagonal of the RGB cube, favor non-gray colors.  (The number
         ! 0.065 is an empirical ad-hoc'ery.)  A NaN angle compares false.
         favor_non_gray = tty_color_off_gray_diag(r, g, b) >= 0.065_real64
+
         do i = 1, tty_defined_color_count
             ! If the RGB values of the candidate color are unknown, we
             ! never consider it for approximating another color.
@@ -355,6 +386,7 @@ contains
             dif_g = g - try_g
             dif_b = b - try_b
             dist = dif_r*dif_r + dif_g*dif_g + dif_b*dif_b
+
             ! The candidate color is on the gray diagonal if its RGB
             ! components are all equal.
             if (dist < best_distance .and. (try_r /= try_g .or. try_g /= try_b .or. .not. favor_non_gray)) then
@@ -370,6 +402,7 @@ contains
         integer, intent(out) :: index, r, g, b
         character(len=:), allocatable, intent(out), optional :: name
         logical, intent(out), optional :: has_rgb
+
         index = tty_defined_color_alist(pos)%index
         r = tty_defined_color_alist(pos)%rgb(1)
         g = tty_defined_color_alist(pos)%rgb(2)
@@ -390,6 +423,7 @@ contains
         character(len=:), allocatable, intent(out) :: name
         integer, intent(out) :: index, r, g, b
         integer :: pos
+
         pos = approximate_position(rgb)
         found = pos > 0
         index = -1
@@ -408,10 +442,12 @@ contains
         integer, intent(inout) :: dst
         integer(int64) :: val, maxval
         integer :: n, i, digit
+
         ok = .false.
         n = len(s)
         if (n <= 0 .or. n > 4) return
         val = 0
+
         do i = 1, n
             select case (s(i:i))
             case ("0":"9")
@@ -423,8 +459,10 @@ contains
             case default
                 return
             end select
+
             val = ior(ishft(val, 4), int(digit, int64))
         end do
+
         maxval = ishft(1_int64, n*4) - 1
         dst = int(val*65535/maxval)
         ok = .true.
@@ -436,21 +474,27 @@ contains
     logical function strtod_decimal_p(s) result(ok)
         character(len=*), intent(in) :: s
         integer :: i, n, digits
+
         ok = .false.
         n = len(s)
         i = 1
+
         if (i <= n) then
             if (s(i:i) == "+" .or. s(i:i) == "-") i = i + 1
         end if
+
         digits = 0
+
         do while (i <= n)
             if (s(i:i) < "0" .or. s(i:i) > "9") exit
             digits = digits + 1
             i = i + 1
         end do
+
         if (i <= n) then
             if (s(i:i) == ".") then
                 i = i + 1
+
                 do while (i <= n)
                     if (s(i:i) < "0" .or. s(i:i) > "9") exit
                     digits = digits + 1
@@ -458,21 +502,28 @@ contains
                 end do
             end if
         end if
+
         if (digits == 0) return
+
         if (i <= n) then
             if (s(i:i) /= "e" .and. s(i:i) /= "E") return
             i = i + 1
+
             if (i <= n) then
                 if (s(i:i) == "+" .or. s(i:i) == "-") i = i + 1
             end if
+
             digits = 0
+
             do while (i <= n)
                 if (s(i:i) < "0" .or. s(i:i) > "9") exit
                 digits = digits + 1
                 i = i + 1
             end do
+
             if (digits == 0) return
         end if
+
         ok = i > n
     end function strtod_decimal_p
 
@@ -486,12 +537,15 @@ contains
         integer, intent(inout) :: dst
         real(real64) :: x
         integer :: i, ios
+
         ok = .false.
+
         ! Only allow decimal float literals without whitespace.
         do i = 1, len(s)
             if (.not. ((s(i:i) >= "0" .and. s(i:i) <= "9") .or. s(i:i) == "." .or. s(i:i) == "+" &
                        .or. s(i:i) == "-" .or. s(i:i) == "e" .or. s(i:i) == "E")) return
         end do
+
         if (len(s) == 0) then
             x = 0
         else
@@ -499,6 +553,7 @@ contains
             read (s, *, iostat=ios) x
             if (ios /= 0) return
         end if
+
         if (0 <= x .and. x <= 1) then
             dst = nint(ieee_rint(x*65535))
             ok = .true.
@@ -522,11 +577,13 @@ contains
         logical, intent(out) :: found
         integer, intent(out) :: r, g, b
         integer :: n, sep1, sep2, start
+
         found = .false.
         r = -1
         g = -1
         b = -1
         if (len(spec) == 0) return
+
         if (spec(1:1) == "#") then
             if (mod(len(spec) - 1, 3) == 0) then
                 n = (len(spec) - 1)/3
@@ -543,6 +600,7 @@ contains
             sep2 = index(spec(sep1 + 1:), "/")
             if (sep2 == 0) return
             sep2 = sep2 + sep1
+
             if (start == 5) then
                 found = parse_hex_color_comp(spec(start:sep1 - 1), r)
                 if (found) found = parse_hex_color_comp(spec(sep1 + 1:sep2 - 1), g)
@@ -553,6 +611,7 @@ contains
                 if (found) found = parse_float_color_comp(spec(sep2 + 1:), b)
             end if
         end if
+
         if (.not. found) then
             r = -1
             g = -1
@@ -576,8 +635,10 @@ contains
         logical, intent(out) :: found
         integer, intent(out) :: r, g, b
         integer :: i
+
         call color_values_from_color_spec(color, found, r, g, b)
         if (found) return
+
         do i = 1, color_name_count
             if (same_string(trim(color_names(i)), color)) then
                 found = .true.
@@ -597,6 +658,7 @@ contains
         logical, intent(out) :: found
         integer, intent(out) :: index, r, g, b
         integer :: pos
+
         pos = alist_position(color)
         found = pos > 0
         index = -1
@@ -625,6 +687,7 @@ contains
         character(len=*), intent(in) :: color
         integer :: r, g, b
         logical :: found
+
         call tty_color_desc(color, found, index, r, g, b)
         if (.not. found) index = -1
     end function tty_color_translate
@@ -640,10 +703,13 @@ contains
         logical, intent(out) :: found
         integer, intent(out), optional :: r, g, b
         integer :: i, pos, index, rr, gg, bb
+
         pos = 0
+
         do i = 1, tty_defined_color_count
             if (tty_defined_color_alist(i)%index == idx) pos = i
         end do
+
         found = pos > 0
         rr = -1
         gg = -1
@@ -668,6 +734,7 @@ contains
         integer, intent(out) :: r, g, b
         integer :: index
         logical :: has_rgb
+
         call tty_color_desc(color, found, index, r, g, b, has_rgb=has_rgb)
         found = found .and. has_rgb
     end subroutine tty_color_values
@@ -688,6 +755,7 @@ contains
         logical, intent(out), optional :: has_rgb
         character(len=:), allocatable :: canon
         integer :: pos, pixel, rgb(3)
+
         canon = tty_color_canonicalize(color)
         index = -1
         r = -1
@@ -695,10 +763,12 @@ contains
         b = -1
         if (present(has_rgb)) has_rgb = .false.
         pos = alist_position(canon)
+
         if (pos == 0) then
             call tty_color_standard_values(canon, found, rgb(1), rgb(2), rgb(3))
             if (.not. found) return
             pixel = tty_color_24bit(rgb)
+
             if (pixel >= 0) then
                 index = pixel
                 r = rgb(1)
@@ -708,8 +778,10 @@ contains
                 if (present(has_rgb)) has_rgb = .true.
                 return
             end if
+
             pos = approximate_position(rgb)
         end if
+
         found = pos > 0
         if (found) call describe(pos, index, r, g, b, name, has_rgb)
     end subroutine tty_color_desc
@@ -719,7 +791,9 @@ contains
     !> equal.  Port of term/tty-colors.el:tty-color-gray-shades.
     integer function tty_color_gray_shades() result(count)
         integer :: i
+
         count = 0
+
         do i = 1, tty_defined_color_count
             if (.not. tty_defined_color_alist(i)%has_rgb) cycle
             if (tty_defined_color_alist(i)%rgb(1) == tty_defined_color_alist(i)%rgb(2) .and. &

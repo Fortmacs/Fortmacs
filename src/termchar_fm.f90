@@ -112,14 +112,17 @@ contains
         character(len=*), intent(in) :: bytes
         character(len=:), allocatable :: grown
         integer(int64) :: n
+
         n = len(bytes, kind=int64)
         if (n == 0) return
         if (.not. allocated(tty%obuf)) allocate (character(len=max(4096_int64, 2*n)) :: tty%obuf)
+
         if (tty%olen + n > len(tty%obuf, kind=int64)) then
             allocate (character(len=max(2*len(tty%obuf, kind=int64), tty%olen + n)) :: grown)
             grown(1:tty%olen) = tty%obuf(1:tty%olen)
             call move_alloc(grown, tty%obuf)
         end if
+
         tty%obuf(tty%olen + 1:tty%olen + n) = bytes
         tty%olen = tty%olen + n
     end subroutine tty_put_bytes
@@ -129,6 +132,7 @@ contains
     subroutine tty_output(tty, cap)
         type(tty_display_info), intent(inout) :: tty
         character(len=:), allocatable, intent(in) :: cap
+
         if (.not. allocated(cap)) return
         call tty_put_bytes(tty, delete_padding(cap))
     end subroutine tty_output
@@ -137,6 +141,7 @@ contains
     function tty_take_output(tty) result(s)
         type(tty_display_info), intent(inout) :: tty
         character(len=:), allocatable :: s
+
         s = ""
         if (tty%olen > 0) s = tty%obuf(1:tty%olen)
         tty%olen = 0
@@ -148,6 +153,7 @@ contains
         type(tty_display_info), intent(inout) :: tty
         type(status_type), intent(out) :: status
         integer(int64) :: written
+
         if (tty%output < 0 .or. tty%olen == 0) return
         call emacs_full_write(tty%output, tty%obuf(1:tty%olen), written, status)
         tty%olen = 0

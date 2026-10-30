@@ -48,6 +48,7 @@ contains
 
     subroutine collect_timer_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("timer-idle-fires-while-waiting", test_idle_fires), &
                     new_unittest("timer-idle-repeat-once-per-idle-period", test_idle_repeat), &
@@ -60,21 +61,25 @@ contains
 
     subroutine write_x(status)
         type(status_type), intent(out) :: status
+
         call emacs_write(master, "x", status)
     end subroutine write_x
 
     subroutine write_y(status)
         type(status_type), intent(out) :: status
+
         call emacs_write(master, "y", status)
     end subroutine write_y
 
     subroutine write_z(status)
         type(status_type), intent(out) :: status
+
         call emacs_write(master, "z", status)
     end subroutine write_z
 
     subroutine count_call(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         calls = calls + 1
     end subroutine count_call
@@ -82,6 +87,7 @@ contains
     subroutine fail_call(status)
         type(status_type), intent(out) :: status
         type(status_type) :: st
+
         call emacs_write(master, "x", st)
         call set_error(status, FM_GENERIC_ERROR, "boom")
     end subroutine fail_call
@@ -92,6 +98,7 @@ contains
         logical, intent(out) :: ok
         integer(int32) :: slave
         type(status_type) :: st
+
         ok = .false.
         call discard_input()
         call open_pty(master, slave, st)
@@ -106,6 +113,7 @@ contains
     subroutine pty_close(old)
         type(emacs_tty_type), intent(in) :: old
         type(status_type) :: st
+
         call reset_sys_modes(slave_fd, old, st)
         call set_input_fd(-1_int32)
         call close_fd(slave_fd)
@@ -119,6 +127,7 @@ contains
         type(value_type) :: ev
         type(status_type) :: st
         logical :: have
+
         next_char = -1
         call read_event(ev, have, st)
         if (have .and. fixnump(ev)) next_char = int(xfixnum(ev))
@@ -135,6 +144,7 @@ contains
         integer(int32) :: ms
         logical :: ok, idle_p
         real(real64) :: secs
+
         call pty_open(old, ok)
         call check(error, ok, "pty")
         if (allocated(error)) return
@@ -169,6 +179,7 @@ contains
         type(handle_type) :: idle, ordinary, fallback
         type(status_type) :: st
         logical :: ok
+
         call pty_open(old, ok)
         call check(error, ok, "pty")
         if (allocated(error)) return
@@ -199,6 +210,7 @@ contains
         type(handle_type) :: ordinary, idle
         type(status_type) :: st
         logical :: ok
+
         call pty_open(old, ok)
         call check(error, ok, "pty")
         if (allocated(error)) return
@@ -219,6 +231,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b
         type(status_type) :: st
+
         call run_with_timer(a, 100.0_real64, count_call, st)
         call check(error, timer_active_p(a) .and. timer_check() > 0, "active")
         if (allocated(error)) return
@@ -246,6 +259,7 @@ contains
         type(handle_type) :: a, fallback
         type(status_type) :: st
         logical :: ok
+
         call pty_open(old, ok)
         call check(error, ok, "pty")
         if (allocated(error)) return
@@ -264,6 +278,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a
         type(status_type) :: st
+
         call run_at_time(a, 1.0_real64, count_call, st, repeat=-1.0_real64)
         call check(error,.not. st%ok() .and. .not. timerp(a), "Invalid repetition interval")
     end subroutine test_invalid_repeat

@@ -44,51 +44,64 @@ contains
         integer(int32) :: c, clen
         integer(int64) :: byte, last
         logical :: saved_enable, nonspace
+
         answer = .false.
+
         if (use_short_answers) then
             call y_or_n_p(prompt, answer, status)
             return
         end if
+
         ! Whether PROMPT ends in a non-blank character.
         nonspace = .false.
         n = schars(prompt)
+
         if (n > 0) then
             byte = 1
             last = 0
+
             do while (byte <= len(prompt))
                 call string_char_and_length(prompt, byte, c, clen)
                 last = c
                 byte = byte + clen
             end do
+
             nonspace = .not. blankp(int(last, int32))
         end if
+
         full = prompt
         if (nonspace) full = full//" "
+
         if (allocated(yes_or_no_prompt)) then
             full = full//yes_or_no_prompt
         else
             full = full//"(yes or no) "
         end if
+
         saved_enable = enable_recursive_minibuffers
         enable_recursive_minibuffers = .true.
         ! Preserve the actual command that eventually called
         ! `yes_or_no_p' (otherwise `repeat' will be repeating
         ! `exit_minibuffer').
         saved_real_this = real_this_command
+
         do
             call read_from_minibuffer(full, ans, status, history="yes_or_no_p_history")
             if (.not. status%ok()) exit
             ans = downcase_string(ans)
+
             if (ans == "yes" .and. len(ans) == 3) then
                 answer = .true.
                 exit
             end if
+
             if (ans == "no" .and. len(ans) == 2) exit
             call ding()
             call discard_input()
             call message("Please answer yes or no.")
             call sit_for(2000)
         end do
+
         enable_recursive_minibuffers = saved_enable
         real_this_command = saved_real_this
     end subroutine yes_or_no_p

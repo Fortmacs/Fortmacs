@@ -35,6 +35,7 @@ contains
 
     subroutine collect_tty_colors_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("tty-colors-test-standard-colors", test_standard_colors), &
                     new_unittest("color-values-from-color-spec", test_color_spec), &
@@ -56,6 +57,7 @@ contains
         integer, intent(in) :: rgb(3)
         integer :: r, g, b
         logical :: found
+
         call tty_color_standard_values(color, found, r, g, b)
         call check(error, found, color//" has standard values")
         if (allocated(error)) return
@@ -65,6 +67,7 @@ contains
     !> Port of tty-colors-tests.el:tty-colors-test-standard-colors.
     subroutine test_standard_colors(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check_standard(error, "white", [65535, 65535, 65535])
         if (allocated(error)) return
         call check_standard(error, "#F00", [65535, 0, 0])
@@ -85,6 +88,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         integer :: r, g, b
         logical :: found
+
         call check_standard(error, "#123", [4369, 8738, 13107])
         if (allocated(error)) return
         ! lrint rounds 32767.5 to even.
@@ -125,6 +129,7 @@ contains
 
     subroutine test_canonicalize(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, tty_color_canonicalize("Red"), "red")
         if (allocated(error)) return
         call check(error, tty_color_canonicalize("Light  Goldenrod Yellow"), "lightgoldenrodyellow")
@@ -142,6 +147,7 @@ contains
         integer :: index, r, g, b
         logical :: found
         character(len=:), allocatable :: name
+
         call tty_color_clear()
         call tty_register_colors(8, .false., status)
         call check(error, status%ok() .and. tty_defined_color_count == 8, "8 colors")
@@ -186,6 +192,7 @@ contains
         type(status_type) :: status
         integer :: index, r, g, b
         logical :: found
+
         call tty_register_colors(8, .true., status)
         call check(error, status%ok() .and. tty_defined_color_count == 8, "8 colors")
         if (allocated(error)) return
@@ -204,6 +211,7 @@ contains
         integer :: index, r, g, b
         logical :: found
         character(len=:), allocatable :: name
+
         call tty_register_colors(88, .true., status)
         call check(error, status%ok() .and. tty_defined_color_count == 88, "88 colors")
         if (allocated(error)) return
@@ -229,6 +237,7 @@ contains
         integer :: index, r, g, b
         logical :: found
         character(len=:), allocatable :: name
+
         call tty_register_colors(256, .true., status)
         call check(error, status%ok() .and. tty_defined_color_count == 256, "256 colors")
         if (allocated(error)) return
@@ -275,6 +284,7 @@ contains
         integer :: index, r, g, b
         logical :: found
         character(len=:), allocatable :: name
+
         call tty_register_colors(16777216, .true., status)
         call check(error, status%ok() .and. tty_defined_color_count == 665, "16 + 649 colors")
         if (allocated(error)) return
@@ -299,6 +309,7 @@ contains
     subroutine test_xterm_unsupported(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: status
+
         call tty_register_colors(52, .true., status)
         call check(error,.not. status%ok(), "52 colors fail")
         if (allocated(error)) return
@@ -320,6 +331,7 @@ contains
         type(status_type) :: status
         integer :: index, r, g, b
         logical :: found, has_rgb
+
         call tty_color_clear()
         call tty_color_define("Foo Bar", 42, status)
         call check(error, status%ok(), "defined")

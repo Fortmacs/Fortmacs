@@ -572,12 +572,14 @@ contains
         character(len=*), intent(in) :: name
         integer, intent(out) :: b
         integer :: k
+
         do k = 1, n_vc_backends
             if (vc_backends(k)%name == name) then
                 b = k
                 return
             end if
         end do
+
         b = 0
         if (n_vc_backends == MAX_VC_BACKENDS) return
         n_vc_backends = n_vc_backends + 1
@@ -590,7 +592,9 @@ contains
     integer function vc_backend_named(name) result(b)
         character(len=*), intent(in) :: name
         integer :: k
+
         b = 0
+
         do k = 1, n_vc_backends
             if (vc_backends(k)%name == trim(name)) then
                 b = k
@@ -603,6 +607,7 @@ contains
     function vc_backend_name(b) result(name)
         integer, intent(in) :: b
         character(len=:), allocatable :: name
+
         name = ""
         if (b > 0) name = vc_backends(b)%name
     end function vc_backend_name
@@ -612,6 +617,7 @@ contains
         type(status_type), intent(inout) :: status
         character(len=*), intent(in) :: function
         integer, intent(in) :: b
+
         call set_error(status, FM_VC_NOT_SUPPORTED, function//", "//vc_backend_name(b))
     end subroutine vc_not_supported
 
@@ -620,6 +626,7 @@ contains
     logical function call_registered(b, file) result(r)
         integer, intent(in) :: b
         character(len=*), intent(in) :: file
+
         r = .false.
         if (associated(vc_backends(b)%registered)) r = vc_backends(b)%registered(file)
     end function call_registered
@@ -632,12 +639,15 @@ contains
         character(len=:), allocatable, intent(out) :: root
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
+
         root = ""
         found = .false.
+
         if (.not. associated(vc_backends(b)%root)) then
             call vc_not_supported(status, "root", b)
             return
         end if
+
         call vc_backends(b)%root(file, root, found)
     end subroutine vc_call_root
 
@@ -648,6 +658,7 @@ contains
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: dir
         logical, intent(out) :: found
+
         dir = ""
         found = .false.
         if (associated(vc_backends(b)%responsible_p)) call vc_backends(b)%responsible_p(file, dir, found)
@@ -660,6 +671,7 @@ contains
     logical function vc_call_make_version_backups_p(b, file) result(r)
         integer, intent(in) :: b
         character(len=*), intent(in) :: file
+
         r = .false.
         if (associated(vc_backends(b)%make_version_backups_p)) r = vc_backends(b)%make_version_backups_p(file)
     end function vc_call_make_version_backups_p
@@ -677,12 +689,15 @@ contains
         type(vc_props_type), allocatable :: grown(:)
         type(status_type) :: st
         integer :: n
+
         call expand_file_name(file, name, st)
         if (.not. st%ok()) name = file
         if (.not. allocated(props)) allocate (props(0))
+
         do k = 1, size(props)
             if (props(k)%file == name .and. len(props(k)%file) == len(name)) return
         end do
+
         k = 0
         if (.not. create) return
         n = size(props)
@@ -696,6 +711,7 @@ contains
     !> Note that property PROP was set (cl-pushnew onto vc-touched-properties).
     subroutine touch(prop)
         integer, intent(in) :: prop
+
         touched(prop) = .true.
     end subroutine touch
 
@@ -708,6 +724,7 @@ contains
     !> Whether property PROP was set since `vc_touch_reset'.
     logical function vc_touched(prop)
         integer, intent(in) :: prop
+
         vc_touched = touched(prop)
     end function vc_touched
 
@@ -717,6 +734,7 @@ contains
         character(len=*), intent(in) :: file
         integer, intent(in) :: b
         integer :: k
+
         call touch(VC_PROP_BACKEND)
         k = prop_index(file, .true.)
         props(k)%backend = b
@@ -728,6 +746,7 @@ contains
     integer function vc_file_get_backend(file) result(b)
         character(len=*), intent(in) :: file
         integer :: k
+
         b = 0
         k = prop_index(file, .false.)
         if (k == 0) return
@@ -741,10 +760,12 @@ contains
         integer, intent(in) :: state
         character(len=*), intent(in), optional :: locker
         integer :: k
+
         call touch(VC_PROP_STATE)
         k = prop_index(file, .true.)
         props(k)%state = state
         props(k)%set(VC_PROP_STATE) = state /= VC_STATE_NIL
+
         if (present(locker)) then
             props(k)%locker = locker
         else if (allocated(props(k)%locker)) then
@@ -758,6 +779,7 @@ contains
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out), optional :: locker
         integer :: k
+
         state = VC_STATE_NIL
         if (present(locker)) locker = ""
         k = prop_index(file, .false.)
@@ -772,6 +794,7 @@ contains
         character(len=*), intent(in) :: file
         character(len=*), intent(in), optional :: rev
         integer :: k
+
         call touch(VC_PROP_WORKING_REVISION)
         k = prop_index(file, .true.)
         props(k)%set(VC_PROP_WORKING_REVISION) = present(rev)
@@ -785,6 +808,7 @@ contains
         character(len=:), allocatable, intent(out) :: rev
         logical, intent(out) :: found
         integer :: k
+
         rev = ""
         found = .false.
         k = prop_index(file, .false.)
@@ -800,6 +824,7 @@ contains
         integer(int64), intent(in), optional :: sec
         integer(int32), intent(in), optional :: nsec
         integer :: k
+
         call touch(VC_PROP_CHECKOUT_TIME)
         k = prop_index(file, .true.)
         props(k)%set(VC_PROP_CHECKOUT_TIME) = present(sec)
@@ -816,6 +841,7 @@ contains
         integer(int32), intent(out) :: nsec
         logical, intent(out) :: found
         integer :: k
+
         sec = 0
         nsec = 0
         found = .false.
@@ -832,6 +858,7 @@ contains
         character(len=*), intent(in) :: file
         character(len=*), intent(in), optional :: ref
         integer :: k
+
         call touch(VC_PROP_GIT_SYMBOLIC_REF)
         k = prop_index(file, .true.)
         props(k)%set(VC_PROP_GIT_SYMBOLIC_REF) = present(ref)
@@ -845,6 +872,7 @@ contains
         character(len=:), allocatable, intent(out) :: ref
         logical, intent(out) :: found
         integer :: k
+
         ref = ""
         found = .false.
         k = prop_index(file, .false.)
@@ -859,6 +887,7 @@ contains
         character(len=*), intent(in) :: file
         integer :: k
         type(vc_props_type) :: fresh
+
         k = prop_index(file, .false.)
         if (k == 0) return
         call move_alloc(props(k)%file, fresh%file)
@@ -883,6 +912,7 @@ contains
         character(len=*), intent(in) :: file, witness
         character(len=:), allocatable, intent(out) :: root
         logical, intent(out) :: found
+
         if (allocated(vc_ignore_dir_regexp)) then
             call locate_dominating_file(file, witness, root, found, vc_ignore_dir_regexp)
         else
@@ -901,13 +931,17 @@ contains
         character(len=:), allocatable :: dir
         type(status_type) :: st
         integer :: b, k, c
+
         r = .false.
         dir = file_name_directory(file)
+
         if (len(dir) > 0 .and. allocated(vc_ignore_dir_regexp)) then
             if (string_match(vc_ignore_dir_regexp, dir, st) > 0) return
         end if
+
         ! Try vc-BACKEND-registered for each handled BACKEND.
         b = vc_file_get_backend(file)
+
         if (b > 0) then
             if (call_registered(b, file)) then
                 call vc_file_set_backend(file, b)
@@ -915,10 +949,12 @@ contains
                 return
             end if
         end if
+
         if (allocated(vc_handled_backends)) then
             do k = 1, size(vc_handled_backends)
                 c = vc_backend_named(vc_handled_backends(k))
                 if (c == 0) cycle
+
                 if (call_registered(c, file)) then
                     call vc_file_set_backend(file, c)
                     r = .true.
@@ -926,6 +962,7 @@ contains
                 end if
             end do
         end if
+
         ! File is not registered.
         call vc_file_set_backend(file, VC_BACKEND_NONE)
     end function vc_registered
@@ -937,9 +974,11 @@ contains
     !> Port of vc-hooks.el:vc-backend (a single file; "" is nil).
     integer function vc_backend(file) result(b)
         character(len=*), intent(in) :: file
+
         b = 0
         if (len(file) == 0) return
         b = vc_file_get_backend(file)
+
         ! Note that internally, Emacs remembers unregistered files by
         ! setting the property to `none'.
         if (b == VC_BACKEND_NONE) then
@@ -971,6 +1010,7 @@ contains
     integer function vc_checkout_model(b, files) result(model)
         integer, intent(in) :: b
         type(vc_string_type), intent(in) :: files(:)
+
         model = VC_MODEL_NIL
         if (b <= 0) return
         if (associated(vc_backends(b)%checkout_model)) model = vc_backends(b)%checkout_model(files)
@@ -1039,11 +1079,13 @@ contains
         integer, intent(in), optional :: backend
         character(len=:), allocatable, intent(out), optional :: locker
         integer :: b
+
         if (present(locker)) then
             state = vc_file_get_state(file, locker)
         else
             state = vc_file_get_state(file)
         end if
+
         if (state /= VC_STATE_NIL) return
         if (len(file) == 0) return
         b = 0
@@ -1059,6 +1101,7 @@ contains
     integer function vc_state_refresh(file, b) result(state)
         character(len=*), intent(in) :: file
         integer, intent(in) :: b
+
         state = VC_STATE_NIL
         if (associated(vc_backends(b)%state)) state = vc_backends(b)%state(file)
         call vc_file_set_state(file, state)
@@ -1068,6 +1111,7 @@ contains
     !> VC_UP_TO_DATE.  Port of vc-hooks.el:vc-up-to-date-p.
     logical function vc_up_to_date_p(file)
         character(len=*), intent(in) :: file
+
         vc_up_to_date_p = vc_state(file) == VC_UP_TO_DATE
     end function vc_up_to_date_p
 
@@ -1077,6 +1121,7 @@ contains
         integer, intent(in) :: state
         character(len=*), intent(in), optional :: locker
         character(len=:), allocatable :: name
+
         select case (state)
         case (VC_UP_TO_DATE)
             name = "up-to-date"
@@ -1122,6 +1167,7 @@ contains
         character(len=:), allocatable :: abs, saved_dir
         type(status_type) :: st
         integer :: b
+
         call expand_file_name(file, abs, st)
         if (.not. st%ok()) abs = file
         call vc_file_get_working_revision(abs, rev, found)
@@ -1136,6 +1182,7 @@ contains
         call set_buffer_directory(file_name_directory(abs))
         call vc_backends(b)%working_revision(file, rev, found)
         call set_buffer_directory(saved_dir)
+
         if (found) then
             call vc_file_set_working_revision(abs, rev)
         else
@@ -1159,16 +1206,20 @@ contains
         logical, intent(out) :: found
         integer, intent(in), optional :: backend
         integer :: b, cached
+
         rev = ""
         found = .false.
         b = 0
         if (present(backend)) b = backend
         cached = 0
+
         if (.not. (file_directory_p(file) .and. b /= 0)) then
             cached = vc_backend(file)
             if (cached == 0) return
         end if
+
         if (b == 0) b = cached
+
         if (associated(vc_backends(b)%working_revision_symbol)) then
             rev = vc_backends(b)%working_revision_symbol()
             found = .true.
@@ -1187,6 +1238,7 @@ contains
         integer, intent(in), optional :: backend
         logical :: saved
         integer :: b
+
         rev = ""
         found = .false.
         b = 0
@@ -1203,6 +1255,7 @@ contains
     !> The current buffer's `default_directory'.
     function buffer_directory() result(dir)
         character(len=:), allocatable :: dir
+
         dir = "./"
         if (cur == 0) return
         if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
@@ -1212,6 +1265,7 @@ contains
     !> undone by setting it back).
     subroutine set_buffer_directory(dir)
         character(len=*), intent(in) :: dir
+
         if (cur == 0) return
         if (len(dir) > 0) buffers(cur)%directory = dir
     end subroutine set_buffer_directory
@@ -1235,10 +1289,12 @@ contains
         type(status_type) :: st
         logical :: man, found
         integer :: k
+
         man = .false.
         if (present(manual)) man = manual
         dot = "."
         if (man) dot = ""
+
         if (present(regexp)) then
             if (regexp) then
                 name = regexp_quote(file_name_nondirectory(file))//"\.~.+"
@@ -1247,14 +1303,17 @@ contains
                 return
             end if
         end if
+
         if (present(rev)) then
             r = rev
         else
             call vc_working_revision(file, r, found)
         end if
+
         do k = 1, len(r)
             if (r(k:k) == "/") r(k:k) = "_"
         end do
+
         call expand_file_name(file_name_nondirectory(file)//".~"//r//dot//"~", name, st, file_name_directory_or_default(file))
         if (.not. st%ok()) name = file_name_nondirectory(file)//".~"//r//dot//"~"
     end function vc_version_backup_file_name
@@ -1264,6 +1323,7 @@ contains
     function file_name_directory_or_default(file) result(dir)
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: dir
+
         dir = file_name_directory(file)
         if (len(dir) == 0) dir = buffer_directory()
     end function file_name_directory_or_default
@@ -1279,12 +1339,14 @@ contains
         type(status_type) :: st, mst
         character(len=:), allocatable :: re, dir
         integer :: k
+
         dir = file_name_directory_or_default(file)
         re = vc_version_backup_file_name(file, regexp=.true.)
         ! Don't fail when the directory doesn't exist.
         call directory_files(dir, names, st, full=.true.)
         if (.not. st%ok()) return
         call list_elements(names, elts)
+
         do k = 1, size(elts)
             if (string_match(re, file_name_nondirectory(xstring(elts(k))), mst) > 0) then
                 call delete_file(xstring(elts(k)), st)
@@ -1298,6 +1360,7 @@ contains
     subroutine vc_make_version_backup(file)
         character(len=*), intent(in) :: file
         type(status_type) :: st
+
         call vc_delete_automatic_version_backups(file)
         call copy_file(file, vc_version_backup_file_name(file), st, keep_time=.true.)
         ! It's ok if it doesn't work (e.g. directory not writable), since
@@ -1311,6 +1374,7 @@ contains
         character(len=:), allocatable :: file
         type(vc_string_type) :: files(1)
         integer :: b
+
         ! If the file on disk is still in sync with the repository,
         ! and version backups should be made, copy the file to
         ! another name.  This enables local diffs and local reverting.
@@ -1337,6 +1401,7 @@ contains
         integer(int32) :: nsec
         logical :: found, have_attr
         integer :: b, state
+
         ! If the file in the current buffer is under version control,
         ! up-to-date, and locking is not used for the file, set
         ! the state to 'edited and redisplay the mode line.
@@ -1345,6 +1410,7 @@ contains
         file = buffers(cur)%filename
         b = vc_backend(file)
         files(1)%s = file
+
         if (b == 0) then
             continue
         else if (vc_checkout_model(b, files) == VC_MODEL_IMPLICIT) then
@@ -1352,9 +1418,11 @@ contains
             ! checked out, clear the checkout-time to avoid confusion.
             call vc_file_get_checkout_time(file, sec, nsec, found)
             call file_attributes(file, attr, have_attr)
+
             if (found .and. have_attr) then
                 if (sec == attr%mtime_sec .and. nsec == attr%mtime_nsec) call vc_file_set_checkout_time(file)
             end if
+
             state = vc_state_refresh(file, b)
             if (state /= VC_STATE_NIL) call vc_mode_line(file, b)
         else if (vc_file_get_state(file) == VC_UP_TO_DATE) then
@@ -1362,6 +1430,7 @@ contains
             ! file is not longer up-to-date.
             call vc_file_set_state(file, VC_STATE_NIL)
         end if
+
         ! Resynch *vc-dir* buffers, if any are present.
         if (vc_dir_buffers_p() .and. associated(vc_dir_resynch_file)) call vc_dir_resynch_file(file)
     end subroutine vc_after_save
@@ -1370,6 +1439,7 @@ contains
     !> vc-hooks.el:vc-after-revert.
     recursive subroutine vc_after_revert(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         if (.not. vc_dir_buffers_p()) return
         if (cur == 0) return
@@ -1402,9 +1472,11 @@ contains
         integer :: b
         logical :: found
         integer(int32) :: modes
+
         b = 0
         if (present(backend)) b = backend
         if (b == 0) b = vc_backend(file)
+
         if (b == 0) then
             if (allocated(buffers(cur)%vc_mode)) deallocate (buffers(cur)%vc_mode)
         else if (vc_display_status == VC_DISPLAY_STATUS_NIL) then
@@ -1415,7 +1487,9 @@ contains
             else
                 ml_string = vc_default_mode_line_string(b, file)
             end if
+
             buffers(cur)%vc_mode = " "//ml_string
+
             ! If the user is root, and the file is not owner-writable,
             ! then pretend that we can't write it
             ! even though we can (because root can write anything).
@@ -1427,6 +1501,7 @@ contains
                 end if
             end if
         end if
+
         if (present(used)) used = b
     end subroutine vc_mode_line
 
@@ -1438,6 +1513,7 @@ contains
         integer, intent(in) :: state
         character(len=:), allocatable, intent(out) :: state_echo, face, indicator
         character(len=*), intent(in), optional :: locker
+
         select case (state)
         case (VC_UP_TO_DATE, VC_NEEDS_UPDATE)
             state_echo = "Up to date file"
@@ -1451,6 +1527,7 @@ contains
                 state_echo = "File locked by"
                 indicator = "::"
             end if
+
             face = "vc_locked_state"
         case (VC_ADDED)
             state_echo = "Locally added file"
@@ -1501,6 +1578,7 @@ contains
         character(len=:), allocatable :: rev, echo, face, indicator, locker
         logical :: found
         integer :: state
+
         state = vc_state(file, b, locker)
         call vc_symbolic_working_revision(file, rev, found, b)
         call vc_mode_line_state(state, echo, face, indicator, locker)
@@ -1517,10 +1595,12 @@ contains
         character(len=:), allocatable :: truename
         type(handle_type) :: true_buffer, this_buffer, buf
         type(status_type) :: st
+
         call file_truename(buffers(cur)%filename, truename, st)
         if (.not. st%ok()) return
         true_buffer = get_file_buffer(truename)
         this_buffer = current_buffer()
+
         if (true_buffer%index == 0 .or. true_buffer%index == this_buffer%index) then
             call kill_buffer(this_buffer, st)
             ! In principle, we could do something like set-visited-file-name.
@@ -1547,6 +1627,7 @@ contains
         type(status_type) :: st
         integer :: b, link_type
         logical :: yes
+
         status = status_type()
         ! Recompute whether file is version controlled,
         ! if user has killed the buffer and revisited.
@@ -1555,25 +1636,30 @@ contains
         if (.not. allocated(buffers(cur)%filename)) return
         call vc_file_clearprops(buffers(cur)%filename)
         b = vc_backend(buffers(cur)%filename)
+
         if (b /= 0) then
             saved_dir = buffer_directory()
             ! Let the backend setup any buffer-local things it needs.
             if (associated(vc_backends(b)%find_file_hook)) call vc_backends(b)%find_file_hook()
+
             ! Compute the state and put it in the mode line.
             if (cur /= 0) then
                 if (allocated(buffers(cur)%filename)) call vc_mode_line(buffers(cur)%filename, b)
             end if
+
             call set_buffer_directory(saved_dir)
             ! Use this variable, not make-backup-files, because this is
             ! for things that depend on the file name.
             if (.not. vc_make_backup_files) buffers(cur)%backup_inhibited = .true.
             return
         end if
+
         call file_truename(buffers(cur)%filename, truename, st)
         if (.not. st%ok()) return
         link_type = 0
         if (truename /= buffers(cur)%filename) link_type = vc_backend(truename)
         if (link_type == 0) return
+
         if (vc_follow_symlinks == VC_FOLLOW_SYMLINKS_NIL) then
             call message("Warning: symbolic link to "//vc_backend_name(link_type)//"-controlled source file")
         else if (vc_follow_symlinks /= VC_FOLLOW_SYMLINKS_ASK .or. already_followed()) then
@@ -1584,6 +1670,7 @@ contains
             call yes_or_no_p("Symbolic link to "//vc_backend_name(link_type)// &
                              "-controlled source file; follow link? ", yes, status)
             if (.not. status%ok()) return
+
             if (yes) then
                 call vc_follow_link()
                 call message("Followed link to "//buffers(cur)%filename)
@@ -1592,12 +1679,14 @@ contains
                 call message("Warning: editing through the link bypasses version control")
             end if
         end if
+
     contains
 
         !> If we already visited this file by following the link, don't
         !> ask again if we try to visit it again.
         logical function already_followed()
             type(handle_type) :: h1, h2
+
             h1 = get_file_buffer(abbreviate_file_name(truename))
             h2 = get_file_buffer(truename)
             already_followed = h1%index /= 0 .or. h2%index /= 0
@@ -1607,7 +1696,9 @@ contains
     !> `vc_refresh_state' as the find-file-hook function.
     recursive subroutine refresh_state_hook(status)
         type(status_type), intent(out) :: status
+
         call vc_refresh_state(status)
+
         if (.not. status%ok()) then
             call message("VC refresh error: "//format_error(status))
             status = status_type()
@@ -1618,6 +1709,7 @@ contains
     !> vc-hooks.el:vc-kill-buffer-hook.
     recursive subroutine vc_kill_buffer_hook(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         if (cur == 0) return
         if (allocated(buffers(cur)%filename)) call vc_file_clearprops(buffers(cur)%filename)
@@ -1625,6 +1717,7 @@ contains
 
     recursive subroutine cmd_vc_refresh_state(status)
         type(status_type), intent(out) :: status
+
         call vc_refresh_state(status)
     end subroutine cmd_vc_refresh_state
 
@@ -1634,6 +1727,7 @@ contains
 
     subroutine define_faces()
         type(named_face_type), pointer :: f
+
         f => vc_state_base
         call f%define("vc_state_base", "Base face for VC state indicator.")
         call f%spec_entry(display_when(is_default=.true.), face_attrs())
@@ -1674,14 +1768,18 @@ contains
         type(handle_type), intent(in) :: ctl_x_map
         type(value_type) :: key(1)
         type(status_type) :: st
+
         if (.not. allocated(vc_ignore_dir_regexp)) vc_ignore_dir_regexp = locate_dominating_stop_dir_regexp
+
         if (.not. allocated(vc_handled_backends)) then
             vc_handled_backends = [character(len=8) :: "RCS", "CVS", "SVN", "SCCS", "SRC", "Bzr", "Git", "Hg"]
         end if
+
         if (.not. allocated(vc_directory_exclusion_list)) then
             vc_directory_exclusion_list = [character(len=8) :: "SCCS", "RCS", "CVS", "MCVS", ".src", ".svn", ".git", &
                                            ".hg", ".bzr", "_MTN", "_darcs", "{arch}", ".repo", ".jj"]
         end if
+
         if (.not. allocated(props)) allocate (props(0))
         call define_faces()
         commands%vc_refresh_state%run => cmd_vc_refresh_state

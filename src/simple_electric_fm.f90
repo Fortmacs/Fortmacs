@@ -73,6 +73,7 @@ contains
         type(syntax_descriptor_type), intent(out) :: d
         logical, intent(out) :: found
         integer(int32) :: c
+
         found = .false.
         if (pos < point_min() .or. pos >= point_max()) return
         call char_after(c, found, pos)
@@ -84,12 +85,15 @@ contains
     integer(int32) :: c
     integer :: matching_paren
     logical :: found, have_start
+
     mismatch = .false.
     call syntax_after(end - 1, end_syntax, found)
     matching_paren = -1
+
     if (found) then
         if (iand(end_syntax%code, 255) == SCLOSE) matching_paren = end_syntax%match
     end if
+
     ! For self-matched chars like " and $, we can't know when they're
     ! mismatched or unmatched, so we can do it only for parens.
     if (matching_paren < 0) return
@@ -100,6 +104,7 @@ contains
     ! The cdr might hold a new paren-class info rather than a
     ! matching-char info, in which case the two CDRs should match.
     call syntax_after(start, start_syntax, have_start)
+
     if (have_start) then
         if (start_syntax%match == matching_paren) mismatch = .false.
     end if
@@ -109,6 +114,7 @@ contains
     !> Port of simple.el:blink-matching-open (the command).
     subroutine cmd_blink_matching_open(status)
         type(status_type), intent(out) :: status
+
         call blink_matching_open(status)
     end subroutine cmd_blink_matching_open
 
@@ -118,6 +124,7 @@ contains
     type(status_type) :: st
     logical :: saved_ignore, found, mismatch, visible
     procedure(blink_matching_check_proc), pointer :: check
+
     status = status_type()
     if (bobp() .or. blink_matching_paren == BLINK_MATCHING_PAREN_NIL) return
     oldpos = point()
@@ -125,15 +132,18 @@ contains
     savedb = buffers(cur)%begv
     savedz = buffers(cur)%text%z - buffers(cur)%zv
     call syntax_propertize(point(), st)
+
     if (blink_matching_paren_distance >= 0) then
         ! (point-min) unless minibuf.
         call narrow_to_region(max(minibuffer_prompt_end(), point() - blink_matching_paren_distance), oldpos, st)
     end if
+
     saved_ignore = parse_sexp_ignore_comments%value
     parse_sexp_ignore_comments%value = parse_sexp_ignore_comments%value .and. &
                                        .not. blink_matching_paren_dont_ignore_comments
     blinkpos = 0
     call forward_sexp(-1_int64, st)
+
     if (st%ok()) then
         ! backward-sexp skips backward over prefix chars, so move back to
         ! the matching paren.
@@ -143,8 +153,10 @@ contains
             if (iand(code%code, 255) /= SQUOTE .and. iand(code%code, 1048576) /= 1048576) exit
             call goto_char(point() + 1)
         end do
+
         blinkpos = point()
     end if
+
     parse_sexp_ignore_comments%value = saved_ignore
     call widen()
     call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
@@ -152,6 +164,7 @@ contains
     mismatch = .false.
     check => current_blink_matching_check_function()
     if (associated(check)) mismatch = check(blinkpos, oldpos)
+
     if (mismatch) then
         if (blinkpos /= 0) then
             if (minibufferp()) then
@@ -166,16 +179,20 @@ contains
                 call message("No matching parenthesis found")
             end if
         end if
+
         return
     end if
+
     if (blinkpos == 0) return
     visible = blink_matching_paren == BLINK_MATCHING_PAREN_JUMP_OFFSCREEN
     if (.not. visible) visible = window_pos_visible_p(blinkpos, selected_window())
+
     if (visible) then
         ! Matching open within window, temporarily move to or highlight
         ! char after blinkpos but only if `blink_matching_paren_on_screen'
         ! is true.
         if (.not. blink_matching_paren_on_screen .or. minor_modes%show_paren_mode%state%value) return
+
         if (blink_matching_paren == BLINK_MATCHING_PAREN_JUMP .or. &
             blink_matching_paren == BLINK_MATCHING_PAREN_JUMP_OFFSCREEN) then
             opoint = point()
@@ -188,6 +205,7 @@ contains
                 call overlay_put(blink_matching_overlay, "face", sym("show_paren_match"), st)
                 call delete_overlay(blink_matching_overlay)
             end if
+
             call move_overlay(blink_matching_overlay, blinkpos, blinkpos + 1, st)
             call sit_for(int(blink_matching_delay*1000, int32))
             call delete_overlay(blink_matching_overlay)
@@ -204,6 +222,7 @@ contains
     logical :: not_bol, not_eol, not_bob
     integer(int64), allocatable :: regions(:, :)
     integer :: k
+
     opoint = point()
     call goto_char(pos)
     ! Capture the regions in terms of (beg . end) pairs whose
@@ -211,6 +230,7 @@ contains
     moved = skip_chars_backward(" "//TAB, st)
     not_bol = .not. bolp()
     call goto_char(pos)
+
     if (not_bol) then
         ! Show what precedes the open in its line, if anything.
         bol = line_beginning_position()
@@ -221,6 +241,7 @@ contains
         moved = skip_chars_forward(" "//TAB, st)
         not_eol = .not. eolp()
         call goto_char(pos)
+
         if (not_eol) then
             ! Show what follows the open in its line, if anything.
             allocate (regions(2, 1))
@@ -229,6 +250,7 @@ contains
             moved = skip_chars_backward(LF//" "//TAB, st)
             not_bob = .not. bobp()
             call goto_char(pos)
+
             if (not_bob) then
                 ! Otherwise show the previous nonblank line, if there is
                 ! one.
@@ -247,15 +269,18 @@ contains
             end if
         end if
     end if
+
     ! Ensure we've font-locked the context region.
     last_end = regions(2, size(regions, 2))
     call font_lock_ensure(st, regions(1, 1), last_end)
     line_string = ""
+
     do k = 1, size(regions, 2)
         if (k > 1) line_string = line_string//"..."
         call buffer_substring(regions(1, k), regions(2, k), a, st)
         line_string = line_string//a
     end do
+
     call goto_char(opoint)
     end procedure blink_paren_open_paren_line_string
 
@@ -263,6 +288,7 @@ contains
     integer(int32) :: c
     integer(int64) :: opoint, start, ev
     logical :: found, odd
+
     status = status_type()
     ! Sanity check.
     if (.not. fixnump(last_command_event)) return
@@ -294,6 +320,7 @@ contains
     !> simple.el:newline-and-indent (the command, "*p").
     subroutine cmd_newline_and_indent(status)
         type(status_type), intent(out) :: status
+
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
         call newline_and_indent(status, prefix_numeric_value(current_prefix_arg))
@@ -302,18 +329,21 @@ contains
     module procedure newline_and_indent
     integer(int64) :: n, k
     logical :: saved
+
     call delete_horizontal_space(.true., status)
     if (.not. status%ok()) return
     n = 1
     if (present(arg)) n = arg
     saved = minor_modes%electric_indent_mode%state%value
     minor_modes%electric_indent_mode%state%value = .false.
+
     do k = 1, n
         call newline(status, interactive=.true.)
         if (.not. status%ok()) exit
         call indent_according_to_mode(status)
         if (.not. status%ok()) exit
     end do
+
     minor_modes%electric_indent_mode%state%value = saved
     end procedure newline_and_indent
 
@@ -323,11 +353,13 @@ contains
     integer(int64) :: opos
     type(handle_type) :: here
     logical :: saved
+
     ! Use a marker because the call to `newline' below could insert some
     ! text, e.g., if `abbrev_mode' is turned on.
     call point_marker(pos)
     saved = minor_modes%electric_indent_mode%state%value
     minor_modes%electric_indent_mode%state%value = .false.
+
     body: block
         ! Be careful to insert the newline before indenting the line.
         ! Otherwise, the indentation might be wrong.
@@ -344,6 +376,7 @@ contains
         ! by hand.
         call copy_marker_at(opos, pos2, .true., st)
         call indent_according_to_mode(status)
+
         if (status%ok()) then
             call marker_position(pos2, opos, st)
             call goto_char(opos)
@@ -351,6 +384,7 @@ contains
             ! indentation may introduce the whitespace.
             call delete_horizontal_space(.true., status)
         end if
+
         call free_marker(pos2, st)
         call marker_position(here, opos, st)
         call goto_char(opos)
@@ -358,6 +392,7 @@ contains
         if (.not. status%ok()) exit body
         call indent_according_to_mode(status)
     end block body
+
     minor_modes%electric_indent_mode%state%value = saved
     call free_marker(pos, st)
     end procedure reindent_then_newline_and_indent
@@ -367,6 +402,7 @@ contains
     !> "*").
     subroutine cmd_reindent_then_newline_and_indent(status)
         type(status_type), intent(out) :: status
+
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
         call reindent_then_newline_and_indent(status)
@@ -386,6 +422,7 @@ contains
     !> simple.el:backward-delete-char-untabify (the command, "*p\nP").
     subroutine cmd_backward_delete_char_untabify(status)
         type(status_type), intent(out) :: status
+
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
         call backward_delete_char_untabify(prefix_numeric_value(current_prefix_arg), status, &
@@ -401,41 +438,51 @@ contains
     type(status_type) :: st
     type(handle_type) :: here
     type(value_type) :: extracted
+
     kill = .false.
     if (present(killp)) kill = killp
+
     if (use_region_p() .and. delete_active_region .and. arg == 1) then
         ! Delete the text of the region and deactivate the mark, in the
         ! same way that `delete_backward_char' does.
         call region_extract_function(REGION_EXTRACT_DELETE_ONLY, extracted, starts, ends, status)
         return
     end if
+
     if (backward_delete_char_untabify_method == UNTABIFY_METHOD_UNTABIFY) then
         count = arg
         call copy_marker_at(point(), here, .false., st)
+
         do while (count > 0 .and. .not. bobp())
             call char_before(c, found)
+
             if (found .and. c == 9) then
                 col = current_column()
                 call goto_char(point() - 1)
                 col = col - current_column()
                 call insert_char_n(32_int32, col, status)
                 if (status%ok()) call delete_char(1_int64, status)
+
                 if (.not. status%ok()) then
                     call free_marker(here, st)
                     return
                 end if
             end if
+
             call goto_char(point() - 1)
             count = count - 1
         end do
+
         call marker_position(here, opoint, st)
         call goto_char(opoint)
         call free_marker(here, st)
     end if
+
     skip = ""
     if (backward_delete_char_untabify_method == UNTABIFY_METHOD_HUNGRY) skip = " "//TAB
     if (backward_delete_char_untabify_method == UNTABIFY_METHOD_ALL) skip = " "//TAB//LF//achar(13)
     n = arg
+
     if (len(skip) > 0) then
         oldpt = point()
         moved = skip_chars_backward(skip, st)
@@ -444,6 +491,7 @@ contains
         call goto_char(oldpt)
         if (wh /= 0) n = arg + wh - 1
     end if
+
     call delete_backward_char(n, status, kill)
     end procedure backward_delete_char_untabify
 end submodule simple_electric_fm

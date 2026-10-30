@@ -399,16 +399,21 @@ contains
         type(forwarded_ref_type), allocatable :: grown(:)
         integer(int64) :: id
         integer :: k, n
+
         if (.not. allocated(forwarded)) allocate (forwarded(0))
+
         do k = 1, size(forwarded)
             if (associated(forwarded(k)%p, s)) return
         end do
+
         n = size(forwarded)
         allocate (grown(n + 1))
+
         do k = 1, n
             grown(k)%p => forwarded(k)%p
             grown(k)%local_if_set = forwarded(k)%local_if_set
         end do
+
         grown(n + 1)%p => s
         if (present(local_if_set)) grown(n + 1)%local_if_set = local_if_set
         call move_alloc(grown, forwarded)
@@ -425,10 +430,13 @@ contains
         procedure(kill_locals_proc) :: fn
         type(killer_type), allocatable :: grown(:)
         integer :: k, n
+
         if (.not. allocated(killers)) allocate (killers(0))
+
         do k = 1, size(killers)
             if (associated(killers(k)%fn, fn)) return
         end do
+
         n = size(killers)
         allocate (grown(n + 1))
         grown(1:n) = killers
@@ -443,17 +451,20 @@ contains
     subroutine setting_make_local(self)
         class(setting_type), intent(inout) :: self
         type(status_type) :: st
+
         call make_local_variable(sym(trim(self%name)), st)
     end subroutine setting_make_local
 
     subroutine setting_kill_local(self)
         class(setting_type), intent(inout) :: self
         type(status_type) :: st
+
         call kill_local_variable(sym(trim(self%name)), st)
     end subroutine setting_kill_local
 
     logical function setting_local_p(self)
         class(setting_type), intent(in) :: self
+
         setting_local_p = local_variable_p(sym(trim(self%name)))
     end function setting_local_p
 
@@ -461,6 +472,7 @@ contains
     !> value now.
     subroutine settled(self)
         class(setting_type), intent(inout) :: self
+
         self%has_exact = .false.
         self%void = .false.
         self%exact = nil()
@@ -469,6 +481,7 @@ contains
     subroutine integer_assign_int(self, v)
         class(integer_setting), intent(inout) :: self
         integer, intent(in) :: v
+
         self%value = v
         call settled(self)
     end subroutine integer_assign_int
@@ -476,6 +489,7 @@ contains
     subroutine integer_assign_int64(self, v)
         class(integer_setting), intent(inout) :: self
         integer(int64), intent(in) :: v
+
         self%value = v
         call settled(self)
     end subroutine integer_assign_int64
@@ -484,6 +498,7 @@ contains
     subroutine integer_set_local_int(self, v)
         class(integer_setting), intent(inout) :: self
         integer, intent(in) :: v
+
         call self%make_local()
         self%value = v
         call settled(self)
@@ -493,6 +508,7 @@ contains
     subroutine integer_set_local_int64(self, v)
         class(integer_setting), intent(inout) :: self
         integer(int64), intent(in) :: v
+
         call self%make_local()
         self%value = v
         call settled(self)
@@ -503,6 +519,7 @@ contains
     subroutine integer_set_local_setting(self, v)
         class(integer_setting), intent(inout) :: self
         class(integer_setting), intent(in) :: v
+
         call self%make_local()
         self%value = v%value
         self%exact = v%exact
@@ -513,6 +530,7 @@ contains
     subroutine logical_assign(self, v)
         class(logical_setting), intent(inout) :: self
         logical, intent(in) :: v
+
         self%value = v
         call settled(self)
     end subroutine logical_assign
@@ -521,6 +539,7 @@ contains
     subroutine logical_set_local(self, v)
         class(logical_setting), intent(inout) :: self
         logical, intent(in) :: v
+
         call self%make_local()
         self%value = v
         call settled(self)
@@ -529,6 +548,7 @@ contains
     subroutine string_assign(self, v)
         class(string_setting), intent(inout) :: self
         character(len=*), intent(in) :: v
+
         self%value = v
         call settled(self)
     end subroutine string_assign
@@ -537,6 +557,7 @@ contains
     subroutine string_set_local(self, v)
         class(string_setting), intent(inout) :: self
         character(len=*), intent(in) :: v
+
         call self%make_local()
         self%value = v
         call settled(self)
@@ -544,6 +565,7 @@ contains
 
     subroutine string_clear(self)
         class(string_setting), intent(inout) :: self
+
         if (allocated(self%value)) deallocate (self%value)
         call settled(self)
     end subroutine string_clear
@@ -552,6 +574,7 @@ contains
     subroutine function_set_local(self, v)
         class(function_setting), intent(inout) :: self
         procedure(command_proc) :: v
+
         call self%make_local()
         self%value => v
         call settled(self)
@@ -564,6 +587,7 @@ contains
     subroutine wrong_type(status, predicate)
         type(status_type), intent(inout) :: status
         character(len=*), intent(in) :: predicate
+
         call set_error(status, FM_WRONG_TYPE_ARGUMENT, predicate)
     end subroutine wrong_type
 
@@ -571,6 +595,7 @@ contains
     subroutine check_fixnum(v, status)
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
+
         if (.not. fixnump(v)) call wrong_type(status, "fixnump")
     end subroutine check_fixnum
 
@@ -578,6 +603,7 @@ contains
     subroutine check_symbol(v, status)
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
+
         if (.not. symbolp(v)) call wrong_type(status, "symbolp")
     end subroutine check_symbol
 
@@ -585,6 +611,7 @@ contains
     subroutine check_string(v, status)
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
+
         if (.not. stringp(v)) call wrong_type(status, "stringp")
     end subroutine check_string
 
@@ -592,6 +619,7 @@ contains
     subroutine check_list(v, status)
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
+
         if (.not. listp(v)) call wrong_type(status, "listp")
     end subroutine check_list
 
@@ -604,8 +632,10 @@ contains
     !> very same object is).  Port of data.c:Feq.
     elemental logical function value_eq(a, b)
         type(value_type), intent(in) :: a, b
+
         value_eq = .false.
         if (vtag(a) /= vtag(b)) return
+
         select case (vtag(a))
         case (V_NIL)
             value_eq = .true.
@@ -624,6 +654,7 @@ contains
         type(value_type), intent(in) :: list
         type(value_type), intent(out) :: v
         type(status_type), intent(out) :: status
+
         select case (vtag(list))
         case (V_LIST)
             v = list_elt(list, 1_int64)
@@ -640,6 +671,7 @@ contains
         type(value_type), intent(in) :: list
         type(value_type), intent(out) :: v
         type(status_type), intent(out) :: status
+
         select case (vtag(list))
         case (V_LIST)
             v = list_tail(list, 1_int64)
@@ -654,6 +686,7 @@ contains
     pure function car_safe(list) result(v)
         type(value_type), intent(in) :: list
         type(value_type) :: v
+
         if (vtag(list) == V_LIST) v = list_elt(list, 1_int64)
     end function car_safe
 
@@ -661,6 +694,7 @@ contains
     pure function cdr_safe(list) result(v)
         type(value_type), intent(in) :: list
         type(value_type) :: v
+
         if (vtag(list) == V_LIST) v = list_tail(list, 1_int64)
     end function cdr_safe
 
@@ -673,6 +707,7 @@ contains
         type(value_type), intent(in) :: symbol
         character(len=:), allocatable, intent(out) :: name
         type(status_type), intent(out) :: status
+
         call check_symbol(symbol, status)
         if (.not. status%ok()) return
         call ensure_obarray()
@@ -682,9 +717,11 @@ contains
     !> True for symbols whose name starts with ':'.  Port of data.c:Fkeywordp.
     logical function keywordp(v)
         type(value_type), intent(in) :: v
+
         keywordp = .false.
         if (vtag(v) /= V_SYMBOL) return
         call ensure_obarray()
+
         associate (name => symbols(xsymbol(v))%name)
             if (len(name) > 0) keywordp = name(1:1) == ":"
         end associate
@@ -697,6 +734,7 @@ contains
         type(status_type), intent(out) :: status
         type(value_type) :: v
         logical :: found
+
         bound = .false.
         call check_symbol(symbol, status)
         if (.not. status%ok()) return
@@ -713,19 +751,23 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: id
         logical :: found, bound
+
         call check_symbol(symbol, status)
         if (.not. status%ok()) return
         call ensure_obarray()
         id = xsymbol(symbol)
         call forwarded_get(id, v, found, bound)
+
         if (found) then
             if (.not. bound) call set_error(status, FM_VOID_VARIABLE, symbols(id)%name)
             return
         end if
+
         if (.not. symbols(id)%bound) then
             call set_error(status, FM_VOID_VARIABLE, symbols(id)%name)
             return
         end if
+
         v = symbols(id)%val
     end subroutine symbol_value
 
@@ -737,16 +779,20 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: id
         logical :: found
+
         call check_symbol(symbol, status)
         if (.not. status%ok()) return
         call ensure_obarray()
         id = xsymbol(symbol)
+
         if (symbols(id)%constant) then
             if (.not. (keywordp(symbol) .and. value_eq(newval, symbols(id)%val))) then
                 call set_error(status, FM_SETTING_CONSTANT, symbols(id)%name)
             end if
+
             return
         end if
+
         ! An automatically buffer-local variable becomes local when set.
         if (auto_local(id)) then
             if (.not. local_in_current(id)) then
@@ -754,6 +800,7 @@ contains
                 if (.not. status%ok()) return
             end if
         end if
+
         call forwarded_set(id, newval, status, found)
         if (found) return
         symbols(id)%val = newval
@@ -766,14 +813,17 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: id
         logical :: found
+
         call check_symbol(symbol, status)
         if (.not. status%ok()) return
         call ensure_obarray()
         id = xsymbol(symbol)
+
         if (symbols(id)%constant) then
             call set_error(status, FM_SETTING_CONSTANT, symbols(id)%name)
             return
         end if
+
         ! Fset (symbol, Qunbound): an automatically buffer-local variable
         ! gets a void local binding.
         if (auto_local(id)) then
@@ -782,6 +832,7 @@ contains
                 if (.not. status%ok()) return
             end if
         end if
+
         call forwarded_makunbound(id, status, found)
         if (found) return
         symbols(id)%val = nil()

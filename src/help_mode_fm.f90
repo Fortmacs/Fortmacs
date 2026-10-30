@@ -67,6 +67,7 @@ contains
     recursive subroutine help_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
+
         if (.not. keymap_live_p(help_mode_map)) call init_help_mode()
         call major_modes%help_mode%begin(saved, status)
         if (.not. status%ok()) return

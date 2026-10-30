@@ -75,6 +75,7 @@ contains
         logical, intent(out) :: handled
         type(status_type), intent(out) :: status
         type(command_type), pointer :: p
+
         handled = .false.
         status = status_type()
         if (.not. disabled_command_function_p .or. .not. symbolp(cmd) .or. nilp(cmd)) return
@@ -99,42 +100,51 @@ contains
         character(len=:), allocatable :: name, help_string, doc
         logical :: by_name, found, enable_also
         integer :: answer, at
+
         call symbol_name(cmd, name, status)
         if (.not. status%ok()) return
         by_name = .false.
+
         if (size(keys) >= 1) then
             if (fixnump(keys(1))) by_name = xfixnum(keys(1)) == ior(CHAR_META, iachar("x"))
         end if
+
         if (size(keys) >= 2 .and. .not. by_name) then
             if (fixnump(keys(1)) .and. fixnump(keys(2))) then
                 by_name = xfixnum(keys(1)) == 27 .and. xfixnum(keys(2)) == iachar("x")
             end if
         end if
+
         if (by_name .or. size(keys) == 0) then
             help_string = "You have invoked the disabled command "//name//"."//LF
         else
             help_string = "You have typed "//key_description(keys)//", invoking disabled command "//name//"."//LF
         end if
+
         ! Any special message saying why the command is disabled.
         p => find_command(name)
         found = .false.
         if (associated(p)) found = allocated(p%disabled_message)
+
         if (found) then
             help_string = help_string//p%disabled_message
         else
             found = .false.
             if (associated(documentation_hook)) call documentation_hook(name, doc, found)
+
             if (found .and. len(doc) > 0) then
                 doc = substitute_command_keys(doc)
             else
                 doc = "<< not documented >>"
             end if
+
             ! Keep only the first paragraph of the documentation.
             at = index(doc, LF//LF)
             if (at > 0) doc = doc(1:at - 1)
             help_string = help_string//"It is disabled because new users often find it confusing."//LF// &
                           substitute_command_keys("Here's the first part of its description:"//LF//LF)//indent(doc, 3)
         end if
+
         help_string = help_string//substitute_command_keys(LF//LF//"Do you want to use this command anyway?"//LF//LF// &
                                                            "You can now type:"//LF// &
                                                            " \`n'    (also C-g) to cancel--don't try the command; "// &
@@ -155,17 +165,20 @@ contains
         choices(4)%name = "use and enable all"
         call read_multiple_choice("Use this command?", choices, answer, status, help_string, "*Disabled Command*")
         if (.not. status%ok()) return
+
         select case (answer)
         case (4)
             disabled_command_function_p = .false.
         case (2)
             enable_also = .false.
+
             if (allocated(user_init_file)) then
                 if (len(user_init_file) > 0) then
                     call y_or_n_p("Enable command for future editing sessions also? ", enable_also, status)
                     if (.not. status%ok()) return
                 end if
             end if
+
             if (enable_also) then
                 call enable_command(name, status)
             else if (associated(p)) then
@@ -173,10 +186,12 @@ contains
                 p%disabled = .false.
                 if (allocated(p%disabled_message)) deallocate (p%disabled_message)
             end if
+
             if (.not. status%ok()) return
         case default
             continue
         end select
+
         if (answer /= 1) call call_interactively(cmd, status)
     end subroutine disabled_command_function
 
@@ -187,8 +202,10 @@ contains
         character(len=:), allocatable :: indented
         integer :: i
         logical :: bol
+
         indented = ""
         bol = .true.
+
         do i = 1, len(text)
             if (bol .and. text(i:i) /= LF) indented = indented//repeat(" ", n)
             indented = indented//text(i:i)
@@ -203,6 +220,7 @@ contains
     subroutine enable_command(command, status)
         character(len=*), intent(in) :: command
         type(status_type), intent(out) :: status
+
         call en_disable_command(command, .false., status)
     end subroutine enable_command
 
@@ -213,6 +231,7 @@ contains
     subroutine disable_command(command, status)
         character(len=*), intent(in) :: command
         type(status_type), intent(out) :: status
+
         call en_disable_command(command, .true., status)
     end subroutine disable_command
 
@@ -232,10 +251,12 @@ contains
         integer(int64) :: found, beg
         integer :: i, j
         logical :: saved_fold, builtin
+
         if (.not. commandp(sym(command))) then
             call set_error(status, FM_GENERIC_ERROR, format_message("Invalid command name `")//command//format_message("'"))
             return
         end if
+
         p => find_command(command)
         p%disabled = disable
         if (allocated(p%disabled_message)) deallocate (p%disabled_message)
@@ -243,9 +264,11 @@ contains
         ! command, else set_command_disabled.
         builtin = associated(builtin_command(command))
         component = command
+
         do i = 1, len(component)
             if (component(i:i) == "-") component(i:i) = "_"
         end do
+
         if (allocated(user_init_file)) then
             init_file = user_init_file
         else
@@ -257,8 +280,10 @@ contains
                                "Saving settings from ""fortmacs -q"" would overwrite existing customizations")
                 return
             end if
+
             init_file = init_file_name()
         end if
+
         old = current_buffer()
         call find_file_noselect(init_file, buf, status)
         if (.not. status%ok()) return
@@ -266,62 +291,75 @@ contains
         if (.not. status%ok()) return
         saved_fold = case_fold_search%value
         case_fold_search = .true.
+
         if (point_max() == point_min()) then
             ! A new init file.
             call insert("module user_config"//LF//"    use fortmacs"//LF//"    implicit none(type, external)"//LF// &
                         "    private"//LF//LF//"    public :: configure"//LF//LF//"contains"//LF//LF// &
                         "    subroutine configure(status)"//LF//"        type(status_type), intent(out) :: status"// &
                         LF//"    end subroutine configure"//LF//"end module user_config"//LF, status)
+
             if (.not. status%ok()) then
                 case_fold_search = saved_fold
                 call set_buffer(old, st)
                 return
             end if
         end if
+
         ! The name of configure's status argument.
         var = "status"
         call goto_char(point_min())
         call search_forward("subroutine configure", found, st, noerror=SEARCH_NOERROR)
+
         if (found > 0) then
             call buffer_substring(point(), min(point_max(), point() + 200), header, st)
             i = index(header, "(")
             j = index(header, ")")
             if (i > 0 .and. j > i + 1) var = trim(adjustl(header(i + 1:j - 1)))
         end if
+
         if (builtin) then
             setting = "commands%"//component//"%disabled ="
         else
             setting = 'call set_command_disabled("'//command//'",'
         end if
+
         call goto_char(point_min())
         call search_forward(setting, found, st, noerror=SEARCH_NOERROR)
+
         if (found > 0) then
             beg = line_beginning_position()
             call goto_char(beg)
             call search_forward(LF, found, st, noerror=SEARCH_MOVE)
             call delete_region(beg, point(), st)
         end if
+
         ! Explicitly enable, in case this command is disabled by default
         ! or in case the code we deleted was actually a comment.
         call goto_char(point_min())
         call search_forward("end subroutine configure", found, st, noerror=SEARCH_NOERROR)
         case_fold_search = saved_fold
+
         if (found == 0) then
             call set_error(status, FM_GENERIC_ERROR, format_message("No `end subroutine configure' in ")//init_file)
             call set_buffer(old, st)
             return
         end if
+
         call goto_char(line_beginning_position())
+
         if (disable) then
             value = ".true."
         else
             value = ".false."
         end if
+
         if (builtin) then
             call insert("        "//setting//" "//value//LF, status)
         else
             call insert("        "//setting//" "//value//", "//var//")"//LF, status)
         end if
+
         if (status%ok()) call save_buffer(1_int64, .false., status)
         call set_buffer(old, st)
     end subroutine en_disable_command
@@ -333,6 +371,7 @@ contains
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: name
         type(status_type), intent(out) :: status
+
         call completing_read(prompt, completion_obarray_table(), name, status, commandp, &
                              require_match=REQUIRE_MATCH_T)
     end subroutine read_command
@@ -340,6 +379,7 @@ contains
     recursive subroutine cmd_enable_command(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
+
         call read_command("Enable command: ", name, status)
         if (status%ok()) call enable_command(name, status)
     end subroutine cmd_enable_command
@@ -347,6 +387,7 @@ contains
     recursive subroutine cmd_disable_command(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
+
         call read_command("Disable command: ", name, status)
         if (status%ok()) call disable_command(name, status)
     end subroutine cmd_disable_command

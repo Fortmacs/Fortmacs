@@ -58,15 +58,18 @@ contains
         logical, intent(in) :: make
         type(delay_type), allocatable :: grown(:)
         integer :: i, n
+
         k = 0
         if (cur == 0) return
         if (.not. allocated(delays)) allocate (delays(0))
+
         do i = 1, size(delays)
             if (delays(i)%serial == buffers(cur)%serial) then
                 k = i
                 return
             end if
         end do
+
         if (.not. make) return
         n = size(delays)
         allocate (grown(n + 1))
@@ -80,6 +83,7 @@ contains
 
     module procedure kill_delayed_mode_hooks
     integer :: k
+
     k = delay_index(.false.)
     if (k == 0) return
     deallocate (delays(k)%delayed)
@@ -91,6 +95,7 @@ contains
     module procedure add_delayed_after_hook
     type(after_fn_type), allocatable :: grown(:)
     integer :: k, n
+
     k = delay_index(.true.)
     if (k == 0) return
     ! push: the newest first.
@@ -103,6 +108,7 @@ contains
 
     module procedure delaying_mode_hooks
     integer :: k
+
     k = delay_index(.false.)
     delaying_mode_hooks = .false.
     if (k > 0) delaying_mode_hooks = delays(k)%delay
@@ -110,6 +116,7 @@ contains
 
     module procedure delay_mode_hooks_begin
     integer :: k
+
     saved = delaying_mode_hooks()
     k = delay_index(.true.)
     if (k > 0) delays(k)%delay = .true.
@@ -117,6 +124,7 @@ contains
 
     module procedure delay_mode_hooks_end
     integer :: k
+
     k = delay_index(.true.)
     if (k > 0) delays(k)%delay = saved
     end procedure delay_mode_hooks_end
@@ -125,9 +133,11 @@ contains
     type(hook_ref_type), allocatable :: delayed(:)
     type(after_fn_type), allocatable :: after(:)
     integer :: k, i, n
+
     status = status_type()
     k = delay_index(.true.)
     if (k == 0) return
+
     if (delays(k)%delay) then
         ! Delaying case.
         if (present(hook)) then
@@ -137,11 +147,14 @@ contains
             delayed(n + 1)%p => hook
             call move_alloc(delayed, delays(k)%delayed)
         end if
+
         return
     end if
+
     ! Normal case, just run the hook as before plus any delayed hooks.
     call move_alloc(delays(k)%delayed, delayed)
     allocate (delays(k)%delayed(0))
+
     ! `syntax_propertize' sets `parse_sexp_lookup_properties' for us, but
     ! in order for the sexp primitives to automatically call
     ! `syntax_propertize' we need `parse_sexp_lookup_properties' to be
@@ -149,16 +162,20 @@ contains
     if (associated(syntax_propertize_function%get()) .and. .not. parse_sexp_lookup_properties%local_p()) then
         call parse_sexp_lookup_properties%set_local(.true.)
     end if
+
     call change_major_mode_after_body_hook%run(status)
     if (.not. status%ok()) return
+
     do i = 1, size(delayed)
         call delayed(i)%p%run(status)
         if (.not. status%ok()) return
     end do
+
     if (present(hook)) then
         call hook%run(status)
         if (.not. status%ok()) return
     end if
+
     call after_change_major_mode_hook%run(status)
     if (.not. status%ok()) return
     ! The delayed after-hook functions, oldest first (nreverse).
@@ -166,6 +183,7 @@ contains
     if (k == 0) return
     call move_alloc(delays(k)%after, after)
     allocate (delays(k)%after(0))
+
     do i = size(after), 1, -1
         call after(i)%fn(status)
         if (.not. status%ok()) return

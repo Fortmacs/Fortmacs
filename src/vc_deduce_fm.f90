@@ -35,6 +35,7 @@ contains
 
     module procedure mode_backend
     b = 0
+
     if (mode_p("vc_dir_mode")) then
         b = vc_dir_backend()
     else if (mode_p("log_view_mode")) then
@@ -42,6 +43,7 @@ contains
     else if (mode_p("log_edit_mode")) then
         b = log_edit_vc_backend()
     end if
+
     handled = mode_p("vc_dir_mode") .or. mode_p("log_view_mode") .or. mode_p("log_edit_mode")
     end procedure mode_backend
 
@@ -53,6 +55,7 @@ contains
 
     module procedure log_view_fileset
     logical :: has
+
     handled = mode_p("log_view_mode")
     if (.not. handled) return
     ! 'log-view-mode' stashes the backend and the fileset in the
@@ -66,6 +69,7 @@ contains
     character(len=:), allocatable :: file
     type(handle_type) :: buf
     type(status_type) :: st
+
     status = status_type()
     handled = mode_p("vc_dir_mode")
     if (.not. handled) return

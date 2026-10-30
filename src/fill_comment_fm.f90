@@ -50,6 +50,7 @@ contains
         integer(int64), intent(in) :: from, to
         character(len=:), allocatable :: s
         type(status_type) :: st
+
         call buffer_substring(min(from, to), max(from, to), s, st)
         if (.not. allocated(s)) s = ""
     end function text_of
@@ -61,6 +62,7 @@ contains
         character(len=:), allocatable :: s
         type(value_type) :: v
         type(status_type) :: st
+
         s = ""
         call default_value(sym(name), v, st)
         if (st%ok() .and. stringp(v)) s = xstring(v)
@@ -73,6 +75,7 @@ contains
                                      saved_prefix, prefix, last
     integer(int64) :: savedb, savedz
     type(status_type) :: st
+
     done = .false.
     call comment_normalize_vars(status)
     if (.not. status%ok()) return
@@ -83,12 +86,14 @@ contains
     has_code_and_comment = .false.
     comin = 0
     comstart = comment_search_forward(line_end_position(), .true., st)
+
     if (comstart > 0) then
         comin = point()
         call goto_char(comstart)
         moved = skip_chars_backward(" "//TAB, st)
         has_code_and_comment = .not. bolp()
     end if
+
     call goto_char(opoint)
     ! Make sure the comment-start mark we found is accepted by
     ! comment-start-skip.  If not, all bets are off, and we'd better not
@@ -97,6 +102,7 @@ contains
     if (string_match(skip, text_of(comstart, comin), st) == 0) return
     ! Narrow to include only the comment, and then fill the region.
     commark = comment_string_strip(text_of(comstart, comin), .false., .true.)
+
     ! A regexp more specialized than comment-start-skip, that only
     ! matches the current commark rather than any valid commark.
     !
@@ -112,24 +118,30 @@ contains
     else
         comment_re = "[ "//TAB//"]*\(?:"//skip//"\)"
     end if
+
     ! Compute a fill prefix.
     call goto_char(comstart)
+
     if (has_code_and_comment) then
         col = current_column()
+
         if (.not. indent_tabs_mode%value .or. tab_width%value <= 0) then
             comment_fill_prefix = repeat(" ", int(col))
         else
             comment_fill_prefix = repeat(TAB, int(col/tab_width%value))//repeat(" ", int(mod(col, tab_width%value)))
         end if
+
         comment_fill_prefix = comment_fill_prefix//text_of(point(), comin)
     else
         comment_fill_prefix = text_of(line_beginning_position(), comin)
     end if
+
     call goto_char(opoint)
     ! (save-excursion (save-restriction ...))
     savedb = buffers(cur)%begv
     savedz = buffers(cur)%text%z - buffers(cur)%zv
     call beginning_of_line(1_int64)
+
     ! Find the first line we should include in the region to fill.
     if (has_code_and_comment) then
         nstart = line_beginning_position()
@@ -138,9 +150,11 @@ contains
             if (forward_line(-1_int64) /= 0) exit
             if (.not. looking_at(comment_re, st)) exit
         end do
+
         ! We may have gone too far.  Go forward again.
         cs = comment_search_forward(line_end_position(), .true., st)
         if (cs > 0) call goto_char(cs)
+
         if (looking_at(comment_re, st)) then
             comstart = point()
             nstart = line_beginning_position()
@@ -148,9 +162,11 @@ contains
             comstart = point()
             nstart = line_beginning_position(2_int64)
         end if
+
         call goto_char(opoint)
         call beginning_of_line(1_int64)
     end if
+
     ! Find the beginning of the first line past the region to fill.
     do
         found = point()
@@ -158,6 +174,7 @@ contains
         if (point() == found) exit
         if (.not. looking_at(comment_re, st)) exit
     end do
+
     nend = point()
     call goto_char(opoint)
     call beginning_of_line(1_int64)
@@ -192,27 +209,35 @@ contains
     ! Find the fill-prefix to use.
     saved_have_prefix = allocated(fill_prefix%value)
     if (saved_have_prefix) saved_prefix = fill_prefix%value
+
     if (.not. saved_have_prefix) then
         ! Try adaptive fill mode.
         ok = .false.
+
         if (adaptive_fill_mode%value) then
             call fill_context_prefix(beg, end, prefix, have_prefix)
+
             if (have_prefix) then
                 fill_prefix%value = prefix
                 ok = string_match(skip, prefix, st) > 0
             end if
         end if
+
         if (.not. ok) fill_prefix%value = comment_fill_prefix
     end if
+
     ! Don't canonicalize spaces within the code just before the comment.
     opoint = point()
     call goto_char(beg)
     squeeze = 0
+
     if (.not. looking_at(fill_prefix%value, st)) then
         call re_search_forward(skip, found, status)
         if (status%ok()) squeeze = point()
     end if
+
     call goto_char(opoint)
+
     if (status%ok()) then
         ! Don't fill with narrowing.
         if (squeeze > 0) then
@@ -222,11 +247,13 @@ contains
             call fill_region_as_paragraph(max(comstart, beg), end, status, justify)
         end if
     end if
+
     if (saved_have_prefix) then
         fill_prefix%value = saved_prefix
     else if (allocated(fill_prefix%value)) then
         deallocate (fill_prefix%value)
     end if
+
     ! Make sure we don't return nil.
     done = .true.
     end procedure fill_comment_paragraph
@@ -236,13 +263,16 @@ contains
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: c
         integer :: k
+
         c = ""
         if (len(s) == 0) return
         k = len(s)
+
         do while (k > 1)
             if (iand(iachar(s(k:k)), 192) /= 128) exit
             k = k - 1
         end do
+
         c = s(k:)
     end function last_char
 end submodule fill_comment_fm

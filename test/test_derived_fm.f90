@@ -60,6 +60,7 @@ contains
 
     subroutine collect_derived_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("subr-tests-add-hook-depth", test_add_hook_depth), &
                     new_unittest("remove-hook-forgets-depth", test_depth_memory), &
@@ -78,83 +79,97 @@ contains
 
     logical function same(a, b)
         type(handle_type), intent(in) :: a, b
+
         same = a%index == b%index .and. a%generation == b%generation
     end function same
 
     subroutine f1(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         trace = trace//" f1"
     end subroutine f1
 
     subroutine f2(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         trace = trace//" f2"
     end subroutine f2
 
     subroutine f3(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         trace = trace//" f3"
     end subroutine f3
 
     subroutine f4(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         trace = trace//" f4"
     end subroutine f4
 
     subroutine f5(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         trace = trace//" f5"
     end subroutine f5
 
     subroutine f6(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         trace = trace//" f6"
     end subroutine f6
 
     subroutine f7(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         trace = trace//" f7"
     end subroutine f7
 
     subroutine f8(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         trace = trace//" f8"
     end subroutine f8
 
     subroutine f9(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         trace = trace//" f9"
     end subroutine f9
 
     subroutine f10(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         trace = trace//" f10"
     end subroutine f10
 
     subroutine hook_text(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         trace = trace//"T"
     end subroutine hook_text
 
     subroutine hook_child(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         trace = trace//"C"
     end subroutine hook_child
 
     subroutine hook_after(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         trace = trace//"!"
     end subroutine hook_after
@@ -163,6 +178,7 @@ contains
     recursive subroutine child_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
+
         call child_mode_obj%begin(saved, status)
         if (.not. status%ok()) return
         trace = trace//"c"
@@ -172,6 +188,7 @@ contains
     !> A mode with an empty body (the provided-mode-derived-p modes).
     recursive subroutine empty_mode(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
     end subroutine empty_mode
 
@@ -180,6 +197,7 @@ contains
         type(hook_type), intent(in) :: hook
         character(len=:), allocatable :: s
         type(status_type) :: st
+
         trace = ""
         call hook%run(st)
         s = adjustl(trace)
@@ -189,6 +207,7 @@ contains
     !> subr-tests.el: subr-tests-add-hook-depth.
     subroutine test_add_hook_depth(error)
         type(error_type), allocatable, intent(out) :: error
+
         call subr_tests_hook%add(f1)
         call subr_tests_hook%add(f2)
         call check(error, hook_names(subr_tests_hook), "f2 f1")
@@ -220,6 +239,7 @@ contains
     !> (bug#46414): added again without a depth, it goes in at depth 0.
     subroutine test_depth_memory(error)
         type(error_type), allocatable, intent(out) :: error
+
         call depth_hook%add(f1, depth=50)
         call depth_hook%add(f2)
         call check(error, hook_names(depth_hook), "f2 f1")
@@ -236,6 +256,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b
         type(status_type) :: st
+
         call get_buffer_create("test-derived-hooks-A", a, st)
         call get_buffer_create("test-derived-hooks-B", b, st)
         call set_buffer(a, st)
@@ -256,6 +277,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a
         type(status_type) :: st
+
         call get_buffer_create("test-derived-remove", a, st)
         call set_buffer(a, st)
         call test_hook2%add(f1)
@@ -275,6 +297,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a
         type(status_type) :: st
+
         call syms_of_text_mode()
         call get_buffer_create("test-derived-text", a, st)
         call set_buffer(a, st)
@@ -317,6 +340,7 @@ contains
         type(status_type) :: st
         type(value_type) :: binding
         type(value_type), allocatable :: key(:)
+
         call syms_of_text_mode()
         call child_mode_obj%define("test-derived-child-mode", "Child", child_mode, child_mode_hook, &
                                    parent=major_modes%text_mode)
@@ -354,6 +378,7 @@ contains
     !> subr-tests.el: provided-mode-derived-p (without aliases).
     subroutine test_provided_mode_derived_p(error)
         type(error_type), allocatable, intent(out) :: error
+
         call syms_of_prog_mode()
         call parent_mode_obj%define("subr-tests--parent-mode", "P", empty_mode, parent=major_modes%prog_mode)
         call derived_mode_1_obj%define("subr-tests--derived-mode-1", "D1", empty_mode, parent=major_modes%prog_mode)
@@ -388,6 +413,7 @@ contains
         type(status_type) :: st
         type(value_type) :: binding
         type(value_type), allocatable :: key(:)
+
         call syms_of_simple_modes()
         call get_buffer_create("test-derived-special", a, st)
         call set_buffer(a, st)
@@ -407,6 +433,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a
         type(status_type) :: st
+
         call syms_of_simple_modes()
         call get_buffer_create("test-derived-fundamental", a, st)
         call set_buffer(a, st)
@@ -424,6 +451,7 @@ contains
     subroutine test_auto_mode_spec(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: LF = char(10)
+
         call check(error, auto_mode_spec("-*- Text -*-"//LF//"body"), "text_mode")
         if (allocated(error)) return
         call check(error, auto_mode_spec(LF//"  ;; -*- mode: Prog; fill-column: 60 -*-"), "prog_mode")
@@ -442,6 +470,7 @@ contains
     !> file-name-sans-versions.
     subroutine test_sans_versions(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, file_name_sans_versions("foo.txt~"), "foo.txt")
         if (allocated(error)) return
         call check(error, file_name_sans_versions("foo.txt.~12~"), "foo.txt")
@@ -455,6 +484,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a
         type(status_type) :: st
+
         call syms_of_text_mode()
         call get_buffer_create("test-derived-normal", a, st)
         call set_buffer(a, st)
