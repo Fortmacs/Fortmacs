@@ -156,6 +156,13 @@ module buffer_fm
         !> BVAR syntax_table: the syntax table, or the null handle for the
         !> standard one (syntax_fm).
         type(handle_type) :: syntax_table
+        !> BVAR downcase_table, upcase_table, case_canon_table and
+        !> case_eqv_table: the case table and its companions (char-tables),
+        !> or null handles for the standard ones (casetab_fm).
+        type(handle_type) :: downcase_table, upcase_table, case_canon_table, case_eqv_table
+        !> BVAR category_table: the category table, or the null handle for
+        !> the standard one (category_fm).
+        type(handle_type) :: category_table
         !> BVAR filename (`buffer_file_name'): the visited file's expanded
         !> name; unallocated when the buffer visits no file.
         character(len=:), allocatable :: filename
