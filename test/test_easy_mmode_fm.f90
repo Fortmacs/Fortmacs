@@ -1,6 +1,8 @@
-! test_easy_mmode_fm.f90 -- tests for minor modes (easy_mmode_fm),
-! Auto Fill mode and the mode line's lighters.  Includes cases ported
-! from GNU Emacs 31.1 test/lisp/emacs-lisp/easy-mmode-tests.el.
+! test_easy_mmode_fm.f90 -- tests for minor modes (easy_mmode_fm), Auto
+! Fill mode and the mode line's lighters.
+! Ports GNU Emacs 31.1 test/lisp/emacs-lisp/easy-mmode-tests.el in part;
+! the others test the :predicate of globalized minor modes, which is not
+! ported.
 !
 ! Copyright (C) 2019-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -52,6 +54,7 @@ module test_easy_mmode_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_easy_mmode_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

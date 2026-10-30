@@ -458,8 +458,8 @@ module dired_mode_fm
     !> visible frames), or the most recently used window with a Dired
     !> buffer (DIRED_DWIM_TARGET_RECENT).
     !>
-    !> The target is used in the prompt for file copy, rename etc.  Port
-    !> of dired.el dired-dwim-target (a function as the value is
+    !> The target is used in the prompt for file copy, rename etc.
+    !> Port of dired.el dired-dwim-target (a function as the value is
     !> deferred).
     integer, public :: dired_dwim_target = DIRED_DWIM_TARGET_NIL
 
@@ -473,8 +473,8 @@ module dired_mode_fm
     !> If DIRED_CREATE_DESTINATION_DIRS_ASK, ask the user whether to create them.
     !> If DIRED_CREATE_DESTINATION_DIRS_ALWAYS, create them without asking.
     !>
-    !> Also see `dired_create_destination_dirs_on_trailing_dirsep'.  Port
-    !> of dired-aux.el dired-create-destination-dirs.
+    !> Also see `dired_create_destination_dirs_on_trailing_dirsep'.
+    !> Port of dired-aux.el dired-create-destination-dirs.
     integer, public :: dired_create_destination_dirs = DIRED_CREATE_DESTINATION_DIRS_NIL
 
     !> If true, consider a file name ending in a slash as a directory to create.
@@ -561,8 +561,8 @@ module dired_mode_fm
     !> corresponding command.
     !>
     !> Within CMD, %i denotes the input file(s), and %o denotes the
-    !> output file.  %i path(s) are relative, while %o is absolute.  Port
-    !> of dired-aux.el dired-compress-file-alist.
+    !> output file.  %i path(s) are relative, while %o is absolute.
+    !> Port of dired-aux.el dired-compress-file-alist.
     type(dired_compress_rule_type), allocatable, public :: dired_compress_file_alist(:)
 
     !> Controls the compression shell command for `dired_do_compress_to'.
@@ -572,8 +572,8 @@ module dired_mode_fm
     !> corresponding command.
     !>
     !> Within CMD, %i denotes the input file(s), and %o denotes the
-    !> output file.  %i path(s) are relative, while %o is absolute.  Port
-    !> of dired-aux.el dired-compress-files-alist.
+    !> output file.  %i path(s) are relative, while %o is absolute.
+    !> Port of dired-aux.el dired-compress-files-alist.
     type(dired_compress_rule_type), allocatable, public :: dired_compress_files_alist(:)
 
     !> What a file creator of `dired_create_files' is, for its special
@@ -582,7 +582,7 @@ module dired_mode_fm
 
     abstract interface
         !> A FILE-CREATOR of `dired_create_files': create TO from FROM,
-        !> overwriting TO if OK_FLAG.
+        !> overwriting TO if OK_FLAG.  Not a port.
         recursive subroutine dired_file_creator_proc(from, to, ok_flag, status)
             import :: status_type
             implicit none(type, external)
@@ -592,7 +592,7 @@ module dired_mode_fm
         end subroutine dired_file_creator_proc
 
         !> A NAME-CONSTRUCTOR of `dired_create_files': the new file name TO
-        !> for FROM, or SKIP true to skip it (upstream nil).
+        !> for FROM, or SKIP true to skip it (upstream nil).  Not a port.
         recursive subroutine dired_name_constructor_proc(from, to, skip, status)
             import :: status_type
             implicit none(type, external)
@@ -605,6 +605,7 @@ module dired_mode_fm
 
     abstract interface
         !> A `dired_deletion_confirmer': ask PROMPT, ANSWER true for yes.
+        !> Not a port.
         recursive subroutine dired_confirmer_proc(prompt, answer, status)
             import :: status_type
             implicit none(type, external)
@@ -674,8 +675,8 @@ module dired_mode_fm
     !> Face used for broken symbolic links.  Port of dired.el
     !> dired-broken-symlink.
     type(named_face_type), target, public :: dired_broken_symlink
-    !> Face used for sockets, pipes, block devices and char devices.  Port
-    !> of dired.el dired-special.
+    !> Face used for sockets, pipes, block devices and char devices.
+    !> Port of dired.el dired-special.
     type(named_face_type), target, public :: dired_special
     !> Face used for files suffixed with `completion_ignored_extensions'.
     !> Port of dired.el dired-ignored.
@@ -884,8 +885,8 @@ module dired_mode_fm
         end subroutine dired_do_redisplay
 
         !> Delete the current line, and insert an entry for FILE (none if
-        !> FILE is absent), keeping the mark in its first column.  Port
-        !> of dired-aux.el:dired-update-file-line.  (In dired_aux_fm.)
+        !> FILE is absent), keeping the mark in its first column.
+        !> Port of dired-aux.el:dired-update-file-line.  (In dired_aux_fm.)
         recursive module subroutine dired_update_file_line(status, file)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -1124,8 +1125,8 @@ module dired_mode_fm
             type(status_type), intent(out) :: status
         end subroutine dired_rename_file
 
-        !> Give FILE the additional name NEWNAME and update its line.  Port
-        !> of dired-aux.el:dired-hardlink.  (In dired_aux_fm.)
+        !> Give FILE the additional name NEWNAME and update its line.
+        !> Port of dired-aux.el:dired-hardlink.  (In dired_aux_fm.)
         recursive module subroutine dired_hardlink(file, newname, ok_if_already_exists, status)
             implicit none(type, external)
             character(len=*), intent(in) :: file, newname
@@ -1225,8 +1226,8 @@ module dired_mode_fm
 
         !> Copy all marked (or next ARG) files, or copy the current file,
         !> into the directory (or to the file) read in the minibuffer;
-        !> INVERT_DEREFERENCE inverts `dired_copy_dereference' (C-u).  Port
-        !> of dired-aux.el:dired-do-copy.  (In dired_aux_fm.)
+        !> INVERT_DEREFERENCE inverts `dired_copy_dereference' (C-u).
+        !> Port of dired-aux.el:dired-do-copy.  (In dired_aux_fm.)
         recursive module subroutine dired_do_copy(arg_kind, arg_n, status, invert_dereference)
             implicit none(type, external)
             integer, intent(in) :: arg_kind
@@ -1385,12 +1386,13 @@ module dired_mode_fm
         end subroutine dired_show_file_type
 
         !> Bind the dired-aux.el commands in `dired_mode_map'.  (In
-        !> dired_aux_fm.)
+        !> dired_aux_fm.)  Not a port.
         module subroutine dired_aux_keys()
             implicit none(type, external)
         end subroutine dired_aux_keys
 
         !> Register the dired-aux.el commands.  (In dired_aux_fm.)
+        !> Not a port.
         module subroutine syms_of_dired_aux()
             implicit none(type, external)
         end subroutine syms_of_dired_aux
@@ -1402,7 +1404,7 @@ contains
     ! Buffer-local variables
     ! ------------------------------------------------------------------
 
-    !> Whether a live buffer has serial number SERIAL.
+    !> Whether a live buffer has serial number SERIAL.  Not a port.
     logical function serial_live(serial)
         integer(int64), intent(in) :: serial
         integer(int64) :: k
@@ -1417,7 +1419,7 @@ contains
         end do
     end function serial_live
 
-    !> Free the markers of a subdirectory alist.
+    !> Free the markers of a subdirectory alist.  Not a port.
     subroutine free_alist(alist)
         type(dired_subdir_type), allocatable, intent(inout) :: alist(:)
         integer :: k
@@ -1432,6 +1434,7 @@ contains
     end subroutine free_alist
 
     !> Forget entry K (of a killed buffer, or for kill-all-local-variables).
+    !> Not a port.
     subroutine clear_entry(k)
         integer, intent(in) :: k
 
@@ -1445,7 +1448,7 @@ contains
     end subroutine clear_entry
 
     !> The index of the current buffer's entry in `locals', made if MAKE
-    !> (0 if none).
+    !> (0 if none).  Not a port.
     integer function local_index(make) result(k)
         logical, intent(in) :: make
         type(dired_local_type), allocatable :: grown(:)
@@ -1487,6 +1490,7 @@ contains
     end function local_index
 
     !> kill-all-local-variables: Dired's buffer-local variables.
+    !> Not a port.
     subroutine kill_dired_locals()
         integer :: k
 
@@ -1520,7 +1524,7 @@ contains
     end function dired_actual_switches_of
 
     !> The directories of the current buffer's `dired_subdir_alist', in
-    !> its order (the last one in the buffer first).
+    !> its order (the last one in the buffer first).  Not a port.
     function dired_subdir_dirs() result(dirs)
         type(dired_string_type), allocatable :: dirs(:)
         integer :: k, i
@@ -1538,6 +1542,7 @@ contains
     end function dired_subdir_dirs
 
     !> The number of elements of the current buffer's `dired_subdir_alist'.
+    !> Not a port.
     integer function alist_size()
         integer :: k
 
@@ -1547,7 +1552,7 @@ contains
         if (allocated(locals(k)%subdir_alist)) alist_size = size(locals(k)%subdir_alist)
     end function alist_size
 
-    !> The current buffer's `default_directory'.
+    !> The current buffer's `default_directory'.  Not a port.
     function default_directory() result(dir)
         character(len=:), allocatable :: dir
 
@@ -1557,6 +1562,7 @@ contains
     end function default_directory
 
     !> `expand_file_name' as a function (relative to `default_directory').
+    !> Not a port.
     function expand(name, dir) result(full)
         character(len=*), intent(in) :: name
         character(len=*), intent(in), optional :: dir
@@ -1571,7 +1577,7 @@ contains
     ! Small helpers
     ! ------------------------------------------------------------------
 
-    !> Whether text after point matches REGEXP (looking-at-p).
+    !> Whether text after point matches REGEXP (looking-at-p).  Not a port.
     logical function looking_at_p(regexp)
         character(len=*), intent(in) :: regexp
         type(status_type) :: st
@@ -1579,7 +1585,7 @@ contains
         looking_at_p = looking_at(regexp, st, inhibit_modify=.true.)
     end function looking_at_p
 
-    !> Whether REGEXP matches STRING (string-match-p).
+    !> Whether REGEXP matches STRING (string-match-p).  Not a port.
     logical function string_match_p(regexp, string)
         character(len=*), intent(in) :: regexp, string
         type(status_type) :: st
@@ -1588,7 +1594,7 @@ contains
     end function string_match_p
 
     !> Search forward for REGEXP, bounded by BOUND if positive; true if
-    !> found (point after the match), else point unchanged.
+    !> found (point after the match), else point unchanged.  Not a port.
     logical function re_search_forward_p(regexp, bound, count) result(found)
         character(len=*), intent(in) :: regexp
         integer(int64), intent(in), optional :: bound, count
@@ -1610,7 +1616,7 @@ contains
         found = st%ok() .and. pos > 0
     end function re_search_forward_p
 
-    !> Search backward for REGEXP; true if found.
+    !> Search backward for REGEXP; true if found.  Not a port.
     logical function re_search_backward_p(regexp, count) result(found)
         character(len=*), intent(in) :: regexp
         integer(int64), intent(in), optional :: count
@@ -1621,7 +1627,7 @@ contains
         found = st%ok() .and. pos > 0
     end function re_search_backward_p
 
-    !> The position of marker M (0 if it points nowhere).
+    !> The position of marker M (0 if it points nowhere).  Not a port.
     integer(int64) function mpos(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
@@ -1630,7 +1636,7 @@ contains
         if (.not. st%ok()) mpos = 0
     end function mpos
 
-    !> Free marker M, ignoring a stale handle.
+    !> Free marker M, ignoring a stale handle.  Not a port.
     subroutine release_marker(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
@@ -1638,7 +1644,7 @@ contains
         call free_marker(m, st)
     end subroutine release_marker
 
-    !> Match data position (0 if the group did not match).
+    !> Match data position (0 if the group did not match).  Not a port.
     integer(int64) function mbeg(n)
         integer, intent(in) :: n
         type(status_type) :: st
@@ -1646,6 +1652,7 @@ contains
         mbeg = match_beginning(n, st)
     end function mbeg
 
+    ! Not a port.
     integer(int64) function mend(n)
         integer, intent(in) :: n
         type(status_type) :: st
@@ -1654,17 +1661,19 @@ contains
     end function mend
 
     !> The position N lines after this one's start (line-beginning-position N).
+    !> Not a port.
     integer(int64) function bol(n)
         integer(int64), intent(in), optional :: n
 
         bol = line_beginning_position(n)
     end function bol
 
+    ! Not a port.
     integer(int64) function eol()
         eol = line_end_position()
     end function eol
 
-    !> Move N lines (forward-line), ignoring the shortage.
+    !> Move N lines (forward-line), ignoring the shortage.  Not a port.
     subroutine fwd_line(n)
         integer(int64), intent(in) :: n
         integer(int64) :: shortage
@@ -1673,7 +1682,7 @@ contains
     end subroutine fwd_line
 
     !> The character after POS (default point) as an ASCII character, or
-    !> achar(0) when there is none or it is not ASCII.
+    !> achar(0) when there is none or it is not ASCII.  Not a port.
     character function char_at(pos)
         integer(int64), intent(in), optional :: pos
         integer(int32) :: c
@@ -1689,7 +1698,7 @@ contains
         if (found .and. c >= 0 .and. c < 128) char_at = achar(c)
     end function char_at
 
-    !> The character before point (ASCII, else achar(0)).
+    !> The character before point (ASCII, else achar(0)).  Not a port.
     character function char_before_point()
         integer(int32) :: c
         logical :: found
@@ -1700,6 +1709,7 @@ contains
     end function char_before_point
 
     !> Bind `inhibit_read_only' to true (SAVED keeps the old value).
+    !> Not a port.
     subroutine inhibit_read_only_begin(saved)
         type(value_type), intent(out) :: saved
         type(status_type) :: st
@@ -1708,6 +1718,7 @@ contains
         call set(sym("inhibit_read_only"), t_value(), st)
     end subroutine inhibit_read_only_begin
 
+    ! Not a port.
     subroutine inhibit_read_only_end(saved)
         type(value_type), intent(in) :: saved
         type(status_type) :: st
@@ -1716,6 +1727,7 @@ contains
     end subroutine inhibit_read_only_end
 
     !> Replace the character after point with C (delete-char 1, insert).
+    !> Not a port.
     subroutine replace_char_at_point(c, status)
         character, intent(in) :: c
         type(status_type), intent(out) :: status
@@ -1726,6 +1738,7 @@ contains
     end subroutine replace_char_at_point
 
     !> TEXT with every occurrence of FROM replaced by TO (string-replace).
+    !> Not a port.
     function string_replace(from, to, text) result(out)
         character(len=*), intent(in) :: from, to, text
         character(len=:), allocatable :: out
@@ -1744,7 +1757,7 @@ contains
         out = out//text(i:)
     end function string_replace
 
-    !> The decimal representation of N.
+    !> The decimal representation of N.  Not a port.
     function itoa(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
@@ -1763,7 +1776,7 @@ contains
         if (count == 1) s = ""
     end function dired_plural_s
 
-    !> Run hook HOOK, ignoring its status.
+    !> Run hook HOOK, ignoring its status.  Not a port.
     subroutine run_hook_quietly(hook)
         type(hook_type), intent(inout) :: hook
         type(status_type) :: st
@@ -1791,16 +1804,16 @@ contains
         case_fold_search%value = saved
     end function dired_check_switches
 
-    !> Return true if the string SWITCHES contains -b or --escape.  Port
-    !> of dired.el:dired-switches-escape-p.
+    !> Return true if the string SWITCHES contains -b or --escape.
+    !> Port of dired.el:dired-switches-escape-p.
     logical function dired_switches_escape_p(switches)
         character(len=*), intent(in) :: switches
 
         dired_switches_escape_p = dired_check_switches(switches, "b", "\(quoting-style=\)?escape")
     end function dired_switches_escape_p
 
-    !> Return true if the string SWITCHES contains -R or --recursive.  Port
-    !> of dired.el:dired-switches-recursive-p.
+    !> Return true if the string SWITCHES contains -R or --recursive.
+    !> Port of dired.el:dired-switches-recursive-p.
     logical function dired_switches_recursive_p(switches)
         character(len=*), intent(in) :: switches
 
@@ -1828,8 +1841,8 @@ contains
     !> Otherwise, if WILDCARD is true, expand wildcards;
     !>  in that case, DIR should be a file name that uses wildcards.
     !> In other cases, DIR should be a directory name or a directory filename.
-    !> If HDR is true, insert a header line with the directory name.  Port
-    !> of dired.el:dired-insert-directory (no remote directories or
+    !> If HDR is true, insert a header line with the directory name.
+    !> Port of dired.el:dired-insert-directory (no remote directories or
     !> globstar).
     recursive subroutine dired_insert_directory(dir_in, switches_in, status, file_list, wildcard, hdr)
         character(len=*), intent(in) :: dir_in, switches_in
@@ -2038,6 +2051,7 @@ contains
     end subroutine dired_insert_directory
 
     !> The shell for wildcard listings: `shell_file_name' (callproc.c).
+    !> Not a port.
     function shell_name() result(sh)
         character(len=:), allocatable :: sh
 
@@ -2804,7 +2818,7 @@ contains
         end if
     end function dired_move_to_filename
 
-    !> `directory_listing_before_filename_regexp' (files.el).
+    !> `directory_listing_before_filename_regexp' (files.el).  Not a port.
     function directory_listing_regexp() result(re)
         character(len=:), allocatable :: re
 
@@ -3198,7 +3212,7 @@ contains
         call set_buffer(old, st)
     end function dired_buffers_for_dir
 
-    !> Remove the killed buffers from `dired_buffers'.
+    !> Remove the killed buffers from `dired_buffers'.  Not a port.
     subroutine prune_dired_buffers()
         type(dired_buffer_entry_type), allocatable :: kept(:)
         integer :: i, n
@@ -3432,6 +3446,7 @@ contains
     end subroutine dired_noselect
 
     !> `dired_noselect' as a `find_directory_functions' function.
+    !> Not a port.
     recursive subroutine dired_noselect_dir(dirname, buf, status)
         character(len=*), intent(in) :: dirname
         type(handle_type), intent(out) :: buf
@@ -3552,8 +3567,8 @@ contains
         if (buffer_live_p(old_buf)) call set_buffer(old_buf, st)
     end subroutine dired_internal_noselect
 
-    !> Pop up the buffer displaying the current `ls' error, if any.  Port
-    !> of dired.el:dired--display-ls-error.
+    !> Pop up the buffer displaying the current `ls' error, if any.
+    !> Port of dired.el:dired--display-ls-error.
     subroutine dired_display_ls_error()
         type(handle_type) :: errwin
         type(status_type) :: st
@@ -3599,8 +3614,8 @@ contains
         end do
     end subroutine dired_goto_next_nontrivial_file
 
-    !> Move to the next line with a file, within the subdirectory.  Port
-    !> of dired.el:dired-goto-next-file.
+    !> Move to the next line with a file, within the subdirectory.
+    !> Port of dired.el:dired-goto-next-file.
     subroutine dired_goto_next_file()
         integer(int64) :: max
         type(status_type) :: st
@@ -3697,7 +3712,7 @@ contains
         call major_modes%dired_mode%finish(saved, status)
     end subroutine dired_mode
 
-    !> `dired_mode' as a command procedure (not interactive).
+    !> `dired_mode' as a command procedure (not interactive).  Not a port.
     recursive subroutine dired_mode_cmd(status)
         type(status_type), intent(out) :: status
 
@@ -3828,7 +3843,7 @@ contains
     end subroutine dired_save_positions
 
     !> Release what `dired_save_positions' made (nothing to free: the
-    !> markers belong to the windows).
+    !> markers belong to the windows).  Not a port.
     subroutine free_positions(positions)
         type(dired_positions_type), intent(inout) :: positions
 
@@ -4081,6 +4096,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The prefix argument of a command as a number (1 if none).
+    !> Not a port.
     integer(int64) function prefix_n()
         prefix_n = prefix_numeric_value(current_prefix_arg)
     end function prefix_n
@@ -4543,7 +4559,7 @@ contains
 
     !> The kind and number of the prefix argument, as the commands on
     !> marked files take it ("P"): none, a number (or `-'), or another
-    !> value (C-u).
+    !> value (C-u).  Not a port.
     subroutine prefix_kind(arg_kind, arg_n)
         integer, intent(out) :: arg_kind
         integer(int64), intent(out) :: arg_n
@@ -4560,8 +4576,8 @@ contains
         end if
     end subroutine prefix_kind
 
-    !> The regexp matching a line marked with `dired_marker_char'.  Port
-    !> of dired.el:dired-marker-regexp.
+    !> The regexp matching a line marked with `dired_marker_char'.
+    !> Port of dired.el:dired-marker-regexp.
     function dired_marker_regexp() result(re)
         character(len=:), allocatable :: re
 
@@ -4710,7 +4726,7 @@ contains
     end subroutine dired_map_over_marks
 
     !> Collect the file name of this line into the `map_files' results
-    !> (`map_localp', `map_no_error').
+    !> (`map_localp', `map_no_error').  Not a port.
     recursive subroutine collect_filename(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
@@ -4722,7 +4738,7 @@ contains
     end subroutine collect_filename
 
     !> Collect the file name and a marker at point (dired-do-delete's
-    !> body).
+    !> body).  Not a port.
     recursive subroutine collect_filename_and_marker(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
@@ -4743,6 +4759,7 @@ contains
     end subroutine collect_filename_and_marker
 
     !> Append FILE (FOUND false for nil) to the `map_files' results.
+    !> Not a port.
     subroutine push_result(file, found)
         character(len=*), intent(in) :: file
         logical, intent(in) :: found
@@ -4763,7 +4780,7 @@ contains
         map_n = map_n + 1
     end subroutine push_result
 
-    !> Start collecting results.
+    !> Start collecting results.  Not a port.
     subroutine reset_results()
         if (allocated(map_files)) deallocate (map_files)
         if (allocated(map_found)) deallocate (map_found)
@@ -4875,8 +4892,8 @@ contains
         use_region = e > b
     end function dired_mark_region_use_p
 
-    !> The value of the region beginning aligned to Dired file lines.  Port
-    !> of dired.el:dired-mark--region-beginning.
+    !> The value of the region beginning aligned to Dired file lines.
+    !> Port of dired.el:dired-mark--region-beginning.
     integer(int64) function dired_mark_region_beginning() result(pos)
         integer(int64) :: opoint, b
         type(status_type) :: st
@@ -4907,6 +4924,7 @@ contains
 
     !> At the region's end: the end of its line when the file there is in
     !> the region, else the start of its line (dired-mark-region).
+    !> Not a port.
     integer(int64) function region_end_line_position() result(pos)
         type(value_type) :: v
         type(status_type) :: st
@@ -5068,6 +5086,7 @@ contains
 
     !> The body of `dired_mark' for one line: mark it with the current
     !> `dired_marker_char' unless it is `.' or `..' (unless a symlink).
+    !> Not a port.
     recursive subroutine mark_this_line(status)
         type(status_type), intent(out) :: status
         integer(int64) :: opoint
@@ -5269,7 +5288,7 @@ contains
         call goto_char(opoint)
     end subroutine dired_toggle_marks
 
-    !> The predicate of `dired_mark_files_regexp'.
+    !> The predicate of `dired_mark_files_regexp'.  Not a port.
     recursive logical function regexp_file_p() result(p)
         character(len=:), allocatable :: fn
         type(status_type) :: st
@@ -5293,8 +5312,8 @@ contains
     !> only in the active region if `dired_mark_region' is true.
     !>
     !> REGEXP is an Emacs regexp, not a shell wildcard.  Thus, use `\.o$' for
-    !> object files--just `.o' will mark more than you might think.  Port
-    !> of dired.el:dired-mark-files-regexp.
+    !> object files--just `.o' will mark more than you might think.
+    !> Port of dired.el:dired-mark-files-regexp.
     recursive subroutine dired_mark_files_regexp(regexp, status, marker_char)
         character(len=*), intent(in) :: regexp
         type(status_type), intent(out) :: status
@@ -5310,7 +5329,7 @@ contains
     end subroutine dired_mark_files_regexp
 
     !> Read a regexp in the minibuffer for the marking commands, with
-    !> `dired_regexp_history'.
+    !> `dired_regexp_history'.  Not a port.
     recursive subroutine read_dired_regexp(prompt, regexp, status, file_defaults)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: regexp
@@ -5360,8 +5379,8 @@ contains
     !> only in the active region if `dired_mark_region' is true.
     !>
     !> REGEXP is an Emacs regexp, not a shell wildcard.  Thus, use `\.o$' for
-    !> object files--just `.o' will mark more than you might think.  Port
-    !> of dired.el:dired-mark-files-regexp (interactive).
+    !> object files--just `.o' will mark more than you might think.
+    !> Port of dired.el:dired-mark-files-regexp (interactive).
     recursive subroutine cmd_dired_mark_files_regexp(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: regexp, verb
@@ -5380,7 +5399,7 @@ contains
         end if
     end subroutine cmd_dired_mark_files_regexp
 
-    !> The predicate of `dired_mark_files_containing_regexp'.
+    !> The predicate of `dired_mark_files_containing_regexp'.  Not a port.
     recursive logical function containing_regexp_p() result(p)
         character(len=:), allocatable :: fn
         type(handle_type) :: prebuf, old, tmp
@@ -5493,20 +5512,23 @@ contains
         call dired_mark_files_regexp(dired_garbage_files_regexp, status, dired_del_marker)
     end subroutine cmd_dired_flag_garbage_files
 
+    ! Not a port.
     recursive logical function symlink_line_p()
         symlink_line_p = looking_at_p(dired_re_sym)
     end function symlink_line_p
 
+    ! Not a port.
     recursive logical function directory_line_p()
         directory_line_p = looking_at_p(dired_re_dir) .and. .not. looking_at_p(dired_re_dot)
     end function directory_line_p
 
+    ! Not a port.
     recursive logical function executable_line_p()
         executable_line_p = looking_at_p(dired_re_exe)
     end function executable_line_p
 
     !> Run `dired_mark_if' with PREDICATE and MSG, unmarking with a prefix
-    !> argument, else with marker MARKER.
+    !> argument, else with marker MARKER.  Not a port.
     recursive subroutine mark_if_command(predicate, msg, marker, status)
         interface
             recursive logical function predicate()
@@ -5564,7 +5586,7 @@ contains
         call mark_if_command(executable_line_p, "executable file", dired_marker_char, status)
     end subroutine cmd_dired_mark_executables
 
-    !> The predicate of `dired_flag_auto_save_files'.
+    !> The predicate of `dired_flag_auto_save_files'.  Not a port.
     recursive logical function auto_save_line_p() result(p)
         character(len=:), allocatable :: fn
         type(status_type) :: st
@@ -5605,7 +5627,7 @@ contains
         call mark_if_command(auto_save_line_p, "auto save file", dired_del_marker, status)
     end subroutine cmd_dired_flag_auto_save_files
 
-    !> The predicate of `dired_flag_backup_files'.
+    !> The predicate of `dired_flag_backup_files'.  Not a port.
     recursive logical function backup_line_p() result(p)
         character(len=:), allocatable :: fn
         type(status_type) :: st
@@ -5640,7 +5662,7 @@ contains
     end subroutine cmd_dired_flag_backup_files
 
     !> Read a character in the echo area after PROMPT (read-char): C-g
-    !> quits, other non-characters are an error.
+    !> quits, other non-characters are an error.  Not a port.
     subroutine read_char(prompt, c, status)
         character(len=*), intent(in) :: prompt
         integer(int64), intent(out) :: c
@@ -6101,7 +6123,7 @@ contains
         call dired_do_delete(kind, n, status)
     end subroutine cmd_dired_do_delete
 
-    !> Free the markers the deletion bodies made.
+    !> Free the markers the deletion bodies made.  Not a port.
     subroutine free_map_markers()
         integer :: k
 
@@ -6364,6 +6386,7 @@ contains
     end subroutine dired_mark_pop_up
 
     !> The `window_height' of `dired_mark_pop_up': fit-window-to-buffer.
+    !> Not a port.
     subroutine fit_window(window)
         type(handle_type), intent(in) :: window
 
@@ -6372,6 +6395,7 @@ contains
 
     !> The `body_function' of `dired_mark_pop_up': insert the files in
     !> columns (dired-format-columns-of-files).
+    !> Port of dired.el:dired-format-columns-of-files.
     subroutine insert_marked_files(window)
         type(handle_type), intent(in) :: window
         type(minibuffer_string_type), allocatable :: strings(:)
@@ -6560,8 +6584,8 @@ contains
         call select_window(owindow, st)
     end subroutine dired_why
 
-    !> Summarize basic Dired commands and show recent Dired errors.  Port
-    !> of dired.el:dired-summary.
+    !> Summarize basic Dired commands and show recent Dired errors.
+    !> Port of dired.el:dired-summary.
     recursive subroutine dired_summary(status)
         type(status_type), intent(out) :: status
 
@@ -6863,55 +6887,63 @@ contains
     ! Font Lock
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     subroutine face_mark(face)
         character(len=:), allocatable, intent(out) :: face
 
         face = dired_mark_face
     end subroutine face_mark
 
+    ! Not a port.
     subroutine face_marked(face)
         character(len=:), allocatable, intent(out) :: face
 
         face = dired_marked_face
     end subroutine face_marked
 
+    ! Not a port.
     subroutine face_flagged(face)
         character(len=:), allocatable, intent(out) :: face
 
         face = dired_flagged_face
     end subroutine face_flagged
 
+    ! Not a port.
     subroutine face_perm_write(face)
         character(len=:), allocatable, intent(out) :: face
 
         face = dired_perm_write_face
     end subroutine face_perm_write
 
+    ! Not a port.
     subroutine face_directory(face)
         character(len=:), allocatable, intent(out) :: face
 
         face = dired_directory_face
     end subroutine face_directory
 
+    ! Not a port.
     subroutine face_symlink(face)
         character(len=:), allocatable, intent(out) :: face
 
         face = dired_symlink_face
     end subroutine face_symlink
 
+    ! Not a port.
     subroutine face_ignored(face)
         character(len=:), allocatable, intent(out) :: face
 
         face = dired_ignored_face
     end subroutine face_ignored
 
+    ! Not a port.
     subroutine face_header(face)
         character(len=:), allocatable, intent(out) :: face
 
         face = dired_header_face
     end subroutine face_header
 
-    !> PRE-MATCH-FORM (dired-move-to-filename).
+    !> PRE-MATCH-FORM (dired-move-to-filename).  Not a port.
     subroutine pre_move_to_filename(limit)
         integer(int64), intent(out) :: limit
         type(status_type) :: st
@@ -6922,7 +6954,7 @@ contains
     !> PRE-MATCH-FORM of the -F ignored-extension keyword: if the last
     !> character is not part of the filename, move back to the start of the
     !> filename so it can be fontified; otherwise, leave point at the end of
-    !> the line; that way, nothing is fontified.
+    !> the line; that way, nothing is fontified.  Not a port.
     subroutine pre_ignored_f(limit)
         integer(int64), intent(out) :: limit
         type(value_type) :: v
@@ -6936,7 +6968,7 @@ contains
 
     !> The truename of the file at point, if it can be found (TRUENAME
     !> "" and FOUND false otherwise); NAME_FOUND tells whether there is
-    !> a file name.
+    !> a file name.  Not a port.
     subroutine truename_at_point(truename, found, name_found)
         character(len=:), allocatable, intent(out) :: truename
         logical, intent(out) :: found, name_found
@@ -6952,7 +6984,7 @@ contains
         found = st%ok()
     end subroutine truename_at_point
 
-    !> Search forward for REGEXP up to LIMIT, setting FOUND.
+    !> Search forward for REGEXP up to LIMIT, setting FOUND.  Not a port.
     subroutine search_to(regexp, limit, found, status)
         character(len=*), intent(in) :: regexp
         integer(int64), intent(in) :: limit
@@ -6965,7 +6997,7 @@ contains
     end subroutine search_to
 
     !> Matcher of a broken symbolic link: either not existent target or
-    !> circular link.
+    !> circular link.  Not a port.
     subroutine broken_symlink_matcher(limit, found, status)
         integer(int64), intent(in) :: limit
         logical, intent(out) :: found
@@ -6985,7 +7017,7 @@ contains
         call search_to("\(.+\) \(->\) ?\(.+\)", limit, found, status)
     end subroutine broken_symlink_matcher
 
-    !> Matcher of a symbolic link to a directory.
+    !> Matcher of a symbolic link to a directory.  Not a port.
     subroutine dir_symlink_matcher(limit, found, status)
         integer(int64), intent(in) :: limit
         logical, intent(out) :: found
@@ -7003,6 +7035,7 @@ contains
     end subroutine dir_symlink_matcher
 
     !> Matcher of a symbolic link to a non-directory, or no check at all.
+    !> Not a port.
     subroutine other_symlink_matcher(limit, found, status)
         integer(int64), intent(in) :: limit
         logical, intent(out) :: found
@@ -7118,7 +7151,7 @@ contains
         kw(16) = font_lock_keyword(dired_subdir_regexp, highlights=h1)
     end subroutine dired_font_lock_keywords
 
-    !> Define the Dired faces.
+    !> Define the Dired faces.  Not a port.
     subroutine init_dired_faces()
         integer, parameter :: C = FACE_CLASS_COLOR
         type(named_face_type), pointer :: f
@@ -7237,8 +7270,8 @@ contains
         call dired_why(status)
     end subroutine cmd_dired_why
 
-    !> Summarize basic Dired commands and show recent Dired errors.  Port
-    !> of dired.el:dired-summary (interactive).
+    !> Summarize basic Dired commands and show recent Dired errors.
+    !> Port of dired.el:dired-summary (interactive).
     recursive subroutine cmd_dired_summary(status)
         type(status_type), intent(out) :: status
 
@@ -7250,6 +7283,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Bind KEYS (key-parse syntax) to COMMAND in `dired_mode_map'.
+    !> Not a port.
     subroutine bind(keys, command)
         character(len=*), intent(in) :: keys, command
         type(status_type) :: st
@@ -7257,7 +7291,7 @@ contains
         call keymap_set(dired_mode_map, keys, command, st)
     end subroutine bind
 
-    !> Bind [remap FROM] to COMMAND in `dired_mode_map'.
+    !> Bind [remap FROM] to COMMAND in `dired_mode_map'.  Not a port.
     subroutine bind_remap(from, command)
         character(len=*), intent(in) :: from, command
         type(value_type), allocatable :: events(:)
@@ -7269,7 +7303,7 @@ contains
 
     !> Define Dired: its options, faces, commands, Dired mode and
     !> `dired_mode_map', and the keys `C-x d' in CTL_X_MAP and `C-x 4 d'
-    !> in CTL_X_4_MAP.
+    !> in CTL_X_4_MAP.  Not a port.
     subroutine syms_of_dired_mode(ctl_x_map, ctl_x_4_map)
         type(handle_type), intent(in), optional :: ctl_x_map, ctl_x_4_map
         type(status_type) :: st

@@ -1,5 +1,6 @@
 ! test_kmacro_fm.f90 -- tests for kmacro_fm, macros_fm and edmacro_fm.
-! Ports test/lisp/kmacro-tests.el where the ported functionality allows.
+! Ports GNU Emacs 31.1 test/lisp/kmacro-tests.el in part; the others are
+! not ported yet.
 !
 ! Copyright (C) 2017-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -60,6 +61,7 @@ module test_kmacro_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_kmacro_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

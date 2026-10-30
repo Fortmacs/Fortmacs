@@ -1,6 +1,8 @@
 ! test_emacs_fm.f90 -- tests for emacs_fm's startup: the command-line
 ! options and the init file's `configure`, run through the `fortmacs`
-! API on a pty.  Own tests: upstream has no startup tests for these.
+! API on a pty.
+! Own tests; upstream's emacs-tests.el tests seccomp and bwrap, which
+! are not ported.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -50,6 +52,7 @@ module test_emacs_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_emacs_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

@@ -126,6 +126,7 @@ contains
 
     !> Drop `h' from the live-buffer list.  Lives here, its only user:
     !> gfortran drops private parent procedures that only a submodule uses.
+    !> Not a port.
     subroutine alist_remove(h)
         type(handle_type), intent(in) :: h
         integer(int64) :: k

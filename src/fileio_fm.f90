@@ -74,7 +74,7 @@ module fileio_fm
 
     abstract interface
         !> files.el's `delete_file' (no trash) or `delete_directory' with
-        !> RECURSIVE true, on FILE.
+        !> RECURSIVE true, on FILE.  Not a port.
         recursive subroutine file_operation_proc(file, status)
             import :: status_type
             implicit none(type, external)
@@ -83,6 +83,7 @@ module fileio_fm
         end subroutine file_operation_proc
 
         !> files.el's `copy_directory' with KEEP_TIME true and PARENTS false.
+        !> Not a port.
         recursive subroutine copy_directory_proc(directory, newname, status)
             import :: status_type
             implicit none(type, external)
@@ -92,7 +93,7 @@ module fileio_fm
 
         !> mule.el's `set_auto_coding': the coding system FILENAME's text
         !> HEAD (its first 1K and last 3K bytes, or all of a short file)
-        !> asks for, or "".
+        !> asks for, or "".  Not a port.
         subroutine set_auto_coding_proc(filename, head, coding)
             implicit none(type, external)
             character(len=*), intent(in) :: filename, head
@@ -101,7 +102,7 @@ module fileio_fm
 
         !> mule.el's `after_insert_file_set_coding': set
         !> `buffer_file_coding_system' after text is inserted (VISIT: a file
-        !> is being visited).
+        !> is being visited).  Not a port.
         subroutine after_insert_file_set_coding_proc(inserted, visit)
             import :: int64
             implicit none(type, external)
@@ -113,6 +114,7 @@ module fileio_fm
         !> DEFAULT_CODING can encode the text between START and END of the
         !> current buffer, or choose (asking) one that can; ACCEPT_DEFAULT
         !> is upstream's ACCEPT-DEFAULT-P of t (for coding_system_for_write).
+        !> Not a port.
         subroutine select_safe_coding_system_proc(start, end, default_coding, accept_default, filename, coding, &
                                                   status)
             import :: int64, status_type
@@ -156,10 +158,13 @@ module fileio_fm
     procedure(select_safe_coding_system_proc), pointer, public :: select_safe_coding_system_function => null()
 
     !> What `rename_file' calls (through Lisp upstream) to move a
-    !> directory, or delete a file or a directory, across file systems;
-    !> set by files_fm.
+    !> directory across file systems; set by files_fm.
     procedure(copy_directory_proc), pointer :: copy_directory_hook => null()
+    !> What `rename_file' calls to delete a directory it moved across file
+    !> systems; set by files_fm.
     procedure(file_operation_proc), pointer :: delete_directory_hook => null()
+    !> What `rename_file' calls to delete a file it moved across file systems;
+    !> set by files_fm.
     procedure(file_operation_proc), pointer :: delete_file_hook => null()
 
     !> fileio.c's realmask: the file mode creation mask (-1 until read).
@@ -195,6 +200,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Record the starting directory (emacs.c:main sets emacs_wd).
+    !> Port of fileio.c:init_fileio (and emacs_wd of emacs.c:main).
     subroutine init_fileio()
         emacs_wd = emacs_get_current_dir_name()
         realmask = emacs_umask()
@@ -348,7 +354,7 @@ contains
         home = file_name_as_directory(emacs_wd)//home
     end function get_homedir
 
-    !> Whether `s' holds a NUL byte (CHECK_STRING_NULL_BYTES).
+    !> Whether `s' holds a NUL byte (CHECK_STRING_NULL_BYTES).  Not a port.
     pure logical function has_null_byte(s)
         character(len=*), intent(in) :: s
 
@@ -496,6 +502,7 @@ contains
     end subroutine expand_file_name
 
     !> The byte of `s' at `i', or "" past the end (C's NUL terminator).
+    !> Not a port.
     pure function at(s, i) result(c)
         character(len=*), intent(in) :: s
         integer, intent(in) :: i
@@ -509,7 +516,7 @@ contains
     end function at
 
     !> Remove "//", "/." and "/FOO/.." from `target': the last step of
-    !> Fexpand_file_name.
+    !> Fexpand_file_name.  Port of fileio.c:Fexpand_file_name, in part.
     pure function canonicalize(target) result(out)
         character(len=*), intent(in) :: target
         character(len=:), allocatable :: out
@@ -602,6 +609,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Expand `filename', quietly giving "" on error (for predicates).
+    !> Not a port.
     function expand_quietly(filename) result(absname)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: absname
@@ -719,6 +727,7 @@ contains
 
     !> Status of `filename' (following links); `found' is false if it
     !> can't be read.  The parts of dired.c:Ffile_attributes in use.
+    !> Port of dired.c:Ffile_attributes, in part.
     subroutine file_attributes(filename, st, found, nofollow)
         character(len=*), intent(in) :: filename
         type(file_stat_type), intent(out) :: st
@@ -748,6 +757,7 @@ contains
 
     !> Whether `filename' is a symbolic link.  Like
     !> fileio.c:Ffile_symlink_p, but a truth value instead of the target.
+    !> Port of fileio.c:Ffile_symlink_p, in part.
     logical function file_symlink_p(filename)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: absname
@@ -816,7 +826,7 @@ contains
     end subroutine set_file_modes
 
     !> The file mode creation mask (fileio.c's realmask), read from the
-    !> process the first time it is needed.
+    !> process the first time it is needed.  Not a port.
     integer(int32) function current_realmask()
         if (realmask < 0) realmask = emacs_umask()
         current_realmask = realmask
@@ -911,8 +921,8 @@ contains
     !> end in a slash.
     !>
     !> Signal a `file_already_exists' error if a file NEWNAME already exists
-    !> unless optional third argument OK_IF_ALREADY_EXISTS is true.  Port
-    !> of fileio.c:Frename_file (not interactive: no confirmation).
+    !> unless optional third argument OK_IF_ALREADY_EXISTS is true.  Port of
+    !> fileio.c:Frename_file (not interactive: no confirmation).
     recursive subroutine rename_file(file, newname, status, ok_if_already_exists)
         character(len=*), intent(in) :: file, newname
         type(status_type), intent(out) :: status
@@ -1363,7 +1373,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> All the bytes of file `absname'.  Errors opening it are reported
-    !> with `what' ("Opening input file").
+    !> with `what' ("Opening input file").  Not a port.
     subroutine read_file(absname, what, data, status, st, opened)
         character(len=*), intent(in) :: absname, what
         character(len=:), allocatable, intent(out) :: data
@@ -1614,6 +1624,9 @@ contains
     !> INSERTED is the number of characters inserted.  The REPLACE part
     !> of fileio.c:Finsert_file_contents, with get_window_points_and_markers
     !> and restore_window_points.
+    !> Port of fileio.c:Finsert_file_contents in part,
+    !> fileio.c:get_window_points_and_markers and
+    !> fileio.c:restore_window_points.
     subroutine replace_accessible_text(text, inserted, status)
         character(len=*), intent(in) :: text
         integer(int64), intent(out) :: inserted
@@ -1904,7 +1917,7 @@ contains
 
     !> Whether regexp PATTERN matches file name NAME, case-sensitively
     !> (search.c:fast_string_match, as `find_operation_coding_system' and
-    !> the auto-coding alists match).
+    !> the auto-coding alists match).  Not a port.
     logical function file_name_match_p(pattern, name)
         character(len=*), intent(in) :: pattern, name
         type(status_type) :: st
@@ -1917,7 +1930,7 @@ contains
         if (.not. st%ok()) file_name_match_p = .false.
     end function file_name_match_p
 
-    !> The number of characters in multibyte TEXT.
+    !> The number of characters in multibyte TEXT.  Not a port.
     integer(int64) function chars_in(text) result(n)
         character(len=*), intent(in) :: text
         integer(int64) :: p

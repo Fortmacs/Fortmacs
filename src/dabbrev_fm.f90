@@ -84,6 +84,7 @@ module dabbrev_fm
 
     abstract interface
         !> A function deciding whether dabbrev should search OTHER_BUFFER.
+        !> Not a port.
         logical function dabbrev_friend_buffer_proc(other_buffer)
             import :: handle_type
             implicit none(type, external)
@@ -91,7 +92,7 @@ module dabbrev_fm
         end function dabbrev_friend_buffer_proc
 
         !> A function giving in LIST the buffers that should be
-        !> searched by dabbrev.
+        !> searched by dabbrev.  Not a port.
         subroutine dabbrev_select_buffers_proc(list)
             import :: handle_type
             implicit none(type, external)
@@ -326,7 +327,7 @@ contains
     ! Helpers
     ! ------------------------------------------------------------------
 
-    !> Save the current buffer and point (save-excursion).
+    !> Save the current buffer and point (save-excursion).  Not a port.
     subroutine save_excursion(e)
         type(excursion_type), intent(out) :: e
 
@@ -334,7 +335,7 @@ contains
         call point_marker(e%point)
     end subroutine save_excursion
 
-    !> Go back to the buffer and point E saved.
+    !> Go back to the buffer and point E saved.  Not a port.
     subroutine restore_excursion(e)
         type(excursion_type), intent(inout) :: e
         type(status_type) :: st
@@ -354,7 +355,7 @@ contains
         call free_marker(e%point, st)
     end subroutine restore_excursion
 
-    !> The number of characters of the UTF-8 text S.
+    !> The number of characters of the UTF-8 text S.  Not a port.
     pure integer(int64) function nchars(s) result(n)
         character(len=*), intent(in) :: s
         integer :: k, b
@@ -368,7 +369,7 @@ contains
     end function nchars
 
     !> The byte index in S of the character after the first N characters
-    !> (len(s) + 1 if S has no more).
+    !> (len(s) + 1 if S has no more).  Not a port.
     pure integer function byte_after(s, n) result(k)
         character(len=*), intent(in) :: s
         integer(int64), intent(in) :: n
@@ -390,7 +391,7 @@ contains
     end function byte_after
 
     !> Whether A and B are the same string (Fortran's == ignores
-    !> trailing blanks).
+    !> trailing blanks).  Not a port.
     pure logical function same_string(a, b)
         character(len=*), intent(in) :: a, b
 
@@ -400,6 +401,7 @@ contains
     end function same_string
 
     !> The position of the last expansion: its marker's, or the number.
+    !> Not a port.
     integer(int64) function location()
         type(status_type) :: st
 
@@ -408,6 +410,7 @@ contains
     end function location
 
     !> Set the location of the last expansion to the position POS.
+    !> Not a port.
     subroutine set_location(pos)
         integer(int64), intent(in) :: pos
 
@@ -416,7 +419,7 @@ contains
         location_pos = pos
     end subroutine set_location
 
-    !> Make the location of the last expansion nil.
+    !> Make the location of the last expansion nil.  Not a port.
     subroutine clear_location()
         type(status_type) :: st
 
@@ -427,6 +430,7 @@ contains
     end subroutine clear_location
 
     !> Whether `last_abbrev_location' is a marker with a position.
+    !> Not a port.
     logical function abbrev_location_p()
         integer(int64) :: pos
         type(status_type) :: st
@@ -437,7 +441,7 @@ contains
         abbrev_location_p = st%ok() .and. pos > 0
     end function abbrev_location_p
 
-    !> The position of `last_abbrev_location'.
+    !> The position of `last_abbrev_location'.  Not a port.
     integer(int64) function abbrev_location()
         type(status_type) :: st
 
@@ -445,7 +449,7 @@ contains
     end function abbrev_location
 
     !> Record point POS in the current buffer's undo list
-    !> (`(setq buffer-undo-list (cons POS buffer-undo-list))').
+    !> (`(setq buffer-undo-list (cons POS buffer-undo-list))').  Not a port.
     subroutine push_undo_point(pos)
         integer(int64), intent(in) :: pos
         type(undo_entry_type) :: entry
@@ -457,6 +461,7 @@ contains
     end subroutine push_undo_point
 
     !> The user error "No possible abbreviation preceding point".
+    !> Not a port.
     subroutine no_abbreviation(status)
         type(status_type), intent(out) :: status
 
@@ -464,11 +469,12 @@ contains
     end subroutine no_abbreviation
 
     !> Whether the selected window is the active minibuffer window
-    !> (`minibuffer_window_active_p' of the selected window).
+    !> (`minibuffer_window_active_p' of the selected window).  Not a port.
     logical function minibuffer_window_active()
         minibuffer_window_active = selected_frame%minibuffer_selected .and. minib_active()
     end function minibuffer_window_active
 
+    ! Not a port.
     logical function minib_active()
         minib_active = minibuf_level > 0
     end function minib_active
@@ -1173,7 +1179,7 @@ contains
         call restore_excursion(ex)
     end subroutine find_expansion
 
-    !> Append B to LIST.
+    !> Append B to LIST.  Not a port.
     subroutine append_buffer(list, b)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: b
@@ -1188,7 +1194,7 @@ contains
         call move_alloc(grown, list)
     end subroutine append_buffer
 
-    !> Whether LIST contains B.
+    !> Whether LIST contains B.  Not a port.
     logical function member(b, list)
         type(handle_type), intent(in) :: b, list(:)
         integer :: k
@@ -1203,7 +1209,7 @@ contains
         end do
     end function member
 
-    !> LIST with B moved to the front (or put there).
+    !> LIST with B moved to the front (or put there).  Not a port.
     subroutine move_to_front(list, b)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: b
@@ -1319,7 +1325,7 @@ contains
     end subroutine make_friend_buffer_list
 
     !> EXPANSION from its first character on, after the first FROM
-    !> characters (substring).
+    !> characters (substring).  Not a port.
     function char_substring(s, from, to) result(sub)
         character(len=*), intent(in) :: s
         integer(int64), intent(in) :: from
@@ -1497,8 +1503,8 @@ contains
     !> `dabbrev__last_table' so that only distinct possibilities are found
     !> by dabbrev-re-expand.
     !>
-    !> Leaves point at the location of the start of the expansion.  Port
-    !> of dabbrev.el:dabbrev--search.
+    !> Leaves point at the location of the start of the expansion.
+    !> Port of dabbrev.el:dabbrev--search.
     recursive subroutine dabbrev_search(abbrev, reverse, ignore_case, result, status)
         character(len=*), intent(in) :: abbrev
         logical, intent(in) :: reverse, ignore_case
@@ -1695,6 +1701,7 @@ contains
 
     !> The completion table of `dabbrev_capf': the expansions of the
     !> abbreviation, found the first time it is used.
+    !> Port of dabbrev.el:dabbrev-capf in part.
     recursive subroutine dabbrev_capf_table(string, action, result, status, pred, suffix)
         character(len=*), intent(in) :: string
         integer, intent(in) :: action
@@ -1805,7 +1812,7 @@ contains
     end subroutine cmd_dabbrev_expand
 
     !> Register `dabbrev_expand' and give the list settings their
-    !> defaults.
+    !> defaults.  Not a port.
     subroutine syms_of_dabbrev()
         commands%dabbrev_expand%run => cmd_dabbrev_expand
         commands%dabbrev_completion%run => cmd_dabbrev_completion
