@@ -50,8 +50,9 @@ module shell_fm
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, buffer_live_p, kill_buffer, &
                          generate_new_buffer_name
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_substring, line_end_position, &
-                          line_beginning_position, narrow_to_region, field_beginning, field_end, field_string, eobp
-    use textprop_fm, only: get_text_property
+                          line_beginning_position, narrow_to_region, widen, field_beginning, field_end, field_string, eobp
+    use textprop_fm, only: get_text_property, put_text_property, next_single_property_change
+    use ansi_color_fm, only: ansi_color_apply_face_function
     use insdel_fm, only: insert
     use search_fm, only: string_match, re_search_forward, re_search_backward, match_beginning, match_end, &
                          looking_at, SEARCH_NOERROR, SEARCH_MOVE
@@ -599,6 +600,12 @@ contains
         call set_comint_get_old_input(shell_get_old_input)
         call minor_modes%shell_dirtrack_mode%enable(status)
         if (.not. status%ok()) return
+        ! By default, ansi-color applies faces using overlays.  This is
+        ! very inefficient in Shell buffers (e.g. Bug#10835).  We use a
+        ! custom `ansi_color_apply_face_function' to convert color escape
+        ! sequences into `font_lock_face' properties.
+        call ansi_color_apply_face_function%set_local(shell_apply_ansi_color)
+        call shell_reapply_ansi_color()
         ! This is not really correct, since the shell buffer does not
         ! really edit this directory.  But it is useful in the buffer list
         ! and menus.
@@ -714,10 +721,50 @@ contains
         if (.not. status%ok()) return
         call shell_font_lock_keywords(keywords)
         call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true.)
+        ! See comments in `shell_mode'.
+        call ansi_color_apply_face_function%set_local(shell_apply_ansi_color)
         call expand_file_name(default_directory(), expanded, st)
         call list_buffers_directory%set_local(expanded)
         call major_modes%shell_command_mode%finish(saved, status)
     end subroutine shell_command_mode
+
+    !> Apply FACE as the ansi-color face for the text between BEG and END.
+    !> Port of shell.el:shell-apply-ansi-color.
+    recursive subroutine shell_apply_ansi_color(beg, end, face)
+        integer(int64), intent(in) :: beg, end
+        type(value_type), intent(in) :: face
+        type(status_type) :: st
+
+        if (nilp(face)) return
+        call put_text_property(beg, end, sym("ansi_color_face"), face, st)
+        call put_text_property(beg, end, sym("font_lock_face"), face, st)
+    end subroutine shell_apply_ansi_color
+
+    !> Reapply ansi-color faces to the existing contents of the buffer.
+    !> Port of shell.el:shell-reapply-ansi-color.
+    subroutine shell_reapply_ansi_color()
+        type(value_type) :: face
+        type(status_type) :: st
+        integer(int64) :: pos, end, saved_begv, saved_zv
+        logical :: found
+
+        saved_begv = buffers(cur)%begv
+        saved_zv = buffers(cur)%zv
+        call widen()
+        pos = point_min()
+        call next_single_property_change(pos, sym("ansi_color_face"), end, found, st)
+        if (.not. found) end = point_max()
+
+        do
+            call get_text_property(pos, sym("ansi_color_face"), face, st)
+            if (.not. nilp(face)) call put_text_property(pos, end, sym("font_lock_face"), face, st)
+            pos = end
+            call next_single_property_change(pos, sym("ansi_color_face"), end, found, st)
+            if (.not. found) exit
+        end do
+
+        call narrow_to_region(saved_begv, saved_zv, st)
+    end subroutine shell_reapply_ansi_color
 
     ! ------------------------------------------------------------------
     ! M-x shell
