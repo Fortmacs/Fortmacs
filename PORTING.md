@@ -225,29 +225,46 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
    41. Charsets and the other coding systems: charset maps (ISO-8859-x,
        Windows code pages, KOI8), ISO-2022, Shift-JIS, Big5, emacs-mule,
        language environments (C-x RET l) and input methods (`C-\`).
-   42. Spelling: `ispell` and `flyspell` over an external speller process.
-   43. Terminal frames: several frames on one terminal (C-x 5), and
+   42. Terminal core C: the C files the terminal editor rests on,
+       finished file by file to everything but what is Not applicable
+       (the Lisp engine: allocation and GC, the reader and printer,
+       bytecode, the dumper, modules) or waits for the GUI, each listed
+       in the file's status row.  In dependency order: 42a buffer.c,
+       insdel.c, marker.c, intervals.c, textprop.c, itree.c; 42b
+       search.c, syntax.c, casefiddle.c, casetab.c, chartab.c,
+       category.c; 42c keyboard.c, keymap.c, minibuf.c, callint.c,
+       cmds.c; 42d window.c, dispnew.c, term.c, the terminal parts of
+       xdisp.c, bidi.c; 42e fileio.c, process.c, callproc.c, sysdep.c,
+       timefns.c, floatfns.c; 42f the parts of fns.c, editfns.c and
+       data.c that are not the Lisp engine.  Before it: the citation
+       burn-down of tools/audit-baseline (so the remaining functions are
+       known exactly), then the rest of steps 40 and 41 (skeletons,
+       input methods).  External libraries (treesit.c, json.c, gnutls.c,
+       sqlite.c, dbusbind.c) are decided separately: only libc, FreeType
+       and HarfBuzz may be bound.
+   43. Spelling: `ispell` and `flyspell` over an external speller process.
+   44. Terminal frames: several frames on one terminal (C-x 5), and
        `tab-bar-mode`/`tab-line-mode`.
-   44. Windows, the rest: `winner-mode`, `windmove`, `follow-mode`,
+   45. Windows, the rest: `winner-mode`, `windmove`, `follow-mode`,
        `window-divider` and side windows.
-   45. Calendar and diary.
-   46. VC, the rest: `vc-annotate` (C-x v g), branches and tags, pull
+   46. Calendar and diary.
+   47. VC, the rest: `vc-annotate` (C-x v g), branches and tags, pull
        and push, incoming and outgoing logs, and the vc-hg and vc-svn
        backends.
-   47. Smerge mode (conflict markers, `vc-git-resolve-conflicts`) and
+   48. Smerge mode (conflict markers, `vc-git-resolve-conflicts`) and
        Ediff.
-   48. Projects and cross-references: project.el (C-x p), xref.el and
+   49. Projects and cross-references: project.el (C-x p), xref.el and
        etags.el (M-., M-?, M-,), Imenu and `which-function-mode`.
-   49. Change logs, the rest: `add-change-log-entry` (C-x 4 a),
+   50. Change logs, the rest: `add-change-log-entry` (C-x 4 a),
        `log-edit-generate-changelog-from-diff`, `diff-add-log-current-defuns`.
-   50. Buttons (button.el: `insert-text-button`, `forward-button` TAB,
+   51. Buttons (button.el: `insert-text-button`, `forward-button` TAB,
        `push-button` RET), then what waits on them: Help's cross-references
        and the help-xref stack (l, r), and the buttons at the end of VC logs.
-   51. Mail: composing and sending (`compose-mail` C-x m, sendmail.el,
+   52. Mail: composing and sending (`compose-mail` C-x m, sendmail.el,
        message.el, smtpmail.el over a socket in src/sys, mail-utils.el,
        mailabbrev.el), then Rmail (rmail.el, rmailsum.el, rmailout.el,
        rmailedit.el, rmailkwd.el, rmailmm.el; mbox files and movemail).
-   52. The X11 GUI (the protocol over a Unix socket in Fortran, FreeType and
+   53. The X11 GUI (the protocol over a Unix socket in Fortran, FreeType and
        HarfBuzz fonts), then Wayland.
 
 The GUI (X11 protocol over a Unix socket from Fortran, our own font
@@ -1045,6 +1062,7 @@ Each lists the default being used meanwhile.
 ## Session log
 
 - 2026-10-30 — Hazards (`hazard-check`, based on main; asked by the user): `tools/hazards.awk` reports the hazards of CLAUDE.md and PORTING.md that a script can find (short-circuit guards, initialized locals, pointers to deferred-result functions, leaking array constructors, recursive allocatable types, the form of `implicit none`, `stop`, obsolete statements), run by `tools/check.sh`; justified exceptions carry `! hazard-ok(NAME): why`.  New section "Hazards" with the checklist of those checked by hand on every PR; CLAUDE.md says so.  Audit of the codebase: short-circuit guards fixed in buffer_fm (`generate-new-buffer-name` with an empty name), data_buffer_fm (`major-mode`, `mode-name` with no buffer) and eight tests; leaking array constructors fixed in easy_mmode_fm, f90_fm and vc_fm; the pointer interfaces of add-log's time format, Ibuffer's summarizers, `Info-url-alist` functions and VC's working revision symbol are subroutines; the rest are false positives marked hazard-ok.
+- 2026-10-30 — Roadmap: step 42 "Terminal core C" added at the user's request (finish the terminal-relevant C files before more Elisp features, after the citation burn-down and the rest of steps 40 and 41); the later steps move to 43–53.  Counts at the time: 909 of 8547 C functions cited, of which about 1,300 are the Lisp engine (Not applicable), 2,300 the GUI and 250 external libraries; about 2,500 remain in the terminal core.
 - 2026-10-30 — Faster CI (`ci-parallel`, based on main; asked by the user): `tools/check.sh` runs the suites alone, and under valgrind each suite alone, in parallel (one job per CPU), printing the log of each failing suite; pushes to main add `--valgrind-combined`, which also runs every suite in one valgrind process so leaks across suites are still caught. The release build in `tools/test-recompile.sh` stays, as it is the only release-profile build per PR. The per-suite valgrind run found test/main.f90 leaking the suite and test names (main-program variables live on the stack of MAIN__), now freed.
 - 2026-10-30 — Header blank line (`header-blank-line`, based on main; asked by the user): CLAUDE.md now says the file's header comment ends with one blank line, as every file in src/ already did; `tools/blank-lines.awk` applies it, so `tools/check.sh` fixes or flags it; docs/init.f90 was the only file without it.  Learned: a convention every file follows but no rule states goes unchecked, and examples outside src/ drift from it; consistency rules belong in CLAUDE.md and in the checker.
 - 2026-10-30 — Approximate percentages (`approx-sign`, based on main; chosen with the user): the README progress block and pie charts mark rounded percentages with ≈ (approximately equal) instead of ≅ (congruent).
