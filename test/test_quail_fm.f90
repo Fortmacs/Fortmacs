@@ -18,15 +18,14 @@
 !
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
-
 module test_quail_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, buffers, cur
+    use lisp_fm, only: value_type, xfixnum
+    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, buffers, cur, current_buffer
     use editfns_fm, only: buffer_string
     use bindings_fm, only: init_bindings
     use xdisp_fm, only: mode_line_mule_info
@@ -37,11 +36,8 @@ module test_quail_fm
                         quail_translation_key_type
     implicit none(type, external)
     private
-
     public :: collect_quail_fm
-
-    character(len=*), parameter :: LF = achar(10), CR = achar(13), DEL = achar(127)
-
+    character(len=*), parameter :: LF = achar(10), TAB = achar(9), DEL = achar(127)
     ! The echo area when the input method last returned.
     character(len=:), allocatable :: guidance
 
@@ -58,7 +54,9 @@ contains
                     new_unittest("latin-prefix-postfix", test_latin), &
                     new_unittest("define-package", test_define_package), &
                     new_unittest("toggle-and-mode-line", test_toggle), &
-                    new_unittest("recent-keys", test_recent_keys) &
+                    new_unittest("recent-keys", test_recent_keys), &
+                    new_unittest("transient-input-method", test_transient), &
+                    new_unittest("quail-help", test_help) &
                     ]
     end subroutine collect_quail_fm
 
@@ -270,6 +268,7 @@ contains
         type(status_type) :: st
         type(value_type), allocatable :: before(:), after(:)
         logical, allocatable :: is_command(:)
+        integer :: n
 
         call setup("*recent*", "latin-1-postfix", buf, error)
         if (allocated(error)) return
@@ -278,7 +277,118 @@ contains
         call recent_keys(.false., after, is_command)
         call check(error, buffer_string(), "áx")
         if (allocated(error)) return
-        call check(error, size(after) - size(before), 3)
+        ! (The ring of recent keys may be full.)
+        n = size(after)
+        call check(error, n >= 3 .and. n >= size(before), "keys recorded")
+        if (allocated(error)) return
+        call check(error, xfixnum(after(n - 2)) == iachar("a") .and. xfixnum(after(n - 1)) == iachar("'") .and. &
+                   xfixnum(after(n)) == iachar("x"), "a, ' and x recorded once")
         call kill_buffer(buf, st)
     end subroutine test_recent_keys
+
+    !> C-x \ (activate-transient-input-method): the input method is turned
+    !> off once it has inserted a chunk of text.
+    subroutine test_transient(error)
+        use mule_fm, only: default_transient_input_method
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: buf
+        type(status_type) :: st
+
+        call init_bindings()
+        call discard_input()
+        call get_buffer_create("*transient*", buf, st)
+        call set_buffer(buf, st)
+        call show_alone()
+        default_transient_input_method%value = "latin-1-postfix"
+        call type_keys(achar(24)//"\a' a'")
+        call check(error, buffer_string(), "á a'")
+        if (allocated(error)) return
+        call check(error,.not. allocated(buffers(cur)%current_input_method))
+        call kill_buffer(buf, st)
+    end subroutine test_transient
+
+    !> C-h I (quail-help): the docstring, the key sequences in columns or
+    !> with their candidates, the translation keys of the package.
+    subroutine test_help(error)
+        use quail_fm, only: quail_help
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: buf
+        type(status_type) :: st
+        character(len=:), allocatable :: text
+
+        call setup("*help*", "esperanto-prefix", buf, error)
+        if (allocated(error)) return
+        call quail_help(st)
+        call check(error, help_text(), &
+                   "Input method: esperanto-prefix (mode line indicator:EO>)"//LF// &
+                   LF// &
+                   "Esperanto input method with prefix modifiers"//LF// &
+                   "Key translation rules are:"//LF// &
+                   " ^H -> ?Ĥ   ^J -> ?Ĵ   ^h -> ?ĥ   ^j -> ?ĵ   ^C -> ?Ĉ   ^G -> ?Ĝ,"//LF// &
+                   " ^S -> ?Ŝ   ^c -> ?ĉ   ^g -> ?ĝ   ^s -> ?ŝ   ~U -> ?Ŭ   ~u -> ?ŭ"//LF// &
+                   LF// &
+                   LF// &
+                   "KEY SEQUENCE"//LF// &
+                   "------------"//LF// &
+                   "You can input characters by the following key sequences:"//LF// &
+                   "key char  [type a key sequence to insert the corresponding character]"//LF// &
+                   "--- ---- --- ---- --- ---- --- ---- --- ---- --- ----"//LF// &
+                   "^C  Ĉ"//TAB//" ^H  Ĥ"//TAB//"  ^S  Ŝ"//TAB//"   ^g  ĝ    ^j"//TAB//"ĵ    ~U"//TAB//" Ŭ"//LF// &
+                   "^G  Ĝ"//TAB//" ^J  Ĵ"//TAB//"  ^c  ĉ"//TAB//"   ^h  ĥ    ^s"//TAB//"ŝ    ~u"//TAB//" ŭ"//LF)
+        if (allocated(error)) return
+        call activate_input_method("british", st)
+        call describe_current_input_method(st)
+        call check(error, help_text(), &
+                   "Input method: british (mode line indicator:£@)"//LF// &
+                   LF// &
+                   "British English input method with Latin-1 character £ (# -> £)"//LF// &
+                   LF// &
+                   LF// &
+                   "KEY SEQUENCE"//LF// &
+                   "------------"//LF// &
+                   "You can input characters by the following key sequences:"//LF// &
+                   "key character(s)  [type a key (sequence) and select one from the list]"//LF// &
+                   "--- ------------"//LF// &
+                   "#   £ #"//LF)
+        if (allocated(error)) return
+        call activate_input_method("latin-2-prefix", st)
+        call quail_help(st)
+        text = help_text()
+        call check(error, text(index(text, "key character(s)"):index(text, "Binding") + 7), &
+                   "key character(s)  [type a key (sequence) and select one from the list]"//LF// &
+                   "--- ------------"//LF// &
+                   "`S  Ş Ș"//LF// &
+                   "`T  Ţ Ț"//LF// &
+                   "`s  ş ș"//LF// &
+                   "`t  ţ ț"//LF// &
+                   LF// &
+                   "KEY BINDINGS FOR TRANSLATION"//LF// &
+                   "----------------------------"//LF// &
+                   LF// &
+                   "Key             Binding"//LF)
+        if (allocated(error)) return
+        ! A separator line as wide as the window follows.
+        call check(error, text(index(text, LF//"C-b") + 1:), &
+                   "C-b"//TAB//TAB//"quail_prev_translation"//LF// &
+                   "C-f"//TAB//TAB//"quail_next_translation"//LF// &
+                   "<"//TAB//TAB//"quail_prev_translation"//LF// &
+                   ">"//TAB//TAB//"quail_next_translation"//LF// &
+                   "<left>"//TAB//TAB//"quail_prev_translation"//LF// &
+                   "<right>"//TAB//TAB//"quail_next_translation"//LF)
+        call deactivate_input_method(st)
+        call kill_buffer(buf, st)
+    end subroutine test_help
+
+    !> The text of the *Help* buffer.
+    function help_text() result(text)
+        character(len=:), allocatable :: text
+        type(handle_type) :: old, h
+        type(status_type) :: st
+
+        old = current_buffer()
+        call get_buffer_create("*Help*", h, st)
+        call set_buffer(h, st)
+        text = buffer_string()
+        call set_buffer(old, st)
+    end function help_text
 end module test_quail_fm

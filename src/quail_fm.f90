@@ -68,7 +68,7 @@ module quail_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, format_message
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, nilp, make_fixnum, fixnump, xfixnum, make_keymap_ref
+    use lisp_fm, only: value_type, nil, nilp, make_fixnum, xfixnum, make_keymap_ref, list
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use character_fm, only: string_char_and_length, char_string, MAX_MULTIBYTE_LENGTH
@@ -77,9 +77,10 @@ module quail_fm
     use eval_fm, only: hook_type
     use buffer_fm, only: buffers, cur, current_buffer, buffer_modified_p, restore_buffer_modified_p, &
                          barf_if_buffer_read_only, inhibit_read_only, get_buffer_create, set_buffer, buffer_live_p, &
-                         buffer_serial_live, deactivate_mark_variable, input_method_proc
+                         buffer_serial_live, deactivate_mark_variable, input_method_proc, set_buffer_read_only
     use insdel_fm, only: insert, inhibit_modification_hooks
-    use editfns_fm, only: point, point_max, delete_region, goto_char
+    use editfns_fm, only: point, point_max, point_min, delete_region, goto_char, bolp, eobp, line_beginning_position, &
+                          line_end_position, buffer_substring
     use itree_fm, only: make_overlay, move_overlay, delete_overlay, overlay_put, overlayp, overlay_start, overlay_end
     use textprop_fm, only: get_char_property
     use keymap_fm, only: make_keymap, define_key, define_key_range, key_parse, lookup_key, copy_keymap, keymap_live_p, &
@@ -96,8 +97,13 @@ module quail_fm
                        INPUT_METHOD_VERBOSE_COMPLEX_ONLY, INPUT_METHOD_VERBOSE_DEFAULT
     use minibuf_fm, only: minibufferp
     use frame_fm, only: selected_window, selected_frame
-    use window_fm, only: windows, window_live_p, window_text_cols, bury_buffer
+    use window_fm, only: windows, window_live_p, window_text_cols, bury_buffer, get_buffer_window
     use fill_fm, only: string_width
+    use help_fm, only: with_output_to_temp_buffer, help_buffer_name, substitute_command_keys, register_keymap_name
+    use indent_fm, only: indent_to, move_to_column, current_column
+    use cmds_fm, only: forward_line
+    use syntax_fm, only: skip_chars_backward
+    use textprop_fm, only: put_text_property
     implicit none(type, external)
     private
 
@@ -105,7 +111,7 @@ module quail_fm
               quail_select_package, quail_use_package, quail_package_index, quail_activate, quail_deactivate, &
               quail_input_method, quail_title, quail_name, quail_lookup_key, quail_get_translations, &
               quail_keyboard_translate, quail_set_keyboard_layout, quail_library_proc, quail_copy_package
-    public :: quail_help_proc
+    public :: quail_help_proc, quail_help
 
     !> Kinds of translation of a Quail map node: none, one character, or a
     !> vector of candidates (upstream's (INDEX . VECTOR)).
@@ -211,8 +217,8 @@ module quail_fm
     !> quail.el quail-simple-translation-keymap.
     type(handle_type), public :: quail_simple_translation_keymap
 
-    ! A line feed.
-    character(len=*), parameter :: LF = new_line("a")
+    ! A line feed and a tab.
+    character(len=*), parameter :: LF = new_line("a"), TAB = achar(9)
 
     !> How to select a candidate, for the docstrings of input methods
     !> (\<quail_translation_docstring>).  Port of quail.el
@@ -364,6 +370,14 @@ module quail_fm
     ! quail-overlay: one overlay per buffer (BUFFER_SERIALS, OVERLAYS).
     integer(int64), allocatable :: overlay_serials(:)
     type(handle_type), allocatable :: overlays(:)
+
+    !> An element of a decode map: a key sequence and its translation (one
+    !> character, or a vector of candidates when VECTOR).
+    type :: decode_entry_type
+        integer(int64), allocatable :: key(:)
+        type(quail_candidate_type), allocatable :: trans(:)
+        logical :: vector = .false.
+    end type decode_entry_type
 
     ! quail-completion-buf.
     type(handle_type) :: quail_completion_buf
@@ -2577,6 +2591,483 @@ contains
     recursive subroutine quail_help_proc(status)
         type(status_type), intent(out) :: status
 
-        status = status_type()
+        call quail_help(status)
     end subroutine quail_help_proc
+
+    !> Show brief description of the current Quail package.
+    !> PACKAGE specifies the name of alternative Quail
+    !> package to describe.  Port of quail.el:quail-help (the keyboard
+    !> layout of SHOW-LAYOUT and the buttons are not ported).
+    recursive subroutine quail_help(status, package)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: package
+        type(handle_type) :: previous, help, window
+        type(decode_entry_type), allocatable :: decode_map(:)
+        integer(int64), allocatable :: none(:)
+        type(status_type) :: st
+        character(len=:), allocatable :: doc
+        integer :: p, num, n, width, k
+        logical :: mb
+
+        p = current_package()
+        if (present(package)) p = quail_package_index(package)
+        mb = buffers(cur)%multibyte
+        previous = current_buffer()
+        ! At first, make sure that the help buffer has window.
+        call with_output_to_temp_buffer(help_buffer_name, "", status)
+        if (.not. status%ok()) return
+        call get_buffer_create(help_buffer_name, help, status)
+        if (.not. status%ok()) return
+        ! Then, insert text in the help buffer while paying attention to
+        ! the width of the window in which the buffer displayed.
+        call set_buffer(help, status)
+        if (.not. status%ok()) return
+        buffers(cur)%multibyte = mb
+        buffers(cur)%quail_current_package = p
+        call set_buffer_read_only(help, .false., st)
+        call insert("Input method: "//quail_name()//" (mode line indicator:"//quail_title()//")"//LF//LF, st)
+        doc = ""
+        if (p > 0) doc = substitute_command_keys(quail_package_alist(p)%docstring)
+
+        ! Replace \<VAR> by the value of the string variable VAR.
+        do
+            k = index(doc, "\<quail_translation_docstring>")
+            if (k == 0) exit
+            doc = doc(1:k - 1)//quail_translation_docstring//doc(k + len("\<quail_translation_docstring>"):)
+        end do
+
+        call insert(doc, st)
+        if (.not. bolp()) call insert(LF, st)
+        call insert(LF, st)
+
+        ! Show key sequences.
+        if (p > 0) then
+            window = get_buffer_window(help)
+            width = 80
+            if (window_live_p(window)) width = window_text_cols(windows(window%index))
+            n = 0
+            allocate (none(0))
+            num = quail_build_decode_map(1, none, decode_map, n, 0, 5120)
+
+            if (num > 0) then
+                call insert(LF//"KEY SEQUENCE"//LF//"------------"//LF, st)
+
+                if (quail_package_alist(p)%show_layout) then
+                    call insert("You can also input more characters", st)
+                else
+                    call insert("You can input characters", st)
+                end if
+
+                call insert(" by the following key sequences:"//LF, st)
+                call quail_insert_decode_map(decode_map(1:n), width)
+            end if
+
+            call quail_help_insert_keymap_description(quail_package_alist(p)%translation_keymap, &
+                                                      "KEY BINDINGS FOR TRANSLATION"//LF// &
+                                                      "----------------------------"//LF)
+            call insert(LF, st)
+        end if
+
+        buffers(cur)%quail_current_package = 0
+        ! The temp_buffer_show_hook: help-mode-finish, whose
+        ! help-make-xrefs deletes extraneous newlines at the end.
+        call goto_char(point_max())
+
+        do while (point() > point_min() .and. bolp())
+            call delete_region(point() - 1, point(), st)
+        end do
+
+        call insert(LF, st)
+        call restore_buffer_modified_p(.false.)
+        call set_buffer_read_only(help, .true., st)
+        if (buffer_live_p(previous)) call set_buffer(previous, st)
+    end subroutine quail_help
+
+    !> Indent to column COL, giving the whitespace inserted the display
+    !> property (space :align-to COL).  Port of quail.el:quail-indent-to.
+    subroutine quail_indent_to(col)
+        integer(int64), intent(in) :: col
+        integer(int64) :: end, moved, start
+        type(status_type) :: st
+
+        moved = indent_to(col, st)
+        end = point()
+        start = end
+        moved = skip_chars_backward(TAB//" ", st)
+        start = point()
+        call goto_char(end)
+
+        if (start < end) then
+            call put_text_property(start, end, sym("display"), list(sym("space"), sym(":align-to"), make_fixnum(col)), &
+                                   st)
+        end if
+    end subroutine quail_indent_to
+
+    !> Whether STRING has a character outside ASCII.  Not a port.
+    logical function non_ascii_p(string)
+        character(len=*), intent(in) :: string
+        integer :: k
+
+        non_ascii_p = .false.
+
+        do k = 1, len(string)
+            if (iachar(string(k:k)) > 127) then
+                non_ascii_p = .true.
+                return
+            end if
+        end do
+    end function non_ascii_p
+
+    !> Build a decoding map: accumulate in DECODE_MAP(1:N) all pairs of
+    !> key sequences vs the corresponding translations defined in the
+    !> current Quail map from NODE on, reached by the key KEY.  NUM is the
+    !> number of translations accumulated so far; MAXNUM limits it
+    !> (the result is then its negation).  Port of
+    !> quail.el:quail-build-decode-map (no IGNORES: they come from the
+    !> keyboard layout).
+    recursive integer function quail_build_decode_map(node, key, decode_map, n, num, maxnum) result(total)
+        integer, intent(in) :: node
+        integer(int64), intent(in) :: key(:)
+        type(decode_entry_type), allocatable, intent(inout) :: decode_map(:)
+        integer, intent(inout) :: n
+        integer, intent(in) :: num, maxnum
+        type(decode_entry_type), allocatable :: grown(:)
+        logical :: multibyte, add
+        integer :: p, k, child
+
+        total = num
+        p = current_package()
+
+        associate (map => quail_package_alist(p)%map)
+            add = .false.
+
+            if (map%nodes(node)%kind == TRANS_CHAR) then
+                ! Accept only non-ASCII chars.
+                add = non_ascii_p(map%cands(map%nodes(node)%first)%s)
+                if (add) total = total + 1
+            else if (map%nodes(node)%kind == TRANS_VECTOR) then
+                multibyte = .false.
+
+                do k = 1, map%nodes(node)%count
+                    if (non_ascii_p(map%cands(map%nodes(node)%first + k - 1)%s)) multibyte = .true.
+                end do
+
+                add = multibyte
+                if (add) total = total + map%nodes(node)%count
+            end if
+
+            if (add) then
+                if (.not. allocated(decode_map)) allocate (decode_map(64))
+
+                if (n == size(decode_map)) then
+                    allocate (grown(2*n))
+
+                    do k = 1, n
+                        call move_alloc(decode_map(k)%key, grown(k)%key)
+                        call move_alloc(decode_map(k)%trans, grown(k)%trans)
+                        grown(k)%vector = decode_map(k)%vector
+                    end do
+
+                    call move_alloc(grown, decode_map)
+                end if
+
+                n = n + 1
+                decode_map(n)%key = key
+                call node_candidates(map, node, decode_map(n)%trans)
+                decode_map(n)%vector = map%nodes(node)%kind == TRANS_VECTOR
+            end if
+
+            if (total > maxnum) then
+                total = -total
+                return
+            end if
+
+            ! Recursively check the deeper map.
+            child = map%nodes(node)%child
+        end associate
+
+        do while (child /= 0 .and. total >= 0)
+            total = quail_build_decode_map(child, [key, quail_package_alist(p)%map%nodes(child)%ch], decode_map, n, &
+                                           total, maxnum)
+            child = quail_package_alist(p)%map%nodes(child)%sibling
+        end do
+    end function quail_build_decode_map
+
+    !> Whether key A sorts before key B in the decode map: longer keys
+    !> first, then in reverse order.  The predicate of
+    !> quail.el:quail-insert-decode-map.  Not a port.
+    logical function decode_before(a, b) result(before)
+        integer(int64), intent(in) :: a(:), b(:)
+        integer :: k
+
+        if (size(a) /= size(b)) then
+            before = size(a) > size(b)
+            return
+        end if
+
+        before = .true.
+
+        do k = 1, size(a)
+            if (a(k) /= b(k)) then
+                before = a(k) > b(k)
+                return
+            end if
+        end do
+    end function decode_before
+
+    !> Insert pairs of key sequences vs the corresponding translations.
+    !> These are stored in DECODE_MAP using the concise format; WINDOW_WIDTH
+    !> is the width of the help window.  Port of
+    !> quail.el:quail-insert-decode-map.
+    subroutine quail_insert_decode_map(decode_map, window_width)
+        type(decode_entry_type), intent(inout) :: decode_map(:)
+        integer, intent(in) :: window_width
+        integer, allocatable :: order(:), singles(:), multiples(:)
+        character(len=:), allocatable :: trans
+        integer(int64) :: pos, top, kpos, col, key_width, col_width, reached, max_key_width
+        type(status_type) :: st
+        integer :: single_trans_width, nsingle, nmultiple, k, j, t, len, cols, rows, newrows, width, c, last, r, next
+
+        ! Sort (stable): longer keys first, then in reverse order.
+        allocate (order(size(decode_map)))
+
+        do k = 1, size(decode_map)
+            t = k
+            j = k - 1
+
+            do while (j >= 1)
+                if (.not. decode_before(decode_map(t)%key, decode_map(order(j))%key)) exit
+                order(j + 1) = order(j)
+                j = j - 1
+            end do
+
+            order(j + 1) = t
+        end do
+
+        ! Divide the elements of decoding map into single ones (i.e. the
+        ! one that has single translation) and multiple ones (i.e. the
+        ! one that has multiple translations); pushing reverses the order.
+        single_trans_width = 4
+        allocate (singles(size(decode_map)), multiples(size(decode_map)))
+        nsingle = 0
+        nmultiple = 0
+
+        do k = size(order), 1, -1
+            associate (e => decode_map(order(k)))
+                if (e%vector .and. size(e%trans) /= 1) then
+                    nmultiple = nmultiple + 1
+                    multiples(nmultiple) = order(k)
+                else
+                    nsingle = nsingle + 1
+                    singles(nsingle) = order(k)
+                    single_trans_width = max(single_trans_width, int(string_width(e%trans(1)%s)))
+                end if
+            end associate
+        end do
+
+        if (nsingle > 0) then
+            ! Figure out how many columns can fit.
+            len = nsingle
+            ! The longest key is at the end, by virtue of the above sort.
+            max_key_width = max(3, size(decode_map(singles(nsingle))%key))
+            ! Starting point: worst case.
+            col_width = max_key_width + 1 + single_trans_width + 1
+            cols = int(window_width/col_width)
+
+            ! Now, let's see if we can pack in a few more columns since
+            ! the first columns can often be made narrower thanks to the
+            ! length-sorting.
+            do
+                newrows = (len + cols)/(cols + 1)
+                width = 0
+
+                do c = 0, cols
+                    last = (c + 1)*newrows
+                    if (last > nsingle .or. last < 1) last = nsingle
+                    width = width + max(3, size(decode_map(singles(last))%key)) + 1 + single_trans_width + 1
+                end do
+
+                if (width >= window_width) exit
+                cols = cols + 1
+            end do
+
+            rows = (len + cols - 1)/cols
+            key_width = 3
+            if (rows <= nsingle) key_width = max(3, size(decode_map(singles(rows))%key))
+            call insert("key", st)
+            call quail_indent_to(1 + key_width)
+            call insert("char", st)
+            call quail_indent_to(1 + key_width + 1 + single_trans_width + 1)
+            call insert("[type a key sequence to insert the corresponding character]"//LF, st)
+            top = point()
+            col = 0
+            call insert(repeat(LF, rows + 2), st)
+            next = 1
+
+            do while (next <= nsingle)
+                call goto_char(top)
+                last = next + rows - 1
+                if (last > nsingle) last = nsingle
+                key_width = max(3, size(decode_map(singles(last))%key))
+                col_width = key_width + 1 + single_trans_width + 1
+                ! Insert the header-line.
+                call move_to_column(col, reached)
+                call quail_indent_to(col)
+                call insert(repeat("-", int(key_width))//" "//repeat("-", single_trans_width), st)
+                reached = forward_line(1_int64)
+
+                ! Insert the key-tran pairs.
+                do r = 1, rows
+                    if (next > nsingle) exit
+
+                    associate (e => decode_map(singles(next)))
+                        call move_to_column(col, reached)
+                        call quail_indent_to(col)
+                        kpos = point()
+                        call insert(codes_to_string(e%key), st)
+                        call put_text_property(kpos, point(), sym("face"), sym("font_lock_comment_face"), st)
+                        call quail_indent_to(col + key_width + 1)
+                        trans = e%trans(1)%s
+                        call insert(trans, st)
+                    end associate
+
+                    next = next + 1
+                    reached = forward_line(1_int64)
+                end do
+
+                col = col + col_width
+            end do
+
+            call goto_char(point_max())
+        end if
+
+        if (nmultiple > 0) then
+            ! Since decode-map is sorted, we known the longest key is at the end.
+            max_key_width = max(3, size(decode_map(multiples(nmultiple))%key))
+            call insert("key", st)
+            call quail_indent_to(1 + max_key_width)
+            call insert("character(s)  [type a key (sequence) and select one from the list]"//LF, st)
+            call insert(repeat("-", int(max_key_width))//" ------------"//LF, st)
+
+            do k = 1, nmultiple
+                associate (e => decode_map(multiples(k)))
+                    pos = point()
+                    call insert(codes_to_string(e%key), st)
+                    call put_text_property(pos, point(), sym("face"), sym("font_lock_comment_face"), st)
+                    call quail_indent_to(max_key_width)
+
+                    do j = 1, size(e%trans)
+                        width = int(string_width(e%trans(j)%s))
+
+                        if (current_column() + 1 + width > window_width) then
+                            call insert(LF, st)
+                            call quail_indent_to(max_key_width)
+                        end if
+
+                        call insert(" "//e%trans(j)%s, st)
+                    end do
+                end associate
+
+                call insert(LF, st)
+            end do
+
+            call insert(LF, st)
+        end if
+    end subroutine quail_insert_decode_map
+
+    !> Whether LINE of a keymap description names a command that the help
+    !> of the current package hides (the `quail-help' property: `hide',
+    !> or `non-deterministic' for a deterministic package).  Not a port.
+    logical function hidden_binding_p(line) result(hidden)
+        character(len=*), intent(in) :: line
+        character(len=:), allocatable :: word
+        integer :: i, j, p
+        logical :: deterministic
+
+        hidden = .false.
+        p = current_package()
+        deterministic = .false.
+        if (p > 0) deterministic = quail_package_alist(p)%deterministic
+        i = 1
+
+        do while (i <= len(line))
+            if (verify(line(i:i), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789") /= 0) then
+                i = i + 1
+                cycle
+            end if
+
+            j = i
+
+            do while (j < len(line))
+                if (verify(line(j + 1:j + 1), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-") /= 0) exit
+                j = j + 1
+            end do
+
+            word = line(i:j)
+
+            select case (word)
+            case ("quail_other_command", "quail_self_insert_command", "quail_delete_last_char")
+                hidden = .true.
+            case ("quail_next_translation", "quail_prev_translation", "quail_next_translation_block", &
+                  "quail_prev_translation_block")
+                hidden = deterministic
+            case default
+            end select
+
+            if (hidden) return
+            i = j + 1
+        end do
+    end function hidden_binding_p
+
+    !> The text of the current buffer from START to END.  Not a port.
+    function text_between(start, end) result(text)
+        integer(int64), intent(in) :: start, end
+        character(len=:), allocatable :: text
+        type(status_type) :: st
+
+        call buffer_substring(start, end, text, st)
+        if (.not. allocated(text)) text = ""
+    end function text_between
+
+    !> Insert HEADER and the description of KEYMAP without the bindings
+    !> that the help hides; nothing if none is left.  Port of
+    !> quail.el:quail-help-insert-keymap-description.
+    subroutine quail_help_insert_keymap_description(keymap, header)
+        type(handle_type), intent(in) :: keymap
+        character(len=*), intent(in) :: header
+        integer(int64) :: pos1, pos2, start, moved
+        type(status_type) :: st
+
+        pos1 = point()
+        call insert(header, st)
+        call register_keymap_name("the_keymap", keymap)
+        start = point()
+        call insert(substitute_command_keys("\{the_keymap}"), st)
+        call goto_char(start)
+        ! Skip headers "key bindings", etc.
+        moved = forward_line(3_int64)
+        pos2 = point()
+
+        do while (.not. eobp())
+            if (hidden_binding_p(text_between(line_beginning_position(), line_end_position()))) then
+                call delete_region(line_beginning_position(), min(line_end_position() + 1, point_max()), st)
+            else
+                moved = forward_line(1_int64)
+            end if
+        end do
+
+        call goto_char(pos2)
+
+        do while (.not. eobp())
+            if (verify(text_between(point(), line_end_position()), " "//TAB) == 0) then
+                call delete_region(point(), min(line_end_position() + 1, point_max()), st)
+            else
+                moved = forward_line(1_int64)
+            end if
+        end do
+
+        call goto_char(pos2)
+        if (eobp()) call delete_region(pos1, point(), st)
+        call goto_char(point_max())
+    end subroutine quail_help_insert_keymap_description
 end module quail_fm

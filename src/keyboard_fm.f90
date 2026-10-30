@@ -948,6 +948,7 @@ contains
             if (.not. present(input_method)) return
             if (.not. input_method .or. .not. fixnump(ev)) return
             if (xfixnum(ev) < 32 .or. xfixnum(ev) > 255 .or. xfixnum(ev) == 127) return
+            if (cur == 0) return
             method => buffers(cur)%input_method_function
             if (.not. associated(method)) return
             ! Save the echo area contents for the input method to refer
