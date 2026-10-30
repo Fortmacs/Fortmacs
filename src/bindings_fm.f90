@@ -81,6 +81,7 @@ module bindings_fm
     use text_mode_fm, only: syms_of_text_mode
     use conf_mode_fm, only: syms_of_conf_mode
     use make_mode_fm, only: syms_of_make_mode
+    use python_fm, only: syms_of_python
     use f90_fm, only: syms_of_f90
     use prog_mode_fm, only: syms_of_prog_mode
     use font_core_fm, only: syms_of_font_core
@@ -318,6 +319,7 @@ contains
         call syms_of_text_mode()
         call syms_of_conf_mode()
         call syms_of_make_mode()
+        call syms_of_python()
         call syms_of_f90()
         call syms_of_prog_mode()
         call syms_of_jit_lock()

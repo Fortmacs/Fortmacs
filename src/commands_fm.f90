@@ -895,6 +895,33 @@ module commands_fm
         type(command_type) :: process_menu_delete_process
         type(command_type) :: process_menu_mode
         type(command_type) :: prog_mode
+        type(command_type) :: python_base_mode
+        type(command_type) :: python_fill_paragraph
+        type(command_type) :: python_indent_dedent_line
+        type(command_type) :: python_indent_dedent_line_backspace
+        type(command_type) :: python_indent_guess_indent_offset
+        type(command_type) :: python_indent_shift_left
+        type(command_type) :: python_indent_shift_right
+        type(command_type) :: python_mark_defun
+        type(command_type) :: python_mode
+        type(command_type) :: python_nav_backward_block
+        type(command_type) :: python_nav_backward_defun
+        type(command_type) :: python_nav_backward_sexp
+        type(command_type) :: python_nav_backward_sexp_safe
+        type(command_type) :: python_nav_backward_statement
+        type(command_type) :: python_nav_backward_up_list
+        type(command_type) :: python_nav_beginning_of_block
+        type(command_type) :: python_nav_beginning_of_statement
+        type(command_type) :: python_nav_end_of_block
+        type(command_type) :: python_nav_end_of_defun
+        type(command_type) :: python_nav_end_of_statement
+        type(command_type) :: python_nav_forward_block
+        type(command_type) :: python_nav_forward_defun
+        type(command_type) :: python_nav_forward_sexp
+        type(command_type) :: python_nav_forward_sexp_safe
+        type(command_type) :: python_nav_forward_statement
+        type(command_type) :: python_nav_if_name_main
+        type(command_type) :: python_nav_up_list
         type(command_type) :: query_replace
         type(command_type) :: query_replace_regexp
         type(command_type) :: quit_window
@@ -1142,7 +1169,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1104) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1131) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -2006,6 +2033,33 @@ module commands_fm
                                                                   "process_menu_delete_process", &
                                                                   "process_menu_mode", &
                                                                   "prog_mode", &
+                                                                  "python_base_mode", &
+                                                                  "python_fill_paragraph", &
+                                                                  "python_indent_dedent_line", &
+                                                                  "python_indent_dedent_line_backspace", &
+                                                                  "python_indent_guess_indent_offset", &
+                                                                  "python_indent_shift_left", &
+                                                                  "python_indent_shift_right", &
+                                                                  "python_mark_defun", &
+                                                                  "python_mode", &
+                                                                  "python_nav_backward_block", &
+                                                                  "python_nav_backward_defun", &
+                                                                  "python_nav_backward_sexp", &
+                                                                  "python_nav_backward_sexp_safe", &
+                                                                  "python_nav_backward_statement", &
+                                                                  "python_nav_backward_up_list", &
+                                                                  "python_nav_beginning_of_block", &
+                                                                  "python_nav_beginning_of_statement", &
+                                                                  "python_nav_end_of_block", &
+                                                                  "python_nav_end_of_defun", &
+                                                                  "python_nav_end_of_statement", &
+                                                                  "python_nav_forward_block", &
+                                                                  "python_nav_forward_defun", &
+                                                                  "python_nav_forward_sexp", &
+                                                                  "python_nav_forward_sexp_safe", &
+                                                                  "python_nav_forward_statement", &
+                                                                  "python_nav_if_name_main", &
+                                                                  "python_nav_up_list", &
                                                                   "query_replace", &
                                                                   "query_replace_regexp", &
                                                                   "quit_window", &
@@ -3985,6 +4039,60 @@ contains
             p => commands%process_menu_mode
         case ("prog_mode")
             p => commands%prog_mode
+        case ("python_base_mode")
+            p => commands%python_base_mode
+        case ("python_fill_paragraph")
+            p => commands%python_fill_paragraph
+        case ("python_indent_dedent_line")
+            p => commands%python_indent_dedent_line
+        case ("python_indent_dedent_line_backspace")
+            p => commands%python_indent_dedent_line_backspace
+        case ("python_indent_guess_indent_offset")
+            p => commands%python_indent_guess_indent_offset
+        case ("python_indent_shift_left")
+            p => commands%python_indent_shift_left
+        case ("python_indent_shift_right")
+            p => commands%python_indent_shift_right
+        case ("python_mark_defun")
+            p => commands%python_mark_defun
+        case ("python_mode")
+            p => commands%python_mode
+        case ("python_nav_backward_block")
+            p => commands%python_nav_backward_block
+        case ("python_nav_backward_defun")
+            p => commands%python_nav_backward_defun
+        case ("python_nav_backward_sexp")
+            p => commands%python_nav_backward_sexp
+        case ("python_nav_backward_sexp_safe")
+            p => commands%python_nav_backward_sexp_safe
+        case ("python_nav_backward_statement")
+            p => commands%python_nav_backward_statement
+        case ("python_nav_backward_up_list")
+            p => commands%python_nav_backward_up_list
+        case ("python_nav_beginning_of_block")
+            p => commands%python_nav_beginning_of_block
+        case ("python_nav_beginning_of_statement")
+            p => commands%python_nav_beginning_of_statement
+        case ("python_nav_end_of_block")
+            p => commands%python_nav_end_of_block
+        case ("python_nav_end_of_defun")
+            p => commands%python_nav_end_of_defun
+        case ("python_nav_end_of_statement")
+            p => commands%python_nav_end_of_statement
+        case ("python_nav_forward_block")
+            p => commands%python_nav_forward_block
+        case ("python_nav_forward_defun")
+            p => commands%python_nav_forward_defun
+        case ("python_nav_forward_sexp")
+            p => commands%python_nav_forward_sexp
+        case ("python_nav_forward_sexp_safe")
+            p => commands%python_nav_forward_sexp_safe
+        case ("python_nav_forward_statement")
+            p => commands%python_nav_forward_statement
+        case ("python_nav_if_name_main")
+            p => commands%python_nav_if_name_main
+        case ("python_nav_up_list")
+            p => commands%python_nav_up_list
         case ("query_replace")
             p => commands%query_replace
         case ("query_replace_regexp")

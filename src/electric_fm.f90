@@ -28,8 +28,7 @@
 !>
 !> Deferred: `electric_indent_functions' (run-hook-with-args-until-success
 !> is not ported), `electric_indent_actions' (advice on `yank' and
-!> `before_save_hook'), buffer-local values of `electric_indent_chars'
-!> (one global value), `electric_layout_mode' and
+!> `before_save_hook'), `electric_layout_mode' and
 !> `electric_layout_local_mode' with `electric_layout_rules',
 !> `electric_quote_mode' and `electric_quote_local_mode' with their
 !> variables, and the electric command loop and pop-up window
@@ -40,11 +39,12 @@ module electric_fm
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, nil, nilp, fixnump, xfixnum
     use lread_fm, only: sym
-    use data_fm, only: logical_setting, default_value, set_default, kill_local_variable, buffer_local_value
+    use data_fm, only: logical_setting, default_value, set_default, kill_local_variable, buffer_local_value, &
+                       add_local_variables_killer
     use commands_fm, only: commands
     use eval_fm, only: hook_type
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use buffer_fm, only: buffers, cur, buffer_list, resolve_buffer, barf_if_buffer_read_only
+    use buffer_fm, only: buffers, cur, buffer_list, resolve_buffer, barf_if_buffer_read_only, buffer_serial_live
     use marker_fm, only: copy_marker_at, marker_position, free_marker
     use editfns_fm, only: point, goto_char, bolp, eolp, char_before, line_beginning_position
     use syntax_fm, only: skip_chars_backward
@@ -57,14 +57,24 @@ module electric_fm
     implicit none(type, external)
     private
 
+    public :: electric_indent_chars_value, set_local_electric_indent_chars
     public :: syms_of_electric, electric_indent_mode, electric_indent_local_mode, electric_after_char_pos, &
               electric_indent_can_reindent_p, electric_indent_post_self_insert_function, &
               electric_indent_just_newline, electric_newline_and_maybe_indent
 
     !> Characters that should cause automatic reindentation.  Port of
-    !> electric.el electric-indent-chars (one global value; `syms_of_electric'
-    !> gives it the newline unless the configuration set it).
+    !> electric.el electric-indent-chars (the default value; `syms_of_electric'
+    !> gives it the newline unless the configuration set it; a buffer's own
+    !> value is set with `set_local_electric_indent_chars').
     integer, allocatable, public :: electric_indent_chars(:)
+
+    ! One buffer's own `electric_indent_chars'.
+    type :: indent_chars_entry_type
+        integer(int64) :: serial = 0
+        integer, allocatable :: chars(:)
+    end type indent_chars_entry_type
+
+    type(indent_chars_entry_type), allocatable :: local_indent_chars(:)
 
     !> If true, reindentation is not appropriate for this buffer.
     !> This should be set by major modes such as `python_mode' since
@@ -111,6 +121,7 @@ contains
         commands%electric_indent_just_newline%run => electric_indent_just_newline
         commands%electric_newline_and_maybe_indent%run => electric_newline_and_maybe_indent
         if (.not. allocated(electric_indent_chars)) electric_indent_chars = [10]
+        call add_local_variables_killer(kill_electric_locals)
 
         if (.not. allocated(electric_indent_functions_without_reindent)) then
             electric_indent_functions_without_reindent = [character(len=40) :: "indent_relative", &
@@ -121,6 +132,79 @@ contains
         call key_parse("C-j", key, st)
         call define_key(global_map, key, sym("electric_newline_and_maybe_indent"), st)
     end subroutine syms_of_electric
+
+    ! The index of the current buffer's own `electric_indent_chars', 0 if
+    ! none (made if MAKE).
+    integer function indent_chars_index(make) result(k)
+        logical, intent(in) :: make
+        type(indent_chars_entry_type), allocatable :: grown(:)
+        integer :: i, n
+
+        k = 0
+        if (cur == 0) return
+        if (.not. allocated(local_indent_chars)) allocate (local_indent_chars(0))
+
+        do k = 1, size(local_indent_chars)
+            if (local_indent_chars(k)%serial == buffers(cur)%serial) return
+        end do
+
+        k = 0
+        if (.not. make) return
+
+        do k = 1, size(local_indent_chars)
+            if (.not. buffer_serial_live(local_indent_chars(k)%serial)) then
+                local_indent_chars(k)%serial = buffers(cur)%serial
+                return
+            end if
+        end do
+
+        n = size(local_indent_chars)
+        allocate (grown(n + 1))
+
+        do i = 1, n
+            grown(i) = local_indent_chars(i)
+        end do
+
+        grown(n + 1)%serial = buffers(cur)%serial
+        call move_alloc(grown, local_indent_chars)
+        k = n + 1
+    end function indent_chars_index
+
+    !> The value of `electric_indent_chars' in the current buffer: its own,
+    !> else the default.
+    function electric_indent_chars_value() result(chars)
+        integer, allocatable :: chars(:)
+        integer :: k
+
+        k = indent_chars_index(.false.)
+
+        if (k > 0) then
+            chars = local_indent_chars(k)%chars
+        else if (allocated(electric_indent_chars)) then
+            chars = electric_indent_chars
+        else
+            allocate (chars(0))
+        end if
+    end function electric_indent_chars_value
+
+    !> Give the current buffer its own value CHARS of `electric_indent_chars'
+    !> (setq-local).
+    subroutine set_local_electric_indent_chars(chars)
+        integer, intent(in) :: chars(:)
+        integer :: k
+
+        k = indent_chars_index(.true.)
+        if (k > 0) local_indent_chars(k)%chars = chars
+    end subroutine set_local_electric_indent_chars
+
+    ! kill-all-local-variables: forget the current buffer's own
+    ! `electric_indent_chars'.
+    subroutine kill_electric_locals()
+        integer :: k
+
+        k = indent_chars_index(.false.)
+        if (k > 0) local_indent_chars(k)%serial = 0
+    end subroutine kill_electric_locals
 
     !> The character `last_command_event' is, or -1.
     integer function event_char()
@@ -204,7 +288,7 @@ contains
 
         pos = electric_after_char_pos()
         if (pos == 0) return
-        if (.not. any(electric_indent_chars == ev)) return
+        if (.not. any(electric_indent_chars_value() == ev)) return
         ! If we error during indent, silently give up since this is an
         ! automatic action that the user didn't explicitly request.
         ! For newline, we want to reindent both lines and basically behave
