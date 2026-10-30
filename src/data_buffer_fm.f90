@@ -1147,6 +1147,11 @@ contains
     call kill_local_hooks(all)
     call kill_delayed_mode_hooks()
     buffers(cur)%syntax_table = null_handle()
+    buffers(cur)%downcase_table = null_handle()
+    buffers(cur)%upcase_table = null_handle()
+    buffers(cur)%case_canon_table = null_handle()
+    buffers(cur)%case_eqv_table = null_handle()
+    buffers(cur)%category_table = null_handle()
     buffers(cur)%major_mode = "fundamental_mode"
     buffers(cur)%mode_name = "Fundamental"
     buffers(cur)%keymap = null_handle()

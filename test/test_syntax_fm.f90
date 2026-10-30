@@ -33,7 +33,7 @@ module test_syntax_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, erase_buffer
+    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, erase_buffer, kill_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, goto_char, point_min, point_max, buffer_string, mark_position
     use keymap_fm, only: key_parse
@@ -44,7 +44,7 @@ module test_syntax_fm
     use syntax_fm, only: syntax_descriptor_type, string_to_syntax, syntax_class_to_char, char_syntax, &
                          modify_syntax_entry, make_syntax_table, copy_syntax_table, free_syntax_table, &
                          set_syntax_table, standard_syntax_table, matching_paren, syntax_entry, scan_words, &
-                         forward_word, word_boundary_p, SWORD, SOPEN
+                         forward_word, word_boundary_p, SWORD, SOPEN, internal_describe_syntax_value
     use charscript_fm, only: char_script, script_names
     implicit none(type, external)
     private
@@ -69,7 +69,9 @@ contains
                     new_unittest("word-keys", test_word_keys), &
                     new_unittest("skip-chars", test_skip_chars), &
                     new_unittest("skip-syntax", test_skip_syntax), &
-                    new_unittest("modify-syntax-entry-clears-regexp-cache", test_regexp_cache) &
+                    new_unittest("modify-syntax-entry-clears-regexp-cache", test_regexp_cache), &
+                    new_unittest("syntax-char-syntax", test_char_syntax_unibyte), &
+                    new_unittest("internal-describe-syntax-value", test_describe_syntax_value) &
                     ]
     end subroutine collect_syntax_fm
 
@@ -433,4 +435,39 @@ contains
         call set_syntax_table(standard_syntax_table(), st)
         call free_syntax_table(t1, st)
     end subroutine test_regexp_cache
+
+    !> Ports syntax-char-syntax (the interpreted half; there is no byte
+    !> compiler): in a unibyte buffer, char-syntax of 128 is that of the
+    !> raw byte 128.
+    subroutine test_char_syntax_unibyte(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, st_table
+        type(status_type) :: st
+
+        call get_buffer_create(" *syntax-char-syntax*", h, st)
+        call set_buffer(h, st)
+        buffers(cur)%multibyte = .false.
+        call make_syntax_table(st_table, st)
+        call modify_syntax_entry(int(z'3FFF80'), int(z'3FFF80'), "_", st, st_table)
+        call set_syntax_table(st_table, st)
+        call check(error, char_syntax(128) == "_")
+        buffers(cur)%multibyte = .true.
+        call kill_buffer(h, st)
+    end subroutine test_char_syntax_unibyte
+
+    subroutine test_describe_syntax_value(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(syntax_descriptor_type) :: d
+        type(status_type) :: st
+
+        call check(error, internal_describe_syntax_value(syntax_descriptor_type()) == "default")
+        if (allocated(error)) return
+        call string_to_syntax("()", d, st)
+        call check(error, internal_describe_syntax_value(d) == "()"//achar(9)//"which means: open, matches )")
+        if (allocated(error)) return
+        call string_to_syntax(". 12b", d, st)
+        call check(error, internal_describe_syntax_value(d) == ". 12b"//achar(9)//"which means: punctuation,"// &
+                   achar(10)//achar(9)//"  is the first character of a comment-start sequence,"//achar(10)// &
+                   achar(9)//"  is the second character of a comment-start sequence (comment style b)")
+    end subroutine test_describe_syntax_value
 end module test_syntax_fm

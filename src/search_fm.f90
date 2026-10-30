@@ -37,6 +37,10 @@
 !> Positions in strings are 1-based character indices, as Fortran's
 !> `index' (Emacs counts from 0), so that 0 can stand for nil.
 !>
+!> A search while a process filter or sentinel runs saves the match data
+!> first (`running_asynch_code', `save_search_regs'), which the process
+!> code then restores.
+!>
 !> Deferred: `match_data' markers, `inhibit_changing_match_data',
 !> Boyer-Moore search, the newline cache.
 module search_fm
@@ -59,7 +63,10 @@ module search_fm
               match_buffer
     public :: re_search_forward, re_search_backward, posix_search_forward, posix_search_backward, &
               looking_at, posix_looking_at, string_match, posix_string_match, match_data, set_match_data, &
-              regexp_quote, match_in_string_p, syms_of_search, replace_match, match_data_translate
+              regexp_quote, match_in_string_p, syms_of_search, replace_match, match_data_translate, &
+              save_search_regs, restore_search_regs, record_unwind_save_match_data, unwind_set_match_data, &
+              begin_running_asynch_code, end_running_asynch_code, &
+              fast_string_match, fast_looking_at
     ! For search_regexp_fm (gfortran makes private procedures invisible to
     ! submodules).
     public :: string_chars, string_index_to_offset, string_offset_to_index, clear_search_regs, ensure_search_regs, &
@@ -90,6 +97,18 @@ module search_fm
     !> on a string.
     type(handle_type) :: last_thing_searched
     logical :: last_search_in_string = .false.
+
+    !> True while a process filter or sentinel runs: a search then saves
+    !> the match data first (`save_search_regs'), and the process code
+    !> restores it afterwards.  Port of emacs.c running_asynch_code.
+    logical, public :: running_asynch_code = .false.
+
+    !> The match data `save_search_regs' saved (search.c
+    !> saved_search_regs, saved_last_thing_searched); unallocated when
+    !> none.
+    integer(int64), allocatable :: saved_regs_start(:), saved_regs_end(:)
+    type(handle_type) :: saved_last_thing_searched
+    logical :: saved_last_search_in_string = .false.
 
     character(len=*), parameter :: newline = achar(10)
 
@@ -170,7 +189,36 @@ module search_fm
             character(len=:), allocatable, intent(out), optional :: result
         end subroutine replace_match
 
-        !> Register the search commands.  (In search_regexp_fm.) Not a port.
+        !> Match REGEXP against STRING, folding case when FOLD (through the
+        !> case canon table), searching all of STRING, and return the index
+        !> of the match (1-based), or 0 on failure.  This does not clobber
+        !> the match data.  Port of search.c:fast_string_match_internal and
+        !> search.c:fast_c_string_match_internal (in search_regexp_fm).
+        recursive module function fast_string_match(regexp, string, fold, status) result(idx)
+            implicit none(type, external)
+            character(len=*), intent(in) :: regexp, string
+            logical, intent(in) :: fold
+            type(status_type), intent(out) :: status
+            integer(int64) :: idx
+        end function fast_string_match
+
+        !> Match REGEXP against the characters after POS to LIMIT, and
+        !> return the number of matched bytes, or -1.  If STRING is present,
+        !> match against the characters in it.  In that case, POS and LIMIT
+        !> are indices into the string (1-based).  This function doesn't
+        !> modify the match data.  Port of search.c:fast_looking_at (in
+        !> search_regexp_fm).
+        recursive module function fast_looking_at(regexp, pos, limit, status, string) result(length)
+            implicit none(type, external)
+            character(len=*), intent(in) :: regexp
+            integer(int64), intent(in) :: pos, limit
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: string
+            integer(int64) :: length
+        end function fast_looking_at
+
+        !> Register the search commands.  (In search_regexp_fm.)  Port of
+        !> search.c:syms_of_search (its commands).
         module subroutine syms_of_search()
             implicit none(type, external)
         end subroutine syms_of_search
@@ -247,7 +295,9 @@ contains
     !> Returns the position just after the count'th newline found -- also
     !> when searching backward -- or `end' if there are fewer.  `counted'
     !> receives the number found (negated when backward); `bytepos' the
-    !> byte position of the result.  Port of search.c:find_newline.
+    !> byte position of the result.  Port of search.c:find_newline (with no
+    !> newline cache, as search.c:find_newline1, which is find_newline
+    !> without the cache, searching forward).
     integer(int64) function find_newline(start, end, count, counted, bytepos, start_byte, end_byte) &
         result(pos)
         integer(int64), intent(in) :: start, count
@@ -802,7 +852,7 @@ contains
     !> case is folded through the case canon table.  `n' negative searches
     !> backward.  The value is the position after the match (forward) or
     !> of its start (backward), or -M when M matches remained to be found.
-    !> Port of search.c:search_buffer and search_buffer_non_re (no
+    !> Port of search.c:search_buffer and search.c:search_buffer_non_re (no
     !> Boyer-Moore: simple_search, which works for any pattern).
     recursive integer(int64) function search_buffer(string, pos, pos_byte, lim, lim_byte, n, fold, status, re, posix) &
         result(np)
@@ -818,6 +868,7 @@ contains
 
         status = status_type()
         is_re = opt(re)
+        if (running_asynch_code) call save_search_regs()
 
         ! Searching 0 times means don't move.  Null string is found at
         ! starting position.
@@ -1111,6 +1162,7 @@ contains
         integer(int64), intent(in) :: data(:)
         integer :: i, length, num_regs
 
+        if (running_asynch_code) call save_search_regs()
         ! Allocate registers if they don't already exist (growing as
         ! xpalloc does: by half, or to 16 when tiny, or by what is needed).
         length = size(data)/2
@@ -1136,6 +1188,90 @@ contains
         last_thing_searched = current_buffer()
         last_search_in_string = .false.
     end subroutine set_match_data
+
+    !> Save the match data while a process filter or sentinel runs
+    !> (`running_asynch_code'), unless it is saved already.  Called from
+    !> `looking_at', `string_match', `search_buffer' and `set_match_data'.
+    !> Port of search.c:save_search_regs.
+    subroutine save_search_regs()
+        if (allocated(saved_regs_start)) return
+        if (.not. allocated(search_regs_start)) return
+        call move_alloc(search_regs_start, saved_regs_start)
+        call move_alloc(search_regs_end, saved_regs_end)
+        saved_last_thing_searched = last_thing_searched
+        saved_last_search_in_string = last_search_in_string
+        last_thing_searched = handle_type()
+        last_search_in_string = .false.
+    end subroutine save_search_regs
+
+    !> Called upon exit from filters and sentinels.  Port of
+    !> search.c:restore_search_regs.
+    subroutine restore_search_regs()
+        if (.not. allocated(saved_regs_start)) return
+        if (allocated(search_regs_start)) deallocate (search_regs_start, search_regs_end)
+        call move_alloc(saved_regs_start, search_regs_start)
+        call move_alloc(saved_regs_end, search_regs_end)
+        last_thing_searched = saved_last_thing_searched
+        last_search_in_string = saved_last_search_in_string
+        saved_last_thing_searched = handle_type()
+    end subroutine restore_search_regs
+
+    !> The match data to give `unwind_set_match_data' when the caller is
+    !> done (no specpdl: the caller keeps it).  Port of
+    !> search.c:record_unwind_save_match_data.
+    function record_unwind_save_match_data() result(data)
+        integer(int64), allocatable :: data(:)
+
+        data = match_data()
+    end function record_unwind_save_match_data
+
+    !> Reinstate the match data DATA that `record_unwind_save_match_data'
+    !> gave.  Port of search.c:unwind_set_match_data.
+    subroutine unwind_set_match_data(data)
+        integer(int64), intent(in) :: data(:)
+
+        call set_match_data(data)
+    end subroutine unwind_set_match_data
+
+    !> Before a process filter or sentinel runs: in case we get
+    !> recursively called, and we already saved the match data
+    !> nonrecursively, save the same match data in safely recursive fashion
+    !> (in SAVED); then, for speed, if a search happens within the filter,
+    !> save the match data in a special nonrecursive fashion
+    !> (`running_asynch_code').  OUTER is the earlier state.  Port of the
+    !> match data part of process.c:read_and_dispose_of_process_output and
+    !> process.c:exec_sentinel.
+    subroutine begin_running_asynch_code(outer, saved)
+        logical, intent(inout) :: outer
+        integer(int64), allocatable, intent(inout) :: saved(:)
+        integer(int64), allocatable :: tem(:)
+
+        outer = running_asynch_code
+
+        if (outer) then
+            ! Don't clobber the CURRENT match data, either!
+            tem = match_data()
+            call restore_search_regs()
+            saved = record_unwind_save_match_data()
+            call set_match_data(tem)
+        end if
+
+        running_asynch_code = .true.
+    end subroutine begin_running_asynch_code
+
+    !> After a process filter or sentinel ran: if we saved the match data
+    !> nonrecursively, restore it now; then reinstate what
+    !> `begin_running_asynch_code' saved.  Port of the match data part of
+    !> process.c:read_and_dispose_of_process_output and
+    !> process.c:exec_sentinel.
+    subroutine end_running_asynch_code(outer, saved)
+        logical, intent(inout) :: outer
+        integer(int64), allocatable, intent(inout) :: saved(:)
+
+        call restore_search_regs()
+        running_asynch_code = outer
+        if (outer) call unwind_set_match_data(saved)
+    end subroutine end_running_asynch_code
 
     !> Add N to all positions of the match data.  Internal.  Port of
     !> search.c:Fmatch_data__translate (string indices here are 1-based,
