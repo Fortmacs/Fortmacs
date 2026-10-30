@@ -79,16 +79,22 @@ module docstrings_fm
                          inhibit_eol_conversion, inhibit_iso_escape_detection, inhibit_null_byte_detection, &
                          last_coding_system_used, locale_coding_system
     use comint_fm, only: comint_buffer_maximum_size, comint_delimiter_argument_list, &
-                         comint_eol_on_send, comint_exec_hook, comint_highlight_input, comint_inhibit_carriage_motion, &
+                         comint_eol_on_send, comint_exec_hook, comint_highlight_input, comint_history_isearch, &
+                         COMINT_HISTORY_ISEARCH_NIL, COMINT_HISTORY_ISEARCH_DWIM, COMINT_HISTORY_ISEARCH_T, &
+                         comint_inhibit_carriage_motion, comint_input_autoexpand, COMINT_AUTOEXPAND_NIL, &
+                         COMINT_AUTOEXPAND_T, COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY, &
                          comint_input_filter_functions, comint_input_history_ignore, comint_input_ignoredups, &
                          comint_input_ring_file_name, comint_input_ring_file_prefix, comint_input_ring_separator, &
-                         comint_input_ring_size, comint_input_sender_no_newline, comint_mode_hook, comint_mode_map, &
+                         comint_input_ring_size, comint_input_sender_no_newline, &
+                         comint_insert_previous_argument_from_end, comint_mode_hook, comint_mode_map, &
                          comint_move_point_for_matching_input, COMINT_MATCHING_AFTER_INPUT, &
                          COMINT_MATCHING_END_OF_LINE, comint_move_point_for_output, COMINT_MOVE_NIL, COMINT_MOVE_T, &
                          COMINT_MOVE_ALL, COMINT_MOVE_THIS, COMINT_MOVE_OTHERS, comint_output_filter_functions, &
                          comint_pager, comint_preoutput_filter_functions, comint_process_echoes, &
                          comint_prompt_read_only, comint_prompt_regexp, comint_repeat_map, &
-                         comint_scroll_show_maximum_output, comint_terminfo_terminal, comint_use_prompt_regexp
+                         comint_scroll_show_maximum_output, comint_scroll_to_bottom_on_input, &
+                         COMINT_SCROLL_ON_INPUT_NIL, COMINT_SCROLL_ON_INPUT_T, COMINT_SCROLL_ON_INPUT_ALL, &
+                         COMINT_SCROLL_ON_INPUT_THIS, comint_terminfo_terminal, comint_use_prompt_regexp
     use commands_fm, only: commands
     use compile_fm, only: compilation_always_kill, compilation_ask_about_save, &
                           compilation_column_face, compilation_context_lines, COMPILATION_CONTEXT_NIL, &
@@ -270,8 +276,9 @@ module docstrings_fm
                             info_lookup_other_window_flag
     use insdel_fm, only: after_change_functions, before_change_functions, first_change_hook, &
                          inhibit_modification_hooks
-    use isearch_fm, only: isearch_filter_predicate, isearch_lax_whitespace, isearch_mode_end_hook, &
-                          isearch_mode_end_hook_quit, isearch_mode_hook, isearch_mode_map, isearch_push_state_function, &
+    use isearch_fm, only: isearch_filter_predicate, isearch_lax_whitespace, isearch_message_function, &
+                          isearch_message_prefix_add, isearch_mode_end_hook, isearch_mode_end_hook_quit, &
+                          isearch_mode_hook, isearch_mode_map, isearch_push_state_function, &
                           isearch_regexp_lax_whitespace, isearch_search_fun_function, isearch_wrap_function, &
                           lazy_highlight, regexp_search_ring_max, search_exit_option, search_nonincremental_instead, &
                           search_ring_max, search_upper_case, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS, &
@@ -500,7 +507,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1285) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1292) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -547,18 +554,21 @@ module docstrings_fm
                                               "coding_system_change_text_conversion", "coding_system_eol_type", "coding_system_p", &
                                                          "coding_system_priority_list", "coding_system_type", "comint_accumulate", &
                                                    "comint_append_output_to_file", "comint_backward_matching_input", "comint_bol", &
-                                                     "comint_bol_or_process_mark", "comint_clear_buffer", "comint_copy_old_input", &
-                                                             "comint_delchar_or_maybe_eof", "comint_delete_output", "comint_exec", &
-                                                                  "comint_forward_matching_input", "comint_get_next_from_history", &
-                                                       "comint_goto_process_mark", "comint_interrupt_subjob", "comint_kill_input", &
-                                              "comint_kill_region", "comint_kill_subjob", "comint_kill_whole_line", "comint_mode", &
+                                                    "comint_bol_or_process_mark", "comint_clear_buffer", "comint_continue_subjob", &
+                                                   "comint_copy_old_input", "comint_delchar_or_maybe_eof", "comint_delete_output", &
+                                                   "comint_exec", "comint_forward_matching_input", "comint_get_next_from_history", &
+                                                                    "comint_goto_process_mark", "comint_history_isearch_backward", &
+                                                      "comint_history_isearch_backward_regexp", "comint_insert_previous_argument", &
+                                                             "comint_interrupt_subjob", "comint_kill_input", "comint_kill_region", &
+                                              "comint_kill_subjob", "comint_kill_whole_line", "comint_magic_space", "comint_mode", &
                                                                     "comint_next_input", "comint_next_matching_input", &
                                                                     "comint_next_matching_input_from_input", "comint_next_prompt", &
                                                                     "comint_postoutput_scroll_to_bottom", "comint_previous_input", &
                                                     "comint_previous_matching_input", "comint_previous_matching_input_from_input", &
-                                             "comint_previous_prompt", "comint_quit_subjob", "comint_restore_input", "comint_run", &
-                                          "comint_send_eof", "comint_send_input", "comint_send_string", "comint_set_process_mark", &
-                                                        "comint_show_maximum_output", "comint_show_output", "comint_strip_ctrl_m", &
+                                             "comint_previous_prompt", "comint_quit_subjob", "comint_replace_by_expanded_history", &
+                                                     "comint_restore_input", "comint_run", "comint_send_eof", "comint_send_input", &
+                                                    "comint_send_string", "comint_set_process_mark", "comint_show_maximum_output", &
+                                                                "comint_show_output", "comint_stop_subjob", "comint_strip_ctrl_m", &
                                                    "comint_truncate_buffer", "comint_write_output", "comment_box", "comment_dwim", &
                                                       "comment_indent", "comment_indent_new_line", "comment_kill", "comment_line", &
                                                             "comment_or_uncomment_region", "comment_region", "comment_set_column", &
@@ -881,7 +891,7 @@ module docstrings_fm
                                                                     "yank_rectangle", "yes_or_no_p", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1039) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1045) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -927,15 +937,17 @@ module docstrings_fm
                                            "change_major_mode_hook", "change_major_mode_with_file_name", "coding_system_for_read", &
                                                  "coding_system_for_write", "coding_system_require_warning", "colon_double_space", &
                                              "comint_buffer_maximum_size", "comint_delimiter_argument_list", "comint_eol_on_send", &
-                                                   "comint_exec_hook", "comint_highlight_input", "comint_inhibit_carriage_motion", &
+                                                           "comint_exec_hook", "comint_highlight_input", "comint_history_isearch", &
+                                                                    "comint_inhibit_carriage_motion", "comint_input_autoexpand", &
                                                                    "comint_input_filter_functions", "comint_input_history_ignore", &
                                                                     "comint_input_ignoredups", "comint_input_ring_file_name", &
                                          "comint_input_ring_file_prefix", "comint_input_ring_separator", "comint_input_ring_size", &
-                                                          "comint_input_sender_no_newline", "comint_mode_hook", "comint_mode_map", &
-                                                           "comint_move_point_for_matching_input", "comint_move_point_for_output", &
-                                            "comint_output_filter_functions", "comint_pager", "comint_preoutput_filter_functions", &
-                                                       "comint_process_echoes", "comint_prompt_read_only", "comint_prompt_regexp", &
-                                             "comint_repeat_map", "comint_scroll_show_maximum_output", "comint_terminfo_terminal", &
+                                                     "comint_input_sender_no_newline", "comint_insert_previous_argument_from_end", &
+                                                    "comint_mode_hook", "comint_mode_map", "comint_move_point_for_matching_input", &
+                                                 "comint_move_point_for_output", "comint_output_filter_functions", "comint_pager", &
+                                          "comint_preoutput_filter_functions", "comint_process_echoes", "comint_prompt_read_only", &
+                                                 "comint_prompt_regexp", "comint_repeat_map", "comint_scroll_show_maximum_output", &
+                                                                   "comint_scroll_to_bottom_on_input", "comint_terminfo_terminal", &
                                          "comint_use_prompt_regexp", "commands", "comment_add", "comment_auto_fill_only_comments", &
                                                              "comment_column", "comment_combine_change_calls", "comment_continue", &
                                            "comment_empty_lines", "comment_end", "comment_end_can_be_escaped", "comment_end_skip", &
@@ -1097,8 +1109,9 @@ module docstrings_fm
                                                                     "inhibit_field_text_motion", "inhibit_iso_escape_detection", &
                                           "inhibit_modification_hooks", "inhibit_null_byte_detection", "insert_default_directory", &
                                                  "insert_directory_program", "isearch_filter_predicate", "isearch_lax_whitespace", &
-                                                       "isearch_mode_end_hook", "isearch_mode_end_hook_quit", "isearch_mode_hook", &
-                                               "isearch_mode_map", "isearch_push_state_function", "isearch_regexp_lax_whitespace", &
+                                                "isearch_message_function", "isearch_message_prefix_add", "isearch_mode_end_hook", &
+                                                            "isearch_mode_end_hook_quit", "isearch_mode_hook", "isearch_mode_map", &
+                                                                   "isearch_push_state_function", "isearch_regexp_lax_whitespace", &
                                                     "isearch_search_fun_function", "isearch_wrap_function", "jit_lock_chunk_size", &
                                          "kbd_macro_termination_hook", "kill_buffer_hook", "kill_emacs_hook", "kill_read_only_ok", &
                                                  "kill_ring_max", "kill_ring_yank_pointer", "kill_whole_line", "killed_rectangle", &
@@ -1240,7 +1253,7 @@ module docstrings_fm
                                                                     "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(516) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(520) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1302,9 +1315,12 @@ module docstrings_fm
                                                                       "comint_eol_on_send", &
                                                                       "comint_exec_hook", &
                                                                       "comint_highlight_input", &
+                                                                      "comint_history_isearch", &
+                                                                      "comint_input_autoexpand", &
                                                                       "comint_input_ignoredups", &
                                                                       "comint_input_ring_file_name", &
                                                                       "comint_input_ring_size", &
+                                                                      "comint_insert_previous_argument_from_end", &
                                                                       "comint_mode_hook", &
                                                                       "comint_move_point_for_matching_input", &
                                                                       "comint_move_point_for_output", &
@@ -1312,6 +1328,7 @@ module docstrings_fm
                                                                       "comint_process_echoes", &
                                                                       "comint_prompt_read_only", &
                                                                       "comint_scroll_show_maximum_output", &
+                                                                      "comint_scroll_to_bottom_on_input", &
                                                                       "comint_terminfo_terminal", &
                                                                       "comint_use_prompt_regexp", &
                                                                       "comment_auto_fill_only_comments", &
@@ -3075,6 +3092,11 @@ contains
             entry%file = "comint_fm.f90"
             entry%interactive = .true.
             entry%doc = "Clear the comint buffer."
+        case ("comint_continue_subjob")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Send CONT signal to process buffer's process group."//LF// &
+                        "Useful if you accidentally suspend the top-level process."
         case ("comint_copy_old_input")
             entry%file = "comint_fm.f90"
             entry%interactive = .true.
@@ -3121,6 +3143,28 @@ contains
             entry%file = "comint_fm.f90"
             entry%interactive = .true.
             entry%doc = "The command.  Move point to the process mark."
+        case ("comint_history_isearch_backward")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Search for a string backward in input history using Isearch."
+        case ("comint_history_isearch_backward_regexp")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Search for a regular expression backward in input history using"//LF// &
+                        "Isearch."
+        case ("comint_insert_previous_argument")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Insert the INDEXth argument from the previous Comint command-line"//LF// &
+                        "at point.  Spaces are added at beginning and/or end of the inserted"//LF// &
+                        "string if necessary to ensure that it's separated from adjacent"//LF// &
+                        "arguments.  Interactively, if no prefix argument is given, the last"//LF// &
+                        "argument is inserted.  Repeated interactive invocations will cycle"//LF// &
+                        "through the same argument from progressively earlier commands"//LF// &
+                        "(using the value of INDEX specified with the first command)."//LF// &
+                        "Values of INDEX < 0 count from the end, so INDEX = -1 is the last"//LF// &
+                        "argument.  This command is like ""M-."" in Bash and zsh.  HAS_INDEX"//LF// &
+                        "false is INDEX nil."
         case ("comint_interrupt_subjob")
             entry%file = "comint_fm.f90"
             entry%interactive = .true.
@@ -3141,6 +3185,12 @@ contains
             entry%file = "comint_fm.f90"
             entry%interactive = .true.
             entry%doc = "Kill current line, ignoring read-only and field properties."
+        case ("comint_magic_space")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Expand input history references before point and insert ARG"//LF// &
+                        "spaces.  A useful command to bind to SPC.  See"//LF// &
+                        "`comint_replace_by_expanded_history'."
         case ("comint_mode")
             entry%file = "comint_fm.f90"
             entry%fortran = "call comint_mode(status)"
@@ -3215,6 +3265,32 @@ contains
             entry%file = "comint_fm.f90"
             entry%interactive = .true.
             entry%doc = "Send quit signal to the current subjob."
+        case ("comint_replace_by_expanded_history")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Expand input command history references before point."//LF// &
+                        "Expansion is dependent on the value of `comint_input_autoexpand'."//LF// &
+                        ""//LF// &
+                        "This function depends on the buffer's idea of the input history,"//LF// &
+                        "which may not match the command interpreter's idea, assuming it has"//LF// &
+                        "one."//LF// &
+                        ""//LF// &
+                        "Assumes history syntax is like typical Un*x shells'.  However,"//LF// &
+                        "since Emacs cannot know the interpreter's idea of input line"//LF// &
+                        "numbers, assuming it has one, it cannot expand absolute input line"//LF// &
+                        "number references."//LF// &
+                        ""//LF// &
+                        "If the optional argument SILENT is true, never complain even if"//LF// &
+                        "history reference seems erroneous."//LF// &
+                        ""//LF// &
+                        "If the optional argument START is present, that specifies the start"//LF// &
+                        "of the text to scan for history references, rather than the logical"//LF// &
+                        "beginning of line."//LF// &
+                        ""//LF// &
+                        "See `comint_magic_space' and"//LF// &
+                        "`comint_replace_by_expanded_history_before_point'."//LF// &
+                        ""//LF// &
+                        "Returns true if successful."
         case ("comint_restore_input")
             entry%file = "comint_fm.f90"
             entry%interactive = .true.
@@ -3258,6 +3334,16 @@ contains
             entry%interactive = .true.
             entry%doc = "Display start of this batch of interpreter output at top of window."//LF// &
                         "Sets mark to the value of point when this command is run."
+        case ("comint_stop_subjob")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Stop the current subjob."//LF// &
+                        ""//LF// &
+                        "WARNING: if there is no current subjob, you can end up suspending"//LF// &
+                        "the top-level process running in the buffer.  If you accidentally"//LF// &
+                        "do this, use \[comint_continue_subjob] to resume the process."//LF// &
+                        "(This is not a problem with most shells, since they ignore this"//LF// &
+                        "signal.)"
         case ("comint_strip_ctrl_m")
             entry%file = "comint_fm.f90"
             entry%fortran = "call comint_strip_ctrl_m(string, status)"
@@ -14043,6 +14129,32 @@ contains
             entry%value = repr(comint_highlight_input%value)
             entry%doc = "If true, highlight input with `comint_highlight_input' face."//LF// &
                         "Otherwise keep the original highlighting untouched."
+        case ("comint_history_isearch")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_history_isearch"
+            entry%user_option = .true.
+            entry%original = "COMINT_HISTORY_ISEARCH_NIL"
+
+            select case (comint_history_isearch%value)
+            case (COMINT_HISTORY_ISEARCH_NIL)
+                entry%value = "COMINT_HISTORY_ISEARCH_NIL"
+            case (COMINT_HISTORY_ISEARCH_DWIM)
+                entry%value = "COMINT_HISTORY_ISEARCH_DWIM"
+            case (COMINT_HISTORY_ISEARCH_T)
+                entry%value = "COMINT_HISTORY_ISEARCH_T"
+            case default
+                entry%value = repr(comint_history_isearch%value)
+            end select
+
+            entry%doc = "If not COMINT_HISTORY_ISEARCH_NIL, Isearch in input history only,"//LF// &
+                        "not in comint buffer output.  If COMINT_HISTORY_ISEARCH_T, usual"//LF// &
+                        "Isearch keys like \`C-r' and \`C-M-r' in comint mode search in the"//LF// &
+                        "input history.  If COMINT_HISTORY_ISEARCH_DWIM, Isearch keys search"//LF// &
+                        "in the input history only when initial point position is at the"//LF// &
+                        "comint command line.  When starting Isearch from other parts of the"//LF// &
+                        "comint buffer, they search in the comint buffer.  If"//LF// &
+                        "COMINT_HISTORY_ISEARCH_NIL, Isearch operates on the whole comint"//LF// &
+                        "buffer."
         case ("comint_inhibit_carriage_motion")
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_inhibit_carriage_motion"
@@ -14050,6 +14162,35 @@ contains
             entry%value = repr(comint_inhibit_carriage_motion%value)
             entry%doc = "If false, Comint will interpret `carriage control' characters in"//LF// &
                         "output.  See `comint_carriage_motion' for details."
+        case ("comint_input_autoexpand")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_input_autoexpand"
+            entry%user_option = .true.
+            entry%original = "COMINT_AUTOEXPAND_NIL"
+
+            select case (comint_input_autoexpand%value)
+            case (COMINT_AUTOEXPAND_NIL)
+                entry%value = "COMINT_AUTOEXPAND_NIL"
+            case (COMINT_AUTOEXPAND_T)
+                entry%value = "COMINT_AUTOEXPAND_T"
+            case (COMINT_AUTOEXPAND_INPUT)
+                entry%value = "COMINT_AUTOEXPAND_INPUT"
+            case (COMINT_AUTOEXPAND_HISTORY)
+                entry%value = "COMINT_AUTOEXPAND_HISTORY"
+            case default
+                entry%value = repr(comint_input_autoexpand%value)
+            end select
+
+            entry%doc = "If not COMINT_AUTOEXPAND_NIL, expand input command history"//LF// &
+                        "references on completion.  This mirrors the optional behavior of"//LF// &
+                        "tcsh (its autoexpand and histlist)."//LF// &
+                        ""//LF// &
+                        "If the value is COMINT_AUTOEXPAND_INPUT, then the expansion is seen"//LF// &
+                        "on input.  If the value is COMINT_AUTOEXPAND_HISTORY, then the"//LF// &
+                        "expansion is only when inserting into the buffer's input ring."//LF// &
+                        "See also `comint_magic_space' and `completion_at_point'."//LF// &
+                        ""//LF// &
+                        "This variable is buffer-local."
         case ("comint_input_filter_functions")
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_input_filter_functions"
@@ -14131,6 +14272,19 @@ contains
             entry%value = repr(comint_input_sender_no_newline)
             entry%doc = "True directs the `comint_input_sender' function not to send a"//LF// &
                         "newline."
+        case ("comint_insert_previous_argument_from_end")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_insert_previous_argument_from_end"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(comint_insert_previous_argument_from_end%value)
+            entry%doc = "If true, `comint_insert_previous_argument' counts args from the"//LF// &
+                        "end.  If this variable is false, the default,"//LF// &
+                        "`comint_insert_previous_argument' counts the arguments from the"//LF// &
+                        "beginning; if true, it counts from the end instead.  This emulates"//LF// &
+                        "the behavior of `ESC-NUM ESC-.' in both Bash and zsh: in Bash,"//LF// &
+                        "`number' counts from the beginning (variable is false), while in"//LF// &
+                        "zsh, it counts from the end."
         case ("comint_mode_hook")
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_mode_hook"
@@ -14341,6 +14495,35 @@ contains
                         "See also the variable `comint_move_point_for_output' and the function"//LF// &
                         "`comint_postoutput_scroll_to_bottom'."//LF// &
                         "This variable is buffer-local in all Comint buffers."
+        case ("comint_scroll_to_bottom_on_input")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_scroll_to_bottom_on_input"
+            entry%user_option = .true.
+            entry%original = "COMINT_SCROLL_ON_INPUT_NIL"
+
+            select case (comint_scroll_to_bottom_on_input%value)
+            case (COMINT_SCROLL_ON_INPUT_NIL)
+                entry%value = "COMINT_SCROLL_ON_INPUT_NIL"
+            case (COMINT_SCROLL_ON_INPUT_T)
+                entry%value = "COMINT_SCROLL_ON_INPUT_T"
+            case (COMINT_SCROLL_ON_INPUT_ALL)
+                entry%value = "COMINT_SCROLL_ON_INPUT_ALL"
+            case (COMINT_SCROLL_ON_INPUT_THIS)
+                entry%value = "COMINT_SCROLL_ON_INPUT_THIS"
+            case default
+                entry%value = repr(comint_scroll_to_bottom_on_input%value)
+            end select
+
+            entry%doc = "Controls whether input to interpreter causes window to scroll."//LF// &
+                        "If COMINT_SCROLL_ON_INPUT_NIL, then do not scroll.  If"//LF// &
+                        "COMINT_SCROLL_ON_INPUT_T or COMINT_SCROLL_ON_INPUT_ALL, scroll all"//LF// &
+                        "windows showing buffer.  If COMINT_SCROLL_ON_INPUT_THIS, scroll only"//LF// &
+                        "the selected window."//LF// &
+                        ""//LF// &
+                        "The default is COMINT_SCROLL_ON_INPUT_NIL."//LF// &
+                        ""//LF// &
+                        "See `comint_preinput_scroll_to_bottom'.  This variable is"//LF// &
+                        "buffer-local."
         case ("comint_terminfo_terminal")
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_terminfo_terminal"
@@ -19423,6 +19606,22 @@ contains
                         "toggle the value of this variable by the command"//LF// &
                         "`isearch_toggle_lax_whitespace', usually bound to `M-s SPC' during"//LF// &
                         "isearch."
+        case ("isearch_message_function")
+            entry%file = "isearch_fm.f90"
+            entry%fortran = "isearch_message_function"
+            entry%doc = "See the type."
+        case ("isearch_message_prefix_add")
+            entry%file = "isearch_fm.f90"
+            entry%fortran = "isearch_message_prefix_add"
+
+            if (allocated(isearch_message_prefix_add)) then
+                entry%value = repr(isearch_message_prefix_add)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "A string added to the Isearch prompt (unallocated for nil), as"//LF// &
+                        """history "" when searching a comint's input history."
         case ("isearch_mode_end_hook")
             entry%file = "isearch_fm.f90"
             entry%fortran = "isearch_mode_end_hook"
@@ -23817,6 +24016,12 @@ contains
         case ("comint_highlight_input")
             kind = OPTION_LOGICAL
             setting = .true.
+        case ("comint_history_isearch")
+            kind = OPTION_CHOICE
+            setting = .true.
+        case ("comint_input_autoexpand")
+            kind = OPTION_CHOICE
+            setting = .true.
         case ("comint_input_ignoredups")
             kind = OPTION_LOGICAL
             setting = .true.
@@ -23825,6 +24030,9 @@ contains
             setting = .true.
         case ("comint_input_ring_size")
             kind = OPTION_INTEGER
+            setting = .true.
+        case ("comint_insert_previous_argument_from_end")
+            kind = OPTION_LOGICAL
             setting = .true.
         case ("comint_move_point_for_matching_input")
             kind = OPTION_CHOICE
@@ -23843,6 +24051,9 @@ contains
             setting = .true.
         case ("comint_scroll_show_maximum_output")
             kind = OPTION_LOGICAL
+            setting = .true.
+        case ("comint_scroll_to_bottom_on_input")
+            kind = OPTION_CHOICE
             setting = .true.
         case ("comint_terminfo_terminal")
             kind = OPTION_STRING
@@ -24769,6 +24980,12 @@ contains
                 call comint_input_ignoredups%set_local(v)
             else
                 comint_input_ignoredups = v
+            end if
+        case ("comint_insert_previous_argument_from_end")
+            if (local) then
+                call comint_insert_previous_argument_from_end%set_local(v)
+            else
+                comint_insert_previous_argument_from_end = v
             end if
         case ("comint_process_echoes")
             if (local) then
@@ -26122,6 +26339,58 @@ contains
             case default
                 ok = .false.
             end select
+        case ("comint_history_isearch")
+            select case (constant)
+            case ("COMINT_HISTORY_ISEARCH_NIL")
+                if (local) then
+                    call comint_history_isearch%set_local(COMINT_HISTORY_ISEARCH_NIL)
+                else
+                    comint_history_isearch = COMINT_HISTORY_ISEARCH_NIL
+                end if
+            case ("COMINT_HISTORY_ISEARCH_DWIM")
+                if (local) then
+                    call comint_history_isearch%set_local(COMINT_HISTORY_ISEARCH_DWIM)
+                else
+                    comint_history_isearch = COMINT_HISTORY_ISEARCH_DWIM
+                end if
+            case ("COMINT_HISTORY_ISEARCH_T")
+                if (local) then
+                    call comint_history_isearch%set_local(COMINT_HISTORY_ISEARCH_T)
+                else
+                    comint_history_isearch = COMINT_HISTORY_ISEARCH_T
+                end if
+            case default
+                ok = .false.
+            end select
+        case ("comint_input_autoexpand")
+            select case (constant)
+            case ("COMINT_AUTOEXPAND_NIL")
+                if (local) then
+                    call comint_input_autoexpand%set_local(COMINT_AUTOEXPAND_NIL)
+                else
+                    comint_input_autoexpand = COMINT_AUTOEXPAND_NIL
+                end if
+            case ("COMINT_AUTOEXPAND_T")
+                if (local) then
+                    call comint_input_autoexpand%set_local(COMINT_AUTOEXPAND_T)
+                else
+                    comint_input_autoexpand = COMINT_AUTOEXPAND_T
+                end if
+            case ("COMINT_AUTOEXPAND_INPUT")
+                if (local) then
+                    call comint_input_autoexpand%set_local(COMINT_AUTOEXPAND_INPUT)
+                else
+                    comint_input_autoexpand = COMINT_AUTOEXPAND_INPUT
+                end if
+            case ("COMINT_AUTOEXPAND_HISTORY")
+                if (local) then
+                    call comint_input_autoexpand%set_local(COMINT_AUTOEXPAND_HISTORY)
+                else
+                    comint_input_autoexpand = COMINT_AUTOEXPAND_HISTORY
+                end if
+            case default
+                ok = .false.
+            end select
         case ("comint_move_point_for_matching_input")
             select case (constant)
             case ("COMINT_MATCHING_AFTER_INPUT")
@@ -26170,6 +26439,35 @@ contains
                     call comint_move_point_for_output%set_local(COMINT_MOVE_OTHERS)
                 else
                     comint_move_point_for_output = COMINT_MOVE_OTHERS
+                end if
+            case default
+                ok = .false.
+            end select
+        case ("comint_scroll_to_bottom_on_input")
+            select case (constant)
+            case ("COMINT_SCROLL_ON_INPUT_NIL")
+                if (local) then
+                    call comint_scroll_to_bottom_on_input%set_local(COMINT_SCROLL_ON_INPUT_NIL)
+                else
+                    comint_scroll_to_bottom_on_input = COMINT_SCROLL_ON_INPUT_NIL
+                end if
+            case ("COMINT_SCROLL_ON_INPUT_T")
+                if (local) then
+                    call comint_scroll_to_bottom_on_input%set_local(COMINT_SCROLL_ON_INPUT_T)
+                else
+                    comint_scroll_to_bottom_on_input = COMINT_SCROLL_ON_INPUT_T
+                end if
+            case ("COMINT_SCROLL_ON_INPUT_ALL")
+                if (local) then
+                    call comint_scroll_to_bottom_on_input%set_local(COMINT_SCROLL_ON_INPUT_ALL)
+                else
+                    comint_scroll_to_bottom_on_input = COMINT_SCROLL_ON_INPUT_ALL
+                end if
+            case ("COMINT_SCROLL_ON_INPUT_THIS")
+                if (local) then
+                    call comint_scroll_to_bottom_on_input%set_local(COMINT_SCROLL_ON_INPUT_THIS)
+                else
+                    comint_scroll_to_bottom_on_input = COMINT_SCROLL_ON_INPUT_THIS
                 end if
             case default
                 ok = .false.

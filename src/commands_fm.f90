@@ -154,17 +154,22 @@ module commands_fm
         type(command_type) :: comint_bol
         type(command_type) :: comint_bol_or_process_mark
         type(command_type) :: comint_clear_buffer
+        type(command_type) :: comint_continue_subjob
         type(command_type) :: comint_copy_old_input
         type(command_type) :: comint_delchar_or_maybe_eof
         type(command_type) :: comint_delete_output
         type(command_type) :: comint_forward_matching_input
         type(command_type) :: comint_get_next_from_history
         type(command_type) :: comint_goto_process_mark
+        type(command_type) :: comint_history_isearch_backward
+        type(command_type) :: comint_history_isearch_backward_regexp
+        type(command_type) :: comint_insert_previous_argument
         type(command_type) :: comint_interrupt_subjob
         type(command_type) :: comint_kill_input
         type(command_type) :: comint_kill_region
         type(command_type) :: comint_kill_subjob
         type(command_type) :: comint_kill_whole_line
+        type(command_type) :: comint_magic_space
         type(command_type) :: comint_mode
         type(command_type) :: comint_next_input
         type(command_type) :: comint_next_matching_input
@@ -175,6 +180,7 @@ module commands_fm
         type(command_type) :: comint_previous_matching_input_from_input
         type(command_type) :: comint_previous_prompt
         type(command_type) :: comint_quit_subjob
+        type(command_type) :: comint_replace_by_expanded_history
         type(command_type) :: comint_restore_input
         type(command_type) :: comint_run
         type(command_type) :: comint_send_eof
@@ -182,6 +188,7 @@ module commands_fm
         type(command_type) :: comint_set_process_mark
         type(command_type) :: comint_show_maximum_output
         type(command_type) :: comint_show_output
+        type(command_type) :: comint_stop_subjob
         type(command_type) :: comint_strip_ctrl_m
         type(command_type) :: comint_truncate_buffer
         type(command_type) :: comint_write_output
@@ -1063,7 +1070,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1025) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1032) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1186,17 +1193,22 @@ module commands_fm
                                                                   "comint_bol", &
                                                                   "comint_bol_or_process_mark", &
                                                                   "comint_clear_buffer", &
+                                                                  "comint_continue_subjob", &
                                                                   "comint_copy_old_input", &
                                                                   "comint_delchar_or_maybe_eof", &
                                                                   "comint_delete_output", &
                                                                   "comint_forward_matching_input", &
                                                                   "comint_get_next_from_history", &
                                                                   "comint_goto_process_mark", &
+                                                                  "comint_history_isearch_backward", &
+                                                                  "comint_history_isearch_backward_regexp", &
+                                                                  "comint_insert_previous_argument", &
                                                                   "comint_interrupt_subjob", &
                                                                   "comint_kill_input", &
                                                                   "comint_kill_region", &
                                                                   "comint_kill_subjob", &
                                                                   "comint_kill_whole_line", &
+                                                                  "comint_magic_space", &
                                                                   "comint_mode", &
                                                                   "comint_next_input", &
                                                                   "comint_next_matching_input", &
@@ -1207,6 +1219,7 @@ module commands_fm
                                                                   "comint_previous_matching_input_from_input", &
                                                                   "comint_previous_prompt", &
                                                                   "comint_quit_subjob", &
+                                                                  "comint_replace_by_expanded_history", &
                                                                   "comint_restore_input", &
                                                                   "comint_run", &
                                                                   "comint_send_eof", &
@@ -1214,6 +1227,7 @@ module commands_fm
                                                                   "comint_set_process_mark", &
                                                                   "comint_show_maximum_output", &
                                                                   "comint_show_output", &
+                                                                  "comint_stop_subjob", &
                                                                   "comint_strip_ctrl_m", &
                                                                   "comint_truncate_buffer", &
                                                                   "comint_write_output", &
@@ -2345,6 +2359,8 @@ contains
             p => commands%comint_bol_or_process_mark
         case ("comint_clear_buffer")
             p => commands%comint_clear_buffer
+        case ("comint_continue_subjob")
+            p => commands%comint_continue_subjob
         case ("comint_copy_old_input")
             p => commands%comint_copy_old_input
         case ("comint_delchar_or_maybe_eof")
@@ -2357,6 +2373,12 @@ contains
             p => commands%comint_get_next_from_history
         case ("comint_goto_process_mark")
             p => commands%comint_goto_process_mark
+        case ("comint_history_isearch_backward")
+            p => commands%comint_history_isearch_backward
+        case ("comint_history_isearch_backward_regexp")
+            p => commands%comint_history_isearch_backward_regexp
+        case ("comint_insert_previous_argument")
+            p => commands%comint_insert_previous_argument
         case ("comint_interrupt_subjob")
             p => commands%comint_interrupt_subjob
         case ("comint_kill_input")
@@ -2367,6 +2389,8 @@ contains
             p => commands%comint_kill_subjob
         case ("comint_kill_whole_line")
             p => commands%comint_kill_whole_line
+        case ("comint_magic_space")
+            p => commands%comint_magic_space
         case ("comint_mode")
             p => commands%comint_mode
         case ("comint_next_input")
@@ -2387,6 +2411,8 @@ contains
             p => commands%comint_previous_prompt
         case ("comint_quit_subjob")
             p => commands%comint_quit_subjob
+        case ("comint_replace_by_expanded_history")
+            p => commands%comint_replace_by_expanded_history
         case ("comint_restore_input")
             p => commands%comint_restore_input
         case ("comint_run")
@@ -2401,6 +2427,8 @@ contains
             p => commands%comint_show_maximum_output
         case ("comint_show_output")
             p => commands%comint_show_output
+        case ("comint_stop_subjob")
+            p => commands%comint_stop_subjob
         case ("comint_strip_ctrl_m")
             p => commands%comint_strip_ctrl_m
         case ("comint_truncate_buffer")
