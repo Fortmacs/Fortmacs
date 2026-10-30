@@ -238,7 +238,7 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        timefns.c, floatfns.c; 42f the parts of fns.c, editfns.c and
        data.c that are not the Lisp engine.  Before it: the citation
        burn-down of tools/audit-baseline (so the remaining functions are
-       known exactly), then the rest of steps 40 and 41 (skeletons,
+       known exactly) — done, then the rest of steps 40 and 41 (skeletons,
        input methods).  External libraries (treesit.c, json.c, gnutls.c,
        sqlite.c, dbusbind.c) are decided separately: only libc, FreeType
        and HarfBuzz may be bound.
@@ -348,10 +348,11 @@ rules no other tool checks (chosen with the user, 2026-10-30):
   ones contained in procedures) says "Port of <file>:<function>" or "Not
   a port" in the comment above it, at the interface for a separate
   module procedure; commands' `cmd_` procedures, which only read a
-  command's arguments, are exempt.  `tools/audit-baseline` lists the
-  FILE:PROCEDURE pairs that predate the rule; it may only shrink (the
-  audit reports an entry no longer needed), so give a procedure its
-  citation and delete its line.
+  command's arguments, are exempt, and so are the procedures of an
+  abstract interface and the `module procedure` list of a generic one.
+  `tools/audit-baseline` listed the FILE:PROCEDURE pairs that predated
+  the rule; it is empty since the burn-down of 2026-10-30 and takes no
+  new entries (the audit reports an entry no longer needed).
 
 ## Status
 

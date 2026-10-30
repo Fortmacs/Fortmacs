@@ -6174,8 +6174,7 @@ contains
         case ("free_timer")
             entry%file = "timer_fm.f90"
             entry%fortran = "call free_timer(timer)"
-            entry%doc = "Cancel TIMER and release its handle, which becomes stale.  Not a"//LF// &
-                        "port: upstream relies on GC."
+            entry%doc = "Cancel TIMER and release its handle, which becomes stale."
         case ("fundamental_mode")
             entry%file = "simple_fm.f90"
             entry%fortran = "call fundamental_mode(status)"
