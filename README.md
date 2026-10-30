@@ -114,8 +114,8 @@ protein structures (part of the 2024 Nobel Prize in Chemistry), the
 antibiotic candidate halicin, and, by press accounts the CIA has not
 confirmed, the 2026 rescue of an airman downed in Iran, found by a sensor
 whose AI picked his heartbeat out of the background noise. Yet AI-assisted
-coding still carries a stigma. Fortmacs judges its code like any other: it must build, pass
-Emacs's own tests and survive human review.
+coding still carries a stigma. Fortmacs judges its code like any other: it
+must build, pass Emacs's own tests and survive human review.
 
 Fortmacs is co-written with Claude Code, Anthropic's coding agent. It needs
 constant direction: left alone it drifted toward Lisp written in Fortran,
