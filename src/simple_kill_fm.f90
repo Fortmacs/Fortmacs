@@ -36,11 +36,13 @@ contains
     type(status_type) :: st
     type(window_type), pointer :: w
     logical :: visible
+
     mk = mark_position()
     pt = point()
     w => selected_window_ref()
     visible = .false.
     if (shows_current_buffer(w)) visible = pos_visible_in_window_p(mk, w)
+
     if (visible) then
         ! Swap point-and-mark quickly so as to show the region that was
         ! selected.  Don't do it if the region is highlighted.
@@ -60,6 +62,7 @@ contains
         n = 40
         if (present(message_len)) n = message_len
         n = min(abs(mk - pt), n)
+
         if (pt < mk) then
             ! Don't say "killed" or "saved"; that is misleading.
             call buffer_substring(mk - n, mk, text, st)

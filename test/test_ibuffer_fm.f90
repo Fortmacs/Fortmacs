@@ -53,6 +53,7 @@ contains
 
     subroutine collect_ibuffer_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("ibuffer-test-Bug25000", test_bug25000), &
                     new_unittest("ibuffer-listing", test_listing), &
@@ -68,6 +69,7 @@ contains
         character(len=*), intent(in) :: name, text
         type(handle_type) :: h, old
         type(status_type) :: st
+
         old = current_buffer()
         call get_buffer_create(generate_new_buffer_name(name), h, st)
         call set_buffer(h, st)
@@ -80,6 +82,7 @@ contains
         type(handle_type), intent(out) :: old, ib
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         old = current_buffer()
         call ibuffer(st)
         call check(error, st%ok(), format_error(st))
@@ -91,6 +94,7 @@ contains
     subroutine finish(old, ib)
         type(handle_type), intent(in) :: old, ib
         type(status_type) :: st
+
         if (buffer_live_p(ib)) call kill_buffer(ib, st)
         call set_buffer(old, st)
     end subroutine finish
@@ -101,6 +105,7 @@ contains
         logical, intent(out) :: found
         integer(int64) :: pos
         type(status_type) :: st
+
         call goto_char(point_min())
         call search_forward(" "//name, pos, st, noerror=1)
         found = st%ok() .and. pos /= 0
@@ -110,6 +115,7 @@ contains
     function current_line() result(line)
         character(len=:), allocatable :: line
         type(status_type) :: st
+
         call buffer_substring(pos_bol(), pos_eol(), line, st)
     end function current_line
 
@@ -120,6 +126,7 @@ contains
         type(status_type) :: st
         character(len=256), allocatable :: names(:)
         integer :: n
+
         call init_bindings()
         buf1 = make_buffer("ibuffer-test-Bug25000-buf1", "")
         buf2 = make_buffer("ibuffer-test-Bug25000-buf2", "")
@@ -144,6 +151,7 @@ contains
         character(len=*), intent(in) :: name
         type(status_type), intent(out) :: status
         logical :: found
+
         call goto_buffer_line(name, found)
         if (found) call ibuffer_mark_forward(status)
     end subroutine mark_by_name
@@ -155,6 +163,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: text, line
         logical :: found
+
         call init_bindings()
         a = make_buffer("ibuf-alpha", "12345")
         call start(old, ib, error)
@@ -163,18 +172,22 @@ contains
         call check(error, text(1:len(" MRL Name")) == " MRL Name", text(1:min(40, len(text))))
         if (.not. allocated(error)) call check(error, index(text, LF//"[ Default ]"//LF) > 0, "no Default group")
         if (.not. allocated(error)) call check(error, index(text, " buffers") > 0, "no summary")
+
         if (.not. allocated(error)) then
             call goto_buffer_line("ibuf-alpha", found)
             call check(error, found, "ibuf-alpha not listed")
         end if
+
         if (.not. allocated(error)) then
             line = current_line()
             call check(error, index(line, "        5 Fundamental") > 0, line)
         end if
+
         if (.not. allocated(error)) then
             call goto_buffer_line("*Ibuffer*", found)
             call check(error,.not. found, "*Ibuffer* lists itself")
         end if
+
         call kill_buffer(a, st)
         call finish(old, ib)
     end subroutine test_listing
@@ -186,6 +199,7 @@ contains
         type(handle_type), allocatable :: marked(:)
         type(status_type) :: st
         logical :: found
+
         call init_bindings()
         a = make_buffer("ibuf-beta", "")
         call start(old, ib, error)
@@ -193,26 +207,31 @@ contains
         call goto_buffer_line("ibuf-beta", found)
         call ibuffer_mark_forward(st)
         call check(error, st%ok(), format_error(st))
+
         if (.not. allocated(error)) then
             call goto_buffer_line("ibuf-beta", found)
             call check(error, ibuffer_current_mark() == ">", "not marked")
         end if
+
         if (.not. allocated(error)) then
             call ibuffer_get_marked_buffers(marked, st)
             call check(error, size(marked) == 1, "marked buffers")
             if (.not. allocated(error)) call check(error, marked(1)%index == a%index, "marked buffer")
         end if
+
         if (.not. allocated(error)) then
             call ibuffer_toggle_marks(st)
             call goto_buffer_line("ibuf-beta", found)
             call check(error, ibuffer_current_mark() == " ", "still marked after t")
         end if
+
         if (.not. allocated(error)) then
             call goto_char(point_min())
             b = ibuffer_current_buffer(st)
             call ibuffer_get_marked_buffers(marked, st)
             call check(error, size(marked) >= 1, "t marked nothing")
         end if
+
         call kill_buffer(a, st)
         call finish(old, ib)
     end subroutine test_marks
@@ -223,6 +242,7 @@ contains
         type(handle_type) :: old, ib, a
         type(status_type) :: st
         logical :: found, saved_expert
+
         call init_bindings()
         saved_expert = ibuffer_expert
         ibuffer_expert = .true.
@@ -233,15 +253,19 @@ contains
         call ibuffer_mark_for_delete(st)
         call goto_buffer_line("ibuf-gamma", found)
         call check(error, ibuffer_current_mark() == "D", "not flagged")
+
         if (.not. allocated(error)) then
             call ibuffer_do_kill_on_deletion_marks(st)
             call check(error, st%ok(), format_error(st))
         end if
+
         if (.not. allocated(error)) call check(error,.not. buffer_live_p(a), "not killed")
+
         if (.not. allocated(error)) then
             call goto_buffer_line("ibuf-gamma", found)
             call check(error,.not. found, "still listed")
         end if
+
         ibuffer_expert = saved_expert
         if (buffer_live_p(a)) call kill_buffer(a, st)
         call finish(old, ib)
@@ -253,6 +277,7 @@ contains
         type(handle_type) :: old, ib, a, b
         type(status_type) :: st
         character(len=:), allocatable :: text
+
         call init_bindings()
         a = make_buffer("ibuf-zzz", "")
         b = make_buffer("ibuf-aaa", "")
@@ -261,11 +286,13 @@ contains
         call ibuffer_do_sort_by("alphabetic", st)
         text = buffer_string()
         call check(error, index(text, "ibuf-aaa") < index(text, "ibuf-zzz"), "not sorted")
+
         if (.not. allocated(error)) then
             call ibuffer_do_sort_by("alphabetic", st)
             text = buffer_string()
             call check(error, index(text, "ibuf-aaa") > index(text, "ibuf-zzz"), "not reversed")
         end if
+
         call kill_buffer(a, st)
         call kill_buffer(b, st)
         call finish(old, ib)
@@ -278,17 +305,20 @@ contains
         type(status_type) :: st
         type(ibuffer_formats_type) :: formats
         character(len=:), allocatable :: line
+
         call init_bindings()
         a = make_buffer("ibuf-delta", "abc")
         call start(old, ib, error)
         if (allocated(error)) return
         call ibuffer_switch_format(st)
         call check(error, st%ok(), format_error(st))
+
         if (.not. allocated(error)) then
             call goto_char(point_min())
             line = current_line()
             call check(error, line == "  Name             Filename", line)
         end if
+
         call finish(old, ib)
         if (allocated(error)) return
         call formats%add([ibuffer_column("name"), ibuffer_text(":"), ibuffer_column("size", 5, -1, IBUFFER_ALIGN_RIGHT)])

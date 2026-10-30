@@ -57,6 +57,7 @@ contains
 
     subroutine collect_regex_emacs_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("regex-word-cc-fallback-test", test_word_cc_fallback), &
                     new_unittest("regex-tests-character-classes", test_character_classes), &
@@ -92,6 +93,7 @@ contains
     integer(int64) function sm(re, str)
         character(len=*), intent(in) :: re, str
         type(status_type) :: st
+
         sm = string_match(re, str, st)
         if (.not. st%ok()) sm = -99
     end function sm
@@ -100,6 +102,7 @@ contains
     integer(int64) function me(n)
         integer, intent(in) :: n
         type(status_type) :: st
+
         me = match_end(n, st)
     end function me
 
@@ -107,6 +110,7 @@ contains
     integer(int64) function mb(n)
         integer, intent(in) :: n
         type(status_type) :: st
+
         mb = match_beginning(n, st)
     end function mb
 
@@ -114,6 +118,7 @@ contains
     function raw(b) result(s)
         integer, intent(in) :: b
         character(len=2) :: s
+
         s = achar(192 + iand(ishft(b, -6), 1))//achar(128 + iand(b, 63))
     end function raw
 
@@ -121,6 +126,7 @@ contains
         character(len=*), intent(in) :: text
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call get_buffer_create("regex-test", h, st)
         call set_buffer(h, st)
         call insert(text, st)
@@ -130,6 +136,7 @@ contains
     subroutine leave(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
+
         case_fold_search = .true.
         if (allocated(search_spaces_regexp)) deallocate (search_spaces_regexp)
         call kill_buffer(h, st)
@@ -143,6 +150,7 @@ contains
         character(len=3), parameter :: suffixes(4) = [character(len=3) :: "", "b", "bar", "☠"]
         character(len=3), parameter :: strings(2) = [character(len=3) :: "", "foo"]
         integer :: i, j, k, l
+
         do i = 1, 2
             do j = 1, 2
                 do k = 1, 4
@@ -163,6 +171,7 @@ contains
     subroutine test_character_classes(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: ws = " "//achar(9)//achar(10)
+
         case_fold_search = .false.
         call cc("alnum", "abcABC012łąka", "-, "//ws)
         if (allocated(error)) return
@@ -198,10 +207,12 @@ contains
         if (allocated(error)) return
         call cc("multibyte", "łą☢", "abcABC012 "//achar(9)//achar(10)//achar(1))
         case_fold_search = .true.
+
     contains
 
         subroutine cc(name, matching, not_matching)
             character(len=*), intent(in) :: name, matching, not_matching
+
             call check(error, sm("^[[:"//name//":]]*$", matching) > 0, name//" matching")
             if (allocated(error)) return
             call check(error, sm("^[[:"//name//":]]*?☢$", matching//"☢") > 0, name//" lazy")
@@ -217,6 +228,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: i
+
         call check(error, sm("\`x\{65535\}", repeat("x", 65535)) == 1)
         if (allocated(error)) return
         call check(error, sm("\`x\{65535\}", repeat("x", 65534)) == 0)
@@ -228,6 +240,7 @@ contains
     !> Test matching a multibyte regexp against a multibyte string.
     subroutine test_multibyte(error)
         type(error_type), allocatable, intent(out) :: error
+
         ! ASCII
         call check(error, sm("a[b]", "ab") > 0, "ascii")
         if (allocated(error)) return
@@ -294,6 +307,7 @@ contains
     !> Test case-sensitive and case-insensitive matching.
     subroutine test_case_fold(error)
         type(error_type), allocatable, intent(out) :: error
+
         case_fold_search = .false.
         call check(error, sm("aB", "ABaB") == 3, "nil aB")
         if (allocated(error)) return
@@ -332,6 +346,7 @@ contains
     !> Test matching of ß and ẞ.
     subroutine test_eszett(error)
         type(error_type), allocatable, intent(out) :: error
+
         case_fold_search = .false.
         call check(error, sm("ß", "ß") == 1 .and. sm("ß", "ẞ") == 0 .and. sm("ẞ", "ß") == 0 .and. &
                    sm("ẞ", "ẞ") == 1, "nil literal")
@@ -357,6 +372,7 @@ contains
     !> Bug#58726.
     subroutine test_atomic_failure(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, sm("\`\(?:ab\)*\'", "a") == 0)
         if (allocated(error)) return
         call check(error, sm("\`a\{2\}*\'", "a") == 0)
@@ -374,11 +390,14 @@ contains
                                                    "x*\(=+\|h\)+", "x*\(=+?\|h\)+", "x*\(=+?\|h\)+?"]
         type(status_type) :: st
         integer :: i
+
         call enter(repeat("x", 1000000)//"=", h)
+
         do i = 1, size(res)
             call check(error, looking_at(trim(res(i)), st), trim(res(i))//" "//format_error(st))
             if (allocated(error)) exit
         end do
+
         call leave(h)
         if (allocated(error)) return
         ! Regression check for overly optimistic optimization.
@@ -396,6 +415,7 @@ contains
     subroutine test_zero_width(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: nl = achar(10)
+
         ! Postfix operators after ^ and \` become literals, for historical
         ! compatibility.  Only the first character of a lazy operator (like
         ! *?) becomes a literal.
@@ -445,11 +465,13 @@ contains
         call t("\=*b", "*b", 2)
         call t("a\=*b", "a*b", 0)
         call t("a\=*b", "ab", 1)
+
     contains
 
         subroutine t(re, str, want)
             character(len=*), intent(in) :: re, str
             integer, intent(in) :: want
+
             if (allocated(error)) return
             call check(error, sm(re, str) == want, re//" on "//str)
         end subroutine t
@@ -458,6 +480,7 @@ contains
     !> Regression test for bug#65726, where this crashed Emacs.
     subroutine test_mutual_exclusive(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, sm("a*\(?:c\|b*\)*", "a") == 1)
     end subroutine test_mutual_exclusive
 
@@ -470,6 +493,7 @@ contains
         character(len=:), allocatable :: data
         integer :: u, ios, n, i, start
         integer(int64) :: fsize
+
         open (newunit=u, file=file, access="stream", form="unformatted", status="old", action="read", iostat=ios)
         call check(error, ios == 0, "can't open "//file)
         if (allocated(error)) return
@@ -483,6 +507,7 @@ contains
         allocate (lines(n), lengths(n))
         start = 1
         n = 0
+
         do i = 1, len(data)
             if (data(i:i) == achar(10)) then
                 n = n + 1
@@ -505,10 +530,12 @@ contains
         type(status_type) :: st
         integer(int64) :: i
         character(len=40) :: buf
+
         msg = ""
         ! [.x.] and [=x=] forms are not supported by Emacs.
         if (index(pattern, "[.") > 0 .or. index(pattern, "[=") > 0) return
         i = string_match(pattern, string, st)
+
         if (st%code == FM_INVALID_REGEXP) then
             if (want_start /= -2) msg = "Expected match or no match; but pattern failure"
         else if (i == 0) then
@@ -541,6 +568,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: line, msg, failures, fields(:)
         integer :: n, raw_start, raw_end, want_start, want_end, nf, tested
+
         call read_lines("test/regex-resources/PTESTS", lines, lengths, error)
         if (allocated(error)) return
         call enter("", h)
@@ -548,6 +576,7 @@ contains
         case_fold_search = .false.
         failures = ""
         tested = 0
+
         do n = 1, size(lines)
             line = lines(n) (1:lengths(n))
             if (len(line) == 0) cycle
@@ -556,6 +585,7 @@ contains
             tested = tested + 1
             read (fields(1), *) raw_start
             read (fields(2), *) raw_end
+
             ! 0 is a special case, treated as start 0 (our 1).
             select case (raw_start)
             case (-2, -1)
@@ -565,18 +595,22 @@ contains
             case default
                 want_start = raw_start
             end select
+
             want_end = raw_end + 1
             msg = try_match(trim(fields(3)), trim(fields(4)), want_start, want_end)
+
             if (len(msg) > 0) then
                 write (msg, "(a,i0,a)") msg//" (line ", n, ")"
                 failures = failures//" "//trim(fields(3))//": "//msg//";"
             end if
         end do
+
         call leave(h)
         call free_syntax_table(table, st)
         call check(error, tested > 100, "too few tests read")
         if (allocated(error)) return
         call check(error, len(failures) == 0, failures)
+
     contains
 
         subroutine split(str, sp, parts, np)
@@ -584,16 +618,20 @@ contains
             character(len=:), allocatable, intent(out) :: parts(:)
             integer, intent(out) :: np
             integer :: pos, nxt
+
             allocate (character(len=len(str)) :: parts(8))
             np = 0
             pos = 1
+
             do
                 nxt = index(str(pos:), sp)
                 np = np + 1
+
                 if (nxt == 0) then
                     parts(np) = str(pos:)
                     exit
                 end if
+
                 parts(np) = str(pos:pos + nxt - 2)
                 pos = pos + nxt - 1 + len(sp)
             end do
@@ -615,6 +653,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: line, msg, failures, pattern
         integer :: n, first, last, want, tested
+
         call read_lines("test/regex-resources/TESTS", lines, lengths, error)
         if (allocated(error)) return
         call enter("", h)
@@ -622,6 +661,7 @@ contains
         case_fold_search = .false.
         failures = ""
         tested = 0
+
         do n = 1, size(lines)
             line = lines(n) (1:lengths(n))
             if (len(line) == 0) cycle
@@ -631,6 +671,7 @@ contains
             last = index(line, ":", back=.true.)
             read (line(1:first - 1), *) want
             pattern = unextend(line(first + 1:last - 1))
+
             select case (want)
             case (2)
                 msg = try_match(pattern, line(last + 1:), -2, -1)
@@ -639,11 +680,13 @@ contains
             case default
                 msg = try_match(pattern, line(last + 1:), 0, -1)
             end select
+
             if (len(msg) > 0) then
                 write (msg, "(a,i0,a)") msg//" (line ", n, ")"
                 failures = failures//" "//pattern//": "//msg//";"
             end if
         end do
+
         call leave(h)
         call free_syntax_table(table, st)
         call check(error, tested > 100, "too few tests read")
@@ -658,8 +701,10 @@ contains
         character(len=*), intent(in) :: pattern
         character(len=:), allocatable :: out
         integer :: i, nback
+
         out = ""
         nback = 0
+
         do i = 1, len(pattern)
             if (index("()|{}", pattern(i:i)) > 0) then
                 if (mod(nback, 2) == 1) then
@@ -673,6 +718,7 @@ contains
             else
                 out = out//pattern(i:i)
             end if
+
             if (pattern(i:i) == "\") then
                 nback = nback + 1
             else
@@ -686,6 +732,7 @@ contains
     function underscore_word() result(table)
         type(handle_type) :: table
         type(status_type) :: st
+
         call make_syntax_table(table, st)
         call set_syntax_table(table, st)
         call modify_syntax_entry(iachar("_"), iachar("_"), "w", st)
@@ -700,11 +747,13 @@ contains
         logical, intent(in) :: ispattern
         character(len=:), allocatable :: out
         type(status_type) :: st
+
         call erase_buffer(st)
         call insert(str, st)
         call replace_escaped("t", achar(9))
         call replace_escaped("n", achar(10))
         call replace_escaped("r", achar(13))
+
         if (.not. ispattern) then
             call replace_escaped("\\", "\")
             call replace_escaped("^", "^")
@@ -712,7 +761,9 @@ contains
             call replace_escaped("|", "|")
             call replace_escaped("}", "}")
         end if
+
         out = buffer_string()
+
     contains
 
         !> Replace each odd-escaped X (a regexp) by its group 1 followed by
@@ -721,7 +772,9 @@ contains
             character(len=*), intent(in) :: x, to
             character(len=:), allocatable :: group
             integer(int64) :: pos
+
             call goto_char(point_min())
+
             do
                 call re_search_forward("\("//re_even_escapes//"\)\\"//x, pos, st, noerror=SEARCH_NOERROR)
                 if (pos == 0) exit
@@ -738,6 +791,7 @@ contains
         character(len=*), intent(in) :: str
         integer(int64), intent(in) :: b, e
         character(len=:), allocatable :: sub
+
         sub = str(string_index_to_offset(str, b) + 1:string_index_to_offset(str, e))
     end function substring
 
@@ -756,6 +810,7 @@ contains
         integer(int64) :: pos, positions(40)
         integer :: n, npos, ios, k, tested
         logical :: basic, icase, notbol, noteol, compile_fail
+
         call read_lines("test/regex-resources/BOOST.tests", lines, lengths, error)
         if (allocated(error)) return
         call enter("", h)
@@ -767,10 +822,12 @@ contains
         notbol = .false.
         noteol = .false.
         tested = 0
+
         do n = 1, size(lines)
             line = lines(n) (1:lengths(n))
             if (len(line) == 0) cycle
             if (line(1:1) == ";" .or. any(whitelist == n)) cycle
+
             if (line(1:1) == "-") then
                 basic = index(line, "REG_BASIC") > 0
                 icase = index(line, "REG_ICASE") > 0
@@ -778,6 +835,7 @@ contains
                 noteol = index(line, "REG_NOTEOL") > 0
                 cycle
             end if
+
             ! Parse the line with regexps, in a buffer of its own.
             call set_buffer(parse_buf, st)
             call erase_buffer(st)
@@ -798,6 +856,7 @@ contains
             call set_buffer(h, st)
             compile_fail = string == "!"
             npos = 0
+
             if (.not. compile_fail) then
                 do k = 1, size(positions)
                     read (positions_raw, *, iostat=ios) positions(1:k)
@@ -805,17 +864,20 @@ contains
                     npos = k
                 end do
             end if
+
             if (.not. basic) pattern = unextend(pattern)
             ! Skipping test: notbol/noteol not supported.
             if (notbol .or. noteol) cycle
             tested = tested + 1
             case_fold_search = icase
             msg = compare(pattern, string, compile_fail, positions(1:npos))
+
             if (len(msg) > 0) then
                 write (msg, "(a,i0,a)") msg//" (line ", n, ")"
                 failures = failures//" "//pattern//": "//msg//";"
             end if
         end do
+
         call kill_buffer(parse_buf, st)
         call leave(h)
         call free_syntax_table(table, st)
@@ -823,6 +885,7 @@ contains
         call check(error, tested > 100, "too few tests read")
         if (allocated(error)) return
         call check(error, len(failures) == 0, failures)
+
     contains
 
         !> Match and compare the groups with the 0-based POS (start, end
@@ -838,31 +901,38 @@ contains
             integer :: g
             logical :: want_no_match
             character(len=80) :: buf
+
             m = ""
             ! [.x.] and [=x=] forms are not supported by Emacs.
             if (index(re, "[.") > 0 .or. index(re, "[=") > 0) return
             want_no_match = .false.
             if (size(pos_ref) > 0) want_no_match = pos_ref(1) < 0
             i = string_match(re, str, s)
+
             if (s%code == FM_INVALID_REGEXP) then
                 if (.not. want_fail) m = "Expected match; but pattern failure"
                 return
             end if
+
             if (want_fail) then
                 m = "Expected pattern failure; but match or no match"
                 return
             end if
+
             if (i == 0) then
                 if (.not. want_no_match) m = "Expected match; but no match"
                 return
             end if
+
             if (want_no_match) then
                 m = "Expected no match; but match"
                 return
             end if
+
             do g = 0, size(pos_ref)/2 - 1
                 b = mb(g)
                 e = me(g)
+
                 if (pos_ref(2*g + 1) < 0) then
                     if (b /= 0) then
                         write (buf, "(a,i0)") "group unexpectedly matched ", g
@@ -894,6 +964,7 @@ contains
         integer :: n, idx, colon, last, tested, g
         integer(int64) :: i
         character(len=20) :: buf
+
         call read_lines("test/regex-resources/PCRE.tests", lines, lengths, error)
         if (allocated(error)) return
         call enter("", h)
@@ -904,11 +975,13 @@ contains
         search_failed = .false.
         compile_failed = .false.
         tested = 0
+
         do n = 1, size(lines)
             line = lines(n) (1:lengths(n))
             if (len(line) == 0) cycle
             if (line(1:1) == "#" .or. any(whitelist == n)) cycle
             last = index(line, "/", back=.true.)
+
             if (line(1:1) == "/" .and. last > 1) then
                 ! A pattern.
                 icase = line(last + 1:) == "i"
@@ -923,11 +996,13 @@ contains
                 compile_failed = st%code == FM_INVALID_REGEXP
                 search_failed = .not. compile_failed .and. i == 0
                 observed = "<unset>"
+
                 if (.not. (compile_failed .or. search_failed)) then
                     do g = 0, 20
                         if (mb(g) > 0) observed(g) = substring(string, mb(g), me(g))
                     end do
                 end if
+
                 tested = tested + 1
             else if (index(line, "No match") == 1) then
                 if (.not. (compile_failed .or. search_failed)) then
@@ -936,6 +1011,7 @@ contains
                 end if
             else if (verification_line(line, idx, colon)) then
                 match_ref = line(colon + 2:)
+
                 if (.not. (compile_failed .or. search_failed) .and. idx <= 20) then
                     if (match_ref /= trim(observed(idx))) then
                         write (buf, "(i0)") n
@@ -948,12 +1024,14 @@ contains
                 have_pattern = .false.
             end if
         end do
+
         case_fold_search = .true.
         call leave(h)
         call free_syntax_table(table, st)
         call check(error, tested > 100, "too few tests read")
         if (allocated(error)) return
         call check(error, len(failures) == 0, failures)
+
     contains
 
         !> Whether LINE is " *N: text"; IDX is N and COLON where the colon is.
@@ -961,13 +1039,16 @@ contains
             character(len=*), intent(in) :: ln
             integer, intent(out) :: num, col
             integer :: k, ios
+
             verification_line = .false.
             num = -1
             col = index(ln, ": ")
             if (col < 2) return
+
             do k = 1, col - 1
                 if (ln(k:k) /= " " .and. (ln(k:k) < "0" .or. ln(k:k) > "9")) return
             end do
+
             if (len_trim(ln(1:col - 1)) == 0) return
             if (index(adjustl(ln(1:col - 1)), " ") <= len_trim(adjustl(ln(1:col - 1)))) return
             read (ln(1:col - 1), *, iostat=ios) num
@@ -978,6 +1059,7 @@ contains
     !> Syntax classes, word and symbol boundaries.
     subroutine test_syntax(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, sm("\w+", "  foo-bar") == 3 .and. me(0) == 6, "\w")
         if (allocated(error)) return
         call check(error, sm("\W+", "foo-+bar") == 4 .and. me(0) == 6, "\W")
@@ -1005,6 +1087,7 @@ contains
     !> Groups, shy and numbered groups, alternatives and back references.
     subroutine test_groups(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, sm("\(a\)\(b\)?\(c\)", "xac") == 2, "optional group")
         if (allocated(error)) return
         call check(error, mb(1) == 2 .and. me(1) == 3 .and. mb(2) == 0 .and. me(2) == 0 .and. mb(3) == 3, &
@@ -1040,6 +1123,7 @@ contains
     !> Intervals.
     subroutine test_intervals(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, sm("a\{2,3\}", "aaaa") == 1 .and. me(0) == 4, "{2,3}")
         if (allocated(error)) return
         call check(error, sm("a\{2\}", "a aa") == 3 .and. me(0) == 5, "{2}")
@@ -1058,6 +1142,7 @@ contains
     !> Categories `l' and `|' as characters.el gives them.
     subroutine test_categories(error)
         type(error_type), allocatable, intent(out) :: error
+
         ! U+0250 (Latin Extended-B tail), U+24B6 (circled A), U+FF21
         ! (fullwidth A), U+2C60, U+A722, U+1DF00 are Latin.
         call check(error, sm("\cl", "ɐ") == 1 .and. sm("\cl", "Ⓐ") == 1 .and. sm("\cl", "Ａ") == 1 .and. &
@@ -1076,6 +1161,7 @@ contains
     !> Errors.
     subroutine test_invalid(error)
         type(error_type), allocatable, intent(out) :: error
+
         call bad("\(", "Unmatched ( or \(")
         call bad("\)", "Unmatched ) or \)")
         call bad("[a", "Unmatched [ or [^")
@@ -1087,12 +1173,14 @@ contains
         ! Class names must match exactly (re_wctype_parse compares lengths).
         call bad("[[:word :]]", "Invalid character class name")
         call bad("[[:alpha  :]]", "Invalid character class name")
+
     contains
 
         subroutine bad(re, msg)
             character(len=*), intent(in) :: re, msg
             type(status_type) :: st
             integer(int64) :: i
+
             if (allocated(error)) return
             i = string_match(re, "", st)
             call check(error, st%code == FM_INVALID_REGEXP .and. format_error(st) == "Invalid regexp: """//msg//"""", &
@@ -1105,7 +1193,9 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: pos
+
         call enter("foo1 bar22 baz333", h)
+
         body: block
             call re_search_forward("[a-z]+\([0-9]+\)", pos, st)
             call check(error, st%ok() .and. pos == 5 .and. point() == 5 .and. mb(1) == 4, "first")
@@ -1136,6 +1226,7 @@ contains
             call re_search_forward("bar2", pos, st)
             call check(error, st%ok() .and. pos == 10, "trivial")
         end block body
+
         call leave(h)
     end subroutine test_re_search
 
@@ -1143,7 +1234,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call enter("hello world"//achar(10)//"next", h)
+
         body: block
             call check(error, looking_at("hel+o", st) .and. me(0) == 6, "at start")
             if (allocated(error)) exit body
@@ -1166,12 +1259,14 @@ contains
             if (allocated(error)) exit body
             call check(error, looking_at("h\|hello", st) .and. me(0) == 2, "first alternative")
         end block body
+
         call leave(h)
     end subroutine test_looking_at
 
     subroutine test_match_data(error)
         type(error_type), allocatable, intent(out) :: error
         integer(int64), allocatable :: data(:)
+
         call check(error, sm("\(a\)\(x\)?\(b\)", "ab") == 1)
         if (allocated(error)) return
         data = match_data()
@@ -1186,6 +1281,7 @@ contains
 
     subroutine test_regexp_quote(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, regexp_quote("a.b*c[d]^$\?+") == "a\.b\*c\[d]\^\$\\\?\+")
         if (allocated(error)) return
         call check(error, sm(regexp_quote("1+1=2?"), "x 1+1=2?") == 3)
@@ -1196,7 +1292,9 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: pos
+
         call enter("foo"//achar(9)//"  bar", h)
+
         body: block
             search_spaces_regexp = "[ "//achar(9)//achar(10)//"]+"
             call re_search_forward("foo bar", pos, st)
@@ -1210,12 +1308,14 @@ contains
             call re_search_forward("foo bar", pos, st, noerror=SEARCH_NOERROR)
             call check(error, pos == 0, "strict whitespace")
         end block body
+
         call leave(h)
     end subroutine test_spaces_regexp
 
     subroutine test_posix(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call check(error, posix_string_match("a\|ab", "ab", st) == 1 .and. me(0) == 3, "longest")
         if (allocated(error)) return
         call check(error, sm("a\|ab", "ab") == 1 .and. me(0) == 2, "first")
@@ -1224,6 +1324,7 @@ contains
         if (allocated(error)) return
         call check(error, string_match("b", "abcb", st, start=-1_int64) == 4, "negative start")
     end subroutine test_posix
+
     subroutine test_match_string(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
@@ -1231,6 +1332,7 @@ contains
         integer(int64) :: pos
         logical :: matched
         character(len=:), allocatable :: s
+
         call check(error, sm("\(é+\)\(x\)?\(z\)", "aéézb") == 2)
         if (allocated(error)) return
         call check(error, match_string(1, "aéézb") == "éé" .and. match_string(0, "aéézb") == "ééz", "string")
@@ -1241,6 +1343,7 @@ contains
         call check(error, string_match_p("z", "aéézb", st) == 4 .and. mb(1) == 2, "string-match-p keeps data")
         if (allocated(error)) return
         call enter("key = value", h)
+
         body: block
             call re_search_forward("\(\w+\) = \(\w+\)", pos, st)
             call check(error, match_string(1) == "key" .and. match_string(2) == "value", "buffer")
@@ -1248,6 +1351,7 @@ contains
             call goto_char(1_int64)
             call check(error, looking_at_p("key", st) .and. mb(1) == 1, "looking-at-p keeps data")
         end block body
+
         call leave(h)
     end subroutine test_match_string
 
@@ -1255,7 +1359,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call enter("aaa bbb", h)
+
         body: block
             call goto_char(4_int64)
             call check(error, looking_back("a+", st) .and. point() == 4, "plain")
@@ -1268,6 +1374,7 @@ contains
             if (allocated(error)) exit body
             call check(error,.not. looking_back("a+", st, limit=4_int64), "limit")
         end block body
+
         call leave(h)
     end subroutine test_looking_back
 end module test_regex_emacs_fm

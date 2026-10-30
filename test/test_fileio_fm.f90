@@ -56,6 +56,7 @@ contains
 
     subroutine collect_fileio_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("directory-file-name", test_directory_file_name), &
                     new_unittest("file-name-as-directory", test_file_name_as_directory), &
@@ -84,10 +85,13 @@ contains
         type(handle_type), intent(out) :: buf
         type(status_type) :: st
         integer :: i
+
         call new_buffer(buf)
+
         do i = 1, 6
             call delete_file_internal(testdir//"/f"//achar(iachar("0") + i), st)
         end do
+
         call delete_file_internal(testdir//"/missing", st)
         call delete_directory_internal(testdir//"/sub", st)
         call make_directory_internal(testdir, st)
@@ -97,6 +101,7 @@ contains
     subroutine new_buffer(buf)
         type(handle_type), intent(out) :: buf
         type(status_type) :: st
+
         call init_fileio()
         call get_buffer_create("fileio-test", buf, st)
         call set_buffer(buf, st)
@@ -106,12 +111,14 @@ contains
     subroutine teardown(buf)
         type(handle_type), intent(in) :: buf
         type(status_type) :: st
+
         call kill_buffer(buf, st)
     end subroutine teardown
 
     ! fileio-tests--directory-file-name
     subroutine test_directory_file_name(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, directory_file_name("/") == "/")
         if (allocated(error)) return
         call check(error, directory_file_name("//") == "//" .and. len(directory_file_name("//")) == 2)
@@ -130,6 +137,7 @@ contains
     ! fileio-tests--file-name-as-directory
     subroutine test_file_name_as_directory(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, file_name_as_directory("") == "./")
         if (allocated(error)) return
         call check(error, file_name_as_directory("/") == "/" .and. len(file_name_as_directory("/")) == 1)
@@ -149,6 +157,7 @@ contains
 
     subroutine test_file_name_parts(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, file_name_directory("/usr/lib/libc.so") == "/usr/lib/")
         if (allocated(error)) return
         call check(error, len(file_name_directory("libc.so")) == 0, "no directory: nil")
@@ -171,22 +180,28 @@ contains
         character(len=:), allocatable :: me
         integer :: i
         logical :: found
+
         call passwd_name_of_user(me, found)
+
         do i = 1, size(suffixes)
             if (len_trim(suffixes(i)) > 0) then
                 call check(error, file_name_absolute_p(trim(suffixes(i))), trim(suffixes(i)))
                 if (allocated(error)) return
             end if
+
             call check(error, file_name_absolute_p("~"//trim(suffixes(i))), "~"//trim(suffixes(i)))
             if (allocated(error)) return
+
             if (found) then
                 call check(error, file_name_absolute_p("~"//me//trim(suffixes(i))), "~"//me//trim(suffixes(i)))
                 if (allocated(error)) return
             end if
+
             call check(error,.not. file_name_absolute_p("~nosuchuser"//trim(suffixes(i))), &
                        "~nosuchuser"//trim(suffixes(i)))
             if (allocated(error)) return
         end do
+
         call check(error,.not. file_name_absolute_p("foo") .and. .not. file_name_absolute_p(""))
     end subroutine test_file_name_absolute_p
 
@@ -196,6 +211,7 @@ contains
         character(len=*), intent(in) :: name, dir, want
         character(len=:), allocatable :: got
         type(status_type) :: st
+
         call expand_file_name(name, got, st, dir)
         call check(error, st%ok(), "expand "//name)
         if (allocated(error)) return
@@ -205,6 +221,7 @@ contains
 
     subroutine test_expand_file_name(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check_expand(error, "foo", "/x/y/", "/x/y/foo")
         if (allocated(error)) return
         call check_expand(error, "foo", "/x/y", "/x/y/foo")
@@ -244,6 +261,7 @@ contains
     subroutine relative_default(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
+
         call new_buffer(buf)
         buffers(cur)%directory = "/b/"
         call check_expand(error, "foo", "rel", "/b/rel/foo")
@@ -255,6 +273,7 @@ contains
         character(len=:), allocatable :: home
         logical :: had_home
         integer(int32) :: e
+
         call save_home(home, had_home)
         e = sys_setenv("HOME", "/home/someone")
         call tilde_cases(error)
@@ -265,12 +284,14 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: me, home
         logical :: found, found_home
+
         call passwd_name_of_user(me, found)
         call passwd_home_of_user(home, found_home)
         call check_expand(error, "~", "/x/", "/home/someone")
         if (allocated(error)) return
         call check_expand(error, "~/a/../b", "/x/", "/home/someone/b")
         if (allocated(error)) return
+
         ! ~USER takes USER's home from the passwd database, not $HOME.
         ! A home of "/" gives "//x", a leading "//" being kept (as
         ! upstream; a build sandbox's user may have that home).
@@ -280,8 +301,10 @@ contains
             else
                 call check_expand(error, "~"//me//"/x", "/x/", file_name_as_directory(home)//"x")
             end if
+
             if (allocated(error)) return
         end if
+
         ! An unknown user leaves "~nosuchuser" as an ordinary name.
         call check_expand(error, "~nosuchuser/x", "/d/", "/d/~nosuchuser/x")
         if (allocated(error)) return
@@ -292,6 +315,7 @@ contains
         character(len=:), allocatable, intent(out) :: home
         logical, intent(out) :: had_home
         integer :: length, stat
+
         call get_environment_variable("HOME", length=length, status=stat)
         had_home = stat == 0
         allocate (character(len=max(length, 0)) :: home)
@@ -302,6 +326,7 @@ contains
         character(len=*), intent(in) :: home
         logical, intent(in) :: had_home
         integer(int32) :: e
+
         if (had_home) then
             e = sys_setenv("HOME", home)
         else
@@ -316,6 +341,7 @@ contains
         type(status_type) :: st
         integer(int32) :: e
         logical :: had_home
+
         call init_fileio()
         call save_home(home, had_home)
         e = sys_setenv("HOME", "a/b/c")
@@ -331,6 +357,7 @@ contains
         type(handle_type) :: buf
         character(len=:), allocatable :: name
         type(status_type) :: st
+
         call setup(buf)
         buffers(cur)%directory = "some/relative/name"
         call expand_file_name("foo", name, st)
@@ -348,6 +375,7 @@ contains
         type(handle_type) :: buf
         character(len=:), allocatable :: name
         type(status_type) :: st
+
         call expand_file_name("file"//achar(0)//".txt", name, st)
         call check(error, st%code == FM_WRONG_TYPE_ARGUMENT)
         if (allocated(error)) return
@@ -368,6 +396,7 @@ contains
         character(len=:), allocatable :: msg
         integer(int64) :: inserted
         logical :: modified
+
         call setup(buf)
         call insert("héllo"//new_line("a")//"wörld"//new_line("a"), st)
         call write_region(testdir//"/f1", .true., st, message=msg)
@@ -411,6 +440,7 @@ contains
         character(len=:), allocatable :: bytes, back
         integer(int64) :: inserted
         integer :: u, ios
+
         call setup(buf)
         bytes = "a"//achar(255)//achar(195)//achar(195)//"b"//achar(226)//achar(130)//achar(172)
         open (newunit=u, file=testdir//"/f3", access="stream", form="unformatted", status="replace", &
@@ -441,6 +471,7 @@ contains
         type(handle_type) :: buf
         type(status_type) :: st
         integer(int64) :: inserted
+
         call setup(buf)
         call insert_file_contents(testdir//"/missing", .true., inserted, st)
         call check(error, st%code == FM_FILE_MISSING .and. condition_matches(st%code, FM_FILE_ERROR), format_error(st))
@@ -465,6 +496,7 @@ contains
         type(handle_type) :: buf
         type(status_type) :: st
         integer(int64) :: inserted
+
         call setup(buf)
         call insert_file_contents(testdir, .false., inserted, st)
         call check(error, st%code == FM_FILE_ERROR, format_error(st))
@@ -478,6 +510,7 @@ contains
         type(handle_type) :: buf
         type(status_type) :: st
         integer(int64) :: inserted
+
         call setup(buf)
         call insert("x", st)
         call insert_file_contents(testdir//"/f1", .true., inserted, st)
@@ -490,6 +523,7 @@ contains
         type(handle_type) :: buf
         type(status_type) :: st
         integer :: u, ios
+
         call setup(buf)
         call insert("one", st)
         call write_region(testdir//"/f5", .true., st)
@@ -509,6 +543,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
         type(status_type) :: st
+
         call setup(buf)
         call insert("p", st)
         call write_region(testdir//"/f6", .false., st)
@@ -568,6 +603,7 @@ contains
         type(handle_type) :: buf
         type(status_type) :: st
         integer(int64) :: inserted
+
         call setup(buf)
         call insert("data", st)
         call write_region(testdir//"/f1", .false., st)
@@ -594,6 +630,7 @@ contains
         character(len=:), allocatable :: me
         integer(int32) :: e
         logical :: found
+
         call passwd_name_of_user(me, found)
         e = sys_setenv("FM_TEST_DIR", "/opt/x")
         e = sys_unsetenv("FM_TEST_UNSET")
@@ -601,10 +638,12 @@ contains
         if (allocated(error)) return
         call check(error, substitute_in_file_name("/a/b/~/x") == "~/x")
         if (allocated(error)) return
+
         if (found) then
             call check(error, substitute_in_file_name("/a/b/~"//me//"/x") == "~"//me//"/x")
             if (allocated(error)) return
         end if
+
         call check(error, substitute_in_file_name("/a/~nosuchuser/x") == "/a/~nosuchuser/x")
         if (allocated(error)) return
         call check(error, substitute_in_file_name("$FM_TEST_DIR/y") == "/opt/x/y")
@@ -627,6 +666,7 @@ contains
         integer(int64), intent(in) :: beg, end, old_len
         type(status_type), intent(out) :: status
         character(len=64) :: buf
+
         status = status_type()
         write (buf, "(a, i0, a, i0, a, i0)") " A", beg, ",", end, ",", old_len
         trace = trace//trim(buf)
@@ -639,6 +679,7 @@ contains
         type(handle_type) :: buf
         type(status_type) :: st
         integer(int64) :: inserted
+
         call setup(buf)
         call insert("abc", st)
         call write_region(testdir//"/f5", .false., st)

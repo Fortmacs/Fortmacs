@@ -367,6 +367,7 @@ contains
         integer(int64), intent(out) :: matches
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start, end
+
         call replace_in_region(string, replacement, .false., matches, status, start, end)
     end subroutine replace_string_in_region
 
@@ -392,6 +393,7 @@ contains
         integer(int64), intent(out) :: matches
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start, end
+
         call replace_in_region(regexp, replacement, .true., matches, status, start, end)
     end subroutine replace_regexp_in_region
 
@@ -411,52 +413,67 @@ contains
         integer(int64) :: s, e, found, pos
         logical :: narrowed, saved_fold
         type(status_type) :: st
+
         matches = 0
         status = status_type()
         s = point()
+
         if (present(start)) then
             s = start
+
             if (s < point_min()) then
                 call set_error(status, FM_GENERIC_ERROR, "Start before start of buffer")
                 return
             end if
         end if
+
         e = point_max()
+
         if (present(end)) then
             e = end
+
             if (e > point_max()) then
                 call set_error(status, FM_GENERIC_ERROR, "End after end of buffer")
                 return
             end if
         end if
+
         ! (save-excursion (goto-char start) (save-restriction ...))
         call copy_marker_at(point(), opoint, .false., st)
         narrowed = buffers(cur)%begv /= 1 .or. buffers(cur)%zv /= buffers(cur)%text%z
+
         if (narrowed) then
             call copy_marker_at(buffers(cur)%begv, obeg, .false., st)
             call copy_marker_at(buffers(cur)%zv, oend, .true., st)
         end if
+
         call goto_char(s)
         call narrow_to_region(s, e, st)
         saved_fold = case_fold_search%value
         case_fold_search%value = .false.
+
         do
             if (regexp_flag) then
                 call re_search_forward(pattern, found, status, noerror=SEARCH_NOERROR)
             else
                 call search_forward(pattern, found, status, noerror=SEARCH_NOERROR)
             end if
+
             if (.not. status%ok() .or. found == 0) exit
+
             if (regexp_flag) then
                 call replace_match(replacement, status, fixedcase=.true.)
             else
                 call replace_match(replacement, status, fixedcase=.true., literal=.true.)
             end if
+
             if (.not. status%ok()) exit
             matches = matches + 1
         end do
+
         case_fold_search%value = saved_fold
         call widen()
+
         if (narrowed) then
             call marker_position(obeg, s, st)
             call marker_position(oend, e, st)
@@ -464,6 +481,7 @@ contains
             call free_marker(obeg, st)
             call free_marker(oend, st)
         end if
+
         call marker_position(opoint, pos, st)
         call goto_char(pos)
         call free_marker(opoint, st)
@@ -485,7 +503,9 @@ contains
         type(invisibility_entry_type) :: e
         type(invisibility_entry_type), allocatable :: grown(:)
         integer :: n
+
         if (cur == 0) return
+
         associate (b => buffers(cur))
             if (b%invisibility_spec_t) then
                 b%invisibility_spec_t = .false.
@@ -493,12 +513,15 @@ contains
                 allocate (b%invisibility_spec(1))
                 b%invisibility_spec(1)%atom = t_value()
             end if
+
             if (.not. allocated(b%invisibility_spec)) allocate (b%invisibility_spec(0))
             e%atom = sym(element)
+
             if (present(ellipsis)) then
                 e%cons = .true.
                 e%ellipsis = ellipsis
             end if
+
             n = size(b%invisibility_spec)
             allocate (grown(n + 1))
             grown(1) = e
@@ -519,7 +542,9 @@ contains
         logical, intent(in), optional :: ellipsis
         logical, allocatable :: keep(:)
         integer :: k
+
         if (cur == 0) return
+
         associate (b => buffers(cur))
             if (b%invisibility_spec_t .or. .not. allocated(b%invisibility_spec)) then
                 b%invisibility_spec_t = .false.
@@ -528,17 +553,22 @@ contains
                 b%invisibility_spec(1)%atom = t_value()
                 return
             end if
+
             ! (delete ELEMENT ...): `equal' elements.
             allocate (keep(size(b%invisibility_spec)))
+
             do k = 1, size(b%invisibility_spec)
                 keep(k) = .not. same_entry(b%invisibility_spec(k))
             end do
+
             b%invisibility_spec = pack(b%invisibility_spec, keep)
         end associate
+
     contains
 
         logical function same_entry(e)
             type(invisibility_entry_type), intent(in) :: e
+
             same_entry = value_eq(e%atom, sym(element)) .and. (e%cons .eqv. present(ellipsis))
             if (same_entry .and. present(ellipsis)) same_entry = e%ellipsis .eqv. ellipsis
         end function same_entry
@@ -554,15 +584,19 @@ contains
         character(len=*), intent(in) :: argument
         character(len=:), allocatable :: quoted
         integer :: i, b
+
         if (len(argument) == 0) then
             quoted = "''"
             return
         end if
+
         ! Quote everything except POSIX filename characters.
         ! This should be safe enough even for really weird shells.
         quoted = ""
+
         do i = 1, len(argument)
             b = ichar(argument(i:i), kind=int32)
+
             if (index("-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_./", argument(i:i)) > 0 .or. &
                 b == 10) then
                 if (b == 10) then
@@ -586,6 +620,7 @@ contains
     subroutine silent_modifications_begin(s)
         type(silent_modifications_type), intent(out) :: s
         type(status_type) :: st
+
         if (cur == 0) return
         call buffer_modified_p(current_buffer(), s%modified, st)
         s%undo_enabled = buffers(cur)%undo_enabled
@@ -601,6 +636,7 @@ contains
     subroutine silent_modifications_end(s)
         type(silent_modifications_type), intent(in) :: s
         type(status_type) :: st
+
         if (cur == 0) return
         inhibit_modification_hooks = s%inhibit_modification_hooks
         call set(sym("inhibit_read_only"), s%inhibit_read_only, st)
@@ -616,6 +652,7 @@ contains
         type(value_type), intent(out) :: key
         type(status_type), intent(out) :: status
         logical :: have
+
         call message_nolog(prompt)
         cursor_in_echo_area = .true.
         call read_event(key, have, status)
@@ -637,8 +674,10 @@ contains
         type(value_type), allocatable :: seq(:)
         type(status_type) :: st
         integer :: k
+
         if (keymap_live_p(query_replace_map)) return
         call make_sparse_keymap(query_replace_map)
+
         do k = 1, size(QRM_KEYS)
             call key_parse(trim(QRM_KEYS(k)), seq, st)
             if (st%ok()) call define_key(query_replace_map, seq, sym(trim(QRM_ANSWERS(k))), st)
@@ -653,11 +692,13 @@ contains
         type(value_type) :: def
         type(status_type) :: st
         character(len=:), allocatable :: name
+
         answer = ANSWER_NONE
         call init_query_replace_map()
         call lookup_key(make_keymap_ref(query_replace_map), [key], def, st, .true.)
         if (.not. st%ok() .or. .not. symbolp(def)) return
         name = symbols(xsymbol(def))%name
+
         select case (name)
         case ("act")
             answer = ANSWER_ACT
@@ -731,14 +772,17 @@ contains
         type(status_type) :: st
         logical :: all, limited
         integer :: limit, k, n
+
         if (present(added)) added = .false.
         if (present(status)) status = status_type()
         limited = .true.
         limit = history_length
+
         if (present(maxelt)) then
             limit = maxelt
         else
             call get(sym(history_var), sym("history_length"), prop, st)
+
             if (fixnump(prop)) then
                 limit = int(xfixnum(prop))
             else if (.not. nilp(prop)) then
@@ -746,25 +790,32 @@ contains
                 limited = .false.
             end if
         end if
+
         all = .false.
         if (present(keep_all)) all = keep_all
         call symbol_value(sym(history_var), history, st)
+
         if (.not. st%ok()) then
             if (present(status)) status = st
             return
         end if
+
         if (.not. listp(history)) return
         if (.not. all .and. len(newelt) == 0) return
+
         if (.not. all .and. list_length(history) > 0) then
             first = list_elt(history, 1_int64)
+
             if (stringp(first)) then
                 if (xstring(first) == newelt .and. len(xstring(first)) == len(newelt)) return
             end if
         end if
+
         call list_elements(history, elems)
         allocate (kept(size(elems) + 1))
         kept(1) = make_string(newelt)
         n = 1
+
         do k = 1, size(elems)
             if (history_delete_duplicates) then
                 ! (delete newelt history)
@@ -772,9 +823,11 @@ contains
                     if (xstring(elems(k)) == newelt .and. len(xstring(elems(k))) == len(newelt)) cycle
                 end if
             end if
+
             n = n + 1
             kept(n) = elems(k)
         end do
+
         if (limited) then
             if (limit <= 0) then
                 n = 0
@@ -782,6 +835,7 @@ contains
                 n = min(n, limit)
             end if
         end if
+
         call set(sym(history_var), make_list(kept(1:n)), st)
         if (present(added)) added = .true.
     end subroutine add_to_history
@@ -790,6 +844,7 @@ contains
     !> subr.el:undefined (no keyboard macro definition or mouse events).
     subroutine undefined(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call ding(status=status)
         if (.not. status%ok()) return
@@ -805,6 +860,7 @@ contains
         character(len=*), intent(in) :: name
         type(value_type) :: v
         type(status_type) :: st
+
         call symbol_value(sym(name), v, st)
         if (.not. st%ok()) call set(sym(name), nil(), st)
     end subroutine defvar_nil
@@ -823,6 +879,7 @@ contains
     subroutine global_set_key_value(key, command, status)
         type(value_type), intent(in) :: key(:), command
         type(status_type), intent(out) :: status
+
         call define_key(current_global_map(), key, command, status)
     end subroutine global_set_key_value
 
@@ -831,6 +888,7 @@ contains
         type(value_type), intent(in) :: key(:)
         character(len=*), intent(in) :: command
         type(status_type), intent(out) :: status
+
         call define_key(current_global_map(), key, sym(command), status)
     end subroutine global_set_key_command
 
@@ -853,12 +911,14 @@ contains
         character(len=:), allocatable :: text
         integer(int64) :: b, e
         type(status_type) :: status
+
         text = ""
         if (present(matched)) matched = .false.
         b = match_beginning(num, status)
         if (.not. status%ok() .or. b == 0) return
         e = match_end(num, status)
         if (present(matched)) matched = .true.
+
         if (present(string)) then
             text = string(string_index_to_offset(string, b) + 1:string_index_to_offset(string, e))
         else
@@ -880,6 +940,7 @@ contains
         character(len=*), intent(in), optional :: string
         logical, intent(out), optional :: matched
         character(len=:), allocatable :: text
+
         text = match_string(num, string, matched)
     end function match_string_no_properties
 
@@ -898,6 +959,7 @@ contains
         character(len=:), allocatable :: text, match
         integer(int64), allocatable :: saved(:)
         integer(int64) :: start
+
         text = ""
         match = match_string(0, string)
         ! save-match-data
@@ -923,6 +985,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start
         integer(int64) :: b, e, idx
+
         b = 0
         if (present(start)) b = string_index_to_offset(regexp, start)
         e = string_index_to_offset(regexp, pos)
@@ -941,6 +1004,7 @@ contains
         character(len=*), intent(in) :: regexp, string
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start
+
         idx = string_match(regexp, string, status, start, inhibit_modify=.true.)
     end function string_match_p
 
@@ -949,6 +1013,7 @@ contains
     logical function looking_at_p(regexp, status)
         character(len=*), intent(in) :: regexp
         type(status_type), intent(out) :: status
+
         looking_at_p = looking_at(regexp, status, inhibit_modify=.true.)
     end function looking_at_p
 
@@ -972,6 +1037,7 @@ contains
         logical, intent(in), optional :: greedy
         integer(int64) :: start, pos, saved_begv, saved_zv
         logical :: ignored
+
         start = point()
         call re_search_backward("\(?:"//regexp//"\)\=", pos, status, bound=limit, noerror=SEARCH_NOERROR)
         found = status%ok() .and. pos > 0
@@ -983,11 +1049,13 @@ contains
         saved_begv = point_min()
         saved_zv = point_max()
         call narrow_to_region(point_min(), start, status)
+
         do while (pos > point_min())
             call goto_char(pos - 1)
             if (.not. looking_at("\(?:"//regexp//"\)\'", status)) exit
             pos = pos - 1
         end do
+
         call goto_char(pos)
         ignored = looking_at("\(?:"//regexp//"\)\'", status)
         call widen()
@@ -998,6 +1066,7 @@ contains
     !> Seconds since some fixed time (float-time, for time differences).
     real(real64) function float_time()
         integer(int64) :: count, rate
+
         call system_clock(count, rate)
         float_time = real(count, real64)/real(rate, real64)
     end function float_time
@@ -1021,15 +1090,18 @@ contains
         character(len=*), intent(in) :: message_text
         integer(int64), intent(in), optional :: min_value, max_value
         type(status_type) :: st
+
         reporter%text = message_text
         if (string_match("[[:alnum:]]\'", message_text, st) > 0) reporter%text = message_text//"..."
         reporter%update_time = float_time()
+
         if (.not. (present(min_value) .and. present(max_value))) then
             ! A pulsing indicator.
             reporter%pulsing = .true.
             call progress_reporter_pulse(reporter)
             return
         end if
+
         reporter%next_value = real(min_value, real64)
         reporter%update_time = float_time()
         reporter%min_value = min_value
@@ -1052,6 +1124,7 @@ contains
         integer(int64) :: percentage
         logical :: enough_time_passed
         character(len=24) :: buf
+
         if (real(value, real64) < reporter%next_value) return
         ! See if enough time has passed since the last update.
         now = float_time()
@@ -1059,11 +1132,13 @@ contains
         ! Calculate time for the next update.
         if (enough_time_passed) reporter%update_time = reporter%update_time + reporter%min_time
         one_percent = real(reporter%max_value - reporter%min_value, real64)/100.0_real64
+
         if (reporter%max_value == reporter%min_value) then
             percentage = 0
         else
             percentage = int((value - reporter%min_value)/one_percent, int64)
         end if
+
         ! If we are not printing message because not enough time has
         ! passed, use 1 instead of MIN-CHANGE.
         if (enough_time_passed) then
@@ -1071,10 +1146,12 @@ contains
         else
             reporter%next_value = reporter%min_value + (percentage + 1)*one_percent
         end if
+
         reporter%next_value = min(reporter%next_value, real(reporter%max_value, real64))
         reporter%next_value = real(ceiling(reporter%next_value, int64), real64)
         ! Print message only if enough time has passed.
         if (.not. enough_time_passed) return
+
         if (percentage > 0) then
             write (buf, "(i0)") percentage
             call message(reporter%text//trim(buf)//"%")
@@ -1087,6 +1164,7 @@ contains
     !> Port of subr.el:progress-reporter-done.
     subroutine progress_reporter_done(reporter)
         type(progress_reporter_type), intent(in) :: reporter
+
         call message(reporter%text//"done")
     end subroutine progress_reporter_done
 
@@ -1098,6 +1176,7 @@ contains
         type(progress_reporter_type), intent(inout) :: reporter
         character(len=4), parameter :: pulse_characters = "-\|/"
         integer :: k
+
         if (.not. (reporter%update_time < float_time())) return
         reporter%update_time = reporter%update_time + reporter%min_time
         reporter%pulse_index = reporter%pulse_index + 1
@@ -1114,10 +1193,12 @@ contains
         integer(int64), intent(in) :: arg
         integer(int64) :: found, moved, n
         type(status_type) :: st
+
         if (arg >= 0) then
             call re_search_forward("\(\sw\|\s_\)+", found, st, noerror=SEARCH_MOVE, count=arg)
         else
             n = arg
+
             do while (n < 0)
                 call re_search_backward("\(\sw\|\s_\)+", found, st, noerror=SEARCH_MOVE)
                 if (found > 0) moved = skip_syntax_backward("w_")
@@ -1136,6 +1217,7 @@ contains
         integer(int64) :: orig, at, real_end, real_beg
         type(status_type) :: st
         logical :: ok
+
         found = .false.
         beg = 0
         end = 0
@@ -1143,25 +1225,31 @@ contains
         ! If the buffer is totally empty, give up.
         call goto_char(point_min())
         call re_search_forward("[^"//achar(9)//achar(10)//" ]", at, st, noerror=SEARCH_NOERROR)
+
         if (at == 0) then
             call goto_char(orig)
             return
         end if
+
         call goto_char(orig)
         ! Try moving forward, then back.
         call forward_symbol(1_int64)
         call beginning_of_symbol(ok)
+
         if (.not. ok) then
             call goto_char(orig)
             return
         end if
+
         beg = point()
+
         if (beg <= orig) then
             ! If that brings us all the way back to ORIG, it worked.  But
             ! END may not be the real end.  So find the real end that
             ! corresponds to BEG.
             call forward_symbol(1_int64)
             real_end = point()
+
             if (orig <= real_end .and. beg < real_end) then
                 end = real_end
                 found = .true.
@@ -1171,12 +1259,15 @@ contains
             ! Try a second time, moving backward first and then forward,
             ! so that we can find a thing that ends at ORIG.
             call beginning_of_symbol(ok)
+
             if (ok) then
                 call forward_symbol(1_int64)
                 end = point()
                 call beginning_of_symbol(ok)
+
                 if (ok) then
                     real_beg = point()
+
                     if (real_beg <= orig .and. orig <= end .and. real_beg < end) then
                         beg = real_beg
                         found = .true.
@@ -1184,7 +1275,9 @@ contains
                 end if
             end if
         end if
+
         call goto_char(orig)
+
     contains
 
         ! thing-at-point--beginning-of-symbol: `ok' false when the search
@@ -1193,6 +1286,7 @@ contains
             logical, intent(out) :: ok
             integer(int64) :: found, moved
             type(status_type) :: st
+
             call re_search_backward("\(\sw\|\s_\)+", found, st)
             ok = st%ok() .and. found > 0
             if (ok) moved = skip_syntax_backward("w_")
@@ -1207,6 +1301,7 @@ contains
         logical, intent(out) :: found
         integer(int64) :: beg, end
         type(status_type) :: st
+
         tag = ""
         call bounds_of_symbol_at_point(beg, end, found)
         if (found) call buffer_substring(beg, end, tag, st)
@@ -1220,6 +1315,7 @@ contains
         character(len=:), allocatable, intent(out) :: regexp
         logical, intent(out) :: found
         character(len=:), allocatable :: tag
+
         call find_tag_default(tag, found)
         regexp = ""
         if (found) regexp = regexp_quote(tag)
@@ -1231,6 +1327,7 @@ contains
     subroutine find_tag_default_as_symbol_regexp(regexp, found)
         character(len=:), allocatable, intent(out) :: regexp
         logical, intent(out) :: found
+
         call find_tag_default_as_regexp(regexp, found)
         if (found) regexp = "\_<"//regexp//"\_>"
     end subroutine find_tag_default_as_symbol_regexp

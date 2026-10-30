@@ -134,6 +134,7 @@ contains
 
     logical function descriptor_equal(a, b)
         type(watch_descriptor_type), intent(in) :: a, b
+
         descriptor_equal = a%wd == b%wd .and. a%id == b%id
     end function descriptor_equal
 
@@ -144,6 +145,7 @@ contains
         integer(int32), intent(in) :: err
         type(status_type), intent(inout) :: status
         character(len=*), intent(in), optional :: name
+
         if (present(name)) then
             call set_error(status, FM_FILE_NOTIFY_ERROR, string//": "//emacs_strerror(err)//", "//name)
         else
@@ -157,6 +159,7 @@ contains
         type(watch_type), intent(in) :: watch
         type(inotify_raw_event_type), intent(in) :: ev
         type(inotify_event_type), intent(out) :: event
+
         wanted = .false.
         if (iand(watch%mask, ev%mask) == 0 &
             ! These event types are supposed to be reported whether or not
@@ -166,11 +169,13 @@ contains
         event%descriptor%wd = ev%wd
         event%descriptor%id = watch%id
         event%aspects = ev%mask
+
         if (len(ev%name) > 0) then
             event%name = ev%name
         else
             event%name = watch%filename
         end if
+
         event%cookie = ev%cookie
     end function inotifyevent_to_event
 
@@ -185,28 +190,36 @@ contains
         type(watch_type), allocatable :: grown(:)
         integer(int64) :: id
         integer :: k, slot
+
         if (.not. allocated(watch_list)) allocate (watch_list(0))
         ! Assign a watch ID that is not already in use, by looking for a
         ! gap among the existing ones.
         id = 0
+
         do while (id_in_use(wd, id))
             id = id + 1
         end do
+
         slot = 0
+
         do k = 1, size(watch_list)
             if (.not. watch_list(k)%used) then
                 slot = k
                 exit
             end if
         end do
+
         if (slot == 0) then
             allocate (grown(size(watch_list) + 1))
+
             do k = 1, size(watch_list)
                 call copy_watch(watch_list(k), grown(k))
             end do
+
             call move_alloc(grown, watch_list)
             slot = size(watch_list)
         end if
+
         watch_list(slot)%used = .true.
         watch_list(slot)%wd = wd
         watch_list(slot)%id = id
@@ -220,6 +233,7 @@ contains
     subroutine copy_watch(from, to)
         type(watch_type), intent(inout) :: from
         type(watch_type), intent(inout) :: to
+
         to%used = from%used
         to%wd = from%wd
         to%id = from%id
@@ -233,8 +247,10 @@ contains
         integer(int32), intent(in) :: wd
         integer(int64), intent(in) :: id
         integer :: k
+
         id_in_use = .false.
         if (.not. allocated(watch_list)) return
+
         do k = 1, size(watch_list)
             if (watch_list(k)%used .and. watch_list(k)%wd == wd .and. watch_list(k)%id == id) then
                 id_in_use = .true.
@@ -246,6 +262,7 @@ contains
     !> Whether some watch uses descriptor WD (inotify.c:find_descriptor).
     logical function find_descriptor(wd)
         integer(int32), intent(in) :: wd
+
         find_descriptor = .false.
         if (.not. allocated(watch_list)) return
         find_descriptor = any(watch_list%used .and. watch_list%wd == wd)
@@ -256,23 +273,28 @@ contains
         integer(int32), intent(in) :: wd
         integer, allocatable, intent(out) :: idx(:)
         integer :: k, j, n, t
+
         n = count(watch_list%used .and. watch_list%wd == wd)
         allocate (idx(n))
         j = 0
+
         do k = 1, size(watch_list)
             if (watch_list(k)%used .and. watch_list(k)%wd == wd) then
                 j = j + 1
                 idx(j) = k
             end if
         end do
+
         do k = 2, n
             t = idx(k)
             j = k - 1
+
             do while (j >= 1)
                 if (watch_list(idx(j))%id <= watch_list(t)%id) exit
                 idx(j + 1) = idx(j)
                 j = j - 1
             end do
+
             idx(j + 1) = t
         end do
     end subroutine descriptor_watches
@@ -288,8 +310,10 @@ contains
         integer(int32) :: inotify_errno
         integer :: k
         character(len=16) :: buf
+
         inotify_errno = 0
         if (.not. invalid_p) inotify_errno = emacs_inotify_rm_watch(inotifyfd, wd)
+
         do k = 1, size(watch_list)
             if (watch_list(k)%used .and. watch_list(k)%wd == wd) then
                 watch_list(k)%used = .false.
@@ -297,11 +321,13 @@ contains
                 if (allocated(watch_list(k)%filename)) deallocate (watch_list(k)%filename)
             end if
         end do
+
         if (.not. any(watch_list%used)) then
             call delete_read_fd(inotifyfd)
             call close_fd(inotifyfd)
             inotifyfd = -1
         end if
+
         if (inotify_errno /= 0) then
             write (buf, "(i0)") wd
             call report_file_notify_error("Could not rm watch", inotify_errno, status, trim(buf))
@@ -315,7 +341,9 @@ contains
         integer(int64), intent(in) :: id
         type(status_type), intent(inout) :: status
         integer :: k
+
         if (.not. find_descriptor(wd)) return
+
         do k = 1, size(watch_list)
             if (watch_list(k)%used .and. watch_list(k)%wd == wd .and. watch_list(k)%id == id) then
                 if (count(watch_list%used .and. watch_list%wd == wd) == 1) then
@@ -324,6 +352,7 @@ contains
                     watch_list(k)%used = .false.
                     watch_list(k)%callback => null()
                 end if
+
                 return
             end if
         end do
@@ -340,17 +369,21 @@ contains
         integer, allocatable :: idx(:)
         integer(int32) :: err
         integer :: i, k
+
         call emacs_inotify_read(fd, evs, err)
+
         ! A read error (report_file_notify_error "Error while reading file
         ! system events") has nobody to report to here.
         do i = 1, size(evs)
             if (.not. find_descriptor(evs(i)%wd)) cycle
             call descriptor_watches(evs(i)%wd, idx)
+
             do k = 1, size(idx)
                 if (inotifyevent_to_event(watch_list(idx(k)), evs(i), event)) then
                     call store_event(event, watch_list(idx(k))%callback)
                 end if
             end do
+
             ! If event was removed automatically: Drop it from watch list.
             if (iand(evs(i)%mask, IN_IGNORED) /= 0) call remove_descriptor(evs(i)%wd, .true., st)
         end do
@@ -362,16 +395,20 @@ contains
         procedure(inotify_callback_proc) :: callback
         type(pending_type), allocatable :: grown(:)
         integer :: k, slot
+
         if (.not. allocated(pending)) allocate (pending(0))
         slot = 0
+
         do k = 1, size(pending)
             if (.not. pending(k)%used) then
                 slot = k
                 exit
             end if
         end do
+
         if (slot == 0) then
             allocate (grown(max(8, 2*size(pending))))
+
             do k = 1, size(pending)
                 grown(k)%used = pending(k)%used
                 grown(k)%event%descriptor = pending(k)%event%descriptor
@@ -380,9 +417,11 @@ contains
                 if (allocated(pending(k)%event%name)) call move_alloc(pending(k)%event%name, grown(k)%event%name)
                 grown(k)%callback => pending(k)%callback
             end do
+
             slot = size(pending) + 1
             call move_alloc(grown, pending)
         end if
+
         pending(slot)%used = .true.
         pending(slot)%event%descriptor = event%descriptor
         pending(slot)%event%aspects = event%aspects
@@ -399,6 +438,7 @@ contains
         type(status_type), intent(out) :: status
         type(inotify_event_type) :: event
         procedure(inotify_callback_proc), pointer :: callback
+
         status = status_type()
         event%descriptor = pending(slot)%event%descriptor
         event%aspects = pending(slot)%event%aspects
@@ -480,32 +520,41 @@ contains
         type(status_type), intent(out) :: status
         integer(int32) :: imask, mask, wd, err
         character(len=16) :: buf
+
         if (iand(aspect, not(VALID_ASPECTS)) /= 0) then
             write (buf, "(i0)") aspect
             call report_file_notify_error("Unknown aspect", EINVAL, status, trim(buf))
             return
         end if
+
         imask = aspect
         mask = ior(ior(imask, IN_MASK_ADD), IN_EXCL_UNLINK)
+
         if (inotifyfd < 0) then
             err = emacs_inotify_init(inotifyfd)
+
             if (err /= 0) then
                 inotifyfd = -1
                 call report_file_notify_error("File watching is not available", err, status)
                 return
             end if
+
             call add_read_fd(inotifyfd, inotify_callback)
         end if
+
         err = emacs_inotify_add_watch(inotifyfd, file_name, mask, wd)
+
         if (err /= 0) then
             call report_file_notify_error("Could not add watch for file", err, status, file_name)
             return
         end if
+
         desc = add_watch(wd, file_name, imask, callback)
     end subroutine inotify_add_watch
 
     logical function valid_watch_descriptor(wd)
         type(watch_descriptor_type), intent(in) :: wd
+
         valid_watch_descriptor = wd%wd >= 0 .and. wd%id >= 0
     end function valid_watch_descriptor
 
@@ -519,11 +568,13 @@ contains
         type(watch_descriptor_type), intent(in) :: watch_descriptor
         type(status_type), intent(out) :: status
         character(len=48) :: buf
+
         if (.not. valid_watch_descriptor(watch_descriptor)) then
             write (buf, "(i0, ' . ', i0)") watch_descriptor%wd, watch_descriptor%id
             call report_file_notify_error("Invalid descriptor ", EINVAL, status, "("//trim(buf)//")")
             return
         end if
+
         call remove_watch(watch_descriptor%wd, watch_descriptor%id, status)
     end subroutine inotify_rm_watch
 
@@ -537,6 +588,7 @@ contains
     !> it invalid.  Port of inotify.c:Finotify_valid_p.
     logical function inotify_valid_p(watch_descriptor)
         type(watch_descriptor_type), intent(in) :: watch_descriptor
+
         inotify_valid_p = .false.
         if (.not. valid_watch_descriptor(watch_descriptor)) return
         inotify_valid_p = id_in_use(watch_descriptor%wd, watch_descriptor%id)

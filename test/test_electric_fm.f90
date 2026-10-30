@@ -52,6 +52,7 @@ contains
 
     subroutine collect_electric_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("post-self-insert-hook", test_post_self_insert_hook), &
                     new_unittest("electric-indent-mode-on-by-default", test_default_on), &
@@ -71,14 +72,17 @@ contains
         character(len=*), intent(in) :: text
         character(len=*), intent(in), optional :: name
         type(status_type) :: st
+
         call init_bindings()
         call discard_input()
         prefix_arg = nil()
+
         if (present(name)) then
             call get_buffer_create(name, h, st)
         else
             call get_buffer_create("*electric-test*", h, st)
         end if
+
         call set_buffer(h, st)
         call fundamental_mode(st)
         call insert(text, st)
@@ -89,12 +93,14 @@ contains
     subroutine keys(text)
         character(len=*), intent(in) :: text
         type(status_type) :: st
+
         call kbd_store_bytes(text)
         call command_loop(st)
     end subroutine keys
 
     subroutine count_hook(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         hook_calls = hook_calls + 1
     end subroutine count_hook
@@ -105,6 +111,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, "")
         hook_calls = 0
         call post_self_insert_hook%add(count_hook)
@@ -118,6 +125,7 @@ contains
 
     subroutine test_default_on(error)
         type(error_type), allocatable, intent(out) :: error
+
         call init_bindings()
         call check(error, minor_modes%electric_indent_mode%enabled() .and. &
                    .not. minor_modes%electric_pair_mode%enabled(), "Electric Indent on, Electric Pair off")
@@ -129,6 +137,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, "  foo   ")
         call keys(achar(13))
         call check(error, buffer_string(), "  foo"//achar(10)//"  ")
@@ -142,6 +151,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, "  foo   ")
         call minor_modes%electric_indent_mode%disable(st)
         call keys(achar(13))
@@ -156,6 +166,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, "  foo")
         call keys(achar(10))
         call check(error, buffer_string(), "  foo"//achar(10))
@@ -174,6 +185,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b
         type(status_type) :: st
+
         call fresh(b, "  bar", "*electric-b*")
         call fresh(a, "  foo", "*electric-a*")
         call minor_modes%electric_indent_local_mode%disable(st)
@@ -200,6 +212,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h, "  foo"//achar(10)//"x")
         call keys("}")
         call check(error, buffer_string(), "  foo"//achar(10)//"x}")
@@ -216,6 +229,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b
         type(status_type) :: st
+
         call fresh(a, "", "*electric-a*")
         call electric_indent_inhibit%set_local(.true.)
         call fresh(b, "", "*electric-b*")

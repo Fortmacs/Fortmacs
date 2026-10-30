@@ -34,6 +34,7 @@ contains
 
     subroutine collect_casetab_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("casefiddle-tests-case-table", test_case_table), &
                     new_unittest("casefiddle-tests-char-casing", test_char_casing), &
@@ -51,6 +52,7 @@ contains
                                                             931, 931, 963, 963, 931, 963, 962, 931, 962, &
                                                             8551, 8551, 8567, 8567, 8551, 8567], [3, 12])
         integer :: k
+
         do k = 1, size(tests, 2)
             call check(error, upcase(tests(1, k)) == tests(2, k), "upcase")
             if (allocated(error)) return
@@ -69,6 +71,7 @@ contains
                                                             8567, 8551, 8567, 8551, 8551, 8567, &
                                                             452, 452, 454, 453, 452, 454, 454, 452, 454], [3, 11])
         integer :: k
+
         do k = 1, size(tests, 2)
             call check(error, upcase(tests(1, k)) == tests(2, k) .and. downcase(tests(1, k)) == tests(3, k))
             if (allocated(error)) return
@@ -77,6 +80,7 @@ contains
 
     subroutine test_canon(error)
         type(error_type), allocatable, intent(out) :: error
+
         ! σ, ς and Σ are one class; so are a and A; K (Kelvin) is not k.
         call check(error, case_canon(962_int32) == 963 .and. case_canon(931_int32) == 963 &
                    .and. case_canon(963_int32) == 963, "sigma")

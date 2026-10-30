@@ -107,6 +107,7 @@ contains
                                          "密码", &  ! zh_CN
                                          "密碼"]  ! zh_TW
         end if
+
         if (.not. allocated(password_colon_equivalents)) then
             password_colon_equivalents = [int(z'003a', int32), & ! COLON
                                           int(z'ff1a', int32), & ! FULLWIDTH COLON

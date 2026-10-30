@@ -104,15 +104,18 @@ contains
                                                       int(z'0F85'), int(z'0F85'), int(z'0FBE'), int(z'0FCF')], &
                                                       [2, 10])
         integer :: k
+
         ! JISX0201-Kana.
         call entry(int(z'FF61'), int(z'FF61'), ".")
         call entry(int(z'FF64'), int(z'FF65'), ".")
         ! (Upstream makes both of these open parentheses.)
         call entry(int(z'FF62'), int(z'FF62'), "("//utf8(int(z'FF63')))
         call entry(int(z'FF63'), int(z'FF63'), "("//utf8(int(z'FF62')))
+
         do k = 1, size(cjk_parens), 2
             call pair(cjk_parens(k), cjk_parens(k + 1))
         end do
+
         ! Cyrillic: the numero sign.
         call entry(int(z'2116'), int(z'2116'), ".")
         ! Ethiopic punctuation.
@@ -131,9 +134,11 @@ contains
         call entry(int(z'0E3F'), int(z'0E3F'), "_")
         call entry(int(z'0E4F'), int(z'0E4F'), "_")
         call entry(int(z'0E5A'), int(z'0E5B'), "_")
+
         do k = 1, size(tibetan, 2)
             call entry(tibetan(1, k), tibetan(2, k), ".")
         end do
+
         ! Tai Viet symbols.
         call entry(int(z'AADB'), int(z'AADF'), "_")
         ! Latin-1.
@@ -189,13 +194,16 @@ contains
         call entry(int(z'FF1F'), int(z'FF20'), ".")
         call entry(int(z'FF64'), int(z'FF65'), ".")
         call entry(int(z'FF61'), int(z'FF61'), ".")
+
         ! Letters (Lu, Ll, Lt) are words; so are Roman numerals I to XII
         ! and circled a to z, as they used to be.
         do k = 1, cased_letter_runs
             call entry(cased_letter_starts(k), cased_letter_ends(k), "w")
         end do
+
         call entry(int(z'2160'), int(z'216B'), "w")
         call entry(int(z'24D0'), int(z'24E9'), "w")
+
         do k = 1, size(pairs), 2
             call pair(pairs(k), pairs(k + 1))
         end do
@@ -205,6 +213,7 @@ contains
         !> `open' and `close' as matching parentheses.
         subroutine pair(open, close)
             integer, intent(in) :: open, close
+
             call entry(open, open, "("//utf8(close))
             call entry(close, close, ")"//utf8(open))
         end subroutine pair
@@ -214,6 +223,7 @@ contains
     pure function utf8(c) result(s)
         integer, intent(in) :: c
         character(len=:), allocatable :: s
+
         if (c < 128) then
             s = achar(c)
         else if (c < 2048) then
@@ -231,6 +241,7 @@ contains
     pure logical function char_has_category(c, category)
         integer, intent(in) :: c
         character, intent(in) :: category
+
         select case (category)
         case ("^")
             ! Combining diacritics and marks, and every nonspacing mark.
@@ -274,9 +285,12 @@ contains
         case default
             char_has_category = .false.
         end select
+
     contains
+
         pure logical function in(x, lo, hi)
             integer, intent(in) :: x, lo, hi
+
             in = lo <= x .and. x <= hi
         end function in
     end function char_has_category
@@ -286,11 +300,14 @@ contains
         integer, intent(in) :: c, n
         integer, intent(in) :: starts(:), ends(:)
         integer :: lo, hi, mid
+
         in_runs = .false.
         lo = 1
         hi = n
+
         do while (lo <= hi)
             mid = (lo + hi)/2
+
             if (c < starts(mid)) then
                 hi = mid - 1
             else if (c > ends(mid)) then

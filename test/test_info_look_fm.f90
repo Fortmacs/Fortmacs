@@ -45,6 +45,7 @@ contains
     !> Collect all exported unit tests.
     subroutine collect_info_look_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("info-lookup-symbol", test_lookup_symbol), &
                     new_unittest("info-lookup-guess-default", test_guess_default), &
@@ -59,6 +60,7 @@ contains
         type(info_lookup_doc_specs_type) :: specs
         type(status_type) :: st
         type(handle_type) :: b
+
         call init_bindings()
         call init_fileio()
         call expand_file_name("test/info-resources", dir, st, emacs_wd)
@@ -84,6 +86,7 @@ contains
         type(window_configuration_type), intent(in) :: config
         type(handle_type) :: b
         type(status_type) :: st
+
         call set_window_configuration(config)
         b = get_buffer("*info*")
         if (b%index /= 0) call kill_buffer(b, st)
@@ -95,6 +98,7 @@ contains
         character(len=:), allocatable :: n
         type(handle_type) :: b, old
         type(status_type) :: st
+
         n = ""
         b = get_buffer("*info*")
         if (b%index == 0) return
@@ -110,6 +114,7 @@ contains
         type(handle_type) :: old, now
         type(window_configuration_type) :: config
         type(status_type) :: st
+
         call setup()
         old = current_buffer()
         call current_window_configuration(config)
@@ -119,16 +124,20 @@ contains
         ! The window of the buffer looked up from is selected again.
         now = current_buffer()
         if (.not. allocated(error)) call check(error, now%index == old%index, "back in the buffer")
+
         ! Only the first word of "first chapter" is an item.
         if (.not. allocated(error)) then
             call info_lookup_symbol("first", st, mode="test_look_mode")
             call check(error, st%ok(), format_error(st))
         end if
+
         if (.not. allocated(error)) call check(error, info_node(), "First Chapter")
+
         if (.not. allocated(error)) then
             call info_lookup_symbol("nothing", st, mode="test_look_mode")
             call check(error, format_error(st), "Not documented as a symbol: nothing")
         end if
+
         call teardown(old, config)
     end subroutine test_lookup_symbol
 
@@ -138,6 +147,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: guess
         logical :: found
+
         call setup()
         old = current_buffer()
         call get_buffer_create(" info-look test", b, st)
@@ -156,6 +166,7 @@ contains
         type(handle_type) :: old, b, now
         type(window_configuration_type) :: config
         type(status_type) :: st
+
         call setup()
         old = current_buffer()
         call current_window_configuration(config)
@@ -163,6 +174,7 @@ contains
         call info_display_manual("test", st)
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, info_current_node(), "Top")
+
         if (.not. allocated(error)) then
             b = current_buffer()
             call set_buffer(old, st)
@@ -172,6 +184,7 @@ contains
             call check(error, now%index == b%index, "the same buffer")
             call kill_buffer(b, st)
         end if
+
         call teardown(old, config)
     end subroutine test_display_manual
 end module test_info_look_fm

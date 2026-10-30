@@ -48,6 +48,7 @@ contains
 
     subroutine collect_xfaces_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("basic-faces-mono", test_basic_mono), &
                     new_unittest("merge-face-ref", test_merge_face_ref), &
@@ -64,6 +65,7 @@ contains
     subroutine test_basic_mono(error)
         type(error_type), allocatable, intent(out) :: error
         type(frame_type) :: f
+
         call init_faces()
         call init_frame_faces(f, "dumb")
         call check(error,.not. f%faces(DEFAULT_FACE_ID)%tty_reverse_p .and. &
@@ -88,6 +90,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(face_attributes_type) :: a
         logical :: ok
+
         call init_faces()
         call merge_face_ref(list(sym(":foreground"), make_string("red"), sym(":inverse_video"), sym("t")), a, ok)
         call check(error, ok .and. a%foreground == "red" .and. a%inverse_video%state /= 0, "plist")
@@ -116,6 +119,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(frame_type) :: f
         integer(int32) :: id, id2
+
         call init_faces()
         call init_frame_faces(f, "dumb")
         id = lookup_named_face(f, "bold_italic")
@@ -144,6 +148,7 @@ contains
         type(face_attributes_type) :: a
         integer(int32) :: id
         logical :: ok
+
         call init_faces()
         call tty_color_clear()
         call tty_register_colors(8, .false., st)
@@ -177,6 +182,7 @@ contains
         type(status_type) :: st
         integer(int64) :: bi, endpos
         integer(int32) :: id
+
         call init_faces()
         call init_frame_faces(f, "dumb")
         call get_buffer_create("*xfaces*", h, st)
@@ -214,6 +220,7 @@ contains
         type(terminfo_type) :: ti
         type(face_attributes_type) :: a
         type(status_type) :: st
+
         call init_faces()
         saved = selected_frame%tty
         call builtin_xterm(ti)
@@ -244,6 +251,7 @@ contains
     !> frame-set-background-mode's terminal default.
     subroutine test_background_mode(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, frame_background_mode("xterm-256color", "unspecified-bg") == FACE_BACKGROUND_LIGHT .and. &
                    frame_background_mode("linux", "unspecified-bg") == FACE_BACKGROUND_DARK .and. &
                    frame_background_mode("rxvt", "unspecified-fg") == FACE_BACKGROUND_DARK, "background modes")

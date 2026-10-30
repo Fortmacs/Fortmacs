@@ -62,6 +62,7 @@ contains
 
     subroutine collect_kmacro_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("kmacro-tests-test-insert-counter-01-nil", test_insert_counter_01), &
                     new_unittest("kmacro-tests-test-insert-counter-02-int", test_insert_counter_02), &
@@ -101,6 +102,7 @@ contains
     subroutine fresh(h)
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call get_buffer_create("*kmacro-test*", h, st)
         call set_buffer(h, st)
         call set_buffer_read_only(h, .false., st)
@@ -135,6 +137,7 @@ contains
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
+
         call key_parse(keys, evs, st)
     end function kbd
 
@@ -143,7 +146,9 @@ contains
         character(len=*), intent(in) :: text
         type(value_type), allocatable :: evs(:)
         integer :: k
+
         allocate (evs(len(text)))
+
         do k = 1, len(text)
             evs(k) = make_fixnum(int(iachar(text(k:k)), int64))
         end do
@@ -153,12 +158,15 @@ contains
     logical function last_macro_is(evs)
         type(value_type), intent(in) :: evs(:)
         integer :: k
+
         last_macro_is = .false.
         if (.not. allocated(last_kbd_macro)) return
         if (size(last_kbd_macro) /= size(evs)) return
+
         do k = 1, size(evs)
             if (.not. value_eq(last_kbd_macro(k), evs(k))) return
         end do
+
         last_macro_is = .true.
     end function last_macro_is
 
@@ -166,6 +174,7 @@ contains
     subroutine type_events(evs)
         type(value_type), intent(in) :: evs(:)
         type(status_type) :: st
+
         call unread_command_events(evs)
         call command_loop(st)
     end subroutine type_events
@@ -174,6 +183,7 @@ contains
     subroutine type_bytes(bytes)
         character(len=*), intent(in) :: bytes
         type(status_type) :: st
+
         call kbd_store_bytes(bytes)
         call command_loop(st)
     end subroutine type_bytes
@@ -185,11 +195,14 @@ contains
         type(value_type), intent(in) :: evs(:)
         type(status_type) :: st
         integer :: k
+
         current_prefix_arg = nil()
         call kmacro_start_macro(nil(), st)
+
         do k = 1, size(evs)
             call store_kbd_macro_event(evs(k))
         end do
+
         call finalize_kbd_macro_chars()
         call kmacro_end_macro(nil(), st)
     end subroutine define_macro
@@ -199,6 +212,7 @@ contains
     subroutine insert_counter(arg)
         type(value_type), intent(in) :: arg
         type(status_type) :: st
+
         current_prefix_arg = arg
         call kmacro_insert_counter(arg, st)
         current_prefix_arg = nil()
@@ -209,6 +223,7 @@ contains
         integer(int64), intent(in) :: n
         type(value_type), intent(in), optional :: arg
         type(status_type) :: st
+
         current_prefix_arg = make_fixnum(n)
         if (present(arg)) current_prefix_arg = arg
         call kmacro_set_counter(n, st)
@@ -218,6 +233,7 @@ contains
     !> The text of the current buffer.
     function text() result(s)
         character(len=:), allocatable :: s
+
         s = buffer_string()
     end function text
 
@@ -230,6 +246,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call insert_counter(nil())
         call insert_counter(nil())
@@ -242,6 +259,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call insert_counter(make_fixnum(2_int64))
         call insert_counter(make_fixnum(3_int64))
@@ -255,6 +273,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call insert_counter(list(make_fixnum(16_int64)))
         call insert_counter(list(make_fixnum(4_int64)))
@@ -267,6 +286,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call insert_counter(sym("-"))
         call insert_counter(nil())
@@ -279,6 +299,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call set_counter(10_int64)
         call insert_counter(nil())
@@ -295,6 +316,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call kmacro_start_macro(nil(), st)
         call check(error, defining_kbd_macro /= DEFINING_KBD_MACRO_NIL .and. .not. allocated(last_kbd_macro), &
@@ -314,6 +336,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         current_prefix_arg = make_fixnum(5_int64)
         call kmacro_start_macro(make_fixnum(5_int64), st)
@@ -334,6 +357,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call kmacro_start_macro_or_insert_counter(nil(), st)
         call check(error, defining_kbd_macro /= DEFINING_KBD_MACRO_NIL, "recording")
@@ -369,9 +393,11 @@ contains
     subroutine record(evs)
         type(value_type), intent(in) :: evs(:)
         integer :: k
+
         do k = 1, size(evs)
             call store_kbd_macro_event(evs(k))
         end do
+
         call finalize_kbd_macro_chars()
     end subroutine record
 
@@ -381,6 +407,7 @@ contains
     !> -04, test-quit-counter-less and -greater.
     subroutine test_reg_and_quit_counters(error)
         type(error_type), allocatable, intent(out) :: error
+
         call reg_case(error, "reg-load", 4_int64, 1_int64, .true., "C-x C-k C-i C-x C-k C-i C-x C-k C-r l C-r", 2_int64, &
                       "1245")
         if (allocated(error)) return
@@ -429,12 +456,15 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(rectangle_line_type) :: none(0)
+
         call fresh(h)
+
         if (reg >= 0) then
             call set_register(18_int64, reg)
         else
             call set_register(18_int64, none)
         end if
+
         if (set) call set_counter(start)
         call define_macro(kbd(mac))
         current_prefix_arg = make_fixnum(count)
@@ -457,6 +487,7 @@ contains
         logical, intent(in) :: set, quits
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         if (set) call set_counter(start)
         call define_macro(kbd(mac))
@@ -464,10 +495,12 @@ contains
         call kmacro_end_or_call_macro(make_fixnum(4_int64), st)
         call check(error, text(), expected, name)
         if (allocated(error)) return
+
         if (quits) then
             call check(error, kmacro_counter == after, name//": counter")
             if (allocated(error)) return
         end if
+
         current_prefix_arg = make_fixnum(1_int64)
         call kmacro_end_or_call_macro(make_fixnum(1_int64), st)
         current_prefix_arg = nil()
@@ -482,6 +515,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call define_macro(chars("macro #1"))
         call define_macro(chars("macro #2"))
@@ -500,6 +534,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         ! First, try it with no macro to record.
         call kmacro_start_macro(nil(), st)
@@ -523,6 +558,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call define_macro(chars("m"))
         kmacro_call_repeat_key = KMACRO_CALL_REPEAT_LAST_KEY
@@ -544,6 +580,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         ! Record one macro, with count.
         current_prefix_arg = make_fixnum(1_int64)
@@ -576,6 +613,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         kmacro_ring_max = 4
         ! Record enough macros that the first one drops off the history.
@@ -612,9 +650,12 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer :: k
+
         call fresh(h)
+
         do k = 1, 7
             last_message = ""
+
             select case (k)
             case (1)
                 call kmacro_cycle_ring_next(st)
@@ -634,9 +675,11 @@ contains
                 call check(error, last_message, "No keyboard macros defined")
                 exit
             end select
+
             call check(error, last_message, "No keyboard macro defined.")
             if (allocated(error)) return
         end do
+
         call kill_buffer(h, st)
     end subroutine test_ring_no_macros
 
@@ -645,6 +688,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         kmacro_call_repeat_key = KMACRO_CALL_REPEAT_LAST_KEY
         call define_macro(chars("a"))
@@ -671,6 +715,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         kmacro_call_repeat_key = KMACRO_CALL_REPEAT_LAST_KEY
         call type_events(kbd("C-x ( a b C-x )"))
@@ -702,6 +747,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call type_events(kbd("C-x ( C-u 3 a C-x )"))
         call check(error, last_macro_is(kbd("C-u 3 a")), "C-u 3 a")
@@ -717,6 +763,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call type_events(kbd("C-x ( x C-u 3 C-x )"))
         call check(error, last_macro_is(chars("x")), "macro x")
@@ -730,6 +777,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call type_events(kbd("C-x ( a C-x )"))
         call type_events(kbd("C-x ( b C-g"))
@@ -749,6 +797,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call type_events(kbd("C-x ( b C-a C-b"))
         call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NIL, "not defining")
@@ -765,6 +814,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         kmacro_call_repeat_key = KMACRO_CALL_REPEAT_LAST_KEY
         call type_events(kbd("M-5 <f3> x M-2 <f3> y <f4> <f4> <f4> <f4>"))
@@ -776,6 +826,7 @@ contains
 
     subroutine count_termination(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         terminations = terminations + 1
     end subroutine count_termination
@@ -786,6 +837,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         terminations = 0
         call kbd_macro_termination_hook%add(count_termination)
@@ -809,6 +861,7 @@ contains
         character(len=:), allocatable :: modes
         type(face_span_type), allocatable :: spans(:)
         character(len=64), allocatable :: faces(:)
+
         call fresh(h)
         call mode_line_modes_faces(h%index, modes, spans, faces)
         call check(error, modes, "Fundamental")
@@ -831,6 +884,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call fresh(h)
         call check(error, format_kbd_macro(kbd("C-x C-f")), "C-x C-f")
         if (allocated(error)) return
@@ -868,12 +922,15 @@ contains
                                                                                                           "kmacro_delete_ring_head"]
         type(value_type) :: b
         integer :: k
+
         call fresh(h)
+
         do k = 1, size(keys)
             call key_binding(kbd(trim(keys(k))), b, st)
             call check(error, value_eq(b, sym(trim(cmds(k)))), trim(keys(k)))
             if (allocated(error)) return
         end do
+
         call kill_buffer(h, st)
     end subroutine test_keys
 end module test_kmacro_fm

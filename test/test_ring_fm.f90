@@ -32,6 +32,7 @@ contains
 
     subroutine collect_ring_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("ring-tests-insert-at-beginning", test_insert_at_beginning), &
                     new_unittest("ring-tests-length", test_length), &
@@ -56,7 +57,9 @@ contains
         character(len=:), allocatable :: s, item
         type(status_type) :: st
         integer :: k
+
         s = ""
+
         do k = 0, ring%count() - 1
             call ring%ref(k, item, st)
             if (k > 0) s = s//" "
@@ -67,6 +70,7 @@ contains
     subroutine test_insert_at_beginning(error)
         type(error_type), allocatable, intent(out) :: error
         type(ring_type) :: ring
+
         call ring%make(5)
         call ring%insert_at_beginning("foo")
         call ring%insert_at_beginning("bar")
@@ -76,6 +80,7 @@ contains
     subroutine test_length(error)
         type(error_type), allocatable, intent(out) :: error
         type(ring_type) :: ring
+
         call ring%make(2)
         call check(error, ring%count(), 0)
         if (allocated(error)) return
@@ -91,6 +96,7 @@ contains
 
     subroutine test_index(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, ring_index(0, 0, 3, 3), 2)
         if (.not. allocated(error)) call check(error, ring_index(0, 0, 3, 5), 2)
         if (.not. allocated(error)) call check(error, ring_index(0, 2, 3, 3), 1)
@@ -102,6 +108,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(ring_type) :: ring
         type(status_type) :: st
+
         call ring%make(5)
         call check(error, ring%empty_p())
         if (allocated(error)) return
@@ -115,6 +122,7 @@ contains
     subroutine test_size(error)
         type(error_type), allocatable, intent(out) :: error
         type(ring_type) :: ring
+
         call ring%make(2)
         call check(error, ring%size(), 2)
         if (allocated(error)) return
@@ -130,6 +138,7 @@ contains
     subroutine test_insert(error)
         type(error_type), allocatable, intent(out) :: error
         type(ring_type) :: ring
+
         call ring%make(2)
         call ring%insert(":a")
         call check(error, elements(ring), ":a")
@@ -146,6 +155,7 @@ contains
         type(ring_type) :: ring
         type(status_type) :: st
         character(len=:), allocatable :: item
+
         call ring%make(2)
         call ring%remove(st)
         call check(error,.not. st%ok(), "should-error")
@@ -167,6 +177,7 @@ contains
         type(ring_type) :: ring
         type(status_type) :: st
         character(len=:), allocatable :: item
+
         call ring%make(2)
         call ring%ref(0, item, st)
         call check(error,.not. st%ok(), "should-error")
@@ -189,6 +200,7 @@ contains
     subroutine test_member(error)
         type(error_type), allocatable, intent(out) :: error
         type(ring_type) :: ring
+
         call ring%make(3)
         call ring%insert("foo")
         call ring%insert("bar")
@@ -200,6 +212,7 @@ contains
     subroutine test_extend(error)
         type(error_type), allocatable, intent(out) :: error
         type(ring_type) :: ring
+
         call ring%make(2)
         call ring%insert("1")
         call ring%insert("2")
@@ -215,6 +228,7 @@ contains
     subroutine test_grow(error)
         type(error_type), allocatable, intent(out) :: error
         type(ring_type) :: ring
+
         call ring%make(3)
         call ring%insert("1")
         call ring%insert("2")
@@ -227,6 +241,7 @@ contains
     subroutine test_grow_empty(error)
         type(error_type), allocatable, intent(out) :: error
         type(ring_type) :: ring
+
         call ring%make(3)
         call ring%resize(5)
         call check(error, ring%size(), 5)
@@ -238,11 +253,14 @@ contains
         type(ring_type) :: ring
         integer :: k
         character(len=1) :: c
+
         call ring%make(3)
+
         do k = 1, 5
             write (c, "(i1)") k
             call ring%insert(c)
         end do
+
         call ring%resize(5)
         call check(error, ring%size(), 5)
         if (.not. allocated(error)) call check(error, elements(ring), "5 4 3")
@@ -253,11 +271,14 @@ contains
         type(ring_type) :: ring
         integer :: k
         character(len=1) :: c
+
         call ring%make(5)
+
         do k = 1, 5
             write (c, "(i1)") k
             call ring%insert(c)
         end do
+
         call ring%resize(3)
         call check(error, ring%size(), 3)
         if (.not. allocated(error)) call check(error, elements(ring), "5 4 3")
