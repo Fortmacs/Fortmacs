@@ -382,6 +382,7 @@ contains
         if (allocated(error)) return
         call check(error, len(sh_shell%name) > 0, "sh_shell")
     end subroutine test_canonicalize
+
     ! Whether NAME is among the strings of the list V.
     logical function in_list(v, name)
         type(value_type), intent(in) :: v

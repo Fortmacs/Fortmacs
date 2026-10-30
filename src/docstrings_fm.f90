@@ -1352,7 +1352,7 @@ module docstrings_fm
                                                            "y_or_n_p_history_variable", "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(569) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(570) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1802,6 +1802,7 @@ module docstrings_fm
                                                                       "sh_basic_offset", &
                                                                       "sh_beginning_of_command", &
                                                                       "sh_builtins", &
+                                                                      "sh_dynamic_complete_functions", &
                                                                       "sh_end_of_command", &
                                                                       "sh_here_document_word", &
                                                                       "sh_indent_after_case", &
@@ -23375,6 +23376,7 @@ contains
         case ("sh_dynamic_complete_functions")
             entry%file = "sh_script_fm.f90"
             entry%fortran = "sh_dynamic_complete_functions"
+            entry%user_option = .true.
             entry%doc = "Functions for doing TAB dynamic completion."
         case ("sh_end_of_command")
             entry%file = "sh_script_fm.f90"

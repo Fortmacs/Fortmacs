@@ -30,23 +30,26 @@
 !> SH_PLUS_PLUS (++), SH_MINUS_MINUS (--), SH_STAR (*) and SH_SLASH (/)
 !> that `sh_var_value' interprets.
 !>
+!> The inferior shell commands (C-c C-z, C-c C-d, C-c C-n) find or start
+!> the shell with `sh_shell_process'; completion at point offers the
+!> variables assigned before point, commands and keywords
+!> (`sh_completion_at_point_function'), then
+!> `sh_dynamic_complete_functions' through comint.  `sh_styles_alist' is
+!> an array of `sh_style_type', saved as a Fortran assignment.
+!>
 !> Deferred: the statement skeletons (`sh_case', `sh_for', `sh_function',
 !> `sh_if', `sh_indexed_loop', `sh_repeat', `sh_select', `sh_tmp_file',
 !> `sh_until', `sh_while', `sh_while_getopts', their keys, `sh_test' and
 !> the skeleton-pair settings; skeleton.el), the smie-config commands
-!> (C-c ?, C-c =, C-c <, C-c >; smie-config is not ported), the
-!> indentation styles (`sh_name_style', `sh_load_style',
-!> `sh_save_styles_to_buffer'), `executable_interpret' (C-c C-x), the
-!> interaction with an inferior shell (`sh_show_shell', `sh_cd_here',
-!> `sh_send_line_or_region_and_step', C-c C-z, C-c C-d, C-c C-n; they
-!> need `display_buffer_overriding_action'), completion
-!> (`sh_completion_at_point_function', `comint_dynamic_complete_functions'),
-!> Imenu (`sh_imenu_generic_expression'), `defun_prompt_regexp',
-!> `add_log_current_defun_function' (`sh_current_defun_name' is here),
-!> `outline_regexp', `escaped_string_quote', the Flymake backend
-!> (`sh_shellcheck_flymake'), the `sh_shell' file-local variable
-!> (`hack_local_variables_hook'), the menu and `bash_ts_mode'
-!> (tree-sitter).
+!> (C-c ?, C-c =, C-c <, C-c >; smie-config is not ported),
+!> `executable_interpret' (C-c C-x; needs `compilation_start' with a
+!> buffer name function and rule specifications), Imenu
+!> (`sh_imenu_generic_expression', and the Imenu candidates of
+!> completion), `add_log_current_defun_function' (`sh_current_defun_name'
+!> is here), `outline_regexp', `escaped_string_quote' (with
+!> `yank_in_context'), the Flymake backend (`sh_shellcheck_flymake'), the
+!> `sh_shell' file-local variable (`hack_local_variables_hook'), the menu
+!> and `bash_ts_mode' (tree-sitter).
 module sh_script_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_ARITH_ERROR
@@ -287,11 +290,11 @@ module sh_script_fm
     !> The indentation variables (sh-script.el sh-var-list), as their
     !> names.
     character(len=*), parameter, public :: sh_var_list(15) = [character(len=30) :: "sh_basic_offset", &
-                                           "sh_indent_after_case", "sh_indent_after_do", "sh_indent_after_done", &
-                                           "sh_indent_after_else", "sh_indent_after_if", "sh_indent_after_loop_construct", &
-                                           "sh_indent_after_open", "sh_indent_for_case_alt", "sh_indent_for_case_label", &
-                                           "sh_indent_for_continuation", "sh_indent_for_do", "sh_indent_for_done", &
-                                           "sh_indent_for_fi", "sh_indent_for_then"]
+                                                             "sh_indent_after_case", "sh_indent_after_do", "sh_indent_after_done", &
+                                                   "sh_indent_after_else", "sh_indent_after_if", "sh_indent_after_loop_construct", &
+                                                     "sh_indent_after_open", "sh_indent_for_case_alt", "sh_indent_for_case_label", &
+                                                           "sh_indent_for_continuation", "sh_indent_for_do", "sh_indent_for_done", &
+                                                                                           "sh_indent_for_fi", "sh_indent_for_then"]
 
     !> A list of all known shell indentation styles.  Port of sh-script.el
     !> sh-styles-alist.
@@ -4326,6 +4329,7 @@ contains
 
         re = word//"\([^-[:alnum:]_]\|$\)"
     end function sh_mkword_regexpr
+
     ! ------------------------------------------------------------------
     ! Inferior shell interaction
     ! ------------------------------------------------------------------

@@ -88,7 +88,10 @@ contains
 
         if (len(dir) == 0) then
             dir = "./"
-            if (cur > 0 .and. allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+
+            if (cur > 0) then
+                if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+            end if
         end if
 
         if (len(string_dir) > 0) then

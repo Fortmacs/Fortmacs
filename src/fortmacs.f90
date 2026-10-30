@@ -630,12 +630,13 @@ module fortmacs
                             sh_mode_map, sh_base_mode_map, sh_mode_syntax_table, sh_mode_abbrev_table, &
                             sh_strings_feature_type, sh_keywords_feature_type, sh_string_feature_type, sh_string_type, &
                             SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, SH_CONTINUATION_NIL, &
-                            SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS
+                            SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS, sh_dynamic_complete_functions, sh_styles_alist, &
+                            sh_style_type, sh_var_list
     use executable_fm, only: executable_insert, executable_query, executable_magicless_file_regexp, executable_prefix, &
                              executable_prefix_env, executable_chmod, executable_self_display, &
                              executable_font_lock_keywords, executable_make_buffer_file_executable_if_script_p, &
                              EXECUTABLE_QUERY_NIL, EXECUTABLE_QUERY_FUNCTION, EXECUTABLE_QUERY_T, EXECUTABLE_CHMOD_NIL
-    use files_fm, only: before_save_hook, after_save_hook
+    use files_fm, only: before_save_hook, after_save_hook, write_file_functions
     use fill_fm, only: fill_paragraph_function, fill_paragraph_handle_comment
     implicit none(type, external)
     private
@@ -1054,11 +1055,12 @@ module fortmacs
               sh_mode_map, sh_base_mode_map, sh_mode_syntax_table, sh_mode_abbrev_table, &
               sh_strings_feature_type, sh_keywords_feature_type, sh_string_feature_type, sh_string_type, &
               SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, SH_CONTINUATION_NIL, &
-              SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS
+              SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS, sh_dynamic_complete_functions, sh_styles_alist, &
+              sh_style_type, sh_var_list
     public :: executable_insert, executable_query, executable_magicless_file_regexp, executable_prefix, &
               executable_prefix_env, executable_chmod, executable_self_display, &
               executable_font_lock_keywords, executable_make_buffer_file_executable_if_script_p, &
               EXECUTABLE_QUERY_NIL, EXECUTABLE_QUERY_FUNCTION, EXECUTABLE_QUERY_T, EXECUTABLE_CHMOD_NIL
-    public :: before_save_hook, after_save_hook
+    public :: before_save_hook, after_save_hook, write_file_functions
     public :: fill_paragraph_function, fill_paragraph_handle_comment
 end module fortmacs
