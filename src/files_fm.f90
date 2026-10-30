@@ -38,6 +38,7 @@ module files_fm
                         FM_USER_ERROR, FM_FILE_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_fixnum, nilp
+    use minibuf_table_fm, only: completion_predicate
     use data_fm, only: integer_setting, logical_setting
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, current_buffer, resolve_buffer, set_buffer, &
@@ -70,6 +71,7 @@ module files_fm
     private
 
     public :: syms_of_files, file_backup_file_names, file_newest_backup, make_temp_file, init_auto_mode_interpreter_regexp
+    public :: locate_file_completion_table
 
     !> Normal hook that is run before a buffer is saved to its file.
     !> Only used by `save_buffer'.  Port of files.el before-save-hook.
@@ -259,6 +261,23 @@ module files_fm
             character(len=*), intent(in) :: filename
             type(status_type), intent(out) :: status
         end subroutine find_file_read_only_other_window
+
+        !> Do completion for file names passed to `locate_file': a function
+        !> completion table (ACTION, RESULT, STATUS, PRED and SUFFIX as for
+        !> `completion_function') of the files in DIRS (an empty name is
+        !> the default directory) without the SUFFIXES.  Port of
+        !> files.el:locate-file-completion-table.  (In files_read_fm.)
+        recursive module subroutine locate_file_completion_table(dirs, suffixes, string, action, result, status, pred, &
+                                                                 suffix)
+            implicit none(type, external)
+            character(len=*), intent(in) :: dirs(:), suffixes(:)
+            character(len=*), intent(in) :: string
+            integer, intent(in) :: action
+            type(value_type), intent(out) :: result
+            type(status_type), intent(out) :: status
+            procedure(completion_predicate), optional :: pred
+            character(len=*), intent(in), optional :: suffix
+        end subroutine locate_file_completion_table
 
         !> Register `find_file_read_only' and its keys.  (In files_read_fm.)
         module subroutine syms_of_files_read(ctl_x_map, ctl_x_4_map)

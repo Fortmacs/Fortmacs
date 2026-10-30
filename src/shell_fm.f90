@@ -123,6 +123,7 @@ module shell_fm
     !> The values of `shell_input_autoexpand' (those of
     !> `comint_input_autoexpand').
     public :: COMINT_AUTOEXPAND_NIL, COMINT_AUTOEXPAND_T, COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY
+    public :: shell_command_completion, shell_environment_variable_completion
     public :: shell, shell_mode, shell_command_mode, syms_of_shell, shell_get_old_input, shell_directory_tracker, &
               shell_unquote_argument, shell__unquote_argument, shell_parse_pcomplete_arguments, &
               shell_process_cd, shell_process_pushd, shell_process_popd, shell_cd, &

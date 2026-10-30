@@ -1907,10 +1907,10 @@ contains
     !> `display_buffer__maybe_same_window', `display_buffer_reuse_window',
     !> `display_buffer__maybe_pop_up_window',
     !> `display_buffer_in_previous_window' and
-    !> `display_buffer_use_some_window'.  Port of window.el:display-buffer
-    !> (one frame; `display_buffer_overriding_action',
-    !> `display_buffer_alist' and `display_buffer_base_action' are
-    !> deferred: they are empty).
+    !> `display_buffer_use_some_window', after those of
+    !> `display_buffer_overriding_action'.  Port of window.el:display-buffer
+    !> (one frame; `display_buffer_alist' and `display_buffer_base_action'
+    !> are deferred: they are empty).
     module subroutine display_buffer(buffer, window, status, actions, alist)
         type(handle_type), intent(in) :: buffer
         type(handle_type), intent(out) :: window
@@ -1933,6 +1933,18 @@ contains
 
         call ensure_frame_windows()
         if (present(alist)) al = alist
+
+        ! `display_buffer_overriding_action' comes first.
+        if (display_buffer_overriding_action%has_inhibit_same_window) then
+            al%inhibit_same_window = display_buffer_overriding_action%inhibit_same_window
+        end if
+
+        if (allocated(display_buffer_overriding_action%actions)) then
+            do k = 1, size(display_buffer_overriding_action%actions)
+                window = display_buffer_action(display_buffer_overriding_action%actions(k), buffer, al, status)
+                if (.not. status%ok() .or. window%index /= 0) return
+            end do
+        end if
 
         if (present(actions)) then
             do k = 1, size(actions)

@@ -23,11 +23,175 @@
 submodule(files_fm) files_read_fm
     use modes_fm, only: minor_modes
     use minibuffer_fm, only: read_file_name, REQUIRE_MATCH_NIL, REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION, &
-                             read_file_name_completion_ignore_case
+                             read_file_name_completion_ignore_case, read_file_name_internal, completion_table_with_context
+    use minibuf_fm, only: all_completions
+    use minibuf_table_fm, only: completion_table_type, COMPLETE_BOUNDARIES
+    use lisp_fm, only: list, make_list, list_length, list_elt, xstring, make_string
+    use dired_fm, only: file_name_all_completions
+    use regexp_opt_fm, only: regexp_opt, REGEXP_OPT_T
+    use search_fm, only: string_match, match_beginning
+    use fileio_fm, only: file_name_absolute_p
     use fns_fm, only: compare_strings, COMPARE_EQUAL
     implicit none(type, external)
 
 contains
+
+    module procedure locate_file_completion_table
+    type(value_type), allocatable :: names(:), fullnames(:), items(:)
+    type(value_type) :: files, matched
+    type(completion_table_type) :: table
+    character(len=:), allocatable :: sufre, string_dir, string_file, dir, file, sfx, x, first
+    integer(int64) :: k, mb
+    integer :: d, nn, nf, i
+    type(status_type) :: st
+
+    status = status_type()
+
+    if (file_name_absolute_p(string)) then
+        ! FIXME: maybe we should use completion-file-name-table instead,
+        ! tho at least for `load', the arg is passed through
+        ! substitute-in-file-name for historical reasons.
+        call read_file_name_internal(string, action, result, status, pred, suffix)
+        return
+    end if
+
+    if (action == COMPLETE_BOUNDARIES) then
+        sfx = ""
+        if (present(suffix)) sfx = suffix
+        x = file_name_directory(sfx)
+
+        if (len(x) > 0) then
+            result = list(make_fixnum(int(len(file_name_directory(string)), int64)), make_fixnum(int(len(x) - 1, int64)))
+        else
+            result = list(make_fixnum(int(len(file_name_directory(string)), int64)), make_fixnum(int(len(sfx), int64)))
+        end if
+
+        return
+    end if
+
+    ! If we have files like "foo.el" and "foo.elc", we could load one of
+    ! them with "foo.el", "foo.elc", or "foo", where just "foo" is the
+    ! preferred way.  So if we list all 3, that gives a lot of redundant
+    ! entries for the poor soul looking just for "foo".  OTOH, sometimes
+    ! the user does want to pay attention to the extension.  We try to
+    ! diffuse this tension by stripping the suffix, except when the
+    ! result is a single element (i.e. usually we list only "foo" unless
+    ! it's the only remaining element in the list, in which case we do
+    ! list "foo", "foo.elc" and "foo.el").
+    allocate (names(0), fullnames(0))
+    sufre = regexp_opt(suffixes, REGEXP_OPT_T)//"\'"
+    string_dir = file_name_directory(string)
+    string_file = file_name_nondirectory(string)
+
+    do d = 1, size(dirs)
+        dir = trim(dirs(d))
+
+        if (len(dir) == 0) then
+            dir = "./"
+            if (cur > 0 .and. allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+        end if
+
+        if (len(string_dir) > 0) then
+            call expand_file_name(string_dir, x, st, dir)
+            dir = x
+        end if
+
+        if (.not. file_directory_p(dir)) cycle
+        call file_name_all_completions(string_file, dir, files, st)
+
+        do k = 1, list_length(files)
+            file = xstring(list_elt(files, k))
+
+            if (string_match(sufre, file, st) <= 0) then
+                call push(names, file)
+            else
+                call push(fullnames, file)
+                mb = match_beginning(0, st)
+                call push(names, file(1:mb - 1))
+            end if
+        end do
+    end do
+
+    ! Switching from names to names+fullnames creates a non-monotonicity
+    ! which can cause problems with things like partial-completion.
+    ! To minimize the problem, filter out completion-regexp-list, so that
+    ! M-x load-library RET t/x.e TAB finds some files.  Also remove elements
+    ! from `names' that matched `string' only when they still had
+    ! their suffix.
+    table%list = make_list(names)
+    call all_completions(string_file, table, matched, st)
+    nn = int(list_length(matched))
+    deallocate (names)
+    allocate (names(nn))
+
+    do i = 1, nn
+        names(i) = list_elt(matched, int(i, int64))
+    end do
+
+    ! Remove duplicates of the first element, so that we can easily check
+    ! if `names' really contains only a single element.
+    if (nn > 1) then
+        first = xstring(names(1))
+        allocate (items(1))
+        items(1) = names(1)
+
+        do i = 2, nn
+            if (xstring(names(i)) == first .and. len(xstring(names(i))) == len(first)) cycle
+            call append(items, names(i))
+        end do
+
+        call move_alloc(items, names)
+    end if
+
+    ! There's no more than one matching non-suffixed element, so expand
+    ! the list by adding the suffixed elements as well.
+    if (size(names) <= 1) then
+        nf = size(fullnames)
+
+        do i = 1, nf
+            call append(names, fullnames(i))
+        end do
+    end if
+
+    table%list = make_list(names)
+    call completion_table_with_context(string_dir, table, string_file, action, result, status, pred, suffix)
+
+contains
+
+    ! (push NAME LIST)
+    subroutine push(values, name)
+        type(value_type), allocatable, intent(inout) :: values(:)
+        character(len=*), intent(in) :: name
+        type(value_type), allocatable :: grown(:)
+        integer :: j
+
+        allocate (grown(size(values) + 1))
+        grown(1) = make_string(name)
+
+        do j = 1, size(values)
+            grown(j + 1) = values(j)
+        end do
+
+        call move_alloc(grown, values)
+    end subroutine push
+
+    ! VALUES with V added at the end.
+    subroutine append(values, v)
+        type(value_type), allocatable, intent(inout) :: values(:)
+        type(value_type), intent(in) :: v
+        type(value_type), allocatable :: grown(:)
+        integer :: j
+
+        allocate (grown(size(values) + 1))
+
+        do j = 1, size(values)
+            grown(j) = values(j)
+        end do
+
+        grown(size(values) + 1) = v
+        call move_alloc(grown, values)
+    end subroutine append
+    end procedure locate_file_completion_table
 
     !> Convert FILENAME to be relative to DIRECTORY (default:
     !> `default_directory').

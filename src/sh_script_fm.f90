@@ -51,13 +51,15 @@ module sh_script_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_ARITH_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nilp, stringp, xstring, make_string, list, list_elements, t_value, make_list
+    use lisp_fm, only: value_type, nilp, stringp, xstring, make_string, list, list_elements, t_value, make_list, nil, &
+                       list_length, list_elt
     use lread_fm, only: sym
     use data_fm, only: integer_setting, string_setting, forward_setting, add_local_variables_killer, value_eq
     use commands_fm, only: commands
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: this_command
-    use buffer_fm, only: buffers, cur, buffer_serial_live, barf_if_buffer_read_only
+    use buffer_fm, only: buffers, cur, buffer_serial_live, barf_if_buffer_read_only, current_buffer, set_buffer, &
+                         get_buffer_create
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes, minor_modes
     use keymap_fm, only: keymap_set, define_key
@@ -91,7 +93,19 @@ module sh_script_fm
     use lisp_cmds_fm, only: forward_sexp_default_function
     use newcomment_fm, only: comment_start, comment_start_skip
     use paragraphs_fm, only: paragraph_start, paragraph_separate, page_delimiter
-    use comint_fm, only: comint_prompt_regexp
+    use comint_fm, only: comint_prompt_regexp, comint_dynamic_complete_functions, comint_filename_completion, &
+                         comint_completion_at_point, comint_send_string
+    use shell_fm, only: shell_command_completion, shell_environment_variable_completion, shell, explicit_shell_file_name
+    use process_fm, only: process_live_p, process_list, process_command, process_buffer, get_buffer_process, &
+                          process_arg_type
+    use window_fm, only: pop_to_buffer, display_buffer_overriding_action, display_action_type, DISPLAY_ACTION_SAME_WINDOW
+    use eval_fm, only: capf_hook_type, capf_entry_type
+    use minibuf_table_fm, only: capf_data_type, TABLE_FUNCTION, COMPLETE_ALL, COMPLETE_BOUNDARIES, completion_predicate
+    use minibuf_fm, only: complete_with_action, read_from_minibuffer
+    use minibuffer_fm, only: completion_at_point_functions, REQUIRE_MATCH_T
+    use files_fm, only: locate_file_completion_table
+    use lisp_cmds_fm, only: defun_prompt_regexp
+    use subr_fm, only: y_or_n_p
     use abbrev_fm, only: abbrev_table_type, set_local_abbrev_table
     use faces_fm, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
                         FACE_BACKGROUND_DARK
@@ -128,7 +142,9 @@ module sh_script_fm
               sh_font_lock_keywords_1, sh_font_lock_keywords_2, sh_smie_default_forward_token, &
               sh_smie_default_backward_token, sh_smie_sh_forward_token, sh_smie_sh_backward_token, sh_smie_sh_rules, &
               sh_smie_rc_forward_token, sh_smie_rc_backward_token, sh_smie_rc_rules, sh_smie_indent_continuation, &
-              sh_electric_here_document_mode, sh_assignment
+              sh_electric_here_document_mode, sh_assignment, sh_shell_process, sh_show_shell, sh_send_text, sh_cd_here, &
+              sh_send_line_or_region_and_step, sh_vars_before_point, sh_completion_at_point_function, sh_name_style, &
+              sh_load_style, sh_save_styles_to_buffer
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
@@ -246,9 +262,46 @@ module sh_script_fm
         ! sh-mode-syntax-table (setq-local in `sh_set_shell').
         logical :: has_table = .false.
         type(handle_type) :: table
+        ! sh-shell-process.
+        type(handle_type) :: process
     end type sh_local_type
 
     type(sh_local_type), allocatable :: locals(:)
+
+    !> Functions for doing TAB dynamic completion.  Port of sh-script.el
+    !> sh-dynamic-complete-functions.
+    type(capf_hook_type), target, public :: sh_dynamic_complete_functions = &
+                                            capf_hook_type(name="sh_dynamic_complete_functions")
+
+    !> The keywords `sh_completion_at_point_function' offers.  Port of
+    !> sh-script.el sh--completion-keywords.
+    character(len=*), parameter :: sh_completion_keywords(5) = [character(len=5) :: "if", "while", "until", "for", "then"]
+
+    !> An indentation style of `sh_styles_alist': its NAME and the VALUES of
+    !> the indentation variables in the order of `sh_var_list'.
+    type, public :: sh_style_type
+        character(len=64) :: name = ""
+        integer :: values(15) = 0
+    end type sh_style_type
+
+    !> The indentation variables (sh-script.el sh-var-list), as their
+    !> names.
+    character(len=*), parameter, public :: sh_var_list(15) = [character(len=30) :: "sh_basic_offset", &
+                                           "sh_indent_after_case", "sh_indent_after_do", "sh_indent_after_done", &
+                                           "sh_indent_after_else", "sh_indent_after_if", "sh_indent_after_loop_construct", &
+                                           "sh_indent_after_open", "sh_indent_for_case_alt", "sh_indent_for_case_label", &
+                                           "sh_indent_for_continuation", "sh_indent_for_do", "sh_indent_for_done", &
+                                           "sh_indent_for_fi", "sh_indent_for_then"]
+
+    !> A list of all known shell indentation styles.  Port of sh-script.el
+    !> sh-styles-alist.
+    type(sh_style_type), allocatable, public :: sh_styles_alist(:)
+
+    ! The state of completion-table-with-cache in
+    ! `sh_completion_at_point_function': the last string and its
+    ! candidates.
+    character(len=:), allocatable :: cmd_cache_arg
+    type(value_type) :: cmd_cache_result
 
     ! The default values of sh-shell-variables and
     ! sh-shell-variables-initialized.
@@ -661,6 +714,9 @@ contains
         call keymap_set(sh_mode_map, "C-c C-\", "sh_backslash_region", st)
         call keymap_set(sh_mode_map, "C-c +", "sh_add", st)
         call keymap_set(sh_mode_map, "C-M-x", "sh_execute_region", st)
+        call keymap_set(sh_mode_map, "C-c C-n", "sh_send_line_or_region_and_step", st)
+        call keymap_set(sh_mode_map, "C-c C-d", "sh_cd_here", st)
+        call keymap_set(sh_mode_map, "C-c C-z", "sh_show_shell", st)
         call keymap_set(sh_mode_map, "C-c :", "sh_set_shell", st)
         call bind_remap("delete_backward_char", "backward_delete_char_untabify")
         call bind_remap("backward_sentence", "sh_beginning_of_command")
@@ -681,6 +737,17 @@ contains
         commands%sh_beginning_of_command%run => cmd_sh_beginning_of_command
         commands%sh_end_of_command%run => cmd_sh_end_of_command
         commands%sh_backslash_region%run => cmd_sh_backslash_region
+        commands%sh_show_shell%run => sh_show_shell
+        commands%sh_cd_here%run => sh_cd_here
+        commands%sh_send_line_or_region_and_step%run => sh_send_line_or_region_and_step
+        commands%sh_name_style%run => cmd_sh_name_style
+        commands%sh_load_style%run => cmd_sh_load_style
+        commands%sh_save_styles_to_buffer%run => cmd_sh_save_styles_to_buffer
+        ! (The default value, in reverse order: `add' puts a function first.)
+        call sh_dynamic_complete_functions%add(comint_filename_completion)
+        call sh_dynamic_complete_functions%add(shell_command_completion)
+        call sh_dynamic_complete_functions%add(shell_environment_variable_completion)
+        if (.not. allocated(sh_styles_alist)) allocate (sh_styles_alist(0))
         call add_local_variables_killer(kill_sh_locals)
     end subroutine syms_of_sh_script
 
@@ -3204,7 +3271,9 @@ contains
     !> `bash_ts_mode'.  Port of sh-script.el:sh-base-mode.
     recursive subroutine sh_base_mode(status)
         type(status_type), intent(out) :: status
+        type(capf_entry_type), allocatable :: fns(:)
         logical :: saved
+        integer :: k
 
         call major_modes%sh_base_mode%begin(saved, status)
         if (.not. status%ok()) return
@@ -3215,10 +3284,25 @@ contains
         call comment_start%set_local("# ")
         call comment_start_skip%set_local("#+["//TAB//" ]*")
         call set_local_abbrev_table(sh_mode_abbrev_table)
+        ! (setq-local comint-dynamic-complete-functions
+        ! sh-dynamic-complete-functions)
+        fns = sh_dynamic_complete_functions%functions()
+        call comint_dynamic_complete_functions%add(comint_filename_completion, local=.true.)
+        call comint_dynamic_complete_functions%clear()
+
+        do k = size(fns), 1, -1
+            call comint_dynamic_complete_functions%add(fns(k)%fn, local=.true.)
+        end do
+
+        call completion_at_point_functions%add(comint_completion_at_point, local=.true.)
         ! we can't look if previous line ended with `\'
         call comint_prompt_regexp%set_local("^[ "//TAB//"]*")
         call syntax_propertize_function%set_local(sh_syntax_propertize_function)
         call syntax_propertize_extend_region_functions%add(syntax_propertize_multiline, depth=90, local=.true.)
+        call defun_prompt_regexp%set_local("^\(\(function[ "//TAB//"]\)?[ "//TAB//"]*[[:alnum:]_]+[ "//TAB// &
+                                           "]*([ "//TAB//"]*)\|function[ "//TAB//"]+[[:alnum:]_]+[ "//TAB// &
+                                           "]*\(([ "//TAB//"]*)\)?\)[ "//TAB//"]*")
+        call completion_at_point_functions%add(sh_completion_at_point_function, local=.true.)
         call major_modes%sh_base_mode%finish(saved, status)
     end subroutine sh_base_mode
 
@@ -4242,4 +4326,531 @@ contains
 
         re = word//"\([^-[:alnum:]_]\|$\)"
     end function sh_mkword_regexpr
+    ! ------------------------------------------------------------------
+    ! Inferior shell interaction
+    ! ------------------------------------------------------------------
+
+    !> Get a shell process for interaction.
+    !> If FORCE is true and no process found, create one.  Port of
+    !> sh-script.el:sh-shell-process.
+    recursive subroutine sh_shell_process(force, proc, status)
+        logical, intent(in) :: force
+        type(handle_type), intent(out) :: proc
+        type(status_type), intent(out) :: status
+        type(handle_type), allocatable :: procs(:)
+        type(process_arg_type), allocatable :: command(:)
+        type(handle_type) :: saved_buffer, shell_buffer
+        type(display_action_type) :: saved_action
+        character(len=:), allocatable :: saved_file
+        logical :: had_file
+        integer :: k, i
+
+        status = status_type()
+        k = local_index(.true.)
+
+        if (process_live_p(locals(k)%process)) then
+            proc = locals(k)%process
+            return
+        end if
+
+        proc = handle_type()
+        procs = process_list()
+
+        do i = 1, size(procs)
+            if (.not. process_live_p(procs(i))) exit
+            call process_command(procs(i), command)
+            if (size(command) == 0) exit
+
+            if (file_name_nondirectory(command(1)%s) == sh_shell%value) then
+                proc = procs(i)
+                exit
+            end if
+        end do
+
+        if (proc%index == 0 .and. force) then
+            ! (let ((explicit-shell-file-name sh-shell-file)
+            !       (display-buffer-overriding-action
+            !        '(nil . ((inhibit-same-window . t)))))
+            !   (save-current-buffer (shell)))
+            ! We must prevent this `(shell)' call from switching buffers,
+            ! so that the variable `sh-shell-process' is set locally in
+            ! the correct buffer.
+            had_file = allocated(explicit_shell_file_name%value)
+            if (had_file) saved_file = explicit_shell_file_name%value
+            explicit_shell_file_name = sh_shell_file%value
+            saved_action = display_buffer_overriding_action
+            display_buffer_overriding_action = display_action_type(has_inhibit_same_window=.true., &
+                                                                   inhibit_same_window=.true.)
+            saved_buffer = current_buffer()
+            call shell(shell_buffer, status)
+            call set_buffer(saved_buffer, status)
+            display_buffer_overriding_action = saved_action
+
+            if (had_file) then
+                explicit_shell_file_name = saved_file
+            else
+                call explicit_shell_file_name%clear()
+            end if
+
+            if (.not. status%ok()) return
+            proc = get_buffer_process(shell_buffer)
+        end if
+
+        k = local_index(.true.)
+        locals(k)%process = proc
+    end subroutine sh_shell_process
+
+    !> Pop the shell interaction buffer.  Port of sh-script.el:sh-show-shell.
+    recursive subroutine sh_show_shell(status)
+        type(status_type), intent(out) :: status
+        type(handle_type) :: proc
+
+        call sh_shell_process(.true., proc, status)
+        if (.not. status%ok()) return
+        call pop_to_buffer(process_buffer(proc), status, [DISPLAY_ACTION_SAME_WINDOW])
+    end subroutine sh_show_shell
+
+    !> Send TEXT to `sh_shell_process'.  Port of sh-script.el:sh-send-text.
+    recursive subroutine sh_send_text(text, status)
+        character(len=*), intent(in) :: text
+        type(status_type), intent(out) :: status
+        type(handle_type) :: proc
+
+        call sh_shell_process(.true., proc, status)
+        if (.not. status%ok()) return
+        call comint_send_string(proc, text//LF, status)
+    end subroutine sh_send_text
+
+    !> Change directory in the current interaction shell to the current one.
+    !> Port of sh-script.el:sh-cd-here.
+    recursive subroutine sh_cd_here(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: dir
+
+        dir = "./"
+        if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+        call sh_send_text("cd "//dir, status)
+    end subroutine sh_cd_here
+
+    !> Send the current line to the inferior shell and step to the next line.
+    !> When the region is active, send the region instead.  Port of
+    !> sh-script.el:sh-send-line-or-region-and-step.
+    recursive subroutine sh_send_line_or_region_and_step(status)
+        use editfns_fm, only: region_beginning, region_end
+        type(status_type), intent(out) :: status
+        integer(int64) :: from, to, end
+        character(len=:), allocatable :: text
+
+        if (use_region_p()) then
+            call region_beginning(from, status)
+            if (status%ok()) call region_end(to, status)
+            if (.not. status%ok()) return
+            end = to
+        else
+            from = line_beginning_position()
+            to = line_end_position()
+            end = to + 1
+        end if
+
+        call buffer_substring(from, to, text, status)
+        if (.not. status%ok()) return
+        call sh_send_text(text, status)
+        if (.not. status%ok()) return
+        call goto_char(min(end, point_max()))
+    end subroutine sh_send_line_or_region_and_step
+
+    ! ------------------------------------------------------------------
+    ! Completion
+    ! ------------------------------------------------------------------
+
+    !> The variables assigned before point.  Port of
+    !> sh-script.el:sh--vars-before-point.
+    function sh_vars_before_point() result(vars)
+        type(value_type) :: vars
+        type(value_type), allocatable :: items(:), grown(:)
+        integer(int64) :: opoint, found
+        type(status_type) :: st
+        integer :: n
+
+        opoint = point()
+        allocate (items(0))
+
+        do
+            call re_search_backward("^[ "//TAB//"]*\([[:alnum:]_]+\)=", found, st, noerror=SEARCH_NOERROR)
+            if (.not. st%ok() .or. found <= 0) exit
+            n = size(items)
+            allocate (grown(n + 1))
+            grown(1) = make_string(match_string(1))
+            grown(2:) = items
+            call move_alloc(grown, items)
+        end do
+
+        call goto_char(opoint)
+        vars = make_list(items)
+    end function sh_vars_before_point
+
+    ! The directories of `exec_path' (PATH; an empty entry is the default
+    ! directory, given as an empty name).
+    subroutine exec_path_dirs(dirs)
+        character(len=:), allocatable, intent(out) :: dirs(:)
+        character(len=:), allocatable :: path
+        logical :: found
+        integer :: b, e, n, longest, k
+
+        call getenv("PATH", path, found)
+
+        if (.not. found) then
+            allocate (character(len=1) :: dirs(0))
+            return
+        end if
+
+        n = 1
+        longest = 0
+        b = 1
+
+        do k = 1, len(path)
+            if (path(k:k) == ":") then
+                n = n + 1
+                longest = max(longest, k - b)
+                b = k + 1
+            end if
+        end do
+
+        longest = max(longest, len(path) - b + 1, 1)
+        allocate (character(len=longest) :: dirs(n))
+        n = 0
+        b = 1
+
+        do while (b <= len(path) + 1)
+            e = index(path(b:), ":")
+
+            if (e == 0) then
+                e = len(path) + 1
+            else
+                e = b + e - 1
+            end if
+
+            n = n + 1
+            dirs(n) = path(b:e - 1)
+            b = e + 1
+        end do
+    end subroutine exec_path_dirs
+
+    !> The candidates of `sh_completion_at_point_function' for STRING
+    !> before a keyword position: the variables assigned before point
+    !> (with "="), the executables and the keywords.  Port of
+    !> sh-script.el:sh--cmd-completion-table-gen (Imenu is not loaded).
+    recursive function sh_cmd_completion_table_gen(string) result(candidates)
+        character(len=*), intent(in) :: string
+        type(value_type) :: candidates
+        type(value_type), allocatable :: items(:)
+        type(value_type) :: vars, files
+        character(len=:), allocatable :: dirs(:)
+        type(status_type) :: st
+        integer(int64) :: k, nv, nf
+        integer :: j
+
+        vars = sh_vars_before_point()
+        call exec_path_dirs(dirs)
+        call locate_file_completion_table(dirs, [""], string, COMPLETE_ALL, files, st)
+        nv = list_length(vars)
+        nf = list_length(files)
+        allocate (items(nv + nf + size(sh_completion_keywords)))
+
+        do k = 1, nv
+            items(k) = make_string(xstring(list_elt(vars, k))//"=")
+        end do
+
+        do k = 1, nf
+            items(nv + k) = list_elt(files, k)
+        end do
+
+        do j = 1, size(sh_completion_keywords)
+            items(nv + nf + j) = make_string(trim(sh_completion_keywords(j)))
+        end do
+
+        candidates = make_list(items)
+    end function sh_cmd_completion_table_gen
+
+    ! The completion table of commands (completion-table-with-cache of
+    ! `sh_cmd_completion_table_gen').
+    recursive subroutine sh_cmd_completion_table(string, action, result, status, pred, suffix)
+        character(len=*), intent(in) :: string
+        integer, intent(in) :: action
+        type(value_type), intent(out) :: result
+        type(status_type), intent(out) :: status
+        procedure(completion_predicate), optional :: pred
+        character(len=*), intent(in), optional :: suffix
+        type(completion_table_type) :: table
+        logical :: cached
+
+        status = status_type()
+
+        if (action == COMPLETE_BOUNDARIES) then
+            result = nil()
+            return
+        end if
+
+        cached = .false.
+
+        if (allocated(cmd_cache_arg)) then
+            if (len(cmd_cache_arg) <= len(string)) cached = string(1:len(cmd_cache_arg)) == cmd_cache_arg
+        end if
+
+        if (.not. cached) then
+            cmd_cache_result = sh_cmd_completion_table_gen(string)
+            cmd_cache_arg = string
+        end if
+
+        table%list = cmd_cache_result
+        call complete_with_action(action, table, string, result, status, pred, suffix)
+    end subroutine sh_cmd_completion_table
+
+    !> The completion data of the variable or command name at point (a
+    !> function of `completion_at_point_functions').  Port of
+    !> sh-script.el:sh-completion-at-point-function.
+    recursive subroutine sh_completion_at_point_function(data, status)
+        type(capf_data_type), intent(out) :: data
+        type(status_type), intent(out) :: status
+        integer(int64) :: opoint, start, end, moved
+
+        status = status_type()
+        opoint = point()
+        moved = skip_chars_forward("[:alnum:]_", status)
+        end = point()
+        moved = skip_chars_backward("[:alnum:]_", status)
+        start = point()
+
+        if (preceding_char() == iachar("$")) then
+            data%found = .true.
+            data%start = start
+            data%end = end
+            data%table%list = sh_vars_before_point()
+        else if (sh_smie_keyword_p()) then
+            data%found = .true.
+            data%start = start
+            data%end = end
+            data%table%kind = TABLE_FUNCTION
+            data%table%fn => sh_cmd_completion_table
+            if (allocated(cmd_cache_arg)) deallocate (cmd_cache_arg)
+        end if
+
+        call goto_char(opoint)
+    end subroutine sh_completion_at_point_function
+
+    ! ------------------------------------------------------------------
+    ! Styles
+    ! ------------------------------------------------------------------
+
+    ! The values of the indentation variables (sh-var-list).
+    function current_style_values() result(values)
+        integer :: values(15)
+
+        values = [int(sh_basic_offset%value), int(sh_indent_after_case%value), int(sh_indent_after_do%value), &
+                  int(sh_indent_after_done%value), int(sh_indent_after_else%value), int(sh_indent_after_if%value), &
+                  int(sh_indent_after_loop_construct%value), int(sh_indent_after_open%value), &
+                  int(sh_indent_for_case_alt%value), int(sh_indent_for_case_label%value), &
+                  int(sh_indent_for_continuation%value), int(sh_indent_for_do%value), int(sh_indent_for_done%value), &
+                  int(sh_indent_for_fi%value), int(sh_indent_for_then%value)]
+    end function current_style_values
+
+    ! The index of the style NAME in `sh_styles_alist', 0 if none.
+    integer function style_index(name) result(k)
+        character(len=*), intent(in) :: name
+
+        do k = 1, size(sh_styles_alist)
+            if (trim(sh_styles_alist(k)%name) == name) return
+        end do
+
+        k = 0
+    end function style_index
+
+    !> Name the current indentation settings as a style called NAME.
+    !> If this name exists, the command will prompt whether it should be
+    !> overwritten if
+    !> - - it was called interactively with a prefix argument, or
+    !> - - called non-interactively with optional CONFIRM_OVERWRITE true.
+    !> Port of sh-script.el:sh-name-style.
+    recursive subroutine sh_name_style(name, status, confirm_overwrite)
+        character(len=*), intent(in) :: name
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: confirm_overwrite
+        type(sh_style_type), allocatable :: grown(:)
+        logical :: confirm, ok
+        integer :: k
+
+        status = status_type()
+        confirm = .false.
+        if (present(confirm_overwrite)) confirm = confirm_overwrite
+        k = style_index(name)
+
+        if (k > 0) then
+            ok = .true.
+
+            if (confirm) then
+                call y_or_n_p("This style exists.  Overwrite it? ", ok, status)
+                if (.not. status%ok()) return
+            end if
+
+            if (.not. ok) then
+                call message("Not changing style "//name)
+            else
+                call message("Updating style "//name)
+                sh_styles_alist(k)%values = current_style_values()
+            end if
+        else
+            call message("Creating new style "//name)
+            allocate (grown(size(sh_styles_alist) + 1))
+            grown(1)%name = name
+            grown(1)%values = current_style_values()
+            grown(2:) = sh_styles_alist
+            call move_alloc(grown, sh_styles_alist)
+        end if
+    end subroutine sh_name_style
+
+    !> Name the current indentation settings as a style (the command).
+    !> Port of sh-script.el:sh-name-style.
+    recursive subroutine cmd_sh_name_style(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+
+        call read_from_minibuffer("Name for this style? ", name, status)
+        if (.not. status%ok()) return
+        call sh_name_style(name, status, nilp(current_prefix_arg))
+    end subroutine cmd_sh_name_style
+
+    !> Set shell indentation values for this buffer from those in style NAME.
+    !> Port of sh-script.el:sh-load-style.
+    recursive subroutine sh_load_style(name, status)
+        character(len=*), intent(in) :: name
+        type(status_type), intent(out) :: status
+        integer :: k
+
+        status = status_type()
+        k = style_index(name)
+
+        if (k == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "sh_load_style: Style "//name//" not known")
+            return
+        end if
+
+        associate (v => sh_styles_alist(k)%values)
+            sh_basic_offset = v(1)
+            sh_indent_after_case = v(2)
+            sh_indent_after_do = v(3)
+            sh_indent_after_done = v(4)
+            sh_indent_after_else = v(5)
+            sh_indent_after_if = v(6)
+            sh_indent_after_loop_construct = v(7)
+            sh_indent_after_open = v(8)
+            sh_indent_for_case_alt = v(9)
+            sh_indent_for_case_label = v(10)
+            sh_indent_for_continuation = v(11)
+            sh_indent_for_do = v(12)
+            sh_indent_for_done = v(13)
+            sh_indent_for_fi = v(14)
+            sh_indent_for_then = v(15)
+        end associate
+    end subroutine sh_load_style
+
+    !> Set shell indentation values for this buffer from those in a style
+    !> (the command).  Port of sh-script.el:sh-load-style.
+    recursive subroutine cmd_sh_load_style(status)
+        type(status_type), intent(out) :: status
+        type(completion_table_type) :: table
+        type(value_type), allocatable :: names(:)
+        character(len=:), allocatable :: name
+        integer :: k
+
+        allocate (names(size(sh_styles_alist)))
+
+        do k = 1, size(names)
+            names(k) = make_string(trim(sh_styles_alist(k)%name))
+        end do
+
+        table%list = make_list(names)
+        call completing_read("Which style to use for this buffer? ", table, name, status, require_match=REQUIRE_MATCH_T)
+        if (.not. status%ok()) return
+        call sh_load_style(name, status)
+    end subroutine cmd_sh_load_style
+
+    !> Save all current styles as Fortran to buffer BUFF.
+    !> This is always added to the end of the buffer.  Port of
+    !> sh-script.el:sh-save-styles-to-buffer (an assignment of
+    !> `sh_styles_alist', for init.f90, in place of a setq).
+    recursive subroutine sh_save_styles_to_buffer(buff, status)
+        character(len=*), intent(in) :: buff
+        type(status_type), intent(out) :: status
+        type(handle_type) :: buffer, saved
+        character(len=:), allocatable :: text
+        integer :: k, j
+
+        call get_buffer_create(buff, buffer, status)
+        if (.not. status%ok()) return
+        saved = current_buffer()
+        call set_buffer(buffer, status)
+        if (.not. status%ok()) return
+
+        if (size(sh_styles_alist) == 0) then
+            text = "sh_styles_alist = [sh_style_type ::]"//LF
+        else
+            text = "sh_styles_alist = ["
+
+            do k = 1, size(sh_styles_alist)
+                if (k > 1) text = text//", &"//LF//"                   "
+                text = text//"sh_style_type(name="""//trim(sh_styles_alist(k)%name)//""", values=["
+
+                do j = 1, size(sh_styles_alist(k)%values)
+                    if (j > 1) text = text//", "
+                    text = text//value_text(sh_styles_alist(k)%values(j))
+                end do
+
+                text = text//"])"
+            end do
+
+            text = text//"]"//LF
+        end if
+
+        call goto_char(point_max())
+        call insert(LF//text, status)
+        call set_buffer(saved, status)
+
+    contains
+
+        ! An indentation value as Fortran: an integer or a named constant.
+        function value_text(v) result(t)
+            integer, intent(in) :: v
+            character(len=:), allocatable :: t
+            character(len=16) :: buf
+
+            select case (v)
+            case (SH_PLUS)
+                t = "SH_PLUS"
+            case (SH_MINUS)
+                t = "SH_MINUS"
+            case (SH_PLUS_PLUS)
+                t = "SH_PLUS_PLUS"
+            case (SH_MINUS_MINUS)
+                t = "SH_MINUS_MINUS"
+            case (SH_STAR)
+                t = "SH_STAR"
+            case (SH_SLASH)
+                t = "SH_SLASH"
+            case default
+                write (buf, "(i0)") v
+                t = trim(buf)
+            end select
+        end function value_text
+    end subroutine sh_save_styles_to_buffer
+
+    !> Save all current styles to a buffer (the command).  Port of
+    !> sh-script.el:sh-save-styles-to-buffer.
+    recursive subroutine cmd_sh_save_styles_to_buffer(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: buff
+
+        call read_from_minibuffer("Buffer to save styles in? ", buff, status, initial="*scratch*")
+        if (.not. status%ok()) return
+        call sh_save_styles_to_buffer(buff, status)
+    end subroutine cmd_sh_save_styles_to_buffer
 end module sh_script_fm

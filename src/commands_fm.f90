@@ -970,13 +970,19 @@ module commands_fm
         type(command_type) :: sh_base_mode
         type(command_type) :: sh_basic_indent_line
         type(command_type) :: sh_beginning_of_command
+        type(command_type) :: sh_cd_here
         type(command_type) :: sh_electric_here_document_mode
         type(command_type) :: sh_end_of_command
         type(command_type) :: sh_execute_region
+        type(command_type) :: sh_load_style
         type(command_type) :: sh_make_vars_local
         type(command_type) :: sh_mode
+        type(command_type) :: sh_name_style
         type(command_type) :: sh_reset_indent_vars_to_global_values
+        type(command_type) :: sh_save_styles_to_buffer
+        type(command_type) :: sh_send_line_or_region_and_step
         type(command_type) :: sh_set_shell
+        type(command_type) :: sh_show_shell
         type(command_type) :: shell
         type(command_type) :: shell_backward_command
         type(command_type) :: shell_command
@@ -1136,7 +1142,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1098) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1104) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -2075,13 +2081,19 @@ module commands_fm
                                                                   "sh_base_mode", &
                                                                   "sh_basic_indent_line", &
                                                                   "sh_beginning_of_command", &
+                                                                  "sh_cd_here", &
                                                                   "sh_electric_here_document_mode", &
                                                                   "sh_end_of_command", &
                                                                   "sh_execute_region", &
+                                                                  "sh_load_style", &
                                                                   "sh_make_vars_local", &
                                                                   "sh_mode", &
+                                                                  "sh_name_style", &
                                                                   "sh_reset_indent_vars_to_global_values", &
+                                                                  "sh_save_styles_to_buffer", &
+                                                                  "sh_send_line_or_region_and_step", &
                                                                   "sh_set_shell", &
+                                                                  "sh_show_shell", &
                                                                   "shell", &
                                                                   "shell_backward_command", &
                                                                   "shell_command", &
@@ -4123,20 +4135,32 @@ contains
             p => commands%sh_basic_indent_line
         case ("sh_beginning_of_command")
             p => commands%sh_beginning_of_command
+        case ("sh_cd_here")
+            p => commands%sh_cd_here
         case ("sh_electric_here_document_mode")
             p => commands%sh_electric_here_document_mode
         case ("sh_end_of_command")
             p => commands%sh_end_of_command
         case ("sh_execute_region")
             p => commands%sh_execute_region
+        case ("sh_load_style")
+            p => commands%sh_load_style
         case ("sh_make_vars_local")
             p => commands%sh_make_vars_local
         case ("sh_mode")
             p => commands%sh_mode
+        case ("sh_name_style")
+            p => commands%sh_name_style
         case ("sh_reset_indent_vars_to_global_values")
             p => commands%sh_reset_indent_vars_to_global_values
+        case ("sh_save_styles_to_buffer")
+            p => commands%sh_save_styles_to_buffer
+        case ("sh_send_line_or_region_and_step")
+            p => commands%sh_send_line_or_region_and_step
         case ("sh_set_shell")
             p => commands%sh_set_shell
+        case ("sh_show_shell")
+            p => commands%sh_show_shell
         case ("shell")
             p => commands%shell
         case ("shell_backward_command")
