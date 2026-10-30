@@ -37,6 +37,10 @@ module docstrings_fm
                           add_log_mailing_address, change_log_date, change_log_default_name, &
                           change_log_directory_files, change_log_mode_hook, change_log_mode_map, &
                           change_log_mode_syntax_table
+    use ansi_color_fm, only: ansi_color_apply_face_function, ansi_color_basic_faces_vector, &
+                             ansi_color_bold_is_bright, ansi_color_bright_colors_vector, ansi_color_for_comint_mode, &
+                             ANSI_COLOR_NIL, ANSI_COLOR_FILTER, ANSI_COLOR_T, ansi_color_for_compilation_mode, &
+                             ANSI_COLOR_NIL, ANSI_COLOR_FILTER, ANSI_COLOR_T, ansi_color_normal_colors_vector
     use apropos_fm, only: apropos_all_words_regexp, apropos_mode_hook, apropos_mode_map, &
                           apropos_pattern, apropos_regexp
     use autorevert_fm, only: auto_revert_lockout_interval, auto_revert_avoid_polling, &
@@ -510,17 +514,19 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1295) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1300) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
                                             "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
                                                           "add_mode_abbrev", "add_name_to_file", "add_save_some_buffers_function", &
-                                           "append_to_register", "apply_on_rectangle", "apropos_command", "apropos_documentation", &
-                                                      "apropos_follow", "apropos_function", "apropos_mode", "apropos_next_symbol", &
-                                                             "apropos_previous_symbol", "apropos_user_option", "apropos_variable", &
-                                             "async_shell_command", "auto_fill_mode", "auto_revert_mode", "auto_revert_set_timer", &
-                                                                  "auto_revert_tail_mode", "back_to_indentation", "backward_char", &
+                                                             "ansi_color_compilation_filter", "ansi_color_for_comint_mode_filter", &
+                                                                "ansi_color_for_comint_mode_off", "ansi_color_for_comint_mode_on", &
+                                                          "ansi_color_process_output", "append_to_register", "apply_on_rectangle", &
+                                                 "apropos_command", "apropos_documentation", "apropos_follow", "apropos_function", &
+                                          "apropos_mode", "apropos_next_symbol", "apropos_previous_symbol", "apropos_user_option", &
+                                                  "apropos_variable", "async_shell_command", "auto_fill_mode", "auto_revert_mode", &
+                                         "auto_revert_set_timer", "auto_revert_tail_mode", "back_to_indentation", "backward_char", &
                                              "backward_delete_char_untabify", "backward_kill_paragraph", "backward_kill_sentence", &
                                                      "backward_kill_sexp", "backward_kill_word", "backward_list", "backward_page", &
                                                    "backward_paragraph", "backward_sentence", "backward_sexp", "backward_up_list", &
@@ -895,26 +901,29 @@ module docstrings_fm
                                                                     "yank_rectangle", "yes_or_no_p", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1050) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1057) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
                                              "add_log_dont_create_changelog_file", "add_log_full_name", "add_log_mailing_address", &
                                                     "after_change_functions", "after_change_major_mode_hook", "after_revert_hook", &
                                                  "after_save_hook", "after_set_visited_file_name_hook", "amalgamating_undo_limit", &
-                                           "apropos_all_words_regexp", "apropos_mode_hook", "apropos_mode_map", "apropos_pattern", &
-                                             "apropos_regexp", "async_shell_command_buffer", "async_shell_command_display_buffer", &
-                                                     "async_shell_command_mode", "async_shell_command_width", "auto_coding_alist", &
-                                                              "auto_coding_regexp_alist", "auto_fill_chars", "auto_fill_function", &
-                                                "auto_fill_inhibit_regexp", "auto_fill_mode_hook", "auto_mode_interpreter_regexp", &
-                                                                    "auto_revert__lockout_interval", "auto_revert_avoid_polling", &
-                                            "auto_revert_buffer_in_progress", "auto_revert_check_vc_info", "auto_revert_interval", &
-                                                                    "auto_revert_mode_hook", "auto_revert_mode_text", &
-                                                              "auto_revert_notify_exclude_dir_regexp", "auto_revert_remote_files", &
-                                                                   "auto_revert_stop_on_user_input", "auto_revert_tail_mode_hook", &
-                                                    "auto_revert_tail_mode_text", "auto_revert_use_notify", "auto_revert_verbose", &
-                                          "backward_delete_char_untabify_method", "before_change_functions", "before_revert_hook", &
-                                                               "before_save_hook", "blink_matching_delay", "blink_matching_paren", &
+                                                                "ansi_color_apply_face_function", "ansi_color_basic_faces_vector", &
+                                                                   "ansi_color_bold_is_bright", "ansi_color_bright_colors_vector", &
+                                                                  "ansi_color_for_comint_mode", "ansi_color_for_compilation_mode", &
+                                               "ansi_color_normal_colors_vector", "apropos_all_words_regexp", "apropos_mode_hook", &
+                                            "apropos_mode_map", "apropos_pattern", "apropos_regexp", "async_shell_command_buffer", &
+                                                                 "async_shell_command_display_buffer", "async_shell_command_mode", &
+                                                     "async_shell_command_width", "auto_coding_alist", "auto_coding_regexp_alist", &
+                                                              "auto_fill_chars", "auto_fill_function", "auto_fill_inhibit_regexp", &
+                                           "auto_fill_mode_hook", "auto_mode_interpreter_regexp", "auto_revert__lockout_interval", &
+                                                                    "auto_revert_avoid_polling", "auto_revert_buffer_in_progress", &
+                                                     "auto_revert_check_vc_info", "auto_revert_interval", "auto_revert_mode_hook", &
+                                                                 "auto_revert_mode_text", "auto_revert_notify_exclude_dir_regexp", &
+                                                                    "auto_revert_remote_files", "auto_revert_stop_on_user_input", &
+                                             "auto_revert_tail_mode_hook", "auto_revert_tail_mode_text", "auto_revert_use_notify", &
+                                         "auto_revert_verbose", "backward_delete_char_untabify_method", "before_change_functions", &
+                                         "before_revert_hook", "before_save_hook", "blink_matching_delay", "blink_matching_paren", &
                                                      "blink_matching_paren_distance", "blink_matching_paren_dont_ignore_comments", &
                                                                     "blink_matching_paren_on_screen", "bookmark_after_jump_hook", &
                                            "bookmark_after_load_file_hook", "bookmark_alist", "bookmark_alist_modification_count", &
@@ -1260,7 +1269,7 @@ module docstrings_fm
                                                                     "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(523) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(526) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1268,6 +1277,9 @@ module docstrings_fm
                                                                       "adaptive_fill_mode", &
                                                                       "adaptive_fill_regexp", &
                                                                       "after_save_hook", &
+                                                                      "ansi_color_bold_is_bright", &
+                                                                      "ansi_color_for_comint_mode", &
+                                                                      "ansi_color_for_compilation_mode", &
                                                                       "async_shell_command_buffer", &
                                                                       "async_shell_command_display_buffer", &
                                                                       "async_shell_command_width", &
@@ -1953,6 +1965,39 @@ contains
             entry%fortran = "call add_save_some_buffers_function(fn)"
             entry%doc = "Add FN to the front of `save_some_buffers_functions', unless it is"//LF// &
                         "there (add-hook)."
+        case ("ansi_color_compilation_filter")
+            entry%file = "ansi_color_fm.f90"
+            entry%fortran = "call ansi_color_compilation_filter(status)"
+            entry%doc = "Maybe translate SGR control sequences into text properties."//LF// &
+                        "This function depends on the `ansi_color_for_compilation_mode'"//LF// &
+                        "variable, and is meant to be used in `compilation_filter_hook'."
+        case ("ansi_color_for_comint_mode_filter")
+            entry%file = "ansi_color_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Set `ansi_color_for_comint_mode' to ANSI_COLOR_FILTER."
+        case ("ansi_color_for_comint_mode_off")
+            entry%file = "ansi_color_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Set `ansi_color_for_comint_mode' to ANSI_COLOR_NIL."
+        case ("ansi_color_for_comint_mode_on")
+            entry%file = "ansi_color_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Set `ansi_color_for_comint_mode' to ANSI_COLOR_T."
+        case ("ansi_color_process_output")
+            entry%file = "ansi_color_fm.f90"
+            entry%fortran = "call ansi_color_process_output(ignored, status)"
+            entry%doc = "Maybe translate SGR control sequences of comint output into text"//LF// &
+                        "properties."//LF// &
+                        ""//LF// &
+                        "Depending on variable `ansi_color_for_comint_mode' the comint"//LF// &
+                        "output is either not processed, SGR control sequences are filtered"//LF// &
+                        "using `ansi_color_filter_region', or SGR control sequences are"//LF// &
+                        "translated into text properties using `ansi_color_apply_on_region'."//LF// &
+                        ""//LF// &
+                        "The comint output is assumed to lie between the marker"//LF// &
+                        "`comint_last_output_start' and the process-mark."//LF// &
+                        ""//LF// &
+                        "This is a good function to put in `comint_output_filter_functions'."
         case ("append_to_register")
             entry%file = "register_fm.f90"
             entry%fortran = "call append_to_register(register, start, end, status, delete_flag)"
@@ -13055,6 +13100,131 @@ contains
             entry%doc = "The maximum number of changes to possibly amalgamate when undoing"//LF// &
                         "changes.  The `undo' command will normally consider ""similar"""//LF// &
                         "changes (like inserting characters) to be part of the same change."
+        case ("ansi_color_apply_face_function")
+            entry%file = "ansi_color_fm.f90"
+            entry%fortran = "ansi_color_apply_face_function"
+            entry%doc = "See the type."
+        case ("ansi_color_basic_faces_vector")
+            entry%file = "ansi_color_fm.f90"
+            entry%fortran = "ansi_color_basic_faces_vector"
+            entry%value = repr(ansi_color_basic_faces_vector)
+            entry%doc = "Faces used for SGR control sequences determining a face."//LF// &
+                        "This vector holds the faces used for SGR control sequence"//LF// &
+                        "parameters 0 to 7 ("""" is nil)."//LF// &
+                        ""//LF// &
+                        "Parameter  Description"//LF// &
+                        "  0        default"//LF// &
+                        "  1        bold"//LF// &
+                        "  2        faint"//LF// &
+                        "  3        italic"//LF// &
+                        "  4        underlined"//LF// &
+                        "  5        slowly blinking"//LF// &
+                        "  6        rapidly blinking"//LF// &
+                        "  7        negative image"
+        case ("ansi_color_bold_is_bright")
+            entry%file = "ansi_color_fm.f90"
+            entry%fortran = "ansi_color_bold_is_bright"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(ansi_color_bold_is_bright%value)
+            entry%doc = "If set to true, combining ANSI bold and a color produces the bright"//LF// &
+                        "version of that color."
+        case ("ansi_color_bright_colors_vector")
+            entry%file = "ansi_color_fm.f90"
+            entry%fortran = "ansi_color_bright_colors_vector"
+            entry%value = repr(ansi_color_bright_colors_vector)
+            entry%doc = "Faces used for SGR control sequences determining a ""bright"""//LF// &
+                        "color.  This vector holds the faces used for SGR control sequence"//LF// &
+                        "parameters 90 to 97 (bright foreground colors) and 100 to 107"//LF// &
+                        "(bright background colors)."//LF// &
+                        ""//LF// &
+                        "Parameter   Color"//LF// &
+                        "  90  100   bright black"//LF// &
+                        "  91  101   bright red"//LF// &
+                        "  92  102   bright green"//LF// &
+                        "  93  103   bright yellow"//LF// &
+                        "  94  104   bright blue"//LF// &
+                        "  95  105   bright magenta"//LF// &
+                        "  96  106   bright cyan"//LF// &
+                        "  97  107   bright white"
+        case ("ansi_color_for_comint_mode")
+            entry%file = "ansi_color_fm.f90"
+            entry%fortran = "ansi_color_for_comint_mode"
+            entry%user_option = .true.
+            entry%original = "ANSI_COLOR_T"
+
+            select case (ansi_color_for_comint_mode%value)
+            case (ANSI_COLOR_NIL)
+                entry%value = "ANSI_COLOR_NIL"
+            case (ANSI_COLOR_FILTER)
+                entry%value = "ANSI_COLOR_FILTER"
+            case (ANSI_COLOR_T)
+                entry%value = "ANSI_COLOR_T"
+            case default
+                entry%value = repr(ansi_color_for_comint_mode%value)
+            end select
+
+            entry%doc = "Determines what to do with comint output."//LF// &
+                        "If ANSI_COLOR_NIL, do nothing."//LF// &
+                        "If ANSI_COLOR_FILTER, then filter all SGR control sequences."//LF// &
+                        "If anything else (such as ANSI_COLOR_T), then translate SGR"//LF// &
+                        "control sequences into text properties."//LF// &
+                        ""//LF// &
+                        "In order for this to have any effect, `ansi_color_process_output'"//LF// &
+                        "must be in `comint_output_filter_functions'."//LF// &
+                        ""//LF// &
+                        "This can be used to enable colorized ls --color=yes output"//LF// &
+                        "in shell buffers.  You set this variable by calling one of:"//LF// &
+                        "\[ansi_color_for_comint_mode_on]"//LF// &
+                        "\[ansi_color_for_comint_mode_off]"//LF// &
+                        "\[ansi_color_for_comint_mode_filter]"
+        case ("ansi_color_for_compilation_mode")
+            entry%file = "ansi_color_fm.f90"
+            entry%fortran = "ansi_color_for_compilation_mode"
+            entry%user_option = .true.
+            entry%original = "ANSI_COLOR_T"
+
+            select case (ansi_color_for_compilation_mode%value)
+            case (ANSI_COLOR_NIL)
+                entry%value = "ANSI_COLOR_NIL"
+            case (ANSI_COLOR_FILTER)
+                entry%value = "ANSI_COLOR_FILTER"
+            case (ANSI_COLOR_T)
+                entry%value = "ANSI_COLOR_T"
+            case default
+                entry%value = repr(ansi_color_for_compilation_mode%value)
+            end select
+
+            entry%doc = "Determines what to do with compilation output."//LF// &
+                        "If ANSI_COLOR_NIL, do nothing."//LF// &
+                        ""//LF// &
+                        "If ANSI_COLOR_FILTER, then filter all ANSI graphical control"//LF// &
+                        "sequences."//LF// &
+                        ""//LF// &
+                        "If anything else (such as ANSI_COLOR_T), then translate ANSI"//LF// &
+                        "graphical control sequences into text properties."//LF// &
+                        ""//LF// &
+                        "In order for this to have any effect,"//LF// &
+                        "`ansi_color_compilation_filter' must be in"//LF// &
+                        "`compilation_filter_hook'."
+        case ("ansi_color_normal_colors_vector")
+            entry%file = "ansi_color_fm.f90"
+            entry%fortran = "ansi_color_normal_colors_vector"
+            entry%value = repr(ansi_color_normal_colors_vector)
+            entry%doc = "Faces used for SGR control sequences determining a color."//LF// &
+                        "This vector holds the faces used for SGR control sequence"//LF// &
+                        "parameters 30 to 37 (foreground colors) and 40 to 47 (background"//LF// &
+                        "colors)."//LF// &
+                        ""//LF// &
+                        "Parameter  Color"//LF// &
+                        "  30  40   black"//LF// &
+                        "  31  41   red"//LF// &
+                        "  32  42   green"//LF// &
+                        "  33  43   yellow"//LF// &
+                        "  34  44   blue"//LF// &
+                        "  35  45   magenta"//LF// &
+                        "  36  46   cyan"//LF// &
+                        "  37  47   white"
         case ("apropos_all_words_regexp")
             entry%file = "apropos_fm.f90"
             entry%fortran = "apropos_all_words_regexp"
@@ -24002,6 +24172,15 @@ contains
             setting = .true.
         case ("adaptive_fill_regexp")
             kind = OPTION_STRING
+        case ("ansi_color_bold_is_bright")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("ansi_color_for_comint_mode")
+            kind = OPTION_CHOICE
+            setting = .true.
+        case ("ansi_color_for_compilation_mode")
+            kind = OPTION_CHOICE
+            setting = .true.
         case ("async_shell_command_buffer")
             kind = OPTION_CHOICE
             setting = .true.
@@ -24999,6 +25178,12 @@ contains
                 call adaptive_fill_mode%set_local(v)
             else
                 adaptive_fill_mode = v
+            end if
+        case ("ansi_color_bold_is_bright")
+            if (local) then
+                call ansi_color_bold_is_bright%set_local(v)
+            else
+                ansi_color_bold_is_bright = v
             end if
         case ("async_shell_command_display_buffer")
             if (local) then
@@ -26327,6 +26512,52 @@ contains
         ok = .true.
 
         select case (name)
+        case ("ansi_color_for_comint_mode")
+            select case (constant)
+            case ("ANSI_COLOR_NIL")
+                if (local) then
+                    call ansi_color_for_comint_mode%set_local(ANSI_COLOR_NIL)
+                else
+                    ansi_color_for_comint_mode = ANSI_COLOR_NIL
+                end if
+            case ("ANSI_COLOR_FILTER")
+                if (local) then
+                    call ansi_color_for_comint_mode%set_local(ANSI_COLOR_FILTER)
+                else
+                    ansi_color_for_comint_mode = ANSI_COLOR_FILTER
+                end if
+            case ("ANSI_COLOR_T")
+                if (local) then
+                    call ansi_color_for_comint_mode%set_local(ANSI_COLOR_T)
+                else
+                    ansi_color_for_comint_mode = ANSI_COLOR_T
+                end if
+            case default
+                ok = .false.
+            end select
+        case ("ansi_color_for_compilation_mode")
+            select case (constant)
+            case ("ANSI_COLOR_NIL")
+                if (local) then
+                    call ansi_color_for_compilation_mode%set_local(ANSI_COLOR_NIL)
+                else
+                    ansi_color_for_compilation_mode = ANSI_COLOR_NIL
+                end if
+            case ("ANSI_COLOR_FILTER")
+                if (local) then
+                    call ansi_color_for_compilation_mode%set_local(ANSI_COLOR_FILTER)
+                else
+                    ansi_color_for_compilation_mode = ANSI_COLOR_FILTER
+                end if
+            case ("ANSI_COLOR_T")
+                if (local) then
+                    call ansi_color_for_compilation_mode%set_local(ANSI_COLOR_T)
+                else
+                    ansi_color_for_compilation_mode = ANSI_COLOR_T
+                end if
+            case default
+                ok = .false.
+            end select
         case ("async_shell_command_buffer")
             select case (constant)
             case ("ASYNC_CONFIRM_KILL_PROCESS")
