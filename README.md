@@ -1,4 +1,4 @@
-<h1 align="center"><img src="docs/logo/logo.svg" alt="Fortmacs" width="448"></h1>
+<h1 align="center"><img src="docs/logo/social.svg" alt="Fortmacs" width="480"></h1>
 
 > **Not usable yet.** This is an early, experimental port; it builds and
 > runs, but most of Emacs is missing.
