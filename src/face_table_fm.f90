@@ -26,6 +26,29 @@
 !> tools/gen-faces.sh from the face declarations in src/.
 module face_table_fm
     use faces_fm, only: named_face_type
+    use ansi_color_fm, only: ansi_color_black
+    use ansi_color_fm, only: ansi_color_blue
+    use ansi_color_fm, only: ansi_color_bold
+    use ansi_color_fm, only: ansi_color_bright_black
+    use ansi_color_fm, only: ansi_color_bright_blue
+    use ansi_color_fm, only: ansi_color_bright_cyan
+    use ansi_color_fm, only: ansi_color_bright_green
+    use ansi_color_fm, only: ansi_color_bright_magenta
+    use ansi_color_fm, only: ansi_color_bright_red
+    use ansi_color_fm, only: ansi_color_bright_white
+    use ansi_color_fm, only: ansi_color_bright_yellow
+    use ansi_color_fm, only: ansi_color_cyan
+    use ansi_color_fm, only: ansi_color_faint
+    use ansi_color_fm, only: ansi_color_fast_blink
+    use ansi_color_fm, only: ansi_color_green
+    use ansi_color_fm, only: ansi_color_inverse
+    use ansi_color_fm, only: ansi_color_italic
+    use ansi_color_fm, only: ansi_color_magenta
+    use ansi_color_fm, only: ansi_color_red
+    use ansi_color_fm, only: ansi_color_slow_blink
+    use ansi_color_fm, only: ansi_color_underline
+    use ansi_color_fm, only: ansi_color_white
+    use ansi_color_fm, only: ansi_color_yellow
     use faces_fm, only: bold
     use faces_fm, only: bold_italic
     use bookmark_fm, only: bookmark_face
@@ -220,6 +243,29 @@ module face_table_fm
 
     !> One component per face, pointing at the face.
     type :: face_table_type
+        type(named_face_type), pointer :: ansi_color_black => ansi_color_black
+        type(named_face_type), pointer :: ansi_color_blue => ansi_color_blue
+        type(named_face_type), pointer :: ansi_color_bold => ansi_color_bold
+        type(named_face_type), pointer :: ansi_color_bright_black => ansi_color_bright_black
+        type(named_face_type), pointer :: ansi_color_bright_blue => ansi_color_bright_blue
+        type(named_face_type), pointer :: ansi_color_bright_cyan => ansi_color_bright_cyan
+        type(named_face_type), pointer :: ansi_color_bright_green => ansi_color_bright_green
+        type(named_face_type), pointer :: ansi_color_bright_magenta => ansi_color_bright_magenta
+        type(named_face_type), pointer :: ansi_color_bright_red => ansi_color_bright_red
+        type(named_face_type), pointer :: ansi_color_bright_white => ansi_color_bright_white
+        type(named_face_type), pointer :: ansi_color_bright_yellow => ansi_color_bright_yellow
+        type(named_face_type), pointer :: ansi_color_cyan => ansi_color_cyan
+        type(named_face_type), pointer :: ansi_color_faint => ansi_color_faint
+        type(named_face_type), pointer :: ansi_color_fast_blink => ansi_color_fast_blink
+        type(named_face_type), pointer :: ansi_color_green => ansi_color_green
+        type(named_face_type), pointer :: ansi_color_inverse => ansi_color_inverse
+        type(named_face_type), pointer :: ansi_color_italic => ansi_color_italic
+        type(named_face_type), pointer :: ansi_color_magenta => ansi_color_magenta
+        type(named_face_type), pointer :: ansi_color_red => ansi_color_red
+        type(named_face_type), pointer :: ansi_color_slow_blink => ansi_color_slow_blink
+        type(named_face_type), pointer :: ansi_color_underline => ansi_color_underline
+        type(named_face_type), pointer :: ansi_color_white => ansi_color_white
+        type(named_face_type), pointer :: ansi_color_yellow => ansi_color_yellow
         type(named_face_type), pointer :: bold => bold
         type(named_face_type), pointer :: bold_italic => bold_italic
         type(named_face_type), pointer :: bookmark_face => bookmark_face

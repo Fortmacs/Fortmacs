@@ -39,6 +39,9 @@ module commands_fm
         type(command_type) :: abort_recursive_edit
         type(command_type) :: add_global_abbrev
         type(command_type) :: add_mode_abbrev
+        type(command_type) :: ansi_color_for_comint_mode_filter
+        type(command_type) :: ansi_color_for_comint_mode_off
+        type(command_type) :: ansi_color_for_comint_mode_on
         type(command_type) :: append_to_register
         type(command_type) :: apropos_command
         type(command_type) :: apropos_documentation
@@ -1074,13 +1077,16 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1035) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1038) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
                                                                   "abort_recursive_edit", &
                                                                   "add_global_abbrev", &
                                                                   "add_mode_abbrev", &
+                                                                  "ansi_color_for_comint_mode_filter", &
+                                                                  "ansi_color_for_comint_mode_off", &
+                                                                  "ansi_color_for_comint_mode_on", &
                                                                   "append_to_register", &
                                                                   "apropos_command", &
                                                                   "apropos_documentation", &
@@ -2134,6 +2140,12 @@ contains
             p => commands%add_global_abbrev
         case ("add_mode_abbrev")
             p => commands%add_mode_abbrev
+        case ("ansi_color_for_comint_mode_filter")
+            p => commands%ansi_color_for_comint_mode_filter
+        case ("ansi_color_for_comint_mode_off")
+            p => commands%ansi_color_for_comint_mode_off
+        case ("ansi_color_for_comint_mode_on")
+            p => commands%ansi_color_for_comint_mode_on
         case ("append_to_register")
             p => commands%append_to_register
         case ("apropos_command")
