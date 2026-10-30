@@ -555,7 +555,9 @@ ported. Their keys are unbound, as test_bindings_fm checks:
   `[t(name="a")]`): gfortran 13 leaks them (checked with valgrind,
   2026-10-28). Use `list(...)`, variables, element-by-element assignment,
   a typed `%add`, or fixed-length components. No recursive allocatable types (gfortran copies them
-  shallowly). `tools/check.sh --valgrind` (run in CI) catches leaks, running each suite alone under valgrind in parallel; `--valgrind-combined` (CI on main) also runs all suites in one process.
+  shallowly). `tools/check.sh --valgrind` (run in CI) catches leaks: it runs
+  each suite alone under valgrind, in parallel; `--valgrind-combined` (CI
+  on main) also runs all suites in one process.
 - Objects are freed explicitly: every `make_marker` needs a `free_marker`.
 - Change hooks run user code in the middle of editing primitives, which
   may call them again: the primitives and every procedure on the way to a
