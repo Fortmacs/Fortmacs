@@ -1444,7 +1444,14 @@ contains
         end do
 
         ! (nreverse (nconc new remaining))
-        list = [remaining(size(remaining):1:-1), new(size(new):1:-1)]
+        deallocate (list)
+
+        if (size(remaining) + size(new) == 0) then
+            ! (An empty array constructor would reallocate to size 0.)
+            allocate (list(0))
+        else
+            list = [remaining(size(remaining):1:-1), new(size(new):1:-1)]
+        end if
     end subroutine auto_revert_buffer_candidates
 
     !> Revert a single buffer BUF.
