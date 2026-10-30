@@ -1,0 +1,1 @@
+2026-10-30 — Progress total (`pie-complete`, based on main; asked by the user): below the pie's legend, after a rule, a row gives the share and count of everything ported ("≈4.37% Complete 2,796 of 63,999"); the image is 206 pixels high instead of 180.  The Progress workflow redraws the pies on main after the merge.
