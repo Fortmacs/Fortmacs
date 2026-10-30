@@ -1337,7 +1337,7 @@ module docstrings_fm
                                                            "y_or_n_p_history_variable", "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(550) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(564) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1690,6 +1690,20 @@ module docstrings_fm
                                                                       "list_matching_lines_jump_to_current_line", &
                                                                       "list_matching_lines_prefix_face", &
                                                                       "make_backup_files", &
+                                                                      "makefile_backslash_align", &
+                                                                      "makefile_backslash_column", &
+                                                                      "makefile_brave_make", &
+                                                                      "makefile_cleanup_continuations", &
+                                                                      "makefile_electric_keys", &
+                                                                      "makefile_macro_assign", &
+                                                                      "makefile_mode_hook", &
+                                                                      "makefile_pickup_everything_picks_up_filenames_p", &
+                                                                      "makefile_runtime_macros_list", &
+                                                                      "makefile_special_targets_list", &
+                                                                      "makefile_tab_after_target_colon", &
+                                                                      "makefile_target_colon", &
+                                                                      "makefile_up_to_date_buffer_name", &
+                                                                      "makefile_use_curly_braces_for_macros_p", &
                                                                       "mark_even_if_inactive", &
                                                                       "mark_ring_max", &
                                                                       "message_log_max", &
@@ -21039,18 +21053,21 @@ contains
         case ("makefile_backslash_align")
             entry%file = "make_mode_fm.f90"
             entry%fortran = "makefile_backslash_align"
+            entry%user_option = .true.
             entry%original = ".true."
             entry%value = repr(makefile_backslash_align%value)
             entry%doc = "If true, `makefile_backslash_region' will align backslashes."
         case ("makefile_backslash_column")
             entry%file = "make_mode_fm.f90"
             entry%fortran = "makefile_backslash_column"
+            entry%user_option = .true.
             entry%original = "48"
             entry%value = repr(makefile_backslash_column%value)
             entry%doc = "Column in which `makefile_backslash_region' inserts backslashes."
         case ("makefile_brave_make")
             entry%file = "make_mode_fm.f90"
             entry%fortran = "makefile_brave_make"
+            entry%user_option = .true.
 
             if (allocated(makefile_brave_make%value)) then
                 entry%value = repr(makefile_brave_make%value)
@@ -21089,6 +21106,7 @@ contains
         case ("makefile_cleanup_continuations")
             entry%file = "make_mode_fm.f90"
             entry%fortran = "makefile_cleanup_continuations"
+            entry%user_option = .true.
             entry%original = ".false."
             entry%value = repr(makefile_cleanup_continuations%value)
             entry%doc = "If true, automatically clean up continuation lines when saving."//LF// &
@@ -21121,6 +21139,7 @@ contains
         case ("makefile_electric_keys")
             entry%file = "make_mode_fm.f90"
             entry%fortran = "makefile_electric_keys"
+            entry%user_option = .true.
             entry%original = ".false."
             entry%value = repr(makefile_electric_keys%value)
             entry%doc = "If true, Makefile mode should install electric keybindings."//LF// &
@@ -21148,6 +21167,7 @@ contains
         case ("makefile_macro_assign")
             entry%file = "make_mode_fm.f90"
             entry%fortran = "makefile_macro_assign"
+            entry%user_option = .true.
 
             if (allocated(makefile_macro_assign%value)) then
                 entry%value = repr(makefile_macro_assign%value)
@@ -21171,6 +21191,7 @@ contains
         case ("makefile_mode_hook")
             entry%file = "make_mode_fm.f90"
             entry%fortran = "makefile_mode_hook"
+            entry%user_option = .true.
             entry%doc = "Normal hook run by `makefile_mode'."
         case ("makefile_mode_map")
             entry%file = "make_mode_fm.f90"
@@ -21183,6 +21204,7 @@ contains
         case ("makefile_pickup_everything_picks_up_filenames_p")
             entry%file = "make_mode_fm.f90"
             entry%fortran = "makefile_pickup_everything_picks_up_filenames_p"
+            entry%user_option = .true.
             entry%original = ".false."
             entry%value = repr(makefile_pickup_everything_picks_up_filenames_p%value)
             entry%doc = "If true, `makefile_pickup_everything' picks up filenames as targets."//LF// &
@@ -21202,6 +21224,7 @@ contains
         case ("makefile_runtime_macros_list")
             entry%file = "make_mode_fm.f90"
             entry%fortran = "makefile_runtime_macros_list"
+            entry%user_option = .true.
 
             if (allocated(makefile_runtime_macros_list)) then
                 entry%value = repr(makefile_runtime_macros_list)
@@ -21216,6 +21239,7 @@ contains
         case ("makefile_special_targets_list")
             entry%file = "make_mode_fm.f90"
             entry%fortran = "makefile_special_targets_list"
+            entry%user_option = .true.
 
             if (allocated(makefile_special_targets_list)) then
                 entry%value = repr(makefile_special_targets_list)
@@ -21229,6 +21253,7 @@ contains
         case ("makefile_tab_after_target_colon")
             entry%file = "make_mode_fm.f90"
             entry%fortran = "makefile_tab_after_target_colon"
+            entry%user_option = .true.
             entry%original = ".true."
             entry%value = repr(makefile_tab_after_target_colon%value)
             entry%doc = "If true, insert a TAB after a target colon."//LF// &
@@ -21237,6 +21262,7 @@ contains
         case ("makefile_target_colon")
             entry%file = "make_mode_fm.f90"
             entry%fortran = "makefile_target_colon"
+            entry%user_option = .true.
 
             if (allocated(makefile_target_colon%value)) then
                 entry%value = repr(makefile_target_colon%value)
@@ -21249,6 +21275,7 @@ contains
         case ("makefile_up_to_date_buffer_name")
             entry%file = "make_mode_fm.f90"
             entry%fortran = "makefile_up_to_date_buffer_name"
+            entry%user_option = .true.
 
             if (allocated(makefile_up_to_date_buffer_name%value)) then
                 entry%value = repr(makefile_up_to_date_buffer_name%value)
@@ -21260,6 +21287,7 @@ contains
         case ("makefile_use_curly_braces_for_macros_p")
             entry%file = "make_mode_fm.f90"
             entry%fortran = "makefile_use_curly_braces_for_macros_p"
+            entry%user_option = .true.
             entry%original = ".false."
             entry%value = repr(makefile_use_curly_braces_for_macros_p%value)
             entry%doc = "Controls the style of generated macro references."//LF// &
@@ -25843,6 +25871,39 @@ contains
             kind = OPTION_STRING
         case ("make_backup_files")
             kind = OPTION_LOGICAL
+        case ("makefile_backslash_align")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("makefile_backslash_column")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("makefile_brave_make")
+            kind = OPTION_STRING
+            setting = .true.
+        case ("makefile_cleanup_continuations")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("makefile_electric_keys")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("makefile_macro_assign")
+            kind = OPTION_STRING
+            setting = .true.
+        case ("makefile_pickup_everything_picks_up_filenames_p")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("makefile_tab_after_target_colon")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("makefile_target_colon")
+            kind = OPTION_STRING
+            setting = .true.
+        case ("makefile_up_to_date_buffer_name")
+            kind = OPTION_STRING
+            setting = .true.
+        case ("makefile_use_curly_braces_for_macros_p")
+            kind = OPTION_LOGICAL
+            setting = .true.
         case ("mark_even_if_inactive")
             kind = OPTION_LOGICAL
         case ("mark_ring_max")
@@ -26646,6 +26707,42 @@ contains
             list_matching_lines_jump_to_current_line = v
         case ("make_backup_files")
             make_backup_files = v
+        case ("makefile_backslash_align")
+            if (local) then
+                call makefile_backslash_align%set_local(v)
+            else
+                makefile_backslash_align = v
+            end if
+        case ("makefile_cleanup_continuations")
+            if (local) then
+                call makefile_cleanup_continuations%set_local(v)
+            else
+                makefile_cleanup_continuations = v
+            end if
+        case ("makefile_electric_keys")
+            if (local) then
+                call makefile_electric_keys%set_local(v)
+            else
+                makefile_electric_keys = v
+            end if
+        case ("makefile_pickup_everything_picks_up_filenames_p")
+            if (local) then
+                call makefile_pickup_everything_picks_up_filenames_p%set_local(v)
+            else
+                makefile_pickup_everything_picks_up_filenames_p = v
+            end if
+        case ("makefile_tab_after_target_colon")
+            if (local) then
+                call makefile_tab_after_target_colon%set_local(v)
+            else
+                makefile_tab_after_target_colon = v
+            end if
+        case ("makefile_use_curly_braces_for_macros_p")
+            if (local) then
+                call makefile_use_curly_braces_for_macros_p%set_local(v)
+            else
+                makefile_use_curly_braces_for_macros_p = v
+            end if
         case ("mark_even_if_inactive")
             mark_even_if_inactive = v
         case ("next_error_verbose")
@@ -27079,6 +27176,12 @@ contains
             end if
 
             list_matching_lines_default_context_lines = int(v)
+        case ("makefile_backslash_column")
+            if (local) then
+                call makefile_backslash_column%set_local(v)
+            else
+                makefile_backslash_column = v
+            end if
         case ("mark_ring_max")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
@@ -27499,6 +27602,30 @@ contains
             list_matching_lines_face = v
         case ("list_matching_lines_prefix_face")
             list_matching_lines_prefix_face = v
+        case ("makefile_brave_make")
+            if (local) then
+                call makefile_brave_make%set_local(v)
+            else
+                makefile_brave_make = v
+            end if
+        case ("makefile_macro_assign")
+            if (local) then
+                call makefile_macro_assign%set_local(v)
+            else
+                makefile_macro_assign = v
+            end if
+        case ("makefile_target_colon")
+            if (local) then
+                call makefile_target_colon%set_local(v)
+            else
+                makefile_target_colon = v
+            end if
+        case ("makefile_up_to_date_buffer_name")
+            if (local) then
+                call makefile_up_to_date_buffer_name%set_local(v)
+            else
+                makefile_up_to_date_buffer_name = v
+            end if
         case ("mounted_file_systems")
             mounted_file_systems = v
         case ("page_delimiter")
