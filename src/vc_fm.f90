@@ -738,6 +738,7 @@ contains
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: names(:)
+        type(value_type) :: item
         character(len=:), allocatable :: dir, answer, def_dir, repo_dir, saved
         logical :: found
         integer :: k, b, maxlen, n
@@ -774,7 +775,9 @@ contains
         do k = size(vc_handled_backends), 1, -1
             b = vc_backend_named(vc_handled_backends(k))
             if (b == 0) cycle
-            if (associated(vc_backends(b)%create_repo)) names = [names, make_string(vc_backends(b)%name)]
+            if (.not. associated(vc_backends(b)%create_repo)) cycle
+            item = make_string(vc_backends(b)%name)
+            names = [names, item]
         end do
 
         ! Read the VC backend from the user, only complete with the
@@ -1994,7 +1997,7 @@ contains
             return
         end if
 
-        call with_properties_begin([string_of(file)], flist)
+        call with_properties_begin(one_string(file), flist)
         call vc_backends(b)%checkout(file, status, rev)
         if (.not. status%ok()) return
         call file_attributes(file, attr, found)
@@ -2023,13 +2026,15 @@ contains
         call vc_checkout_hook%run(status)
     end subroutine vc_checkout
 
-    !> A one-string entry.
-    function string_of(s) result(e)
+    ! The one-element array of S (an array constructor holding a function
+    ! result would leak).  Not a port.
+    function one_string(s) result(list)
         character(len=*), intent(in) :: s
-        type(vc_string_type) :: e
+        type(vc_string_type), allocatable :: list(:)
 
-        e%s = s
-    end function string_of
+        allocate (list(1))
+        list(1)%s = s
+    end function one_string
 
     !> The files of with-vc-properties for FILES: each file, and for a
     !> directory the visited files of buffers in it; start recording the
@@ -2230,10 +2235,10 @@ contains
                     call push(sw, "/dev/null")
 
                     if (async) then
-                        call vc_do_command(VC_DEST_CURRENT, VC_OKSTATUS_ASYNC, "diff", [string_of(files(k)%s)], &
+                        call vc_do_command(VC_DEST_CURRENT, VC_OKSTATUS_ASYNC, "diff", one_string(files(k)%s), &
                                            sw, status, buffer=buf)
                     else
-                        call vc_do_command(VC_DEST_CURRENT, 1, "diff", [string_of(files(k)%s)], sw, status, &
+                        call vc_do_command(VC_DEST_CURRENT, 1, "diff", one_string(files(k)%s), sw, status, &
                                            buffer=buf)
                     end if
 
@@ -2987,7 +2992,7 @@ contains
         integer :: b, state, k
 
         status = status_type()
-        call with_properties_begin([string_of(file)], flist)
+        call with_properties_begin(one_string(file), flist)
         dir = file_directory_p(file)
         found = .false.
         if (.not. dir) call vc_version_backup_file(file, backup_file, found)
@@ -3587,7 +3592,7 @@ contains
         call vc_ensure_vc_buffer(status)
         if (.not. status%ok()) return
         call vc_read_revision("Revision to visit (default working revision): ", rev, status, &
-                              [string_of(buffers(cur)%filename)])
+                              one_string(buffers(cur)%filename))
         if (.not. status%ok()) return
         call vc_revision_other_window(rev, status)
         if (.not. status%ok() .and. buffer_live_p(old)) call set_buffer(old, st)

@@ -76,7 +76,8 @@ contains
                     new_unittest("process-unique-names", test_unique_names), &
                     new_unittest("process-kill-buffer", test_kill_buffer), &
                     new_unittest("process-missing-program", test_missing_program), &
-                    new_unittest("process-workers-beside-main-thread", test_workers_beside_main) &
+                    new_unittest("process-workers-beside-main-thread", test_workers_beside_main), &
+                    new_unittest("list-processes", test_list_processes) &
                     ]
     end subroutine collect_process_fm
 
@@ -607,4 +608,53 @@ contains
             call free_process(proc, st)
         end do
     end subroutine test_workers_beside_main
+
+    !> `list_processes' lists the processes in *Process List*; d deletes
+    !> the process at point.
+    subroutine test_list_processes(error)
+        use buffer_fm, only: get_buffer, current_buffer
+        use editfns_fm, only: goto_char, point_min
+        use search_fm, only: search_forward, SEARCH_NOERROR
+        use bindings_fm, only: init_bindings
+        use simple_fm, only: list_processes, process_menu_delete_process
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: proc, b, old
+        type(process_arg_type), allocatable :: args(:)
+        type(status_type) :: st
+        character(len=:), allocatable :: text
+        integer(int64) :: pos
+
+        call init_bindings()
+        call sh_args("sleep 30", args)
+        call start_process("fm-listed", null_handle(), "sh", proc, st, args)
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        call list_processes(st)
+        call check(error, st%ok(), format_error(st))
+        b = get_buffer("*Process List*")
+        if (.not. allocated(error)) call check(error, b%index /= 0, "the buffer")
+
+        if (allocated(error)) then
+            call delete_process(proc, st)
+            return
+        end if
+
+        old = current_buffer()
+        call set_buffer(b, st)
+        text = buffer_string()
+        call check(error, index(text, "fm-listed") > 0 .and. index(text, "run") > 0 .and. &
+                   index(text, "sh -c sleep 30") > 0, "the listing: "//text)
+
+        if (.not. allocated(error)) then
+            call goto_char(point_min())
+            call search_forward("fm-listed", pos, st, noerror=SEARCH_NOERROR)
+            call process_menu_delete_process(st)
+            call check(error, st%ok(), format_error(st))
+        end if
+
+        if (.not. allocated(error)) call check(error, index(buffer_string(), "fm-listed") == 0, "deleted")
+        call set_buffer(old, st)
+        call kill_buffer(b, st)
+        if (process_status(proc) == "run") call delete_process(proc, st)
+    end subroutine test_list_processes
 end module test_process_fm

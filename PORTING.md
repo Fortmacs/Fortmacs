@@ -213,7 +213,7 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        (`comint-watch-for-password-prompt`, `comint-send-invisible`,
        auth-source.el's `read-passwd` and `read-passwd-mode`) — done; 38c
        `ansi-color` — done; 38d `list-processes` and the process
-       menu; 38e completion (minibuffer.el's
+       menu — done; 38e completion (minibuffer.el's
        `completion-table-with-quoting` and `:exit-function`, comint's
        file name completion and input ring completion); 38f
        pcomplete.el and shell's completion functions.
@@ -225,29 +225,46 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
    41. Charsets and the other coding systems: charset maps (ISO-8859-x,
        Windows code pages, KOI8), ISO-2022, Shift-JIS, Big5, emacs-mule,
        language environments (C-x RET l) and input methods (`C-\`).
-   42. Spelling: `ispell` and `flyspell` over an external speller process.
-   43. Terminal frames: several frames on one terminal (C-x 5), and
+   42. Terminal core C: the C files the terminal editor rests on,
+       finished file by file to everything but what is Not applicable
+       (the Lisp engine: allocation and GC, the reader and printer,
+       bytecode, the dumper, modules) or waits for the GUI, each listed
+       in the file's status row.  In dependency order: 42a buffer.c,
+       insdel.c, marker.c, intervals.c, textprop.c, itree.c; 42b
+       search.c, syntax.c, casefiddle.c, casetab.c, chartab.c,
+       category.c; 42c keyboard.c, keymap.c, minibuf.c, callint.c,
+       cmds.c; 42d window.c, dispnew.c, term.c, the terminal parts of
+       xdisp.c, bidi.c; 42e fileio.c, process.c, callproc.c, sysdep.c,
+       timefns.c, floatfns.c; 42f the parts of fns.c, editfns.c and
+       data.c that are not the Lisp engine.  Before it: the citation
+       burn-down of tools/audit-baseline (so the remaining functions are
+       known exactly), then the rest of steps 40 and 41 (skeletons,
+       input methods).  External libraries (treesit.c, json.c, gnutls.c,
+       sqlite.c, dbusbind.c) are decided separately: only libc, FreeType
+       and HarfBuzz may be bound.
+   43. Spelling: `ispell` and `flyspell` over an external speller process.
+   44. Terminal frames: several frames on one terminal (C-x 5), and
        `tab-bar-mode`/`tab-line-mode`.
-   44. Windows, the rest: `winner-mode`, `windmove`, `follow-mode`,
+   45. Windows, the rest: `winner-mode`, `windmove`, `follow-mode`,
        `window-divider` and side windows.
-   45. Calendar and diary.
-   46. VC, the rest: `vc-annotate` (C-x v g), branches and tags, pull
+   46. Calendar and diary.
+   47. VC, the rest: `vc-annotate` (C-x v g), branches and tags, pull
        and push, incoming and outgoing logs, and the vc-hg and vc-svn
        backends.
-   47. Smerge mode (conflict markers, `vc-git-resolve-conflicts`) and
+   48. Smerge mode (conflict markers, `vc-git-resolve-conflicts`) and
        Ediff.
-   48. Projects and cross-references: project.el (C-x p), xref.el and
+   49. Projects and cross-references: project.el (C-x p), xref.el and
        etags.el (M-., M-?, M-,), Imenu and `which-function-mode`.
-   49. Change logs, the rest: `add-change-log-entry` (C-x 4 a),
+   50. Change logs, the rest: `add-change-log-entry` (C-x 4 a),
        `log-edit-generate-changelog-from-diff`, `diff-add-log-current-defuns`.
-   50. Buttons (button.el: `insert-text-button`, `forward-button` TAB,
+   51. Buttons (button.el: `insert-text-button`, `forward-button` TAB,
        `push-button` RET), then what waits on them: Help's cross-references
        and the help-xref stack (l, r), and the buttons at the end of VC logs.
-   51. Mail: composing and sending (`compose-mail` C-x m, sendmail.el,
+   52. Mail: composing and sending (`compose-mail` C-x m, sendmail.el,
        message.el, smtpmail.el over a socket in src/sys, mail-utils.el,
        mailabbrev.el), then Rmail (rmail.el, rmailsum.el, rmailout.el,
        rmailedit.el, rmailkwd.el, rmailmm.el; mbox files and movemail).
-   52. The X11 GUI (the protocol over a Unix socket in Fortran, FreeType and
+   53. The X11 GUI (the protocol over a Unix socket in Fortran, FreeType and
        HarfBuzz fonts), then Wayland.
 
 The GUI (X11 protocol over a Unix socket from Fortran, our own font
@@ -442,6 +459,7 @@ rules no other tool checks (chosen with the user, 2026-10-30):
 | add_log_fm | vc/add-log.el | `find-change-log`, `change-log-name`, `add-log-find-changelog-buffer`, `add-log--pseudo-changelog-buffer-name`, `add-log-full-name`, `add-log-mailing-address`, `add-log-time-format`, `add-log-iso8601-time-string`, `add-log-dont-create-changelog-file`, `change-log-mode` (syntax table, faces, `page-delimiter`), `change-log-read-defuns`, `change-log-unindented-file-names-re`, `change-log-tag-re` | adding entries (C-x 4 a), the Change Log mode commands and font lock, merging change logs, `add-log-current-defun` | test_log_edit_fm (through `log-edit-fill-entry`) | partial |
 | page_fm | textmodes/page.el | `forward-page` (C-x ]), `backward-page` (C-x [) | `mark-page`, `narrow-to-page`, `count-lines-page`, `what-page` | test_log_edit_fm (through the ChangeLog entry search) | partial |
 | pcvs_util_fm | vc/pcvs-util.el | `cvs-insert-strings` | the rest of PCL-CVS's utilities | through test_log_edit_fm | partial |
+| simple_process_fm (submodule of simple_fm) | simple.el (the process menu) | `list-processes` (QUERY-ONLY, BUFFER; *Process List*), `process-menu-mode` (from Tabulated List mode: Process, PID, Status, Buffer, TTY, Thread, Command), `process-menu-delete-process` (d), `list-processes--refresh` (exited and signaled processes deleted), `process-menu-query-only` | the Buffer column's button (`process-menu-visit-buffer`, help-echo; tabulated lists have no buttons), threads (Thread shows "--"), network, serial and pipe connections in the Command column | test_process_fm (own: list-processes) | partial |
 | simple_next_error_fm (submodule of simple_fm) | simple.el (next-error) | `next-error` (M-g n, M-g M-n, C-x `; C-u resets), `previous-error` (M-g p, M-g M-p), `first-error`, `next-error-no-select`, `previous-error-no-select`, `next-error-function` per buffer, `next-error-last-buffer`, `next-error-buffer-p`, `next-error-find-buffer`, `next-error-internal`, `next-error-found`, `next-error-hook`, `next-error-verbose` | highlighting the locus (`next-error-highlight`, overlays), the fringe arrow, `next-error-recenter`, `next-error-find-buffer-function`, `next-error-found-function`, `next-error-move-function`, `next-error-select-buffer`, `next-error-follow-minor-mode`, `recenter-current-error`, the repeat map | test_compile_fm | partial |
 | shell_fm | shell.el | `shell` (M-x shell: "*shell*", `explicit-shell-file-name`, `shell-file-name`, ESHELL, `explicit-bash-args`/`explicit-csh-args`, the ~/.emacs_SHELL and ~/.emacs.d/init_SHELL.sh startup files), `shell-mode` (from comint-mode: prompt, delimiters, paragraphs, font-lock keywords, `shell-get-old-input`, history files with HISTFILE/HISTSIZE, `shell-dirstack-query`, the bash ^A/^B filter), `shell-mode-hook`, `shell-mode-map` (C-c C-f, C-c C-b, C-x n d), `shell-command-mode`, `shell-dirtrack-mode` with `shell-directory-tracker` (cd, pushd, popd), `shell-cd`, `split-string-shell-command`, `shell-unquote-argument`, `shell-eval-command`, `shell-kill-buffer-on-exit`, `list-buffers-directory` ; `shell-apply-ansi-color` and `shell-reapply-ansi-color` (`ansi-color-apply-face-function` in Shell mode and Shell Command mode) | completion, `shell-resync-dirs`, fontification of input, `shell-highlight-undef-mode`, remote shells | test_shell_fm (ports shell-tests.el but its completion tests) | partial |
 | comint_fm | comint.el (+ comint-carriage-motion moved from compile_fm) | `comint-mode` (`comint-mode-map` with M-p, M-n, C-<up>, C-<down>, C-c M-r, C-c M-s, C-M-l, RET, C-d, <delete>, C-c SPC, C-c C-x, C-c C-a, C-c C-u, C-c C-w, C-c C-c, C-c C-\, C-c RET, C-c C-o, C-c M-o, C-c C-r, C-c C-e, C-c C-n, C-c C-p, C-c C-d, C-c C-s; `comint-mode-hook`, `mode-line-process` ":%s"), `make-comint`, `make-comint-in-buffer`, `comint-run`, `comint-exec` (`comint-exec-hook`, startfile, the TERM/INSIDE_EMACS/PAGER environment), `comint-output-filter` (`comint-preoutput-filter-functions`, `comint-output-filter-functions`, carriage motion, output fields, the prompt in `comint-highlight-prompt`, `comint-prompt-read-only`), `comint-send-input` (`comint-input-sender`, `comint-input-filter`, `comint-input-filter-functions`, `comint-process-echoes`, `comint-eol-on-send`, `comint-highlight-input`), the input ring (`comint-input-ring-size`, `comint-input-ignoredups`, history files with `comint-input-ring-file-name`, M-p/M-n, matching input), `comint-bol`, `comint-delete-output`, `comint-write-output`, `comint-show-output`, `comint-show-maximum-output`, `comint-clear-buffer`, `comint-truncate-buffer`, `comint-strip-ctrl-m`, the interrupt, kill, quit and EOF commands (CURRENT-GROUP through the pty's VINTR/VQUIT characters), `comint-kill-input`, `comint-delchar-or-maybe-eof`, prompt motion, `comint-arguments`, `comint-delim-arg`, `comint-move-point-for-output`, `comint-scroll-show-maximum-output`, `comint-postoutput-scroll-to-bottom`; history expansion (`comint-input-autoexpand` with input and history, `comint-replace-by-expanded-history`, `comint-c-a-p-replace-by-expanded-history`, `comint-replace-by-expanded-history-before-point`, `comint-magic-space`, `comint-args`, `comint-within-quotes`, `comint-how-many-region`, `comint-previous-input-string`), `comint-insert-previous-argument` (C-c .) with `comint-insert-previous-argument-from-end`, Isearch in the input history (M-r `comint-history-isearch-backward-regexp`, `comint-history-isearch-backward`, `comint-history-isearch`, the setup, end, search, message, wrap and push-state functions, `comint-goto-input`), `comint-stop-subjob` (C-c C-z), `comint-continue-subjob`, `comint-scroll-to-bottom-on-input` (`comint-preinput-scroll-to-bottom` on the buffer's `pre-command-hook`) ; password prompts (`comint-password-prompt-regexp` from mule-conf.el's words and colons, `comint-password-prompt-max-length`, `comint-watch-for-password-prompt` on `comint-output-filter-functions` through a timer, `comint-send-invisible`, `comint-password-function`, `comint-read-noecho`) ; ANSI colors (`ansi-color-process-output` first in the default `comint-output-filter-functions`) | completion (38e, 38f), the status of a stopped process, redirection, fontification of input, mouse, menus, text property hooks (`insert-in-front-hooks`), `window-point-insertion-type` | test_comint_fm (ports comint-tests.el: comint-test-password-regexp, comint-test-no-password-function, comint-test-password-function-with-value, comint-test-password-function-with-nil; own tests) | partial |
@@ -530,6 +548,50 @@ ported. Their keys are unbound, as test_bindings_fm checks:
   bodies, a `case default` in every `select case`, no misleading one-line
   `if` continuations. Justified exceptions are marked in the source with
   `! allow(rule-name)` and a comment saying why.
+
+## Hazards
+
+The pitfalls of Fortran and gfortran that bit this port.  `tools/hazards.awk`
+(run by `tools/check.sh`, so by CI on every PR) reports those a script can
+find; a justified exception carries `! hazard-ok(NAME): why` on the
+statement or the comment line above it.  Checked:
+
+- `short-circuit`: `.and.` and `.or.` evaluate both sides, so the right
+  side must not use what the left side guards (allocated, associated,
+  present, a compared len or size, an index compared with a bound): nest
+  an `if` instead.
+- `implied-save`: an initialized local declaration implies `save`.
+- `deferred-result-pointer`: gfortran frees a procedure pointer to a
+  function with an allocatable or deferred-length result: make the
+  interface a subroutine with an `intent(out)` argument.
+- `allocatable-constructor`: a function result or structure constructor
+  of a type with allocatable components inside an array constructor
+  leaks: use `list(...)`, a variable or element assignment.
+- `recursive-allocatable-type`: an allocatable component of its own type
+  is copied shallowly.
+- `implicit-none`: `implicit none (type, external)` everywhere.
+- `stop`: errors return a status; `stop` only in a main program.
+- `obsolete`: no `common`, `equivalence` or `goto`.
+
+Checked by hand on every PR's diff (no script can tell):
+
+- The same variable passed to two dummies when one is `intent(out)` (it
+  is deallocated on entry).
+- An array constructor with no elements assigned to an allocatable
+  (`realloc()` with size 0, reported by valgrind): allocate the empty
+  array explicitly.
+- A guard the checker misses: an index passed to a procedure that
+  subscripts with it, a substring or element in the guarded part of a
+  nested expression.
+- A dummy argument that hides a module entity of the same name in another
+  case (`beg` and `BEG`).
+- Objects with explicit lifetimes (markers, overlays, timers, processes)
+  freed on every path, and handles checked for staleness.
+- `intent` on every dummy argument; `recursive` on procedures that can be
+  reentered (hooks, timers, the command loop).
+
+A newly learned hazard goes into `tools/hazards.awk` when a script can find
+it, otherwise into this checklist.
 
 ## Conventions learned while porting
 
@@ -1040,7 +1102,10 @@ Each lists the default being used meanwhile.
 
 ## Session log
 
-- 2026-10-30 — Audit (`audit`, based on main; asked by the user): `tools/audit.awk`, run by `tools/check.sh`, checks the header template (with one form per kind of file: ported, test porting upstream tests in full or in part, own tests, generated, new), file and module names, `!>` comments on every public entity, and "Port of"/"Not a port" on the procedures of ported sources, with `tools/audit-baseline` listing the 4540 procedures that predate the rule.  Fixed to pass: the headers of 106 tests, 6 sources and 9 generators; about 520 public entities documented (the sys_linux_fm constants and bindings, error codes, character.h constants, hooks; indent_fm's separate module procedures documented at their interfaces as elsewhere); test_comint_fm's stale description; cmds-tests.el's self-insert-command-with-negative-argument ported.  Learned: written rules drift without a checker, and so do conventions nothing states; the baseline is burned down module by module (parallel agents, follow-up PRs).
+- 2026-10-30 — Audit (`audit`, based on main; asked by the user): `tools/audit.awk`, run by `tools/check.sh`, checks the header template (with one form per kind of file: ported, test porting upstream tests in full or in part, own tests, generated, new), file and module names, `!>` comments on every public entity, and "Port of"/"Not a port" on the procedures of ported sources, with `tools/audit-baseline` listing the 3085 procedures that predate the rule.  Fixed to pass: the headers of 106 tests, 6 sources and 9 generators; about 520 public entities documented (the sys_linux_fm constants and bindings, error codes, character.h constants, hooks; indent_fm's separate module procedures documented at their interfaces as elsewhere); test_comint_fm's stale description; cmds-tests.el's self-insert-command-with-negative-argument ported.  Learned: written rules drift without a checker, and so do conventions nothing states; the baseline is burned down module by module (parallel agents, follow-up PRs).  The audit reads a citation wrapped after "Port of" and treats `recursive module` procedures as separate module procedures (documented at their interface).
+- 2026-10-30 — Hazards (`hazard-check`, based on main; asked by the user): `tools/hazards.awk` reports the hazards of CLAUDE.md and PORTING.md that a script can find (short-circuit guards, initialized locals, pointers to deferred-result functions, leaking array constructors, recursive allocatable types, the form of `implicit none`, `stop`, obsolete statements), run by `tools/check.sh`; justified exceptions carry `! hazard-ok(NAME): why`.  New section "Hazards" with the checklist of those checked by hand on every PR; CLAUDE.md says so.  Audit of the codebase: short-circuit guards fixed in buffer_fm (`generate-new-buffer-name` with an empty name), data_buffer_fm (`major-mode`, `mode-name` with no buffer) and eight tests; leaking array constructors fixed in easy_mmode_fm, f90_fm and vc_fm; the pointer interfaces of add-log's time format, Ibuffer's summarizers, `Info-url-alist` functions and VC's working revision symbol are subroutines; the rest are false positives marked hazard-ok.
+- 2026-10-30 — Roadmap: step 42 "Terminal core C" added at the user's request (finish the terminal-relevant C files before more Elisp features, after the citation burn-down and the rest of steps 40 and 41); the later steps move to 43–53.  Counts at the time: 909 of 8547 C functions cited, of which about 1,300 are the Lisp engine (Not applicable), 2,300 the GUI and 250 external libraries; about 2,500 remain in the terminal core.
+- 2026-10-29 — The process list (roadmap step 38d, `step38d-list-processes`, built on `step38c-ansi-color`): simple_process_fm, a submodule of simple_fm (`list-processes`, Process Menu mode, d), defined after Tabulated List mode; process_fm's documentation no longer lists them as deferred.  Own test.  Next: 38e (completion).
 - 2026-10-30 — Faster CI (`ci-parallel`, based on main; asked by the user): `tools/check.sh` runs the suites alone, and under valgrind each suite alone, in parallel (one job per CPU), printing the log of each failing suite; pushes to main add `--valgrind-combined`, which also runs every suite in one valgrind process so leaks across suites are still caught. The release build in `tools/test-recompile.sh` stays, as it is the only release-profile build per PR. The per-suite valgrind run found test/main.f90 leaking the suite and test names (main-program variables live on the stack of MAIN__), now freed.
 - 2026-10-30 — Header blank line (`header-blank-line`, based on main; asked by the user): CLAUDE.md now says the file's header comment ends with one blank line, as every file in src/ already did; `tools/blank-lines.awk` applies it, so `tools/check.sh` fixes or flags it; docs/init.f90 was the only file without it.  Learned: a convention every file follows but no rule states goes unchecked, and examples outside src/ drift from it; consistency rules belong in CLAUDE.md and in the checker.
 - 2026-10-30 — Approximate percentages (`approx-sign`, based on main; chosen with the user): the README progress block and pie charts mark rounded percentages with ≈ (approximately equal) instead of ≅ (congruent).

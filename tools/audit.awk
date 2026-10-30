@@ -437,20 +437,30 @@ function check_port(    k, s, depth, iface, unit, nm, key, absiface, issub) {
             if (iface) {
                 # An interface body: only a separate module procedure's
                 # (its documentation is here) is checked.
-                if (!absiface && s ~ /^module /) port_needed(k, nm)
+                if (!absiface && separate_module_procedure(s)) port_needed(k, nm)
                 if (s !~ /^module procedure/) depth++
                 continue
             }
-            if (depth == 0 && !(issub && s ~ /^module /)) port_needed(k, nm)
+            if (depth == 0 && !(issub && separate_module_procedure(s))) port_needed(k, nm)
             if (s !~ /^module procedure/ || !iface) depth++
             continue
         }
     }
 }
 
+# Whether S declares a separate module procedure: `module procedure NAME`,
+# or `module` among the prefixes of a subroutine or function
+# (`recursive module subroutine`).
+function separate_module_procedure(s,    p) {
+    if (s ~ /^module procedure/) return 1
+    p = s
+    sub(/(subroutine|function) .*/, "", p)
+    return p ~ /(^| )module( |$)/
+}
+
 function port_needed(k, nm,    key) {
     if (nm ~ /^cmd_/) return
-    if (sdoc[k] ~ /Port of |Not a port/) return
+    if (sdoc[k] ~ /Port of[ \t\n]|Not a port/) return
     key = file ":" nm
     if (key in allowed) {
         used[key] = 1
