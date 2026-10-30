@@ -68,6 +68,7 @@ submodule(simple_fm) simple_setvar_fm
 contains
 
     !> Whether the user option called `name' can be set by `set_variable'.
+    !> Not a port.
     logical function settable_option_p(name)
         character(len=*), intent(in) :: name
         integer :: kind
@@ -168,7 +169,7 @@ contains
     end procedure set_variable
 
     !> Check that `v' (no surrounding blanks) is one token: else the
-    !> reader's "Trailing garbage following expression".
+    !> reader's "Trailing garbage following expression".  Not a port.
     subroutine literal_token(v, status)
         character(len=*), intent(in) :: v
         type(status_type), intent(inout) :: status
@@ -176,7 +177,7 @@ contains
         if (scan(v, WS) > 0) call set_error(status, FM_INVALID_READ_SYNTAX, """Trailing garbage following expression""")
     end subroutine literal_token
 
-    !> `s' in upper case (ASCII).
+    !> `s' in upper case (ASCII).  Not a port.
     function upper(s) result(u)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: u
@@ -190,7 +191,7 @@ contains
     end function upper
 
     !> Whether `v' is an integer literal (an optional sign, then digits)
-    !> whose value fits in `n'.
+    !> whose value fits in `n'.  Not a port.
     logical function integer_literal(v, n) result(ok)
         character(len=*), intent(in) :: v
         integer(int64), intent(out) :: n
@@ -208,7 +209,7 @@ contains
     end function integer_literal
 
     !> Whether `v' is a real literal (or an integer one): digits with a
-    !> decimal point and an exponent (E or D), either optional.
+    !> decimal point and an exponent (E or D), either optional.  Not a port.
     logical function real_literal(v, r) result(ok)
         character(len=*), intent(in) :: v
         real, intent(out) :: r
@@ -258,6 +259,7 @@ contains
     !> Read the character literal at the start of `v' (in double or single
     !> quotes, the quote doubled inside) into `v'.  An unterminated literal
     !> is the reader's end of file; text after it is trailing garbage.
+    !> Not a port.
     subroutine string_literal(v, dummy, status)
         character(len=:), allocatable, intent(inout) :: v
         logical, intent(out) :: dummy

@@ -1,7 +1,7 @@
-! test_simple_fm.f90 -- tests for the mark, the region and the kill ring in
-! simple_fm.
-! Ported from GNU Emacs 31.1 test/lisp/simple-tests.el (the
-! kill-whole-line tests), plus our own.
+! test_simple_fm.f90 -- tests for the mark, the region and the kill ring
+! in simple_fm.
+! Ports GNU Emacs 31.1 test/lisp/simple-tests.el in part; only the
+! kill-whole-line tests.
 !
 ! Copyright (C) 2015-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -75,6 +75,7 @@ module test_simple_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_simple_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

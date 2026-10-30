@@ -169,7 +169,7 @@ module regex_emacs_fm
 
 contains
 
-    !> The string `str' as a subject.
+    !> The string `str' as a subject.  Not a port.
     function subject_from_string(str) result(s)
         character(len=*), intent(in) :: str
         type(re_subject_type) :: s
@@ -179,7 +179,7 @@ contains
         s%size = len(str, kind=int64)
     end function subject_from_string
 
-    !> The accessible part of the current buffer as a subject.
+    !> The accessible part of the current buffer as a subject.  Not a port.
     function subject_from_buffer() result(s)
         type(re_subject_type) :: s
 
@@ -193,7 +193,7 @@ contains
         end associate
     end function subject_from_buffer
 
-    !> The byte at offset `d' of the subject.
+    !> The byte at offset `d' of the subject.  Not a port.
     integer function sbyte(s, d)
         type(re_subject_type), intent(in) :: s
         integer(int64), intent(in) :: d
@@ -209,7 +209,7 @@ contains
     end function sbyte
 
     !> The character at offset `d' of the subject and its length
-    !> (GET_CHAR_AFTER).
+    !> (GET_CHAR_AFTER).  Port of regex-emacs.c:GET_CHAR_AFTER.
     subroutine schar(s, d, c, length)
         type(re_subject_type), intent(in) :: s
         integer(int64), intent(in) :: d
@@ -231,7 +231,8 @@ contains
         call string_char_and_length(tmp(1:n), 1_int64, c, length)
     end subroutine schar
 
-    !> The character before offset `d' (GET_CHAR_BEFORE_2).
+    !> The character before offset `d' (GET_CHAR_BEFORE_2).  Port of
+    !> regex-emacs.c:GET_CHAR_BEFORE_2.
     integer(int32) function schar_before(s, d) result(c)
         type(re_subject_type), intent(in) :: s
         integer(int64), intent(in) :: d
@@ -251,7 +252,7 @@ contains
     !> The syntax class of C, the character at offset D of the subject (SHIFT
     !> 0) or the one before it (SHIFT -1): SYNTAX after UPDATE_SYNTAX_TABLE
     !> at its position, which consults `syntax_table' properties in a buffer
-    !> (strings carry no text properties).
+    !> (strings carry no text properties).  Not a port.
     recursive integer function subject_syntax(s, d, shift, c) result(code)
         type(re_subject_type), intent(in) :: s
         integer(int64), intent(in) :: d, shift
@@ -265,6 +266,7 @@ contains
     end function subject_syntax
 
     !> The character of the compiled pattern at `p' and its length.
+    !> Not a port.
     subroutine pchar(buf, p, c, length)
         integer, intent(in) :: buf(0:)
         integer, intent(in) :: p
@@ -281,7 +283,8 @@ contains
         call string_char_and_length(tmp(1:n), 1_int64, c, length)
     end subroutine pchar
 
-    !> Store NUMBER in two contiguous bytes at `at' (STORE_NUMBER).
+    !> Store NUMBER in two contiguous bytes at `at' (STORE_NUMBER).  Port of
+    !> regex-emacs.c:STORE_NUMBER.
     pure subroutine store_number(buf, at, number)
         integer, intent(inout) :: buf(0:)
         integer, intent(in) :: at, number
@@ -290,7 +293,8 @@ contains
         buf(at + 1) = iand(ishft(number, -8), 255)
     end subroutine store_number
 
-    !> The number stored in two bytes at `at' (extract_number).
+    !> The number stored in two bytes at `at' (extract_number).  Port of
+    !> regex-emacs.c:extract_number.
     pure integer function extract_number(buf, at) result(n)
         integer, intent(in) :: buf(0:)
         integer, intent(in) :: at
@@ -302,6 +306,7 @@ contains
     end function extract_number
 
     !> The target of the relative address at `at' (extract_address).
+    !> Port of regex-emacs.c:extract_address.
     pure integer function extract_address(buf, at)
         integer, intent(in) :: buf(0:)
         integer, intent(in) :: at
@@ -310,6 +315,7 @@ contains
     end function extract_address
 
     !> Store a character in three bytes at `at' (STORE_CHARACTER_AND_INCR).
+    !> Port of regex-emacs.c:STORE_CHARACTER_AND_INCR.
     pure subroutine store_character(buf, at, c)
         integer, intent(inout) :: buf(0:)
         integer, intent(in) :: at
@@ -321,6 +327,7 @@ contains
     end subroutine store_character
 
     !> The character stored in three bytes at `at' (EXTRACT_CHARACTER).
+    !> Port of regex-emacs.c:EXTRACT_CHARACTER.
     pure integer(int32) function extract_character(buf, at)
         integer, intent(in) :: buf(0:)
         integer, intent(in) :: at
@@ -329,6 +336,7 @@ contains
     end function extract_character
 
     !> Size of the bitmap of the charset at `p' (CHARSET_BITMAP_SIZE).
+    !> Port of regex-emacs.c:CHARSET_BITMAP_SIZE.
     pure integer function charset_bitmap_size(buf, p)
         integer, intent(in) :: buf(0:)
         integer, intent(in) :: p
@@ -337,6 +345,7 @@ contains
     end function charset_bitmap_size
 
     !> The charset at `p' has a range table (CHARSET_RANGE_TABLE_EXISTS_P).
+    !> Port of regex-emacs.c:CHARSET_RANGE_TABLE_EXISTS_P.
     pure logical function charset_range_table_exists_p(buf, p)
         integer, intent(in) :: buf(0:)
         integer, intent(in) :: p
@@ -345,7 +354,7 @@ contains
     end function charset_range_table_exists_p
 
     !> Where the count of the range table of the charset at `p' is
-    !> (CHARSET_RANGE_TABLE).
+    !> (CHARSET_RANGE_TABLE).  Port of regex-emacs.c:CHARSET_RANGE_TABLE.
     pure integer function charset_range_table(buf, p)
         integer, intent(in) :: buf(0:)
         integer, intent(in) :: p
@@ -354,6 +363,7 @@ contains
     end function charset_range_table
 
     !> The class bits that start the range table (CHARSET_RANGE_TABLE_BITS).
+    !> Port of regex-emacs.c:CHARSET_RANGE_TABLE_BITS.
     pure integer function charset_range_table_bits(buf, p)
         integer, intent(in) :: buf(0:)
         integer, intent(in) :: p
@@ -364,7 +374,8 @@ contains
     end function charset_range_table_bits
 
     !> Syntax code for the character after \s or \S, or 255 for none
-    !> (syntax.c syntax_spec_code).
+    !> (syntax.c syntax_spec_code).  Port of the syntax_spec_code table of
+    !> syntax.c.
     pure integer function syntax_spec_code(c)
         integer(int32), intent(in) :: c
 
@@ -407,6 +418,7 @@ contains
     end function syntax_spec_code
 
     !> Character class predicates of regex-emacs.c, for any character.
+    !> Port of regex-emacs.c:ISALNUM.
     logical function isalnum(c)
         integer(int32), intent(in) :: c
 
@@ -417,6 +429,7 @@ contains
         end if
     end function isalnum
 
+    ! Port of regex-emacs.c:ISALPHA.
     logical function isalpha(c)
         integer(int32), intent(in) :: c
 
@@ -427,12 +440,14 @@ contains
         end if
     end function isalpha
 
+    ! Whether C is an ASCII letter.  Not a port.
     pure logical function is_ascii_letter(c)
         integer(int32), intent(in) :: c
 
         is_ascii_letter = (c >= iachar("a") .and. c <= iachar("z")) .or. (c >= iachar("A") .and. c <= iachar("Z"))
     end function is_ascii_letter
 
+    ! Port of regex-emacs.c:ISBLANK.
     logical function isblank(c)
         integer(int32), intent(in) :: c
 
@@ -443,6 +458,7 @@ contains
         end if
     end function isblank
 
+    ! Port of regex-emacs.c:ISGRAPH.
     logical function isgraph(c)
         integer(int32), intent(in) :: c
 
@@ -453,6 +469,7 @@ contains
         end if
     end function isgraph
 
+    ! Port of regex-emacs.c:ISPRINT.
     logical function isprint(c)
         integer(int32), intent(in) :: c
 
@@ -463,22 +480,26 @@ contains
         end if
     end function isprint
 
+    ! Port of regex-emacs.c:ISPUNCT.
     logical function ispunct(c)
         integer(int32), intent(in) :: c
 
         if (c < 128) then
+            ! hazard-ok(short-circuit): isalnum() takes any character code.
             ispunct = c > 32 .and. c < 127 .and. .not. isalnum(c)
         else
             ispunct = char_syntax_class(c) /= SWORD
         end if
     end function ispunct
 
+    ! Port of regex-emacs.c:ISSPACE.
     logical function isspace(c)
         integer(int32), intent(in) :: c
 
         isspace = char_syntax_class(c) == SWHITESPACE
     end function isspace
 
+    ! Port of regex-emacs.c:ISWORD.
     logical function isword(c)
         integer(int32), intent(in) :: c
 
@@ -1248,6 +1269,7 @@ contains
                 ! Could be the end of the bracket expression.
                 if (c == iachar("]") .and. p2 /= p1) exit
 
+                ! hazard-ok(short-circuit): byte_of() checks its bounds.
                 if (p < pend .and. byte_of(p) == iachar("-") .and. byte_of(p + 1) /= iachar("]")) then
                     ! Discard the '-' and fetch the character which ends
                     ! the range.
@@ -1488,6 +1510,7 @@ contains
                 reg = c - iachar("0")
 
                 ! Can't back reference to a subexp before its end.
+                ! hazard-ok(short-circuit): group_in_compile_stack() takes any number.
                 if (reg > bufp%re_nsub .or. reg < 1 .or. group_in_compile_stack(reg)) then
                     err = REG_ESUBREG
                     return
@@ -1979,7 +2002,7 @@ contains
     end function forall_firstchar
 
     !> The visitor of forall_firstchar, by `data%mode': analyze_first_null,
-    !> analyze_first_fastmap or mutually_exclusive_one.
+    !> analyze_first_fastmap or mutually_exclusive_one.  Not a port.
     recursive logical function visit(bufp, p, data)
         type(re_pattern_buffer_type), intent(inout) :: bufp
         integer, intent(in) :: p
@@ -3011,6 +3034,7 @@ contains
                         end if
                     end if
                 case default
+                    ! hazard-ok(stop): a corrupt compiled pattern (emacs_abort upstream).
                     error stop "regex_emacs_fm: bad opcode"
                 end select
             end if
@@ -3040,6 +3064,7 @@ contains
                     ! A special frame used for nastyloops.
                     cycle fail
                 case default
+                    ! hazard-ok(stop): a corrupt failure stack (emacs_abort upstream).
                     error stop "regex_emacs_fm: bad failure point"
                 end select
 

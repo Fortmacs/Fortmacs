@@ -1074,6 +1074,7 @@ contains
     ! Buffer-local values
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     subroutine list_function_set_local(self, fn)
         class(css_list_function_type), intent(inout) :: self
         procedure(css_list_proc) :: fn
@@ -1112,6 +1113,7 @@ contains
         call move_alloc(grown, self%entries)
     end subroutine list_function_set_local
 
+    ! Not a port.
     function list_function_get(self) result(fn)
         class(css_list_function_type), intent(in) :: self
         procedure(css_list_proc), pointer :: fn
@@ -1128,6 +1130,7 @@ contains
         end do
     end function list_function_get
 
+    ! Not a port.
     subroutine list_function_kill_local(self)
         class(css_list_function_type), intent(inout) :: self
         integer :: i
@@ -1145,6 +1148,7 @@ contains
 
     ! The index of the current buffer's entry in `locals' (made if MAKE),
     ! 0 if none.
+    ! Not a port.
     integer function local_index(make) result(k)
         logical, intent(in) :: make
         type(css_local_type), allocatable :: grown(:)
@@ -1178,6 +1182,7 @@ contains
 
     ! Whether the current buffer has SCSS's at-rules and bang-rules and
     ! allows nested selectors.
+    ! Not a port.
     logical function scss_buffer()
         integer :: k
 
@@ -1188,6 +1193,7 @@ contains
 
     ! kill-all-local-variables: forget the current buffer's css-mode.el
     ! variables.
+    ! Not a port.
     subroutine kill_css_locals()
         integer :: k
 
@@ -1198,6 +1204,7 @@ contains
     end subroutine kill_css_locals
 
     ! css--at-ids.
+    ! Port of css-mode.el:css--at-ids (its value).
     function at_ids() result(ids)
         character(len=20), allocatable :: ids(:)
 
@@ -1209,6 +1216,7 @@ contains
     end function at_ids
 
     ! css--bang-ids.
+    ! Port of css-mode.el:css--bang-ids (its value).
     function bang_ids() result(ids)
         character(len=20), allocatable :: ids(:)
 
@@ -1224,6 +1232,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! The index of the value class NAME, 0 if none.
+    ! Not a port.
     integer function class_index(name) result(k)
         character(len=*), intent(in) :: name
 
@@ -1235,6 +1244,7 @@ contains
     end function class_index
 
     ! The index of the property NAME, 0 if none.
+    ! Not a port.
     integer function property_index(name) result(k)
         character(len=*), intent(in) :: name
 
@@ -1247,6 +1257,7 @@ contains
 
     ! Append the elements of ITEMS that LIST doesn't have yet (seq-uniq of
     ! seq-mapcat).
+    ! Not a port.
     subroutine append_new(list, items)
         character(len=36), allocatable, intent(inout) :: list(:)
         character(len=36), intent(in) :: items(:)
@@ -1356,6 +1367,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! A list of strings: the trimmed elements of STRS, each with PREFIX.
+    ! Not a port.
     function string_list(strs, prefix) result(v)
         character(len=*), intent(in) :: strs(:)
         character(len=*), intent(in), optional :: prefix
@@ -1377,6 +1389,7 @@ contains
     end function string_list
 
     ! Append V to ELTS.
+    ! Not a port.
     subroutine push(elts, v)
         type(value_type), allocatable, intent(inout) :: elts(:)
         type(value_type), intent(in) :: v
@@ -1395,6 +1408,7 @@ contains
     end subroutine push
 
     ! Append the elements of MORE to ELTS.
+    ! Not a port.
     subroutine push_all(elts, more)
         type(value_type), allocatable, intent(inout) :: elts(:)
         type(value_type), intent(in) :: more(:)
@@ -1596,6 +1610,7 @@ contains
     end subroutine css_foreign_completions
 
     ! The string V holds.
+    ! Not a port.
     function string_of(v) result(s)
         use lisp_fm, only: xstring
         type(value_type), intent(in) :: v
@@ -1607,6 +1622,7 @@ contains
     ! The candidates of the selector table (completion-table-dynamic of
     ! css--complete-selector): class names after ".", IDs after "#", HTML
     ! tags otherwise.
+    ! Port of css-mode.el:css--complete-selector (in part).
     function selector_candidates() result(v)
         type(value_type) :: v
         character(len=:), allocatable :: names(:)
@@ -1624,6 +1640,7 @@ contains
 
     ! The tables merged in `css_completion_at_point' (completion-table-merge
     ! of the property and selector tables).
+    ! Port of css-mode.el:css-completion-at-point (in part: its merged table).
     recursive subroutine merged_table(string, action, result, status, pred, suffix)
         character(len=*), intent(in) :: string
         integer, intent(in) :: action
@@ -1693,6 +1710,7 @@ contains
     end subroutine merged_table
 
     ! Whether V is t.
+    ! Not a port.
     logical function is_t(v)
         use lisp_fm, only: symbolp, xsymbol, symbols
         type(value_type), intent(in) :: v
@@ -1702,6 +1720,7 @@ contains
     end function is_t
 
     ! Whether V is nil.
+    ! Not a port.
     logical function is_nil(v)
         use lisp_fm, only: nilp
         type(value_type), intent(in) :: v
@@ -1710,6 +1729,7 @@ contains
     end function is_nil
 
     ! The elements of the list V.
+    ! Not a port.
     subroutine list_to_array(v, elts)
         use lisp_fm, only: list_elements
         type(value_type), intent(in) :: v
@@ -1720,6 +1740,7 @@ contains
 
     ! The :exit-function of `css_completion_at_point': after a property
     ! name, insert ": ;" and move before the semicolon.
+    ! Port of css-mode.el:css-completion-at-point (in part: its exit function).
     recursive subroutine property_exit_function(string, finished)
         character(len=*), intent(in) :: string
         integer, intent(in) :: finished
@@ -1813,6 +1834,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! The number STR denotes (string-to-number).
+    ! Not a port.
     real(real64) function to_number(str)
         character(len=*), intent(in) :: str
         integer :: ios
@@ -1824,6 +1846,7 @@ contains
     end function to_number
 
     ! N rounded to the nearest integer, ties to even (round).
+    ! Not a port.
     integer function round_int(n)
         real(real64), intent(in) :: n
 
@@ -1831,6 +1854,7 @@ contains
     end function round_int
 
     ! "#" and the two-digit hex forms of COMPONENTS.
+    ! Not a port.
     function hex_string(components) result(s)
         integer, intent(in) :: components(:)
         character(len=:), allocatable :: s
@@ -1848,6 +1872,7 @@ contains
     end function hex_string
 
     ! S with its ASCII letters in lower case.
+    ! Not a port.
     pure function lower(s) result(out)
         character(len=*), intent(in) :: s
         character(len=len(s)) :: out
@@ -1861,6 +1886,7 @@ contains
     end function lower
 
     ! The start of subexpression N of the last match, 0 if it didn't match.
+    ! Not a port.
     integer(int64) function mb(n)
         integer, intent(in) :: n
         type(status_type) :: st
@@ -1869,6 +1895,7 @@ contains
     end function mb
 
     ! The end of subexpression N of the last match, 0 if it didn't match.
+    ! Not a port.
     integer(int64) function me(n)
         integer, intent(in) :: n
         type(status_type) :: st
@@ -1877,6 +1904,7 @@ contains
     end function me
 
     ! The text from START to END.
+    ! Not a port.
     function text_between(start, end) result(text)
         integer(int64), intent(in) :: start, end
         character(len=:), allocatable :: text
@@ -1887,6 +1915,7 @@ contains
     end function text_between
 
     ! The character after POS, -1 if none.
+    ! Not a port.
     integer function after_char_at(pos)
         integer(int64), intent(in) :: pos
         integer(int32) :: c
@@ -1899,6 +1928,7 @@ contains
     end function after_char_at
 
     ! The character before POS, -1 if none.
+    ! Not a port.
     integer function before_char_at(pos)
         integer(int64), intent(in) :: pos
         integer(int32) :: c
@@ -2090,6 +2120,7 @@ contains
     end subroutine css_hex_alpha
 
     ! The index of the named color NAME, 0 if none.
+    ! Not a port.
     integer function color_index(name) result(k)
         character(len=*), intent(in) :: name
 
@@ -2277,6 +2308,7 @@ contains
     end function css_format_hex
 
     ! The word around point (thing-at-point 'word), "" for none.
+    ! Not a port.
     function word_at_point() result(word)
         character(len=:), allocatable :: word
         type(status_type) :: st
@@ -2487,6 +2519,7 @@ contains
     end subroutine css_cycle_color_format
 
     ! save-excursion: remember point in the marker MARK.
+    ! Not a port.
     subroutine excursion_begin(mark)
         type(handle_type), intent(out) :: mark
         type(status_type) :: st
@@ -2495,6 +2528,7 @@ contains
     end subroutine excursion_begin
 
     ! Return to the position of MARK, and free it.
+    ! Not a port.
     subroutine excursion_end(mark)
         type(handle_type), intent(in) :: mark
         type(status_type) :: st
@@ -2506,6 +2540,7 @@ contains
     end subroutine excursion_end
 
     ! The number the hexadecimal digits S denote (string-to-number S 16).
+    ! Not a port.
     integer function hex_value(s) result(n)
         character(len=*), intent(in) :: s
         integer :: i, d
@@ -2524,6 +2559,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! STR with every occurrence of FROM replaced by TO.
+    ! Not a port.
     function replace_all(str, from, to) result(out)
         character(len=*), intent(in) :: str, from, to
         character(len=:), allocatable :: out
@@ -2611,6 +2647,7 @@ contains
 
     ! STR with each run of newlines and spaces made one space, trimmed
     ! (string-trim of replace-regexp-in-string).
+    ! Not a port.
     function squeeze(str) result(out)
         character(len=*), intent(in) :: str
         character(len=:), allocatable :: out
@@ -2678,6 +2715,7 @@ contains
     end function css_extract_index_name
 
     ! css--join-nested-selectors of the squeezed elements of RES.
+    ! Not a port.
     function join_squeezed(res) result(name)
         character(len=*), intent(in) :: res(:)
         character(len=:), allocatable :: name
@@ -2747,6 +2785,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! A highlight of subexpression N in FACE.
+    ! Not a port.
     function h(n, face, override) result(hl)
         integer, intent(in) :: n
         character(len=*), intent(in) :: face
@@ -2758,6 +2797,7 @@ contains
 
     ! The FACE of "^[ \t]*{": mark the text from the end of the selector
     ! before it as a multiline element; no face.
+    ! Port of css-mode.el:css--font-lock-keywords (in part).
     subroutine brace_multiline(face)
         character(len=:), allocatable, intent(out) :: face
         type(status_type) :: st
@@ -2772,6 +2812,7 @@ contains
     end subroutine brace_multiline
 
     ! The FACE of a property name: vendor-specific or not.
+    ! Port of css-mode.el:css--font-lock-keywords (in part).
     subroutine property_face(face)
         character(len=:), allocatable, intent(out) :: face
 
@@ -2848,6 +2889,7 @@ contains
     end function scss_font_lock_keywords
 
     ! css-syntax-propertize-function.
+    ! Port of css-mode.el:css-syntax-propertize-function.
     recursive subroutine css_syntax_propertize_function(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
@@ -2905,6 +2947,7 @@ contains
 
     ! The token of a colon after point: in a selector or function call, or
     ! of a property.
+    ! Port of css-mode.el:css-smie--forward-token (in part).
     function colon_token() result(token)
         character(len=:), allocatable :: token
 
@@ -3061,6 +3104,7 @@ contains
 
     ! The paragraph regexps of filling a comment whose comment-continue is
     ! CONTINUE: START and SEPARATE.
+    ! Port of css-mode.el:css-fill-paragraph (in part).
     subroutine comment_paragraph_regexps(start, separate)
         character(len=:), allocatable, intent(inout) :: start, separate
         type(status_type) :: st
@@ -3079,6 +3123,7 @@ contains
     end subroutine comment_paragraph_regexps
 
     ! S with the characters special in regexps quoted (regexp-quote).
+    ! Not a port.
     function regexp_quote(s) result(q)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: q
@@ -3252,6 +3297,7 @@ contains
     end subroutine css_fill_paragraph
 
     ! fill-paragraph with fill-paragraph-function bound to nil.
+    ! Not a port.
     recursive subroutine fill_without_function(status, justify)
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: justify
@@ -3262,6 +3308,7 @@ contains
     end subroutine fill_without_function
 
     ! A `fill_paragraph_function' that leaves filling to `fill_paragraph'.
+    ! Not a port.
     recursive subroutine no_fill_function(status, done, justify)
         type(status_type), intent(out) :: status
         logical, intent(out) :: done
@@ -3296,6 +3343,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! The faces.
+    ! Not a port.
     subroutine define_faces()
         type(named_face_type), pointer :: f
 
@@ -3311,6 +3359,7 @@ contains
     end subroutine define_faces
 
     ! css-mode-syntax-table and scss-mode-syntax-table.
+    ! Not a port.
     subroutine init_syntax_tables()
         type(status_type) :: st
         type(handle_type) :: t
@@ -3356,6 +3405,7 @@ contains
     end subroutine init_syntax_tables
 
     ! css-syntax-propertize-function's rules and css-smie-grammar.
+    ! Not a port.
     subroutine init_rules()
         type(syntax_highlight_type) :: hl(2)
         type(smie_precs_type) :: precs
@@ -3456,6 +3506,7 @@ contains
     end subroutine cmd_css_cycle_color_format
 
     ! Bind [remap FROM] to COMMAND in `css_mode_map'.
+    ! Not a port.
     subroutine bind_remap(from, command)
         use lisp_fm, only: list_elements
         character(len=*), intent(in) :: from, command
@@ -3468,6 +3519,7 @@ contains
 
     !> Define CSS mode and SCSS mode: their variables, tables, keymaps and
     !> commands.
+    !> Not a port.
     recursive subroutine syms_of_css_mode()
         type(status_type) :: st
 

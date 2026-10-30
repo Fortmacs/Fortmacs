@@ -1,6 +1,7 @@
 ! test_insdel_fm.f90 -- tests for insdel_fm (with the change hooks) and
-! marker_fm position conversion.  Includes cases ported from GNU Emacs
-! 31.1 test/src/editfns-tests.el.
+! marker_fm position conversion.
+! Ports GNU Emacs 31.1 test/src/editfns-tests.el in part; only the
+! change-hook cases; upstream has no insdel tests.
 !
 ! Copyright (C) 2016-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -63,6 +64,7 @@ module test_insdel_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_insdel_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

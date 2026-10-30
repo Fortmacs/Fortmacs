@@ -115,7 +115,7 @@ module derived_fm
 
 contains
 
-    !> The defined major mode named NAME, or null.
+    !> The defined major mode named NAME, or null.  Not a port.
     function major_mode_named(name) result(p)
         character(len=*), intent(in) :: name
         type(major_mode_type), pointer :: p

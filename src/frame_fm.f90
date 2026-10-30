@@ -90,7 +90,7 @@ module frame_fm
 
 contains
 
-    !> Whether `f' is a window-system frame.  frame.h:FRAME_WINDOW_P.
+    !> Whether `f' is a window-system frame.  Port of frame.h:FRAME_WINDOW_P.
     logical function frame_window_p(f)
         type(frame_type), intent(in) :: f
 
@@ -98,7 +98,7 @@ contains
     end function frame_window_p
 
     !> The frame's height in lines (frame.h:FRAME_LINES): its terminal's
-    !> on a terminal frame.
+    !> on a terminal frame.  Port of frame.h:FRAME_LINES.
     integer function frame_lines(f)
         type(frame_type), intent(in) :: f
 
@@ -109,7 +109,7 @@ contains
         end if
     end function frame_lines
 
-    !> The frame's width in columns (frame.h:FRAME_COLS).
+    !> The frame's width in columns.  Port of frame.h:FRAME_COLS.
     integer function frame_cols(f)
         type(frame_type), intent(in) :: f
 
@@ -120,8 +120,8 @@ contains
         end if
     end function frame_cols
 
-    !> The left edge of window `w' on frame `f' in pixels
-    !> (window.h:WINDOW_LEFT_EDGE_X).
+    !> The left edge of window `w' on frame `f' in pixels.
+    !> Port of window.h:WINDOW_LEFT_EDGE_X, in part.
     integer function window_pixel_left(f, w)
         type(frame_type), intent(in) :: f
         type(window_type), intent(in) :: w
@@ -129,7 +129,8 @@ contains
         window_pixel_left = w%left_col*f%column_width
     end function window_pixel_left
 
-    !> The top edge of window `w' in pixels (window.h:WINDOW_TOP_EDGE_Y).
+    !> The top edge of window `w' in pixels.  Port of
+    !> window.h:WINDOW_TOP_EDGE_Y, in part.
     integer function window_pixel_top(f, w)
         type(frame_type), intent(in) :: f
         type(window_type), intent(in) :: w
@@ -137,7 +138,8 @@ contains
         window_pixel_top = w%top_line*f%line_height
     end function window_pixel_top
 
-    !> The width of window `w' in pixels (window.h:WINDOW_PIXEL_WIDTH).
+    !> The width of window `w' in pixels.  Port of
+    !> window.h:WINDOW_PIXEL_WIDTH, in part.
     integer function window_pixel_width(f, w)
         type(frame_type), intent(in) :: f
         type(window_type), intent(in) :: w
@@ -145,8 +147,8 @@ contains
         window_pixel_width = w%total_cols*f%column_width
     end function window_pixel_width
 
-    !> The height of window `w' in pixels, mode line included
-    !> (window.h:WINDOW_PIXEL_HEIGHT).
+    !> The height of window `w' in pixels, mode line included.
+    !> Port of window.h:WINDOW_PIXEL_HEIGHT, in part.
     integer function window_pixel_height(f, w)
         type(frame_type), intent(in) :: f
         type(window_type), intent(in) :: w
@@ -172,7 +174,7 @@ contains
 
     !> Make `selected_frame''s windows if they don't exist yet: one window
     !> (the root, selected) and the minibuffer window, sized later by
-    !> xdisp_fm:init_frame_windows.
+    !> xdisp_fm:init_frame_windows.  Not a port.
     subroutine ensure_frame_windows()
         if (.not. window_valid_p(selected_frame%root_window)) then
             call make_window(selected_frame%root_window)
@@ -206,6 +208,7 @@ contains
 
     !> The selected window of `selected_frame': the minibuffer window while
     !> it is selected, else `selected_window'.  window.c:selected_window.
+    !> Not a port.
     function selected_window_ref() result(w)
         type(window_type), pointer :: w
 
@@ -218,7 +221,7 @@ contains
 
     !> The frame's selected window (not the minibuffer window): the one
     !> showing the current buffer, or that the minibuffer was entered from.
-    !> Valid until a window is made.
+    !> Valid until a window is made.  Not a port.
     function frame_selected_window_ref() result(w)
         type(window_type), pointer :: w
 
@@ -226,7 +229,7 @@ contains
         w => window_ref(selected_frame%selected_window)
     end function frame_selected_window_ref
 
-    !> The minibuffer window.  Valid until a window is made.
+    !> The minibuffer window.  Valid until a window is made.  Not a port.
     function minibuffer_window_ref() result(w)
         type(window_type), pointer :: w
 

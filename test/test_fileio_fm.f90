@@ -1,5 +1,6 @@
 ! test_fileio_fm.f90 -- tests for fileio_fm.
-! Partly ported from GNU Emacs 31.1 test/src/fileio-tests.el.
+! Ports GNU Emacs 31.1 test/src/fileio-tests.el in part; the others are
+! not ported yet.
 !
 ! Copyright (C) 2017-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -54,6 +55,7 @@ module test_fileio_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_fileio_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

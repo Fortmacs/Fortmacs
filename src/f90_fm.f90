@@ -224,8 +224,8 @@ module f90_fm
                                            //achar(9)//"]*\(default\|(\)\|\(class\|type\)[ " &
                                            //achar(9)//"]*is[ "//achar(9)//"]*(\|class[ " &
                                            //achar(9)//"]*default\)"
-    !> Regexp matching the end of an IF, SELECT, WHERE, FORALL block.  Port
-    !> of f90.el f90-end-if-re.
+    !> Regexp matching the end of an IF, SELECT, WHERE, FORALL block.  Port of
+    !> f90.el f90-end-if-re.
     character(len=:), allocatable, public :: f90_end_if_re
     !> Regexp matching the end of a TYPE, ENUM, INTERFACE, BLOCK DATA section.
     !> Port of f90.el f90-end-type-re.
@@ -310,7 +310,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Define F90 mode: its regexps, syntax table, keymap, abbrevs and
-    !> keywords (as loading f90.el does).
+    !> keywords (as loading f90.el does).  Not a port.
     subroutine syms_of_f90()
         type(status_type) :: st
 
@@ -404,6 +404,8 @@ contains
         commands%f90_downcase_region_keywords%run => cmd_f90_downcase_region_keywords
     end subroutine syms_of_f90
 
+    ! Set the regexps of F90 mode.  Port of the values of f90.el's regexp
+    ! variables.
     subroutine init_regexps()
         character(len=24), parameter :: keywords(112) = [character(len=24) :: &
                                                          "allocatable", "allocate", "assign", "assignment", "backspace", &
@@ -583,6 +585,8 @@ contains
                              //"[ "//TAB//"]*"
     end subroutine init_regexps
 
+    ! Make `f90_mode_syntax_table'.  Port of the value of f90.el's
+    ! f90-mode-syntax-table.
     subroutine init_syntax_table()
         type(status_type) :: st
         type(handle_type) :: t
@@ -607,7 +611,7 @@ contains
         call modify_syntax_entry(iachar("\"), iachar("\"), ".", st, t)
     end subroutine init_syntax_table
 
-    !> A highlight of subexpression N in FACE.
+    !> A highlight of subexpression N in FACE.  Not a port.
     function h(n, face, override, lax) result(hl)
         integer, intent(in) :: n
         character(len=*), intent(in) :: face
@@ -618,6 +622,8 @@ contains
         hl = font_lock_highlight(n, face=face, override=override, laxmatch=lax)
     end function h
 
+    ! Set the font-lock keywords of F90 mode.  Port of the values of
+    ! f90.el's f90-font-lock-keywords-* variables.
     subroutine init_keywords()
         type(font_lock_highlight_type) :: h1(1), h2(2), h3(3), h4(4), a(1), anchor(1)
         type(font_lock_keyword_type) :: k2(23)
@@ -777,6 +783,7 @@ contains
     end subroutine init_keywords
 
     !> Abbrevs have generally two letters, except standard types `c, `i, `r, `t.
+    !> Port of the value of f90.el's f90-mode-abbrev-table.
     subroutine init_abbrevs()
         call f90_mode_abbrev_table%define_table("f90_mode_abbrev_table")
         ! Accept ` as the first char of an abbrev.  Also allow _ in abbrevs.
@@ -857,7 +864,7 @@ contains
     ! Small helpers
     ! ------------------------------------------------------------------
 
-    !> (looking-at RE)
+    !> (looking-at RE) Not a port.
     logical function looking(re)
         character(len=*), intent(in) :: re
         type(status_type) :: st
@@ -866,7 +873,7 @@ contains
         if (.not. st%ok()) looking = .false.
     end function looking
 
-    !> Whether group N of the last match matched.
+    !> Whether group N of the last match matched.  Not a port.
     logical function matched(n)
         integer, intent(in) :: n
         type(status_type) :: st
@@ -875,7 +882,7 @@ contains
     end function matched
 
     !> The text of group N of the last (buffer) match, "" if it did not
-    !> match.
+    !> match.  Not a port.
     function ms(n) result(s)
         integer, intent(in) :: n
         character(len=:), allocatable :: s
@@ -890,7 +897,7 @@ contains
         if (.not. allocated(s)) s = ""
     end function ms
 
-    !> The end of group N of the last match.
+    !> The end of group N of the last match.  Not a port.
     integer(int64) function me(n)
         integer, intent(in) :: n
         type(status_type) :: st
@@ -898,7 +905,7 @@ contains
         me = match_end(n, st)
     end function me
 
-    !> The start of group N of the last match.
+    !> The start of group N of the last match.  Not a port.
     integer(int64) function mb(n)
         integer, intent(in) :: n
         type(status_type) :: st
@@ -906,7 +913,7 @@ contains
         mb = match_beginning(n, st)
     end function mb
 
-    !> (list (match-string KIND) (match-string NAME)).
+    !> (list (match-string KIND) (match-string NAME)).  Not a port.
     function blk(kind, name) result(b)
         integer, intent(in) :: kind
         integer, intent(in), optional :: name
@@ -920,7 +927,7 @@ contains
         end if
     end function blk
 
-    !> (list KIND NAME) with literal strings.
+    !> (list KIND NAME) with literal strings.  Not a port.
     function blk_of(kind, name) result(b)
         character(len=*), intent(in) :: kind
         character(len=*), intent(in), optional :: name
@@ -931,7 +938,7 @@ contains
         if (present(name)) b%name = name
     end function blk_of
 
-    !> Lower-case S (ASCII).
+    !> Lower-case S (ASCII).  Not a port.
     pure function downcase(s) result(d)
         character(len=*), intent(in) :: s
         character(len=len(s)) :: d
@@ -944,7 +951,7 @@ contains
         end do
     end function downcase
 
-    !> (skip-chars-forward CHARS)
+    !> (skip-chars-forward CHARS) Not a port.
     subroutine skip_forward(chars)
         character(len=*), intent(in) :: chars
         integer(int64) :: moved
@@ -953,7 +960,7 @@ contains
         moved = skip_chars_forward(chars, st)
     end subroutine skip_forward
 
-    !> (skip-chars-backward CHARS)
+    !> (skip-chars-backward CHARS) Not a port.
     subroutine skip_backward(chars)
         character(len=*), intent(in) :: chars
         integer(int64) :: moved
@@ -963,6 +970,7 @@ contains
     end subroutine skip_backward
 
     !> The character before point, -1 if none (preceding-char gives 0).
+    !> Not a port.
     integer function preceding()
         integer(int32) :: c
         logical :: found
@@ -972,7 +980,7 @@ contains
         if (found) preceding = c
     end function preceding
 
-    !> The character after point, 0 if none (following-char).
+    !> The character after point, 0 if none (following-char).  Not a port.
     integer function following()
         integer(int32) :: c
         logical :: found
@@ -982,7 +990,7 @@ contains
         if (found) following = c
     end function following
 
-    !> A marker at POS.
+    !> A marker at POS.  Not a port.
     function marker_at(pos) result(m)
         integer(int64), intent(in) :: pos
         type(handle_type) :: m
@@ -991,7 +999,7 @@ contains
         call copy_marker_at(pos, m, .false., st)
     end function marker_at
 
-    !> The position of marker M.
+    !> The position of marker M.  Not a port.
     integer(int64) function mpos(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
@@ -999,7 +1007,7 @@ contains
         call marker_position(m, mpos, st)
     end function mpos
 
-    !> Release marker M.
+    !> Release marker M.  Not a port.
     subroutine unmark(m)
         type(handle_type), intent(inout) :: m
         type(status_type) :: st
@@ -1007,7 +1015,7 @@ contains
         call free_marker(m, st)
     end subroutine unmark
 
-    !> (re-search-forward RE BOUND t): true when found.
+    !> (re-search-forward RE BOUND t): true when found.  Not a port.
     logical function search_re(re, bound, noerror)
         character(len=*), intent(in) :: re
         integer(int64), intent(in), optional :: bound
@@ -1019,7 +1027,7 @@ contains
         search_re = st%ok() .and. found > 0
     end function search_re
 
-    !> (re-search-backward RE nil 'move): true when found.
+    !> (re-search-backward RE nil 'move): true when found.  Not a port.
     logical function search_re_backward_move(re)
         character(len=*), intent(in) :: re
         integer(int64) :: found
@@ -1030,6 +1038,7 @@ contains
     end function search_re_backward_move
 
     !> Bind `case_fold_search' to true; SAVED is for `restore_case'.
+    !> Not a port.
     subroutine fold_case(saved)
         logical, intent(out) :: saved
 
@@ -1037,6 +1046,7 @@ contains
         case_fold_search%value = .true.
     end subroutine fold_case
 
+    ! Restore `case_fold_search' from SAVED.  Not a port.
     subroutine restore_case(saved)
         logical, intent(in) :: saved
 
@@ -1048,6 +1058,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The start of the parse for f90-in-string and f90-in-comment.
+    !> Not a port.
     integer(int64) function parse_start()
         parse_start = point_min()
 
@@ -1113,7 +1124,7 @@ contains
         st = status_type()
     end function f90_line_continued
 
-    !> (search-backward S (line-beginning-position))
+    !> (search-backward S (line-beginning-position)) Not a port.
     subroutine search_backward_bol(s, found)
         use search_fm, only: search_backward
         character(len=*), intent(in) :: s
@@ -1426,7 +1437,7 @@ contains
         end if
     end function f90_looking_at_program_block_end
 
-    !> Whether `f90_looking_at_associate' finds a block.
+    !> Whether `f90_looking_at_associate' finds a block.  Not a port.
     logical function found_associate()
         type(f90_block_type) :: b
 
@@ -1434,7 +1445,7 @@ contains
         found_associate = b%found
     end function found_associate
 
-    !> Whether `f90_looking_at_do' finds a block.
+    !> Whether `f90_looking_at_do' finds a block.  Not a port.
     logical function found_do()
         type(f90_block_type) :: b
 
@@ -1442,7 +1453,7 @@ contains
         found_do = b%found
     end function found_do
 
-    !> Whether `f90_looking_at_type_like' finds a block.
+    !> Whether `f90_looking_at_type_like' finds a block.  Not a port.
     logical function found_type_like()
         type(f90_block_type) :: b
 
@@ -1451,6 +1462,7 @@ contains
     end function found_type_like
 
     !> Whether `f90_looking_at_program_block_start' finds a block.
+    !> Not a port.
     logical function found_program_block_start()
         type(f90_block_type) :: b
 
@@ -1459,6 +1471,7 @@ contains
     end function found_program_block_start
 
     !> Whether `f90_looking_at_program_block_end' finds a block.
+    !> Not a port.
     logical function found_program_block_end()
         type(f90_block_type) :: b
 
@@ -1507,7 +1520,7 @@ contains
         call goto_char(opoint)
     end subroutine f90_comment_indent
 
-    !> `f90_comment_indent' as a `comment_indent_function'.
+    !> `f90_comment_indent' as a `comment_indent_function'.  Not a port.
     recursive subroutine f90_comment_indent_function(indent, status)
         type(comment_indent_type), intent(out) :: indent
         type(status_type), intent(out) :: status
@@ -1631,7 +1644,7 @@ contains
     end subroutine cmd_f90_electric_insert
 
     !> Whether an if-then, where/forall or select case starts after point
-    !> (status as `f90_looking_at_if_then').
+    !> (status as `f90_looking_at_if_then').  Not a port.
     recursive logical function if_like(status) result(yes)
         type(status_type), intent(out) :: status
         type(f90_block_type) :: b
@@ -1970,6 +1983,7 @@ contains
 
     ! `f90_beginning_of_subprogram' as `beginning_of_defun_function'
     ! (called with ARG, so INTERACTIVE is true).
+    ! Not a port.
     recursive subroutine f90_beginning_of_defun(arg, found, status)
         integer(int64), intent(in) :: arg
         logical, intent(out) :: found
@@ -1983,6 +1997,7 @@ contains
     end subroutine f90_beginning_of_defun
 
     ! `f90_end_of_subprogram' as `end_of_defun_function'.
+    ! Not a port.
     recursive subroutine f90_end_of_defun(status)
         type(status_type), intent(out) :: status
         type(f90_block_type) :: b
@@ -2039,8 +2054,8 @@ contains
         call restore_case(saved)
     end function f90_end_of_subprogram
 
-    !> Move point to the end of the current subprogram (the command).  Port
-    !> of f90.el:f90-end-of-subprogram.
+    !> Move point to the end of the current subprogram (the command).  Port of
+    !> f90.el:f90-end-of-subprogram.
     subroutine cmd_f90_end_of_subprogram(status)
         type(status_type), intent(out) :: status
         type(f90_block_type) :: b
@@ -2050,7 +2065,7 @@ contains
     end subroutine cmd_f90_end_of_subprogram
 
     !> The block that starts after point, if any (the alternatives
-    !> `f90_end_of_block' and `f90_beginning_of_block' try).
+    !> `f90_end_of_block' and `f90_beginning_of_block' try).  Not a port.
     recursive subroutine block_start(b, status)
         type(f90_block_type), intent(out) :: b
         type(status_type), intent(out) :: status
@@ -2073,7 +2088,7 @@ contains
         call f90_looking_at_where_or_forall(b, status)
     end subroutine block_start
 
-    !> A string for messages: S, or "nil".
+    !> A string for messages: S, or "nil".  Not a port.
     function or_nil(s) result(r)
         character(len=:), allocatable, intent(in) :: s
         character(len=:), allocatable :: r
@@ -2501,7 +2516,7 @@ contains
         call restore_case(saved)
     end subroutine f90_indent_line
 
-    !> `f90_indent_line' as an `indent_line_function'.
+    !> `f90_indent_line' as an `indent_line_function'.  Not a port.
     recursive subroutine f90_indent_line_function(status, noindent)
         type(status_type), intent(out) :: status
         logical, intent(out) :: noindent
@@ -2559,7 +2574,7 @@ contains
     end subroutine cmd_f90_indent_new_line
 
     !> The block that starts after point for `f90_indent_region', and the
-    !> extra indentation it gives.
+    !> extra indentation it gives.  Not a port.
     recursive subroutine region_block(struct, ind_b, has_ind, status, else_like, contains_too)
         type(f90_block_type), intent(out) :: struct
         integer(int64), intent(out) :: ind_b
@@ -2807,8 +2822,8 @@ contains
         call restore_case(saved)
     end subroutine f90_indent_region
 
-    !> Indent every line in region by forward parsing (the command).  Port
-    !> of f90.el:f90-indent-region.
+    !> Indent every line in region by forward parsing (the command).  Port of
+    !> f90.el:f90-indent-region.
     recursive subroutine cmd_f90_indent_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
@@ -2854,8 +2869,8 @@ contains
         call unmark(opoint)
     end subroutine f90_indent_subprogram
 
-    !> Properly indent the subprogram containing point (the command).  Port
-    !> of f90.el:f90-indent-subprogram.
+    !> Properly indent the subprogram containing point (the command).  Port of
+    !> f90.el:f90-indent-subprogram.
     recursive subroutine cmd_f90_indent_subprogram(status)
         type(status_type), intent(out) :: status
 
@@ -3133,6 +3148,7 @@ contains
     end subroutine cmd_f90_fill_paragraph
 
     !> Whether S is one of `f90_end_block_optional_name' (ignoring case).
+    !> Not a port.
     logical function optional_name_block(s)
         character(len=*), intent(in) :: s
         integer :: i
@@ -3145,7 +3161,7 @@ contains
     end function optional_name_block
 
     !> (search-forward S (line-end-position)), case folded as
-    !> `case_fold_search' says.
+    !> `case_fold_search' says.  Not a port.
     subroutine search_eol(s, status)
         character(len=*), intent(in) :: s
         type(status_type), intent(out) :: status
@@ -3154,7 +3170,7 @@ contains
         call search_forward(s, found, status, bound=line_end_position())
     end subroutine search_eol
 
-    !> (search-forward S)
+    !> (search-forward S) Not a port.
     subroutine search_fwd(s, status)
         character(len=*), intent(in) :: s
         type(status_type), intent(out) :: status
@@ -3387,6 +3403,7 @@ contains
         use lisp_fm, only: make_fixnum
         type(status_type), intent(out) :: status
         type(handle_type) :: map
+        type(value_type) :: key(1)
         type(status_type) :: st
 
         call barf_if_buffer_read_only(status)
@@ -3397,8 +3414,10 @@ contains
         if (associated(abbrev_mode)) then
             if (abbrev_mode%value) then
                 call make_sparse_keymap(map)
-                call define_key(map, [make_fixnum(int(iachar("?"), int64))], sym("f90_abbrev_help"), st)
-                call define_key(map, [make_fixnum(HELP_CHAR)], sym("f90_abbrev_help"), st)
+                key(1) = make_fixnum(int(iachar("?"), int64))
+                call define_key(map, key, sym("f90_abbrev_help"), st)
+                key(1) = make_fixnum(HELP_CHAR)
+                call define_key(map, key, sym("f90_abbrev_help"), st)
                 call set_transient_map(map)
             end if
         end if
@@ -3468,6 +3487,7 @@ contains
     end subroutine cmd_f90_downcase_keywords
 
     !> Change the case of the keywords in the region to CHANGE_WORD.
+    !> Not a port.
     subroutine region_keywords(change_word, status)
         integer, intent(in) :: change_word
         type(status_type), intent(out) :: status
