@@ -23,7 +23,12 @@
 #   --fix       reformat sources and apply safe lint fixes in place instead
 #               of failing on format drift.
 #   --valgrind  also run the tests under valgrind and fail on any definite
-#               leak or memory error (see tools/valgrind.supp).
+#               leak or memory error (see tools/valgrind.supp): each suite
+#               in its own process, as many at a time as there are CPUs.
+#   --valgrind-combined
+#               like --valgrind, then also all the suites under valgrind in
+#               one process, for a leak that only one suite running after
+#               another causes (CI does this on main after each merge).
 #   --no-style  skip the format and lint checks (for distro jobs that only
 #               need the build and tests; style is checked elsewhere).
 
@@ -35,13 +40,15 @@ FORTITUDE_VERSION=0.9.2
 DIRS="src app test docs/init.f90"
 fix=false
 memcheck=false
+memcheck_combined=false
 style=true
 for arg in "$@"; do
     case "$arg" in
         --fix) fix=true ;;
         --valgrind) memcheck=true ;;
+        --valgrind-combined) memcheck=true; memcheck_combined=true ;;
         --no-style) style=false ;;
-        *) echo "usage: tools/check.sh [--fix] [--valgrind] [--no-style]" >&2; exit 2 ;;
+        *) echo "usage: tools/check.sh [--fix] [--valgrind | --valgrind-combined] [--no-style]" >&2; exit 2 ;;
     esac
 done
 
@@ -137,17 +144,42 @@ fi
 fpm build --profile debug --flag "$FFLAGS"
 fpm test --profile debug --flag "$FFLAGS"
 
-# Each suite alone too, so none depends on state an earlier one left.
-for suite in $(sed -n 's/.*new_testsuite("\([a-z_]*\)".*/\1/p' test/main.f90); do
-    if ! fpm test --profile debug --flag "$FFLAGS" -- "$suite" >/dev/null 2>&1; then
-        echo "test suite $suite fails when run alone: fpm test -- $suite" >&2
+# The suites run one at a time below are run as many at a time as there
+# are CPUs: each writes only to its own build/test-* directory and to
+# temporary files of unique names, so two different suites never share a
+# file.  A suite's output is kept in build/check-logs/SUITE and shown if
+# it fails.
+tester=$(fpm test --profile debug --flag "$FFLAGS" --runner echo 2>/dev/null | tail -n 1)
+suites=$(sed -n 's/.*new_testsuite("\([a-z_]*\)".*/\1/p' test/main.f90)
+jobs=$(nproc 2>/dev/null || echo 1)
+logs=build/check-logs
+VALGRIND="valgrind -q --leak-check=full --errors-for-leak-kinds=definite --error-exitcode=9 --suppressions=tools/valgrind.supp"
+
+# Run every suite alone, each by PREFIX TESTER SUITE ($1 is PREFIX, empty
+# for none; $2 names the pass), and fail on the first that fails.
+run_suites() {
+    rm -rf "$logs"
+    mkdir -p "$logs"
+    printf '%s\n' $suites | xargs -P "$jobs" -I SUITE sh -c \
+        "$1 \"$tester\" SUITE >\"$logs/SUITE\" 2>&1 || echo SUITE >>\"$logs/failed\""
+    if [ -s "$logs/failed" ]; then
+        for suite in $(sort "$logs/failed"); do
+            echo "test suite $suite fails $2: fpm test -- $suite" >&2
+            cat "$logs/$suite" >&2
+        done
         exit 1
     fi
-done
+}
+
+# Each suite alone too, so none depends on state an earlier one left.
+run_suites "" "when run alone"
 
 if $memcheck; then
-    fpm test --profile debug --flag "$FFLAGS" --runner \
-        "valgrind -q --leak-check=full --errors-for-leak-kinds=definite --error-exitcode=9 --suppressions=tools/valgrind.supp"
+    run_suites "$VALGRIND" "under valgrind"
+fi
+
+if $memcheck_combined; then
+    fpm test --profile debug --flag "$FFLAGS" --runner "$VALGRIND"
 fi
 
 # fortmacs --recompile against an installed copy.
