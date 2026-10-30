@@ -128,6 +128,28 @@ module buffer_fm
         procedure :: clear => header_line_clear
     end type header_line_format_type
 
+    abstract interface
+        !> An input method (`input_method_function'): given the character
+        !> KEY just read, the events to use as input (none for none).
+        recursive subroutine input_method_proc(key, events, status)
+            import :: value_type, status_type, int64
+            implicit none(type, external)
+            integer(int64), intent(in) :: key
+            type(value_type), allocatable, intent(out) :: events(:)
+            type(status_type), intent(out) :: status
+        end subroutine input_method_proc
+
+        !> `deactivate_current_input_method_function' and
+        !> `describe_current_input_method_function'.
+        recursive subroutine input_method_hook_proc(status)
+            import :: status_type
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine input_method_hook_proc
+    end interface
+
+    public :: input_method_proc, input_method_hook_proc
+
     type, public :: buffer_type
         character(len=:), allocatable :: name, last_name
         type(buffer_text_type) :: text
@@ -234,6 +256,21 @@ module buffer_fm
         !> t, else the list `invisibility_spec'.
         logical :: invisibility_spec_t = .true.
         type(invisibility_entry_type), allocatable :: invisibility_spec(:)
+        !> The input method state, permanent-local (mule-cmds.el):
+        !> `current_input_method' and `current_input_method_title'
+        !> (unallocated for nil), `current_transient_input_method',
+        !> `previous_transient_input_method', `input_method_history', the
+        !> functions `input_method_function',
+        !> `deactivate_current_input_method_function' and
+        !> `describe_current_input_method_function', and quail.el's
+        !> `quail_current_package' (0 for none).
+        character(len=:), allocatable :: current_input_method, current_input_method_title
+        character(len=:), allocatable :: current_transient_input_method, previous_transient_input_method
+        character(len=64), allocatable :: input_method_history(:)
+        procedure(input_method_proc), pointer, nopass :: input_method_function => null()
+        procedure(input_method_hook_proc), pointer, nopass :: deactivate_current_input_method_function => null()
+        procedure(input_method_hook_proc), pointer, nopass :: describe_current_input_method_function => null()
+        integer :: quail_current_package = 0
     end type buffer_type
 
     !> True if Transient Mark mode is enabled.
