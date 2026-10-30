@@ -53,6 +53,7 @@ module lread_fm
 contains
 
     !> Hash of `name' (polynomial, kept below 2**31 so it cannot overflow).
+    !> Not a port.
     pure integer(int64) function hash_name(name)
         character(len=*), intent(in) :: name
         integer :: k
@@ -64,7 +65,7 @@ contains
         end do
     end function hash_name
 
-    !> Slot where `name' is, or the empty slot where it would go.
+    !> Slot where `name' is, or the empty slot where it would go.  Not a port.
     integer(int64) function find_slot(name)
         character(len=*), intent(in) :: name
         integer(int64) :: mask, id
@@ -103,7 +104,7 @@ contains
         symbols(id)%val = make_symbol_ref(SYM_T)
     end subroutine init_obarray
 
-    !> Append a new symbol named `name' and index it.
+    !> Append a new symbol named `name' and index it.  Not a port.
     integer(int64) function add_symbol(name) result(id)
         character(len=*), intent(in) :: name
         type(symbol_type), allocatable :: grown(:)
@@ -132,6 +133,7 @@ contains
         end if
     end function add_symbol
 
+    ! Not a port.
     subroutine rehash(new_size)
         integer(int64), intent(in) :: new_size
         integer(int64) :: id
@@ -146,7 +148,7 @@ contains
     end subroutine rehash
 
     !> Create nil and t if no symbol exists yet.  Anything that indexes
-    !> `symbols' without interning first must call this.
+    !> `symbols' without interning first must call this.  Not a port.
     subroutine ensure_obarray()
         if (.not. allocated(slots)) call init_obarray()
     end subroutine ensure_obarray
@@ -171,7 +173,7 @@ contains
     end function intern_soft
 
     !> The symbol named `name' as a value (nil for "nil"); the Fortmacs
-    !> spelling of 'name.  Interns it if needed.
+    !> spelling of 'name.  Interns it if needed.  Not a port.
     function sym(name) result(v)
         character(len=*), intent(in) :: name
         type(value_type) :: v

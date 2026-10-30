@@ -1,4 +1,5 @@
 ! test_xfaces_fm.f90 -- tests for xfaces_fm.
+! Own tests; upstream's xfaces-tests.el is not ported yet.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -46,6 +47,7 @@ module test_xfaces_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_xfaces_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

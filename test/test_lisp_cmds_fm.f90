@@ -1,5 +1,7 @@
 ! test_lisp_cmds_fm.f90 -- tests for the defun and pair commands of
 ! lisp_cmds_fm.
+! Ports GNU Emacs 31.1 test/lisp/emacs-lisp/lisp-tests.el in part; the
+! defun and pair tests of the ported commands.
 !
 ! Copyright (C) 2013-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -60,6 +62,7 @@ module test_lisp_cmds_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_lisp_cmds_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

@@ -90,9 +90,10 @@ module log_view_fm
               set_log_view_expanded_log_entry_function, set_log_view_vc_fileset, set_log_view_vc_backend, &
               set_log_view_font_lock_keywords, log_view_font_lock_keywords, syms_of_log_view
 
-    !> `log_view_expanded_log_entry_function': return in TEXT the detailed
-    !> description of the Log View entry REVISION (FOUND false for nil).
     abstract interface
+        !> `log_view_expanded_log_entry_function': return in TEXT the detailed
+        !> description of the Log View entry REVISION (FOUND false for nil).
+        !> Not a port.
         recursive subroutine log_view_entry_proc(revision, text, found)
             implicit none(type, external)
             character(len=*), intent(in) :: revision
@@ -172,7 +173,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! The index of the current buffer's entry in `locals', made if MAKE
-    ! (0 if none).
+    ! (0 if none).  Not a port.
     integer function local_index(make) result(k)
         logical, intent(in) :: make
         type(local_type), allocatable :: grown(:)
@@ -209,6 +210,7 @@ contains
     end function local_index
 
     ! kill-all-local-variables: forget the current buffer's values.
+    ! Not a port.
     subroutine kill_log_view_locals()
         integer :: k
 
@@ -218,7 +220,7 @@ contains
 
     !> The current buffer's `log_view_file_re': the regexp matching the
     !> text identifying the file.  The match group number 1 should match
-    !> the file name itself.
+    !> the file name itself.  Not a port.
     function log_view_file_re() result(re)
         character(len=:), allocatable :: re
         integer :: k
@@ -233,7 +235,7 @@ contains
 
     !> The current buffer's `log_view_message_re': the regexp matching the
     !> text identifying a revision.  The match group number 1 should match
-    !> the revision number itself.
+    !> the revision number itself.  Not a port.
     function log_view_message_re() result(re)
         character(len=:), allocatable :: re
         integer :: k
@@ -247,7 +249,7 @@ contains
     end function log_view_message_re
 
     !> The current buffer's `log_view_per_file_logs': true if the logs are
-    !> shown one file at a time.
+    !> shown one file at a time.  Not a port.
     logical function log_view_per_file_logs()
         integer :: k
 
@@ -260,7 +262,7 @@ contains
     end function log_view_per_file_logs
 
     !> The current buffer's `log_view_vc_fileset': the VC fileset
-    !> corresponding to the current log (HAS false for nil).
+    !> corresponding to the current log (HAS false for nil).  Not a port.
     subroutine log_view_vc_fileset(fileset, has)
         type(vc_string_type), allocatable, intent(out) :: fileset(:)
         logical, intent(out) :: has
@@ -278,7 +280,7 @@ contains
     end subroutine log_view_vc_fileset
 
     !> The current buffer's `log_view_vc_backend': the VC backend that
-    !> created the current log (0 for nil).
+    !> created the current log (0 for nil).  Not a port.
     integer function log_view_vc_backend() result(b)
         integer :: k
 
@@ -288,7 +290,7 @@ contains
     end function log_view_vc_backend
 
     !> The current buffer's `log_view_font_lock_keywords' (the default
-    !> highlights the file and message lines when not set).
+    !> highlights the file and message lines when not set).  Not a port.
     subroutine log_view_font_lock_keywords(keywords)
         type(font_lock_keyword_type), allocatable, intent(out) :: keywords(:)
         type(font_lock_highlight_type) :: h(1)
@@ -313,7 +315,7 @@ contains
         keywords(2) = font_lock_keyword(log_view_message_re(), face="log_view_message")
     end subroutine log_view_font_lock_keywords
 
-    !> (setq-local log-view-file-re RE).
+    !> (setq-local log-view-file-re RE).  Not a port.
     subroutine set_log_view_file_re(re)
         character(len=*), intent(in) :: re
         integer :: k
@@ -322,7 +324,7 @@ contains
         locals(k)%file_re = re
     end subroutine set_log_view_file_re
 
-    !> (setq-local log-view-message-re RE).
+    !> (setq-local log-view-message-re RE).  Not a port.
     subroutine set_log_view_message_re(re)
         character(len=*), intent(in) :: re
         integer :: k
@@ -331,7 +333,7 @@ contains
         locals(k)%message_re = re
     end subroutine set_log_view_message_re
 
-    !> (setq-local log-view-per-file-logs FLAG).
+    !> (setq-local log-view-per-file-logs FLAG).  Not a port.
     subroutine set_log_view_per_file_logs(flag)
         logical, intent(in) :: flag
         integer :: k
@@ -341,7 +343,7 @@ contains
         locals(k)%per_file_logs = flag
     end subroutine set_log_view_per_file_logs
 
-    !> (setq-local log-view-expanded-log-entry-function FN).
+    !> (setq-local log-view-expanded-log-entry-function FN).  Not a port.
     subroutine set_log_view_expanded_log_entry_function(fn)
         procedure(log_view_entry_proc) :: fn
         integer :: k
@@ -350,7 +352,7 @@ contains
         locals(k)%expanded => fn
     end subroutine set_log_view_expanded_log_entry_function
 
-    !> (setq-local log-view-vc-fileset FILESET).
+    !> (setq-local log-view-vc-fileset FILESET).  Not a port.
     subroutine set_log_view_vc_fileset(fileset)
         type(vc_string_type), intent(in) :: fileset(:)
         integer :: k
@@ -360,7 +362,7 @@ contains
         locals(k)%fileset = fileset
     end subroutine set_log_view_vc_fileset
 
-    !> (setq-local log-view-vc-backend B).
+    !> (setq-local log-view-vc-backend B).  Not a port.
     subroutine set_log_view_vc_backend(b)
         integer, intent(in) :: b
         integer :: k
@@ -369,7 +371,7 @@ contains
         locals(k)%backend = b
     end subroutine set_log_view_vc_backend
 
-    !> (setq-local log-view-font-lock-keywords KEYWORDS).
+    !> (setq-local log-view-font-lock-keywords KEYWORDS).  Not a port.
     subroutine set_log_view_font_lock_keywords(keywords)
         type(font_lock_keyword_type), intent(in) :: keywords(:)
         integer :: k
@@ -616,8 +618,8 @@ contains
     end function log_view_inside_comment_p
 
     !> Return the revision tag (a string) of the Log View entry at POS.
-    !> if POS is omitted, it defaults to point (HAS false for nil).  Port
-    !> of log-view.el:log-view-current-tag.
+    !> if POS is omitted, it defaults to point (HAS false for nil).
+    !> Port of log-view.el:log-view-current-tag.
     recursive subroutine log_view_current_tag(tag, has, pos)
         character(len=:), allocatable, intent(out) :: tag
         logical, intent(out) :: has
@@ -658,8 +660,8 @@ contains
     ! Call `log_view__mark_entry' (MARK) or `log_view__unmark_entry' on
     ! each line of an active region or ARG times.  The last line of an
     ! active region is excluded in the case that the region ends right at
-    ! the beginning of the line, or after only non-word characters.  Port
-    ! of log-view.el:log-view--mark-unmark.
+    ! the beginning of the line, or after only non-word characters.
+    ! Port of log-view.el:log-view--mark-unmark.
     recursive subroutine mark_unmark(mark, arg, status, beg, end, restore)
         logical, intent(in) :: mark
         integer(int64), intent(in) :: arg
@@ -948,7 +950,7 @@ contains
         deactivate_mark_variable = .false.
     end subroutine log_view_toggle_entry_display
 
-    ! (add-text-properties BEG END PROPS).
+    ! (add-text-properties BEG END PROPS).  Not a port.
     recursive subroutine add_properties(beg, end, props, changed, status)
         use lisp_fm, only: make_list
         use textprop_fm, only: add_text_properties
@@ -1100,7 +1102,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! (car log-view-vc-fileset) for the commands that need one file: a
-    ! user error if the buffer shows several.
+    ! user error if the buffer shows several.  Not a port.
     recursive subroutine single_file(file, status)
         character(len=:), allocatable, intent(out) :: file
         type(status_type), intent(out) :: status
@@ -1323,7 +1325,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! (let ((inhibit-read-only t)) ...): bind it, keeping the old value
-    ! in SAVED.
+    ! in SAVED.  Not a port.
     subroutine bind_inhibit_read_only(saved)
         type(value_type), intent(out) :: saved
         type(status_type) :: st
@@ -1333,6 +1335,8 @@ contains
         call set(sym("inhibit_read_only"), t_value(), st)
     end subroutine bind_inhibit_read_only
 
+    ! The end of (let ((inhibit-read-only t)) ...): restore SAVED.
+    ! Not a port.
     subroutine restore_inhibit_read_only(saved)
         type(value_type), intent(in) :: saved
         type(status_type) :: st
@@ -1340,12 +1344,13 @@ contains
         call set(sym("inhibit_read_only"), saved, st)
     end subroutine restore_inhibit_read_only
 
-    ! (interactive "p"): the numeric prefix argument.
+    ! (interactive "p"): the numeric prefix argument.  Not a port.
     integer(int64) function count_arg()
         count_arg = prefix_numeric_value(current_prefix_arg)
     end function count_arg
 
     ! (if (use-region-p) (region-beginning) (point)) and the end.
+    ! Not a port.
     subroutine region_args(beg, end)
         integer(int64), intent(out) :: beg, end
         type(status_type) :: st
@@ -1360,6 +1365,7 @@ contains
     end subroutine region_args
 
     ! (interactive "p\nR"): the count and the active region, if any.
+    ! Not a port.
     recursive subroutine mark_command(mark, status)
         logical, intent(in) :: mark
         type(status_type), intent(out) :: status
@@ -1449,7 +1455,7 @@ contains
     ! Definitions
     ! ------------------------------------------------------------------
 
-    ! Define the faces.
+    ! Define the faces.  Not a port.
     subroutine define_faces()
         type(named_face_type), pointer :: f
 
@@ -1469,7 +1475,7 @@ contains
     end subroutine define_faces
 
     !> Define Log View mode, its keymap and faces, and register the
-    !> commands.
+    !> commands.  Not a port.
     subroutine syms_of_log_view()
         type(status_type) :: st
 

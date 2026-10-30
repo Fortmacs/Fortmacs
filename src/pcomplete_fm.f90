@@ -390,6 +390,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! The current buffer's slot in `local_functions' (made if CREATE).
+    ! Not a port.
     integer function local_slot(create) result(k)
         logical, intent(in) :: create
         type(local_functions_type), allocatable :: grown(:)
@@ -425,6 +426,7 @@ contains
     end function local_slot
 
     ! Forget the current buffer's values (kill-all-local-variables).
+    ! Not a port.
     subroutine kill_pcomplete_locals()
         integer :: k
 
@@ -432,6 +434,7 @@ contains
         if (k > 0) local_functions(k) = local_functions_type()
     end subroutine kill_pcomplete_locals
 
+    ! Set SELF in the current buffer (setq-local).  Not a port.
     subroutine function_set_local(self, fn)
         class(pcomplete_function_variable_type), intent(in) :: self
         procedure(pcomplete_function_proc) :: fn
@@ -449,6 +452,7 @@ contains
         end if
     end subroutine function_set_local
 
+    ! The current buffer's value of SELF.  Not a port.
     subroutine function_get(self, fn)
         class(pcomplete_function_variable_type), intent(in) :: self
         procedure(pcomplete_function_proc), pointer, intent(out) :: fn
@@ -465,6 +469,8 @@ contains
         end if
     end subroutine function_get
 
+    ! Set `pcomplete_parse_arguments_function' to FN in the current
+    ! buffer (setq-local).  Not a port.
     subroutine parse_set_local(fn)
         procedure(pcomplete_parse_proc) :: fn
         integer :: k
@@ -475,6 +481,7 @@ contains
         local_functions(k)%has_parse = .true.
     end subroutine parse_set_local
 
+    ! The current buffer's value of SELF.  Not a port.
     subroutine parse_get(self, fn)
         class(pcomplete_parse_variable_type), intent(in) :: self
         procedure(pcomplete_parse_proc), pointer, intent(out) :: fn
@@ -486,6 +493,8 @@ contains
         if (local_functions(k)%has_parse) fn => local_functions(k)%parse
     end subroutine parse_get
 
+    ! Add the completion function FN for COMMAND (in major mode MODE).
+    ! Not a port.
     subroutine command_functions_add(self, command, fn, mode)
         class(pcomplete_command_functions_type), intent(inout) :: self
         character(len=*), intent(in) :: command
@@ -504,14 +513,15 @@ contains
         call move_alloc(grown, self%entries)
     end subroutine command_functions_add
 
-    !> Do nothing (#'ignore, as a completion function).
+    !> Do nothing (#'ignore, as a completion function).  Not a port.
     recursive subroutine pcomplete_ignore(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
     end subroutine pcomplete_ignore
 
-    ! The default `pcomplete_command_completion_function'.
+    ! The default `pcomplete_command_completion_function'.  Port of
+    ! pcomplete.el:pcomplete-command-completion-function (its default).
     recursive subroutine default_command_completion(status)
         type(status_type), intent(out) :: status
 
@@ -519,7 +529,8 @@ contains
         if (pcomplete_here(executables_form)) continue
     end subroutine default_command_completion
 
-    ! The default `pcomplete_default_completion_function'.
+    ! The default `pcomplete_default_completion_function'.  Port of
+    ! pcomplete.el:pcomplete-default-completion-function (its default).
     recursive subroutine default_default_completion(status)
         type(status_type), intent(out) :: status
 
@@ -529,7 +540,7 @@ contains
         end do
     end subroutine default_default_completion
 
-    ! (pcomplete-executables) as a FORM.
+    ! (pcomplete-executables) as a FORM.  Not a port.
     recursive subroutine executables_form(table, found)
         type(completion_table_type), intent(out) :: table
         logical, intent(out) :: found
@@ -538,7 +549,7 @@ contains
         found = .true.
     end subroutine executables_form
 
-    ! (pcomplete-entries) as a FORM.
+    ! (pcomplete-entries) as a FORM.  Not a port.
     recursive subroutine entries_form(table, found)
         type(completion_table_type), intent(out) :: table
         logical, intent(out) :: found
@@ -553,12 +564,12 @@ contains
 
     !> Whether completion was abandoned (upstream, `pcompleted' was
     !> thrown) or its table given (`pcomplete-completions' thrown): a
-    !> completion function returns at once when this is true.
+    !> completion function returns at once when this is true.  Not a port.
     logical function pcomplete_thrown()
         pcomplete_thrown = thrown /= THROWN_NONE
     end function pcomplete_thrown
 
-    ! The 0-based argument index WHICH, INDEX and OFFSET denote.
+    ! The 0-based argument index WHICH, INDEX and OFFSET denote.  Not a port.
     integer function arg_position(which, index, offset) result(n)
         integer, intent(in), optional :: which, index, offset
         integer :: w
@@ -657,8 +668,8 @@ contains
 
     !> Like `string_match', but on the current completion argument:
     !> INDEX defaults to 1 (the previous argument).  Without such an
-    !> argument, completion is abandoned (see `pcomplete_thrown').  Port
-    !> of pcomplete.el:pcomplete-match.
+    !> argument, completion is abandoned (see `pcomplete_thrown').
+    !> Port of pcomplete.el:pcomplete-match.
     recursive logical function pcomplete_match(regexp, index, offset, start, which) result(matched)
         character(len=*), intent(in) :: regexp
         integer, intent(in), optional :: index, offset, which
@@ -740,8 +751,8 @@ contains
         end if
     end function pcomplete_test
 
-    !> Parse whitespace separated arguments in the current region.  Port
-    !> of pcomplete.el:pcomplete-parse-buffer-arguments.
+    !> Parse whitespace separated arguments in the current region.
+    !> Port of pcomplete.el:pcomplete-parse-buffer-arguments.
     recursive subroutine pcomplete_parse_buffer_arguments(args, begins)
         type(process_arg_type), allocatable, intent(out) :: args(:)
         integer(int64), allocatable, intent(out) :: begins(:)
@@ -802,7 +813,7 @@ contains
         call goto_char(opoint)
     end subroutine pcomplete_parse_comint_arguments
 
-    ! Add TEXT beginning at START to ARGS and BEGINS.
+    ! Add TEXT beginning at START to ARGS and BEGINS.  Not a port.
     subroutine push_arg(args, begins, text, start)
         type(process_arg_type), allocatable, intent(inout) :: args(:)
         integer(int64), allocatable, intent(inout) :: begins(:)
@@ -938,19 +949,22 @@ contains
         call pcomplete_entries(table, predicate=dir_or_entry_p)
     end subroutine pcomplete_dirs_or_entries
 
+    ! `file_directory_p' as a file predicate.  Not a port.
     recursive logical function directory_p(file)
         character(len=*), intent(in) :: file
 
         directory_p = file_directory_p(file)
     end function directory_p
 
+    ! `file_executable_p' as a file predicate.  Not a port.
     recursive logical function executable_p(file)
         character(len=*), intent(in) :: file
 
         executable_p = file_executable_p(file)
     end function executable_p
 
-    ! The predicate of `pcomplete_dirs_or_entries'.
+    ! The predicate of `pcomplete_dirs_or_entries'.  Port of
+    ! pcomplete.el:pcomplete-dirs-or-entries, in part.
     recursive logical function dir_or_entry_p(file) result(ok)
         character(len=*), intent(in) :: file
         type(status_type) :: st
@@ -970,7 +984,8 @@ contains
     end function dir_or_entry_p
 
     ! The predicate of the table of `pcomplete_entries' (ign-pred,
-    ! reg-pred and PREDICATE or `file_exists_p').
+    ! reg-pred and PREDICATE or `file_exists_p').  Port of
+    ! pcomplete.el:pcomplete--entries, in part.
     recursive logical function entries_filter(elt) result(ok)
         type(value_type), intent(in) :: elt
         character(len=:), allocatable :: file
@@ -1001,13 +1016,15 @@ contains
     end function entries_filter
 
     ! PREDICATE of `pcomplete_entries' alone, as a completion predicate.
+    ! Not a port.
     recursive logical function entries_predicate_only(elt)
         type(value_type), intent(in) :: elt
 
         entries_predicate_only = entries_predicate(xstring(elt))
     end function entries_predicate_only
 
-    ! The table of pcomplete--entries.
+    ! The table of pcomplete--entries.  Port of
+    ! pcomplete.el:pcomplete--entries, in part.
     recursive subroutine entries_inner_table(string, action, result, status, pred, suffix)
         character(len=*), intent(in) :: string
         integer, intent(in) :: action
@@ -1041,7 +1058,8 @@ contains
     end subroutine entries_inner_table
 
     ! The table of `pcomplete_entries': environment variable references
-    ! expanded, then pcomplete--entries.
+    ! expanded, then pcomplete--entries.  Port of
+    ! pcomplete.el:pcomplete-entries, in part.
     recursive subroutine entries_table(string, action, result, status, pred, suffix)
         character(len=*), intent(in) :: string
         integer, intent(in) :: action
@@ -1305,7 +1323,7 @@ contains
         advanced = pcomplete_here(form, stub, PCOMPLETE_PARING_NONE, form_only=form_only)
     end function pcomplete_here_star
 
-    ! `file_truename' as a paring function.
+    ! `file_truename' as a paring function.  Not a port.
     recursive subroutine truename_norm(arg, norm)
         character(len=*), intent(in) :: arg
         character(len=:), allocatable, intent(out) :: norm
@@ -1315,7 +1333,7 @@ contains
         if (.not. st%ok()) norm = arg
     end subroutine truename_norm
 
-    ! Add S to the list LIST.
+    ! Add S to the list LIST.  Not a port.
     subroutine push_seen(list, s)
         type(process_arg_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
@@ -1361,7 +1379,7 @@ contains
     end subroutine pcomplete_default_exit_function
 
     ! The `:exit_function' of `pcomplete_completions_at_point': the
-    ! `pcomplete_exit_function' it was called with.
+    ! `pcomplete_exit_function' it was called with.  Not a port.
     recursive subroutine capf_exit(string, finished)
         character(len=*), intent(in) :: string
         integer, intent(in) :: finished
@@ -1370,8 +1388,8 @@ contains
     end subroutine capf_exit
 
     !> The length of the longest suffix of S1 that is also a suffix of S2
-    !> (S2 is expected to be the "unquoted/expanded" version of S1).  Port
-    !> of pcomplete.el:pcomplete--common-suffix.
+    !> (S2 is expected to be the "unquoted/expanded" version of S1).
+    !> Port of pcomplete.el:pcomplete--common-suffix.
     integer(int64) function common_suffix(s1, s2) result(n)
         character(len=*), intent(in) :: s1, s2
         integer(int64) :: n1, n2
@@ -1387,6 +1405,7 @@ contains
     end function common_suffix
 
     ! The table of `pcomplete_completions_at_point' (before quoting).
+    ! Port of pcomplete.el:pcomplete-completions-at-point, in part.
     recursive subroutine capf_table(string, action, result, status, pred, suffix)
         character(len=*), intent(in) :: string
         integer, intent(in) :: action
@@ -1404,7 +1423,8 @@ contains
     end subroutine capf_table
 
     ! The predicate of `pcomplete_completions_at_point': pare the
-    ! arguments already seen.
+    ! arguments already seen.  Port of
+    ! pcomplete.el:pcomplete-completions-at-point, in part.
     recursive logical function capf_pare(elt) result(ok)
         type(value_type), intent(in) :: elt
         character(len=:), allocatable :: norm
@@ -1534,7 +1554,7 @@ contains
         data%exit_function => capf_exit
     end subroutine pcomplete_completions_at_point
 
-    ! Whether PREFIX is a prefix of STRING (string-prefix-p).
+    ! Whether PREFIX is a prefix of STRING (string-prefix-p).  Not a port.
     logical function prefix_of(prefix, string)
         character(len=*), intent(in) :: prefix, string
 
@@ -1543,7 +1563,7 @@ contains
         prefix_of = string(1:len(prefix)) == prefix
     end function prefix_of
 
-    !> Define pcomplete's settings and default functions.
+    !> Define pcomplete's settings and default functions.  Not a port.
     subroutine syms_of_pcomplete()
         if (associated(pcomplete_command_completion_function%value)) return
         if (.not. allocated(pcomplete_termination_string%value)) pcomplete_termination_string = " "

@@ -78,12 +78,13 @@ module add_log_fm
     character(len=*), parameter, public :: change_log_tag_re = &
                                            "(\(\(?:\sw\|\s_\)+\(?:[, "//achar(9)//"]+\(?:\sw\|\s_\)+\)*\))"
 
-    !> A function that returns the date for a ChangeLog header.
+    !> A function giving (in S) the date for a ChangeLog header.
     abstract interface
-        function add_log_time_function() result(s)
+        ! Not a port.
+        subroutine add_log_time_function(s)
             implicit none(type, external)
-            character(len=:), allocatable :: s
-        end function add_log_time_function
+            character(len=:), allocatable, intent(out) :: s
+        end subroutine add_log_time_function
     end interface
 
     !> Name of a change log file for \[add_change_log_entry].  Port of
@@ -228,18 +229,19 @@ contains
         end subroutine add
     end subroutine change_log_read_defuns
 
-    !> Return the date in ISO 8601 form (YYYY-MM-DD), local time.  Port
-    !> of add-log.el:add-log-iso8601-time-string (no
-    !> `add_log_time_zone_rule').
-    function add_log_iso8601_time_string() result(s)
-        character(len=:), allocatable :: s
+    !> Return the date in ISO 8601 form (YYYY-MM-DD), local time, as S.
+    !> Port of add-log.el:add-log-iso8601-time-string (no
+    !> `add_log_time_zone_rule'; a subroutine, as `add_log_time_format'
+    !> points to it).
+    subroutine add_log_iso8601_time_string(s)
+        character(len=:), allocatable, intent(out) :: s
         character(len=10) :: buf
         integer :: v(8)
 
         call date_and_time(values=v)
         write (buf, "(i4.4,'-',i2.2,'-',i2.2)") v(1), v(2), v(3)
         s = buf
-    end function add_log_iso8601_time_string
+    end subroutine add_log_iso8601_time_string
 
     !> Return (system-dependent) default name for a change log file.
     !> Port of add-log.el:change-log-name.
@@ -409,7 +411,7 @@ contains
         call major_modes%change_log_mode%finish(saved, status)
     end subroutine change_log_mode
 
-    !> The faces of add-log.el.
+    !> The faces of add-log.el.  Not a port.
     subroutine define_faces()
         type(named_face_type), pointer :: f
 
@@ -439,7 +441,7 @@ contains
         call f%spec_entry(display_when(), face_attrs(inherit="font_lock_comment_face"))
     end subroutine define_faces
 
-    !> Define Change Log mode, its syntax table and faces.
+    !> Define Change Log mode, its syntax table and faces.  Not a port.
     subroutine syms_of_add_log()
         type(status_type) :: st
 

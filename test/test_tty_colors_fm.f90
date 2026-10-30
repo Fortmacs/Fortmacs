@@ -1,7 +1,9 @@
-! test_tty_colors_fm.f90 -- tests for tty_colors_fm (and the xterm palettes
-! of term_xterm_fm): terminal colors.  Ports test/lisp/term/tty-colors-tests.el
-! (tty-colors-test-standard-colors); the rest are own tests.
+! test_tty_colors_fm.f90 -- tests for tty_colors_fm (and the xterm
+! palettes of term_xterm_fm): terminal colors.
+! Ports GNU Emacs 31.1 test/lisp/term/tty-colors-tests.el in part; only
+! tty-colors-test-standard-colors.
 !
+! Copyright (C) 2019-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
 !
 ! This file is part of Fortmacs.
@@ -33,6 +35,7 @@ module test_tty_colors_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_tty_colors_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

@@ -1,4 +1,6 @@
-! test_simple_setvar_fm.f90 -- tests for set_variable (simple_setvar_fm).
+! test_simple_setvar_fm.f90 -- tests for set_variable
+! (simple_setvar_fm).
+! Own tests; upstream has no tests for set-variable.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -46,6 +48,7 @@ module test_simple_setvar_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_simple_setvar_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

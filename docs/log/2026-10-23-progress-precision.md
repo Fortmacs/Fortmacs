@@ -1,0 +1,1 @@
+2026-10-23 — `tools/progress.sh`: shares in the README progress table are rounded to a hundredth of a percent instead of a quarter percent, so close shares no longer look equal (the Total and Emacs columns both showed ≆1.25% for 1.18% and 1.33%).  On `progress-precision`, based on main after PR #48.

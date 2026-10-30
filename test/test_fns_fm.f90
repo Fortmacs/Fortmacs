@@ -1,5 +1,8 @@
 ! test_fns_fm.f90 -- tests for fns_fm.
+! Ports GNU Emacs 31.1 test/src/fns-tests.el in part; only
+! fns-tests-compare-strings, without the cases Fortran cannot write.
 !
+! Copyright (C) 2014-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
 !
 ! This file is part of Fortmacs.
@@ -35,6 +38,7 @@ module test_fns_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_fns_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

@@ -168,12 +168,14 @@ module dispextern_fm
     end type redisplay_interface_type
 
     abstract interface
+        ! Not a port: the interface of a redisplay interface hook.
         subroutine rif_clear_frame(self)
             import :: redisplay_interface_type
             implicit none(type, external)
             class(redisplay_interface_type), intent(inout) :: self
         end subroutine rif_clear_frame
 
+        ! Not a port: the interface of a redisplay interface hook.
         subroutine rif_write_glyphs(self, row, start, len, x, y, clip_x)
             import :: redisplay_interface_type, glyph_row_type
             implicit none(type, external)
@@ -182,6 +184,7 @@ module dispextern_fm
             integer, intent(in) :: start, len, x, y, clip_x
         end subroutine rif_write_glyphs
 
+        ! Not a port: the interface of a redisplay interface hook.
         subroutine rif_clear_end_of_line(self, x, y, height, to_x)
             import :: redisplay_interface_type
             implicit none(type, external)
@@ -189,6 +192,7 @@ module dispextern_fm
             integer, intent(in) :: x, y, height, to_x
         end subroutine rif_clear_end_of_line
 
+        ! Not a port: the interface of a redisplay interface hook.
         subroutine rif_draw_vertical_window_border(self, x, y0, y1, face_id)
             import :: redisplay_interface_type, int32
             implicit none(type, external)
@@ -197,6 +201,7 @@ module dispextern_fm
             integer(int32), intent(in) :: face_id
         end subroutine rif_draw_vertical_window_border
 
+        ! Not a port: the interface of a redisplay interface hook.
         subroutine rif_draw_window_cursor(self, x, y, width, height, cursor_type, on_p, active_p)
             import :: redisplay_interface_type
             implicit none(type, external)
@@ -205,6 +210,7 @@ module dispextern_fm
             logical, intent(in) :: on_p, active_p
         end subroutine rif_draw_window_cursor
 
+        ! Not a port: the interface of a redisplay interface hook.
         subroutine rif_flush_display(self)
             import :: redisplay_interface_type
             implicit none(type, external)
@@ -225,6 +231,7 @@ contains
     end function face_tty_specified_color
 
     !> dispextern.h:GLYPH_EQUAL_P for character and stretch glyphs.
+    !> Port of dispextern.h:GLYPH_EQUAL_P (in part).
     elemental logical function glyph_equal_p(x, y)
         type(glyph_type), intent(in) :: x, y
 
@@ -233,6 +240,7 @@ contains
     end function glyph_equal_p
 
     !> A blank in the default face.  dispextern.h:CHAR_GLYPH_SPACE_P.
+    !> Port of dispextern.h:CHAR_GLYPH_SPACE_P.
     elemental logical function char_glyph_space_p(g)
         type(glyph_type), intent(in) :: g
 

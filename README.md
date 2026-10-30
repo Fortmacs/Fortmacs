@@ -1,4 +1,4 @@
-<h1 align="center"><img src="docs/logo/logo.svg" alt="Fortmacs" width="448"></h1>
+<h1 align="center"><img src="docs/logo/social.svg" alt="Fortmacs" width="480"></h1>
 
 > **Not usable yet.** This is an early, experimental port; it builds and
 > runs, but most of Emacs is missing.
@@ -14,7 +14,7 @@ missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far.
 
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/progress/pie-dark.svg">
-<img src="docs/progress/pie.svg" width="520" height="180" alt="Ported: ≅4.40% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA">
+<img src="docs/progress/pie.svg" width="520" height="206" alt="Ported: ≈4.45% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA">
 </picture>
 <!-- progress:end -->
 

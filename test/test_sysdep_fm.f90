@@ -1,4 +1,5 @@
 ! test_sysdep_fm.f90 -- tests for src/sys (sys_linux_fm, sysdep_fm).
+! Own tests; upstream has no tests for its system-dependent layer.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -39,6 +40,7 @@ module test_sysdep_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_sysdep_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
