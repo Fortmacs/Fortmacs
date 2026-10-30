@@ -71,6 +71,7 @@ module ansi_color_fm
     abstract interface
         !> An `ansi_color_apply_face_function': apply face FACE (a face
         !> value, nil for none) to the text between BEG and END.
+        !> Not a port.
         recursive subroutine ansi_color_face_proc(beg, end, face)
             import :: int64, value_type
             implicit none(type, external)
@@ -323,7 +324,7 @@ contains
     ! Buffer-local state
     ! ------------------------------------------------------------------
 
-    ! The current buffer's context, made if CREATE (0 if none).
+    ! The current buffer's context, made if CREATE (0 if none).  Not a port.
     integer function context_slot(create) result(k)
         logical, intent(in) :: create
         type(context_type), allocatable :: grown(:)
@@ -360,7 +361,7 @@ contains
 
     !> Set the current buffer's `ansi_color_context' and
     !> `ansi_color_context_region' to nil (as `kill_all_local_variables'
-    !> does).
+    !> does).  Not a port.
     subroutine reset_ansi_color_context()
         type(status_type) :: st
         integer :: k
@@ -371,6 +372,8 @@ contains
         contexts(k) = context_type()
     end subroutine reset_ansi_color_context
 
+    ! Set the current buffer's value of the face function to FN.
+    ! Not a port.
     subroutine face_function_set_local(self, fn)
         class(ansi_color_apply_face_function_type), intent(inout) :: self
         procedure(ansi_color_face_proc) :: fn
@@ -395,6 +398,7 @@ contains
         call move_alloc(grown, self%entries)
     end subroutine face_function_set_local
 
+    ! The current buffer's value of the face function.  Not a port.
     function face_function_get(self) result(fn)
         class(ansi_color_apply_face_function_type), intent(in) :: self
         procedure(ansi_color_face_proc), pointer :: fn
@@ -409,6 +413,7 @@ contains
     end function face_function_get
 
     ! Forget the current buffer's values (kill-all-local-variables).
+    ! Not a port.
     subroutine kill_ansi_color_locals()
         integer :: i
 
@@ -523,7 +528,8 @@ contains
     ! ------------------------------------------------------------------
 
     ! The current buffer's ansi-color-context, made if nil
-    ! (ansi-color--ensure-context with POSITION nil).
+    ! (ansi-color--ensure-context with POSITION nil).  Port of
+    ! ansi-color.el:ansi-color--ensure-context (POSITION nil).
     integer function ensure_string_context() result(k)
         k = context_slot(.true.)
 
@@ -534,7 +540,7 @@ contains
         end if
     end function ensure_string_context
 
-    ! The number of characters of UTF-8 TEXT.
+    ! The number of characters of UTF-8 TEXT.  Not a port.
     integer(int64) function nchars_of(text) result(n)
         character(len=*), intent(in) :: text
         integer :: i
@@ -547,7 +553,7 @@ contains
     end function nchars_of
 
     ! The characters FROM to TO (0-based, TO exclusive; -1 for the end)
-    ! of TEXT.
+    ! of TEXT.  Not a port.
     function char_range(text, from, to) result(s)
         character(len=*), intent(in) :: text
         integer(int64), intent(in) :: from, to
@@ -565,7 +571,7 @@ contains
         s = text(b + 1:e)
     end function char_range
 
-    ! The byte offset of character N (0-based) of TEXT.
+    ! The byte offset of character N (0-based) of TEXT.  Not a port.
     integer(int64) function char_byte_offset(text, n) result(off)
         character(len=*), intent(in) :: text
         integer(int64), intent(in) :: n
@@ -710,6 +716,7 @@ contains
 
     ! The codes of the SGR sequence SEQ (from ESC to its final `m'): the
     ! numbers the iterator over `ansi_color_parameter_regexp' yields.
+    ! Not a port.
     subroutine parse_codes(seq, codes)
         character(len=*), intent(in) :: seq
         integer(int64), allocatable, intent(out) :: codes(:)
@@ -868,7 +875,8 @@ contains
 
     ! The current buffer's ansi-color-context-region, made if nil, its
     ! marker set to POSITION if it points nowhere
-    ! (ansi-color--ensure-context with POSITION).
+    ! (ansi-color--ensure-context with POSITION).  Port of
+    ! ansi-color.el:ansi-color--ensure-context (with POSITION).
     integer function ensure_region_context(position) result(k)
         integer(int64), intent(in) :: position
         type(status_type) :: st
@@ -886,7 +894,7 @@ contains
         end if
     end function ensure_region_context
 
-    ! The position of marker M.
+    ! The position of marker M.  Not a port.
     integer(int64) function mpos(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
@@ -1243,6 +1251,7 @@ contains
     !> Define the faces and commands of ansi-color, and put
     !> `ansi_color_process_output' first in
     !> `comint_output_filter_functions' (as its default value lists it).
+    !> Not a port.
     subroutine syms_of_ansi_color()
         type(face_attributes_type) :: attrs
 

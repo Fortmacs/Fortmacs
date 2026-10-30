@@ -1,6 +1,5 @@
 ! test_sh_script_fm.f90 -- tests for Shell-script mode (sh_script_fm).
-! Ported from GNU Emacs 31.1 test/lisp/progmodes/sh-script-tests.el and
-! test/lisp/progmodes/sh-script-resources/sh-indents.erts.
+! Ports GNU Emacs 31.1 test/lisp/progmodes/sh-script-tests.el.
 !
 ! Copyright (C) 2020-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -54,6 +53,7 @@ module test_sh_script_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_sh_script_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

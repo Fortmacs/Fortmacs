@@ -267,8 +267,8 @@ module shell_fm
     !> of ported commands).
     type(handle_type), public :: shell_mode_map
 
-    !> Keymap to repeat shell key sequences.  Used in `repeat_mode'.  Port
-    !> of shell.el shell-repeat-map.
+    !> Keymap to repeat shell key sequences.  Used in `repeat_mode'.
+    !> Port of shell.el shell-repeat-map.
     type(handle_type), public :: shell_repeat_map
 
     !> Keymap for `shell_command_mode'.
@@ -360,6 +360,7 @@ contains
     ! The buffers' own state
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     integer function entry_of(bi) result(k)
         integer(int64), intent(in) :: bi
 
@@ -373,7 +374,7 @@ contains
     end function entry_of
 
     !> The entry of the current buffer, made if needed (entries of dead
-    !> buffers dropped then).
+    !> buffers dropped then).  Not a port.
     integer function current_entry() result(k)
         type(shell_buffer_type), allocatable :: kept(:)
         integer :: i, n
@@ -399,6 +400,7 @@ contains
     end function current_entry
 
     !> Forget the buffer-local shell-dirstack and shell-last-dir.
+    !> Not a port.
     subroutine kill_shell_locals()
         integer :: k
 
@@ -428,7 +430,7 @@ contains
         end if
     end subroutine shell_dirstack
 
-    !> The current buffer's default directory.
+    !> The current buffer's default directory.  Not a port.
     function default_directory() result(dir)
         character(len=:), allocatable :: dir
 
@@ -498,6 +500,7 @@ contains
         call buffer_substring(start, point(), input, status)
     end subroutine shell_get_old_input
 
+    ! Not a port.
     integer function char_before_point()
         use editfns_fm, only: char_before
         integer(int32) :: c
@@ -507,6 +510,7 @@ contains
         char_before_point = c
     end function char_before_point
 
+    ! Not a port.
     logical function symbol_is(v, name)
         use lisp_fm, only: symbolp, symbols, xsymbol
         type(value_type), intent(in) :: v
@@ -576,7 +580,7 @@ contains
     end subroutine shell_parse_pcomplete_arguments
 
     !> TEXT with each backslash-escaped character replaced by the character
-    !> (replace-regexp-in-string "\\\\\\(.\\)" "\\1").
+    !> (replace-regexp-in-string "\\\\\\(.\\)" "\\1").  Not a port.
     function unbackslash(text) result(out)
         character(len=*), intent(in) :: text
         character(len=:), allocatable :: out
@@ -745,7 +749,8 @@ contains
     end subroutine shell_command_completion_function
 
     ! (pcomplete-entries nil (if shell-completion-execonly
-    ! #'file-executable-p)) as a FORM.
+    ! #'file-executable-p)) as a FORM.  Port of
+    ! shell.el:shell-command-completion-function, in part.
     recursive subroutine executable_entries_form(table, found)
         type(completion_table_type), intent(out) :: table
         logical, intent(out) :: found
@@ -759,13 +764,14 @@ contains
         found = .true.
     end subroutine executable_entries_form
 
+    ! `file_executable_p' as a file predicate.  Not a port.
     recursive logical function executable_p(file)
         character(len=*), intent(in) :: file
 
         executable_p = file_executable_p(file)
     end function executable_p
 
-    ! (nth 2 (shell--command-completion-data)) as a FORM.
+    ! (nth 2 (shell--command-completion-data)) as a FORM.  Not a port.
     recursive subroutine command_names_form(table, found)
         type(completion_table_type), intent(out) :: table
         logical, intent(out) :: found
@@ -776,8 +782,8 @@ contains
         found = .true.
     end subroutine command_names_form
 
-    !> Return the completion data for the command at point, if any.  Port
-    !> of shell.el:shell-command-completion.
+    !> Return the completion data for the command at point, if any.
+    !> Port of shell.el:shell-command-completion.
     recursive subroutine shell_command_completion(data, status)
         type(capf_data_type), intent(out) :: data
         type(status_type), intent(out) :: status
@@ -898,7 +904,7 @@ contains
         data%exit_function => command_exit
     end subroutine command_completion_data
 
-    ! Whether STRING is one of LIST.
+    ! Whether STRING is one of LIST.  Not a port.
     logical function member_string(list, string)
         type(value_type), intent(in) :: list(:)
         character(len=*), intent(in) :: string
@@ -914,7 +920,7 @@ contains
         end do
     end function member_string
 
-    ! Double the size of LIST.
+    ! Double the size of LIST.  Not a port.
     subroutine grow(list)
         type(value_type), allocatable, intent(inout) :: list(:)
         type(value_type), allocatable :: bigger(:)
@@ -929,7 +935,7 @@ contains
         call move_alloc(bigger, list)
     end subroutine grow
 
-    ! Add S at the start of LIST.
+    ! Add S at the start of LIST.  Not a port.
     subroutine push_front(list, s)
         type(process_arg_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
@@ -948,7 +954,8 @@ contains
     end subroutine push_front
 
     ! The table of shell--command-completion-data: file names for a
-    ! string with a slash, else the commands found.
+    ! string with a slash, else the commands found.  Port of
+    ! shell.el:shell--command-completion-data, in part.
     recursive subroutine command_table(string, action, result, status, pred, suffix)
         character(len=*), intent(in) :: string
         integer, intent(in) :: action
@@ -965,7 +972,8 @@ contains
         end if
     end subroutine command_table
 
-    ! The `:exit_function' of shell--command-completion-data.
+    ! The `:exit_function' of shell--command-completion-data.  Port of
+    ! shell.el:shell--command-completion-data, in part.
     recursive subroutine command_exit(string, finished)
         character(len=*), intent(in) :: string
         integer, intent(in) :: finished
@@ -1099,8 +1107,8 @@ contains
         done = shell_dynamic_complete_environment_variable(status)
     end subroutine cmd_shell_dynamic_complete_environment_variable
 
-    !> Completion data for an environment variable at point, if any.  Port
-    !> of shell.el:shell-environment-variable-completion.
+    !> Completion data for an environment variable at point, if any.
+    !> Port of shell.el:shell-environment-variable-completion.
     recursive subroutine shell_environment_variable_completion(data, status)
         type(capf_data_type), intent(out) :: data
         type(status_type), intent(out) :: status
@@ -1153,6 +1161,7 @@ contains
     end subroutine shell_environment_variable_completion
 
     ! The `:exit_function' of `shell_environment_variable_completion'.
+    ! Port of shell.el:shell-environment-variable-completion, in part.
     recursive subroutine variable_exit(string, finished)
         character(len=*), intent(in) :: string
         integer, intent(in) :: finished
@@ -1231,6 +1240,7 @@ contains
     end subroutine shell_c_a_p_replace_by_expanded_directory
 
     ! The function shell-c-a-p-replace-by-expanded-directory returns.
+    ! Port of shell.el:shell-c-a-p-replace-by-expanded-directory, in part.
     recursive logical function expand_directory() result(done)
         type(status_type) :: st
         integer(int64) :: opoint
@@ -1329,7 +1339,7 @@ contains
         call major_modes%shell_mode%finish(saved, status)
     end subroutine shell_mode
 
-    !> The body of shell-mode.
+    !> The body of shell-mode.  Port of the body of shell.el:shell-mode.
     recursive subroutine shell_mode_body(status)
         type(status_type), intent(out) :: status
         type(font_lock_keyword_type) :: keywords(3)
@@ -1486,6 +1496,7 @@ contains
 
     !> shell.el shell-font-lock-keywords: additional expressions to
     !> highlight in Shell mode.
+    !> Port of the shell-font-lock-keywords defvar of shell.el.
     subroutine shell_font_lock_keywords(keywords)
         use font_core_fm, only: font_lock_highlight_type
         type(font_lock_keyword_type), intent(out) :: keywords(3)
@@ -1679,7 +1690,7 @@ contains
         result = buf
     end subroutine shell
 
-    !> The contents of FILE.
+    !> The contents of FILE.  Not a port.
     subroutine file_contents(file, text, status)
         use editfns_fm, only: buffer_string
         character(len=*), intent(in) :: file
@@ -1703,6 +1714,7 @@ contains
     !> The sentinel `shell' gives the process when
     !> `shell_kill_buffer_on_exit': the previous sentinel, then kill the
     !> buffer once the process is no longer live.
+    !> Port of part of shell.el:shell.
     recursive subroutine kill_buffer_sentinel(proc, event, status)
         use process_fm, only: internal_default_process_sentinel
         type(handle_type), intent(in) :: proc
@@ -1835,6 +1847,7 @@ contains
     end subroutine shell_eval_command
 
     !> The filter of `shell_eval_command': keep the output.
+    !> Port of part of shell.el:shell-eval-command.
     recursive subroutine collect_output(process, string, status)
         type(handle_type), intent(in) :: process
         character(len=*), intent(in) :: string
@@ -1872,8 +1885,8 @@ contains
     end subroutine shell_filter_ctrl_a_ctrl_b
 
     !> Call `ding' if STRING contains a "^G" character.
-    !> This function can be put on `comint_output_filter_functions'.  Port
-    !> of shell.el:shell-filter-ring-bell.
+    !> This function can be put on `comint_output_filter_functions'.
+    !> Port of shell.el:shell-filter-ring-bell.
     recursive subroutine shell_filter_ring_bell(string, status)
         character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
@@ -1925,6 +1938,7 @@ contains
     end subroutine shell_dirtrack_mode
 
     !> The body of Shell Dirtrack mode.
+    !> Port of the body of shell.el:shell-dirtrack-mode.
     subroutine shell_dirtrack_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
@@ -2172,6 +2186,7 @@ contains
         end if
     end subroutine shell_process_pushd
 
+    ! Not a port.
     logical function member(s, list)
         character(len=*), intent(in) :: s
         type(process_arg_type), intent(in) :: list(:)
@@ -2184,8 +2199,8 @@ contains
         end do
     end function member
 
-    !> If STR is of the form +n, for n>0, return n.  Otherwise, -1.  Port
-    !> of shell.el:shell-extract-num.
+    !> If STR is of the form +n, for n>0, return n.  Otherwise, -1.
+    !> Port of shell.el:shell-extract-num.
     integer function shell_extract_num(str) result(n)
         character(len=*), intent(in) :: str
         type(status_type) :: st
@@ -2367,7 +2382,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Define Shell mode, Shell Command mode, Shell Dirtrack mode and the
-    !> settings, and register the commands.
+    !> settings, and register the commands.  Not a port.
     subroutine syms_of_shell()
         type(status_type) :: st
 
@@ -2453,7 +2468,7 @@ contains
         commands%shell_replace_by_expanded_directory%run => cmd_shell_replace_by_expanded_directory
     end subroutine syms_of_shell
 
-    !> Add S at the end of LIST.
+    !> Add S at the end of LIST.  Not a port.
     subroutine append_arg(list, s)
         type(process_arg_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
@@ -2472,7 +2487,7 @@ contains
         call move_alloc(grown, list)
     end subroutine append_arg
 
-    !> Add S at the start of LIST.
+    !> Add S at the start of LIST.  Not a port.
     subroutine prepend_arg(list, s)
         type(process_arg_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s

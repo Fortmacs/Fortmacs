@@ -69,7 +69,7 @@ module eval_fm
     abstract interface
         !> A function of a `change_hook_type' hook such as
         !> `before_change_functions': BEG and END are the bounds of the
-        !> text about to change.
+        !> text about to change.  Not a port.
         subroutine change_function(beg, end, status)
             import :: int64, status_type
             implicit none(type, external)
@@ -80,6 +80,7 @@ module eval_fm
         !> A function of an `after_change_hook_type' hook such as
         !> `after_change_functions': BEG and END are the bounds of the
         !> changed text, OLD_LEN the length of the text it replaced.
+        !> Not a port.
         subroutine after_change_function(beg, end, old_len, status)
             import :: int64, status_type
             implicit none(type, external)
@@ -89,6 +90,7 @@ module eval_fm
 
         !> A function of a `position_hook_type' hook such as
         !> `fontification_functions': POS is the position to work from.
+        !> Not a port.
         subroutine position_function(pos, status)
             import :: int64, status_type
             implicit none(type, external)
@@ -100,7 +102,7 @@ module eval_fm
         !> `jit_lock_functions': do something to the text from BEG to END,
         !> giving in DONE_BEG and DONE_END the part it actually did
         !> (upstream's return value (jit-lock-bounds BEG . END); by default
-        !> BEG and END).
+        !> BEG and END).  Not a port.
         subroutine region_function(beg, end, done_beg, done_end, status)
             import :: int64, status_type
             implicit none(type, external)
@@ -111,7 +113,7 @@ module eval_fm
 
         !> A function of a `string_hook_type' hook such as
         !> `comint_output_filter_functions': STRING is the text it is
-        !> about.
+        !> about.  Not a port.
         subroutine string_function(string, status)
             import :: status_type
             implicit none(type, external)
@@ -121,7 +123,7 @@ module eval_fm
 
         !> A function of a `string_filter_hook_type' hook such as
         !> `comint_preoutput_filter_functions': RESULT is STRING
-        !> transformed (perhaps STRING itself).
+        !> transformed (perhaps STRING itself).  Not a port.
         subroutine string_filter_function(string, result, status)
             import :: status_type
             implicit none(type, external)
@@ -132,7 +134,7 @@ module eval_fm
 
         !> A function of a `capf_hook_type' hook such as
         !> `completion_at_point_functions': the completion data for the
-        !> entity at point, if it applies there.
+        !> entity at point, if it applies there.  Not a port.
         recursive subroutine capf_function(data, status)
             import :: capf_data_type, status_type
             implicit none(type, external)
@@ -364,6 +366,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Whether A and B are the same function (neither being `t').
+    !> Not a port.
     logical function same_function(a, b) result(same)
         type(hook_entry_type), intent(in) :: a, b
 
@@ -389,7 +392,7 @@ contains
         end if
     end function same_function
 
-    !> The index of the function of E in ENTRIES, or 0.
+    !> The index of the function of E in ENTRIES, or 0.  Not a port.
     integer function find_entry(entries, e) result(k)
         type(hook_entry_type), intent(in) :: entries(:)
         type(hook_entry_type), intent(in) :: e
@@ -405,7 +408,7 @@ contains
         end do
     end function find_entry
 
-    !> Whether ENTRIES has the `t' of a buffer's own value.
+    !> Whether ENTRIES has the `t' of a buffer's own value.  Not a port.
     logical function has_t(entries)
         type(hook_entry_type), intent(in) :: entries(:)
         integer :: i
@@ -422,6 +425,7 @@ contains
 
     !> Add the function of E to ENTRIES at DEPTH (after equal depths when
     !> DEPTH > 0, before them otherwise), keeping them sorted by depth.
+    !> Not a port.
     subroutine insert_entry(entries, e, depth)
         type(hook_entry_type), allocatable, intent(inout) :: entries(:)
         type(hook_entry_type), intent(in) :: e
@@ -455,7 +459,7 @@ contains
         call move_alloc(grown, entries)
     end subroutine insert_entry
 
-    !> ENTRIES without element K.
+    !> ENTRIES without element K.  Not a port.
     subroutine delete_entry(entries, k)
         type(hook_entry_type), allocatable, intent(inout) :: entries(:)
         integer, intent(in) :: k
@@ -474,6 +478,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The index of the current buffer's own functions in HOOK, or 0.
+    !> Not a port.
     integer function local_index(hook) result(k)
         class(hook_base_type), intent(in) :: hook
         integer :: i
@@ -490,6 +495,7 @@ contains
     end function local_index
 
     !> The index of the current buffer's own depths in HOOK, or 0.
+    !> Not a port.
     integer function local_depths_index(hook) result(k)
         class(hook_base_type), intent(in) :: hook
         integer :: i
@@ -506,6 +512,7 @@ contains
     end function local_depths_index
 
     !> The remembered depth of the function of E in DEPTHS, or 0.
+    !> Not a port.
     integer function depth_of(depths, e) result(d)
         type(hook_entry_type), allocatable, intent(in) :: depths(:)
         type(hook_entry_type), intent(in) :: e
@@ -517,7 +524,7 @@ contains
         if (k > 0) d = depths(k)%depth
     end function depth_of
 
-    !> Remember that the function of E was added with DEPTH.
+    !> Remember that the function of E was added with DEPTH.  Not a port.
     subroutine remember_depth(depths, e, depth)
         type(hook_entry_type), allocatable, intent(inout) :: depths(:)
         type(hook_entry_type), intent(in) :: e
@@ -541,7 +548,7 @@ contains
         call move_alloc(grown, depths)
     end subroutine remember_depth
 
-    !> Forget the depth of the function of E in DEPTHS.
+    !> Forget the depth of the function of E in DEPTHS.  Not a port.
     subroutine forget_depth(depths, e)
         type(hook_entry_type), allocatable, intent(inout) :: depths(:)
         type(hook_entry_type), intent(in) :: e
@@ -555,7 +562,7 @@ contains
     !> The depth the function of E goes in at: DEPTH if not zero (which is
     !> remembered), else the depth it was added with before.  LOCAL uses
     !> the current buffer's own depths, made from the default ones when
-    !> first needed.
+    !> first needed.  Not a port.
     integer function entry_depth(hook, e, depth, local) result(d)
         class(hook_base_type), intent(inout) :: hook
         type(hook_entry_type), intent(in) :: e
@@ -605,6 +612,7 @@ contains
     end function entry_depth
 
     !> Remember HOOK among the hooks with buffers' own functions.
+    !> Not a port.
     subroutine note_local_hook(hook)
         class(hook_base_type), intent(inout), target :: hook
         type(hook_ref_type), allocatable :: grown(:)
@@ -624,8 +632,8 @@ contains
     end subroutine note_local_hook
 
     !> Forget the current buffer's own hook functions, except those of
-    !> permanent-local hooks unless KILL_PERMANENT (part of
-    !> buffer.c:reset_buffer_local_variables).
+    !> permanent-local hooks unless KILL_PERMANENT.  Port of
+    !> buffer.c:reset_buffer_local_variables, in part (the hooks).
     subroutine kill_local_hooks(kill_permanent)
         logical, intent(in) :: kill_permanent
         integer :: i
@@ -640,7 +648,7 @@ contains
         end do
     end subroutine kill_local_hooks
 
-    !> Forget the current buffer's own depths of HOOK.
+    !> Forget the current buffer's own depths of HOOK.  Not a port.
     subroutine kill_local_depths(hook)
         class(hook_base_type), intent(inout) :: hook
         type(local_depths_type), allocatable :: kept(:)
@@ -755,7 +763,7 @@ contains
         end if
     end subroutine hook_remove_entry
 
-    !> Whether the function of E is run in the current buffer.
+    !> Whether the function of E is run in the current buffer.  Not a port.
     logical function hook_member_entry(self, e) result(found)
         class(hook_base_type), intent(in) :: self
         type(hook_entry_type), intent(in) :: e
@@ -822,7 +830,7 @@ contains
 
     !> Call the function of E with the arguments its kind takes.  A
     !> normal hook's functions are commands: they run without a prefix
-    !> argument.
+    !> argument.  Not a port.
     recursive subroutine call_entry(e, beg, end, old_len, status)
         type(hook_entry_type), intent(in) :: e
         integer(int64), intent(in) :: beg, end, old_len
@@ -848,6 +856,7 @@ contains
         end if
     end subroutine call_entry
 
+    ! Not a port.
     subroutine hook_kill_local(self)
         class(hook_base_type), intent(inout) :: self
         type(local_hook_type), allocatable :: kept(:)
@@ -862,6 +871,7 @@ contains
         call move_alloc(kept, self%locals)
     end subroutine hook_kill_local
 
+    ! Not a port.
     logical function hook_local_p(self)
         class(hook_base_type), intent(in) :: self
 
@@ -870,6 +880,7 @@ contains
 
     !> Whether the hook's value in the current buffer is empty (upstream:
     !> nil): no functions, and for a buffer's own value no `t' either.
+    !> Not a port.
     logical function hook_empty(self)
         class(hook_base_type), intent(in) :: self
         integer :: k
@@ -888,7 +899,7 @@ contains
     !> Make the hook's value in the current buffer empty, as setting the
     !> variable to nil does upstream: the buffer's own value if it has
     !> one (which then runs nothing, not even the default functions),
-    !> else the default value.  Depths are kept.
+    !> else the default value.  Depths are kept.  Not a port.
     subroutine hook_clear(self)
         class(hook_base_type), intent(inout) :: self
         integer :: k
@@ -964,6 +975,7 @@ contains
         call self%run_entries(0_int64, 0_int64, 0_int64, status)
     end subroutine hook_run
 
+    ! Not a port.
     logical function hook_member(self, fn) result(found)
         class(hook_type), intent(in) :: self
         procedure(command_proc) :: fn
@@ -1012,6 +1024,7 @@ contains
         call self%run_entries(beg, end, 0_int64, status)
     end subroutine change_hook_run
 
+    ! Not a port.
     logical function change_hook_member(self, fn) result(found)
         class(change_hook_type), intent(in) :: self
         procedure(change_function) :: fn
@@ -1056,6 +1069,7 @@ contains
         call self%run_entries(beg, end, old_len, status)
     end subroutine after_change_hook_run
 
+    ! Not a port.
     logical function after_change_hook_member(self, fn) result(found)
         class(after_change_hook_type), intent(in) :: self
         procedure(after_change_function) :: fn
@@ -1106,6 +1120,7 @@ contains
         call self%run_entries(pos, 0_int64, 0_int64, status, safe)
     end subroutine position_hook_run
 
+    ! Not a port.
     logical function position_hook_member(self, fn) result(found)
         class(position_hook_type), intent(in) :: self
         procedure(position_function) :: fn
@@ -1139,6 +1154,7 @@ contains
         call self%remove_entry(e, local)
     end subroutine region_hook_remove
 
+    ! Not a port.
     logical function region_hook_member(self, fn) result(found)
         class(region_hook_type), intent(in) :: self
         procedure(region_function) :: fn
@@ -1149,7 +1165,7 @@ contains
     end function region_hook_member
 
     !> The functions of the hook run in the current buffer, in order: the
-    !> buffer's own, with the global ones in place of `t'.
+    !> buffer's own, with the global ones in place of `t'.  Not a port.
     function region_hook_functions(self) result(fns)
         class(region_hook_type), intent(in) :: self
         type(region_entry_type), allocatable :: fns(:)
@@ -1220,6 +1236,7 @@ contains
         call self%remove_entry(e, local)
     end subroutine capf_hook_remove
 
+    ! Not a port.
     logical function capf_hook_member(self, fn) result(found)
         class(capf_hook_type), intent(in) :: self
         procedure(capf_function) :: fn
@@ -1230,7 +1247,7 @@ contains
     end function capf_hook_member
 
     !> The functions of the hook run in the current buffer, in order: the
-    !> buffer's own, with the global ones in place of `t'.
+    !> buffer's own, with the global ones in place of `t'.  Not a port.
     function capf_hook_functions(self) result(fns)
         class(capf_hook_type), intent(in) :: self
         type(capf_entry_type), allocatable :: fns(:)
@@ -1279,7 +1296,7 @@ contains
 
     !> The entries run in the current buffer, in order: the buffer's own,
     !> with the global ones in place of `t' (copies, in case a function
-    !> changes the hook).
+    !> changes the hook).  Not a port.
     function effective_entries(self) result(run)
         class(hook_base_type), intent(in) :: self
         type(hook_entry_type), allocatable :: run(:)
@@ -1357,6 +1374,7 @@ contains
         end do
     end subroutine string_hook_run
 
+    ! Not a port.
     logical function string_hook_member(self, fn) result(found)
         class(string_hook_type), intent(in) :: self
         procedure(string_function) :: fn
@@ -1393,7 +1411,7 @@ contains
     !> Give STRING to the first function of the hook, what it returns to
     !> the next, and so on; RESULT is what the last one returns (STRING if
     !> there are none).  Stops at the first error.  A `t' in a buffer's own
-    !> value runs the default functions there.
+    !> value runs the default functions there.  Not a port.
     recursive subroutine string_filter_hook_run(self, string, result, status)
         class(string_filter_hook_type), intent(in) :: self
         character(len=*), intent(in) :: string
@@ -1415,6 +1433,7 @@ contains
         end do
     end subroutine string_filter_hook_run
 
+    ! Not a port.
     logical function string_filter_hook_member(self, fn) result(found)
         class(string_filter_hook_type), intent(in) :: self
         procedure(string_filter_function) :: fn

@@ -1,0 +1,1 @@
+2026-10-29 — Recentf (roadmap step 33d, `step33-recentf`, based on main): recentf_fm (Recentf mode, the list of recent files saved in namelist syntax, `recentf_open`, `recentf_open_most_recent_file`, `recentf_cleanup`); the exclude and keep lists are arrays of `recentf_check_type` (a regexp or a procedure pointer).  Own tests (no upstream recentf tests).  Next: 33e bookmarks.

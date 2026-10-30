@@ -54,6 +54,7 @@ submodule(subr_fm) subr_hooks_fm
 contains
 
     !> The index of the current buffer's entry in `delays', made if MAKE.
+    !> Not a port.
     integer function delay_index(make) result(k)
         logical, intent(in) :: make
         type(delay_type), allocatable :: grown(:)

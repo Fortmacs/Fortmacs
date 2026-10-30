@@ -1,5 +1,10 @@
-! test_minibuffer_fm.f90 -- tests for the completion styles of minibuffer_fm.
+! test_minibuffer_fm.f90 -- tests for the completion styles of
+! minibuffer_fm.
+! Ports GNU Emacs 31.1 test/lisp/minibuffer-tests.el in part; only the
+! completion style tests that go through a style's try and all
+! functions.
 !
+! Copyright (C) 2013-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
 !
 ! This file is part of Fortmacs.
@@ -55,6 +60,7 @@ module test_minibuffer_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_minibuffer_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
