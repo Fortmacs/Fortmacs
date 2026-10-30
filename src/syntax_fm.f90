@@ -58,7 +58,8 @@ module syntax_fm
     use marker_fm, only: char_to_byte
     use editfns_fm, only: point, goto_char, constrain_to_field
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use characters_fm, only: characters_syntax, char_has_category
+    use characters_fm, only: characters_syntax
+    use category_fm, only: char_has_category
     use charscript_fm, only: char_script
     use data_fm, only: logical_setting, integer_setting, forward_setting
     use lisp_fm, only: value_type, consp, fixnump, xfixnum, syntax_table_ref_p, xhandle, make_fixnum, list_elt, list

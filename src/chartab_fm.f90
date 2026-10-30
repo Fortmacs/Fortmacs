@@ -309,7 +309,7 @@ contains
 
     !> Recompute the ASCII cache of table I: the sub char-table of depth 3
     !> holding the ASCII characters, or their common value.  Port of
-    !> chartab.c:char_table_ascii and set_char_table_ascii.
+    !> chartab.c:char_table_ascii and chartab.c:set_char_table_ascii.
     subroutine set_char_table_ascii(i)
         integer(int64), intent(in) :: i
         integer(int64) :: val
@@ -381,7 +381,7 @@ contains
 
     !> Return a copy of char-table TABLE: its sub char-tables are copied,
     !> the values and the parent are shared.  Port of
-    !> chartab.c:copy_char_table and copy_sub_char_table (assignment
+    !> chartab.c:copy_char_table and chartab.c:copy_sub_char_table (assignment
     !> copies the pool).
     subroutine copy_char_table(table, copy, status)
         type(handle_type), intent(in) :: table
@@ -461,7 +461,7 @@ contains
 
     !> Set the parent char-table of CHAR_TABLE to PARENT.
     !> PARENT must be either the null handle or another char-table.
-    !> Port of chartab.c:Fset_char_table_parent and set_char_table_parent.
+    !> Port of chartab.c:Fset_char_table_parent and chartab.c:set_char_table_parent.
     subroutine set_char_table_parent(char_table, parent, status)
         type(handle_type), intent(in) :: char_table, parent
         type(status_type), intent(out) :: status

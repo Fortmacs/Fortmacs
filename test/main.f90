@@ -90,6 +90,7 @@ program tester
     use test_files_copy_fm, only: collect_files_copy_fm
     use test_casetab_fm, only: collect_casetab_fm
     use test_chartab_fm, only: collect_chartab_fm
+    use test_category_fm, only: collect_category_fm
     use test_search_fm, only: collect_search_fm
     use test_isearch_fm, only: collect_isearch_fm
     use test_window_fm, only: collect_window_fm
@@ -189,6 +190,7 @@ program tester
                  new_testsuite("files_copy_fm", collect_files_copy_fm), &
                  new_testsuite("casetab_fm", collect_casetab_fm), &
                  new_testsuite("chartab_fm", collect_chartab_fm), &
+                 new_testsuite("category_fm", collect_category_fm), &
                  new_testsuite("search_fm", collect_search_fm), &
                  new_testsuite("isearch_fm", collect_isearch_fm), &
                  new_testsuite("window_fm", collect_window_fm), &
