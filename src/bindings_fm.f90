@@ -41,7 +41,7 @@ module bindings_fm
     use keyboard_fm, only: local_function_key_map, syms_of_macros
     use kmacro_fm, only: syms_of_kmacro, kmacro_keymap
     use cmds_fm, only: syms_of_cmds, forward_char, backward_char
-    use simple_fm, only: syms_of_simple, backward_word
+    use simple_fm, only: syms_of_simple, backward_word, region_bounds, region_noncontiguous_p
     use syntax_fm, only: syms_of_syntax, forward_word
     use syntax_propertize_fm, only: syms_of_syntax_propertize
     use smie_fm, only: syms_of_smie
@@ -51,7 +51,8 @@ module bindings_fm
     use lisp_cmds_fm, only: syms_of_lisp_cmds
     use search_fm, only: syms_of_search
     use replace_fm, only: syms_of_replace, syms_of_occur
-    use casefiddle_fm, only: syms_of_casefiddle
+    use casefiddle_fm, only: syms_of_casefiddle, casefiddle_region_bounds => region_bounds, &
+                             casefiddle_region_noncontiguous_p => region_noncontiguous_p
     use novice_fm, only: syms_of_novice
     use indent_fm, only: syms_of_indent
     use fill_fm, only: syms_of_fill
@@ -309,6 +310,8 @@ contains
         call syms_of_search()
         call syms_of_replace()
         call syms_of_casefiddle()
+        casefiddle_region_bounds => region_bounds
+        casefiddle_region_noncontiguous_p => region_noncontiguous_p
         call syms_of_indent()
         call syms_of_fill()
         call syms_of_newcomment()

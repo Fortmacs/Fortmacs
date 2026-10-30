@@ -3076,7 +3076,7 @@ contains
             entry%doc = "Convert a character to capitalized form: title case or upper case."
         case ("capitalize_region")
             entry%file = "casefiddle_fm.f90"
-            entry%fortran = "call capitalize_region(beg, end, status)"
+            entry%fortran = "call capitalize_region(beg, end, status, region_noncontiguous)"
             entry%interactive = .true.
             entry%doc = "Convert the region to capitalized form."//LF// &
                         "This means that each word's first character is converted to either"//LF// &
@@ -5349,7 +5349,7 @@ contains
             entry%doc = "Convert a character to lower case."
         case ("downcase_region")
             entry%file = "casefiddle_fm.f90"
-            entry%fortran = "call downcase_region(beg, end, status)"
+            entry%fortran = "call downcase_region(beg, end, status, region_noncontiguous)"
             entry%interactive = .true.
             entry%doc = "Convert the region to lower case.  In programs, wants two arguments."//LF// &
                         "These arguments specify the starting and ending character numbers"//LF// &
@@ -12394,7 +12394,7 @@ contains
                         "or upper case."
         case ("upcase_initials_region")
             entry%file = "casefiddle_fm.f90"
-            entry%fortran = "call upcase_initials_region(beg, end, status)"
+            entry%fortran = "call upcase_initials_region(beg, end, status, region_noncontiguous)"
             entry%interactive = .true.
             entry%doc = "Upcase the initial of each word in the region."//LF// &
                         "This means that each word's first character is converted to either"//LF// &
@@ -12403,7 +12403,7 @@ contains
                         "positions to operate on."
         case ("upcase_region")
             entry%file = "casefiddle_fm.f90"
-            entry%fortran = "call upcase_region(beg, end, status)"
+            entry%fortran = "call upcase_region(beg, end, status, region_noncontiguous)"
             entry%interactive = .true.
             entry%doc = "Convert the region to upper case.  In programs, wants two arguments."//LF// &
                         "These arguments specify the starting and ending character numbers"//LF// &
