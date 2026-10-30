@@ -51,6 +51,7 @@ contains
 
     subroutine collect_view_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("view-buffer-enter-and-exit", test_enter_exit), &
                     new_unittest("view-scroll-and-goto", test_scroll_goto), &
@@ -63,6 +64,7 @@ contains
 
     function tdir() result(dir)
         character(len=:), allocatable :: dir
+
         dir = file_name_as_directory(file_name_as_directory(emacs_wd)//subdir)
     end function tdir
 
@@ -74,6 +76,7 @@ contains
         type(status_type) :: st
         character(len=12) :: line
         integer :: k
+
         call init_bindings()
         call init_fileio()
         call discard_input()
@@ -84,10 +87,12 @@ contains
         call get_buffer_create("lines", buf, st)
         call set_buffer(buf, st)
         call erase_buffer(st)
+
         do k = 1, 100
             write (line, "('line ',i0)") k
             call insert(trim(line)//achar(10), st)
         end do
+
         call goto_char(point_min())
         if (file_directory_p(tdir())) call delete_directory(tdir(), st, .true.)
         call make_directory_internal(tdir(), st)
@@ -97,6 +102,7 @@ contains
         type(handle_type), intent(in) :: buf
         type(handle_type) :: scratch
         type(status_type) :: st
+
         call discard_input()
         if (buffer_live_p(buf)) call kill_buffer(buf, st)
         call get_buffer_create("*scratch*", scratch, st)
@@ -109,6 +115,7 @@ contains
     subroutine keys(text)
         character(len=*), intent(in) :: text
         type(status_type) :: st
+
         call kbd_store_bytes(text)
         call command_loop(st)
     end subroutine keys
@@ -118,7 +125,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
         type(status_type) :: st
+
         call setup(buf)
+
         body: block
             call view_buffer(buf, st)
             call check(error, st%ok() .and. view_mode_enabled() .and. buffers(cur)%read_only, format_error(st))
@@ -131,6 +140,7 @@ contains
             call keys("q")
             call check(error, buffers(cur)%name, "*scratch*")
         end block body
+
         call teardown(buf)
     end subroutine test_enter_exit
 
@@ -140,7 +150,9 @@ contains
         type(handle_type) :: w
         type(handle_type) :: buf
         type(status_type) :: st
+
         call setup(buf)
+
         body: block
             call view_buffer(buf, st)
             call keys(" ")
@@ -156,6 +168,7 @@ contains
             call keys("<")
             call check(error, point() == 1_int64, "beginning")
         end block body
+
         call teardown(buf)
     end subroutine test_scroll_goto
 
@@ -164,7 +177,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
         type(status_type) :: st
+
         call setup(buf)
+
         body: block
             call view_buffer(buf, st)
             call keys("/line 4."//CR)
@@ -176,6 +191,7 @@ contains
             call keys("/nothing"//CR)
             call check(error, last_message, "Can't find occurrence 1 of nothing")
         end block body
+
         call teardown(buf)
     end subroutine test_search
 
@@ -184,7 +200,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf, fbuf
         type(status_type) :: st
+
         call setup(buf)
+
         body: block
             call set_buffer(buf, st)
             call write_region(tdir()//"f.txt", .false., st)
@@ -198,6 +216,7 @@ contains
             call keys("q")
             call check(error,.not. buffer_live_p(fbuf) .and. buffers(cur)%name == "*scratch*", "killed")
         end block body
+
         call teardown(buf)
     end subroutine test_view_file_quit
 
@@ -206,7 +225,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf, fbuf
         type(status_type) :: st
+
         call setup(buf)
+
         body: block
             call set_buffer(buf, st)
             call write_region(tdir()//"g.txt", .false., st)
@@ -225,6 +246,7 @@ contains
             fbuf = current_buffer()
             call kill_buffer(fbuf, st)
         end block body
+
         call teardown(buf)
     end subroutine test_find_file_read_only
 
@@ -232,7 +254,9 @@ contains
     subroutine test_read_only_mode(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
+
         call setup(buf)
+
         body: block
             call show_alone()
             call keys(achar(24)//achar(17))
@@ -247,6 +271,7 @@ contains
             call keys(achar(24)//achar(17))
             call check(error,.not. buffers(cur)%read_only .and. .not. view_mode_enabled(), "editable")
         end block body
+
         call teardown(buf)
     end subroutine test_read_only_mode
 end module test_view_fm

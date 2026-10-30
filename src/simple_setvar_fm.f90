@@ -72,6 +72,7 @@ contains
         character(len=*), intent(in) :: name
         integer :: kind
         logical :: setting
+
         call user_option_info(name, kind, setting)
         settable_option_p = kind /= OPTION_NONE
     end function settable_option_p
@@ -82,32 +83,41 @@ contains
     character(len=:), allocatable :: v, typename
     integer(int64) :: i64
     real :: r
+
     status = status_type()
     call user_option_info(variable, kind, setting)
+
     if (kind == OPTION_NONE) then
         call set_error(status, FM_USER_ERROR, format_message("`"//variable//"' is not a user option"))
         return
     end if
+
     local = make_local
     if (.not. local) local = local_variable_if_set_p(sym(variable))
+
     if (local .and. .not. (setting .and. forwarded_variable_p(sym(variable)))) then
         call set_error(status, FM_GENERIC_ERROR, "Symbol "//variable//" may not be buffer-local")
         return
     end if
+
     ! The Lisp reader's part: one literal, and nothing after it.
     v = value
     n = verify(v, WS)
+
     if (n == 0) then
         call set_error(status, FM_END_OF_FILE)
         return
     end if
+
     v = v(n:verify(v, WS, back=.true.))
     ok = .true.
+
     select case (kind)
     case (OPTION_LOGICAL)
         typename = "logical"
         call literal_token(v, status)
         if (.not. status%ok()) return
+
         select case (upper(v))
         case (".TRUE.")
             lv = .true.
@@ -116,6 +126,7 @@ contains
         case default
             ok = .false.
         end select
+
         if (ok) call set_user_option_logical(variable, lv, local)
     case (OPTION_INTEGER)
         typename = "integer"
@@ -131,6 +142,7 @@ contains
         if (ok) call set_user_option_real(variable, r)
     case (OPTION_STRING)
         typename = "character"
+
         if (v(1:1) == """" .or. v(1:1) == "'") then
             call string_literal(v, lv, status)
             if (.not. status%ok()) return
@@ -147,6 +159,7 @@ contains
         call set_user_option_choice(variable, upper(v), local, ok)
     case default
     end select
+
     if (.not. ok) then
         call set_error(status, FM_USER_ERROR, format_message("Value `"//v//"' does not match type "//typename// &
                                                              " of "//variable))
@@ -159,6 +172,7 @@ contains
     subroutine literal_token(v, status)
         character(len=*), intent(in) :: v
         type(status_type), intent(inout) :: status
+
         if (scan(v, WS) > 0) call set_error(status, FM_INVALID_READ_SYNTAX, """Trailing garbage following expression""")
     end subroutine literal_token
 
@@ -167,7 +181,9 @@ contains
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: u
         integer :: k
+
         u = s
+
         do k = 1, len(s)
             if (s(k:k) >= "a" .and. s(k:k) <= "z") u(k:k) = char(ichar(s(k:k)) - 32)
         end do
@@ -179,6 +195,7 @@ contains
         character(len=*), intent(in) :: v
         integer(int64), intent(out) :: n
         integer :: start, ios
+
         n = 0
         start = 1
         if (v(1:1) == "+" .or. v(1:1) == "-") start = 2
@@ -197,6 +214,7 @@ contains
         real, intent(out) :: r
         integer :: k, ios, ndigits
         logical :: point, expo
+
         r = 0
         k = 1
         if (v(1:1) == "+" .or. v(1:1) == "-") k = 2
@@ -204,6 +222,7 @@ contains
         point = .false.
         expo = .false.
         ok = .false.
+
         do while (k <= len(v))
             if (v(k:k) >= "0" .and. v(k:k) <= "9") then
                 ndigits = ndigits + 1
@@ -212,19 +231,25 @@ contains
             else
                 exit
             end if
+
             k = k + 1
         end do
+
         if (ndigits == 0) return
+
         if (k <= len(v)) then
             if (index("eEdD", v(k:k)) == 0) return
             expo = .true.
             k = k + 1
+
             if (k <= len(v)) then
                 if (v(k:k) == "+" .or. v(k:k) == "-") k = k + 1
             end if
+
             if (k > len(v)) return
             if (verify(v(k:), "0123456789") /= 0) return
         end if
+
         if (expo .and. .not. point) continue
         read (v, *, iostat=ios) r
         ok = ios == 0
@@ -240,15 +265,18 @@ contains
         character :: q
         character(len=:), allocatable :: out
         integer :: k
+
         dummy = .false.
         q = v(1:1)
         out = ""
         k = 2
+
         do
             if (k > len(v)) then
                 call set_error(status, FM_END_OF_FILE)
                 return
             end if
+
             if (v(k:k) == q) then
                 if (k < len(v)) then
                     if (v(k + 1:k + 1) == q) then
@@ -257,17 +285,21 @@ contains
                         cycle
                     end if
                 end if
+
                 exit
             end if
+
             out = out//v(k:k)
             k = k + 1
         end do
+
         if (k < len(v)) then
             if (verify(v(k + 1:), WS) /= 0) then
                 call set_error(status, FM_INVALID_READ_SYNTAX, """Trailing garbage following expression""")
                 return
             end if
         end if
+
         v = out
     end subroutine string_literal
 
@@ -277,24 +309,29 @@ contains
     type(doc_entry_type) :: entry
     logical :: found, make_local
     integer :: k, n
+
     ! current-prefix-arg, before the minibuffer's commands change it.
     make_local = .not. nilp(current_prefix_arg)
     ! (read-variable "Set variable: "): the user options set_variable
     ! can set (custom-variable-p).
     allocate (names(size(user_option_names)))
     n = 0
+
     do k = 1, size(user_option_names)
         if (.not. settable_option_p(trim(user_option_names(k)))) cycle
         n = n + 1
         names(n) = make_string(trim(user_option_names(k)))
     end do
+
     call completing_read("Set variable: ", completion_list_table(make_list(names(1:n))), name, status, &
                          require_match=REQUIRE_MATCH_T, history="custom_variable_history")
     if (.not. status%ok()) return
+
     if (len(name) == 0) then
         call set_error(status, FM_USER_ERROR, format_message("You didn't specify a variable"))
         return
     end if
+
     if (local_variable_p(sym(name))) then
         scope = "(buffer-local)"
     else if (make_local .or. local_variable_if_set_p(sym(name))) then
@@ -302,6 +339,7 @@ contains
     else
         scope = "globally"
     end if
+
     prompt = "Set "//name//" "//scope//" to value: "
     ! The current value, for M-n.
     call variable_doc(name, entry, found)

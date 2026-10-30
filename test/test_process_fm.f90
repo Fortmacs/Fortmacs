@@ -56,6 +56,7 @@ contains
 
     subroutine collect_process_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("process-test-sentinel-accept-process-output", test_sentinel_accept), &
                     new_unittest("process-test-sentinel-sit-for", test_sentinel_sit_for), &
@@ -84,6 +85,7 @@ contains
         type(handle_type), intent(in) :: process
         character(len=*), intent(in) :: event
         type(status_type), intent(out) :: status
+
         status = status_type()
         sentinel_calls = sentinel_calls + 1
         last_event = event
@@ -95,6 +97,7 @@ contains
         type(handle_type), intent(in) :: process
         character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
+
         status = status_type()
         if (.not. processp(process)) return
         if (.not. on_main_thread()) filter_off_main = .true.
@@ -113,6 +116,7 @@ contains
     integer function elapsed(start)
         integer(int64), intent(in) :: start
         integer(int64) :: now, rate
+
         call system_clock(now, rate)
         elapsed = int((now - start)/max(rate, 1_int64))
     end function elapsed
@@ -124,9 +128,11 @@ contains
         integer(int64) :: start
         type(status_type) :: st
         logical :: got, sit
+
         sit = .false.
         if (present(use_sit_for)) sit = use_sit_for
         call system_clock(start)
+
         do while (sentinel_calls == 0 .and. elapsed(start) < TIMEOUT)
             if (sit) then
                 call sit_for(10_int32)
@@ -143,7 +149,9 @@ contains
         integer(int64) :: start
         type(status_type) :: st
         logical :: got
+
         call system_clock(start)
+
         do while (elapsed(start) < TIMEOUT)
             call accept_process_output(got, st, proc)
             if (.not. got) exit
@@ -154,6 +162,7 @@ contains
     subroutine sh_args(script, args)
         character(len=*), intent(in) :: script
         type(process_arg_type), allocatable, intent(out) :: args(:)
+
         allocate (args(2))
         args(1)%s = "-c"
         args(2)%s = script
@@ -163,12 +172,14 @@ contains
     !> (sh here), waiting with accept-process-output.
     subroutine test_sentinel_accept(error)
         type(error_type), allocatable, intent(out) :: error
+
         call sentinel_exit_20(error, .false.)
     end subroutine test_sentinel_accept
 
     !> The same, waiting with sit-for.
     subroutine test_sentinel_sit_for(error)
         type(error_type), allocatable, intent(out) :: error
+
         call sentinel_exit_20(error, .true.)
     end subroutine test_sentinel_sit_for
 
@@ -178,6 +189,7 @@ contains
         type(handle_type) :: proc
         type(process_arg_type), allocatable :: args(:)
         type(status_type) :: st
+
         call reset_records()
         call sh_args("exit 20", args)
         call start_process("test", null_handle(), "sh", proc, st, args)
@@ -199,6 +211,7 @@ contains
         type(handle_type) :: proc
         type(status_type) :: st
         character(len=:), allocatable :: path, samepath
+
         path = "/bin//sh"
         samepath = path
         call start_process("", null_handle(), path, proc, st)
@@ -218,9 +231,11 @@ contains
         type(process_arg_type), allocatable :: command(:)
         type(status_type) :: st
         integer, parameter :: types(2) = [PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY]
+
         allocate (command(2))
         command(1)%s = "echo"
         command(2)%s = "first"
+
         do k = 1, 2
             call reset_records()
             call make_process("echo", command, proc, st, noquery=.true., connection_type=types(k), &
@@ -230,10 +245,12 @@ contains
             call drain(proc)
             call check(error, sentinel_calls == 1, "one call")
             if (.not. allocated(error)) call check(error, last_event, "finished"//new_line("a"))
+
             if (.not. allocated(error)) then
                 call check(error, sentinel_process%index == proc%index .and. &
                            sentinel_process%generation == proc%generation, "the process")
             end if
+
             call free_process(proc, st)
             if (allocated(error)) return
         end do
@@ -248,12 +265,14 @@ contains
         type(process_arg_type), allocatable :: command(:), slow(:)
         type(status_type) :: st
         integer, parameter :: types(2) = [PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY]
+
         allocate (command(2), slow(3))
         command(1)%s = "echo"
         command(2)%s = "first"
         slow(1)%s = "sh"
         slow(2)%s = "-c"
         slow(3)%s = "sleep 10; echo second"
+
         do k = 1, 2
             call reset_records()
             call make_process("echo", command, proc, st, noquery=.true., connection_type=types(k), &
@@ -268,6 +287,7 @@ contains
             call free_process(other, st)
             if (allocated(error)) return
         end do
+
         call process_shutdown()
     end subroutine test_sentinel_multiple
 
@@ -281,6 +301,7 @@ contains
         type(handle_type) :: proc, buf
         type(process_arg_type), allocatable :: command(:)
         type(status_type) :: st
+
         call get_buffer_create("*process-test*", buf, st)
         call set_buffer(buf, st)
         call erase_buffer(st)
@@ -294,10 +315,12 @@ contains
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, len(process_tty_name(proc)) > 0 .eqv. tty, "tty name")
+
         if (.not. allocated(error)) then
             call wait_for_sentinel()
             call check(error, process_exit_status(proc), 0)
         end if
+
         if (.not. allocated(error)) call check(error, buffer_string(), expected)
         call free_process(proc, st)
         call kill_buffer(buf, st)
@@ -305,11 +328,13 @@ contains
 
     subroutine test_connection_pty(error)
         type(error_type), allocatable, intent(out) :: error
+
         call connection_type(error, PROCESS_CONNECTION_PTY, "yyy", .true.)
     end subroutine test_connection_pty
 
     subroutine test_connection_pipe(error)
         type(error_type), allocatable, intent(out) :: error
+
         call connection_type(error, PROCESS_CONNECTION_PIPE, "nnn", .false.)
     end subroutine test_connection_pipe
 
@@ -321,6 +346,7 @@ contains
         type(handle_type) :: proc, buf
         type(process_arg_type), allocatable :: args(:)
         type(status_type) :: st
+
         call get_buffer_create("*process-test*", buf, st)
         call set_buffer(buf, st)
         call erase_buffer(st)
@@ -343,6 +369,7 @@ contains
         type(handle_type) :: proc, buf
         type(process_arg_type), allocatable :: args(:)
         type(status_type) :: st
+
         call get_buffer_create("*process-test*", buf, st)
         call set_buffer(buf, st)
         call erase_buffer(st)
@@ -362,6 +389,7 @@ contains
         type(handle_type) :: proc
         type(process_arg_type), allocatable :: args(:)
         type(status_type) :: st
+
         call reset_records()
         call sh_args("sleep 100", args)
         call start_process("sleeper", null_handle(), "sh", proc, st, args)
@@ -386,6 +414,7 @@ contains
         type(handle_type) :: proc
         type(process_arg_type), allocatable :: args(:)
         type(status_type) :: st
+
         call reset_records()
         call sh_args("sleep 100", args)
         call start_process("doomed", null_handle(), "sh", proc, st, args)
@@ -412,6 +441,7 @@ contains
         type(process_arg_type), allocatable :: args(:)
         type(status_type) :: st
         logical :: ready
+
         call get_buffer_create("*process-test*", buf, st)
         call set_buffer(buf, st)
         call erase_buffer(st)
@@ -424,11 +454,13 @@ contains
         ready = wait_for_worker_messages(TIMEOUT*1000)
         call check(error, ready, "a message")
         if (.not. allocated(error)) call check(error, buffer_string(), "")
+
         if (.not. allocated(error)) then
             call set_process_filter(proc, st, record_filter)
             call drain(proc)
             call check(error, filtered, "hello")
         end if
+
         if (.not. allocated(error)) call check(error,.not. filter_off_main, "on the main thread")
         ! The filter replaced the default one, so the buffer only has the
         ! sentinel's message.
@@ -443,6 +475,7 @@ contains
         type(handle_type) :: proc
         type(process_arg_type), allocatable :: args(:)
         type(status_type) :: st
+
         call reset_records()
         call sh_args("printf '\303'; sleep 1; printf '\251'", args)
         call start_process("split", null_handle(), "sh", proc, st, args)
@@ -462,8 +495,10 @@ contains
         integer :: k
         integer, parameter :: types(2) = [PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY]
         type(process_arg_type), allocatable :: command(:)
+
         allocate (command(1))
         command(1)%s = "cat"
+
         do k = 1, 2
             call reset_records()
             call make_process("cat", command, proc, st, connection_type=types(k), filter=record_filter, &
@@ -490,6 +525,7 @@ contains
         type(handle_type) :: p1, p2
         type(process_arg_type), allocatable :: args(:)
         type(status_type) :: st
+
         call sh_args("sleep 100", args)
         call start_process("twin", null_handle(), "sh", p1, st, args)
         call start_process("twin", null_handle(), "sh", p2, st, args)
@@ -506,6 +542,7 @@ contains
         type(handle_type) :: proc, buf, other
         type(process_arg_type), allocatable :: args(:)
         type(status_type) :: st
+
         call get_buffer_create("*process-test*", buf, st)
         call set_buffer(buf, st)
         call reset_records()
@@ -528,13 +565,17 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: proc
         type(status_type) :: st
+
         call start_process("none", null_handle(), "fortmacs-no-such-program", proc, st)
         call check(error,.not. st%ok(), "an error")
+
         if (.not. allocated(error)) then
             call check(error, format_error(st), "Searching for program: No such file or directory, fortmacs-no-such-program")
         end if
+
         if (.not. allocated(error)) call check(error, size(process_list()) == 0, "not listed")
     end subroutine test_missing_program
+
     !> Workers and the main thread run the same src/sys procedures at once
     !> (errno while polling): many short-lived processes, the main thread
     !> polling for their messages without waiting.  (With -fcheck=all a
@@ -548,20 +589,25 @@ contains
         integer(int64) :: start
         integer :: k
         logical :: ready
+
         call sh_args("exit 0", args)
+
         do k = 1, 100
             call start_process("short", null_handle(), "sh", proc, st, args)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) return
             call system_clock(start)
             ready = .false.
+
             do while (.not. ready .and. elapsed(start) < TIMEOUT)
                 ready = wait_for_worker_messages(0)
             end do
+
             call process_shutdown()
             call free_process(proc, st)
         end do
     end subroutine test_workers_beside_main
+
     !> `list_processes' lists the processes in *Process List*; d deletes
     !> the process at point.
     subroutine test_list_processes(error)
@@ -576,6 +622,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: text
         integer(int64) :: pos
+
         call init_bindings()
         call sh_args("sleep 30", args)
         call start_process("fm-listed", null_handle(), "sh", proc, st, args)
@@ -585,21 +632,25 @@ contains
         call check(error, st%ok(), format_error(st))
         b = get_buffer("*Process List*")
         if (.not. allocated(error)) call check(error, b%index /= 0, "the buffer")
+
         if (allocated(error)) then
             call delete_process(proc, st)
             return
         end if
+
         old = current_buffer()
         call set_buffer(b, st)
         text = buffer_string()
         call check(error, index(text, "fm-listed") > 0 .and. index(text, "run") > 0 .and. &
                    index(text, "sh -c sleep 30") > 0, "the listing: "//text)
+
         if (.not. allocated(error)) then
             call goto_char(point_min())
             call search_forward("fm-listed", pos, st, noerror=SEARCH_NOERROR)
             call process_menu_delete_process(st)
             call check(error, st%ok(), format_error(st))
         end if
+
         if (.not. allocated(error)) call check(error, index(buffer_string(), "fm-listed") == 0, "deleted")
         call set_buffer(old, st)
         call kill_buffer(b, st)

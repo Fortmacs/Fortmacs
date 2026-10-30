@@ -57,8 +57,10 @@ contains
     ! The current buffer's process-menu-query-only.
     logical function menu_query_only()
         integer :: k
+
         menu_query_only = .false.
         if (.not. allocated(query_only)) return
+
         do k = 1, size(query_only)
             if (query_only(k)%serial == buffers(cur)%serial) menu_query_only = query_only(k)%value
         end do
@@ -69,13 +71,16 @@ contains
         logical, intent(in) :: value
         type(query_only_type), allocatable :: grown(:)
         integer :: k, n
+
         if (.not. allocated(query_only)) allocate (query_only(0))
+
         do k = 1, size(query_only)
             if (query_only(k)%serial == buffers(cur)%serial) then
                 query_only(k)%value = value
                 return
             end if
         end do
+
         n = size(query_only)
         allocate (grown(n + 1))
         grown(1:n) = query_only
@@ -90,6 +95,7 @@ contains
         type(status_type), intent(out) :: status
         type(tabulated_list_column_type) :: format(7)
         logical :: saved
+
         call major_modes%process_menu_mode%begin(saved, status)
         if (.not. status%ok()) return
         format(1) = column("Process", 15)
@@ -106,11 +112,14 @@ contains
         call set_tabulated_list_sort_key("Process", .false.)
         call tabulated_list_revert_hook%add(refresh_hook, local=.true.)
         call major_modes%process_menu_mode%finish(saved, status)
+
     contains
+
         function column(name, width) result(c)
             character(len=*), intent(in) :: name
             integer, intent(in) :: width
             type(tabulated_list_column_type) :: c
+
             c%name = name
             c%width = width
             c%sort = .true.
@@ -119,6 +128,7 @@ contains
 
     recursive subroutine refresh_hook(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call list_processes_refresh()
     end subroutine refresh_hook
@@ -129,6 +139,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: id
         integer(int64) :: pos, shortage
+
         pos = point()
         id = tabulated_list_get_id()
         call delete_process(get_process(id), status)
@@ -136,6 +147,7 @@ contains
         call revert_buffer(status)
         if (.not. status%ok()) return
         call goto_char(min(pos, point_max()))
+
         if (eobp()) then
             shortage = forward_line(-1_int64)
         else
@@ -155,50 +167,61 @@ contains
         character(len=:), allocatable :: status_name, pid, cmd
         character(len=16) :: s
         integer :: k, n, j
+
         procs = process_list()
         allocate (entries(size(procs)))
         n = 0
+
         do k = 1, size(procs)
             status_name = process_status(procs(k))
+
             if (status_name == "exit" .or. status_name == "signal" .or. status_name == "closed") then
                 call delete_process(procs(k), st)
             else if (.not. menu_query_only() .or. process_query_on_exit_flag(procs(k))) then
                 n = n + 1
+
                 if (process_id(procs(k)) /= 0) then
                     write (s, "(i0)") process_id(procs(k))
                     pid = trim(s)
                 else
                     pid = "--"
                 end if
+
                 buf = process_buffer(procs(k))
                 call process_command(procs(k), command)
                 cmd = ""
+
                 do j = 1, size(command)
                     if (j > 1) cmd = cmd//" "
                     cmd = cmd//command(j)%s
                 end do
+
                 associate (e => entries(n))
                     e%id = process_name(procs(k))
                     allocate (e%cols(7))
                     e%cols(1)%text = process_name(procs(k))
                     e%cols(2)%text = pid
                     e%cols(3)%text = status_name
+
                     if (buffer_live_p(buf)) then
                         e%cols(4)%text = buffers(buf%index)%name
                         e%cols(4)%face = "link"
                     else
                         e%cols(4)%text = "--"
                     end if
+
                     e%cols(5)%text = process_tty_name(procs(k))
                     if (len(e%cols(5)%text) == 0) e%cols(5)%text = "--"
                     e%cols(6)%text = "--"
                     e%cols(7)%text = cmd
+
                     do j = 1, 7
                         if (.not. allocated(e%cols(j)%face)) e%cols(j)%face = ""
                     end do
                 end associate
             end if
         end do
+
         ! (push ... tabulated-list-entries): the newest first.
         call set_tabulated_list_entries(entries(n:1:-1))
         call tabulated_list_init_header()
@@ -221,23 +244,28 @@ contains
         type(handle_type) :: buf, old, window
         type(status_type) :: st
         logical :: q
+
         q = .false.
         if (present(query_only_arg)) q = query_only_arg
+
         if (present(buffer)) then
             buf = buffer
         else
             call get_buffer_create("*Process List*", buf, status)
             if (.not. status%ok()) return
         end if
+
         old = current_buffer()
         call set_buffer(buf, status)
         if (.not. status%ok()) return
         call process_menu_mode(status)
+
         if (status%ok()) then
             call set_menu_query_only(q)
             call list_processes_refresh()
             call tabulated_list_print(status)
         end if
+
         if (buffer_live_p(old)) call set_buffer(old, st)
         if (.not. status%ok()) return
         call display_buffer(buf, window, status)
@@ -245,6 +273,7 @@ contains
 
     recursive subroutine cmd_list_processes(status)
         type(status_type), intent(out) :: status
+
         call list_processes(status)
     end subroutine cmd_list_processes
 
@@ -252,6 +281,7 @@ contains
     !> simple_process_fm.)
     module subroutine syms_of_simple_process()
         type(status_type) :: st
+
         call major_modes%process_menu_mode%define("process_menu_mode", "Process Menu", process_menu_mode, &
                                                   parent=major_modes%tabulated_list_mode)
         call keymap_set(major_modes%process_menu_mode%map, "d", "process_menu_delete_process", st)

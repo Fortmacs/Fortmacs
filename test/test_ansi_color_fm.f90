@@ -57,6 +57,7 @@ contains
     !> Collect all exported unit tests.
     subroutine collect_ansi_color_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("ansi-color-apply-on-region-test", test_apply_on_region), &
                     new_unittest("ansi-color-apply-on-region-bold-is-bright-test", test_bold_is_bright), &
@@ -69,6 +70,7 @@ contains
     subroutine strings(cases)
         type(case_type), allocatable, intent(out) :: cases(:)
         type(value_type) :: yellow, bright_yellow, custom_color
+
         call init_bindings()
         ! The faces' attributes on the frame, as when the frame is made.
         call face_spec_recalc_all()
@@ -95,15 +97,19 @@ contains
                  list(sym("ansi_color_bold"), list(sym(":background"), custom_color)))
         call set(14, ESC//"[48;2;135;255;255;1mHello World"//ESC//"[0m", "Hello World", &
                  list(sym("ansi_color_bold"), list(sym(":background"), custom_color)))
+
     contains
+
         subroutine set(k, input, text, face, bright_face)
             integer, intent(in) :: k
             character(len=*), intent(in) :: input, text
             type(value_type), intent(in) :: face
             type(value_type), intent(in), optional :: bright_face
+
             cases(k)%input = input
             cases(k)%text = text
             cases(k)%face = face
+
             if (present(bright_face)) then
                 cases(k)%bright_face = bright_face
                 cases(k)%has_bright = .true.
@@ -113,6 +119,7 @@ contains
         function bold_fg(color) result(v)
             type(value_type), intent(in) :: color
             type(value_type) :: v
+
             v = list(sym("ansi_color_bold"), list(sym(":foreground"), color))
         end function bold_fg
     end subroutine strings
@@ -121,6 +128,7 @@ contains
     subroutine temp_buffer(old, b)
         type(handle_type), intent(out) :: old, b
         type(status_type) :: st
+
         old = current_buffer()
         call get_buffer_create(" ansi-color test", b, st)
         call set_buffer(b, st)
@@ -129,6 +137,7 @@ contains
     subroutine end_temp_buffer(old, b)
         type(handle_type), intent(in) :: old, b
         type(status_type) :: st
+
         call set_buffer(old, st)
         call kill_buffer(b, st)
     end subroutine end_temp_buffer
@@ -136,6 +145,7 @@ contains
     ! Whether there are overlays at the start of the buffer.
     logical function overlays_at_start()
         type(handle_type), allocatable :: vec(:)
+
         call overlays_at(point_min(), vec)
         overlays_at_start = size(vec) > 0
     end function overlays_at_start
@@ -147,19 +157,24 @@ contains
         type(handle_type) :: old, b
         type(status_type) :: st
         integer :: k
+
         call strings(cases)
+
         do k = 1, size(cases)
             call temp_buffer(old, b)
             call insert(cases(k)%input, st)
             call ansi_color_apply_on_region(point_min(), point_max())
             call check(error, buffer_string(), cases(k)%text)
+
             if (.not. allocated(error)) then
                 call check(error, value_equal(get_char_property(point_min(), sym("face")), cases(k)%face), &
                            "face of: "//cases(k)%text)
             end if
+
             if (.not. allocated(error) .and. .not. nilp(cases(k)%face)) then
                 call check(error, overlays_at_start(), "an overlay")
             end if
+
             call end_temp_buffer(old, b)
             if (allocated(error)) return
         end do
@@ -174,8 +189,10 @@ contains
         type(value_type) :: face
         type(status_type) :: st
         integer :: k
+
         call strings(cases)
         ansi_color_bold_is_bright = .true.
+
         do k = 1, size(cases)
             face = cases(k)%face
             if (cases(k)%has_bright) face = cases(k)%bright_face
@@ -183,14 +200,17 @@ contains
             call insert(cases(k)%input, st)
             call ansi_color_apply_on_region(point_min(), point_max())
             call check(error, buffer_string(), cases(k)%text)
+
             if (.not. allocated(error)) then
                 call check(error, value_equal(get_char_property(point_min(), sym("face")), face), &
                            "face of: "//cases(k)%text)
             end if
+
             if (.not. allocated(error) .and. .not. nilp(face)) call check(error, overlays_at_start(), "an overlay")
             call end_temp_buffer(old, b)
             if (allocated(error)) exit
         end do
+
         ansi_color_bold_is_bright = .false.
     end subroutine test_bold_is_bright
 
@@ -201,7 +221,9 @@ contains
         type(handle_type) :: old, b
         type(status_type) :: st
         integer :: k
+
         call strings(cases)
+
         do k = 1, size(cases)
             call temp_buffer(old, b)
             call insert(cases(k)%input, st)
@@ -225,11 +247,14 @@ contains
         type(status_type) :: st
         integer(int64) :: opoint
         integer :: k
+
         call init_bindings()
         complete_str = ""
+
         do k = 1, 8
             complete_str = complete_str//strs(k) (1:lens(k))
         end do
+
         filtered_str = " Hello World Greetings"//"Hello"
         ! Tests for `ansi_color_filter_apply'
         call temp_buffer(old, b)
@@ -238,9 +263,11 @@ contains
         if (allocated(error)) return
         call temp_buffer(old, b)
         joined = ""
+
         do k = 1, 8
             joined = joined//ansi_color_filter_apply(strs(k) (1:lens(k)))
         end do
+
         call check(error, joined, filtered_str)
         call end_temp_buffer(old, b)
         if (allocated(error)) return
@@ -252,11 +279,13 @@ contains
         call end_temp_buffer(old, b)
         if (allocated(error)) return
         call temp_buffer(old, b)
+
         do k = 1, 8
             opoint = point()
             call insert(strs(k) (1:lens(k)), st)
             call ansi_color_filter_region(opoint, point())
         end do
+
         call check(error, buffer_string(), filtered_str)
         call end_temp_buffer(old, b)
         if (allocated(error)) return
@@ -269,11 +298,13 @@ contains
         ! Tests for `ansi_color_apply_on_region' (with text properties)
         call temp_buffer(old, b)
         call ansi_color_apply_face_function%set_local(ansi_color_apply_text_property_face)
+
         do k = 1, 8
             opoint = point()
             call insert(strs(k) (1:lens(k)), st)
             call ansi_color_apply_on_region(opoint, point())
         end do
+
         call check(error, buffer_string(), filtered_str)
         call end_temp_buffer(old, b)
         if (allocated(error)) return

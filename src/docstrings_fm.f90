@@ -1824,8 +1824,10 @@ contains
         character(len=*), intent(in) :: name
         type(doc_entry_type), intent(out) :: entry
         logical, intent(out) :: found
+
         found = .true.
         entry%fortran = ""
+
         select case (name)
         case ("Buffer_menu__dynamic_name_width")
             entry%file = "buff_menu_fm.f90"
@@ -12975,8 +12977,10 @@ contains
         character(len=*), intent(in) :: name
         type(doc_entry_type), intent(out) :: entry
         logical, intent(out) :: found
+
         found = .true.
         entry%original = ""
+
         select case (name)
         case ("abbrev_all_caps")
             entry%file = "abbrev_fm.f90"
@@ -12989,11 +12993,13 @@ contains
             entry%file = "abbrev_fm.f90"
             entry%fortran = "abbrev_file_name"
             entry%user_option = .true.
+
             if (allocated(abbrev_file_name)) then
                 entry%value = repr(abbrev_file_name)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Default name of file from which to read and where to save abbrevs."//LF// &
                         "In Fortmacs it is the init file, whose `configure' gets the abbrevs"//LF// &
                         "as `define' calls (unallocated: the init file)."
@@ -13034,11 +13040,13 @@ contains
             entry%file = "fill_fm.f90"
             entry%fortran = "adaptive_fill_first_line_regexp"
             entry%user_option = .true.
+
             if (allocated(adaptive_fill_first_line_regexp)) then
                 entry%value = repr(adaptive_fill_first_line_regexp)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp specifying whether to set fill prefix from a one-line paragraph."//LF// &
                         "When a paragraph has just one line, then after `adaptive_fill_regexp'"//LF// &
                         "finds the prefix at the beginning of the line, if it doesn't"//LF// &
@@ -13059,11 +13067,13 @@ contains
             entry%file = "fill_fm.f90"
             entry%fortran = "adaptive_fill_regexp"
             entry%user_option = .true.
+
             if (allocated(adaptive_fill_regexp)) then
                 entry%value = repr(adaptive_fill_regexp)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp to match text at start of line that constitutes indentation."//LF// &
                         "If Adaptive Fill mode is enabled, a prefix matching this pattern"//LF// &
                         "on the first and second lines of a paragraph is used as the"//LF// &
@@ -13083,21 +13093,25 @@ contains
         case ("add_log_full_name")
             entry%file = "add_log_fm.f90"
             entry%fortran = "add_log_full_name"
+
             if (allocated(add_log_full_name)) then
                 entry%value = repr(add_log_full_name)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Full name of user, for inclusion in ChangeLog daily headers."//LF// &
                         "This defaults to the value returned by the function `user_full_name'."
         case ("add_log_mailing_address")
             entry%file = "add_log_fm.f90"
             entry%fortran = "add_log_mailing_address"
+
             if (allocated(add_log_mailing_address)) then
                 entry%value = repr(add_log_mailing_address)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Email addresses of user, for inclusion in ChangeLog headers."//LF// &
                         "This defaults to the value of `user_mail_address'."
         case ("after_change_functions")
@@ -13202,6 +13216,7 @@ contains
             entry%fortran = "ansi_color_for_comint_mode"
             entry%user_option = .true.
             entry%original = "ANSI_COLOR_T"
+
             select case (ansi_color_for_comint_mode%value)
             case (ANSI_COLOR_NIL)
                 entry%value = "ANSI_COLOR_NIL"
@@ -13212,6 +13227,7 @@ contains
             case default
                 entry%value = repr(ansi_color_for_comint_mode%value)
             end select
+
             entry%doc = "Determines what to do with comint output."//LF// &
                         "If ANSI_COLOR_NIL, do nothing."//LF// &
                         "If ANSI_COLOR_FILTER, then filter all SGR control sequences."//LF// &
@@ -13231,6 +13247,7 @@ contains
             entry%fortran = "ansi_color_for_compilation_mode"
             entry%user_option = .true.
             entry%original = "ANSI_COLOR_T"
+
             select case (ansi_color_for_compilation_mode%value)
             case (ANSI_COLOR_NIL)
                 entry%value = "ANSI_COLOR_NIL"
@@ -13241,6 +13258,7 @@ contains
             case default
                 entry%value = repr(ansi_color_for_compilation_mode%value)
             end select
+
             entry%doc = "Determines what to do with compilation output."//LF// &
                         "If ANSI_COLOR_NIL, do nothing."//LF// &
                         ""//LF// &
@@ -13274,11 +13292,13 @@ contains
         case ("apropos_all_words_regexp")
             entry%file = "apropos_fm.f90"
             entry%fortran = "apropos_all_words_regexp"
+
             if (allocated(apropos_all_words_regexp)) then
                 entry%value = repr(apropos_all_words_regexp)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp matching `apropos_all_words'."
         case ("apropos_mode_hook")
             entry%file = "apropos_fm.f90"
@@ -13291,26 +13311,31 @@ contains
         case ("apropos_pattern")
             entry%file = "apropos_fm.f90"
             entry%fortran = "apropos_pattern"
+
             if (allocated(apropos_pattern)) then
                 entry%value = repr(apropos_pattern)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Apropos pattern as entered by user."
         case ("apropos_regexp")
             entry%file = "apropos_fm.f90"
             entry%fortran = "apropos_regexp"
+
             if (allocated(apropos_regexp)) then
                 entry%value = repr(apropos_regexp)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp used in current apropos run."
         case ("async_shell_command_buffer")
             entry%file = "simple_fm.f90"
             entry%fortran = "async_shell_command_buffer"
             entry%user_option = .true.
             entry%original = "ASYNC_CONFIRM_NEW_BUFFER"
+
             select case (async_shell_command_buffer%value)
             case (ASYNC_CONFIRM_KILL_PROCESS)
                 entry%value = "ASYNC_CONFIRM_KILL_PROCESS"
@@ -13325,6 +13350,7 @@ contains
             case default
                 entry%value = repr(async_shell_command_buffer%value)
             end select
+
             entry%doc = "What to do when the output buffer is used by another shell command."//LF// &
                         "This option specifies how to resolve the conflict where a new"//LF// &
                         "command wants to direct its output to the buffer whose name is"//LF// &
@@ -13352,11 +13378,13 @@ contains
         case ("async_shell_command_mode")
             entry%file = "simple_fm.f90"
             entry%fortran = "async_shell_command_mode"
+
             if (associated(async_shell_command_mode%value)) then
                 entry%value = command_name_of(async_shell_command_mode%value)
             else
                 entry%value = "null()"
             end if
+
             entry%doc = "Major mode to use for the output of asynchronous `shell_command'."
         case ("async_shell_command_width")
             entry%file = "simple_fm.f90"
@@ -13397,11 +13425,13 @@ contains
         case ("auto_fill_function")
             entry%file = "buffer_fm.f90"
             entry%fortran = "auto_fill_function"
+
             if (associated(auto_fill_function%value)) then
                 entry%value = command_name_of(auto_fill_function%value)
             else
                 entry%value = "null()"
             end if
+
             entry%doc = "Function called (if not null) to perform auto-fill."//LF// &
                         "It is called after self-inserting any character specified in"//LF// &
                         "the `auto_fill_chars' table."//LF// &
@@ -13411,11 +13441,13 @@ contains
             entry%file = "simple_fm.f90"
             entry%fortran = "auto_fill_inhibit_regexp"
             entry%user_option = .true.
+
             if (allocated(auto_fill_inhibit_regexp%value)) then
                 entry%value = repr(auto_fill_inhibit_regexp%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp to match lines that should not be auto-filled."
         case ("auto_fill_mode_hook")
             entry%file = "simple_fm.f90"
@@ -13424,11 +13456,13 @@ contains
         case ("auto_mode_interpreter_regexp")
             entry%file = "files_fm.f90"
             entry%fortran = "auto_mode_interpreter_regexp"
+
             if (allocated(auto_mode_interpreter_regexp)) then
                 entry%value = repr(auto_mode_interpreter_regexp)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp matching interpreters, for file mode determination."//LF// &
                         "This regular expression is matched against the first line of a file"//LF// &
                         "to determine the file's mode in `set_auto_mode'.  If it matches, the file"//LF// &
@@ -13516,22 +13550,26 @@ contains
             entry%file = "autorevert_fm.f90"
             entry%fortran = "auto_revert_mode_text"
             entry%user_option = .true.
+
             if (allocated(auto_revert_mode_text)) then
                 entry%value = repr(auto_revert_mode_text)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "String to display in the mode line when Auto-Revert Mode is active."//LF// &
                         "(When the string is not empty, make sure that it has a leading space.)"
         case ("auto_revert_notify_exclude_dir_regexp")
             entry%file = "autorevert_fm.f90"
             entry%fortran = "auto_revert_notify_exclude_dir_regexp"
             entry%user_option = .true.
+
             if (allocated(auto_revert_notify_exclude_dir_regexp)) then
                 entry%value = repr(auto_revert_notify_exclude_dir_regexp)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regular expression of directories to be excluded from file notifications."
         case ("auto_revert_remote_files")
             entry%file = "autorevert_fm.f90"
@@ -13561,11 +13599,13 @@ contains
             entry%file = "autorevert_fm.f90"
             entry%fortran = "auto_revert_tail_mode_text"
             entry%user_option = .true.
+
             if (allocated(auto_revert_tail_mode_text)) then
                 entry%value = repr(auto_revert_tail_mode_text)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "String to display in the mode line when Auto-Revert Tail Mode is active."//LF// &
                         "(When the string is not empty, make sure that it has a leading space.)"
         case ("auto_revert_use_notify")
@@ -13589,6 +13629,7 @@ contains
             entry%fortran = "backward_delete_char_untabify_method"
             entry%user_option = .true.
             entry%original = "UNTABIFY_METHOD_UNTABIFY"
+
             select case (backward_delete_char_untabify_method)
             case (UNTABIFY_METHOD_NIL)
                 entry%value = "UNTABIFY_METHOD_NIL"
@@ -13601,6 +13642,7 @@ contains
             case default
                 entry%value = repr(backward_delete_char_untabify_method)
             end select
+
             entry%doc = "The method for untabifying when deleting backward."//LF// &
                         "Can be `UNTABIFY_METHOD_UNTABIFY' -- turn a tab to many spaces, then delete one space;"//LF// &
                         "       `UNTABIFY_METHOD_HUNGRY' -- delete all whitespace, both tabs and spaces;"//LF// &
@@ -13647,6 +13689,7 @@ contains
             entry%fortran = "blink_matching_paren"
             entry%user_option = .true.
             entry%original = "BLINK_MATCHING_PAREN_T"
+
             select case (blink_matching_paren)
             case (BLINK_MATCHING_PAREN_NIL)
                 entry%value = "BLINK_MATCHING_PAREN_NIL"
@@ -13659,6 +13702,7 @@ contains
             case default
                 entry%value = repr(blink_matching_paren)
             end select
+
             entry%doc = "True means show matching open-paren when close-paren is inserted."//LF// &
                         "If this is true, then when you type a closing delimiter, such as a"//LF// &
                         "closing parenthesis or brace, Emacs briefly indicates the location"//LF// &
@@ -13751,11 +13795,13 @@ contains
         case ("bookmark_bmenu_buffer")
             entry%file = "bookmark_fm.f90"
             entry%fortran = "bookmark_bmenu_buffer"
+
             if (allocated(bookmark_bmenu_buffer)) then
                 entry%value = repr(bookmark_bmenu_buffer)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Name of buffer used for Bookmark List."
         case ("bookmark_bmenu_file_column")
             entry%file = "bookmark_fm.f90"
@@ -13813,11 +13859,13 @@ contains
             entry%file = "bookmark_fm.f90"
             entry%fortran = "bookmark_default_file"
             entry%user_option = .true.
+
             if (allocated(bookmark_default_file)) then
                 entry%value = repr(bookmark_default_file)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "File in which to save bookmarks by default."
         case ("bookmark_edit_annotation_mode_hook")
             entry%file = "bookmark_fm.f90"
@@ -13838,22 +13886,26 @@ contains
         case ("bookmark_file_coding_system")
             entry%file = "bookmark_fm.f90"
             entry%fortran = "bookmark_file_coding_system"
+
             if (allocated(bookmark_file_coding_system)) then
                 entry%value = repr(bookmark_file_coding_system)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The coding-system of the last loaded or saved bookmark file"//LF// &
                         "(unallocated for none yet)."
         case ("bookmark_fringe_mark")
             entry%file = "bookmark_fm.f90"
             entry%fortran = "bookmark_fringe_mark"
             entry%user_option = .true.
+
             if (allocated(bookmark_fringe_mark)) then
                 entry%value = repr(bookmark_fringe_mark)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The fringe bitmap to mark bookmarked lines with."//LF// &
                         "If unallocated, don't display a mark on the fringe."
         case ("bookmark_inhibit_context_functions")
@@ -13894,6 +13946,7 @@ contains
             entry%fortran = "bookmark_save_flag"
             entry%user_option = .true.
             entry%original = "BOOKMARK_SAVE_FLAG_T"
+
             select case (bookmark_save_flag)
             case (BOOKMARK_SAVE_FLAG_NIL)
                 entry%value = "BOOKMARK_SAVE_FLAG_NIL"
@@ -13902,6 +13955,7 @@ contains
             case default
                 entry%value = repr(bookmark_save_flag)
             end select
+
             entry%doc = "Controls when Fortmacs saves bookmarks to a file."//LF// &
                         "--> BOOKMARK_SAVE_FLAG_NIL means never save bookmarks, except when"//LF// &
                         "    `bookmark_save' is explicitly called (\[bookmark_save])."//LF// &
@@ -13938,6 +13992,7 @@ contains
             entry%fortran = "bookmark_sort_flag"
             entry%user_option = .true.
             entry%original = "BOOKMARK_SORT_FLAG_T"
+
             select case (bookmark_sort_flag)
             case (BOOKMARK_SORT_FLAG_NIL)
                 entry%value = "BOOKMARK_SORT_FLAG_NIL"
@@ -13948,6 +14003,7 @@ contains
             case default
                 entry%value = repr(bookmark_sort_flag)
             end select
+
             entry%doc = "This controls the bookmark display sorting."//LF// &
                         "BOOKMARK_SORT_FLAG_NIL means they will be displayed in LIFO order"//LF// &
                         "(that is, most recently created ones come first, oldest ones come"//LF// &
@@ -13971,6 +14027,7 @@ contains
             entry%fortran = "bookmark_version_control"
             entry%user_option = .true.
             entry%original = "BOOKMARK_VERSION_CONTROL_NOSPECIAL"
+
             select case (bookmark_version_control)
             case (BOOKMARK_VERSION_CONTROL_T)
                 entry%value = "BOOKMARK_VERSION_CONTROL_T"
@@ -13983,6 +14040,7 @@ contains
             case default
                 entry%value = repr(bookmark_version_control)
             end select
+
             entry%doc = "Whether or not to make numbered backups of the bookmark file."//LF// &
                         "It can have four values: BOOKMARK_VERSION_CONTROL_T, _NIL, _NEVER,"//LF// &
                         "or _NOSPECIAL.  The first three have the same meaning that they do"//LF// &
@@ -13993,6 +14051,7 @@ contains
             entry%fortran = "bookmark_watch_bookmark_file"
             entry%user_option = .true.
             entry%original = "BOOKMARK_WATCH_BOOKMARK_FILE_T"
+
             select case (bookmark_watch_bookmark_file)
             case (BOOKMARK_WATCH_BOOKMARK_FILE_NIL)
                 entry%value = "BOOKMARK_WATCH_BOOKMARK_FILE_NIL"
@@ -14003,6 +14062,7 @@ contains
             case default
                 entry%value = repr(bookmark_watch_bookmark_file)
             end select
+
             entry%doc = "If BOOKMARK_WATCH_BOOKMARK_FILE_T, reload the default bookmark file"//LF// &
                         "if it was changed.  If this file has changed on disk since it was"//LF// &
                         "last loaded, query the user whether to load it again.  If the value"//LF// &
@@ -14033,11 +14093,13 @@ contains
         case ("buffer_file_coding_system")
             entry%file = "coding_fm.f90"
             entry%fortran = "buffer_file_coding_system"
+
             if (allocated(buffer_file_coding_system%value)) then
                 entry%value = repr(buffer_file_coding_system%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Coding system to be used for encoding the buffer contents on saving."//LF// &
                         "This variable applies to saving the buffer, and also to `write_region'"//LF// &
                         "and other functions that use `write_region'."//LF// &
@@ -14167,20 +14229,24 @@ contains
         case ("change_log_default_name")
             entry%file = "add_log_fm.f90"
             entry%fortran = "change_log_default_name"
+
             if (allocated(change_log_default_name%value)) then
                 entry%value = repr(change_log_default_name%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Name of a change log file for \[add_change_log_entry]."
         case ("change_log_directory_files")
             entry%file = "add_log_fm.f90"
             entry%fortran = "change_log_directory_files"
+
             if (allocated(change_log_directory_files)) then
                 entry%value = repr(change_log_directory_files)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "List of files that cause `find_change_log' to stop in containing directory."//LF// &
                         "This applies if no pre-existing ChangeLog is found.  If empty, then in such"//LF// &
                         "a case simply use the directory containing the changed file."
@@ -14221,11 +14287,13 @@ contains
         case ("coding_system_for_read")
             entry%file = "coding_fm.f90"
             entry%fortran = "coding_system_for_read"
+
             if (allocated(coding_system_for_read%value)) then
                 entry%value = repr(coding_system_for_read%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Specify the coding system for read operations."//LF// &
                         "It is useful to bind this variable temporarily, but do not set it globally."//LF// &
                         "If the value is a coding system, it is used for decoding on read operation."//LF// &
@@ -14235,11 +14303,13 @@ contains
         case ("coding_system_for_write")
             entry%file = "coding_fm.f90"
             entry%fortran = "coding_system_for_write"
+
             if (allocated(coding_system_for_write%value)) then
                 entry%value = repr(coding_system_for_write%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Specify the coding system for write operations."//LF// &
                         "Programs bind this variable temporarily, but you should not set it globally."//LF// &
                         "If the value is a coding system, it is used for encoding of output,"//LF// &
@@ -14280,11 +14350,13 @@ contains
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_completion_addsuffix"
             entry%user_option = .true.
+
             if (allocated(comint_completion_addsuffix%value)) then
                 entry%value = repr(comint_completion_addsuffix%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The string FILESUFFIX added to file names on unambiguous or exact"//LF// &
                         "completion ("" "" by default; the empty string adds none)."//LF// &
                         "This mirrors the optional behavior of tcsh."
@@ -14300,11 +14372,13 @@ contains
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_completion_fignore"
             entry%user_option = .true.
+
             if (allocated(comint_completion_fignore)) then
                 entry%value = repr(comint_completion_fignore)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "List of suffixes to be disregarded during file completion."//LF// &
                         "This mirrors the optional behavior of bash and tcsh."//LF// &
                         ""//LF// &
@@ -14322,11 +14396,13 @@ contains
         case ("comint_delimiter_argument_list")
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_delimiter_argument_list"
+
             if (allocated(comint_delimiter_argument_list%value)) then
                 entry%value = repr(comint_delimiter_argument_list%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The characters to recognize as separate arguments in input."//LF// &
                         "Strings comprising a character in this list will separate the"//LF// &
                         "arguments surrounding them, and also be regarded as arguments in"//LF// &
@@ -14365,11 +14441,13 @@ contains
         case ("comint_file_name_chars")
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_file_name_chars"
+
             if (allocated(comint_file_name_chars%value)) then
                 entry%value = repr(comint_file_name_chars%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "String of characters valid in a file name."//LF// &
                         "Note that all non-ASCII characters are considered valid in a file"//LF// &
                         "name regardless of what this variable says."//LF// &
@@ -14378,22 +14456,26 @@ contains
         case ("comint_file_name_prefix")
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_file_name_prefix"
+
             if (allocated(comint_file_name_prefix%value)) then
                 entry%value = repr(comint_file_name_prefix%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Prefix prepended to absolute file names taken from process input."//LF// &
                         "This is used by Comint's and shell's completion functions, and by"//LF// &
                         "shell's directory tracking functions."
         case ("comint_file_name_quote_list")
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_file_name_quote_list"
+
             if (allocated(comint_file_name_quote_list%value)) then
                 entry%value = repr(comint_file_name_quote_list%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The characters to quote with `\' when in a file name."//LF// &
                         ""//LF// &
                         "This is a good thing to set in mode hooks."
@@ -14410,6 +14492,7 @@ contains
             entry%fortran = "comint_history_isearch"
             entry%user_option = .true.
             entry%original = "COMINT_HISTORY_ISEARCH_NIL"
+
             select case (comint_history_isearch%value)
             case (COMINT_HISTORY_ISEARCH_NIL)
                 entry%value = "COMINT_HISTORY_ISEARCH_NIL"
@@ -14420,6 +14503,7 @@ contains
             case default
                 entry%value = repr(comint_history_isearch%value)
             end select
+
             entry%doc = "If not COMINT_HISTORY_ISEARCH_NIL, Isearch in input history only,"//LF// &
                         "not in comint buffer output.  If COMINT_HISTORY_ISEARCH_T, usual"//LF// &
                         "Isearch keys like \`C-r' and \`C-M-r' in comint mode search in the"//LF// &
@@ -14441,6 +14525,7 @@ contains
             entry%fortran = "comint_input_autoexpand"
             entry%user_option = .true.
             entry%original = "COMINT_AUTOEXPAND_NIL"
+
             select case (comint_input_autoexpand%value)
             case (COMINT_AUTOEXPAND_NIL)
                 entry%value = "COMINT_AUTOEXPAND_NIL"
@@ -14453,6 +14538,7 @@ contains
             case default
                 entry%value = repr(comint_input_autoexpand%value)
             end select
+
             entry%doc = "If not COMINT_AUTOEXPAND_NIL, expand input command history"//LF// &
                         "references on completion.  This mirrors the optional behavior of"//LF// &
                         "tcsh (its autoexpand and histlist)."//LF// &
@@ -14472,11 +14558,13 @@ contains
         case ("comint_input_history_ignore")
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_input_history_ignore"
+
             if (allocated(comint_input_history_ignore%value)) then
                 entry%value = repr(comint_input_history_ignore%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp for history entries that should be ignored when Comint"//LF// &
                         "initializes."
         case ("comint_input_ignoredups")
@@ -14493,11 +14581,13 @@ contains
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_input_ring_file_name"
             entry%user_option = .true.
+
             if (allocated(comint_input_ring_file_name%value)) then
                 entry%value = repr(comint_input_ring_file_name%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "If allocated, name of the file to read/write input history."//LF// &
                         "See also `comint_read_input_ring' and `comint_write_input_ring'."//LF// &
                         "`comint_mode' makes this a buffer-local variable.  You probably want"//LF// &
@@ -14506,21 +14596,25 @@ contains
         case ("comint_input_ring_file_prefix")
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_input_ring_file_prefix"
+
             if (allocated(comint_input_ring_file_prefix%value)) then
                 entry%value = repr(comint_input_ring_file_prefix%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The prefix to skip when parsing the input ring file."//LF// &
                         "This is useful in Zsh when the extended_history option is on."
         case ("comint_input_ring_separator")
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_input_ring_separator"
+
             if (allocated(comint_input_ring_separator%value)) then
                 entry%value = repr(comint_input_ring_separator%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Separator between commands in the history file."
         case ("comint_input_ring_size")
             entry%file = "comint_fm.f90"
@@ -14564,6 +14658,7 @@ contains
             entry%fortran = "comint_move_point_for_matching_input"
             entry%user_option = .true.
             entry%original = "COMINT_MATCHING_AFTER_INPUT"
+
             select case (comint_move_point_for_matching_input%value)
             case (COMINT_MATCHING_AFTER_INPUT)
                 entry%value = "COMINT_MATCHING_AFTER_INPUT"
@@ -14572,6 +14667,7 @@ contains
             case default
                 entry%value = repr(comint_move_point_for_matching_input%value)
             end select
+
             entry%doc = "Controls where to place point after matching input."//LF// &
                         "\<comint_mode_map>This influences the commands"//LF// &
                         "\[comint_previous_matching_input_from_input] and"//LF// &
@@ -14586,6 +14682,7 @@ contains
             entry%fortran = "comint_move_point_for_output"
             entry%user_option = .true.
             entry%original = "COMINT_MOVE_NIL"
+
             select case (comint_move_point_for_output%value)
             case (COMINT_MOVE_NIL)
                 entry%value = "COMINT_MOVE_NIL"
@@ -14600,6 +14697,7 @@ contains
             case default
                 entry%value = repr(comint_move_point_for_output%value)
             end select
+
             entry%doc = "Controls whether interpreter output moves point to the end of the"//LF// &
                         "output."//LF// &
                         "If COMINT_MOVE_NIL, then output never moves point to the output."//LF// &
@@ -14634,11 +14732,13 @@ contains
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_pager"
             entry%user_option = .true.
+
             if (allocated(comint_pager%value)) then
                 entry%value = repr(comint_pager%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "If allocated, the program to use for pagination of program output."//LF// &
                         "If unallocated, use the default pager."//LF// &
                         ""//LF// &
@@ -14674,11 +14774,13 @@ contains
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_password_prompt_regexp"
             entry%user_option = .true.
+
             if (allocated(comint_password_prompt_regexp)) then
                 entry%value = repr(comint_password_prompt_regexp)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp matching prompts for passwords in the inferior process."//LF// &
                         "This is used by `comint_watch_for_password_prompt'."
         case ("comint_preoutput_filter_functions")
@@ -14727,11 +14829,13 @@ contains
         case ("comint_prompt_regexp")
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_prompt_regexp"
+
             if (allocated(comint_prompt_regexp%value)) then
                 entry%value = repr(comint_prompt_regexp%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp to recognize prompts in the inferior process."//LF// &
                         "Defaults to ""^"", the null string at BOL."//LF// &
                         ""//LF// &
@@ -14775,6 +14879,7 @@ contains
             entry%fortran = "comint_scroll_to_bottom_on_input"
             entry%user_option = .true.
             entry%original = "COMINT_SCROLL_ON_INPUT_NIL"
+
             select case (comint_scroll_to_bottom_on_input%value)
             case (COMINT_SCROLL_ON_INPUT_NIL)
                 entry%value = "COMINT_SCROLL_ON_INPUT_NIL"
@@ -14787,6 +14892,7 @@ contains
             case default
                 entry%value = repr(comint_scroll_to_bottom_on_input%value)
             end select
+
             entry%doc = "Controls whether input to interpreter causes window to scroll."//LF// &
                         "If COMINT_SCROLL_ON_INPUT_NIL, then do not scroll.  If"//LF// &
                         "COMINT_SCROLL_ON_INPUT_T or COMINT_SCROLL_ON_INPUT_ALL, scroll all"//LF// &
@@ -14801,11 +14907,13 @@ contains
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_terminfo_terminal"
             entry%user_option = .true.
+
             if (allocated(comint_terminfo_terminal%value)) then
                 entry%value = repr(comint_terminfo_terminal%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Value to use for TERM when the system uses terminfo."//LF// &
                         "If the system's terminfo database contains a definition for the"//LF// &
                         """dumb-emacs-ansi"" terminal (as all recent versions of terminfo do),"//LF// &
@@ -14870,11 +14978,13 @@ contains
         case ("comment_continue")
             entry%file = "newcomment_fm.f90"
             entry%fortran = "comment_continue"
+
             if (allocated(comment_continue%value)) then
                 entry%value = repr(comment_continue%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Continuation string to insert for multiline comments."//LF// &
                         "This string will be added at the beginning of each line except the very"//LF// &
                         "first one when commenting a region with a commenting style that allows"//LF// &
@@ -14888,6 +14998,7 @@ contains
             entry%fortran = "comment_empty_lines"
             entry%user_option = .true.
             entry%original = "COMMENT_EMPTY_LINES_NIL"
+
             select case (comment_empty_lines%value)
             case (COMMENT_EMPTY_LINES_NIL)
                 entry%value = "COMMENT_EMPTY_LINES_NIL"
@@ -14898,6 +15009,7 @@ contains
             case default
                 entry%value = repr(comment_empty_lines%value)
             end select
+
             entry%doc = "If COMMENT_EMPTY_LINES_NIL, `comment_region' does not comment out"//LF// &
                         "empty lines.  If COMMENT_EMPTY_LINES_T, it always comments out empty"//LF// &
                         "lines.  If COMMENT_EMPTY_LINES_EOL, it only comments out empty lines"//LF// &
@@ -14906,11 +15018,13 @@ contains
         case ("comment_end")
             entry%file = "newcomment_fm.f90"
             entry%fortran = "comment_end"
+
             if (allocated(comment_end%value)) then
                 entry%value = repr(comment_end%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "String to insert to end a new comment."//LF// &
                         "Should be an empty string if comments are terminated by end-of-line."
         case ("comment_end_can_be_escaped")
@@ -14922,11 +15036,13 @@ contains
         case ("comment_end_skip")
             entry%file = "newcomment_fm.f90"
             entry%fortran = "comment_end_skip"
+
             if (allocated(comment_end_skip%value)) then
                 entry%value = repr(comment_end_skip%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp to match the end of a comment plus everything back to its"//LF// &
                         "body."
         case ("comment_fill_column")
@@ -14965,11 +15081,13 @@ contains
         case ("comment_insert_comment_function")
             entry%file = "newcomment_fm.f90"
             entry%fortran = "comment_insert_comment_function"
+
             if (associated(comment_insert_comment_function%value)) then
                 entry%value = command_name_of(comment_insert_comment_function%value)
             else
                 entry%value = "null()"
             end if
+
             entry%doc = "Function to insert a comment when a line doesn't contain one."//LF// &
                         "The function has no args."//LF// &
                         ""//LF// &
@@ -14992,11 +15110,13 @@ contains
             entry%file = "newcomment_fm.f90"
             entry%fortran = "comment_padding"
             entry%user_option = .true.
+
             if (allocated(comment_padding%value)) then
                 entry%value = repr(comment_padding%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Padding string that `comment_region' puts between comment chars and text."//LF// &
                         "Can also be an integer which will be automatically turned into a string"//LF// &
                         "of the corresponding number of spaces."//LF// &
@@ -15014,21 +15134,25 @@ contains
         case ("comment_start")
             entry%file = "newcomment_fm.f90"
             entry%fortran = "comment_start"
+
             if (allocated(comment_start%value)) then
                 entry%value = repr(comment_start%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "String to insert to start a new comment, or unallocated if no comment"//LF// &
                         "syntax."
         case ("comment_start_skip")
             entry%file = "newcomment_fm.f90"
             entry%fortran = "comment_start_skip"
+
             if (allocated(comment_start_skip%value)) then
                 entry%value = repr(comment_start_skip%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp to match the start of a comment plus everything up to its body."//LF// &
                         "If there are any \(...\) pairs and `comment_use_syntax' is nil,"//LF// &
                         "the comment delimiter text is held to begin at the place matched"//LF// &
@@ -15038,6 +15162,7 @@ contains
             entry%fortran = "comment_style"
             entry%user_option = .true.
             entry%original = "COMMENT_STYLE_INDENT"
+
             select case (comment_style%value)
             case (COMMENT_STYLE_PLAIN)
                 entry%value = "COMMENT_STYLE_PLAIN"
@@ -15058,6 +15183,7 @@ contains
             case default
                 entry%value = repr(comment_style%value)
             end select
+
             entry%doc = "Style to be used for `comment_region'."//LF// &
                         "See `comment_styles' for a list of available styles."
         case ("comment_use_global_state")
@@ -15075,6 +15201,7 @@ contains
             entry%file = "newcomment_fm.f90"
             entry%fortran = "comment_use_syntax"
             entry%original = "COMMENT_USE_SYNTAX_UNDECIDED"
+
             select case (comment_use_syntax%value)
             case (COMMENT_USE_SYNTAX_NIL)
                 entry%value = "COMMENT_USE_SYNTAX_NIL"
@@ -15085,6 +15212,7 @@ contains
             case default
                 entry%value = repr(comment_use_syntax%value)
             end select
+
             entry%doc = "Non-nil if syntax-tables can be used instead of regexps."//LF// &
                         "Can also be `undecided' which means that a somewhat expensive test will"//LF// &
                         "be used to try to determine whether syntax-tables should be trusted"//LF// &
@@ -15115,17 +15243,20 @@ contains
         case ("compilation_column_face")
             entry%file = "compile_fm.f90"
             entry%fortran = "compilation_column_face"
+
             if (allocated(compilation_column_face%value)) then
                 entry%value = repr(compilation_column_face%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face name to use for column numbers in compiler messages."
         case ("compilation_context_lines")
             entry%file = "compile_fm.f90"
             entry%fortran = "compilation_context_lines"
             entry%user_option = .true.
             entry%original = "COMPILATION_CONTEXT_NIL"
+
             select case (compilation_context_lines%value)
             case (COMPILATION_CONTEXT_NIL)
                 entry%value = "COMPILATION_CONTEXT_NIL"
@@ -15134,6 +15265,7 @@ contains
             case default
                 entry%value = repr(compilation_context_lines%value)
             end select
+
             entry%doc = "Display this many lines of leading context before the current"//LF// &
                         "message.  If COMPILATION_CONTEXT_NIL or COMPILATION_CONTEXT_T, and"//LF// &
                         "the left fringe is displayed, don't scroll the compilation output"//LF// &
@@ -15145,11 +15277,13 @@ contains
         case ("compilation_directory")
             entry%file = "compile_fm.f90"
             entry%fortran = "compilation_directory"
+
             if (allocated(compilation_directory%value)) then
                 entry%value = repr(compilation_directory%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Directory to restore to when doing `recompile'."
         case ("compilation_directory_matcher")
             entry%file = "compile_fm.f90"
@@ -15177,11 +15311,13 @@ contains
         case ("compilation_enter_directory_face")
             entry%file = "compile_fm.f90"
             entry%fortran = "compilation_enter_directory_face"
+
             if (allocated(compilation_enter_directory_face%value)) then
                 entry%value = repr(compilation_enter_directory_face%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face name to use for entering directory messages."
         case ("compilation_error_case_fold_search")
             entry%file = "compile_fm.f90"
@@ -15201,21 +15337,25 @@ contains
         case ("compilation_error_face")
             entry%file = "compile_fm.f90"
             entry%fortran = "compilation_error_face"
+
             if (allocated(compilation_error_face%value)) then
                 entry%value = repr(compilation_error_face%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face name to use for file name in error messages."
         case ("compilation_error_regexp_alist")
             entry%file = "compile_fm.f90"
             entry%fortran = "compilation_error_regexp_alist"
             entry%user_option = .true.
+
             if (allocated(compilation_error_regexp_alist)) then
                 entry%value = repr(compilation_error_regexp_alist)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Alist that specifies how to match errors in compiler output."//LF// &
                         "On GNU and Unix, any string is a valid filename, so these"//LF// &
                         "matchers must make some common sense assumptions, which catch"//LF// &
@@ -15317,39 +15457,47 @@ contains
         case ("compilation_info_face")
             entry%file = "compile_fm.f90"
             entry%fortran = "compilation_info_face"
+
             if (allocated(compilation_info_face%value)) then
                 entry%value = repr(compilation_info_face%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face name to use for file name in informational messages."
         case ("compilation_leave_directory_face")
             entry%file = "compile_fm.f90"
             entry%fortran = "compilation_leave_directory_face"
+
             if (allocated(compilation_leave_directory_face%value)) then
                 entry%value = repr(compilation_leave_directory_face%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face name to use for leaving directory messages."
         case ("compilation_line_face")
             entry%file = "compile_fm.f90"
             entry%fortran = "compilation_line_face"
+
             if (allocated(compilation_line_face%value)) then
                 entry%value = repr(compilation_line_face%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face name to use for line numbers in compiler messages."
         case ("compilation_message_face")
             entry%file = "compile_fm.f90"
             entry%fortran = "compilation_message_face"
             entry%user_option = .true.
+
             if (allocated(compilation_message_face%value)) then
                 entry%value = repr(compilation_message_face%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face name to use for whole messages."//LF// &
                         "Faces `compilation_error_face', `compilation_warning_face',"//LF// &
                         "`compilation_info_face', `compilation_line_face' and"//LF// &
@@ -15408,6 +15556,7 @@ contains
             entry%fortran = "compilation_scroll_output"
             entry%user_option = .true.
             entry%original = "COMPILATION_SCROLL_NIL"
+
             select case (compilation_scroll_output%value)
             case (COMPILATION_SCROLL_NIL)
                 entry%value = "COMPILATION_SCROLL_NIL"
@@ -15418,6 +15567,7 @@ contains
             case default
                 entry%value = repr(compilation_scroll_output%value)
             end select
+
             entry%doc = "True to scroll the *compilation* buffer window as output appears."//LF// &
                         ""//LF// &
                         "Setting it causes the Compilation mode commands to put point at the"//LF// &
@@ -15486,21 +15636,25 @@ contains
         case ("compilation_warning_face")
             entry%file = "compile_fm.f90"
             entry%fortran = "compilation_warning_face"
+
             if (allocated(compilation_warning_face%value)) then
                 entry%value = repr(compilation_warning_face%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face name to use for file name in warning messages."
         case ("compile_command")
             entry%file = "compile_fm.f90"
             entry%fortran = "compile_command"
             entry%user_option = .true.
+
             if (allocated(compile_command%value)) then
                 entry%value = repr(compile_command%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Last shell command used to do a compilation; default for next"//LF// &
                         "compilation."//LF// &
                         ""//LF// &
@@ -15602,11 +15756,13 @@ contains
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completion_pcm_word_delimiters"
             entry%user_option = .true.
+
             if (allocated(completion_pcm_word_delimiters)) then
                 entry%value = repr(completion_pcm_word_delimiters)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "A string of characters treated as word delimiters for completion."//LF// &
                         "Some arcane rules:"//LF// &
                         "If `]' is in this string, it must come first."//LF// &
@@ -15624,11 +15780,13 @@ contains
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completion_styles"
             entry%user_option = .true.
+
             if (allocated(completion_styles)) then
                 entry%value = repr(completion_styles)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "List of completion styles to use."//LF// &
                         "The available styles are basic, partial-completion, emacs22,"//LF// &
                         "emacs21, initials, substring and flex (shorthand never matches, as"//LF// &
@@ -15655,11 +15813,13 @@ contains
         case ("conf_assignment_regexp")
             entry%file = "conf_mode_fm.f90"
             entry%fortran = "conf_assignment_regexp"
+
             if (allocated(conf_assignment_regexp%value)) then
                 entry%value = repr(conf_assignment_regexp%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp to recognize assignments."//LF// &
                         "It is anchored after the first sexp on a line.  There must be a"//LF// &
                         "grouping for the assignment sign, including leading and trailing"//LF// &
@@ -15667,11 +15827,13 @@ contains
         case ("conf_assignment_sign")
             entry%file = "conf_mode_fm.f90"
             entry%fortran = "conf_assignment_sign"
+
             if (allocated(conf_assignment_sign%value)) then
                 entry%value = repr(conf_assignment_sign%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Sign used for assignments (char or string)."
         case ("conf_assignment_space")
             entry%file = "conf_mode_fm.f90"
@@ -15749,11 +15911,13 @@ contains
         case ("conf_space_keywords")
             entry%file = "conf_mode_fm.f90"
             entry%fortran = "conf_space_keywords"
+
             if (allocated(conf_space_keywords%value)) then
                 entry%value = repr(conf_space_keywords%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexps for functions that may come before a space assignment."//LF// &
                         "This allows constructs such as"//LF// &
                         "keyword var value"//LF// &
@@ -15813,11 +15977,13 @@ contains
             entry%file = "crm_fm.f90"
             entry%fortran = "crm_prompt"
             entry%user_option = .true.
+
             if (allocated(crm_prompt)) then
                 entry%value = repr(crm_prompt)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Prompt format for `completing_read_multiple'."//LF// &
                         "The prompt is formatted with the keys %d, %s and %p standing for the"//LF// &
                         "separator description, the separator itself and the original prompt"//LF// &
@@ -15825,11 +15991,13 @@ contains
         case ("crm_separator")
             entry%file = "crm_fm.f90"
             entry%fortran = "crm_separator"
+
             if (allocated(crm_separator)) then
                 entry%value = repr(crm_separator)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Separator regexp used for separating strings in"//LF// &
                         "`completing_read_multiple'.  It should be a regexp that does not"//LF// &
                         "match the list of completion candidates.  Its `separator' and"//LF// &
@@ -15893,11 +16061,13 @@ contains
             entry%file = "dabbrev_fm.f90"
             entry%fortran = "dabbrev_abbrev_char_regexp"
             entry%user_option = .true.
+
             if (allocated(dabbrev_abbrev_char_regexp)) then
                 entry%value = repr(dabbrev_abbrev_char_regexp)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp to recognize a character in an abbreviation or expansion."//LF// &
                         "This regexp will be surrounded with \\( ... \\) when actually used."//LF// &
                         ""//LF// &
@@ -15921,11 +16091,13 @@ contains
             entry%file = "dabbrev_fm.f90"
             entry%fortran = "dabbrev_abbrev_skip_leading_regexp"
             entry%user_option = .true.
+
             if (allocated(dabbrev_abbrev_skip_leading_regexp)) then
                 entry%value = repr(dabbrev_abbrev_skip_leading_regexp)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp for skipping leading characters of an abbreviation."//LF// &
                         ""//LF// &
                         "Example: Set this to ""\\$"" for programming languages"//LF// &
@@ -15945,6 +16117,7 @@ contains
             entry%fortran = "dabbrev_case_distinction"
             entry%user_option = .true.
             entry%original = "DABBREV_LIKE_CASE_REPLACE"
+
             select case (dabbrev_case_distinction)
             case (DABBREV_OFF)
                 entry%value = "DABBREV_OFF"
@@ -15959,6 +16132,7 @@ contains
             case default
                 entry%value = repr(dabbrev_case_distinction)
             end select
+
             entry%doc = "Whether dabbrev treats expansions as the same if they differ in case."//LF// &
                         ""//LF// &
                         "A value of DABBREV_OFF means treat them as different."//LF// &
@@ -15973,6 +16147,7 @@ contains
             entry%fortran = "dabbrev_case_fold_search"
             entry%user_option = .true.
             entry%original = "DABBREV_LIKE_CASE_FOLD_SEARCH"
+
             select case (dabbrev_case_fold_search)
             case (DABBREV_OFF)
                 entry%value = "DABBREV_OFF"
@@ -15987,6 +16162,7 @@ contains
             case default
                 entry%value = repr(dabbrev_case_fold_search)
             end select
+
             entry%doc = "Control whether dabbrev searches should ignore case."//LF// &
                         "A value of DABBREV_OFF means case is significant."//LF// &
                         "A value of DABBREV_LIKE_CASE_FOLD_SEARCH means case is significant"//LF// &
@@ -15997,6 +16173,7 @@ contains
             entry%fortran = "dabbrev_case_replace"
             entry%user_option = .true.
             entry%original = "DABBREV_LIKE_CASE_REPLACE"
+
             select case (dabbrev_case_replace)
             case (DABBREV_OFF)
                 entry%value = "DABBREV_OFF"
@@ -16011,6 +16188,7 @@ contains
             case default
                 entry%value = repr(dabbrev_case_replace)
             end select
+
             entry%doc = "Whether dabbrev applies the abbreviations's case pattern to the expansion."//LF// &
                         ""//LF// &
                         "A value of DABBREV_OFF means preserve the expansion's case pattern."//LF// &
@@ -16041,6 +16219,7 @@ contains
             entry%fortran = "dabbrev_check_other_buffers"
             entry%user_option = .true.
             entry%original = "DABBREV_ON"
+
             select case (dabbrev_check_other_buffers)
             case (DABBREV_OFF)
                 entry%value = "DABBREV_OFF"
@@ -16055,6 +16234,7 @@ contains
             case default
                 entry%value = repr(dabbrev_check_other_buffers)
             end select
+
             entry%doc = "Should \[dabbrev_expand] look in other buffers?"//LF// &
                         "DABBREV_OFF: Don't look in other buffers."//LF// &
                         "DABBREV_ON: Also look for expansions in the buffers pointed out by"//LF// &
@@ -16076,11 +16256,13 @@ contains
             entry%file = "dabbrev_fm.f90"
             entry%fortran = "dabbrev_ignored_buffer_modes"
             entry%user_option = .true.
+
             if (allocated(dabbrev_ignored_buffer_modes)) then
                 entry%value = repr(dabbrev_ignored_buffer_modes)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Inhibit looking for abbreviations in buffers derived from these modes."//LF// &
                         "See also `dabbrev_ignored_buffer_names' and"//LF// &
                         "`dabbrev_ignored_buffer_regexps'."
@@ -16088,11 +16270,13 @@ contains
             entry%file = "dabbrev_fm.f90"
             entry%fortran = "dabbrev_ignored_buffer_names"
             entry%user_option = .true.
+
             if (allocated(dabbrev_ignored_buffer_names)) then
                 entry%value = repr(dabbrev_ignored_buffer_names)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "List of buffer names that dabbrev should not check."//LF// &
                         "See also `dabbrev_ignored_buffer_regexps' and"//LF// &
                         "`dabbrev_ignored_buffer_modes'."
@@ -16100,11 +16284,13 @@ contains
             entry%file = "dabbrev_fm.f90"
             entry%fortran = "dabbrev_ignored_buffer_regexps"
             entry%user_option = .true.
+
             if (allocated(dabbrev_ignored_buffer_regexps)) then
                 entry%value = repr(dabbrev_ignored_buffer_regexps)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "List of regexps matching names of buffers that dabbrev should not check."//LF// &
                         "See also `dabbrev_ignored_buffer_names' and"//LF// &
                         "`dabbrev_ignored_buffer_modes'."
@@ -16112,22 +16298,26 @@ contains
             entry%file = "dabbrev_fm.f90"
             entry%fortran = "dabbrev_limit"
             entry%user_option = .true.
+
             if (allocated(dabbrev_limit)) then
                 entry%value = repr(dabbrev_limit)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Limits region searched by `dabbrev_expand' to this many chars away"//LF// &
                         "(unallocated: off)."
         case ("dabbrev_search_these_buffers_only")
             entry%file = "dabbrev_fm.f90"
             entry%fortran = "dabbrev_search_these_buffers_only"
             entry%user_option = .true.
+
             if (allocated(dabbrev_search_these_buffers_only)) then
                 entry%value = repr(dabbrev_search_these_buffers_only)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "If allocated, a list of buffers which dabbrev should search (their"//LF// &
                         "names)."//LF// &
                         "If this variable is allocated and not empty, dabbrev will only look in"//LF// &
@@ -16154,6 +16344,7 @@ contains
             entry%fortran = "default_justification"
             entry%user_option = .true.
             entry%original = "JUSTIFY_LEFT"
+
             select case (default_justification)
             case (JUSTIFY_NONE)
                 entry%value = "JUSTIFY_NONE"
@@ -16170,6 +16361,7 @@ contains
             case default
                 entry%value = repr(default_justification)
             end select
+
             entry%doc = "Method of justifying text not otherwise specified."//LF// &
                         "Possible values are JUSTIFY_LEFT, JUSTIFY_RIGHT, JUSTIFY_FULL,"//LF// &
                         "JUSTIFY_CENTER, or JUSTIFY_NONE."//LF// &
@@ -16194,6 +16386,7 @@ contains
             entry%file = "keyboard_fm.f90"
             entry%fortran = "defining_kbd_macro"
             entry%original = "DEFINING_KBD_MACRO_NIL"
+
             select case (defining_kbd_macro)
             case (DEFINING_KBD_MACRO_NIL)
                 entry%value = "DEFINING_KBD_MACRO_NIL"
@@ -16204,6 +16397,7 @@ contains
             case default
                 entry%value = repr(defining_kbd_macro)
             end select
+
             entry%doc = "Not `DEFINING_KBD_MACRO_NIL' while a keyboard macro is being defined."//LF// &
                         "Don't set this!"//LF// &
                         "The value is `DEFINING_KBD_MACRO_APPEND' while appending to the"//LF// &
@@ -16244,11 +16438,13 @@ contains
             entry%file = "diff_fm.f90"
             entry%fortran = "diff_command"
             entry%user_option = .true.
+
             if (allocated(diff_command)) then
                 entry%value = repr(diff_command)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The command to use to run diff."
         case ("diff_default_read_only")
             entry%file = "diff_mode_fm.f90"
@@ -16304,11 +16500,13 @@ contains
             entry%file = "diff_fm.f90"
             entry%fortran = "diff_switches"
             entry%user_option = .true.
+
             if (allocated(diff_switches)) then
                 entry%value = repr(diff_switches)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "A string specifying switches to be passed to diff."//LF// &
                         ""//LF// &
                         "This variable is also used in the `vc_diff' command (and related"//LF// &
@@ -16319,6 +16517,7 @@ contains
             entry%file = "diff_fm.f90"
             entry%fortran = "diff_use_labels"
             entry%original = "DIFF_LABELS_CHECK"
+
             select case (diff_use_labels)
             case (DIFF_LABELS_NO)
                 entry%value = "DIFF_LABELS_NO"
@@ -16329,6 +16528,7 @@ contains
             case default
                 entry%value = repr(diff_use_labels)
             end select
+
             entry%doc = "Whether `diff_command' understands the ""--label"" option."//LF// &
                         "Possible values are:"//LF// &
                         "  DIFF_LABELS_YES   -- yes, it does"//LF// &
@@ -16346,11 +16546,13 @@ contains
         case ("directory_listing_before_filename_regexp")
             entry%file = "files_fm.f90"
             entry%fortran = "directory_listing_before_filename_regexp"
+
             if (allocated(directory_listing_before_filename_regexp)) then
                 entry%value = repr(directory_listing_before_filename_regexp)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regular expression to match up to the file name in a directory listing."//LF// &
                         "The default value is designed to recognize dates and times"//LF// &
                         "regardless of the language."
@@ -16362,11 +16564,13 @@ contains
         case ("dired__ls_error_file")
             entry%file = "files_fm.f90"
             entry%fortran = "dired_ls_error_file"
+
             if (allocated(dired_ls_error_file)) then
                 entry%value = repr(dired_ls_error_file)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "When allocated, name of temporary file an `ls' error is written to."
         case ("dired_after_readin_hook")
             entry%file = "dired_mode_fm.f90"
@@ -16417,21 +16621,25 @@ contains
             entry%file = "dired_mode_fm.f90"
             entry%fortran = "dired_chown_program"
             entry%user_option = .true.
+
             if (allocated(dired_chown_program)) then
                 entry%value = repr(dired_chown_program)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Name of chown command (usually `chown')."
         case ("dired_compress_directory_default_suffix")
             entry%file = "dired_mode_fm.f90"
             entry%fortran = "dired_compress_directory_default_suffix"
             entry%user_option = .true.
+
             if (allocated(dired_compress_directory_default_suffix)) then
                 entry%value = repr(dired_compress_directory_default_suffix)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Default suffix for compressing a directory."//LF// &
                         "If empty, "".tar.gz"" will be used."
         case ("dired_compress_file_alist")
@@ -16449,11 +16657,13 @@ contains
             entry%file = "dired_mode_fm.f90"
             entry%fortran = "dired_compress_file_default_suffix"
             entry%user_option = .true.
+
             if (allocated(dired_compress_file_default_suffix)) then
                 entry%value = repr(dired_compress_file_default_suffix)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Default suffix for compressing a single file."//LF// &
                         "If empty, "".gz"" will be used."
         case ("dired_compress_file_suffixes")
@@ -16505,6 +16715,7 @@ contains
             entry%fortran = "dired_create_destination_dirs"
             entry%user_option = .true.
             entry%original = "DIRED_CREATE_DESTINATION_DIRS_NIL"
+
             select case (dired_create_destination_dirs)
             case (DIRED_CREATE_DESTINATION_DIRS_NIL)
                 entry%value = "DIRED_CREATE_DESTINATION_DIRS_NIL"
@@ -16515,6 +16726,7 @@ contains
             case default
                 entry%value = repr(dired_create_destination_dirs)
             end select
+
             entry%doc = "Whether Dired should create destination dirs when copying/moving files."//LF// &
                         "If DIRED_CREATE_DESTINATION_DIRS_NIL, don't create non-existent destination directories."//LF// &
                         "If DIRED_CREATE_DESTINATION_DIRS_ASK, ask the user whether to create them."//LF// &
@@ -16569,11 +16781,13 @@ contains
         case ("dired_directory_face")
             entry%file = "dired_mode_fm.f90"
             entry%fortran = "dired_directory_face"
+
             if (allocated(dired_directory_face)) then
                 entry%value = repr(dired_directory_face)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face name used for subdirectories."
         case ("dired_do_revert_buffer")
             entry%file = "dired_mode_fm.f90"
@@ -16592,6 +16806,7 @@ contains
             entry%fortran = "dired_dwim_target"
             entry%user_option = .true.
             entry%original = "DIRED_DWIM_TARGET_NIL"
+
             select case (dired_dwim_target)
             case (DIRED_DWIM_TARGET_NIL)
                 entry%value = "DIRED_DWIM_TARGET_NIL"
@@ -16604,6 +16819,7 @@ contains
             case default
                 entry%value = repr(dired_dwim_target)
             end select
+
             entry%doc = "If set, Dired tries to guess a default target directory."//LF// &
                         "This means: if there is a Dired buffer displayed in some window,"//LF// &
                         "use its current directory, instead of this Dired buffer's"//LF// &
@@ -16622,17 +16838,20 @@ contains
         case ("dired_flagged_face")
             entry%file = "dired_mode_fm.f90"
             entry%fortran = "dired_flagged_face"
+
             if (allocated(dired_flagged_face)) then
                 entry%value = repr(dired_flagged_face)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face name used for files flagged for deletion."
         case ("dired_free_space")
             entry%file = "dired_mode_fm.f90"
             entry%fortran = "dired_free_space"
             entry%user_option = .true.
             entry%original = "DIRED_FREE_SPACE_FIRST"
+
             select case (dired_free_space)
             case (DIRED_FREE_SPACE_NIL)
                 entry%value = "DIRED_FREE_SPACE_NIL"
@@ -16643,6 +16862,7 @@ contains
             case default
                 entry%value = repr(dired_free_space)
             end select
+
             entry%doc = "Whether and how to display the disk space usage info in Dired buffers."//LF// &
                         "If DIRED_FREE_SPACE_NIL, don't display."//LF// &
                         "If DIRED_FREE_SPACE_SEPARATE, display on a separate line, and include both the used"//LF// &
@@ -16653,11 +16873,13 @@ contains
             entry%file = "dired_mode_fm.f90"
             entry%fortran = "dired_garbage_files_regexp"
             entry%user_option = .true.
+
             if (allocated(dired_garbage_files_regexp)) then
                 entry%value = repr(dired_garbage_files_regexp)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regular expression to match ""garbage"" files for"//LF// &
                         "`dired_flag_garbage_files'."
         case ("dired_header")
@@ -16667,11 +16889,13 @@ contains
         case ("dired_header_face")
             entry%file = "dired_mode_fm.f90"
             entry%fortran = "dired_header_face"
+
             if (allocated(dired_header_face)) then
                 entry%value = repr(dired_header_face)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face name used for directory headers."
         case ("dired_ignored")
             entry%file = "dired_mode_fm.f90"
@@ -16680,11 +16904,13 @@ contains
         case ("dired_ignored_face")
             entry%file = "dired_mode_fm.f90"
             entry%fortran = "dired_ignored_face"
+
             if (allocated(dired_ignored_face)) then
                 entry%value = repr(dired_ignored_face)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face name used for files suffixed with `completion_ignored_extensions'."
         case ("dired_initial_position_hook")
             entry%file = "dired_mode_fm.f90"
@@ -16744,11 +16970,13 @@ contains
             entry%file = "dired_mode_fm.f90"
             entry%fortran = "dired_listing_switches"
             entry%user_option = .true.
+
             if (allocated(dired_listing_switches)) then
                 entry%value = repr(dired_listing_switches)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Switches passed to `ls' for Dired.  MUST contain the `l' option."//LF// &
                         "May contain all other options that don't contradict `-l';"//LF// &
                         "may contain even `F', `b', `i' and `s'.  See also the variable"//LF// &
@@ -16783,17 +17011,20 @@ contains
         case ("dired_mark_face")
             entry%file = "dired_mode_fm.f90"
             entry%fortran = "dired_mark_face"
+
             if (allocated(dired_mark_face)) then
                 entry%value = repr(dired_mark_face)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face name used for Dired marks."
         case ("dired_mark_region")
             entry%file = "dired_mode_fm.f90"
             entry%fortran = "dired_mark_region"
             entry%user_option = .true.
             entry%original = "DIRED_MARK_REGION_FILE"
+
             select case (dired_mark_region)
             case (DIRED_MARK_REGION_NIL)
                 entry%value = "DIRED_MARK_REGION_NIL"
@@ -16804,6 +17035,7 @@ contains
             case default
                 entry%value = repr(dired_mark_region)
             end select
+
             entry%doc = "Defines what commands that mark files do with the active region."//LF// &
                         ""//LF// &
                         "When DIRED_MARK_REGION_NIL, marking commands don't operate on all files in the"//LF// &
@@ -16830,11 +17062,13 @@ contains
         case ("dired_marked_face")
             entry%file = "dired_mode_fm.f90"
             entry%fortran = "dired_marked_face"
+
             if (allocated(dired_marked_face)) then
                 entry%value = repr(dired_marked_face)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face name used for marked files."
         case ("dired_marker_char")
             entry%file = "dired_mode_fm.f90"
@@ -16858,6 +17092,7 @@ contains
             entry%fortran = "dired_movement_style"
             entry%user_option = .true.
             entry%original = "DIRED_MOVEMENT_STYLE_NIL"
+
             select case (dired_movement_style)
             case (DIRED_MOVEMENT_STYLE_NIL)
                 entry%value = "DIRED_MOVEMENT_STYLE_NIL"
@@ -16872,6 +17107,7 @@ contains
             case default
                 entry%value = repr(dired_movement_style)
             end select
+
             entry%doc = "A value other than DIRED_MOVEMENT_STYLE_NIL means point skips empty"//LF// &
                         "lines when moving in Dired buffers."//LF// &
                         "This affects only `dired_next_line', `dired_previous_line',"//LF// &
@@ -16909,17 +17145,20 @@ contains
         case ("dired_perm_write_face")
             entry%file = "dired_mode_fm.f90"
             entry%fortran = "dired_perm_write_face"
+
             if (allocated(dired_perm_write_face)) then
                 entry%value = repr(dired_perm_write_face)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face name used for permissions of group- and world-writable files."
         case ("dired_recursive_copies")
             entry%file = "dired_mode_fm.f90"
             entry%fortran = "dired_recursive_copies"
             entry%user_option = .true.
             entry%original = "DIRED_RECURSIVE_TOP"
+
             select case (dired_recursive_copies)
             case (DIRED_RECURSIVE_NEVER)
                 entry%value = "DIRED_RECURSIVE_NEVER"
@@ -16932,6 +17171,7 @@ contains
             case default
                 entry%value = repr(dired_recursive_copies)
             end select
+
             entry%doc = "Whether Dired copies directories recursively."//LF// &
                         "If DIRED_RECURSIVE_NEVER, never copy recursively."//LF// &
                         "DIRED_RECURSIVE_ALWAYS means to copy recursively without asking."//LF// &
@@ -16942,6 +17182,7 @@ contains
             entry%fortran = "dired_recursive_deletes"
             entry%user_option = .true.
             entry%original = "DIRED_RECURSIVE_TOP"
+
             select case (dired_recursive_deletes)
             case (DIRED_RECURSIVE_NEVER)
                 entry%value = "DIRED_RECURSIVE_NEVER"
@@ -16954,6 +17195,7 @@ contains
             case default
                 entry%value = repr(dired_recursive_deletes)
             end select
+
             entry%doc = "Whether Dired deletes directories recursively."//LF// &
                         "If DIRED_RECURSIVE_NEVER, Dired will not delete non-empty directories."//LF// &
                         "DIRED_RECURSIVE_ALWAYS means to delete non-empty directories recursively,"//LF// &
@@ -16982,6 +17224,7 @@ contains
             entry%fortran = "dired_switches_in_mode_line"
             entry%user_option = .true.
             entry%original = "DIRED_SWITCHES_SORT_ORDER"
+
             select case (dired_switches_in_mode_line)
             case (DIRED_SWITCHES_SORT_ORDER)
                 entry%value = "DIRED_SWITCHES_SORT_ORDER"
@@ -16990,6 +17233,7 @@ contains
             case default
                 entry%value = repr(dired_switches_in_mode_line)
             end select
+
             entry%doc = "How to indicate `dired_actual_switches' in mode-line."//LF// &
                         "Possible values:"//LF// &
                         " * DIRED_SWITCHES_SORT_ORDER: Indicate name-or-date sort order, if"//LF// &
@@ -17003,31 +17247,37 @@ contains
         case ("dired_symlink_face")
             entry%file = "dired_mode_fm.f90"
             entry%fortran = "dired_symlink_face"
+
             if (allocated(dired_symlink_face)) then
                 entry%value = repr(dired_symlink_face)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face name used for symbolic links."
         case ("dired_touch_program")
             entry%file = "dired_mode_fm.f90"
             entry%fortran = "dired_touch_program"
             entry%user_option = .true.
+
             if (allocated(dired_touch_program)) then
                 entry%value = repr(dired_touch_program)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Name of touch command (usually `touch')."
         case ("dired_trivial_filenames")
             entry%file = "dired_mode_fm.f90"
             entry%fortran = "dired_trivial_filenames"
             entry%user_option = .true.
+
             if (allocated(dired_trivial_filenames)) then
                 entry%value = repr(dired_trivial_filenames)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp of files to skip when finding first file of a directory."//LF// &
                         "An unallocated value means move to the subdir line."
         case ("dired_use_ls_dired")
@@ -17035,6 +17285,7 @@ contains
             entry%fortran = "dired_use_ls_dired"
             entry%user_option = .true.
             entry%original = "DIRED_USE_LS_DIRED_UNSPECIFIED"
+
             select case (dired_use_ls_dired)
             case (DIRED_USE_LS_DIRED_NIL)
                 entry%value = "DIRED_USE_LS_DIRED_NIL"
@@ -17045,6 +17296,7 @@ contains
             case default
                 entry%value = repr(dired_use_ls_dired)
             end select
+
             entry%doc = "DIRED_USE_LS_DIRED_T means Dired should pass the ""--dired"" option to ""ls""."//LF// &
                         "If DIRED_USE_LS_DIRED_NIL, don't pass ""--dired"" to ""ls""."//LF// &
                         "The special value DIRED_USE_LS_DIRED_UNSPECIFIED means to check whether"//LF// &
@@ -17065,11 +17317,13 @@ contains
         case ("dired_warning_face")
             entry%file = "dired_mode_fm.f90"
             entry%fortran = "dired_warning_face"
+
             if (allocated(dired_warning_face)) then
                 entry%value = repr(dired_warning_face)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face name used for a part of a buffer that needs user attention."
         case ("disable_point_adjustment")
             entry%file = "keyboard_fm.f90"
@@ -17096,6 +17350,7 @@ contains
             entry%file = "window_fm.f90"
             entry%fortran = "display_buffer_mark_dedicated"
             entry%original = "DEDICATED_NONE"
+
             select case (display_buffer_mark_dedicated)
             case (DEDICATED_NONE)
                 entry%value = "DEDICATED_NONE"
@@ -17106,6 +17361,7 @@ contains
             case default
                 entry%value = repr(display_buffer_mark_dedicated)
             end select
+
             entry%doc = "If not DEDICATED_NONE, `display_buffer' marks the windows it creates as"//LF// &
                         "dedicated.  The actual value of this variable will be copied"//LF// &
                         "to the `window_dedicated_p' flag."
@@ -17133,20 +17389,24 @@ contains
         case ("electric_indent_chars")
             entry%file = "electric_fm.f90"
             entry%fortran = "electric_indent_chars"
+
             if (allocated(electric_indent_chars)) then
                 entry%value = repr(electric_indent_chars)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Characters that should cause automatic reindentation."
         case ("electric_indent_functions_without_reindent")
             entry%file = "electric_fm.f90"
             entry%fortran = "electric_indent_functions_without_reindent"
+
             if (allocated(electric_indent_functions_without_reindent)) then
                 entry%value = repr(electric_indent_functions_without_reindent)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "List of indent functions that can't reindent."//LF// &
                         "If `indent_line_function' is one of those, then `electric_indent_mode' will"//LF// &
                         "not try to reindent lines.  It is normally better to make the major"//LF// &
@@ -17241,6 +17501,7 @@ contains
             entry%fortran = "electric_pair_skip_whitespace"
             entry%user_option = .true.
             entry%original = "ELECTRIC_PAIR_SKIP_WHITESPACE_T"
+
             select case (electric_pair_skip_whitespace)
             case (ELECTRIC_PAIR_SKIP_WHITESPACE_NIL)
                 entry%value = "ELECTRIC_PAIR_SKIP_WHITESPACE_NIL"
@@ -17251,6 +17512,7 @@ contains
             case default
                 entry%value = repr(electric_pair_skip_whitespace)
             end select
+
             entry%doc = "Whether typing a closing delimiter moves point over whitespace."//LF// &
                         "If `ELECTRIC_PAIR_SKIP_WHITESPACE_T' and point is separated from a"//LF// &
                         "closing delimiter only by whitespace, then typing a closing delimiter"//LF// &
@@ -17267,11 +17529,13 @@ contains
             entry%file = "elec_pair_fm.f90"
             entry%fortran = "electric_pair_skip_whitespace_chars"
             entry%user_option = .true.
+
             if (allocated(electric_pair_skip_whitespace_chars)) then
                 entry%value = repr(electric_pair_skip_whitespace_chars)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Whitespace characters considered by `electric_pair_skip_whitespace'."
         case ("electric_pair_text_pairs")
             entry%file = "elec_pair_fm.f90"
@@ -17304,41 +17568,49 @@ contains
             entry%file = "coding_fm.f90"
             entry%fortran = "eol_mnemonic_dos"
             entry%user_option = .true.
+
             if (allocated(eol_mnemonic_dos%value)) then
                 entry%value = repr(eol_mnemonic_dos%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "String displayed in mode line for DOS-like (CRLF) end-of-line format."
         case ("eol_mnemonic_mac")
             entry%file = "coding_fm.f90"
             entry%fortran = "eol_mnemonic_mac"
             entry%user_option = .true.
+
             if (allocated(eol_mnemonic_mac%value)) then
                 entry%value = repr(eol_mnemonic_mac%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "String displayed in mode line for MAC-like (CR) end-of-line format."
         case ("eol_mnemonic_undecided")
             entry%file = "coding_fm.f90"
             entry%fortran = "eol_mnemonic_undecided"
             entry%user_option = .true.
+
             if (allocated(eol_mnemonic_undecided%value)) then
                 entry%value = repr(eol_mnemonic_undecided%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "String displayed in mode line when end-of-line format is not yet determined."
         case ("eol_mnemonic_unix")
             entry%file = "coding_fm.f90"
             entry%fortran = "eol_mnemonic_unix"
             entry%user_option = .true.
+
             if (allocated(eol_mnemonic_unix%value)) then
                 entry%value = repr(eol_mnemonic_unix%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "String displayed in mode line for UNIX-like (LF) end-of-line format."
         case ("even_window_sizes")
             entry%file = "window_fm.f90"
@@ -17380,21 +17652,25 @@ contains
             entry%file = "executable_fm.f90"
             entry%fortran = "executable_magicless_file_regexp"
             entry%user_option = .true.
+
             if (allocated(executable_magicless_file_regexp)) then
                 entry%value = repr(executable_magicless_file_regexp)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "On files with this kind of name no magic is inserted or changed."
         case ("executable_prefix")
             entry%file = "executable_fm.f90"
             entry%fortran = "executable_prefix"
             entry%user_option = .true.
+
             if (allocated(executable_prefix)) then
                 entry%value = repr(executable_prefix)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Interpreter magic number prefix inserted when there was no magic number."//LF// &
                         "Use of `executable_prefix_env' is preferable to this option."
         case ("executable_prefix_env")
@@ -17412,6 +17688,7 @@ contains
             entry%fortran = "executable_query"
             entry%user_option = .true.
             entry%original = "EXECUTABLE_QUERY_FUNCTION"
+
             select case (executable_query)
             case (EXECUTABLE_QUERY_NIL)
                 entry%value = "EXECUTABLE_QUERY_NIL"
@@ -17422,6 +17699,7 @@ contains
             case default
                 entry%value = repr(executable_query)
             end select
+
             entry%doc = "If true (not `EXECUTABLE_QUERY_NIL'), ask user before changing an"//LF// &
                         "existing magic number.  When this is `EXECUTABLE_QUERY_FUNCTION',"//LF// &
                         "only ask when called non-interactively."
@@ -17429,11 +17707,13 @@ contains
             entry%file = "executable_fm.f90"
             entry%fortran = "executable_self_display"
             entry%user_option = .true.
+
             if (allocated(executable_self_display)) then
                 entry%value = repr(executable_self_display)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Command you use with argument `-n+2' to make text files self-display."//LF// &
                         "Note that the like of `more' doesn't work too well under Emacs \[shell]."
         case ("explicit_bash_args")
@@ -17452,11 +17732,13 @@ contains
             entry%file = "shell_fm.f90"
             entry%fortran = "explicit_shell_file_name"
             entry%user_option = .true.
+
             if (allocated(explicit_shell_file_name%value)) then
                 entry%value = repr(explicit_shell_file_name%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "If allocated, the file name to use for explicitly requested inferior"//LF// &
                         "shells.  When unallocated, such interactive shell sessions fall back"//LF// &
                         "to using the shell specified in either the environment variable"//LF// &
@@ -17473,6 +17755,7 @@ contains
             entry%fortran = "f90_auto_keyword_case"
             entry%user_option = .true.
             entry%original = "F90_KEYWORD_CASE_NIL"
+
             select case (f90_auto_keyword_case%value)
             case (F90_KEYWORD_CASE_NIL)
                 entry%value = "F90_KEYWORD_CASE_NIL"
@@ -17485,6 +17768,7 @@ contains
             case default
                 entry%value = repr(f90_auto_keyword_case%value)
             end select
+
             entry%doc = "Automatic case conversion of keywords."//LF// &
                         "The options are F90_KEYWORD_CASE_DOWNCASE_WORD, _UPCASE_WORD,"//LF// &
                         "_CAPITALIZE_WORD and _NIL."
@@ -17498,11 +17782,13 @@ contains
         case ("f90_blocks_re")
             entry%file = "f90_fm.f90"
             entry%fortran = "f90_blocks_re"
+
             if (allocated(f90_blocks_re)) then
                 entry%value = repr(f90_blocks_re)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp potentially indicating a ""block"" of F90 code."
         case ("f90_break_before_delimiters")
             entry%file = "f90_fm.f90"
@@ -17515,11 +17801,13 @@ contains
             entry%file = "f90_fm.f90"
             entry%fortran = "f90_break_delimiters"
             entry%user_option = .true.
+
             if (allocated(f90_break_delimiters%value)) then
                 entry%value = repr(f90_break_delimiters%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp matching delimiter characters at which lines may be broken."//LF// &
                         "There are some common two-character tokens where one or more of"//LF// &
                         "the members matches this regexp.  Although Fortran allows breaks"//LF// &
@@ -17535,20 +17823,24 @@ contains
             entry%file = "f90_fm.f90"
             entry%fortran = "f90_comment_region"
             entry%user_option = .true.
+
             if (allocated(f90_comment_region%value)) then
                 entry%value = repr(f90_comment_region%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "String inserted by \[f90_comment_region] at start of each line in region."
         case ("f90_constants_re")
             entry%file = "f90_fm.f90"
             entry%fortran = "f90_constants_re"
+
             if (allocated(f90_constants_re)) then
                 entry%value = repr(f90_constants_re)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp for Fortran intrinsic constants."
         case ("f90_continuation_indent")
             entry%file = "f90_fm.f90"
@@ -17568,11 +17860,13 @@ contains
             entry%file = "f90_fm.f90"
             entry%fortran = "f90_directive_comment_re"
             entry%user_option = .true.
+
             if (allocated(f90_directive_comment_re%value)) then
                 entry%value = repr(f90_directive_comment_re%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp of comment-like directive like ""!HPF\\$"", not to be indented."
         case ("f90_do_indent")
             entry%file = "f90_fm.f90"
@@ -17584,21 +17878,25 @@ contains
         case ("f90_end_block_re")
             entry%file = "f90_fm.f90"
             entry%fortran = "f90_end_block_re"
+
             if (allocated(f90_end_block_re)) then
                 entry%value = repr(f90_end_block_re)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp matching the end of an F90 ""block"", from the line start."//LF// &
                         "Used in the F90 entry in `hs_block_end_regexp'."
         case ("f90_end_if_re")
             entry%file = "f90_fm.f90"
             entry%fortran = "f90_end_if_re"
+
             if (allocated(f90_end_if_re)) then
                 entry%value = repr(f90_end_if_re)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp matching the end of an IF, SELECT, WHERE, FORALL block."
         case ("f90_font_lock_keywords")
             entry%file = "f90_fm.f90"
@@ -17624,11 +17922,13 @@ contains
         case ("f90_hpf_keywords_re")
             entry%file = "f90_fm.f90"
             entry%fortran = "f90_hpf_keywords_re"
+
             if (allocated(f90_hpf_keywords_re)) then
                 entry%value = repr(f90_hpf_keywords_re)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp for all HPF keywords, procedures and directives."
         case ("f90_if_indent")
             entry%file = "f90_fm.f90"
@@ -17641,29 +17941,35 @@ contains
             entry%file = "f90_fm.f90"
             entry%fortran = "f90_indented_comment_re"
             entry%user_option = .true.
+
             if (allocated(f90_indented_comment_re%value)) then
                 entry%value = repr(f90_indented_comment_re%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp matching comments to indent as code."
         case ("f90_keywords_level_3_re")
             entry%file = "f90_fm.f90"
             entry%fortran = "f90_keywords_level_3_re"
+
             if (allocated(f90_keywords_level_3_re)) then
                 entry%value = repr(f90_keywords_level_3_re)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Keyword-regexp for font-lock level >= 3."
         case ("f90_keywords_re")
             entry%file = "f90_fm.f90"
             entry%fortran = "f90_keywords_re"
+
             if (allocated(f90_keywords_re)) then
                 entry%value = repr(f90_keywords_re)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp used by the function `f90_change_keywords'."
         case ("f90_leave_line_no")
             entry%file = "f90_fm.f90"
@@ -17692,11 +17998,13 @@ contains
         case ("f90_no_break_re")
             entry%file = "f90_fm.f90"
             entry%fortran = "f90_no_break_re"
+
             if (allocated(f90_no_break_re)) then
                 entry%value = repr(f90_no_break_re)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp specifying two-character tokens not to split when breaking lines."//LF// &
                         "Each token has one or more of the characters from `f90_break_delimiters'."//LF// &
                         "Note that if only one of the characters is from that variable,"//LF// &
@@ -17706,29 +18014,35 @@ contains
         case ("f90_operators_re")
             entry%file = "f90_fm.f90"
             entry%fortran = "f90_operators_re"
+
             if (allocated(f90_operators_re)) then
                 entry%value = repr(f90_operators_re)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp matching intrinsic operators."
         case ("f90_procedures_re")
             entry%file = "f90_fm.f90"
             entry%fortran = "f90_procedures_re"
+
             if (allocated(f90_procedures_re)) then
                 entry%value = repr(f90_procedures_re)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp whose first part matches F90 intrinsic procedures."
         case ("f90_program_block_re")
             entry%file = "f90_fm.f90"
             entry%fortran = "f90_program_block_re"
+
             if (allocated(f90_program_block_re)) then
                 entry%value = repr(f90_program_block_re)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp used to locate the start/end of a ""subprogram""."
         case ("f90_program_indent")
             entry%file = "f90_fm.f90"
@@ -17742,6 +18056,7 @@ contains
             entry%fortran = "f90_smart_end"
             entry%user_option = .true.
             entry%original = "F90_SMART_END_BLINK"
+
             select case (f90_smart_end%value)
             case (F90_SMART_END_NIL)
                 entry%value = "F90_SMART_END_NIL"
@@ -17752,6 +18067,7 @@ contains
             case default
                 entry%value = repr(f90_smart_end%value)
             end select
+
             entry%doc = "Qualification of END statements according to the matching block start."//LF// &
                         "For example, change the END that closes an IF block to END IF."//LF// &
                         "If the block has a label, add it as well (unless `f90_smart_end_names'"//LF// &
@@ -17779,11 +18095,13 @@ contains
         case ("f90_start_block_re")
             entry%file = "f90_fm.f90"
             entry%fortran = "f90_start_block_re"
+
             if (allocated(f90_start_block_re)) then
                 entry%value = repr(f90_start_block_re)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp matching the start of an F90 ""block"", from the line start."//LF// &
                         "A simple regexp cannot do this in fully correct fashion, so this"//LF// &
                         "tries to strike a compromise between complexity and flexibility."//LF// &
@@ -17852,11 +18170,13 @@ contains
             entry%file = "simple_fm.f90"
             entry%fortran = "fill_prefix"
             entry%user_option = .true.
+
             if (allocated(fill_prefix%value)) then
                 entry%value = repr(fill_prefix%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "String for filling to insert at front of new line, or unallocated"//LF// &
                         "for none."
         case ("fill_separate_heterogeneous_words_with_space")
@@ -17892,20 +18212,24 @@ contains
             entry%file = "grep_fm.f90"
             entry%fortran = "find_name_arg"
             entry%user_option = .true.
+
             if (allocated(find_name_arg)) then
                 entry%value = repr(find_name_arg)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Option to `find' to match the base name of files."
         case ("find_program")
             entry%file = "grep_fm.f90"
             entry%fortran = "find_program"
+
             if (allocated(find_program)) then
                 entry%value = repr(find_program)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The default find program."//LF// &
                         "This is used by commands like `grep_find_command', `find_dired' and"//LF// &
                         "others."
@@ -17917,20 +18241,24 @@ contains
         case ("font_lock_comment_end_skip")
             entry%file = "font_lock_fm.f90"
             entry%fortran = "font_lock_comment_end_skip"
+
             if (allocated(font_lock_comment_end_skip%value)) then
                 entry%value = repr(font_lock_comment_end_skip%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "If set, Font Lock mode uses this instead of `comment_end_skip'."
         case ("font_lock_comment_start_skip")
             entry%file = "font_lock_fm.f90"
             entry%fortran = "font_lock_comment_start_skip"
+
             if (allocated(font_lock_comment_start_skip%value)) then
                 entry%value = repr(font_lock_comment_start_skip%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "If set, Font Lock mode uses this instead of `comment_start_skip'."
         case ("font_lock_defaults")
             entry%file = "font_core_fm.f90"
@@ -17947,11 +18275,13 @@ contains
         case ("font_lock_extra_managed_props")
             entry%file = "font_lock_fm.f90"
             entry%fortran = "font_lock_extra_managed_props"
+
             if (allocated(font_lock_extra_managed_props)) then
                 entry%value = repr(font_lock_extra_managed_props)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Additional text properties managed by font-lock."//LF// &
                         "This is used by `font_lock_default_unfontify_region' to decide"//LF// &
                         "what properties to clear before refontifying a region."
@@ -17966,12 +18296,14 @@ contains
             entry%fortran = "font_lock_maximum_decoration"
             entry%user_option = .true.
             entry%original = "FONT_LOCK_DECORATION_MAX"
+
             select case (font_lock_maximum_decoration)
             case (FONT_LOCK_DECORATION_MAX)
                 entry%value = "FONT_LOCK_DECORATION_MAX"
             case default
                 entry%value = repr(font_lock_maximum_decoration)
             end select
+
             entry%doc = "Maximum decoration level for fontification."//LF// &
                         "If 0, use the default decoration (typically the minimum available)."//LF// &
                         "If FONT_LOCK_DECORATION_MAX (the default), use the maximum decoration"//LF// &
@@ -17986,6 +18318,7 @@ contains
             entry%file = "font_lock_fm.f90"
             entry%fortran = "font_lock_support_mode"
             entry%original = "FONT_LOCK_SUPPORT_JIT_LOCK"
+
             select case (font_lock_support_mode)
             case (FONT_LOCK_SUPPORT_NONE)
                 entry%value = "FONT_LOCK_SUPPORT_NONE"
@@ -17994,6 +18327,7 @@ contains
             case default
                 entry%value = repr(font_lock_support_mode)
             end select
+
             entry%doc = "Support mode for Font Lock mode."//LF// &
                         "If FONT_LOCK_SUPPORT_NONE, means support for Font Lock mode is never"//LF// &
                         "performed.  This can be useful for debugging."//LF// &
@@ -18038,11 +18372,13 @@ contains
             entry%file = "autorevert_fm.f90"
             entry%fortran = "global_auto_revert_ignore_modes"
             entry%user_option = .true.
+
             if (allocated(global_auto_revert_ignore_modes)) then
                 entry%value = repr(global_auto_revert_ignore_modes)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "List of major modes Global Auto-Revert Mode should not check."//LF// &
                         "(Each name is used without its trailing blanks.)"
         case ("global_auto_revert_mode_hook")
@@ -18054,11 +18390,13 @@ contains
             entry%file = "autorevert_fm.f90"
             entry%fortran = "global_auto_revert_mode_text"
             entry%user_option = .true.
+
             if (allocated(global_auto_revert_mode_text)) then
                 entry%value = repr(global_auto_revert_mode_text)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "String to display when Global Auto-Revert Mode is active."//LF// &
                         ""//LF// &
                         "The default is nothing since when this mode is active this text doesn't"//LF// &
@@ -18112,11 +18450,13 @@ contains
             entry%file = "grep_fm.f90"
             entry%fortran = "grep_command"
             entry%user_option = .true.
+
             if (allocated(grep_command)) then
                 entry%value = repr(grep_command)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The default grep command for \[grep]."//LF// &
                         "If the grep program used supports an option to always include file"//LF// &
                         "names in its output (such as the `-H' option to GNU grep), it's a"//LF// &
@@ -18147,11 +18487,13 @@ contains
         case ("grep_context_face")
             entry%file = "grep_fm.f90"
             entry%fortran = "grep_context_face"
+
             if (allocated(grep_context_face)) then
                 entry%value = repr(grep_context_face)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face name to use for grep context lines."
         case ("grep_edit_mode_hook")
             entry%file = "grep_fm.f90"
@@ -18164,20 +18506,24 @@ contains
         case ("grep_error")
             entry%file = "grep_fm.f90"
             entry%fortran = "grep_error"
+
             if (allocated(grep_error)) then
                 entry%value = repr(grep_error)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Message to print when no matches are found."
         case ("grep_error_face")
             entry%file = "grep_fm.f90"
             entry%fortran = "grep_error_face"
+
             if (allocated(grep_error_face)) then
                 entry%value = repr(grep_error_face)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face name to use for grep error messages."
         case ("grep_error_screen_columns")
             entry%file = "grep_fm.f90"
@@ -18208,11 +18554,13 @@ contains
             entry%file = "grep_fm.f90"
             entry%fortran = "grep_find_command"
             entry%user_option = .true.
+
             if (allocated(grep_find_command)) then
                 entry%value = repr(grep_find_command)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The default find command for \[grep_find]."//LF// &
                         "In interactive usage, the actual value of this variable is set up"//LF// &
                         "by `grep_compute_defaults'; to change the default value, use"//LF// &
@@ -18248,11 +18596,13 @@ contains
             entry%file = "grep_fm.f90"
             entry%fortran = "grep_find_template"
             entry%user_option = .true.
+
             if (allocated(grep_find_template)) then
                 entry%value = repr(grep_find_template)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The default command to run for \[rgrep]."//LF// &
                         "The following place holders should be present in the string:"//LF// &
                         " <D> - base directory for find"//LF// &
@@ -18268,6 +18618,7 @@ contains
             entry%fortran = "grep_find_use_xargs"
             entry%user_option = .true.
             entry%original = "GREP_FIND_USE_XARGS_NIL"
+
             select case (grep_find_use_xargs)
             case (GREP_FIND_USE_XARGS_NIL)
                 entry%value = "GREP_FIND_USE_XARGS_NIL"
@@ -18284,6 +18635,7 @@ contains
             case default
                 entry%value = repr(grep_find_use_xargs)
             end select
+
             entry%doc = "How to invoke find and grep."//LF// &
                         "If GREP_FIND_USE_XARGS_EXEC, use `find -exec {} ;'."//LF// &
                         "If GREP_FIND_USE_XARGS_EXEC_PLUS use `find -exec {} +'."//LF// &
@@ -18307,11 +18659,13 @@ contains
         case ("grep_heading_regexp")
             entry%file = "grep_fm.f90"
             entry%fortran = "grep_heading_regexp"
+
             if (allocated(grep_heading_regexp)) then
                 entry%value = repr(grep_heading_regexp)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp used to create headings from grep output lines."//LF// &
                         "It should be anchored at beginning of line.  The first capture"//LF// &
                         "group, if present, should match the heading associated to the"//LF// &
@@ -18323,6 +18677,7 @@ contains
             entry%fortran = "grep_highlight_matches"
             entry%user_option = .true.
             entry%original = "GREP_AUTO_DETECT"
+
             select case (grep_highlight_matches)
             case (GREP_NIL)
                 entry%value = "GREP_NIL"
@@ -18337,6 +18692,7 @@ contains
             case default
                 entry%value = repr(grep_highlight_matches)
             end select
+
             entry%doc = "Use special markers to highlight grep matches."//LF// &
                         ""//LF// &
                         "Some grep programs are able to surround matches with special"//LF// &
@@ -18366,11 +18722,13 @@ contains
         case ("grep_hit_face")
             entry%file = "grep_fm.f90"
             entry%fortran = "grep_hit_face"
+
             if (allocated(grep_hit_face)) then
                 entry%value = repr(grep_hit_face)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face name to use for grep hits."
         case ("grep_last_buffer")
             entry%file = "grep_fm.f90"
@@ -18382,21 +18740,25 @@ contains
         case ("grep_match_face")
             entry%file = "grep_fm.f90"
             entry%fortran = "grep_match_face"
+
             if (allocated(grep_match_face)) then
                 entry%value = repr(grep_match_face)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face name to use for grep matches."
         case ("grep_match_regexp")
             entry%file = "grep_fm.f90"
             entry%fortran = "grep_match_regexp"
             entry%user_option = .true.
+
             if (allocated(grep_match_regexp)) then
                 entry%value = repr(grep_match_regexp)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regular expression matching grep markers to highlight."//LF// &
                         "It matches SGR ANSI escape sequences which are emitted by grep to"//LF// &
                         "color its output.  This variable is used in `grep_filter'."
@@ -18417,11 +18779,13 @@ contains
         case ("grep_program")
             entry%file = "grep_fm.f90"
             entry%fortran = "grep_program"
+
             if (allocated(grep_program)) then
                 entry%value = repr(grep_program)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The default grep program for `grep_command' and"//LF// &
                         "`grep_find_command'.  This variable's value takes effect when"//LF// &
                         "`grep_compute_defaults' is called."
@@ -18441,6 +18805,7 @@ contains
             entry%fortran = "grep_save_buffers"
             entry%user_option = .true.
             entry%original = "GREP_SAVE_BUFFERS_ASK"
+
             select case (grep_save_buffers)
             case (GREP_SAVE_BUFFERS_NIL)
                 entry%value = "GREP_SAVE_BUFFERS_NIL"
@@ -18451,6 +18816,7 @@ contains
             case default
                 entry%value = repr(grep_save_buffers)
             end select
+
             entry%doc = "If not GREP_SAVE_BUFFERS_NIL, save buffers before running the grep"//LF// &
                         "commands.  If GREP_SAVE_BUFFERS_ASK, ask before saving.  If"//LF// &
                         "`grep_save_buffers_function' is set, call it with no arguments with"//LF// &
@@ -18477,11 +18843,13 @@ contains
             entry%file = "grep_fm.f90"
             entry%fortran = "grep_template"
             entry%user_option = .true.
+
             if (allocated(grep_template)) then
                 entry%value = repr(grep_template)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The default command to run for \[lgrep]."//LF// &
                         "The following place holders should be present in the string:"//LF// &
                         " <C> - place to put the options like -i and --color."//LF// &
@@ -18505,6 +18873,7 @@ contains
             entry%fortran = "grep_use_null_device"
             entry%user_option = .true.
             entry%original = "GREP_AUTO_DETECT"
+
             select case (grep_use_null_device)
             case (GREP_NIL)
                 entry%value = "GREP_NIL"
@@ -18519,6 +18888,7 @@ contains
             case default
                 entry%value = repr(grep_use_null_device)
             end select
+
             entry%doc = "If GREP_T, append the value of `null_device' to `grep' commands."//LF// &
                         "This is done to ensure that the output of grep includes the filename"//LF// &
                         "of any match in the case where only a single file is searched, and"//LF// &
@@ -18532,6 +18902,7 @@ contains
             entry%fortran = "grep_use_null_filename_separator"
             entry%user_option = .true.
             entry%original = "GREP_AUTO_DETECT"
+
             select case (grep_use_null_filename_separator)
             case (GREP_NIL)
                 entry%value = "GREP_NIL"
@@ -18546,6 +18917,7 @@ contains
             case default
                 entry%value = repr(grep_use_null_filename_separator)
             end select
+
             entry%doc = "If true (GREP_T), use `grep''s `--null' option."//LF// &
                         "This is done to disambiguate file names in `grep''s output."
         case ("help_map")
@@ -18611,6 +18983,7 @@ contains
             entry%fortran = "ibuffer_always_show_last_buffer"
             entry%user_option = .true.
             entry%original = "IBUFFER_SHOW_LAST_NEVER"
+
             select case (ibuffer_always_show_last_buffer)
             case (IBUFFER_SHOW_LAST_NEVER)
                 entry%value = "IBUFFER_SHOW_LAST_NEVER"
@@ -18621,6 +18994,7 @@ contains
             case default
                 entry%value = repr(ibuffer_always_show_last_buffer)
             end select
+
             entry%doc = "If not IBUFFER_SHOW_LAST_NEVER, always display the previous buffer:"//LF// &
                         "IBUFFER_SHOW_LAST_ALWAYS always, IBUFFER_SHOW_LAST_NOMINI always"//LF// &
                         "except a minibuffer.  This variable takes precedence over"//LF// &
@@ -18646,21 +19020,25 @@ contains
             entry%file = "ibuffer_fm.f90"
             entry%fortran = "ibuffer_compressed_file_name_regexp"
             entry%user_option = .true.
+
             if (allocated(ibuffer_compressed_file_name_regexp)) then
                 entry%value = repr(ibuffer_compressed_file_name_regexp)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp to match compressed file names."
         case ("ibuffer_default_directory")
             entry%file = "ibuffer_fm.f90"
             entry%fortran = "ibuffer_default_directory"
             entry%user_option = .true.
+
             if (allocated(ibuffer_default_directory)) then
                 entry%value = repr(ibuffer_default_directory)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The default directory to use for a new Ibuffer buffer."//LF// &
                         "If unallocated, inherit the directory of the buffer in which"//LF// &
                         "`ibuffer' was called.  Otherwise, this variable should be a string"//LF// &
@@ -18683,11 +19061,13 @@ contains
             entry%file = "ibuffer_fm.f90"
             entry%fortran = "ibuffer_default_sorting_mode"
             entry%user_option = .true.
+
             if (allocated(ibuffer_default_sorting_mode)) then
                 entry%value = repr(ibuffer_default_sorting_mode)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The criteria by which to sort the buffers: ""recency"" (last view"//LF// &
                         "time), ""alphabetic"" (lexicographic), ""size"" (buffer size),"//LF// &
                         """filename/process"" (file name) or ""major_mode"" (major mode)."//LF// &
@@ -18717,11 +19097,13 @@ contains
             entry%file = "ibuffer_fm.f90"
             entry%fortran = "ibuffer_deletion_face"
             entry%user_option = .true.
+
             if (allocated(ibuffer_deletion_face)) then
                 entry%value = repr(ibuffer_deletion_face)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face used for displaying buffers marked for deletion."
         case ("ibuffer_directory_abbrev_alist")
             entry%file = "ibuffer_fm.f90"
@@ -18739,11 +19121,13 @@ contains
             entry%file = "ibuffer_fm.f90"
             entry%fortran = "ibuffer_eliding_string"
             entry%user_option = .true.
+
             if (allocated(ibuffer_eliding_string)) then
                 entry%value = repr(ibuffer_eliding_string)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The string to use for eliding long columns."
         case ("ibuffer_expert")
             entry%file = "ibuffer_fm.f90"
@@ -18772,11 +19156,13 @@ contains
             entry%file = "ibuffer_fm.f90"
             entry%fortran = "ibuffer_filter_group_name_face"
             entry%user_option = .true.
+
             if (allocated(ibuffer_filter_group_name_face)) then
                 entry%value = repr(ibuffer_filter_group_name_face)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face used for displaying filtering group names."
         case ("ibuffer_filtering_alist")
             entry%file = "ibuffer_fm.f90"
@@ -18846,11 +19232,13 @@ contains
             entry%file = "ibuffer_fm.f90"
             entry%fortran = "ibuffer_help_buffer_modes"
             entry%user_option = .true.
+
             if (allocated(ibuffer_help_buffer_modes)) then
                 entry%value = repr(ibuffer_help_buffer_modes)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "List of ""Help"" major modes."
         case ("ibuffer_hook")
             entry%file = "ibuffer_fm.f90"
@@ -18899,11 +19287,13 @@ contains
             entry%file = "ibuffer_fm.f90"
             entry%fortran = "ibuffer_marked_face"
             entry%user_option = .true.
+
             if (allocated(ibuffer_marked_face)) then
                 entry%value = repr(ibuffer_marked_face)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face used for displaying marked buffers."
         case ("ibuffer_maybe_show_predicates")
             entry%file = "ibuffer_fm.f90"
@@ -18951,22 +19341,26 @@ contains
             entry%file = "ibuffer_fm.f90"
             entry%fortran = "ibuffer_never_search_content_mode"
             entry%user_option = .true.
+
             if (allocated(ibuffer_never_search_content_mode)) then
                 entry%value = repr(ibuffer_never_search_content_mode)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "A list of major modes ignored by `ibuffer_mark_by_content_regexp'."//LF// &
                         "Buffers whose major mode is in this list, are not searched."
         case ("ibuffer_never_search_content_name")
             entry%file = "ibuffer_fm.f90"
             entry%fortran = "ibuffer_never_search_content_name"
             entry%user_option = .true.
+
             if (allocated(ibuffer_never_search_content_name)) then
                 entry%value = repr(ibuffer_never_search_content_name)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "A list of regexps for buffers ignored by"//LF// &
                         "`ibuffer_mark_by_content_regexp'.  Buffers whose name matches a"//LF// &
                         "regexp in this list, are not searched."
@@ -19048,11 +19442,13 @@ contains
             entry%file = "ibuffer_fm.f90"
             entry%fortran = "ibuffer_title_face"
             entry%user_option = .true.
+
             if (allocated(ibuffer_title_face)) then
                 entry%value = repr(ibuffer_title_face)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face used for the title string."
         case ("ibuffer_truncate_lines")
             entry%file = "ibuffer_fm.f90"
@@ -19067,6 +19463,7 @@ contains
             entry%fortran = "ibuffer_use_header_line"
             entry%user_option = .true.
             entry%original = "IBUFFER_HEADER_LINE_T"
+
             select case (ibuffer_use_header_line)
             case (IBUFFER_HEADER_LINE_NIL)
                 entry%value = "IBUFFER_HEADER_LINE_NIL"
@@ -19077,6 +19474,7 @@ contains
             case default
                 entry%value = repr(ibuffer_use_header_line)
             end select
+
             entry%doc = "If not IBUFFER_HEADER_LINE_NIL, display a header line."//LF// &
                         "If the variable's value is IBUFFER_HEADER_LINE_T, the header line"//LF// &
                         "displays the current filters.  For IBUFFER_HEADER_LINE_TITLE,"//LF// &
@@ -19128,11 +19526,13 @@ contains
             entry%file = "info_fm.f90"
             entry%fortran = "info_additional_directory_list"
             entry%user_option = .true.
+
             if (allocated(info_additional_directory_list)) then
                 entry%value = repr(info_additional_directory_list)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "List of additional directories to search for Info documentation"//LF// &
                         "files.  These directories are searched after those in"//LF// &
                         "`info_directory_list'."
@@ -19148,11 +19548,13 @@ contains
             entry%file = "info_fm.f90"
             entry%fortran = "info_default_directory_list"
             entry%user_option = .true.
+
             if (allocated(info_default_directory_list)) then
                 entry%value = repr(info_default_directory_list)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Default list of directories to search for Info documentation files."//LF// &
                         "They are searched in the order they are given in the list."//LF// &
                         "Therefore, the directory of Info files that come with Fortmacs"//LF// &
@@ -19170,11 +19572,13 @@ contains
         case ("info_directory_list")
             entry%file = "info_fm.f90"
             entry%fortran = "info_directory_list"
+
             if (allocated(info_directory_list)) then
                 entry%value = repr(info_directory_list)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "List of directories to search for Info documentation files."//LF// &
                         "If unallocated, meaning not yet initialized, Info uses the"//LF// &
                         "environment variable INFOPATH to initialize it, or"//LF// &
@@ -19236,6 +19640,7 @@ contains
             entry%fortran = "info_hide_note_references"
             entry%user_option = .true.
             entry%original = "INFO_HIDE_NOTE_REFERENCES_T"
+
             select case (info_hide_note_references)
             case (INFO_HIDE_NOTE_REFERENCES_NIL)
                 entry%value = "INFO_HIDE_NOTE_REFERENCES_NIL"
@@ -19248,6 +19653,7 @@ contains
             case default
                 entry%value = repr(info_hide_note_references)
             end select
+
             entry%doc = "If true, hide the tag and section reference in *note and * menu"//LF// &
                         "items.  If the value is INFO_HIDE_NOTE_REFERENCES_T, the default,"//LF// &
                         "replace ""*note"" with ""see"".  If the value is"//LF// &
@@ -19296,11 +19702,13 @@ contains
             entry%file = "info_look_fm.f90"
             entry%fortran = "info_lookup_highlight_face"
             entry%user_option = .true.
+
             if (allocated(info_lookup_highlight_face)) then
                 entry%value = repr(info_lookup_highlight_face)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face for highlighting looked up help items.  Setting this variable"//LF// &
                         "to """" disables highlighting."
         case ("info_lookup_other_window_flag")
@@ -19351,11 +19759,13 @@ contains
             entry%file = "info_fm.f90"
             entry%fortran = "info_search_whitespace_regexp"
             entry%user_option = .true.
+
             if (allocated(info_search_whitespace_regexp)) then
                 entry%value = repr(info_search_whitespace_regexp)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "If true, regular expression to match a sequence of whitespace"//LF// &
                         "chars.  This applies to Info search for regular expressions.  You"//LF// &
                         "might want to use something like ""[ \t\r\n]+"" instead.  Don't add"//LF// &
@@ -19543,11 +19953,13 @@ contains
             entry%file = "files_fm.f90"
             entry%fortran = "insert_directory_program"
             entry%user_option = .true.
+
             if (allocated(insert_directory_program)) then
                 entry%value = repr(insert_directory_program)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Absolute or relative name of the `ls'-like program."//LF// &
                         "This is used by `insert_directory' and `dired_insert_directory'"//LF// &
                         "(thus, also by `dired').  For Dired, this should ideally point to"//LF// &
@@ -19580,11 +19992,13 @@ contains
         case ("isearch_message_prefix_add")
             entry%file = "isearch_fm.f90"
             entry%fortran = "isearch_message_prefix_add"
+
             if (allocated(isearch_message_prefix_add)) then
                 entry%value = repr(isearch_message_prefix_add)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "A string added to the Isearch prompt (unallocated for nil), as"//LF// &
                         """history "" when searching a comint's input history."
         case ("isearch_mode_end_hook")
@@ -19710,6 +20124,7 @@ contains
             entry%fortran = "kmacro_call_repeat_key"
             entry%user_option = .true.
             entry%original = "KMACRO_CALL_REPEAT_LAST_KEY"
+
             select case (kmacro_call_repeat_key)
             case (KMACRO_CALL_REPEAT_DISABLED)
                 entry%value = "KMACRO_CALL_REPEAT_DISABLED"
@@ -19718,6 +20133,7 @@ contains
             case default
                 entry%value = repr(kmacro_call_repeat_key)
             end select
+
             entry%doc = "Allow repeating macro call using last key or a specific key."//LF// &
                         "In Fortran: KMACRO_CALL_REPEAT_DISABLED (none),"//LF// &
                         "KMACRO_CALL_REPEAT_LAST_KEY (the last key) or a character."
@@ -19742,22 +20158,26 @@ contains
         case ("kmacro_counter_format")
             entry%file = "kmacro_fm.f90"
             entry%fortran = "kmacro_counter_format"
+
             if (allocated(kmacro_counter_format)) then
                 entry%value = repr(kmacro_counter_format)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Current keyboard macro counter format."//LF// &
                         ""//LF// &
                         "Can be set directly via `kmacro_set_format', which see."
         case ("kmacro_counter_format_start")
             entry%file = "kmacro_fm.f90"
             entry%fortran = "kmacro_counter_format_start"
+
             if (allocated(kmacro_counter_format_start)) then
                 entry%value = repr(kmacro_counter_format_start)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Macro format at start of macro execution."
         case ("kmacro_counter_value_start")
             entry%file = "kmacro_fm.f90"
@@ -19768,11 +20188,13 @@ contains
         case ("kmacro_default_counter_format")
             entry%file = "kmacro_fm.f90"
             entry%fortran = "kmacro_default_counter_format"
+
             if (allocated(kmacro_default_counter_format)) then
                 entry%value = repr(kmacro_default_counter_format)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The counter format of the macros defined from now on."
         case ("kmacro_execute_before_append")
             entry%file = "kmacro_fm.f90"
@@ -19790,11 +20212,13 @@ contains
         case ("kmacro_initial_counter_value")
             entry%file = "kmacro_fm.f90"
             entry%fortran = "kmacro_initial_counter_value"
+
             if (allocated(kmacro_initial_counter_value)) then
                 entry%value = repr(kmacro_initial_counter_value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Initial counter value for the next keyboard macro to be defined."//LF// &
                         "Not allocated for none."
         case ("kmacro_keymap")
@@ -19842,31 +20266,37 @@ contains
         case ("last_abbrev_text")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "last_abbrev_text"
+
             if (allocated(last_abbrev_text)) then
                 entry%value = repr(last_abbrev_text)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The exact text of the last abbrev that was expanded."//LF// &
                         "It is unallocated if the abbrev has already been unexpanded."
         case ("last_coding_system_specified")
             entry%file = "mule_fm.f90"
             entry%fortran = "last_coding_system_specified"
+
             if (allocated(last_coding_system_specified)) then
                 entry%value = repr(last_coding_system_specified)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The most recent coding system specified explicitly by the user when"//LF// &
                         "asked to choose one."
         case ("last_coding_system_used")
             entry%file = "coding_fm.f90"
             entry%fortran = "last_coding_system_used"
+
             if (allocated(last_coding_system_used%value)) then
                 entry%value = repr(last_coding_system_used%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Coding system used in the latest file or process I/O."
         case ("last_input_event")
             entry%file = "keyboard_fm.f90"
@@ -19938,33 +20368,39 @@ contains
         case ("list_buffers_directory")
             entry%file = "shell_fm.f90"
             entry%fortran = "list_buffers_directory"
+
             if (allocated(list_buffers_directory%value)) then
                 entry%value = repr(list_buffers_directory%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The directory a buffer's list shows for it (its shell's directory"//LF// &
                         "for a shell buffer)."
         case ("list_matching_lines_buffer_name_face")
             entry%file = "replace_fm.f90"
             entry%fortran = "list_matching_lines_buffer_name_face"
             entry%user_option = .true.
+
             if (allocated(list_matching_lines_buffer_name_face)) then
                 entry%value = repr(list_matching_lines_buffer_name_face)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face used by \[list_matching_lines] to show the names of buffers."//LF// &
                         "If the value is """", don't highlight the buffer names specially."
         case ("list_matching_lines_current_line_face")
             entry%file = "replace_fm.f90"
             entry%fortran = "list_matching_lines_current_line_face"
             entry%user_option = .true.
+
             if (allocated(list_matching_lines_current_line_face)) then
                 entry%value = repr(list_matching_lines_current_line_face)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face used by \[list_matching_lines] to highlight the current line."
         case ("list_matching_lines_default_context_lines")
             entry%file = "replace_fm.f90"
@@ -19980,11 +20416,13 @@ contains
             entry%file = "replace_fm.f90"
             entry%fortran = "list_matching_lines_face"
             entry%user_option = .true.
+
             if (allocated(list_matching_lines_face)) then
                 entry%value = repr(list_matching_lines_face)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face used by \[list_matching_lines] to show the text that matches."//LF// &
                         "If the value is """", don't highlight the matching portions"//LF// &
                         "specially."
@@ -20003,11 +20441,13 @@ contains
             entry%file = "replace_fm.f90"
             entry%fortran = "list_matching_lines_prefix_face"
             entry%user_option = .true.
+
             if (allocated(list_matching_lines_prefix_face)) then
                 entry%value = repr(list_matching_lines_prefix_face)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Face used by \[list_matching_lines] to show the prefix column."//LF// &
                         "The prefix column is the part of display that precedes the actual"//LF// &
                         "contents of the line; it normally shows the line number.  (For"//LF// &
@@ -20018,22 +20458,26 @@ contains
         case ("locale_coding_system")
             entry%file = "coding_fm.f90"
             entry%fortran = "locale_coding_system"
+
             if (allocated(locale_coding_system%value)) then
                 entry%value = repr(locale_coding_system%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Coding system to use with system messages."//LF// &
                         "Potentially also used for decoding keyboard input on X Windows, and is"//LF// &
                         "used for encoding standard output and error streams."
         case ("locate_dominating_stop_dir_regexp")
             entry%file = "files_fm.f90"
             entry%fortran = "locate_dominating_stop_dir_regexp"
+
             if (allocated(locate_dominating_stop_dir_regexp)) then
                 entry%value = repr(locate_dominating_stop_dir_regexp)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp of directory names that stop the search in `locate_dominating_file'."//LF// &
                         "Any directory whose name matches this regexp will be treated like"//LF// &
                         "a kind of root directory by `locate_dominating_file', which will stop its"//LF// &
@@ -20079,6 +20523,7 @@ contains
             entry%file = "log_edit_fm.f90"
             entry%fortran = "log_edit_confirm"
             entry%original = "LOG_EDIT_CONFIRM_CHANGED"
+
             select case (log_edit_confirm)
             case (LOG_EDIT_CONFIRM_NIL)
                 entry%value = "LOG_EDIT_CONFIRM_NIL"
@@ -20089,6 +20534,7 @@ contains
             case default
                 entry%value = repr(log_edit_confirm)
             end select
+
             entry%doc = "If true, `log_edit_done' will request confirmation."//LF// &
                         "If LOG_EDIT_CONFIRM_CHANGED, only request confirmation if the list"//LF// &
                         "of files has changed since the beginning of the `log_edit' session."
@@ -20130,6 +20576,7 @@ contains
             entry%file = "log_edit_fm.f90"
             entry%fortran = "log_edit_require_final_newline"
             entry%original = "LOG_EDIT_FINAL_NEWLINE_T"
+
             select case (log_edit_require_final_newline)
             case (LOG_EDIT_FINAL_NEWLINE_NIL)
                 entry%value = "LOG_EDIT_FINAL_NEWLINE_NIL"
@@ -20140,6 +20587,7 @@ contains
             case default
                 entry%value = repr(log_edit_require_final_newline)
             end select
+
             entry%doc = "Enforce a newline at the end of commit log messages."//LF// &
                         "Enforce it silently if LOG_EDIT_FINAL_NEWLINE_T, query if"//LF// &
                         "LOG_EDIT_FINAL_NEWLINE_ASK and don't do anything if"//LF// &
@@ -20147,11 +20595,13 @@ contains
         case ("log_edit_rewrite_fixes")
             entry%file = "log_edit_fm.f90"
             entry%fortran = "log_edit_rewrite_fixes_regexp"
+
             if (allocated(log_edit_rewrite_fixes_regexp)) then
                 entry%value = repr(log_edit_rewrite_fixes_regexp)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Rule to rewrite bug numbers into Fixes: headers in commit log messages."//LF// &
                         "The value should be of the form (REGEXP . REPLACEMENT)"//LF// &
                         "where REGEXP should match the expression referring to a bug number"//LF// &
@@ -20190,11 +20640,13 @@ contains
         case ("mail_host_address")
             entry%file = "startup_fm.f90"
             entry%fortran = "mail_host_address"
+
             if (allocated(mail_host_address)) then
                 entry%value = repr(mail_host_address)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The name of this machine, for use in constructing email addresses."//LF// &
                         "If this is unallocated (nil), Emacs uses `system_name'."
         case ("make_backup_files")
@@ -20288,6 +20740,7 @@ contains
             entry%fortran = "mode_require_final_newline"
             entry%user_option = .true.
             entry%original = "FINAL_NEWLINE_SAVE"
+
             select case (mode_require_final_newline%value)
             case (FINAL_NEWLINE_NEVER)
                 entry%value = "FINAL_NEWLINE_NEVER"
@@ -20302,6 +20755,7 @@ contains
             case default
                 entry%value = repr(mode_require_final_newline%value)
             end select
+
             entry%doc = "Whether to add a newline at end of file, in certain major modes."//LF// &
                         "Those modes set `require_final_newline' to this value when you enable them."//LF// &
                         "They do so because they are often used for files that are supposed"//LF// &
@@ -20320,11 +20774,13 @@ contains
             entry%file = "files_fm.f90"
             entry%fortran = "mounted_file_systems"
             entry%user_option = .true.
+
             if (allocated(mounted_file_systems)) then
                 entry%value = repr(mounted_file_systems)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "File systems that ought to be mounted."
         case ("mule_keymap")
             entry%file = "mule_fm.f90"
@@ -20367,11 +20823,13 @@ contains
         case ("normal_auto_fill_function")
             entry%file = "simple_fm.f90"
             entry%fortran = "normal_auto_fill_function"
+
             if (associated(normal_auto_fill_function%value)) then
                 entry%value = command_name_of(normal_auto_fill_function%value)
             else
                 entry%value = "null()"
             end if
+
             entry%doc = "The function to use for `auto_fill_function' if Auto Fill mode is turned on."//LF// &
                         "Some major modes set this."
         case ("num_input_keys")
@@ -20395,11 +20853,13 @@ contains
             entry%file = "replace_fm.f90"
             entry%fortran = "occur_excluded_properties"
             entry%user_option = .true.
+
             if (allocated(occur_excluded_properties)) then
                 entry%value = repr(occur_excluded_properties)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Text properties to discard when copying lines to the *Occur* buffer."//LF// &
                         "The value should be a list of text properties to discard, or"//LF// &
                         "`occur_excluded_properties_all' true to discard all text"//LF// &
@@ -20453,11 +20913,13 @@ contains
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "page_delimiter"
             entry%user_option = .true.
+
             if (allocated(page_delimiter%value)) then
                 entry%value = repr(page_delimiter%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp describing line-beginnings that separate pages."
         case ("paragraph_ignore_fill_prefix")
             entry%file = "paragraphs_fm.f90"
@@ -20471,11 +20933,13 @@ contains
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "paragraph_separate"
             entry%user_option = .true.
+
             if (allocated(paragraph_separate%value)) then
                 entry%value = repr(paragraph_separate%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp for beginning of a line that separates paragraphs."//LF// &
                         "If you change this, you may have to change `paragraph_start' also."//LF// &
                         ""//LF// &
@@ -20487,11 +20951,13 @@ contains
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "paragraph_start"
             entry%user_option = .true.
+
             if (allocated(paragraph_start%value)) then
                 entry%value = repr(paragraph_start%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp for beginning of a line that starts OR separates paragraphs."//LF// &
                         "This regexp should match lines that separate paragraphs and should"//LF// &
                         "also match lines that start a paragraph (and are part of that"//LF// &
@@ -20526,22 +20992,26 @@ contains
             entry%file = "mule_conf_fm.f90"
             entry%fortran = "password_colon_equivalents"
             entry%user_option = .true.
+
             if (allocated(password_colon_equivalents)) then
                 entry%value = repr(password_colon_equivalents)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "List of characters equivalent to trailing colon in ""password"""//LF// &
                         "prompts."
         case ("password_word_equivalents")
             entry%file = "mule_conf_fm.f90"
             entry%fortran = "password_word_equivalents"
             entry%user_option = .true.
+
             if (allocated(password_word_equivalents)) then
                 entry%value = repr(password_word_equivalents)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "List of words equivalent to ""password""."//LF// &
                         "This is used by Shell mode and other parts of Emacs to recognize"//LF// &
                         "password prompts, including prompts in languages other than"//LF// &
@@ -20629,11 +21099,13 @@ contains
             entry%file = "replace_fm.f90"
             entry%fortran = "query_replace_from_history_variable"
             entry%user_option = .true.
+
             if (allocated(query_replace_from_history_variable)) then
                 entry%value = repr(query_replace_from_history_variable)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "History list to use for the FROM argument of `query_replace'"//LF// &
                         "commands.  The value of this variable should be the name of"//LF// &
                         "a variable that holds a history list for the strings"//LF// &
@@ -20642,11 +21114,13 @@ contains
             entry%file = "replace_fm.f90"
             entry%fortran = "query_replace_from_to_separator"
             entry%user_option = .true.
+
             if (allocated(query_replace_from_to_separator)) then
                 entry%value = repr(query_replace_from_to_separator)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "String that separates FROM and TO in the history of replacement"//LF// &
                         "pairs.  When unallocated, the pair will not be added to the"//LF// &
                         "history (same behavior as in Emacs 24.5)."
@@ -20669,11 +21143,13 @@ contains
             entry%file = "replace_fm.f90"
             entry%fortran = "query_replace_to_history_variable"
             entry%user_option = .true.
+
             if (allocated(query_replace_to_history_variable)) then
                 entry%value = repr(query_replace_to_history_variable)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "History list to use for the TO argument of `query_replace'"//LF// &
                         "commands.  The value of this variable should be the name of"//LF// &
                         "a variable that holds a history list for replacement"//LF// &
@@ -20683,6 +21159,7 @@ contains
             entry%fortran = "read_answer_short"
             entry%user_option = .true.
             entry%original = "READ_ANSWER_SHORT_AUTO"
+
             select case (read_answer_short)
             case (READ_ANSWER_SHORT_NIL)
                 entry%value = "READ_ANSWER_SHORT_NIL"
@@ -20693,6 +21170,7 @@ contains
             case default
                 entry%value = repr(read_answer_short)
             end select
+
             entry%doc = "Whether the `read_answer' function accepts single-character answers."//LF// &
                         "If READ_ANSWER_SHORT_T, accept short (single key-press) answers to the"//LF// &
                         "question.  If READ_ANSWER_SHORT_NIL, require long answers.  If"//LF// &
@@ -20766,6 +21244,7 @@ contains
             entry%file = "recentf_fm.f90"
             entry%fortran = "recentf_auto_cleanup"
             entry%original = "RECENTF_AUTO_CLEANUP_MODE"
+
             select case (recentf_auto_cleanup)
             case (RECENTF_AUTO_CLEANUP_MODE)
                 entry%value = "RECENTF_AUTO_CLEANUP_MODE"
@@ -20774,6 +21253,7 @@ contains
             case default
                 entry%value = repr(recentf_auto_cleanup)
             end select
+
             entry%doc = "Define when to automatically cleanup the recent list."//LF// &
                         "That is, remove duplicates, non-kept, and excluded files."//LF// &
                         ""//LF// &
@@ -20806,11 +21286,13 @@ contains
         case ("recentf_exclude_ignored_extensions")
             entry%file = "recentf_fm.f90"
             entry%fortran = "recentf_exclude_ignored_extensions"
+
             if (allocated(recentf_exclude_ignored_extensions)) then
                 entry%value = repr(recentf_exclude_ignored_extensions)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "List of file-name extensions that `recentf' should ignore."//LF// &
                         "This has effect only if the function"//LF// &
                         "`recentf_exclude_file_by_extension_p' is in the list that is the"//LF// &
@@ -20864,11 +21346,13 @@ contains
         case ("recentf_save_file")
             entry%file = "recentf_fm.f90"
             entry%fortran = "recentf_save_file"
+
             if (allocated(recentf_save_file)) then
                 entry%value = repr(recentf_save_file)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "File to save the recent list into."
         case ("recentf_save_file_modes")
             entry%file = "recentf_fm.f90"
@@ -20950,11 +21434,13 @@ contains
             entry%file = "repeat_fm.f90"
             entry%fortran = "repeat_exit_key"
             entry%user_option = .true.
+
             if (allocated(repeat_exit_key)) then
                 entry%value = repr(repeat_exit_key)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Key that stops the modal repeating of keys in sequence."//LF// &
                         "For example, you can set it to <return> like `isearch_exit'."//LF// &
                         "(Unallocated for none.)"
@@ -21018,11 +21504,13 @@ contains
             entry%file = "repeat_fm.f90"
             entry%fortran = "repeat_too_dangerous"
             entry%user_option = .true.
+
             if (allocated(repeat_too_dangerous)) then
                 entry%value = repr(repeat_too_dangerous)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Commands too dangerous to repeat with \[repeat].  (Each name is"//LF// &
                         "used without its trailing blanks.)"
         case ("replace_count")
@@ -21057,6 +21545,7 @@ contains
             entry%fortran = "require_final_newline"
             entry%user_option = .true.
             entry%original = "FINAL_NEWLINE_NEVER"
+
             select case (require_final_newline%value)
             case (FINAL_NEWLINE_NEVER)
                 entry%value = "FINAL_NEWLINE_NEVER"
@@ -21071,6 +21560,7 @@ contains
             case default
                 entry%value = repr(require_final_newline%value)
             end select
+
             entry%doc = "Whether to add a newline automatically at the end of the file."//LF// &
                         ""//LF// &
                         "A value of FINAL_NEWLINE_SAVE means do this only when the file is about to be saved."//LF// &
@@ -21106,11 +21596,13 @@ contains
             entry%file = "files_fm.f90"
             entry%fortran = "revert_without_query"
             entry%user_option = .true.
+
             if (allocated(revert_without_query)) then
                 entry%value = repr(revert_without_query)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Specify which files should be reverted without query."//LF// &
                         "The value is a list of regular expressions."//LF// &
                         "If the file name matches one of these regular expressions,"//LF// &
@@ -21141,6 +21633,7 @@ contains
             entry%fortran = "save_abbrevs"
             entry%user_option = .true.
             entry%original = "SAVE_ABBREVS_ASK"
+
             select case (save_abbrevs)
             case (SAVE_ABBREVS_NEVER)
                 entry%value = "SAVE_ABBREVS_NEVER"
@@ -21151,6 +21644,7 @@ contains
             case default
                 entry%value = repr(save_abbrevs)
             end select
+
             entry%doc = "True means save word abbrevs too when files are saved."//LF// &
                         "If `SAVE_ABBREVS_SILENTLY', don't ask the user before saving."
         case ("save_place_abbreviate_file_names")
@@ -21189,11 +21683,13 @@ contains
         case ("save_place_file")
             entry%file = "saveplace_fm.f90"
             entry%fortran = "save_place_file"
+
             if (allocated(save_place_file)) then
                 entry%value = repr(save_place_file)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Name of the file that records `save_place_alist' value."
         case ("save_place_forget_unreadable_files")
             entry%file = "saveplace_fm.f90"
@@ -21213,11 +21709,13 @@ contains
         case ("save_place_ignore_files_regexp")
             entry%file = "saveplace_fm.f90"
             entry%fortran = "save_place_ignore_files_regexp"
+
             if (allocated(save_place_ignore_files_regexp)) then
                 entry%value = repr(save_place_ignore_files_regexp)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp matching files whose positions should not be recorded."//LF// &
                         "Useful to exclude temporary files, such as commit message files"//LF// &
                         "that are automatically created by VCSes.  If unallocated, this"//LF// &
@@ -21252,11 +21750,13 @@ contains
         case ("save_place_skip_check_regexp")
             entry%file = "saveplace_fm.f90"
             entry%fortran = "save_place_skip_check_regexp"
+
             if (allocated(save_place_skip_check_regexp)) then
                 entry%value = repr(save_place_skip_check_regexp)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp whose file names shall not be checked for readability."//LF// &
                         ""//LF// &
                         "When forgetting unreadable files, file names matching this regular"//LF// &
@@ -21269,6 +21769,7 @@ contains
             entry%file = "saveplace_fm.f90"
             entry%fortran = "save_place_version_control"
             entry%original = "SAVE_PLACE_VERSION_CONTROL_NIL"
+
             select case (save_place_version_control)
             case (SAVE_PLACE_VERSION_CONTROL_T)
                 entry%value = "SAVE_PLACE_VERSION_CONTROL_T"
@@ -21281,6 +21782,7 @@ contains
             case default
                 entry%value = repr(save_place_version_control)
             end select
+
             entry%doc = "Controls whether to make numbered backups of master `save_place'"//LF// &
                         "file.  It can have four values: SAVE_PLACE_VERSION_CONTROL_T,"//LF// &
                         "_NIL, _NEVER, and _NOSPECIAL.  The first three have the same"//LF// &
@@ -21340,22 +21842,26 @@ contains
         case ("savehist_coding_system")
             entry%file = "savehist_fm.f90"
             entry%fortran = "savehist_coding_system"
+
             if (allocated(savehist_coding_system)) then
                 entry%value = repr(savehist_coding_system)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The coding system Savehist uses for saving the minibuffer history."//LF// &
                         "Changing this value while Fortmacs is running is supported, but"//LF// &
                         "considered unwise, unless you know what you are doing."
         case ("savehist_file")
             entry%file = "savehist_fm.f90"
             entry%fortran = "savehist_file"
+
             if (allocated(savehist_file)) then
                 entry%value = repr(savehist_file)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "File name where minibuffer history is saved to and loaded from."//LF// &
                         "The minibuffer history is a namelist read automatically when"//LF// &
                         "Savehist mode is turned on.  See `savehist_mode' for more details."
@@ -21372,11 +21878,13 @@ contains
         case ("savehist_ignored_variables")
             entry%file = "savehist_fm.f90"
             entry%fortran = "savehist_ignored_variables"
+
             if (allocated(savehist_ignored_variables)) then
                 entry%value = repr(savehist_ignored_variables)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "List of additional variables not to save."
         case ("savehist_loaded")
             entry%file = "savehist_fm.f90"
@@ -21387,11 +21895,13 @@ contains
         case ("savehist_minibuffer_history_variables")
             entry%file = "savehist_fm.f90"
             entry%fortran = "savehist_minibuffer_history_variables"
+
             if (allocated(savehist_minibuffer_history_variables)) then
                 entry%value = repr(savehist_minibuffer_history_variables)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "List of minibuffer histories."//LF// &
                         "The contents of this variable is built while Fortmacs is running,"//LF// &
                         "and saved along with minibuffer history.  You can change its value"//LF// &
@@ -21453,11 +21963,13 @@ contains
         case ("search_spaces_regexp")
             entry%file = "search_fm.f90"
             entry%fortran = "search_spaces_regexp"
+
             if (allocated(search_spaces_regexp)) then
                 entry%value = repr(search_spaces_regexp)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "If allocated, the regexp that replaces spaces in a regexp being"//LF// &
                         "compiled; unallocated for none."
         case ("search_upper_case")
@@ -21465,6 +21977,7 @@ contains
             entry%fortran = "search_upper_case"
             entry%user_option = .true.
             entry%original = "UPPER_CASE_NOT_YANKS"
+
             select case (search_upper_case)
             case (UPPER_CASE_NIL)
                 entry%value = "UPPER_CASE_NIL"
@@ -21475,6 +21988,7 @@ contains
             case default
                 entry%value = repr(search_upper_case)
             end select
+
             entry%doc = "If not UPPER_CASE_NIL, upper case chars disable case fold searching."//LF// &
                         "That is, upper and lower case chars must match exactly."//LF// &
                         "This applies no matter where the chars come from, but does not"//LF// &
@@ -21485,11 +21999,13 @@ contains
             entry%file = "isearch_fm.f90"
             entry%fortran = "search_whitespace_regexp"
             entry%user_option = .true.
+
             if (allocated(search_whitespace_regexp)) then
                 entry%value = repr(search_whitespace_regexp)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "If allocated, regular expression to match a sequence of whitespace"//LF// &
                         "chars.  When you enter a space or spaces in the incremental search,"//LF// &
                         "it will match any sequence matched by this regexp.  As an"//LF// &
@@ -21514,11 +22030,13 @@ contains
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "sentence_end"
             entry%user_option = .true.
+
             if (allocated(sentence_end%value)) then
                 entry%value = repr(sentence_end%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp describing the end of a sentence."//LF// &
                         "The value includes the whitespace following the sentence."//LF// &
                         "All paragraph boundaries also end sentences, regardless."//LF// &
@@ -21530,11 +22048,13 @@ contains
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "sentence_end_base"
             entry%user_option = .true.
+
             if (allocated(sentence_end_base)) then
                 entry%value = repr(sentence_end_base)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp matching the basic end of a sentence, not including"//LF// &
                         "following space."
         case ("sentence_end_double_space")
@@ -21565,11 +22085,13 @@ contains
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "sentence_end_without_space"
             entry%user_option = .true.
+
             if (allocated(sentence_end_without_space)) then
                 entry%value = repr(sentence_end_without_space)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "String of characters that end sentence without following spaces."//LF// &
                         ""//LF// &
                         "This value is used by the function `sentence_end' to construct the"//LF// &
@@ -21656,11 +22178,13 @@ contains
             entry%file = "sh_script_fm.f90"
             entry%fortran = "sh_beginning_of_command"
             entry%user_option = .true.
+
             if (allocated(sh_beginning_of_command)) then
                 entry%value = repr(sh_beginning_of_command)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp to determine the beginning of a shell command."//LF// &
                         "The actual command starts at the beginning of the second \(grouping\)."
         case ("sh_builtins")
@@ -21674,11 +22198,13 @@ contains
             entry%file = "sh_script_fm.f90"
             entry%fortran = "sh_end_of_command"
             entry%user_option = .true.
+
             if (allocated(sh_end_of_command)) then
                 entry%value = repr(sh_end_of_command)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp to determine the end of a shell command."//LF// &
                         "The actual command ends at the end of the first \(grouping\)."
         case ("sh_font_lock_keywords_var")
@@ -21697,11 +22223,13 @@ contains
             entry%file = "sh_script_fm.f90"
             entry%fortran = "sh_here_document_word"
             entry%user_option = .true.
+
             if (allocated(sh_here_document_word)) then
                 entry%value = repr(sh_here_document_word)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Word to delimit here documents."//LF// &
                         "If the first character of this string is ""-"", this is taken as"//LF// &
                         "part of the redirection operator, rather than part of the"//LF// &
@@ -21721,6 +22249,7 @@ contains
             entry%fortran = "sh_indent_after_case"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+
             select case (sh_indent_after_case%value)
             case (SH_PLUS)
                 entry%value = "SH_PLUS"
@@ -21737,6 +22266,7 @@ contains
             case default
                 entry%value = repr(sh_indent_after_case%value)
             end select
+
             entry%doc = "How much to indent a statement relative to the `case' statement."//LF// &
                         "This is for the rc shell."
         case ("sh_indent_after_continuation")
@@ -21744,6 +22274,7 @@ contains
             entry%fortran = "sh_indent_after_continuation"
             entry%user_option = .true.
             entry%original = "SH_CONTINUATION_T"
+
             select case (sh_indent_after_continuation)
             case (SH_CONTINUATION_NIL)
                 entry%value = "SH_CONTINUATION_NIL"
@@ -21754,6 +22285,7 @@ contains
             case default
                 entry%value = repr(sh_indent_after_continuation)
             end select
+
             entry%doc = "If true, indent relative to the continued line's beginning."//LF// &
                         "Continued lines can either be indented as ""one long wrapped line"" without"//LF// &
                         "paying attention to the actual syntactic structure, as in:"//LF// &
@@ -21779,6 +22311,7 @@ contains
             entry%fortran = "sh_indent_after_do"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+
             select case (sh_indent_after_do%value)
             case (SH_PLUS)
                 entry%value = "SH_PLUS"
@@ -21795,6 +22328,7 @@ contains
             case default
                 entry%value = repr(sh_indent_after_do%value)
             end select
+
             entry%doc = "How much to indent a line after a `do' statement."//LF// &
                         "This is used when the `do' is the first word of the line."//LF// &
                         "This is relative to the statement before the `do', typically a"//LF// &
@@ -21815,6 +22349,7 @@ contains
             entry%fortran = "sh_indent_after_else"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+
             select case (sh_indent_after_else%value)
             case (SH_PLUS)
                 entry%value = "SH_PLUS"
@@ -21831,12 +22366,14 @@ contains
             case default
                 entry%value = repr(sh_indent_after_else%value)
             end select
+
             entry%doc = "How much to indent a statement after an `else' statement."
         case ("sh_indent_after_function")
             entry%file = "sh_script_fm.f90"
             entry%fortran = "sh_indent_after_function"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+
             select case (sh_indent_after_function%value)
             case (SH_PLUS)
                 entry%value = "SH_PLUS"
@@ -21853,12 +22390,14 @@ contains
             case default
                 entry%value = repr(sh_indent_after_function%value)
             end select
+
             entry%doc = "How much to indent after a function line."
         case ("sh_indent_after_if")
             entry%file = "sh_script_fm.f90"
             entry%fortran = "sh_indent_after_if"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+
             select case (sh_indent_after_if%value)
             case (SH_PLUS)
                 entry%value = "SH_PLUS"
@@ -21875,6 +22414,7 @@ contains
             case default
                 entry%value = repr(sh_indent_after_if%value)
             end select
+
             entry%doc = "How much to indent a statement after an `if' statement."//LF// &
                         "This includes lines after `else' and `elif' statements, too, but"//LF// &
                         "does not affect the `else', `elif' or `fi' statements themselves."
@@ -21883,6 +22423,7 @@ contains
             entry%fortran = "sh_indent_after_loop_construct"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+
             select case (sh_indent_after_loop_construct%value)
             case (SH_PLUS)
                 entry%value = "SH_PLUS"
@@ -21899,6 +22440,7 @@ contains
             case default
                 entry%value = repr(sh_indent_after_loop_construct%value)
             end select
+
             entry%doc = "How much to indent a statement after a loop construct."//LF// &
                         ""//LF// &
                         "This variable is used when the keyword `do' is on the same line as the"//LF// &
@@ -21909,6 +22451,7 @@ contains
             entry%fortran = "sh_indent_after_open"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+
             select case (sh_indent_after_open%value)
             case (SH_PLUS)
                 entry%value = "SH_PLUS"
@@ -21925,6 +22468,7 @@ contains
             case default
                 entry%value = repr(sh_indent_after_open%value)
             end select
+
             entry%doc = "How much to indent after a line with an opening parenthesis or brace."//LF// &
                         "For an open paren after a function, `sh_indent_after_function' is used."
         case ("sh_indent_after_switch")
@@ -21932,6 +22476,7 @@ contains
             entry%fortran = "sh_indent_after_switch"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+
             select case (sh_indent_after_switch%value)
             case (SH_PLUS)
                 entry%value = "SH_PLUS"
@@ -21948,6 +22493,7 @@ contains
             case default
                 entry%value = repr(sh_indent_after_switch%value)
             end select
+
             entry%doc = "How much to indent a `case' statement relative to the `switch' statement."//LF// &
                         "This is for the rc shell."
         case ("sh_indent_for_case_alt")
@@ -21955,6 +22501,7 @@ contains
             entry%fortran = "sh_indent_for_case_alt"
             entry%user_option = .true.
             entry%original = "SH_PLUS_PLUS"
+
             select case (sh_indent_for_case_alt%value)
             case (SH_PLUS)
                 entry%value = "SH_PLUS"
@@ -21971,6 +22518,7 @@ contains
             case default
                 entry%value = repr(sh_indent_for_case_alt%value)
             end select
+
             entry%doc = "How much to indent statements after the case label."//LF// &
                         "This is relative to the line containing the `case' statement."
         case ("sh_indent_for_case_label")
@@ -21978,6 +22526,7 @@ contains
             entry%fortran = "sh_indent_for_case_label"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+
             select case (sh_indent_for_case_label%value)
             case (SH_PLUS)
                 entry%value = "SH_PLUS"
@@ -21994,6 +22543,7 @@ contains
             case default
                 entry%value = repr(sh_indent_for_case_label%value)
             end select
+
             entry%doc = "How much to indent a case label statement."//LF// &
                         "This is relative to the line containing the `case' statement."
         case ("sh_indent_for_continuation")
@@ -22001,6 +22551,7 @@ contains
             entry%fortran = "sh_indent_for_continuation"
             entry%user_option = .true.
             entry%original = "SH_PLUS"
+
             select case (sh_indent_for_continuation%value)
             case (SH_PLUS)
                 entry%value = "SH_PLUS"
@@ -22017,6 +22568,7 @@ contains
             case default
                 entry%value = repr(sh_indent_for_continuation%value)
             end select
+
             entry%doc = "How much to indent for a continuation statement."
         case ("sh_indent_for_do")
             entry%file = "sh_script_fm.f90"
@@ -22123,11 +22675,13 @@ contains
         case ("sh_shell")
             entry%file = "sh_script_fm.f90"
             entry%fortran = "sh_shell"
+
             if (allocated(sh_shell%value)) then
                 entry%value = repr(sh_shell%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The shell being programmed.  This is set by \[sh_set_shell]."
         case ("sh_shell_arg")
             entry%file = "sh_script_fm.f90"
@@ -22138,11 +22692,13 @@ contains
             entry%file = "sh_script_fm.f90"
             entry%fortran = "sh_shell_file"
             entry%user_option = .true.
+
             if (allocated(sh_shell_file%value)) then
                 entry%value = repr(sh_shell_file%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The executable file name for the shell being programmed."
         case ("sh_smie_rc_grammar")
             entry%file = "sh_script_fm.f90"
@@ -22161,20 +22717,24 @@ contains
             entry%file = "shell_fm.f90"
             entry%fortran = "shell_cd_regexp"
             entry%user_option = .true.
+
             if (allocated(shell_cd_regexp%value)) then
                 entry%value = repr(shell_cd_regexp%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp to match subshell commands equivalent to cd."
         case ("shell_command_default_error_buffer")
             entry%file = "simple_fm.f90"
             entry%fortran = "shell_command_default_error_buffer"
+
             if (allocated(shell_command_default_error_buffer%value)) then
                 entry%value = repr(shell_command_default_error_buffer%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Buffer name for `shell_command' and `shell_command_on_region' error"//LF// &
                         "output.  This buffer is used when `shell_command' or"//LF// &
                         "`shell_command_on_region' is run interactively.  Unallocated"//LF// &
@@ -22185,6 +22745,7 @@ contains
             entry%fortran = "shell_command_dont_erase_buffer"
             entry%user_option = .true.
             entry%original = "DONT_ERASE_NIL"
+
             select case (shell_command_dont_erase_buffer%value)
             case (DONT_ERASE_NIL)
                 entry%value = "DONT_ERASE_NIL"
@@ -22199,6 +22760,7 @@ contains
             case default
                 entry%value = repr(shell_command_dont_erase_buffer%value)
             end select
+
             entry%doc = "Whether to erase the output buffer before executing shell command."//LF// &
                         ""//LF// &
                         "DONT_ERASE_NIL erases the output buffer before execution of the"//LF// &
@@ -22235,42 +22797,50 @@ contains
             entry%file = "shell_fm.f90"
             entry%fortran = "shell_command_regexp"
             entry%user_option = .true.
+
             if (allocated(shell_command_regexp%value)) then
                 entry%value = repr(shell_command_regexp%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp to match a single command within a pipeline."//LF// &
                         "This is used for directory tracking and does not do a perfect job."
         case ("shell_command_separator_regexp")
             entry%file = "shell_fm.f90"
             entry%fortran = "shell_command_separator_regexp"
             entry%user_option = .true.
+
             if (allocated(shell_command_separator_regexp%value)) then
                 entry%value = repr(shell_command_separator_regexp%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp to match a single command within a pipeline."//LF// &
                         "This is used for directory tracking and does not do a perfect job."
         case ("shell_command_switch")
             entry%file = "simple_fm.f90"
             entry%fortran = "shell_command_switch"
+
             if (allocated(shell_command_switch%value)) then
                 entry%value = repr(shell_command_switch%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Switch used to have the shell execute its command line argument."
         case ("shell_delimiter_argument_list")
             entry%file = "shell_fm.f90"
             entry%fortran = "shell_delimiter_argument_list"
             entry%user_option = .true.
+
             if (allocated(shell_delimiter_argument_list%value)) then
                 entry%value = repr(shell_delimiter_argument_list%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The characters to recognize as separate arguments in input."//LF// &
                         "This variable is used to initialize `comint_delimiter_argument_list'"//LF// &
                         "in the shell buffer.  The value may depend on the operating system"//LF// &
@@ -22278,11 +22848,13 @@ contains
         case ("shell_dirstack_query")
             entry%file = "shell_fm.f90"
             entry%fortran = "shell_dirstack_query"
+
             if (allocated(shell_dirstack_query)) then
                 entry%value = repr(shell_dirstack_query)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Command used by `shell_resync_dirs' to query the shell."
         case ("shell_dirtrack_mode_hook")
             entry%file = "shell_fm.f90"
@@ -22300,11 +22872,13 @@ contains
             entry%file = "shell_fm.f90"
             entry%fortran = "shell_dumb_shell_regexp"
             entry%user_option = .true.
+
             if (allocated(shell_dumb_shell_regexp%value)) then
                 entry%value = repr(shell_dumb_shell_regexp%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp to match shells that don't save their command history, and"//LF// &
                         "don't handle the backslash as a quote character.  For shells that"//LF// &
                         "match this regexp, Emacs will write out the command history when the"//LF// &
@@ -22314,11 +22888,13 @@ contains
             entry%file = "callproc_fm.f90"
             entry%fortran = "shell_file_name"
             entry%user_option = .true.
+
             if (allocated(shell_file_name%value)) then
                 entry%value = repr(shell_file_name%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "File name to load inferior shells from."//LF// &
                         "Initialized from the SHELL environment variable, or to a system-dependent"//LF// &
                         "default if SHELL is unset.  See Info node `(elisp)Security Considerations'."
@@ -22344,11 +22920,13 @@ contains
             entry%file = "shell_fm.f90"
             entry%fortran = "shell_history_file_name"
             entry%user_option = .true.
+
             if (allocated(shell_history_file_name%value)) then
                 entry%value = repr(shell_history_file_name%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The history file name used in `shell_mode'."//LF// &
                         "When it is a string, this file name will be used."//LF// &
                         "When it is unallocated, the environment variable HISTFILE is used."//LF// &
@@ -22375,21 +22953,25 @@ contains
             entry%file = "shell_fm.f90"
             entry%fortran = "shell_popd_regexp"
             entry%user_option = .true.
+
             if (allocated(shell_popd_regexp%value)) then
                 entry%value = repr(shell_popd_regexp%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp to match subshell commands equivalent to popd."
         case ("shell_prompt_pattern")
             entry%file = "shell_fm.f90"
             entry%fortran = "shell_prompt_pattern"
             entry%user_option = .true.
+
             if (allocated(shell_prompt_pattern%value)) then
                 entry%value = repr(shell_prompt_pattern%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp to match prompts in the inferior shell."//LF// &
                         "Defaults to ""^[^#$%>\n]*[#$%>] *"", which works pretty well."//LF// &
                         "This variable is used to initialize `comint_prompt_regexp' in the"//LF// &
@@ -22422,11 +23004,13 @@ contains
             entry%file = "shell_fm.f90"
             entry%fortran = "shell_pushd_regexp"
             entry%user_option = .true.
+
             if (allocated(shell_pushd_regexp%value)) then
                 entry%value = repr(shell_pushd_regexp%value)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp to match subshell commands equivalent to pushd."
         case ("shell_pushd_tohome")
             entry%file = "shell_fm.f90"
@@ -22484,6 +23068,7 @@ contains
             entry%fortran = "show_paren_not_in_comments_or_strings"
             entry%user_option = .true.
             entry%original = "SHOW_PAREN_COMMENTS_STRINGS_ALWAYS"
+
             select case (show_paren_not_in_comments_or_strings)
             case (SHOW_PAREN_COMMENTS_STRINGS_ALWAYS)
                 entry%value = "SHOW_PAREN_COMMENTS_STRINGS_ALWAYS"
@@ -22494,6 +23079,7 @@ contains
             case default
                 entry%value = repr(show_paren_not_in_comments_or_strings)
             end select
+
             entry%doc = "If `SHOW_PAREN_COMMENTS_STRINGS_ALL', never highlight parens inside"//LF// &
                         "comments and strings.  If `SHOW_PAREN_COMMENTS_STRINGS_ON_MISMATCH',"//LF// &
                         "do not highlight mismatched parens inside comments and strings.  If"//LF// &
@@ -22518,6 +23104,7 @@ contains
             entry%fortran = "show_paren_style"
             entry%user_option = .true.
             entry%original = "SHOW_PAREN_PARENTHESIS"
+
             select case (show_paren_style)
             case (SHOW_PAREN_PARENTHESIS)
                 entry%value = "SHOW_PAREN_PARENTHESIS"
@@ -22528,6 +23115,7 @@ contains
             case default
                 entry%value = repr(show_paren_style)
             end select
+
             entry%doc = "Style used when showing a matching paren."//LF// &
                         "Valid styles are `SHOW_PAREN_PARENTHESIS' (meaning show the matching"//LF// &
                         "paren), `SHOW_PAREN_EXPRESSION' (meaning show the entire expression"//LF// &
@@ -22561,11 +23149,13 @@ contains
         case ("smie_blink_matching_triggers")
             entry%file = "smie_fm.f90"
             entry%fortran = "smie_blink_matching_triggers"
+
             if (allocated(smie_blink_matching_triggers)) then
                 entry%value = repr(smie_blink_matching_triggers)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Chars which might trigger `blink_matching_open'."//LF// &
                         "These can include the final chars of end-tokens, or chars that are"//LF// &
                         "typically inserted right after an end token."
@@ -22640,6 +23230,7 @@ contains
             entry%fortran = "split_window_preferred_direction"
             entry%user_option = .true.
             entry%original = "SPLIT_LONGEST"
+
             select case (split_window_preferred_direction)
             case (SPLIT_LONGEST)
                 entry%value = "SPLIT_LONGEST"
@@ -22650,6 +23241,7 @@ contains
             case default
                 entry%value = repr(split_window_preferred_direction)
             end select
+
             entry%doc = "The first direction tried when Emacs needs to split a window."//LF// &
                         "This variable controls in which order `split_window_sensibly' will"//LF// &
                         "try to split the window.  If set to `vertical' (SPLIT_VERTICAL),"//LF// &
@@ -22765,11 +23357,13 @@ contains
             entry%file = "indent_fm.f90"
             entry%fortran = "tab_stop_list"
             entry%user_option = .true.
+
             if (allocated(tab_stop_list)) then
                 entry%value = repr(tab_stop_list)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Array of tab stop positions used by `tab_to_tab_stop'."//LF// &
                         "This should be unallocated, or an array of integers, ordered from smallest to largest."//LF// &
                         "It implicitly extends to infinity through repetition of the last step."//LF// &
@@ -22793,11 +23387,13 @@ contains
             entry%file = "tabulated_list_fm.f90"
             entry%fortran = "tabulated_list_gui_sort_indicator_asc"
             entry%user_option = .true.
+
             if (allocated(tabulated_list_gui_sort_indicator_asc)) then
                 entry%value = repr(tabulated_list_gui_sort_indicator_asc)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Indicator for columns sorted in ascending order, for GUI frames."//LF// &
                         "See `tabulated_list_tty_sort_indicator_asc' for the indicator used"//LF// &
                         "on text-mode frames."
@@ -22805,11 +23401,13 @@ contains
             entry%file = "tabulated_list_fm.f90"
             entry%fortran = "tabulated_list_gui_sort_indicator_desc"
             entry%user_option = .true.
+
             if (allocated(tabulated_list_gui_sort_indicator_desc)) then
                 entry%value = repr(tabulated_list_gui_sort_indicator_desc)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Indicator for columns sorted in descending order, for GUI frames."//LF// &
                         "See `tabulated_list_tty_sort_indicator_desc' for the indicator used"//LF// &
                         "on text-mode frames."
@@ -22830,11 +23428,13 @@ contains
             entry%file = "tabulated_list_fm.f90"
             entry%fortran = "tabulated_list_tty_sort_indicator_asc"
             entry%user_option = .true.
+
             if (allocated(tabulated_list_tty_sort_indicator_asc)) then
                 entry%value = repr(tabulated_list_tty_sort_indicator_asc)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Indicator for columns sorted in ascending order, for text-mode"//LF// &
                         "frames.  See `tabulated_list_gui_sort_indicator_asc' for the"//LF// &
                         "indicator used on GUI frames."
@@ -22842,11 +23442,13 @@ contains
             entry%file = "tabulated_list_fm.f90"
             entry%fortran = "tabulated_list_tty_sort_indicator_desc"
             entry%user_option = .true.
+
             if (allocated(tabulated_list_tty_sort_indicator_desc)) then
                 entry%value = repr(tabulated_list_tty_sort_indicator_desc)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Indicator for columns sorted in ascending order, for text-mode"//LF// &
                         "frames.  See `tabulated_list_gui_sort_indicator_asc' for the"//LF// &
                         "indicator used on GUI frames."
@@ -22929,11 +23531,13 @@ contains
         case ("truncate_string_ellipsis")
             entry%file = "mule_util_fm.f90"
             entry%fortran = "truncate_string_ellipsis_variable"
+
             if (allocated(truncate_string_ellipsis_variable)) then
                 entry%value = repr(truncate_string_ellipsis_variable)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "String to use to indicate truncation (unallocated for the default)."//LF// &
                         "Serves as default value of ELLIPSIS argument to"//LF// &
                         "`truncate_string_to_width' returned by the function"//LF// &
@@ -22973,22 +23577,26 @@ contains
         case ("user_init_file")
             entry%file = "lread_fm.f90"
             entry%fortran = "user_init_file"
+
             if (allocated(user_init_file)) then
                 entry%value = repr(user_init_file)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "File name, including directory, of user's initialization file."//LF// &
                         "While the init file's `configure' runs, value is the real name"//LF// &
                         "of the file."
         case ("user_mail_address")
             entry%file = "startup_fm.f90"
             entry%fortran = "user_mail_address"
+
             if (allocated(user_mail_address)) then
                 entry%value = repr(user_mail_address)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The email address of the current user."//LF// &
                         "This defaults to either: the value of EMAIL environment variable; or"//LF// &
                         "user@host, using `user_login_name' and `mail_host_address' (or"//LF// &
@@ -23062,6 +23670,7 @@ contains
             entry%fortran = "vc_command_messages"
             entry%user_option = .true.
             entry%original = "VC_COMMAND_MESSAGES_NIL"
+
             select case (vc_command_messages)
             case (VC_COMMAND_MESSAGES_NIL)
                 entry%value = "VC_COMMAND_MESSAGES_NIL"
@@ -23072,6 +23681,7 @@ contains
             case default
                 entry%value = repr(vc_command_messages)
             end select
+
             entry%doc = "If true, display and log messages about running back-end commands."//LF// &
                         "If the value is VC_COMMAND_MESSAGES_LOG, messages about running VC back-end commands are"//LF// &
                         "logged in the *Messages* buffer, but not displayed."
@@ -23086,11 +23696,13 @@ contains
             entry%file = "vc_fm.f90"
             entry%fortran = "vc_deduce_backend_nonvc_modes"
             entry%user_option = .true.
+
             if (allocated(vc_deduce_backend_nonvc_modes)) then
                 entry%value = repr(vc_deduce_backend_nonvc_modes)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "List of modes not supported by VC where backend should be deduced."//LF// &
                         "In these modes the backend is deduced based on `default_directory'."//LF// &
                         "If `vc_deduce_backend_all_modes' is true, the backend is deduced in"//LF// &
@@ -23126,6 +23738,7 @@ contains
             entry%file = "vc_dir_fm.f90"
             entry%fortran = "vc_dir_allow_mass_mark_changes"
             entry%original = "VC_DIR_MASS_MARK_ASK"
+
             select case (vc_dir_allow_mass_mark_changes)
             case (VC_DIR_MASS_MARK_NIL)
                 entry%value = "VC_DIR_MASS_MARK_NIL"
@@ -23136,6 +23749,7 @@ contains
             case default
                 entry%value = repr(vc_dir_allow_mass_mark_changes)
             end select
+
             entry%doc = "If true, VC-Dir commands may mark or unmark many items at once."//LF// &
                         ""//LF// &
                         "When a directory in VC-Dir is marked, then for most VCS, this means that"//LF// &
@@ -23160,6 +23774,7 @@ contains
             entry%file = "vc_dir_fm.f90"
             entry%fortran = "vc_dir_auto_hide_up_to_date"
             entry%original = "VC_DIR_AUTO_HIDE_NIL"
+
             select case (vc_dir_auto_hide_up_to_date)
             case (VC_DIR_AUTO_HIDE_NIL)
                 entry%value = "VC_DIR_AUTO_HIDE_NIL"
@@ -23170,6 +23785,7 @@ contains
             case default
                 entry%value = repr(vc_dir_auto_hide_up_to_date)
             end select
+
             entry%doc = "Whether VC-Dir auto-removes `up-to-date'/`ignored' files from display."//LF// &
                         ""//LF// &
                         "If the value is VC_DIR_AUTO_HIDE_NIL, files shown in the VC-Dir buffer"//LF// &
@@ -23207,11 +23823,13 @@ contains
             entry%file = "vc_hooks_fm.f90"
             entry%fortran = "vc_directory_exclusion_list"
             entry%user_option = .true.
+
             if (allocated(vc_directory_exclusion_list)) then
                 entry%value = repr(vc_directory_exclusion_list)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "List of directory names to be ignored when walking directory trees."
         case ("vc_display_failed_async_commands")
             entry%file = "vc_dispatcher_fm.f90"
@@ -23227,6 +23845,7 @@ contains
             entry%fortran = "vc_display_status"
             entry%user_option = .true.
             entry%original = "VC_DISPLAY_STATUS_T"
+
             select case (vc_display_status)
             case (VC_DISPLAY_STATUS_NIL)
                 entry%value = "VC_DISPLAY_STATUS_NIL"
@@ -23237,6 +23856,7 @@ contains
             case default
                 entry%value = repr(vc_display_status)
             end select
+
             entry%doc = "If true, display revision number and lock status in mode line."//LF// &
                         "If false, only the backend name is displayed.  When the value"//LF// &
                         "is VC_DISPLAY_STATUS_NO_BACKEND, then no backend name is displayed before the"//LF// &
@@ -23258,6 +23878,7 @@ contains
             entry%fortran = "vc_follow_symlinks"
             entry%user_option = .true.
             entry%original = "VC_FOLLOW_SYMLINKS_ASK"
+
             select case (vc_follow_symlinks)
             case (VC_FOLLOW_SYMLINKS_NIL)
                 entry%value = "VC_FOLLOW_SYMLINKS_NIL"
@@ -23268,6 +23889,7 @@ contains
             case default
                 entry%value = repr(vc_follow_symlinks)
             end select
+
             entry%doc = "What to do if visiting a symbolic link to a file under version control."//LF// &
                         "Editing such a file through the link bypasses the version control system,"//LF// &
                         "which is dangerous and probably not what you want."//LF// &
@@ -23350,11 +23972,13 @@ contains
             entry%file = "vc_git_fm.f90"
             entry%fortran = "vc_git_program"
             entry%user_option = .true.
+
             if (allocated(vc_git_program)) then
                 entry%value = repr(vc_git_program)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Name of the Git executable (excluding any arguments)."
         case ("vc_git_revision_complete_only_branches")
             entry%file = "vc_git_fm.f90"
@@ -23392,11 +24016,13 @@ contains
             entry%file = "vc_hooks_fm.f90"
             entry%fortran = "vc_handled_backends"
             entry%user_option = .true.
+
             if (allocated(vc_handled_backends)) then
                 entry%value = repr(vc_handled_backends)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "List of version control backends for which VC will be used."//LF// &
                         "Entries in this list will be tried in order to determine whether a"//LF// &
                         "file is under that sort of version control."//LF// &
@@ -23407,11 +24033,13 @@ contains
             entry%file = "vc_hooks_fm.f90"
             entry%fortran = "vc_ignore_dir_regexp"
             entry%user_option = .true.
+
             if (allocated(vc_ignore_dir_regexp)) then
                 entry%value = repr(vc_ignore_dir_regexp)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Regexp matching directory names that are not under VC's control."//LF// &
                         "The default regexp prevents fruitless and time-consuming attempts"//LF// &
                         "to determine the VC status in directories in which filenames are"//LF// &
@@ -23484,6 +24112,7 @@ contains
             entry%fortran = "vc_revert_show_diff"
             entry%user_option = .true.
             entry%original = "VC_REVERT_SHOW_DIFF_T"
+
             select case (vc_revert_show_diff)
             case (VC_REVERT_SHOW_DIFF_NIL)
                 entry%value = "VC_REVERT_SHOW_DIFF_NIL"
@@ -23494,6 +24123,7 @@ contains
             case default
                 entry%value = repr(vc_revert_show_diff)
             end select
+
             entry%doc = "If true, `vc_revert' shows a `vc_diff' buffer before querying."//LF// &
                         "VC_REVERT_SHOW_DIFF_T shows it and buries it afterwards,"//LF// &
                         "VC_REVERT_SHOW_DIFF_KILL shows it and kills it afterwards, and"//LF// &
@@ -23620,11 +24250,13 @@ contains
         case ("xargs_program")
             entry%file = "grep_fm.f90"
             entry%fortran = "xargs_program"
+
             if (allocated(xargs_program)) then
                 entry%value = repr(xargs_program)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "The default xargs program for `grep_find_command'."//LF// &
                         "See `grep_find_use_xargs'."//LF// &
                         "This variable's value takes effect when `grep_compute_defaults' is"//LF// &
@@ -23632,11 +24264,13 @@ contains
         case ("y_or_n_p_history_variable")
             entry%file = "subr_fm.f90"
             entry%fortran = "y_or_n_p_history_variable"
+
             if (allocated(y_or_n_p_history_variable)) then
                 entry%value = repr(y_or_n_p_history_variable)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "Name of the history list to add `y_or_n_p' answers to (unallocated for"//LF// &
                         "no history)."
         case ("y_or_n_p_use_read_key")
@@ -23657,11 +24291,13 @@ contains
             entry%file = "fns_fm.f90"
             entry%fortran = "yes_or_no_prompt"
             entry%user_option = .true.
+
             if (allocated(yes_or_no_prompt)) then
                 entry%value = repr(yes_or_no_prompt)
             else
                 entry%value = "unallocated"
             end if
+
             entry%doc = "String to append when `yes_or_no_p' asks a question."//LF// &
                         "For best results this should end in a space."
         case default
@@ -23676,8 +24312,10 @@ contains
         character(len=*), intent(in) :: name
         integer, intent(out) :: kind
         logical, intent(out) :: setting
+
         kind = OPTION_NONE
         setting = .false.
+
         select case (name)
         case ("abbrev_all_caps")
             kind = OPTION_LOGICAL
@@ -24690,6 +25328,7 @@ contains
     subroutine set_user_option_logical(name, v, local)
         character(len=*), intent(in) :: name
         logical, intent(in) :: v, local
+
         select case (name)
         case ("abbrev_all_caps")
             if (local) then
@@ -25283,7 +25922,9 @@ contains
         integer(int64), intent(in) :: v
         logical, intent(in) :: local
         logical, intent(out) :: ok
+
         ok = .true.
+
         select case (name)
         case ("async_shell_command_width")
             if (local) then
@@ -25298,30 +25939,35 @@ contains
                 ok = .false.
                 return
             end if
+
             bookmark_bmenu_file_column = int(v)
         case ("bookmark_bmenu_type_column_width")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
                 return
             end if
+
             bookmark_bmenu_type_column_width = int(v)
         case ("buffer_menu_mode_width")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
                 return
             end if
+
             buffer_menu_mode_width = int(v)
         case ("buffer_menu_name_width")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
                 return
             end if
+
             buffer_menu_name_width = int(v)
         case ("buffer_menu_size_width")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
                 return
             end if
+
             buffer_menu_size_width = int(v)
         case ("comint_buffer_maximum_size")
             if (local) then
@@ -25364,6 +26010,7 @@ contains
                 ok = .false.
                 return
             end if
+
             completions_max_height = int(v)
         case ("conf_assignment_column")
             if (local) then
@@ -25390,6 +26037,7 @@ contains
                 ok = .false.
                 return
             end if
+
             executable_chmod = int(v)
         case ("f90_associate_indent")
             if (local) then
@@ -25446,30 +26094,35 @@ contains
                 ok = .false.
                 return
             end if
+
             grep_command_position = int(v)
         case ("history_length")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
                 return
             end if
+
             history_length = int(v)
         case ("ibuffer_old_time")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
                 return
             end if
+
             ibuffer_old_time = int(v)
         case ("info_breadcrumbs_depth")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
                 return
             end if
+
             info_breadcrumbs_depth = int(v)
         case ("info_fontify_maximum_menu_size")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
                 return
             end if
+
             info_fontify_maximum_menu_size = int(v)
         case ("jit_lock_chunk_size")
             jit_lock_chunk_size = v
@@ -25488,12 +26141,14 @@ contains
                 ok = .false.
                 return
             end if
+
             list_matching_lines_default_context_lines = int(v)
         case ("mark_ring_max")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
                 return
             end if
+
             mark_ring_max = int(v)
         case ("message_log_max")
             message_log_max = v
@@ -25502,6 +26157,7 @@ contains
                 ok = .false.
                 return
             end if
+
             next_screen_context_lines = int(v)
         case ("read_quoted_char_radix")
             read_quoted_char_radix = v
@@ -25510,6 +26166,7 @@ contains
                 ok = .false.
                 return
             end if
+
             regexp_search_ring_max = int(v)
         case ("register_separator")
             register_separator = v
@@ -25518,12 +26175,14 @@ contains
                 ok = .false.
                 return
             end if
+
             search_ring_max = int(v)
         case ("sh_backslash_column")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
                 return
             end if
+
             sh_backslash_column = int(v)
         case ("sh_basic_offset")
             if (local) then
@@ -25566,30 +26225,35 @@ contains
                 ok = .false.
                 return
             end if
+
             sh_remember_variable_min = int(v)
         case ("show_paren_priority")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
                 return
             end if
+
             show_paren_priority = int(v)
         case ("smie_indent_basic")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
                 return
             end if
+
             smie_indent_basic = int(v)
         case ("split_height_threshold")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
                 return
             end if
+
             split_height_threshold = int(v)
         case ("split_width_threshold")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
                 return
             end if
+
             split_width_threshold = int(v)
         case ("standard_indent")
             if (local) then
@@ -25608,30 +26272,35 @@ contains
                 ok = .false.
                 return
             end if
+
             timer_max_repeats = int(v)
         case ("truncate_partial_width_windows")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
                 return
             end if
+
             truncate_partial_width_windows = int(v)
         case ("vc_log_show_limit")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
                 return
             end if
+
             vc_log_show_limit = int(v)
         case ("window_min_height")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
                 return
             end if
+
             window_min_height = int(v)
         case ("window_min_width")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
                 return
             end if
+
             window_min_width = int(v)
         case default
             if (local) return
@@ -25642,6 +26311,7 @@ contains
     subroutine set_user_option_real(name, v)
         character(len=*), intent(in) :: name
         real, intent(in) :: v
+
         select case (name)
         case ("auto_revert_interval")
             auto_revert_interval = v
@@ -25665,6 +26335,7 @@ contains
     subroutine set_user_option_string(name, v, local)
         character(len=*), intent(in) :: name, v
         logical, intent(in) :: local
+
         select case (name)
         case ("abbrev_file_name")
             abbrev_file_name = v
@@ -26024,7 +26695,9 @@ contains
         character(len=*), intent(in) :: name, constant
         logical, intent(in) :: local
         logical, intent(out) :: ok
+
         ok = .true.
+
         select case (name)
         case ("ansi_color_for_comint_mode")
             select case (constant)
@@ -27493,6 +28166,7 @@ contains
     function repr_logical(v) result(s)
         logical, intent(in) :: v
         character(len=:), allocatable :: s
+
         s = merge(".true. ", ".false.", v)
         s = trim(s)
     end function repr_logical
@@ -27501,6 +28175,7 @@ contains
         integer, intent(in) :: v
         character(len=:), allocatable :: s
         character(len=12) :: buf
+
         write (buf, "(i0)") v
         s = trim(buf)
     end function repr_integer
@@ -27511,13 +28186,17 @@ contains
         real, intent(in) :: v
         character(len=:), allocatable :: s
         character(len=32) :: buf
+
         write (buf, "(f0.6)") v
         s = trim(buf)
+
         do while (len(s) > 2)
             if (s(len(s):len(s)) /= "0" .or. s(len(s) - 1:len(s) - 1) == ".") exit
             s = s(1:len(s) - 1)
         end do
+
         if (s(1:1) == ".") s = "0"//s
+
         if (len(s) > 1) then
             if (s(1:2) == "-.") s = "-0"//s(2:)
         end if
@@ -27527,6 +28206,7 @@ contains
         integer(int64), intent(in) :: v
         character(len=:), allocatable :: s
         character(len=21) :: buf
+
         write (buf, "(i0)") v
         s = trim(buf)
     end function repr_int64
@@ -27536,11 +28216,14 @@ contains
         integer(int64), intent(in) :: v(:)
         character(len=:), allocatable :: s
         integer :: i
+
         s = "["
+
         do i = 1, size(v)
             if (i > 1) s = s//", "
             s = s//repr_int64(v(i))
         end do
+
         s = s//"]"
     end function repr_int64s
 
@@ -27549,11 +28232,14 @@ contains
         integer, intent(in) :: v(:)
         character(len=:), allocatable :: s
         integer :: i
+
         s = "["
+
         do i = 1, size(v)
             if (i > 1) s = s//", "
             s = s//repr_integer(v(i))
         end do
+
         s = s//"]"
     end function repr_integers
 
@@ -27562,11 +28248,14 @@ contains
         character(len=*), intent(in) :: v
         character(len=:), allocatable :: s
         integer :: i
+
         s = """"
+
         do i = 1, len_trim(v)
             s = s//v(i:i)
             if (v(i:i) == """") s = s//""""
         end do
+
         s = s//""""
     end function repr_string
 
@@ -27575,11 +28264,14 @@ contains
         character(len=*), intent(in) :: v(:)
         character(len=:), allocatable :: s
         integer :: i
+
         s = "["
+
         do i = 1, size(v)
             if (i > 1) s = s//", "
             s = s//repr_string(v(i))
         end do
+
         s = s//"]"
     end function repr_strings
 end module docstrings_fm

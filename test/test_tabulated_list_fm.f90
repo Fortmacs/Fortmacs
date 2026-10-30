@@ -51,6 +51,7 @@ contains
 
     subroutine collect_tabulated_list_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("tabulated-list-print", test_print), &
                     new_unittest("tabulated-list-sort", test_sort), &
@@ -60,6 +61,7 @@ contains
 
     logical function sort_car(a, b)
         type(tabulated_list_entry_type), intent(in) :: a, b
+
         sort_car = llt(a%id, b%id)
     end function sort_car
 
@@ -68,6 +70,7 @@ contains
         type(tabulated_list_entry_type), intent(out) :: e
         character(len=*), intent(in) :: name, version, status, description
         integer :: k
+
         e%id = name
         allocate (e%cols(5))
         e%cols(1)%text = name
@@ -75,6 +78,7 @@ contains
         e%cols(3)%text = version
         e%cols(4)%text = status
         e%cols(5)%text = description
+
         do k = 1, 5
             e%cols(k)%face = ""
         end do
@@ -82,6 +86,7 @@ contains
 
     subroutine test_entries(entries)
         type(tabulated_list_entry_type), allocatable, intent(out) :: entries(:)
+
         allocate (entries(4))
         call make_entry(entries(1), "zzzz-game", "2113", "installed", " play zzzz in Emacs")
         call make_entry(entries(2), "4clojure", "1507", "obsolete", " Open and evaluate 4clojure.com questions")
@@ -91,6 +96,7 @@ contains
 
     subroutine test_format(format)
         type(tabulated_list_column_type), allocatable, intent(out) :: format(:)
+
         allocate (format(5))
         format(1)%name = "name"
         format(1)%width = 10
@@ -115,6 +121,7 @@ contains
         type(tabulated_list_entry_type), allocatable :: entries(:)
         type(tabulated_list_column_type), allocatable :: format(:)
         type(status_type) :: st
+
         call init_bindings()
         old = current_buffer()
         call get_buffer_create(generate_new_buffer_name(" *temp*"), h, st)
@@ -132,6 +139,7 @@ contains
     subroutine done(old)
         type(handle_type), intent(in) :: old
         type(status_type) :: st
+
         call kill_buffer(current_buffer(), st)
         call set_buffer(old, st)
     end subroutine done
@@ -139,12 +147,14 @@ contains
     function line_at_point() result(line)
         character(len=:), allocatable :: line
         type(status_type) :: st
+
         call buffer_substring(pos_bol(), pos_eol() + 1, line, st)
     end function line_at_point
 
     !> The entries without the first.
     subroutine pop_entry()
         type(tabulated_list_entry_type), allocatable :: entries(:)
+
         entries = tabulated_list_entries()
         call set_tabulated_list_entries(entries(2:))
     end subroutine pop_entry
@@ -156,7 +166,9 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: pos
         integer(int64) :: shortage
+
         call with_buffer(old)
+
         steps: block
             ! Basic printing.
             call check(error, buffer_string(), &
@@ -193,6 +205,7 @@ contains
             if (allocated(error)) exit steps
             call check(error, line_at_point(), pos)
         end block steps
+
         call done(old)
     end subroutine test_print
 
@@ -203,7 +216,9 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: text
         integer(int64) :: moved
+
         call with_buffer(old)
+
         steps: block
             ! Basic sorting
             call goto_char(point_min())
@@ -248,6 +263,7 @@ contains
             call tabulated_list_sort(st, 4)
             call check(error, st%code == FM_USER_ERROR, "user-error for 4")
         end block steps
+
         call done(old)
     end subroutine test_sort
 
@@ -258,7 +274,9 @@ contains
         type(handle_type) :: old
         type(status_type) :: st
         integer(int64) :: moved
+
         call with_buffer(old)
+
         steps: block
             associate (segs => buffers(cur)%header_line_format%segments)
                 call check(error, size(segs) > 0, "a header line")
@@ -270,15 +288,18 @@ contains
                 call check(error, segs(3)%align_to == 7 + 1 + 10, "the next column")
                 if (allocated(error)) exit steps
             end associate
+
             call goto_char(point_min())
             moved = skip_chars_forward("[:blank:]", st)
             call tabulated_list_sort(st)
+
             associate (segs => buffers(cur)%header_line_format%segments)
                 call check(error, segs(2)%text, "name v")
                 if (allocated(error)) exit steps
                 call check(error, segs(2)%face, "bold")
             end associate
         end block steps
+
         call done(old)
     end subroutine test_header
 end module test_tabulated_list_fm

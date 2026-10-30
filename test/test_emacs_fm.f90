@@ -52,6 +52,7 @@ contains
 
     subroutine collect_emacs_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("command-line-options", test_command_line), &
                     new_unittest("sort-args", test_sort_args), &
@@ -67,6 +68,7 @@ contains
     !> An init file's `configure`: a setting, a command and a key.
     subroutine sample_configure(status)
         type(status_type), intent(out) :: status
+
         tab_width = 4
         cmd_insert_config_stamp = command_type("insert-config-stamp", insert_config_stamp)
         call cmd_insert_config_stamp%define()
@@ -76,12 +78,14 @@ contains
     !> The command bound by `sample_configure`.
     subroutine insert_config_stamp(status)
         type(status_type), intent(out) :: status
+
         call insert("configured", status)
     end subroutine insert_config_stamp
 
     !> An init file whose `configure` fails.
     subroutine failing_configure(status)
         type(status_type), intent(out) :: status
+
         call set_error(status, FM_GENERIC_ERROR, "Something is wrong")
     end subroutine failing_configure
 
@@ -100,24 +104,29 @@ contains
         integer(int32) :: master, slave
         character(len=4096) :: buf
         integer(int64) :: n
+
         call get_buffer_create("*scratch*", scratch, st)
         call set_buffer(scratch, st)
         call erase_buffer(st)
         call open_pty(master, slave, st)
         if (.not. st%ok()) return
+
         if (present(lines)) then
             call set_tty_size(slave, 40_int32, lines, ignore)
         else
             call set_tty_size(slave, 40_int32, 8_int32, ignore)
         end if
+
         ! Raw mode first, so C-c is not taken as an interrupt.
         call init_sys_modes(slave, old, ignore)
         call emacs_write(master, keys, ignore)
         call emacs_main("xterm-256color", slave, st, args, configure)
+
         do while (input_available(master, 100_int32))
             call emacs_read(master, buf, n, ignore)
             if (n <= 0) exit
         end do
+
         call reset_sys_modes(slave, old, ignore)
         call close_fd(slave)
         call close_fd(master)
@@ -128,7 +137,9 @@ contains
         character(len=*), intent(in) :: strings(:)
         type(arg_type), allocatable :: args(:)
         integer :: i
+
         allocate (args(size(strings)))
+
         do i = 1, size(strings)
             args(i)%s = trim(strings(i))
         end do
@@ -139,7 +150,9 @@ contains
         type(arg_type), intent(in) :: args(:)
         character(len=:), allocatable :: s
         integer :: i
+
         s = ""
+
         do i = 1, size(args)
             if (i > 1) s = s//" "
             s = s//args(i)%s
@@ -151,6 +164,7 @@ contains
         type(arg_type), allocatable :: rest(:)
         type(status_type) :: st
         logical :: init
+
         call command_line(argv([character(len=4) :: "-q", "+3", "file"]), rest, init, st)
         call check(error, st%ok() .and. .not. init .and. joined(rest) == "+3 file", "-q")
         if (allocated(error)) return
@@ -185,6 +199,7 @@ contains
         type(arg_type), allocatable :: args(:)
         character(len=:), allocatable :: why
         logical :: ok
+
         args = argv([character(len=4) :: "file", "-q", "+3", "-Q"])
         call sort_args(args, ok, why)
         call check(error, ok .and. joined(args) == "-Q -q file +3", joined(args))
@@ -209,6 +224,7 @@ contains
     subroutine test_configure(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call run_on_pty(achar(3)//"d"//achar(24)//achar(3), st, configure=sample_configure)
         call check(error, st%ok(), "emacs_main")
         if (.not. allocated(error)) call check(error, buffer_string(), "configured")
@@ -221,6 +237,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         type(arg_type) :: args(1)
+
         args(1)%s = "-q"
         ! C-c is undefined without the init file, so "d" self-inserts.
         call run_on_pty(achar(3)//"d"//achar(24)//achar(3), st, args, sample_configure)
@@ -232,6 +249,7 @@ contains
     subroutine test_init_error(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         ! The editor still starts.
         call run_on_pty("hi"//achar(24)//achar(3), st, configure=failing_configure)
         call check(error, st%ok(), "emacs_main")
@@ -258,6 +276,7 @@ contains
         type(status_type) :: st
         type(value_type) :: mode, name
         type(status_type) :: vst
+
         call run_on_pty(achar(24)//achar(3), st)
         call check(error, st%ok(), "emacs_main")
         if (allocated(error)) return
@@ -279,6 +298,7 @@ contains
     subroutine test_initial_window(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call run_on_pty("abc"//achar(24)//achar(3), st)
         call check(error, st%ok(), "emacs_main")
         if (allocated(error)) return
@@ -298,6 +318,7 @@ contains
         type(handle_type) :: a, b, tmp
         character(len=:), allocatable :: dir
         character(len=256) :: names(2)
+
         call init_fileio()
         dir = file_name_as_directory(file_name_as_directory(emacs_wd)//"build/test-emacs-files")
         call make_directory_internal(dir, st)

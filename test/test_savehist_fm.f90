@@ -52,6 +52,7 @@ contains
 
     subroutine collect_savehist_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("savehist-test-saved-variables", test_saved_variables), &
                     new_unittest("savehist-test-duplicated-saved-symbols", test_duplicated) &
@@ -63,6 +64,7 @@ contains
         character(len=:), allocatable, intent(out) :: tmpfile
         logical, intent(in) :: ignore_t3
         type(status_type) :: st
+
         call init_bindings()
         call make_temp_file("savehist-test", tmpfile, st)
         savehist_file = tmpfile
@@ -71,12 +73,14 @@ contains
         if (allocated(savehist_minibuffer_history_variables)) deallocate (savehist_minibuffer_history_variables)
         allocate (savehist_minibuffer_history_variables(0))
         savehist_additional_variables = [savehist_variable_type(name="savehist_tests__t2")]
+
         if (ignore_t3) then
             savehist_ignored_variables = [character(len=64) :: "t3"]
         else
             if (allocated(savehist_ignored_variables)) deallocate (savehist_ignored_variables)
             allocate (savehist_ignored_variables(0))
         end if
+
         call defvar_nil("savehist_tests__t1")
         call defvar_nil("savehist_tests__t2")
         call defvar_nil("t3")
@@ -87,6 +91,7 @@ contains
 
     subroutine save_var(name)
         character(len=*), intent(in) :: name
+
         minibuffer_history_variable = name
         call savehist_minibuffer_hook()
     end subroutine save_var
@@ -94,6 +99,7 @@ contains
     !> Force reloading the file.
     subroutine reload()
         type(status_type) :: st
+
         call minor_modes%savehist_mode%disable(st)
         savehist_loaded = .false.
         call minor_modes%savehist_mode%enable(st)
@@ -102,6 +108,7 @@ contains
     subroutine teardown(tmpfile)
         character(len=*), intent(in) :: tmpfile
         type(status_type) :: st
+
         call minor_modes%savehist_mode%disable(st)
         call delete_file(tmpfile, st)
         if (allocated(savehist_additional_variables)) deallocate (savehist_additional_variables)
@@ -117,6 +124,7 @@ contains
         character(len=*), intent(in) :: name
         type(value_type) :: v
         type(status_type) :: st
+
         call symbol_value(sym(name), v, st)
     end function value_of
 
@@ -125,6 +133,7 @@ contains
         character(len=:), allocatable :: tmpfile
         type(status_type) :: st
         type(value_type) :: t1_copy, t2_copy
+
         call setup(tmpfile, .true.)
         t1_copy = value_of("savehist_tests__t1")
         t2_copy = value_of("savehist_tests__t2")
@@ -156,6 +165,7 @@ contains
         type(handle_type) :: old, h
         integer(int64) :: inserted
         integer :: n1, n2
+
         call setup(tmpfile, .false.)
         call minor_modes%savehist_mode%enable(st)
         call save_var("savehist_tests__t1")
@@ -179,8 +189,10 @@ contains
     integer function count_lines_starting(text, prefix) result(n)
         character(len=*), intent(in) :: text, prefix
         integer :: start, k
+
         n = 0
         start = 1
+
         do k = 1, len(text) + 1
             if (k > len(text)) then
                 call try(start, k - 1)
@@ -189,9 +201,12 @@ contains
                 start = k + 1
             end if
         end do
+
     contains
+
         subroutine try(a, b)
             integer, intent(in) :: a, b
+
             if (b - a + 1 >= len(prefix)) then
                 if (text(a:a + len(prefix) - 1) == prefix) n = n + 1
             end if

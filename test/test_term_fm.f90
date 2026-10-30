@@ -51,6 +51,7 @@ contains
 
     subroutine collect_term_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("init-tty", test_init), &
                     new_unittest("cursor-motion", test_cursor_motion), &
@@ -72,6 +73,7 @@ contains
         type(tty_display_info), intent(out) :: tty
         type(terminfo_type) :: ti
         type(status_type) :: st
+
         call builtin_xterm(ti)
         call init_tty_entry(tty, ti, "xterm-256color", -1_int32, st)
     end subroutine xterm
@@ -81,6 +83,7 @@ contains
         integer, intent(in) :: face_id
         type(glyph_type) :: g(len(text))
         integer :: k
+
         do k = 1, len(text)
             g(k)%ch = iachar(text(k:k))
             g(k)%face_id = face_id
@@ -91,6 +94,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(tty_display_info) :: tty
         type(status_type) :: st
+
         call xterm(tty)
         call check(error, tty%wcm%cm_rows == 24 .and. tty%wcm%cm_cols == 80, "size")
         if (allocated(error)) return
@@ -110,6 +114,7 @@ contains
     subroutine test_cursor_motion(error)
         type(error_type), allocatable, intent(out) :: error
         type(tty_display_info) :: tty
+
         call xterm(tty)
         ! Unknown position: absolute motion.
         call tty_cursor_to(tty, 4, 9)
@@ -142,6 +147,7 @@ contains
     subroutine test_clearing(error)
         type(error_type), allocatable, intent(out) :: error
         type(tty_display_info) :: tty
+
         call xterm(tty)
         call tty_clear_frame(tty)
         call check(error, tty_take_output(tty), ESC//"[H"//ESC//"[2J")
@@ -168,6 +174,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(tty_display_info) :: tty
         type(face_type) :: faces(0:2)
+
         call xterm(tty)
         faces(1)%tty_bold_p = .true.
         faces(2)%foreground = 1
@@ -190,6 +197,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(tty_display_info) :: tty
         type(face_type) :: faces(0:0)
+
         call xterm(tty)
         tty%cursor_hidden = .true.
         call cmat(tty, 23, 78)
@@ -207,6 +215,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(tty_display_info) :: tty
         type(face_type) :: faces(0:0)
+
         call xterm(tty)
         call cmat(tty, 2, 2)
         call tty_insert_glyphs(tty, faces, len=3)
@@ -230,6 +239,7 @@ contains
     subroutine test_scroll_region(error)
         type(error_type), allocatable, intent(out) :: error
         type(tty_display_info) :: tty
+
         call xterm(tty)
         deallocate (tty%ts_ins_line, tty%ts_ins_multi_lines, tty%ts_del_line, &
                     tty%ts_del_multi_lines)
@@ -244,6 +254,7 @@ contains
     subroutine test_modes(error)
         type(error_type), allocatable, intent(out) :: error
         type(tty_display_info) :: tty
+
         call xterm(tty)
         call tty_set_terminal_modes(tty)
         call check(error, tty_take_output(tty), ESC//"[?1049h"//ESC//"[22;0;0t"// &
@@ -265,6 +276,7 @@ contains
         type(tty_display_info) :: tty
         type(value_type) :: key(3), v
         type(status_type) :: st
+
         call xterm(tty)
         key(1) = make_fixnum(27_int64)
         key(2) = make_fixnum(int(iachar("O"), int64))
@@ -276,6 +288,7 @@ contains
     subroutine test_encode(error)
         type(error_type), allocatable, intent(out) :: error
         type(glyph_type) :: g(4)
+
         g(1)%ch = 225
         g(2)%ch = 26085
         g(3)%ch = 26085
@@ -294,6 +307,7 @@ contains
         integer(int32) :: master, slave
         character(len=64) :: buf
         integer(int64) :: n
+
         call open_pty(master, slave, st)
         call check(error, st%ok(), "open_pty")
         if (allocated(error)) return
@@ -302,15 +316,18 @@ contains
         call init_tty_entry(tty, ti, "xterm-256color", slave, st)
         call check(error, st%ok() .and. tty%wcm%cm_cols == 100 .and. tty%wcm%cm_rows == 30, &
                    "size from the pty")
+
         if (.not. allocated(error)) then
             call tty_cursor_to(tty, 0, 0)
             call tty_flush(tty, st)
             call check(error, input_available(master, 2000_int32), "output")
+
             if (.not. allocated(error)) then
                 call emacs_read(master, buf, n, st)
                 call check(error, buf(1:n), ESC//"[1;1H")
             end if
         end if
+
         call delete_tty(tty, st)
         call close_fd(slave)
         call close_fd(master)

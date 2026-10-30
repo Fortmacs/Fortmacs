@@ -87,6 +87,7 @@ contains
 
     subroutine collect_ibuf_ext_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("ibuffer-test-Bug24997", test_bug24997), &
                     new_unittest("ibuffer-save-filters", test_save_filters), &
@@ -121,6 +122,7 @@ contains
         type(ibuffer_filter_type), intent(in), optional :: f2, f3
         type(ibuffer_filter_type), allocatable :: fs(:)
         integer :: n
+
         n = 1
         if (present(f2)) n = n + 1
         if (present(f3)) n = n + 1
@@ -136,6 +138,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         logical, intent(in) :: cond
         character(len=*), intent(in) :: what
+
         call check(error, last_status%ok(), what//": "//format_error(last_status))
         if (allocated(error)) return
         call check(error, cond, what)
@@ -145,6 +148,7 @@ contains
     subroutine set_mode(mode)
         integer, intent(in) :: mode
         type(status_type) :: st
+
         select case (mode)
         case (TEXT)
             call text_mode(st)
@@ -164,18 +168,22 @@ contains
         type(handle_type) :: old
         type(status_type) :: st
         integer :: n, k
+
         old = current_buffer()
         call set_buffer(buf, st)
         call insert(include, st)
         n = size - len(include)
+
         if (size > 0) then
             do k = 1, n/len(CHUNK)
                 call insert(CHUNK, st)
             end do
+
             do k = 1, mod(n, len(CHUNK))
                 call insert(LF, st)
             end do
         end if
+
         ! prevent query on cleanup
         call restore_buffer_modified_p(.false.)
         call set_buffer(old, st)
@@ -189,6 +197,7 @@ contains
         type(handle_type) :: buf, old
         character(len=:), allocatable :: file
         type(status_type) :: st
+
         call make_temp_file(prefix, file, st)
         ntest_files = ntest_files + 1
         test_files(ntest_files)%s = file
@@ -208,6 +217,7 @@ contains
         integer, intent(in) :: size, mode
         type(handle_type) :: buf, old
         type(status_type) :: st
+
         call get_buffer_create(generate_new_buffer_name(prefix), buf, st)
         ntest_buffers = ntest_buffers + 1
         test_buffers(ntest_buffers) = buf
@@ -222,13 +232,17 @@ contains
     subroutine clean_up()
         type(status_type) :: st
         integer :: k
+
         do k = 1, ntest_files
             call delete_file(test_files(k)%s, st)
         end do
+
         ntest_files = 0
+
         do k = ntest_buffers, 1, -1
             if (buffer_live_p(test_buffers(k))) call kill_buffer(test_buffers(k), st)
         end do
+
         ntest_buffers = 0
     end subroutine clean_up
 
@@ -237,6 +251,7 @@ contains
     function directory_of(buf) result(dir)
         type(handle_type), intent(in) :: buf
         character(len=:), allocatable :: dir
+
         if (.not. allocated(buffers(buf%index)%directory)) buffers(buf%index)%directory = "/"
         dir = buffers(buf%index)%directory
     end function directory_of
@@ -244,6 +259,7 @@ contains
     ! The current buffer's text is longer than 18 characters.
     recursive logical function longer_than_18(buffer)
         type(handle_type), intent(in) :: buffer
+
         if (buffer%index < 0) continue
         longer_than_18 = point_max() - point_min() > 18
     end function longer_than_18
@@ -252,8 +268,10 @@ contains
     logical function same_filters(a, b)
         type(ibuffer_filter_type), intent(in) :: a(:), b(:)
         integer :: k
+
         same_filters = size(a) == size(b)
         if (.not. same_filters) return
+
         do k = 1, size(a)
             if (.not. ibuffer_filter_equal(a(k), b(k))) same_filters = .false.
         end do
@@ -264,6 +282,7 @@ contains
         type(handle_type), intent(out) :: old, ib
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call init_bindings()
         ibuffer_expert = .true.
         old = current_buffer()
@@ -277,11 +296,13 @@ contains
     subroutine kill_test_ibuffer(old, ib)
         type(handle_type), intent(in) :: old, ib
         type(status_type) :: st
+
         if (buffer_live_p(ib)) then
             call set_buffer(ib, st)
             call restore_buffer_modified_p(.false.)
             call kill_buffer(ib, st)
         end if
+
         if (buffer_live_p(old)) call set_buffer(old, st)
     end subroutine kill_test_ibuffer
 
@@ -291,6 +312,7 @@ contains
         type(ibuffer_filter_type), intent(in), optional :: f1, f2
         type(ibuffer_filter_type), allocatable :: fs(:)
         integer :: n
+
         n = 0
         if (present(f1)) n = n + 1
         if (present(f2)) n = n + 1
@@ -310,6 +332,7 @@ contains
         type(handle_type) :: old, ib
         type(status_type) :: st
         type(ibuffer_filter_type), allocatable :: filters(:)
+
         call get_test_ibuffer(old, ib, error)
         if (allocated(error)) return
         call set_filters(ibuffer_size_gt(10_int64), ibuffer_used_mode("lisp_interaction_mode"))
@@ -328,10 +351,13 @@ contains
         type(ibuffer_filter_type) :: test1(2), test2(1), test3(3)
         type(status_type) :: st
         logical :: saved_custom
+
         call body()
         ibuffer_saved_filters = orig
         ibuffer_save_with_custom = saved_custom
+
     contains
+
         subroutine body()
             saved_custom = ibuffer_save_with_custom
             orig = ibuffer_saved_filters
@@ -359,10 +385,12 @@ contains
             call check(error, same_filters(ibuffer_saved_filters%entries(ibuffer_saved_filters%find("test2"))%filters, &
                                            test2), "assoc test2")
         end subroutine body
+
         logical function entry_is(k, name, filters)
             integer, intent(in) :: k
             character(len=*), intent(in) :: name
             type(ibuffer_filter_type), intent(in) :: filters(:)
+
             entry_is = .false.
             if (ibuffer_saved_filters%count() < k) return
             if (ibuffer_saved_filters%entries(k)%name /= name) return
@@ -377,6 +405,7 @@ contains
         type(ibuffer_filter_groups_type) :: groups
         type(handle_type) :: old, ib
         type(status_type) :: st
+
         call get_test_ibuffer(old, ib, error)
         if (allocated(error)) return
         orig = ibuffer_saved_filter_groups
@@ -404,9 +433,12 @@ contains
     subroutine test_inclusion_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
+
         call body()
         call clean_up()
+
     contains
+
         subroutine body()
             buf = create_file_buffer("ibuf-test-1", "", 100, "One ring to rule them all"//LF, FUNDAMENTAL)
             call should(error, incl(buf, ibuffer_size_gt(99_int64)), "size-gt")
@@ -450,9 +482,12 @@ contains
     subroutine test_inclusion_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
+
         call body()
         call clean_up()
+
     contains
+
         subroutine body()
             buf = create_file_buffer("ibuf-test-2", "", 200, "and in the darkness find them"//LF, TEXT)
             call should(error, incl(buf, ibuffer_size_gt(199_int64)), "size-gt")
@@ -491,9 +526,12 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: bufa, bufb
         character(len=:), allocatable :: dira, dirb
+
         call body()
         call clean_up()
+
     contains
+
         subroutine body()
             bufa = create_file_buffer("ibuf-test-3.a", "", 50, "...but a multitude of drops?"//LF, TEXT)
             bufb = create_non_file_buffer("ibuf-test-3.b", 50, "...but a multitude of drops?"//LF, TEXT)
@@ -524,9 +562,12 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf, old
         type(status_type) :: st
+
         call body()
         call clean_up()
+
     contains
+
         subroutine body()
             buf = create_file_buffer("ibuf-test-4", ".sh", 0, "echo --emacs-rocks--"//LF, SH)
             call should(error, incl(buf, ibuffer_file_extension("sh")), "file-extension")
@@ -563,9 +604,12 @@ contains
     subroutine test_inclusion_5(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
+
         call body()
         call clean_up()
+
     contains
+
         subroutine body()
             buf = create_non_file_buffer("ibuf-test-5.el", 0, "echo --It really does!--"//LF, SH)
             call should(error,.not. incl(buf, ibuffer_file_extension("el")), "file-extension")
@@ -588,9 +632,12 @@ contains
     subroutine test_inclusion_6(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf, buf2
+
         call body()
         call clean_up()
+
     contains
+
         subroutine body()
             buf = create_non_file_buffer("*ibuf-test-6*", 65, "", TEXT)
             buf2 = create_file_buffer("ibuf-test-6a", ".sh", 0, "echo Hello, World!", SH)
@@ -620,9 +667,12 @@ contains
     subroutine test_inclusion_7(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
+
         call body()
         call clean_up()
+
     contains
+
         subroutine body()
             buf = create_non_file_buffer("ibuf-test-7", 0, "", FUNDAMENTAL)
             call should(error, incl(buf, ibuffer_not(ibuffer_starred_name())), "not starred-name")
@@ -642,9 +692,12 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: bufa, bufb, bufc, bufd, bufe, buff, old
         type(status_type) :: st
+
         call body()
         call clean_up()
+
     contains
+
         subroutine body()
             bufa = create_non_file_buffer("ibuf-test-8a", 0, "", TEXT)
             bufb = create_non_file_buffer("*ibuf-test-8b*", 32, "", FUNDAMENTAL)
@@ -694,10 +747,13 @@ contains
         type(ibuffer_filter_type) :: filters(3), gnus(1)
         type(ibuffer_filter_type), allocatable :: parts(:)
         integer :: k
+
         call body()
         call set_filters()
         call kill_test_ibuffer(old, ib)
+
     contains
+
         subroutine body()
             call get_test_ibuffer(old, ib, error)
             if (allocated(error)) return
@@ -744,12 +800,14 @@ contains
     !> Tests `ibuffer_and_filter' in an Ibuffer buffer.
     subroutine test_and_filter(error)
         type(error_type), allocatable, intent(out) :: error
+
         call op_filter_test(error, .true.)
     end subroutine test_and_filter
 
     !> Tests `ibuffer_or_filter' in an Ibuffer buffer.
     subroutine test_or_filter(error)
         type(error_type), allocatable, intent(out) :: error
+
         call op_filter_test(error, .false.)
     end subroutine test_or_filter
 
@@ -760,10 +818,13 @@ contains
         type(handle_type) :: old, ib
         type(status_type) :: st
         type(ibuffer_filter_type) :: f(4), top(1), parts(2), outer(2)
+
         call body()
         call set_filters()
         call kill_test_ibuffer(old, ib)
+
     contains
+
         subroutine body()
             call get_test_ibuffer(old, ib, error)
             if (allocated(error)) return
@@ -813,44 +874,54 @@ contains
             outer(1) = op(parts(1), parts(2))
             call check(error, same_filters(outer(1:1), ibuffer_filtering_qualifiers()), "both other")
         end subroutine body
+
         subroutine run(decompose)
             logical, intent(in) :: decompose
+
             if (and) then
                 call ibuffer_and_filter(st, decompose)
             else
                 call ibuffer_or_filter(st, decompose)
             end if
         end subroutine run
+
         function op(a, b) result(r)
             type(ibuffer_filter_type), intent(in) :: a, b
             type(ibuffer_filter_type) :: r
+
             if (and) then
                 r = ibuffer_and(a, b)
             else
                 r = ibuffer_or(a, b)
             end if
         end function op
+
         function other(a, b) result(r)
             type(ibuffer_filter_type), intent(in) :: a, b
             type(ibuffer_filter_type) :: r
+
             if (and) then
                 r = ibuffer_or(a, b)
             else
                 r = ibuffer_and(a, b)
             end if
         end function other
+
         function op3(a, b, c) result(r)
             type(ibuffer_filter_type), intent(in) :: a, b, c
             type(ibuffer_filter_type) :: r
+
             if (and) then
                 r = ibuffer_and(a, b, c)
             else
                 r = ibuffer_or(a, b, c)
             end if
         end function op3
+
         function op4(a, b, c, d) result(r)
             type(ibuffer_filter_type), intent(in) :: a, b, c, d
             type(ibuffer_filter_type) :: r
+
             if (and) then
                 r = ibuffer_and(a, b, c, d)
             else
@@ -862,6 +933,7 @@ contains
     !> Tests string recommendation of filter from `ibuffer_format_qualifier'.
     subroutine test_format_qualifier(error)
         type(error_type), allocatable, intent(out) :: error
+
         call init_bindings()
         call expect(ibuffer_major_mode("org_mode"), " [major mode: org_mode]")
         if (allocated(error)) return
@@ -881,11 +953,14 @@ contains
                                ibuffer_major_mode("lisp_interaction_mode")), &
                     " [OR [major mode: emacs_lisp_mode] [filename extension: elc?] [AND [starred buffer name] " &
                     //"[buffer name: elisp]] [major mode: lisp_interaction_mode]]")
+
     contains
+
         subroutine expect(f, s)
             type(ibuffer_filter_type), intent(in) :: f
             character(len=*), intent(in) :: s
             character(len=:), allocatable :: got
+
             got = ibuffer_format_qualifier(f)
             call check(error, got == s, '"'//got//'" expected "'//s//'"')
         end subroutine expect
@@ -894,6 +969,7 @@ contains
     !> Tests `ibuffer_unary_operand': (not cell) -> cell.
     subroutine test_unary_operand(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, ibuffer_filter_equal(ibuffer_unary_operand(ibuffer_not(ibuffer_major_mode("foo"))), &
                                                ibuffer_major_mode("foo")), "not mode")
         if (allocated(error)) return
@@ -911,10 +987,13 @@ contains
         type(ibuffer_filter_groups_type) :: groups
         character(len=:), allocatable :: listing
         type(ibuffer_filter_type), allocatable :: filters(:)
+
         call body()
         call kill_test_ibuffer(old, ib)
         call clean_up()
+
     contains
+
         subroutine body()
             buf = create_non_file_buffer("ibuf-group-test", 0, "", TEXT)
             call get_test_ibuffer(old, ib, error)
@@ -964,6 +1043,7 @@ contains
         type(value_type), allocatable :: evs(:)
         type(value_type) :: items(3)
         type(status_type) :: st
+
         call init_bindings()
         call discard_input()
         items(1) = make_string("foo")

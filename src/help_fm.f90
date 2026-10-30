@@ -172,13 +172,16 @@ contains
         type(handle_type), intent(in) :: map
         type(named_keymap_type), allocatable :: grown(:)
         integer :: k
+
         if (.not. allocated(named_keymaps)) allocate (named_keymaps(0))
+
         do k = 1, size(named_keymaps)
             if (named_keymaps(k)%name == name) then
                 named_keymaps(k)%map = map
                 return
             end if
         end do
+
         allocate (grown(size(named_keymaps) + 1))
         grown(1:size(named_keymaps)) = named_keymaps
         grown(size(grown))%name = name
@@ -191,8 +194,10 @@ contains
         type(handle_type), intent(in) :: map
         character(len=:), allocatable :: name
         integer :: k
+
         name = ""
         if (.not. allocated(named_keymaps)) return
+
         do k = 1, size(named_keymaps)
             if (named_keymaps(k)%map%index == map%index .and. &
                 named_keymaps(k)%map%generation == map%generation) then
@@ -208,8 +213,10 @@ contains
         type(handle_type), intent(out) :: map
         logical, intent(out) :: found
         integer :: k
+
         found = .false.
         if (.not. allocated(named_keymaps)) return
+
         do k = 1, size(named_keymaps)
             if (named_keymaps(k)%name == name) then
                 map = named_keymaps(k)%map
@@ -229,11 +236,13 @@ contains
         character(len=:), allocatable :: s
         type(value_type) :: keys
         type(value_type), allocatable :: events(:)
+
         if (have_map) then
             call where_is_internal(sym(name), keys, firstonly=.true., keymap=map)
         else
             call where_is_internal(sym(name), keys, firstonly=.true.)
         end if
+
         if (nilp(keys)) then
             s = "M-x "//name
         else
@@ -274,14 +283,18 @@ contains
         integer :: i, j, n, clen
         logical :: have_map, found
         character :: c, nx
+
         out = ""
         have_map = .false.
         n = len(string)
         i = 1
+
         do while (i <= n)
             c = string(i:i)
+
             if (c == "\" .and. i < n) then
                 nx = string(i + 1:i + 1)
+
                 select case (nx)
                 case ("=")
                     if (i + 2 <= n) then
@@ -293,9 +306,11 @@ contains
                         out = out//"\="
                         i = i + 2
                     end if
+
                     cycle
                 case ("[")
                     j = index(string(i + 2:), "]")
+
                     if (j > 0) then
                         out = out//command_keys(string(i + 2:i + j), map, have_map)
                         i = i + 2 + j
@@ -303,6 +318,7 @@ contains
                     end if
                 case ("<")
                     j = index(string(i + 2:), ">")
+
                     if (j > 0) then
                         call named_keymap(string(i + 2:i + j), map, found)
                         have_map = found
@@ -311,6 +327,7 @@ contains
                     end if
                 case ("{")
                     j = index(string(i + 2:), "}")
+
                     if (j > 0) then
                         out = out//keymap_summary(string(i + 2:i + j))
                         i = i + 2 + j
@@ -318,6 +335,7 @@ contains
                     end if
                 case ("`")
                     j = index(string(i + 2:), "'")
+
                     if (j > 0) then
                         if (literal_key_p(string(i + 2:i + j))) then
                             out = out//string(i + 2:i + j)
@@ -327,6 +345,7 @@ contains
                     end if
                 case default
                 end select
+
                 out = out//c
                 i = i + 1
             else if (c == "`") then
@@ -354,28 +373,36 @@ contains
         type(value_type), allocatable :: maps(:), earlier(:)
         logical :: found
         integer :: k, n
+
         call named_keymap(name, map, found)
+
         if (.not. found) then
             s = LF//"Uses keymap "//LQUOTE//name//RQUOTE//", which is not currently defined."//LF
             return
         end if
+
         ! The active keymaps that precede this one; none if it's not
         ! active.
         active = current_active_maps()
+
         if (keymap_ref_p(active)) then
             allocate (maps(1))
             maps(1) = active
         else
             call list_elements(active, maps)
         end if
+
         n = 0
+
         do k = 1, size(maps)
             if (.not. keymap_ref_p(maps(k))) cycle
+
             if (same_map(xhandle(maps(k)), map)) then
                 n = k - 1
                 exit
             end if
         end do
+
         allocate (earlier(n))
         if (n > 0) earlier = maps(1:n)
         s = ""
@@ -386,6 +413,7 @@ contains
     !> mouse button or "M-x COMMAND".
     logical function literal_key_p(key)
         character(len=*), intent(in) :: key
+
         literal_key_p = .false.
         if (len(key) == 0) return
         literal_key_p = key_valid_p(key)
@@ -397,7 +425,9 @@ contains
     integer function utf8_length(b)
         character, intent(in) :: b
         integer :: code
+
         code = iachar(b)
+
         if (code >= 240) then
             utf8_length = 4
         else if (code >= 224) then
@@ -420,15 +450,18 @@ contains
         type(handle_type) :: buf, previous, window
         type(status_type) :: st
         integer :: n
+
         previous = current_buffer()
         call get_buffer_create(help_buffer_name, buf, status)
         if (.not. status%ok()) return
         call set_buffer(buf, status)
         if (.not. status%ok()) return
+
         if (.not. derived_mode_p(["help_mode"])) then
             call help_mode(status)
             if (.not. status%ok()) return
         end if
+
         buffers(cur)%undo_enabled = .false.
         call set_buffer_read_only(buf, .false., status)
         call erase_buffer(status)
@@ -436,10 +469,12 @@ contains
         ! help-make-xrefs: delete extraneous newlines at the end of the
         ! text, then end it with one.
         n = len(text)
+
         do while (n > 0)
             if (text(n:n) /= LF) exit
             n = n - 1
         end do
+
         call insert(text(1:n)//LF, status)
         if (.not. status%ok()) return
         call set_buffer_read_only(buf, .true., status)
@@ -464,6 +499,7 @@ contains
         type(handle_type) :: previous, buf, window
         type(status_type) :: st
         character(len=:), allocatable :: old_dir
+
         previous = current_buffer()
         if (allocated(buffers(cur)%directory)) old_dir = buffers(cur)%directory
         call get_buffer_create(bufname, buf, status)
@@ -491,12 +527,14 @@ contains
         if (buffer_live_p(previous)) call set_buffer(previous, st)
         call display_buffer(buf, window, status)
         if (.not. status%ok()) return
+
         if (window_live_p(window)) then
             minibuffer_scroll_window = window
             windows(window%index)%hscroll = 0
             if (windows(window%index)%start%index /= 0) call set_marker(windows(window%index)%start, 1_int64, st, buf)
             if (windows(window%index)%pointm%index /= 0) call set_marker(windows(window%index)%pointm, 1_int64, st, buf)
         end if
+
         ! help-mode-finish
         call set_buffer_read_only(buf, .true., st)
     end subroutine with_output_to_temp_buffer
@@ -514,16 +552,19 @@ contains
         type(handle_type) :: old
         type(status_type) :: st
         integer(int64) :: zv
+
         ! If we don't have QUIT_PART we probably reuse a window showing the
         ! same buffer so we don't show any message.
         if (len(quit_part) == 0) then
             call message("")
             return
         end if
+
         old = current_buffer()
         call set_buffer(windows(window%index)%buffer, st)
         zv = buffers(cur)%zv
         if (buffer_live_p(old)) call set_buffer(old, st)
+
         if (pos_visible_in_window_p(zv, window)) then
             ! Buffer end is at least partially visible, no need to talk
             ! about scrolling.
@@ -535,6 +576,7 @@ contains
         else
             scroll_part = ""
         end if
+
         call message(substitute_command_keys(quit_part//scroll_part))
     end subroutine help_window_display_message
 
@@ -545,10 +587,12 @@ contains
         type(handle_type), intent(in) :: window
         integer :: help_setup, nwindows
         type(handle_type), allocatable :: leaves(:)
+
         if (.not. window_live_p(window)) return
         help_setup = windows(window%index)%quit_restore%kind
         call window_leaves(selected_frame%root_window, leaves)
         nwindows = size(leaves)
+
         if (same_window(window, selected_window())) then
             ! The help window is or gets selected ...
             select case (help_setup)
@@ -601,6 +645,7 @@ contains
     function found_in(keys) result(s)
         type(value_type), intent(in) :: keys(:)
         character(len=:), allocatable :: s
+
         s = binding_locus(keys)
         if (len(s) > 0) s = " (found in "//s//")"
     end function found_in
@@ -621,16 +666,20 @@ contains
         type(major_mode_type), pointer :: mode
         logical :: found
         integer :: k
+
         name = ""
         ! help--key-binding-keymap: the first active map binding KEY.
         active = current_active_maps()
+
         if (keymap_ref_p(active)) then
             allocate (maps(1))
             maps(1) = active
         else
             call list_elements(active, maps)
         end if
+
         found = .false.
+
         do k = 1, size(maps)
             if (.not. keymap_ref_p(maps(k))) cycle
             call lookup_key(maps(k), keys, val, status, accept_default=.true.)
@@ -641,7 +690,9 @@ contains
             found = .true.
             exit
         end do
+
         if (.not. found) return
+
         ! Look into these advertised symbols first.
         if (keymap_live_p(overriding_terminal_local_map)) then
             if (same_map(map, overriding_terminal_local_map)) then
@@ -649,18 +700,23 @@ contains
                 return
             end if
         end if
+
         name = active_minor_mode_of_map(map)
+
         if (len(name) > 0) then
             name = name//"_map"
             return
         end if
+
         if (same_map(map, current_global_map())) then
             name = "global_map"
             return
         end if
+
         if (cur /= 0) then
             if (allocated(buffers(cur)%major_mode)) then
                 mode => major_mode_named(buffers(cur)%major_mode)
+
                 if (associated(mode)) then
                     if (same_map(map, mode%map)) then
                         name = trim(mode%name)//"_map"
@@ -669,12 +725,14 @@ contains
                 end if
             end if
         end if
+
         ! Only look in other symbols otherwise.
         name = keymap_name(map)
     end function binding_locus
 
     logical function same_map(a, b)
         type(handle_type), intent(in) :: a, b
+
         same_map = a%index == b%index .and. a%generation == b%generation
     end function same_map
 
@@ -686,6 +744,7 @@ contains
         logical, intent(out) :: ok
         type(status_type), intent(out) :: status
         logical :: eof
+
         call message_nolog("Describe the following key, mouse click, or menu item: ")
         call read_key_sequence(keys, binding, eof, status)
         call message("")
@@ -696,6 +755,7 @@ contains
     !> long) or `undefined'.  Port of help.el:help--binding-undefined-p.
     logical function binding_undefined_p(defn)
         type(value_type), intent(in) :: defn
+
         binding_undefined_p = nilp(defn) .or. fixnump(defn)
         if (.not. binding_undefined_p .and. symbolp(defn)) binding_undefined_p = value_eq(defn, sym("undefined"))
     end function binding_undefined_p
@@ -712,17 +772,21 @@ contains
         type(value_type) :: binding
         character(len=:), allocatable :: desc, name, text, lead
         logical :: ok
+
         call read_help_key(keys, binding, ok, status)
         if (.not. ok) return
         desc = key_description(keys)
+
         if (binding_undefined_p(binding)) then
             call message(desc//" is undefined")
             return
         end if
+
         if (.not. symbolp(binding)) then
             call message(desc//" runs a keyboard macro")
             return
         end if
+
         call symbol_name(binding, name, status)
         if (.not. status%ok()) return
         lead = desc//" runs the command "//name//found_in(keys)//", which is "
@@ -740,9 +804,11 @@ contains
         type(value_type) :: binding
         character(len=:), allocatable :: desc, name
         logical :: ok
+
         call read_help_key(keys, binding, ok, status)
         if (.not. ok) return
         desc = key_description(keys)
+
         if (binding_undefined_p(binding)) then
             call message(desc//" is undefined")
         else if (symbolp(binding)) then
@@ -762,25 +828,32 @@ contains
         type(value_type) :: all
         type(value_type), allocatable :: seqs(:), events(:)
         integer :: k
+
         call completing_read("Where is command: ", completion_obarray_table(), name, status, commandp, &
                              require_match=REQUIRE_MATCH_T)
         if (.not. status%ok()) return
+
         if (len(name) == 0) then
             call set_error(status, FM_GENERIC_ERROR, "No command")
             return
         end if
+
         call where_is_internal(sym(name), all)
+
         if (nilp(all)) then
             call message(name//" is not on any key")
             return
         end if
+
         call list_elements(all, seqs)
         keys_text = ""
+
         do k = 1, size(seqs)
             call list_elements(seqs(k), events)
             if (k > 1) keys_text = keys_text//", "
             keys_text = keys_text//key_description(events)
         end do
+
         call message(name//" is on "//keys_text)
     end subroutine where_is
 
@@ -788,6 +861,7 @@ contains
     !> Port of help.el:help-quit.
     subroutine help_quit(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
     end subroutine help_quit
 
@@ -804,6 +878,7 @@ contains
         type(handle_type) :: buf, old, win
         type(status_type) :: st
         integer(int64) :: pt
+
         call messages_buffer(buf, status)
         if (.not. status%ok()) return
         old = current_buffer()
@@ -830,6 +905,7 @@ contains
     subroutine view_lossage(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
+
         text = " "//lossage_make_recent_keys()
         call lossage_comment_indent(text)
         call with_help_window(text, status)
@@ -846,10 +922,13 @@ contains
         character(len=:), allocatable :: name
         type(status_type) :: st
         integer :: k
+
         call recent_keys(.true., keys, is_command)
         s = ""
+
         do k = 1, size(keys)
             if (k > 1) s = s//" "
+
             if (is_command(k)) then
                 if (nilp(keys(k))) then
                     s = s//";; null()"//LF
@@ -879,24 +958,31 @@ contains
         integer, allocatable :: lens(:)
         integer :: n, k, begpos, codecol, indent, lo, hi, other, j, ocol, omax, omin, fill, tabw
         logical :: trailing_newline, tabs
+
         call default_settings(fill, tabw, tabs)
         trailing_newline = .false.
         if (len(text) > 0) trailing_newline = text(len(text):len(text)) == LF
         call split_lines(text, lines, lens, n)
+
         do k = 1, n
             line = lines(k) (1:lens(k))
             begpos = index(line, ";; ")
+
             if (begpos == 0) then
                 ! No comment: insert one at comment-column.
                 line = line//indent_string(text_columns(line), COMMENT_COLUMN, tabw, tabs)
+
                 if (len(line) > 0) then
                     if (line(len(line):len(line)) /= " " .and. line(len(line):len(line)) /= TAB) line = line//" "
                 end if
+
                 begpos = len(line) + 1
                 line = line//";; "
             end if
+
             codecol = text_columns(line(1:begpos - 1))
             j = len_trim_ws(line(1:begpos - 1))
+
             if (j == 0) then
                 ! No code before the comment: comment-indent-default gives
                 ! nil, and indent-according-to-mode indents the line like
@@ -908,6 +994,7 @@ contains
                 lens(k) = len(line)
                 cycle
             end if
+
             ! comment-choose-indent with INDENT comment-column.
             indent = COMMENT_COLUMN
             hi = codecol + (fill - text_columns(line))
@@ -916,10 +1003,12 @@ contains
             if (hi <= indent) indent = hi
             ! Let's try to align to a comment on the previous line.
             other = -1
+
             if (k > 1) then
                 ocol = index(lines(k - 1) (1:lens(k - 1)), ";; ")
                 if (ocol > 0) other = text_columns(lines(k - 1) (1:ocol - 1))
             end if
+
             if (other >= 0 .and. other <= hi .and. other >= lo) then
                 indent = other
             else
@@ -930,6 +1019,7 @@ contains
                     if (ocol == 0) exit
                     omax = text_columns(lines(j) (1:ocol - 1)) + (fill - text_columns(lines(j) (1:lens(j))))
                     omin = text_columns(lines(j) (1:len_trim_ws(lines(j) (1:ocol - 1)))) + 1
+
                     if (omax >= lo .and. omin <= hi) then
                         lo = max(omin, lo)
                         hi = min(omax, hi)
@@ -937,20 +1027,26 @@ contains
                         exit
                     end if
                 end do
+
                 indent = max(lo, min(hi, indent))
             end if
+
             if (codecol /= indent) then
                 j = len_trim_ws(line(1:begpos - 1))
                 line = line(1:j)//indent_string(text_columns(line(1:j)), indent, tabw, tabs)//line(begpos:)
             end if
+
             lines(k) = pad_to(line, max(len(lines(k)), len(line)))
             lens(k) = len(line)
         end do
+
         out = ""
+
         do k = 1, n
             out = out//lines(k) (1:lens(k))
             if (k < n .or. trailing_newline) out = out//LF
         end do
+
         text = out
     end subroutine lossage_comment_indent
 
@@ -959,6 +1055,7 @@ contains
         character(len=*), intent(in) :: line
         integer, intent(in) :: n
         character(len=:), allocatable :: s
+
         s = line//repeat(" ", max(0, n - len(line)))
     end function pad_to
 
@@ -970,9 +1067,11 @@ contains
         integer, allocatable, intent(out) :: lens(:)
         integer, intent(out) :: n
         integer :: i, start, maxlen, k
+
         n = 0
         maxlen = 0
         start = 1
+
         do i = 1, len(text)
             if (text(i:i) == LF) then
                 n = n + 1
@@ -980,15 +1079,18 @@ contains
                 start = i + 1
             end if
         end do
+
         if (start <= len(text)) then
             n = n + 1
             maxlen = max(maxlen, len(text) - start + 1)
         end if
+
         ! Room for the indentation the lines may get.
         allocate (character(len=maxlen + 64) :: lines(n))
         allocate (lens(n))
         k = 0
         start = 1
+
         do i = 1, len(text)
             if (text(i:i) == LF) then
                 k = k + 1
@@ -997,6 +1099,7 @@ contains
                 start = i + 1
             end if
         end do
+
         if (start <= len(text)) then
             k = k + 1
             lines(k) = text(start:)
@@ -1007,7 +1110,9 @@ contains
     !> The length of `s' without trailing blanks and tabs.
     integer function len_trim_ws(s) result(n)
         character(len=*), intent(in) :: s
+
         n = len(s)
+
         do while (n > 0)
             if (s(n:n) /= " " .and. s(n:n) /= TAB) exit
             n = n - 1
@@ -1019,6 +1124,7 @@ contains
     integer function line_indentation(line) result(col)
         character(len=*), intent(in) :: line
         integer :: k
+
         k = verify(line, " "//TAB)
         if (k == 0) k = len(line) + 1
         col = text_columns(line(1:k - 1))
@@ -1032,16 +1138,20 @@ contains
         logical, intent(in) :: tabs
         character(len=:), allocatable :: s
         integer :: n, col
+
         s = ""
         col = fromcol
         if (mincol <= col) return
+
         if (tabs .and. tabw > 0) then
             n = mincol/tabw - col/tabw
+
             if (n > 0) then
                 s = repeat(TAB, n)
                 col = (mincol/tabw)*tabw
             end if
         end if
+
         s = s//repeat(" ", mincol - col)
     end function indent_string
 
@@ -1052,17 +1162,21 @@ contains
         integer(int32) :: c
         integer :: dummy
         logical :: tabs
+
         call default_settings(dummy, tabw, tabs)
         col = 0
         i = 1
+
         do while (i <= len(text))
             clen = utf8_length(text(i:i))
+
             if (text(i:i) == TAB) then
                 col = (col/tabw + 1)*tabw
             else
                 c = utf8_code(text(i:min(len(text), i + clen - 1)))
                 col = col + glyph_columns(c, col)
             end if
+
             i = i + clen
         end do
     end function text_columns
@@ -1071,10 +1185,12 @@ contains
     integer(int32) function utf8_code(s) result(c)
         character(len=*), intent(in) :: s
         integer :: k, n
+
         n = len(s)
         c = iachar(s(1:1))
         if (n == 1) return
         c = iand(c, int(z"FF", int32)/(2**(n + 1)))
+
         do k = 2, n
             c = c*64 + iand(iachar(s(k:k)), 63)
         end do
@@ -1087,6 +1203,7 @@ contains
         logical, intent(out) :: tabs
         type(value_type) :: v
         type(status_type) :: st
+
         fill = 70
         tabw = 8
         tabs = .true.
@@ -1109,6 +1226,7 @@ contains
     !> unbound here.
     function help_for_help_text() result(text)
         character(len=:), allocatable :: text
+
         text = "(Type "//"<PageDown>"//" or "//"<PageUp>"//" to scroll, "//"C-s"// &
                " to search, or \<help_map>\[help_quit] to exit.)"
         call section("Commands, Keys and Functions", &
@@ -1161,6 +1279,7 @@ contains
                       "Describe language environment", "Show current syntax table", &
                       "Display the HELLO file illustrating various scripts"])
         text = text//LF
+
     contains
 
         !> Append a section: its title, then a line per command (an empty
@@ -1173,12 +1292,15 @@ contains
             character(len=*), intent(in) :: title, names(:), keys(:), descs(:)
             character(len=:), allocatable :: name
             integer :: k
+
             text = text//LF//LF//title//LF//LF
+
             do k = 1, size(names)
                 if (k > 1) text = text//LF
                 name = trim(names(k))
                 if (len(name) == 0) cycle
                 text = text//"   "
+
                 if (len_trim(keys(k)) == 0) then
                     ! (string-match "\`C-\w\'" name)
                     text = text//name
@@ -1187,6 +1309,7 @@ contains
                 else
                     text = text//trim(keys(k))
                 end if
+
                 text = text//" "//TAB//trim(descs(k))
             end do
         end subroutine section
@@ -1198,6 +1321,7 @@ contains
     !> help--help-screen; `three_step_help' false).
     recursive subroutine help_for_help(status)
         type(status_type), intent(out) :: status
+
         call help_screen(help_for_help_text(), help_map, " *Metahelp*", status)
     end subroutine help_for_help
 
@@ -1217,6 +1341,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: prompt, name
         logical :: eof, have_config
+
         call make_sparse_keymap(local_map)
         call set_keymap_parent(local_map, helped_map, st)
         allocate (tkey(1))
@@ -1238,8 +1363,10 @@ contains
         call goto_char(buffers(cur)%begv)
         ch = make_fixnum(iachar("?", int64))
         saved_override = overriding_terminal_local_map
+
         do while (help_screen_key_p(ch, keys))
             st = status_type()
+
             if (event_is(ch, 22_int64) .or. event_is(ch, 32_int64) .or. event_named(ch, "next") .or. &
                 event_named(ch, "end")) then
                 call scroll_up(nil(), st)
@@ -1252,42 +1379,52 @@ contains
             else if (event_named(ch, "up")) then
                 call scroll_down(make_fixnum(1_int64), st)
             end if
+
             if (pos_visible_in_window_p(buffers(cur)%zv, selected_window())) then
                 prompt = "Type one of listed options: "
             else
                 prompt = "Type one of listed options, or <PageDown>/<PageUp>/SPC/DEL to scroll: "
             end if
+
             overriding_terminal_local_map = local_map
             cursor_in_echo_area = .true.
             call message_nolog(prompt)
             call read_key_sequence(keys, binding, eof, status)
             cursor_in_echo_area = .false.
             overriding_terminal_local_map = saved_override
+
             if (.not. status%ok() .or. eof) then
                 if (status%ok()) call set_error(status, FM_QUIT)
                 exit
             end if
+
             ch = keys(1)
         end do
+
         ! We don't need the prompt any more.
         call message("")
+
         if (status%ok()) then
             call lookup_key(make_keymap_ref(local_map), keys, defn, st)
             if (fixnump(defn)) defn = nil()
+
             if (.not. nilp(defn)) then
                 call set_window_configuration(config)
                 have_config = .false.
+
                 if (symbolp(defn)) then
                     call call_interactively(defn, status)
                 end if
             else
                 name = key_description(keys)
+
                 if (name /= "C-g") then
                     call message(substitute_command_keys("No help command is bound to `\`"//name//"''"))
                     call bitch_at_user(st)
                 end if
             end if
         end if
+
         if (have_config) call set_window_configuration(config)
         call free_window_configuration(config)
         call free_keymap(local_map, st)
@@ -1303,11 +1440,14 @@ contains
         character(len=19), parameter :: names(12) = [character(len=19) :: "help", "f1", "deletechar", "backspace", &
                                                                       "vertical-scroll-bar", "home", "end", "next", "prior", "up", &
                                                                                                       "down", "vertical_scroll_bar"]
+
         p = event_is(ch, 63_int64) .or. event_is(ch, 8_int64) .or. event_is(ch, 22_int64) .or. &
             event_is(ch, 32_int64) .or. event_is(ch, 127_int64) .or. event_is(ch, M_V) .or. event_is(ch, S_SPC)
+
         do k = 1, size(names)
             if (event_named(ch, trim(names(k)))) p = .true.
         end do
+
         if (allocated(keys)) then
             ! (equal key "\M-v")
             if (size(keys) == 2) then
@@ -1319,6 +1459,7 @@ contains
     logical function event_is(ev, c)
         type(value_type), intent(in) :: ev
         integer(int64), intent(in) :: c
+
         event_is = .false.
         if (fixnump(ev)) event_is = xfixnum(ev) == c
     end function event_is
@@ -1326,6 +1467,7 @@ contains
     logical function event_named(ev, name)
         type(value_type), intent(in) :: ev
         character(len=*), intent(in) :: name
+
         event_named = .false.
         if (symbolp(ev)) event_named = value_eq(ev, sym(name))
     end function event_named
@@ -1335,6 +1477,7 @@ contains
         integer, intent(in) :: n
         character(len=:), allocatable :: s
         character(len=12) :: buf
+
         write (buf, "(i0)") n
         s = trim(buf)
     end function int_text
@@ -1351,6 +1494,7 @@ contains
     subroutine describe_bindings(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
+
         call describe_buffer_bindings(text)
         call with_help_window(text, status)
     end subroutine describe_bindings
@@ -1369,11 +1513,14 @@ contains
         type(handle_type) :: local
         character(len=:), allocatable :: major
         integer :: i
+
         text = ""
         allocate (shadow(0), none(0))
+
         if (keymap_live_p(key_translation_map)) then
             call describe_map_tree(key_translation_map, .false., none, "Key translations", .true., text)
         end if
+
         if (keymap_live_p(overriding_terminal_local_map)) then
             call describe_map_tree(overriding_terminal_local_map, .true., shadow, FF//LF//"Overriding Bindings", &
                                    .false., text)
@@ -1381,12 +1528,15 @@ contains
         else
             ! Print the minor mode and major mode keymaps.
             call current_minor_maps(modes, maps)
+
             do i = 1, size(maps)
                 call describe_map_tree(maps(i), .true., shadow, FF//LF//LQUOTE//trim(modes(i))//RQUOTE// &
                                        " Minor Mode Bindings", .false., text)
                 call push_shadow(shadow, maps(i))
             end do
+
             local = current_local_map()
+
             if (keymap_live_p(local)) then
                 major = "fundamental_mode"
                 if (allocated(buffers(cur)%major_mode)) major = buffers(cur)%major_mode
@@ -1395,13 +1545,16 @@ contains
                 call push_shadow(shadow, local)
             end if
         end if
+
         call describe_map_tree(current_global_map(), .true., shadow, FF//LF//"Global Bindings", .false., text, &
                                mention_shadow=.true.)
+
         ! Print the function-key-map translations under this prefix.
         if (keymap_live_p(local_function_key_map)) then
             call describe_map_tree(local_function_key_map, .false., none, FF//LF//"Function key map translations", &
                                    .true., text)
         end if
+
         ! Print the input-decode-map translations under this prefix.
         if (keymap_live_p(input_decode_map)) then
             call describe_map_tree(input_decode_map, .false., none, FF//LF//"Input decoding map translations", &
@@ -1415,6 +1568,7 @@ contains
         type(handle_type), intent(in) :: map
         type(value_type), allocatable :: grown(:)
         integer :: n
+
         n = size(shadow)
         allocate (grown(n + 1))
         grown(1) = make_keymap_ref(map)
@@ -1446,19 +1600,23 @@ contains
         character(len=:), allocatable :: body
         logical :: mention, describe
         integer :: k, j
+
         mention = .false.
         if (present(mention_shadow)) mention = mention_shadow
         call accessible_keymaps(startmap, maps)
         body = ""
+
         do k = 1, size(maps)
             ! sub-shadows: the binding of the prefix in SHADOW.
             allocate (sub_shadows(0))
             describe = .true.
+
             if (size(shadow) > 0) then
                 if (size(maps(k)%keys) == 0) then
                     sub_shadows = shadow
                 else
                     call lookup_key(make_list(shadow), maps(k)%keys, tem, st, accept_default=.true.)
+
                     if (fixnump(tem)) then
                         ! A number: the prefix is too long; no shadows.
                         continue
@@ -1471,15 +1629,19 @@ contains
                     end if
                 end if
             end if
+
             if (describe) then
                 ! Maps we have already listed in this loop shadow this map.
                 do j = 1, k - 1
                     if (same_keys(maps(j)%keys, maps(k)%keys)) call append_shadow(sub_shadows, make_keymap_ref(maps(j)%map))
                 end do
+
                 call describe_map(maps(k)%map, maps(k)%keys, transl, partial, sub_shadows, mention, body)
             end if
+
             deallocate (sub_shadows)
         end do
+
         ! Print title unless the keymap was empty.
         if (len(body) == 0) return
         ! The first map's leading newline goes.
@@ -1493,6 +1655,7 @@ contains
         type(value_type), intent(in) :: v
         type(value_type), allocatable :: grown(:)
         integer :: n
+
         n = size(list)
         allocate (grown(n + 1))
         if (n > 0) grown(1:n) = list
@@ -1503,8 +1666,10 @@ contains
     logical function same_keys(a, b)
         type(value_type), intent(in) :: a(:), b(:)
         integer :: i
+
         same_keys = size(a) == size(b)
         if (.not. same_keys) return
+
         do i = 1, size(a)
             if (.not. value_eq(a(i), b(i))) then
                 same_keys = .false.
@@ -1534,6 +1699,7 @@ contains
         integer :: i, j, n, nr, nl, start
         integer(int64) :: a, b
         logical :: keep, is_remap
+
         call map_keymap_items(map, events, bindings)
         ! keymap-canonicalize: char ranges of more than two characters go
         ! to a char-table, the rest are bindings; the first binding of an
@@ -1541,18 +1707,22 @@ contains
         allocate (ev(size(events)), def(size(events)), rfrom(size(events)), rto(size(events)), rdef(size(events)))
         n = 0
         nr = 0
+
         do i = 1, size(events)
             if (vtag(events(i)) == V_LIST) then
                 a = xfixnum(list_elt(events(i), 1_int64))
                 b = xfixnum(list_elt(events(i), 2_int64))
+
                 if (b == a + 1) then
                     call add_binding(make_fixnum(a), bindings(i))
                     call add_binding(make_fixnum(b), bindings(i))
                 else
                     keep = .true.
+
                     do j = 1, nr
                         if (a >= rfrom(j) .and. a <= rto(j)) keep = .false.
                     end do
+
                     if (keep) then
                         nr = nr + 1
                         rfrom(nr) = a
@@ -1564,18 +1734,21 @@ contains
                 call add_binding(events(i), bindings(i))
             end if
         end do
+
         ! The char-table: help--describe-vector.
         if (nr > 0) call describe_vector(rfrom(1:nr), rto(1:nr), rdef(1:nr), prefix, transl, partial, shadow, &
                                          mention_shadow, text)
         ! The other bindings: which to show.
         allocate (shadowed(n), seen(n))
         seen = .false.
+
         do i = 1, n
             shadowed(i) = .false.
             if (.not. (symbolp(ev(i)) .or. fixnump(ev(i)))) cycle
             ! Don't show undefined commands or suppressed commands.
             if (nilp(def(i))) cycle
             if (partial .and. suppressed_p(def(i))) cycle
+
             ! Don't show a command that isn't really visible because a
             ! local definition of the same key shadows it.
             if (size(shadow) > 0) then
@@ -1583,6 +1756,7 @@ contains
                 one(1) = ev(i)
                 call shadow_lookup(shadow, one, tem)
                 deallocate (one)
+
                 if (.not. nilp(tem)) then
                     ! If both bindings are keymaps, this key is a prefix
                     ! key, so don't say it is shadowed.
@@ -1595,19 +1769,24 @@ contains
                     end if
                 end if
             end if
+
             seen(i) = .true.
         end do
+
         ! Sort them (a stable insertion sort with help--describe-map-compare).
         call sort_entries(ev, def, shadowed, seen, n)
         allocate (lines(n))
         nl = 0
         i = 1
+
         do while (i <= n)
             if (.not. seen(i)) then
                 i = i + 1
                 cycle
             end if
+
             start = i
+
             ! Find consecutive chars that are identically defined.
             if (fixnump(ev(i))) then
                 do while (i + 1 <= n)
@@ -1619,13 +1798,16 @@ contains
                     i = i + 1
                 end do
             end if
+
             if (start /= i .or. .not. keymap_ref_p(def(i))) then
                 ! If we're in a <remap> section of the output, then also
                 ! display the bindings of the keys that we've remapped from.
                 is_remap = .false.
+
                 if (size(prefix) == 1) then
                     if (value_eq(prefix(1), sym("remap")) .and. .not. value_eq(def(i), sym("self_insert_command"))) then
                         call where_is_internal(def(i), all_keys)
+
                         if (.not. nilp(all_keys)) then
                             call list_elements(all_keys, seqs)
                             call list_elements(seqs(1), remapped)
@@ -1635,39 +1817,48 @@ contains
                         end if
                     end if
                 end if
+
                 if (.not. is_remap) then
                     key = ev(start:start)
                     keytext = key_description(key, prefix)
                 end if
+
                 if (start /= i) then
                     key = ev(i:i)
                     keytext = keytext//" .. "//key_description(key, prefix)
                 end if
+
                 nl = nl + 1
                 lines(nl)%key = keytext
                 lines(nl)%def = describe_command(def(i), transl)
                 lines(nl)%extra = ""
                 if (shadowed(i)) lines(nl)%extra = lines(nl)%extra//LF//"  (this binding is currently shadowed)"
+
                 if (is_remap) then
                     key = ev(start:start)
                     lines(nl)%extra = lines(nl)%extra//LF//"  (Remapped via "//key_description(key, prefix)//")"
                 end if
             end if
+
             i = i + 1
         end do
+
         if (nl > 0) then
             call align_section(lines(1:nl), block)
             text = text//LF//block
         end if
+
     contains
 
         !> Add (event, binding) unless the event has a binding already.
         subroutine add_binding(e, d)
             type(value_type), intent(in) :: e, d
             integer :: m
+
             do m = 1, n
                 if (value_eq(ev(m), e)) return
             end do
+
             n = n + 1
             ev(n) = e
             def(n) = d
@@ -1681,6 +1872,7 @@ contains
         type(value_type), intent(in) :: shadow(:), key(:)
         type(value_type), intent(out) :: val
         type(status_type) :: st
+
         call lookup_key(make_list(shadow), key, val, st, accept_default=.true.)
         if (.not. st%ok()) val = nil()
         if (fixnump(val)) val = nil()
@@ -1690,6 +1882,7 @@ contains
     !> (subr.el puts it there).
     logical function suppressed_p(def)
         type(value_type), intent(in) :: def
+
         suppressed_p = value_eq(def, sym("undefined"))
     end function suppressed_p
 
@@ -1704,6 +1897,7 @@ contains
         character(len=:), allocatable :: s
         type(value_type), allocatable :: events(:)
         type(status_type) :: st
+
         if (stringp(definition) .or. vtag(definition) == V_LIST) then
             if (translation) then
                 if (stringp(definition)) then
@@ -1735,12 +1929,14 @@ contains
         type(value_type) :: e, d
         logical :: s, v
         integer :: i, j
+
         do i = 2, n
             e = ev(i)
             d = def(i)
             s = shadowed(i)
             v = seen(i)
             j = i - 1
+
             do while (j >= 1)
                 if (.not. map_less(e, ev(j))) exit
                 ev(j + 1) = ev(j)
@@ -1749,6 +1945,7 @@ contains
                 seen(j + 1) = seen(j)
                 j = j - 1
             end do
+
             ev(j + 1) = e
             def(j + 1) = d
             shadowed(j + 1) = s
@@ -1761,7 +1958,9 @@ contains
         type(value_type), intent(in) :: a, b
         character(len=:), allocatable :: na, nb
         type(status_type) :: st
+
         map_less = .false.
+
         if (fixnump(a) .and. fixnump(b)) then
             map_less = xfixnum(a) < xfixnum(b)
         else if (fixnump(a)) then
@@ -1779,30 +1978,39 @@ contains
     logical function string_version_lessp(s1, s2) result(less)
         character(len=*), intent(in) :: s1, s2
         integer :: i1, i2, e1, e2, cmp
+
         less = .false.
         i1 = 1
         i2 = 1
+
         do
             if (i1 > len(s1) .or. i2 > len(s2)) then
                 less = i1 > len(s1) .and. i2 <= len(s2)
                 return
             end if
+
             if (is_digit(s1(i1:i1)) .and. is_digit(s2(i2:i2))) then
                 e1 = i1
+
                 do while (e1 < len(s1))
                     if (.not. is_digit(s1(e1 + 1:e1 + 1))) exit
                     e1 = e1 + 1
                 end do
+
                 e2 = i2
+
                 do while (e2 < len(s2))
                     if (.not. is_digit(s2(e2 + 1:e2 + 1))) exit
                     e2 = e2 + 1
                 end do
+
                 cmp = compare_digits(s1(i1:e1), s2(i2:e2))
+
                 if (cmp /= 0) then
                     less = cmp < 0
                     return
                 end if
+
                 i1 = e1 + 1
                 i2 = e2 + 1
             else
@@ -1810,6 +2018,7 @@ contains
                     less = iachar(s1(i1:i1)) < iachar(s2(i2:i2))
                     return
                 end if
+
                 i1 = i1 + 1
                 i2 = i2 + 1
             end if
@@ -1818,6 +2027,7 @@ contains
 
     logical function is_digit(c)
         character, intent(in) :: c
+
         is_digit = c >= "0" .and. c <= "9"
     end function is_digit
 
@@ -1825,11 +2035,13 @@ contains
     integer function compare_digits(a, b) result(cmp)
         character(len=*), intent(in) :: a, b
         integer :: ka, kb
+
         ka = verify(a, "0")
         kb = verify(b, "0")
         if (ka == 0) ka = len(a) + 1
         if (kb == 0) kb = len(b) + 1
         cmp = 0
+
         if (len(a) - ka /= len(b) - kb) then
             cmp = merge(-1, 1, len(a) - ka < len(b) - kb)
         else if (a(ka:) /= b(kb:)) then
@@ -1859,10 +2071,12 @@ contains
         type(status_type) :: st
         integer :: k, m, nl
         logical :: this_shadowed
+
         ! Split at the end of the 5-byte characters, in character order.
         allocate (rf(2*size(from)), rt(2*size(from)), rd(2*size(from)))
         m = 0
         call order_by_start(from, order)
+
         do k = 1, size(order)
             if (from(order(k)) <= MAX_5_BYTE_CHAR .and. to(order(k)) > MAX_5_BYTE_CHAR) then
                 m = m + 1
@@ -1880,8 +2094,10 @@ contains
                 rd(m) = defs(order(k))
             end if
         end do
+
         allocate (lines(m), kludge(1))
         nl = 0
+
         do k = 1, m
             definition = rd(k)
             if (nilp(definition)) cycle
@@ -1891,21 +2107,27 @@ contains
             ! If this binding is shadowed by some other map, ignore it.
             this_shadowed = .false.
             shadowed_by = nil()
+
             if (size(shadow) > 0) then
                 call shadow_lookup(shadow, kludge, shadowed_by)
+
                 if (.not. nilp(shadowed_by) .and. .not. value_eq(shadowed_by, definition)) then
                     if (.not. mention_shadow) cycle
                     this_shadowed = .true.
                 end if
             end if
+
             nl = nl + 1
             lines(nl)%key = key_description(kludge, prefix)
+
             if (rt(k) /= rf(k)) then
                 kludge(1) = make_fixnum(rt(k))
                 lines(nl)%key = lines(nl)%key//" .. "//key_description(kludge, prefix)
             end if
+
             lines(nl)%def = describe_command(definition, transl)
             lines(nl)%extra = ""
+
             if (this_shadowed) then
                 if (symbolp(shadowed_by)) then
                     call symbol_name(shadowed_by, name, st)
@@ -1915,6 +2137,7 @@ contains
                 end if
             end if
         end do
+
         if (nl == 0) return
         call align_section(lines(1:nl), block)
         text = text//LF//block
@@ -1925,18 +2148,23 @@ contains
         integer(int64), intent(in) :: from(:)
         integer, allocatable, intent(out) :: order(:)
         integer :: i, j, x
+
         allocate (order(size(from)))
+
         do i = 1, size(from)
             order(i) = i
         end do
+
         do i = 2, size(from)
             x = order(i)
             j = i - 1
+
             do while (j >= 1)
                 if (from(order(j)) <= from(x)) exit
                 order(j + 1) = order(j)
                 j = j - 1
             end do
+
             order(j + 1) = x
         end do
     end subroutine order_by_start
@@ -1952,17 +2180,21 @@ contains
         integer, allocatable :: cols(:)
         integer :: k, max_key, max_def, width, ww, fill, tabw
         logical :: tabs
+
         call default_settings(fill, tabw, tabs)
         allocate (cols(size(lines)))
         max_key = 0
         max_def = 0
+
         do k = 1, size(lines)
             cols(k) = text_columns(lines(k)%key)
             max_key = max(max_key, cols(k))
             max_def = max(max_def, len(lines(k)%def))
         end do
+
         block = ""
         width = 0
+
         if (max_key < 16) then
             width = 16
         else if (max_key < 24) then
@@ -1973,8 +2205,10 @@ contains
             ww = window_body_cols()
             if (max_def + max(16, max_key) < ww) width = 1 + max(16, max_key)
         end if
+
         do k = 1, size(lines)
             block = block//lines(k)%key
+
             if (width > 0) then
                 block = block//fill_string(cols(k), width, tabw)
             else if (cols(k) + len(lines(k)%def) < ww) then
@@ -1983,6 +2217,7 @@ contains
                 ! Continuation.
                 block = block//LF//TAB//TAB
             end if
+
             block = block//lines(k)%def//lines(k)%extra//LF
         end do
     end subroutine align_section
@@ -1993,8 +2228,10 @@ contains
         integer, intent(in) :: col, width, tabw
         character(len=:), allocatable :: s
         integer :: tabs
+
         tabs = width/tabw - col/tabw
         s = repeat(TAB, max(0, tabs))
+
         if (tabs == 0) then
             s = s//repeat(" ", max(0, width - col))
         else
@@ -2010,10 +2247,13 @@ contains
     function make_separator_line() result(s)
         character(len=:), allocatable :: s
         logical :: underline
+
         underline = .false.
+
         if (associated(display_supports_face_attributes_p)) then
             underline = display_supports_face_attributes_p(face_attrs(underline=.true.))
         end if
+
         if (underline) then
             s = LF
         else
@@ -2024,6 +2264,7 @@ contains
     !> The width of the selected window's text area (window-width).
     integer function window_body_cols() result(w)
         type(handle_type) :: sw
+
         w = 80
         sw = selected_window()
         if (window_live_p(sw)) w = window_text_cols(windows(sw%index))
@@ -2035,6 +2276,7 @@ contains
         type(handle_type), intent(in) :: global_map
         type(status_type) :: status
         type(value_type), allocatable :: key(:)
+
         if (keymap_live_p(help_map)) call free_keymap(help_map, status)
         call make_sparse_keymap(help_map)
         call keymap_set(help_map, "C-h", "help_for_help", status)
@@ -2086,16 +2328,19 @@ contains
 
     subroutine cmd_describe_key(status)
         type(status_type), intent(out) :: status
+
         call describe_key(status)
     end subroutine cmd_describe_key
 
     subroutine cmd_describe_key_briefly(status)
         type(status_type), intent(out) :: status
+
         call describe_key_briefly(status)
     end subroutine cmd_describe_key_briefly
 
     recursive subroutine cmd_where_is(status)
         type(status_type), intent(out) :: status
+
         call where_is(status)
     end subroutine cmd_where_is
 end module help_fm

@@ -62,6 +62,7 @@ contains
 
     subroutine collect_grep_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("grep-tests--rgrep-abbreviate-properties-gnu-linux", test_rgrep_abbreviate), &
                     new_unittest("grep-tests--grep-heading-regexp-without-null", test_heading_regexp_without_null), &
@@ -83,6 +84,7 @@ contains
         type(status_type) :: st
         type(value_type) :: v
         integer(int64) :: found
+
         display = ""
         call get_buffer_create(" *grep-test*", h, st)
         call set_buffer(h, st)
@@ -106,14 +108,17 @@ contains
     subroutine test_rgrep_abbreviate(error)
         type(error_type), allocatable, intent(out) :: error
         logical :: saved
+
         call init_bindings()
         saved = grep_find_abbreviate
         grep_find_abbreviate = .true.
         call check(error, rgrep_abbreviation(), "[…]")
+
         if (.not. allocated(error)) then
             grep_find_abbreviate = .false.
             call check(error, rgrep_abbreviation(), "")
         end if
+
         grep_find_abbreviate = saved
     end subroutine test_rgrep_abbreviate
 
@@ -124,7 +129,9 @@ contains
         character(len=1), parameter :: SEPS(3) = [":", "-", "="]
         character(len=:), allocatable :: string
         integer :: k
+
         call init_bindings()
+
         do k = 1, 3
             string = "filename"//SEPS(k)//"123"//SEPS(k)//"text"
             call check(error, string_match(grep_heading_regexp, string, st) /= 0, string)
@@ -141,7 +148,9 @@ contains
         character(len=1), parameter :: SEPS(3) = [":", "-", "="]
         character(len=:), allocatable :: string
         integer :: k
+
         call init_bindings()
+
         do k = 1, 3
             string = "funny:0:filename"//NUL//"123"//SEPS(k)//"text"
             call check(error, string_match(grep_heading_regexp, string, st) /= 0, string)
@@ -162,6 +171,7 @@ contains
         type(status_type) :: st
         logical :: found
         character(len=:), allocatable :: what
+
         what = "testcase: "//str
         call erase_buffer(st)
         call compilation_forget_errors()
@@ -190,6 +200,7 @@ contains
         type(status_type) :: st
         type(compilation_message_info_type) :: info1, info2
         integer(int64) :: errors, warnings, infos
+
         call init_bindings()
         call get_buffer_create(" *grep-regexps*", h, st)
         call set_buffer(h, st)
@@ -216,6 +227,7 @@ contains
         call compilation_message_counts(errors, warnings, infos)
         call check(error, errors, 8_int64, "errors")
         call kill_buffer(h, st)
+
     contains
 
         !> The test case with the NUL byte, then with a colon in its place:
@@ -223,6 +235,7 @@ contains
         subroutine pair(file, rest, line)
             character(len=*), intent(in) :: file, rest
             integer(int64), intent(in) :: line
+
             call grep_error_line(error, file//NUL//rest, line, file, info1)
             if (allocated(error)) return
             call grep_error_line(error, file//":"//rest, line, file, info2)
@@ -236,6 +249,7 @@ contains
     !> `wildcard_to_regexp' on shell patterns.
     subroutine test_wildcard_to_regexp(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, wildcard_to_regexp("foo"), "\`foo\'")
         if (.not. allocated(error)) call check(error, wildcard_to_regexp("*.el"), "\`[^"//NUL//"]*\.el\'")
         if (.not. allocated(error)) call check(error, wildcard_to_regexp("a?c"), "\`a[^"//NUL//"]c\'")
@@ -251,6 +265,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         logical :: saved_fold
         integer :: saved_highlight
+
         call init_bindings()
         saved_fold = case_fold_search%value
         saved_highlight = grep_highlight_matches
@@ -258,20 +273,24 @@ contains
         grep_highlight_matches = GREP_NIL
         call check(error, grep_expand_template("grep <X> <C> -nH <R> <F>", "foo", "*.c", excl=" --exclude=x"), &
                    "grep  --exclude=x -i -nH foo *.c")
+
         if (.not. allocated(error)) then
             ! An upper case letter: no -i.
             call check(error, grep_expand_template("grep <C> <R> <F>", "Foo bar", "*"), "grep  Foo\ bar *")
         end if
+
         if (.not. allocated(error)) then
             grep_highlight_matches = GREP_ALWAYS
             call check(error, grep_expand_template("find <D> <X> -type f <F> -exec grep <C> <R> {} +", "x", "-name y", &
                                                    "/tmp/"), "find /tmp/  -type f -name y -exec grep --color=always -i x {} +")
         end if
+
         if (.not. allocated(error)) then
             grep_highlight_matches = GREP_AUTO
             call check(error, grep_expand_template("grep <C> <R>", "x", more_opts=[character(len=4) :: "-w"]), &
                        "grep --color=auto -i -w x")
         end if
+
         case_fold_search = saved_fold
         grep_highlight_matches = saved_highlight
     end subroutine test_expand_template
@@ -282,8 +301,10 @@ contains
         type(status_type) :: st
         integer(int64) :: start, now, rate
         logical :: got
+
         buf = get_buffer("*grep*")
         call system_clock(start, rate)
+
         do
             proc = get_buffer_process(buf)
             if (proc%index == 0) exit
@@ -302,6 +323,7 @@ contains
         character(len=:), allocatable :: dir, path, text
         integer(int64) :: errors, warnings, infos
         integer :: unit
+
         call init_bindings()
         dir = file_name_as_directory(temporary_file_directory())
         path = dir//"fortmacs-grep-test.txt"
@@ -364,6 +386,7 @@ contains
         character(len=:), allocatable :: dir, path, text
         integer(int64) :: found
         integer :: unit
+
         call init_bindings()
         dir = file_name_as_directory(temporary_file_directory())
         path = dir//"fortmacs-grep-edit-test.txt"
@@ -414,5 +437,4 @@ contains
         open (newunit=unit, file=path, status="old")
         close (unit, status="delete")
     end subroutine test_grep_edit
-
 end module test_grep_fm

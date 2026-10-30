@@ -54,6 +54,7 @@ contains
 
     subroutine collect_easy_mmode_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("easy-mmode--minor-mode", test_minor_mode), &
                     new_unittest("easy-mmode-pretty-mode-name", test_pretty_name), &
@@ -67,6 +68,7 @@ contains
     subroutine test_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
+
         status = status_type()
         body_state = enable
     end subroutine test_body
@@ -75,6 +77,7 @@ contains
     logical function test_mode_on()
         type(value_type) :: v
         type(status_type) :: st
+
         call symbol_value(sym("easy-mmode-test-mode"), v, st)
         test_mode_on = value_eq(v, t_value())
     end function test_mode_on
@@ -86,6 +89,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a
         type(status_type) :: st
+
         call test_mode%define("easy-mmode-test-mode", "", body=test_body)
         call get_buffer_create("easy-mmode-test", a, st)
         call set_buffer(a, st)
@@ -117,6 +121,7 @@ contains
 
     subroutine test_pretty_name(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, easy_mmode_pretty_mode_name("auto_fill_mode"), "Auto-Fill mode")
         if (allocated(error)) return
         call check(error, easy_mmode_pretty_mode_name("foo-bar-minor-mode"), "Foo-Bar minor mode")
@@ -146,6 +151,7 @@ contains
         type(status_type) :: st
         type(value_type) :: binding
         type(value_type), allocatable :: key(:)
+
         call test_lit_mode%define("easy-mmode-test-lit-mode", " Lit", keymap=.true.)
         call keymap_set(test_lit_mode%map, "C-c l", "forward_char", st)
         call get_buffer_create("easy-mmode-test-A", a, st)
@@ -181,6 +187,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b
         type(status_type) :: st
+
         call get_buffer_create("easy-mmode-fill-A", a, st)
         call get_buffer_create("easy-mmode-fill-B", b, st)
         call syms_of_simple()
@@ -207,6 +214,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         logical :: saved
+
         call syms_of_simple_modes()
         saved = transient_mark_mode%value
         current_prefix_arg = make_fixnum(-1_int64)
@@ -225,6 +233,7 @@ contains
     subroutine test_mode_line_text(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: s
+
         s = mode_line_text("notes", .false., .false., "All", "1", 80, "Text Fill")
         call check(error, index(s, "(Text Fill)") > 0, s)
     end subroutine test_mode_line_text

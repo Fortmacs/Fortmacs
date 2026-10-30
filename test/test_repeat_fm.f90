@@ -52,6 +52,7 @@ contains
 
     subroutine collect_repeat_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("repeat-tests-check-key", test_check_key), &
                     new_unittest("repeat-tests-exit-command", test_exit_command), &
@@ -68,72 +69,84 @@ contains
     subroutine record(name)
         character(len=*), intent(in) :: name
         character(len=24) :: buf
+
         write (buf, "(i0)") prefix_numeric_value(current_prefix_arg)
         calls = calls//"("//trim(buf)//" "//name//")"
     end subroutine record
 
     recursive subroutine call_a(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call record("a")
     end subroutine call_a
 
     recursive subroutine call_b(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call record("b")
     end subroutine call_b
 
     recursive subroutine call_c(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call record("c")
     end subroutine call_c
 
     recursive subroutine call_d(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call record("d")
     end subroutine call_d
 
     recursive subroutine call_e(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call record("e")
     end subroutine call_e
 
     recursive subroutine call_g(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call record("g")
     end subroutine call_g
 
     recursive subroutine call_o(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call record("o")
     end subroutine call_o
 
     recursive subroutine call_q(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call record("q")
     end subroutine call_q
 
     recursive subroutine call_s(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call record("s")
     end subroutine call_s
 
     recursive subroutine call_t(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call record("t")
     end subroutine call_t
 
     recursive subroutine call_u(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call record("u")
     end subroutine call_u
@@ -142,6 +155,7 @@ contains
     !> repeat-tests-another-repeat-map, repeat-tests-repeat-map).
     subroutine setup()
         type(status_type) :: st
+
         call init_bindings()
         cmd_a = command_type("repeat_tests_call_a", call_a)
         cmd_b = command_type("repeat_tests_call_b", call_b)
@@ -214,6 +228,7 @@ contains
         type(handle_type), intent(in) :: map
         type(handle_type) :: h
         type(status_type) :: st
+
         call minor_modes%repeat_mode%enable(st)
         call get_buffer_create(generate_new_buffer_name(" *repeat-test*"), h, st)
         call set_buffer(h, st)
@@ -223,6 +238,7 @@ contains
 
     subroutine finish()
         type(status_type) :: st
+
         call minor_modes%repeat_mode%disable(st)
         call use_local_map(null_handle(), st)
     end subroutine finish
@@ -234,6 +250,7 @@ contains
         character(len=*), intent(in) :: keys, expected_calls, inserted
         type(value_type), allocatable :: events(:)
         type(status_type) :: st
+
         calls = ""
         call erase_buffer(st)
         call key_parse(keys, events, st)
@@ -246,8 +263,10 @@ contains
 
     subroutine test_check_key(error)
         type(error_type), allocatable, intent(out) :: error
+
         call setup()
         call begin(global_map)
+
         body: block
             repeat_check_key = .true.
             call check_keys(error, "C-x w a c d z", "(1 a)(1 c)(1 d)", "z")
@@ -267,11 +286,13 @@ contains
             call check_keys(error, "C-M-b c d z", "(1 b)", "cdz")
             cmd_b%repeat_check_key = PROPERTY_UNSET
         end block body
+
         call finish()
     end subroutine test_check_key
 
     subroutine test_exit_command(error)
         type(error_type), allocatable, intent(out) :: error
+
         call setup()
         call begin(global_map)
         ! 'c' doesn't continue since 'q' exited
@@ -281,8 +302,10 @@ contains
 
     subroutine test_exit_key(error)
         type(error_type), allocatable, intent(out) :: error
+
         call setup()
         call begin(global_map)
+
         body: block
             if (allocated(repeat_exit_key)) deallocate (repeat_exit_key)
             call check_keys(error, "C-x w a c d c RET z", "(1 a)(1 c)(1 d)(1 c)", achar(10)//"z")
@@ -290,6 +313,7 @@ contains
             repeat_exit_key = "<return>"
             call check_keys(error, "C-x w a c d c <return> z", "(1 a)(1 c)(1 d)(1 c)", "z")
         end block body
+
         if (allocated(repeat_exit_key)) deallocate (repeat_exit_key)
         call finish()
     end subroutine test_exit_key
@@ -297,8 +321,10 @@ contains
     subroutine test_keep_prefix(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call setup()
         call begin(global_map)
+
         body: block
             call check_keys(error, "C-x w a c d c z", "(1 a)(1 c)(1 d)(1 c)", "z")
             if (allocated(error)) exit body
@@ -314,15 +340,18 @@ contains
             call minor_modes%repeat_mode%enable(st)
             call check_keys(error, "C-2 C-x w a c d c z", "(2 a)(2 c)(2 d)(2 c)", "z")
         end block body
+
         repeat_keep_prefix = .false.
         call finish()
     end subroutine test_keep_prefix
 
     subroutine test_continue(error)
         type(error_type), allocatable, intent(out) :: error
+
         call setup()
         call begin(global_map)
         repeat_check_key = .false.
+
         body: block
             ! Global 'C-M-g' used as continue
             call check_keys(error, "C-M-a c C-M-g c z", "(1 a)(1 c)(1 g)(1 c)", "z")
@@ -336,14 +365,17 @@ contains
             ! 'C-M-o' should also activate
             call check_keys(error, "C-M-o c z", "(1 o)(1 c)", "z")
         end block body
+
         call finish()
     end subroutine test_continue
 
     subroutine test_continue_another(error)
         type(error_type), allocatable, intent(out) :: error
+
         call setup()
         call begin(global_map)
         repeat_check_key = .false.
+
         body: block
             ! First test without 'C-M-O'
             call check_keys(error, "C-M-s t t z", "(1 s)(1 t)(1 t)", "z")
@@ -362,6 +394,7 @@ contains
             if (allocated(error)) exit body
             call check_keys(error, "C-M-a c C-M-o C-M-o c z", "(1 a)(1 c)(1 o)(1 o)(1 c)", "z")
         end block body
+
         call finish()
     end subroutine test_continue_another
 
@@ -369,6 +402,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(value_type), allocatable :: events(:)
         type(status_type) :: st
+
         call setup()
         call begin(global_map)
         repeat_check_key = .false.
@@ -382,6 +416,7 @@ contains
     !> C-x z repeats the last command, and z repeats it again.
     subroutine test_repeat_command(error)
         type(error_type), allocatable, intent(out) :: error
+
         call setup()
         call begin(global_map)
         call check_keys(error, "C-M-a C-x z z z", "(1 a)(1 a)(1 a)(1 a)", "")

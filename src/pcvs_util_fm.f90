@@ -52,12 +52,15 @@ contains
         type(status_type), intent(out) :: status
         type(window_type), pointer :: w
         integer :: length, wwidth, columns, colwidth, k
+
         status = status_type()
         if (size(strings) == 0) return
         length = 0
+
         do k = 1, size(strings)
             length = max(length, nchars(strings(k)%s))
         end do
+
         w => frame_selected_window_ref()
         wwidth = window_text_cols(w) - 1
         ! At least 2 columns; at least 2 spaces between columns.
@@ -67,11 +70,13 @@ contains
         colwidth = wwidth/columns
         ! Use tab-width rather than indent-to.
         call tab_width%set_local(int(colwidth, int64))
+
         ! The insertion should be "sensible" no matter what choices were made.
         do k = 1, size(strings)
             if (.not. bolp()) then
                 call insert(" "//achar(9), status)
                 if (.not. status%ok()) return
+
                 if (wwidth < max(colwidth, nchars(strings(k)%s)) + current_column()) then
                     call delete_region(point() - 2, point(), status)
                     if (.not. status%ok()) return
@@ -79,6 +84,7 @@ contains
                     if (.not. status%ok()) return
                 end if
             end if
+
             call insert(strings(k)%s, status)
             if (.not. status%ok()) return
         end do
@@ -88,7 +94,9 @@ contains
     integer function nchars(s)
         character(len=*), intent(in) :: s
         integer :: i
+
         nchars = 0
+
         do i = 1, len(s)
             if (iand(ichar(s(i:i)), 192) /= 128) nchars = nchars + 1
         end do

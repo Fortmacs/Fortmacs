@@ -178,6 +178,7 @@ contains
         type(value_type), intent(in) :: v
         type(command_type), pointer :: p
         character(len=:), allocatable :: name
+
         p => null()
         if (vtag(v) /= V_SYMBOL .or. nilp(v)) return
         name = trim(symbols(xsymbol(v))%name)
@@ -189,6 +190,7 @@ contains
     function name_of(v) result(name)
         type(value_type), intent(in) :: v
         character(len=:), allocatable :: name
+
         name = ""
         if (vtag(v) == V_SYMBOL) name = trim(symbols(xsymbol(v))%name)
     end function name_of
@@ -215,10 +217,12 @@ contains
         character(len=:), allocatable :: name
         integer(int32) :: c
         logical :: found
+
         status = status_type()
         repeat_arg = current_prefix_arg
         if (value_eq(last_repeatable_command, sym("repeat"))) last_repeatable_command = repeat_previous_repeated_command
         name = name_of(last_repeatable_command)
+
         if (nilp(last_repeatable_command)) then
             call set_error(status, FM_GENERIC_ERROR, "There is nothing to repeat")
             return
@@ -232,28 +236,34 @@ contains
                 return
             end if
         end if
+
         this_command = last_repeatable_command
         repeat_previous_repeated_command = last_repeatable_command
         repeat_num_input_keys_at_repeat = num_input_keys
         if (nilp(repeat_arg)) repeat_arg = last_prefix_arg
         repeat_repeat_char = nil()
         if (repeat_on_final_keystroke) repeat_repeat_char = last_command_event
+
         if (nilp(repeat_arg)) then
             call repeat_message("Repeating command "//name)
         else
             current_prefix_arg = repeat_arg
             call repeat_message("Repeating command "//prefix_arg_text(repeat_arg)//" "//name)
         end if
+
         if (name == "self_insert_command") then
             call char_before(c, found)
+
             if (found) then
                 last_command_event = make_fixnum(int(c, int64))
             else
                 last_command_event = nil()
             end if
         end if
+
         call call_interactively(last_repeatable_command, status)
         if (.not. status%ok()) return
+
         if (.not. nilp(repeat_repeat_char)) then
             if (keymap_live_p(final_key_map)) call free_keymap(final_key_map, st)
             call make_sparse_keymap(final_key_map)
@@ -268,6 +278,7 @@ contains
         type(value_type), intent(in) :: arg
         character(len=:), allocatable :: text
         character(len=24) :: buf
+
         if (vtag(arg) == V_INT) then
             write (buf, "(i0)") xfixnum(arg)
             text = trim(buf)
@@ -283,6 +294,7 @@ contains
     integer(int64) function prefix_numeric_value_of(arg)
         use callint_fm, only: prefix_numeric_value
         type(value_type), intent(in) :: arg
+
         prefix_numeric_value_of = prefix_numeric_value(arg)
     end function prefix_numeric_value_of
 
@@ -290,6 +302,7 @@ contains
     !> `repeat-message-function' nil).
     recursive subroutine repeat_message(text)
         character(len=*), intent(in) :: text
+
         call message(text)
     end subroutine repeat_message
 
@@ -315,6 +328,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=24) :: ncmd, nmap
         integer :: commands_count, maps_count
+
         call minor_modes%repeat_mode%command(status)
         if (.not. status%ok()) return
         if (.not. minor_modes%repeat_mode%enabled()) return
@@ -330,7 +344,9 @@ contains
     recursive subroutine repeat_mode_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
+
         status = status_type()
+
         if (.not. enable) then
             call pre_command_hook%remove(repeat_pre_hook)
             call post_command_hook%remove(repeat_post_hook)
@@ -348,9 +364,11 @@ contains
         type(command_type), pointer :: p
         integer :: i, j, n
         logical :: seen
+
         ncommands = 0
         allocate (maps(size(BUILTIN_COMMAND_NAMES)))
         n = 0
+
         do i = 1, size(BUILTIN_COMMAND_NAMES)
             p => builtin_command(trim(BUILTIN_COMMAND_NAMES(i)))
             if (.not. associated(p)) cycle
@@ -358,19 +376,23 @@ contains
             if (.not. keymap_live_p(p%repeat_map)) cycle
             ncommands = ncommands + 1
             seen = .false.
+
             do j = 1, n
                 if (same(maps(j), p%repeat_map)) seen = .true.
             end do
+
             if (.not. seen) then
                 n = n + 1
                 maps(n) = p%repeat_map
             end if
         end do
+
         nmaps = n
     end subroutine count_repeat_maps
 
     logical function same(a, b)
         type(handle_type), intent(in) :: a, b
+
         same = a%index == b%index .and. a%generation == b%generation
     end function same
 
@@ -378,6 +400,7 @@ contains
     !> (repeat--command-property's two places to look).
     function this_command_object() result(p)
         type(command_type), pointer :: p
+
         p => command_of(this_command)
         if (.not. associated(p)) p => command_of(real_this_command)
     end function this_command_object
@@ -389,26 +412,32 @@ contains
         type(command_type), pointer :: p, q
         logical :: continues
         integer :: k
+
         map = null_handle()
         if (.not. minor_modes%repeat_mode%enabled()) return
         map = repeat_map
         p => command_of(this_command)
         q => command_of(real_this_command)
+
         if (.not. keymap_live_p(map)) then
             if (associated(p)) map = p%repeat_map
             if (.not. keymap_live_p(map) .and. associated(q)) map = q%repeat_map
         end if
+
         if (keymap_live_p(repeat_in_progress)) then
             continues = .false.
             p => this_command_object()
+
             if (associated(p)) then
                 continues = p%repeat_continue_all
+
                 if (.not. continues .and. allocated(p%repeat_continue)) then
                     do k = 1, size(p%repeat_continue)
                         if (same(p%repeat_continue(k), repeat_in_progress)) continues = .true.
                     end do
                 end if
             end if
+
             if (continues) map = repeat_in_progress
         end if
     end function repeat_get_map_sym
@@ -421,13 +450,16 @@ contains
         type(value_type) :: basic
         character(len=:), allocatable :: base
         integer(int64) :: c, bits
+
         if (vtag(ev) == V_INT) then
             c = iand(xfixnum(ev), int(not(CHAR_MODIFIER_MASK), int64))
+
             if (c < 32) then
                 c = c + 96
             else if (c >= iachar("A") .and. c <= iachar("Z")) then
                 c = c + 32
             end if
+
             basic = make_fixnum(c)
         else if (vtag(ev) == V_SYMBOL) then
             call parse_modifiers(ev, bits, base)
@@ -447,9 +479,11 @@ contains
         type(status_type) :: st
         logical :: check
         integer :: prop
+
         prop = 0
         p => this_command_object()
         if (associated(p)) prop = p%repeat_check_key
+
         if (prop == PROPERTY_NO) then
             check = .false.
         else if (prop == PROPERTY_TRUE) then
@@ -457,6 +491,7 @@ contains
         else
             check = repeat_check_key
         end if
+
         ok = .not. check
         if (ok) return
         keys(1) = key
@@ -473,6 +508,7 @@ contains
     logical function repeat_check_map(map) result(ok)
         type(handle_type), intent(in) :: map
         type(command_type), pointer :: p
+
         ok = keymap_live_p(map)
         if (.not. ok) return
         ok = minibuf_level < prev_mb_depth .or. value_eq(current_minibuffer_command, prev_mb_command)
@@ -488,12 +524,14 @@ contains
     recursive subroutine repeat_pre_hook(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: map
+
         status = status_type()
         if (.not. (minor_modes%repeat_mode%enabled() .and. repeat_keep_prefix)) return
         if (.not. keymap_live_p(repeat_in_progress)) return
         ! The command's `current_prefix_arg' (a hook function sees nil).
         if (.not. nilp(prefix_arg) .or. nilp(hook_current_prefix_arg)) return
         map = repeat_get_map_sym()
+
         if (repeat_check_map(map)) then
             repeat_map = map
             prefix_arg = hook_current_prefix_arg
@@ -510,13 +548,16 @@ contains
         type(status_type) :: st
         logical :: was_in_progress
         real :: timeout
+
         status = status_type()
         was_in_progress = keymap_live_p(repeat_in_progress)
         map = repeat_get_map_sym()
         repeat_in_progress = null_handle()
+
         if (repeat_check_map(map)) then
             if (associated(repeat_echo_function)) call repeat_echo_function(map)
             active = map
+
             if (allocated(repeat_exit_key)) then
                 if (keymap_live_p(exit_key_map)) call free_keymap(exit_key_map, st)
                 call copy_keymap(map, exit_key_map, st)
@@ -524,6 +565,7 @@ contains
                 call define_key(exit_key_map, key, sym("ignore"), st)
                 active = exit_key_map
             end if
+
             repeat_in_progress = map
             call repeat_clear_prev()
             call set_transient_map(active)
@@ -531,6 +573,7 @@ contains
             transient_map = active
             p => this_command_object()
             timeout = repeat_exit_timeout
+
             if (associated(p)) then
                 if (p%repeat_exit_timeout_no) then
                     timeout = 0.0
@@ -538,9 +581,11 @@ contains
                     timeout = p%repeat_exit_timeout
                 end if
             end if
+
             if (timeout > 0.0) call run_with_idle_timer(repeat_exit_timer, real(timeout, real64), .false., &
                                                         repeat_exit, st)
         end if
+
         repeat_map = null_handle()
         prev_mb_depth = minibuf_level
         prev_mb_command = current_minibuffer_command
@@ -552,6 +597,7 @@ contains
     !> active.  Port of repeat.el:repeat-exit.
     recursive subroutine repeat_exit(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         repeat_in_progress = null_handle()
         call repeat_clear_prev()
@@ -563,6 +609,7 @@ contains
     subroutine repeat_clear_prev()
         if (timerp(repeat_exit_timer)) call free_timer(repeat_exit_timer)
         repeat_exit_timer = null_handle()
+
         if (transient_exit_pending) then
             call exit_transient_map(transient_map)
             transient_exit_pending = .false.
@@ -575,12 +622,15 @@ contains
         type(handle_type), intent(in) :: keymap
         character(len=:), allocatable :: text, keys_text, part
         type(value_type), allocatable :: prefix(:)
+
         allocate (prefix(0))
         keys_text = ""
         call collect(keymap, prefix)
         text = format_message("Repeat with "//keys_text)
         if (allocated(repeat_exit_key)) text = text//format_message(", or exit with `"//repeat_exit_key//"'")
+
     contains
+
         !> cl--map-keymap-recursively, the keys in the order upstream
         !> pushes them (so the last visited first, as `keymap_events'
         !> gives them).
@@ -593,18 +643,23 @@ contains
             type(rmc_choice_type) :: choice
             type(value_type) :: last
             integer :: k
+
             call keymap_events(map, events)
+
             do k = 1, size(events)
                 binding = access_keymap(make_keymap_ref(map), events(k), .false., .false.)
                 if (nilp(binding)) cycle
                 key = [pre, events(k)]
+
                 if (keymapp(binding)) then
                     call collect(keymap_of(binding), key)
                     cycle
                 end if
+
                 last = key(size(key))
                 p => command_of(binding)
                 part = ""
+
                 if (associated(p)) then
                     if (allocated(p%repeat_hint)) then
                         if (size(key) == 1 .and. vtag(last) == V_INT) then
@@ -620,7 +675,9 @@ contains
                         end if
                     end if
                 end if
+
                 if (len(part) == 0) part = key_description(key)
+
                 if (len(keys_text) == 0) then
                     keys_text = part
                 else
@@ -635,6 +692,7 @@ contains
         use lisp_fm, only: xhandle
         type(value_type), intent(in) :: v
         type(handle_type) :: h
+
         h = xhandle(v)
     end function keymap_of
 
@@ -645,10 +703,13 @@ contains
         type(handle_type), intent(in) :: keymap
         character(len=:), allocatable :: msg, current
         integer :: at
+
         current = ""
         if (allocated(last_message)) current = last_message
+
         if (keymap_live_p(keymap)) then
             msg = repeat_echo_message_string(keymap)
+
             if (len(current) > 0) then
                 call message_nolog(current//" ["//msg//"]")
             else
@@ -656,6 +717,7 @@ contains
             end if
         else
             if (len(current) == 0) return
+
             if (index(current, "Repeat with ") == 1) then
                 call message_nolog("")
             else
@@ -671,6 +733,7 @@ contains
             allocate (character(len=16) :: repeat_too_dangerous(1))
             repeat_too_dangerous(1) = "kill_this_buffer"
         end if
+
         if (.not. associated(repeat_echo_function)) repeat_echo_function => repeat_echo_message
         call minor_modes%repeat_mode%define("repeat_mode", global=.true., hook=repeat_mode_hook, body=repeat_mode_body)
         commands%repeat%run => repeat

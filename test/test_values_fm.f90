@@ -42,6 +42,7 @@ contains
 
     subroutine collect_values_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("value-semantics", test_value_semantics), &
                     new_unittest("intern", test_intern), &
@@ -62,6 +63,7 @@ contains
     subroutine test_value_semantics(error)
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: a, b, no_values(0)
+
         a = list(make_fixnum(1_int64), make_string("x"))
         b = a
         ! Poke the copy's string atom directly ([LIST] [1] ["x"]).
@@ -79,6 +81,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=:), allocatable :: name
+
         call check(error, intern("nil"), SYM_NIL)
         if (allocated(error)) return
         call check(error, intern("t"), SYM_T)
@@ -96,21 +99,25 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=16) :: name
         integer(int64) :: ids(3000), k
+
         do k = 1, size(ids, kind=int64)
             write (name, '("tv-sym-", i0)') k
             ids(k) = intern(trim(name))
         end do
+
         do k = 1, size(ids, kind=int64)
             write (name, '("tv-sym-", i0)') k
             call check(error, intern_soft(trim(name)), ids(k))
             if (allocated(error)) return
         end do
+
         call check(error, ids(1) /= ids(3000), "distinct names share an id")
     end subroutine test_intern_many
 
     subroutine test_eq_equal(error)
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: s1, s2
+
         s1 = make_string("abc")
         s2 = make_string("abc")
         call check(error, value_eq(sym("a"), sym("a")), "symbols eq")
@@ -134,6 +141,7 @@ contains
         type(value_type) :: l, v
         type(status_type) :: st
         logical :: ok
+
         l = list(sym("a"), sym("b"), sym("c"))
         call car(l, v, st)
         call check(error, value_eq(v, sym("a")), "car")
@@ -176,6 +184,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: n
+
         call length(nil(), n, st)
         call check(error, n, 0_int64)
         if (allocated(error)) return
@@ -198,6 +207,7 @@ contains
         type(value_type) :: v
         type(status_type) :: st
         logical :: bound
+
         call boundp(sym("tv-var"), bound, st)
         call check(error,.not. bound, "fresh symbol bound")
         if (allocated(error)) return
@@ -224,6 +234,7 @@ contains
     subroutine test_set_constant(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call set(t_value(), sym("bob"), st)
         call check(error, st%code, FM_SETTING_CONSTANT)
         if (allocated(error)) return
@@ -243,6 +254,7 @@ contains
     !> fns-tests.el: plist-get/odd-number-of-elements.
     subroutine test_plist_get_odd(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, nilp(plist_get(list(sym(":foo"), make_fixnum(1_int64), sym(":bar")), &
                                          sym(":bar"))), "degenerate plist")
     end subroutine test_plist_get_odd
@@ -252,6 +264,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: plist
         type(status_type) :: st
+
         plist = list(sym(":foo"), make_fixnum(1_int64), sym(":bar"))
         call plist_put(plist, sym(":zot"), make_fixnum(2_int64), st)
         call check(error, st%code, FM_WRONG_TYPE_ARGUMENT)
@@ -264,6 +277,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: plist
         type(status_type) :: st
+
         plist = list(sym(":a"), make_string("b"))
         call plist_put(plist, sym(":b"), make_string("c"), st)
         call check(error, value_equal(plist_get(plist, sym(":b")), make_string("c")), "block 1 get")
@@ -316,6 +330,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: v
         type(status_type) :: st
+
         call put(sym("tv-cmd"), sym("disabled"), t_value(), st)
         call get(sym("tv-cmd"), sym("disabled"), v, st)
         call check(error, value_eq(v, t_value()), "get after put")

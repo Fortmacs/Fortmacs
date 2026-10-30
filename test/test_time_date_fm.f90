@@ -35,6 +35,7 @@ contains
 
     subroutine collect_time_date_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("test-seconds-to-string", test_seconds_to_string), &
                     new_unittest("seconds-to-string-readable", test_readable) &
@@ -44,11 +45,13 @@ contains
     subroutine expect(error, actual, expected)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), intent(in) :: actual, expected
+
         call check(error, actual == expected, '"'//actual//'" expected "'//expected//'"')
     end subroutine expect
 
     subroutine test_seconds_to_string(error)
         type(error_type), allocatable, intent(out) :: error
+
         call expect(error, seconds_to_string(0.0_real64), "0s")
         if (allocated(error)) return
         call expect(error, seconds_to_string(9.0_real64), "9.00s")
@@ -74,6 +77,7 @@ contains
     !> abbreviated readable form).
     subroutine test_readable(error)
         type(error_type), allocatable, intent(out) :: error
+
         call expect(error, seconds_to_string(200.0_real64, SECONDS_TO_STRING_READABLE, .true.), "3m")
         if (allocated(error)) return
         call expect(error, seconds_to_string(0.2_real64, SECONDS_TO_STRING_READABLE, .true.), "0s")

@@ -53,6 +53,7 @@ contains
 
     subroutine collect_inotify_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("inotify-valid-p-simple", test_valid_p_simple), &
                     new_unittest("inotify-file-watch-simple", test_file_watch_simple), &
@@ -66,6 +67,7 @@ contains
         type(handle_type) :: old, h
         type(status_type) :: st
         character(len=:), allocatable :: msg
+
         old = current_buffer()
         call get_buffer_create(generate_new_buffer_name(" *inotify-test*"), h, st)
         call set_buffer(h, st)
@@ -83,6 +85,7 @@ contains
         type(status_type) :: st
         logical :: have
         integer :: k
+
         do k = 1, int(seconds*10)
             if (done()) return
             call read_event(ev, have, st, seconds=0.1)
@@ -100,6 +103,7 @@ contains
     recursive subroutine count_event(event, status)
         type(inotify_event_type), intent(in) :: event
         type(status_type), intent(out) :: status
+
         status = status_type()
         if (event%aspects /= 0) events = events + 1
     end subroutine count_event
@@ -107,6 +111,7 @@ contains
     recursive subroutine note_ignored(event, status)
         type(inotify_event_type), intent(in) :: event
         type(status_type), intent(out) :: status
+
         status = status_type()
         if (iand(event%aspects, INOTIFY_IGNORED) /= 0) success = .true.
     end subroutine note_ignored
@@ -115,6 +120,7 @@ contains
     subroutine test_valid_p_simple(error)
         type(error_type), allocatable, intent(out) :: error
         type(watch_descriptor_type) :: wd
+
         call check(error,.not. inotify_valid_p(wd), "invalid descriptor")
         if (allocated(error)) return
         wd%wd = 0
@@ -128,6 +134,7 @@ contains
         character(len=:), allocatable :: temp_file
         type(watch_descriptor_type) :: wd
         type(status_type) :: st
+
         call make_temp_file("inotify-test", temp_file, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -150,6 +157,7 @@ contains
         character(len=:), allocatable :: temp_file
         type(watch_descriptor_type) :: wd
         type(status_type) :: st
+
         call make_temp_file("inotify-test", temp_file, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
