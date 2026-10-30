@@ -93,6 +93,7 @@ module bindings_fm
     use diff_mode_fm, only: syms_of_diff_mode
     use diff_fm, only: syms_of_diff
     use comint_fm, only: syms_of_comint, comint_mode_map
+    use auth_source_fm, only: syms_of_auth_source
     use shell_fm, only: syms_of_shell, shell_mode_map
     use rect_fm, only: syms_of_rect
     use savehist_fm, only: syms_of_savehist
@@ -101,6 +102,7 @@ module bindings_fm
     use tabulated_list_fm, only: syms_of_tabulated_list
     use bookmark_fm, only: syms_of_bookmark, bookmark_map, bookmark_minibuffer_read_name_map
     use info_fm, only: syms_of_info
+    use info_look_fm, only: syms_of_info_look
     use buff_menu_fm, only: syms_of_buff_menu
     use ibuffer_fm, only: syms_of_ibuffer
     use crm_fm, only: syms_of_crm
@@ -331,6 +333,7 @@ contains
         call syms_of_buff_menu()
         call syms_of_ibuffer()
         call syms_of_info()
+        call syms_of_info_look()
         call syms_of_register()
         call syms_of_macros()
         call syms_of_kmacro()
@@ -657,6 +660,7 @@ contains
         if (keymap_live_p(minibuffer_local_map)) call free_keymap(minibuffer_local_map, status)
         call init_minibuf()
         call syms_of_minibuffer()
+        call syms_of_auth_source()
         call syms_of_crm()
         call syms_of_subr()
         call bind(minibuffer_local_map, "M-n", "next_history_element")

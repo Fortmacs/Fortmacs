@@ -43,12 +43,12 @@
 !> visited. `info_search' (s, S), the indexes (`info_index' i,
 !> `info_index_next' ,, `info_virtual_index' I, `info_apropos') and
 !> `info_goto_emacs_command_node' and `info_goto_emacs_key_command_node'
-!> (C-h F, C-h K) are ported.
+!> (C-h F, C-h K) are ported, with Isearch across nodes and
+!> `info_display_manual' (C-h R).
 !>
-!> Deferred: `info_refill_paragraphs', Isearch across nodes,
-!> `info_finder', `info_goto_node_web' (G, needing browse-url),
-!> following URLs, `info_display_manual', `info_standalone',
-!> `clone_buffer' (M-n), images (Fortmacs displays none, so their text
+!> Deferred: `info_refill_paragraphs', `info_finder',
+!> `info_goto_node_web' (G, needing browse-url), following URLs,
+!> `info_standalone', `clone_buffer' (M-n), images (Fortmacs displays none, so their text
 !> is shown), the mouse, menu bar, tool bar and context menu commands,
 !> bookmarks, desktop saving, speedbar, active nodes
 !> (`info_enable_active_nodes'), the display table for terminals without
@@ -67,7 +67,7 @@ module info_fm
     use eval_fm, only: hook_type
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, buffer_live_p, buffer_serial_live, get_buffer_create, &
                          generate_new_buffer_name, kill_buffer, erase_buffer, restore_buffer_modified_p, get_buffer, &
-                         inhibit_read_only, transient_mark_mode, header_line_format_type
+                         inhibit_read_only, transient_mark_mode, header_line_format_type, buffer_list
     use marker_fm, only: make_marker, free_marker, marker_buffer, marker_position, set_marker, &
                          detach_marker, set_marker_insertion_type, byte_to_char, char_to_byte
     use editfns_fm, only: point, point_min, point_max, goto_char, bobp, eobp, bolp, eolp, buffer_size, widen, &
@@ -148,7 +148,8 @@ module info_fm
               info_toc, info_history, info_fontify_node, syms_of_info, &
               info_search, info_search_backward, info_search_next, info_search_case_sensitively, &
               info_index, info_index_next, info_virtual_index, info_apropos, &
-              info_goto_emacs_command_node, info_goto_emacs_key_command_node, info_history_variable
+              info_goto_emacs_command_node, info_goto_emacs_key_command_node, info_history_variable, &
+              info_display_manual, set_info_history_variable
 
     !> A node visited: the Info FILE (as `info_current_file'), the NODE name
     !> and the position POS of point in it.  An element of the stacks
@@ -884,6 +885,15 @@ contains
             if (allocated(locals(k)%history)) history = locals(k)%history
         end if
     end subroutine info_history_variable
+
+    !> Set the current buffer's `info_history_variable' to HISTORY.
+    subroutine set_info_history_variable(history)
+        type(info_history_entry_type), intent(in) :: history(:)
+        integer :: k
+
+        k = here()
+        locals(k)%history = history
+    end subroutine set_info_history_variable
 
     !> The current buffer's `info_history_forward_variable': the stack of
     !> Info nodes the user has visited with the `info_history_back'
@@ -8144,6 +8154,200 @@ contains
         call info_goto_emacs_key_command_node(keys, status, .true.)
     end subroutine cmd_info_goto_emacs_key_command_node
 
+    !> Display an Info buffer displaying MANUAL.
+    !> If there is an existing Info buffer for MANUAL, display it.
+    !> Otherwise, visit the manual in a new Info buffer.  In interactive
+    !> use, a prefix argument directs this command to limit the
+    !> completion alternatives to currently visited manuals.  Port of
+    !> info.el:info-display-manual (one frame).
+    recursive subroutine info_display_manual(manual, status)
+        character(len=*), intent(in) :: manual
+        type(status_type), intent(out) :: status
+        type(handle_type), allocatable :: blist(:)
+        type(handle_type) :: found, old, window
+        character(len=:), allocatable :: manual_re, file
+        type(status_type) :: st
+        logical :: saved_fold, has
+        integer :: i
+
+        status = status_type()
+        manual_re = "\(/\|\`\)"//manual//"\(\.\|\'\)"
+        saved_fold = case_fold_search%value
+        case_fold_search = .true.
+        blist = buffer_list()
+        old = current_buffer()
+        has = .false.
+
+        do i = 1, size(blist)
+            call set_buffer(blist(i), st)
+
+            if (derived_mode_p(major_modes%info_mode)) then
+                file = info_current_file()
+
+                if (allocated(file)) then
+                    if (smatch(manual_re, file)) then
+                        found = blist(i)
+                        has = .true.
+                    end if
+                end if
+            end if
+
+            if (has) exit
+        end do
+
+        call set_buffer(old, st)
+        case_fold_search = saved_fold
+
+        if (has) then
+            window = get_buffer_window(found)
+
+            ! If the buffer is already displayed in a window somewhere,
+            ! then select that window (and pop its frame to the top).
+            if (window%index /= 0) then
+                call select_window(window, status)
+            else
+                call info_pop_to_buffer(status, buffer_handle=found)
+            end if
+        else
+            ! The buffer doesn't exist; create it.
+            call info_initialize()
+            call info_find_file(manual, file, status)
+            if (.not. status%ok()) return
+            call info(status, file, generate_new_buffer_name("*info*"))
+        end if
+    end subroutine info_display_manual
+
+    ! The manuals visited in Info buffers, and unless VISITED_ONLY those
+    ! in `info_directory_list' and `info_additional_directory_list'.
+    ! Port of info.el:info--manual-names.
+    subroutine info_manual_names(visited_only, names)
+        logical, intent(in) :: visited_only
+        type(string_type), allocatable, intent(out) :: names(:)
+        type(handle_type), allocatable :: blist(:)
+        type(handle_type) :: old
+        type(string_type), allocatable :: dirs(:), more(:), extra(:)
+        character(len=:), allocatable :: file, bname
+        type(status_type) :: st
+        integer :: i
+
+        allocate (names(0))
+        blist = buffer_list()
+        old = current_buffer()
+
+        do i = 1, size(blist)
+            call set_buffer(blist(i), st)
+            if (.not. derived_mode_p(major_modes%info_mode)) cycle
+            file = info_current_file()
+            if (.not. allocated(file)) cycle
+            bname = buffers(cur)%name
+
+            if (len(bname) > 0) then
+                if (bname(1:1) == " ") cycle
+            end if
+
+            if (.not. has_string(names, file_name_sans_extension(file_name_nondirectory(file)))) then
+                call add_string(names, file_name_sans_extension(file_name_nondirectory(file)))
+            end if
+        end do
+
+        call set_buffer(old, st)
+        if (visited_only) return
+        call setting_dirs(info_directory_list, dirs)
+        call setting_dirs(info_additional_directory_list, extra)
+
+        do i = 1, size(extra)
+            call add_string(dirs, extra(i)%s)
+        end do
+
+        call info_file_names(dirs, more)
+
+        do i = 1, size(more)
+            if (.not. has_string(names, more(i)%s)) call add_string(names, more(i)%s)
+        end do
+    end subroutine info_manual_names
+
+    ! NAMES without subfiles and other files, sorted by length, the
+    ! shorter of the names differing only by an Info or compression
+    ! suffix kept.  Port of info.el:info--filter-manual-names.
+    subroutine info_filter_manual_names(names, filtered)
+        type(string_type), intent(in) :: names(:)
+        type(string_type), allocatable, intent(out) :: filtered(:)
+        type(string_type), allocatable :: kept(:)
+        type(string_type) :: tmp
+        logical :: dup
+        integer :: i, j
+
+        allocate (kept(0), filtered(0))
+
+        do i = 1, size(names)
+            if (smatch("info-[0-9]", names(i)%s)) cycle
+            if (names(i)%s == "./" .or. names(i)%s == "../" .or. names(i)%s == "ChangeLog" .or. &
+                names(i)%s == "NEWS" .or. names(i)%s == "README") cycle
+            call add_string(kept, names(i)%s)
+        end do
+
+        ! We prefer the shorter names ("foo" over "foo.gz"): a stable
+        ! sort by length.
+        do i = 2, size(kept)
+            j = i
+
+            do while (j > 1)
+                if (len(kept(j - 1)%s) <= len(kept(j)%s)) exit
+                tmp = kept(j)
+                kept(j) = kept(j - 1)
+                kept(j - 1) = tmp
+                j = j - 1
+            end do
+        end do
+
+        do i = 1, size(kept)
+            dup = .false.
+
+            do j = 1, size(filtered)
+                if (strip(filtered(j)%s) == strip(kept(i)%s)) dup = .true.
+            end do
+
+            if (.not. dup) call add_string(filtered, kept(i)%s)
+        end do
+
+    contains
+
+        ! NAME without "-info", ".info" and ".gz" at its end (case
+        ! folded, as replace-regexp-in-string is).
+        function strip(name) result(r)
+            character(len=*), intent(in) :: name
+            character(len=:), allocatable :: r
+            integer :: n
+
+            r = name
+            n = len(r)
+
+            if (n >= 3) then
+                if (lower(r(n - 2:n)) == ".gz") r = r(1:n - 3)
+            end if
+
+            n = len(r)
+
+            if (n >= 5) then
+                if (lower(r(n - 3:n)) == "info" .and. (r(n - 4:n - 4) == "-" .or. r(n - 4:n - 4) == ".")) r = r(1:n - 5)
+            end if
+        end function strip
+    end subroutine info_filter_manual_names
+
+    recursive subroutine cmd_info_display_manual(status)
+        type(status_type), intent(out) :: status
+        type(string_type), allocatable :: names(:), filtered(:)
+        character(len=:), allocatable :: manual
+
+        call info_initialize()
+        call info_manual_names(.not. nilp(current_prefix_arg), names)
+        call info_filter_manual_names(names, filtered)
+        call completing_read("Manual name: ", completion_list_table(strings_value(filtered)), manual, status, &
+                             require_match=REQUIRE_MATCH_T)
+        if (.not. status%ok()) return
+        call info_display_manual(manual, status)
+    end subroutine cmd_info_display_manual
+
     ! ------------------------------------------------------------------
     ! The table of contents and the history node
     ! ------------------------------------------------------------------
@@ -9615,6 +9819,7 @@ contains
         commands%info_apropos%run => cmd_info_apropos
         commands%info_goto_emacs_command_node%run => cmd_info_goto_emacs_command_node
         commands%info_goto_emacs_key_command_node%run => cmd_info_goto_emacs_key_command_node
+        commands%info_display_manual%run => cmd_info_display_manual
         commands%info%info_file = "emacs"
         commands%info_goto_emacs_command_node%info_file = "emacs"
         commands%info_goto_emacs_key_command_node%info_file = "emacs"

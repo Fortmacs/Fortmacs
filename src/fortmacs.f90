@@ -355,7 +355,15 @@ module fortmacs
                          comint_mode_hook, comint_exec_hook, comint_output_filter_functions, &
                          comint_preoutput_filter_functions, comint_input_filter_functions, comint_mode_map, &
                          comint_truncate_buffer, &
-                         comint_strip_ctrl_m, comint_postoutput_scroll_to_bottom, comint_show_maximum_output
+                         comint_strip_ctrl_m, comint_postoutput_scroll_to_bottom, comint_show_maximum_output, &
+                         comint_input_autoexpand, COMINT_AUTOEXPAND_NIL, COMINT_AUTOEXPAND_T, COMINT_AUTOEXPAND_INPUT, &
+                         COMINT_AUTOEXPAND_HISTORY, comint_scroll_to_bottom_on_input, COMINT_SCROLL_ON_INPUT_NIL, &
+                         COMINT_SCROLL_ON_INPUT_T, COMINT_SCROLL_ON_INPUT_ALL, COMINT_SCROLL_ON_INPUT_THIS, &
+                         comint_insert_previous_argument_from_end, comint_history_isearch, COMINT_HISTORY_ISEARCH_NIL, &
+                         COMINT_HISTORY_ISEARCH_DWIM, COMINT_HISTORY_ISEARCH_T, comint_password_prompt_regexp, &
+                         comint_password_prompt_max_length
+    use mule_conf_fm, only: password_word_equivalents, password_colon_equivalents
+    use minibuf_fm, only: read_hide_char
     use shell_fm, only: shell, shell_mode, shell_dumb_shell_regexp, shell_prompt_pattern, shell_delimiter_argument_list, &
                         shell_command_regexp, shell_command_separator_regexp, shell_popd_regexp, shell_pushd_regexp, &
                         shell_pushd_tohome, shell_pushd_dextract, shell_pushd_dunique, shell_cd_regexp, &
@@ -478,6 +486,10 @@ module fortmacs
                        INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, info_breadcrumbs_depth, &
                        info_search_whitespace_regexp, info_warn_on_index_alternatives_wrap, &
                        info_file_list_for_emacs, info_file_prefix_type
+    use info_look_fm, only: info_lookup_other_window_flag, info_lookup_highlight_face, info_lookup_file_name_alist, &
+                            info_lookup_file_name_type, info_lookup_add_help, info_lookup_maybe_add_help, &
+                            info_lookup_doc_specs_type, info_lookup_trans_proc, info_lookup_parse_proc, &
+                            info_lookup_doc_spec_proc
     use ibuffer_fm, only: ibuffer_formats, ibuffer_always_compile_formats, ibuffer_fontification_alist, &
                           ibuffer_human_readable_size, ibuffer_use_other_window, &
                           ibuffer_default_shrink_to_minimum_size, ibuffer_display_summary, ibuffer_truncate_lines, &
@@ -651,7 +663,13 @@ module fortmacs
               comint_mode_hook, comint_exec_hook, comint_output_filter_functions, comint_preoutput_filter_functions, &
               comint_input_filter_functions, comint_mode_map, &
               comint_truncate_buffer, comint_strip_ctrl_m, comint_postoutput_scroll_to_bottom, &
-              comint_show_maximum_output
+              comint_show_maximum_output, comint_input_autoexpand, COMINT_AUTOEXPAND_NIL, COMINT_AUTOEXPAND_T, &
+              COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY, comint_scroll_to_bottom_on_input, &
+              COMINT_SCROLL_ON_INPUT_NIL, COMINT_SCROLL_ON_INPUT_T, COMINT_SCROLL_ON_INPUT_ALL, &
+              COMINT_SCROLL_ON_INPUT_THIS, comint_insert_previous_argument_from_end, comint_history_isearch, &
+              COMINT_HISTORY_ISEARCH_NIL, COMINT_HISTORY_ISEARCH_DWIM, COMINT_HISTORY_ISEARCH_T, &
+              comint_password_prompt_regexp, comint_password_prompt_max_length
+    public :: password_word_equivalents, password_colon_equivalents, read_hide_char
     public :: shell, shell_mode, shell_dumb_shell_regexp, shell_prompt_pattern, shell_delimiter_argument_list, &
               shell_command_regexp, shell_command_separator_regexp, shell_popd_regexp, shell_pushd_regexp, &
               shell_pushd_tohome, shell_pushd_dextract, shell_pushd_dunique, shell_cd_regexp, shell_dirtrack_verbose, &
@@ -857,6 +875,9 @@ module fortmacs
               INFO_HIDE_NOTE_REFERENCES_T, INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, &
               info_breadcrumbs_depth, info_search_whitespace_regexp, info_warn_on_index_alternatives_wrap, &
               info_file_list_for_emacs, info_file_prefix_type
+    public :: info_lookup_other_window_flag, info_lookup_highlight_face, info_lookup_file_name_alist, &
+              info_lookup_file_name_type, info_lookup_add_help, info_lookup_maybe_add_help, &
+              info_lookup_doc_specs_type, info_lookup_trans_proc, info_lookup_parse_proc, info_lookup_doc_spec_proc
     public :: ibuffer_formats, ibuffer_always_compile_formats, ibuffer_fontification_alist, &
               ibuffer_human_readable_size, ibuffer_use_other_window, ibuffer_default_shrink_to_minimum_size, &
               ibuffer_display_summary, ibuffer_truncate_lines, ibuffer_case_fold_search, &
