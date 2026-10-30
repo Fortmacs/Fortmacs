@@ -25,9 +25,12 @@
 !> (or similar) logical here.  Text comes back as byte strings in the
 !> buffer's representation.
 !>
-!> Point is set with `temp_set_point_both': upstream's SET_PT also runs
-!> text-property hooks (`point_entered' etc.), which arrive with
-!> intervals.  Labeled restrictions (`with_restriction') are deferred, as
+!> `goto_char' sets point with `set_point_both' (intervals.c, in textprop_fm:
+!> `intangible', `point_entered' and `point_left' when
+!> `inhibit_point_motion_hooks' is false); the other primitives that use
+!> SET_PT upstream still set it with `temp_set_point_both' (the same while
+!> that variable is true, its default).  Labeled restrictions
+!> (`with_restriction') are deferred, as
 !> are `format', fields, `transpose_regions' and
 !> `compare_buffer_substrings' (they need case tables, intervals or undo).
 module editfns_fm
@@ -51,7 +54,7 @@ module editfns_fm
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use textprop_fm, only: get_text_property, text_property_stickiness, &
-                           next_single_char_property_change, previous_single_char_property_change
+                           next_single_char_property_change, previous_single_char_property_change, set_point_both
     use error_fm, only: format_message
     implicit none(type, external)
     private
@@ -160,18 +163,20 @@ contains
     end function gap_size
 
     !> Set point to `position', clipped to the accessible region.
-    !> Port of editfns.c:Fgoto_char (integer POSITION).
-    subroutine goto_char(position)
+    !> Port of editfns.c:Fgoto_char (integer POSITION; an error of a
+    !> `point_left' or `point_entered' function is dropped).
+    recursive subroutine goto_char(position)
         integer(int64), intent(in) :: position
         integer(int64) :: pos
+        type(status_type) :: st
 
         pos = max(buffers(cur)%begv, min(position, buffers(cur)%zv))
-        call temp_set_point_both(buffers(cur), pos, char_to_byte(pos))
+        call set_point_both(pos, char_to_byte(pos), st)
     end subroutine goto_char
 
     !> Set point to marker `m'.  Port of editfns.c:Fgoto_char (marker
     !> POSITION), i.e. intervals.c:set_point_from_marker.
-    subroutine goto_char_marker(m, status)
+    recursive subroutine goto_char_marker(m, status)
         type(handle_type), intent(in) :: m
         type(status_type), intent(out) :: status
 
@@ -180,7 +185,7 @@ contains
 
     !> Port of intervals.c:set_point_from_marker.  The marker's byte
     !> position is only trusted if it is in the current buffer.
-    subroutine set_point_from_marker(m, status)
+    recursive subroutine set_point_from_marker(m, status)
         type(handle_type), intent(in) :: m
         type(status_type), intent(out) :: status
         integer(int64) :: i, charpos, bytepos
@@ -193,17 +198,15 @@ contains
             return
         end if
 
-        associate (b => buffers(cur))
-            charpos = max(b%begv, min(markers(i)%charpos, b%zv))
+        charpos = max(buffers(cur)%begv, min(markers(i)%charpos, buffers(cur)%zv))
 
-            if (markers(i)%buffer /= cur) then
-                bytepos = buf_charpos_to_bytepos(cur, charpos)
-            else
-                bytepos = max(b%begv_byte, min(markers(i)%bytepos, b%zv_byte))
-            end if
+        if (markers(i)%buffer /= cur) then
+            bytepos = buf_charpos_to_bytepos(cur, charpos)
+        else
+            bytepos = max(buffers(cur)%begv_byte, min(markers(i)%bytepos, buffers(cur)%zv_byte))
+        end if
 
-            call temp_set_point_both(b, charpos, bytepos)
-        end associate
+        call set_point_both(charpos, bytepos, status)
     end subroutine set_point_from_marker
 
     !> A new marker at point; the caller frees it.
@@ -856,17 +859,16 @@ contains
     !> If the current buffer is multibyte and BUFFER is unibyte, or vice
     !> versa, strings are converted from unibyte to multibyte or vice versa
     !> using `string_make_multibyte' or `string_make_unibyte', which see.
-    !> Port of editfns.c:Finsert_buffer_substring (text properties pending,
-    !> as for `buffer_substring'; both buffers multibyte).
+    !> Port of editfns.c:Finsert_buffer_substring.
     recursive subroutine insert_buffer_substring(buffer, status, start, end)
         use buffer_fm, only: set_buffer, buffer_live_p
+        use insdel_fm, only: insert_from_buffer
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start, end
         type(handle_type) :: old
         type(status_type) :: st
-        character(len=:), allocatable :: text
-        integer(int64) :: b, e
+        integer(int64) :: b, e, bp
 
         status = status_type()
 
@@ -878,14 +880,15 @@ contains
         old = current_buffer()
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
+        bp = cur
         b = point_min()
         e = point_max()
         if (present(start)) b = start
         if (present(end)) e = end
-        call buffer_substring(b, e, text, status)
+        call validate_region(b, e, status)
         call set_buffer(old, st)
         if (.not. status%ok()) return
-        call insert(text, status)
+        call insert_from_buffer(bp, b, e - b, .false., status)
     end subroutine insert_buffer_substring
 
     !> Delete the text between `start' and `end' (either order).

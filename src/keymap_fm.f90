@@ -47,7 +47,7 @@
 !>
 !> Not ported yet: char-table and vector entries (a full keymap is a
 !> flag), menu items, `remap', symbols whose function definition is a
-!> keymap, event ranges, minor-mode and text-property maps, where-is.
+!> keymap, event ranges, minor-mode maps, where-is.
 module keymap_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, &
@@ -65,13 +65,14 @@ module keymap_fm
                             MAX_MULTIBYTE_LENGTH, char_string, &
                             string_char_and_length, multibyte_length
     use buffer_fm, only: buffers, cur
+    use textprop_fm, only: get_char_property, get_pos_property
     use lisp_fm, only: command_type, defined_command
     use commands_fm, only: builtin_command
     implicit none(type, external)
     private
 
     public :: make_keymap, make_sparse_keymap, free_keymap, keymap_live_p
-    public :: keymapp, keymap_parent, set_keymap_parent, copy_keymap
+    public :: keymapp, keymap_parent, set_keymap_parent, copy_keymap, get_local_map
     public :: keymap_prompt, keymap_full_p, keymap_entries, keymap_equal, value_equal_proc
     public :: access_keymap, define_key, define_key_range, lookup_key, &
               key_binding
@@ -1624,22 +1625,78 @@ contains
         end subroutine insert_after
     end subroutine accessible_keymaps
 
+    !> The proper local keymap TYPE (`keymap' or `local_map') for position
+    !> POSITION in the current buffer: the map the TYPE property of the
+    !> character there (or, failing that, the property a character inserted
+    !> there would inherit) specifies, if it is a keymap.  Otherwise nil
+    !> for `keymap', and the buffer's local map for `local_map'.  Narrowing
+    !> is ignored.  Port of intervals.c:get_local_map (the current buffer).
+    function get_local_map(position, type) result(map)
+        integer(int64), intent(in) :: position
+        character(len=*), intent(in) :: type
+        type(value_type) :: map
+        type(value_type) :: prop, ptype
+        type(handle_type) :: local
+        integer(int64) :: pos, old_begv, old_zv, old_begv_byte, old_zv_byte
+
+        map = nil()
+        if (cur == 0) return
+        pos = max(buffers(cur)%begv, min(position, buffers(cur)%zv))
+        ! Ignore narrowing, so that a local map continues to be valid even
+        ! if the visible region contains no characters and hence no
+        ! properties.
+        old_begv = buffers(cur)%begv
+        old_zv = buffers(cur)%zv
+        old_begv_byte = buffers(cur)%begv_byte
+        old_zv_byte = buffers(cur)%zv_byte
+        buffers(cur)%begv = 1
+        buffers(cur)%begv_byte = 1
+        buffers(cur)%zv = buffers(cur)%text%z
+        buffers(cur)%zv_byte = buffers(cur)%text%z_byte
+        ptype = make_symbol_ref(intern(type))
+        ! First check if the CHAR has any property.
+        prop = get_char_property(pos, ptype)
+        ! If not, look at the POS's properties.
+        if (nilp(prop)) prop = get_pos_property(pos, ptype)
+        buffers(cur)%begv = old_begv
+        buffers(cur)%zv = old_zv
+        buffers(cur)%begv_byte = old_begv_byte
+        buffers(cur)%zv_byte = old_zv_byte
+
+        ! Use the local map only if it is valid.
+        if (keymapp(prop)) then
+            map = prop
+            return
+        end if
+
+        if (type == "keymap") return
+        local = current_local_map()
+        if (local%index /= 0) map = make_keymap_ref(local)
+    end function get_local_map
+
     !> The active keymaps, highest precedence first, as one composite:
     !> overriding-terminal-local-map, the minor-mode maps, the local map,
-    !> the global map.  Port of keymap.c:Fcurrent_active_maps without
-    !> overriding-local-map and text-property maps.
+    !> the global map; a `keymap' property at point comes before the
+    !> minor-mode maps and a `local_map' property replaces the local map.
+    !> Port of keymap.c:Fcurrent_active_maps without
+    !> overriding-local-map.
     function current_active_maps() result(maps)
         type(value_type) :: maps
         type(value_type), allocatable :: elems(:)
         type(value_type) :: v
-        type(handle_type) :: local
+        type(value_type) :: local_map, keymap
         type(status_type) :: st
         character(len=48), allocatable :: modes(:)
         type(handle_type), allocatable :: minor(:)
         integer :: n, i
 
         call current_minor_maps(modes, minor)
-        allocate (elems(4 + size(minor)))
+        ! This usually returns the buffer's local map, but that can be
+        ! overridden by a `local_map' property.
+        local_map = get_local_map(buffers(cur)%pt, "local_map")
+        ! This returns nil unless there is a `keymap' property.
+        keymap = get_local_map(buffers(cur)%pt, "keymap")
+        allocate (elems(4 + size(minor) + list_length(local_map) + list_length(keymap)))
         n = 0
 
         if (table%is_live(overriding_terminal_local_map)) then
@@ -1652,18 +1709,14 @@ contains
             elems(n) = make_keymap_ref(pushed_terminal_local_map)
         end if
 
+        call push_map(keymap)
+
         do i = 1, size(minor)
             n = n + 1
             elems(n) = make_keymap_ref(minor(i))
         end do
 
-        local = current_local_map()
-
-        if (local%index /= 0) then
-            n = n + 1
-            elems(n) = make_keymap_ref(local)
-        end if
-
+        call push_map(local_map)
         n = n + 1
         elems(n) = make_keymap_ref(current_global_map())
 
@@ -1672,6 +1725,29 @@ contains
         else
             maps = make_list(elems(1:n))
         end if
+
+    contains
+
+        !> Add the keymap or composite MAP (nothing for nil).
+        subroutine push_map(map)
+            type(value_type), intent(in) :: map
+            type(value_type), allocatable :: parts(:)
+            integer :: j
+
+            if (nilp(map)) return
+
+            if (keymap_ref_p(map)) then
+                n = n + 1
+                elems(n) = map
+            else
+                call list_elements(map, parts)
+
+                do j = 1, size(parts)
+                    n = n + 1
+                    elems(n) = parts(j)
+                end do
+            end if
+        end subroutine push_map
     end function current_active_maps
 
     !> Binding of `key' in the active maps (local, then global); nil if

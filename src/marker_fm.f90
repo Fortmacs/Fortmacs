@@ -321,7 +321,8 @@ contains
     ! Marker objects
     ! ------------------------------------------------------------------
 
-    !> Slot of marker `m', or invalid-handle.  Not a port.
+    !> Slot of marker `m', or invalid-handle.  Port of marker.c:CHECK_MARKER
+    !> (a stale handle is the error).
     subroutine resolve_marker(m, i, status)
         type(handle_type), intent(in) :: m
         integer(int64), intent(out) :: i
@@ -376,7 +377,7 @@ contains
     end subroutine marker_buffer
 
     !> Character position of `m'; an error if it points nowhere.
-    !> Port of marker.c:marker_position (Fmarker_position returns nil
+    !> Port of marker.c:marker_position and marker.c:Fmarker_position (which returns nil
     !> where this fails).
     subroutine marker_position(m, pos, status)
         type(handle_type), intent(in) :: m
