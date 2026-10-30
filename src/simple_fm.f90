@@ -180,7 +180,7 @@ module simple_fm
 
     abstract interface
         !> A `comment_line_break_function': break the line at point (SOFT: the
-        !> newline is soft).
+        !> newline is soft).  Not a port.
         subroutine line_break_proc(status, soft)
             import :: status_type
             implicit none(type, external)
@@ -355,8 +355,8 @@ module simple_fm
         !> The value of `normal_auto_fill_function' specifies the function to use
         !> for `auto_fill_function' when turning Auto Fill mode on.  With no
         !> prefix argument the command toggles the mode; a positive prefix
-        !> argument enables it, and zero or a negative one disables it.  Port
-        !> of simple.el:auto-fill-mode.
+        !> argument enables it, and zero or a negative one disables it.
+        !> Port of simple.el:auto-fill-mode.
         !> (In simple_fill_fm.)
         module subroutine auto_fill_mode(status)
             implicit none(type, external)
@@ -439,6 +439,7 @@ module simple_fm
         end subroutine indicate_copied_region
 
         !> Register the fill commands of simple.el.  (In simple_fill_fm.)
+        !> Not a port.
         module subroutine syms_of_simple_fill()
             implicit none(type, external)
         end subroutine syms_of_simple_fill
@@ -512,6 +513,7 @@ module simple_fm
 
         !> Define `fundamental_mode' and `special_mode' (with
         !> `special_mode_map'); safe to call again.  (In simple_modes_fm.)
+        !> Not a port.
         module subroutine syms_of_simple_modes()
             implicit none(type, external)
         end subroutine syms_of_simple_modes
@@ -546,13 +548,15 @@ module simple_fm
         end subroutine what_line
 
         !> `what_line's message, shown and returned as TEXT (upstream's
-        !> return value).  (In simple_view_fm.)
+        !> return value).  (In simple_view_fm.)  Port of
+        !> simple.el:what-line, in part (its message).
         module subroutine what_line_text(text)
             implicit none(type, external)
             character(len=:), allocatable, intent(out) :: text
         end subroutine what_line_text
 
         !> Define `read_only_mode' and `what_line'.  (In simple_view_fm.)
+        !> Not a port.
         module subroutine syms_of_simple_view()
             implicit none(type, external)
         end subroutine syms_of_simple_view
@@ -718,7 +722,7 @@ module simple_fm
             type(status_type), intent(out) :: status
         end subroutine shell_command_sentinel
 
-        !> Register the shell commands.  (In simple_shell_fm.)
+        !> Register the shell commands.  (In simple_shell_fm.)  Not a port.
         module subroutine syms_of_simple_shell()
             implicit none(type, external)
         end subroutine syms_of_simple_shell
@@ -825,7 +829,7 @@ module simple_fm
 
         !> Register the commands of simple_electric_fm and put
         !> `blink_paren_post_self_insert_function' on `post_self_insert_hook'
-        !> (as loading simple.el does).
+        !> (as loading simple.el does).  Not a port.
         module subroutine syms_of_simple_electric()
             implicit none(type, external)
         end subroutine syms_of_simple_electric
@@ -953,7 +957,7 @@ module simple_fm
     type(handle_type), public :: minibuffer_local_shell_command_map
 
     abstract interface
-        !> A motion for `transpose_subr': move over N objects.
+        !> A motion for `transpose_subr': move over N objects.  Not a port.
         subroutine transpose_mover(n, status)
             import :: int64, status_type
             implicit none(type, external)
@@ -963,7 +967,7 @@ module simple_fm
     end interface
 
     abstract interface
-        !> A predicate of no arguments.
+        !> A predicate of no arguments.  Not a port.
         logical function predicate_proc()
             implicit none(type, external)
         end function predicate_proc
@@ -972,7 +976,7 @@ module simple_fm
     abstract interface
         !> A `next_error_function': move by N errors (back for a negative
         !> N), going back to the beginning of the errors first if RESET,
-        !> and visit the source of the error.
+        !> and visit the source of the error.  Not a port.
         recursive subroutine next_error_function_proc(n, reset, status)
             import :: int64, status_type
             implicit none(type, external)
@@ -1016,7 +1020,7 @@ module simple_fm
             procedure(next_error_function_proc) :: fn
         end subroutine set_next_error_function
 
-        !> Whether buffer slot BI has a `next_error_function'.
+        !> Whether buffer slot BI has a `next_error_function'.  Not a port.
         module logical function has_next_error_function(bi)
             implicit none(type, external)
             integer(int64), intent(in) :: bi
@@ -1124,6 +1128,7 @@ module simple_fm
         end subroutine next_error_found
 
         !> Register the next-error commands.  (In simple_next_error_fm.)
+        !> Not a port.
         module subroutine syms_of_simple_next_error()
             implicit none(type, external)
         end subroutine syms_of_simple_next_error
@@ -1201,7 +1206,7 @@ module simple_fm
     abstract interface
         !> A `blink_matching_check_function': START (0 if none) and END
         !> are the positions just before the opening token and right
-        !> after the closing one; true if the two do not match.
+        !> after the closing one; true if the two do not match.  Not a port.
         logical function blink_matching_check_proc(start, end)
             import :: int64
             implicit none(type, external)
@@ -1262,7 +1267,7 @@ module simple_fm
         !> the region's content in STRING; REGION_EXTRACT_DELETE, the same
         !> and the region deleted; REGION_EXTRACT_DELETE_ONLY, the region
         !> deleted; REGION_EXTRACT_BOUNDS, the region's pieces
-        !> [STARTS(k), ENDS(k)).
+        !> [STARTS(k), ENDS(k)).  Not a port.
         recursive subroutine region_extract_proc(method, string, starts, ends, status)
             import :: int64, value_type, status_type
             implicit none(type, external)
@@ -1273,6 +1278,7 @@ module simple_fm
         end subroutine region_extract_proc
 
         !> A `region_insert_function': insert LINES (a list of strings).
+        !> Not a port.
         recursive subroutine region_insert_proc(lines, status)
             import :: value_type, status_type
             implicit none(type, external)
@@ -1281,6 +1287,7 @@ module simple_fm
         end subroutine region_insert_proc
 
         !> The FUNCTION of a yank handler: insert PARAM at point.
+        !> Not a port.
         recursive subroutine yank_handler_proc(param, status)
             import :: value_type, status_type
             implicit none(type, external)
@@ -1289,6 +1296,7 @@ module simple_fm
         end subroutine yank_handler_proc
 
         !> A `yank_undo_function': delete the yanked text START..END.
+        !> Not a port.
         recursive subroutine yank_undo_proc(start, end, status)
             import :: int64, status_type
             implicit none(type, external)
@@ -1425,6 +1433,7 @@ module simple_fm
 contains
 
     ! The index in `check_locals' of the current buffer's entry, 0 if none.
+    ! Not a port.
     integer function check_local_index() result(i)
         i = 0
         if (cur == 0 .or. .not. allocated(check_locals)) return
@@ -1437,7 +1446,7 @@ contains
     end function check_local_index
 
     !> Give the current buffer its own `blink_matching_check_function'
-    !> FN (setq-local); absent is nil.
+    !> FN (setq-local); absent is nil.  Not a port.
     subroutine set_local_blink_matching_check_function(fn)
         procedure(blink_matching_check_proc), optional :: fn
         type(check_entry_type), allocatable :: grown(:)
@@ -1476,7 +1485,7 @@ contains
     end subroutine set_local_blink_matching_check_function
 
     !> The value of `blink_matching_check_function' in the current buffer
-    !> (null for nil).
+    !> (null for nil).  Not a port.
     function current_blink_matching_check_function() result(fn)
         procedure(blink_matching_check_proc), pointer :: fn
         integer :: i
@@ -1491,12 +1500,13 @@ contains
     end function current_blink_matching_check_function
 
     !> Whether the current buffer has its own `blink_matching_check_function'.
+    !> Not a port.
     logical function blink_matching_check_function_local_p()
         blink_matching_check_function_local_p = check_local_index() > 0
     end function blink_matching_check_function_local_p
 
     !> Make the current buffer use the default `blink_matching_check_function'
-    !> (also what `kill_all_local_variables' does to it).
+    !> (also what `kill_all_local_variables' does to it).  Not a port.
     subroutine kill_local_blink_matching_check_function()
         integer :: i
 
@@ -1506,6 +1516,7 @@ contains
         check_locals(i)%fn => null()
     end subroutine kill_local_blink_matching_check_function
 
+    ! Not a port.
     integer(int64) function arg_p()
         arg_p = prefix_numeric_value(current_prefix_arg)
     end function arg_p
@@ -1575,7 +1586,7 @@ contains
         uarg_map = map
     end function universal_argument_map
 
-    !> simple.el:universal-argument--mode
+    !> Port of simple.el:universal-argument--mode.
     subroutine universal_argument_mode()
         call set_transient_map(universal_argument_map())
     end subroutine universal_argument_mode
@@ -1641,7 +1652,7 @@ contains
         end if
     end subroutine cmd_delete_backward_char
 
-    !> (funcall region-extract-function 'delete-only)
+    !> (funcall region-extract-function 'delete-only) Not a port.
     recursive subroutine delete_the_region(status)
         type(status_type), intent(out) :: status
         type(value_type) :: string
@@ -1820,7 +1831,7 @@ contains
     !> The `ascii_character' property of function-key symbol EVENT: the
     !> character a keypad or other key with a character equivalent stands
     !> for, or -1 (nil).  The properties bindings.el and simple.el's
-    !> keypad support give.
+    !> keypad support give.  Not a port.
     integer(int64) function ascii_character(event) result(c)
         type(value_type), intent(in) :: event
         character(len=:), allocatable :: name
@@ -1994,7 +2005,7 @@ contains
     ! Vertical motion
     ! ------------------------------------------------------------------
 
-    !> Whether the last command was next-line or previous-line.
+    !> Whether the last command was next-line or previous-line.  Not a port.
     logical function after_line_move()
         after_line_move = value_eq(last_command, sym("next_line")) .or. &
                           value_eq(last_command, sym("previous_line"))
@@ -2493,8 +2504,8 @@ contains
     !> beginning of the last line.)
     !>
     !> To ignore intangibility, set `inhibit_point_motion_hooks' to true.
-    !> For motion by visual lines, see `beginning_of_visual_line'.  Port
-    !> of simple.el:move-beginning-of-line.
+    !> For motion by visual lines, see `beginning_of_visual_line'.
+    !> Port of simple.el:move-beginning-of-line.
     subroutine move_beginning_of_line(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
@@ -2558,6 +2569,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The current minibuffer history list (minibuffer-history-value).
+    !> Port of simple.el:minibuffer-history-value (no buffer-local values).
     function history_value() result(history)
         type(value_type) :: history
         type(status_type) :: status
@@ -2677,7 +2689,7 @@ contains
     end subroutine cmd_next_history_element
 
     !> The column of the end of the minibuffer prompt that ends at
-    !> `prompt_end' (the column of its last character).
+    !> `prompt_end' (the column of its last character).  Not a port.
     integer(int64) function prompt_column(prompt_end) result(column)
         integer(int64), intent(in) :: prompt_end
         integer(int64) :: opoint
@@ -2976,6 +2988,7 @@ contains
     end subroutine execute_extended_command
 
     !> Whether the echo area shows nothing (current-message is nil).
+    !> Not a port.
     logical function echo_area_empty()
         echo_area_empty = .true.
         if (allocated(last_message)) echo_area_empty = len(last_message) == 0
@@ -2991,6 +3004,7 @@ contains
         call execute_extended_command(arg, status)
     end subroutine cmd_execute_extended_command
 
+    ! Not a port.
     subroutine syms_of_simple()
         call defvar_nil("kill_ring")
         deactivate_mark_function => deactivate_mark_command_loop
@@ -3076,6 +3090,7 @@ contains
 
     !> The undo-equiv-table value of list position `k' in the current
     !> buffer: a list position, or EQUIV_NONE, EQUIV_T or EQUIV_EMPTY.
+    !> Not a port.
     integer(int64) function equiv_of(k) result(v)
         integer(int64), intent(in) :: k
 
@@ -3085,7 +3100,7 @@ contains
         v = buffers(cur)%undo_equiv(k)
     end function equiv_of
 
-    !> Map list position `k' to `v' in undo-equiv-table.
+    !> Map list position `k' to `v' in undo-equiv-table.  Not a port.
     subroutine set_equiv(k, v)
         integer(int64), intent(in) :: k, v
         integer(int64), allocatable :: grown(:)
@@ -3105,7 +3120,7 @@ contains
         end associate
     end subroutine set_equiv
 
-    !> List position `k' without its leading boundaries.
+    !> List position `k' without its leading boundaries.  Not a port.
     integer(int64) function sans_leading_nil(k) result(j)
         integer(int64), intent(in) :: k
 
@@ -3194,6 +3209,7 @@ contains
         call set(sym("inhibit_read_only"), saved, st)
     end subroutine primitive_undo
 
+    ! Not a port.
     subroutine outside_error(status)
         type(status_type), intent(out) :: status
 
@@ -3202,6 +3218,7 @@ contains
 
     !> Whether a (t . TIME) entry records the visited file's current
     !> modtime (time-equal-p with visited-file-modtime; 0 for none).
+    !> Not a port.
     logical function time_equal(entry)
         type(undo_entry_type), intent(in) :: entry
 
@@ -3328,7 +3345,7 @@ contains
     end subroutine undo
 
     !> Remove from the newest change group the point entry (and the later
-    !> ones for the same position), as `undo' does.
+    !> ones for the same position), as `undo' does.  Not a port.
     subroutine strip_undo_point()
         integer(int64) :: k, j, pos
 
@@ -3484,7 +3501,7 @@ contains
         call deactivate_mark_hook%run(st)
     end subroutine deactivate_mark
 
-    !> deactivate_mark without FORCE, for the command loop.
+    !> deactivate_mark without FORCE, for the command loop.  Not a port.
     recursive subroutine deactivate_mark_command_loop()
         call deactivate_mark()
     end subroutine deactivate_mark_command_loop
@@ -3590,7 +3607,7 @@ contains
         call deactivate_mark()
     end subroutine pop_mark
 
-    !> Whether optional logical `x' is present and true.
+    !> Whether optional logical `x' is present and true.  Not a port.
     pure logical function flag(x)
         logical, intent(in), optional :: x
 
@@ -3725,7 +3742,7 @@ contains
     ! The kill ring
     ! ------------------------------------------------------------------
 
-    !> The kill ring (the value of `kill_ring'), newest first.
+    !> The kill ring (the value of `kill_ring'), newest first.  Not a port.
     function kill_ring() result(ring)
         type(value_type) :: ring
         type(status_type) :: st
@@ -3734,7 +3751,7 @@ contains
         if (.not. st%ok()) ring = nil()
     end function kill_ring
 
-    !> kill_new for STRING as text.
+    !> kill_new for STRING as text.  Not a port.
     subroutine kill_new_text(string, replace)
         character(len=*), intent(in) :: string
         logical, intent(in), optional :: replace
@@ -3742,7 +3759,8 @@ contains
         call kill_new_string(make_string(string), replace)
     end subroutine kill_new_text
 
-    !> kill_new for a string with its text properties.
+    !> kill_new for a string with its text properties.  Port of
+    !> simple.el:kill-new (as the generic kill_new).
     subroutine kill_new_string(string, replace)
         type(value_type), intent(in) :: string
         logical, intent(in), optional :: replace
@@ -3790,7 +3808,7 @@ contains
         end if
     end subroutine kill_append
 
-    !> current_kill giving the kill as text.
+    !> current_kill giving the kill as text.  Not a port.
     subroutine current_kill_text(n, text, status, do_not_move)
         integer(int64), intent(in) :: n
         character(len=:), allocatable, intent(out) :: text
@@ -3802,7 +3820,8 @@ contains
         text = xstring(string)
     end subroutine current_kill_text
 
-    !> current_kill giving the kill with its text properties.
+    !> current_kill giving the kill with its text properties.  Port of
+    !> simple.el:current-kill (as the generic current_kill).
     subroutine current_kill_string(n, string, status, do_not_move)
         integer(int64), intent(in) :: n
         type(value_type), intent(out) :: string
@@ -4131,7 +4150,7 @@ contains
         end associate
     end function line_number_at_pos
 
-    !> The number of newlines in TEXT.
+    !> The number of newlines in TEXT.  Not a port.
     pure integer(int64) function newlines_in(text) result(n)
         character(len=*), intent(in) :: text
         integer(int64) :: k
@@ -4352,6 +4371,7 @@ contains
     end subroutine yank_pop
 
     !> Set the mark marker at point (without pushing or activating).
+    !> Not a port.
     subroutine set_marker_here()
         type(handle_type) :: m
         type(status_type) :: st
@@ -4360,7 +4380,7 @@ contains
         call set_marker(m, point(), st)
     end subroutine set_marker_here
 
-    !> insert_for_yank for STRING as text.
+    !> insert_for_yank for STRING as text.  Not a port.
     recursive subroutine insert_for_yank_text(string, status)
         character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
@@ -4370,6 +4390,7 @@ contains
 
     !> insert_for_yank for a string with text properties: each segment
     !> of STRING with one value of the `yank_handler' property in turn.
+    !> Port of simple.el:insert-for-yank (as the generic insert_for_yank).
     recursive subroutine insert_for_yank_string(string, status)
         type(value_type), intent(in) :: string
         type(status_type), intent(out) :: status
@@ -4427,7 +4448,7 @@ contains
     end subroutine insert_for_yank_1
 
     !> Make NAME, as the FUNCTION of a `yank_handler' property, call
-    !> PROC.  (Ours: upstream names a Lisp function.)
+    !> PROC.  (Ours: upstream names a Lisp function.)  Not a port.
     subroutine define_yank_handler_function(name, proc)
         character(len=*), intent(in) :: name
         procedure(yank_handler_proc) :: proc
@@ -4455,6 +4476,7 @@ contains
         call move_alloc(grown, yank_handler_functions)
     end subroutine define_yank_handler_function
 
+    ! Not a port.
     integer function n_yank_handler_functions() result(n)
         n = 0
         if (allocated(yank_handler_functions)) n = size(yank_handler_functions)
@@ -4501,7 +4523,7 @@ contains
     end subroutine cmd_pop_to_mark_command
 
     !> The region's two ends, mark first, for the kill commands; an error if
-    !> there is no mark.
+    !> there is no mark.  Not a port.
     subroutine mark_and_point(beg, end, status)
         integer(int64), intent(out) :: beg, end
         type(status_type), intent(out) :: status
@@ -4552,7 +4574,7 @@ contains
         region_indistinguishable_p = .not. region_active_p()
     end function region_indistinguishable_p
 
-    !> Whether `w' shows the current buffer.
+    !> Whether `w' shows the current buffer.  Not a port.
     logical function shows_current_buffer(w)
         type(window_type), intent(in) :: w
         type(status_type) :: st
@@ -5179,6 +5201,7 @@ contains
         call transpose_subr(move_lines, arg, status)
     end subroutine transpose_lines
 
+    ! Not a port (a mover of transpose-chars).
     subroutine move_chars(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
@@ -5186,6 +5209,7 @@ contains
         call forward_char(status, n)
     end subroutine move_chars
 
+    ! Not a port (a mover of transpose-words).
     subroutine move_words(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
@@ -5194,7 +5218,7 @@ contains
         call forward_word(n)
     end subroutine move_words
 
-    ! The mover of transpose-lines.
+    ! The mover of transpose-lines.  Not a port.
     subroutine move_lines(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status

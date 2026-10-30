@@ -321,7 +321,7 @@ contains
     ! Marker objects
     ! ------------------------------------------------------------------
 
-    !> Slot of marker `m', or invalid-handle.
+    !> Slot of marker `m', or invalid-handle.  Not a port.
     subroutine resolve_marker(m, i, status)
         type(handle_type), intent(in) :: m
         integer(int64), intent(out) :: i

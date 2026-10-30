@@ -502,7 +502,7 @@ module ibuffer_fm
     end type ibuffer_state_type
 
     abstract interface
-        ! A function `ibuffer_map_lines' calls for each buffer.
+        ! A function `ibuffer_map_lines' calls for each buffer.  Not a port.
         recursive integer function map_proc(buf, mark)
             import :: handle_type
             implicit none(type, external)
@@ -577,7 +577,7 @@ module ibuffer_fm
 
     interface
         !> Whether BUF should be shown (ibuffer-ext-visible-p).  (In
-        !> ibuf_ext_fm.)
+        !> ibuf_ext_fm.)  Port of ibuf-ext.el:ibuffer-ext-visible-p.
         recursive module logical function ibuffer_ext_visible_p(buf, all, ibuffer_buf, status) result(visible)
             implicit none(type, external)
             type(handle_type), intent(in) :: buf, ibuffer_buf
@@ -604,8 +604,9 @@ module ibuffer_fm
         !> Return true if BUF passes all FILTERS.
         !>
         !> BUF is a buffer, and FILTERS is a list of filter specifications
-        !> with the same structure as `ibuffer_filtering_qualifiers'.  Port
-        !> of ibuf-ext.el:ibuffer-included-in-filters-p.  (In ibuf_ext_fm.)
+        !> with the same structure as `ibuffer_filtering_qualifiers'.
+        !> Port of ibuf-ext.el:ibuffer-included-in-filters-p.  (In
+        !> ibuf_ext_fm.)
         recursive module logical function ibuffer_included_in_filters_p(buf, filters, status) result(included)
             implicit none(type, external)
             type(handle_type), intent(in) :: buf
@@ -801,8 +802,8 @@ module ibuffer_fm
             type(status_type), intent(out) :: status
         end subroutine ibuffer_kill_filter_group
 
-        !> Yank the last killed filter group before group named NAME.  Port
-        !> of ibuf-ext.el:ibuffer-yank-filter-group.  (In ibuf_ext_fm.)
+        !> Yank the last killed filter group before group named NAME.
+        !> Port of ibuf-ext.el:ibuffer-yank-filter-group.  (In ibuf_ext_fm.)
         recursive module subroutine ibuffer_yank_filter_group(name, status)
             implicit none(type, external)
             character(len=*), intent(in) :: name
@@ -884,6 +885,8 @@ module ibuffer_fm
         !> `ibuffer_filter_by_modified', `ibuffer_filter_by_visiting_file' and
         !> `ibuffer_filter_by_content' (the commands
         !> ibuf-macs.el:define-ibuffer-filter defines).  (In ibuf_ext_fm.)
+        !> Port of ibuf-macs.el:define-ibuffer-filter, in part (the commands
+        !> it defines).
         recursive module subroutine ibuffer_filter_by(name, status, qualifier, number)
             implicit none(type, external)
             character(len=*), intent(in) :: name
@@ -911,7 +914,7 @@ module ibuffer_fm
         end subroutine ibuffer_list_buffer_modes
 
         !> Define ibuf-ext.el's commands, sorting methods and keys.  (In
-        !> ibuf_ext_fm.)
+        !> ibuf_ext_fm.)  Not a port.
         module subroutine syms_of_ibuf_ext()
             implicit none(type, external)
         end subroutine syms_of_ibuf_ext
@@ -924,7 +927,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The index of the current buffer's entry in `locals', made if MAKE
-    !> (0 if there is none).
+    !> (0 if there is none).  Not a port.
     integer function ibuffer_local_index(make) result(k)
         logical, intent(in) :: make
         type(local_type), allocatable :: grown(:)
@@ -962,6 +965,7 @@ contains
         call init_local(k)
     end function ibuffer_local_index
 
+    ! Not a port.
     subroutine init_local(k)
         integer, intent(in) :: k
 
@@ -971,7 +975,7 @@ contains
         allocate (locals(k)%qualifiers(0), locals(k)%filter_groups%groups(0), locals(k)%group_kill_ring(0))
     end subroutine init_local
 
-    ! kill-all-local-variables: forget the Ibuffer state.
+    ! kill-all-local-variables: forget the Ibuffer state.  Not a port.
     subroutine kill_ibuffer_locals()
         integer :: k
 
@@ -1045,7 +1049,7 @@ contains
     end subroutine ibuffer_set_filter_groups
 
     ! The current buffer's formats (the buffer-local `ibuffer_formats' if
-    ! set).
+    ! set).  Not a port.
     function formats_of() result(f)
         type(ibuffer_formats_type) :: f
         integer :: k, j, found, i
@@ -1079,7 +1083,7 @@ contains
     end function formats_of
 
     !> (car FILTER): the name of a simple filter, else "not", "and", "or"
-    !> or "saved".
+    !> or "saved".  Not a port.
     function filter_symbol(filter) result(name)
         type(ibuffer_filter_type), intent(in) :: filter
         character(len=:), allocatable :: name
@@ -1107,6 +1111,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The text property NAME at POS: false outside the accessible text.
+    !> Not a port.
     logical function has_prop(pos, name)
         integer(int64), intent(in) :: pos
         character(len=*), intent(in) :: name
@@ -1119,7 +1124,7 @@ contains
         has_prop = st%ok() .and. .not. nilp(v)
     end function has_prop
 
-    !> The string text property NAME at POS ("" for none).
+    !> The string text property NAME at POS ("" for none).  Not a port.
     function string_prop(pos, name) result(s)
         integer(int64), intent(in) :: pos
         character(len=*), intent(in) :: name
@@ -1133,7 +1138,7 @@ contains
         if (st%ok() .and. stringp(v)) s = xstring(v)
     end function string_prop
 
-    !> Whether there is a string text property NAME at POS.
+    !> Whether there is a string text property NAME at POS.  Not a port.
     logical function has_string_prop(pos, name)
         integer(int64), intent(in) :: pos
         character(len=*), intent(in) :: name
@@ -1147,6 +1152,7 @@ contains
     end function has_string_prop
 
     !> The serial number of the buffer of the line at POS (0 for none).
+    !> Not a port.
     integer(int64) function line_serial(pos) result(serial)
         integer(int64), intent(in) :: pos
         type(value_type) :: v
@@ -1159,7 +1165,7 @@ contains
     end function line_serial
 
     !> The live buffer with serial number SERIAL (the null handle for
-    !> none).
+    !> none).  Not a port.
     function serial_buffer(serial) result(h)
         integer(int64), intent(in) :: serial
         type(handle_type) :: h
@@ -1215,7 +1221,7 @@ contains
         end if
     end function ibuffer_current_buffer
 
-    ! (assert (derived-mode-p 'ibuffer-mode)).
+    ! (assert (derived-mode-p 'ibuffer-mode)).  Not a port.
     subroutine assert_ibuffer_mode(status)
         type(status_type), intent(out) :: status
 
@@ -1296,7 +1302,8 @@ contains
         call find_file(file, status)
     end subroutine ibuffer_find_file
 
-    ! Move in DIRECTION while point is on a line with one of PROPS.
+    ! Move in DIRECTION while point is on a line with one of PROPS.  Port of
+    ! ibuffer.el:ibuffer-skip-properties.
     subroutine ibuffer_skip_properties(props, nprops, direction)
         character(len=*), intent(in) :: props(:)
         integer, intent(in) :: nprops
@@ -1374,8 +1381,8 @@ contains
         end if
     end subroutine cmd_ibuffer_backward_line
 
-    !> Move forward ARG lines, wrapping around the list if necessary.  Port
-    !> of ibuffer.el:ibuffer-forward-line.
+    !> Move forward ARG lines, wrapping around the list if necessary.
+    !> Port of ibuffer.el:ibuffer-forward-line.
     recursive subroutine ibuffer_forward_line(arg, skip_group_names)
         integer(int64), intent(in), optional :: arg
         logical, intent(in), optional :: skip_group_names
@@ -1541,7 +1548,8 @@ contains
         call ibuffer_do_view_1(.true., status)
     end subroutine ibuffer_do_view_horizontally
 
-    ! ibuffer-do-view-1 (TYPE vertically or horizontally).
+    ! ibuffer-do-view-1 (TYPE vertically or horizontally).  Port of
+    ! ibuffer.el:ibuffer-do-view-1.
     recursive subroutine ibuffer_do_view_1(horizontally, status)
         logical, intent(in) :: horizontally
         type(status_type), intent(out) :: status
@@ -1582,6 +1590,7 @@ contains
     end subroutine ibuffer_do_view_1
 
     !> ibuffer-map-marked-lines: FUNC on the marked lines, then redisplay.
+    !> Port of ibuffer.el:ibuffer-map-marked-lines.
     recursive integer function map_marked_lines(func, status) result(count)
         procedure(map_proc) :: func
         type(status_type), intent(out) :: status
@@ -1672,7 +1681,8 @@ contains
         call set_buffer(old, st)
     end subroutine ibuffer_confirm_operation_on
 
-    ! ibuffer-map-lines-nomodify.
+    ! ibuffer-map-lines-nomodify.  Port of
+    ! ibuffer.el:ibuffer-map-lines-nomodify.
     recursive integer function map_lines_nomodify(func, status) result(count)
         procedure(map_proc) :: func
         type(status_type), intent(out) :: status
@@ -1706,6 +1716,7 @@ contains
         if (count < 0) n = 0
     end subroutine ibuffer_buffer_names_with_mark
 
+    ! Not a port (a lambda of ibuffer.el).
     recursive integer function collect_name(buf, mark) result(r)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
@@ -1762,6 +1773,7 @@ contains
         end if
     end function ibuffer_count_marked_lines
 
+    ! Not a port (a lambda of ibuffer.el).
     recursive integer function any_marked(buf, mark) result(r)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
@@ -1771,6 +1783,7 @@ contains
         if (mark /= " ") r = MAP_T
     end function any_marked
 
+    ! Not a port (a lambda of ibuffer.el).
     recursive integer function mark_is(buf, mark) result(r)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
@@ -1780,7 +1793,8 @@ contains
         if (mark == map_mark) r = MAP_T
     end function mark_is
 
-    ! ibuffer-map-deletion-lines.
+    ! ibuffer-map-deletion-lines.  Port of
+    ! ibuffer.el:ibuffer-map-deletion-lines.
     recursive integer function map_deletion_lines(func, status) result(count)
         procedure(map_proc) :: func
         type(status_type), intent(out) :: status
@@ -1816,7 +1830,8 @@ contains
         if (len(dirname) > 0) call expand_file_name(dirname, name, st)
     end function ibuffer_buffer_file_name
 
-    !> Abbreviate FILENAME using `ibuffer_directory_abbrev_alist'.
+    !> Abbreviate FILENAME using `ibuffer_directory_abbrev_alist'.  Port of
+    !> ibuffer.el:ibuffer--abbreviate-file-name.
     function ibuffer_abbreviate_file_name(filename) result(abbrev)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: abbrev
@@ -1946,7 +1961,8 @@ contains
         end if
     end subroutine ibuffer_operate
 
-    ! The mapping function of an operation: its BODY for BUF.
+    ! The mapping function of an operation: its BODY for BUF.  Not a port
+    ! (the lambda define-ibuffer-op maps).
     recursive integer function op_line(buf, mark) result(r)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
@@ -1989,6 +2005,7 @@ contains
         end if
     end function op_line
 
+    ! Not a port.
     function format_message_of(st) result(text)
         use error_fm, only: format_error
         type(status_type), intent(in) :: st
@@ -2010,6 +2027,7 @@ contains
         call ibuffer_operate(op, status)
     end subroutine ibuffer_do_save
 
+    ! Not a port (the body of ibuffer.el's define-ibuffer-op do-save).
     recursive subroutine save_body(buf, mark, result, status)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
@@ -2052,6 +2070,8 @@ contains
         call ibuffer_operate(op, status)
     end subroutine ibuffer_do_toggle_modified
 
+    ! Not a port (the body of ibuffer.el's define-ibuffer-op
+    ! do-toggle-modified).
     recursive subroutine toggle_modified_body(buf, mark, result, status)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
@@ -2096,6 +2116,8 @@ contains
         end if
     end subroutine cmd_ibuffer_do_toggle_read_only
 
+    ! Not a port (the body of ibuffer.el's define-ibuffer-op
+    ! do-toggle-read-only).
     recursive subroutine toggle_read_only_body(buf, mark, result, status)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
@@ -2138,8 +2160,8 @@ contains
         call ibuffer_operate(op, status)
     end subroutine ibuffer_do_delete
 
-    !> Kill buffers marked for deletion as with `kill_this_buffer'.  Port
-    !> of ibuffer.el:ibuffer-do-kill-on-deletion-marks.
+    !> Kill buffers marked for deletion as with `kill_this_buffer'.
+    !> Port of ibuffer.el:ibuffer-do-kill-on-deletion-marks.
     recursive subroutine ibuffer_do_kill_on_deletion_marks(status)
         type(status_type), intent(out) :: status
         type(ibuffer_op_type) :: op
@@ -2154,6 +2176,8 @@ contains
         call ibuffer_operate(op, status)
     end subroutine ibuffer_do_kill_on_deletion_marks
 
+    ! Not a port (the body of ibuffer.el's define-ibuffer-op
+    ! do-kill-on-deletion-marks).
     recursive subroutine kill_body(buf, mark, result, status)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
@@ -2212,6 +2236,7 @@ contains
         end if
     end subroutine cmd_ibuffer_unmark_all
 
+    ! Not a port (a lambda of ibuffer.el).
     recursive integer function unmark_any(buf, mark) result(r)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
@@ -2268,6 +2293,7 @@ contains
         call ibuffer_toggle_marks(status)
     end subroutine cmd_ibuffer_toggle_marks
 
+    ! Not a port (a lambda of ibuffer.el).
     recursive integer function toggle_mark(buf, mark) result(r)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
@@ -2318,6 +2344,7 @@ contains
         call ibuffer_change_marks(achar(min(old, 127_int64)), achar(min(new, 127_int64)), status)
     end subroutine cmd_ibuffer_change_marks
 
+    ! Not a port (a lambda of ibuffer.el).
     recursive integer function change_mark(buf, mark) result(r)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
@@ -2333,7 +2360,7 @@ contains
     end function change_mark
 
     ! ibuffer-get-region-and-prefix: START, END (when the region is
-    ! active) and ARG.
+    ! active) and ARG.  Port of ibuffer.el:ibuffer-get-region-and-prefix.
     subroutine get_region_and_prefix(has_region, start, end, arg)
         use editfns_fm, only: region_beginning, region_end
         logical, intent(out) :: has_region
@@ -2435,7 +2462,7 @@ contains
     end subroutine cmd_ibuffer_mark_for_delete_backwards
 
     ! The mark commands called from Fortran: ARG buffers (1 by default)
-    ! in DIRECTION.
+    ! in DIRECTION.  Not a port.
     recursive subroutine mark_command(mark, direction, status, arg)
         character, intent(in) :: mark
         integer(int64), intent(in) :: direction
@@ -2449,7 +2476,8 @@ contains
     end subroutine mark_command
 
     ! The mark commands called interactively: the region, or ARG buffers
-    ! in DIRECTION (ibuffer-mark-region-or-n-with-char).
+    ! in DIRECTION (ibuffer-mark-region-or-n-with-char).  Port of
+    ! ibuffer.el:ibuffer-mark-region-or-n-with-char.
     recursive subroutine mark_command_interactive(mark, direction, status)
         character, intent(in) :: mark
         integer(int64), intent(in) :: direction
@@ -2469,7 +2497,8 @@ contains
         end if
     end subroutine mark_command_interactive
 
-    ! ibuffer-mark-interactive.
+    ! ibuffer-mark-interactive.  Port of
+    ! ibuffer.el:ibuffer-mark-interactive.
     recursive subroutine ibuffer_mark_interactive(arg, mark, status, movement)
         integer(int64), intent(in) :: arg
         character, intent(in) :: mark
@@ -2512,7 +2541,8 @@ contains
         end do
     end subroutine ibuffer_mark_interactive
 
-    ! (ibuffer-mark-on-buffer #'identity MARK GROUP).
+    ! (ibuffer-mark-on-buffer #'identity MARK GROUP).  Port of
+    ! ibuf-ext.el:ibuffer-mark-on-buffer, in part (with identity).
     recursive subroutine mark_on_buffer_identity(mark, group, status)
         character, intent(in) :: mark
         character(len=*), intent(in) :: group
@@ -2531,6 +2561,7 @@ contains
         end if
     end subroutine mark_on_buffer_identity
 
+    ! Not a port (a lambda of ibuf-ext.el).
     recursive integer function mark_always(buf, mark) result(r)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
@@ -2560,7 +2591,8 @@ contains
         call beginning_of_line()
     end subroutine ibuffer_set_mark
 
-    !> ibuffer-set-mark-1: set the mark of the current line.
+    !> ibuffer-set-mark-1: set the mark of the current line.  Port of
+    !> ibuffer.el:ibuffer-set-mark-1.
     recursive subroutine ibuffer_set_mark_1(mark)
         character, intent(in) :: mark
         integer(int64) :: beg, end, serial
@@ -2582,6 +2614,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! ibuffer-current-format: the index of the current format (0-based).
+    ! Port of ibuffer.el:ibuffer-current-format.
     integer function current_format_index() result(n)
         integer :: k
 
@@ -2590,7 +2623,7 @@ contains
         n = locals(k)%current_format
     end function current_format_index
 
-    ! The current format's entries.
+    ! The current format's entries.  Not a port.
     subroutine current_format_entries(entries, status)
         type(ibuffer_column_spec_type), allocatable, intent(out) :: entries(:)
         type(status_type), intent(out) :: status
@@ -2613,6 +2646,7 @@ contains
     end subroutine current_format_entries
 
     ! The index in `ibuffer_columns' of the column NAME (0 for none).
+    ! Not a port.
     integer function column_index(name) result(k)
         character(len=*), intent(in) :: name
 
@@ -2624,7 +2658,7 @@ contains
     end function column_index
 
     ! ibuffer-expand-format-entry: check SPEC's column, and give MIN and
-    ! MAX their values.
+    ! MAX their values.  Port of ibuffer.el:ibuffer-expand-format-entry.
     subroutine expand_format_entry(spec, column, min, max, status)
         type(ibuffer_column_spec_type), intent(in) :: spec
         integer, intent(out) :: column, min, max
@@ -2665,7 +2699,8 @@ contains
         end do
     end subroutine ibuffer_recompile_formats
 
-    ! ibuffer-clear-summary-columns.
+    ! ibuffer-clear-summary-columns.  Port of
+    ! ibuffer.el:ibuffer-clear-summary-columns.
     subroutine clear_summary_columns()
         integer :: k
 
@@ -2677,7 +2712,7 @@ contains
         end do
     end subroutine clear_summary_columns
 
-    ! Record CELL in the summary of column K.
+    ! Record CELL in the summary of column K.  Not a port.
     subroutine add_summary(k, cell)
         integer, intent(in) :: k
         type(ibuffer_cell_type), intent(in) :: cell
@@ -2704,7 +2739,9 @@ contains
     end subroutine add_summary
 
     ! Insert the column of SPEC for BUFFER marked MARK at point (one entry
-    ! of the function `ibuffer-compile-format' makes).
+    ! of the function `ibuffer-compile-format' makes).  Port of
+    ! ibuffer.el:ibuffer-compile-format, in part (the insertion of a column
+    ! by the function it makes).
     recursive subroutine insert_column(spec, buffer, mark, status)
         type(ibuffer_column_spec_type), intent(in) :: spec
         type(handle_type), intent(in) :: buffer
@@ -2813,7 +2850,7 @@ contains
     end subroutine insert_column
 
     ! (substring STR (string-width ...)) for ASCII-width text: STR after
-    ! its first N characters.
+    ! its first N characters.  Not a port.
     function substring_after_width(str, n) result(s)
         character(len=*), intent(in) :: str
         integer, intent(in) :: n
@@ -2827,6 +2864,7 @@ contains
     end function substring_after_width
 
     ! ibuffer-format-column: STR padded with WIDTH spaces by ALIGNMENT.
+    ! Port of ibuffer.el:ibuffer-format-column.
     function ibuffer_format_column(str, width, alignment) result(s)
         character(len=*), intent(in) :: str
         integer, intent(in) :: width, alignment
@@ -2942,6 +2980,7 @@ contains
         if (shrink_of() /= IBUFFER_SHRINK_NIL) call ibuffer_shrink_to_fit()
     end subroutine ibuffer_redisplay_current
 
+    ! Not a port.
     integer function shrink_of() result(shrink)
         integer :: k
 
@@ -2949,7 +2988,8 @@ contains
         shrink = locals(k)%shrink
     end function shrink_of
 
-    ! ibuffer-map-on-mark: FUNC on the lines marked with MARK.
+    ! ibuffer-map-on-mark: FUNC on the lines marked with MARK.  Port of
+    ! ibuffer.el:ibuffer-map-on-mark.
     recursive integer function map_on_mark(mark, func, status) result(count)
         character, intent(in) :: mark
         procedure(map_proc) :: func
@@ -2966,6 +3006,7 @@ contains
         on_mark_mark = saved_mark
     end function map_on_mark
 
+    ! Not a port (the lambda of ibuffer-map-on-mark).
     recursive integer function on_mark(buf, mk) result(r)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mk
@@ -3122,6 +3163,7 @@ contains
         if (count < 0) continue
     end subroutine ibuffer_current_state_list
 
+    ! Not a port (the lambda of ibuffer-current-state-list).
     recursive integer function collect_state(buf, mark) result(r)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
@@ -3143,7 +3185,8 @@ contains
     end function collect_state
 
     ! ibuffer-current-buffers-with-marks: (BUF . MARK) for each of
-    ! CURBUFS, with the marks the buffers have in the list.
+    ! CURBUFS, with the marks the buffers have in the list.  Port of
+    ! ibuffer.el:ibuffer-current-buffers-with-marks.
     recursive subroutine current_buffers_with_marks(curbufs, states, status)
         type(handle_type), intent(in) :: curbufs(:)
         type(ibuffer_state_type), allocatable, intent(out) :: states(:)
@@ -3168,7 +3211,8 @@ contains
         end do
     end subroutine current_buffers_with_marks
 
-    !> ibuffer-buf-matches-predicates.
+    !> ibuffer-buf-matches-predicates.  Port of
+    !> ibuffer.el:ibuffer-buf-matches-predicates.
     recursive logical function buf_matches_predicates(buf, predicates) result(hit)
         type(handle_type), intent(in) :: buf
         type(ibuffer_show_predicate_type), intent(in) :: predicates(:)
@@ -3189,6 +3233,7 @@ contains
     end function buf_matches_predicates
 
     !> (ibuffer-buf-matches-predicates BUF REGEXPS) for a list of regexps.
+    !> Port of ibuffer.el:ibuffer-buf-matches-predicates, for regexps.
     logical function buf_matches_regexps(buf, regexps) result(hit)
         type(handle_type), intent(in) :: buf
         character(len=*), intent(in) :: regexps(:)
@@ -3204,7 +3249,7 @@ contains
         end do
     end function buf_matches_regexps
 
-    ! ibuffer-filter-buffers.
+    ! ibuffer-filter-buffers.  Port of ibuffer.el:ibuffer-filter-buffers.
     recursive subroutine filter_buffers(ibuffer_buf, last, bmarklist, all, result, status)
         type(handle_type), intent(in) :: ibuffer_buf, last
         type(ibuffer_state_type), intent(in) :: bmarklist(:)
@@ -3258,7 +3303,7 @@ contains
     end function ibuffer_hidden_buffer_p
 
     ! ibuffer-hidden-buffer-p of the current buffer (a fontification
-    ! form).
+    ! form).  Not a port.
     recursive logical function hidden_current()
         hidden_current = ibuffer_hidden_buffer_p(current_buffer())
     end function hidden_current
@@ -3267,7 +3312,7 @@ contains
     ! Columns
     ! ------------------------------------------------------------------
 
-    ! A column cell of TEXT.
+    ! A column cell of TEXT.  Not a port.
     function text_cell(text) result(cell)
         character(len=*), intent(in) :: text
         type(ibuffer_cell_type) :: cell
@@ -3276,7 +3321,8 @@ contains
         cell%face = ""
     end function text_cell
 
-    ! define-ibuffer-column mark.
+    ! define-ibuffer-column mark.  Port of ibuffer.el's
+    ! (define-ibuffer-column mark).
     recursive function column_mark(buffer, mark) result(cell)
         type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
@@ -3286,7 +3332,8 @@ contains
         cell = text_cell(mark)
     end function column_mark
 
-    ! define-ibuffer-column read-only.
+    ! define-ibuffer-column read-only.  Port of ibuffer.el's
+    ! (define-ibuffer-column read-only).
     recursive function column_read_only(buffer, mark) result(cell)
         type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
@@ -3301,7 +3348,8 @@ contains
         end if
     end function column_read_only
 
-    ! define-ibuffer-column locked (emacs-lock-mode is not ported).
+    ! define-ibuffer-column locked (emacs-lock-mode is not ported).  Port of
+    ! ibuffer.el's (define-ibuffer-column locked).
     recursive function column_locked(buffer, mark) result(cell)
         type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
@@ -3312,7 +3360,8 @@ contains
         cell%face = "ibuffer_locked_buffer"
     end function column_locked
 
-    ! define-ibuffer-column modified.
+    ! define-ibuffer-column modified.  Port of ibuffer.el's
+    ! (define-ibuffer-column modified).
     recursive function column_modified(buffer, mark) result(cell)
         type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
@@ -3330,7 +3379,8 @@ contains
         end if
     end function column_modified
 
-    ! define-ibuffer-column name.
+    ! define-ibuffer-column name.  Port of ibuffer.el's
+    ! (define-ibuffer-column name).
     recursive function column_name(buffer, mark) result(cell)
         type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
@@ -3354,6 +3404,7 @@ contains
         cell%name_column = .true.
     end function column_name
 
+    ! Not a port (the summarizer of the name column).
     subroutine summarize_name(cells, text)
         type(ibuffer_cell_type), intent(in) :: cells(:)
         character(len=:), allocatable, intent(out) :: text
@@ -3369,7 +3420,8 @@ contains
         end if
     end subroutine summarize_name
 
-    ! define-ibuffer-column size.
+    ! define-ibuffer-column size.  Port of ibuffer.el's
+    ! (define-ibuffer-column size).
     recursive function column_size(buffer, mark) result(cell)
         type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
@@ -3390,6 +3442,7 @@ contains
         cell%size = size
     end function column_size
 
+    ! Not a port (the summarizer of the size column).
     subroutine summarize_size(cells, text)
         type(ibuffer_cell_type), intent(in) :: cells(:)
         character(len=:), allocatable, intent(out) :: text
@@ -3411,7 +3464,8 @@ contains
         end if
     end subroutine summarize_size
 
-    ! define-ibuffer-column recency.
+    ! define-ibuffer-column recency.  Port of ibuffer.el's
+    ! (define-ibuffer-column recency).
     recursive function column_recency(buffer, mark) result(cell)
         type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
@@ -3433,6 +3487,7 @@ contains
         end associate
     end function column_recency
 
+    ! Not a port.
     subroutine summarize_ignore(cells, text)
         type(ibuffer_cell_type), intent(in) :: cells(:)
         character(len=:), allocatable, intent(out) :: text
@@ -3441,7 +3496,8 @@ contains
         text = ""
     end subroutine summarize_ignore
 
-    ! define-ibuffer-column mode.
+    ! define-ibuffer-column mode.  Port of ibuffer.el's
+    ! (define-ibuffer-column mode).
     recursive function column_mode(buffer, mark) result(cell)
         type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
@@ -3452,7 +3508,7 @@ contains
         cell%mouse_face = "highlight"
     end function column_mode
 
-    !> (format-mode-line mode-name nil nil BUFFER).
+    !> (format-mode-line mode-name nil nil BUFFER).  Not a port.
     function mode_name_of(buffer) result(name)
         type(handle_type), intent(in) :: buffer
         character(len=:), allocatable :: name
@@ -3461,7 +3517,7 @@ contains
         if (allocated(buffers(buffer%index)%mode_name)) name = buffers(buffer%index)%mode_name
     end function mode_name_of
 
-    ! "(PROC STATUS)" of buffer BUFFER's process ("" for none).
+    ! "(PROC STATUS)" of buffer BUFFER's process ("" for none).  Not a port.
     function process_text(buffer) result(text)
         type(handle_type), intent(in) :: buffer
         character(len=:), allocatable :: text
@@ -3473,7 +3529,8 @@ contains
         text = "("//process_name(proc)//" "//process_status(proc)//")"
     end function process_text
 
-    ! define-ibuffer-column process.
+    ! define-ibuffer-column process.  Port of ibuffer.el's
+    ! (define-ibuffer-column process).
     recursive function column_process(buffer, mark) result(cell)
         type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
@@ -3483,6 +3540,7 @@ contains
         cell = text_cell(process_text(buffer))
     end function column_process
 
+    ! Not a port (the summarizer of the process column).
     subroutine summarize_process(cells, text)
         type(ibuffer_cell_type), intent(in) :: cells(:)
         character(len=:), allocatable, intent(out) :: text
@@ -3490,7 +3548,7 @@ contains
         text = count_text(cells, "No processes", "1 process", " processes")
     end subroutine summarize_process
 
-    ! "No ...", "1 ..." or "N ..." of the non-empty CELLS.
+    ! "No ...", "1 ..." or "N ..." of the non-empty CELLS.  Not a port.
     function count_text(cells, none, one, many) result(text)
         type(ibuffer_cell_type), intent(in) :: cells(:)
         character(len=*), intent(in) :: none, one, many
@@ -3514,7 +3572,8 @@ contains
         end if
     end function count_text
 
-    ! define-ibuffer-column filename.
+    ! define-ibuffer-column filename.  Port of ibuffer.el's
+    ! (define-ibuffer-column filename).
     recursive function column_filename(buffer, mark) result(cell)
         type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
@@ -3524,6 +3583,7 @@ contains
         cell = text_cell(ibuffer_abbreviate_file_name(ibuffer_buffer_file_name()))
     end function column_filename
 
+    ! Not a port (the summarizer of the filename column).
     subroutine summarize_filename(cells, text)
         type(ibuffer_cell_type), intent(in) :: cells(:)
         character(len=:), allocatable, intent(out) :: text
@@ -3531,7 +3591,8 @@ contains
         text = count_text(cells, "No files", "1 file", " files")
     end subroutine summarize_filename
 
-    ! define-ibuffer-column filename-and-process.
+    ! define-ibuffer-column filename-and-process.  Port of ibuffer.el's
+    ! (define-ibuffer-column filename-and-process).
     recursive function column_filename_and_process(buffer, mark) result(cell)
         type(handle_type), intent(in) :: buffer
         character, intent(in) :: mark
@@ -3554,6 +3615,7 @@ contains
         end if
     end function column_filename_and_process
 
+    ! Not a port (the summarizer of the filename-and-process column).
     subroutine summarize_filename_and_process(cells, text)
         type(ibuffer_cell_type), intent(in) :: cells(:)
         character(len=:), allocatable, intent(out) :: text
@@ -3627,7 +3689,7 @@ contains
     end subroutine define_ibuffer_column
 
     ! (capitalize (symbol-name SYMBOL)) of a column name (words separated
-    ! by underscores).
+    ! by underscores).  Not a port.
     function capitalize_name(name) result(s)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: s
@@ -3785,8 +3847,8 @@ contains
         call ibuffer_filter_by("size_gt", status, number=qualifier)
     end subroutine ibuffer_filter_by_size_gt
 
-    !> Limit current view to buffers with size less than QUALIFIER.  Port
-    !> of ibuf-ext.el:ibuffer-filter-by-size-lt.
+    !> Limit current view to buffers with size less than QUALIFIER.
+    !> Port of ibuf-ext.el:ibuffer-filter-by-size-lt.
     recursive subroutine ibuffer_filter_by_size_lt(qualifier, status)
         integer(int64), intent(in) :: qualifier
         type(status_type), intent(out) :: status
@@ -3810,8 +3872,8 @@ contains
         call ibuffer_filter_by("visiting_file", status)
     end subroutine ibuffer_filter_by_visiting_file
 
-    !> Limit current view to buffers whose contents match QUALIFIER.  Port
-    !> of ibuf-ext.el:ibuffer-filter-by-content.
+    !> Limit current view to buffers whose contents match QUALIFIER.
+    !> Port of ibuf-ext.el:ibuffer-filter-by-content.
     recursive subroutine ibuffer_filter_by_content(qualifier, status)
         character(len=*), intent(in) :: qualifier
         type(status_type), intent(out) :: status
@@ -3829,6 +3891,7 @@ contains
     end function sort_recency
 
     ! Whether the display time of A is less than B's (an unset time is 0).
+    ! Not a port.
     logical function time_less(a, b)
         type(handle_type), intent(in) :: a, b
         integer(int64) :: sa, sb
@@ -3861,7 +3924,8 @@ contains
     end subroutine ibuffer_do_sort_by_recency
 
     !> Select the sorting method NAME (reversing it if already selected)
-    !> and redisplay: the command define-ibuffer-sorter defines.
+    !> and redisplay: the command define-ibuffer-sorter defines.  Port of
+    !> ibuf-macs.el:define-ibuffer-sorter, in part (the command it defines).
     recursive subroutine ibuffer_do_sort_by(name, status)
         character(len=*), intent(in) :: name
         type(status_type), intent(out) :: status
@@ -3883,7 +3947,7 @@ contains
     ! Display
     ! ------------------------------------------------------------------
 
-    ! ibuffer-update-format.
+    ! ibuffer-update-format.  Port of ibuffer.el:ibuffer-update-format.
     subroutine ibuffer_update_format(status)
         type(status_type), intent(out) :: status
         integer :: k
@@ -3924,7 +3988,7 @@ contains
         if (status%ok()) call ibuffer_redisplay(status, .true.)
     end subroutine ibuffer_switch_format
 
-    ! ibuffer--format-title.
+    ! ibuffer--format-title.  Port of ibuffer.el:ibuffer--format-title.
     function format_title(spec, status) result(title)
         type(ibuffer_column_spec_type), intent(in) :: spec
         type(status_type), intent(out) :: status
@@ -3949,7 +4013,7 @@ contains
         if (l < min) title = ibuffer_format_column(title, min - l, spec%align)
     end function format_title
 
-    ! ibuffer--format-summary.
+    ! ibuffer--format-summary.  Port of ibuffer.el:ibuffer--format-summary.
     function format_summary(spec, status) result(summary)
         type(ibuffer_column_spec_type), intent(in) :: spec
         type(status_type), intent(out) :: status
@@ -3984,6 +4048,7 @@ contains
         if (l < min) summary = ibuffer_format_column(summary, min - l, spec%align)
     end function format_summary
 
+    ! Not a port.
     function reversed(cells) result(r)
         type(ibuffer_cell_type), intent(in) :: cells(:)
         type(ibuffer_cell_type), allocatable :: r(:)
@@ -3997,7 +4062,8 @@ contains
         end do
     end function reversed
 
-    ! ibuffer-update-title-and-summary.
+    ! ibuffer-update-title-and-summary.  Port of
+    ! ibuffer.el:ibuffer-update-title-and-summary.
     recursive subroutine update_title_and_summary(entries, status)
         type(ibuffer_column_spec_type), intent(in) :: entries(:)
         type(status_type), intent(out) :: status
@@ -4200,6 +4266,7 @@ contains
         call ibuffer_update(status,.not. nilp(current_prefix_arg))
     end subroutine cmd_ibuffer_update
 
+    ! Not a port.
     recursive subroutine revert_function(ignore_auto, noconfirm, status)
         logical, intent(in) :: ignore_auto, noconfirm
         type(status_type), intent(out) :: status
@@ -4211,7 +4278,7 @@ contains
     !> sorting mode, " [rev]", " (Auto)" and the filters unless they're
     !> already in the header line (upstream evaluated by the mode line);
     !> the header line showing the filters gets the same, after the mode
-    !> name (ibuffer-header-line-format).
+    !> name (ibuffer-header-line-format).  Not a port.
     recursive subroutine update_mode_line_process()
         type(mode_line_part_type), allocatable :: parts(:)
 
@@ -4236,7 +4303,7 @@ contains
         call set_mode_line_process(parts)
     end subroutine update_mode_line_process
 
-    ! " by " and the sorting mode, " [rev]" and " (Auto)".
+    ! " by " and the sorting mode, " [rev]" and " (Auto)".  Not a port.
     function state_text() result(text)
         character(len=:), allocatable :: text
         integer :: k
@@ -4254,6 +4321,7 @@ contains
     end function state_text
 
     ! (mapconcat 'ibuffer-format-qualifier ibuffer-filtering-qualifiers "")
+    ! Not a port.
     recursive function qualifiers_text() result(text)
         character(len=:), allocatable :: text
         type(ibuffer_filter_type), allocatable :: filters(:)
@@ -4268,7 +4336,8 @@ contains
     end function qualifiers_text
 
     ! ibuffer-sort-bufferlist: sort BMARKLIST in place by the current
-    ! sorting mode (a stable sort, as `sort').
+    ! sorting mode (a stable sort, as `sort').  Port of
+    ! ibuffer.el:ibuffer-sort-bufferlist.
     recursive subroutine sort_bufferlist(bmarklist)
         type(ibuffer_state_type), intent(inout) :: bmarklist(:)
         type(ibuffer_state_type), allocatable :: tmp(:)
@@ -4337,7 +4406,8 @@ contains
     end subroutine sort_bufferlist
 
     ! ibuffer-insert-filter-group: the group NAME, shown as DISPLAY_NAME,
-    ! with the buffers of BMARKLIST.
+    ! with the buffers of BMARKLIST.  Port of
+    ! ibuffer.el:ibuffer-insert-filter-group.
     recursive subroutine insert_filter_group(name, display_name, entries, bmarklist, status)
         character(len=*), intent(in) :: name, display_name
         type(ibuffer_column_spec_type), intent(in) :: entries(:)
@@ -4368,6 +4438,7 @@ contains
         end if
     end subroutine insert_filter_group
 
+    ! Not a port.
     function keymap_value(map) result(v)
         use lisp_fm, only: make_keymap_ref
         type(handle_type), intent(in) :: map
@@ -4628,8 +4699,8 @@ contains
     end subroutine cmd_ibuffer
 
     !> Call Ibuffer and set point at the line listing the current buffer.
-    !> If optional arg OTHER_WINDOW is true, then use another window.  Port
-    !> of ibuffer.el:ibuffer-jump.
+    !> If optional arg OTHER_WINDOW is true, then use another window.
+    !> Port of ibuffer.el:ibuffer-jump.
     recursive subroutine ibuffer_jump(status, other_window)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: other_window
@@ -4652,7 +4723,8 @@ contains
     end subroutine cmd_ibuffer_jump
 
     !> Move point to the line of the buffer NAME in the current Ibuffer
-    !> buffer (the part of `ibuffer_jump_to_buffer' that finds it).
+    !> buffer (the part of `ibuffer_jump_to_buffer' that finds it).  Port of
+    !> ibuf-ext.el:ibuffer-jump-to-buffer, in part.
     recursive subroutine jump_to_buffer_by_name(name, status)
         character(len=*), intent(in) :: name
         type(status_type), intent(out) :: status
@@ -4883,6 +4955,7 @@ contains
         call major_modes%ibuffer_mode%finish(saved, status)
     end subroutine ibuffer_mode
 
+    ! Not a port.
     recursive subroutine defontify(status)
         use font_core_fm, only: font_lock_defontify
         type(status_type), intent(out) :: status
@@ -4896,7 +4969,7 @@ contains
 
     !> Save the marked status of the buffers (the first half of
     !> ibuf-macs.el:ibuffer-save-marks; `ibuffer_save_marks_end' restores
-    !> them).
+    !> them).  Port of ibuf-macs.el:ibuffer-save-marks, in part.
     recursive subroutine ibuffer_save_marks_begin(status)
         type(status_type), intent(out) :: status
 
@@ -4932,7 +5005,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! Read a character in the echo area after PROMPT (read-char): C-g
-    ! quits, other non-characters are an error.
+    ! quits, other non-characters are an error.  Not a port.
     subroutine read_char(prompt, c, status)
         character(len=*), intent(in) :: prompt
         integer(int64), intent(out) :: c
@@ -4964,6 +5037,7 @@ contains
     ! Fontification forms (the defaults of `ibuffer_fontification_alist')
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     recursive logical function form_read_only()
         form_read_only = buffers(cur)%read_only
     end function form_read_only
@@ -4982,28 +5056,32 @@ contains
         form_compressed = st%ok() .and. m > 0
     end function form_compressed
 
+    ! Not a port.
     recursive logical function form_starred()
         form_starred = .false.
         if (len(buffers(cur)%name) > 0) form_starred = buffers(cur)%name(1:1) == "*"
     end function form_starred
 
+    ! Not a port.
     recursive logical function form_help_mode()
         form_help_mode = .false.
         if (.not. allocated(buffers(cur)%major_mode)) return
         form_help_mode = any(ibuffer_help_buffer_modes == buffers(cur)%major_mode)
     end function form_help_mode
 
+    ! Not a port.
     recursive logical function form_dired()
         form_dired = derived_mode_p("dired_mode")
     end function form_dired
 
     ! (and (boundp 'emacs-lock-mode) emacs-lock-mode): emacs-lock.el is
-    ! not ported.
+    ! not ported.  Not a port.
     recursive logical function form_locked()
         form_locked = .false.
     end function form_locked
 
     !> Define Ibuffer's settings, mode, keymaps, columns and commands.
+    !> Not a port.
     subroutine syms_of_ibuffer()
         type(status_type) :: st
         type(handle_type) :: m
