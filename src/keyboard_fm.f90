@@ -299,6 +299,23 @@ module keyboard_fm
     !> pre-command-hook.
     type(hook_type), target, public :: pre_command_hook = hook_type(name="pre_command_hook")
 
+    abstract interface
+        !> A command run in place of the command CMD about to be executed
+        !> (`this_command_wrapper').
+        recursive subroutine command_wrapper_proc(cmd, status)
+            import :: value_type, status_type
+            implicit none(type, external)
+            type(value_type), intent(in) :: cmd
+            type(status_type), intent(out) :: status
+        end subroutine command_wrapper_proc
+    end interface
+
+    !> A command to execute in place of the command about to be executed,
+    !> which it is given: a function of `pre_command_hook' sets it (upstream,
+    !> such a function sets `this_command' to a lambda calling the command),
+    !> and the command loop clears it before executing it.
+    procedure(command_wrapper_proc), pointer, public :: this_command_wrapper => null()
+
     !> Hook run when `kill_emacs' is called.
     !> Since `kill_emacs' may be invoked when the terminal is disconnected
     !> (or in other similar situations), functions placed on this hook
@@ -1666,6 +1683,7 @@ contains
         type(value_type), allocatable :: keys(:)
         type(value_type) :: cmd, remapped
         logical :: eof, handled
+        procedure(command_wrapper_proc), pointer :: wrapper
         type(status_type) :: hook_status
         integer(int64) :: last_point_position, prev_serial, prev_modiff
 
@@ -1722,6 +1740,8 @@ contains
         ! The hook may have changed the command (command-execute runs
         ! this-command).
         cmd = this_command
+        wrapper => this_command_wrapper
+        this_command_wrapper => null()
         ! By default, we adjust point to a boundary of a region that has
         ! such a property that should be treated intangible (e.g.
         ! composition, display).  But, some commands will set this
@@ -1755,7 +1775,9 @@ contains
             current_prefix_arg = prefix_arg
             prefix_arg = nil()
 
-            if (stringp(cmd) .or. vtag(cmd) == V_LIST) then
+            if (associated(wrapper)) then
+                call wrapper(cmd, status)
+            else if (stringp(cmd) .or. vtag(cmd) == V_LIST) then
                 call execute_kbd_macro(cmd, current_prefix_arg, status)
             else
                 handled = .false.

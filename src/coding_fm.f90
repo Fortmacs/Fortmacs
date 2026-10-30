@@ -888,7 +888,9 @@ contains
             else
                 ! An alias of a subsidiary is a subsidiary too, unless it
                 ! names one alone (emacs-internal).
-                if (codings(id)%base /= id .and. is_subsidiary_name(aliases(k)%name, id)) cycle
+                if (codings(id)%base /= id) then
+                    if (is_subsidiary_name(aliases(k)%name, id)) cycle
+                end if
             end if
 
             n = n + 1
@@ -906,8 +908,9 @@ contains
         character(len=*), parameter :: SUFFIXES(0:2) = [character(len=5) :: "-unix", "-dos", "-mac"]
         character(len=:), allocatable :: suffix
 
-        suffix = trim(SUFFIXES(codings(id)%eol))
         is_subsidiary_name = .false.
+        if (codings(id)%eol < 0 .or. codings(id)%eol > 2) return
+        suffix = trim(SUFFIXES(codings(id)%eol))
         if (len(name) > len(suffix)) is_subsidiary_name = name(len(name) - len(suffix) + 1:) == suffix
     end function is_subsidiary_name
 
