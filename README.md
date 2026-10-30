@@ -111,11 +111,12 @@ would never happen. This is for fun. Let's see where it goes.
 
 AI has made breakthroughs once out of reach: AlphaFold's 200 million
 protein structures (part of the 2024 Nobel Prize in Chemistry), the
-antibiotic candidate halicin, and, by press accounts the CIA has not
-confirmed, the 2026 rescue of an airman downed in Iran, found by a sensor
-whose AI picked his heartbeat out of the background noise. Yet AI-assisted
-coding still carries a stigma. Fortmacs judges its code like any other: it
-must build, pass Emacs's own tests and survive human review.
+antibiotic candidate halicin and, according to press reports the CIA has
+not confirmed, the 2026 rescue of an airman shot down over Iran, located by
+a sensor called "Ghost Murmur" that reportedly uses AI to single out his
+heartbeat from the background noise. Yet AI-assisted coding still carries
+a stigma. Fortmacs judges its code like any other: it must build, pass
+Emacs's own tests and survive human review.
 
 Fortmacs is co-written with Claude Code, Anthropic's coding agent. It needs
 constant direction: left alone it drifted toward Lisp written in Fortran,
