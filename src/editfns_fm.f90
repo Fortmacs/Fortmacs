@@ -63,7 +63,7 @@ module editfns_fm
               gap_position, gap_size
     public :: goto_char, goto_char_marker, set_point_from_marker
     public :: point_marker, point_min_marker, point_max_marker
-    public :: mark_marker, mark_position, region_beginning, region_end, interactive_region, region_position_proc
+    public :: mark_marker, mark_position, region_beginning, region_end, interactive_region, check_mark, region_position_proc
     public :: position_bytes, byte_to_position
     public :: following_char, preceding_char, bobp, eobp, bolp, eolp, &
               char_after, char_before
@@ -307,18 +307,47 @@ contains
         call region_limit(.false., pos, status)
     end subroutine primitive_region_end
 
+    !> Check that the mark is set in the current buffer and, in Transient
+    !> Mark mode unless `mark_even_if_inactive', active: an error
+    !> otherwise.  FOR_REGION words the error for the region.  Port of
+    !> callint.c:check_mark.
+    subroutine check_mark(for_region, status)
+        logical, intent(in) :: for_region
+        type(status_type), intent(out) :: status
+
+        if (mark_position() == 0) then
+            if (for_region) then
+                call set_error(status, FM_GENERIC_ERROR, "The mark is not set now, so there is no region")
+            else
+                call set_error(status, FM_GENERIC_ERROR, "The mark is not set now")
+            end if
+
+            return
+        end if
+
+        if (transient_mark_mode%value .and. .not. mark_even_if_inactive .and. .not. buffers(cur)%mark_active) then
+            call set_error(status, FM_MARK_INACTIVE)
+        end if
+    end subroutine check_mark
+
     !> The region as the arguments of a command whose interactive spec
-    !> has `r': point and the mark, the smaller first.  An inactive mark
-    !> is an error as for `region_beginning', which rectangle_mark_mode's
-    !> advice does not change here.  Port of the `r' code of
+    !> has `r': point and the mark, the smaller first (as they are, not
+    !> limited to the accessible part).  `check_mark' reports a mark that
+    !> is not set or inactive; rectangle_mark_mode's advice of
+    !> `region_beginning' does not apply.  Port of the `r' code of
     !> callint.c:Fcall_interactively.
     subroutine interactive_region(beg, end, status)
         integer(int64), intent(out) :: beg, end
         type(status_type), intent(out) :: status
+        integer(int64) :: mark
 
+        beg = 0
         end = 0
-        call region_limit(.true., beg, status)
-        if (status%ok()) call region_limit(.false., end, status)
+        call check_mark(.true., status)
+        if (.not. status%ok()) return
+        mark = mark_position()
+        beg = min(buffers(cur)%pt, mark)
+        end = max(buffers(cur)%pt, mark)
     end subroutine interactive_region
 
     !> Port of editfns.c:Fpoint_min_marker.

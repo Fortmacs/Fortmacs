@@ -8071,9 +8071,10 @@ contains
             entry%file = "editfns_fm.f90"
             entry%fortran = "call interactive_region(beg, end, status)"
             entry%doc = "The region as the arguments of a command whose interactive spec"//LF// &
-                        "has `r': point and the mark, the smaller first.  An inactive mark"//LF// &
-                        "is an error as for `region_beginning', which rectangle_mark_mode's"//LF// &
-                        "advice does not change here."
+                        "has `r': point and the mark, the smaller first (as they are, not"//LF// &
+                        "limited to the accessible part).  `check_mark' reports a mark that"//LF// &
+                        "is not set or inactive; rectangle_mark_mode's advice of"//LF// &
+                        "`region_beginning' does not apply."
         case ("internal_default_process_filter")
             entry%file = "process_fm.f90"
             entry%fortran = "call internal_default_process_filter(proc, text, status)"
