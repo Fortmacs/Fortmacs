@@ -36,11 +36,14 @@
 !> (`set_buffer_file_coding_system'), C-x RET r
 !> (`revert_buffer_with_coding_system') and C-h C (`describe_coding_system').
 !>
-!> Deferred: `universal_coding_system_argument' (C-x RET c: the command
-!> loop has no anonymous wrapper commands), the process, terminal,
-!> keyboard, selection and file-name coding system commands (C-x RET p,
-!> t, k, x, X, F), input methods and language environments (C-x RET l,
-!> C-x RET C-\, C-\), `auto_coding_functions' (the xml, html and sgml
+!> C-x RET c (`universal_coding_system_argument', running the next command
+!> through `this_command_wrapper') and C-x RET p
+!> (`set_buffer_process_coding_system') are ported.
+!>
+!> Deferred: the echo of C-x RET c's coding system while the next
+!> command's keys are typed, the terminal, keyboard, selection and
+!> file-name coding system commands (C-x RET t, k, x, X, F), input
+!> methods and language environments (C-x RET l, C-x RET C-\, C-\), `auto_coding_functions' (the xml, html and sgml
 !> detection), `enable_character_translation' tags, the help-xref
 !> buttons of the *Warning* and *Help* buffers, completion of only the
 !> coding systems that encode the buffer first (completion-table-in-turn),
@@ -77,9 +80,15 @@ module mule_fm
     use files_fm, only: revert_buffer
     use xdisp_fm, only: message
     use help_fm, only: with_help_window
+    use simple_fm, only: prefix_command_preserve_state, prefix_command_preserve_state_hook
+    use keyboard_fm, only: pre_command_hook, this_command_wrapper
+    use callint_fm, only: this_command, call_interactively
+    use coding_fm, only: coding_system_for_write, coding_system_require_warning
+    use process_fm, only: get_buffer_process, set_process_coding_system
     implicit none(type, external)
     private
 
+    public :: universal_coding_system_argument, set_buffer_process_coding_system
     public :: syms_of_mule, find_auto_coding, set_auto_coding, auto_coding_alist_lookup, after_insert_file_set_coding_1, &
               find_new_buffer_file_coding_system, merge_coding_systems, set_buffer_file_coding_system, &
               revert_buffer_with_coding_system, prefer_coding_system, set_default_coding_systems, &
@@ -124,7 +133,7 @@ module mule_fm
     character(len=:), allocatable, public :: last_coding_system_specified
 
     !> Keymap for Mule (Multilingual environment) specific commands.
-    !> Port of mule-cmds.el mule-keymap (the ported commands: f and r).
+    !> Port of mule-cmds.el mule-keymap (the ported commands: c, f, p and r).
     type(handle_type), public :: mule_keymap
 
     !> Per-buffer `buffer_file_coding_system_explicit': the coding systems
@@ -135,6 +144,11 @@ module mule_fm
         character(len=:), allocatable :: read, write
     end type explicit_type
     type(explicit_type), allocatable :: explicit(:)
+
+    ! mule-cmds--prefixed-command-next-coding-system and
+    ! mule-cmds--prefixed-command-last-coding-system ("" for nil), and the
+    ! coding system of the command `prefixed_command' runs.
+    character(len=:), allocatable :: prefixed_next_coding_system, prefixed_last_coding_system, prefixed_coding_system
 
     character(len=*), parameter :: LF = achar(10), TAB = achar(9), CR = achar(13)
 
@@ -191,9 +205,16 @@ contains
         commands%prefer_coding_system%run => cmd_prefer_coding_system
         commands%describe_coding_system%run => cmd_describe_coding_system
         commands%describe_current_coding_system%run => cmd_describe_current_coding_system
+        commands%universal_coding_system_argument%run => cmd_universal_coding_system_argument
+        commands%set_buffer_process_coding_system%run => cmd_set_buffer_process_coding_system
+        prefixed_next_coding_system = ""
+        prefixed_last_coding_system = ""
+        prefixed_coding_system = ""
         call make_sparse_keymap(mule_keymap)
         call bind(mule_keymap, "f", "set_buffer_file_coding_system")
+        call bind(mule_keymap, "c", "universal_coding_system_argument")
         call bind(mule_keymap, "r", "revert_buffer_with_coding_system")
+        call bind(mule_keymap, "p", "set_buffer_process_coding_system")
         ! Keep "C-x C-m ..." for mule specific commands.
         call key_parse("C-m", key, st)
         call define_key(ctl_x_map, key, keymap_value(mule_keymap), st)
@@ -881,6 +902,149 @@ contains
         if (.not. status%ok()) return
         call set_buffer_file_coding_system(cs, force, .false., .true., status)
     end subroutine cmd_set_buffer_file_coding_system
+
+    !> Execute an I/O command using the specified CODING_SYSTEM.  Port of
+    !> mule-cmds.el:universal-coding-system-argument (the echo of the
+    !> coding system while the command's keys are typed is Deferred).
+    recursive subroutine universal_coding_system_argument(coding_system, status)
+        character(len=*), intent(in) :: coding_system
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call prefix_command_preserve_state()
+        prefixed_next_coding_system = coding_system
+        call pre_command_hook%add(prefixed_command_pch)
+        call prefix_command_preserve_state_hook%add(prefixed_command_preserve)
+    end subroutine universal_coding_system_argument
+
+    recursive subroutine cmd_universal_coding_system_argument(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: default, coding
+
+        default = ""
+
+        if (allocated(buffer_file_coding_system%value)) then
+            if (len(buffer_file_coding_system%value) > 0) then
+                if (coding_system_type(buffer_file_coding_system%value) /= "undecided") then
+                    default = buffer_file_coding_system%value
+                end if
+            end if
+        end if
+
+        call read_coding_system(format_prompt("Coding system for following command", default), default, coding, status)
+        if (.not. status%ok()) return
+        call universal_coding_system_argument(coding, status)
+    end subroutine cmd_universal_coding_system_argument
+
+    ! The function of `pre_command_hook' that runs the command with the
+    ! coding system of `universal_coding_system_argument'.  Port of
+    ! mule-cmds.el:mule-cmds--prefixed-command-pch.
+    recursive subroutine prefixed_command_pch(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+
+        if (len(prefixed_next_coding_system) == 0) then
+            call pre_command_hook%remove(prefixed_command_pch)
+            call prefix_command_preserve_state_hook%remove(prefixed_command_preserve)
+        else
+            prefixed_coding_system = prefixed_next_coding_system
+            this_command_wrapper => prefixed_command
+            prefixed_last_coding_system = prefixed_next_coding_system
+            prefixed_next_coding_system = ""
+        end if
+    end subroutine prefixed_command_pch
+
+    ! The command run in place of CMD: CMD with `coding_system_for_read'
+    ! and `coding_system_for_write' bound to the coding system (the
+    ! lambda of mule-cmds--prefixed-command-pch).
+    recursive subroutine prefixed_command(cmd, status)
+        type(value_type), intent(in) :: cmd
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: saved_read, saved_write
+        logical :: had_read, had_write, saved_warning
+
+        this_command = cmd
+        had_read = allocated(coding_system_for_read%value)
+        if (had_read) saved_read = coding_system_for_read%value
+        had_write = allocated(coding_system_for_write%value)
+        if (had_write) saved_write = coding_system_for_write%value
+        saved_warning = coding_system_require_warning%value
+        coding_system_for_read = prefixed_coding_system
+        coding_system_for_write = prefixed_coding_system
+        coding_system_require_warning = .true.
+        call call_interactively(cmd, status)
+
+        if (had_read) then
+            coding_system_for_read = saved_read
+        else
+            call coding_system_for_read%clear()
+        end if
+
+        if (had_write) then
+            coding_system_for_write = saved_write
+        else
+            call coding_system_for_write%clear()
+        end if
+
+        coding_system_require_warning = saved_warning
+    end subroutine prefixed_command
+
+    ! The function of `prefix_command_preserve_state_hook' keeping the
+    ! coding system for the next command.  Port of
+    ! mule-cmds.el:mule-cmds--prefixed-command-preserve.
+    recursive subroutine prefixed_command_preserve(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        prefixed_next_coding_system = prefixed_last_coding_system
+    end subroutine prefixed_command_preserve
+
+    !> Set coding systems for the process associated with the current
+    !> buffer.  DECODING is the coding system to be used to decode input
+    !> from the process, ENCODING is the coding system to be used to
+    !> encode output to the process.
+    !>
+    !> For a list of possible coding systems, use
+    !> \[list_coding_systems].  Port of
+    !> mule.el:set-buffer-process-coding-system.
+    recursive subroutine set_buffer_process_coding_system(decoding, encoding, status)
+        character(len=*), intent(in) :: decoding, encoding
+        type(status_type), intent(out) :: status
+        type(handle_type) :: proc
+
+        proc = get_buffer_process(current_buffer())
+
+        if (proc%index == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "No process")
+            return
+        end if
+
+        if (len(decoding) > 0) then
+            call check_coding_system(decoding, status)
+            if (.not. status%ok()) return
+        end if
+
+        if (len(encoding) > 0) then
+            call check_coding_system(encoding, status)
+            if (.not. status%ok()) return
+        end if
+
+        ! (The mode line is redisplayed after each command: nothing for
+        ! force-mode-line-update to do.)
+        call set_process_coding_system(proc, decoding, encoding, status)
+    end subroutine set_buffer_process_coding_system
+
+    recursive subroutine cmd_set_buffer_process_coding_system(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: decoding, encoding
+
+        call read_coding_system("Coding-system for output from the process: ", "", decoding, status)
+        if (.not. status%ok()) return
+        call read_coding_system("Coding-system for input to the process: ", "", encoding, status)
+        if (.not. status%ok()) return
+        call set_buffer_process_coding_system(decoding, encoding, status)
+    end subroutine cmd_set_buffer_process_coding_system
 
     !> Visit the current buffer's file again using coding system CODING-SYSTEM.
     !> For a list of possible values of CODING-SYSTEM, use \[list_coding_systems].

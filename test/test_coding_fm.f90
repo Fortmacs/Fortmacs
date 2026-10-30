@@ -50,7 +50,9 @@ module test_coding_fm
                          encode_coding_string, check_coding_systems_text, coding_system_for_read, &
                          coding_system_for_write, last_coding_system_used, buffer_file_coding_system, &
                          inhibit_eol_conversion, EOL_UNIX, EOL_DOS, EOL_MAC, EOL_UNDECIDED
-    use mule_fm, only: find_auto_coding, set_buffer_file_coding_system, prefer_coding_system, describe_coding_system
+    use mule_fm, only: find_auto_coding, set_buffer_file_coding_system, prefer_coding_system, describe_coding_system, &
+                       set_buffer_process_coding_system
+    use keyboard_fm, only: kbd_store_bytes, command_loop, discard_input
     implicit none(type, external)
     private
 
@@ -80,7 +82,8 @@ contains
                     new_unittest("visit-and-save", test_visit_save), &
                     new_unittest("mode-line-mule-info", test_mode_line), &
                     new_unittest("prefer-coding-system", test_prefer), &
-                    new_unittest("describe-coding-system", test_describe) &
+                    new_unittest("describe-coding-system", test_describe), &
+                    new_unittest("universal-coding-system-argument", test_universal_coding_system_argument) &
                     ]
     end subroutine collect_coding_fm
 
@@ -810,4 +813,40 @@ contains
         call kill_buffer(help, st)
         call show_alone()
     end subroutine test_describe
+
+    !> C-x RET c runs the next command with its coding system: C-x C-f
+    !> reads a UTF-8 file as Latin-1, and the coding system is not left
+    !> bound.  C-x RET p needs a process.
+    subroutine test_universal_coding_system_argument(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: buf, old
+        type(status_type) :: st
+
+        call setup()
+        call get_buffer_create(" coding-c-tmp", buf, st)
+        call set_buffer(buf, st)
+        call insert("café"//LF, st)
+        call write_region(tdir()//"utf8.txt", .false., st)
+        call kill_buffer(buf, st)
+        call get_buffer_create(" coding-c", old, st)
+        call set_buffer(old, st)
+        call show_alone()
+        call discard_input()
+        ! C-x RET c iso-latin-1 RET C-x C-f FILE RET
+        call kbd_store_bytes(achar(24)//CR//"ciso-latin-1"//CR//achar(24)//achar(6)//tdir()//"utf8.txt"//CR)
+        call command_loop(st)
+        call check(error, buffer_string(), "caf"//"Ã"//"©"//LF)
+        if (.not. allocated(error)) call check(error,.not. allocated(coding_system_for_read%value), "not left bound")
+
+        if (.not. allocated(error)) then
+            call set_buffer(old, st)
+            call set_buffer_process_coding_system("utf-8", "utf-8", st)
+            call check(error, format_error(st), "No process")
+        end if
+
+        buf = current_buffer()
+        call kill_buffer(buf, st)
+        call kill_buffer(old, st)
+        call remove_files(["utf8.txt"])
+    end subroutine test_universal_coding_system_argument
 end module test_coding_fm
