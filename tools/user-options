@@ -316,6 +316,9 @@ info_fontify_visited_nodes
 info_hide_note_references
 info_history_skip_intermediate_nodes
 info_isearch_search
+info_lookup_file_name_alist
+info_lookup_highlight_face
+info_lookup_other_window_flag
 info_mode_hook
 info_scroll_prefer_subnodes
 info_search_whitespace_regexp
