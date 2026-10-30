@@ -117,8 +117,8 @@ module sgml_mode_fm
         character(len=:), allocatable :: name
     end type sgml_tag_type
 
-    !> Specifies the basic indentation level for `sgml_indent_line'.  Port
-    !> of sgml-mode.el sgml-basic-offset.
+    !> Specifies the basic indentation level for `sgml_indent_line'.
+    !> Port of sgml-mode.el sgml-basic-offset.
     type(integer_setting), target, public :: sgml_basic_offset = integer_setting(name="sgml_basic_offset", value=2)
 
     !> Specifies a delta for attribute indentation in `sgml_indent_line'.
@@ -320,6 +320,7 @@ contains
 
     ! The index of the current buffer's entry in `locals' (made if MAKE),
     ! 0 if none.
+    ! Not a port.
     recursive integer function local_index(make) result(k)
         logical, intent(in) :: make
         type(sgml_local_type), allocatable :: grown(:)
@@ -369,6 +370,7 @@ contains
 
     ! kill-all-local-variables: forget the current buffer's sgml-mode.el
     ! variables.
+    ! Not a port.
     subroutine kill_sgml_locals()
         integer :: k
 
@@ -377,6 +379,7 @@ contains
     end subroutine kill_sgml_locals
 
     ! Whether the current buffer is in HTML mode (has its variables).
+    ! Not a port.
     recursive logical function html_buffer()
         integer :: k
 
@@ -386,6 +389,7 @@ contains
     end function html_buffer
 
     ! The character after POS, -1 if none.
+    ! Not a port.
     recursive integer function after_char_at(pos)
         integer(int64), intent(in) :: pos
         integer(int32) :: c
@@ -398,6 +402,7 @@ contains
     end function after_char_at
 
     ! The character before POS, -1 if none.
+    ! Not a port.
     recursive integer function before_char_at(pos)
         integer(int64), intent(in) :: pos
         integer(int32) :: c
@@ -410,6 +415,7 @@ contains
     end function before_char_at
 
     ! The start of subexpression N of the last match, 0 if it didn't match.
+    ! Not a port.
     integer(int64) function mb(n)
         integer, intent(in) :: n
         type(status_type) :: st
@@ -418,6 +424,7 @@ contains
     end function mb
 
     ! The end of subexpression N of the last match, 0 if it didn't match.
+    ! Not a port.
     integer(int64) function me(n)
         integer, intent(in) :: n
         type(status_type) :: st
@@ -426,6 +433,7 @@ contains
     end function me
 
     ! looking-at REGEXP.
+    ! Not a port.
     recursive logical function at(regexp)
         character(len=*), intent(in) :: regexp
         type(status_type) :: st
@@ -434,6 +442,7 @@ contains
     end function at
 
     ! looking-at-p REGEXP.
+    ! Not a port.
     recursive logical function at_p(regexp)
         character(len=*), intent(in) :: regexp
         type(status_type) :: st
@@ -442,6 +451,7 @@ contains
     end function at_p
 
     ! The text from START to END.
+    ! Not a port.
     function text_between(start, end) result(text)
         integer(int64), intent(in) :: start, end
         character(len=:), allocatable :: text
@@ -452,6 +462,7 @@ contains
     end function text_between
 
     ! S in lower case (ASCII).
+    ! Not a port.
     pure function lower(s) result(out)
         character(len=*), intent(in) :: s
         character(len=len(s)) :: out
@@ -466,6 +477,7 @@ contains
 
     ! Whether NAME is in LIST, ignoring case (assoc-string with
     ! IGNORE-CASE).
+    ! Not a port.
     pure logical function member_ignore_case(name, list)
         character(len=*), intent(in) :: name
         character(len=*), intent(in) :: list(:)
@@ -479,6 +491,7 @@ contains
     end function member_ignore_case
 
     ! The current buffer's sgml-empty-tags.
+    ! Not a port.
     recursive function empty_tags() result(tags)
         character(len=16), allocatable :: tags(:)
 
@@ -493,6 +506,7 @@ contains
     end function empty_tags
 
     ! The current buffer's sgml-unclosed-tags.
+    ! Not a port.
     recursive function unclosed_tags() result(tags)
         character(len=16), allocatable :: tags(:)
 
@@ -506,6 +520,7 @@ contains
     end function unclosed_tags
 
     ! The current buffer's sgml-whitespace-sensitive-tags.
+    ! Not a port.
     recursive function whitespace_sensitive_tags() result(tags)
         character(len=16), allocatable :: tags(:)
 
@@ -518,6 +533,7 @@ contains
 
     ! with-syntax-table sgml-tag-syntax-table: switch to it, saving the
     ! current table in SAVED.
+    ! Not a port.
     recursive subroutine use_tag_table(saved)
         type(handle_type), intent(out) :: saved
         type(status_type) :: st
@@ -527,6 +543,7 @@ contains
     end subroutine use_tag_table
 
     ! Restore the syntax table SAVED.
+    ! Not a port.
     recursive subroutine restore_table(saved)
         type(handle_type), intent(in) :: saved
         type(status_type) :: st
@@ -535,6 +552,7 @@ contains
     end subroutine restore_table
 
     ! save-excursion: remember point in the marker MARK.
+    ! Not a port.
     subroutine excursion_begin(mark)
         type(handle_type), intent(out) :: mark
         type(status_type) :: st
@@ -543,6 +561,7 @@ contains
     end subroutine excursion_begin
 
     ! Return to the position of MARK, and free it.
+    ! Not a port.
     subroutine excursion_end(mark)
         type(handle_type), intent(in) :: mark
         type(status_type) :: st
@@ -554,6 +573,7 @@ contains
     end subroutine excursion_end
 
     ! sgml-forward-sexp: (forward-sexp N) with forward-sexp-function nil.
+    ! Port of sgml-mode.el:sgml-forward-sexp.
     recursive subroutine sgml_forward_sexp(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
@@ -562,6 +582,7 @@ contains
     end subroutine sgml_forward_sexp
 
     ! (string-to-syntax S) as a text property value.
+    ! Not a port.
     recursive function syntax_value(s) result(v)
         character(len=*), intent(in) :: s
         type(value_type) :: v
@@ -672,6 +693,7 @@ contains
     end subroutine syntax_propertize_inside
 
     ! The (prog1 "|>" (sgml-syntax-propertize-inside end)) of a declaration.
+    ! Port of sgml-mode.el:sgml-syntax-propertize-rules (in part).
     recursive subroutine declaration_after(status)
         type(status_type), intent(out) :: status
 
@@ -681,6 +703,7 @@ contains
 
     ! The value of the quote rule: quotes outside of tags should not
     ! introduce strings which end up hiding tags.
+    ! Port of sgml-mode.el:sgml-syntax-propertize-rules (in part).
     recursive subroutine quote_value(property, status)
         type(syntax_property_type), intent(out) :: property
         type(status_type), intent(out) :: status
@@ -718,6 +741,7 @@ contains
     end subroutine quote_value
 
     ! A highlight of subexpression N in FACE.
+    ! Not a port.
     function h(n, face, lax) result(hl)
         integer, intent(in) :: n
         character(len=*), intent(in) :: face
@@ -728,6 +752,7 @@ contains
     end function h
 
     ! The face of a name with a namespace part (sgml-namespace) or not.
+    ! Port of sgml-mode.el:sgml-font-lock-keywords-1 (in part).
     subroutine function_name_face(face)
         character(len=:), allocatable, intent(out) :: face
 
@@ -735,6 +760,7 @@ contains
         if (me(2) > 0) face = "sgml_namespace"
     end subroutine function_name_face
 
+    ! Port of sgml-mode.el:sgml-font-lock-keywords-1 (in part).
     subroutine variable_name_face(face)
         character(len=:), allocatable, intent(out) :: face
 
@@ -743,6 +769,7 @@ contains
     end subroutine variable_name_face
 
     ! sgml-font-lock-keywords-1.
+    ! Port of sgml-mode.el:sgml-font-lock-keywords-1.
     subroutine keywords_1(kw)
         type(font_lock_keyword_type), allocatable, intent(out) :: kw(:)
         type(font_lock_highlight_type) :: h1(1), h2(2)
@@ -763,6 +790,7 @@ contains
 
     ! The faces of the tag `match_string(1)' in `sgml_tag_face_alist'
     ! (its contents get them, prepended).
+    ! Port of sgml-mode.el:sgml-font-lock-keywords-2 (in part).
     subroutine tag_faces(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
@@ -795,6 +823,7 @@ contains
     end subroutine tag_faces
 
     ! No face (the face of the tag contents comes from `tag_faces').
+    ! Not a port.
     subroutine no_face(face)
         character(len=:), allocatable, intent(out) :: face
 
@@ -803,6 +832,7 @@ contains
 
     ! sgml-font-lock-keywords-2 (its eval form evaluated when Font Lock
     ! sets up).
+    ! Port of sgml-mode.el:sgml-font-lock-keywords-2.
     subroutine keywords_2(kw)
         type(font_lock_keyword_type), allocatable, intent(out) :: kw(:)
         type(font_lock_keyword_type), allocatable :: k1(:)
@@ -832,8 +862,8 @@ contains
     ! Commands
     ! ------------------------------------------------------------------
 
-    !> Guess whether the current buffer is XML.  Return true if so.  Port
-    !> of sgml-mode.el:sgml-xml-guess.
+    !> Guess whether the current buffer is XML.  Return true if so.
+    !> Port of sgml-mode.el:sgml-xml-guess.
     recursive logical function sgml_xml_guess() result(xml)
         type(status_type) :: st
         character(len=:), allocatable :: file, ext
@@ -989,6 +1019,7 @@ contains
     end subroutine sgml_name_char
 
     ! The UTF-8 text of the character C.
+    ! Not a port.
     function char_string(c) result(s)
         integer, intent(in) :: c
         character(len=:), allocatable :: s
@@ -1050,6 +1081,7 @@ contains
     end subroutine cmd_sgml_name_char
 
     ! The event typed, as a character (-1 if not one).
+    ! Not a port.
     recursive integer(int64) function event_char()
         use lisp_fm, only: fixnump, xfixnum
 
@@ -1378,6 +1410,7 @@ contains
     end subroutine cmd_sgml_validate
 
     ! S quoted for the shell (shell-quote-argument).
+    ! Not a port.
     function shell_quote(s) result(q)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: q
@@ -1904,6 +1937,7 @@ contains
     end subroutine sgml_parse_tag_backward
 
     ! Push TAG on top of the list CONTEXT (its first element).
+    ! Not a port.
     subroutine push_tag(context, tag)
         type(sgml_tag_type), allocatable, intent(inout) :: context(:)
         type(sgml_tag_type), intent(in) :: tag
@@ -1922,6 +1956,7 @@ contains
     end subroutine push_tag
 
     ! Drop the first element of CONTEXT.
+    ! Not a port.
     subroutine pop_tag(context)
         type(sgml_tag_type), allocatable, intent(inout) :: context(:)
         type(sgml_tag_type), allocatable :: rest(:)
@@ -2422,6 +2457,7 @@ contains
     end subroutine sgml_parse_dtd
 
     ! Sort S (string<).
+    ! Not a port.
     subroutine sort_strings(s)
         character(len=64), intent(inout) :: s(:)
         character(len=64) :: t
@@ -2508,6 +2544,7 @@ contains
 
     ! `sgml_name_8bit_mode': when on, insert non-ASCII characters as named
     ! entities.
+    ! Not a port.
     recursive subroutine sgml_name_8bit_mode(status)
         type(status_type), intent(out) :: status
 
@@ -2532,6 +2569,7 @@ contains
     end subroutine make_sgml_syntax_table
 
     ! sgml-mode-syntax-table and sgml-tag-syntax-table.
+    ! Not a port.
     subroutine init_syntax_tables()
         type(status_type) :: st
         character(len=*), parameter :: PUNCT = "$%&*+/"
@@ -2555,6 +2593,7 @@ contains
     end subroutine init_syntax_tables
 
     ! sgml-syntax-propertize-rules.
+    ! Port of sgml-mode.el:sgml-syntax-propertize-rules.
     subroutine init_rules()
         type(syntax_highlight_type) :: hl
 
@@ -2563,9 +2602,11 @@ contains
         ! -- comments recognized when `sgml-specials' includes ?-.
         ! FIXME: beware of <!--> blabla <!--> !!
         propertize_rules%rules(1)%regexp = "\(<\)!--"
-        propertize_rules%rules(1)%highlights = [syntax_highlight_type(group=1, syntax="< b")]
+        hl = syntax_highlight_type(group=1, syntax="< b")
+        propertize_rules%rules(1)%highlights = [hl]
         propertize_rules%rules(2)%regexp = "--[ "//TAB//LF//"]*\(>\)"
-        propertize_rules%rules(2)%highlights = [syntax_highlight_type(group=1, syntax="> b")]
+        hl = syntax_highlight_type(group=1, syntax="> b")
+        propertize_rules%rules(2)%highlights = [hl]
         propertize_rules%rules(3)%regexp = "\(<\)[?!]"
         hl = syntax_highlight_type(group=1, syntax="|>")
         hl%after => declaration_after
@@ -2578,6 +2619,7 @@ contains
         propertize_rules%rules(4)%highlights = [hl]
     end subroutine init_rules
 
+    ! Not a port.
     ! The keywords of the levels: sgml-font-lock-keywords (level 0), -1 and
     ! -2.
     subroutine levels_of(levels)
@@ -2588,6 +2630,7 @@ contains
         levels(3)%function => keywords_2
     end subroutine levels_of
 
+! Not a port.
     ! `sgml_indent_line' as an `indent_line_function'.
     recursive subroutine indent_line_proc(status, noindent)
         type(status_type), intent(out) :: status
@@ -2619,6 +2662,7 @@ contains
         call major_modes%sgml_mode%finish(saved, status)
     end subroutine sgml_mode
 
+! Port of sgml-mode.el:sgml-mode (in part: its body).
     ! The body of `sgml_mode'.
     recursive subroutine setup()
         integer :: k
@@ -2659,6 +2703,7 @@ contains
         call major_modes%html_mode%finish(saved, status)
     end subroutine html_mode
 
+    ! Not a port.
     !> Define SGML mode and HTML mode: their variables, tables, keymaps and
     !> commands.
     recursive subroutine syms_of_sgml_mode()
@@ -2731,6 +2776,7 @@ contains
         commands%sgml_name_8bit_mode%run => sgml_name_8bit_mode
     end subroutine syms_of_sgml_mode
 
+    ! Port of sgml-mode.el:sgml-validate-command (its default value).
     ! The default `sgml_validate_command': prefer tidy because (o)nsgmls is
     ! often built without --enable-http which makes it next to useless.
     subroutine init_validate_command()
@@ -2761,6 +2807,7 @@ contains
         if (len(found_path) > 0) sgml_validate_command%value = "onsgmls -s"
     end subroutine init_validate_command
 
+! Port of sgml-mode.el:html-tag-face-alist (its value).
     ! html-tag-face-alist.
     subroutine init_html_tag_face_alist()
         if (allocated(html_tag_face_alist)) return

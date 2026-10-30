@@ -1,6 +1,6 @@
 ! test_dispnew_fm.f90 -- tests for dispnew_fm and frame_fm: the bytes an
-! xterm receives when the desired screen changes.  Own tests: upstream has
-! no tests for frame updates.
+! xterm receives when the desired screen changes.
+! Own tests; upstream has no tests for frame updates.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -41,6 +41,7 @@ module test_dispnew_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_dispnew_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

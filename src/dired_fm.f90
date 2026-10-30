@@ -149,6 +149,7 @@ contains
 
     !> Whether `a' sorts before `b', comparing bytes (UTF-8 sorts as its
     !> code points do) with a prefix first.  As fns.c:Fstring_lessp.
+    !> Not a port.
     pure logical function lessp(a, b)
         character(len=*), intent(in) :: a, b
         integer :: k
@@ -196,7 +197,7 @@ contains
     end subroutine file_name_all_completions
 
     !> Whether `name' ends in one of `completion_ignored_extensions' (for
-    !> a directory, one that ends in a slash).
+    !> a directory, one that ends in a slash).  Not a port.
     logical function ignored_extension(name, directoryp) result(ignored)
         character(len=*), intent(in) :: name
         logical, intent(in) :: directoryp
@@ -424,7 +425,7 @@ contains
     !> The owner and group of FILENAME (not following a symbolic link) as
     !> names, as `file_attributes' gives them with ID-FORMAT `string': a
     !> number in decimal when the id has no name.  FOUND is false if the
-    !> file does not exist.  Part of dired.c:Ffile_attributes.
+    !> file does not exist.  Port of dired.c:Ffile_attributes, in part.
     subroutine file_attribute_names(filename, user, group, found)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable, intent(out) :: user, group

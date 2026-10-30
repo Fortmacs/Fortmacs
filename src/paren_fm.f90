@@ -142,6 +142,7 @@ module paren_fm
     abstract interface
         !> A `show_paren_data_function': FOUND is false if there's no
         !> opener/closer near point (upstream's nil), else DATA describes it.
+        !> Not a port.
         subroutine show_paren_data_proc(found, data)
             import :: show_paren_data_type
             implicit none(type, external)
@@ -150,7 +151,7 @@ module paren_fm
         end subroutine show_paren_data_proc
 
         !> A `show_paren_predicate': whether to use `show_paren_mode' in the
-        !> current buffer.
+        !> current buffer.  Not a port.
         logical function show_paren_predicate_proc()
             implicit none(type, external)
         end function show_paren_predicate_proc
@@ -186,8 +187,8 @@ module paren_fm
     !> show-paren-mode-hook define-minor-mode defines.
     type(hook_type), target, public :: show_paren_mode_hook = hook_type(name="show_paren_mode_hook")
 
-    !> Hook run after entering or leaving `show_paren_local_mode'.  Port
-    !> of the show-paren-local-mode-hook define-minor-mode defines.
+    !> Hook run after entering or leaving `show_paren_local_mode'.
+    !> Port of the show-paren-local-mode-hook define-minor-mode defines.
     type(hook_type), target, public :: show_paren_local_mode_hook = hook_type(name="show_paren_local_mode_hook")
 
     !> show-paren--idle-timer, show-paren--overlay (the matching paren)
@@ -197,6 +198,7 @@ module paren_fm
 contains
 
     ! The index in `data_locals' of the current buffer's entry, 0 if none.
+    ! Not a port.
     integer function data_local_index() result(i)
         i = 0
         if (cur == 0 .or. .not. allocated(data_locals)) return
@@ -209,7 +211,7 @@ contains
     end function data_local_index
 
     !> Give the current buffer its own `show_paren_data_function'
-    !> FN (setq-local); absent is nil.
+    !> FN (setq-local); absent is nil.  Not a port.
     subroutine set_local_show_paren_data_function(fn)
         procedure(show_paren_data_proc), optional :: fn
         type(data_entry_type), allocatable :: grown(:)
@@ -248,7 +250,7 @@ contains
     end subroutine set_local_show_paren_data_function
 
     !> The value of `show_paren_data_function' in the current buffer
-    !> (null for nil).
+    !> (null for nil).  Not a port.
     function current_show_paren_data_function() result(fn)
         procedure(show_paren_data_proc), pointer :: fn
         integer :: i
@@ -263,12 +265,13 @@ contains
     end function current_show_paren_data_function
 
     !> Whether the current buffer has its own `show_paren_data_function'.
+    !> Not a port.
     logical function show_paren_data_function_local_p()
         show_paren_data_function_local_p = data_local_index() > 0
     end function show_paren_data_function_local_p
 
     !> Make the current buffer use the default `show_paren_data_function'
-    !> (also what `kill_all_local_variables' does to it).
+    !> (also what `kill_all_local_variables' does to it).  Not a port.
     subroutine kill_local_show_paren_data_function()
         integer :: i
 
@@ -279,7 +282,7 @@ contains
     end subroutine kill_local_show_paren_data_function
 
     !> Define Show Paren mode and Show Paren Local mode (as loading
-    !> paren.el does).
+    !> paren.el does).  Not a port.
     subroutine syms_of_paren()
         call minor_modes%show_paren_mode%define("show_paren_mode", global=.true., body=show_paren_mode_body, &
                                                 hook=show_paren_mode_hook)
@@ -309,6 +312,7 @@ contains
     end subroutine show_paren_mode
 
     !> The body of Show Paren mode: enable or disable the mechanism.
+    !> Port of paren.el:show-paren-mode in part.
     subroutine show_paren_mode_body(on, status)
         logical, intent(in) :: on
         type(status_type), intent(out) :: status
@@ -339,6 +343,7 @@ contains
 
     !> The body of Show Paren Local mode with its new state VAL: the
     !> setter (setq-local show-paren-mode VAL), then the body.
+    !> Port of paren.el:show-paren-local-mode in part.
     subroutine show_paren_local_mode_body(val, status)
         logical, intent(in) :: val
         type(status_type), intent(out) :: status
@@ -379,7 +384,7 @@ contains
     end function show_paren_unescaped_p
 
     !> The syntax class of the character after POS, or -1 if there is none
-    !> (syntax-class of syntax-after).
+    !> (syntax-class of syntax-after).  Not a port.
     integer function syntax_class_after(pos) result(syntax_class)
         integer(int64), intent(in) :: pos
         integer :: c
@@ -395,7 +400,7 @@ contains
     end function syntax_class_after
 
     !> The matching character of the syntax of the character after POS
-    !> (the cdr of syntax-after), or -1 for nil.
+    !> (the cdr of syntax-after), or -1 for nil.  Not a port.
     integer function syntax_match_after(pos) result(m)
         integer(int64), intent(in) :: pos
         integer :: c
@@ -617,13 +622,13 @@ contains
 
     !> The default `show_paren_predicate': true unless the major mode
     !> derives from `special_mode' (paren.el's (not (derived-mode
-    !> . special-mode))).
+    !> . special-mode))).  Not a port.
     logical function show_paren_default_predicate() result(usable)
         usable = .not. derived_mode_p(["special_mode"])
     end function show_paren_default_predicate
 
     !> Whether position POS is in a string or comment: the context of
-    !> syntax-ppss-context (syntax-ppss POS), keeping point.
+    !> syntax-ppss-context (syntax-ppss POS), keeping point.  Not a port.
     logical function in_string_or_comment(pos)
         integer(int64), intent(in) :: pos
         type(parse_state_type) :: ppss
@@ -637,6 +642,7 @@ contains
 
     !> The overlays, made (empty and deleted) on first use, with
     !> front-advance as upstream's (make-overlay (point) (point) nil t).
+    !> Not a port.
     subroutine ensure_overlays()
         type(status_type) :: st
 
@@ -651,7 +657,7 @@ contains
         end if
     end subroutine ensure_overlays
 
-    !> `show_paren_function' as the idle timer's function.
+    !> `show_paren_function' as the idle timer's function.  Not a port.
     subroutine show_paren_function_timer(status)
         type(status_type), intent(out) :: status
 
@@ -660,6 +666,7 @@ contains
 
     !> The last position of point for which `show_paren_function' was
     !> called (show-paren--last-pos, buffer-local), or 0 for nil.
+    !> Not a port.
     integer(int64) function last_pos()
         type(value_type) :: v
         type(status_type) :: st
@@ -670,6 +677,7 @@ contains
         if (fixnump(v)) last_pos = xfixnum(v)
     end function last_pos
 
+    ! Not a port.
     subroutine set_last_pos(pos)
         integer(int64), intent(in) :: pos
         type(status_type) :: st

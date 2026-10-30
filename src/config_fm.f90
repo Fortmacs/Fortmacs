@@ -203,6 +203,7 @@ contains
             n = n + 1
 
             ! Break between characters, never inside a doubled quote.
+            ! hazard-ok(short-circuit): k runs over quoted, so quoted(k:k) is valid.
             if (n >= 60 .and. k < len(quoted) .and. quoted(k:k) /= '"') then
                 literal = literal//'" // &'//new_line("a")//'        "'
                 n = 0

@@ -1,10 +1,8 @@
-! test_dired_mode_fm.f90 -- tests for dired_mode_fm (dired.el, dired-aux.el)
-! and the Dired parts of files_fm (files.el `insert-directory').
-! Ported from GNU Emacs 31.1 test/lisp/dired-tests.el (dired-test-bug22694,
-! dired-test-bug27243-01 and -02, dired-test-bug27968, dired-test-bug27940,
-! files-tests-insert-directory-shows-files, dired-test-ls-error-message
-! without the shell's sample message) and test/lisp/files-tests.el
-! (files-tests-insert-directory-wildcard-in-dir-p); the others are our own.
+! test_dired_mode_fm.f90 -- tests for dired_mode_fm (dired.el,
+! dired-aux.el) and the Dired parts of files_fm (files.el
+! `insert-directory').
+! Ports GNU Emacs 31.1 test/lisp/dired-tests.el and
+! test/lisp/files-tests.el in part; the others are not ported yet.
 !
 ! Copyright (C) 2015-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -64,6 +62,7 @@ module test_dired_mode_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_dired_mode_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

@@ -1,6 +1,6 @@
 ! lisp_fm.f90 -- the value type and symbol storage.
-! After GNU Emacs 31.1 src/lisp.h (Lisp_Object, struct Lisp_Symbol) and
-! the constructors of src/alloc.c.
+! Ported from GNU Emacs 31.1 src/lisp.h (Lisp_Object, struct Lisp_Symbol)
+! and the constructors of src/alloc.c (in part).
 !
 ! Copyright (C) 1985-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -67,7 +67,7 @@ module lisp_fm
 
     abstract interface
         !> A command or function: it reads the prefix argument (commands
-        !> only) and reports errors through `status'.
+        !> only) and reports errors through `status'.  Not a port.
         subroutine command_proc(status)
             import :: status_type
             implicit none(type, external)
@@ -199,6 +199,7 @@ module lisp_fm
 
     !> Symbol storage, indexed by id; maintained by lread_fm.
     type(symbol_type), allocatable, public :: symbols(:)
+    !> The number of symbols in `symbols'.
     integer(int64), public :: nsymbols = 0
 
     public :: nil, t_value, make_fixnum, make_string, make_symbol_ref, &
@@ -214,7 +215,7 @@ contains
     ! Constructors
     ! ------------------------------------------------------------------
 
-    !> A value made of one scalar atom.
+    !> A value made of one scalar atom.  Not a port.
     pure function scalar(atom) result(v)
         type(atom_type), intent(in) :: atom
         type(value_type) :: v
@@ -273,7 +274,7 @@ contains
         v = scalar(atom)
     end function make_symbol_ref
 
-    !> A value referring to buffer `h'.
+    !> A value referring to buffer `h'.  Not a port.
     pure function make_buffer_ref(h) result(v)
         type(handle_type), intent(in) :: h
         type(value_type) :: v
@@ -284,7 +285,7 @@ contains
         v = scalar(atom)
     end function make_buffer_ref
 
-    !> A value referring to marker `h'.
+    !> A value referring to marker `h'.  Not a port.
     pure function make_marker_ref(h) result(v)
         type(handle_type), intent(in) :: h
         type(value_type) :: v
@@ -295,7 +296,7 @@ contains
         v = scalar(atom)
     end function make_marker_ref
 
-    !> A value referring to keymap `h'.
+    !> A value referring to keymap `h'.  Not a port.
     pure function make_keymap_ref(h) result(v)
         type(handle_type), intent(in) :: h
         type(value_type) :: v
@@ -307,6 +308,7 @@ contains
     end function make_keymap_ref
 
     !> A value referring to syntax table `h' (a char-table upstream).
+    !> Not a port.
     pure function make_syntax_table_ref(h) result(v)
         type(handle_type), intent(in) :: h
         type(value_type) :: v
@@ -317,7 +319,7 @@ contains
         v = scalar(atom)
     end function make_syntax_table_ref
 
-    !> A value referring to window `h'.
+    !> A value referring to window `h'.  Not a port.
     pure function make_window_ref(h) result(v)
         type(handle_type), intent(in) :: h
         type(value_type) :: v
@@ -329,7 +331,7 @@ contains
     end function make_window_ref
 
     !> The atoms of `v' as an element of a list (nil becomes an explicit
-    !> V_NIL atom).
+    !> V_NIL atom).  Not a port.
     pure subroutine element_atoms(v, atoms)
         type(value_type), intent(in) :: v
         type(atom_type), allocatable, intent(out) :: atoms(:)
@@ -446,7 +448,7 @@ contains
     ! Predicates and accessors (lisp.h)
     ! ------------------------------------------------------------------
 
-    !> Tag of `v' (V_NIL for nil).
+    !> Tag of `v' (V_NIL for nil).  Not a port.
     elemental integer(int32) function vtag(v)
         type(value_type), intent(in) :: v
 
@@ -511,13 +513,14 @@ contains
     end function markerp
 
     !> True for a single keymap (not a list of keymaps); see keymap_fm.
+    !> Not a port.
     elemental logical function keymap_ref_p(v)
         type(value_type), intent(in) :: v
 
         keymap_ref_p = vtag(v) == V_KEYMAP
     end function keymap_ref_p
 
-    !> Whether `v' refers to a syntax table.
+    !> Whether `v' refers to a syntax table.  Not a port.
     elemental logical function syntax_table_ref_p(v)
         type(value_type), intent(in) :: v
 
@@ -560,7 +563,7 @@ contains
         end if
     end function xstring
 
-    !> The handle in a buffer, marker or keymap value.
+    !> The handle in a buffer, marker or keymap value.  Not a port.
     elemental function xhandle(v) result(h)
         type(value_type), intent(in) :: v
         type(handle_type) :: h
@@ -569,6 +572,7 @@ contains
     end function xhandle
 
     !> Number of elements of list `v' (0 for nil and non-lists).
+    !> Not a port.
     elemental integer(int64) function list_length(v)
         type(value_type), intent(in) :: v
 
@@ -577,6 +581,7 @@ contains
     end function list_length
 
     !> Atom index where element `k' (1-based) of list `v' starts.
+    !> Not a port.
     pure integer(int64) function elt_start(v, k) result(p)
         type(value_type), intent(in) :: v
         integer(int64), intent(in) :: k
@@ -589,7 +594,7 @@ contains
         end do
     end function elt_start
 
-    !> Element `k' (1-based) of list `v'; nil if out of range.
+    !> Element `k' (1-based) of list `v'; nil if out of range.  Not a port.
     pure function list_elt(v, k) result(e)
         type(value_type), intent(in) :: v
         integer(int64), intent(in) :: k
@@ -602,7 +607,7 @@ contains
         end if
     end function list_elt
 
-    !> All elements of list `v' as an array (size 0 for nil).
+    !> All elements of list `v' as an array (size 0 for nil).  Not a port.
     pure subroutine list_elements(v, elems)
         type(value_type), intent(in) :: v
         type(value_type), allocatable, intent(out) :: elems(:)
@@ -618,7 +623,8 @@ contains
     end subroutine list_elements
 
     !> List `v' without its first `n' elements (nil if none remain).
-    !> The core of data.c:Fcdr and fns.c:Fnthcdr.
+    !> The core of data.c:Fcdr and fns.c:Fnthcdr.  Port of fns.c:Fnthcdr
+    !> (the core).
     pure function list_tail(v, n) result(tail)
         type(value_type), intent(in) :: v
         integer(int64), intent(in) :: n
@@ -643,7 +649,7 @@ contains
 
     !> The text property intervals of string `v': the 0-based character
     !> positions [STARTS(k), ENDS(k)) and the property list of each (size 0
-    !> for none, or if `v' is not a string).
+    !> for none, or if `v' is not a string).  Not a port.
     pure subroutine string_intervals(v, starts, ends, plists)
         type(value_type), intent(in) :: v
         integer(int64), allocatable, intent(out) :: starts(:), ends(:)
@@ -672,6 +678,7 @@ contains
     !> with property lists PLISTS(k), replacing those it had.  Empty
     !> intervals and those with an empty plist are left out, and adjacent
     !> intervals with the same plist are kept apart (no merging here).
+    !> Not a port.
     pure subroutine set_string_intervals(v, starts, ends, plists)
         type(value_type), intent(inout) :: v
         integer(int64), intent(in) :: starts(:), ends(:)
@@ -702,7 +709,7 @@ contains
     end subroutine set_string_intervals
 
     !> Make command SELF known by its name (replacing an earlier one of
-    !> the same name).
+    !> the same name).  Not a port.
     subroutine define_command(self)
         class(command_type), target, intent(inout) :: self
         type(command_ref_type), allocatable :: grown(:)
@@ -727,7 +734,7 @@ contains
         defined_commands(n_defined_commands)%p => self
     end subroutine define_command
 
-    !> The command defined with `define' named NAME, or null.
+    !> The command defined with `define' named NAME, or null.  Not a port.
     function defined_command(name) result(p)
         character(len=*), intent(in) :: name
         type(command_type), pointer :: p
@@ -744,6 +751,7 @@ contains
     end function defined_command
 
     !> Whether A and B are the same string (`==' ignores trailing blanks).
+    !> Not a port.
     pure logical function same_name(a, b)
         character(len=*), intent(in) :: a, b
 
@@ -752,7 +760,7 @@ contains
     end function same_name
 
     !> The name of the command defined with `define' whose procedure is
-    !> PROC ("" if none).
+    !> PROC ("" if none).  Not a port.
     function defined_command_name_of(proc) result(name)
         procedure(command_proc) :: proc
         character(len=:), allocatable :: name

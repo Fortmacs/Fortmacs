@@ -55,14 +55,14 @@ submodule(window_fm) window_cmds_fm
 
 contains
 
-    !> An error for a window that is not live.
+    !> An error for a window that is not live.  Not a port.
     subroutine not_live(status)
         type(status_type), intent(out) :: status
 
         call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window_live_p")
     end subroutine not_live
 
-    !> The window commands can't run in the minibuffer yet.
+    !> The window commands can't run in the minibuffer yet.  Not a port.
     logical function in_minibuffer(status)
         type(status_type), intent(out) :: status
 
@@ -277,7 +277,7 @@ contains
 
     !> Run `unshow_buffer' for the live windows of the tree under `h',
     !> about to be deleted (window.c:delete_all_child_windows and
-    !> Fdelete_window_internal).
+    !> Fdelete_window_internal).  Not a port: a helper for those.
     subroutine unshow_leaves(h)
         type(handle_type), intent(in) :: h
         type(handle_type), allocatable :: leaves(:)
@@ -443,7 +443,7 @@ contains
         call other_window(-prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_other_window_backward
 
-    !> Whether buffer `b' is shown in a window of the frame.
+    !> Whether buffer `b' is shown in a window of the frame.  Not a port.
     logical function buffer_visible_p(b)
         type(handle_type), intent(in) :: b
         type(handle_type), allocatable :: leaves(:)

@@ -1,5 +1,6 @@
 ! test_mule_util_fm.f90 -- tests for mule_util_fm.
-! Ported from GNU Emacs 31.1 test/lisp/international/mule-util-tests.el.
+! Ports GNU Emacs 31.1 test/lisp/international/mule-util-tests.el in
+! part; the filepos and bufferpos tests wait for those functions.
 !
 ! Copyright (C) 2002-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -36,6 +37,7 @@ module test_mule_util_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_mule_util_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

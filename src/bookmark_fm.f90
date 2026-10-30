@@ -173,13 +173,14 @@ module bookmark_fm
     !> A function of `bookmark_inhibit_context_functions': whether not to
     !> record context strings of a buffer visiting FILENAME.
     abstract interface
+        ! Not a port.
         logical function bookmark_file_predicate(filename)
             implicit none(type, external)
             character(len=*), intent(in) :: filename
         end function bookmark_file_predicate
 
         !> A `bookmark_make_record_function': make RECORD for the current
-        !> location (its name may be left unallocated).
+        !> location (its name may be left unallocated).  Not a port.
         recursive subroutine bookmark_make_record_proc(record, status)
             import :: bookmark_type, status_type
             implicit none(type, external)
@@ -188,14 +189,14 @@ module bookmark_fm
         end subroutine bookmark_make_record_proc
 
         !> A `bookmark_edit_annotation_text_func': the default annotation
-        !> TEXT for bookmark NAME.
+        !> TEXT for bookmark NAME.  Not a port.
         subroutine bookmark_annotation_text_proc(name, text)
             implicit none(type, external)
             character(len=*), intent(in) :: name
             character(len=:), allocatable, intent(out) :: text
         end subroutine bookmark_annotation_text_proc
 
-        !> A display function of `bookmark_jump': show BUFFER.
+        !> A display function of `bookmark_jump': show BUFFER.  Not a port.
         recursive subroutine bookmark_display_proc(buffer, status)
             import :: handle_type, status_type
             implicit none(type, external)
@@ -494,7 +495,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! The index of the current buffer's entry in `locals', made if MAKE
-    ! (0 if there is none).
+    ! (0 if there is none).  Not a port.
     integer function local_index(make) result(k)
         logical, intent(in) :: make
         type(local_type), allocatable :: grown(:)
@@ -531,6 +532,7 @@ contains
     end function local_index
 
     ! kill-all-local-variables: forget the current buffer's values.
+    ! Not a port.
     subroutine kill_bookmark_locals()
         integer :: k
 
@@ -552,7 +554,7 @@ contains
     end function bookmark_current_bookmark
 
     !> Set the current buffer's `bookmark_current_bookmark' to NAME (nil if
-    !> NAME is absent).
+    !> NAME is absent).  Not a port.
     subroutine set_bookmark_current_bookmark(name)
         character(len=*), intent(in), optional :: name
         integer :: k
@@ -568,6 +570,7 @@ contains
     end subroutine set_bookmark_current_bookmark
 
     ! Whether the current buffer's `bookmark_current_bookmark' is non-nil.
+    ! Not a port.
     logical function have_current_bookmark()
         integer :: k
 
@@ -580,6 +583,7 @@ contains
     ! Records
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     pure logical function same(a, b)
         character(len=*), intent(in) :: a, b
 
@@ -588,8 +592,8 @@ contains
     end function same
 
     !> Return the name of BOOKMARK_RECORD.
-    !> BOOKMARK_RECORD is, e.g., one element from `bookmark_alist'.  Port
-    !> of bookmark.el:bookmark-name-from-full-record.
+    !> BOOKMARK_RECORD is, e.g., one element from `bookmark_alist'.
+    !> Port of bookmark.el:bookmark-name-from-full-record.
     function bookmark_name_from_full_record(bookmark_record) result(name)
         type(bookmark_type), intent(in) :: bookmark_record
         character(len=:), allocatable :: name
@@ -639,7 +643,7 @@ contains
     end function bookmark_get_bookmark
 
     ! Whether RECORD is named NAME, as assoc-string compares them (ignoring
-    ! case if `bookmark_completion_ignore_case').
+    ! case if `bookmark_completion_ignore_case').  Not a port.
     logical function name_matches(record, name) result(match)
         use fns_fm, only: compare_strings, COMPARE_EQUAL
         type(bookmark_type), intent(in) :: record
@@ -728,8 +732,8 @@ contains
         if (k > 0) position = bookmark_alist(k)%position
     end function bookmark_get_position
 
-    !> Set the position (i.e.: point) of BOOKMARK_NAME to POSITION.  Port
-    !> of bookmark.el:bookmark-set-position.
+    !> Set the position (i.e.: point) of BOOKMARK_NAME to POSITION.
+    !> Port of bookmark.el:bookmark-set-position.
     subroutine bookmark_set_position(bookmark_name, position, status)
         character(len=*), intent(in) :: bookmark_name
         integer(int64), intent(in) :: position
@@ -790,7 +794,7 @@ contains
         if (k > 0) bookmark_alist(k)%rear_context_string = string
     end subroutine bookmark_set_rear_context_string
 
-    ! The current time as a last-modified time.
+    ! The current time as a last-modified time.  Not a port.
     function current_time() result(time)
         integer(int64), allocatable :: time(:)
         integer(int64) :: sec
@@ -813,7 +817,7 @@ contains
         if (k > 0) bookmark_alist(k)%last_modified = current_time()
     end subroutine bookmark_update_last_modified
 
-    ! Copy record FROM into TO, moving its allocations.
+    ! Copy record FROM into TO, moving its allocations.  Not a port.
     subroutine move_record(from, to)
         type(bookmark_type), intent(inout) :: from
         type(bookmark_type), intent(out) :: to
@@ -828,7 +832,7 @@ contains
         if (allocated(from%defaults)) call move_alloc(from%defaults, to%defaults)
     end subroutine move_record
 
-    ! Put RECORD at the front of `bookmark_alist'.
+    ! Put RECORD at the front of `bookmark_alist'.  Not a port.
     subroutine push_record(record)
         type(bookmark_type), intent(in) :: record
         type(bookmark_type), allocatable :: grown(:)
@@ -846,7 +850,7 @@ contains
         call move_alloc(grown, bookmark_alist)
     end subroutine push_record
 
-    ! Put RECORD at the end of `bookmark_alist'.
+    ! Put RECORD at the end of `bookmark_alist'.  Not a port.
     subroutine append_record(record)
         type(bookmark_type), intent(in) :: record
         type(bookmark_type), allocatable :: grown(:)
@@ -864,7 +868,7 @@ contains
         call move_alloc(grown, bookmark_alist)
     end subroutine append_record
 
-    ! Remove element K of `bookmark_alist'.
+    ! Remove element K of `bookmark_alist'.  Not a port.
     subroutine delete_record(k)
         integer, intent(in) :: k
         type(bookmark_type), allocatable :: kept(:)
@@ -879,13 +883,13 @@ contains
         call move_alloc(kept, bookmark_alist)
     end subroutine delete_record
 
-    ! Make `bookmark_alist' empty.
+    ! Make `bookmark_alist' empty.  Not a port.
     subroutine clear_alist()
         if (allocated(bookmark_alist)) deallocate (bookmark_alist)
         allocate (bookmark_alist(0))
     end subroutine clear_alist
 
-    ! Whether time A is before time B (time-less-p).
+    ! Whether time A is before time B (time-less-p).  Not a port.
     pure logical function time_less_p(a, b)
         integer(int64), intent(in) :: a(:), b(:)
 
@@ -897,7 +901,7 @@ contains
     end function time_less_p
 
     ! Whether name A sorts before name B (string-lessp: by character code,
-    ! which is the order of the UTF-8 bytes).
+    ! which is the order of the UTF-8 bytes).  Not a port.
     pure logical function name_lessp(a, b)
         character(len=*), intent(in) :: a, b
         integer :: k
@@ -1013,7 +1017,8 @@ contains
         completion_ignore_case%value = saved_case
     end subroutine bookmark_completing_read
 
-    ! PROMPT with DEFAULT, as format-prompt makes it.
+    ! PROMPT with DEFAULT, as format-prompt makes it.  Port of
+    ! minibuffer.el:format-prompt (a string DEFAULT only).
     function format_prompt(prompt, default) result(full)
         character(len=*), intent(in) :: prompt, default
         character(len=:), allocatable :: full
@@ -1225,6 +1230,7 @@ contains
         record%last_modified = current_time()
     end subroutine bookmark_make_record_default
 
+    ! Not a port.
     recursive subroutine make_record_default(record, status)
         type(bookmark_type), intent(out) :: record
         type(status_type), intent(out) :: status
@@ -1338,7 +1344,7 @@ contains
     end subroutine bookmark_alist_from_buffer
 
     ! The text of the bookmark file for `bookmark_alist', its coding
-    ! system named CODING.
+    ! system named CODING.  Not a port.
     function bookmark_file_text(coding) result(text)
         character(len=*), intent(in) :: coding
         character(len=:), allocatable :: text
@@ -1635,6 +1641,7 @@ contains
                "#  Date:   "//current_time_string()//LF
     end function bookmark_default_annotation_text
 
+    ! Not a port.
     subroutine default_annotation_text(name, text)
         character(len=*), intent(in) :: name
         character(len=:), allocatable, intent(out) :: text
@@ -1684,9 +1691,10 @@ contains
         call major_modes%bookmark_edit_annotation_mode%finish(saved, status)
     end subroutine bookmark_edit_annotation_mode
 
-    ! Display bookmark list after editing if appropriate: the end of
-    ! bookmark.el:bookmark-edit-annotation--maybe-display-list, OLD_BUFFER
-    ! being the annotation buffer.
+    ! Display bookmark list after editing if appropriate, OLD_BUFFER being
+    ! the annotation buffer.  Port of
+    ! bookmark.el:bookmark-edit-annotation--maybe-display-list (the part
+    ! after BODY).
     recursive subroutine maybe_display_list(old_buffer, status)
         type(handle_type), intent(in) :: old_buffer
         type(status_type), intent(out) :: status
@@ -1945,6 +1953,7 @@ contains
     end subroutine bookmark_maybe_load_default_file
 
     ! FILE expanded (expand_file_name), or FILE itself if that fails.
+    ! Not a port.
     recursive function expand(file) result(name)
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: name
@@ -2006,6 +2015,7 @@ contains
         if (bookmark_automatically_show_annotations) call bookmark_show_annotation(bookmark_name, status)
     end subroutine bookmark_jump_via
 
+    ! Not a port.
     recursive subroutine display_same_window(buffer, status)
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
@@ -2013,6 +2023,7 @@ contains
         call pop_to_buffer_same_window(buffer, status)
     end subroutine display_same_window
 
+    ! Not a port.
     recursive subroutine display_other_window(buffer, status)
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
@@ -2556,7 +2567,7 @@ contains
         call bookmark_save(status, parg=.not. nilp(arg), make_default=c_u_c_u)
     end subroutine cmd_bookmark_save
 
-    ! Whether prefix argument ARG is (16), as C-u C-u makes it.
+    ! Whether prefix argument ARG is (16), as C-u C-u makes it.  Not a port.
     logical function prefix_is_16(arg)
         use lisp_fm, only: consp, fixnump, xfixnum, list_elements
         type(value_type), intent(in) :: arg
@@ -2571,7 +2582,7 @@ contains
     end function prefix_is_16
 
     ! `bookmark_bookmarks_timestamp' becomes FILE with its modification
-    ! time.
+    ! time.  Not a port.
     subroutine set_timestamp(file)
         character(len=*), intent(in) :: file
         type(file_stat_type) :: stat
@@ -3004,6 +3015,7 @@ contains
         call tabulated_list_print(status, remember_pos=.true.)
     end subroutine bookmark_bmenu_revert
 
+    ! Not a port.
     recursive subroutine bmenu_revert_function(ignore_auto, noconfirm, status)
         logical, intent(in) :: ignore_auto, noconfirm
         type(status_type), intent(out) :: status
@@ -3012,6 +3024,7 @@ contains
         call bookmark_bmenu_revert(status)
     end subroutine bmenu_revert_function
 
+    ! Not a port.
     recursive subroutine bmenu_revert_hook(status)
         type(status_type), intent(out) :: status
 
@@ -3175,7 +3188,7 @@ contains
     end subroutine bookmark_bmenu_mode
 
     ! string-collate-lessp with IGNORE-CASE: case-insensitive, in the
-    ! POSIX locale's order (by character code).
+    ! POSIX locale's order (by character code).  Not a port.
     logical function collate_lessp(a, b)
         use fns_fm, only: compare_strings
         character(len=*), intent(in) :: a, b
@@ -3278,7 +3291,7 @@ contains
         call tabulated_list_put_tag(">", status, .true.)
     end subroutine bookmark_bmenu_mark
 
-    ! Put TAG on every listed bookmark, point staying.
+    ! Put TAG on every listed bookmark, point staying.  Not a port.
     recursive subroutine tag_all(tag, status)
         character(len=*), intent(in) :: tag
         type(status_type), intent(out) :: status
@@ -3369,6 +3382,7 @@ contains
         end if
     end subroutine bookmark_bmenu_select
 
+    ! Not a port.
     subroutine append_name(names, name)
         type(minibuffer_string_type), allocatable, intent(inout) :: names(:)
         character(len=*), intent(in) :: name
@@ -3386,8 +3400,8 @@ contains
         call move_alloc(grown, names)
     end subroutine append_name
 
-    !> Return true if any bookmarks are marked in the marks column.  Port
-    !> of bookmark.el:bookmark-bmenu-any-marks.
+    !> Return true if any bookmarks are marked in the marks column.
+    !> Port of bookmark.el:bookmark-bmenu-any-marks.
     logical function bookmark_bmenu_any_marks() result(any)
         use search_fm, only: looking_at
         integer(int64) :: saved, shortage
@@ -3500,6 +3514,7 @@ contains
         call bury_buffer(status, menu)
     end subroutine bookmark_bmenu_2_window
 
+    ! Not a port.
     recursive subroutine display_pop_to_buffer(buffer, status)
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
@@ -3532,7 +3547,7 @@ contains
         call bookmark_jump_via(bookmark_bmenu_bookmark(), display_not_this_window, status)
     end subroutine bookmark_bmenu_switch_other_window
 
-    ! (display-buffer B t): not in the selected window.
+    ! (display-buffer B t): not in the selected window.  Not a port.
     recursive subroutine display_not_this_window(buffer, status)
         use window_fm, only: display_buffer
         type(handle_type), intent(in) :: buffer
@@ -3818,7 +3833,7 @@ contains
 
     ! The setup function of `bookmark_bmenu_search': filter the list by
     ! the minibuffer's contents every `bookmark_search_delay' seconds of
-    ! idleness.
+    ! idleness.  Not a port.
     recursive subroutine bmenu_search_setup(status)
         use minibuf_fm, only: minibuffer_setup_hook
         use timer_fm, only: run_with_idle_timer
@@ -3830,6 +3845,7 @@ contains
         call run_with_idle_timer(search_timer, real(bookmark_search_delay, real64), .true., bmenu_search_filter, status)
     end subroutine bmenu_search_setup
 
+    ! Not a port.
     recursive subroutine bmenu_search_filter(status)
         use minibuf_fm, only: minibuffer_contents
         type(status_type), intent(out) :: status
@@ -3862,7 +3878,7 @@ contains
     ! Fringe mark
     ! ------------------------------------------------------------------
 
-    ! Whether overlay OV is a bookmark's mark.
+    ! Whether overlay OV is a bookmark's mark.  Not a port.
     logical function is_bookmark_overlay(ov)
         use data_fm, only: value_eq
         type(handle_type), intent(in) :: ov
@@ -3946,7 +3962,7 @@ contains
         call set_buffer(old, st)
     end subroutine bookmark_remove_fringe_mark
 
-    ! Narrow back to BEGV..ZV (save-restriction).
+    ! Narrow back to BEGV..ZV (save-restriction).  Not a port.
     subroutine restore_restriction(begv, zv)
         use editfns_fm, only: narrow_to_region
         integer(int64), intent(in) :: begv, zv
@@ -3984,7 +4000,7 @@ contains
     ! Definitions
     ! ------------------------------------------------------------------
 
-    !> The faces of bookmark.el.
+    !> The faces of bookmark.el.  Not a port.
     subroutine define_faces()
         type(named_face_type), pointer :: f
         integer, parameter :: C = FACE_CLASS_COLOR, G = FACE_CLASS_GRAYSCALE, L = FACE_BACKGROUND_LIGHT, &
@@ -4001,6 +4017,7 @@ contains
     end subroutine define_faces
 
     !> Define the commands, keymaps, the mode and the options' defaults.
+    !> Not a port.
     subroutine syms_of_bookmark()
         type(status_type) :: st
 

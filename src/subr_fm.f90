@@ -130,6 +130,7 @@ module subr_fm
                                                            "q", "RET", "<return>", ".", "C-r", "C-w", "C-l", "!", "^", "u", "U", &
                                                           "d", "C-h", "<f1>", "<help>", "?", "C-g", "C-]", "C-v", "M-v", "<next>", &
                                                            "<prior>", "C-M-v", "M-<next>", "C-M-S-v", "M-<prior>", "<escape>"]
+    !> The answer each key of `QRM_KEYS' gives in `query_replace_map'.
     character(len=*), parameter, public :: QRM_ANSWERS(38) = [character(len=27) :: &
                                                               "act", "skip", "skip", "skip", "act", "skip", "act", "skip", &
                                                               "edit_replacement", "edit_replacement_exact_case", "act_and_show", &
@@ -140,7 +141,7 @@ module subr_fm
                                                               "scroll_other_window", "scroll_other_window_down", &
                                                               "scroll_other_window_down", "exit_prefix"]
 
-    ! The answers of `query_replace_map'.
+    !> The answers of `query_replace_map'.
     integer, parameter :: ANSWER_NONE = 0, ANSWER_ACT = 1, ANSWER_SKIP = 2, ANSWER_EXIT = 3, &
                           ANSWER_ACT_AND_EXIT = 4, ANSWER_AUTOMATIC = 5, ANSWER_RECENTER = 6, &
                           ANSWER_HELP = 7, ANSWER_QUIT = 8, ANSWER_EDIT_REPLACEMENT = 9, &
@@ -177,7 +178,7 @@ module subr_fm
 
     abstract interface
         !> A function run after a mode's hooks (a minor mode's :after-hook,
-        !> an element of `delayed_after_hook_functions').
+        !> an element of `delayed_after_hook_functions').  Not a port.
         subroutine after_hook_proc(status)
             import :: status_type
             implicit none(type, external)
@@ -269,6 +270,8 @@ module subr_fm
             character(len=*), intent(in), optional :: help_form
         end subroutine read_char_choice
 
+        !> Set up subr.el's commands.  Not a port: upstream defines them where
+        !> subr.el is loaded.
         module subroutine syms_of_subr()
             implicit none(type, external)
         end subroutine syms_of_subr
@@ -324,7 +327,7 @@ module subr_fm
         end subroutine delay_mode_hooks_begin
 
         !> End `delay_mode_hooks', restoring the value SAVED.  (In
-        !> subr_hooks_fm.)
+        !> subr_hooks_fm.) Not a port.
         module subroutine delay_mode_hooks_end(saved)
             implicit none(type, external)
             logical, intent(in) :: saved
@@ -332,13 +335,13 @@ module subr_fm
 
         !> Forget the current buffer's `delayed_mode_hooks' (a local
         !> variable that `kill_all_local_variables' kills).  (In
-        !> subr_hooks_fm.)
+        !> subr_hooks_fm.) Not a port.
         module subroutine kill_delayed_mode_hooks()
             implicit none(type, external)
         end subroutine kill_delayed_mode_hooks
 
         !> Whether mode hooks are being delayed in the current buffer (the
-        !> variable `delay_mode_hooks').  (In subr_hooks_fm.)
+        !> variable `delay_mode_hooks').  (In subr_hooks_fm.) Not a port.
         module logical function delaying_mode_hooks()
             implicit none(type, external)
         end function delaying_mode_hooks
@@ -347,7 +350,7 @@ module subr_fm
         !> the current buffer's `delayed_after_hook_functions', which
         !> `run_mode_hooks' runs after `after_change_major_mode_hook'.
         !> (Upstream's minor modes push their :after-hook there while mode
-        !> hooks are delayed.)  (In subr_hooks_fm.)
+        !> hooks are delayed.)  (In subr_hooks_fm.) Not a port.
         module subroutine add_delayed_after_hook(fn)
             implicit none(type, external)
             procedure(after_hook_proc) :: fn
@@ -402,6 +405,8 @@ contains
 
     ! The body of `replace_string_in_region' (REGEXP_FLAG false) and
     ! `replace_regexp_in_region'.
+    ! Port of subr.el:replace-string-in-region and
+    ! subr.el:replace-regexp-in-region, in part (their shared body).
     recursive subroutine replace_in_region(pattern, replacement, regexp_flag, matches, status, start, end)
         use marker_fm, only: copy_marker_at, marker_position, free_marker
         use buffer_fm, only: buffers, cur
@@ -620,6 +625,7 @@ contains
     !> recording undo, running the change hooks or asking about read-only
     !> text; S keeps what to restore.  The start of subr.el's
     !> with-silent-modifications.
+    !> Port of subr.el:with-silent-modifications, in part.
     subroutine silent_modifications_begin(s)
         type(silent_modifications_type), intent(out) :: s
         type(status_type) :: st
@@ -636,6 +642,7 @@ contains
 
     !> Restore what `silent_modifications_begin' changed: the end of
     !> with-silent-modifications (the buffer's modified flag as it was).
+    !> Port of subr.el:with-silent-modifications, in part.
     subroutine silent_modifications_end(s)
         type(silent_modifications_type), intent(in) :: s
         type(status_type) :: st
@@ -689,7 +696,7 @@ contains
 
     !> The answer `key' is in `query_replace_map' (the bindings
     !> y-or-n-p, map-y-or-n-p and perform-replace use): an ANSWER_ code,
-    !> ANSWER_NONE if it has none.
+    !> ANSWER_NONE if it has none.  Not a port.
     integer function query_replace_answer(key) result(answer)
         type(value_type), intent(in) :: key
         type(value_type) :: def
@@ -886,7 +893,7 @@ contains
         call define_key(current_global_map(), key, command, status)
     end subroutine global_set_key_value
 
-    !> `global_set_key' with the command named COMMAND.
+    !> `global_set_key' with the command named COMMAND.  Not a port.
     subroutine global_set_key_command(key, command, status)
         type(value_type), intent(in) :: key(:)
         character(len=*), intent(in) :: command
@@ -1067,6 +1074,7 @@ contains
     end function looking_back
 
     !> Seconds since some fixed time (float-time, for time differences).
+    !> Not a port.
     real(real64) function float_time()
         integer(int64) :: count, rate
 
@@ -1210,8 +1218,8 @@ contains
         end if
     end subroutine forward_symbol
 
-    !> The bounds of the symbol at point (`found' false if none).  Port
-    !> of thingatpt.el:bounds-of-thing-at-point for `symbol' (end-op
+    !> The bounds of the symbol at point (`found' false if none).
+    !> Port of thingatpt.el:bounds-of-thing-at-point for `symbol' (end-op
     !> forward-symbol, beginning-op thing-at-point--beginning-of-symbol,
     !> whose search failing is an error ignored).
     subroutine bounds_of_symbol_at_point(beg, end, found)

@@ -170,7 +170,7 @@ module rect_fm
 
     abstract interface
         !> Act on the current line, point at its beginning; STARTCOL and
-        !> ENDCOL are the rectangle's columns.
+        !> ENDCOL are the rectangle's columns.  Not a port.
         recursive subroutine rectangle_line_proc(self, startcol, endcol, status)
             import :: rectangle_line_action, int64, status_type
             implicit none(type, external)
@@ -347,7 +347,7 @@ contains
         call goto_char(saved)
     end subroutine rectangle_dimensions
 
-    !> Append TEXT to LINES.
+    !> Append TEXT to LINES.  Not a port.
     subroutine append_line(lines, text)
         type(rectangle_line_type), allocatable, intent(inout) :: lines(:)
         character(len=*), intent(in) :: text
@@ -363,6 +363,7 @@ contains
     end subroutine append_line
 
     !> (move-to-column COLUMN (if FILL t 'coerce)): the column reached.
+    !> Not a port.
     recursive integer(int64) function move_to_column_fill(column, fill, status) result(reached)
         integer(int64), intent(in) :: column
         logical, intent(in) :: fill
@@ -390,6 +391,8 @@ contains
         end if
     end subroutine delete_rectangle_line
 
+    ! The action of `delete_rectangle': `delete_rectangle_line' on the line.
+    ! Not a port.
     recursive subroutine delete_line(self, startcol, endcol, status)
         class(delete_line_action), intent(inout) :: self
         integer(int64), intent(in) :: startcol, endcol
@@ -471,7 +474,8 @@ contains
         call append_line(self%lines, line)
     end subroutine extract_line
 
-    !> The function of rect.el:extract-rectangle-bounds.
+    !> The function of rect.el:extract-rectangle-bounds.  Port of the lambda
+    !> of rect.el:extract-rectangle-bounds.
     recursive subroutine bounds_line(self, startcol, endcol, status)
         class(bounds_line_action), intent(inout) :: self
         integer(int64), intent(in) :: startcol, endcol
@@ -748,8 +752,8 @@ contains
     !> rectangle, all contiguous whitespace starting at that column is deleted.
     !>
     !> When called from a program the rectangle's corners are START and END.
-    !> With a prefix (or a FILL) argument, also fill too short lines.  Port
-    !> of rect.el:delete-whitespace-rectangle.
+    !> With a prefix (or a FILL) argument, also fill too short lines.  Port of
+    !> rect.el:delete-whitespace-rectangle.
     recursive subroutine delete_whitespace_rectangle(start, end, status, fill)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
@@ -810,8 +814,8 @@ contains
     !>
     !> When called from a program, the rectangle's corners are START and END.
     !> The left edge of the rectangle specifies the column for insertion.
-    !> This command does not delete or overwrite any existing text.  Port
-    !> of rect.el:string-insert-rectangle.
+    !> This command does not delete or overwrite any existing text.  Port of
+    !> rect.el:string-insert-rectangle.
     recursive subroutine string_insert_rectangle(start, end, string, status)
         integer(int64), intent(in) :: start, end
         character(len=*), intent(in) :: string
@@ -887,7 +891,7 @@ contains
         self%counter = self%counter + 1
     end subroutine number_line
 
-    !> The decimal digits of N.
+    !> The decimal digits of N.  Not a port.
     pure function int_text(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
@@ -938,7 +942,8 @@ contains
     !> # 0, widths, precisions and the conversions d, i, o, x, X, b, B, c, s
     !> and S of a fixnum.  The floating-point conversions are deferred (an
     !> error); a field number 0 (the format string as argument) is an
-    !> error as for a missing argument.
+    !> error as for a missing argument.  Port of part of
+    !> editfns.c:styled_format.
     subroutine format_integer(string, arg, result, status)
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: arg
@@ -1170,7 +1175,7 @@ contains
     end subroutine format_integer
 
     !> The digits [0-9]* of STRING from I on: their value NUM (0 if none),
-    !> the index after them NEXT and whether there were any.
+    !> the index after them NEXT and whether there were any.  Not a port.
     pure subroutine parse_number(string, i, num, next, given)
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: i
@@ -1189,7 +1194,7 @@ contains
         end do
     end subroutine parse_number
 
-    !> The digits of |N| in BASE.
+    !> The digits of |N| in BASE.  Not a port.
     pure function magnitude_digits(n, base, upper) result(s)
         integer(int64), intent(in) :: n, base
         logical, intent(in) :: upper
@@ -1220,7 +1225,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The crutch of OWNER in CRUTCHES: whether it has one, and its
-    !> position and column.
+    !> position and column.  Not a port.
     subroutine get_crutch(crutches, owner, found, pos, col)
         type(crutch_type), allocatable, intent(in) :: crutches(:)
         type(handle_type), intent(in) :: owner
@@ -1243,7 +1248,7 @@ contains
         end do
     end subroutine get_crutch
 
-    !> Give OWNER the crutch (POS . COL) in CRUTCHES.
+    !> Give OWNER the crutch (POS . COL) in CRUTCHES.  Not a port.
     subroutine set_crutch(crutches, owner, pos, col)
         type(crutch_type), allocatable, intent(inout) :: crutches(:)
         type(handle_type), intent(in) :: owner
@@ -1270,7 +1275,7 @@ contains
         call move_alloc(grown, crutches)
     end subroutine set_crutch
 
-    !> Remove OWNER's crutch from CRUTCHES (setting it to nil).
+    !> Remove OWNER's crutch from CRUTCHES (setting it to nil).  Not a port.
     subroutine clear_crutch(crutches, owner)
         type(crutch_type), allocatable, intent(inout) :: crutches(:)
         type(handle_type), intent(in) :: owner
@@ -1290,6 +1295,7 @@ contains
         end do
     end subroutine clear_crutch
 
+    ! Whether A and B are the same buffer or window.  Not a port.
     pure logical function same_owner(a, b)
         type(handle_type), intent(in) :: a, b
 
@@ -1410,8 +1416,8 @@ contains
         end if
     end subroutine rectangle_col_pos
 
-    !> The column of POS, which is point: its crutch's, or its own.  Port
-    !> of rect.el:rectangle--point-col.
+    !> The column of POS, which is point: its crutch's, or its own.  Port of
+    !> rect.el:rectangle--point-col.
     integer(int64) function rectangle_point_col(pos) result(col)
         integer(int64), intent(in) :: pos
         integer(int64) :: pp
@@ -1424,7 +1430,7 @@ contains
     end function rectangle_point_col
 
     !> The crutches of the mark and point, for comparing (the value of
-    !> rect.el:rectangle--crutches).
+    !> rect.el:rectangle--crutches).  Port of rect.el:rectangle--crutches.
     function rectangle_crutches(window) result(state)
         type(handle_type), intent(in) :: window
         integer(int64) :: state(6)
@@ -1462,7 +1468,8 @@ contains
         call minor_modes%rectangle_mark_mode%command(status)
     end subroutine rectangle_mark_mode
 
-    !> The body of Rectangle-Mark mode.
+    !> The body of Rectangle-Mark mode.  Port of rect.el:rectangle-mark-mode
+    !> (its body).
     recursive subroutine rectangle_mark_mode_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
@@ -1490,6 +1497,8 @@ contains
     end subroutine rectangle_mark_mode_body
 
     !> (lambda () (rectangle-mark-mode -1)) on `deactivate_mark_hook'.
+    !> Port of the deactivate-mark-hook lambda of
+    !> rect.el:rectangle-mark-mode.
     recursive subroutine rectangle_mark_mode_off(status)
         type(status_type), intent(out) :: status
 
@@ -1706,6 +1715,7 @@ contains
     end subroutine rectangle_previous_line
 
     !> The corners of the rectangular region in order, and their columns.
+    !> Not a port.
     subroutine region_corners(start, end, startcol, endcol, status)
         integer(int64), intent(out) :: start, end, startcol, endcol
         type(status_type), intent(out) :: status
@@ -1774,7 +1784,7 @@ contains
     end subroutine rectangle_region_end
 
     !> The region's beginning and end as the primitives give them
-    !> (`(let (rectangle-mark-mode) (region-beginning))').
+    !> (`(let (rectangle-mark-mode) (region-beginning))').  Not a port.
     recursive subroutine plain_region(beg, end, status)
         integer(int64), intent(out) :: beg, end
         type(status_type), intent(out) :: status
@@ -1861,7 +1871,7 @@ contains
         call insert_rectangle(rectangle_of(lines), status)
     end subroutine rectangle_insert_region
 
-    !> The strings of the list STRS as a rectangle.
+    !> The strings of the list STRS as a rectangle.  Not a port.
     function rectangle_of(strs) result(rect)
         type(value_type), intent(in) :: strs
         type(rectangle_line_type), allocatable :: rect(:)
@@ -1900,7 +1910,8 @@ contains
     end subroutine rectangle_insert_for_yank
 
     !> The `yank_undo_function' of a yanked rectangle: undo back to the
-    !> point entry recorded before it, turned into a boundary.
+    !> point entry recorded before it, turned into a boundary.  Port of the
+    !> yank-undo-function lambda of rect.el:rectangle--insert-for-yank.
     recursive subroutine rectangle_yank_undo(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
@@ -1919,7 +1930,7 @@ contains
 
     !> The highlighting of WINDOW's rectangle, as rect.el keeps it in the
     !> window's `internal-region-overlay' parameter: index in
-    !> `highlights', 0 for none.
+    !> `highlights', 0 for none.  Not a port.
     integer function highlight_of(window) result(k)
         type(handle_type), intent(in) :: window
 
@@ -1932,7 +1943,7 @@ contains
         k = 0
     end function highlight_of
 
-    !> Add an entry for WINDOW at the end of `highlights'.
+    !> Add an entry for WINDOW at the end of `highlights'.  Not a port.
     subroutine add_highlight(window)
         type(handle_type), intent(in) :: window
         type(rectangle_highlight_type), allocatable :: grown(:)
@@ -1957,7 +1968,7 @@ contains
         call move_alloc(grown, highlights)
     end subroutine add_highlight
 
-    !> Delete the rectangle's overlays in WINDOW.
+    !> Delete the rectangle's overlays in WINDOW.  Not a port.
     subroutine delete_highlight(window)
         type(handle_type), intent(in) :: window
         type(rectangle_highlight_type), allocatable :: kept(:)
@@ -2202,6 +2213,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The value of the prefix argument as the FILL of a "P" spec.
+    !> Not a port.
     logical function prefix_fill()
         prefix_fill = .not. nilp(current_prefix_arg)
     end function prefix_fill
@@ -2243,7 +2255,7 @@ contains
         end if
     end subroutine cmd_copy_rectangle_as_kill
 
-    !> The number of characters of the UTF-8 text S.
+    !> The number of characters of the UTF-8 text S.  Not a port.
     pure integer(int64) function len_chars(s) result(n)
         character(len=*), intent(in) :: s
         integer(int64) :: k
@@ -2293,7 +2305,7 @@ contains
     end subroutine cmd_clear_rectangle
 
     !> The newest element of `string_rectangle_history', or "" (the
-    !> (or (car string-rectangle-history) "") of the prompts).
+    !> (or (car string-rectangle-history) "") of the prompts).  Not a port.
     function history_head() result(head)
         character(len=:), allocatable :: head
         type(value_type) :: hist, first
@@ -2308,7 +2320,7 @@ contains
     end function history_head
 
     !> (format-prompt PROMPT DEFAULT): " (default DEFAULT)" unless DEFAULT
-    !> is empty, then ": ".
+    !> is empty, then ": ".  Not a port.
     function prompt_with_default(prompt, default) result(full)
         character(len=*), intent(in) :: prompt, default
         character(len=:), allocatable :: full
@@ -2319,7 +2331,8 @@ contains
     end function prompt_with_default
 
     !> Read the string of `string_rectangle' and `string_insert_rectangle'
-    !> with PROMPT (their interactive specs).
+    !> with PROMPT (their interactive specs).  Port of the interactive specs
+    !> of rect.el:string-rectangle and rect.el:string-insert-rectangle.
     recursive subroutine read_rectangle_string(prompt, string, status)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: string
@@ -2435,7 +2448,7 @@ contains
         call rectangle_previous_line(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_rectangle_previous_line
 
-    !> Bind KEYS to command CMD in `rectangle_mark_mode_map'.
+    !> Bind KEYS to command CMD in `rectangle_mark_mode_map'.  Not a port.
     subroutine bind(keys, cmd)
         character(len=*), intent(in) :: keys, cmd
         type(value_type), allocatable :: key(:)
@@ -2446,6 +2459,7 @@ contains
     end subroutine bind
 
     !> Bind [remap FROM] to command CMD in `rectangle_mark_mode_map'.
+    !> Not a port.
     subroutine bind_remap(from, cmd)
         character(len=*), intent(in) :: from, cmd
         type(value_type), allocatable :: key(:)
@@ -2457,7 +2471,7 @@ contains
 
     !> Register the commands, `string_rectangle_history', Rectangle-Mark
     !> mode with its keymap, and the rectangular region's functions
-    !> around the region's (rect.el's add-function calls).
+    !> around the region's (rect.el's add-function calls).  Not a port.
     subroutine syms_of_rect()
         call defvar_nil("string_rectangle_history")
         call minor_modes%rectangle_mark_mode%define("rectangle_mark_mode", hook=rectangle_mark_mode_hook, &

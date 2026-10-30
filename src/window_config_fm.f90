@@ -136,7 +136,7 @@ contains
         if (minibuf_level > 0) config%minibuf_scroll_window = minibuffer_scroll_window
     end subroutine current_window_configuration
 
-    !> The frame has its windows.
+    !> The frame has its windows.  Not a port.
     subroutine ensure_frame_windows_here()
         if (.not. window_valid_p(selected_frame%root_window)) then
             call make_window(selected_frame%root_window)
@@ -178,7 +178,7 @@ contains
     end subroutine delete_all_child_windows
 
     !> Set marker `m' (made if null) restricted to the accessible part of
-    !> `buffer' at `pos'.
+    !> `buffer' at `pos'.  Not a port.
     subroutine restrict(m, pos, buffer)
         type(handle_type), intent(inout) :: m
         integer(int64), intent(in) :: pos
@@ -189,7 +189,7 @@ contains
         call set_marker_restricted(m, pos, status, buffer)
     end subroutine restrict
 
-    !> The position of marker `m' (1 if it points nowhere).
+    !> The position of marker `m' (1 if it points nowhere).  Not a port.
     integer(int64) function marker_pos(m) result(pos)
         type(handle_type), intent(in) :: m
         type(status_type) :: status
@@ -448,7 +448,7 @@ contains
     end subroutine set_window_configuration
 
     !> Free dead window `h' for good once no window configuration refers
-    !> to it.
+    !> to it.  Not a port.
     subroutine release_dead_window(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: status
@@ -460,7 +460,7 @@ contains
         call wtable%release(h, status)
     end subroutine release_dead_window
 
-    !> Whether window `h' (valid) shows buffer `b'.
+    !> Whether window `h' (valid) shows buffer `b'.  Not a port.
     logical function window_cur_shows(h, b)
         type(handle_type), intent(in) :: h, b
 

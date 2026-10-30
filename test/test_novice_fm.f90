@@ -1,4 +1,5 @@
 ! test_novice_fm.f90 -- tests for disabled commands (novice_fm).
+! Own tests; upstream has no novice tests.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -49,6 +50,7 @@ module test_novice_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_novice_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

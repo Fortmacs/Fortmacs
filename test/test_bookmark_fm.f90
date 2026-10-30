@@ -1,5 +1,5 @@
 ! test_bookmark_fm.f90 -- tests for bookmark_fm.
-! Ported from GNU Emacs 31.1 test/lisp/bookmark-tests.el.
+! Ports GNU Emacs 31.1 test/lisp/bookmark-tests.el.
 !
 ! Copyright (C) 2019-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -76,6 +76,7 @@ module test_bookmark_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_bookmark_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

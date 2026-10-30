@@ -1,6 +1,6 @@
 ! test_view_fm.f90 -- tests for view_fm (view.el) and Read-Only mode
 ! (simple.el's read-only-mode, files.el's find-file-read-only).
-! Our own: upstream has no view-tests.el.
+! Own tests; upstream has no view tests.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -49,6 +49,7 @@ module test_view_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_view_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

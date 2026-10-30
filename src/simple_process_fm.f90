@@ -54,7 +54,7 @@ submodule(simple_fm) simple_process_fm
 
 contains
 
-    ! The current buffer's process-menu-query-only.
+    ! The current buffer's process-menu-query-only.  Not a port.
     logical function menu_query_only()
         integer :: k
 
@@ -66,7 +66,8 @@ contains
         end do
     end function menu_query_only
 
-    ! (setq process-menu-query-only VALUE) in the current buffer.
+    ! Set process-menu-query-only to VALUE in the current buffer.
+    ! Not a port.
     subroutine set_menu_query_only(value)
         logical, intent(in) :: value
         type(query_only_type), allocatable :: grown(:)
@@ -126,6 +127,8 @@ contains
         end function column
     end subroutine process_menu_mode
 
+    ! Process Menu mode's local tabulated-list-revert-hook entry, which
+    ! runs list_processes_refresh.  Not a port.
     recursive subroutine refresh_hook(status)
         type(status_type), intent(out) :: status
 

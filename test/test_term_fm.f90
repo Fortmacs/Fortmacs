@@ -1,6 +1,6 @@
 ! test_term_fm.f90 -- tests for term_fm, cm_fm, termchar_fm and
-! dispextern_fm: the exact bytes sent to an xterm.  Own tests: upstream
-! has no terminal-output tests.
+! dispextern_fm: the exact bytes sent to an xterm.
+! Own tests; upstream has no tests for terminal output.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -49,6 +49,7 @@ module test_term_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_term_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
