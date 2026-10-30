@@ -479,7 +479,8 @@ ported. Their keys are unbound, as test_bindings_fm checks:
 - Blank lines as CLAUDE.md sets them (chosen with the user, 2026-10-29):
   in procedure bodies around block constructs and after the declarations,
   one around `contains`, between procedures and after a section banner
-  between procedures; module specification
+  between procedures, one after the file's header comment (2026-10-30,
+  after docs/init.f90 ran its header into `module`); module specification
   parts, interface blocks and type definitions keep theirs.
   `tools/blank-lines.awk` applies them (also to the generated files), and
   `tools/check.sh` fixes or checks them.
@@ -999,6 +1000,7 @@ Each lists the default being used meanwhile.
 ## Session log
 
 - 2026-10-29 — The process list (roadmap step 38d, `step38d-list-processes`, built on `step38c-ansi-color`): simple_process_fm, a submodule of simple_fm (`list-processes`, Process Menu mode, d), defined after Tabulated List mode; process_fm's documentation no longer lists them as deferred.  Own test.  Next: 38e (completion).
+- 2026-10-30 — Header blank line (`header-blank-line`, based on main; asked by the user): CLAUDE.md now says the file's header comment ends with one blank line, as every file in src/ already did; `tools/blank-lines.awk` applies it, so `tools/check.sh` fixes or flags it; docs/init.f90 was the only file without it.  Learned: a convention every file follows but no rule states goes unchecked, and examples outside src/ drift from it; consistency rules belong in CLAUDE.md and in the checker.
 - 2026-10-30 — Approximate percentages (`approx-sign`, based on main; chosen with the user): the README progress block and pie charts mark rounded percentages with ≈ (approximately equal) instead of ≅ (congruent).
 - 2026-10-29 — ANSI colors (roadmap step 38c, `step38c-ansi-color`, built on `step38b-passwords`; step 38 is now six PRs: completion needs `completion-table-with-quoting` in the core completion tables, so it moves after ansi-color and `list-processes`, as 38e and 38f): ansi_color_fm (ansi-color.el), on `comint-output-filter-functions`; shell_fm's `shell-apply-ansi-color` and `shell-reapply-ansi-color`.  Ports ansi-color-tests.el.  Next: 38d.
 - 2026-10-29 — Password prompts (roadmap step 38b, `step38b-passwords`, built on `step38-comint`): auth_source_fm (`read-passwd`, `read-passwd-mode`), mule_conf_fm (`password-word-equivalents`, `password-colon-equivalents`), comint_fm's `comint-password-prompt-regexp`, `comint-watch-for-password-prompt` (in the default `comint-output-filter-functions`), `comint-send-invisible`, `comint-password-function`.  minibuf_fm gains `read-hide-char` and a history of "t" keeping no history.  Ports the password tests of comint-tests.el.  Next: 38c.
