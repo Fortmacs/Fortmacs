@@ -473,6 +473,7 @@ module fortmacs
                        info_streamline_headings, info_heading_type, info_mode_map, info_mode_syntax_table, &
                        info_fontify_maximum_menu_size, INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL, &
                        INFO_FONTIFY_MAXIMUM_MENU_SIZE_T, info_fontify_visited_nodes, info_use_header_line, &
+                       info_isearch_search, &
                        info_hide_note_references, INFO_HIDE_NOTE_REFERENCES_NIL, INFO_HIDE_NOTE_REFERENCES_T, &
                        INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, info_breadcrumbs_depth, &
                        info_search_whitespace_regexp, info_warn_on_index_alternatives_wrap, &
@@ -851,6 +852,7 @@ module fortmacs
               info_url_alist, info_url_type, info_suffix_list, info_suffix_type, info_streamline_headings, &
               info_heading_type, info_mode_map, info_mode_syntax_table, info_fontify_maximum_menu_size, &
               INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL, INFO_FONTIFY_MAXIMUM_MENU_SIZE_T, info_fontify_visited_nodes, &
+              info_isearch_search, &
               info_use_header_line, info_hide_note_references, INFO_HIDE_NOTE_REFERENCES_NIL, &
               INFO_HIDE_NOTE_REFERENCES_T, INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, &
               info_breadcrumbs_depth, info_search_whitespace_regexp, info_warn_on_index_alternatives_wrap, &

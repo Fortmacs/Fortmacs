@@ -1,15 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="520" height="180" viewBox="0 0 520 180" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13">
 <path d="M90 90 L90.00 10.00 A80 80 0 0 1 97.11 10.32 Z" fill="#557D59" stroke="#D6D6D3" stroke-width="1"/>
-<path d="M90 90 L97.11 10.32 A80 80 0 0 1 110.41 12.65 Z" fill="#346A74" stroke="#D6D6D3" stroke-width="1"/>
-<path d="M90 90 L110.41 12.65 A80 80 0 1 1 90.00 10.00 Z" fill="#1A1A1A" stroke="#D6D6D3" stroke-width="1"/>
+<path d="M90 90 L97.11 10.32 A80 80 0 0 1 110.47 12.66 Z" fill="#346A74" stroke="#D6D6D3" stroke-width="1"/>
+<path d="M90 90 L110.47 12.66 A80 80 0 1 1 90.00 10.00 Z" fill="#1A1A1A" stroke="#D6D6D3" stroke-width="1"/>
 <text x="262" y="26" fill="#D6D6D3" text-anchor="end">≅10.61%</text>
 <rect x="272" y="15" width="14" height="14" rx="2" fill="#557D59" stroke="#D6D6D3" stroke-width="1"/>
 <text x="294" y="26" fill="#D6D6D3">C</text>
 <text x="516" y="26" fill="#D6D6D3" text-anchor="end">907 of 8,547</text>
-<text x="262" y="52" fill="#D6D6D3" text-anchor="end">≅3.56%</text>
+<text x="262" y="52" fill="#D6D6D3" text-anchor="end">≅3.58%</text>
 <rect x="272" y="41" width="14" height="14" rx="2" fill="#346A74" stroke="#D6D6D3" stroke-width="1"/>
 <text x="294" y="52" fill="#D6D6D3">Elisp</text>
-<text x="516" y="52" fill="#D6D6D3" text-anchor="end">1,721 of 48,317</text>
+<text x="516" y="52" fill="#D6D6D3" text-anchor="end">1,729 of 48,317</text>
 <text x="262" y="78" fill="#D6D6D3" text-anchor="end">0.00%</text>
 <rect x="272" y="67" width="14" height="14" rx="2" fill="#AB5043" stroke="#D6D6D3" stroke-width="1"/>
 <text x="294" y="78" fill="#D6D6D3">GNU ELPA</text>
@@ -22,8 +22,8 @@
 <rect x="272" y="119" width="14" height="14" rx="2" fill="#D6D6D3" stroke="#D6D6D3" stroke-width="1"/>
 <text x="294" y="130" fill="#D6D6D3">MELPA</text>
 <text x="516" y="130" fill="#D6D6D3" text-anchor="end">0 of 6,333</text>
-<text x="262" y="156" fill="#D6D6D3" text-anchor="end">≅95.89%</text>
+<text x="262" y="156" fill="#D6D6D3" text-anchor="end">≅95.88%</text>
 <rect x="272" y="145" width="14" height="14" rx="2" fill="#1A1A1A" stroke="#D6D6D3" stroke-width="1"/>
 <text x="294" y="156" fill="#D6D6D3">Not yet ported</text>
-<text x="516" y="156" fill="#D6D6D3" text-anchor="end">61,371 of 63,999</text>
+<text x="516" y="156" fill="#D6D6D3" text-anchor="end">61,363 of 63,999</text>
 </svg>

@@ -259,15 +259,18 @@ module docstrings_fm
                        info_fontify_maximum_menu_size, info_fontify_visited_nodes, info_header_node_face, &
                        info_header_xref_face, info_hide_note_references, INFO_HIDE_NOTE_REFERENCES_NIL, &
                        INFO_HIDE_NOTE_REFERENCES_T, INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, &
-                       info_history_skip_intermediate_nodes, info_index_match_face, info_menu_header_face, &
-                       info_menu_star_face, info_mode_hook, info_mode_map, info_mode_syntax_table, info_node_face, &
-                       info_scroll_prefer_subnodes, info_search_whitespace_regexp, info_selection_hook, &
-                       info_streamline_headings, info_suffix_list, info_title_1_face, info_title_2_face, &
-                       info_title_3_face, info_title_4_face, info_url_alist, info_use_header_line, &
-                       info_warn_on_index_alternatives_wrap, info_xref_face, info_xref_visited_face
+                       info_history_skip_intermediate_nodes, info_index_match_face, info_isearch_search, &
+                       info_menu_header_face, info_menu_star_face, info_mode_hook, info_mode_map, &
+                       info_mode_syntax_table, info_node_face, info_scroll_prefer_subnodes, &
+                       info_search_whitespace_regexp, info_selection_hook, info_streamline_headings, &
+                       info_suffix_list, info_title_1_face, info_title_2_face, info_title_3_face, info_title_4_face, &
+                       info_url_alist, info_use_header_line, info_warn_on_index_alternatives_wrap, info_xref_face, &
+                       info_xref_visited_face
     use insdel_fm, only: after_change_functions, before_change_functions, first_change_hook, &
                          inhibit_modification_hooks
-    use isearch_fm, only: isearch_lax_whitespace, isearch_mode_map, isearch_regexp_lax_whitespace, &
+    use isearch_fm, only: isearch_filter_predicate, isearch_lax_whitespace, isearch_mode_end_hook, &
+                          isearch_mode_end_hook_quit, isearch_mode_hook, isearch_mode_map, isearch_push_state_function, &
+                          isearch_regexp_lax_whitespace, isearch_search_fun_function, isearch_wrap_function, &
                           lazy_highlight, regexp_search_ring_max, search_exit_option, search_nonincremental_instead, &
                           search_ring_max, search_upper_case, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS, &
                           search_whitespace_regexp
@@ -874,7 +877,7 @@ module docstrings_fm
                                                                     "yank_rectangle", "yes_or_no_p", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1028) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1036) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -1080,18 +1083,20 @@ module docstrings_fm
                                                                     "info_file_list_for_emacs", "info_fontify_maximum_menu_size", &
                                                              "info_fontify_visited_nodes", "info_header_node", "info_header_xref", &
                                           "info_hide_note_references", "info_history_skip_intermediate_nodes", "info_index_match", &
-                                                          "info_menu_header", "info_menu_star", "info_mode_hook", "info_mode_map", &
-                                                             "info_mode_syntax_table", "info_node", "info_scroll_prefer_subnodes", &
+                                                    "info_isearch_search", "info_menu_header", "info_menu_star", "info_mode_hook", &
+                                            "info_mode_map", "info_mode_syntax_table", "info_node", "info_scroll_prefer_subnodes", &
                                                "info_search_whitespace_regexp", "info_selection_hook", "info_streamline_headings", &
                                                "info_suffix_list", "info_title_1", "info_title_2", "info_title_3", "info_title_4", &
                                                  "info_url_alist", "info_use_header_line", "info_warn_on_index_alternatives_wrap", &
                                                   "info_xref", "info_xref_visited", "inhibit_auto_fill", "inhibit_eol_conversion", &
                                                                     "inhibit_field_text_motion", "inhibit_iso_escape_detection", &
                                           "inhibit_modification_hooks", "inhibit_null_byte_detection", "insert_default_directory", &
-                                                         "insert_directory_program", "isearch_lax_whitespace", "isearch_mode_map", &
-                                             "isearch_regexp_lax_whitespace", "jit_lock_chunk_size", "kbd_macro_termination_hook", &
-                                                      "kill_buffer_hook", "kill_emacs_hook", "kill_read_only_ok", "kill_ring_max", &
-                                                                  "kill_ring_yank_pointer", "kill_whole_line", "killed_rectangle", &
+                                                 "insert_directory_program", "isearch_filter_predicate", "isearch_lax_whitespace", &
+                                                       "isearch_mode_end_hook", "isearch_mode_end_hook_quit", "isearch_mode_hook", &
+                                               "isearch_mode_map", "isearch_push_state_function", "isearch_regexp_lax_whitespace", &
+                                                    "isearch_search_fun_function", "isearch_wrap_function", "jit_lock_chunk_size", &
+                                         "kbd_macro_termination_hook", "kill_buffer_hook", "kill_emacs_hook", "kill_read_only_ok", &
+                                                 "kill_ring_max", "kill_ring_yank_pointer", "kill_whole_line", "killed_rectangle", &
                                                         "kmacro_call_repeat_key", "kmacro_call_repeat_with_arg", "kmacro_counter", &
                                              "kmacro_counter_format", "kmacro_counter_format_start", "kmacro_counter_value_start", &
                                                                   "kmacro_default_counter_format", "kmacro_execute_before_append", &
@@ -1230,7 +1235,7 @@ module docstrings_fm
                                                                     "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(512) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(513) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1536,6 +1541,7 @@ module docstrings_fm
                                                                       "info_fontify_visited_nodes", &
                                                                       "info_hide_note_references", &
                                                                       "info_history_skip_intermediate_nodes", &
+                                                                      "info_isearch_search", &
                                                                       "info_mode_hook", &
                                                                       "info_scroll_prefer_subnodes", &
                                                                       "info_search_whitespace_regexp", &
@@ -7449,6 +7455,8 @@ contains
                         "          and select the node in which the next occurrence is found."//LF// &
                         "\[info_search_case_sensitively]        Search through this Info file for specified regexp "// &
                         "case-sensitively."//LF// &
+                        "\[isearch_forward], \[isearch_forward_regexp]        Use Isearch to search through multipl"// &
+                        "e Info nodes."//LF// &
                         "\[info_index]        Search for a topic in this manual's Index and go to index entry."//LF// &
                         "\[info_index_next]        (comma) Move to the next match from a previous \<info_mode_map>\"// &
                         "[info_index] command."//LF// &
@@ -19023,6 +19031,23 @@ contains
             entry%file = "info_fm.f90"
             entry%fortran = "info_index_match_face"
             entry%doc = "Face used to highlight matches in an index entry."
+        case ("info_isearch_search")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_isearch_search"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(info_isearch_search%value)
+            entry%doc = "If true, isearch in Info searches through multiple nodes."//LF// &
+                        "Before leaving the initial Info node, where isearch was started,"//LF// &
+                        "it fails once with the error message [end of node], and with"//LF// &
+                        "subsequent C-s/C-r continues through other nodes without failing"//LF// &
+                        "with this error message in other nodes.  When isearch fails for"//LF// &
+                        "the rest of the manual, it displays the error message [end of"//LF// &
+                        "manual], wraps around the whole manual and restarts the search"//LF// &
+                        "from the top/final node depending on search direction."//LF// &
+                        ""//LF// &
+                        "Setting this option to false restores the default isearch behavior"//LF// &
+                        "with wrapping around the current Info node."
         case ("info_menu_header")
             entry%file = "info_fm.f90"
             entry%fortran = "info_menu_header_face"
@@ -19272,6 +19297,10 @@ contains
                         "flag.  See `dired_use_ls_dired'."//LF// &
                         ""//LF// &
                         "On GNU/Linux and other capable systems, the default is ""ls""."
+        case ("isearch_filter_predicate")
+            entry%file = "isearch_fm.f90"
+            entry%fortran = "isearch_filter_predicate"
+            entry%doc = "See the type."
         case ("isearch_lax_whitespace")
             entry%file = "isearch_fm.f90"
             entry%fortran = "isearch_lax_whitespace"
@@ -19286,10 +19315,31 @@ contains
                         "toggle the value of this variable by the command"//LF// &
                         "`isearch_toggle_lax_whitespace', usually bound to `M-s SPC' during"//LF// &
                         "isearch."
+        case ("isearch_mode_end_hook")
+            entry%file = "isearch_fm.f90"
+            entry%fortran = "isearch_mode_end_hook"
+            entry%doc = "Function(s) to call after terminating an incremental search."//LF// &
+                        "When these functions are called, `isearch_mode_end_hook_quit' is"//LF// &
+                        "true if the user quits the search."
+        case ("isearch_mode_end_hook_quit")
+            entry%file = "isearch_fm.f90"
+            entry%fortran = "isearch_mode_end_hook_quit"
+            entry%original = ".false."
+            entry%value = repr(isearch_mode_end_hook_quit)
+            entry%doc = "True while running `isearch_mode_end_hook' if the user quits the"//LF// &
+                        "search."
+        case ("isearch_mode_hook")
+            entry%file = "isearch_fm.f90"
+            entry%fortran = "isearch_mode_hook"
+            entry%doc = "Function(s) to call after starting up an incremental search."
         case ("isearch_mode_map")
             entry%file = "isearch_fm.f90"
             entry%fortran = "isearch_mode_map"
             entry%doc = "Keymap for `isearch_mode'."
+        case ("isearch_push_state_function")
+            entry%file = "isearch_fm.f90"
+            entry%fortran = "isearch_push_state_function"
+            entry%doc = "See the type."
         case ("isearch_regexp_lax_whitespace")
             entry%file = "isearch_fm.f90"
             entry%fortran = "isearch_regexp_lax_whitespace"
@@ -19303,6 +19353,14 @@ contains
                         "toggle the value of this variable by the command"//LF// &
                         "`isearch_toggle_lax_whitespace', usually bound to `M-s SPC' during"//LF// &
                         "isearch."
+        case ("isearch_search_fun_function")
+            entry%file = "isearch_fm.f90"
+            entry%fortran = "isearch_search_fun_function"
+            entry%doc = "See the type."
+        case ("isearch_wrap_function")
+            entry%file = "isearch_fm.f90"
+            entry%fortran = "isearch_wrap_function"
+            entry%doc = "See the type."
         case ("jit_lock_chunk_size")
             entry%file = "jit_lock_fm.f90"
             entry%fortran = "jit_lock_chunk_size"
@@ -24099,6 +24157,9 @@ contains
         case ("info_history_skip_intermediate_nodes")
             kind = OPTION_LOGICAL
             setting = .true.
+        case ("info_isearch_search")
+            kind = OPTION_LOGICAL
+            setting = .true.
         case ("info_scroll_prefer_subnodes")
             kind = OPTION_LOGICAL
             setting = .true.
@@ -24839,6 +24900,12 @@ contains
                 call info_history_skip_intermediate_nodes%set_local(v)
             else
                 info_history_skip_intermediate_nodes = v
+            end if
+        case ("info_isearch_search")
+            if (local) then
+                call info_isearch_search%set_local(v)
+            else
+                info_isearch_search = v
             end if
         case ("info_scroll_prefer_subnodes")
             if (local) then
