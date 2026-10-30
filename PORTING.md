@@ -476,8 +476,13 @@ ported. Their keys are unbound, as test_bindings_fm checks:
   `intent` on every dummy, named `end` statements, one module per file,
   FORD `!>` comments on public entities, 4-space indentation; but 132
   columns (stdlib's hard limit) rather than 80.
-- Blank lines separate procedures (internal ones too) and module-level
-  items; there are none inside a procedure body.
+- Blank lines as CLAUDE.md sets them (chosen with the user, 2026-10-29):
+  in procedure bodies around block constructs and after the declarations,
+  one around `contains`, between procedures and after a section banner
+  between procedures; module specification
+  parts, interface blocks and type definitions keep theirs.
+  `tools/blank-lines.awk` applies them (also to the generated files), and
+  `tools/check.sh` fixes or checks them.
 - Enforced by `tools/check.sh` (and so CI): fprettify for layout
   (`.fprettify.rc`), Fortitude 0.9.2 with its default rules for the rest
   (`[extra.fortitude.check]` in fpm.toml). Notable rules: double-quoted
@@ -488,6 +493,10 @@ ported. Their keys are unbound, as test_bindings_fm checks:
 
 ## Conventions learned while porting
 
+- GitHub runs no CI for a pull request that conflicts with its base (a
+  PORTING.md session log entry added on both sides is enough).  Merge the
+  current main into a branch right before opening its PR and whenever main
+  moves, and check that the run started.
 - When a .el and a .c file share a base name, the .c file keeps the plain
   name and the .el module gets a descriptive one, noted in its status row:
   lisp.el is `lisp_cmds_fm` (lisp.h is `lisp_fm`), dired.el `dired_mode_fm`
@@ -922,8 +931,9 @@ ported. Their keys are unbound, as test_bindings_fm checks:
   modules, so they cannot go stale.  Manuals: the Emacs manual and the
   Info manual (info.texi) in 34d; each doc/misc manual in the PR that
   ports its package; the Emacs Lisp reference and the Lisp introduction
-  are not applicable (no run-time Lisp).  Still open: whether the
-  converted text uses Fortmacs's underscore names.
+  are not applicable (no run-time Lisp).  The converted text uses
+  Fortmacs's underscore names (`M-x find_file`, `C-h v fill_column`), to
+  match the commands.
 
 ## Open questions
 
@@ -991,7 +1001,9 @@ Each lists the default being used meanwhile.
 - 2026-10-29 — info-look and C-h R (roadmap step 34f, `step34f-info-look`, built on `step34e-info-isearch` while #139 waits): info_look_fm (info-look.el: C-h S `info-lookup-symbol`, `info-lookup-file`, the help specifications of upstream's modes kept as data, keyed by Fortmacs mode names; the symbol prefixes of Emacs Lisp manuals keep their hyphens, being Lisp symbols in Lisp files), info_fm's `info-display-manual` (C-h R).  Own tests.  Step 34 is complete but for 34d (the manuals), which waits on questions for the user.
 - 2026-10-29 — Isearch across Info nodes (roadmap step 34e, `step34e-info-isearch`, built on `step34c-info-search` while #139 waits; 34d, the manuals, waits on questions for the user): isearch_fm gains `isearch-mode-hook`, `isearch-mode-end-hook`, and the buffer-local `isearch-search-fun-function`, `isearch-wrap-function`, `isearch-push-state-function` and `isearch-filter-predicate` (typed objects set with `set_local`; a search function is set through an argument, since gfortran mishandles functions returning procedure pointers that return them); info_fm's `Info-isearch-*` and `Info-search`'s Isearch failures ("end of node", "end of manual").  Own test.  Next: 34f.
 - 2026-10-29 — Searching Info and its indexes (roadmap step 34c, `step34c-info-search`, built on `step34b-info-display` while #139 waits; step 34 is now six PRs, Isearch across nodes becoming 34e and info-look.el with C-h R 34f): info_fm's `Info-search` (s, S) across subfiles, `Info-index` (i), `Info-index-next` (,), `Info-virtual-index` (I), `info-apropos`, C-h F and C-h K.  lisp_fm's `command_type` gains `info_file` (the `info-file` property); error_fm `user_search_failed`.  Own tests.  Next: 34d (the manuals).
+- 2026-10-29 — Blank lines (`blank-lines`, based on main; chosen with the user): CLAUDE.md sets where blank lines go (around block constructs and after the declarations in procedure bodies, one around `contains` and between procedures); `tools/blank-lines.awk` applies them, `tools/check.sh` fixes or checks them, and the generators run it on their output; the whole codebase and the docs/syntax.html example are reformatted (blank lines only).  Conventions: a PR that conflicts with main gets no CI run.
 - 2026-10-29 — The display of Info nodes (roadmap step 34b, `step34b-info-display`, built on `step34-info` while #139 waits; the table of contents and history nodes moved here from 34c, as breadcrumbs need the table of contents): info_fm's `Info-fontify-node` (header line, breadcrumbs, titles, references, menus, footnotes, URLs), the Info faces, `Info-toc` (T) and `Info-history` (L), virtual nodes.  xdisp_fm shows display strings in their faces.  Own tests.  Next: 34c (search and indexes).
+- 2026-10-29 — Showing what is asked for (`claude-md-show-requests`, based on main): CLAUDE.md asks that anything the user asks to see is shown in full in the reply at once, before other work resumes, and that the README progress bar and percentages are updated before every push (not only once per PR).
 - 2026-10-29 — The Info reader (roadmap step 34a, `step34-info`, based on main; step 34 is now four PRs, as recorded in the roadmap): info_fm (info.el: `info` C-h i, `info-other-window` C-h 4 i, `info-emacs-manual` C-h r, finding Info files and their compressed variants in `info_directory_list`, tag tables and split files, the directory node merged from the `dir` files, Info mode and its node commands n, p, u, l, r, d, f, m, g, t, <, >, ], [, SPC, DEL, TAB, RET, 1–9, w, h, ?).  Design decision "The manuals" (chosen with the user): an awk converter in tools/ for the Texinfo manuals, with "Deferred in Fortmacs" notes (step 34d).  The mode line shows a buffer's `mode_line_buffer_identification` segments (decision "Header lines as typed segments"); config_fm gains `configure_info_directory` (set at startup from the installation), files_fm `file_name_sans_extension`; `kill_buffer` is recursive (conventions).  Ports test-info-urls of info-tests.el; own tests on test/info-resources.  Next: 34b (the display of nodes).
 - 2026-10-29 — Name clashes (`org-move-naming-rule`, based on main): design decision "Name clashes" (chosen with the user, also in CLAUDE.md) replaces "Names that differ only in case": a variable named like a function takes `_variable` (`user_full_name_variable`, `deactivate_mark_variable`, `truncate_string_ellipsis_variable`, `grep_find_ignored_files_variable`, which had a `v` prefix), the capitalized twin of a name `_command` (`buffer_menu_other_window_command`, was `buffer_menu_mode_other_window`).  Recorded from steps 36a–c: the Ibuffer sorting mode `filename/process`, `/ SPC`'s upstream error, the predicate filter's display and the unbound `/ e` (design decision "Ibuffer filters"); helpers only a submodule calls are public (conventions).  Next: 34 (the Info reader) or 38 (Comint and shell, the rest).
 - 2026-10-29 — Repository links (`claude/sweet-edison-iy7otp`): the repository moved to Fortmacs/Fortmacs; README.md (the syntax page, now on fortmacs.github.io), docs/syntax.html, fpm.toml's homepage and PORTING.md point there.

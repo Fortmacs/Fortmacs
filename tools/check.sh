@@ -104,6 +104,27 @@ if $style; then
         fi
     fi
 
+    # Blank lines (CLAUDE.md, Fortran conventions): tools/blank-lines.awk.
+    blank_drift=false
+    fresh=${TMPDIR:-/tmp}/blank-lines.$$.f90
+    for f in $(find $DIRS -name '*.f90' | sort); do
+        awk -f tools/blank-lines.awk "$f" >"$fresh"
+        if ! awk 'NR == FNR { a[NR] = $0; n = NR; next } a[FNR] != $0 { exit 1 } { m = FNR } END { exit m != n }' \
+            "$f" "$fresh"; then
+            if $fix; then
+                cp "$fresh" "$f"
+            else
+                echo "$f: blank lines differ from tools/blank-lines.awk" >&2
+                blank_drift=true
+            fi
+        fi
+    done
+    rm -f "$fresh"
+    if $blank_drift; then
+        echo "blank line drift: run tools/check.sh --fix" >&2
+        exit 1
+    fi
+
     fortitude check $DIRS
 fi
 
