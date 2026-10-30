@@ -147,8 +147,11 @@ END {
     print ""
     sortnum(tkeys, nt)
     for (i = 1; i <= nt; i++) tvals[i] = title[tkeys[i]]
+    print "    !> The number of characters whose title case differs from their upper case."
     printf "    integer, parameter :: title_count = %d\n\n", nt
+    print "    !> The characters whose title case differs from their upper case, ascending."
     array("title_keys", "title_count", tkeys, nt)
+    print "    !> Their title case forms, in the order of title_keys."
     array("title_values", "title_count", tvals, nt)
     for (p = 1; p <= 3; p++) {
         n = 0
@@ -159,9 +162,14 @@ END {
             lens[i] = slen[p, keys[i]]
             for (j = 1; j <= 3; j++) vals[++nv] = sval[p, keys[i], j]
         }
+        kind = p == 1 ? "lower" : p == 2 ? "upper" : "title"
+        printf "    !> The number of characters with a special %s case (SpecialCasing.txt).\n", kind
         printf "    integer, parameter :: special_count_%d = %d\n\n", p, n
+        printf "    !> The characters with a special %s case, ascending.\n", kind
         array("special_keys_" p, "special_count_" p, keys, n)
+        printf "    !> The length of the special %s case of each (1 to 3 characters).\n", kind
         array("special_lengths_" p, "special_count_" p, lens, n)
+        printf "    !> Their special %s cases, three characters each (0 for none).\n", kind
         array("special_values_" p, "3*special_count_" p, vals, nv)
     }
     print "end module uni_special_casing_fm"

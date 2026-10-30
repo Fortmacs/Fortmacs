@@ -33,8 +33,10 @@ module charscript_fm
 
     public :: script_runs, script_starts, script_ends, script_ids, script_count, script_names, char_script
 
+    !> The numbers of runs of characters of one script and of scripts.
     integer, parameter :: script_runs = 447, script_count = 198
 
+    !> The first character of each run.
     integer(int32), parameter :: script_starts(script_runs) = [ &
                                  0, 160, 592, 688, 746, 748, 880, 994, 1008, 1024, &
                                  1328, 1424, 1536, 1792, 1872, 1920, 1984, 2048, 2112, 2144, &
@@ -83,6 +85,7 @@ module charscript_fm
                                  129771, 129775, 129785, 131072, 173824, 194560, 196608 &
                                  ]
 
+    !> The last character of each run.
     integer(int32), parameter :: script_ends(script_runs) = [ &
                                  127, 591, 687, 745, 747, 879, 993, 1007, 1023, 1327, &
                                  1423, 1535, 1791, 1871, 1919, 1983, 2047, 2111, 2143, 2159, &
@@ -131,6 +134,7 @@ module charscript_fm
                                  129774, 129784, 130047, 173791, 192095, 195103, 210047 &
                                  ]
 
+    !> The script of each run (its index in script_names).
     integer(int32), parameter :: script_ids(script_runs) = [ &
                                  1, 1, 2, 1, 60, 1, 3, 4, 3, 5, &
                                  6, 7, 8, 9, 8, 10, 11, 12, 13, 9, &

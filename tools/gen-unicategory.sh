@@ -118,13 +118,23 @@ END {
     print "              nonspacing_mark_runs, nonspacing_mark_starts, nonspacing_mark_ends, &"
     print "              category_runs, category_starts, category_ends, category_codes"
     print ""
+    print "    !> The numbers of runs of cased letters (Lu, Ll, Lt), of nonspacing marks"
+    print "    !> (Mn) and of characters of one general category."
     printf "    integer, parameter :: cased_letter_runs = %d, nonspacing_mark_runs = %d, category_runs = %d\n\n", n, m, g
+    print "    !> The first characters of the runs of cased letters."
     array("cased_letter_starts", "cased_letter_runs", s, n)
+    print "    !> The last characters of the runs of cased letters."
     array("cased_letter_ends", "cased_letter_runs", e, n)
+    print "    !> The first characters of the runs of nonspacing marks."
     array("nonspacing_mark_starts", "nonspacing_mark_runs", ms, m)
+    print "    !> The last characters of the runs of nonspacing marks."
     array("nonspacing_mark_ends", "nonspacing_mark_runs", me, m)
+    print "    !> The first characters of the runs of one general category."
     array("category_starts", "category_runs", gs, g)
+    print "    !> The last characters of the runs of one general category."
     array("category_ends", "category_runs", ge, g)
+    print "    !> The general category of each run (its index in the categories of"
+    print "    !> UnicodeData.txt)."
     array("category_codes", "category_runs", gc, g)
     print "end module uni_category_fm"
 }' "$data" >"$out"

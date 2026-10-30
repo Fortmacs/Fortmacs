@@ -37,8 +37,11 @@ module uni_category_fm
               nonspacing_mark_runs, nonspacing_mark_starts, nonspacing_mark_ends, &
               category_runs, category_starts, category_ends, category_codes
 
+    !> The numbers of runs of cased letters (Lu, Ll, Lt), of nonspacing marks
+    !> (Mn) and of characters of one general category.
     integer, parameter :: cased_letter_runs = 144, nonspacing_mark_runs = 365, category_runs = 3409
 
+    !> The first characters of the runs of cased letters.
     integer(int32), parameter :: cased_letter_starts(cased_letter_runs) = [ &
                                  65, 97, 181, 192, 216, 248, 444, 452, 662, 880, &
                                  886, 891, 895, 902, 904, 908, 910, 931, 1015, 1162, &
@@ -57,6 +60,7 @@ module uni_category_fm
                                  122624, 122635, 122661, 125184 &
                                  ]
 
+    !> The last characters of the runs of cased letters.
     integer(int32), parameter :: cased_letter_ends(cased_letter_runs) = [ &
                                  90, 122, 181, 214, 246, 442, 447, 659, 687, 883, &
                                  887, 893, 895, 902, 906, 908, 929, 1013, 1153, 1327, &
@@ -75,6 +79,7 @@ module uni_category_fm
                                  122633, 122654, 122666, 125251 &
                                  ]
 
+    !> The first characters of the runs of nonspacing marks.
     integer(int32), parameter :: nonspacing_mark_starts(nonspacing_mark_runs) = [ &
                                  768, 1155, 1425, 1471, 1473, 1476, 1479, 1552, 1611, 1648, &
                                  1750, 1759, 1767, 1770, 1809, 1840, 1958, 2027, 2045, 2070, &
@@ -115,6 +120,7 @@ module uni_category_fm
                                  124654, 124661, 125136, 125252, 917760 &
                                  ]
 
+    !> The last characters of the runs of nonspacing marks.
     integer(int32), parameter :: nonspacing_mark_ends(nonspacing_mark_runs) = [ &
                                  879, 1159, 1469, 1471, 1474, 1477, 1479, 1562, 1631, 1648, &
                                  1756, 1764, 1768, 1773, 1809, 1866, 1968, 2035, 2045, 2073, &
@@ -155,6 +161,7 @@ module uni_category_fm
                                  124655, 124661, 125142, 125258, 917999 &
                                  ]
 
+    !> The first characters of the runs of one general category.
     integer(int32), parameter :: category_starts(category_runs) = [ &
                                  0, 32, 33, 36, 37, 40, 41, 42, 43, 44, &
                                  45, 46, 48, 58, 60, 63, 65, 91, 92, 93, &
@@ -499,6 +506,7 @@ module uni_category_fm
                                  191472, 194560, 196608, 201552, 917505, 917536, 917760, 983040, 1048576 &
                                  ]
 
+    !> The last characters of the runs of one general category.
     integer(int32), parameter :: category_ends(category_runs) = [ &
                                  31, 32, 35, 36, 39, 40, 41, 42, 43, 44, &
                                  45, 47, 57, 59, 62, 64, 90, 91, 92, 93, &
@@ -843,6 +851,8 @@ module uni_category_fm
                                  192093, 195101, 201546, 210041, 917505, 917631, 917999, 1048573, 1114109 &
                                  ]
 
+    !> The general category of each run (its index in the categories of
+    !> UnicodeData.txt).
     integer(int32), parameter :: category_codes(category_runs) = [ &
                                  26, 23, 18, 20, 18, 14, 15, 18, 19, 18, &
                                  13, 18, 9, 18, 19, 18, 1, 14, 18, 15, &

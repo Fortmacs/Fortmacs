@@ -39,8 +39,10 @@ module uni_special_casing_fm
     public :: special_count_2, special_keys_2, special_lengths_2, special_values_2
     public :: special_count_3, special_keys_3, special_lengths_3, special_values_3
 
+    !> The number of characters whose title case differs from their upper case.
     integer, parameter :: title_count = 58
 
+    !> The characters whose title case differs from their upper case, ascending.
     integer(int32), parameter :: title_keys(title_count) = [ &
                                  452, 453, 454, 455, 456, 457, 458, 459, 460, 497, &
                                  498, 499, 4304, 4305, 4306, 4307, 4308, 4309, 4310, 4311, &
@@ -50,6 +52,7 @@ module uni_special_casing_fm
                                  4342, 4343, 4344, 4345, 4346, 4349, 4350, 4351 &
                                  ]
 
+    !> Their title case forms, in the order of title_keys.
     integer(int32), parameter :: title_values(title_count) = [ &
                                  453, 453, 453, 456, 456, 456, 459, 459, 459, 498, &
                                  498, 498, 4304, 4305, 4306, 4307, 4308, 4309, 4310, 4311, &
@@ -59,22 +62,28 @@ module uni_special_casing_fm
                                  4342, 4343, 4344, 4345, 4346, 4349, 4350, 4351 &
                                  ]
 
+    !> The number of characters with a special lower case (SpecialCasing.txt).
     integer, parameter :: special_count_1 = 1
 
+    !> The characters with a special lower case, ascending.
     integer(int32), parameter :: special_keys_1(special_count_1) = [ &
                                  304 &
                                  ]
 
+    !> The length of the special lower case of each (1 to 3 characters).
     integer(int32), parameter :: special_lengths_1(special_count_1) = [ &
                                  2 &
                                  ]
 
+    !> Their special lower cases, three characters each (0 for none).
     integer(int32), parameter :: special_values_1(3*special_count_1) = [ &
                                  105, 775, 0 &
                                  ]
 
+    !> The number of characters with a special upper case (SpecialCasing.txt).
     integer, parameter :: special_count_2 = 48
 
+    !> The characters with a special upper case, ascending.
     integer(int32), parameter :: special_keys_2(special_count_2) = [ &
                                  223, 329, 496, 912, 944, 1415, 7830, 7831, 7832, 7833, &
                                  7834, 8016, 8018, 8020, 8022, 8114, 8116, 8118, 8119, 8130, &
@@ -83,6 +92,7 @@ module uni_special_casing_fm
                                  64260, 64261, 64262, 64275, 64276, 64277, 64278, 64279 &
                                  ]
 
+    !> The length of the special upper case of each (1 to 3 characters).
     integer(int32), parameter :: special_lengths_2(special_count_2) = [ &
                                  2, 2, 2, 3, 3, 2, 2, 2, 2, 2, &
                                  2, 2, 3, 3, 3, 2, 2, 2, 3, 2, &
@@ -91,6 +101,7 @@ module uni_special_casing_fm
                                  3, 2, 2, 2, 2, 2, 2, 2 &
                                  ]
 
+    !> Their special upper cases, three characters each (0 for none).
     integer(int32), parameter :: special_values_2(3*special_count_2) = [ &
                                  83, 115, 0, 700, 78, 0, 74, 780, 0, 921, &
                                  776, 769, 933, 776, 769, 1333, 1410, 0, 72, 817, &
@@ -109,8 +120,10 @@ module uni_special_casing_fm
                                  0, 1348, 1389, 0 &
                                  ]
 
+    !> The number of characters with a special title case (SpecialCasing.txt).
     integer, parameter :: special_count_3 = 102
 
+    !> The characters with a special title case, ascending.
     integer(int32), parameter :: special_keys_3(special_count_3) = [ &
                                  223, 329, 496, 912, 944, 1415, 7830, 7831, 7832, 7833, &
                                  7834, 8016, 8018, 8020, 8022, 8064, 8065, 8066, 8067, 8068, &
@@ -125,6 +138,7 @@ module uni_special_casing_fm
                                  64278, 64279 &
                                  ]
 
+    !> The length of the special title case of each (1 to 3 characters).
     integer(int32), parameter :: special_lengths_3(special_count_3) = [ &
                                  2, 2, 2, 3, 3, 2, 2, 2, 2, 2, &
                                  2, 2, 3, 3, 3, 2, 2, 2, 2, 2, &
@@ -139,6 +153,7 @@ module uni_special_casing_fm
                                  2, 2 &
                                  ]
 
+    !> Their special title cases, three characters each (0 for none).
     integer(int32), parameter :: special_values_3(3*special_count_3) = [ &
                                  83, 83, 0, 700, 78, 0, 74, 780, 0, 921, &
                                  776, 769, 933, 776, 769, 1333, 1362, 0, 72, 817, &

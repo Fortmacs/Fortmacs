@@ -133,9 +133,13 @@ END {
     print ""
     print "    public :: script_runs, script_starts, script_ends, script_ids, script_count, script_names, char_script"
     print ""
+    print "    !> The numbers of runs of characters of one script and of scripts."
     printf "    integer, parameter :: script_runs = %d, script_count = %d\n\n", nr, nnames
+    print "    !> The first character of each run."
     array("script_starts", rs, nr)
+    print "    !> The last character of each run."
     array("script_ends", re, nr)
+    print "    !> The script of each run (its index in script_names)."
     array("script_ids", rw, nr)
     w = 1
     for (i = 1; i <= nnames; i++) if (length(names[i]) > w) w = length(names[i])

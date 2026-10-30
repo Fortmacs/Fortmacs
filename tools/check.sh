@@ -125,6 +125,12 @@ if $style; then
         exit 1
     fi
 
+    # Audit (PORTING.md, "Audit"): the header, name, doc and port rules.
+    if ! awk -v baseline=tools/audit-baseline -f tools/audit.awk $(find $DIRS -name '*.f90' | sort); then
+        echo "audit findings: fix them (PORTING.md, \"Audit\")" >&2
+        exit 1
+    fi
+
     fortitude check $DIRS
 fi
 

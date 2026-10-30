@@ -48,9 +48,13 @@ function emit(name, tbl,    keys, n, k, line, i, c) {
     n = 0
     for (k in tbl) if (k + 0 >= 128 && tbl[k] != k + 0) keys[++n] = k + 0
     sortnum(keys, n)
+    what = name == "down" ? "lower case" : name == "up" ? "upper case" : "canonical (case-folded)"
+    printf "    !> The number of characters (from 128) with a %s form of their own.\n", what
     printf "    integer, parameter :: %s_count = %d\n\n", name, n
     for (i = 1; i <= n; i++) vals[i] = tbl[keys[i]]
+    printf "    !> The characters (from 128) with a %s form of their own, ascending.\n", what
     array(name "_keys", keys, n)
+    printf "    !> Their %s forms, in the order of %s_keys.\n", what, name
     array(name "_values", vals, n)
 }
 function sortnum(a, n,    i, j, t, gap) {
