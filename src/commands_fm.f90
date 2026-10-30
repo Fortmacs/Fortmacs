@@ -711,7 +711,13 @@ module commands_fm
         type(command_type) :: isearch_yank_line
         type(command_type) :: isearch_yank_pop_only
         type(command_type) :: isearch_yank_word_or_char
+        type(command_type) :: javascript_mode
         type(command_type) :: join_line
+        type(command_type) :: js_base_mode
+        type(command_type) :: js_indent_line
+        type(command_type) :: js_json_mode
+        type(command_type) :: js_mode
+        type(command_type) :: js_syntactic_context
         type(command_type) :: jump_to_register
         type(command_type) :: just_one_space
         type(command_type) :: justify_current_line
@@ -1173,7 +1179,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1135) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1141) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1853,7 +1859,13 @@ module commands_fm
                                                                   "isearch_yank_line", &
                                                                   "isearch_yank_pop_only", &
                                                                   "isearch_yank_word_or_char", &
+                                                                  "javascript_mode", &
                                                                   "join_line", &
+                                                                  "js_base_mode", &
+                                                                  "js_indent_line", &
+                                                                  "js_json_mode", &
+                                                                  "js_mode", &
+                                                                  "js_syntactic_context", &
                                                                   "jump_to_register", &
                                                                   "just_one_space", &
                                                                   "justify_current_line", &
@@ -3679,8 +3691,20 @@ contains
             p => commands%isearch_yank_pop_only
         case ("isearch_yank_word_or_char")
             p => commands%isearch_yank_word_or_char
+        case ("javascript_mode")
+            p => commands%javascript_mode
         case ("join_line")
             p => commands%join_line
+        case ("js_base_mode")
+            p => commands%js_base_mode
+        case ("js_indent_line")
+            p => commands%js_indent_line
+        case ("js_json_mode")
+            p => commands%js_json_mode
+        case ("js_mode")
+            p => commands%js_mode
+        case ("js_syntactic_context")
+            p => commands%js_syntactic_context
         case ("jump_to_register")
             p => commands%jump_to_register
         case ("just_one_space")

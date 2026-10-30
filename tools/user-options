@@ -351,6 +351,17 @@ insert_directory_program
 insert_pair_alist
 isearch_lax_whitespace
 jit_lock_chunk_size
+js_chain_indent
+js_curly_indent_offset
+js_enabled_frameworks
+js_expr_indent_offset
+js_flat_functions
+js_indent_align_list_continuation
+js_indent_first_init
+js_indent_level
+js_paren_indent_offset
+js_square_indent_offset
+js_switch_indent_offset
 keyboard_coding_system
 kill_read_only_ok
 kill_ring_max
