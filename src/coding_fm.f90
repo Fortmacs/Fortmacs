@@ -99,7 +99,7 @@ module coding_fm
 
     !> Coding types (the `:coding-type' attribute).
     integer, parameter, public :: CODING_UNDECIDED = 0, CODING_UTF_8 = 1, CODING_UTF_16 = 2, &
-                                  CODING_CHARSET = 3, CODING_RAW_TEXT = 4
+                                  CODING_CHARSET = 3, CODING_RAW_TEXT = 4, CODING_SJIS = 5, CODING_BIG5 = 6
     !> End-of-line types: `coding_system_eol_type' returns one of the
     !> first three, or EOL_UNDECIDED for a coding system that has
     !> subsidiaries (upstream's vector).
@@ -642,18 +642,34 @@ contains
         end do
     end subroutine setup_charset_valids
 
-    !> Define NAME as a coding system of type `charset' for the charsets
-    !> CHARSETS, with mnemonic character MNEMONIC (and its subsidiaries).
-    !> Port of mule.el:define-coding-system for `:coding-type' `charset'.
-    subroutine define_charset_coding_system(name, mnemonic, charsets, doc, mime_charset, default_char)
+    !> Define NAME as a coding system of type `charset' (or CODING_TYPE
+    !> "shift-jis" or "big5") for the charsets CHARSETS, with mnemonic
+    !> character MNEMONIC (and its subsidiaries).  Port of
+    !> mule.el:define-coding-system for these coding types.
+    subroutine define_charset_coding_system(name, mnemonic, charsets, doc, mime_charset, default_char, coding_type)
         character(len=*), intent(in) :: name
         integer, intent(in) :: mnemonic
         character(len=*), intent(in) :: charsets(:), doc
-        character(len=*), intent(in), optional :: mime_charset
+        character(len=*), intent(in), optional :: mime_charset, coding_type
         integer, intent(in), optional :: default_char
-        integer :: id
+        integer :: id, ctype, category
 
-        id = define(name, CODING_CHARSET, mnemonic, CAT_CHARSET, charsets=charsets, doc=doc, mime_charset=mime_charset, &
+        ctype = CODING_CHARSET
+        category = CAT_CHARSET
+
+        if (present(coding_type)) then
+            select case (coding_type)
+            case ("shift-jis")
+                ctype = CODING_SJIS
+                category = CAT_SJIS
+            case ("big5")
+                ctype = CODING_BIG5
+                category = CAT_BIG5
+            case default
+            end select
+        end if
+
+        id = define(name, ctype, mnemonic, category, charsets=charsets, doc=doc, mime_charset=mime_charset, &
                     default_char=default_char)
     end subroutine define_charset_coding_system
 
@@ -835,6 +851,10 @@ contains
             t = "utf-16"
         case (CODING_CHARSET)
             t = "charset"
+        case (CODING_SJIS)
+            t = "shift-jis"
+        case (CODING_BIG5)
+            t = "big5"
         case default
             t = "raw-text"
         end select
@@ -1653,6 +1673,99 @@ contains
         ok = .true.
     end function detect_coding_charset
 
+    !> Whether the text is in Shift-JIS: 0x81..0x9F and 0xE0..0xEF (0xFC
+    !> with a fourth charset) start two bytes, 0xA1..0xDF are kana.  Port of
+    !> coding.c:detect_coding_sjis.
+    logical function detect_coding_sjis(units, head_ascii, info) result(ok)
+        integer, intent(in) :: units(:)
+        integer(int64), intent(in) :: head_ascii
+        type(detect_info_type), intent(inout) :: info
+        integer :: c, found, max_first
+        integer(int64) :: src, nu
+
+        info%checked = ior(info%checked, 2**CAT_SJIS)
+        ok = .false.
+        max_first = int(z'EF')
+        if (size(codings(category_id(CAT_SJIS))%charset_ids) > 3) max_first = int(z'FC')
+        nu = size(units, kind=int64)
+        ! A coding system of this category is always ASCII compatible.
+        src = head_ascii + 1
+        found = 0
+
+        do while (src <= nu)
+            c = units(src)
+            src = src + 1
+            if (c < 128) cycle
+
+            if ((c >= int(z'81') .and. c <= int(z'9F')) .or. (c >= int(z'E0') .and. c <= max_first)) then
+                ! A two-byte code cut short is rejected (the last block).
+                if (src > nu) then
+                    info%rejected = ior(info%rejected, 2**CAT_SJIS)
+                    return
+                end if
+
+                c = units(src)
+                src = src + 1
+
+                if (c < int(z'40') .or. c == int(z'7F') .or. c > int(z'FC')) then
+                    info%rejected = ior(info%rejected, 2**CAT_SJIS)
+                    return
+                end if
+
+                found = 2**CAT_SJIS
+            else if (c >= int(z'A0') .and. c < int(z'E0')) then
+                found = 2**CAT_SJIS
+            else
+                info%rejected = ior(info%rejected, 2**CAT_SJIS)
+                return
+            end if
+        end do
+
+        info%found = ior(info%found, found)
+        ok = .true.
+    end function detect_coding_sjis
+
+    !> Whether the text is in Big5: 0xA1..0xFE start two bytes.  Port of
+    !> coding.c:detect_coding_big5.
+    logical function detect_coding_big5(units, head_ascii, info) result(ok)
+        integer, intent(in) :: units(:)
+        integer(int64), intent(in) :: head_ascii
+        type(detect_info_type), intent(inout) :: info
+        integer :: c, found
+        integer(int64) :: src, nu
+
+        info%checked = ior(info%checked, 2**CAT_BIG5)
+        ok = .false.
+        nu = size(units, kind=int64)
+        src = head_ascii + 1
+        found = 0
+
+        do while (src <= nu)
+            c = units(src)
+            src = src + 1
+            if (c < 128) cycle
+
+            if (c >= int(z'A1')) then
+                if (src > nu) then
+                    info%rejected = ior(info%rejected, 2**CAT_BIG5)
+                    return
+                end if
+
+                c = units(src)
+                src = src + 1
+                ! An invalid second byte returns without rejecting.
+                if (c < int(z'40') .or. (c >= int(z'7F') .and. c <= int(z'A0'))) return
+                found = 2**CAT_BIG5
+            else
+                info%rejected = ior(info%rejected, 2**CAT_BIG5)
+                return
+            end if
+        end do
+
+        info%found = ior(info%found, found)
+        ok = .true.
+    end function detect_coding_big5
+
     !> Run the detector of CATEGORY.
     logical function run_detector(category, units, head_ascii, info) result(ok)
         integer, intent(in) :: category
@@ -1669,6 +1782,10 @@ contains
             ok = detect_coding_utf_16(units, info)
         case (CAT_CHARSET)
             ok = detect_coding_charset(units, head_ascii, info)
+        case (CAT_SJIS)
+            ok = detect_coding_sjis(units, head_ascii, info)
+        case (CAT_BIG5)
+            ok = detect_coding_big5(units, head_ascii, info)
         case default
             info%rejected = ior(info%rejected, 2**category)
         end select
@@ -2426,6 +2543,238 @@ contains
         end do
     end subroutine decode_charset
 
+    !> Decode Shift-JIS with the charsets of coding system ID (roman, kana,
+    !> kanji and an optional second kanji charset).  Port of
+    !> coding.c:decode_coding_sjis.
+    subroutine decode_sjis(id, units, chars, n, status)
+        integer, intent(in) :: id
+        integer, intent(in) :: units(:)
+        integer, allocatable, intent(inout) :: chars(:)
+        integer(int64), intent(inout) :: n
+        type(status_type), intent(inout) :: status
+        integer(int64) :: src, nu
+        integer :: c, c1, cs, roman, kana, kanji, kanji2
+
+        roman = codings(id)%charset_ids(1)
+        kana = codings(id)%charset_ids(2)
+        kanji = codings(id)%charset_ids(3)
+        kanji2 = 0
+        if (size(codings(id)%charset_ids) > 3) kanji2 = codings(id)%charset_ids(4)
+        nu = size(units, kind=int64)
+        src = 1
+
+        do while (src <= nu)
+            c = units(src)
+            src = src + 1
+            cs = 0
+
+            if (c < 0) then
+                cs = 0
+            else if (c < 128) then
+                cs = roman
+            else if (c == 128 .or. c == int(z'A0')) then
+                cs = 0
+            else if (c >= int(z'A1') .and. c <= int(z'DF')) then
+                ! SJIS -> JISX0201-Kana
+                c = iand(c, 127)
+                cs = kana
+            else if (c <= int(z'FC') .and. (c <= int(z'EF') .or. kanji2 /= 0)) then
+                ! An incomplete code at the end is left to the final
+                ! flushing as a raw byte.
+                if (src > nu) then
+                    call push(chars, n, invalid_char(c))
+                    exit
+                end if
+
+                c1 = units(src)
+
+                if (.not. (c1 < int(z'40') .or. c1 == int(z'7F') .or. c1 > int(z'FC'))) then
+                    src = src + 1
+
+                    if (c <= int(z'EF')) then
+                        ! SJIS -> JISX0208
+                        c = sjis_to_jis(ior(ishft(c, 8), c1))
+                        cs = kanji
+                    else
+                        ! SJIS -> JISX0213-2
+                        c = sjis_to_jis2(ior(ishft(c, 8), c1))
+                        cs = kanji2
+                    end if
+                end if
+            end if
+
+            if (cs == 0) then
+                call push(chars, n, invalid_char(units(src - 1)))
+                cycle
+            end if
+
+            c = charset_decode_id(cs, int(c, int64), status)
+            if (status%code /= 0) return
+            call push(chars, n, c)
+        end do
+    end subroutine decode_sjis
+
+    !> Decode Big5 with the charsets of coding system ID (roman and Big5).
+    !> Port of coding.c:decode_coding_big5.
+    subroutine decode_big5(id, units, chars, n, status)
+        integer, intent(in) :: id
+        integer, intent(in) :: units(:)
+        integer, allocatable, intent(inout) :: chars(:)
+        integer(int64), intent(inout) :: n
+        type(status_type), intent(inout) :: status
+        integer(int64) :: src, nu
+        integer :: c, c1, cs
+
+        nu = size(units, kind=int64)
+        src = 1
+
+        do while (src <= nu)
+            c = units(src)
+            src = src + 1
+            cs = 0
+
+            if (c >= 0 .and. c < 128) then
+                cs = codings(id)%charset_ids(1)
+            else if (c >= int(z'A1') .and. c <= int(z'FE')) then
+                if (src > nu) then
+                    call push(chars, n, invalid_char(c))
+                    exit
+                end if
+
+                c1 = units(src)
+
+                if (.not. (c1 < int(z'40') .or. (c1 > int(z'7E') .and. c1 < int(z'A1')) .or. c1 > int(z'FE'))) then
+                    src = src + 1
+                    c = ior(ishft(c, 8), c1)
+                    cs = codings(id)%charset_ids(2)
+                end if
+            end if
+
+            if (cs == 0) then
+                call push(chars, n, invalid_char(units(src - 1)))
+                cycle
+            end if
+
+            c = charset_decode_id(cs, int(c, int64), status)
+            if (status%code /= 0) return
+            call push(chars, n, c)
+        end do
+    end subroutine decode_big5
+
+    ! Port of coding.h:SJIS_TO_JIS.
+    integer function sjis_to_jis(code) result(j)
+        integer, intent(in) :: code
+        integer :: s1, s2, j1, j2
+
+        s1 = ishft(code, -8)
+        s2 = iand(code, 255)
+
+        if (s2 >= int(z'9F')) then
+            j1 = s1*2 - merge(int(z'160'), int(z'E0'), s1 >= int(z'E0'))
+            j2 = s2 - int(z'7E')
+        else
+            j1 = s1*2 - merge(int(z'161'), int(z'E1'), s1 >= int(z'E0'))
+            j2 = s2 - merge(int(z'20'), int(z'1F'), s2 >= int(z'7F'))
+        end if
+
+        j = ior(ishft(j1, 8), j2)
+    end function sjis_to_jis
+
+    ! Port of coding.h:SJIS_TO_JIS2.
+    integer function sjis_to_jis2(code) result(j)
+        integer, intent(in) :: code
+        integer :: s1, s2, j1, j2
+
+        s1 = ishft(code, -8)
+        s2 = iand(code, 255)
+
+        if (s2 >= int(z'9F')) then
+            select case (s1)
+            case (int(z'F0'))
+                j1 = int(z'28')
+            case (int(z'F1'))
+                j1 = int(z'24')
+            case (int(z'F2'))
+                j1 = int(z'2C')
+            case (int(z'F3'))
+                j1 = int(z'2E')
+            case default
+                j1 = int(z'6E') + (s1 - int(z'F4'))*2
+            end select
+
+            j2 = s2 - int(z'7E')
+        else
+            if (s1 <= int(z'F2')) then
+                j1 = int(z'21') + (s1 - int(z'F0'))*2
+            else if (s1 <= int(z'F4')) then
+                j1 = int(z'2D') + (s1 - int(z'F3'))*2
+            else
+                j1 = int(z'6F') + (s1 - int(z'F5'))*2
+            end if
+
+            j2 = s2 - merge(int(z'20'), int(z'1F'), s2 >= int(z'7F'))
+        end if
+
+        j = ior(ishft(j1, 8), j2)
+    end function sjis_to_jis2
+
+    ! Port of coding.h:JIS_TO_SJIS.
+    integer function jis_to_sjis(code) result(s)
+        integer, intent(in) :: code
+        integer :: s1, s2, j1, j2
+
+        j1 = ishft(code, -8)
+        j2 = iand(code, 255)
+
+        if (btest(j1, 0)) then
+            s1 = j1/2 + merge(int(z'71'), int(z'B1'), j1 < int(z'5F'))
+            s2 = j2 + merge(int(z'20'), int(z'1F'), j2 >= int(z'60'))
+        else
+            s1 = j1/2 + merge(int(z'70'), int(z'B0'), j1 < int(z'5F'))
+            s2 = j2 + int(z'7E')
+        end if
+
+        s = ior(ishft(s1, 8), s2)
+    end function jis_to_sjis
+
+    ! Port of coding.h:JIS_TO_SJIS2.
+    integer function jis_to_sjis2(code) result(s)
+        integer, intent(in) :: code
+        integer :: s1, s2, j1, j2
+
+        j1 = ishft(code, -8)
+        j2 = iand(code, 255)
+
+        if (btest(j1, 0)) then
+            if (j1 <= int(z'25')) then
+                s1 = int(z'F0') + (j1 - int(z'21'))/2
+            else if (j1 <= int(z'2F')) then
+                s1 = int(z'F3') + (j1 - int(z'2D'))/2
+            else
+                s1 = int(z'F5') + (j1 - int(z'6F'))/2
+            end if
+
+            s2 = j2 + merge(int(z'20'), int(z'1F'), j2 >= int(z'60'))
+        else
+            select case (j1)
+            case (int(z'28'))
+                s1 = int(z'F0')
+            case (int(z'24'))
+                s1 = int(z'F1')
+            case (int(z'2C'))
+                s1 = int(z'F2')
+            case (int(z'2E'))
+                s1 = int(z'F3')
+            case default
+                s1 = int(z'F4') + (j1 - int(z'6E'))/2
+            end select
+
+            s2 = j2 + int(z'7E')
+        end if
+
+        s = ior(ishft(s1, 8), s2)
+    end function jis_to_sjis2
+
     !> Decode with no conversion of the text.  Port of
     !> coding.c:decode_coding_raw_text.
     subroutine decode_raw_text(units, chars, n)
@@ -2602,6 +2951,12 @@ contains
             call decode_utf_16(id, units, chars, n)
         case (CODING_CHARSET)
             call decode_charset(id, units, chars, n, status)
+            if (status%code /= 0) return
+        case (CODING_SJIS)
+            call decode_sjis(id, units, chars, n, status)
+            if (status%code /= 0) return
+        case (CODING_BIG5)
+            call decode_big5(id, units, chars, n, status)
             if (status%code /= 0) return
         case default
             call decode_raw_text(units, chars, n)
@@ -2788,6 +3143,27 @@ contains
                     end if
                 end if
             end do
+        case (CODING_SJIS, CODING_BIG5)
+            ! encode_coding_sjis and encode_coding_big5.
+            do k = 1, n
+                c = chars(k)
+
+                if (codings(id)%ascii_compatible .and. c < 128) then
+                    call emit(out, q, char(c))
+                else if (char_byte8_p(c)) then
+                    call emit(out, q, char(char_to_byte8(c)))
+                else
+                    cs = char_charset_among(c, codings(id)%charset_ids, code, status)
+                    if (status%code /= 0) return
+
+                    if (cs == 0) then
+                        cs = char_charset_among(codings(id)%default_char, codings(id)%charset_ids, code, status)
+                        if (status%code /= 0) return
+                    end if
+
+                    call emit_sjis_big5(cs, int(code))
+                end if
+            end do
         case default
             ! encode_coding_raw_text (also for undecided).
             do k = 1, n
@@ -2810,6 +3186,39 @@ contains
         used = codings(id)%name
 
     contains
+
+        subroutine emit_sjis_big5(cs, code)
+            integer, intent(in) :: cs, code
+            integer :: c1, v, kanji2
+
+            kanji2 = 0
+            if (size(codings(id)%charset_ids) > 3) kanji2 = codings(id)%charset_ids(4)
+
+            if (codings(id)%ctype == CODING_BIG5) then
+                if (cs == codings(id)%charset_ids(2)) then
+                    call emit(out, q, char(ishft(code, -8))//char(iand(code, 255)))
+                else
+                    call emit(out, q, char(iand(code, 127)))
+                end if
+            else if (cs == codings(id)%charset_ids(3)) then
+                v = jis_to_sjis(code)
+                call emit(out, q, char(ishft(v, -8))//char(iand(v, 255)))
+            else if (cs == codings(id)%charset_ids(2)) then
+                call emit(out, q, char(ior(code, 128)))
+            else if (kanji2 /= 0 .and. cs == kanji2) then
+                c1 = ishft(code, -8)
+
+                if (c1 == int(z'21') .or. (c1 >= int(z'23') .and. c1 <= int(z'25')) .or. c1 == int(z'28') &
+                    .or. (c1 >= int(z'2C') .and. c1 <= int(z'2F')) .or. c1 >= int(z'6E')) then
+                    v = jis_to_sjis2(code)
+                    call emit(out, q, char(ishft(v, -8))//char(iand(v, 255)))
+                else
+                    call emit(out, q, char(iand(code, 127)))
+                end if
+            else
+                call emit(out, q, char(iand(code, 127)))
+            end if
+        end subroutine emit_sjis_big5
 
         subroutine emit_16(v)
             integer, intent(in) :: v
