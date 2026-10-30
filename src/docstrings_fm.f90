@@ -326,8 +326,9 @@ module docstrings_fm
                              completions_max_height, insert_default_directory, minibuffer_completing_file_name, &
                              read_buffer_completion_ignore_case, read_file_name_completion_ignore_case
     use mule_conf_fm, only: password_colon_equivalents, password_word_equivalents
-    use mule_fm, only: auto_coding_alist, auto_coding_regexp_alist, last_coding_system_specified, &
-                       mule_keymap, select_safe_coding_system_accept_default_p
+    use mule_fm, only: auto_coding_alist, auto_coding_regexp_alist, default_keyboard_coding_system, &
+                       default_terminal_coding_system, keyboard_coding_system_variable, &
+                       last_coding_system_specified, mule_keymap, select_safe_coding_system_accept_default_p
     use mule_util_fm, only: truncate_string_ellipsis_variable
     use newcomment_fm, only: comment_add, comment_auto_fill_only_comments, comment_column, &
                              comment_combine_change_calls, comment_continue, comment_empty_lines, COMMENT_EMPTY_LINES_NIL, &
@@ -530,7 +531,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1315) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1317) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -867,14 +868,15 @@ module docstrings_fm
                                                               "set_buffer_file_coding_system", "set_buffer_process_coding_system", &
                                                "set_coding_system_priority", "set_command_disabled", "set_default_coding_systems", &
                                             "set_error", "set_file_modes", "set_file_times", "set_fill_column", "set_fill_prefix", &
-                                                       "set_local_abbrev_table", "set_mark", "set_mark_command", "set_match_data", &
-                                                          "set_process_buffer", "set_process_coding_system", "set_process_filter", &
-                                                         "set_process_query_on_exit_flag", "set_process_sentinel", "set_register", &
-                                                  "set_repeat_map", "set_syntax_table", "set_variable", "sh_add", "sh_assignment", &
-                                         "sh_backslash_region", "sh_base_mode", "sh_basic_indent_line", "sh_beginning_of_command", &
-                                                       "sh_electric_here_document_mode", "sh_end_of_command", "sh_execute_region", &
-                                         "sh_make_vars_local", "sh_mode", "sh_reset_indent_vars_to_global_values", "sh_set_shell", &
-                                                         "shell", "shell_backward_command", "shell_command", "shell_command_mode", &
+                                           "set_keyboard_coding_system", "set_local_abbrev_table", "set_mark", "set_mark_command", &
+                                                              "set_match_data", "set_process_buffer", "set_process_coding_system", &
+                                                   "set_process_filter", "set_process_query_on_exit_flag", "set_process_sentinel", &
+                                               "set_register", "set_repeat_map", "set_syntax_table", "set_terminal_coding_system", &
+                                                 "set_variable", "sh_add", "sh_assignment", "sh_backslash_region", "sh_base_mode", &
+                                              "sh_basic_indent_line", "sh_beginning_of_command", "sh_electric_here_document_mode", &
+                                                        "sh_end_of_command", "sh_execute_region", "sh_make_vars_local", "sh_mode", &
+                                                                 "sh_reset_indent_vars_to_global_values", "sh_set_shell", "shell", &
+                                                                  "shell_backward_command", "shell_command", "shell_command_mode", &
                                                "shell_command_on_region", "shell_dirtrack_mode", "shell_dynamic_complete_command", &
                                              "shell_dynamic_complete_environment_variable", "shell_forward_command", "shell_mode", &
                                              "shell_narrow_to_prompt", "shell_replace_by_expanded_directory", "shell_script_mode", &
@@ -925,7 +927,7 @@ module docstrings_fm
                                                                     "yank_rectangle", "yes_or_no_p", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1100) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1103) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -1039,7 +1041,8 @@ module docstrings_fm
                                                                    "dabbrev_ignored_buffer_modes", "dabbrev_ignored_buffer_names", &
                                            "dabbrev_ignored_buffer_regexps", "dabbrev_limit", "dabbrev_search_these_buffers_only", &
                                               "dabbrev_upcase_means_case_search", "deactivate_mark_hook", "default_justification", &
-                                                   "default_process_coding_system", "define_ibuffer_column", "defining_kbd_macro", &
+                                                                "default_keyboard_coding_system", "default_process_coding_system", &
+                                                  "default_terminal_coding_system", "define_ibuffer_column", "defining_kbd_macro", &
                                                "delete_active_region", "delete_exited_processes", "diff_advance_after_apply_hunk", &
                                                  "diff_ask_before_revert_and_kill_hunk", "diff_command", "diff_default_read_only", &
                                                 "diff_entire_buffers", "diff_jump_to_old_file", "diff_mode_hook", "diff_mode_map", &
@@ -1157,11 +1160,11 @@ module docstrings_fm
                                               "isearch_message_prefix_add", "isearch_mode_end_hook", "isearch_mode_end_hook_quit", &
                                                            "isearch_mode_hook", "isearch_mode_map", "isearch_push_state_function", &
                                           "isearch_regexp_lax_whitespace", "isearch_search_fun_function", "isearch_wrap_function", &
-                                                          "jit_lock_chunk_size", "kbd_macro_termination_hook", "kill_buffer_hook", &
-                                                "kill_emacs_hook", "kill_read_only_ok", "kill_ring_max", "kill_ring_yank_pointer", &
-                                                                  "kill_whole_line", "killed_rectangle", "kmacro_call_repeat_key", &
-                                                         "kmacro_call_repeat_with_arg", "kmacro_counter", "kmacro_counter_format", &
-                                                                    "kmacro_counter_format_start", "kmacro_counter_value_start", &
+                                                    "jit_lock_chunk_size", "kbd_macro_termination_hook", "keyboard_coding_system", &
+                                                      "kill_buffer_hook", "kill_emacs_hook", "kill_read_only_ok", "kill_ring_max", &
+                                                                  "kill_ring_yank_pointer", "kill_whole_line", "killed_rectangle", &
+                                                        "kmacro_call_repeat_key", "kmacro_call_repeat_with_arg", "kmacro_counter", &
+                                             "kmacro_counter_format", "kmacro_counter_format_start", "kmacro_counter_value_start", &
                                                                   "kmacro_default_counter_format", "kmacro_execute_before_append", &
                                                            "kmacro_initial_counter_value", "kmacro_keymap", "kmacro_last_counter", &
                                                        "kmacro_repeat_no_prefix", "kmacro_ring", "kmacro_ring_max", "last_abbrev", &
@@ -1308,7 +1311,7 @@ module docstrings_fm
                                                                     "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(549) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(550) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1642,6 +1645,7 @@ module docstrings_fm
                                                                       "insert_directory_program", &
                                                                       "isearch_lax_whitespace", &
                                                                       "jit_lock_chunk_size", &
+                                                                      "keyboard_coding_system", &
                                                                       "kill_read_only_ok", &
                                                                       "kill_ring_max", &
                                                                       "kill_whole_line", &
@@ -11222,6 +11226,20 @@ contains
                         "Filling expects lines to start with the fill prefix and"//LF// &
                         "reinserts the fill prefix in each resulting line."//LF// &
                         "With a prefix argument, cancel the fill prefix."
+        case ("set_keyboard_coding_system")
+            entry%file = "mule_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Set coding system for keyboard input on the terminal to"//LF// &
+                        "CODING_SYSTEM."//LF// &
+                        ""//LF// &
+                        "For a list of possible values of CODING_SYSTEM, use"//LF// &
+                        "\[list_coding_systems].  The default is determined by the selected"//LF// &
+                        "language environment or by the previous use of this command."//LF// &
+                        ""//LF// &
+                        "If CODING_SYSTEM is nil or the coding-type of CODING_SYSTEM is"//LF// &
+                        "`raw-text', the decoding of keyboard input is disabled."//LF// &
+                        ""//LF// &
+                        "The setting has no effect on graphical terminals."
         case ("set_local_abbrev_table")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "call set_local_abbrev_table(table)"
@@ -11310,6 +11328,19 @@ contains
             entry%fortran = "call set_syntax_table(h, status)"
             entry%doc = "Select a new syntax table for the current buffer."//LF// &
                         "One argument, a syntax table."
+        case ("set_terminal_coding_system")
+            entry%file = "mule_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Set coding system of terminal output to CODING_SYSTEM."//LF// &
+                        "All text output to the terminal will be encoded with the specified"//LF// &
+                        "coding system."//LF// &
+                        ""//LF// &
+                        "For a list of possible values of CODING_SYSTEM, use"//LF// &
+                        "\[list_coding_systems].  The default is determined by the selected"//LF// &
+                        "language environment or by the previous use of this command."//LF// &
+                        ""//LF// &
+                        "By default, this function will redraw the current frame; optional"//LF// &
+                        "argument INHIBIT_REFRESH, if true, prevents that."
         case ("set_variable")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -16555,6 +16586,19 @@ contains
                         "line is centered.  JUSTIFY_NONE means no justification or centering."//LF// &
                         "The requested kind of justification is done whenever lines are filled."//LF// &
                         "The `justification' text-property can locally override this variable."
+        case ("default_keyboard_coding_system")
+            entry%file = "mule_fm.f90"
+            entry%fortran = "default_keyboard_coding_system"
+
+            if (allocated(default_keyboard_coding_system)) then
+                entry%value = repr(default_keyboard_coding_system)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Default value of the keyboard coding system ("""" for nil).  This is"//LF// &
+                        "normally set according to the selected language environment.  See"//LF// &
+                        "also the command `set_keyboard_coding_system'."
         case ("default_process_coding_system")
             entry%file = "coding_fm.f90"
             entry%fortran = "default_process_coding_system"
@@ -16562,6 +16606,19 @@ contains
             entry%doc = "Cons of coding systems used for process I/O by default."//LF// &
                         "The first element is used for decoding a process output,"//LF// &
                         "the second is used for encoding a text to be sent to a process."
+        case ("default_terminal_coding_system")
+            entry%file = "mule_fm.f90"
+            entry%fortran = "default_terminal_coding_system"
+
+            if (allocated(default_terminal_coding_system)) then
+                entry%value = repr(default_terminal_coding_system)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Default value for the terminal coding system ("""" for nil).  This is"//LF// &
+                        "normally set according to the selected language environment.  See"//LF// &
+                        "also the command `set_terminal_coding_system'."
         case ("define_ibuffer_column")
             entry%file = "ibuffer_fm.f90"
             entry%fortran = "ibuffer_columns"
@@ -20262,6 +20319,26 @@ contains
             entry%doc = "Normal hook run whenever a keyboard macro terminates."//LF// &
                         "This is run whether the macro ends normally or prematurely due to"//LF// &
                         "an error."
+        case ("keyboard_coding_system")
+            entry%file = "mule_fm.f90"
+            entry%fortran = "keyboard_coding_system_variable"
+            entry%user_option = .true.
+
+            if (allocated(keyboard_coding_system_variable)) then
+                entry%value = repr(keyboard_coding_system_variable)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Specify coding system for keyboard input.  If you set this on a"//LF// &
+                        "terminal which can't distinguish Meta keys from 8-bit characters,"//LF// &
+                        "you will have to use ESC to type Meta characters.  See Info node"//LF// &
+                        "`Terminal Coding' and Info node `Unibyte Mode'."//LF// &
+                        ""//LF// &
+                        "This is set at startup based on the locale."//LF// &
+                        ""//LF// &
+                        "Setting this variable directly does not take effect; use"//LF// &
+                        "\[set_keyboard_coding_system]."
         case ("kill_buffer_hook")
             entry%file = "files_fm.f90"
             entry%fortran = "kill_buffer_hook"
@@ -25382,6 +25459,8 @@ contains
             kind = OPTION_LOGICAL
         case ("jit_lock_chunk_size")
             kind = OPTION_INTEGER
+        case ("keyboard_coding_system")
+            kind = OPTION_STRING
         case ("kill_read_only_ok")
             kind = OPTION_LOGICAL
         case ("kill_ring_max")
@@ -27061,6 +27140,8 @@ contains
             info_search_whitespace_regexp = v
         case ("insert_directory_program")
             insert_directory_program = v
+        case ("keyboard_coding_system")
+            keyboard_coding_system_variable = v
         case ("list_matching_lines_buffer_name_face")
             list_matching_lines_buffer_name_face = v
         case ("list_matching_lines_current_line_face")
