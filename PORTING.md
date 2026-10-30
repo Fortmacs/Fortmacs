@@ -555,7 +555,7 @@ ported. Their keys are unbound, as test_bindings_fm checks:
   `[t(name="a")]`): gfortran 13 leaks them (checked with valgrind,
   2026-10-28). Use `list(...)`, variables, element-by-element assignment,
   a typed `%add`, or fixed-length components. No recursive allocatable types (gfortran copies them
-  shallowly). `tools/check.sh --valgrind` (run in CI) catches leaks.
+  shallowly). `tools/check.sh --valgrind` (run in CI) catches leaks, running each suite alone under valgrind in parallel; `--valgrind-combined` (CI on main) also runs all suites in one process.
 - Objects are freed explicitly: every `make_marker` needs a `free_marker`.
 - Change hooks run user code in the middle of editing primitives, which
   may call them again: the primitives and every procedure on the way to a
@@ -997,6 +997,7 @@ Each lists the default being used meanwhile.
 
 ## Session log
 
+- 2026-10-30 — Faster CI (`ci-parallel`, based on main; asked by the user): `tools/check.sh` runs the suites alone, and under valgrind each suite alone, in parallel (one job per CPU), printing the log of each failing suite; pushes to main add `--valgrind-combined`, which also runs every suite in one valgrind process so leaks across suites are still caught. The release build in `tools/test-recompile.sh` stays, as it is the only release-profile build per PR. The per-suite valgrind run found test/main.f90 leaking the suite and test names (main-program variables live on the stack of MAIN__), now freed.
 - 2026-10-29 — ANSI colors (roadmap step 38c, `step38c-ansi-color`, built on `step38b-passwords`; step 38 is now six PRs: completion needs `completion-table-with-quoting` in the core completion tables, so it moves after ansi-color and `list-processes`, as 38e and 38f): ansi_color_fm (ansi-color.el), on `comint-output-filter-functions`; shell_fm's `shell-apply-ansi-color` and `shell-reapply-ansi-color`.  Ports ansi-color-tests.el.  Next: 38d.
 - 2026-10-29 — Password prompts (roadmap step 38b, `step38b-passwords`, built on `step38-comint`): auth_source_fm (`read-passwd`, `read-passwd-mode`), mule_conf_fm (`password-word-equivalents`, `password-colon-equivalents`), comint_fm's `comint-password-prompt-regexp`, `comint-watch-for-password-prompt` (in the default `comint-output-filter-functions`), `comint-send-invisible`, `comint-password-function`.  minibuf_fm gains `read-hide-char` and a history of "t" keeping no history.  Ports the password tests of comint-tests.el.  Next: 38c.
 - 2026-10-29 — Comint history expansion and M-r (roadmap step 38a, `step38-comint`, built on `step34f-info-look` while #139 waits; step 38 is now five PRs, as recorded in the roadmap): comint_fm's history expansion, C-c ., Isearch in the input history, C-c C-z and scrolling on input.  isearch_fm gains `isearch-message-function`, `isearch-message-prefix-add`, `clear_local` for its function variables and setters of the barrier and starting point; process_fm `stop-process` and `continue-process`.  Own tests.  Next: 38b.
