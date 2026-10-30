@@ -136,4 +136,6 @@ END {
 # The last blank line before "end module" goes.
 awk 'NR > 1 { if (!(prev == "" && $0 ~ /^end module/)) print prev } { prev = $0 } END { print prev }' "$out.tmp" > "$out"
 rm -f "$out.tmp"
+# The blank lines of CLAUDE.md.
+awk -f tools/blank-lines.awk "$out" >"$out.bl" && mv "$out.bl" "$out"
 echo "wrote $out"
