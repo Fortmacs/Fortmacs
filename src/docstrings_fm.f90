@@ -188,7 +188,7 @@ module docstrings_fm
                             electric_pair_text_pairs, electric_pair_text_syntax_table
     use electric_fm, only: electric_indent_chars, electric_indent_functions_without_reindent, &
                            electric_indent_inhibit, electric_indent_local_mode_hook, electric_indent_mode_hook
-    use eval_fm, only: change_major_mode_hook
+    use eval_fm, only: buffer_list_update_hook, change_major_mode_hook
     use executable_fm, only: executable_chmod, executable_font_lock_keywords, executable_insert, &
                              executable_magicless_file_regexp, executable_prefix, executable_prefix_env, executable_query, &
                              EXECUTABLE_QUERY_NIL, EXECUTABLE_QUERY_FUNCTION, EXECUTABLE_QUERY_T, executable_self_display
@@ -285,8 +285,8 @@ module docstrings_fm
                        info_xref_visited_face
     use info_look_fm, only: info_lookup_file_name_alist, info_lookup_highlight_face, &
                             info_lookup_other_window_flag
-    use insdel_fm, only: after_change_functions, before_change_functions, first_change_hook, &
-                         inhibit_modification_hooks
+    use insdel_fm, only: after_change_functions, before_change_functions, combine_after_change_calls, &
+                         first_change_hook
     use isearch_fm, only: isearch_filter_predicate, isearch_lax_whitespace, isearch_message_function, &
                           isearch_message_prefix_add, isearch_mode_end_hook, isearch_mode_end_hook_quit, &
                           isearch_mode_hook, isearch_mode_map, isearch_push_state_function, &
@@ -465,6 +465,7 @@ module docstrings_fm
     use term_fm, only: visible_bell
     use text_mode_fm, only: text_mode_abbrev_table, text_mode_hook, text_mode_map, &
                             text_mode_syntax_table, text_mode_variant
+    use textprop_fm, only: inhibit_modification_hooks, inhibit_point_motion_hooks
     use timer_fm, only: timer_max_repeats
     use undo_fm, only: amalgamating_undo_limit, this_command_amalgamating
     use vc_dir_fm, only: vc_dir_allow_mass_mark_changes, VC_DIR_MASS_MARK_NIL, VC_DIR_MASS_MARK_ASK, &
@@ -529,7 +530,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1314) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1315) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -562,12 +563,13 @@ module docstrings_fm
                                                         "bookmark_insert_location", "bookmark_jump", "bookmark_jump_other_window", &
                                                        "bookmark_load", "bookmark_locate", "bookmark_relocate", "bookmark_rename", &
                                                    "bookmark_save", "bookmark_set", "bookmark_set_no_overwrite", "bookmark_write", &
-                                              "bookmark_yank_word", "buffer_menu", "buffer_menu_1_window", "buffer_menu_2_window", &
-                                                            "buffer_menu_backup_unmark", "buffer_menu_bury", "buffer_menu_delete", &
-                                                        "buffer_menu_delete_backwards", "buffer_menu_execute", "buffer_menu_mark", &
-                                                        "buffer_menu_mode", "buffer_menu_multi_occur", "buffer_menu_not_modified", &
-                                               "buffer_menu_other_window", "buffer_menu_other_window_command", "buffer_menu_save", &
-                                               "buffer_menu_select", "buffer_menu_switch_other_window", "buffer_menu_this_window", &
+                                                "bookmark_yank_word", "buffer_enable_undo", "buffer_menu", "buffer_menu_1_window", &
+                                                          "buffer_menu_2_window", "buffer_menu_backup_unmark", "buffer_menu_bury", &
+                                                      "buffer_menu_delete", "buffer_menu_delete_backwards", "buffer_menu_execute", &
+                                                                "buffer_menu_mark", "buffer_menu_mode", "buffer_menu_multi_occur", &
+                                                                    "buffer_menu_not_modified", "buffer_menu_other_window", &
+                                                     "buffer_menu_other_window_command", "buffer_menu_save", "buffer_menu_select", &
+                                                                    "buffer_menu_switch_other_window", "buffer_menu_this_window", &
                                                                    "buffer_menu_toggle_files_only", "buffer_menu_toggle_internal", &
                                                    "buffer_menu_toggle_read_only", "buffer_menu_unmark", "buffer_menu_unmark_all", &
                                             "buffer_menu_unmark_all_buffers", "buffer_menu_view", "buffer_menu_view_other_window", &
@@ -923,7 +925,7 @@ module docstrings_fm
                                                                     "yank_rectangle", "yes_or_no_p", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1097) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1100) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -961,24 +963,25 @@ module docstrings_fm
                                                             "bookmark_save_flag", "bookmark_search_delay", "bookmark_search_size", &
                                                      "bookmark_sort_flag", "bookmark_use_annotations", "bookmark_version_control", &
                                                                     "bookmark_watch_bookmark_file", "bookmark_yank_point", &
-                                          "buffer_auto_revert_by_notification", "buffer_file_coding_system", "buffer_menu_buffer", &
-                                            "buffer_menu_del_char", "buffer_menu_human_readable_sizes", "buffer_menu_marker_char", &
-                                                        "buffer_menu_mode_hook", "buffer_menu_mode_map", "buffer_menu_mode_width", &
-                                          "buffer_menu_name_width", "buffer_menu_size_width", "buffer_menu_use_frame_buffer_list", &
+                                                                "buffer_auto_revert_by_notification", "buffer_file_coding_system", &
+                                                          "buffer_list_update_hook", "buffer_menu_buffer", "buffer_menu_del_char", &
+                                           "buffer_menu_human_readable_sizes", "buffer_menu_marker_char", "buffer_menu_mode_hook", &
+                                                       "buffer_menu_mode_map", "buffer_menu_mode_width", "buffer_menu_name_width", &
+                                                                    "buffer_menu_size_width", "buffer_menu_use_frame_buffer_list", &
                                                        "buffer_menu_use_header_line", "buffer_stale_function", "case_fold_search", &
                                             "case_replace", "case_symbols_as_words", "change_log_date", "change_log_default_name", &
                                                       "change_log_directory_files", "change_log_mode_hook", "change_log_mode_map", &
                                                               "change_log_mode_syntax_table", "change_major_mode_after_body_hook", &
                                            "change_major_mode_hook", "change_major_mode_with_file_name", "coding_system_for_read", &
                                                  "coding_system_for_write", "coding_system_require_warning", "colon_double_space", &
-                                                                    "comint_buffer_maximum_size", "comint_completion_addsuffix", &
-                                          "comint_completion_autolist", "comint_completion_fignore", "comint_completion_recexact", &
-                                                            "comint_delimiter_argument_list", "comint_dynamic_complete_functions", &
-                                                               "comint_eol_on_send", "comint_exec_hook", "comint_file_name_chars", &
-                                               "comint_file_name_prefix", "comint_file_name_quote_list", "comint_highlight_input", &
-                                            "comint_history_isearch", "comint_inhibit_carriage_motion", "comint_input_autoexpand", &
-                                                                   "comint_input_filter_functions", "comint_input_history_ignore", &
-                                                                    "comint_input_ignoredups", "comint_input_ring_file_name", &
+                                                                    "combine_after_change_calls", "comint_buffer_maximum_size", &
+                                         "comint_completion_addsuffix", "comint_completion_autolist", "comint_completion_fignore", &
+                                                                   "comint_completion_recexact", "comint_delimiter_argument_list", &
+                                                    "comint_dynamic_complete_functions", "comint_eol_on_send", "comint_exec_hook", &
+                                               "comint_file_name_chars", "comint_file_name_prefix", "comint_file_name_quote_list", &
+                                             "comint_highlight_input", "comint_history_isearch", "comint_inhibit_carriage_motion", &
+                                                                    "comint_input_autoexpand", "comint_input_filter_functions", &
+                                          "comint_input_history_ignore", "comint_input_ignoredups", "comint_input_ring_file_name", &
                                          "comint_input_ring_file_prefix", "comint_input_ring_separator", "comint_input_ring_size", &
                                                      "comint_input_sender_no_newline", "comint_insert_previous_argument_from_end", &
                                                     "comint_mode_hook", "comint_mode_map", "comint_move_point_for_matching_input", &
@@ -1148,16 +1151,17 @@ module docstrings_fm
                                                  "info_url_alist", "info_use_header_line", "info_warn_on_index_alternatives_wrap", &
                                                   "info_xref", "info_xref_visited", "inhibit_auto_fill", "inhibit_eol_conversion", &
                                                                     "inhibit_field_text_motion", "inhibit_iso_escape_detection", &
-                                          "inhibit_modification_hooks", "inhibit_null_byte_detection", "insert_default_directory", &
-                                                 "insert_directory_program", "isearch_filter_predicate", "isearch_lax_whitespace", &
-                                                "isearch_message_function", "isearch_message_prefix_add", "isearch_mode_end_hook", &
-                                                            "isearch_mode_end_hook_quit", "isearch_mode_hook", "isearch_mode_map", &
-                                                                   "isearch_push_state_function", "isearch_regexp_lax_whitespace", &
-                                                    "isearch_search_fun_function", "isearch_wrap_function", "jit_lock_chunk_size", &
-                                         "kbd_macro_termination_hook", "kill_buffer_hook", "kill_emacs_hook", "kill_read_only_ok", &
-                                                 "kill_ring_max", "kill_ring_yank_pointer", "kill_whole_line", "killed_rectangle", &
-                                                        "kmacro_call_repeat_key", "kmacro_call_repeat_with_arg", "kmacro_counter", &
-                                             "kmacro_counter_format", "kmacro_counter_format_start", "kmacro_counter_value_start", &
+                                                                    "inhibit_modification_hooks", "inhibit_null_byte_detection", &
+                                             "inhibit_point_motion_hooks", "insert_default_directory", "insert_directory_program", &
+                                                 "isearch_filter_predicate", "isearch_lax_whitespace", "isearch_message_function", &
+                                              "isearch_message_prefix_add", "isearch_mode_end_hook", "isearch_mode_end_hook_quit", &
+                                                           "isearch_mode_hook", "isearch_mode_map", "isearch_push_state_function", &
+                                          "isearch_regexp_lax_whitespace", "isearch_search_fun_function", "isearch_wrap_function", &
+                                                          "jit_lock_chunk_size", "kbd_macro_termination_hook", "kill_buffer_hook", &
+                                                "kill_emacs_hook", "kill_read_only_ok", "kill_ring_max", "kill_ring_yank_pointer", &
+                                                                  "kill_whole_line", "killed_rectangle", "kmacro_call_repeat_key", &
+                                                         "kmacro_call_repeat_with_arg", "kmacro_counter", "kmacro_counter_format", &
+                                                                    "kmacro_counter_format_start", "kmacro_counter_value_start", &
                                                                   "kmacro_default_counter_format", "kmacro_execute_before_append", &
                                                            "kmacro_initial_counter_value", "kmacro_keymap", "kmacro_last_counter", &
                                                        "kmacro_repeat_no_prefix", "kmacro_ring", "kmacro_ring_max", "last_abbrev", &
@@ -2830,6 +2834,11 @@ contains
             entry%doc = "Get the next word from buffer `bookmark_current_buffer' and append"//LF// &
                         "it to the name of the bookmark currently being set, advancing"//LF// &
                         "`bookmark_yank_point' by one word."
+        case ("buffer_enable_undo")
+            entry%file = "buffer_ops_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Start keeping undo information for buffer BUFFER."//LF// &
+                        "No argument or nil as argument means do this for the current buffer."
         case ("buffer_menu")
             entry%file = "buff_menu_fm.f90"
             entry%interactive = .true.
@@ -14232,6 +14241,18 @@ contains
                         "The variable `coding_system_for_write', if set, overrides this variable."//LF// &
                         ""//LF// &
                         "This variable is never applied to a way of decoding a file while reading it."
+        case ("buffer_list_update_hook")
+            entry%file = "eval_fm.f90"
+            entry%fortran = "buffer_list_update_hook"
+            entry%doc = "Hook run when the buffer list changes."//LF// &
+                        "Functions (implicitly) running this hook are `get_buffer_create',"//LF// &
+                        "`make_indirect_buffer', `rename_buffer', `kill_buffer', `bury_buffer'"//LF// &
+                        "and `select_window'.  This hook is not run for internal or temporary"//LF// &
+                        "buffers created by `get_buffer_create' or `generate_new_buffer' with"//LF// &
+                        "argument INHIBIT_BUFFER_HOOKS true."//LF// &
+                        ""//LF// &
+                        "Functions run by this hook should avoid calling `select_window' with a"//LF// &
+                        "false NORECORD argument since it may lead to infinite recursion."
         case ("buffer_menu_buffer")
             entry%file = "buff_menu_fm.f90"
             entry%fortran = "buffer_menu_buffer_face"
@@ -14453,6 +14474,12 @@ contains
             entry%original = ".false."
             entry%value = repr(colon_double_space)
             entry%doc = "True means put two spaces after a colon when filling."
+        case ("combine_after_change_calls")
+            entry%file = "insdel_fm.f90"
+            entry%fortran = "combine_after_change_calls"
+            entry%original = ".false."
+            entry%value = repr(combine_after_change_calls)
+            entry%doc = "Used internally by the `combine_after_change_calls' macro."
         case ("comint_buffer_maximum_size")
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_buffer_maximum_size"
@@ -20062,7 +20089,7 @@ contains
                         "to explicitly specify some coding system that doesn't use ISO-2022"//LF// &
                         "escape sequence (e.g., `latin-1') on reading by \[universal_coding_system_argument]."
         case ("inhibit_modification_hooks")
-            entry%file = "insdel_fm.f90"
+            entry%file = "textprop_fm.f90"
             entry%fortran = "inhibit_modification_hooks"
             entry%original = ".false."
             entry%value = repr(inhibit_modification_hooks%value)
@@ -20089,6 +20116,13 @@ contains
                         "Examples are Index nodes of Info files and null-byte delimited output"//LF// &
                         "from GNU Find and GNU Grep.  Emacs will then ignore the null bytes and"//LF// &
                         "decode text as usual."
+        case ("inhibit_point_motion_hooks")
+            entry%file = "textprop_fm.f90"
+            entry%fortran = "inhibit_point_motion_hooks"
+            entry%original = ".true."
+            entry%value = repr(inhibit_point_motion_hooks%value)
+            entry%doc = "If true, don't run `point_left' and `point_entered' text properties."//LF// &
+                        "This also inhibits the use of the `intangible' text property."
         case ("insert_default_directory")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "insert_default_directory"
