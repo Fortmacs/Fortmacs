@@ -390,7 +390,6 @@ contains
         end if
 
         cs%compact_codes_p = cs%max_code < 65536
-
         cs%has_invalid_code = present(invalid_code)
         cs%has_code_offset = present(code_offset)
 

@@ -3347,6 +3347,7 @@ contains
         if (.not. status%ok()) return
         call set_locale_environment(name, status)
     end subroutine cmd_set_locale_environment
+
     ! ------------------------------------------------------------------
     ! Charsets (mule-diag.el)
     ! ------------------------------------------------------------------
@@ -3714,8 +3715,11 @@ contains
         end do
 
         s = s//LF
-        if (info%iso_final_char > 0) &
+
+        if (info%iso_final_char > 0) then
             s = s//"Final char of ISO2022 designation sequence: "//format_message("`"//achar(info%iso_final_char)//"'")//LF
+        end if
+
         aliases = ""
         names = charset_list()
 
@@ -3766,9 +3770,11 @@ contains
             s = s//"ISO revision number: "//trim(num)//LF
         end if
 
-        if (info%supplementary_p .and. .not. info%internal) &
+        if (info%supplementary_p .and. .not. info%internal) then
             s = s//"Used only as a parent or a subset of some other charset,"//LF// &
-            "or provided just for backward compatibility."//LF
+                "or provided just for backward compatibility."//LF
+        end if
+
         call with_help_window(s, status)
     end subroutine describe_character_set
 

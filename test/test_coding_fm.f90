@@ -1288,6 +1288,7 @@ contains
         call set_terminal_coding_system("utf-8-unix", st, inhibit_refresh=.true.)
         call set_keyboard_coding_system("utf-8", st)
     end subroutine test_set_locale_environment
+
     !> describe-character-set, list-character-sets (with and without C-u)
     !> and list-charset-chars, as in Emacs.
     subroutine test_charset_commands(error)
@@ -1327,15 +1328,17 @@ contains
                    "CHARSET-NAME"//repeat(TAB, 5)//"D CH  FINAL-BYTE"//LF//"------------"//repeat(TAB, 5)// &
                    "- --- ----------"//LF//"adobe-standard-encoding"//repeat(TAB, 4)//"1 224 none"//LF)
         if (.not. allocated(error)) call check(error, index(text, LF//"ascii"//repeat(TAB, 6)//"1 128 B"//LF) > 0 &
-                                                .and. index(text, LF//"windows-936"//repeat(TAB, 5)//"2 191 none"//LF//LF// &
-                                                            "-------------- Supplementary Character Sets --------------" &
-                                                            //LF) > 0)
+                                               .and. index(text, LF//"windows-936"//repeat(TAB, 5)//"2 191 none"//LF//LF// &
+                                                           "-------------- Supplementary Character Sets --------------" &
+                                                           //LF) > 0)
         if (allocated(error)) return
         call list_character_sets(.true., st)
         text = help_text("*Character Set List*")
+        ! Charsets defined by earlier tests come first.
         call check(error, index(text, "-1 means that no final character is assigned."//LF// &
-                                "##"//TAB//"DESCRIPTION (describing string of the charset)"//LF// &
-                                "chinese-cns11643-15:2:94:-1:CNS11643 Plane 15 Chinese Traditional"//LF) > 0)
+                                "##"//TAB//"DESCRIPTION (describing string of the charset)"//LF) > 0 .and. &
+                   index(text, LF//"chinese-cns11643-15:2:94:-1:CNS11643 Plane 15 Chinese Traditional"//LF// &
+                         "gb18030:4:256:-1:GB18030"//LF) > 0)
         if (allocated(error)) return
         call list_charset_chars("ascii", st)
         buf = get_buffer("*Character List*")
