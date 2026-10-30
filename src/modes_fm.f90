@@ -63,6 +63,12 @@ module modes_fm
         type(major_mode_type) :: info_mode
         type(major_mode_type) :: log_edit_mode
         type(major_mode_type) :: log_view_mode
+        type(major_mode_type) :: makefile_automake_mode
+        type(major_mode_type) :: makefile_bsdmake_mode
+        type(major_mode_type) :: makefile_gmake_mode
+        type(major_mode_type) :: makefile_imake_mode
+        type(major_mode_type) :: makefile_makepp_mode
+        type(major_mode_type) :: makefile_mode
         type(major_mode_type) :: messages_buffer_mode
         type(major_mode_type) :: occur_edit_mode
         type(major_mode_type) :: occur_mode

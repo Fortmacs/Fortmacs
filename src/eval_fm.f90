@@ -43,8 +43,11 @@
 !> procedure and running it with its arguments (eval.c's
 !> run_hook_with_args).
 !>
-!> Deferred: the evaluator, and `run-hook-with-args-until-success' and
-!> friends (no hook uses them yet).
+!> `until_success_hook_type' runs its functions until one succeeds
+!> (`run-hook-with-args-until-success').
+!>
+!> Deferred: the evaluator, and `run-hook-with-args-until-failure' and
+!> `run-hook-wrapped' as such (no hook uses them yet).
 module eval_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type
@@ -57,7 +60,7 @@ module eval_fm
 
     public :: funcall_noargs, kill_local_hooks
     public :: change_function, after_change_function, position_function, region_function, region_entry_type
-    public :: string_function, string_filter_function, capf_function, capf_entry_type
+    public :: string_function, string_filter_function, capf_function, capf_entry_type, until_success_function
 
     !> The value `current_prefix_arg' had where the normal hook whose
     !> function is running was run.  The functions of a normal hook run
@@ -139,6 +142,16 @@ module eval_fm
             type(capf_data_type), intent(out) :: data
             type(status_type), intent(out) :: status
         end subroutine capf_function
+
+        !> A function of an `until_success_hook_type' hook such as
+        !> `write_file_functions': DONE true (upstream's non-nil value)
+        !> stops the hook.
+        recursive subroutine until_success_function(done, status)
+            import :: status_type
+            implicit none(type, external)
+            logical, intent(out) :: done
+            type(status_type), intent(out) :: status
+        end subroutine until_success_function
     end interface
 
     !> A function of a `capf_hook_type' hook, as `capf_hook_functions'
@@ -166,6 +179,7 @@ module eval_fm
         procedure(string_function), pointer, nopass :: string_fn => null()
         procedure(string_filter_function), pointer, nopass :: string_filter_fn => null()
         procedure(capf_function), pointer, nopass :: capf_fn => null()
+        procedure(until_success_function), pointer, nopass :: until_success_fn => null()
         integer :: depth = 0
         logical :: is_t = .false.
     end type hook_entry_type
@@ -339,6 +353,21 @@ module eval_fm
         procedure :: member => capf_hook_member
     end type capf_hook_type
 
+    !> A hook whose functions are run until one of them succeeds
+    !> (`until_success_function'), like `write_file_functions'.
+    type, extends(hook_base_type), public :: until_success_hook_type
+    contains
+        !> Add a function to the hook (subr.el's add-hook).
+        procedure :: add => until_success_hook_add
+        !> Remove a function from the hook (subr.el's remove-hook).
+        procedure :: remove => until_success_hook_remove
+        !> Run the hook's functions until one succeeds
+        !> (run-hook-with-args-until-success).
+        procedure :: run => until_success_hook_run
+        !> Whether FN is one of the functions run in the current buffer.
+        procedure :: member => until_success_hook_member
+    end type until_success_hook_type
+
     !> Normal hook run before changing the major mode of a buffer.
     !> The function `kill_all_local_variables' runs this before doing
     !> anything else.  Port of buffer.c change-major-mode-hook.
@@ -386,6 +415,8 @@ contains
             if (associated(b%string_filter_fn)) same = associated(a%string_filter_fn, b%string_filter_fn)
         else if (associated(a%capf_fn)) then
             if (associated(b%capf_fn)) same = associated(a%capf_fn, b%capf_fn)
+        else if (associated(a%until_success_fn)) then
+            if (associated(b%until_success_fn)) same = associated(a%until_success_fn, b%until_success_fn)
         end if
     end function same_function
 
@@ -1276,6 +1307,60 @@ contains
             n = n + 1
         end subroutine push
     end function capf_hook_functions
+
+    !> Add FN to the hook, as `hook_add' does.  Port of subr.el:add-hook.
+    subroutine until_success_hook_add(self, fn, depth, local)
+        class(until_success_hook_type), intent(inout), target :: self
+        procedure(until_success_function) :: fn
+        integer, intent(in), optional :: depth
+        logical, intent(in), optional :: local
+        type(hook_entry_type) :: e
+
+        e%until_success_fn => fn
+        call self%add_entry(e, depth, local)
+    end subroutine until_success_hook_add
+
+    !> Remove FN from the hook, as `hook_remove' does.
+    !> Port of subr.el:remove-hook.
+    subroutine until_success_hook_remove(self, fn, local)
+        class(until_success_hook_type), intent(inout) :: self
+        procedure(until_success_function) :: fn
+        logical, intent(in), optional :: local
+        type(hook_entry_type) :: e
+
+        e%until_success_fn => fn
+        call self%remove_entry(e, local)
+    end subroutine until_success_hook_remove
+
+    logical function until_success_hook_member(self, fn) result(found)
+        class(until_success_hook_type), intent(in) :: self
+        procedure(until_success_function) :: fn
+        type(hook_entry_type) :: e
+
+        e%until_success_fn => fn
+        found = self%member_entry(e)
+    end function until_success_hook_member
+
+    !> Run the hook's functions in the current buffer, in order, until one
+    !> of them succeeds (DONE); an error stops the hook.  Port of
+    !> eval.c:Frun_hook_with_args_until_success.
+    recursive subroutine until_success_hook_run(self, done, status)
+        class(until_success_hook_type), intent(in) :: self
+        logical, intent(out) :: done
+        type(status_type), intent(out) :: status
+        type(hook_entry_type), allocatable :: run(:)
+        integer :: i
+
+        status = status_type()
+        done = .false.
+        run = effective_entries(self)
+
+        do i = 1, size(run)
+            if (.not. associated(run(i)%until_success_fn)) cycle
+            call run(i)%until_success_fn(done, status)
+            if (done .or. .not. status%ok()) return
+        end do
+    end subroutine until_success_hook_run
 
     !> The entries run in the current buffer, in order: the buffer's own,
     !> with the global ones in place of `t' (copies, in case a function

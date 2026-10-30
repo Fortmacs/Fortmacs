@@ -180,6 +180,10 @@ module face_table_fm
     use log_view_fm, only: log_view_commit_body
     use log_view_fm, only: log_view_file_face
     use log_view_fm, only: log_view_message_face
+    use make_mode_fm, only: makefile_makepp_perl
+    use make_mode_fm, only: makefile_shell
+    use make_mode_fm, only: makefile_space
+    use make_mode_fm, only: makefile_targets
     use faces_fm, only: margin
     use replace_fm, only: match
     use faces_fm, only: menu
@@ -397,6 +401,10 @@ module face_table_fm
         type(named_face_type), pointer :: log_view_commit_body => log_view_commit_body
         type(named_face_type), pointer :: log_view_file => log_view_file_face
         type(named_face_type), pointer :: log_view_message => log_view_message_face
+        type(named_face_type), pointer :: makefile_makepp_perl => makefile_makepp_perl
+        type(named_face_type), pointer :: makefile_shell => makefile_shell
+        type(named_face_type), pointer :: makefile_space => makefile_space
+        type(named_face_type), pointer :: makefile_targets => makefile_targets
         type(named_face_type), pointer :: margin => margin
         type(named_face_type), pointer :: match => match
         type(named_face_type), pointer :: menu => menu

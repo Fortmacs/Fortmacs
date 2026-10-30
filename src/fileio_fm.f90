@@ -175,7 +175,7 @@ module fileio_fm
               make_symbolic_link, &
               rename_file, copy_file, report_file_errno, file_regular_p, file_symlink_p, &
               user_uid, user_real_uid, group_gid, make_directory_internal, delete_directory_internal, &
-              delete_file_internal, file_system_info
+              delete_file_internal, file_system_info, make_temp_name
     public :: insert_file_contents, write_region, verify_visited_file_modtime, &
               set_visited_file_modtime
 
@@ -759,6 +759,41 @@ contains
         if (sys_stat(absname, st, nofollow=.true.) /= 0) return
         file_symlink_p = iand(st%mode, S_IFMT) == S_IFLNK
     end function file_symlink_p
+
+    !> Generate temporary file name (string) starting with PREFIX (a string).
+    !>
+    !> This function tries to choose a name that has no existing file.
+    !> For this to work, PREFIX should be an absolute file name, and PREFIX
+    !> and the returned string should both be non-magic.
+    !>
+    !> There is a race condition between calling `make_temp_name' and
+    !> later creating the file, which opens all kinds of security holes.
+    !> For that reason, you should normally use `make_temp_file' instead.
+    !> Port of fileio.c:Fmake_temp_name (gen_tempname with GT_NOCREATE: six
+    !> random letters and digits after PREFIX).
+    subroutine make_temp_name(prefix, name, status)
+        character(len=*), intent(in) :: prefix
+        character(len=:), allocatable, intent(out) :: name
+        type(status_type), intent(out) :: status
+        character(len=*), parameter :: LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        character(len=6) :: suffix
+        real :: r
+        integer :: attempt, k
+
+        status = status_type()
+
+        do attempt = 1, 62**3
+            do k = 1, 6
+                call random_number(r)
+                suffix(k:k) = LETTERS(1 + int(r*62):1 + int(r*62))
+            end do
+
+            name = prefix//suffix
+            if (.not. file_exists_p(name) .and. .not. file_symlink_p(name)) return
+        end do
+
+        call report_file_errno("Creating file with prefix", prefix, EEXIST, status)
+    end subroutine make_temp_name
 
     !> The effective user id.  Port of editfns.c:Fuser_uid.
     integer(int32) function user_uid()

@@ -65,7 +65,7 @@ module files_fm
     use map_ynp_fm, only: map_y_or_n_p, YNP_SKIP, YNP_ASK
     use window_fm, only: pop_to_buffer_same_window, switch_to_buffer_other_window
     use coding_fm, only: buffer_file_coding_system, last_coding_system_used
-    use eval_fm, only: hook_type
+    use eval_fm, only: hook_type, until_success_hook_type
     implicit none(type, external)
     private
 
@@ -78,6 +78,25 @@ module files_fm
     !> Normal hook that is run after a buffer is saved to its file.
     !> Only used by `save_buffer'.  Port of files.el after-save-hook.
     type(hook_type), target, public :: after_save_hook = hook_type(name="after_save_hook")
+
+    !> List of functions to be called before saving a buffer to a file.
+    !> Used only by `save_buffer'.
+    !> If one of them returns true, the file is considered already written
+    !> and the rest are not called.
+    !> These hooks are considered to pertain to the visited file.
+    !> So any buffer-local binding of this variable is discarded if you change
+    !> the visited file name with \[set_visited_file_name], but not when you
+    !> change the major mode.
+    !>
+    !> This hook is not run if any of the functions in
+    !> `write_contents_functions' returns true.  Both hooks pertain
+    !> to how to save a buffer to file, for instance, choosing a suitable
+    !> coding system and setting mode bits.  (See Info
+    !> node `(elisp)Saving Buffers'.)  To perform various checks or
+    !> updates before the buffer is saved, use `before_save_hook'.
+    !> Port of files.el write-file-functions.
+    type(until_success_hook_type), target, public :: write_file_functions = &
+                                                     until_success_hook_type(name="write_file_functions", permanent_local=.true.)
 
     !> Regexp matching interpreters, for file mode determination.
     !> This regular expression is matched against the first line of a file
@@ -1523,7 +1542,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file, dir, wrote
         integer(int32) :: setmodes
-        logical :: modified, ok, tempsetmodes
+        logical :: modified, ok, tempsetmodes, written
         type(status_type) :: st
 
         modified = buffers(cur)%text%save_modiff < buffers(cur)%text%modiff
@@ -1591,74 +1610,82 @@ contains
 
         ! Support VC version backups.
         if (associated(vc_before_save_proc)) call vc_before_save_proc()
-        file = buffers(cur)%filename
-        call expand_file_name(file, dir, status)
+        ! If a hook returned true, file is already "written".
+        ! Otherwise, write it the usual way now.
+        call write_file_functions%run(written, status)
         if (.not. status%ok()) return
-        dir = file_name_directory(dir)
 
-        if (.not. file_exists_p(file) .and. .not. file_exists_p(dir)) then
-            call y_or_n_p(format_message("Directory `")//dir//format_message("' does not exist; create? "), &
-                          ok, status)
+        if (.not. written) then
+            file = buffers(cur)%filename
+            call expand_file_name(file, dir, status)
             if (.not. status%ok()) return
+            dir = file_name_directory(dir)
 
-            if (.not. ok) then
-                call set_error(status, FM_GENERIC_ERROR, "Canceled")
-                return
-            end if
+            if (.not. file_exists_p(file) .and. .not. file_exists_p(dir)) then
+                call y_or_n_p(format_message("Directory `")//dir//format_message("' does not exist; create? "), &
+                              ok, status)
+                if (.not. status%ok()) return
 
-            call make_directory(dir, status, parents=.true.)
-            if (.not. status%ok()) return
-        end if
-
-        ! basic-save-buffer-2
-        tempsetmodes = .false.
-
-        if (.not. file_writable_p(file)) then
-            if (.not. file_directory_p(dir)) then
-                if (file_exists_p(dir)) then
-                    call set_error(status, FM_GENERIC_ERROR, dir//" is not a directory")
-                else
-                    call set_error(status, FM_GENERIC_ERROR, dir//": No such directory")
+                if (.not. ok) then
+                    call set_error(status, FM_GENERIC_ERROR, "Canceled")
+                    return
                 end if
 
-                return
+                call make_directory(dir, status, parents=.true.)
+                if (.not. status%ok()) return
             end if
 
-            if (.not. file_exists_p(file)) then
-                call set_error(status, FM_GENERIC_ERROR, "Directory "//dir//" write-protected")
-                return
+            ! basic-save-buffer-2
+            tempsetmodes = .false.
+
+            if (.not. file_writable_p(file)) then
+                if (.not. file_directory_p(dir)) then
+                    if (file_exists_p(dir)) then
+                        call set_error(status, FM_GENERIC_ERROR, dir//" is not a directory")
+                    else
+                        call set_error(status, FM_GENERIC_ERROR, dir//": No such directory")
+                    end if
+
+                    return
+                end if
+
+                if (.not. file_exists_p(file)) then
+                    call set_error(status, FM_GENERIC_ERROR, "Directory "//dir//" write-protected")
+                    return
+                end if
+
+                call yes_or_no_p("File "//file_name_nondirectory(file)// &
+                                 " is write-protected; try to save anyway? ", ok, status)
+                if (.not. status%ok()) return
+
+                if (.not. ok) then
+                    call set_error(status, FM_GENERIC_ERROR, &
+                                   format_message("Attempt to save to a file that you aren't allowed to write"))
+                    return
+                end if
+
+                tempsetmodes = .true.
             end if
 
-            call yes_or_no_p("File "//file_name_nondirectory(file)// &
-                             " is write-protected; try to save anyway? ", ok, status)
+            call backup_buffer(setmodes)
+
+            ! Make a write-protected file writable while writing it; its bits
+            ! are restored below.
+            if (tempsetmodes .and. setmodes < 0) then
+                setmodes = file_modes(file)
+                if (.not. file_writable_p(file)) call set_file_modes(file, ior(setmodes, int(o'200', int32)), st)
+            end if
+
+            call write_region(file, .true., status, message=wrote)
+            if (setmodes >= 0) call set_file_modes(file, setmodes, st)
             if (.not. status%ok()) return
-
-            if (.not. ok) then
-                call set_error(status, FM_GENERIC_ERROR, &
-                               format_message("Attempt to save to a file that you aren't allowed to write"))
-                return
-            end if
-
-            tempsetmodes = .true.
         end if
 
-        call backup_buffer(setmodes)
-
-        ! Make a write-protected file writable while writing it; its bits
-        ! are restored below.
-        if (tempsetmodes .and. setmodes < 0) then
-            setmodes = file_modes(file)
-            if (.not. file_writable_p(file)) call set_file_modes(file, ior(setmodes, int(o'200', int32)), st)
-        end if
-
-        call write_region(file, .true., status, message=wrote)
-        if (setmodes >= 0) call set_file_modes(file, setmodes, st)
-        if (.not. status%ok()) return
         ! Now we have saved the current buffer: make sure that
         ! buffer-file-coding-system is fixed to what actually used for
         ! saving by binding it locally.
         if (allocated(last_coding_system_used%value)) call buffer_file_coding_system%set_local(last_coding_system_used%value)
-        call message(wrote)
+        if (.not. written) call message(wrote)
         ! Support VC `implicit' locking.
         if (associated(vc_after_save_proc)) call vc_after_save_proc()
         call after_save_hook%run(status)
@@ -1966,6 +1993,10 @@ contains
             if (allocated(buffers(cur)%filename)) deallocate (buffers(cur)%filename)
         end if
 
+        ! write-file-functions is normally used for things like ftp-find-file
+        ! that visit things that are not local files as if they were files.
+        ! Changing to visit an ordinary local file instead should flush the hook.
+        call write_file_functions%kill_local()
         buffers(cur)%backed_up = .false.
         ! clear-visited-file-modtime
         if (.not. along) buffers(cur)%modtime_known = .false.

@@ -214,7 +214,7 @@ module docstrings_fm
                         require_final_newline, FINAL_NEWLINE_NEVER, FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, &
                         FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, revert_buffer_function, &
                         revert_buffer_in_progress, revert_buffer_preserve_modes, revert_without_query, &
-                        save_some_buffers_functions, view_read_only
+                        save_some_buffers_functions, view_read_only, write_file_functions
     use fill_fm, only: adaptive_fill_first_line_regexp, adaptive_fill_mode, adaptive_fill_regexp, &
                        colon_double_space, default_justification, JUSTIFY_NONE, JUSTIFY_LEFT, JUSTIFY_RIGHT, &
                        JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_T, fill_indent_according_to_mode, &
@@ -311,6 +311,19 @@ module docstrings_fm
                            log_edit_rewrite_fixes_regexp, log_edit_rewrite_tiny_change, log_edit_setup_add_author, &
                            log_edit_setup_invert, log_edit_strip_single_file_name, log_edit_summary
     use lread_fm, only: user_init_file
+    use make_mode_fm, only: makefile_automake_font_lock_keywords, makefile_automake_mode_hook, &
+                            makefile_backslash_align, makefile_backslash_column, makefile_brave_make, &
+                            makefile_bsdmake_dependency_regex, makefile_bsdmake_font_lock_keywords, &
+                            makefile_bsdmake_rule_action_regex, makefile_cleanup_continuations, &
+                            makefile_dependency_regex, makefile_dependency_skip, makefile_electric_keys, &
+                            makefile_font_lock_keywords, makefile_gmake_font_lock_keywords, &
+                            makefile_gnumake_functions_alist, makefile_imake_font_lock_keywords, &
+                            makefile_imake_mode_syntax_table, makefile_macro_assign, makefile_makepp_font_lock_keywords, &
+                            makefile_mode_abbrev_table, makefile_mode_hook, makefile_mode_map, &
+                            makefile_mode_syntax_table, makefile_pickup_everything_picks_up_filenames_p, &
+                            makefile_rule_action_regex, makefile_runtime_macros_list, makefile_special_targets_list, &
+                            makefile_tab_after_target_colon, makefile_target_colon, makefile_up_to_date_buffer_name, &
+                            makefile_use_curly_braces_for_macros_p
     use map_ynp_fm, only: read_answer_short, READ_ANSWER_SHORT_NIL, READ_ANSWER_SHORT_T, &
                           READ_ANSWER_SHORT_AUTO
     use minibuf_fm, only: completion_ignore_case, enable_recursive_minibuffers, &
@@ -527,7 +540,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1314) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1337) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -808,17 +821,26 @@ module docstrings_fm
                                              "log_view_unmark_all_entries", "log_view_unmark_entry", "looking_at", "looking_at_p", &
                                                        "looking_back", "major_mode_named", "make_comint", "make_comint_in_buffer", &
                                                      "make_empty_file", "make_process", "make_symbolic_link", "make_syntax_table", &
-                                                     "map_query_replace_regexp", "mark", "mark_end_of_sentence", "mark_paragraph", &
-                                                   "mark_sexp", "mark_whole_buffer", "mark_word", "match_beginning", "match_data", &
-                                                                    "match_end", "match_string", "match_string_no_properties", &
-                                         "match_substitute_replacement", "message", "messages_buffer_mode", "minibuffer_complete", &
-                                         "minibuffer_complete_and_exit", "minibuffer_complete_word", "minibuffer_completion_exit", &
-                                                                   "minibuffer_completion_help", "minibuffer_recenter_top_bottom", &
-                                          "minibuffer_scroll_down_command", "minibuffer_scroll_up_command", "modify_syntax_entry", &
-                                          "move_beginning_of_line", "move_end_of_line", "move_to_left_margin", "move_to_tab_stop", &
-                                                           "move_to_window_line", "move_to_window_line_top_bottom", "multi_occur", &
-                                          "multi_occur_in_matching_buffers", "negative_argument", "newline", "newline_and_indent", &
-                                         "next_buffer", "next_error", "next_error_no_select", "next_history_element", "next_line", &
+                                                   "makefile_automake_mode", "makefile_backslash_region", "makefile_bsdmake_mode", &
+                                                                 "makefile_create_up_to_date_overview", "makefile_electric_colon", &
+                                                        "makefile_electric_dot", "makefile_electric_equal", "makefile_gmake_mode", &
+                                                 "makefile_imake_mode", "makefile_insert_gmake_function", "makefile_insert_macro", &
+                                          "makefile_insert_macro_ref", "makefile_insert_special_target", "makefile_insert_target", &
+                                                            "makefile_insert_target_ref", "makefile_makepp_mode", "makefile_mode", &
+                                                                    "makefile_next_dependency", "makefile_pickup_everything", &
+                                                                 "makefile_pickup_filenames_as_targets", "makefile_pickup_macros", &
+                                            "makefile_pickup_targets", "makefile_previous_dependency", "map_query_replace_regexp", &
+                                               "mark", "mark_end_of_sentence", "mark_paragraph", "mark_sexp", "mark_whole_buffer", &
+                                                        "mark_word", "match_beginning", "match_data", "match_end", "match_string", &
+                                                          "match_string_no_properties", "match_substitute_replacement", "message", &
+                                                    "messages_buffer_mode", "minibuffer_complete", "minibuffer_complete_and_exit", &
+                                           "minibuffer_complete_word", "minibuffer_completion_exit", "minibuffer_completion_help", &
+                                                               "minibuffer_recenter_top_bottom", "minibuffer_scroll_down_command", &
+                                                  "minibuffer_scroll_up_command", "modify_syntax_entry", "move_beginning_of_line", &
+                                             "move_end_of_line", "move_to_left_margin", "move_to_tab_stop", "move_to_window_line", &
+                                               "move_to_window_line_top_bottom", "multi_occur", "multi_occur_in_matching_buffers", &
+                                                "negative_argument", "newline", "newline_and_indent", "next_buffer", "next_error", &
+                                                                    "next_error_no_select", "next_history_element", "next_line", &
                                             "next_line_or_history_element", "normal_mode", "num_processors", "number_to_register", &
                                                   "occur", "occur_cease_edit", "occur_edit_mode", "occur_in_region", "occur_mode", &
                                                                     "occur_mode_display_occurrence", "occur_mode_goto_occurrence", &
@@ -920,7 +942,7 @@ module docstrings_fm
                                                                     "yank_rectangle", "yes_or_no_p", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1089) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1121) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -1172,8 +1194,22 @@ module docstrings_fm
                                                                     "log_edit_require_final_newline", "log_edit_rewrite_fixes", &
                                              "log_edit_rewrite_tiny_change", "log_edit_setup_add_author", "log_edit_setup_invert", &
                                                        "log_edit_strip_single_file_name", "log_edit_summary", "mail_host_address", &
-                                                           "make_backup_files", "mark_even_if_inactive", "mark_ring_max", "match", &
-                                                       "message_log_max", "messages_buffer_mode_hook", "messages_buffer_mode_map", &
+                                                                    "make_backup_files", "makefile_automake_font_lock_keywords", &
+                                           "makefile_automake_mode_hook", "makefile_backslash_align", "makefile_backslash_column", &
+                                                                    "makefile_brave_make", "makefile_bsdmake_dependency_regex", &
+                                                      "makefile_bsdmake_font_lock_keywords", "makefile_bsdmake_rule_action_regex", &
+                                                                    "makefile_cleanup_continuations", "makefile_dependency_regex", &
+                                              "makefile_dependency_skip", "makefile_electric_keys", "makefile_font_lock_keywords", &
+                                                          "makefile_gmake_font_lock_keywords", "makefile_gnumake_functions_alist", &
+                                                          "makefile_imake_font_lock_keywords", "makefile_imake_mode_syntax_table", &
+                                                                    "makefile_macro_assign", "makefile_makepp_font_lock_keywords", &
+                                                          "makefile_mode_abbrev_table", "makefile_mode_hook", "makefile_mode_map", &
+                                                  "makefile_mode_syntax_table", "makefile_pickup_everything_picks_up_filenames_p", &
+                                                                    "makefile_rule_action_regex", "makefile_runtime_macros_list", &
+                                                               "makefile_special_targets_list", "makefile_tab_after_target_colon", &
+                                                                    "makefile_target_colon", "makefile_up_to_date_buffer_name", &
+                                               "makefile_use_curly_braces_for_macros_p", "mark_even_if_inactive", "mark_ring_max", &
+                                              "match", "message_log_max", "messages_buffer_mode_hook", "messages_buffer_mode_map", &
                                                           "minibuffer_completing_file_name", "minibuffer_local_shell_command_map", &
                                                 "minibuffer_message_timeout", "minibuffer_scroll_window", "minibuffer_setup_hook", &
                                                               "mode_require_final_newline", "mounted_file_systems", "mule_keymap", &
@@ -1297,8 +1333,8 @@ module docstrings_fm
                                            "vc_use_short_revision", "view_exits_all_viewing_windows", "view_inhibit_help_message", &
                                                    "view_mode_hook", "view_mode_map", "view_no_disable_on_exit", "view_read_only", &
                                                  "view_scroll_auto_exit", "visible_bell", "window_min_height", "window_min_width", &
-                                                            "words_include_escapes", "xargs_program", "y_or_n_p_history_variable", &
-                                                                    "y_or_n_p_use_read_key", "yes_or_no_prompt"]
+                                                                 "words_include_escapes", "write_file_functions", "xargs_program", &
+                                                           "y_or_n_p_history_variable", "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
     character(len=48), parameter, public :: user_option_names(550) = [character(len=48) :: &
@@ -9087,6 +9123,162 @@ contains
             entry%doc = "Return a new syntax table."//LF// &
                         "Create a syntax table that inherits from OLDTABLE (if present) or"//LF// &
                         "from `standard_syntax_table' otherwise."
+        case ("makefile_automake_mode")
+            entry%file = "make_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "An adapted `makefile_mode' that knows about automake."
+        case ("makefile_backslash_region")
+            entry%file = "make_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Insert, align, or delete end-of-line backslashes on the lines in the"//LF// &
+                        "region (the command)."
+        case ("makefile_bsdmake_mode")
+            entry%file = "make_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "An adapted `makefile_mode' that knows about BSD make."
+        case ("makefile_create_up_to_date_overview")
+            entry%file = "make_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Create a buffer containing an overview of the state of all known targets."//LF// &
+                        "Known targets are targets that are explicitly defined in that makefile;"//LF// &
+                        "in other words, all targets that appear on the left hand side of a"//LF// &
+                        "dependency in the makefile."
+        case ("makefile_electric_colon")
+            entry%file = "make_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Prompt for name of new target (the command)."
+        case ("makefile_electric_dot")
+            entry%file = "make_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Prompt for the name of a special target to insert (the command)."
+        case ("makefile_electric_equal")
+            entry%file = "make_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Prompt for name of a macro to insert (the command)."
+        case ("makefile_gmake_mode")
+            entry%file = "make_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "An adapted `makefile_mode' that knows about gmake."
+        case ("makefile_imake_mode")
+            entry%file = "make_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "An adapted `makefile_mode' that knows about imake."
+        case ("makefile_insert_gmake_function")
+            entry%file = "make_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Insert a GNU make function call."//LF// &
+                        "Asks for the name of the function to use (with completion)."//LF// &
+                        "Then prompts for all required parameters."
+        case ("makefile_insert_macro")
+            entry%file = "make_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Prepare definition of a new macro (the command)."
+        case ("makefile_insert_macro_ref")
+            entry%file = "make_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Complete on a list of known macros, then insert complete ref at point"//LF// &
+                        "(the command)."
+        case ("makefile_insert_special_target")
+            entry%file = "make_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Prompt for and insert a special target name."//LF// &
+                        "Uses `makefile_special_targets' list."
+        case ("makefile_insert_target")
+            entry%file = "make_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Prepare definition of a new target (the command)."
+        case ("makefile_insert_target_ref")
+            entry%file = "make_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Complete on a list of known targets, then insert it at point (the"//LF// &
+                        "command)."
+        case ("makefile_makepp_mode")
+            entry%file = "make_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "An adapted `makefile_mode' that knows about makepp."
+        case ("makefile_mode")
+            entry%file = "make_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Major mode for editing standard Makefiles."//LF// &
+                        ""//LF// &
+                        "If you are editing a file for a different make, try one of the"//LF// &
+                        "variants `makefile_automake_mode', `makefile_gmake_mode',"//LF// &
+                        "`makefile_makepp_mode', `makefile_bsdmake_mode' or,"//LF// &
+                        "`makefile_imake_mode'.  All but the last should be correctly"//LF// &
+                        "chosen based on the file name, except if it is *.mk.  This"//LF// &
+                        "function ends by invoking the function(s) `makefile_mode_hook'."//LF// &
+                        ""//LF// &
+                        "It is strongly recommended to use `font_lock_mode', because that"//LF// &
+                        "provides additional parsing information.  This is used for"//LF// &
+                        "example to see that a rule action `echo foo: bar' is a not rule"//LF// &
+                        "dependency, despite the colon."//LF// &
+                        ""//LF// &
+                        "\{makefile_mode_map}"//LF// &
+                        ""//LF// &
+                        "Makefile mode can be configured by modifying the following variables:"//LF// &
+                        ""//LF// &
+                        "`makefile_target_colon':"//LF// &
+                        "    The string that gets appended to all target names"//LF// &
+                        "    inserted by `makefile_insert_target'."//LF// &
+                        "    "":"" or ""::"" are quite common values."//LF// &
+                        ""//LF// &
+                        "`makefile_macro_assign':"//LF// &
+                        "   The string that gets appended to all macro names"//LF// &
+                        "   inserted by `makefile_insert_macro'."//LF// &
+                        "   The normal value should be "" = "", since this is what"//LF// &
+                        "   standard make expects.  However, newer makes such as dmake"//LF// &
+                        "   allow a larger variety of different macro assignments, so you"//LF// &
+                        "   might prefer to use "" += "" or "" := "" ."//LF// &
+                        ""//LF// &
+                        "`makefile_tab_after_target_colon':"//LF// &
+                        "   If you want a TAB (instead of a space) to be appended after the"//LF// &
+                        "   target colon, then set this to a true value."//LF// &
+                        ""//LF// &
+                        "`makefile_pickup_everything_picks_up_filenames_p':"//LF// &
+                        "   If this variable is set to a true value then"//LF// &
+                        "   `makefile_pickup_everything' also picks up filenames as targets"//LF// &
+                        "   (i.e. it calls `makefile_pickup_filenames_as_targets'), otherwise"//LF// &
+                        "   filenames are omitted."//LF// &
+                        ""//LF// &
+                        "`makefile_cleanup_continuations':"//LF// &
+                        "   If this variable is set to a true value then Makefile mode"//LF// &
+                        "   will assure that no line in the file ends with a backslash"//LF// &
+                        "   (the continuation character) followed by any whitespace."//LF// &
+                        "   This is done by silently removing the trailing whitespace, leaving"//LF// &
+                        "   the backslash itself intact."//LF// &
+                        "   IMPORTANT: Please note that enabling this option causes Makefile mode"//LF// &
+                        "   to MODIFY A FILE WITHOUT YOUR CONFIRMATION when ""it seems necessary""."//LF// &
+                        ""//LF// &
+                        "`makefile_special_targets_list':"//LF// &
+                        "   List of special targets.  You will be offered to complete"//LF// &
+                        "   on one of those in the minibuffer whenever you enter a `.'."//LF// &
+                        "   at the beginning of a line in Makefile mode."
+        case ("makefile_next_dependency")
+            entry%file = "make_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point to the beginning of the next dependency line."
+        case ("makefile_pickup_everything")
+            entry%file = "make_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Notice names of all macros and targets in Makefile (the command)."
+        case ("makefile_pickup_filenames_as_targets")
+            entry%file = "make_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Scan the current directory for filenames to use as targets."//LF// &
+                        "Checks each filename against `makefile_ignored_files_in_pickup_regex'"//LF// &
+                        "and adds all qualifying names to the list of known targets."
+        case ("makefile_pickup_macros")
+            entry%file = "make_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Notice names of all macro definitions in Makefile."
+        case ("makefile_pickup_targets")
+            entry%file = "make_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Notice names of all target definitions in Makefile."
+        case ("makefile_previous_dependency")
+            entry%file = "make_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point to the beginning of the previous dependency line."
         case ("map_query_replace_regexp")
             entry%file = "replace_fm.f90"
             entry%fortran = "call map_query_replace_regexp(regexp, to_strings, status, n, start, end)"
@@ -16215,8 +16407,8 @@ contains
             entry%fortran = "dabbrev_abbrev_skip_leading_regexp"
             entry%user_option = .true.
 
-            if (allocated(dabbrev_abbrev_skip_leading_regexp)) then
-                entry%value = repr(dabbrev_abbrev_skip_leading_regexp)
+            if (allocated(dabbrev_abbrev_skip_leading_regexp%value)) then
+                entry%value = repr(dabbrev_abbrev_skip_leading_regexp%value)
             else
                 entry%value = "unallocated"
             end if
@@ -16227,7 +16419,7 @@ contains
                         "in which variable names may appear with or without a leading `$'."//LF// &
                         "(For example, in Makefiles.)"//LF// &
                         ""//LF// &
-                        "Leave this unallocated if no characters should be skipped."
+                        "Leave this unset if no characters should be skipped."
         case ("dabbrev_backward_only")
             entry%file = "dabbrev_fm.f90"
             entry%fortran = "dabbrev_backward_only"
@@ -20836,6 +21028,243 @@ contains
                         "file, then writes the buffer on top of the existing file.  Any other"//LF// &
                         "names that the old file had will now refer to the new (edited) file."//LF// &
                         "The file's owner and group are unchanged."
+        case ("makefile_automake_font_lock_keywords")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_automake_font_lock_keywords"
+            entry%doc = "Keywords to highlight in Makefile.am mode."
+        case ("makefile_automake_mode_hook")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_automake_mode_hook"
+            entry%doc = "Hooks run at the end of the Makefile mode variants."
+        case ("makefile_backslash_align")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_backslash_align"
+            entry%original = ".true."
+            entry%value = repr(makefile_backslash_align%value)
+            entry%doc = "If true, `makefile_backslash_region' will align backslashes."
+        case ("makefile_backslash_column")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_backslash_column"
+            entry%original = "48"
+            entry%value = repr(makefile_backslash_column%value)
+            entry%doc = "Column in which `makefile_backslash_region' inserts backslashes."
+        case ("makefile_brave_make")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_brave_make"
+
+            if (allocated(makefile_brave_make%value)) then
+                entry%value = repr(makefile_brave_make%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "How to invoke make, for `makefile_query_targets'."//LF// &
+                        "This should identify a `make' command that can handle the `-q' option."
+        case ("makefile_bsdmake_dependency_regex")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_bsdmake_dependency_regex"
+
+            if (allocated(makefile_bsdmake_dependency_regex)) then
+                entry%value = repr(makefile_bsdmake_dependency_regex)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Regex used to find dependency lines in a BSD makefile."
+        case ("makefile_bsdmake_font_lock_keywords")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_bsdmake_font_lock_keywords"
+            entry%doc = "Keywords to highlight in BSDmakefile mode."
+        case ("makefile_bsdmake_rule_action_regex")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_bsdmake_rule_action_regex"
+
+            if (allocated(makefile_bsdmake_rule_action_regex)) then
+                entry%value = repr(makefile_bsdmake_rule_action_regex)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Regex used to highlight BSD rule action lines in font lock mode."
+        case ("makefile_cleanup_continuations")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_cleanup_continuations"
+            entry%original = ".false."
+            entry%value = repr(makefile_cleanup_continuations%value)
+            entry%doc = "If true, automatically clean up continuation lines when saving."//LF// &
+                        "A line is cleaned up by removing all whitespace following a trailing"//LF// &
+                        "backslash.  This is done silently."//LF// &
+                        "IMPORTANT: Please note that enabling this option causes Makefile mode"//LF// &
+                        "to MODIFY A FILE WITHOUT YOUR CONFIRMATION when ""it seems necessary""."
+        case ("makefile_dependency_regex")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_dependency_regex"
+
+            if (allocated(makefile_dependency_regex%value)) then
+                entry%value = repr(makefile_dependency_regex%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Regex used to find dependency lines in a makefile."
+        case ("makefile_dependency_skip")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_dependency_skip"
+
+            if (allocated(makefile_dependency_skip%value)) then
+                entry%value = repr(makefile_dependency_skip%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Characters to skip to find a line that might be a dependency."
+        case ("makefile_electric_keys")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_electric_keys"
+            entry%original = ".false."
+            entry%value = repr(makefile_electric_keys%value)
+            entry%doc = "If true, Makefile mode should install electric keybindings."//LF// &
+                        "Default is .false.."
+        case ("makefile_font_lock_keywords")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_font_lock_keywords"
+            entry%doc = "Keywords to highlight in Makefile mode."
+        case ("makefile_gmake_font_lock_keywords")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_gmake_font_lock_keywords"
+            entry%doc = "Keywords to highlight in GNUmakefile mode."
+        case ("makefile_gnumake_functions_alist")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_gnumake_functions_alist"
+            entry%doc = "Alist of GNU Make functions and their arguments."
+        case ("makefile_imake_font_lock_keywords")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_imake_font_lock_keywords"
+            entry%doc = "Keywords to highlight in Imakefile mode."
+        case ("makefile_imake_mode_syntax_table")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_imake_mode_syntax_table"
+            entry%doc = "Syntax table used in `makefile_imake_mode'."
+        case ("makefile_macro_assign")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_macro_assign"
+
+            if (allocated(makefile_macro_assign%value)) then
+                entry%value = repr(makefile_macro_assign%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "String to append to all macro names inserted by `makefile_insert_macro'."//LF// &
+                        "The normal value should be "" = "", since this is what"//LF// &
+                        "standard make expects.  However, newer makes such as dmake"//LF// &
+                        "allow a larger variety of different macro assignments, so you"//LF// &
+                        "might prefer to use "" += "" or "" := "" ."
+        case ("makefile_makepp_font_lock_keywords")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_makepp_font_lock_keywords"
+            entry%doc = "Keywords to highlight in Makeppfile mode."
+        case ("makefile_mode_abbrev_table")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_mode_abbrev_table"
+            entry%doc = "Abbrev table in use in Makefile buffers."
+        case ("makefile_mode_hook")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_mode_hook"
+            entry%doc = "Normal hook run by `makefile_mode'."
+        case ("makefile_mode_map")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_mode_map"
+            entry%doc = "The keymap that is used in Makefile mode."
+        case ("makefile_mode_syntax_table")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_mode_syntax_table"
+            entry%doc = "Syntax table used in `makefile_mode'."
+        case ("makefile_pickup_everything_picks_up_filenames_p")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_pickup_everything_picks_up_filenames_p"
+            entry%original = ".false."
+            entry%value = repr(makefile_pickup_everything_picks_up_filenames_p%value)
+            entry%doc = "If true, `makefile_pickup_everything' picks up filenames as targets."//LF// &
+                        "This means it calls `makefile_pickup_filenames_as_targets'."//LF// &
+                        "Otherwise filenames are omitted."
+        case ("makefile_rule_action_regex")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_rule_action_regex"
+
+            if (allocated(makefile_rule_action_regex%value)) then
+                entry%value = repr(makefile_rule_action_regex%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Regex used to highlight rule action lines in font lock mode."
+        case ("makefile_runtime_macros_list")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_runtime_macros_list"
+
+            if (allocated(makefile_runtime_macros_list)) then
+                entry%value = repr(makefile_runtime_macros_list)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "List of macros that are resolved by make at runtime."//LF// &
+                        "If you insert a macro reference using `makefile_insert_macro_ref', the name"//LF// &
+                        "of the macro is checked against this list.  If it can be found its name will"//LF// &
+                        "not be enclosed in { } or ( )."
+        case ("makefile_special_targets_list")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_special_targets_list"
+
+            if (allocated(makefile_special_targets_list)) then
+                entry%value = repr(makefile_special_targets_list)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "List of special targets."//LF// &
+                        "You will be offered to complete on one of those in the minibuffer whenever"//LF// &
+                        "you enter a ""."" at the beginning of a line in `makefile_mode'."
+        case ("makefile_tab_after_target_colon")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_tab_after_target_colon"
+            entry%original = ".true."
+            entry%value = repr(makefile_tab_after_target_colon%value)
+            entry%doc = "If true, insert a TAB after a target colon."//LF// &
+                        "Otherwise, a space is inserted."//LF// &
+                        "The default is .true.."
+        case ("makefile_target_colon")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_target_colon"
+
+            if (allocated(makefile_target_colon%value)) then
+                entry%value = repr(makefile_target_colon%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "String to append to all target names inserted by `makefile_insert_target'."//LF// &
+                        """:"" or ""::"" are common values."
+        case ("makefile_up_to_date_buffer_name")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_up_to_date_buffer_name"
+
+            if (allocated(makefile_up_to_date_buffer_name%value)) then
+                entry%value = repr(makefile_up_to_date_buffer_name%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Name of the Up-to-date overview buffer."
+        case ("makefile_use_curly_braces_for_macros_p")
+            entry%file = "make_mode_fm.f90"
+            entry%fortran = "makefile_use_curly_braces_for_macros_p"
+            entry%original = ".false."
+            entry%value = repr(makefile_use_curly_braces_for_macros_p%value)
+            entry%doc = "Controls the style of generated macro references."//LF// &
+                        "True means macro references should use curly braces, like `${this}'."//LF// &
+                        ".false. means use parentheses, like `$(this)'."
         case ("mark_even_if_inactive")
             entry%file = "callint_fm.f90"
             entry%fortran = "mark_even_if_inactive"
@@ -24658,6 +25087,24 @@ contains
             entry%original = ".false."
             entry%value = repr(words_include_escapes)
             entry%doc = "True means `forward_word', etc., should treat escape chars part of words."
+        case ("write_file_functions")
+            entry%file = "files_fm.f90"
+            entry%fortran = "write_file_functions"
+            entry%doc = "List of functions to be called before saving a buffer to a file."//LF// &
+                        "Used only by `save_buffer'."//LF// &
+                        "If one of them returns true, the file is considered already written"//LF// &
+                        "and the rest are not called."//LF// &
+                        "These hooks are considered to pertain to the visited file."//LF// &
+                        "So any buffer-local binding of this variable is discarded if you change"//LF// &
+                        "the visited file name with \[set_visited_file_name], but not when you"//LF// &
+                        "change the major mode."//LF// &
+                        ""//LF// &
+                        "This hook is not run if any of the functions in"//LF// &
+                        "`write_contents_functions' returns true.  Both hooks pertain"//LF// &
+                        "to how to save a buffer to file, for instance, choosing a suitable"//LF// &
+                        "coding system and setting mode bits.  (See Info"//LF// &
+                        "node `(elisp)Saving Buffers'.)  To perform various checks or"//LF// &
+                        "updates before the buffer is saved, use `before_save_hook'."
         case ("xargs_program")
             entry%file = "grep_fm.f90"
             entry%fortran = "xargs_program"
@@ -25006,6 +25453,7 @@ contains
             kind = OPTION_STRING
         case ("dabbrev_abbrev_skip_leading_regexp")
             kind = OPTION_STRING
+            setting = .true.
         case ("dabbrev_backward_only")
             kind = OPTION_LOGICAL
         case ("dabbrev_case_distinction")
@@ -26898,7 +27346,11 @@ contains
         case ("dabbrev_abbrev_char_regexp")
             dabbrev_abbrev_char_regexp = v
         case ("dabbrev_abbrev_skip_leading_regexp")
-            dabbrev_abbrev_skip_leading_regexp = v
+            if (local) then
+                call dabbrev_abbrev_skip_leading_regexp%set_local(v)
+            else
+                dabbrev_abbrev_skip_leading_regexp = v
+            end if
         case ("diff_command")
             diff_command = v
         case ("diff_switches")

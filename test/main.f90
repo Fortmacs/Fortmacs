@@ -40,6 +40,7 @@ program tester
     use test_fill_fm, only: collect_fill_fm
     use test_newcomment_fm, only: collect_newcomment_fm
     use test_conf_mode_fm, only: collect_conf_mode_fm
+    use test_make_mode_fm, only: collect_make_mode_fm
     use test_syntax_propertize_fm, only: collect_syntax_propertize_fm
     use test_smie_fm, only: collect_smie_fm
     use test_sh_script_fm, only: collect_sh_script_fm
@@ -206,6 +207,7 @@ program tester
                  new_testsuite("fill_fm", collect_fill_fm), &
                  new_testsuite("newcomment_fm", collect_newcomment_fm), &
                  new_testsuite("conf_mode_fm", collect_conf_mode_fm), &
+                 new_testsuite("make_mode_fm", collect_make_mode_fm), &
                  new_testsuite("syntax_propertize_fm", collect_syntax_propertize_fm), &
                  new_testsuite("smie_fm", collect_smie_fm), &
                  new_testsuite("sh_script_fm", collect_sh_script_fm), &
