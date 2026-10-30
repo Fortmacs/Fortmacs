@@ -90,7 +90,7 @@ module term_xterm_fm
 contains
 
     !> Modifier bits for xterm modifier parameter `m' (2..8; also 13 and
-    !> 14, which some keyboards send for Control-Meta).
+    !> 14, which some keyboards send for Control-Meta).  Not a port.
     integer(int64) function xterm_modifiers(m) result(bits)
         integer, intent(in) :: m
         integer :: p
@@ -103,6 +103,7 @@ contains
         if (iand(p, 4) /= 0) bits = bits + M_CTL
     end function xterm_modifiers
 
+    ! Not a port.
     function itoa(n) result(s)
         integer, intent(in) :: n
         character(len=:), allocatable :: s
@@ -113,6 +114,7 @@ contains
     end function itoa
 
     !> In `map', translate byte sequence `seq' to the single event `ev'.
+    !> Not a port.
     subroutine def(map, seq, ev)
         type(handle_type), intent(in) :: map
         character(len=*), intent(in) :: seq
@@ -131,6 +133,7 @@ contains
     end subroutine def
 
     !> Translate `seq' to function key `name' with modifiers `bits'.
+    !> Not a port.
     subroutine defkey(map, seq, bits, name)
         type(handle_type), intent(in) :: map
         character(len=*), intent(in) :: seq, name
@@ -269,6 +272,7 @@ contains
 
     !> Keys xterm reports with modifyOtherKeys / formatOtherKeys:
     !> CSI 27;M;C~ and CSI C;Mu.  The dolist in xterm-function-map.
+    !> Not a port.
     subroutine define_modify_other_keys(map)
         type(handle_type), intent(in) :: map
         ! Characters reported with Control (M = 5, or 7/13 with Meta).

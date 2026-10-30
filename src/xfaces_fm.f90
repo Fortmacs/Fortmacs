@@ -128,9 +128,10 @@ contains
     !> The background mode of a terminal of type TERM_TYPE whose
     !> background color is BG_COLOR ("unspecified-bg" when the terminal
     !> didn't say): light for xterm, rxvt, dtterm and eterm (whose
-    !> default background is white), else dark.  The terminal part of
-    !> frame.el:frame-set-background-mode (frame-background-mode nil; the
-    !> background color xterm.el queries is deferred).
+    !> default background is white), else dark.  Port of
+    !> frame.el:frame-set-background-mode (the terminal part,
+    !> frame-background-mode nil; the background color xterm.el queries is
+    !> deferred).
     integer function frame_background_mode(term_type, bg_color) result(mode)
         character(len=*), intent(in) :: term_type, bg_color
         logical :: xterm_like
@@ -181,8 +182,8 @@ contains
     end subroutine init_frame_faces
 
     !> Clear the face cache of the selected frame and realize its basic
-    !> faces again, after face attributes or color mappings changed.  Port
-    !> of xfaces.c:Fclear_face_cache (with free_all_realized_faces).
+    !> faces again, after face attributes or color mappings changed.
+    !> Port of xfaces.c:Fclear_face_cache (with free_all_realized_faces).
     subroutine clear_face_cache()
         if (.not. allocated(selected_frame%faces)) return
         call recompute_basic_faces(selected_frame)
@@ -296,8 +297,8 @@ contains
         if (present(new_id)) new_id = k
     end subroutine realize_face
 
-    !> The terminal face for the fully specified attributes ATTRS.  Port
-    !> of xfaces.c:realize_tty_face.
+    !> The terminal face for the fully specified attributes ATTRS.
+    !> Port of xfaces.c:realize_tty_face.
     function realize_tty_face(attrs) result(face)
         type(face_attributes_type), intent(in) :: attrs
         type(face_type) :: face
@@ -528,8 +529,8 @@ contains
     end subroutine merge_face_vectors
 
     !> A relative height FROM applied to TO's height: relative times
-    !> absolute is absolute, relative times relative is relative.  Port
-    !> of xfaces.c:merge_face_heights (height functions are not ported).
+    !> absolute is absolute, relative times relative is relative.
+    !> Port of xfaces.c:merge_face_heights (height functions are not ported).
     subroutine merge_face_heights(from, to)
         type(face_attributes_type), intent(in) :: from
         type(face_attributes_type), intent(inout) :: to
@@ -545,8 +546,8 @@ contains
 
     !> Merge the attributes of the face named NAME into TO.  With
     !> EXTEND_ONLY, only if the face (or a face it inherits from) gives
-    !> `extend' a true value.  OK is false if there is no such face.  Port
-    !> of xfaces.c:merge_named_face.
+    !> `extend' a true value.  OK is false if there is no such face.
+    !> Port of xfaces.c:merge_named_face.
     recursive subroutine merge_named_face(name, to, depth, extend_only, ok)
         character(len=*), intent(in) :: name
         type(face_attributes_type), intent(inout) :: to
@@ -677,6 +678,7 @@ contains
     end subroutine merge_face_ref
 
     !> Whether V is a keyword (a symbol whose name starts with `:').
+    !> Not a port.
     logical function keywordp(v)
         type(value_type), intent(in) :: v
 
@@ -688,7 +690,7 @@ contains
         end associate
     end function keywordp
 
-    !> Whether V is the symbol NAME.
+    !> Whether V is the symbol NAME.  Not a port.
     logical function is_symbol(v, name)
         type(value_type), intent(in) :: v
         character(len=*), intent(in) :: name
@@ -697,7 +699,7 @@ contains
         if (symbolp(v)) is_symbol = symbols(xsymbol(v))%name == name
     end function is_symbol
 
-    !> The name of symbol V, or "" if V is not a symbol.
+    !> The name of symbol V, or "" if V is not a symbol.  Not a port.
     function symbol_name(v) result(name)
         type(value_type), intent(in) :: v
         character(len=:), allocatable :: name
@@ -709,8 +711,8 @@ contains
     !> Merge the property list ELTS (keyword, value, ...) of a face
     !> reference into TO, in order.  With FILTER, nothing is merged unless
     !> `:extend' is given a true value, or is not mentioned and a face
-    !> `:inherit' names gives it one.  The property list part of
-    !> xfaces.c:merge_face_ref.
+    !> `:inherit' names gives it one.  Port of
+    !> xfaces.c:merge_face_ref (the property list part).
     recursive subroutine merge_plist(elts, to, ok, filter, depth)
         type(value_type), intent(in) :: elts(:)
         type(face_attributes_type), intent(inout) :: to
@@ -771,6 +773,7 @@ contains
 
     !> Merge the attribute KEYWORD with value VALUE of a face property
     !> list into TO; ERR if it is invalid.  `unspecified' is a no-op.
+    !> Port of xfaces.c:merge_face_ref in part.
     recursive subroutine merge_attribute(keyword, value, to, err, depth)
         character(len=*), intent(in) :: keyword
         type(value_type), intent(in) :: value
@@ -926,7 +929,7 @@ contains
     end subroutine merge_attribute
 
     !> An underline given as a property list (:color COLOR :style STYLE
-    !> :position POS).
+    !> :position POS).  Not a port.
     subroutine underline_from_plist(value, to)
         type(value_type), intent(in) :: value
         type(face_attributes_type), intent(inout) :: to

@@ -128,6 +128,8 @@ module buffer_fm
         procedure :: clear => header_line_clear
     end type header_line_format_type
 
+    !> A buffer: its text, positions, mark and undo list, file, local
+    !> variables and modes.  Port of buffer.h struct buffer (in part).
     type, public :: buffer_type
         character(len=:), allocatable :: name, last_name
         type(buffer_text_type) :: text
@@ -264,14 +266,14 @@ module buffer_fm
 
     abstract interface
         !> Swap the buffer-local variables when buffer slot `new' becomes
-        !> current after slot `old' (0 for none).
+        !> current after slot `old' (0 for none).  Not a port.
         subroutine swap_locals_proc(old, new)
             import :: int64
             implicit none(type, external)
             integer(int64), intent(in) :: old, new
         end subroutine swap_locals_proc
 
-        !> An `auto_fill_function'.
+        !> An `auto_fill_function'.  Not a port.
         subroutine auto_fill_proc(status)
             import :: status_type
             implicit none(type, external)
@@ -315,7 +317,7 @@ module buffer_fm
     integer(int64) :: last_serial = 0
 
     abstract interface
-        !> Something to do with buffer `h'.
+        !> Something to do with buffer `h'.  Not a port.
         recursive subroutine buffer_proc(h)
             import :: handle_type
             implicit none(type, external)
@@ -373,7 +375,7 @@ module buffer_fm
 contains
 
     !> Append the segment TEXT, in FACE if present, at column ALIGN_TO if
-    !> present, to header line SELF.
+    !> present, to header line SELF.  Not a port.
     subroutine header_line_add(self, text, face, align_to)
         class(header_line_format_type), intent(inout) :: self
         character(len=*), intent(in) :: text
@@ -399,7 +401,7 @@ contains
         call move_alloc(grown, self%segments)
     end subroutine header_line_add
 
-    !> Make header line SELF nil: no header line.
+    !> Make header line SELF nil: no header line.  Not a port.
     subroutine header_line_clear(self)
         class(header_line_format_type), intent(inout) :: self
 
@@ -411,6 +413,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Slot index of buffer `h', or invalid-handle if it has been killed.
+    !> Not a port.
     subroutine resolve_buffer(h, i, status)
         type(handle_type), intent(in) :: h
         integer(int64), intent(out) :: i
@@ -427,7 +430,7 @@ contains
     end function buffer_live_p
 
     !> Whether a live buffer has serial number SERIAL (for Fortran objects
-    !> keeping per-buffer values by serial number).
+    !> keeping per-buffer values by serial number).  Not a port.
     logical function buffer_serial_live(serial) result(live)
         integer(int64), intent(in) :: serial
         integer(int64) :: k
@@ -459,6 +462,7 @@ contains
     end function current_buffer
 
     !> Handle of the live buffer in slot `i', or the null handle.
+    !> Not a port.
     function buffer_handle(i) result(h)
         integer(int64), intent(in) :: i
         type(handle_type) :: h
@@ -484,7 +488,7 @@ contains
         end do
     end function get_buffer
 
-    !> True if no live buffer is named `name'.
+    !> True if no live buffer is named `name'.  Not a port.
     logical function name_free(name)
         character(len=*), intent(in) :: name
         type(handle_type) :: h
@@ -590,6 +594,7 @@ contains
         character(len=24) :: num
         integer(int64) :: count
         real :: r
+        logical :: hidden
 
         if (present(ignore)) then
             if (same(name, ignore)) then
@@ -603,7 +608,10 @@ contains
             return
         end if
 
-        if (len(name) == 0 .or. name(1:1) /= " ") then
+        hidden = .false.
+        if (len(name) > 0) hidden = name(1:1) == " "
+
+        if (.not. hidden) then
             genbase = name
         else
             ! Hidden buffers get a random suffix first, to find a free name fast.
@@ -757,7 +765,7 @@ contains
     end function frame_buffer_list
 
     !> The buffers selected in the frame, most recent first (frame.h
-    !> buffer_list).
+    !> buffer_list).  Not a port.
     function frame_seen_buffers() result(list)
         type(handle_type), allocatable :: list(:)
 
@@ -768,7 +776,7 @@ contains
         end if
     end function frame_seen_buffers
 
-    !> Whether `h' is in `list'.
+    !> Whether `h' is in `list'.  Not a port.
     logical function in_list(list, h)
         type(handle_type), allocatable, intent(in) :: list(:)
         type(handle_type), intent(in) :: h
@@ -785,7 +793,7 @@ contains
         end do
     end function in_list
 
-    !> `list' without `h'.
+    !> `list' without `h'.  Not a port.
     subroutine list_delq(list, h)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: h
@@ -806,7 +814,7 @@ contains
         end do
     end subroutine list_delq
 
-    !> (cons h (delq h list))
+    !> (cons h (delq h list)) Not a port.
     subroutine list_push(list, h)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: h
@@ -896,6 +904,7 @@ contains
         call list_delq(frame_buried, h)
     end subroutine record_buffer
 
+    ! Not a port.
     subroutine alist_append(h)
         type(handle_type), intent(in) :: h
         type(handle_type), allocatable :: grown(:)
@@ -1045,6 +1054,7 @@ contains
     end subroutine barf_if_buffer_read_only
 
     !> Set BVAR read_only of buffer `h' (the `buffer_read_only' variable).
+    !> Not a port.
     subroutine set_buffer_read_only(h, flag, status)
         type(handle_type), intent(in) :: h
         logical, intent(in) :: flag

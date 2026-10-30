@@ -57,7 +57,7 @@ submodule(files_fm) files_mode_fm
 
 contains
 
-    !> Append an entry at the end of auto-mode-alist.
+    !> Append an entry at the end of auto-mode-alist.  Not a port.
     subroutine append_auto_mode(regexp, mode, strip)
         character(len=*), intent(in) :: regexp, mode
         logical, intent(in), optional :: strip
@@ -80,6 +80,7 @@ contains
 
     !> The default auto-mode-alist: files.el's entries for the modes
     !> that exist so far (in its order).
+    !> Port of the auto-mode-alist defvar of files.el (in part).
     subroutine init_auto_modes()
         if (allocated(auto_modes)) return
         ! (The autoloaded add-to-list entries of python.el and css-mode.el come
@@ -205,6 +206,7 @@ contains
     base = base(1:n - 1)
     end procedure file_name_sans_versions
 
+    ! Not a port.
     pure function downcase(s) result(d)
         character(len=*), intent(in) :: s
         character(len=len(s)) :: d
@@ -217,7 +219,7 @@ contains
         end do
     end function downcase
 
-    !> S without leading and trailing spaces and tabs.
+    !> S without leading and trailing spaces and tabs.  Not a port.
     pure function strip(s) result(t)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: t
@@ -302,7 +304,7 @@ contains
     end procedure auto_mode_spec
 
     !> S with hyphens turned into underscores: a mode named in a file, as
-    !> Emacs names it, as Fortmacs names it.
+    !> Emacs names it, as Fortmacs names it.  Not a port.
     function underscores(s) result(t)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: t
@@ -344,6 +346,7 @@ contains
     !> The mode for the interpreter the first line names (as
     !> `auto_mode_interpreter_regexp' finds it) in interpreter-mode-alist,
     !> or "".  Part of files.el:set-auto-mode.
+    !> Port of part of files.el:set-auto-mode.
     recursive subroutine interpreter_mode(mode, status)
         character(len=:), allocatable, intent(out) :: mode
         type(status_type), intent(out) :: status
@@ -413,6 +416,7 @@ contains
     !> The index of the first auto-mode-alist entry matching NAME (0 for
     !> none), first case-sensitively, then (auto-mode-case-fold)
     !> case-insensitively, and the 1-based start MB of the match.
+    !> Not a port.
     integer function matching_entry(name, mb) result(found)
         character(len=*), intent(in) :: name
         integer(int64), intent(out) :: mb

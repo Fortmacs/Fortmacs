@@ -1,5 +1,8 @@
 ! test_ring_fm.f90 -- tests for ring_fm.
+! Ports GNU Emacs 31.1 test/lisp/emacs-lisp/ring-tests.el in part; only
+! the tests of the ported functions.
 !
+! Copyright (C) 2016-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
 !
 ! This file is part of Fortmacs.
@@ -30,6 +33,7 @@ module test_ring_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_ring_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

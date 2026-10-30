@@ -1,4 +1,8 @@
-! test_vc_fm.f90 -- tests for vc_hooks_fm, vc_dispatcher_fm, vc_fm and vc_git_fm.
+! test_vc_fm.f90 -- tests for vc_hooks_fm, vc_dispatcher_fm, vc_fm and
+! vc_git_fm.
+! Ports GNU Emacs 31.1 test/lisp/vc/vc-tests/vc-tests.el,
+! test/lisp/vc/vc-tests/vc-test-misc.el and test/lisp/vc/vc-git-tests.el
+! in part; only the Git tests of the ported commands.
 !
 ! Copyright (C) 2014-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -67,6 +71,7 @@ module test_vc_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_vc_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

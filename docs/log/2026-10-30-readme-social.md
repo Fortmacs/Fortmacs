@@ -1,0 +1,1 @@
+2026-10-30 — One logo (`readme-social`, based on main; asked by the user): the README's heading shows docs/logo/social.svg, the image of GitHub's social preview, so logo.svg (the same wordmark in a smaller frame) is gone.  The icon stays separate.

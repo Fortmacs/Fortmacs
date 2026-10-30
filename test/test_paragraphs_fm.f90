@@ -1,5 +1,8 @@
 ! test_paragraphs_fm.f90 -- tests for paragraphs_fm.
+! Ports GNU Emacs 31.1 test/lisp/textmodes/paragraphs-tests.el in part;
+! only the tests of the ported commands.
 !
+! Copyright (C) 2019-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
 !
 ! This file is part of Fortmacs.
@@ -49,6 +52,7 @@ module test_paragraphs_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_paragraphs_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

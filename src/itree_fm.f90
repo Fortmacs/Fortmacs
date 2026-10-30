@@ -82,7 +82,8 @@ contains
     ! Objects
     ! ------------------------------------------------------------------
 
-    !> A new overlay, in no buffer (buffer.c:build_overlay).
+    !> A new overlay, in no buffer (buffer.c:build_overlay).  Port of
+    !> alloc.c:build_overlay.
     subroutine build_overlay(ov, front_advance, rear_advance)
         type(handle_type), intent(out) :: ov
         logical, intent(in) :: front_advance, rear_advance
@@ -111,6 +112,7 @@ contains
         overlayp = table%is_live(object)
     end function overlayp
 
+    ! An error unless OV is an overlay (CHECK_OVERLAY).  Not a port.
     subroutine check_overlay(ov, status)
         type(handle_type), intent(in) :: ov
         type(status_type), intent(out) :: status
@@ -118,7 +120,7 @@ contains
         if (.not. overlayp(ov)) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "overlayp")
     end subroutine check_overlay
 
-    !> Whether overlay slot I is in buffer slot B.
+    !> Whether overlay slot I is in buffer slot B.  Not a port.
     logical function in_buffer(i, b)
         integer(int64), intent(in) :: i, b
 
@@ -129,7 +131,7 @@ contains
     end function in_buffer
 
     !> The live overlay slots of buffer slot B, sorted by start (the order
-    !> of an ascending ITREE_FOREACH).
+    !> of an ascending ITREE_FOREACH).  Not a port.
     subroutine buffer_nodes(b, idx)
         integer(int64), intent(in) :: b
         integer(int64), allocatable, intent(out) :: idx(:)
@@ -168,7 +170,7 @@ contains
     end subroutine buffer_nodes
 
     !> Keep the first N elements of IDX (into a new array: no reallocation
-    !> to size 0, which valgrind reports).
+    !> to size 0, which valgrind reports).  Not a port.
     subroutine shrink_indices(idx, n)
         integer(int64), allocatable, intent(inout) :: idx(:)
         integer, intent(in) :: n
@@ -179,7 +181,7 @@ contains
         call move_alloc(kept, idx)
     end subroutine shrink_indices
 
-    !> Keep the first N elements of VEC.
+    !> Keep the first N elements of VEC.  Not a port.
     subroutine shrink_handles(vec, n)
         type(handle_type), allocatable, intent(inout) :: vec(:)
         integer, intent(in) :: n
@@ -191,6 +193,7 @@ contains
     end subroutine shrink_handles
 
     !> Whether the current buffer has overlays (buffer.c:buffer_has_overlays).
+    !> Port of buffer.h:buffer_has_overlays.
     logical function buffer_has_overlays()
         integer(int64) :: i
 
@@ -274,6 +277,7 @@ contains
         ! because the overlay has no properties at the moment.
     end subroutine make_overlay
 
+    ! X clipped to [LO, HI].  Not a port.
     pure integer(int64) function clip(lo, x, hi)
         integer(int64), intent(in) :: lo, x, hi
 
@@ -359,6 +363,7 @@ contains
     end subroutine move_overlay
 
     !> Remove overlay slot I from its buffer (buffer.c:drop_overlay).
+    !> Port of buffer.c:drop_overlay.
     subroutine drop_overlay(i)
         integer(int64), intent(in) :: i
 
@@ -379,8 +384,8 @@ contains
         call drop_overlay(overlay%index)
     end subroutine delete_overlay
 
-    !> Delete OVERLAY and release its handle, which becomes stale.  Not a
-    !> port: upstream relies on GC.
+    !> Delete OVERLAY and release its handle, which becomes stale.  Not a port:
+    !> upstream relies on GC.
     subroutine free_overlay(overlay)
         type(handle_type), intent(in) :: overlay
         type(status_type) :: st
@@ -458,8 +463,8 @@ contains
         if (overlayp(overlay)) plist = overlays(overlay%index)%plist
     end function overlay_properties
 
-    !> Get the property of overlay OVERLAY with property name PROP.  Port
-    !> of buffer.c:Foverlay_get.
+    !> Get the property of overlay OVERLAY with property name PROP.  Port of
+    !> buffer.c:Foverlay_get.
     function overlay_get(overlay, prop) result(val)
         type(handle_type), intent(in) :: overlay
         character(len=*), intent(in) :: prop
@@ -483,7 +488,8 @@ contains
         rear_advance = overlays(overlay%index)%rear_advance
     end subroutine overlay_advance
 
-    !> `overlay_get' with the property given as a symbol value.
+    !> `overlay_get' with the property given as a symbol value.  Port of
+    !> buffer.c:Foverlay_get.
     function overlay_get_prop(overlay, prop) result(val)
         type(handle_type), intent(in) :: overlay
         type(value_type), intent(in) :: prop
@@ -598,7 +604,8 @@ contains
     end subroutine overlays_in_1
 
     !> Whether node [NB, NE] intersects the search range [B, E]
-    !> (itree.c:itree_node_intersects).
+    !> (itree.c:itree_node_intersects).  Port of
+    !> itree.c:itree_node_intersects.
     pure logical function intersects(nb, ne, b, e)
         integer(int64), intent(in) :: nb, ne, b, e
 
@@ -736,7 +743,8 @@ contains
 
     !> The priority of OVERLAY in PRIORITY and its secondary priority in
     !> SPRIORITY: its `priority' property if a fixnum, else 0
-    !> (buffer.c:make_sortvec_item).
+    !> (buffer.c:make_sortvec_item).  Port of the priority part of
+    !> buffer.c:make_sortvec_item.
     subroutine overlay_priority(overlay, priority, spriority)
         type(handle_type), intent(in) :: overlay
         integer(int64), intent(out) :: priority, spriority
@@ -836,8 +844,8 @@ contains
     !> front_advance setting.
     !>
     !> If BEFORE_MARKERS is true, all overlays beginning/ending at POS
-    !> are treated as if their front_advance/rear_advance was true.  Port
-    !> of buffer.c:adjust_overlays_for_insert with itree.c:itree_insert_gap
+    !> are treated as if their front_advance/rear_advance was true.  Port of
+    !> buffer.c:adjust_overlays_for_insert with itree.c:itree_insert_gap
     !> (the current buffer).
     subroutine adjust_overlays_for_insert(pos, length, before_markers)
         integer(int64), intent(in) :: pos, length

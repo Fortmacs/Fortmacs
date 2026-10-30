@@ -1,4 +1,5 @@
 ! test_ewoc_fm.f90 -- tests for ewoc_fm.
+! Own tests; upstream has no ewoc tests.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -44,6 +45,7 @@ module test_ewoc_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_ewoc_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

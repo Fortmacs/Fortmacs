@@ -1,5 +1,9 @@
 ! test_help_fm.f90 -- tests for help_fm, help_fns_fm and help_mode_fm.
+! Ports GNU Emacs 31.1 test/lisp/help-tests.el in part; the tests
+! needing faces, keymap summaries or other quoting styles are not
+! ported.
 !
+! Copyright (C) 2019-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
 !
 ! This file is part of Fortmacs.
@@ -58,6 +62,7 @@ module test_help_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_help_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

@@ -208,6 +208,7 @@ contains
         if (buffer_live_p(old)) call set_buffer(old, st)
     end subroutine shell_command_set_point_after_cmd
 
+    ! Not a port.
     logical function same_buffer(a, b)
         type(handle_type), intent(in) :: a, b
 
@@ -236,7 +237,7 @@ contains
         call close_fd(fd)
     end subroutine make_error_file
 
-    !> The size of file `file' (0 if it doesn't exist).
+    !> The size of file `file' (0 if it doesn't exist).  Not a port.
     integer(int64) function file_size(file)
         character(len=*), intent(in) :: file
         type(file_stat_type) :: st
@@ -404,6 +405,7 @@ contains
     !> `&') with its output in OUTPUT_BUFFER, the buffer OUTPUT_BUFFER_NAME
     !> or `shell_command_buffer_name_async' (an error with INSERT_HERE).
     !> Part of simple.el:shell-command.
+    !> Port of part of simple.el:shell-command.
     subroutine async_shell_command_1(command_in, status, output_buffer, output_buffer_name, insert_here)
         character(len=*), intent(in) :: command_in
         type(status_type), intent(out) :: status
@@ -588,6 +590,7 @@ contains
         call set_buffer(old, st)
     end subroutine rename_uniquely_in
 
+    ! Not a port.
     function file_nondirectory(file) result(name)
         use fileio_fm, only: file_name_nondirectory
         character(len=*), intent(in) :: file
@@ -598,7 +601,7 @@ contains
 
     !> The filter of an asynchronous shell command whose buffer is
     !> displayed on its first output: display it, then filter as Comint
-    !> does from then on.
+    !> does from then on.  Port of part of simple.el:shell-command.
     recursive subroutine display_then_filter(process, string, status)
         type(handle_type), intent(in) :: process
         character(len=*), intent(in) :: string
@@ -683,7 +686,7 @@ contains
         call async_shell_command(command, status)
     end subroutine cmd_async_shell_command
 
-    !> `shell_file_name' (set from SHELL when not set yet).
+    !> `shell_file_name' (set from SHELL when not set yet).  Not a port.
     function shell_program() result(name)
         character(len=:), allocatable :: name
 
@@ -691,7 +694,7 @@ contains
         name = shell_file_name%value
     end function shell_program
 
-    !> `shell_command_switch' ("-c" when not set yet).
+    !> `shell_command_switch' ("-c" when not set yet).  Not a port.
     function shell_switch() result(switch)
         character(len=:), allocatable :: switch
 
@@ -700,7 +703,7 @@ contains
     end function shell_switch
 
     !> Whether COMMAND ends in `&' (with blanks around it): the
-    !> "[ \t]*&[ \t]*\\'" match of shell-command.
+    !> "[ \t]*&[ \t]*\\'" match of shell-command.  Not a port.
     logical function async_command_p(command)
         character(len=*), intent(in) :: command
         integer :: k
@@ -811,7 +814,7 @@ contains
         call goto_char(opoint)
     end function count_screen_lines
 
-    !> The character before position `pos' (0 if none).
+    !> The character before position `pos' (0 if none).  Not a port.
     integer function char_before_at(pos)
         integer(int64), intent(in) :: pos
         integer(int32) :: c
@@ -1081,6 +1084,7 @@ contains
 
     !> The prompt of `shell_command': with the current directory if
     !> `shell_command_prompt_show_cwd'.
+    !> Port of part of simple.el:shell-command (its interactive prompt).
     function shell_prompt(what) result(prompt)
         character(len=*), intent(in) :: what
         character(len=:), allocatable :: prompt
@@ -1165,6 +1169,7 @@ contains
     end subroutine cmd_shell_command_on_region
 
     !> The region's limits, as region-beginning and region-end give them.
+    !> Not a port.
     subroutine shell_region_bounds(beg, end, status)
         use editfns_fm, only: region_beginning, region_end
         integer(int64), intent(out) :: beg, end
@@ -1197,7 +1202,7 @@ contains
     call register_keymap_name("minibuffer_local_shell_command_map", minibuffer_local_shell_command_map)
     end procedure syms_of_simple_shell
 
-    !> Add S at the end of LIST.
+    !> Add S at the end of LIST.  Not a port.
     subroutine append_arg(list, s)
         type(process_arg_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
@@ -1216,7 +1221,7 @@ contains
         call move_alloc(grown, list)
     end subroutine append_arg
 
-    !> Add S at the start of LIST.
+    !> Add S at the start of LIST.  Not a port.
     subroutine prepend_arg(list, s)
         type(process_arg_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s

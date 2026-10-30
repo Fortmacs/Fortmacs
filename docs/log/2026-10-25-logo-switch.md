@@ -1,0 +1,1 @@
+2026-10-25 — Logo and theme switch (`logo-switch`): `ortmacs` in the logo is two cells taller (x-height 7 cells, bottom unchanged); the syntax page's light/dark switch moved from the title to the right, just below the code.

@@ -1,7 +1,7 @@
 ! test_derived_fm.f90 -- tests for hooks (subr_fm, eval_fm), derived
 ! major modes (derived_fm), Text, Prog, Fundamental and Special modes.
-! Includes cases ported from GNU Emacs 31.1 test/lisp/subr-tests.el and
-! test/lisp/files-tests.el.
+! Ports GNU Emacs 31.1 test/lisp/subr-tests.el and
+! test/lisp/files-tests.el in part; only the derived-mode cases.
 !
 ! Copyright (C) 2015-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -58,6 +58,7 @@ module test_derived_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_derived_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

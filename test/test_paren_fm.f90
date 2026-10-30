@@ -1,5 +1,5 @@
-! test_paren_fm.f90 -- tests for Show Paren mode (paren_fm).  Includes
-! cases ported from GNU Emacs 31.1 test/lisp/paren-tests.el.
+! test_paren_fm.f90 -- tests for Show Paren mode (paren_fm).
+! Ports GNU Emacs 31.1 test/lisp/paren-tests.el.
 !
 ! Copyright (C) 2019-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -52,6 +52,7 @@ module test_paren_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_paren_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

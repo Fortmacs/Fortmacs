@@ -315,7 +315,7 @@ contains
     end subroutine dired_add_entry
 
     !> Run `dired_after_readin_hook' with the buffer narrowed to the
-    !> current line.
+    !> current line.  Port of part of dired-aux.el:dired-do-redisplay.
     subroutine run_after_readin_on_line()
         integer(int64) :: opoint, begv, zv
         type(status_type) :: st
@@ -389,6 +389,7 @@ contains
 
     !> The body of `dired_do_redisplay' (postponing the readin hook till
     !> we map over all marked files).
+    !> Port of part of dired-aux.el:dired-do-redisplay.
     recursive subroutine redisplay_line(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: fname
@@ -565,8 +566,8 @@ contains
 
     !> Mark all files except `.' and `..' in current subdirectory.
     !> If the Dired buffer shows multiple directories, this command
-    !> marks the files listed in the subdirectory that point is in.  Port
-    !> of dired-aux.el:dired-mark-subdir-files (interactive).
+    !> marks the files listed in the subdirectory that point is in.
+    !> Port of dired-aux.el:dired-mark-subdir-files (interactive).
     recursive subroutine cmd_dired_mark_subdir_files(status)
         type(status_type), intent(out) :: status
 
@@ -691,7 +692,7 @@ contains
     end subroutine dired_mark_pop_up_body
 
     !> The reading `dired_mark_pop_up_body' runs: `read_file_name' with
-    !> `pop_prompt', `pop_dir' and `pop_default'.
+    !> `pop_prompt', `pop_dir' and `pop_default'.  Not a port.
     recursive subroutine pop_read_file_name(status)
         type(status_type), intent(out) :: status
 
@@ -704,7 +705,7 @@ contains
 
     !> `completing_read' with `pop_prompt', the collection `pop_collection'
     !> and `pop_default' (`pop_used_default' tells whether the default
-    !> was returned for empty input).
+    !> was returned for empty input).  Not a port.
     recursive subroutine pop_completing_read(status)
         type(status_type), intent(out) :: status
 
@@ -718,6 +719,7 @@ contains
     end subroutine pop_completing_read
 
     !> `read_from_minibuffer' with `pop_prompt' and the default `pop_default'.
+    !> Not a port.
     recursive subroutine pop_read_from_minibuffer(status)
         type(status_type), intent(out) :: status
 
@@ -731,13 +733,14 @@ contains
     end subroutine pop_read_from_minibuffer
 
     !> `y_or_n_p' with `pop_prompt' (the answer in `pop_answer').
+    !> Not a port.
     recursive subroutine pop_y_or_n_p(status)
         type(status_type), intent(out) :: status
 
         call y_or_n_p(pop_prompt, pop_answer, status)
     end subroutine pop_y_or_n_p
 
-    !> PROMPT with its "%s" replaced by WHAT.
+    !> PROMPT with its "%s" replaced by WHAT.  Not a port.
     function format_s(prompt, what) result(s)
         character(len=*), intent(in) :: prompt, what
         character(len=:), allocatable :: s
@@ -764,8 +767,8 @@ contains
     !> `completing_read' (or, for `touch', `read_from_minibuffer');
     !> USED_DEFAULT tells whether it was returned for empty input.
     !>
-    !> COLLECTION, if present, is a list of possible completions.  Port
-    !> of dired-aux.el:dired-mark-read-string (no INITIAL).
+    !> COLLECTION, if present, is a list of possible completions.
+    !> Port of dired-aux.el:dired-mark-read-string (no INITIAL).
     recursive subroutine dired_mark_read_string(prompt, op_symbol, arg_kind, arg_n, files, result, used_default, &
                                                 status, default_value, collection)
         character(len=*), intent(in) :: prompt, op_symbol
@@ -903,7 +906,7 @@ contains
     end subroutine dired_mark_confirm
 
     !> What an operation is called in messages: "Compress or uncompress"
-    !> for `compress', else the capitalized symbol name.
+    !> for `compress', else the capitalized symbol name.  Not a port.
     function operation_string(op_symbol) result(s)
         character(len=*), intent(in) :: op_symbol
         character(len=:), allocatable :: s
@@ -915,7 +918,7 @@ contains
         end if
     end function operation_string
 
-    !> FORMAT with N: (ngettext SINGULAR PLURAL N).
+    !> FORMAT with N: (ngettext SINGULAR PLURAL N).  Not a port.
     function ngettext(singular, plural, n) result(s)
         character(len=*), intent(in) :: singular, plural
         integer(int64), intent(in) :: n
@@ -928,7 +931,7 @@ contains
         end if
     end function ngettext
 
-    !> N in decimal.
+    !> N in decimal.  Not a port.
     function aux_itoa(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
@@ -1061,7 +1064,7 @@ contains
     end subroutine dired_bunch_files
 
     !> (format-time-string "%Y%m%d%H%M.%S" SECONDS): the local time as
-    !> touch's -t option takes it.
+    !> touch's -t option takes it.  Not a port.
     function touch_time_string(seconds) result(s)
         integer(int64), intent(in) :: seconds
         character(len=:), allocatable :: s
@@ -1242,7 +1245,7 @@ contains
     end procedure dired_do_chmod
 
     !> (string-to-number S 8): the octal number at the start of S (after
-    !> spaces and tabs, with an optional sign), 0 if none.
+    !> spaces and tabs, with an optional sign), 0 if none.  Not a port.
     integer(int32) function string_to_octal(s) result(n)
         character(len=*), intent(in) :: s
         integer :: i
@@ -1300,8 +1303,8 @@ contains
     !> Change the group of the marked (or next ARG) files.
     !> After invoking the command, type
     !> \<minibuffer_local_completion_map>\[next_history_element] to pull
-    !> the file attributes of the file at point into the minibuffer.  Port
-    !> of dired-aux.el:dired-do-chgrp (interactive).
+    !> the file attributes of the file at point into the minibuffer.
+    !> Port of dired-aux.el:dired-do-chgrp (interactive).
     recursive subroutine cmd_dired_do_chgrp(status)
         type(status_type), intent(out) :: status
         integer :: kind
@@ -1318,8 +1321,8 @@ contains
     !> Change the owner of the marked (or next ARG) files.
     !> After invoking the command, type
     !> \<minibuffer_local_completion_map>\[next_history_element] to pull
-    !> the file attributes of the file at point into the minibuffer.  Port
-    !> of dired-aux.el:dired-do-chown (interactive).
+    !> the file attributes of the file at point into the minibuffer.
+    !> Port of dired-aux.el:dired-do-chown (interactive).
     recursive subroutine cmd_dired_do_chown(status)
         type(status_type), intent(out) :: status
         integer :: kind
@@ -1337,8 +1340,8 @@ contains
     !> This calls touch.
     !> After invoking the command, type
     !> \<minibuffer_local_completion_map>\[next_history_element] to pull
-    !> the file attributes of the file at point into the minibuffer.  Port
-    !> of dired-aux.el:dired-do-touch (interactive).
+    !> the file attributes of the file at point into the minibuffer.
+    !> Port of dired-aux.el:dired-do-touch (interactive).
     recursive subroutine cmd_dired_do_touch(status)
         type(status_type), intent(out) :: status
         integer :: kind
@@ -1533,7 +1536,7 @@ contains
     end subroutine dired_shell_command
 
     !> The shell `shell_command' uses: $SHELL, else "/bin/sh" (callproc.c
-    !> shell-file-name).
+    !> shell-file-name).  Not a port.
     function aux_shell_file_name() result(sh)
         character(len=:), allocatable :: sh
         integer :: length, stat
@@ -1550,6 +1553,7 @@ contains
 
     !> COMMAND with every %i replaced by I and every %o by O, literally
     !> (the replace-regexp-in-string calls of dired-compress-file).
+    !> Not a port.
     function replace_io(command, i, o) result(s)
         character(len=*), intent(in) :: command, i, o
         character(len=:), allocatable :: s, t
@@ -1559,6 +1563,7 @@ contains
     end function replace_io
 
     !> TEXT with every occurrence of FROM replaced by TO, left to right.
+    !> Not a port.
     function replace_all(text, from, to) result(s)
         character(len=*), intent(in) :: text, from, to
         character(len=:), allocatable :: s
@@ -1817,6 +1822,7 @@ contains
 
     !> The body of `dired_do_compress': `dired_compress', recording the
     !> results, then `sit_for' 0 (SHOW-PROGRESS).
+    !> Port of part of dired-aux.el:dired-do-compress.
     recursive subroutine compress_body(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: failure
@@ -1828,6 +1834,7 @@ contains
     end subroutine compress_body
 
     !> Record one result of a `dired_map_over_marks_check' body.
+    !> Not a port.
     subroutine push_check_result(failure)
         character(len=*), intent(in) :: failure
         type(dired_string_type), allocatable :: grown(:)
@@ -2332,7 +2339,7 @@ contains
     end if
     end procedure dired_copy_file_recursive
 
-    !> Push NAME on `dired_create_files_failures'.
+    !> Push NAME on `dired_create_files_failures'.  Not a port.
     subroutine push_create_files_failure(name)
         character(len=*), intent(in) :: name
         type(dired_string_type), allocatable :: grown(:)
@@ -2376,8 +2383,8 @@ contains
     end procedure dired_rename_file
 
     !> Rename the subdirectory FROM_DIR to TO_DIR in all Dired buffers, and
-    !> the visited file names of the buffers visiting files in it.  Port
-    !> of dired-aux.el:dired-rename-subdir.
+    !> the visited file names of the buffers visiting files in it.
+    !> Port of dired-aux.el:dired-rename-subdir.
     recursive subroutine dired_rename_subdir(from_dir_in, to_dir_in, status)
         character(len=*), intent(in) :: from_dir_in, to_dir_in
         type(status_type), intent(out) :: status
@@ -2479,7 +2486,7 @@ contains
         end if
     end subroutine dired_rename_subdir_1
 
-    !> `expand_file_name' of NAME in DIR as a function.
+    !> `expand_file_name' of NAME in DIR as a function.  Not a port.
     function aux_expand_in(name, dir) result(full)
         character(len=*), intent(in) :: name, dir
         character(len=:), allocatable :: full
@@ -2600,7 +2607,7 @@ contains
     end procedure dired_make_relative_symlink
 
     !> Make the symbolic link `dired_do_symlink' makes (a file creator:
-    !> `make_symbolic_link' with FROM as the target).
+    !> `make_symbolic_link' with FROM as the target).  Not a port.
     recursive subroutine symlink_creator(from, to, ok_flag, status)
         character(len=*), intent(in) :: from, to
         logical, intent(in) :: ok_flag
@@ -2610,6 +2617,7 @@ contains
     end subroutine symlink_creator
 
     !> `add_name_to_file' as a file creator (dired-do-hardlink-regexp).
+    !> Not a port.
     recursive subroutine add_name_creator(from, to, ok_flag, status)
         character(len=*), intent(in) :: from, to
         logical, intent(in) :: ok_flag
@@ -2770,7 +2778,7 @@ contains
     end subroutine dired_create_files
 
     !> The name constructor of a target directory: FROM's name in
-    !> `create_target'.
+    !> `create_target'.  Port of part of dired-aux.el:dired-do-create-files.
     recursive subroutine into_dir_constructor(from, to, skip, status)
         character(len=*), intent(in) :: from
         character(len=:), allocatable, intent(out) :: to
@@ -2783,6 +2791,7 @@ contains
     end subroutine into_dir_constructor
 
     !> The name constructor of a single target: `create_target'.
+    !> Port of part of dired-aux.el:dired-do-create-files.
     recursive subroutine target_constructor(from, to, skip, status)
         character(len=*), intent(in) :: from
         character(len=:), allocatable, intent(out) :: to
@@ -2797,8 +2806,8 @@ contains
 
     !> The target directory the user may want: if `dired_dwim_target' is
     !> set and a Dired buffer is displayed in one of the next windows, its
-    !> current subdir, else the current subdir of this Dired buffer.  Port
-    !> of dired-aux.el:dired-dwim-target-directory.
+    !> current subdir, else the current subdir of this Dired buffer.
+    !> Port of dired-aux.el:dired-dwim-target-directory.
     function dired_dwim_target_directory() result(dir)
         character(len=:), allocatable :: dir
         type(dired_string_type), allocatable :: dirs(:)
@@ -2982,7 +2991,7 @@ contains
         end if
     end subroutine dired_do_create_files
 
-    !> `dired_copy_file' as a file creator.
+    !> `dired_copy_file' as a file creator.  Not a port.
     recursive subroutine copy_creator(from, to, ok_flag, status)
         character(len=*), intent(in) :: from, to
         logical, intent(in) :: ok_flag
@@ -2991,7 +3000,7 @@ contains
         call dired_copy_file(from, to, ok_flag, status)
     end subroutine copy_creator
 
-    !> `dired_rename_file' as a file creator.
+    !> `dired_rename_file' as a file creator.  Not a port.
     recursive subroutine rename_creator(from, to, ok_flag, status)
         character(len=*), intent(in) :: from, to
         logical, intent(in) :: ok_flag
@@ -3000,7 +3009,7 @@ contains
         call dired_rename_file(from, to, ok_flag, status)
     end subroutine rename_creator
 
-    !> `dired_hardlink' as a file creator.
+    !> `dired_hardlink' as a file creator.  Not a port.
     recursive subroutine hardlink_creator(from, to, ok_flag, status)
         character(len=*), intent(in) :: from, to
         logical, intent(in) :: ok_flag
@@ -3009,7 +3018,7 @@ contains
         call dired_hardlink(from, to, ok_flag, status)
     end subroutine hardlink_creator
 
-    !> `dired_make_relative_symlink' as a file creator.
+    !> `dired_make_relative_symlink' as a file creator.  Not a port.
     recursive subroutine relsymlink_creator(from, to, ok_flag, status)
         character(len=*), intent(in) :: from, to
         logical, intent(in) :: ok_flag
@@ -3223,6 +3232,7 @@ contains
     end subroutine dired_string_replace_match
 
     !> The name constructor of `dired_do_create_files_regexp'.
+    !> Port of part of dired-aux.el:dired-do-create-files-regexp.
     recursive subroutine regexp_name_constructor(from, to, skip, status)
         character(len=*), intent(in) :: from
         character(len=:), allocatable, intent(out) :: to
@@ -3361,6 +3371,7 @@ contains
     end subroutine cmd_dired_do_rename_regexp
 
     !> Read the arguments of a regexp command (OPERATION) and run it.
+    !> Not a port.
     recursive subroutine regexp_command(operation, status)
         character(len=*), intent(in) :: operation
         type(status_type), intent(out) :: status
@@ -3461,6 +3472,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The name constructor of `dired_create_files_non_directory'.
+    !> Port of part of dired-aux.el:dired-create-files-non-directory.
     recursive subroutine non_directory_constructor(from, to, skip, status)
         character(len=*), intent(in) :: from
         character(len=:), allocatable, intent(out) :: to
@@ -3842,7 +3854,7 @@ contains
     end subroutine cmd_dired_backup_diff
 
     !> The first program named NAME on PATH (as executable-find finds it
-    !> with `exec_path' from $PATH), or "" if none.
+    !> with `exec_path' from $PATH), or "" if none.  Not a port.
     function find_on_path(name) result(path)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: path
@@ -3878,7 +3890,7 @@ contains
         end do
     end function find_on_path
 
-    !> Add a rule to `dired_compress_file_suffixes'.
+    !> Add a rule to `dired_compress_file_suffixes'.  Not a port.
     subroutine add_compress_suffix(regexp, new_suffix, program)
         character(len=*), intent(in) :: regexp, new_suffix, program
         type(dired_compress_suffix_type), allocatable :: grown(:)
@@ -3893,7 +3905,7 @@ contains
         call move_alloc(grown, dired_compress_file_suffixes)
     end subroutine add_compress_suffix
 
-    !> Add a rule (REGEXP . COMMAND) to ALIST.
+    !> Add a rule (REGEXP . COMMAND) to ALIST.  Not a port.
     subroutine add_compress_rule(alist, regexp, command)
         type(dired_compress_rule_type), allocatable, intent(inout) :: alist(:)
         character(len=*), intent(in) :: regexp, command
@@ -3909,7 +3921,7 @@ contains
     end subroutine add_compress_rule
 
     !> Give the dired-aux.el options that are not set yet their standard
-    !> values.
+    !> values.  Not a port.
     subroutine init_dired_aux_options()
         if (.not. allocated(dired_chown_program)) then
             ! (cond ((executable-find "chown") "chown") ...)
@@ -4005,7 +4017,7 @@ contains
     call aux_bind("=", "dired_diff")
     end procedure dired_aux_keys
 
-    !> Append S to the strings LIST.
+    !> Append S to the strings LIST.  Not a port.
     subroutine push_string(list, s)
         type(dired_string_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
@@ -4019,7 +4031,7 @@ contains
         call move_alloc(grown, list)
     end subroutine push_string
 
-    !> (re-search-forward REGEXP nil t) as a truth value.
+    !> (re-search-forward REGEXP nil t) as a truth value.  Not a port.
     logical function aux_re_search_forward(regexp) result(found)
         character(len=*), intent(in) :: regexp
         integer(int64) :: pos
@@ -4035,13 +4047,14 @@ contains
     ! ------------------------------------------------------------------
 
     !> The position N lines after this one's start (line-beginning-position N).
+    !> Not a port.
     integer(int64) function aux_bol(n)
         integer(int64), intent(in), optional :: n
 
         aux_bol = line_beginning_position(n)
     end function aux_bol
 
-    !> Move N lines (forward-line), ignoring the shortage.
+    !> Move N lines (forward-line), ignoring the shortage.  Not a port.
     subroutine aux_fwd_line(n)
         integer(int64), intent(in) :: n
         integer(int64) :: shortage
@@ -4050,7 +4063,7 @@ contains
     end subroutine aux_fwd_line
 
     !> The character after POS (default point) as an ASCII character, or
-    !> achar(0) when there is none or it is not ASCII.
+    !> achar(0) when there is none or it is not ASCII.  Not a port.
     character function aux_char_at(pos)
         integer(int64), intent(in), optional :: pos
         integer(int32) :: c
@@ -4066,7 +4079,7 @@ contains
         if (found .and. c >= 0 .and. c < 128) aux_char_at = achar(c)
     end function aux_char_at
 
-    !> The position of marker M (0 if it points nowhere).
+    !> The position of marker M (0 if it points nowhere).  Not a port.
     integer(int64) function aux_mpos(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
@@ -4075,7 +4088,7 @@ contains
         if (.not. st%ok()) aux_mpos = 0
     end function aux_mpos
 
-    !> Free marker M, ignoring a stale handle.
+    !> Free marker M, ignoring a stale handle.  Not a port.
     subroutine aux_release_marker(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
@@ -4084,6 +4097,7 @@ contains
     end subroutine aux_release_marker
 
     !> Bind `inhibit_read_only' to true (SAVED keeps the old value).
+    !> Not a port.
     subroutine aux_inhibit_read_only_begin(saved)
         type(value_type), intent(out) :: saved
         type(status_type) :: st
@@ -4092,7 +4106,7 @@ contains
         call set(sym("inhibit_read_only"), t_value(), st)
     end subroutine aux_inhibit_read_only_begin
 
-    !> Restore `inhibit_read_only' to SAVED.
+    !> Restore `inhibit_read_only' to SAVED.  Not a port.
     subroutine aux_inhibit_read_only_end(saved)
         type(value_type), intent(in) :: saved
         type(status_type) :: st
@@ -4100,7 +4114,7 @@ contains
         call set(sym("inhibit_read_only"), saved, st)
     end subroutine aux_inhibit_read_only_end
 
-    !> The current buffer's `default_directory'.
+    !> The current buffer's `default_directory'.  Not a port.
     function aux_default_directory() result(dir)
         character(len=:), allocatable :: dir
 
@@ -4110,6 +4124,7 @@ contains
     end function aux_default_directory
 
     !> `expand_file_name' as a function (relative to `default_directory').
+    !> Not a port.
     function aux_expand(name) result(full)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: full
@@ -4120,6 +4135,7 @@ contains
     end function aux_expand
 
     !> The index of the current buffer's entry in `locals' (0 if none).
+    !> Not a port.
     integer function aux_local_index() result(k)
         integer :: i
 
@@ -4136,7 +4152,7 @@ contains
     end function aux_local_index
 
     !> The kind and number of the prefix argument ("P"): none, a number
-    !> (or `-'), or another value (C-u).
+    !> (or `-'), or another value (C-u).  Not a port.
     subroutine aux_prefix_kind(arg_kind, arg_n)
         integer, intent(out) :: arg_kind
         integer(int64), intent(out) :: arg_n
@@ -4153,7 +4169,7 @@ contains
         end if
     end subroutine aux_prefix_kind
 
-    !> Bind KEYS to COMMAND in `dired_mode_map'.
+    !> Bind KEYS to COMMAND in `dired_mode_map'.  Not a port.
     subroutine aux_bind(keys, command)
         character(len=*), intent(in) :: keys, command
         type(status_type) :: st

@@ -86,7 +86,7 @@ module syntax_propertize_fm
 
     abstract interface
         !> A `syntax_propertize_function': apply `syntax_table' properties
-        !> to the text from START to END.
+        !> to the text from START to END.  Not a port.
         subroutine syntax_propertize_proc(start, end, status)
             import :: int64, status_type
             implicit none(type, external)
@@ -96,7 +96,7 @@ module syntax_propertize_fm
 
         !> The SYNTAX of a highlight given as code: the value to apply as
         !> `syntax_table' property, in PROPERTY (none for nil).  It may move
-        !> point.
+        !> point.  Not a port.
         subroutine syntax_value_proc(property, status)
             import :: syntax_property_type, status_type
             implicit none(type, external)
@@ -105,7 +105,7 @@ module syntax_propertize_fm
         end subroutine syntax_value_proc
 
         !> Code run by a highlight (the EXPS of (prog1 SYNTAX . EXPS) or
-        !> (ignore . EXPS)).
+        !> (ignore . EXPS)).  Not a port.
         subroutine syntax_code_proc(status)
             import :: status_type
             implicit none(type, external)
@@ -113,7 +113,7 @@ module syntax_propertize_fm
         end subroutine syntax_code_proc
 
         !> `syntax_begin_function': move back outside of any
-        !> comment/string/paren.
+        !> comment/string/paren.  Not a port.
         subroutine syntax_begin_proc()
             implicit none(type, external)
         end subroutine syntax_begin_proc
@@ -309,6 +309,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! The index in `data' of the current buffer's variables (created).
+    ! Not a port.
     integer function data_index() result(k)
         type(ppss_data_type), allocatable :: grown(:)
         integer :: i, n
@@ -344,6 +345,7 @@ contains
         k = n + 1
     end function data_index
 
+    ! Not a port.
     subroutine move_cell(from, to)
         type(ppss_cell_type), intent(inout) :: from
         type(ppss_cell_type), intent(inout) :: to
@@ -356,6 +358,7 @@ contains
         if (allocated(from%cache_ppss)) call move_alloc(from%cache_ppss, to%cache_ppss)
     end subroutine move_cell
 
+    ! Not a port.
     subroutine function_set_local(self, fn)
         class(syntax_propertize_function_type), intent(inout) :: self
         procedure(syntax_propertize_proc) :: fn
@@ -393,6 +396,7 @@ contains
         call move_alloc(grown, self%entries)
     end subroutine function_set_local
 
+    ! Not a port.
     function function_get(self) result(fn)
         class(syntax_propertize_function_type), intent(in) :: self
         procedure(syntax_propertize_proc), pointer :: fn
@@ -409,6 +413,7 @@ contains
         end do
     end function function_get
 
+    ! Not a port.
     subroutine function_kill_local(self)
         class(syntax_propertize_function_type), intent(inout) :: self
         integer :: i
@@ -424,6 +429,7 @@ contains
         end do
     end subroutine function_kill_local
 
+    ! Not a port.
     subroutine ppss_table_set_local(h)
         type(handle_type), intent(in) :: h
         integer :: k
@@ -434,6 +440,7 @@ contains
         data(k)%table = h
     end subroutine ppss_table_set_local
 
+    ! Not a port.
     subroutine ppss_table_get(h, found)
         type(handle_type), intent(out) :: h
         logical, intent(out) :: found
@@ -446,6 +453,7 @@ contains
         if (found) h = data(k)%table
     end subroutine ppss_table_get
 
+    ! Not a port.
     subroutine ppss_table_kill_local()
         integer :: k
 
@@ -455,6 +463,7 @@ contains
     end subroutine ppss_table_kill_local
 
     ! kill-all-local-variables: forget the current buffer's values.
+    ! Not a port.
     subroutine kill_syntax_locals()
         integer :: k
 
@@ -465,7 +474,7 @@ contains
     end subroutine kill_syntax_locals
 
     ! The table `syntax_propertize' and `syntax_ppss' parse with:
-    ! (or syntax-ppss-table (syntax-table)).
+    ! (or syntax-ppss-table (syntax-table)).  Not a port.
     function ppss_syntax_table() result(h)
         type(handle_type) :: h
         logical :: found
@@ -633,6 +642,7 @@ contains
     end function syntax_propertize_shift_groups_and_backrefs
 
     ! The characters of S from index B (1-based) up to before index E.
+    ! Not a port.
     pure function chars(s, b, e) result(sub)
         character(len=*), intent(in) :: s
         integer(int64), intent(in) :: b, e
@@ -641,7 +651,7 @@ contains
         sub = s(string_index_to_offset(s, b) + 1:string_index_to_offset(s, e))
     end function chars
 
-    ! The number of characters of S.
+    ! The number of characters of S.  Not a port.
     pure integer(int64) function char_count(s) result(n)
         character(len=*), intent(in) :: s
         integer :: i
@@ -655,6 +665,7 @@ contains
 
     ! Build the regexp and the branches of the rules, as
     ! syntax-propertize-rules does at macro-expansion time.
+    ! Port of part of syntax.el:syntax-propertize-rules.
     recursive subroutine rules_compile(self, status)
         class(syntax_propertize_rules_type), intent(inout) :: self
         type(status_type), intent(out) :: status
@@ -760,6 +771,7 @@ contains
 
     !> Apply the rules from START to END: the function
     !> syntax.el:syntax-propertize-rules makes.
+    !> Port of part of syntax.el:syntax-propertize-rules.
     recursive subroutine rules_apply(self, start, end, status)
         class(syntax_propertize_rules_type), intent(inout) :: self
         integer(int64), intent(in) :: start, end
@@ -810,6 +822,7 @@ contains
     end subroutine rules_apply
 
     ! Whether group N of the last match matched: (match-beginning N).
+    ! Not a port.
     logical function group_matched(n)
         integer, intent(in) :: n
         type(status_type) :: st
@@ -817,7 +830,7 @@ contains
         group_matched = match_beginning(n, st) > 0
     end function group_matched
 
-    ! Keep match 0 as is, but drop the first N groups.
+    ! Keep match 0 as is, but drop the first N groups.  Not a port.
     subroutine shift_match_data(n)
         integer, intent(in) :: n
         integer(int64), allocatable :: md(:), shifted(:)
@@ -838,6 +851,7 @@ contains
     end subroutine shift_match_data
 
     ! Run one highlight of a matched rule.
+    ! Port of part of syntax.el:syntax-propertize-rules.
     recursive subroutine run_step(step, status)
         type(rule_step_type), intent(in) :: step
         type(status_type), intent(out) :: status
@@ -866,7 +880,7 @@ contains
         if (associated(step%highlight%after)) call step%highlight%after(status)
     end subroutine run_step
 
-    ! Give START..END the `syntax_table' property PROP.
+    ! Give START..END the `syntax_table' property PROP.  Not a port.
     subroutine put_property(start, end, prop, status)
         integer(int64), intent(in) :: start, end
         type(syntax_property_type), intent(in) :: prop
@@ -884,8 +898,8 @@ contains
     !> `syntax_ppss' is called when the final `syntax_table' properties have not
     !> yet been setup, in which case we may end up putting invalid info into the cache.
     !> It's also used so that `syntax_ppss_flush_cache' can be used from within
-    !> `syntax_propertize' without ruining the `syntax_table' already set.  Port
-    !> of syntax.el:syntax-propertize--in-process-p.
+    !> `syntax_propertize' without ruining the `syntax_table' already set.
+    !> Port of syntax.el:syntax-propertize--in-process-p.
     logical function syntax_propertize_in_process_p()
         syntax_propertize_in_process_p = syntax_propertize__done%value == MOST_POSITIVE_FIXNUM
     end function syntax_propertize_in_process_p
@@ -1075,6 +1089,7 @@ contains
     end function syntax_ppss_context
 
     ! `syntax_ppss_flush_cache' as a `before_change_functions' function.
+    ! Not a port.
     recursive subroutine flush_cache_hook(beg, end, status)
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
@@ -1141,7 +1156,7 @@ contains
         end subroutine flush_cell
     end subroutine syntax_ppss_flush_cache
 
-    ! Drop the first N entries of CELL's cache.
+    ! Drop the first N entries of CELL's cache.  Not a port.
     subroutine remove_entries(cell, n)
         type(ppss_cell_type), intent(inout) :: cell
         integer, intent(in) :: n
@@ -1161,7 +1176,7 @@ contains
         call move_alloc(ppss, cell%cache_ppss)
     end subroutine remove_entries
 
-    ! Insert (POS . PPSS) into CELL's cache before entry AT.
+    ! Insert (POS . PPSS) into CELL's cache before entry AT.  Not a port.
     subroutine insert_entry(cell, at, pos, ppss)
         type(ppss_cell_type), intent(inout) :: cell
         integer, intent(in) :: at
@@ -1192,6 +1207,7 @@ contains
         call move_alloc(new_ppss, cell%cache_ppss)
     end subroutine insert_entry
 
+    ! Port of syntax.el:syntax-ppss--update-stats.
     subroutine update_stats(i, old, new)
         integer, intent(in) :: i
         integer(int64), intent(in) :: old, new
@@ -1201,7 +1217,7 @@ contains
     end subroutine update_stats
 
     ! The cell of the current buffer's restriction (syntax-ppss--data),
-    ! in `data(k)'.
+    ! in `data(k)'.  Port of syntax.el:syntax-ppss--data.
     subroutine ppss_data(k, wide)
         integer, intent(out) :: k
         logical, intent(out) :: wide
@@ -1475,7 +1491,7 @@ contains
     end subroutine syntax_ppss_cached
 
     !> Give the variables their defaults and hook syntax-propertize and
-    !> the cache into syntax_fm.
+    !> the cache into syntax_fm.  Not a port.
     subroutine syms_of_syntax_propertize()
         call syntax_propertize_extend_region_functions%add(syntax_propertize_wholelines)
         call add_local_variables_killer(kill_syntax_locals)
