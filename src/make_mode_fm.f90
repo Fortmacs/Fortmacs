@@ -191,11 +191,15 @@ module make_mode_fm
     !> Normal hook run by `makefile_mode'.  Port of make-mode.el
     !> makefile-mode-hook.
     type(hook_type), target, public :: makefile_mode_hook = hook_type(name="makefile_mode_hook")
-    !> Hooks run at the end of the Makefile mode variants.
+    !> Normal hook run by `makefile_automake_mode'.
     type(hook_type), target, public :: makefile_automake_mode_hook = hook_type(name="makefile_automake_mode_hook")
+    !> Normal hook run by `makefile_gmake_mode'.
     type(hook_type), target, public :: makefile_gmake_mode_hook = hook_type(name="makefile_gmake_mode_hook")
+    !> Normal hook run by `makefile_makepp_mode'.
     type(hook_type), target, public :: makefile_makepp_mode_hook = hook_type(name="makefile_makepp_mode_hook")
+    !> Normal hook run by `makefile_bsdmake_mode'.
     type(hook_type), target, public :: makefile_bsdmake_mode_hook = hook_type(name="makefile_bsdmake_mode_hook")
+    !> Normal hook run by `makefile_imake_mode'.
     type(hook_type), target, public :: makefile_imake_mode_hook = hook_type(name="makefile_imake_mode_hook")
 
     !> List of special targets.
@@ -321,6 +325,7 @@ module make_mode_fm
 
     !> Abstract interface of `makefile_query_one_target_method_function'.
     abstract interface
+        !> Whether TARGET of makefile FILENAME needs rebuilding (.false. when up to date).
         logical function makefile_query_proc(target, filename)
             implicit none(type, external)
             character(len=*), intent(in) :: target, filename
@@ -415,6 +420,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Define the Makefile modes, their keymap, syntax tables and keywords.
+    !> Not a port.
     subroutine syms_of_make_mode()
         type(status_type) :: st
 
@@ -541,6 +547,7 @@ contains
     end subroutine syms_of_make_mode
 
     !> One level of makefile-dependency-regex's elems-re.
+    !> Port of make-mode.el:makefile-dependency-regex (its elems-re).
     recursive function elems_re(n, outer) result(re)
         integer, intent(in) :: n
         logical, intent(in) :: outer
@@ -556,6 +563,7 @@ contains
     end function elems_re
 
     !> TEXT with every FROM replaced by TO (subr.el's string-replace).
+    !> Not a port.
     function string_replace(from, to, text) result(out)
         character(len=*), intent(in) :: from, to, text
         character(len=:), allocatable :: out
@@ -578,6 +586,7 @@ contains
     end function string_replace
 
     !> TEXT with its first FROM replaced by TO.
+    !> Not a port.
     function replace_first(from, to, text) result(out)
         character(len=*), intent(in) :: from, to, text
         character(len=:), allocatable :: out
@@ -592,6 +601,7 @@ contains
         end if
     end function replace_first
 
+    ! Not a port.
     subroutine init_gnumake_functions()
         integer :: k
 
@@ -654,6 +664,7 @@ contains
     end subroutine init_gnumake_functions
 
     ! The faces.
+    ! Not a port.
     subroutine define_faces()
         type(named_face_type), pointer :: f
         integer, parameter :: C = FACE_CLASS_COLOR, LIGHT = FACE_BACKGROUND_LIGHT, DARK = FACE_BACKGROUND_DARK
@@ -677,6 +688,7 @@ contains
         call f%spec_entry(display_when(), face_attrs(inverse_video=.true.))
     end subroutine define_faces
 
+    ! Not a port.
     subroutine init_syntax_tables()
         type(status_type) :: st
         type(handle_type) :: t
@@ -704,6 +716,7 @@ contains
     end subroutine init_syntax_tables
 
     ! A highlight of subexpression N in FACE.
+    ! Not a port.
     function h(n, face, override, lax) result(hl)
         integer, intent(in) :: n
         character(len=*), intent(in) :: face
@@ -820,6 +833,7 @@ contains
         end subroutine push
     end function makefile_make_font_lock_keywords
 
+    ! Not a port.
     subroutine init_keywords()
         character(len=*), parameter :: KW = "font_lock_keyword_face", FN = "font_lock_function_name_face", &
                                        VA = "font_lock_variable_name_face", TY = "font_lock_type_face", &
@@ -919,6 +933,7 @@ contains
     end subroutine init_keywords
 
     ! The rules of `makefile_syntax_propertize_function'.
+    ! Not a port.
     subroutine init_rules()
         type(syntax_highlight_type) :: hl
 
@@ -953,6 +968,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! The current buffer's tables (its own in Makefile mode buffers).
+    ! Not a port.
     function state() result(s)
         type(make_state_type), pointer :: s
         integer :: k
@@ -970,6 +986,7 @@ contains
 
     ! Give the current buffer its own tables (make-local-variable: with
     ! the default values).
+    ! Not a port.
     subroutine make_local()
         type(make_state_type), allocatable :: grown(:)
         integer :: k, n
@@ -1001,6 +1018,7 @@ contains
     end subroutine make_local
 
     ! kill-all-local-variables: forget the current buffer's tables.
+    ! Not a port.
     subroutine kill_make_locals()
         integer :: k
 
@@ -1012,6 +1030,7 @@ contains
     end subroutine kill_make_locals
 
     ! NAMES with NAME added in front (cons).
+    ! Not a port.
     subroutine push_front(names, name)
         type(makefile_name_type), allocatable, intent(inout) :: names(:)
         character(len=*), intent(in) :: name
@@ -1031,6 +1050,7 @@ contains
     end subroutine push_front
 
     ! Whether NAME is one of NAMES (assoc).
+    ! Not a port.
     logical function member_name(names, name) result(found)
         type(makefile_name_type), allocatable, intent(in) :: names(:)
         character(len=*), intent(in) :: name
@@ -1048,6 +1068,7 @@ contains
     end function member_name
 
     ! The empty table.
+    ! Not a port.
     subroutine clear_names(names)
         type(makefile_name_type), allocatable, intent(inout) :: names(:)
 
@@ -1101,6 +1122,7 @@ contains
     end function makefile_has_prereqs
 
     ! The names of NAMES as a list of strings.
+    ! Not a port.
     function names_list(names) result(v)
         type(makefile_name_type), allocatable, intent(in) :: names(:)
         type(value_type) :: v
@@ -1127,6 +1149,7 @@ contains
 
     ! What loading make-mode.el does once options are set: the electric
     ! keys.
+    ! Not a port.
     subroutine load_make_mode()
         type(status_type) :: st
 
@@ -1143,6 +1166,7 @@ contains
 
     ! FONT_LOCK as the keywords of `font_lock_defaults', with the rest of
     ! Makefile mode's.
+    ! Not a port.
     subroutine set_font_lock_defaults(font_lock)
         type(font_lock_keyword_type), intent(in) :: font_lock(:)
         type(font_lock_syntax_entry_type) :: syntax(1)
@@ -1393,6 +1417,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! The character of the key that invoked the command.
+    ! Not a port.
     integer(int64) function event_char() result(c)
         c = -1
         if (fixnump(last_command_event)) c = xfixnum(last_command_event)
@@ -1844,6 +1869,7 @@ contains
     end subroutine makefile_completions_at_point
 
     ! The exit function of `makefile_completions_at_point'.
+    ! Port of make-mode.el:makefile-completions-at-point (its exit function).
     recursive subroutine completion_exit(string, finished)
         character(len=*), intent(in) :: string
         integer, intent(in) :: finished
@@ -1962,11 +1988,13 @@ contains
     end subroutine cmd_makefile_backslash_region
 
     ! The width of the selected window (window-width).
+    ! Not a port.
     integer function window_width()
         window_width = window_text_cols(frame_selected_window_ref())
     end function window_width
 
     ! The position of marker M.
+    ! Not a port.
     integer(int64) function mpos(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
@@ -2111,6 +2139,7 @@ contains
     ! (let ((fill-paragraph-function nil) (fill-column (- fill-column 1)))
     !   (fill-paragraph nil))
     ! (Within `fill_paragraph_function', fill-paragraph doesn't call it.)
+    ! Port of make-mode.el:makefile-fill-paragraph (in part).
     recursive subroutine fill_one_less(status)
         type(status_type), intent(out) :: status
         integer(int64) :: saved
@@ -2203,6 +2232,7 @@ contains
     ! (sort-lines nil (point-min) (point-max)): sort.el is not ported, the
     ! lines are ordered as `string_lessp' orders them (sort-fold-case
     ! nil).
+    ! Not a port.
     subroutine sort_lines_in_buffer(status)
         type(status_type), intent(out) :: status
         type(makefile_name_type), allocatable :: lines(:)
@@ -2401,6 +2431,7 @@ contains
     end subroutine makefile_warn_continuations
 
     ! The body of the warnings: look for REGEXP and ask with PROMPT.
+    ! Port of make-mode.el:makefile-warn-suspicious-lines (and makefile-warn-continuations).
     recursive subroutine warn_lines(regexp, prompt, done, status)
         character(len=*), intent(in) :: regexp, prompt
         logical, intent(out) :: done
@@ -2522,6 +2553,7 @@ contains
     end subroutine makefile_match_dependency
 
     ! makefile-match-dependency with BOUND (0 for nil).
+    ! Port of make-mode.el:makefile-match-dependency.
     subroutine match_dependency(bound, found)
         integer(int64), intent(in) :: bound
         logical, intent(out) :: found
@@ -2753,6 +2785,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! Whether the character at POS has a `face' property.
+    ! Not a port.
     logical function has_face(pos)
         integer(int64), intent(in) :: pos
         type(value_type) :: face
@@ -2765,6 +2798,7 @@ contains
     end function has_face
 
     ! The character after point, -1 if none.
+    ! Not a port.
     integer function after_char()
         integer(int32) :: c
         logical :: found
@@ -2775,6 +2809,7 @@ contains
     end function after_char
 
     ! The character after POS, -1 if none.
+    ! Not a port.
     integer function after_char_at(pos)
         integer(int64), intent(in) :: pos
         integer(int32) :: c
@@ -2787,6 +2822,7 @@ contains
     end function after_char_at
 
     ! The character before point, -1 if none.
+    ! Not a port.
     integer function before_char()
         integer(int32) :: c
         logical :: found
@@ -2797,6 +2833,7 @@ contains
     end function before_char
 
     ! The character before POS, -1 if none.
+    ! Not a port.
     integer function char_before_at(pos)
         integer(int64), intent(in) :: pos
         integer(int32) :: c
@@ -2809,6 +2846,7 @@ contains
     end function char_before_at
 
     ! N as a decimal string.
+    ! Not a port.
     function itoa(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s

@@ -1349,6 +1349,7 @@ contains
         call self%remove_entry(e, local)
     end subroutine until_success_hook_remove
 
+    ! Not a port.
     logical function until_success_hook_member(self, fn) result(found)
         class(until_success_hook_type), intent(in) :: self
         procedure(until_success_function) :: fn
