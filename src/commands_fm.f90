@@ -938,6 +938,17 @@ module commands_fm
         type(command_type) :: python_nav_forward_statement
         type(command_type) :: python_nav_if_name_main
         type(command_type) :: python_nav_up_list
+        type(command_type) :: quail_abort_translation
+        type(command_type) :: quail_deactivate
+        type(command_type) :: quail_delete_last_char
+        type(command_type) :: quail_next_translation
+        type(command_type) :: quail_next_translation_block
+        type(command_type) :: quail_other_command
+        type(command_type) :: quail_prev_translation
+        type(command_type) :: quail_prev_translation_block
+        type(command_type) :: quail_select_current
+        type(command_type) :: quail_self_insert_command
+        type(command_type) :: quail_set_keyboard_layout
         type(command_type) :: query_replace
         type(command_type) :: query_replace_regexp
         type(command_type) :: quit_window
@@ -1209,7 +1220,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1171) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1182) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -2116,6 +2127,17 @@ module commands_fm
                                                                   "python_nav_forward_statement", &
                                                                   "python_nav_if_name_main", &
                                                                   "python_nav_up_list", &
+                                                                  "quail_abort_translation", &
+                                                                  "quail_deactivate", &
+                                                                  "quail_delete_last_char", &
+                                                                  "quail_next_translation", &
+                                                                  "quail_next_translation_block", &
+                                                                  "quail_other_command", &
+                                                                  "quail_prev_translation", &
+                                                                  "quail_prev_translation_block", &
+                                                                  "quail_select_current", &
+                                                                  "quail_self_insert_command", &
+                                                                  "quail_set_keyboard_layout", &
                                                                   "query_replace", &
                                                                   "query_replace_regexp", &
                                                                   "quit_window", &
@@ -4205,6 +4227,28 @@ contains
             p => commands%python_nav_if_name_main
         case ("python_nav_up_list")
             p => commands%python_nav_up_list
+        case ("quail_abort_translation")
+            p => commands%quail_abort_translation
+        case ("quail_deactivate")
+            p => commands%quail_deactivate
+        case ("quail_delete_last_char")
+            p => commands%quail_delete_last_char
+        case ("quail_next_translation")
+            p => commands%quail_next_translation
+        case ("quail_next_translation_block")
+            p => commands%quail_next_translation_block
+        case ("quail_other_command")
+            p => commands%quail_other_command
+        case ("quail_prev_translation")
+            p => commands%quail_prev_translation
+        case ("quail_prev_translation_block")
+            p => commands%quail_prev_translation_block
+        case ("quail_select_current")
+            p => commands%quail_select_current
+        case ("quail_self_insert_command")
+            p => commands%quail_self_insert_command
+        case ("quail_set_keyboard_layout")
+            p => commands%quail_set_keyboard_layout
         case ("query_replace")
             p => commands%query_replace
         case ("query_replace_regexp")

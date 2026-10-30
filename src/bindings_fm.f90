@@ -67,6 +67,8 @@ module bindings_fm
     use repeat_fm, only: syms_of_repeat
     use help_fm, only: syms_of_help, register_keymap_name, help_map
     use mule_fm, only: syms_of_mule
+    use quail_fm, only: syms_of_quail
+    use leim_list_fm, only: load_leim_list
     use isearch_fm, only: isearch_mode_map
     use text_mode_fm, only: text_mode_map
     use prog_mode_fm, only: prog_mode_map
@@ -722,6 +724,8 @@ contains
         call syms_of_help_fns()
         call syms_of_apropos()
         call syms_of_mule(global_map, ctl_x_map, help_map)
+        call syms_of_quail()
+        call load_leim_list()
         ! The other keymap variables, for \<MAP> and help--binding-locus.
         call register_keymap_name("esc_map", esc_map)
         call register_keymap_name("ctl_x_map", ctl_x_map)

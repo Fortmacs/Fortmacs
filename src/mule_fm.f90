@@ -178,14 +178,73 @@ module mule_fm
     !> Normal hook run just after an input method is activated.
     !>
     !> The variable `current_input_method' keeps the input method name
-    !> just activated.
+    !> just activated.  Port of mule-cmds.el input-method-activate-hook.
     type(hook_type), target, public :: input_method_activate_hook = hook_type(name="input_method_activate_hook")
 
     !> Normal hook run just after an input method is deactivated.
     !>
     !> The variable `current_input_method' still keeps the input method name
-    !> just deactivated.
+    !> just deactivated.  Port of mule-cmds.el input-method-deactivate-hook.
     type(hook_type), target, public :: input_method_deactivate_hook = hook_type(name="input_method_deactivate_hook")
+
+    !> Values of `input_method_verbose_flag'.
+    integer, parameter, public :: INPUT_METHOD_VERBOSE_NEVER = 0, INPUT_METHOD_VERBOSE_ALWAYS = 1, &
+                                  INPUT_METHOD_VERBOSE_COMPLEX_ONLY = 2, INPUT_METHOD_VERBOSE_DEFAULT = 3
+
+    !> A flag to control extra guidance given by input methods.
+    !> The value should be `INPUT_METHOD_VERBOSE_NEVER',
+    !> `INPUT_METHOD_VERBOSE_ALWAYS', `INPUT_METHOD_VERBOSE_COMPLEX_ONLY',
+    !> or `INPUT_METHOD_VERBOSE_DEFAULT'.
+    !>
+    !> The extra guidance is done by showing list of available keys in echo
+    !> area.  When you use the input method in the minibuffer, the guidance
+    !> is shown at the bottom short window (split from the existing window).
+    !>
+    !> If the value is `INPUT_METHOD_VERBOSE_ALWAYS', extra guidance is
+    !> always given, if the value is `INPUT_METHOD_VERBOSE_NEVER', extra
+    !> guidance is always suppressed.
+    !>
+    !> If the value is `INPUT_METHOD_VERBOSE_COMPLEX_ONLY', only complex
+    !> input methods such as `chinese_py' and `japanese' give extra
+    !> guidance.
+    !>
+    !> If the value is `INPUT_METHOD_VERBOSE_DEFAULT', complex input methods
+    !> always give extra guidance, but simple input methods give it only
+    !> when you are not in the minibuffer.
+    !>
+    !> See also the variable `input_method_highlight_flag'.  Port of
+    !> mule-cmds.el input-method-verbose-flag (the values t, nil,
+    !> `complex-only' and `default' as named constants).
+    integer, public :: input_method_verbose_flag = INPUT_METHOD_VERBOSE_DEFAULT
+
+    !> If this flag is true, input methods highlight partially-entered text.
+    !> For instance, while you are in the middle of a Quail input method sequence,
+    !> the text inserted so far is temporarily underlined.
+    !> The underlining goes away when you finish or abort the input method sequence.
+    !> See also the variable `input_method_verbose_flag'.  Port of
+    !> mule-cmds.el input-method-highlight-flag.
+    logical, public :: input_method_highlight_flag = .true.
+
+    !> Normal hook run just after an input method insert some chunk of text.
+    !> Port of mule-cmds.el input-method-after-insert-chunk-hook.
+    type(hook_type), target, public :: input_method_after_insert_chunk_hook = &
+                                       hook_type(name="input_method_after_insert_chunk_hook")
+
+    !> This flag controls when an input method returns.
+    !> Usually, the input method does not return while there's a possibility
+    !> that it may find a different translation if a user types another key.
+    !> But, if this flag is true, the input method returns as soon as the
+    !> current key sequence gets long enough to have some valid translation.
+    !> Port of mule-cmds.el input-method-exit-on-first-char.
+    logical, public :: input_method_exit_on_first_char = .false.
+
+    !> This flag controls how an input method shows an intermediate key sequence.
+    !> Usually, the input method inserts the intermediate key sequence,
+    !> or candidate translations corresponding to the sequence,
+    !> at point in the current buffer.
+    !> But, if this flag is true, it displays them in echo area instead.
+    !> Port of mule-cmds.el input-method-use-echo-area.
+    logical, public :: input_method_use_echo_area = .false.
 
     abstract interface
         !> The procedure that activates an input method, given its name (the
@@ -4159,9 +4218,9 @@ contains
 
     !> Select and enable a transient input method for the current buffer.
     !> If `default_transient_input_method' was not yet defined, prompt for
-    !> it.  Port of mule-cmds.el:activate-transient-input-method (the input
-    !> method is turned off after inserting a chunk once
-    !> `input_method_after_insert_chunk_hook' is run by Quail).
+    !> it.  Port of mule-cmds.el:activate-transient-input-method (the
+    !> procedure that turns the input method off after it inserts a
+    !> chunk is `clear_transient_input_method').
     recursive subroutine activate_transient_input_method(arg, status)
         logical, intent(in) :: arg
         type(status_type), intent(out) :: status
@@ -4177,6 +4236,8 @@ contains
             default_transient_input_method%value = input_method
         end if
 
+        call input_method_after_insert_chunk_hook%add(clear_transient_input_method)
+
         associate (b => buffers(cur))
             if (allocated(b%current_input_method)) then
                 b%previous_transient_input_method = b%current_input_method
@@ -4191,6 +4252,17 @@ contains
         if (.not. status%ok()) return
         buffers(cur)%current_transient_input_method = default_transient_input_method%value
     end subroutine activate_transient_input_method
+
+    !> Turn off the transient input method after its input method has
+    !> inserted a chunk of text, and remove this function from
+    !> `input_method_after_insert_chunk_hook'.  The clearfun of
+    !> mule-cmds.el:activate-transient-input-method.
+    recursive subroutine clear_transient_input_method(status)
+        type(status_type), intent(out) :: status
+
+        call deactivate_transient_input_method(status)
+        call input_method_after_insert_chunk_hook%remove(clear_transient_input_method)
+    end subroutine clear_transient_input_method
 
     recursive subroutine cmd_activate_transient_input_method(status)
         type(status_type), intent(out) :: status
