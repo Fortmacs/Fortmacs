@@ -1,0 +1,1 @@
+2026-10-30 — Approximate percentages (`approx-sign`, based on main; chosen with the user): the README progress block and pie charts mark rounded percentages with ≈ (approximately equal) instead of ≅ (congruent).

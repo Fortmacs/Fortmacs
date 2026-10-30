@@ -1,0 +1,1 @@
+2026-10-29 — Showing what is asked for (`claude-md-show-requests`, based on main): CLAUDE.md asks that anything the user asks to see is shown in full in the reply at once, before other work resumes, and that the README progress bar and percentages are updated before every push (not only once per PR).
