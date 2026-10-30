@@ -156,6 +156,7 @@ module comint_fm
 
     abstract interface
         !> A `comint_input_sender': send to PROCESS the input STRING.
+        !> Not a port.
         subroutine comint_input_sender_proc(process, string, status)
             import :: handle_type, status_type
             implicit none(type, external)
@@ -165,7 +166,7 @@ module comint_fm
         end subroutine comint_input_sender_proc
 
         !> A `comint_get_old_input' function: the old text at point, as
-        !> INPUT.
+        !> INPUT.  Not a port.
         subroutine comint_get_old_input_proc(input, status)
             import :: status_type
             implicit none(type, external)
@@ -174,7 +175,7 @@ module comint_fm
         end subroutine comint_get_old_input_proc
 
         !> A `comint_input_filter': whether INPUT may be saved on the input
-        !> history.
+        !> history.  Not a port.
         logical function comint_input_filter_proc(input)
             implicit none(type, external)
             character(len=*), intent(in) :: input
@@ -183,7 +184,7 @@ module comint_fm
 
     abstract interface
         !> A `comint_password_function': the password for PROMPT, FOUND
-        !> false if normal password prompting should occur.
+        !> false if normal password prompting should occur.  Not a port.
         recursive subroutine comint_password_proc(prompt, password, found)
             implicit none(type, external)
             character(len=*), intent(in) :: prompt
@@ -632,7 +633,7 @@ contains
     ! The buffers' own state
     ! ------------------------------------------------------------------
 
-    !> The entry of buffer slot BI (0 for none).
+    !> The entry of buffer slot BI (0 for none).  Not a port.
     integer function entry_of(bi) result(k)
         integer(int64), intent(in) :: bi
 
@@ -646,7 +647,7 @@ contains
     end function entry_of
 
     !> The entry of the current buffer, made (empty) if needed.  Entries of
-    !> dead buffers are dropped then.
+    !> dead buffers are dropped then.  Not a port.
     integer function current_entry() result(k)
         type(comint_buffer_type), allocatable :: kept(:)
         integer :: i, n
@@ -674,6 +675,7 @@ contains
         k = n
     end function current_entry
 
+    ! Not a port.
     subroutine move_entry(from, to)
         type(comint_buffer_type), intent(inout) :: from
         type(comint_buffer_type), intent(out) :: to
@@ -681,7 +683,7 @@ contains
         to = from
     end subroutine move_entry
 
-    !> Free the markers of entry E and forget its local variables.
+    !> Free the markers of entry E and forget its local variables.  Not a port.
     subroutine free_locals(e)
         type(comint_buffer_type), intent(inout) :: e
         type(status_type) :: st
@@ -709,6 +711,7 @@ contains
         e%local = .false.
     end subroutine free_locals
 
+    ! Not a port.
     subroutine forget_last_prompt(e)
         type(comint_buffer_type), intent(inout) :: e
         type(status_type) :: st
@@ -720,7 +723,7 @@ contains
     end subroutine forget_last_prompt
 
     !> Forget the current buffer's local Comint variables (not the
-    !> permanent ones), as `kill_all_local_variables' does.
+    !> permanent ones), as `kill_all_local_variables' does.  Not a port.
     subroutine kill_comint_locals()
         integer :: k
 
@@ -729,13 +732,13 @@ contains
     end subroutine kill_comint_locals
 
     !> The current buffer's entry with its local variables (made as
-    !> comint-mode makes them if the buffer has none).
+    !> comint-mode makes them if the buffer has none).  Not a port.
     integer function local_entry() result(k)
         k = current_entry()
         if (.not. comint_buffers(k)%local) call make_locals(k)
     end function local_entry
 
-    !> Make the local variables of entry K, as comint-mode does.
+    !> Make the local variables of entry K, as comint-mode does.  Not a port.
     subroutine make_locals(k)
         integer, intent(in) :: k
         type(status_type) :: st
@@ -755,6 +758,7 @@ contains
     end subroutine make_locals
 
     !> Whether the current buffer has a local input ring (comint-input-ring).
+    !> Not a port.
     logical function has_input_ring()
         integer :: k
 
@@ -763,7 +767,7 @@ contains
         if (k /= 0) has_input_ring = comint_buffers(k)%has_ring
     end function has_input_ring
 
-    !> The number of items of the current buffer's input ring.
+    !> The number of items of the current buffer's input ring.  Not a port.
     integer function comint_input_ring_length()
         integer :: k
 
@@ -774,7 +778,7 @@ contains
     end function comint_input_ring_length
 
     !> Item INDEX (0 the newest) of the current buffer's input ring ("" if
-    !> it has none).
+    !> it has none).  Not a port.
     function comint_input_ring_item(index) result(item)
         integer, intent(in) :: index
         character(len=:), allocatable :: item
@@ -788,6 +792,7 @@ contains
     end function comint_input_ring_item
 
     !> Position of a marker of the current buffer's state (0 if unset).
+    !> Not a port.
     integer(int64) function marker_pos(m) result(pos)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
@@ -799,6 +804,7 @@ contains
     end function marker_pos
 
     !> The position of comint-last-input-start in the current buffer.
+    !> Not a port.
     integer(int64) function comint_last_input_start()
         integer :: k
 
@@ -808,6 +814,7 @@ contains
     end function comint_last_input_start
 
     !> The position of comint-last-input-end in the current buffer.
+    !> Not a port.
     integer(int64) function comint_last_input_end()
         integer :: k
 
@@ -817,6 +824,7 @@ contains
     end function comint_last_input_end
 
     !> The position of comint-last-output-start in the current buffer.
+    !> Not a port.
     integer(int64) function comint_last_output_start()
         integer :: k
 
@@ -890,6 +898,7 @@ contains
     !> It may return a string containing the password, or nil if normal
     !> password prompting should occur.  Sets the current buffer's
     !> comint.el comint-password-function (buffer-local); without FN, nil.
+    !> Not a port.
     subroutine set_comint_password_function(fn)
         procedure(comint_password_proc), optional :: fn
         integer :: k
@@ -909,6 +918,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Bind `inhibit_read_only' to true, keeping its value in SAVED.
+    !> Not a port.
     subroutine inhibit_read_only_begin(saved)
         type(value_type), intent(out) :: saved
         type(status_type) :: st
@@ -917,7 +927,7 @@ contains
         call set(sym("inhibit_read_only"), t_value(), st)
     end subroutine inhibit_read_only_begin
 
-    !> End the binding of `inhibit_read_only_begin'.
+    !> End the binding of `inhibit_read_only_begin'.  Not a port.
     subroutine inhibit_read_only_end(saved)
         type(value_type), intent(in) :: saved
         type(status_type) :: st
@@ -926,7 +936,7 @@ contains
     end subroutine inhibit_read_only_end
 
     !> The current buffer's process, or an error: "Current buffer has no
-    !> process".
+    !> process".  Not a port.
     subroutine current_process(proc, status)
         type(handle_type), intent(out) :: proc
         type(status_type), intent(out) :: status
@@ -937,6 +947,7 @@ contains
     end subroutine current_process
 
     !> The position of the process mark of PROC (0 if it points nowhere).
+    !> Not a port.
     integer(int64) function pmark_pos(proc)
         type(handle_type), intent(in) :: proc
 
@@ -944,6 +955,7 @@ contains
     end function pmark_pos
 
     !> The property list (rear-nonsticky comint--prompt-rear-nonsticky).
+    !> Not a port.
     function rear_nonsticky_plist() result(v)
         type(value_type) :: v
 
@@ -954,7 +966,7 @@ contains
                                              sym(trim(PROMPT_REAR_NONSTICKY(5)))))
     end function rear_nonsticky_plist
 
-    !> Whether the symbol V is named NAME.
+    !> Whether the symbol V is named NAME.  Not a port.
     logical function symbol_is(v, name)
         type(value_type), intent(in) :: v
         character(len=*), intent(in) :: name
@@ -966,6 +978,7 @@ contains
     end function symbol_is
 
     !> The `field' property of the character at POS (get-char-property).
+    !> Not a port.
     function field_at(pos) result(v)
         integer(int64), intent(in) :: pos
         type(value_type) :: v
@@ -1016,7 +1029,7 @@ contains
     end subroutine comint_mode
 
     !> The body of comint-mode (also run by the modes derived from it,
-    !> through their parent).
+    !> through their parent).  Port of comint.el:comint-mode (its body).
     subroutine comint_mode_body()
         type(mode_line_part_type) :: parts(1)
         integer :: k
@@ -1110,6 +1123,7 @@ contains
     end subroutine make_comint_in_buffer
 
     !> Whether the current buffer's major mode is derived from Comint mode.
+    !> Not a port.
     logical function derived_from_comint()
         use derived_fm, only: derived_mode_p
 
@@ -1238,7 +1252,7 @@ contains
     end subroutine comint_exec
 
     !> The contents of FILE (with-temp-buffer, insert-file-contents,
-    !> buffer-string).
+    !> buffer-string).  Not a port.
     subroutine temp_buffer_file_contents(file, text, status)
         use buffer_fm, only: kill_buffer, generate_new_buffer_name
         use editfns_fm, only: buffer_string
@@ -1805,7 +1819,7 @@ contains
         call insert(item, status)
     end subroutine comint_previous_matching_input
 
-    !> Item POS of the current buffer's input ring.
+    !> Item POS of the current buffer's input ring.  Not a port.
     subroutine comint_input_ring_ref(pos, item)
         integer, intent(in) :: pos
         character(len=:), allocatable, intent(out) :: item
@@ -1817,7 +1831,7 @@ contains
         if (k /= 0) call comint_buffers(k)%input_ring%ref(pos, item, st)
     end subroutine comint_input_ring_ref
 
-    !> Run the current buffer's `comint_get_old_input'.
+    !> Run the current buffer's `comint_get_old_input'.  Not a port.
     subroutine call_get_old_input(input, status)
         character(len=:), allocatable, intent(out) :: input
         type(status_type), intent(out) :: status
@@ -2343,6 +2357,7 @@ contains
         end function same_text
     end subroutine comint_send_input
 
+    ! Not a port.
     function make_str(s) result(v)
         use lisp_fm, only: make_string
         character(len=*), intent(in) :: s
@@ -2404,6 +2419,7 @@ contains
     end subroutine comint_simple_send
 
     !> The `comint_input_sender' comint-skip-input binds: send nothing.
+    !> Not a port.
     subroutine ignore_input(process, string, status)
         type(handle_type), intent(in) :: process
         character(len=*), intent(in) :: string
@@ -2436,7 +2452,7 @@ contains
         call process_send_region(start, end, status, process)
     end subroutine comint_send_region
 
-    !> comint-snapshot-last-prompt in the buffer of PROCESS.
+    !> comint-snapshot-last-prompt in the buffer of PROCESS.  Not a port.
     subroutine snapshot_in_buffer_of(process)
         type(handle_type), intent(in) :: process
         type(handle_type) :: old, buf
@@ -2739,6 +2755,7 @@ contains
         end do
     end subroutine comint_postoutput_scroll_to_bottom
 
+    ! Not a port.
     function make_int(n) result(v)
         use lisp_fm, only: make_fixnum
         integer(int64), intent(in) :: n
@@ -2748,7 +2765,7 @@ contains
     end function make_int
 
     !> The point of window W: point, for the selected window showing the
-    !> current buffer.
+    !> current buffer.  Not a port.
     integer(int64) function window_point_of(w) result(pos)
         type(handle_type), intent(in) :: w
 
@@ -2823,6 +2840,7 @@ contains
     end subroutine cmd_comint_truncate_buffer
 
     !> comint-truncate-buffer with comint-buffer-maximum-size MAXIMUM.
+    !> Port of comint.el:comint-truncate-buffer (its body).
     subroutine truncate_to(maximum, status)
         integer(int64), intent(in) :: maximum
         type(status_type), intent(out) :: status
@@ -2855,6 +2873,7 @@ contains
     end subroutine comint_strip_ctrl_m
 
     !> comint-strip-ctrl-m, called interactively if INTERACTIVE.
+    !> Port of comint.el:comint-strip-ctrl-m (its body).
     subroutine strip_ctrl_m(status, interactive)
         use search_fm, only: re_search_forward, replace_match
         type(status_type), intent(out) :: status
@@ -3036,6 +3055,7 @@ contains
 
     !> The field at POS, as editfns.c:Ffield_at_pos gives it (the field
     !> of the text before POS unless the field after it is front-sticky).
+    !> Not a port.
     function field_at_pos(pos) result(v)
         use editfns_fm, only: get_pos_property
         integer(int64), intent(in) :: pos
@@ -3129,8 +3149,8 @@ contains
     !>
     !> If the optional argument APPEND (the prefix argument when
     !> interactive) is true, the output is appended to the file instead
-    !> (Deferred: write_region has no APPEND yet, an error says so).  Port
-    !> of comint.el:comint-write-output (MUSTBENEW is Deferred).
+    !> (Deferred: write_region has no APPEND yet, an error says so).  Port of
+    !> comint.el:comint-write-output (MUSTBENEW is Deferred).
     subroutine comint_write_output(filename, status, append)
         character(len=*), intent(in) :: filename
         type(status_type), intent(out) :: status
@@ -3282,8 +3302,8 @@ contains
         call inhibit_read_only_end(inhibit)
     end subroutine comint_skip_input
 
-    !> Kill all text from last stuff output by interpreter to point.  Port
-    !> of comint.el:comint-kill-input.
+    !> Kill all text from last stuff output by interpreter to point.  Port of
+    !> comint.el:comint-kill-input.
     subroutine comint_kill_input(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: proc
@@ -3536,7 +3556,7 @@ contains
     end subroutine comint_update_fence
 
     !> Whether a front-sticky value LST covers `read_only': (if (listp lst)
-    !> (memq 'read-only lst) t).
+    !> (memq 'read-only lst) t).  Not a port.
     logical function front_sticky_read_only(lst) result(yes)
         type(value_type), intent(in) :: lst
         type(value_type), allocatable :: elts(:)
@@ -3736,8 +3756,8 @@ contains
     !> already sent, from input that has not yet been sent.  Ordinarily,
     !> the process mark is at the beginning of the current input line; but
     !> if you have used \[comint_accumulate] to send multiple lines at once,
-    !> the process mark is at the beginning of the accumulated input.  Port
-    !> of comint.el:comint-bol-or-process-mark.
+    !> the process mark is at the beginning of the accumulated input.  Port of
+    !> comint.el:comint-bol-or-process-mark.
     subroutine comint_bol_or_process_mark(status)
         type(status_type), intent(out) :: status
 
@@ -3767,7 +3787,7 @@ contains
     ! The commands' interactive forms
     ! ------------------------------------------------------------------
 
-    !> The count of the prefix argument.
+    !> The count of the prefix argument.  Not a port.
     integer function prefix_count()
         prefix_count = int(prefix_numeric_value(current_prefix_arg))
     end function prefix_count
@@ -3917,7 +3937,7 @@ contains
         end if
     end function comint_previous_input_string
 
-    ! The length of the input ring (0 without one).
+    ! The length of the input ring (0 without one).  Not a port.
     integer function ring_length()
         integer :: k
 
@@ -3927,7 +3947,7 @@ contains
         if (comint_buffers(k)%has_ring) ring_length = comint_buffers(k)%input_ring%count()
     end function ring_length
 
-    ! (setq comint-input-ring-index INDEX), -1 for nil.
+    ! (setq comint-input-ring-index INDEX), -1 for nil.  Not a port.
     subroutine set_input_ring_index(index)
         integer, intent(in) :: index
         integer :: k
@@ -3936,7 +3956,7 @@ contains
         comint_buffers(k)%input_ring_index = index
     end subroutine set_input_ring_index
 
-    ! comint-input-ring-index, -1 for nil.
+    ! comint-input-ring-index, -1 for nil.  Not a port.
     integer function input_ring_index()
         integer :: k
 
@@ -4068,7 +4088,7 @@ contains
         end function string_to_int
     end function comint_args
 
-    ! Whether the character at POS is C.
+    ! Whether the character at POS is C.  Not a port.
     logical function char_after_is(pos, c)
         integer(int64), intent(in) :: pos
         character(len=1), intent(in) :: c
@@ -4082,6 +4102,7 @@ contains
     end function char_after_is
 
     ! Whether REGEXP matches STR (without changing the match data).
+    ! Not a port.
     logical function smatch(regexp, str)
         character(len=*), intent(in) :: regexp, str
         type(status_type) :: st
@@ -4351,7 +4372,7 @@ contains
     end subroutine comint_replace_by_expanded_history_before_point
 
     ! (or (looking-at RE1) (looking-at RE2)), the match data of the one
-    ! that matched.
+    ! that matched.  Not a port.
     logical function looking_at_either(re1, re2)
         character(len=*), intent(in) :: re1, re2
         type(status_type) :: st
@@ -4361,6 +4382,7 @@ contains
     end function looking_at_either
 
     ! (search-forward STRING BOUND t): FOUND says whether it matched.
+    ! Not a port.
     subroutine search_forward(string, found, status, bound)
         use search_fm, only: search_forward_fm => search_forward
         character(len=*), intent(in) :: string
@@ -4373,7 +4395,7 @@ contains
         found = status%ok() .and. pos > 0
     end subroutine search_forward
 
-    ! N as decimal digits.
+    ! N as decimal digits.  Not a port.
     function int_str(n) result(s)
         integer, intent(in) :: n
         character(len=:), allocatable :: s
@@ -4494,8 +4516,8 @@ contains
     ! Isearch in comint input history
     ! ------------------------------------------------------------------
 
-    !> Search for a string backward in input history using Isearch.  Port
-    !> of comint.el:comint-history-isearch-backward.
+    !> Search for a string backward in input history using Isearch.  Port of
+    !> comint.el:comint-history-isearch-backward.
     recursive subroutine comint_history_isearch_backward(status)
         type(status_type), intent(out) :: status
 
@@ -4515,7 +4537,7 @@ contains
     end subroutine comint_history_isearch_backward_regexp
 
     ! The beginning of the line of the prompt: (save-excursion (goto-char
-    ! (comint-line-beginning-position)) (forward-line 0) (point)).
+    ! (comint-line-beginning-position)) (forward-line 0) (point)).  Not a port.
     integer(int64) function prompt_line_start()
         integer(int64) :: opoint
 
@@ -4527,8 +4549,8 @@ contains
     end function prompt_line_start
 
     !> Set up a comint for using Isearch to search the input history.
-    !> Intended to be added to `isearch_mode_hook' in `comint_mode'.  Port
-    !> of comint.el:comint-history-isearch-setup (no lazy count).
+    !> Intended to be added to `isearch_mode_hook' in `comint_mode'.  Port of
+    !> comint.el:comint-history-isearch-setup (no lazy count).
     recursive subroutine comint_history_isearch_setup(status)
         type(status_type), intent(out) :: status
 
@@ -4616,6 +4638,7 @@ contains
     end subroutine comint_history_isearch_search
 
     ! The search function comint-history-isearch-search returns.
+    ! Port of comint.el:comint-history-isearch-search (the function it returns).
     recursive subroutine history_search(string, bound, noerror, pos, status)
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: bound
@@ -4904,8 +4927,8 @@ contains
              achar(9)//achar(10)//"]+@[^)@ "//achar(9)//achar(10)//"]+\)?: *\'"
     end function comint_password_prompt_regexp_default
 
-    !> Read a password with PROMPT (obsolete: use `read_passwd').  Port
-    !> of comint.el:comint-read-noecho.
+    !> Read a password with PROMPT (obsolete: use `read_passwd').  Port of
+    !> comint.el:comint-read-noecho.
     recursive subroutine comint_read_noecho(prompt, result, status)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: result
@@ -5094,7 +5117,7 @@ contains
     end subroutine comint_watch_for_password_prompt
 
     ! The timer function of `comint_watch_for_password_prompt': send the
-    ! oldest pending password prompt's password.
+    ! oldest pending password prompt's password.  Not a port.
     recursive subroutine send_pending_password(status)
         type(status_type), intent(out) :: status
         type(pending_prompt_type) :: p
@@ -5127,7 +5150,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Define Comint mode, its map, faces and settings, and register the
-    !> commands.
+    !> commands.  Not a port.
     subroutine syms_of_comint()
         type(status_type) :: st
 
@@ -5261,7 +5284,7 @@ contains
         commands%comint_kill_region%run => cmd_comint_kill_region
     end subroutine syms_of_comint
 
-    !> The faces of comint.el.
+    !> The faces of comint.el.  Not a port.
     subroutine define_faces()
         type(named_face_type), pointer :: f
 
@@ -5273,7 +5296,7 @@ contains
         call f%spec_entry(display_when(), face_attrs(inherit="minibuffer_prompt"))
     end subroutine define_faces
 
-    !> Add S at the end of LIST.
+    !> Add S at the end of LIST.  Not a port.
     subroutine append_arg(list, s)
         type(process_arg_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
@@ -5292,7 +5315,7 @@ contains
         call move_alloc(grown, list)
     end subroutine append_arg
 
-    !> Add S at the start of LIST.
+    !> Add S at the start of LIST.  Not a port.
     subroutine prepend_arg(list, s)
         type(process_arg_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s

@@ -59,13 +59,14 @@ module easy_mmode_fm
 
     abstract interface
         !> ENDFUN of `easy_mmode_next': the end position of the entry at
-        !> point (with or without moving point).
+        !> point (with or without moving point).  Not a port.
         recursive integer(int64) function navigation_end_proc()
             import :: int64
             implicit none(type, external)
         end function navigation_end_proc
 
         !> NARROWFUN of `easy_mmode_next': narrow again after moving.
+        !> Not a port.
         recursive subroutine navigation_narrow_proc(status)
             import :: status_type
             implicit none(type, external)
@@ -75,6 +76,7 @@ module easy_mmode_fm
         !> The body of a minor mode, run after its state is set: `enable'
         !> is the new state.  A mode whose state is another variable
         !> (upstream's :variable with a setter) sets that variable here.
+        !> Not a port.
         subroutine minor_mode_body_proc(enable, status)
             import :: status_type
             implicit none(type, external)
@@ -84,7 +86,7 @@ module easy_mmode_fm
 
         !> The state of a minor mode whose state is an expression (upstream's
         !> :variable (GETTER . SETTER)): whether it is on in the current
-        !> buffer.
+        !> buffer.  Not a port.
         logical function minor_mode_getter_proc()
             implicit none(type, external)
         end function minor_mode_getter_proc
@@ -166,8 +168,8 @@ contains
     !> ENDFUN and NARROWFUN are treated like in
     !> `easy-mmode-define-navigation': ENDFUN gives the end of the entry
     !> (to make sure all of it is visible, when INTERACTIVE), NARROWFUN,
-    !> if present, means to widen before moving and call it after.  Port
-    !> of easy-mmode.el:easy-mmode--next.
+    !> if present, means to widen before moving and call it after.
+    !> Port of easy-mmode.el:easy-mmode--next.
     recursive subroutine easy_mmode_next(re, name, count, status, endfun, narrowfun, interactive)
         character(len=*), intent(in) :: re, name
         integer(int64), intent(in) :: count
@@ -417,12 +419,14 @@ contains
         end do
     end function easy_mmode_pretty_mode_name
 
+    ! Whether C is an ASCII letter or digit.  Not a port.
     logical function is_alnum(c)
         character, intent(in) :: c
 
         is_alnum = (c >= "a" .and. c <= "z") .or. (c >= "A" .and. c <= "Z") .or. (c >= "0" .and. c <= "9")
     end function is_alnum
 
+    ! C in upper case (ASCII only).  Not a port.
     character function upcase(c)
         character, intent(in) :: c
 
@@ -430,6 +434,7 @@ contains
         if (c >= "a" .and. c <= "z") upcase = achar(iachar(c) - 32)
     end function upcase
 
+    ! C in lower case (ASCII only).  Not a port.
     character function downcase(c)
         character, intent(in) :: c
 
@@ -437,6 +442,7 @@ contains
         if (c >= "A" .and. c <= "Z") downcase = achar(iachar(c) + 32)
     end function downcase
 
+    ! S in lower case (ASCII only).  Not a port.
     function lower(s) result(t)
         character(len=*), intent(in) :: s
         character(len=len(s)) :: t
@@ -447,7 +453,7 @@ contains
         end do
     end function lower
 
-    !> The defined minor mode named NAME, or null.
+    !> The defined minor mode named NAME, or null.  Not a port.
     function minor_mode_named(name) result(p)
         character(len=*), intent(in) :: name
         type(minor_mode_type), pointer :: p
@@ -464,7 +470,7 @@ contains
         end do
     end function minor_mode_named
 
-    !> The index of the defined minor mode named NAME, or 0.
+    !> The index of the defined minor mode named NAME, or 0.  Not a port.
     integer function minor_mode_index(name) result(k)
         character(len=*), intent(in) :: name
         integer :: i
@@ -481,13 +487,14 @@ contains
     end function minor_mode_index
 
     !> The number of defined minor modes (the indices `minor_mode_at'
-    !> takes).
+    !> takes).  Not a port.
     integer function minor_mode_count() result(n)
         n = 0
         if (allocated(defined)) n = size(defined)
     end function minor_mode_count
 
     !> The defined minor mode with index K (from `minor_mode_index').
+    !> Not a port.
     function minor_mode_at(k) result(p)
         integer, intent(in) :: k
         type(minor_mode_type), pointer :: p
@@ -574,7 +581,7 @@ contains
         end if
     end subroutine minor_mode_define
 
-    !> The name of the variable holding the mode's state.
+    !> The name of the variable holding the mode's state.  Not a port.
     function state_name(self) result(name)
         class(minor_mode_type), intent(in) :: self
         character(len=:), allocatable :: name
@@ -586,7 +593,7 @@ contains
         end if
     end function state_name
 
-    !> Whether the mode is on in buffer slot B.
+    !> Whether the mode is on in buffer slot B.  Not a port.
     logical function minor_mode_enabled_in(self, b) result(on)
         class(minor_mode_type), intent(in) :: self
         integer(int64), intent(in) :: b
@@ -605,6 +612,7 @@ contains
         end if
     end function minor_mode_enabled_in
 
+    !> Whether the mode is on in the current buffer.  Not a port.
     logical function minor_mode_enabled(self) result(on)
         class(minor_mode_type), intent(in) :: self
         type(value_type) :: v
@@ -624,7 +632,7 @@ contains
         end if
     end function minor_mode_enabled
 
-    !> The GETTER of SELF in buffer slot B.
+    !> The GETTER of SELF in buffer slot B.  Not a port.
     logical function getter_in(self, b) result(on)
         class(minor_mode_type), intent(in) :: self
         integer(int64), intent(in) :: b
@@ -639,7 +647,7 @@ contains
     end function getter_in
 
     !> Set the mode's own state: globally, or (a buffer-local mode) in
-    !> the current buffer, as `(setq MODE ON)' does.
+    !> the current buffer, as `(setq MODE ON)' does.  Not a port.
     subroutine minor_mode_set_state(self, on)
         class(minor_mode_type), intent(inout) :: self
         logical, intent(in) :: on
@@ -743,6 +751,7 @@ contains
         end subroutine say
     end subroutine set_mode
 
+    ! B as a Lisp value: t or nil.  Not a port.
     function bool(b) result(v)
         logical, intent(in) :: b
         type(value_type) :: v
@@ -754,6 +763,7 @@ contains
         end if
     end function bool
 
+    ! " in current buffer" for a buffer-local mode, else "".  Not a port.
     function local_text(self) result(s)
         class(minor_mode_type), intent(in) :: self
         character(len=:), allocatable :: s
@@ -766,6 +776,7 @@ contains
     end function local_text
 
     !> Turn the mode on (upstream's (MODE 1), or (MODE) from Lisp).
+    !> Not a port.
     recursive subroutine minor_mode_enable(self, status)
         class(minor_mode_type), intent(inout) :: self
         type(status_type), intent(out) :: status
@@ -773,7 +784,7 @@ contains
         call set_mode(self, .true., status, .false.)
     end subroutine minor_mode_enable
 
-    !> Turn the mode off (upstream's (MODE -1)).
+    !> Turn the mode off (upstream's (MODE -1)).  Not a port.
     recursive subroutine minor_mode_disable(self, status)
         class(minor_mode_type), intent(inout) :: self
         type(status_type), intent(out) :: status
@@ -781,7 +792,7 @@ contains
         call set_mode(self, .false., status, .false.)
     end subroutine minor_mode_disable
 
-    !> Toggle the mode (upstream's (MODE 'toggle)).
+    !> Toggle the mode (upstream's (MODE 'toggle)).  Not a port.
     recursive subroutine minor_mode_toggle(self, status)
         class(minor_mode_type), intent(inout) :: self
         type(status_type), intent(out) :: status
@@ -791,7 +802,7 @@ contains
 
     !> Run the mode as its command: toggle it, or with a prefix argument
     !> turn it on if the argument is positive and off otherwise; say
-    !> which.
+    !> which.  Not a port.
     recursive subroutine minor_mode_command(self, status)
         class(minor_mode_type), intent(inout) :: self
         type(status_type), intent(out) :: status

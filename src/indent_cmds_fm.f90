@@ -71,7 +71,7 @@ submodule(indent_fm) indent_cmds_fm
 
 contains
 
-    ! The default indent-line-function, `indent-relative`.
+    ! The default indent-line-function, `indent-relative`.  Not a port.
     subroutine indent_relative_line(status, noindent)
         type(status_type), intent(out) :: status
         logical, intent(out) :: noindent
@@ -79,7 +79,7 @@ contains
         call indent_relative(status, noindent=noindent)
     end subroutine indent_relative_line
 
-    ! The current indent-line-function.
+    ! The current indent-line-function.  Not a port.
     subroutine call_indent_line_function(status, noindent)
         type(status_type), intent(out) :: status
         logical, intent(out) :: noindent
@@ -123,7 +123,7 @@ contains
     end procedure indent_line_function_named
 
     ! An indent-line-function that is not one of the above: call the
-    ! function named by the variable's value.
+    ! function named by the variable's value.  Not a port.
     recursive subroutine indent_line_by_name(status, noindent)
         type(status_type), intent(out) :: status
         logical, intent(out) :: noindent
@@ -134,6 +134,7 @@ contains
 
     ! Whether the indent-line-function is one of
     ! `indent-line-ignored-functions` (the indent-relative family).
+    ! Not a port.
     logical function ignored_indent_line_function()
         procedure(indent_line_proc), pointer :: p
 
@@ -195,6 +196,7 @@ contains
     end procedure indent_according_to_mode
 
     ! (save-excursion (indent-line-to COLUMN)), point kept with a marker.
+    ! Not a port.
     subroutine save_excursion_indent_line_to(column, status)
         integer(int64), intent(in) :: column
         type(status_type), intent(out) :: status
@@ -245,7 +247,7 @@ contains
 
     ! (indent--funcall-widened (default-value 'indent-line-function)).  A
     ! default that is a procedure without a name is called through the
-    ! current value.
+    ! current value.  Port of indent.el:indent--funcall-widened.
     subroutine widened_default_indent_line(status)
         type(status_type), intent(out) :: status
         type(value_type) :: v
@@ -279,6 +281,7 @@ contains
     end subroutine widened_default_indent_line
 
     ! indent--funcall-widened with the indent-line-function.
+    ! Port of indent.el:indent--funcall-widened.
     subroutine widened_indent_line(status, noindent)
         type(status_type), intent(out) :: status
         logical, intent(out) :: noindent
@@ -480,7 +483,7 @@ contains
     end if
     end procedure move_to_left_margin
 
-    ! (minibufferp): the current buffer is a minibuffer.
+    ! (minibufferp): the current buffer is a minibuffer.  Not a port.
     logical function is_minibuffer()
         is_minibuffer = minibuffer_prompt_end() > point_min()
     end function is_minibuffer
@@ -565,6 +568,7 @@ contains
     end select
     end procedure beginning_of_line_text
 
+    ! Not a port.
     integer(int64) function match_end_0()
         use search_fm, only: match_end
         type(status_type) :: st
@@ -897,6 +901,7 @@ contains
         end if
     end subroutine cmd_indent_rigidly
 
+    ! Not a port.
     subroutine region_command(status, which)
         type(status_type), intent(out) :: status
         integer, intent(in) :: which
@@ -919,6 +924,7 @@ contains
     end subroutine region_command
 
     ! The ON-EXIT of indent-rigidly's transient map: `deactivate_mark'.
+    ! Not a port.
     subroutine rigidly_exit()
         call deactivate_mark()
     end subroutine rigidly_exit

@@ -75,7 +75,7 @@ module map_ynp_fm
     end type read_answer_type
 
     abstract interface
-        !> Whether and how to ask about object `k'.
+        !> Whether and how to ask about object `k'.  Not a port.
         subroutine ynp_prompter(k, how, prompt)
             implicit none(type, external)
             integer, intent(in) :: k
@@ -83,7 +83,7 @@ module map_ynp_fm
             character(len=:), allocatable, intent(out) :: prompt
         end subroutine ynp_prompter
 
-        !> Act on object `k'.
+        !> Act on object `k'.  Not a port.
         subroutine ynp_actor(k, status)
             import :: status_type
             implicit none(type, external)

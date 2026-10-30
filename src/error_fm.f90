@@ -197,14 +197,14 @@ module error_fm
 
 contains
 
-    !> True when no error is recorded.
+    !> True when no error is recorded.  Not a port.
     elemental logical function status_ok(self)
         class(status_type), intent(in) :: self
 
         status_ok = self%code == FM_OK
     end function status_ok
 
-    !> Record an error.  The analogue of upstream `xsignal'.
+    !> Record an error.  The analogue of upstream `xsignal'.  Not a port.
     pure subroutine set_error(status, code, detail)
         type(status_type), intent(inout) :: status
         integer(int32), intent(in) :: code
@@ -219,13 +219,14 @@ contains
         end if
     end subroutine set_error
 
+    ! Not a port.
     pure logical function valid_code(code)
         integer(int32), intent(in) :: code
 
         valid_code = code >= 0 .and. code <= last_code
     end function valid_code
 
-    !> Error symbol name of `code' (e.g. "args-out-of-range").
+    !> Error symbol name of `code' (e.g. "args-out-of-range").  Not a port.
     pure function error_name(code) result(name)
         integer(int32), intent(in) :: code
         character(len=:), allocatable :: name
@@ -238,6 +239,7 @@ contains
     end function error_name
 
     !> The `error_message' of `code' (e.g. "Args out of range").
+    !> Not a port.
     pure function error_message(code) result(msg)
         integer(int32), intent(in) :: code
         character(len=:), allocatable :: msg
@@ -251,6 +253,7 @@ contains
 
     !> True when an error with `code' would be caught by a handler for
     !> `condition', i.e. `condition' is in its `error_conditions' chain.
+    !> Not a port.
     pure logical function condition_matches(code, condition)
         integer(int32), intent(in) :: code, condition
         integer(int32) :: c

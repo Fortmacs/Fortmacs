@@ -70,7 +70,7 @@ contains
         end if
     end function truncate_string_ellipsis
 
-    ! The characters of STR with their widths and byte offsets.
+    ! The characters of STR with their widths and byte offsets.  Not a port.
     subroutine decode(str, widths, starts)
         character(len=*), intent(in) :: str
         integer, allocatable, intent(out) :: widths(:)
@@ -96,6 +96,7 @@ contains
         starts = starts(1:n + 1)
     end subroutine decode
 
+    ! Not a port.
     pure integer function total(widths) result(t)
         integer, intent(in) :: widths(:)
         integer :: k
@@ -110,6 +111,7 @@ contains
     ! The parts of the result: HEAD padding, the characters FROM_IDX to
     ! IDX (0-based, exclusive) of STR, TAIL padding and the ELLIPSIS
     ! (DONE when the whole result is RESULT, START_COLUMN being beyond STR).
+    ! Port of mule-util.el:truncate-string-to-width in part.
     subroutine truncate_parts(str, end_column_in, start_column, padding, ellipsis_in, head, from_idx, idx, tail, &
                               ellipsis, done, result)
         character(len=*), intent(in) :: str, ellipsis_in, padding
@@ -186,6 +188,7 @@ contains
     end subroutine truncate_parts
 
     ! The bytes of characters FROM to TO (0-based, TO exclusive) of STR.
+    ! Not a port.
     function chars(str, from, to) result(s)
         character(len=*), intent(in) :: str
         integer, intent(in) :: from, to
@@ -292,6 +295,7 @@ contains
         end if
     end function truncate_string_to_width_propertized
 
+    ! Not a port.
     integer function opt_int(x)
         integer, intent(in), optional :: x
 
@@ -299,6 +303,7 @@ contains
         if (present(x)) opt_int = x
     end function opt_int
 
+    ! Not a port.
     function opt_str(x) result(s)
         character(len=*), intent(in), optional :: x
         character(len=:), allocatable :: s
@@ -307,6 +312,7 @@ contains
         if (present(x)) s = x
     end function opt_str
 
+    ! Not a port.
     function ellipsis_of(ellipsis, default_ellipsis) result(s)
         character(len=*), intent(in), optional :: ellipsis
         logical, intent(in), optional :: default_ellipsis

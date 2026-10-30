@@ -106,7 +106,7 @@ module termchar_fm
 
 contains
 
-    !> Append raw bytes to the output (fwrite to tty->output).
+    !> Append raw bytes to the output (fwrite to tty->output).  Not a port.
     subroutine tty_put_bytes(tty, bytes)
         type(tty_display_info), intent(inout) :: tty
         character(len=*), intent(in) :: bytes
@@ -129,6 +129,7 @@ contains
 
     !> Output capability string `cap' if the terminal has it.  The OUTPUT
     !> macros of term.c (emacs_tputs with cm.c:cmputc); padding is dropped.
+    !> Port of term.c:OUTPUT and term.c:OUTPUT_IF.
     subroutine tty_output(tty, cap)
         type(tty_display_info), intent(inout) :: tty
         character(len=:), allocatable, intent(in) :: cap
@@ -137,7 +138,7 @@ contains
         call tty_put_bytes(tty, delete_padding(cap))
     end subroutine tty_output
 
-    !> The pending output, which is then discarded.
+    !> The pending output, which is then discarded.  Not a port.
     function tty_take_output(tty) result(s)
         type(tty_display_info), intent(inout) :: tty
         character(len=:), allocatable :: s
@@ -148,7 +149,7 @@ contains
     end function tty_take_output
 
     !> Write the pending output to the terminal (fflush of tty->output).
-    !> Without an output descriptor the output stays pending.
+    !> Without an output descriptor the output stays pending.  Not a port.
     subroutine tty_flush(tty, status)
         type(tty_display_info), intent(inout) :: tty
         type(status_type), intent(out) :: status

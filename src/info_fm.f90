@@ -201,7 +201,7 @@ module info_fm
 
     abstract interface
         !> The find-file operation of a virtual Info file: the file name
-        !> `info_find_file' returns for FILENAME.
+        !> `info_find_file' returns for FILENAME.  Not a port.
         recursive subroutine info_virtual_find_file_proc(filename, result, status)
             import :: status_type
             implicit none(type, external)
@@ -212,6 +212,7 @@ module info_fm
 
         !> The find-node operation of a virtual Info file: insert the text
         !> of node NODENAME of FILENAME in the current (empty) Info buffer.
+        !> Not a port.
         recursive subroutine info_virtual_find_node_proc(filename, nodename, no_going_back, status)
             import :: status_type
             implicit none(type, external)
@@ -222,7 +223,7 @@ module info_fm
 
         !> The toc-nodes operation of a virtual Info file: the node list
         !> of FILENAME with parent-children information (as
-        !> `info_toc_nodes' gives).
+        !> `info_toc_nodes' gives).  Not a port.
         recursive subroutine info_virtual_toc_nodes_proc(filename, nodes)
             import :: toc_node_type
             implicit none(type, external)
@@ -731,7 +732,7 @@ module info_fm
         !> A URL-specification function of `info_url_alist': the URL of
         !> node NODE (URL-encoded as ENCODED) of manual MANUAL (a subroutine:
         !> gfortran frees a pointer component to a function with a
-        !> deferred-length result).
+        !> deferred-length result).  Not a port.
         subroutine info_url_proc(manual, node, encoded, url)
             implicit none(type, external)
             character(len=*), intent(in) :: manual, node, encoded
@@ -781,7 +782,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! The index of the current buffer's entry in `locals', made if MAKE
-    ! (0 if none).
+    ! (0 if none).  Not a port.
     integer function local_index(make) result(k)
         logical, intent(in) :: make
         type(local_type), allocatable :: grown(:)
@@ -818,6 +819,7 @@ contains
     end function local_index
 
     ! kill-all-local-variables: forget the current buffer's values.
+    ! Not a port.
     subroutine kill_info_locals()
         integer :: k
 
@@ -887,6 +889,7 @@ contains
     end subroutine info_history_variable
 
     !> Set the current buffer's `info_history_variable' to HISTORY.
+    !> Not a port.
     subroutine set_info_history_variable(history)
         type(info_history_entry_type), intent(in) :: history(:)
         integer :: k
@@ -911,7 +914,7 @@ contains
         end if
     end subroutine info_history_forward_variable
 
-    ! The entry of the current buffer, made if needed.
+    ! The entry of the current buffer, made if needed.  Not a port.
     integer function here() result(k)
         k = local_index(.true.)
         if (.not. allocated(locals(k)%history)) allocate (locals(k)%history(0))
@@ -919,6 +922,7 @@ contains
     end function here
 
     ! (setq Info-current-file FILE); an empty FILE with NIL true for nil.
+    ! Not a port.
     subroutine set_current_file(file, clear)
         character(len=*), intent(in) :: file
         logical, intent(in), optional :: clear
@@ -936,7 +940,7 @@ contains
         locals(k)%current_file = file
     end subroutine set_current_file
 
-    ! (setq Info-current-node NODE), or nil if absent.
+    ! (setq Info-current-node NODE), or nil if absent.  Not a port.
     subroutine set_current_node(node)
         character(len=*), intent(in), optional :: node
         integer :: k
@@ -950,7 +954,7 @@ contains
         end if
     end subroutine set_current_node
 
-    ! (setq Info-current-subfile FILE), or nil if absent.
+    ! (setq Info-current-subfile FILE), or nil if absent.  Not a port.
     subroutine set_current_subfile(file)
         character(len=*), intent(in), optional :: file
         integer :: k
@@ -964,7 +968,7 @@ contains
         end if
     end subroutine set_current_subfile
 
-    ! Whether Info-current-file is non-nil.
+    ! Whether Info-current-file is non-nil.  Not a port.
     logical function has_current_file()
         integer :: k
 
@@ -973,7 +977,7 @@ contains
         if (k > 0) has_current_file = allocated(locals(k)%current_file)
     end function has_current_file
 
-    ! Whether Info-current-node is non-nil.
+    ! Whether Info-current-node is non-nil.  Not a port.
     logical function has_current_node()
         integer :: k
 
@@ -982,7 +986,7 @@ contains
         if (k > 0) has_current_node = allocated(locals(k)%current_node)
     end function has_current_node
 
-    ! Info-current-file, "" for nil.
+    ! Info-current-file, "" for nil.  Not a port.
     function current_file_or_empty() result(file)
         character(len=:), allocatable :: file
 
@@ -990,7 +994,7 @@ contains
         if (.not. allocated(file)) file = ""
     end function current_file_or_empty
 
-    ! Info-current-node, "" for nil.
+    ! Info-current-node, "" for nil.  Not a port.
     function current_node_or_empty() result(node)
         character(len=:), allocatable :: node
 
@@ -998,7 +1002,7 @@ contains
         if (.not. allocated(node)) node = ""
     end function current_node_or_empty
 
-    ! (push (list FILE NODE POS) STACK).
+    ! (push (list FILE NODE POS) STACK).  Not a port.
     subroutine push_history(stack, file, node, pos)
         type(info_history_entry_type), allocatable, intent(inout) :: stack(:)
         character(len=*), intent(in) :: file, node
@@ -1022,7 +1026,7 @@ contains
         call move_alloc(grown, stack)
     end subroutine push_history
 
-    ! (setq STACK (cdr STACK)).
+    ! (setq STACK (cdr STACK)).  Not a port.
     subroutine pop_history(stack)
         type(info_history_entry_type), allocatable, intent(inout) :: stack(:)
         type(info_history_entry_type), allocatable :: rest(:)
@@ -1043,6 +1047,8 @@ contains
 
     ! Add a new unique history item (FILE NODE) to the front of
     ! `info_history_list'.
+    ! Port of info.el:Info-find-node-2 and info.el:Info-select-node, in
+    ! part.
     subroutine note_history_list(file, node)
         character(len=*), intent(in) :: file, node
         type(info_node_ref_type), allocatable :: grown(:)
@@ -1069,7 +1075,7 @@ contains
     ! Helpers
     ! ------------------------------------------------------------------
 
-    ! Signal a user-error with MESSAGE.
+    ! Signal a user-error with MESSAGE.  Not a port.
     subroutine user_error(status, message)
         type(status_type), intent(inout) :: status
         character(len=*), intent(in) :: message
@@ -1077,7 +1083,7 @@ contains
         call set_error(status, FM_USER_ERROR, message)
     end subroutine user_error
 
-    ! Signal an error with MESSAGE.
+    ! Signal an error with MESSAGE.  Not a port.
     subroutine plain_error(status, message)
         type(status_type), intent(inout) :: status
         character(len=*), intent(in) :: message
@@ -1086,6 +1092,7 @@ contains
     end subroutine plain_error
 
     ! Whether the last search or match succeeded for subexpression N.
+    ! Not a port.
     logical function matched_group(n, status)
         integer, intent(in) :: n
         type(status_type), intent(inout) :: status
@@ -1094,7 +1101,7 @@ contains
     end function matched_group
 
     ! (string-match RE S) as a logical, without changing the match data
-    ! unless MODIFY.
+    ! unless MODIFY.  Not a port.
     logical function smatch(re, s, modify)
         character(len=*), intent(in) :: re, s
         logical, intent(in), optional :: modify
@@ -1128,7 +1135,7 @@ contains
         end do
     end function canonicalize_whitespace
 
-    ! (string-replace FROM TO S).
+    ! (string-replace FROM TO S).  Not a port.
     function replace_all(from, to, s) result(t)
         character(len=*), intent(in) :: from, to, s
         character(len=:), allocatable :: t
@@ -1148,6 +1155,7 @@ contains
     end function replace_all
 
     ! S without its trailing white space (the "\\s +\\'" trims).
+    ! Not a port.
     function trim_trailing_space(s) result(t)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: t
@@ -1164,7 +1172,7 @@ contains
         t = s(1:n)
     end function trim_trailing_space
 
-    ! (downcase S).
+    ! (downcase S).  Not a port.
     function lower(s) result(t)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: t
@@ -1172,17 +1180,17 @@ contains
         t = downcase_string(s)
     end function lower
 
-    ! Point, saved for save-excursion.
+    ! Point, saved for save-excursion.  Not a port.
     integer(int64) function save_point()
         save_point = point()
     end function save_point
 
-    ! Go to the beginning of the accessible text.
+    ! Go to the beginning of the accessible text.  Not a port.
     subroutine goto_min()
         call goto_char(point_min())
     end subroutine goto_min
 
-    ! (forward-line N), ignoring the shortage.
+    ! (forward-line N), ignoring the shortage.  Not a port.
     subroutine fwd_line(n)
         integer(int64), intent(in) :: n
         integer(int64) :: shortage
@@ -1191,6 +1199,7 @@ contains
     end subroutine fwd_line
 
     ! Search forward for STRING without error; FOUND is true if found.
+    ! Not a port.
     logical function sfwd(string, bound, move)
         character(len=*), intent(in) :: string
         integer(int64), intent(in), optional :: bound
@@ -1209,7 +1218,7 @@ contains
         sfwd = found /= 0 .and. st%ok()
     end function sfwd
 
-    ! Search backward for STRING without error.
+    ! Search backward for STRING without error.  Not a port.
     logical function sbwd(string, bound, move)
         character(len=*), intent(in) :: string
         integer(int64), intent(in), optional :: bound
@@ -1228,7 +1237,7 @@ contains
         sbwd = found /= 0 .and. st%ok()
     end function sbwd
 
-    ! Search forward for regexp RE without error.
+    ! Search forward for regexp RE without error.  Not a port.
     logical function refwd(re, bound, move)
         character(len=*), intent(in) :: re
         integer(int64), intent(in), optional :: bound
@@ -1247,7 +1256,7 @@ contains
         refwd = found /= 0 .and. st%ok()
     end function refwd
 
-    ! Search backward for regexp RE without error.
+    ! Search backward for regexp RE without error.  Not a port.
     logical function rebwd(re, bound, move)
         character(len=*), intent(in) :: re
         integer(int64), intent(in), optional :: bound
@@ -1266,7 +1275,7 @@ contains
         rebwd = found /= 0 .and. st%ok()
     end function rebwd
 
-    ! (looking-at RE).
+    ! (looking-at RE).  Not a port.
     logical function looking(re)
         character(len=*), intent(in) :: re
         type(status_type) :: st
@@ -1275,7 +1284,7 @@ contains
         if (.not. st%ok()) looking = .false.
     end function looking
 
-    ! (match-beginning N), 0 if the group did not match.
+    ! (match-beginning N), 0 if the group did not match.  Not a port.
     integer(int64) function mbeg(n)
         integer, intent(in) :: n
         type(status_type) :: st
@@ -1283,7 +1292,7 @@ contains
         mbeg = match_beginning(n, st)
     end function mbeg
 
-    ! (match-end N), 0 if the group did not match.
+    ! (match-end N), 0 if the group did not match.  Not a port.
     integer(int64) function mend(n)
         integer, intent(in) :: n
         type(status_type) :: st
@@ -1291,7 +1300,7 @@ contains
         mend = match_end(n, st)
     end function mend
 
-    ! The buffer text from START to END, without properties.
+    ! The buffer text from START to END, without properties.  Not a port.
     function text(start, end) result(s)
         integer(int64), intent(in) :: start, end
         character(len=:), allocatable :: s
@@ -1301,7 +1310,7 @@ contains
         if (.not. st%ok()) s = ""
     end function text
 
-    ! (window-start) of the selected window.
+    ! (window-start) of the selected window.  Not a port.
     integer(int64) function sel_window_start()
         type(handle_type) :: w
 
@@ -1309,7 +1318,7 @@ contains
         sel_window_start = window_start(windows(w%index))
     end function sel_window_start
 
-    ! (set-window-start (selected-window) POS).
+    ! (set-window-start (selected-window) POS).  Not a port.
     subroutine set_sel_window_start(pos, status)
         integer(int64), intent(in) :: pos
         type(status_type), intent(out) :: status
@@ -1319,7 +1328,7 @@ contains
         call set_window_start(windows(w%index), pos, status)
     end subroutine set_sel_window_start
 
-    ! (pos-visible-in-window-p POS) in the selected window.
+    ! (pos-visible-in-window-p POS) in the selected window.  Not a port.
     logical function visible(pos)
         integer(int64), intent(in) :: pos
         type(handle_type) :: w
@@ -1329,7 +1338,7 @@ contains
     end function visible
 
     ! Run the case-fold-search binding: set it to FOLD and return the old
-    ! value.
+    ! value.  Not a port.
     logical function bind_case_fold(fold) result(old)
         logical, intent(in) :: fold
 
@@ -1337,7 +1346,7 @@ contains
         case_fold_search%value = fold
     end function bind_case_fold
 
-    ! Append S to the list LIST.
+    ! Append S to the list LIST.  Not a port.
     subroutine add_string(list, s)
         type(string_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
@@ -1357,6 +1366,7 @@ contains
     end subroutine add_string
 
     ! Whether LIST has the string S (with case ignored if FOLD).
+    ! Not a port.
     logical function has_string(list, s, fold)
         type(string_type), intent(in) :: list(:)
         character(len=*), intent(in) :: s
@@ -1380,7 +1390,7 @@ contains
     end function has_string
 
     ! The directory names of a setting such as `info_directory_list'
-    ! (trimmed), empty if it is unallocated.
+    ! (trimmed), empty if it is unallocated.  Not a port.
     subroutine setting_dirs(setting, list)
         character(len=:), intent(in), allocatable :: setting(:)
         type(string_type), allocatable, intent(out) :: list(:)
@@ -1395,6 +1405,7 @@ contains
     end subroutine setting_dirs
 
     ! LIST as an array for a setting such as `info_directory_list'.
+    ! Not a port.
     subroutine list_to_setting(list, setting)
         type(string_type), intent(in) :: list(:)
         character(len=:), allocatable, intent(out) :: setting(:)
@@ -1415,6 +1426,7 @@ contains
 
     ! The directories in which Info looks for files and dir files:
     ! `info_directory_list' then `info_additional_directory_list'.
+    ! Not a port.
     subroutine search_dirs(list)
         type(string_type), allocatable, intent(out) :: list(:)
         type(string_type), allocatable :: more(:)
@@ -1442,7 +1454,7 @@ contains
         end do
     end subroutine prune_directory_list
 
-    ! (expand-file-name NAME DIR).
+    ! (expand-file-name NAME DIR).  Not a port.
     function expand(name, dir) result(full)
         character(len=*), intent(in) :: name
         character(len=*), intent(in), optional :: dir
@@ -1471,8 +1483,8 @@ contains
     end function info_file_exists_p
 
     !> Insert the contents of an Info file in the current buffer.
-    !> Do the right thing if the file has been compressed or zipped.  Port
-    !> of info.el:info-insert-file-contents (the decoding command reads
+    !> Do the right thing if the file has been compressed or zipped.
+    !> Port of info.el:info-insert-file-contents (the decoding command reads
     !> the file itself as its standard input, which comes to the same as
     !> piping the literal contents through it).
     recursive subroutine info_insert_file_contents(filename, status, visit)
@@ -1596,7 +1608,7 @@ contains
 
     ! Remove FILE from the cache of index nodes (Info-index-nodes); the
     ! table of contents cache (Info-toc-nodes) comes with the table of
-    ! contents.
+    ! contents.  Not a port.
     subroutine forget_file_caches(file)
         character(len=*), intent(in) :: file
         type(index_nodes_type), allocatable :: kept(:)
@@ -1615,7 +1627,7 @@ contains
         index_nodes_cache = kept(1:m)
     end subroutine forget_file_caches
 
-    ! Whether S ends with SUFFIX ("" matches anything).
+    ! Whether S ends with SUFFIX ("" matches anything).  Not a port.
     logical function ends_with(s, suffix)
         character(len=*), intent(in) :: s, suffix
 
@@ -1675,7 +1687,7 @@ contains
         call move_alloc(grown, cookies_cache)
     end function file_supports_index_cookies
 
-    ! (version< A B) for versions made of numbers and dots.
+    ! (version< A B) for versions made of numbers and dots.  Not a port.
     logical function version_less(a, b)
         character(len=*), intent(in) :: a, b
         integer :: i, j, na, nb, va, vb
@@ -1860,7 +1872,7 @@ contains
     end function info_virtual_file_p
 
     ! The index in `info_virtual_files' of the virtual file FILENAME
-    ! belongs to (0 if none).  Part of info.el:Info-virtual-fun.
+    ! belongs to (0 if none).  Port of info.el:Info-virtual-fun, in part.
     integer function virtual_file_index(filename) result(k)
         character(len=*), intent(in) :: filename
 
@@ -1875,7 +1887,7 @@ contains
 
     ! The procedure of the find-node operation of the virtual file
     ! FILENAME or else of the virtual node NODENAME (null if neither is
-    ! virtual).  Part of info.el:Info-virtual-fun.
+    ! virtual).  Port of info.el:Info-virtual-fun, in part.
     function virtual_find_node(filename, nodename) result(fn)
         character(len=*), intent(in) :: filename, nodename
         procedure(info_virtual_find_node_proc), pointer :: fn
@@ -2129,6 +2141,7 @@ contains
     ! non-numeric prefix argument a file name read in the minibuffer, with
     ! a numeric one the buffer *info*<N>.  HAS_FILE and HAS_BUFFER say
     ! which are given.
+    ! Port of info.el:info, in part (its interactive spec).
     recursive subroutine info_interactive(file, has_file, buffer, has_buffer, status)
         character(len=:), allocatable, intent(out) :: file, buffer
         logical, intent(out) :: has_file, has_buffer
@@ -2350,7 +2363,7 @@ contains
         end if
     end subroutine record_tag_table
 
-    ! Make marker M point nowhere ((set-marker M nil)).
+    ! Make marker M point nowhere ((set-marker M nil)).  Not a port.
     subroutine set_marker_nowhere(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
@@ -2402,7 +2415,7 @@ contains
         end if
     end subroutine cmd_info_on_current_buffer
 
-    ! LIST as a Lisp list of strings (a completion table).
+    ! LIST as a Lisp list of strings (a completion table).  Not a port.
     function strings_value(list) result(v)
         type(string_type), intent(in) :: list(:)
         type(value_type) :: v
@@ -2476,7 +2489,7 @@ contains
         end if
     end subroutine revert_find_node
 
-    ! Whether handles A and B are the same object.
+    ! Whether handles A and B are the same object.  Not a port.
     logical function same_buffer(a, b)
         type(handle_type), intent(in) :: a, b
 
@@ -2513,8 +2526,8 @@ contains
     ! CASE_FOLD true means search for a case-insensitive match.
     ! If a match was found, FOUND is true, ANCHOR true if a `Ref:' was
     ! matched, POS the file position where the match was found, and
-    ! IN_INFO_MODE whether the buffer of the match is in Info mode.  Port
-    ! of info.el:Info-find-in-tag-table-1.
+    ! IN_INFO_MODE whether the buffer of the match is in Info mode.
+    ! Port of info.el:Info-find-in-tag-table-1.
     recursive subroutine find_in_tag_table_1(marker, regexp, case_fold, found, anchor, pos, in_info_mode)
         type(handle_type), intent(in) :: marker
         character(len=*), intent(in) :: regexp
@@ -2553,7 +2566,7 @@ contains
     end subroutine find_in_tag_table_1
 
     ! (read (current-buffer)) for a number: skip white space and read the
-    ! integer after point, leaving point after it.
+    ! integer after point, leaving point after it.  Not a port.
     integer(int64) function read_number() result(n)
         type(status_type) :: st
         integer(int64) :: moved, start
@@ -2573,8 +2586,8 @@ contains
     end function read_number
 
     ! Find a node in a tag table.  Tries a case-sensitive match first,
-    ! then a case-insensitive match (unless STRICT_CASE is true).  Port
-    ! of info.el:Info-find-in-tag-table.
+    ! then a case-insensitive match (unless STRICT_CASE is true).
+    ! Port of info.el:Info-find-in-tag-table.
     recursive subroutine find_in_tag_table(marker, regexp, strict_case, found, anchor, pos, in_info_mode)
         type(handle_type), intent(in) :: marker
         character(len=*), intent(in) :: regexp
@@ -2634,6 +2647,7 @@ contains
     end function find_node_in_buffer
 
     ! (let ((inhibit-read-only t)) ...): bind it, returning the old value.
+    ! Not a port.
     function bind_inhibit_read_only() result(saved)
         type(value_type) :: saved
         type(status_type) :: st
@@ -2642,7 +2656,7 @@ contains
         call set(sym("inhibit_read_only"), t_value(), st)
     end function bind_inhibit_read_only
 
-    ! The end of (let ((inhibit-read-only t)) ...).
+    ! The end of (let ((inhibit-read-only t)) ...).  Not a port.
     subroutine unbind_inhibit_read_only(saved)
         type(value_type), intent(in) :: saved
         type(status_type) :: st
@@ -2906,6 +2920,7 @@ contains
     end subroutine info_find_node_2
 
     ! Whether marker M points somewhere ((marker-position M) non-nil).
+    ! Not a port.
     logical function marker_points(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
@@ -3247,7 +3262,7 @@ contains
         end subroutine prepend_node
     end subroutine info_insert_dir
 
-    ! The entry in `locals' of buffer B, made if needed.
+    ! The entry in `locals' of buffer B, made if needed.  Not a port.
     integer function here_in(b) result(k)
         type(handle_type), intent(in) :: b
         type(handle_type) :: old
@@ -3412,6 +3427,7 @@ contains
     end subroutine dir_remove_duplicates
 
     ! Save the restriction (save-restriction) in markers B and E.
+    ! Not a port.
     subroutine save_restriction(b, e)
         type(handle_type), intent(out) :: b, e
         type(status_type) :: st
@@ -3423,7 +3439,7 @@ contains
         call set_marker_insertion_type(e, .true., st)
     end subroutine save_restriction
 
-    ! Restore the restriction saved in B and E and free them.
+    ! Restore the restriction saved in B and E and free them.  Not a port.
     subroutine restore_restriction(b, e)
         type(handle_type), intent(inout) :: b, e
         type(status_type) :: st
@@ -3437,7 +3453,7 @@ contains
         call free_marker(e, st)
     end subroutine restore_restriction
 
-    ! A marker at point, for save-excursion.
+    ! A marker at point, for save-excursion.  Not a port.
     function point_marker_here() result(m)
         type(handle_type) :: m
         type(status_type) :: st
@@ -3446,7 +3462,7 @@ contains
         call set_marker(m, point(), st, current_buffer())
     end function point_marker_here
 
-    ! Go to marker M and free it (the end of save-excursion).
+    ! Go to marker M and free it (the end of save-excursion).  Not a port.
     subroutine goto_marker(m)
         type(handle_type), intent(inout) :: m
         type(status_type) :: st
@@ -3521,7 +3537,8 @@ contains
     end subroutine read_subfile_at
 
     ! Read in the subfile named NAME if it is not current, and leave
-    ! point after the summary segment.  Part of info.el:Info-read-subfile.
+    ! point after the summary segment.  Port of info.el:Info-read-subfile,
+    ! in part.
     recursive subroutine read_subfile_named(name, status)
         character(len=*), intent(in) :: name
         type(status_type), intent(out) :: status
@@ -3573,8 +3590,8 @@ contains
 
     ! Display images in current node.  Fortmacs displays no images, so
     ! this shows the alternative text if provided, or otherwise a clue
-    ! that there's meant to be a picture (the text-only display of
-    ! info.el:Info-display-images-node).
+    ! that there's meant to be a picture (the text-only display).  Port of
+    ! info.el:Info-display-images-node, in part.
     subroutine display_images_node()
         type(value_type) :: saved
         type(status_type) :: st
@@ -3854,7 +3871,7 @@ contains
         end if
     end subroutine info_goto_node
 
-    ! (deactivate-mark).
+    ! (deactivate-mark).  Not a port.
     subroutine deactivate_mark_now()
         call deactivate_mark()
     end subroutine deactivate_mark_now
@@ -3957,6 +3974,7 @@ contains
 
     ! The characters of S that GNU Texinfo escapes in HTML file names
     ! written as _00XX (control characters and the ASCII punctuation).
+    ! Port of info.el:Info-url-for-node, in part.
     function texinfo_escape(s) result(t)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: t
@@ -3980,6 +3998,7 @@ contains
 
     ! (url-hexify-string S): every byte but the unreserved characters
     ! (letters, digits, "-", "_", "." and "~") as %XX.
+    ! Port of url-util.el:url-hexify-string (without ALLOWED-CHARS).
     function url_hexify(s) result(t)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: t
@@ -3999,7 +4018,7 @@ contains
         end do
     end function url_hexify
 
-    ! The default value of `info_url_alist'.
+    ! The default value of `info_url_alist'.  Not a port.
     subroutine init_url_alist()
         allocate (info_url_alist(1))
         info_url_alist(1)%manuals(1:69) = [character(len=16) :: &
@@ -4017,7 +4036,7 @@ contains
     end subroutine init_url_alist
 
     ! Complete STRING in the list LIST for ACTION ((complete-with-action
-    ! ACTION LIST STRING PRED)).
+    ! ACTION LIST STRING PRED)).  Not a port.
     recursive subroutine complete_with_action(action, list, string, result, status, pred)
         integer, intent(in) :: action
         type(string_type), intent(in) :: list(:)
@@ -4046,7 +4065,7 @@ contains
     ! Return the Info file names (without suffixes) in DIRS for the
     ! FILENAME part of a node named "(FILENAME)NODENAME": the files with a
     ! standard suffix, excluding subfiles of split Info files and backup
-    ! files.  Part of info.el:Info-read-node-name-2.
+    ! files.  Port of info.el:Info-read-node-name-2, in part.
     subroutine info_file_names(dirs, names)
         type(string_type), intent(in) :: dirs(:)
         type(string_type), allocatable, intent(out) :: names(:)
@@ -4094,8 +4113,8 @@ contains
     end subroutine info_file_names
 
     ! Internal function used to complete Info node names.  See
-    ! `completing_read' for a description of arguments and usage.  Port
-    ! of info.el:Info-read-node-name-1 (with Info-read-node-name-2).
+    ! `completing_read' for a description of arguments and usage.
+    ! Port of info.el:Info-read-node-name-1 (with Info-read-node-name-2).
     recursive subroutine read_node_name_1(string, action, result, status, pred, suffix)
         character(len=*), intent(in) :: string
         integer, intent(in) :: action
@@ -4169,7 +4188,7 @@ contains
         end if
     end subroutine read_node_name_1
 
-    ! Whether V is t.
+    ! Whether V is t.  Not a port.
     logical function is_t(v)
         type(value_type), intent(in) :: v
 
@@ -4474,7 +4493,7 @@ contains
     ! (or (derived-mode-p 'Info-mode) (info-pop-to-buffer)): the commands
     ! that move between nodes work in the *info* buffer when called
     ! elsewhere.  (save-window-excursion is not needed: the window
-    ! configuration only changes when another buffer is shown.)
+    ! configuration only changes when another buffer is shown.) Not a port.
     recursive subroutine ensure_info_buffer(status)
         type(status_type), intent(out) :: status
 
@@ -4483,8 +4502,8 @@ contains
     end subroutine ensure_info_buffer
 
     !> Go to the superior node of this node.
-    !> If SAME_FILE is true, do not move to a different Info file.  Port
-    !> of info.el:Info-up.
+    !> If SAME_FILE is true, do not move to a different Info file.
+    !> Port of info.el:Info-up.
     recursive subroutine info_up(status, same_file)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: same_file
@@ -4590,7 +4609,7 @@ contains
         call goto_char(next%pos)
     end subroutine info_history_forward
 
-    ! The virtual Info files defined so far: the directory.
+    ! The virtual Info files defined so far: the directory.  Not a port.
     subroutine init_virtual_files()
         allocate (info_virtual_files(3))
         info_virtual_files(1)%name = "\`dir\'"
@@ -4829,6 +4848,7 @@ contains
     end subroutine cmd_info_follow_reference
 
     ! (format-prompt PROMPT DEFAULT): "PROMPT (default DEFAULT): ".
+    ! Not a port.
     function format_prompt(prompt, default) result(p)
         character(len=*), intent(in) :: prompt, default
         character(len=:), allocatable :: p
@@ -5002,7 +5022,7 @@ contains
     end subroutine complete_menu_item
 
     ! Whether PREFIX is a prefix of S, ignoring case ((string-prefix-p
-    ! PREFIX S t)).
+    ! PREFIX S t)).  Not a port.
     logical function string_prefix_ignore_case(prefix, s)
         character(len=*), intent(in) :: prefix, s
 
@@ -5011,8 +5031,8 @@ contains
         string_prefix_ignore_case = lower(prefix) == lower(s(1:len(prefix)))
     end function string_prefix_ignore_case
 
-    ! Regexp to match the text after a : until the terminating `.'.  Port
-    ! of info.el Info-node-spec-re.
+    ! Regexp to match the text after a : until the terminating `.'.
+    ! Port of info.el:Info-node-spec-re.
     function node_spec_re() result(re)
         character(len=:), allocatable :: re
 
@@ -5200,6 +5220,7 @@ contains
 
     ! The last character of the keys that invoked the command
     ! ((aref (this-command-keys) (1- (length (this-command-keys))))).
+    ! Not a port.
     integer function last_command_char() result(c)
         integer :: n
 
@@ -5266,7 +5287,7 @@ contains
         locals(k)%history = saved
     end subroutine info_final_node
 
-    ! (save-excursion (search-forward "\n* Menu:" nil t)).
+    ! (save-excursion (search-forward "\n* Menu:" nil t)).  Not a port.
     logical function menu_after_point()
         integer(int64) :: opoint
 
@@ -5607,7 +5628,7 @@ contains
         call user_error(status, "No previous nodes")
     end subroutine info_last_preorder
 
-    ! (recenter -1).
+    ! (recenter -1).  Not a port.
     subroutine recenter_last_line()
         type(status_type) :: st
 
@@ -6066,7 +6087,7 @@ contains
     end subroutine info_index_nodes
 
     ! Whether FILE supports index cookies, reading its beginning if it is
-    ! not known yet.
+    ! not known yet.  Not a port.
     recursive logical function file_supports_index_cookies_of(file) result(supports)
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: found
@@ -6805,7 +6826,7 @@ contains
 
     ! Signal user-search-failed for REGEXP.
     ! Signal user-search-failed for REGEXP, with the second datum MSG if
-    ! present.
+    ! present.  Not a port.
     subroutine search_failed(status, regexp, msg)
         type(status_type), intent(inout) :: status
         character(len=*), intent(in) :: regexp
@@ -6851,6 +6872,7 @@ contains
 
     ! The search function `info_isearch_search_fn' returns (its lambda;
     ! `isearch_regexp_function' is Deferred).
+    ! Port of info.el:Info-isearch-search, in part.
     recursive subroutine info_isearch_search_nodes(string, bound, noerror, pos, status)
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: bound
@@ -7011,7 +7033,7 @@ contains
     end subroutine info_isearch_end
 
     ! The most recent element of the minibuffer history NAME (FOUND false
-    ! if it is empty).
+    ! if it is empty).  Not a port.
     logical function history_first(name, value) result(found)
         character(len=*), intent(in) :: name
         character(len=:), allocatable, intent(out) :: value
@@ -7029,6 +7051,7 @@ contains
     end function history_first
 
     ! Read the regexp of `info_search' and `info_search_backward'.
+    ! Port of info.el:Info-search, in part (its interactive spec).
     recursive subroutine read_search_regexp(regexp, status, backward)
         character(len=:), allocatable, intent(out) :: regexp
         type(status_type), intent(out) :: status
@@ -7070,8 +7093,8 @@ contains
         fold = bind_case_fold(fold)
     end subroutine info_search_case_sensitively
 
-    !> Search for next regexp from a previous `info_search' command.  Port
-    !> of info.el:Info-search-next.
+    !> Search for next regexp from a previous `info_search' command.
+    !> Port of info.el:Info-search-next.
     recursive subroutine info_search_next(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: last
@@ -7141,8 +7164,8 @@ contains
     ! Read an index topic with completion over the entries of the index
     ! nodes of the current Info file.  (Upstream completes in a clone of
     ! the Info buffer; this uses a temporary Info buffer on the same file,
-    ! `clone_buffer' not being ported.)  Part of the interactive spec of
-    ! info.el:Info-index.
+    ! `clone_buffer' not being ported.)  Port of info.el:Info-index, in part
+    ! (its interactive spec).
     recursive subroutine read_index_topic(topic, status)
         character(len=:), allocatable, intent(out) :: topic
         type(status_type), intent(out) :: status
@@ -7333,7 +7356,7 @@ contains
         if (.false.) nodename = ""
     end subroutine info_index
 
-    ! (push M LIST).
+    ! (push M LIST).  Not a port.
     subroutine prepend_match(list, m)
         type(index_match_type), allocatable, intent(inout) :: list(:)
         type(index_match_type), intent(in) :: m
@@ -7350,7 +7373,7 @@ contains
         call move_alloc(grown, list)
     end subroutine prepend_match
 
-    ! Append M to LIST.
+    ! Append M to LIST.  Not a port.
     subroutine append_match(list, m)
         type(index_match_type), allocatable, intent(inout) :: list(:)
         type(index_match_type), intent(in) :: m
@@ -7455,7 +7478,7 @@ contains
         call info_index_next(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_info_index_next
 
-    ! The decimal digits of N.
+    ! The decimal digits of N.  Not a port.
     function int_text(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
@@ -7466,6 +7489,7 @@ contains
     end function int_text
 
     ! The keys of the key sequence V (a vector or list of events).
+    ! Not a port.
     function vector_elements(v) result(keys)
         type(value_type), intent(in) :: v
         type(value_type), allocatable :: keys(:)
@@ -7537,7 +7561,7 @@ contains
 
     ! Insert PREFIX and LABEL padded to WIDTH characters, the part of the
     ! entry of E that matched the topic in `info_index_match' (the
-    ! property `Info-index' puts on its entries).
+    ! property `Info-index' puts on its entries).  Not a port.
     subroutine insert_entry(prefix, label, width, e)
         character(len=*), intent(in) :: prefix, label
         integer, intent(in) :: width
@@ -7556,6 +7580,7 @@ contains
     end subroutine insert_entry
 
     ! S padded with spaces to WIDTH characters ((format "%-WIDTHs" S)).
+    ! Not a port.
     function pad_to(s, width) result(t)
         character(len=*), intent(in) :: s
         integer, intent(in) :: width
@@ -8443,7 +8468,7 @@ contains
         end if
     end subroutine toc_find_node
 
-    ! The index of the node NAME in NODES (0 if none).
+    ! The index of the node NAME in NODES (0 if none).  Not a port.
     integer function toc_index(nodes, name) result(k)
         type(toc_node_type), intent(in) :: nodes(:)
         character(len=*), intent(in) :: name
@@ -8866,7 +8891,7 @@ contains
         end subroutine add_top
     end function breadcrumbs
 
-    ! The number of characters of the UTF-8 text S.
+    ! The number of characters of the UTF-8 text S.  Not a port.
     integer(int64) function nchars_of(s)
         type(status_type) :: st
         character(len=*), intent(in) :: s
@@ -9465,7 +9490,7 @@ contains
         end function visited
     end subroutine info_fontify_node
 
-    ! S without its leading spaces and tabs.
+    ! S without its leading spaces and tabs.  Not a port.
     function trim_leading_space(s) result(t)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: t
@@ -9481,7 +9506,7 @@ contains
     end function trim_leading_space
 
     ! The number of characters in the first N bytes of the UTF-8 text S
-    ! (of the text before byte N+1).
+    ! (of the text before byte N+1).  Not a port.
     integer(int64) function string_char_count(s, n) result(count)
         character(len=*), intent(in) :: s
         integer, intent(in) :: n
@@ -9489,7 +9514,7 @@ contains
         count = nchars_of(s(1:n - 1))
     end function string_char_count
 
-    ! The symbol named NAME as a value.
+    ! The symbol named NAME as a value.  Not a port.
     function symbol_value_of(name) result(v)
         character(len=*), intent(in) :: name
         type(value_type) :: v
@@ -9497,7 +9522,7 @@ contains
         v = make_symbol_ref(intern(name))
     end function symbol_value_of
 
-    ! The name of the symbol V.
+    ! The name of the symbol V.  Not a port.
     function symbol_name_of(v) result(name)
         type(value_type), intent(in) :: v
         character(len=:), allocatable :: name
@@ -9505,7 +9530,7 @@ contains
         name = trim(symbols(xsymbol(v))%name)
     end function symbol_name_of
 
-    ! The display spec (space :KEY N).
+    ! The display spec (space :KEY N).  Not a port.
     function space_spec_value(key, n) result(v)
         character(len=*), intent(in) :: key
         integer, intent(in) :: n
@@ -9514,7 +9539,7 @@ contains
         v = list(sym("space"), sym(":"//replace_all("_", "-", key)), make_fixnum(int(n, int64)))
     end function space_spec_value
 
-    ! Remove the text property PROP from START to END.
+    ! Remove the text property PROP from START to END.  Not a port.
     subroutine remove_property(start, end, prop)
         integer(int64), intent(in) :: start, end
         character(len=*), intent(in) :: prop
@@ -9527,7 +9552,7 @@ contains
     ! Show the header line of the current node: the `header-line' property
     ! of the node's first character, as Info mode's header-line-format
     ! (:eval (get-text-property (point-min) 'header-line)) does, with the
-    ! faces of the node's header.
+    ! faces of the node's header.  Not a port.
     subroutine update_header_line()
         type(value_type) :: prop
         type(status_type) :: st
@@ -9544,7 +9569,7 @@ contains
         end if
     end subroutine update_header_line
 
-    ! Define the faces of Info.
+    ! Define the faces of Info.  Not a port.
     subroutine define_info_faces()
         type(named_face_type), pointer :: f
         integer, parameter :: C = FACE_CLASS_COLOR
@@ -9761,6 +9786,7 @@ contains
     end subroutine init_info_mode_syntax_table
 
     !> Define Info mode and its keymap and register the commands.
+    !> Not a port.
     subroutine syms_of_info()
         type(status_type) :: st
         character(len=1) :: digit

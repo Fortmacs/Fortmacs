@@ -226,43 +226,45 @@ module vc_hooks_fm
 
     abstract interface
         !> A backend's `registered': whether FILE is registered.
+        !> Not a port.
         logical function vc_file_predicate(file)
             implicit none(type, external)
             character(len=*), intent(in) :: file
         end function vc_file_predicate
-        !> A backend's `state'.
+        !> A backend's `state'.  Not a port.
         integer function vc_file_state_function(file)
             implicit none(type, external)
             character(len=*), intent(in) :: file
         end function vc_file_state_function
         !> A backend function of FILE giving a string, or nil (FOUND false):
         !> `working_revision', `root', `responsible_p', `mode_line_string',
-        !> `find_ignore_file'.
+        !> `find_ignore_file'.  Not a port.
         subroutine vc_file_string_function(file, s, found)
             implicit none(type, external)
             character(len=*), intent(in) :: file
             character(len=:), allocatable, intent(out) :: s
             logical, intent(out) :: found
         end subroutine vc_file_string_function
-        !> A backend's `checkout_model' of FILES.
+        !> A backend's `checkout_model' of FILES.  Not a port.
         integer function vc_files_model_function(files)
             import :: vc_string_type
             implicit none(type, external)
             type(vc_string_type), intent(in) :: files(:)
         end function vc_files_model_function
         !> A backend's `find_file_hook', run in the visiting buffer.
+        !> Not a port.
         subroutine vc_buffer_proc()
             implicit none(type, external)
         end subroutine vc_buffer_proc
         !> A backend's `working_revision_symbol', as S (a subroutine:
         !> gfortran frees a pointer component to a function with a
-        !> deferred-length result).
+        !> deferred-length result).  Not a port.
         subroutine vc_symbol_function(s)
             implicit none(type, external)
             character(len=:), allocatable, intent(out) :: s
         end subroutine vc_symbol_function
         !> A backend operation on FILES: `revert_files', `delete_files',
-        !> `mark_resolved'.
+        !> `mark_resolved'.  Not a port.
         recursive subroutine vc_files_proc(files, status)
             import :: vc_string_type, status_type
             implicit none(type, external)
@@ -270,6 +272,7 @@ module vc_hooks_fm
             type(status_type), intent(out) :: status
         end subroutine vc_files_proc
         !> A backend's `register' of FILES (COMMENT ignored by most).
+        !> Not a port.
         recursive subroutine vc_register_proc(files, status, comment)
             import :: vc_string_type, status_type
             implicit none(type, external)
@@ -278,6 +281,7 @@ module vc_hooks_fm
             character(len=*), intent(in), optional :: comment
         end subroutine vc_register_proc
         !> A backend operation on FILE: `delete_file', `unregister'.
+        !> Not a port.
         recursive subroutine vc_file_proc(file, status)
             import :: status_type
             implicit none(type, external)
@@ -285,7 +289,7 @@ module vc_hooks_fm
             type(status_type), intent(out) :: status
         end subroutine vc_file_proc
         !> A backend's `revert' of FILE (CONTENTS_DONE, the backup file
-        !> already copied back, or absent).
+        !> already copied back, or absent).  Not a port.
         recursive subroutine vc_revert_proc(file, status, contents_done)
             import :: status_type
             implicit none(type, external)
@@ -296,7 +300,7 @@ module vc_hooks_fm
         !> A backend's `diff' of FILES between REV1 and REV2 (absent: the
         !> working revision and the work file) into BUFFER, asynchronously
         !> with ASYNC.  CHANGES is false when there are none (exit status 0
-        !> of a synchronous diff).
+        !> of a synchronous diff).  Not a port.
         recursive subroutine vc_diff_proc(files, buffer, async, status, rev1, rev2)
             import :: vc_string_type, status_type, handle_type
             implicit none(type, external)
@@ -307,7 +311,7 @@ module vc_hooks_fm
             character(len=*), intent(in), optional :: rev1, rev2
         end subroutine vc_diff_proc
         !> A backend's `find_revision': insert revision REV of FILE into
-        !> BUFFER.
+        !> BUFFER.  Not a port.
         recursive subroutine vc_find_revision_proc(file, rev, buffer, status)
             import :: status_type, handle_type
             implicit none(type, external)
@@ -316,6 +320,7 @@ module vc_hooks_fm
             type(status_type), intent(out) :: status
         end subroutine vc_find_revision_proc
         !> A backend's `checkout' of FILE at REV (absent: the head).
+        !> Not a port.
         recursive subroutine vc_checkout_proc(file, status, rev)
             import :: status_type
             implicit none(type, external)
@@ -323,28 +328,28 @@ module vc_hooks_fm
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: rev
         end subroutine vc_checkout_proc
-        !> A backend's `rename_file' from OLD to NEW.
+        !> A backend's `rename_file' from OLD to NEW.  Not a port.
         recursive subroutine vc_rename_proc(old, new, status)
             import :: status_type
             implicit none(type, external)
             character(len=*), intent(in) :: old, new
             type(status_type), intent(out) :: status
         end subroutine vc_rename_proc
-        !> A backend's `previous_revision' of REV for FILE.
+        !> A backend's `previous_revision' of REV for FILE.  Not a port.
         subroutine vc_previous_revision_proc(file, rev, prev, found)
             implicit none(type, external)
             character(len=*), intent(in) :: file, rev
             character(len=:), allocatable, intent(out) :: prev
             logical, intent(out) :: found
         end subroutine vc_previous_revision_proc
-        !> A backend's `revision_completion_table' for FILES.
+        !> A backend's `revision_completion_table' for FILES.  Not a port.
         subroutine vc_revision_table_proc(files, table)
             import :: vc_string_type
             implicit none(type, external)
             type(vc_string_type), intent(in) :: files(:)
             type(vc_string_type), allocatable, intent(out) :: table(:)
         end subroutine vc_revision_table_proc
-        !> A backend's `create_repo' in `default_directory'.
+        !> A backend's `create_repo' in `default_directory'.  Not a port.
         recursive subroutine vc_status_proc(status)
             import :: status_type
             implicit none(type, external)
@@ -353,7 +358,7 @@ module vc_hooks_fm
         !> A backend's `print_log': insert the log of FILES into BUFFER (a
         !> short log with SHORTLOG), starting at START_REVISION ("" for the
         !> current one), with LIMIT.  LIMIT_UNSUPPORTED is the return value
-        !> `limit-unsupported'.
+        !> `limit-unsupported'.  Not a port.
         recursive subroutine vc_print_log_proc(files, buffer, shortlog, start_revision, limit, status, &
                                                limit_unsupported)
             import :: vc_string_type, handle_type, vc_log_limit_type, status_type
@@ -369,6 +374,7 @@ module vc_hooks_fm
         !> The UPDATE function given to a backend's `dir_status_files': add
         !> ENTRIES to the VC-Dir buffer BUFFER; MORE_TO_COME is true when
         !> more updates will come from the asynchronous process.
+        !> Not a port.
         recursive subroutine vc_dir_update_proc(entries, buffer, more_to_come)
             import :: vc_dir_entry_type, handle_type
             implicit none(type, external)
@@ -378,7 +384,7 @@ module vc_hooks_fm
         end subroutine vc_dir_update_proc
         !> A backend's `dir_status_files': compute the states of FILES (all
         !> files when empty) in DIR asynchronously and pass them to UPDATE
-        !> for BUFFER.
+        !> for BUFFER.  Not a port.
         recursive subroutine vc_dir_status_files_proc(dir, files, update, buffer, status)
             import :: vc_string_type, handle_type, status_type, vc_dir_update_proc
             implicit none(type, external)
@@ -389,19 +395,21 @@ module vc_hooks_fm
             type(status_type), intent(out) :: status
         end subroutine vc_dir_status_files_proc
         !> A backend's `dir_extra_headers' of DIR, as the parts of the text.
+        !> Not a port.
         recursive subroutine vc_dir_extra_headers_proc(dir, parts)
             import :: ewoc_part_type
             implicit none(type, external)
             character(len=*), intent(in) :: dir
             type(ewoc_part_type), allocatable, intent(out) :: parts(:)
         end subroutine vc_dir_extra_headers_proc
-        !> A backend's `dir_printer': insert INFO at point.
+        !> A backend's `dir_printer': insert INFO at point.  Not a port.
         recursive subroutine vc_dir_printer_proc(info)
             import :: vc_dir_fileinfo_type
             implicit none(type, external)
             type(vc_dir_fileinfo_type), intent(in) :: info
         end subroutine vc_dir_printer_proc
         !> A backend's `status_fileinfo_extra' of FILE, set in ENTRY.
+        !> Not a port.
         recursive subroutine vc_status_fileinfo_extra_proc(file, entry)
             import :: vc_dir_entry_type
             implicit none(type, external)
@@ -409,12 +417,13 @@ module vc_hooks_fm
             type(vc_dir_entry_type), intent(inout) :: entry
         end subroutine vc_status_fileinfo_extra_proc
         !> A backend's `show_log_entry': move to the log entry for REVISION.
+        !> Not a port.
         recursive subroutine vc_show_log_entry_proc(revision)
             implicit none(type, external)
             character(len=*), intent(in) :: revision
         end subroutine vc_show_log_entry_proc
         !> A backend's `checkin' of FILES with COMMENT (REV, the new
-        !> revision, for the backends that take one).
+        !> revision, for the backends that take one).  Not a port.
         recursive subroutine vc_checkin_proc(files, comment, status, rev)
             import :: vc_string_type, status_type
             implicit none(type, external)
@@ -489,7 +498,7 @@ module vc_hooks_fm
 
     abstract interface
         !> `vc_dir_resynch_file': update the entries for FNAME in any
-        !> directory buffers that list it.
+        !> directory buffers that list it.  Not a port.
         recursive subroutine vc_dir_resynch_file_proc(fname)
             implicit none(type, external)
             character(len=*), intent(in) :: fname
@@ -570,7 +579,7 @@ contains
     !> Make the backend named NAME known to VC (as loading vc-BACKEND.el
     !> does): B is its index in `vc_backends' (0 when it is full), whose operations the
     !> backend module then sets.  A backend of the same name keeps its
-    !> entry, which the module sets again.
+    !> entry, which the module sets again.  Not a port.
     subroutine register_vc_backend(name, b)
         character(len=*), intent(in) :: name
         integer, intent(out) :: b
@@ -591,7 +600,7 @@ contains
     end subroutine register_vc_backend
 
     !> The index in `vc_backends' of the backend named NAME (0 if none
-    !> is ported).
+    !> is ported).  Not a port.
     integer function vc_backend_named(name) result(b)
         character(len=*), intent(in) :: name
         integer :: k
@@ -606,7 +615,7 @@ contains
         end do
     end function vc_backend_named
 
-    !> The name of backend B ("" for none).
+    !> The name of backend B ("" for none).  Not a port.
     function vc_backend_name(b) result(name)
         integer, intent(in) :: b
         character(len=:), allocatable :: name
@@ -615,7 +624,7 @@ contains
         if (b > 0) name = vc_backends(b)%name
     end function vc_backend_name
 
-    !> Signal `vc_not_supported' for FUNCTION of backend B.
+    !> Signal `vc_not_supported' for FUNCTION of backend B.  Not a port.
     subroutine vc_not_supported(status, function, b)
         type(status_type), intent(inout) :: status
         character(len=*), intent(in) :: function
@@ -625,7 +634,7 @@ contains
     end subroutine vc_not_supported
 
     !> Backend B's `registered' of FILE (vc-default-registered checks
-    !> master templates, which no ported backend has).
+    !> master templates, which no ported backend has).  Not a port.
     logical function call_registered(b, file) result(r)
         integer, intent(in) :: b
         character(len=*), intent(in) :: file
@@ -635,7 +644,7 @@ contains
     end function call_registered
 
     !> Backend B's `root' of FILE: the root directory (FOUND false for
-    !> nil); an error if it doesn't implement it.
+    !> nil); an error if it doesn't implement it.  Not a port.
     subroutine vc_call_root(b, file, root, found, status)
         integer, intent(in) :: b
         character(len=*), intent(in) :: file
@@ -656,6 +665,7 @@ contains
 
     !> Backend B's `responsible_p' of FILE: the directory it is
     !> responsible for FILE from (vc-default-responsible-p: nil).
+    !> Not a port.
     subroutine vc_call_responsible_p(b, file, dir, found)
         integer, intent(in) :: b
         character(len=*), intent(in) :: file
@@ -684,7 +694,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The index of FILE's properties in `props', making them with CREATE
-    !> (0 if FILE has none).
+    !> (0 if FILE has none).  Not a port.
     integer function prop_index(file, create) result(k)
         character(len=*), intent(in) :: file
         logical, intent(in) :: create
@@ -712,6 +722,7 @@ contains
     end function prop_index
 
     !> Note that property PROP was set (cl-pushnew onto vc-touched-properties).
+    !> Not a port.
     subroutine touch(prop)
         integer, intent(in) :: prop
 
@@ -719,12 +730,12 @@ contains
     end subroutine touch
 
     !> Start recording which properties are set (let-binding
-    !> `vc-touched-properties' to (t)).
+    !> `vc-touched-properties' to (t)).  Not a port.
     subroutine vc_touch_reset()
         touched = .false.
     end subroutine vc_touch_reset
 
-    !> Whether property PROP was set since `vc_touch_reset'.
+    !> Whether property PROP was set since `vc_touch_reset'.  Not a port.
     logical function vc_touched(prop)
         integer, intent(in) :: prop
 
@@ -757,7 +768,8 @@ contains
     end function vc_file_get_backend
 
     !> Set per-file VC property `vc-state' for FILE to STATE (LOCKER for
-    !> VC_LOCKED; VC_STATE_NIL for nil).
+    !> VC_LOCKED; VC_STATE_NIL for nil).  Port of
+    !> vc-hooks.el:vc-file-setprop.
     subroutine vc_file_set_state(file, state, locker)
         character(len=*), intent(in) :: file
         integer, intent(in) :: state
@@ -777,7 +789,8 @@ contains
     end subroutine vc_file_set_state
 
     !> Get per-file VC property `vc-state' for FILE (VC_STATE_NIL for
-    !> nil), and with LOCKER the user of VC_LOCKED.
+    !> nil), and with LOCKER the user of VC_LOCKED.  Port of
+    !> vc-hooks.el:vc-file-getprop.
     integer function vc_file_get_state(file, locker) result(state)
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out), optional :: locker
@@ -792,7 +805,7 @@ contains
     end function vc_file_get_state
 
     !> Set per-file VC property `vc-working-revision' for FILE (unset
-    !> with REV absent).
+    !> with REV absent).  Port of vc-hooks.el:vc-file-setprop.
     subroutine vc_file_set_working_revision(file, rev)
         character(len=*), intent(in) :: file
         character(len=*), intent(in), optional :: rev
@@ -805,7 +818,7 @@ contains
     end subroutine vc_file_set_working_revision
 
     !> Get per-file VC property `vc-working-revision' for FILE (FOUND
-    !> false for nil).
+    !> false for nil).  Port of vc-hooks.el:vc-file-getprop.
     subroutine vc_file_get_working_revision(file, rev, found)
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: rev
@@ -821,7 +834,7 @@ contains
     end subroutine vc_file_get_working_revision
 
     !> Set per-file VC property `vc-checkout-time' for FILE (nil with SEC
-    !> absent).
+    !> absent).  Port of vc-hooks.el:vc-file-setprop.
     subroutine vc_file_set_checkout_time(file, sec, nsec)
         character(len=*), intent(in) :: file
         integer(int64), intent(in), optional :: sec
@@ -837,7 +850,7 @@ contains
     end subroutine vc_file_set_checkout_time
 
     !> Get per-file VC property `vc-checkout-time' for FILE (FOUND false
-    !> for nil).
+    !> for nil).  Port of vc-hooks.el:vc-file-getprop.
     subroutine vc_file_get_checkout_time(file, sec, nsec, found)
         character(len=*), intent(in) :: file
         integer(int64), intent(out) :: sec
@@ -856,7 +869,7 @@ contains
     end subroutine vc_file_get_checkout_time
 
     !> Set per-file VC property `vc-git-symbolic-ref' for FILE (nil with
-    !> REF absent).
+    !> REF absent).  Port of vc-hooks.el:vc-file-setprop.
     subroutine vc_file_set_git_symbolic_ref(file, ref)
         character(len=*), intent(in) :: file
         character(len=*), intent(in), optional :: ref
@@ -869,7 +882,7 @@ contains
     end subroutine vc_file_set_git_symbolic_ref
 
     !> Get per-file VC property `vc-git-symbolic-ref' for FILE (FOUND
-    !> false for nil).
+    !> false for nil).  Port of vc-hooks.el:vc-file-getprop.
     subroutine vc_file_get_git_symbolic_ref(file, ref, found)
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: ref
@@ -1119,7 +1132,7 @@ contains
     end function vc_up_to_date_p
 
     !> The name of state STATE as upstream's symbol (`up-to-date'), or
-    !> the user LOCKER of VC_LOCKED.
+    !> the user LOCKER of VC_LOCKED.  Not a port.
     function vc_state_name(state, locker) result(name)
         integer, intent(in) :: state
         character(len=*), intent(in), optional :: locker
@@ -1255,7 +1268,7 @@ contains
         vc_use_short_revision = saved
     end subroutine vc_short_revision
 
-    !> The current buffer's `default_directory'.
+    !> The current buffer's `default_directory'.  Not a port.
     function buffer_directory() result(dir)
         character(len=:), allocatable :: dir
 
@@ -1265,7 +1278,7 @@ contains
     end function buffer_directory
 
     !> Set the current buffer's `default_directory' to DIR (a let-binding
-    !> undone by setting it back).
+    !> undone by setting it back).  Not a port.
     subroutine set_buffer_directory(dir)
         character(len=*), intent(in) :: dir
 
@@ -1322,7 +1335,7 @@ contains
     end function vc_version_backup_file_name
 
     !> The directory of FILE, or `default_directory' (expand-file-name's
-    !> default for a nil DIRECTORY).
+    !> default for a nil DIRECTORY).  Not a port.
     function file_name_directory_or_default(file) result(dir)
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: dir
@@ -1451,7 +1464,7 @@ contains
         if (associated(vc_dir_resynch_file)) call vc_dir_resynch_file(buffers(cur)%filename)
     end subroutine vc_after_revert
 
-    !> Whether `vc_dir_buffers' is not empty.
+    !> Whether `vc_dir_buffers' is not empty.  Not a port.
     logical function vc_dir_buffers_p()
         vc_dir_buffers_p = .false.
         if (allocated(vc_dir_buffers)) vc_dir_buffers_p = size(vc_dir_buffers) > 0
@@ -1696,7 +1709,7 @@ contains
         end function already_followed
     end subroutine vc_refresh_state
 
-    !> `vc_refresh_state' as the find-file-hook function.
+    !> `vc_refresh_state' as the find-file-hook function.  Not a port.
     recursive subroutine refresh_state_hook(status)
         type(status_type), intent(out) :: status
 
@@ -1728,6 +1741,7 @@ contains
     ! Setup
     ! ------------------------------------------------------------------
 
+    ! Define the faces of VC's state indicator.  Not a port.
     subroutine define_faces()
         type(named_face_type), pointer :: f
 
@@ -1765,7 +1779,7 @@ contains
     end subroutine define_faces
 
     !> Set up VC's resident part: the options, faces, hooks and
-    !> `vc_prefix_map' on C-x v in CTL_X_MAP.
+    !> `vc_prefix_map' on C-x v in CTL_X_MAP.  Not a port.
     subroutine syms_of_vc_hooks(ctl_x_map)
         use lisp_fm, only: value_type, make_fixnum
         type(handle_type), intent(in) :: ctl_x_map

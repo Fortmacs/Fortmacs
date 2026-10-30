@@ -122,8 +122,8 @@ module conf_mode_fm
     !> Syntax table in use in PPD `conf_mode' buffers.  Port of
     !> conf-mode.el conf-ppd-mode-syntax-table.
     type(handle_type), public :: conf_ppd_mode_syntax_table
-    !> Syntax table in use in Xdefaults style `conf_mode' buffers.  Port
-    !> of conf-mode.el conf-xdefaults-mode-syntax-table.
+    !> Syntax table in use in Xdefaults style `conf_mode' buffers.  Port of
+    !> conf-mode.el conf-xdefaults-mode-syntax-table.
     type(handle_type), public :: conf_xdefaults_mode_syntax_table
     !> Syntax table in use in TOML style `conf_mode' buffers.  Port of
     !> conf-mode.el conf-toml-mode-syntax-table.
@@ -213,7 +213,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Define the Conf modes, their keymap, syntax tables and keywords (as
-    !> loading conf-mode.el does).
+    !> loading conf-mode.el does).  Not a port.
     subroutine syms_of_conf_mode()
         type(status_type) :: st
 
@@ -287,6 +287,8 @@ contains
         commands%conf_mode_maybe%interactive = .false.
     end subroutine syms_of_conf_mode
 
+    ! Make the syntax tables of the Conf modes.  Port of the values of
+    ! conf-mode.el's conf-*-mode-syntax-table variables.
     subroutine init_syntax_tables()
         type(status_type) :: st
         type(handle_type) :: t
@@ -334,6 +336,7 @@ contains
     end subroutine init_syntax_tables
 
     !> A highlight of subexpression N in FACE (LAX: it need not match).
+    !> Not a port.
     function hl(n, face, lax, prepend) result(h)
         integer, intent(in) :: n
         character(len=*), intent(in) :: face
@@ -353,6 +356,8 @@ contains
         end if
     end function hl
 
+    ! Set the font-lock keywords of the Conf modes.  Port of the values of
+    ! conf-mode.el's conf-*-font-lock-keywords variables.
     subroutine init_keywords()
         character(len=*), parameter :: SECTION = "^[ "//TAB//"]*\[\(.+\)\]"
         type(font_lock_highlight_type) :: h1(1), h2(2), h7(7)
@@ -416,6 +421,8 @@ contains
         conf_desktop_font_lock_keywords(5) = font_lock_keyword("\_<%[uUfFick%]\_>", highlights=h1)
     end subroutine init_keywords
 
+    ! Set `conf_space_keywords_alist'.  Port of the value of conf-mode.el's
+    ! conf-space-keywords-alist.
     subroutine init_space_keywords_alist()
         if (allocated(conf_space_keywords_alist)) return
         allocate (conf_space_keywords_alist(9))
@@ -552,7 +559,7 @@ contains
         call goto_char(min(max(opoint, point_min()), point_max()))
     end subroutine conf_align_assignments
 
-    !> The character before point, -1 if none.
+    !> The character before point, -1 if none.  Not a port.
     integer function before_char()
         integer(int32) :: c
         logical :: found
@@ -562,7 +569,7 @@ contains
         if (found) before_char = c
     end function before_char
 
-    !> The character after point, -1 if none.
+    !> The character after point, -1 if none.  Not a port.
     integer function after_char()
         integer(int32) :: c
         logical :: found
@@ -694,7 +701,7 @@ contains
         end if
     end subroutine conf_guess_mode
 
-    !> (skip-chars-forward " \t\f")
+    !> (skip-chars-forward " \t\f") Not a port.
     integer(int64) function skip_blanks() result(moved)
         use syntax_fm, only: skip_chars_forward
         type(status_type) :: st
@@ -702,7 +709,7 @@ contains
         moved = skip_chars_forward(" "//TAB//achar(12), st)
     end function skip_blanks
 
-    !> The character before POS, -1 if none.
+    !> The character before POS, -1 if none.  Not a port.
     integer function before_char_at(pos)
         integer(int64), intent(in) :: pos
         integer(int32) :: c

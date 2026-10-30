@@ -185,6 +185,7 @@ module faces_fm
     !> Whether the display supports face attributes ATTRS (the terminal's
     !> part of display-supports-face-attributes-p, installed by xfaces_fm).
     abstract interface
+        ! Not a port.
         logical function supports_function(attrs)
             import :: face_attributes_type
             implicit none(type, external)
@@ -477,6 +478,7 @@ contains
     ! Attribute types
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     subroutine flag_from_logical(self, value)
         class(face_flag_type), intent(inout) :: self
         logical, intent(in) :: value
@@ -488,12 +490,14 @@ contains
         end if
     end subroutine flag_from_logical
 
+    ! Not a port.
     subroutine flag_unspecify(self)
         class(face_flag_type), intent(inout) :: self
 
         self%state = FACE_UNSPECIFIED
     end subroutine flag_unspecify
 
+    ! Not a port.
     subroutine line_from_logical(self, value)
         class(face_line_type), intent(inout) :: self
         logical, intent(in) :: value
@@ -509,6 +513,7 @@ contains
         end if
     end subroutine line_from_logical
 
+    ! Not a port.
     subroutine line_from_color(self, color)
         class(face_line_type), intent(inout) :: self
         character(len=*), intent(in) :: color
@@ -519,6 +524,7 @@ contains
         self%position = .false.
     end subroutine line_from_color
 
+    ! Not a port.
     subroutine line_unspecify(self)
         class(face_line_type), intent(inout) :: self
 
@@ -526,6 +532,7 @@ contains
         if (allocated(self%color)) deallocate (self%color)
     end subroutine line_unspecify
 
+    ! Not a port.
     subroutine box_from_logical(self, value)
         class(face_box_type), intent(inout) :: self
         logical, intent(in) :: value
@@ -542,6 +549,7 @@ contains
         end if
     end subroutine box_from_logical
 
+    ! Not a port.
     subroutine box_from_color(self, color)
         class(face_box_type), intent(inout) :: self
         character(len=*), intent(in) :: color
@@ -553,12 +561,14 @@ contains
         self%line_height = 1
     end subroutine box_from_color
 
+    ! Not a port.
     subroutine box_unspecify(self)
         class(face_box_type), intent(inout) :: self
 
         self%state = FACE_UNSPECIFIED
     end subroutine box_unspecify
 
+    ! Not a port.
     subroutine height_from_integer(self, value)
         class(face_height_type), intent(inout) :: self
         integer, intent(in) :: value
@@ -567,6 +577,7 @@ contains
         self%absolute = value
     end subroutine height_from_integer
 
+    ! Not a port.
     subroutine height_from_real(self, value)
         class(face_height_type), intent(inout) :: self
         real, intent(in) :: value
@@ -575,12 +586,14 @@ contains
         self%factor = value
     end subroutine height_from_real
 
+    ! Not a port.
     subroutine height_unspecify(self)
         class(face_height_type), intent(inout) :: self
 
         self%state = FACE_UNSPECIFIED
     end subroutine height_unspecify
 
+    ! Not a port.
     subroutine inherit_from_name(self, name)
         class(face_inherit_type), intent(inout) :: self
         character(len=*), intent(in) :: name
@@ -597,6 +610,7 @@ contains
         self%state = FACE_LIST
     end subroutine inherit_from_name
 
+    ! Not a port.
     subroutine inherit_from_names(self, names)
         class(face_inherit_type), intent(inout) :: self
         character(len=*), intent(in) :: names(:)
@@ -618,6 +632,7 @@ contains
         self%state = FACE_LIST
     end subroutine inherit_from_names
 
+    ! Not a port.
     subroutine inherit_unspecify(self)
         class(face_inherit_type), intent(inout) :: self
 
@@ -627,7 +642,7 @@ contains
 
     !> Face attributes with the given ones specified, for specs: the
     !> property list of a defface alternative.  INHERIT names one face
-    !> inherited from, INHERITS a list of them.
+    !> inherited from, INHERITS a list of them.  Not a port.
     function face_attrs(family, foundry, foreground, background, distant_foreground, weight, slant, width, height, &
                         relative_height, underline, underline_color, underline_style, overline, strike_through, &
                         box, box_color, inverse_video, inherit, inherits, extend) result(a)
@@ -688,7 +703,7 @@ contains
     !> the GUI).  On a terminal, the styles other than a line are drawn
     !> where the terminal supports them (the Smulx or Su capability) and
     !> as a line otherwise.  The property-list form of xfaces.c's
-    !> `:underline' attribute.
+    !> `:underline' attribute.  Not a port.
     function face_underline(color, style, position) result(line)
         character(len=*), intent(in), optional :: color
         integer, intent(in), optional :: style
@@ -718,7 +733,7 @@ contains
     !> STYLE is FACE_BOX_RELEASED_BUTTON, FACE_BOX_PRESSED_BUTTON (3D
     !> buttons) or FACE_BOX_FLAT_BUTTON, and absent for a plain box.  A
     !> terminal draws no box.  The property-list form of xfaces.c's `:box'
-    !> attribute.
+    !> attribute.  Not a port.
     function face_box(line_width, vertical_width, horizontal_width, color, style) result(box)
         integer, intent(in), optional :: line_width, vertical_width, horizontal_width
         character(len=*), intent(in), optional :: color
@@ -752,7 +767,7 @@ contains
 
     !> A display condition for a spec alternative (see
     !> `face_display_type'); no argument at all means t.  A `supports'
-    !> condition is given to `spec_entry'.
+    !> condition is given to `spec_entry'.  Not a port.
     function display_when(classes, min_colors, backgrounds, types, is_default) result(d)
         integer, intent(in), optional :: classes(:), backgrounds(:)
         integer, intent(in), optional :: min_colors
@@ -810,7 +825,7 @@ contains
     end subroutine face_define
 
     !> Add the alternative (DISPLAY . ATTRS) at the end of the face's
-    !> spec.
+    !> spec.  Not a port.
     subroutine face_spec_entry(self, display, attrs, supports)
         class(named_face_type), intent(inout) :: self
         type(face_display_type), intent(in) :: display
@@ -836,7 +851,8 @@ contains
         call move_alloc(grown, self%spec)
     end subroutine face_spec_entry
 
-    !> The face named NAME, or null.  (internal-lisp-face-p.)
+    !> The face named NAME, or null.  Port of
+    !> xfaces.c:Finternal_lisp_face_p (the face itself).
     function face_named(name) result(p)
         character(len=*), intent(in) :: name
         type(named_face_type), pointer :: p
@@ -853,13 +869,13 @@ contains
         end do
     end function face_named
 
-    !> The number of faces defined.
+    !> The number of faces defined.  Not a port.
     integer function face_count()
         face_count = 0
         if (allocated(registry)) face_count = size(registry)
     end function face_count
 
-    !> The K-th face defined (face-list order).
+    !> The K-th face defined (face-list order).  Not a port.
     function face_at(k) result(p)
         integer, intent(in) :: k
         type(named_face_type), pointer :: p
@@ -927,7 +943,7 @@ contains
     end function match_display
 
     !> Merge the specified attributes of FROM into TO, which they
-    !> replace (as face-spec-set-2 / set-face-attribute do).
+    !> replace (as face-spec-set-2 / set-face-attribute do).  Not a port.
     subroutine set_attributes(to, from)
         type(face_attributes_type), intent(inout) :: to
         type(face_attributes_type), intent(in) :: from
@@ -987,7 +1003,7 @@ contains
     end subroutine face_spec_recalc
 
     !> Recompute the attributes of every face on the frame (as
-    !> frame-set-background-mode does for a new frame).
+    !> frame-set-background-mode does for a new frame).  Not a port.
     subroutine face_spec_recalc_all()
         integer :: k
 
@@ -998,8 +1014,8 @@ contains
         end do
     end subroutine face_spec_recalc_all
 
-    !> Whether face attributes A and B are the same (as
-    !> xfaces.c:lface_equal_p compares attribute vectors).
+    !> Whether face attributes A and B are the same.  Port of
+    !> xfaces.c:lface_equal_p.
     logical function faces_equal(a, b) result(eq)
         type(face_attributes_type), intent(in) :: a, b
 
@@ -1103,7 +1119,7 @@ contains
     ! The faces of faces.el
     ! ------------------------------------------------------------------
 
-    !> Define the faces of faces.el with their specs.
+    !> Define the faces of faces.el with their specs.  Not a port.
     subroutine init_faces()
         integer, parameter :: C = FACE_CLASS_COLOR, G = FACE_CLASS_GRAYSCALE, M = FACE_CLASS_MONO
         integer, parameter :: LIGHT = FACE_BACKGROUND_LIGHT, DARK = FACE_BACKGROUND_DARK

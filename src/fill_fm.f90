@@ -139,7 +139,7 @@ module fill_fm
 
     abstract interface
         !> A predicate of `fill_nobreak_predicate': true forbids breaking
-        !> the line at point.
+        !> the line at point.  Not a port.
         logical function fill_nobreak_predicate_proc()
             implicit none(type, external)
         end function fill_nobreak_predicate_proc
@@ -165,7 +165,7 @@ module fill_fm
     abstract interface
         !> A `fill_paragraph_function': fill the paragraph at point (JUSTIFY
         !> as in `fill_paragraph'); DONE false (upstream's nil) means
-        !> `fill_paragraph' should do its normal work.
+        !> `fill_paragraph' should do its normal work.  Not a port.
         subroutine fill_paragraph_proc(status, done, justify)
             import :: status_type
             implicit none(type, external)
@@ -222,12 +222,13 @@ module fill_fm
         end subroutine fill_comment_paragraph
 
         !> Whether `fill_paragraph' can fill comments (step 3): a comment
-        !> syntax ending at end of line.  (In fill_comment_fm.)
+        !> syntax ending at end of line.  (In fill_comment_fm.)  Not a port.
         module logical function fill_comment_syntax_p()
             implicit none(type, external)
         end function fill_comment_syntax_p
 
         !> `comment_start_skip', "" for nil.  (In fill_comment_fm.)
+        !> Not a port.
         module function fill_comment_start_skip() result(skip)
             implicit none(type, external)
             character(len=:), allocatable :: skip
@@ -236,6 +237,7 @@ module fill_fm
 
 contains
 
+    ! Not a port.
     subroutine init_fill_variables()
         if (.not. allocated(adaptive_fill_regexp)) then
             adaptive_fill_regexp = "[-"//char(226)//char(128)//char(147)//"!|#%;>*"//char(194)//char(183)// &
@@ -455,7 +457,7 @@ contains
     end subroutine fill_common_string_prefix
 
     ! fill.el:fill-match-adaptive-prefix (adaptive-fill-function is
-    ! `ignore').
+    ! `ignore').  Port of fill.el:fill-match-adaptive-prefix.
     subroutine fill_match_adaptive_prefix(str, found)
         character(len=:), allocatable, intent(out) :: str
         logical, intent(out) :: found
@@ -621,15 +623,15 @@ contains
     !> Return true if a one-letter word is before point.
     !> This function is suitable for adding to the hook `fill_nobreak_predicate',
     !> to prevent the breaking of a line just after a one-letter word,
-    !> which is an error according to some typographical conventions.  Port
-    !> of fill.el:fill-single-char-nobreak-p.
+    !> which is an error according to some typographical conventions.
+    !> Port of fill.el:fill-single-char-nobreak-p.
     logical function fill_single_char_nobreak_p() result(nobreak)
         nobreak = two_back_looking_at("[[:space:]][[:alpha:]]")
     end function fill_single_char_nobreak_p
 
     ! (save-excursion (skip-chars-backward " \t") (backward-char 2)
     !                 (looking-at REGEXP)); at the start of the buffer
-    ! backward-char signals an error, which counts as nil.
+    ! backward-char signals an error, which counts as nil.  Not a port.
     logical function two_back_looking_at(regexp) result(matched)
         character(len=*), intent(in) :: regexp
         type(status_type) :: st
@@ -696,8 +698,8 @@ contains
 
     !> Delete the fill prefix from every line except the first.
     !> The first line may not even have a fill prefix.
-    !> Point is moved to just past the fill prefix on the first line.  Port
-    !> of fill.el:fill-delete-prefix.
+    !> Point is moved to just past the fill prefix on the first line.
+    !> Port of fill.el:fill-delete-prefix.
     integer(int64) function fill_delete_prefix(from, to, prefix, have_prefix) result(pos)
         integer(int64), intent(in) :: from, to
         character(len=*), intent(in) :: prefix
@@ -740,7 +742,7 @@ contains
         pos = point()
     end function fill_delete_prefix
 
-    ! (replace-regexp-in-string "[ \t]+" "[ \t]*" STRING)
+    ! (replace-regexp-in-string "[ \t]+" "[ \t]*" STRING) Not a port.
     function spaces_to_lax(string) result(lax)
         character(len=*), intent(in) :: string
         character(len=:), allocatable :: lax
@@ -762,7 +764,7 @@ contains
     end function spaces_to_lax
 
     ! fill-nospace-between-words-table: the Han, Kana, Bopomofo and
-    ! CJK-misc scripts and the full-width forms.
+    ! CJK-misc scripts and the full-width forms.  Not a port.
     logical function nospace_between_words(c)
         integer(int32), intent(in) :: c
         integer :: script
@@ -902,7 +904,7 @@ contains
         call free_marker(to_marker, st)
     end subroutine fill_delete_newlines
 
-    ! The UTF-8 of character C.
+    ! The UTF-8 of character C.  Not a port.
     function char_of(c) result(s)
         integer(int32), intent(in) :: c
         character(len=:), allocatable :: s
@@ -1315,7 +1317,7 @@ contains
 
     !> The bytes of the whole current buffer, ignoring narrowing (what
     !> subr-x.el's with-buffer-unmodified-if-unchanged compares with
-    !> `buffer_hash').
+    !> `buffer_hash').  Not a port.
     function whole_buffer_text() result(text)
         character(len=:), allocatable :: text
         integer(int64) :: savedb, savedz
@@ -1328,7 +1330,7 @@ contains
         call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
     end function whole_buffer_text
 
-    !> The body of fill_paragraph.
+    !> The body of fill_paragraph.  Port of fill.el:fill-paragraph, in part.
     recursive subroutine fill_paragraph_1(status, justify, region, used)
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: justify
@@ -1786,7 +1788,7 @@ contains
         end subroutine set_pos
     end subroutine justify_current_line
 
-    !> Whether point is before a non-empty `fill-prefix`.
+    !> Whether point is before a non-empty `fill-prefix`.  Not a port.
     logical function prefix_at_point() result(at)
         character(len=:), allocatable :: text
         type(status_type) :: st
@@ -1879,6 +1881,7 @@ contains
     end subroutine unjustify_region
 
     !> Start a `save_excursion': remember point in marker SAVED.
+    !> Not a port.
     subroutine save_point(saved)
         type(handle_type), intent(out) :: saved
         type(status_type) :: st
@@ -1886,7 +1889,7 @@ contains
         call copy_marker_at(point(), saved, .false., st)
     end subroutine save_point
 
-    !> End a `save_excursion': go back to SAVED and free it.
+    !> End a `save_excursion': go back to SAVED and free it.  Not a port.
     subroutine restore_point(saved)
         type(handle_type), intent(inout) :: saved
         type(status_type) :: st
@@ -1901,6 +1904,7 @@ contains
     ! Commands
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     integer function prefix_justify() result(how)
         how = JUSTIFY_T
         if (.not. nilp(current_prefix_arg)) how = JUSTIFY_FULL
@@ -1985,6 +1989,7 @@ contains
     end subroutine cmd_justify_current_line
 
     !> Give the variables their defaults and register the commands.
+    !> Not a port.
     subroutine fill_paragraph_set_local(self, fn)
         class(fill_paragraph_function_type), intent(inout) :: self
         procedure(fill_paragraph_proc) :: fn
@@ -2023,6 +2028,7 @@ contains
         call move_alloc(grown, self%entries)
     end subroutine fill_paragraph_set_local
 
+    ! Not a port.
     function fill_paragraph_get(self) result(fn)
         class(fill_paragraph_function_type), intent(in) :: self
         procedure(fill_paragraph_proc), pointer :: fn
@@ -2039,6 +2045,7 @@ contains
         end do
     end function fill_paragraph_get
 
+    ! Not a port.
     subroutine fill_paragraph_kill_local(self)
         class(fill_paragraph_function_type), intent(inout) :: self
         integer :: i
@@ -2055,7 +2062,7 @@ contains
     end subroutine fill_paragraph_kill_local
 
     !> kill-all-local-variables: forget the current buffer's
-    !> `fill_paragraph_function'.
+    !> `fill_paragraph_function'.  Not a port.
     subroutine kill_fill_locals()
         call fill_paragraph_function%kill_local()
     end subroutine kill_fill_locals

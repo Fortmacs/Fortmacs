@@ -412,6 +412,7 @@ function check_port(    k, s, depth, iface, unit, nm, key, absiface, issub) {
             continue
         }
         if (s ~ /^abstract interface/) {
+            iface = 1
             absiface = 1
             continue
         }
@@ -436,8 +437,10 @@ function check_port(    k, s, depth, iface, unit, nm, key, absiface, issub) {
             }
             if (iface) {
                 # An interface body: only a separate module procedure's
-                # (its documentation is here) is checked.
-                if (!absiface && separate_module_procedure(s)) port_needed(k, nm)
+                # (its documentation is here) is checked, not an abstract
+                # interface's nor a generic interface's `module procedure`
+                # list of its specific procedures.
+                if (!absiface && s !~ /^module procedure/ && separate_module_procedure(s)) port_needed(k, nm)
                 if (s !~ /^module procedure/) depth++
                 continue
             }

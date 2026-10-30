@@ -117,12 +117,12 @@ contains
     ! The clock
     ! ------------------------------------------------------------------
 
-    !> The current time in clock counts (upstream's current-time).
+    !> The current time in clock counts (upstream's current-time).  Not a port.
     integer(int64) function now()
         call system_clock(now)
     end function now
 
-    !> Clock counts per second.
+    !> Clock counts per second.  Not a port.
     integer(int64) function clock_rate()
         integer(int64) :: count
 
@@ -130,7 +130,7 @@ contains
         clock_rate = max(clock_rate, 1_int64)
     end function clock_rate
 
-    !> SECS seconds in clock counts.
+    !> SECS seconds in clock counts.  Not a port.
     integer(int64) function counts(secs)
         real(real64), intent(in) :: secs
 
@@ -141,8 +141,8 @@ contains
     ! Timer objects
     ! ------------------------------------------------------------------
 
-    !> Make a new timer, inactive and without a time or function.  Port
-    !> of timer.el:timer-create.
+    !> Make a new timer, inactive and without a time or function.  Port of
+    !> timer.el:timer-create.
     subroutine timer_create(timer)
         type(handle_type), intent(out) :: timer
         type(timer_type), allocatable :: grown(:)
@@ -160,8 +160,8 @@ contains
         timers(timer%index) = timer_type()
     end subroutine timer_create
 
-    !> Cancel TIMER and release its handle, which becomes stale.  Not a
-    !> port: upstream relies on GC.
+    !> Cancel TIMER and release its handle, which becomes stale.
+    !> Not a port: upstream relies on GC.
     subroutine free_timer(timer)
         type(handle_type), intent(in) :: timer
         type(status_type) :: st
@@ -190,6 +190,7 @@ contains
     end subroutine timer_check_arg
 
     !> Whether TIMER is inactive (triggered): not waiting to be run.
+    !> Not a port.
     logical function timer_triggered_p(timer) result(p)
         type(handle_type), intent(in) :: timer
 
@@ -197,14 +198,14 @@ contains
         if (timerp(timer)) p = timers(timer%index)%triggered
     end function timer_triggered_p
 
-    !> Whether TIMER is on `timer_list' or `timer_idle_list'.
+    !> Whether TIMER is on `timer_list' or `timer_idle_list'.  Not a port.
     logical function timer_active_p(timer) result(p)
         type(handle_type), intent(in) :: timer
 
         p = position_in(timer_list, timer) > 0 .or. position_in(timer_idle_list, timer) > 0
     end function timer_active_p
 
-    !> Whether TIMER is an idle timer (its idle-delay field).
+    !> Whether TIMER is an idle timer (its idle-delay field).  Not a port.
     logical function timer_idle_p(timer) result(p)
         type(handle_type), intent(in) :: timer
 
@@ -280,8 +281,8 @@ contains
         timers(timer%index)%time = timers(timer%index)%time + counts(secs)
     end subroutine timer_inc_time
 
-    !> Make TIMER call FUNCTION with optional ARGS when triggering.  Port
-    !> of timer.el:timer-set-function (no ARGS).
+    !> Make TIMER call FUNCTION with optional ARGS when triggering.  Port of
+    !> timer.el:timer-set-function (no ARGS).
     subroutine timer_set_function(timer, function, status)
         type(handle_type), intent(in) :: timer
         procedure(command_proc) :: function
@@ -292,7 +293,7 @@ contains
         timers(timer%index)%fn => function
     end subroutine timer_set_function
 
-    !> The position of TIMER in LIST, or 0.
+    !> The position of TIMER in LIST, or 0.  Not a port.
     integer function position_in(list, timer) result(k)
         type(handle_type), allocatable, intent(in) :: list(:)
         type(handle_type), intent(in) :: timer
@@ -444,7 +445,7 @@ contains
     end subroutine cancel_timer_internal
 
     !> Remove element K of LIST (into a new array: no reallocation to size
-    !> 0, which valgrind reports).
+    !> 0, which valgrind reports).  Not a port.
     subroutine remove_at(list, k)
         type(handle_type), allocatable, intent(inout) :: list(:)
         integer, intent(in) :: k
@@ -677,8 +678,8 @@ contains
     end subroutine timer_resume_idle
 
     !> Return the current length of Emacs idleness in seconds in SECS,
-    !> with IDLE_P false (upstream's nil) when Emacs is not idle.  Port
-    !> of keyboard.c:Fcurrent_idle_time.
+    !> with IDLE_P false (upstream's nil) when Emacs is not idle.  Port of
+    !> keyboard.c:Fcurrent_idle_time.
     subroutine current_idle_time(idle_p, secs)
         logical, intent(out) :: idle_p
         real(real64), intent(out) :: secs
@@ -689,7 +690,7 @@ contains
     end subroutine current_idle_time
 
     !> Whether TIMER is a valid, untriggered timer (keyboard.c:decode_timer
-    !> giving a valid time).
+    !> giving a valid time).  Not a port.
     logical function decodable(timer)
         type(handle_type), intent(in) :: timer
 

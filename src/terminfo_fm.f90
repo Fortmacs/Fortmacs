@@ -221,6 +221,7 @@ contains
     ! Finding and reading entries
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     function getenv_str(name) result(v)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: v
@@ -235,13 +236,14 @@ contains
         if (stat /= 0) v = ""
     end function getenv_str
 
+    ! Not a port.
     logical function file_exists(path)
         character(len=*), intent(in) :: path
 
         inquire (file=path, exist=file_exists)
     end function file_exists
 
-    !> The file holding entry `term' in directory `dir', or "".
+    !> The file holding entry `term' in directory `dir', or "".  Not a port.
     function entry_path(dir, term) result(path)
         character(len=*), intent(in) :: dir, term
         character(len=:), allocatable :: path
@@ -255,6 +257,7 @@ contains
         path = ""
     end function entry_path
 
+    ! Not a port.
     function to_lower(s) result(t)
         character(len=*), intent(in) :: s
         character(len=len(s)) :: t
@@ -268,6 +271,7 @@ contains
     end function to_lower
 
     !> Where entry `term' lives, searching as ncurses does; "" if nowhere.
+    !> Not a port.
     function find_entry(term) result(path)
         character(len=*), intent(in) :: term
         character(len=:), allocatable :: path, dirs, home, dir
@@ -349,7 +353,7 @@ contains
         call set_error(status, FM_GENERIC_ERROR, "Terminal type "//term//" is not defined")
     end subroutine tgetent
 
-    !> Load the compiled entry in file `path'.
+    !> Load the compiled entry in file `path'.  Not a port.
     subroutine read_terminfo(path, ti, status)
         character(len=*), intent(in) :: path
         type(terminfo_type), intent(out) :: ti
@@ -386,6 +390,7 @@ contains
     end subroutine read_terminfo
 
     !> Little-endian signed 16-bit integer at 0-based offset `off'.
+    !> Not a port.
     integer(int32) function get16(data, off) result(v)
         character(len=*), intent(in) :: data
         integer(int64), intent(in) :: off
@@ -395,6 +400,7 @@ contains
     end function get16
 
     !> Little-endian signed 32-bit integer at 0-based offset `off'.
+    !> Not a port.
     integer(int32) function get32(data, off) result(v)
         character(len=*), intent(in) :: data
         integer(int64), intent(in) :: off
@@ -411,7 +417,7 @@ contains
         v = int(u, int32)
     end function get32
 
-    !> The NUL-terminated string at 0-based `off' within `table'.
+    !> The NUL-terminated string at 0-based `off' within `table'.  Not a port.
     function cstring(table, off) result(s)
         character(len=*), intent(in) :: table
         integer(int64), intent(in) :: off
@@ -427,7 +433,7 @@ contains
         end if
     end function cstring
 
-    !> Decode a compiled terminfo entry (term(5)).
+    !> Decode a compiled terminfo entry (term(5)).  Not a port.
     subroutine parse_terminfo(data, ti, status)
         character(len=*), intent(in) :: data
         type(terminfo_type), intent(out) :: ti
@@ -603,6 +609,7 @@ contains
     ! Capabilities by name
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     integer function find_name(table, name) result(k)
         character(len=*), intent(in) :: table(:), name
 
@@ -613,6 +620,7 @@ contains
         k = 0
     end function find_name
 
+    ! Not a port.
     integer function find_ext(names, name) result(k)
         type(cap_string), intent(in) :: names(:)
         character(len=*), intent(in) :: name
@@ -643,7 +651,7 @@ contains
         end if
     end function tigetflag
 
-    !> Numeric capability `name', or -1.
+    !> Numeric capability `name', or -1.  Not a port.
     integer(int32) function tigetnum(ti, name) result(v)
         type(terminfo_type), intent(in) :: ti
         character(len=*), intent(in) :: name
@@ -660,7 +668,7 @@ contains
         end if
     end function tigetnum
 
-    !> String capability `name'; "" (and `found' false) if absent.
+    !> String capability `name'; "" (and `found' false) if absent.  Not a port.
     function tigetstr(ti, name, found) result(s)
         type(terminfo_type), intent(in) :: ti
         character(len=*), intent(in) :: name
@@ -687,7 +695,7 @@ contains
     end function tigetstr
 
     !> Boolean capability by termcap code ("am"), falling back to an
-    !> extended capability of that name.
+    !> extended capability of that name.  Not a port.
     logical function tgetflag(ti, code) result(v)
         type(terminfo_type), intent(in) :: ti
         character(len=*), intent(in) :: code
@@ -703,7 +711,7 @@ contains
         end if
     end function tgetflag
 
-    !> Numeric capability by termcap code ("co"), or -1.
+    !> Numeric capability by termcap code ("co"), or -1.  Not a port.
     integer(int32) function tgetnum(ti, code) result(v)
         type(terminfo_type), intent(in) :: ti
         character(len=*), intent(in) :: code
@@ -719,7 +727,7 @@ contains
         end if
     end function tgetnum
 
-    !> String capability by termcap code ("cm"); "" if absent.
+    !> String capability by termcap code ("cm"); "" if absent.  Not a port.
     function tgetstr(ti, code, found) result(s)
         type(terminfo_type), intent(in) :: ti
         character(len=*), intent(in) :: code
@@ -741,6 +749,7 @@ contains
     ! The built-in fallback
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     subroutine set_flag(ti, name)
         type(terminfo_type), intent(inout) :: ti
         character(len=*), intent(in) :: name
@@ -750,6 +759,7 @@ contains
         if (k > 0) ti%flags(k) = .true.
     end subroutine set_flag
 
+    ! Not a port.
     subroutine set_num(ti, name, v)
         type(terminfo_type), intent(inout) :: ti
         character(len=*), intent(in) :: name
@@ -760,6 +770,7 @@ contains
         if (k > 0) ti%numbers(k) = v
     end subroutine set_num
 
+    ! Not a port.
     subroutine set_str(ti, name, v)
         type(terminfo_type), intent(inout) :: ti
         character(len=*), intent(in) :: name, v
@@ -785,6 +796,7 @@ contains
 
     !> A built-in xterm-256color description: the capabilities term.c uses,
     !> plus cursor and function keys (generated from ncurses 6.4's entry).
+    !> Not a port.
     subroutine builtin_xterm(ti)
         type(terminfo_type), intent(out) :: ti
 
@@ -887,7 +899,7 @@ contains
     ! Parameterized strings
     ! ------------------------------------------------------------------
 
-    !> `n' in base `base' (2..16), at least `mindigits' digits.
+    !> `n' in base `base' (2..16), at least `mindigits' digits.  Not a port.
     function int_digits(n, base, upper, mindigits) result(s)
         integer(int64), intent(in) :: n
         integer, intent(in) :: base, mindigits
@@ -918,7 +930,7 @@ contains
 
     !> printf-style formatting of `v' for conversion `conv' (d o x X) with
     !> `flags' (- + # space), `width' and `precision' (-1: none), and
-    !> zero padding.
+    !> zero padding.  Not a port.
     function format_int(v, conv, flags, width, precision, zero) result(s)
         integer(int64), intent(in) :: v
         character, intent(in) :: conv
@@ -983,6 +995,7 @@ contains
     !> %{n} %'c' %P %g %+ %- %* %/ %m %& %| %^ %= %< %> %A %O %! %~ %i
     !> %? %t %e %; and printf conversions %[[:]flags][width][.prec][doxX].
     !> Reimplements the terminfo library's tparm, which terminfo.c calls.
+    !> Not a port.
     function tparm(str, p1, p2, p3, p4, p5, p6, p7, p8, p9) result(out)
         character(len=*), intent(in) :: str
         integer(int64), intent(in), optional :: p1, p2, p3, p4, p5, p6, p7, p8, p9
@@ -1214,6 +1227,7 @@ contains
         end subroutine skip
     end function tparm
 
+    ! Not a port.
     integer(int64) function binary(op, a, b) result(v)
         character, intent(in) :: op
         integer(int64), intent(in) :: a, b
@@ -1260,7 +1274,7 @@ contains
     end function tparam
 
     !> Cursor motion to `col', `row' (0-based): the terminfo library's
-    !> tgoto, which takes its arguments column first.
+    !> tgoto, which takes its arguments column first.  Not a port.
     function tgoto(cm, col, row) result(out)
         character(len=*), intent(in) :: cm
         integer(int64), intent(in) :: col, row
@@ -1270,7 +1284,7 @@ contains
     end function tgoto
 
     !> `s' without $<...> padding specifications.  Modern terminals need no
-    !> padding (the terminfo library's tputs would delay instead).
+    !> padding (the terminfo library's tputs would delay instead).  Not a port.
     function delete_padding(s) result(t)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: t
