@@ -78,47 +78,58 @@ contains
         type(status_type), intent(out) :: status
         integer :: i
         logical :: has_ws
+
         status = status_type()
         has_ws = allocated(search_spaces_regexp)
         clock = clock + 1
+
         do i = 1, REGEXP_CACHE_SIZE
             associate (cp => searchbufs(i))
                 if (.not. cp%valid) cycle
                 if (cp%busy) cycle
                 if (cp%regexp /= pattern .or. len(cp%regexp) /= len(pattern)) cycle
                 if ((cp%buf%translate .neqv. translate) .or. (cp%posix .neqv. posix)) cycle
+
                 if (cp%buf%used_syntax) then
                     if (.not. same_handle(cp%syntax_table, syntax_table())) cycle
                     if (cp%syntax_modiff /= syntax_modiff) cycle
                 end if
+
                 if (cp%has_whitespace_regexp .neqv. has_ws) cycle
+
                 if (has_ws) then
                     if (cp%whitespace_regexp /= search_spaces_regexp .or. &
                         len(cp%whitespace_regexp) /= len(search_spaces_regexp)) cycle
                 end if
+
                 cp%used_at = clock
                 k = i
                 return
             end associate
         end do
+
         ! Compile into the least recently used entry that is not busy.
         k = minloc(searchbufs%used_at, 1, mask=.not. searchbufs%busy)
+
         if (k == 0) then
             call set_error(status, FM_GENERIC_ERROR, "Too much matching reentrancy")
             return
         end if
+
         associate (cp => searchbufs(k))
             cp%valid = .false.
             cp%used_at = clock
             cp%buf%translate = translate
             cp%posix = posix
             cp%has_whitespace_regexp = has_ws
+
             if (has_ws) then
                 cp%whitespace_regexp = search_spaces_regexp
                 call re_compile_pattern(pattern, cp%buf, status, posix, search_spaces_regexp)
             else
                 call re_compile_pattern(pattern, cp%buf, status, posix)
             end if
+
             ! If the compiled pattern hard codes some of the contents of the
             ! syntax-table, it can only be reused with *this* syntax table.
             cp%syntax_table = syntax_table()
@@ -132,6 +143,7 @@ contains
     !> Whether two handles are the same.
     pure logical function same_handle(a, b)
         type(handle_type), intent(in) :: a, b
+
         same_handle = a%index == b%index .and. a%generation == b%generation
     end function same_handle
 
@@ -140,13 +152,16 @@ contains
     subroutine set_regs_from_buffer(regs)
         type(re_registers_type), intent(in) :: regs
         integer :: i
+
         call ensure_search_regs(size(regs%starts))
+
         do i = 0, size(regs%starts) - 1
             if (regs%starts(i) >= 0) then
                 search_regs_start(i) = byte_to_char(regs%starts(i) + buffers(cur)%begv_byte)
                 search_regs_end(i) = byte_to_char(regs%ends(i) + buffers(cur)%begv_byte)
             end if
         end do
+
         last_thing_searched = current_buffer()
         last_search_in_string = .false.
     end subroutine set_regs_from_buffer
@@ -156,13 +171,16 @@ contains
         type(re_registers_type), intent(in) :: regs
         character(len=*), intent(in) :: str
         integer :: i
+
         call ensure_search_regs(size(regs%starts))
+
         do i = 0, size(regs%starts) - 1
             if (regs%starts(i) >= 0) then
                 search_regs_start(i) = string_offset_to_index(str, regs%starts(i))
                 search_regs_end(i) = string_offset_to_index(str, regs%ends(i))
             end if
         end do
+
         last_search_in_string = .true.
     end subroutine set_regs_from_string
 
@@ -172,19 +190,23 @@ contains
     type(re_registers_type) :: regs
     integer(int64) :: i
     integer :: k
+
     matched = .false.
     call compile_pattern(regexp, case_fold_search%value, posix, k, status)
     if (.not. status%ok()) return
     subj = subject_from_buffer()
+
     associate (b => buffers(cur))
         searchbufs(k)%busy = .true.
         i = re_match(searchbufs(k)%buf, subj, b%pt_byte - b%begv_byte, regs, b%zv_byte - b%begv_byte)
         searchbufs(k)%busy = .false.
     end associate
+
     if (i == -2) then
         call matcher_overflow(status)
         return
     end if
+
     matched = i >= 0
     if (modify_data .and. matched) call set_regs_from_buffer(regs)
     end procedure looking_at_1
@@ -196,12 +218,15 @@ contains
     integer(int64) :: pos, pos_byte, nchars, val
     integer :: k
     character(len=21) :: buf
+
     idx = 0
     status = status_type()
     pos = 1
+
     if (present(start)) then
         nchars = string_chars(string)
         pos = start
+
         if (pos < 0 .and. -pos <= nchars) then
             pos = nchars + pos + 1
         else if (pos < 1 .or. pos > nchars + 1) then
@@ -211,6 +236,7 @@ contains
             return
         end if
     end if
+
     pos_byte = string_index_to_offset(string, pos)
     call compile_pattern(regexp, case_fold_search%value, posix, k, status)
     if (.not. status%ok()) return
@@ -219,10 +245,12 @@ contains
     val = re_search(searchbufs(k)%buf, subj, pos_byte, len(string, kind=int64) - pos_byte, regs, &
                     len(string, kind=int64))
     searchbufs(k)%busy = .false.
+
     if (val == -2) then
         call matcher_overflow(status)
         return
     end if
+
     if (val < 0) return
     if (modify_data) call set_regs_from_string(regs, string)
     idx = string_offset_to_index(string, val)
@@ -235,6 +263,7 @@ contains
     type(re_registers_type) :: regs
     integer(int64) :: n, pos, pos_byte, val, begv_byte
     integer :: k
+
     np = 0
     call compile_pattern(string, fold, posix, k, status)
     if (.not. status%ok()) return
@@ -243,44 +272,53 @@ contains
     n = n_in
     pos = pos_in
     pos_byte = pos_byte_in
+
     do while (n < 0)
         ! Don't allow match past current point.
         searchbufs(k)%busy = .true.
         val = re_search(searchbufs(k)%buf, subj, pos_byte - begv_byte, lim_byte - pos_byte, regs, &
                         pos_byte - begv_byte)
         searchbufs(k)%busy = .false.
+
         if (val == -2) then
             call matcher_overflow(status)
             return
         end if
+
         if (val < 0) then
             np = n
             return
         end if
+
         pos_byte = regs%starts(0) + begv_byte
         call set_regs_from_buffer(regs)
         ! Set pos to the new position.
         pos = search_regs_start(0)
         n = n + 1
     end do
+
     do while (n > 0)
         searchbufs(k)%busy = .true.
         val = re_search(searchbufs(k)%buf, subj, pos_byte - begv_byte, lim_byte - pos_byte, regs, &
                         lim_byte - begv_byte)
         searchbufs(k)%busy = .false.
+
         if (val == -2) then
             call matcher_overflow(status)
             return
         end if
+
         if (val < 0) then
             np = -n
             return
         end if
+
         pos_byte = regs%ends(0) + begv_byte
         call set_regs_from_buffer(regs)
         pos = search_regs_end(0)
         n = n - 1
     end do
+
     np = pos
     end procedure search_buffer_re
 
@@ -296,6 +334,7 @@ contains
     logical :: is_literal, some_multiletter_word, some_lowercase, some_uppercase, some_nonuppercase_initial
     character(len=:), allocatable :: text, piece, before, after, buftext
     integer(int64) :: i
+
     status = status_type()
     ! Most replacement texts don't contain any backslash directives in
     ! the replacements.  Check whether that's the case, which will enable
@@ -304,21 +343,26 @@ contains
     if (present(literal)) is_literal = literal
     if (.not. is_literal .and. index(newtext, "\") == 0) is_literal = .true.
     case_action = NOCHANGE
+
     if (.not. allocated(search_regs_start)) then
         call set_error(status, FM_GENERIC_ERROR, format_message("`replace_match' called before any match found"))
         return
     end if
+
     num_regs = size(search_regs_start)
     sub = 0
     if (present(subexp)) sub = subexp
+
     if (sub < 0 .or. sub >= num_regs) then
         ! check_integer_range (subexp, 0, num_regs - 1).
         call set_error(status, FM_ARGS_OUT_OF_RANGE, int_text(int(sub, int64))//", 0, "// &
                        int_text(int(num_regs - 1, int64)))
         return
     end if
+
     sub_start = search_regs_start(sub)
     sub_end = search_regs_end(sub)
+
     ! Check whether the text to replace is present in the buffer/string.
     if (present(string)) then
         nchars = string_chars(string)
@@ -326,7 +370,9 @@ contains
     else
         if (.not. (buffers(cur)%begv <= sub_start .and. sub_end <= buffers(cur)%zv)) call missing()
     end if
+
     if (.not. status%ok()) return
+
     if (.not. present_true(fixedcase)) then
         ! Decide how to casify by examining the matched text.
         if (present(string)) then
@@ -334,6 +380,7 @@ contains
         else
             call buffer_substring(sub_start, sub_end, buftext, status)
         end if
+
         prevc = 10
         ! some_multiletter_word is set nonzero if any original word is
         ! more than one letter long.
@@ -342,12 +389,15 @@ contains
         some_nonuppercase_initial = .false.
         some_uppercase = .false.
         i = 1
+
         do while (i <= len(buftext, kind=int64))
             call string_char_and_length(buftext, i, c, clen)
             i = i + clen
+
             if (lowercasep(c)) then
                 ! Cannot be all caps if any original char is lower case.
                 some_lowercase = .true.
+
                 if (.not. word_or_symbol(prevc)) then
                     some_nonuppercase_initial = .true.
                 else
@@ -361,8 +411,10 @@ contains
                 ! like a lowercase initial.
                 if (.not. word_or_symbol(prevc)) some_nonuppercase_initial = .true.
             end if
+
             prevc = c
         end do
+
         ! Convert to all caps if the old text is all caps and has at least
         ! one multiletter word.
         if (.not. some_lowercase .and. some_multiletter_word) then
@@ -379,32 +431,39 @@ contains
             case_action = NOCHANGE
         end if
     end if
+
     ! Do replacement in a string.
     if (present(string)) then
         before = string(1:string_index_to_offset(string, sub_start))
         after = string(string_index_to_offset(string, sub_end) + 1:)
         text = newtext
+
         ! Substitute parts of the match into NEWTEXT if desired.
         if (.not. is_literal) then
             text = ""
             i = 1
+
             do while (i <= len(newtext, kind=int64))
                 call string_char_and_length(newtext, i, c, clen)
                 piece = newtext(i:i + clen - 1)
                 i = i + clen
+
                 if (c == iachar("\")) then
                     ! A trailing backslash reads the string's terminating
                     ! null upstream, which is invalid.
                     c = 0
+
                     if (i <= len(newtext, kind=int64)) then
                         call string_char_and_length(newtext, i, c, clen)
                         i = i + clen
                     end if
+
                     if (c == iachar("&")) then
                         piece = substring(string, sub_start, sub_end)
                     else if (c >= iachar("1") .and. c <= iachar("9")) then
                         k = c - iachar("0")
                         piece = ""
+
                         if (k < num_regs) then
                             if (search_regs_start(k) >= 0) piece = substring(string, search_regs_start(k), &
                                                                              search_regs_end(k))
@@ -418,18 +477,22 @@ contains
                         return
                     end if
                 end if
+
                 text = text//piece
             end do
         end if
+
         ! Do case substitution in NEWTEXT if desired.
         if (case_action == ALL_CAPS) then
             text = upcase_string(text)
         else if (case_action == CAP_INITIAL) then
             text = upcase_initials_string(text)
         end if
+
         if (present(result)) result = before//text//after
         return
     end if
+
     ! Record point.  A nonpositive OPOINT is actually an offset from ZV.
     associate (b => buffers(cur))
         if (b%pt <= sub_start) then
@@ -438,24 +501,31 @@ contains
             opoint = max(b%pt, sub_end) - b%zv
         end if
     end associate
+
     ! If we want non-literal replacement, perform substitution on the
     ! replacement string.
     text = newtext
+
     if (.not. is_literal) then
         text = ""
         i = 1
+
         do while (i <= len(newtext, kind=int64))
             call string_char_and_length(newtext, i, c, clen)
             piece = newtext(i:i + clen - 1)
             i = i + clen
             idx = -1
+
             if (c == iachar("\")) then
                 c = 0
+
                 if (i <= len(newtext, kind=int64)) then
                     call string_char_and_length(newtext, i, c, clen)
                     i = i + clen
                 end if
+
                 piece = ""
+
                 if (c == iachar("&")) then
                     idx = sub
                 else if (iachar("1") <= c .and. c <= iachar("9") .and. c - iachar("0") < num_regs) then
@@ -467,29 +537,35 @@ contains
                     return
                 end if
             end if
+
             ! If we want to copy part of a previous match, use that text.
             if (idx >= 0) call buffer_substring(search_regs_start(idx), search_regs_end(idx), piece, status)
             text = text//piece
         end do
     end if
+
     inschars = string_chars(text)
     newpoint = sub_start + inschars
     ! Replace the old text with the new in the cleanest possible way.
     call replace_range(sub_start, sub_end, text, .true., status, adjust_match_data=.true.)
     if (.not. status%ok()) return
+
     if (case_action == ALL_CAPS) then
         call upcase_region(search_regs_start(sub), newpoint, status)
     else if (case_action == CAP_INITIAL) then
         call upcase_initials_region(search_regs_start(sub), newpoint, status)
     end if
+
     ! Put point back where it was in the text, if possible.
     associate (b => buffers(cur))
         if (opoint <= 0) opoint = opoint + b%zv
         opoint = max(b%begv, min(opoint, b%zv))
         call temp_set_point_both(b, opoint, char_to_byte(opoint))
     end associate
+
     ! Now move point "officially" to the end of the inserted replacement.
     call goto_char(newpoint)
+
 contains
 
     !> (error "replace-match subexpression does not exist" SUBEXP), or
@@ -512,12 +588,14 @@ contains
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
         character(len=21) :: buf
+
         write (buf, "(i0)") n
         s = trim(buf)
     end function int_text
 
     logical function present_true(flag)
         logical, intent(in), optional :: flag
+
         present_true = .false.
         if (present(flag)) present_true = flag
     end function present_true
@@ -526,6 +604,7 @@ contains
     logical function word_or_symbol(ch)
         integer(int32), intent(in) :: ch
         integer :: syn
+
         syn = char_syntax_class(ch)
         word_or_symbol = syn == SWORD .or. (case_symbols_as_words%value .and. syn == SSYMBOL)
     end function word_or_symbol
@@ -535,6 +614,7 @@ contains
         character(len=*), intent(in) :: str
         integer(int64), intent(in) :: b, e
         character(len=:), allocatable :: sub_text
+
         sub_text = str(string_index_to_offset(str, b) + 1:string_index_to_offset(str, e))
     end function substring
     end procedure replace_match
@@ -552,6 +632,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: string
         integer(int64) :: found
+
         call read_string(prompt, string, status)
         if (.not. status%ok()) return
         call search_command(string, direction, re, posix, found, status)
@@ -559,31 +640,37 @@ contains
 
     subroutine cmd_search_forward(status)
         type(status_type), intent(out) :: status
+
         call search_cmd("Search: ", .false., .false., 1_int64, status)
     end subroutine cmd_search_forward
 
     subroutine cmd_search_backward(status)
         type(status_type), intent(out) :: status
+
         call search_cmd("Search backward: ", .false., .false., -1_int64, status)
     end subroutine cmd_search_backward
 
     subroutine cmd_re_search_forward(status)
         type(status_type), intent(out) :: status
+
         call search_cmd("RE search: ", .true., .false., 1_int64, status)
     end subroutine cmd_re_search_forward
 
     subroutine cmd_re_search_backward(status)
         type(status_type), intent(out) :: status
+
         call search_cmd("RE search backward: ", .true., .false., -1_int64, status)
     end subroutine cmd_re_search_backward
 
     subroutine cmd_posix_search_forward(status)
         type(status_type), intent(out) :: status
+
         call search_cmd("Posix search: ", .true., .true., 1_int64, status)
     end subroutine cmd_posix_search_forward
 
     subroutine cmd_posix_search_backward(status)
         type(status_type), intent(out) :: status
+
         call search_cmd("Posix search backward: ", .true., .true., -1_int64, status)
     end subroutine cmd_posix_search_backward
 

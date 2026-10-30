@@ -47,6 +47,7 @@ contains
 
     subroutine collect_casefiddle_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("casefiddle-tests-casing-character", test_casing_character), &
                     new_unittest("casefiddle-tests-casing-word", test_casing_word), &
@@ -60,6 +61,7 @@ contains
     !> The character of the one-character UTF-8 string S.
     integer(int32) function ch(s)
         character(len=*), intent(in) :: s
+
         ch = string_char(s, 1_int64)
     end function ch
 
@@ -67,12 +69,14 @@ contains
     function raw(b) result(s)
         integer, intent(in) :: b
         character(len=2) :: s
+
         s = achar(192 + iand(ishft(b, -6), 1))//achar(128 + iand(b, 63))
     end function raw
 
     subroutine temp_buffer(h)
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call get_buffer_create(" *casefiddle-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
@@ -90,6 +94,7 @@ contains
                                                                "Ⅷ", "Ⅷ", "ⅷ", "Ⅷ", "ⅷ", "Ⅷ", "ⅷ", "Ⅷ"], [4, 12])
         integer :: k
         integer(int32) :: c
+
         do k = 1, 12
             c = ch(trim(tests(1, k)))
             call check(error, upcase_char(c) == ch(trim(tests(2, k))), trim(tests(1, k))//" upcase")
@@ -107,12 +112,15 @@ contains
         type(status_type) :: st
         character(len=7), parameter :: want(3) = ["FOO Bar", "foo Bar", "Foo Bar"]
         integer :: k, back
+
         call temp_buffer(h)
+
         do k = 1, 3
             do back = 0, 1
                 call erase_buffer(st)
                 call insert("foO Bar", st)
                 call goto_char(point_min() + 4*back)
+
                 select case (k)
                 case (1)
                     call upcase_word(merge(-1_int64, 1_int64, back == 1), st)
@@ -121,13 +129,16 @@ contains
                 case default
                     call capitalize_word(merge(-1_int64, 1_int64, back == 1), st)
                 end select
+
                 call check(error, buffer_string() == want(k), want(k)//" got "//buffer_string())
                 if (allocated(error)) exit
                 call check(error, point() == point_min() + merge(4, 3, back == 1), "point")
                 if (allocated(error)) exit
             end do
+
             if (allocated(error)) exit
         end do
+
         call kill_buffer(h, st)
     end subroutine test_casing_word
 
@@ -142,6 +153,7 @@ contains
         type(status_type) :: st
         type(handle_type) :: h
         integer :: k
+
         do k = 1, 4
             select case (k)
             case (1)
@@ -153,10 +165,12 @@ contains
             case default
                 got = upcase_initials_string(input)
             end select
+
             call check(error, got == trim(expected(k)), input//" string "//char(48 + k)//": "//got)
             if (allocated(error)) return
             call temp_buffer(h)
             call insert(input, st)
+
             select case (k)
             case (1)
                 call upcase_region(point_min(), point_max(), st)
@@ -167,6 +181,7 @@ contains
             case default
                 call upcase_initials_region(point_min(), point_max(), st)
             end select
+
             got = buffer_string()
             call kill_buffer(h, st)
             call check(error, got == trim(expected(k)), input//" region "//char(48 + k)//": "//got)
@@ -176,6 +191,7 @@ contains
 
     subroutine test_casing(error)
         type(error_type), allocatable, intent(out) :: error
+
         ! input     upper     lower    capitalize up-initials
         call check_casing(error, "Foo baR", [character(len=20) :: "FOO BAR", "foo bar", "Foo Bar", "Foo BaR"])
         if (allocated(error)) return
@@ -215,6 +231,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=2) :: ff
         character(len=40) :: e(4)
+
         ff = raw(255)
         e(1) = ff//" FOO BAR "//ff
         e(2) = ff//" foo bar "//ff
@@ -242,6 +259,7 @@ contains
                                                                "ǆ", "Ǆ", "ǆ", "ǅ", "A", "A", "a", "A"], [4, 12])
         integer :: k
         integer(int32) :: c, tc
+
         do k = 1, 12
             c = ch(trim(tests(1, k)))
             tc = ch(trim(tests(4, k)))
@@ -258,15 +276,18 @@ contains
 
     subroutine test_symbols_as_words(error)
         type(error_type), allocatable, intent(out) :: error
+
         call syms("Aa_bb Cc_dd", "Aa_Bb Cc_Dd", "Aa_bb Cc_dd")
         call syms("Aa_bb cc_DD", "Aa_Bb Cc_DD", "Aa_bb Cc_DD")
         call syms("aa_bb cc_dd", "Aa_Bb Cc_Dd", "Aa_bb Cc_dd")
         call syms("Aa_Bb Cc_Dd", "Aa_Bb Cc_Dd", "Aa_Bb Cc_Dd")
         case_symbols_as_words = .false.
+
     contains
 
         subroutine syms(init, with_words, with_symbols)
             character(len=*), intent(in) :: init, with_words, with_symbols
+
             if (allocated(error)) return
             case_symbols_as_words = .false.
             call check(error, upcase_initials_string(init) == with_words, init//" words")

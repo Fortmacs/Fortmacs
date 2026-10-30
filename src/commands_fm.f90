@@ -2069,7 +2069,9 @@ contains
     function builtin_command(name) result(p)
         character(len=*), intent(in) :: name
         type(command_type), pointer :: p
+
         p => null()
+
         select case (name)
         case ("abbrev_mode")
             p => commands%abbrev_mode
@@ -4096,10 +4098,12 @@ contains
         case default
             return
         end select
+
         if (len_trim(name) /= len(name)) then
             p => null()
             return
         end if
+
         if (.not. allocated(p%name)) p%name = name
     end function builtin_command
 end module commands_fm

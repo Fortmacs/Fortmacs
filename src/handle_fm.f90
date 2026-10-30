@@ -77,6 +77,7 @@ contains
     !> The null handle, which never resolves.
     pure function null_handle() result(h)
         type(handle_type) :: h
+
         h = handle_type(0, 0)
     end function null_handle
 
@@ -85,7 +86,9 @@ contains
         class(slot_table_type), intent(inout) :: self
         type(handle_type), intent(out) :: h
         integer(int64) :: i
+
         if (.not. allocated(self%generations)) call grow(self, initial_capacity)
+
         if (self%free_count > 0) then
             i = self%free_list(self%free_count)
             self%free_count = self%free_count - 1
@@ -93,9 +96,11 @@ contains
             if (self%used == size(self%generations, kind=int64)) then
                 call grow(self, 2*size(self%generations, kind=int64))
             end if
+
             self%used = self%used + 1
             i = self%used
         end if
+
         self%live(i) = .true.
         self%live_count = self%live_count + 1
         h = handle_type(i, self%generations(i))
@@ -108,6 +113,7 @@ contains
         type(handle_type), intent(in) :: h
         type(status_type), intent(out) :: status
         integer(int64) :: i
+
         call self%resolve(h, i, status)
         if (.not. status%ok()) return
         self%live(i) = .false.
@@ -123,11 +129,14 @@ contains
         type(handle_type), intent(in) :: h
         integer(int64), intent(out) :: i
         type(status_type), intent(out) :: status
+
         i = 0
+
         if (.not. self%is_live(h)) then
             call set_error(status, FM_INVALID_HANDLE)
             return
         end if
+
         i = h%index
     end subroutine table_resolve
 
@@ -135,6 +144,7 @@ contains
     elemental logical function table_is_live(self, h)
         class(slot_table_type), intent(in) :: self
         type(handle_type), intent(in) :: h
+
         table_is_live = .false.
         if (.not. allocated(self%generations)) return
         if (h%index < 1 .or. h%index > self%used) return
@@ -147,6 +157,7 @@ contains
         class(slot_table_type), intent(in) :: self
         integer(int64), intent(in) :: i
         type(handle_type) :: h
+
         h = handle_type(0, 0)
         if (.not. allocated(self%generations)) return
         if (i < 1 .or. i > self%used) return
@@ -158,7 +169,9 @@ contains
     !> can never exceed this).
     pure integer(int64) function table_capacity(self)
         class(slot_table_type), intent(in) :: self
+
         table_capacity = 0
+
         if (allocated(self%generations)) then
             table_capacity = size(self%generations, kind=int64)
         end if
@@ -167,6 +180,7 @@ contains
     !> Number of live slots.
     pure integer(int64) function table_count(self)
         class(slot_table_type), intent(in) :: self
+
         table_count = self%live_count
     end function table_count
 
@@ -176,16 +190,19 @@ contains
         integer(int64), allocatable :: gens(:), frees(:)
         logical, allocatable :: live(:)
         integer(int64) :: old
+
         old = 0
         if (allocated(self%generations)) old = size(self%generations, kind=int64)
         allocate (gens(new_size), live(new_size), frees(new_size))
         gens = 1
         live = .false.
+
         if (old > 0) then
             gens(1:old) = self%generations
             live(1:old) = self%live
             frees(1:self%free_count) = self%free_list(1:self%free_count)
         end if
+
         call move_alloc(gens, self%generations)
         call move_alloc(live, self%live)
         call move_alloc(frees, self%free_list)

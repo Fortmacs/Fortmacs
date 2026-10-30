@@ -59,6 +59,7 @@ contains
 
     subroutine collect_dired_aux_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("dired-test-bug28834", test_bug28834), &
                     new_unittest("dired-test-bug30624", test_bug30624), &
@@ -82,6 +83,7 @@ contains
     !> The absolute name of the test directory, as a directory.
     function tdir() result(dir)
         character(len=:), allocatable :: dir
+
         dir = file_name_as_directory(file_name_as_directory(emacs_wd)//subdir)
     end function tdir
 
@@ -90,6 +92,7 @@ contains
     subroutine setup()
         type(handle_type) :: buf
         type(status_type) :: st
+
         call init_bindings()
         call init_fileio()
         call discard_input()
@@ -111,6 +114,7 @@ contains
     subroutine teardown()
         type(status_type) :: st
         type(handle_type) :: buf
+
         call discard_input()
         call kill_dired_buffers()
         call get_buffer_create("*scratch*", buf, st)
@@ -126,11 +130,15 @@ contains
         type(handle_type), allocatable :: bufs(:)
         type(status_type) :: st
         integer :: k
+
         bufs = dired_buffers_for_dir(tdir())
+
         do k = 1, size(bufs)
             call kill_buffer(bufs(k), st)
         end do
+
         bufs = dired_buffers_for_dir(tdir()//"sub/")
+
         do k = 1, size(bufs)
             call kill_buffer(bufs(k), st)
         end do
@@ -141,6 +149,7 @@ contains
         character(len=*), intent(in) :: name, text
         type(handle_type) :: buf, old
         type(status_type) :: st
+
         old = current_buffer()
         call get_buffer_create(" *dired-aux-test-file*", buf, st)
         call set_buffer(buf, st)
@@ -157,15 +166,18 @@ contains
         character(len=:), allocatable :: s
         type(handle_type) :: buf, old
         type(status_type) :: st
+
         old = current_buffer()
         call find_file_noselect(tdir()//name, buf, st)
         s = "<none>"
+
         if (st%ok()) then
             call set_buffer(buf, st)
             s = buffer_string()
             call set_buffer(old, st)
             call kill_buffer(buf, st)
         end if
+
         call set_buffer(old, st)
     end function contents
 
@@ -174,6 +186,7 @@ contains
         character(len=*), intent(in) :: name
         type(status_type) :: st
         integer(int64) :: p
+
         call dired(tdir(), st)
         call show_alone()
         p = dired_goto_file(tdir()//name, st)
@@ -183,6 +196,7 @@ contains
     subroutine keys(text)
         character(len=*), intent(in) :: text
         type(status_type) :: st
+
         call kbd_store_bytes(text)
         call command_loop(st)
     end subroutine keys
@@ -191,6 +205,7 @@ contains
     function this_line() result(s)
         character(len=:), allocatable :: s
         type(status_type) :: st
+
         call buffer_substring(line_beginning_position(), line_end_position(), s, st)
     end function this_line
 
@@ -200,6 +215,7 @@ contains
         character(len=:), allocatable :: s
         type(status_type) :: st
         integer(int64) :: opoint
+
         opoint = point()
         s = ""
         if (dired_goto_file(tdir()//name, st) /= 0) s = this_line()
@@ -211,7 +227,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=:), allocatable :: from, to_cp, to_mv
+
         call setup()
+
         body: block
             from = tdir()//"a.txt"
             to_cp = tdir()//"bar/foo-cp"
@@ -254,11 +272,14 @@ contains
             call dired_rename_file(from, to_mv, .false., st)
             call check(error,.not. st%ok(), "ask no: rename fails")
         end block body
+
         call teardown()
+
     contains
 
         subroutine reset()
             type(status_type) :: s
+
             if (file_directory_p(tdir()//"bar")) call delete_directory(tdir()//"bar", s, .true.)
             if (file_directory_p(tdir()//"qux")) call delete_directory(tdir()//"qux", s, .true.)
             if (.not. file_exists_p(from)) call make_file("a.txt", "alpha")
@@ -272,7 +293,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         procedure(dired_file_creator_proc), pointer :: creator
+
         call setup()
+
         body: block
             call make_file("bug30624_file1", "1")
             call make_file("bug30624_file2", "2")
@@ -289,13 +312,16 @@ contains
             call check(error, file_exists_p(tdir()//"target-dir/bug30624_file1") .and. &
                        file_exists_p(tdir()//"target-dir/bug30624_file2"), "copied into the new directory")
         end block body
+
         call teardown()
     end subroutine test_bug30624
 
     !> C on one file copies it to the name read, marked C in the listing.
     subroutine test_copy_one(error)
         type(error_type), allocatable, intent(out) :: error
+
         call setup()
+
         body: block
             call dired_on("a.txt")
             call keys("Ccopy.txt"//CR)
@@ -307,6 +333,7 @@ contains
             if (allocated(error)) exit body
             call check(error, last_message, "Copy: 1 file done")
         end block body
+
         call teardown()
     end subroutine test_copy_one
 
@@ -314,7 +341,9 @@ contains
     subroutine test_copy_marked(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call setup()
+
         body: block
             call dired_on("a.txt")
             call dired_mark_files_regexp("\.txt\'", st)
@@ -323,13 +352,16 @@ contains
             if (allocated(error)) exit body
             call check(error, last_message, "Copy: 2 files done")
         end block body
+
         call teardown()
     end subroutine test_copy_marked
 
     !> Copying onto an existing file asks first: n skips it, y overwrites.
     subroutine test_copy_overwrite(error)
         type(error_type), allocatable, intent(out) :: error
+
         call setup()
+
         body: block
             call dired_on("a.txt")
             call keys("Cb.txt"//CR//"n")
@@ -343,6 +375,7 @@ contains
             if (allocated(error)) exit body
             call check(error, last_message, "Copy: 1 file done")
         end block body
+
         call teardown()
     end subroutine test_copy_overwrite
 
@@ -352,7 +385,9 @@ contains
         type(handle_type) :: fbuf
         type(status_type) :: st
         integer(int64) :: b
+
         call setup()
+
         body: block
             call find_file_noselect(tdir()//"a.txt", fbuf, st)
             call dired_on("a.txt")
@@ -368,6 +403,7 @@ contains
             call check(error, last_message, "Move: 1 file done")
             call kill_buffer(fbuf, st)
         end block body
+
         call teardown()
     end subroutine test_rename
 
@@ -376,7 +412,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(file_stat_type) :: st_a
         logical :: found
+
         call setup()
+
         body: block
             call dired_on("a.txt")
             call keys("Hhard.txt"//CR)
@@ -391,6 +429,7 @@ contains
             call keys("Ysub/rel.txt"//CR)
             call check(error, file_symlink_target(tdir()//"sub/rel.txt"), "../a.txt")
         end block body
+
         call teardown()
     end subroutine test_links
 
@@ -398,7 +437,9 @@ contains
     subroutine test_chmod(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call setup()
+
         body: block
             call set_file_modes(tdir()//"a.txt", int(o'644', int32), st)
             call dired_on("a.txt")
@@ -412,6 +453,7 @@ contains
             call keys("M"//CR)
             call check(error, last_message, "No file mode specified")
         end block body
+
         call teardown()
     end subroutine test_chmod
 
@@ -421,7 +463,9 @@ contains
         type(file_stat_type) :: attrs
         integer :: parts(6)
         logical :: found
+
         call setup()
+
         body: block
             call dired_on("a.txt")
             call keys("T202001020304.05"//CR)
@@ -429,6 +473,7 @@ contains
             parts = emacs_localtime(attrs%mtime_sec)
             call check(error, found .and. all(parts == [2020, 1, 2, 3, 4, 5]), last_message)
         end block body
+
         call teardown()
     end subroutine test_touch
 
@@ -436,7 +481,9 @@ contains
     subroutine test_kill_lines(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call setup()
+
         body: block
             call dired_on("a.txt")
             call dired_mark_files_regexp("\.txt\'", st)
@@ -445,13 +492,16 @@ contains
             if (allocated(error)) exit body
             call check(error, len(line_of("a.txt")) == 0 .and. file_exists_p(tdir()//"a.txt"), "line gone, file kept")
         end block body
+
         call teardown()
     end subroutine test_kill_lines
 
     !> % u renames to upper case after a query.
     subroutine test_upcase(error)
         type(error_type), allocatable, intent(out) :: error
+
         call setup()
+
         body: block
             call dired_on("a.txt")
             call keys("%uy")
@@ -459,6 +509,7 @@ contains
             if (allocated(error)) exit body
             call check(error, last_message, "Rename upcase: 1 file done")
         end block body
+
         call teardown()
     end subroutine test_upcase
 
@@ -466,7 +517,9 @@ contains
     subroutine test_rename_regexp(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call setup()
+
         body: block
             call dired_on("a.txt")
             call dired_mark_files_regexp("\.txt\'", st)
@@ -475,6 +528,7 @@ contains
             if (allocated(error)) exit body
             call check(error, last_message, "Rename: 2 files done")
         end block body
+
         call teardown()
     end subroutine test_rename_regexp
 
@@ -482,7 +536,9 @@ contains
     subroutine test_create_empty_file(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call setup()
+
         body: block
             call dired_on("a.txt")
             call dired_create_empty_file(tdir()//"new/deep/empty", st)
@@ -493,17 +549,21 @@ contains
             call dired_create_empty_file(tdir()//"a.txt", st)
             call check(error, format_error(st), "Cannot create file "//tdir()//"a.txt: file exists")
         end block body
+
         call teardown()
     end subroutine test_create_empty_file
 
     !> Z compresses with gzip and uncompresses again.
     subroutine test_compress(error)
         type(error_type), allocatable, intent(out) :: error
+
         if (.not. (file_executable_p("/bin/gzip") .or. file_executable_p("/usr/bin/gzip"))) then
             call skip_test(error, "no gzip")
             return
         end if
+
         call setup()
+
         body: block
             call dired_on("a.txt")
             call keys("Zy")
@@ -520,6 +580,7 @@ contains
             if (allocated(error)) exit body
             call check(error, contents("a.txt"), "alpha")
         end block body
+
         call teardown()
     end subroutine test_compress
 
@@ -527,7 +588,9 @@ contains
     subroutine test_view_file(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: dbuf, vbuf
+
         call setup()
+
         body: block
             call dired_on("a.txt")
             dbuf = current_buffer()
@@ -538,6 +601,7 @@ contains
             call keys("q")
             call check(error, cur == dbuf%index .and. .not. buffer_live_p(vbuf), "back in Dired")
         end block body
+
         call teardown()
     end subroutine test_view_file
 
@@ -546,7 +610,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         type(dired_string_type), allocatable :: files(:)
+
         call setup()
+
         body: block
             call dired_on("a.txt")
             call dired_mark_files_regexp("\.txt\'", st)
@@ -562,6 +628,7 @@ contains
             if (allocated(error)) exit body
             call check(error, files(1)%s, "a.txt")
         end block body
+
         call teardown()
     end subroutine test_unmark_query
 end module test_dired_aux_fm

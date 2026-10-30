@@ -611,25 +611,32 @@ contains
         logical, intent(in) :: make
         type(local_type), allocatable :: grown(:)
         integer :: i, n
+
         k = 0
         if (cur == 0) return
         if (.not. allocated(locals)) allocate (locals(0))
+
         do k = 1, size(locals)
             if (locals(k)%serial == buffers(cur)%serial) return
         end do
+
         k = 0
         if (.not. make) return
+
         do k = 1, size(locals)
             if (.not. buffer_serial_live(locals(k)%serial)) then
                 locals(k) = local_type(serial=buffers(cur)%serial)
                 return
             end if
         end do
+
         n = size(locals)
         allocate (grown(n + 1))
+
         do i = 1, n
             grown(i) = locals(i)
         end do
+
         grown(n + 1)%serial = buffers(cur)%serial
         call move_alloc(grown, locals)
         k = n + 1
@@ -638,6 +645,7 @@ contains
     ! kill-all-local-variables: forget the current buffer's values.
     subroutine kill_info_locals()
         integer :: k
+
         k = local_index(.false.)
         if (k > 0) locals(k) = local_type()
     end subroutine kill_info_locals
@@ -650,7 +658,9 @@ contains
     function info_current_file() result(file)
         character(len=:), allocatable :: file
         integer :: k
+
         k = local_index(.false.)
+
         if (k > 0) then
             if (allocated(locals(k)%current_file)) file = locals(k)%current_file
         end if
@@ -663,7 +673,9 @@ contains
     function info_current_subfile() result(file)
         character(len=:), allocatable :: file
         integer :: k
+
         k = local_index(.false.)
+
         if (k > 0) then
             if (allocated(locals(k)%current_subfile)) file = locals(k)%current_subfile
         end if
@@ -675,7 +687,9 @@ contains
     function info_current_node() result(node)
         character(len=:), allocatable :: node
         integer :: k
+
         k = local_index(.false.)
+
         if (k > 0) then
             if (allocated(locals(k)%current_node)) node = locals(k)%current_node
         end if
@@ -688,8 +702,10 @@ contains
     subroutine info_history_variable(history)
         type(info_history_entry_type), allocatable, intent(out) :: history(:)
         integer :: k
+
         k = local_index(.false.)
         allocate (history(0))
+
         if (k > 0) then
             if (allocated(locals(k)%history)) history = locals(k)%history
         end if
@@ -702,8 +718,10 @@ contains
     subroutine info_history_forward_variable(history)
         type(info_history_entry_type), allocatable, intent(out) :: history(:)
         integer :: k
+
         k = local_index(.false.)
         allocate (history(0))
+
         if (k > 0) then
             if (allocated(locals(k)%history_forward)) history = locals(k)%history_forward
         end if
@@ -721,13 +739,16 @@ contains
         character(len=*), intent(in) :: file
         logical, intent(in), optional :: clear
         integer :: k
+
         k = here()
+
         if (present(clear)) then
             if (clear) then
                 if (allocated(locals(k)%current_file)) deallocate (locals(k)%current_file)
                 return
             end if
         end if
+
         locals(k)%current_file = file
     end subroutine set_current_file
 
@@ -735,7 +756,9 @@ contains
     subroutine set_current_node(node)
         character(len=*), intent(in), optional :: node
         integer :: k
+
         k = here()
+
         if (present(node)) then
             locals(k)%current_node = node
         else if (allocated(locals(k)%current_node)) then
@@ -747,7 +770,9 @@ contains
     subroutine set_current_subfile(file)
         character(len=*), intent(in), optional :: file
         integer :: k
+
         k = here()
+
         if (present(file)) then
             locals(k)%current_subfile = file
         else if (allocated(locals(k)%current_subfile)) then
@@ -758,6 +783,7 @@ contains
     ! Whether Info-current-file is non-nil.
     logical function has_current_file()
         integer :: k
+
         k = local_index(.false.)
         has_current_file = .false.
         if (k > 0) has_current_file = allocated(locals(k)%current_file)
@@ -766,6 +792,7 @@ contains
     ! Whether Info-current-node is non-nil.
     logical function has_current_node()
         integer :: k
+
         k = local_index(.false.)
         has_current_node = .false.
         if (k > 0) has_current_node = allocated(locals(k)%current_node)
@@ -774,6 +801,7 @@ contains
     ! Info-current-file, "" for nil.
     function current_file_or_empty() result(file)
         character(len=:), allocatable :: file
+
         file = info_current_file()
         if (.not. allocated(file)) file = ""
     end function current_file_or_empty
@@ -781,6 +809,7 @@ contains
     ! Info-current-node, "" for nil.
     function current_node_or_empty() result(node)
         character(len=:), allocatable :: node
+
         node = info_current_node()
         if (.not. allocated(node)) node = ""
     end function current_node_or_empty
@@ -792,17 +821,20 @@ contains
         integer(int64), intent(in) :: pos
         type(info_history_entry_type), allocatable :: grown(:)
         integer :: i, n
+
         if (.not. allocated(stack)) allocate (stack(0))
         n = size(stack)
         allocate (grown(n + 1))
         grown(1)%file = file
         grown(1)%node = node
         grown(1)%pos = pos
+
         do i = 1, n
             call move_alloc(stack(i)%file, grown(i + 1)%file)
             call move_alloc(stack(i)%node, grown(i + 1)%node)
             grown(i + 1)%pos = stack(i)%pos
         end do
+
         call move_alloc(grown, stack)
     end subroutine push_history
 
@@ -811,14 +843,17 @@ contains
         type(info_history_entry_type), allocatable, intent(inout) :: stack(:)
         type(info_history_entry_type), allocatable :: rest(:)
         integer :: i, n
+
         n = size(stack)
         if (n == 0) return
         allocate (rest(n - 1))
+
         do i = 2, n
             call move_alloc(stack(i)%file, rest(i - 1)%file)
             call move_alloc(stack(i)%node, rest(i - 1)%node)
             rest(i - 1)%pos = stack(i)%pos
         end do
+
         call move_alloc(rest, stack)
     end subroutine pop_history
 
@@ -828,18 +863,21 @@ contains
         character(len=*), intent(in) :: file, node
         type(info_node_ref_type), allocatable :: grown(:)
         integer :: i, n, m
+
         if (.not. allocated(info_history_list)) allocate (info_history_list(0))
         n = size(info_history_list)
         allocate (grown(n + 1))
         grown(1)%file = file
         grown(1)%node = node
         m = 1
+
         do i = 1, n
             if (info_history_list(i)%file == file .and. info_history_list(i)%node == node) cycle
             m = m + 1
             call move_alloc(info_history_list(i)%file, grown(m)%file)
             call move_alloc(info_history_list(i)%node, grown(m)%node)
         end do
+
         info_history_list = grown(1:m)
     end subroutine note_history_list
 
@@ -851,6 +889,7 @@ contains
     subroutine user_error(status, message)
         type(status_type), intent(inout) :: status
         character(len=*), intent(in) :: message
+
         call set_error(status, FM_USER_ERROR, message)
     end subroutine user_error
 
@@ -858,6 +897,7 @@ contains
     subroutine plain_error(status, message)
         type(status_type), intent(inout) :: status
         character(len=*), intent(in) :: message
+
         call set_error(status, FM_GENERIC_ERROR, message)
     end subroutine plain_error
 
@@ -865,6 +905,7 @@ contains
     logical function matched_group(n, status)
         integer, intent(in) :: n
         type(status_type), intent(inout) :: status
+
         matched_group = match_beginning(n, status) > 0
     end function matched_group
 
@@ -875,6 +916,7 @@ contains
         logical, intent(in), optional :: modify
         type(status_type) :: st
         logical :: inhibit
+
         inhibit = .true.
         if (present(modify)) inhibit = .not. modify
         smatch = string_match(re, s, st, inhibit_modify=inhibit) > 0
@@ -887,8 +929,10 @@ contains
         character(len=:), allocatable :: t
         integer :: i
         logical :: in_space
+
         t = ""
         in_space = .false.
+
         do i = 1, len(s)
             if (s(i:i) == " " .or. s(i:i) == TAB .or. s(i:i) == LF) then
                 if (.not. in_space) t = t//" "
@@ -905,14 +949,17 @@ contains
         character(len=*), intent(in) :: from, to, s
         character(len=:), allocatable :: t
         integer :: i, j
+
         t = ""
         i = 1
+
         do
             j = index(s(i:), from)
             if (j == 0 .or. len(from) == 0) exit
             t = t//s(i:i + j - 2)//to
             i = i + j - 1 + len(from)
         end do
+
         t = t//s(i:)
     end function replace_all
 
@@ -921,12 +968,15 @@ contains
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: t
         integer :: n
+
         n = len(s)
+
         do while (n > 0)
             if (s(n:n) /= " " .and. s(n:n) /= TAB .and. s(n:n) /= LF .and. s(n:n) /= achar(13) .and. &
                 s(n:n) /= FF) exit
             n = n - 1
         end do
+
         t = s(1:n)
     end function trim_trailing_space
 
@@ -934,6 +984,7 @@ contains
     function lower(s) result(t)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: t
+
         t = downcase_string(s)
     end function lower
 
@@ -951,6 +1002,7 @@ contains
     subroutine fwd_line(n)
         integer(int64), intent(in) :: n
         integer(int64) :: shortage
+
         shortage = forward_line(n)
     end subroutine fwd_line
 
@@ -962,10 +1014,13 @@ contains
         integer(int64) :: found
         type(status_type) :: st
         integer :: mode
+
         mode = SEARCH_NOERROR
+
         if (present(move)) then
             if (move) mode = SEARCH_MOVE
         end if
+
         call search_forward(string, found, st, bound=bound, noerror=mode)
         sfwd = found /= 0 .and. st%ok()
     end function sfwd
@@ -978,10 +1033,13 @@ contains
         integer(int64) :: found
         type(status_type) :: st
         integer :: mode
+
         mode = SEARCH_NOERROR
+
         if (present(move)) then
             if (move) mode = SEARCH_MOVE
         end if
+
         call search_backward(string, found, st, bound=bound, noerror=mode)
         sbwd = found /= 0 .and. st%ok()
     end function sbwd
@@ -994,10 +1052,13 @@ contains
         integer(int64) :: found
         type(status_type) :: st
         integer :: mode
+
         mode = SEARCH_NOERROR
+
         if (present(move)) then
             if (move) mode = SEARCH_MOVE
         end if
+
         call re_search_forward(re, found, st, bound=bound, noerror=mode)
         refwd = found /= 0 .and. st%ok()
     end function refwd
@@ -1010,10 +1071,13 @@ contains
         integer(int64) :: found
         type(status_type) :: st
         integer :: mode
+
         mode = SEARCH_NOERROR
+
         if (present(move)) then
             if (move) mode = SEARCH_MOVE
         end if
+
         call re_search_backward(re, found, st, bound=bound, noerror=mode)
         rebwd = found /= 0 .and. st%ok()
     end function rebwd
@@ -1022,6 +1086,7 @@ contains
     logical function looking(re)
         character(len=*), intent(in) :: re
         type(status_type) :: st
+
         looking = looking_at(re, st)
         if (.not. st%ok()) looking = .false.
     end function looking
@@ -1030,6 +1095,7 @@ contains
     integer(int64) function mbeg(n)
         integer, intent(in) :: n
         type(status_type) :: st
+
         mbeg = match_beginning(n, st)
     end function mbeg
 
@@ -1037,6 +1103,7 @@ contains
     integer(int64) function mend(n)
         integer, intent(in) :: n
         type(status_type) :: st
+
         mend = match_end(n, st)
     end function mend
 
@@ -1045,6 +1112,7 @@ contains
         integer(int64), intent(in) :: start, end
         character(len=:), allocatable :: s
         type(status_type) :: st
+
         call buffer_substring(start, end, s, st)
         if (.not. st%ok()) s = ""
     end function text
@@ -1052,6 +1120,7 @@ contains
     ! (window-start) of the selected window.
     integer(int64) function sel_window_start()
         type(handle_type) :: w
+
         w = selected_window()
         sel_window_start = window_start(windows(w%index))
     end function sel_window_start
@@ -1061,6 +1130,7 @@ contains
         integer(int64), intent(in) :: pos
         type(status_type), intent(out) :: status
         type(handle_type) :: w
+
         w = selected_window()
         call set_window_start(windows(w%index), pos, status)
     end subroutine set_sel_window_start
@@ -1069,6 +1139,7 @@ contains
     logical function visible(pos)
         integer(int64), intent(in) :: pos
         type(handle_type) :: w
+
         w = selected_window()
         visible = pos_visible_in_window_p(pos, windows(w%index))
     end function visible
@@ -1077,6 +1148,7 @@ contains
     ! value.
     logical function bind_case_fold(fold) result(old)
         logical, intent(in) :: fold
+
         old = case_fold_search%value
         case_fold_search%value = fold
     end function bind_case_fold
@@ -1087,12 +1159,15 @@ contains
         character(len=*), intent(in) :: s
         type(string_type), allocatable :: grown(:)
         integer :: i, n
+
         if (.not. allocated(list)) allocate (list(0))
         n = size(list)
         allocate (grown(n + 1))
+
         do i = 1, n
             call move_alloc(list(i)%s, grown(i)%s)
         end do
+
         grown(n + 1)%s = s
         call move_alloc(grown, list)
     end subroutine add_string
@@ -1104,15 +1179,18 @@ contains
         logical, intent(in), optional :: fold
         integer :: i
         logical :: f
+
         f = .false.
         if (present(fold)) f = fold
         has_string = .false.
+
         do i = 1, size(list)
             if (f) then
                 if (lower(list(i)%s) == lower(s)) has_string = .true.
             else
                 if (list(i)%s == s) has_string = .true.
             end if
+
             if (has_string) return
         end do
     end function has_string
@@ -1123,8 +1201,10 @@ contains
         character(len=:), intent(in), allocatable :: setting(:)
         type(string_type), allocatable, intent(out) :: list(:)
         integer :: i
+
         allocate (list(0))
         if (.not. allocated(setting)) return
+
         do i = 1, size(setting)
             call add_string(list, trim(setting(i)))
         end do
@@ -1135,11 +1215,15 @@ contains
         type(string_type), intent(in) :: list(:)
         character(len=:), allocatable, intent(out) :: setting(:)
         integer :: i, n
+
         n = 1
+
         do i = 1, size(list)
             n = max(n, len(list(i)%s))
         end do
+
         allocate (character(len=n) :: setting(size(list)))
+
         do i = 1, size(list)
             setting(i) = list(i)%s
         end do
@@ -1151,8 +1235,10 @@ contains
         type(string_type), allocatable, intent(out) :: list(:)
         type(string_type), allocatable :: more(:)
         integer :: i
+
         call setting_dirs(info_directory_list, list)
         call setting_dirs(info_additional_directory_list, more)
+
         do i = 1, size(more)
             call add_string(list, more(i)%s)
         end do
@@ -1164,7 +1250,9 @@ contains
         type(string_type), intent(in) :: dirs(:)
         type(string_type), allocatable, intent(out) :: pruned(:)
         integer :: i
+
         allocate (pruned(0))
+
         do i = 1, size(dirs)
             if (file_directory_p(dirs(i)%s)) call add_string(pruned, dirs(i)%s)
         end do
@@ -1176,11 +1264,13 @@ contains
         character(len=*), intent(in), optional :: dir
         character(len=:), allocatable :: full
         type(status_type) :: st
+
         if (present(dir)) then
             call expand_file_name(name, full, st, default_directory=dir)
         else
             call expand_file_name(name, full, st)
         end if
+
         if (.not. st%ok()) full = name
     end function expand
 
@@ -1192,6 +1282,7 @@ contains
     ! info.el:info-file-exists-p.
     logical function info_file_exists_p(filename)
         character(len=*), intent(in) :: filename
+
         info_file_exists_p = file_exists_p(filename) .and. .not. file_directory_p(filename)
     end function info_file_exists_p
 
@@ -1210,45 +1301,55 @@ contains
         integer(int64) :: inserted
         integer :: tail
         logical :: found, done, v, null_detection
+
         status = status_type()
         v = .false.
         if (present(visit)) v = visit
         tail = 0
+
         if (info_file_exists_p(filename)) then
             ! FILENAME exists--see if that name contains a suffix.
             ! If so, set DECODE accordingly.
             do tail = 1, size(info_suffix_list)
                 if (ends_with(filename, trim(info_suffix_list(tail)%suffix))) exit
             end do
+
             fullname = filename
         else
             ! Try adding suffixes to FILENAME and see if we can find something.
             done = .false.
+
             do tail = 1, size(info_suffix_list)
                 fullname = filename//trim(info_suffix_list(tail)%suffix)
+
                 if (info_file_exists_p(fullname)) then
                     done = .true.
                     exit
                 end if
             end do
+
             if (.not. done) then
                 call plain_error(status, "Can't find "//filename//" or any compressed version of it")
                 return
             end if
         end if
+
         ! (jka-compr, which would conflict, is not ported.)
         null_detection = inhibit_null_byte_detection%value
         ! Index nodes include null bytes.
         inhibit_null_byte_detection%value = .true.
+
         if (tail <= size(info_suffix_list)) then
             if (len_trim(info_suffix_list(tail)%program) > 0) then
                 dir = file_name_directory(fullname)
                 if (len(dir) == 0) dir = buffers(cur)%directory
+
                 if (len_trim(info_suffix_list(tail)%args) > 0) then
                     args = list(make_string(trim(info_suffix_list(tail)%args)))
                 else
                     args = nil()
                 end if
+
                 call call_process(trim(info_suffix_list(tail)%program), result, status, infile=fullname, &
                                   destination=t_value(), args=args)
                 inhibit_null_byte_detection%value = null_detection
@@ -1257,10 +1358,12 @@ contains
                 return
             end if
         end if
+
         call insert_file_contents(fullname, v, inserted, status)
         inhibit_null_byte_detection%value = null_detection
         if (.not. status%ok()) return
         call note_file_time(fullname)
+
     contains
 
         ! Clear the caches of modified Info files and record the
@@ -1270,15 +1373,18 @@ contains
             type(file_time_type), allocatable :: kept(:)
             integer :: i, m
             logical :: newer
+
             call file_attributes(full, stat, found)
             if (.not. allocated(file_times)) allocate (file_times(0))
             newer = .false.
+
             do i = 1, size(file_times)
                 if (file_times(i)%name == full .and. found) then
                     newer = file_times(i)%sec < stat%mtime_sec .or. &
                             (file_times(i)%sec == stat%mtime_sec .and. file_times(i)%nsec < stat%mtime_nsec)
                 end if
             end do
+
             if (newer) then
                 if (has_current_file()) then
                     call forget_file_caches(info_current_file())
@@ -1286,17 +1392,20 @@ contains
                     call forget_file_caches(filename)
                 end if
             end if
+
             ! Add new modtime to `Info-file-attributes'.
             allocate (kept(size(file_times) + 1))
             kept(1)%name = full
             kept(1)%sec = stat%mtime_sec
             kept(1)%nsec = stat%mtime_nsec
             m = 1
+
             do i = 1, size(file_times)
                 if (file_times(i)%name == full) cycle
                 m = m + 1
                 kept(m) = file_times(i)
             end do
+
             file_times = kept(1:m)
         end subroutine note_file_time
     end subroutine info_insert_file_contents
@@ -1308,20 +1417,24 @@ contains
         character(len=*), intent(in) :: file
         type(index_nodes_type), allocatable :: kept(:)
         integer :: i, m
+
         if (.not. allocated(index_nodes_cache)) return
         allocate (kept(size(index_nodes_cache)))
         m = 0
+
         do i = 1, size(index_nodes_cache)
             if (index_nodes_cache(i)%file == file) cycle
             m = m + 1
             kept(m) = index_nodes_cache(i)
         end do
+
         index_nodes_cache = kept(1:m)
     end subroutine forget_file_caches
 
     ! Whether S ends with SUFFIX ("" matches anything).
     logical function ends_with(s, suffix)
         character(len=*), intent(in) :: s, suffix
+
         ends_with = .false.
         if (len(suffix) > len(s)) return
         ends_with = s(len(s) - len(suffix) + 1:) == suffix
@@ -1340,32 +1453,41 @@ contains
         character(len=:), allocatable :: version
         integer(int64) :: opoint
         integer :: i, n
+
         if (.not. allocated(cookies_cache)) allocate (cookies_cache(0))
+
         do i = 1, size(cookies_cache)
             if (cookies_cache(i)%file == file) then
                 found = cookies_cache(i)%supports
                 return
             end if
         end do
+
         found = .false.
+
         ! Skip virtual Info files.
         if (.not. info_virtual_file_p(file)) then
             opoint = point()
             call goto_min()
+
             if (refwd("\(?:makeinfo\|texi2any\)[ "//LF//"]version[ "//LF//"]\([0-9]+.[0-9]+\)", &
                       line_beginning_position(4_int64))) then
                 version = match_string_no_properties(1)
                 found = .not. version_less(version, "4.7")
             end if
+
             call goto_char(opoint)
         end if
+
         n = size(cookies_cache)
         allocate (grown(n + 1))
         grown(1)%file = file
         grown(1)%supports = found
+
         do i = 1, n
             grown(i + 1) = cookies_cache(i)
         end do
+
         call move_alloc(grown, cookies_cache)
     end function file_supports_index_cookies
 
@@ -1373,18 +1495,22 @@ contains
     logical function version_less(a, b)
         character(len=*), intent(in) :: a, b
         integer :: i, j, na, nb, va, vb
+
         i = 1
         j = 1
         version_less = .false.
+
         do
             call next_number(a, i, va, na)
             call next_number(b, j, vb, nb)
             if (na == 0 .and. nb == 0) return
+
             if (va /= vb) then
                 version_less = va < vb
                 return
             end if
         end do
+
     contains
 
         ! The number at POS of S (0 if none, NDIGITS 0), skipping the dot
@@ -1393,14 +1519,17 @@ contains
             character(len=*), intent(in) :: s
             integer, intent(inout) :: pos
             integer, intent(out) :: v, ndigits
+
             v = 0
             ndigits = 0
+
             do while (pos <= len(s))
                 if (s(pos:pos) < "0" .or. s(pos:pos) > "9") exit
                 v = v*10 + iachar(s(pos:pos)) - iachar("0")
                 ndigits = ndigits + 1
                 pos = pos + 1
             end do
+
             if (pos <= len(s)) pos = pos + 1
         end subroutine next_number
     end function version_less
@@ -1415,43 +1544,55 @@ contains
         character(len=*), parameter :: suffixes(2) = [character(len=6) :: "share/", ""]
         type(string_type), allocatable :: pfx(:)
         integer :: i, j
+
         if (allocated(configure_info_directory)) then
             config_dir = file_name_as_directory(configure_info_directory)
         else
             config_dir = "/usr/local/share/info/"
         end if
+
         ! Directory trees in which to look for info subdirectories.
         allocate (candidates(0))
+
         do i = 1, size(prefixes)
             call add_string(candidates, trim(prefixes(i)))
         end do
+
         call prune_directory_list(candidates, pfx)
         allocate (standard(0))
+
         do i = 1, size(pfx)
             ! Subdirectories in each directory tree that may contain info
             ! directories.
             deallocate (candidates)
             allocate (candidates(0))
+
             do j = 1, size(suffixes)
                 call add_string(candidates, pfx(i)%s//trim(suffixes(j))//"info/")
             end do
+
             call prune_directory_list(candidates, pruned)
+
             do j = 1, size(pruned)
                 call add_string(standard, pruned(j)%s)
             end do
         end do
+
         ! If $(prefix)/share/info is not one of the standard info
         ! directories, they are probably installing an experimental
         ! version of Fortmacs, so make sure that experimental version's Info
         ! files override the ones in standard directories.
         allocate (dirs(0))
+
         if (has_string(standard, config_dir)) then
             do i = 1, size(standard)
                 call add_string(dirs, standard(i)%s)
             end do
+
             call add_string(dirs, config_dir)
         else
             call add_string(dirs, config_dir)
+
             do i = 1, size(standard)
                 call add_string(dirs, standard(i)%s)
             end do
@@ -1465,8 +1606,10 @@ contains
         type(string_type), allocatable, intent(out) :: dirs(:)
         type(string_type), allocatable :: more(:)
         integer :: i
+
         call setting_dirs(info_default_directory_list, dirs)
         call default_directory_list(more)
+
         do i = 1, size(more)
             call add_string(dirs, more(i)%s)
         end do
@@ -1479,15 +1622,19 @@ contains
         character(len=:), allocatable :: path
         logical :: found
         integer :: i, start
+
         if (allocated(info_directory_list)) then
             if (size(info_directory_list) > 0) return
         end if
+
         call getenv("INFOPATH", path, found)
         allocate (dirs(0))
+
         if (found) then
             if (ends_with(path, ":") .and. len(path) > 0) then
                 call split_path(path(1:len(path) - 1))
                 call default_dirs(defaults)
+
                 do i = 1, size(defaults)
                     call add_string(dirs, defaults(i)%s)
                 end do
@@ -1497,20 +1644,25 @@ contains
         else
             call default_dirs(dirs)
         end if
+
         call prune_directory_list(dirs, pruned)
         call list_to_setting(pruned, info_directory_list)
+
     contains
 
         ! Add the parts of P between colons to DIRS ((split-string P ":")).
         subroutine split_path(p)
             character(len=*), intent(in) :: p
+
             start = 1
+
             do i = 1, len(p)
                 if (p(i:i) == ":") then
                     call add_string(dirs, p(start:i - 1))
                     start = i + 1
                 end if
             end do
+
             call add_string(dirs, p(start:))
         end subroutine split_path
     end subroutine info_initialize
@@ -1519,6 +1671,7 @@ contains
     ! info.el:Info-virtual-file-p.
     logical function info_virtual_file_p(filename)
         character(len=*), intent(in) :: filename
+
         info_virtual_file_p = virtual_file_index(filename) > 0
     end function info_virtual_file_p
 
@@ -1526,10 +1679,13 @@ contains
     ! belongs to (0 if none).  Part of info.el:Info-virtual-fun.
     integer function virtual_file_index(filename) result(k)
         character(len=*), intent(in) :: filename
+
         if (.not. allocated(info_virtual_files)) call init_virtual_files()
+
         do k = 1, size(info_virtual_files)
             if (smatch(trim(info_virtual_files(k)%name), filename)) return
         end do
+
         k = 0
     end function virtual_file_index
 
@@ -1540,10 +1696,12 @@ contains
         character(len=*), intent(in) :: filename, nodename
         procedure(info_virtual_find_node_proc), pointer :: fn
         integer :: k
+
         fn => null()
         k = virtual_file_index(filename)
         if (k > 0) fn => info_virtual_files(k)%find_node
         if (associated(fn)) return
+
         do k = 1, size(info_virtual_nodes)
             if (smatch(trim(info_virtual_nodes(k)%name), nodename)) then
                 fn => info_virtual_nodes(k)%find_node
@@ -1567,18 +1725,22 @@ contains
         character(len=:), allocatable :: name, temp, temp_downcase, found
         type(status_type) :: st
         integer :: d, s, k
+
         status = status_type()
         call info_initialize()
         ! Convert filename to lower case if not found as specified.
         ! Expand it.
         k = virtual_file_index(filename)
+
         if (k > 0) then
             if (associated(info_virtual_files(k)%find_file)) then
                 call info_virtual_files(k)%find_file(filename, result, status)
                 return
             end if
         end if
+
         name = substitute_in_file_name(filename)
+
         if (smatch("^\./", name)) then
             ! If specified name starts with `./' then just try current
             ! directory.
@@ -1591,6 +1753,7 @@ contains
         else
             call search_dirs(dirs)
         end if
+
         ! (installation-directory is nil for Fortmacs.)
         ! Search the directory list for file FILENAME.
         do d = 1, size(dirs)
@@ -1601,6 +1764,7 @@ contains
                 temp = expand(name)
                 temp_downcase = expand(lower(name))
             end if
+
             ! Try several variants of specified name.
             do s = 1, size(info_suffix_list)
                 if (info_file_exists_p(temp//trim(info_suffix_list(s)%suffix))) then
@@ -1611,23 +1775,30 @@ contains
                     exit
                 end if
             end do
+
             if (allocated(found)) exit
         end do
+
         if (allocated(found)) then
             result = found
             return
         end if
+
         if (present(noerror)) then
             if (noerror) return
         end if
+
         ! If there is no previous Info file, go to the directory.
         if (.not. has_current_file()) then
             k = 0
+
             if (present(no_pop_to_dir)) then
                 if (no_pop_to_dir) k = 1
             end if
+
             if (k == 0) call info_directory(st)
         end if
+
         call user_error(status, "Info file `"//name//"' does not exist; consider installing it")
     end subroutine info_find_file
 
@@ -1638,6 +1809,7 @@ contains
     integer(int64) function filepos_to_bufferpos(byte) result(pos)
         integer(int64), intent(in) :: byte
         integer(int64) :: b
+
         b = min(max(1_int64, 1 + byte), buffers(cur)%text%z_byte)
         pos = byte_to_char(b)
     end function filepos_to_bufferpos
@@ -1646,6 +1818,7 @@ contains
     ! mule-util.el:bufferpos-to-filepos (as `filepos_to_bufferpos').
     integer(int64) function bufferpos_to_filepos(pos) result(byte)
         integer(int64), intent(in) :: pos
+
         byte = char_to_byte(pos) - 1
     end function bufferpos_to_filepos
 
@@ -1654,6 +1827,7 @@ contains
     recursive subroutine info_other_window(status, file_or_node, buffer)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: file_or_node, buffer
+
         call info_pop_to_buffer(status, file_or_node, buffer, other_window=.true.)
     end subroutine info_other_window
 
@@ -1679,9 +1853,11 @@ contains
         type(info_history_entry_type), allocatable :: history(:)
         type(status_type) :: st
         logical :: other
+
         status = status_type()
         other = .false.
         if (present(other_window)) other = other_window
+
         if (present(buffer_handle)) then
             buffer = buffer_handle
         else if (present(buffer_name)) then
@@ -1689,11 +1865,13 @@ contains
         else
             call get_buffer_create("*info*", buffer, status)
         end if
+
         if (.not. status%ok()) return
         old = current_buffer()
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
         if (.not. derived_mode_p(major_modes%info_mode)) call info_mode(status)
+
         if (status%ok()) then
             if (present(file_or_node)) then
                 ! If argument already contains parentheses, don't add
@@ -1712,14 +1890,17 @@ contains
                 if (buffer_size() == 0 .and. size(history) == 0) call info_directory(status)
             end if
         end if
+
         if (buffer_live_p(old)) call set_buffer(old, st)
         if (.not. status%ok()) return
+
         if (other) then
             alist%inhibit_same_window = .true.
             call display_buffer(buffer, window, status, alist=alist)
         else
             call display_buffer(buffer, window, status, actions=[DISPLAY_ACTION_SAME_WINDOW])
         end if
+
         if (.not. status%ok()) return
         if (window%index /= 0) call select_window(window, status)
     end subroutine info_pop_to_buffer
@@ -1750,6 +1931,7 @@ contains
     recursive subroutine info(status, file_or_node, buffer)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: file_or_node, buffer
+
         if (present(file_or_node)) then
             ! Info node names don't contain newlines, so allow for easier
             ! use of names that might have been wrapped (in emails, etc.).
@@ -1768,10 +1950,12 @@ contains
         logical, intent(out) :: has_file, has_buffer
         type(status_type), intent(out) :: status
         character(len=24) :: buf
+
         status = status_type()
         has_file = .false.
         has_buffer = .false.
         if (nilp(current_prefix_arg)) return
+
         if (fixnump(current_prefix_arg)) then
             write (buf, "(i0)") xfixnum(current_prefix_arg)
             buffer = "*info*<"//trim(buf)//">"
@@ -1787,8 +1971,10 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file, buffer
         logical :: has_file, has_buffer
+
         call info_interactive(file, has_file, buffer, has_buffer, status)
         if (.not. status%ok()) return
+
         if (has_file) then
             call info(status, file)
         else if (has_buffer) then
@@ -1802,8 +1988,10 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file, buffer
         logical :: has_file, has_buffer
+
         call info_interactive(file, has_file, buffer, has_buffer, status)
         if (.not. status%ok()) return
+
         if (has_file) then
             call info_other_window(status, file)
         else if (has_buffer) then
@@ -1817,6 +2005,7 @@ contains
     !> info.el:info-emacs-manual.
     recursive subroutine info_emacs_manual(status)
         type(status_type), intent(out) :: status
+
         call info(status, "emacs")
     end subroutine info_emacs_manual
 
@@ -1824,6 +2013,7 @@ contains
     !> mode.  Port of info.el:info-emacs-bug.
     recursive subroutine info_emacs_bug(status)
         type(status_type), intent(out) :: status
+
         call info(status, "(emacs)Bugs")
     end subroutine info_emacs_bug
 
@@ -1842,6 +2032,7 @@ contains
     integer(int64) function node_at_bob_matching(regexp) result(pos)
         character(len=*), intent(in) :: regexp
         integer(int64) :: beg
+
         pos = 0
         if (.not. bobp()) return
         if (.not. looking(US)) return
@@ -1871,15 +2062,18 @@ contains
         character(len=:), allocatable :: node, file
         logical :: back, has_file
         integer :: k
+
         status = status_type()
         call info_initialize()
         node = canonicalize_whitespace(nodename)
         has_file = present(filename)
+
         if (has_file) then
             call info_find_file(filename, file, status, noerror)
             if (.not. status%ok()) return
             has_file = allocated(file)
         end if
+
         ! Go into Info buffer.
         if (.not. derived_mode_p(major_modes%info_mode)) then
             if (has_file) then
@@ -1887,15 +2081,19 @@ contains
             else
                 call info_pop_to_buffer(status)
             end if
+
             if (.not. status%ok()) return
         end if
+
         back = .false.
         if (present(no_going_back)) back = no_going_back
+
         ! Record the node we are leaving, if we were in one.
         if (.not. back .and. has_current_file()) then
             k = here()
             call push_history(locals(k)%history, info_current_file(), current_node_or_empty(), point())
         end if
+
         if (has_file) then
             call info_find_node_2(file, node, status, no_going_back, strict_case)
         else
@@ -1920,11 +2118,13 @@ contains
         type(handle_type) :: buf, tagbuf
         integer(int64) :: pos, mend0
         integer :: k
+
         status = status_type()
         k = here()
         if (locals(k)%tag_table_marker%index == 0) call make_marker(locals(k)%tag_table_marker)
         call goto_char(point_max())
         call fwd_line(-8_int64)
+
         if (nodename /= "*" .and. sfwd(US//LF//"End tag table"//LF)) then
             ! We have a tag table.  Find its beginning.
             ! Is this an indirect file?
@@ -1932,18 +2132,22 @@ contains
                 call set_error(status, FM_SEARCH_FAILED, LF//"Tag table:"//LF)
                 return
             end if
+
             pos = point()
             call fwd_line(2_int64)
+
             if (looking("(Indirect)"//LF)) then
                 mend0 = mend(0)
                 ! It is indirect.  Copy it to another buffer and record
                 ! that the tag table is in that buffer.
                 buf = current_buffer()
                 tagbuf = locals(k)%tag_table_buffer
+
                 if (.not. buffer_live_p(tagbuf)) then
                     call get_buffer_create(generate_new_buffer_name(" *info tag table*"), tagbuf, status)
                     if (.not. status%ok()) return
                 end if
+
                 locals(k)%tag_table_buffer = tagbuf
                 call set_buffer(tagbuf, status)
                 if (.not. status%ok()) return
@@ -1966,6 +2170,7 @@ contains
     subroutine set_marker_nowhere(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
+
         call detach_marker(m, st)
     end subroutine set_marker_nowhere
 
@@ -1977,17 +2182,20 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: nodename
         character(len=:), allocatable :: node
+
         node = "Top"
         if (present(nodename)) node = nodename
         call info_initialize()
         call info_mode(status)
         if (.not. status%ok()) return
+
         if (allocated(buffers(cur)%filename)) then
             call set_current_file(buffers(cur)%filename)
         else
             ! If called on a non-file buffer, make a fake file name.
             call set_current_file(buffers(cur)%directory//buffers(cur)%name)
         end if
+
         call record_tag_table(node, status)
         if (.not. status%ok()) return
         call info_find_node_2(nodename=node, status=status)
@@ -1997,6 +2205,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: node
         type(string_type), allocatable :: completions(:)
+
         if (.not. nilp(current_prefix_arg)) then
             call build_node_completions(completions, status)
             if (.not. status%ok()) return
@@ -2015,10 +2224,13 @@ contains
         type(value_type) :: v
         type(value_type), allocatable :: elems(:)
         integer :: i
+
         allocate (elems(size(list)))
+
         do i = 1, size(list)
             elems(i) = make_string(list(i)%s)
         end do
+
         v = make_list(elems)
     end function strings_value
 
@@ -2033,11 +2245,14 @@ contains
         integer(int64) :: pline, wline, new_pos, reached, pcolumn
         integer :: k
         logical :: window_selected, has_new
+
         status = status_type()
+
         if (.not. derived_mode_p(major_modes%info_mode)) then
             call info_pop_to_buffer(status, filename)
             if (.not. status%ok()) return
         end if
+
         old_filename = current_file_or_empty()
         old_nodename = current_node_or_empty()
         window_selected = same_buffer(selected_window(), get_buffer_window(current_buffer()))
@@ -2045,16 +2260,19 @@ contains
         pline = count_lines(point_min(), line_beginning_position(1_int64))
         wline = count_lines(point_min(), sel_window_start())
         has_new = has_current_file()
+
         if (has_new) then
             new_file = info_current_file()
             new_node = current_node_or_empty()
             new_pos = point()
         end if
+
         ! When `Info-current-file' is nil, `Info-find-node-2' rereads the
         ! file.
         call set_current_file("", clear=.true.)
         call info_find_node(filename, nodename, status)
         if (.not. status%ok()) return
+
         if (old_filename == current_file_or_empty() .and. old_nodename == current_node_or_empty()) then
             ! note goto-line is no good, we want to measure from point-min
             if (window_selected) then
@@ -2062,6 +2280,7 @@ contains
                 call fwd_line(wline)
                 call set_sel_window_start(point(), status)
             end if
+
             call goto_min()
             call fwd_line(pline)
             call move_to_column(pcolumn, reached, .false., status)
@@ -2076,6 +2295,7 @@ contains
     ! Whether handles A and B are the same object.
     logical function same_buffer(a, b)
         type(handle_type), intent(in) :: a, b
+
         same_buffer = a%index == b%index .and. a%generation == b%generation
     end function same_buffer
 
@@ -2085,13 +2305,16 @@ contains
         logical, intent(in) :: ignore_auto, noconfirm
         type(status_type), intent(out) :: status
         logical :: yes
+
         status = status_type()
         if (ignore_auto) continue
         yes = noconfirm
+
         if (.not. yes) then
             call y_or_n_p("Revert info buffer? ", yes, status)
             if (.not. status%ok()) return
         end if
+
         if (yes) then
             call revert_find_node(current_file_or_empty(), current_node_or_empty(), status)
             if (.not. status%ok()) return
@@ -2118,6 +2341,7 @@ contains
         type(status_type) :: st
         integer(int64) :: mpos
         logical :: fold
+
         found = .false.
         anchor = .false.
         in_info_mode = .false.
@@ -2131,6 +2355,7 @@ contains
         call goto_char(mpos)
         ! Search tag table
         call beginning_of_line(1_int64)
+
         if (refwd(regexp)) then
             found = .true.
             anchor = match_string_no_properties(1) == "Ref:"
@@ -2138,6 +2363,7 @@ contains
             in_info_mode = .false.
             if (allocated(buffers(cur)%major_mode)) in_info_mode = buffers(cur)%major_mode == "info_mode"
         end if
+
         fold = bind_case_fold(fold)
         call set_buffer(old, st)
     end subroutine find_in_tag_table_1
@@ -2149,11 +2375,13 @@ contains
         integer(int64) :: moved, start
         character(len=:), allocatable :: digits
         integer :: ios
+
         moved = skip_chars_forward(" "//TAB//LF, st)
         start = point()
         moved = skip_chars_forward("0-9", st)
         digits = text(start, point())
         n = 0
+
         if (len(digits) > 0) then
             read (digits, *, iostat=ios) n
             if (ios /= 0) n = 0
@@ -2169,7 +2397,9 @@ contains
         logical, intent(in) :: strict_case
         logical, intent(out) :: found, anchor, in_info_mode
         integer(int64), intent(out) :: pos
+
         call find_in_tag_table_1(marker, regexp, .false., found, anchor, pos, in_info_mode)
+
         if (.not. strict_case .and. .not. found) then
             call find_in_tag_table_1(marker, regexp, .true., found, anchor, pos, in_info_mode)
         end if
@@ -2186,9 +2416,11 @@ contains
         logical, intent(in) :: case_fold
         integer(int64) :: opoint, beg
         logical :: fold
+
         fold = bind_case_fold(case_fold)
         found = 0
         opoint = point()
+
         if (node_at_bob_matching(regexp) > 0) then
             found = point()
         else
@@ -2200,6 +2432,7 @@ contains
                 if (rebwd(regexp, beg)) found = line_beginning_position(1_int64)
             end do
         end if
+
         call goto_char(opoint)
         fold = bind_case_fold(fold)
     end function find_node_in_buffer_1
@@ -2211,6 +2444,7 @@ contains
     integer(int64) function find_node_in_buffer(regexp, strict_case) result(found)
         character(len=*), intent(in) :: regexp
         logical, intent(in) :: strict_case
+
         found = find_node_in_buffer_1(regexp, .false.)
         if (found == 0 .and. .not. strict_case) found = find_node_in_buffer_1(regexp, .true.)
     end function find_node_in_buffer
@@ -2219,6 +2453,7 @@ contains
     function bind_inhibit_read_only() result(saved)
         type(value_type) :: saved
         type(status_type) :: st
+
         saved = inhibit_read_only()
         call set(sym("inhibit_read_only"), t_value(), st)
     end function bind_inhibit_read_only
@@ -2227,6 +2462,7 @@ contains
     subroutine unbind_inhibit_read_only(saved)
         type(value_type), intent(in) :: saved
         type(status_type) :: st
+
         call set(sym("inhibit_read_only"), saved, st)
     end subroutine unbind_inhibit_read_only
 
@@ -2242,25 +2478,30 @@ contains
         type(status_type) :: st
         logical :: back, strict, fold
         integer :: k
+
         status = status_type()
         back = .false.
         if (present(no_going_back)) back = no_going_back
         strict = .false.
         if (present(strict_case)) strict = strict_case
         buffers(cur)%undo_enabled = .false.
+
         if (.not. derived_mode_p(major_modes%info_mode)) then
             call info_mode(status)
             if (.not. status%ok()) return
         end if
+
         call widen()
         call set_current_node()
         fold = bind_case_fold(.true.)
         call find_node_body(status)
         fold = bind_case_fold(fold)
+
         ! If we did not finish finding the specified node,
         ! go back to the previous one or to the Top node.
         if (.not. (has_current_node() .or. back)) then
             k = here()
+
             if (size(locals(k)%history) > 0) then
                 hist = locals(k)%history(1)
                 call pop_history(locals(k)%history)
@@ -2270,6 +2511,7 @@ contains
                 call info_find_node(current_file_or_empty(), "Top", st, .true., .true.)
             end if
         end if
+
     contains
 
         ! The body of the unwind-protect.
@@ -2280,16 +2522,20 @@ contains
             integer(int64) :: guesspos, anchorpos, filepos, pos, line
             logical :: found, anchor, in_info_mode, has_file, done
             procedure(info_virtual_find_node_proc), pointer :: vfn
+
             status = status_type()
             has_file = present(filename)
+
             if (has_file) then
                 file = filename
             else
                 file = current_file_or_empty()
             end if
+
             anchorpos = 0
             k = here()
             vfn => virtual_find_node(file, nodename)
+
             if (associated(vfn)) then
                 buffers(cur)%read_only = .false.
                 call set_current_file(file)
@@ -2309,15 +2555,18 @@ contains
                      (has_file .and. .not. (current_file_or_empty() == file .and. has_current_file()))) then
                 ! Switch files if necessary
                 saved = bind_inhibit_read_only()
+
                 if (locals(k)%current_node_virtual) then
                     ! When moving from a virtual node.
                     locals(k)%current_node_virtual = .false.
                 end if
+
                 call set_current_file("", clear=.true.)
                 call set_current_subfile()
                 locals(k)%has_completions = .false.
                 if (allocated(buffers(cur)%filename)) deallocate (buffers(cur)%filename)
                 call erase_buffer(status)
+
                 if (status%ok()) then
                     ! Erase any memory of the previous coding-system, so that
                     ! info-insert-file-contents sets the buffer's encoding to
@@ -2325,6 +2574,7 @@ contains
                     call buffer_file_coding_system%set_local("undecided")
                     call info_insert_file_contents(file, status)
                 end if
+
                 call unbind_inhibit_read_only(saved)
                 if (.not. status%ok()) return
                 buffers(cur)%directory = file_name_directory(file)
@@ -2341,6 +2591,7 @@ contains
                 call info_set_mode_line()
                 return
             end if
+
             ! Possibilities:
             !
             ! 1. Anchor found in tag table
@@ -2351,16 +2602,17 @@ contains
             ! 5. Node *not* in tag table, and *not* in file
             !
             ! *Or* the same, but in an indirect subfile.
-
             ! Search file for a suitable node.
             guesspos = point_min()
             regexp = "\(Node:\|Ref:\) *\("//regexp_quote(nodename)//"\) *[,"//TAB//LF//DEL//"]"
             done = .false.
             ! First, search a tag table, if any
             k = here()
+
             if (marker_points(locals(k)%tag_table_marker)) then
                 call find_in_tag_table(locals(k)%tag_table_marker, regexp, strict, found, anchor, filepos, &
                                        in_info_mode)
+
                 if (found) then
                     ! If this is an indirect file, determine which file
                     ! really holds this node and read it in.
@@ -2371,7 +2623,9 @@ contains
                         call read_subfile_at(pos, filepos, status)
                         if (.not. status%ok()) return
                     end if
+
                     guesspos = filepos_to_bufferpos(filepos)
+
                     ! Handle anchor
                     if (anchor) then
                         anchorpos = guesspos
@@ -2380,6 +2634,7 @@ contains
                     end if
                 end if
             end if
+
             if (.not. done) then
                 ! Else we may have a node, which we search for:
                 call goto_char(max(point_min(), guesspos - 1000))
@@ -2388,11 +2643,13 @@ contains
                 ! the node is right where we are, in case the buffer begins
                 ! with a node.
                 pos = find_node_in_buffer(regexp, strict)
+
                 if (pos > 0) then
                     call goto_char(pos)
                     done = .true.
                 end if
             end if
+
             if (.not. done) then
                 ! If the Texinfo source had an @ifnottex block of text
                 ! before the Top node, makeinfo 5.0 and 5.1 mistakenly
@@ -2402,11 +2659,13 @@ contains
                 ! again with a larger slop.
                 call goto_char(max(point_min(), guesspos - 10000))
                 pos = find_node_in_buffer(regexp, strict)
+
                 if (pos > 0) then
                     call goto_char(pos)
                     done = .true.
                 end if
             end if
+
             if (.not. done) then
                 if (smatch("\([^.]+\)\.", nodename, .true.)) then
                     block
@@ -2416,17 +2675,21 @@ contains
                         ! (let (Info-point-loc) ...)
                         saved_kind = point_loc_kind
                         point_loc_kind = LOC_NONE
+
                         if (has_file) then
                             call info_find_node_2(filename, part, status, no_going_back)
                         else
                             call info_find_node_2(nodename=part, status=status, no_going_back=no_going_back)
                         end if
+
                         point_loc_kind = saved_kind
                     end block
+
                     if (.not. status%ok()) return
                     call widen()
                     return
                 end if
+
                 ! No such anchor in tag table or node in tag table or file
                 call user_error(status, "No such node or anchor: "//nodename)
                 return
@@ -2442,6 +2705,7 @@ contains
             ! is the threshold value.  (scroll-conservatively is not
             ! ported: it is always 0.)
             call fwd_line(1_int64)
+
             if (anchorpos > 0) then
                 ! Add anchors to the history too
                 call note_history_list(current_file_or_empty(), nodename)
@@ -2462,6 +2726,7 @@ contains
         type(handle_type), intent(in) :: m
         type(status_type) :: st
         integer(int64) :: pos
+
         marker_points = .false.
         if (m%index == 0) return
         call marker_position(m, pos, st)
@@ -2475,28 +2740,34 @@ contains
         character(len=*), intent(in) :: name
         logical, intent(out), optional :: found
         logical :: fold, ok
+
         fold = bind_case_fold(.true.)
         ok = refwd("[a-zA-Z]+: "//regexp_quote(name)//"\( \|$\)")
         ! Find a function definition with a return type.
         if (.not. ok) ok = refwd("[a-zA-Z]+: [a-zA-Z0-9_ *&]+ "//regexp_quote(name)//"\( \|$\)")
         if (.not. ok) ok = sfwd("['`‘]"//name//"['’]")
+
         if (.not. ok) then
             if (smatch("\`.*\( (.*)\)\'", name, .true.)) then
                 ok = sfwd("['`‘]"//name(1:string_index_to_offset(name, mbeg(1)))//"['’]")
             end if
         end if
+
         if (.not. ok) ok = sfwd(name)
+
         ! Try again without the " <1>" makeinfo can append
         if (.not. ok) then
             if (smatch("\`\(.*\) <[0-9]+>\'", name, .true.)) then
                 call find_index_name(match_string_no_properties(1, name), ok)
             end if
         end if
+
         if (ok) then
             call beginning_of_line(1_int64)
         else
             call goto_min()
         end if
+
         if (present(found)) found = ok
         fold = bind_case_fold(fold)
     end subroutine find_index_name
@@ -2521,16 +2792,20 @@ contains
         integer(int64) :: inserted, beg, end, menu_end
         integer :: i, j, k, v
         logical :: found, problems, fold, unchanged
+
         status = status_type()
         k = here()
         main = current_buffer()
+
         if (allocated(locals(k)%dir_contents) .and. allocated(locals(k)%dir_file_attributes)) then
             ! Verify that none of the files we used has changed since we
             ! used it.
             unchanged = .true.
+
             do i = 1, size(locals(k)%dir_file_attributes)
                 call file_truename(locals(k)%dir_file_attributes(i)%name, truename, st)
                 call file_attributes(truename, stat, found)
+
                 if (.not. found) then
                     unchanged = .false.
                 else if (stat%mtime_sec /= locals(k)%dir_file_attributes(i)%sec .or. &
@@ -2538,6 +2813,7 @@ contains
                     unchanged = .false.
                 end if
             end do
+
             if (unchanged) then
                 call insert(locals(k)%dir_contents, status)
                 call goto_min()
@@ -2545,20 +2821,24 @@ contains
                 return
             end if
         end if
+
         call search_dirs(dirs)
         allocate (dir_file_attrs(0), bufs(0), dirs_done(0))
         ! Bind this in case the user sets it to nil.
         fold = bind_case_fold(.true.)
         ! This is set true if we find a problem in some input files.
         problems = .false.
+
         ! Search the directory list for the directory file.
         do i = 1, size(dirs)
             call file_truename(expand(dirs(i)%s), truename, st)
             if (.not. st%ok()) truename = expand(dirs(i)%s)
+
             if (.not. (has_string(dirs_done, truename) .or. has_string(dirs_done, directory_file_name(truename)))) then
                 ! Try several variants of specified name.
                 ! Try upcasing, appending `.info', or both.
                 found = .false.
+
                 do v = 1, size(variants)
                     file = expand(trim(variants(v)), truename)
                     call file_attributes(file, stat, found)
@@ -2567,13 +2847,16 @@ contains
                     ! try it.
                     if (found) exit
                 end do
+
                 call add_string(dirs_done, truename)
                 call add_string(dirs_done, directory_file_name(truename))
+
                 if (found) then
                     call get_buffer_create(generate_new_buffer_name(" info dir"), newbuf, st)
                     call set_buffer(newbuf, st)
                     if (size(bufs) == 0) call message("Composing main Info directory...")
                     call insert_file_contents(file, .false., inserted, st)
+
                     if (st%ok()) then
                         ! (Info-dir-file-name is set in the buffer read.)
                         k = here()
@@ -2583,20 +2866,25 @@ contains
                     else
                         call kill_buffer(newbuf, st)
                     end if
+
                     call set_buffer(main, st)
                 end if
             end if
+
             if (i == size(dirs)) then
                 k = here_in(main)
                 locals(k)%dir_contents_directory = file_name_as_directory(dirs(i)%s)
             end if
         end do
+
         call set_buffer(main, st)
+
         if (size(bufs) == 0) then
             fold = bind_case_fold(fold)
             call plain_error(status, "Can't find the Info directory node")
             return
         end if
+
         ! Distinguish the dir file that comes with Fortmacs from all the
         ! others.  Yes, that is really what this is supposed to do.  The
         ! definition of `info_directory_list' puts it first on that list
@@ -2611,17 +2899,20 @@ contains
         call goto_char(beg)
         ! Look at each of the other buffers one by one.
         allocate (nodes(0))
+
         do i = 1, size(bufs) - 1
             allocate (this_nodes(0))
             ! In each, find all the menus.
             call set_buffer(bufs(i), st)
             call goto_min()
+
             ! Find each menu, and add an elt to NODES for it.
             do while (refwd("^\* Menu:"))
                 do
                     if (forward_line(1_int64) /= 0) exit
                     if (.not. eolp()) exit
                 end do
+
                 beg = point()
                 if (.not. rebwd("^"//US)) exit
                 if (.not. sfwd("Node: ")) exit
@@ -2631,25 +2922,32 @@ contains
                 end = point()
                 call prepend_node(this_nodes, nodename, bufs(i), beg, end)
             end do
+
             found = .false.
+
             do j = 1, size(this_nodes)
                 if (lower(this_nodes(j)%name) == "top") found = .true.
             end do
+
             if (found) then
                 nodes = [this_nodes, nodes]
             else
                 problems = .true.
                 call message("No `top' node in "//locals(here_in(bufs(i)))%dir_file_name)
             end if
+
             deallocate (this_nodes)
         end do
+
         call set_buffer(main, st)
+
         ! Add to the main menu a menu item for each other node.
         if (.not. refwd("^\* Menu:")) then
             fold = bind_case_fold(fold)
             call set_error(status, FM_SEARCH_FAILED, "^\* Menu:")
             return
         end if
+
         call fwd_line(1_int64)
         allocate (menu_items(1))
         menu_items(1)%s = "top"
@@ -2657,9 +2955,11 @@ contains
         menu_end = point_max()
         if (sfwd(US)) menu_end = point()
         call goto_char(beg)
+
         do i = 1, size(nodes)
             nodename = nodes(i)%name
             beg = point()
+
             if (.not. has_string(menu_items, lower(nodename))) then
                 if (.not. refwd("^\* +"//regexp_quote(nodename)//"::", menu_end)) then
                     call insert("* "//nodename//"::"//LF, st)
@@ -2667,13 +2967,16 @@ contains
                     call add_string(menu_items, nodename)
                 end if
             end if
+
             call goto_char(beg)
         end do
+
         ! Now take each node of each of the other buffers and merge it into
         ! the main buffer.
         do i = 1, size(nodes)
             nodename = nodes(i)%name
             call goto_min()
+
             ! Find the like-named node in the main buffer.
             if (refwd("^"//US//".*"//LF//".*Node: "//regexp_quote(nodename)//"[,"//LF//TAB//"]")) then
                 found = sfwd(LF//US, move=.true.)
@@ -2684,29 +2987,36 @@ contains
                 call goto_char(point_max())
                 call insert(US//LF//"File: dir"//TAB//"Node: "//nodename//LF//LF//"* Menu:"//LF//LF, st)
             end if
+
             ! Merge the text from the other buffer's menu into the menu in
             ! the like-named node in the main buffer.
             call insert_buffer_substring(nodes(i)%buffer, st, nodes(i)%beg, nodes(i)%end)
         end do
+
         call dir_remove_duplicates()
+
         ! Kill all the buffers we just made, including the special one
         ! excised.
         do i = 1, size(bufs)
             call kill_buffer(bufs(i), st)
         end do
+
         call set_buffer(main, st)
         call goto_min()
+
         if (problems) then
             call message("Composing main Info directory...problems encountered, see `*Messages*'")
         else
             call message("Composing main Info directory...done")
         end if
+
         k = here()
         locals(k)%dir_contents = text(point_min(), point_max())
         locals(k)%dir_file_attributes = dir_file_attrs
         fold = bind_case_fold(fold)
         contents_dir = locals(k)%dir_contents_directory
         buffers(cur)%directory = contents_dir
+
     contains
 
         ! (push (cons FILE ATTRS) DIR-FILE-ATTRS).
@@ -2717,13 +3027,16 @@ contains
             integer(int32), intent(in) :: nsec
             type(file_time_type), allocatable :: grown(:)
             integer :: m
+
             allocate (grown(size(list) + 1))
             grown(1)%name = name
             grown(1)%sec = sec
             grown(1)%nsec = nsec
+
             do m = 1, size(list)
                 grown(m + 1) = list(m)
             end do
+
             call move_alloc(grown, list)
         end subroutine prepend_time
 
@@ -2735,14 +3048,17 @@ contains
             integer(int64), intent(in) :: beg, end
             type(dir_node_type), allocatable :: grown(:)
             integer :: m
+
             allocate (grown(size(list) + 1))
             grown(1)%name = name
             grown(1)%buffer = b
             grown(1)%beg = beg
             grown(1)%end = end
+
             do m = 1, size(list)
                 grown(m + 1) = list(m)
             end do
+
             call move_alloc(grown, list)
         end subroutine prepend_node
     end subroutine info_insert_dir
@@ -2752,6 +3068,7 @@ contains
         type(handle_type), intent(in) :: b
         type(handle_type) :: old
         type(status_type) :: st
+
         old = current_buffer()
         call set_buffer(b, st)
         k = here()
@@ -2768,18 +3085,22 @@ contains
         integer(int64) :: limit, start, p0, p1
         integer :: i
         logical :: has_limit, has_re
+
         call goto_min()
+
         ! Remove duplicate headings in the same menu.
         do while (sfwd(LF//"* Menu:"))
             p0 = point()
             has_limit = sfwd(LF//US)
             limit = point()
             call goto_char(p0)
+
             ! Look for the next heading to unify.
             do while (refwd_limit("^\(\w.*\)"//LF//"\*"))
                 name = match_string_no_properties(1)
                 start = mbeg(0)
                 has_re = .false.
+
                 ! Check whether this heading should be streamlined.
                 do i = 1, size(info_streamline_headings)
                     if (smatch(trim(info_streamline_headings(i)%re), name)) then
@@ -2788,16 +3109,20 @@ contains
                         has_re = .true.
                     end if
                 end do
+
                 if (has_re) call replace_match(name, st, fixedcase=.true., literal=.true., subexp=1)
+
                 if (refwd_limit("^[^* "//LF//TAB//"]")) then
                     call goto_char(mbeg(0))
                 else
                     call goto_char(limit_or_max())
                 end if
+
                 ! Look for other headings of the same category and merge
                 ! them.
                 allocate (entries(0))
                 saved = point_marker_here()
+
                 do while (refwd_limit("^\(\w.*\)"//LF//"\*"))
                     if (heading_matches(match_string_no_properties(1))) then
                         p0 = mbeg(0)
@@ -2806,60 +3131,74 @@ contains
                         call delete_region(p0, point(), st)
                         ! Push the entries onto `text'.
                         p0 = point()
+
                         if (refwd("^[^* "//LF//TAB//"]")) then
                             p1 = mbeg(0)
                         else
                             p1 = limit_or_max()
                         end if
+
                         call delete_and_extract_region(p0, p1, entry, st)
                         call add_string(entries, entry)
                         call fwd_line(0_int64)
                     end if
                 end do
+
                 call goto_marker(saved)
+
                 ! Insert the entries just found.
                 do while (line_beginning_position(0_int64) == point() - 1)
                     call goto_char(point() - 1)
                 end do
+
                 do i = 1, size(entries)
                     call insert(entries(i)%s, st)
+
                     do while (line_beginning_position(0_int64) == point() - 1)
                         call delete_region(point() - 1, point(), st)
                     end do
                 end do
+
                 deallocate (entries)
                 ! Now remove duplicate entries under the same heading.
                 allocate (seen(0))
                 call save_restriction(rb, re_m)
                 call narrow_to_region(start, point(), st)
                 call goto_min()
+
                 do while (refwd("^\* \([^:"//LF//"]+:[^."//LF//"]+.\)", move=.true.))
                     ! Fold case straight away; `member-ignore-case' here
                     ! wasteful.
                     x = lower(match_string_no_properties(1))
+
                     if (has_string(seen, x)) then
                         p0 = mbeg(0)
+
                         if (refwd("^[^ "//TAB//"]", move=.true.)) then
                             call goto_char(mbeg(0))
                             p1 = point()
                         else
                             p1 = point_max()
                         end if
+
                         call delete_region(p0, p1, st)
                     else
                         call add_string(seen, x)
                     end if
                 end do
+
                 call restore_restriction(rb, re_m)
                 deallocate (seen)
             end do
         end do
+
     contains
 
         ! (re-search-forward RE limit t), LIMIT being the end of the menu's
         ! node when found (nil, the end of the buffer, otherwise).
         logical function refwd_limit(re)
             character(len=*), intent(in) :: re
+
             if (has_limit) then
                 refwd_limit = refwd(re, limit)
             else
@@ -2879,6 +3218,7 @@ contains
         ! Whether the heading H is of the category being merged.
         logical function heading_matches(h)
             character(len=*), intent(in) :: h
+
             if (has_re) then
                 heading_matches = smatch(re, h)
             else
@@ -2891,6 +3231,7 @@ contains
     subroutine save_restriction(b, e)
         type(handle_type), intent(out) :: b, e
         type(status_type) :: st
+
         call make_marker(b)
         call set_marker(b, point_min(), st, current_buffer())
         call make_marker(e)
@@ -2903,6 +3244,7 @@ contains
         type(handle_type), intent(inout) :: b, e
         type(status_type) :: st
         integer(int64) :: pb, pe
+
         call marker_position(b, pb, st)
         call marker_position(e, pe, st)
         call widen()
@@ -2915,6 +3257,7 @@ contains
     function point_marker_here() result(m)
         type(handle_type) :: m
         type(status_type) :: st
+
         call make_marker(m)
         call set_marker(m, point(), st, current_buffer())
     end function point_marker_here
@@ -2924,6 +3267,7 @@ contains
         type(handle_type), intent(inout) :: m
         type(status_type) :: st
         integer(int64) :: pos
+
         call marker_position(m, pos, st)
         if (st%ok()) call goto_char(pos)
         call free_marker(m, st)
@@ -2944,6 +3288,7 @@ contains
         type(status_type) :: st
         integer(int64) :: lastfilepos, thisfilepos, beg
         integer :: k
+
         status = status_type()
         result = 0
         lastfilepos = 0
@@ -2953,6 +3298,7 @@ contains
         call marker_buffer(locals(k)%tag_table_marker, tagbuf, st)
         call set_buffer(tagbuf, st)
         call goto_min()
+
         if (.not. looking(US)) then
             if (.not. sfwd(LF//US)) then
                 call set_buffer(info_buf, st)
@@ -2960,7 +3306,9 @@ contains
                 return
             end if
         end if
+
         call fwd_line(2_int64)
+
         do while (.not. looking(US) .and. .not. eobp())
             if (.not. eolp()) then
                 beg = point()
@@ -2977,6 +3325,7 @@ contains
                 call fwd_line(1_int64)
             end if
         end do
+
         call set_buffer(info_buf, st)
         call read_subfile_named(lastfilename, status)
         if (.not. status%ok()) return
@@ -2994,10 +3343,12 @@ contains
         type(status_type), intent(out) :: status
         type(value_type) :: saved
         character(len=:), allocatable :: subfile
+
         status = status_type()
         ! Assume previous buffer is in Info-mode.
         subfile = info_current_subfile()
         if (.not. allocated(subfile)) subfile = achar(0)
+
         if (subfile /= name) then
             saved = bind_inhibit_read_only()
             if (allocated(buffers(cur)%filename)) deallocate (buffers(cur)%filename)
@@ -3009,9 +3360,11 @@ contains
             call restore_buffer_modified_p(.false.)
             call set_current_subfile(name)
         end if
+
         ! Widen in case we are in the same subfile as before.
         call widen()
         call goto_min()
+
         ! Skip the summary segment for `Info-search'.
         if (looking(US)) then
             call goto_char(point() + 1)
@@ -3025,6 +3378,7 @@ contains
     function node_description(file) result(d)
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: d
+
         select case (file)
         case ("dir")
             d = "*Info Directory*"
@@ -3043,10 +3397,12 @@ contains
         character(len=:), allocatable :: params, replacement, src, alt, txt
         integer(int64) :: opoint, start
         logical :: fold, has_src, has_alt, has_text
+
         opoint = point()
         saved = bind_inhibit_read_only()
         fold = bind_case_fold(.true.)
         call goto_min()
+
         do while (refwd("\("//NUL//BS//"[[]image\(\(?:[^"//BS//"]\|[^"//NUL//"]+"//BS//"\)*\)"//NUL//BS//"[]]\)"))
             start = mbeg(1)
             params = match_string_no_properties(2)
@@ -3056,6 +3412,7 @@ contains
             ! text-only display, show alternative text if provided, or
             ! otherwise a clue that there's meant to be a picture
             call delete_region(start, point(), st)
+
             if (has_text) then
                 replacement = txt
             else if (has_alt) then
@@ -3065,8 +3422,10 @@ contains
             else
                 replacement = "[image]"
             end if
+
             call insert(replacement, st)
         end do
+
         fold = bind_case_fold(fold)
         call unbind_inhibit_read_only(saved)
         call goto_char(min(opoint, point_max()))
@@ -3086,20 +3445,24 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: k, v
         integer(int64) :: start, idx
+
         found = .false.
         value = ""
         start = 1
+
         do
             idx = string_match("\s *\([^=]+\)=\(?:\([^""[:space:]]+\)\|\(?:""\(\(?:[^\""]\|\\[\""]\)*\)""\)\)", &
                                parameter_string, st, start)
             if (idx == 0 .or. .not. st%ok()) exit
             start = mend(0)
             k = match_string_no_properties(1, parameter_string)
+
             if (mbeg(2) > 0) then
                 v = match_string_no_properties(2, parameter_string)
             else
                 v = unescape_quotes(match_string_no_properties(3, parameter_string))
             end if
+
             ! (The alist is built by pushing, so the last pair wins.)
             if (lower(k) == lower(key)) then
                 value = v
@@ -3114,12 +3477,15 @@ contains
         character(len=*), intent(in) :: value
         character(len=:), allocatable :: unquote
         integer :: i
+
         unquote = ""
         i = 1
+
         do while (i <= len(value))
             if (value(i:i) == "\" .and. i < len(value)) then
                 if (value(i + 1:i + 1) == "\" .or. value(i + 1:i + 1) == '"') i = i + 1
             end if
+
             unquote = unquote//value(i:i)
             i = i + 1
         end do
@@ -3134,19 +3500,23 @@ contains
         type(status_type) :: st
         integer(int64) :: opoint, start
         logical :: fold
+
         opoint = point()
         saved = bind_inhibit_read_only()
         fold = bind_case_fold(.true.)
         call goto_min()
+
         do while (refwd("\("//NUL//"["//NUL//"-"//achar(31)//"][[][^"//NUL//"]*"//NUL//"["//NUL//"-"//achar(31) &
                         //"][]]"//LF//"?\)"))
             start = mbeg(1)
             call get_text_property(start, sym("invisible"), prop, st)
+
             if (nilp(prop)) then
                 call get_text_property(start, sym("display"), prop, st)
                 if (nilp(prop)) call put_text_property(start, point(), sym("invisible"), t_value(), st)
             end if
         end do
+
         fold = bind_case_fold(fold)
         call unbind_inhibit_read_only(saved)
         call goto_char(opoint)
@@ -3160,10 +3530,12 @@ contains
         integer(int64) :: opoint, start, finish
         type(status_type) :: st
         logical :: fold
+
         status = status_type()
         ! Bind this in case the user sets it to nil.
         fold = bind_case_fold(.true.)
         opoint = point()
+
         ! Find beginning of node.
         if (sbwd(LF//US, move=.true.)) then
             call fwd_line(2_int64)
@@ -3174,12 +3546,14 @@ contains
             call set_error(status, FM_SEARCH_FAILED, LF//US)
             return
         end if
+
         ! Get nodename spelled as it is in the node.
         if (.not. refwd("Node:[ "//TAB//"]*")) then
             fold = bind_case_fold(fold)
             call set_error(status, FM_SEARCH_FAILED, "Node:[ "//TAB//"]*")
             return
         end if
+
         start = point()
         finish = skip_chars_forward("^,"//TAB//LF, st)
         call set_current_node(text(start, point()))
@@ -3187,6 +3561,7 @@ contains
         ! Find the end of it, and narrow.
         call beginning_of_line(1_int64)
         start = point()
+
         ! Narrow to the node contents (active expressions, "execute:",
         ! are Deferred with `info_enable_active_nodes').
         if (refwd(LF//"["//US//FF//"]")) then
@@ -3194,15 +3569,18 @@ contains
         else
             finish = point_max()
         end if
+
         call narrow_to_region(start, finish, st)
         ! Add a new unique history item to full history list
         call note_history_list(current_file_or_empty(), current_node_or_empty())
+
         k_forward: block
             integer :: k
             k = here()
             deallocate (locals(k)%history_forward)
             allocate (locals(k)%history_forward(0))
         end block k_forward
+
         if (info_fontify_maximum_menu_size /= INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL) call info_fontify_node()
         call update_header_line()
         call list_buffers_directory%set_local(node_description(current_file_or_empty()))
@@ -3221,7 +3599,9 @@ contains
         character(len=:), allocatable :: file, manual, node
         type(header_line_format_type) :: id
         integer :: i
+
         file = info_current_file()
+
         if (allocated(file)) then
             ! Remove trailing ".info" and ".info.gz", etc.
             manual = file_name_nondirectory(file)
@@ -3231,14 +3611,17 @@ contains
         else
             manual = "*nil*"
         end if
+
         call id%add("%b", "mode_line_buffer_id")
         call id%add(" ("//manual//") ")
         node = info_current_node()
+
         if (allocated(node)) then
             call id%add(replace_all("%", "%%", node), "mode_line_buffer_id")
         else
             call id%add("")
         end if
+
         buffers(cur)%mode_line_buffer_identification = id
     end subroutine info_set_mode_line
 
@@ -3263,19 +3646,23 @@ contains
         character(len=:), allocatable :: filename, node
         type(status_type) :: st
         integer(int64) :: idx
+
         status = status_type()
         call info_initialize()
         idx = string_match("\s *\((\s *\([^"//TAB//")]*\)\s *)\s *\|\)\(.*\)", nodename, st)
+
         if (mbeg(1) == mend(1)) then
             filename = ""
         else
             filename = match_string_no_properties(2, nodename)
         end if
+
         node = match_string_no_properties(3, nodename)
         filename = trim_trailing_space(filename)
         node = trim_trailing_space(node)
         if (transient_mark_mode%value) call deactivate_mark_now()
         if (len(node) == 0) node = "Top"
+
         if (len(filename) == 0) then
             call info_find_node(nodename=node, status=status, strict_case=strict_case)
         else
@@ -3291,6 +3678,7 @@ contains
     recursive subroutine cmd_info_goto_node(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: node
+
         call read_node_name("Go to node: ", node, status)
         if (.not. status%ok()) return
         call info_goto_node(node, status)
@@ -3308,9 +3696,11 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: url, manual, name, encoded
         integer :: i, j
+
         status = status_type()
         url = ""
         if (.not. allocated(info_url_alist)) call init_url_alist()
+
         ! GNU Texinfo skips whitespaces and newlines between the closing
         ! parenthesis and the node-name, i.e. space, tab, line feed and
         ! carriage return.
@@ -3318,11 +3708,14 @@ contains
             call plain_error(status, "Invalid node-name "//node)
             return
         end if
+
         manual = match_string_no_properties(1, node)
         name = match_string_no_properties(2, node)
+
         do i = 1, size(info_url_alist)
             do j = 1, size(info_url_alist(i)%manuals)
                 if (len_trim(info_url_alist(i)%manuals(j)) == 0) cycle
+
                 if (lower(trim(info_url_alist(i)%manuals(j))) == lower(manual)) then
                     ! Reproduce GNU Texinfo's way of URL-encoding.
                     ! (info "(texinfo) HTML Xref Node Name Expansion")
@@ -3331,16 +3724,20 @@ contains
                     else
                         encoded = url_hexify(replace_all(" ", "-", texinfo_escape(name)))//".html"
                     end if
+
                     if (associated(info_url_alist(i)%fn)) then
                         url = info_url_alist(i)%fn(manual, name, encoded)
                     else
                         url = format_url(trim(info_url_alist(i)%url))
                     end if
+
                     return
                 end if
             end do
         end do
+
         call plain_error(status, "No URL-specification associated with manual-name `"//manual//"'")
+
     contains
 
         ! (format-spec SPEC '((?m . MANUAL) (?n . NAME) (?e . ENCODED))).
@@ -3348,8 +3745,10 @@ contains
             character(len=*), intent(in) :: spec
             character(len=:), allocatable :: u
             integer :: p
+
             u = ""
             p = 1
+
             do while (p <= len(spec))
                 if (spec(p:p) == "%" .and. p < len(spec)) then
                     select case (spec(p + 1:p + 1))
@@ -3362,6 +3761,7 @@ contains
                     case default
                         u = u//spec(p + 1:p + 1)
                     end select
+
                     p = p + 2
                 else
                     u = u//spec(p:p)
@@ -3378,9 +3778,12 @@ contains
         character(len=:), allocatable :: t
         character(len=2) :: hex
         integer :: i, ch
+
         t = ""
+
         do i = 1, len(s)
             ch = iachar(s(i:i))
+
             if (ch < 32 .or. (ch >= 33 .and. ch <= 47) .or. (ch >= 58 .and. ch <= 64) .or. &
                 (ch >= 91 .and. ch <= 96) .or. (ch >= 123 .and. ch <= 127)) then
                 write (hex, "(z2.2)") ch
@@ -3398,7 +3801,9 @@ contains
         character(len=:), allocatable :: t
         character(len=2) :: hex
         integer :: i
+
         t = ""
+
         do i = 1, len(s)
             select case (s(i:i))
             case ("a":"z", "A":"Z", "0":"9", "-", "_", ".", "~")
@@ -3437,8 +3842,10 @@ contains
         type(status_type), intent(out) :: status
         procedure(completion_predicate), optional :: pred
         type(completion_table_type) :: table
+
         status = status_type()
         table = completion_list_table(strings_value(list))
+
         select case (action)
         case (COMPLETE_TRY)
             call try_completion(string, table, result, status, pred)
@@ -3465,26 +3872,34 @@ contains
         type(string_type), allocatable :: suffixes(:)
         integer :: i
         integer(int64) :: idx, j
+
         allocate (names(0), suffixes(0))
+
         do i = 1, size(info_suffix_list)
             if (len_trim(info_suffix_list(i)%suffix) > 0) call add_string(suffixes, trim(info_suffix_list(i)%suffix))
         end do
+
         ! (concat (regexp-opt suffixes t) "\\'")
         suffix_re = "\("
+
         do i = 1, size(suffixes)
             if (i > 1) suffix_re = suffix_re//"\|"
             suffix_re = suffix_re//regexp_quote(suffixes(i)%s)
         end do
+
         suffix_re = suffix_re//"\)\'"
+
         do i = 1, size(dirs)
             if (.not. file_directory_p(dirs(i)%s)) cycle
             call directory_files(dirs(i)%s, files, st)
             if (.not. st%ok()) cycle
+
             do j = 1, list_length(files)
                 file = xstring(list_elt(files, j))
                 ! If the file name has a standard suffix, include it
                 ! (without the suffix).
                 idx = string_match(suffix_re, file, st)
+
                 if (idx > 0 .and. .not. smatch("\.info-[0-9]+", file) .and. .not. smatch("~\'", file)) then
                     if (.not. has_string(names, file(1:string_index_to_offset(file, idx)))) then
                         call add_string(names, file(1:string_index_to_offset(file, idx)))
@@ -3509,26 +3924,32 @@ contains
         type(value_type) :: comp, comp2
         type(status_type) :: st
         integer(int64) :: idx
+
         status = status_type()
         result = nil()
+
         if (action == COMPLETE_BOUNDARIES) then
             if (present(suffix)) continue
             return
         end if
+
         if (smatch("\`([^)]*\'", string)) then
             ! First complete embedded file names.
             call setting_dirs(info_directory_list, dirs)
             call info_file_names(dirs, names)
+
             select case (action)
             case (COMPLETE_TRY)
                 ! (completion-table-with-terminator ")" ...) in the
                 ! context "(".
                 call complete_with_action(COMPLETE_TRY, names, string(2:), comp, status, pred)
                 if (.not. status%ok()) return
+
                 if (is_t(comp)) then
                     result = make_string("("//string(2:)//")")
                 else if (stringp(comp)) then
                     call complete_with_action(COMPLETE_TRY, names, xstring(comp), comp2, status, pred)
+
                     if (len(xstring(comp)) > 0 .and. is_t(comp2)) then
                         result = make_string("("//xstring(comp)//")")
                     else
@@ -3546,11 +3967,13 @@ contains
             file1 = match_string_no_properties(1, string)
             idx = mend(0)
             nodename = string(string_index_to_offset(string, idx) + 1:)
+
             if (len(nodename) == 0 .and. action == COMPLETE_TEST) then
                 ! Empty node name is permitted that means "Top".
                 result = t_value()
                 return
             end if
+
             allocate (nodes(0))
             call info_find_file(file1, found, st, noerror=.true., no_pop_to_dir=.true.)
             if (allocated(found)) call build_node_completions(nodes, st, found)
@@ -3565,6 +3988,7 @@ contains
     ! Whether V is t.
     logical function is_t(v)
         type(value_type), intent(in) :: v
+
         is_t = .not. nilp(v) .and. .not. stringp(v) .and. .not. consp(v)
     end function is_t
 
@@ -3579,10 +4003,12 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: default
         logical :: saved_ignore
+
         status = status_type()
         call build_node_completions(read_node_completion_table, status)
         if (.not. status%ok()) return
         saved_ignore = completion_ignore_case%value
+
         do
             completion_ignore_case%value = .true.
             call completing_read(prompt, completion_function_table(read_node_name_1), nodename, status, &
@@ -3603,15 +4029,19 @@ contains
         type(handle_type) :: old, temp
         type(status_type) :: st
         integer :: i, k
+
         status = status_type()
+
         if (present(filename)) then
             if (.not. allocated(file_completions)) allocate (file_completions(0))
+
             do i = 1, size(file_completions)
                 if (file_completions(i)%file == filename) then
                     compl = file_completions(i)%nodes
                     return
                 end if
             end do
+
             allocate (compl(0))
             ! (with-temp-buffer (Info-mode) ...)
             old = current_buffer()
@@ -3619,6 +4049,7 @@ contains
             call set_buffer(temp, st)
             call info_mode(st)
             if (st%ok()) call info_goto_node("("//filename//")Top", st)
+
             ! `Info-goto-node' signals a `user-error' when there are no
             ! nodes in the file in question (for instance, if it's not
             ! actually an Info file).
@@ -3627,17 +4058,22 @@ contains
                 allocate (grown(size(file_completions) + 1))
                 grown(1)%file = filename
                 grown(1)%nodes = compl
+
                 do i = 1, size(file_completions)
                     grown(i + 1) = file_completions(i)
                 end do
+
                 call move_alloc(grown, file_completions)
             end if
+
             call info_kill_buffer(st)
             call set_buffer(old, st)
             call kill_buffer(temp, st)
             return
         end if
+
         k = here()
+
         if (locals(k)%has_completions) then
             compl = locals(k)%completions
         else
@@ -3651,6 +4087,7 @@ contains
     recursive subroutine info_build_node_completions(compl, status)
         type(string_type), allocatable, intent(out) :: compl(:)
         type(status_type), intent(out) :: status
+
         call build_node_completions(compl, status)
     end subroutine info_build_node_completions
 
@@ -3666,6 +4103,7 @@ contains
         integer(int64) :: opoint, mpos, beg
         integer :: k
         logical :: fold
+
         status = status_type()
         allocate (found(0))
         ! Bind this in case the user sets it to nil.
@@ -3673,21 +4111,26 @@ contains
         old = current_buffer()
         opoint = point()
         k = here()
+
         if (locals(k)%tag_table_marker%index == 0) then
             fold = bind_case_fold(fold)
             call plain_error(status, "No Info tags found")
             return
         end if
+
         call marker_buffer(locals(k)%tag_table_marker, tagbuf, st)
+
         if (tagbuf%index /= 0) then
             call marker_position(locals(k)%tag_table_marker, mpos, st)
             call set_buffer(tagbuf, st)
             call save_restriction(rb, re_m)
             call widen()
             call goto_char(mpos)
+
             do while (refwd(LF//"\(Node\|Ref\): \(.*\)"//DEL))
                 call add_string(found, match_string_no_properties(2))
             end do
+
             call restore_restriction(rb, re_m)
             call set_buffer(old, st)
         else
@@ -3696,6 +4139,7 @@ contains
             call goto_min()
             ! If the buffer begins with a node header, process that first.
             if (node_at_bob_matching(node_regexp) > 0) call add_string(found, match_string_no_properties(1))
+
             ! Now for the rest of the nodes.
             do while (sfwd(LF//US))
                 call fwd_line(1_int64)
@@ -3703,14 +4147,18 @@ contains
                 call fwd_line(1_int64)
                 if (rebwd(node_regexp, beg)) call add_string(found, match_string_no_properties(1))
             end do
+
             call restore_restriction(rb, re_m)
         end if
+
         call goto_char(opoint)
         allocate (compl(1))
         compl(1)%s = "*"
+
         do k = 1, size(found)
             call add_string(compl, found(k)%s)
         end do
+
         k = here()
         locals(k)%has_completions = .true.
         locals(k)%completions = compl
@@ -3722,6 +4170,7 @@ contains
     subroutine restore_point(hl)
         type(info_history_entry_type), intent(in) :: hl(:)
         integer :: i
+
         do i = 1, size(hl)
             if (hl(i)%file == current_file_or_empty() .and. hl(i)%node == current_node_or_empty()) then
                 call goto_char(hl(i)%pos)
@@ -3746,6 +4195,7 @@ contains
         logical, intent(in), optional :: noerror
         integer(int64) :: opoint, bound
         logical :: fold, quiet
+
         status = status_type()
         quiet = .false.
         if (present(noerror)) quiet = noerror
@@ -3755,6 +4205,7 @@ contains
         call goto_min()
         bound = point()
         call fwd_line(1_int64)
+
         if (rebwd(name//":"//following_node_name_re(), bound)) then
             value = match_string_no_properties(1)
         else if (.not. quiet) then
@@ -3764,6 +4215,7 @@ contains
                 call user_error(status, "Node has no "//capitalize_string(name))
             end if
         end if
+
         call goto_char(opoint)
         fold = bind_case_fold(fold)
     end subroutine info_extract_pointer
@@ -3780,11 +4232,13 @@ contains
     function following_node_name_re(allowedchars) result(re)
         character(len=*), intent(in), optional :: allowedchars
         character(len=:), allocatable :: re, allowed
+
         if (present(allowedchars)) then
             allowed = allowedchars
         else
             allowed = "^,"//TAB//LF
         end if
+
         re = "[ "//TAB//LF//"]*" & ! Skip leading space.
              //"\(\(([^)]+)\)?" & ! Node name can start with a file name.
              //"\(["//allowed//"]*" & ! Any number of allowed chars.
@@ -3796,6 +4250,7 @@ contains
     ! info.el:Info-following-node-name.
     function following_node_name() result(name)
         character(len=:), allocatable :: name
+
         if (looking(following_node_name_re())) then
             name = match_string_no_properties(1)
         else
@@ -3809,6 +4264,7 @@ contains
     recursive subroutine info_next(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: node
+
         call ensure_info_buffer(status)
         if (.not. status%ok()) return
         call info_extract_pointer("next", node, status)
@@ -3823,6 +4279,7 @@ contains
     recursive subroutine info_prev(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: node
+
         call ensure_info_buffer(status)
         if (.not. status%ok()) return
         call info_extract_pointer("prev[ious]*", node, status, "previous")
@@ -3836,6 +4293,7 @@ contains
     ! configuration only changes when another buffer is shown.)
     recursive subroutine ensure_info_buffer(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         if (.not. derived_mode_p(major_modes%info_mode)) call info_pop_to_buffer(status)
     end subroutine ensure_info_buffer
@@ -3850,6 +4308,7 @@ contains
         type(info_history_entry_type), allocatable :: history(:)
         integer(int64) :: p
         logical :: same, found
+
         call ensure_info_buffer(status)
         if (.not. status%ok()) return
         same = .false.
@@ -3858,15 +4317,18 @@ contains
         old_file = info_current_file()
         call info_extract_pointer("up", node, status)
         if (.not. status%ok()) return
+
         if (same .and. smatch("^(", node)) then
             call plain_error(status, "Up node is in another Info file")
             return
         end if
+
         call info_goto_node(node, status)
         if (.not. status%ok()) return
         p = point()
         call goto_min()
         found = .false.
+
         if (allocated(old_file)) then
             if (sfwd(LF//"* Menu:")) then
                 if (old_node == "Top") then
@@ -3874,9 +4336,11 @@ contains
                 else
                     re = LF//"\* +\("//regexp_quote(old_node)//":\|[^:]+: +"//regexp_quote(old_node)//"\)"
                 end if
+
                 found = refwd(re)
             end if
         end if
+
         if (found) then
             call beginning_of_line(1_int64)
             if (looking("^\* ")) call goto_char(point() + 2)
@@ -3895,12 +4359,15 @@ contains
         type(info_history_entry_type), allocatable :: history_forward(:)
         type(info_history_entry_type) :: last
         integer :: k
+
         status = status_type()
         k = here()
+
         if (size(locals(k)%history) == 0) then
             call user_error(status, "This is the first Info node you looked at")
             return
         end if
+
         history_forward = locals(k)%history_forward
         call push_history(history_forward, current_file_or_empty(), current_node_or_empty(), point())
         last = locals(k)%history(1)
@@ -3920,12 +4387,15 @@ contains
         type(info_history_entry_type), allocatable :: history_forward(:)
         type(info_history_entry_type) :: next
         integer :: k
+
         status = status_type()
         k = here()
+
         if (size(locals(k)%history_forward) == 0) then
             call user_error(status, "This is the last Info node you looked at")
             return
         end if
+
         history_forward = locals(k)%history_forward
         next = history_forward(1)
         call pop_history(history_forward)
@@ -3958,6 +4428,7 @@ contains
         character(len=*), intent(in) :: filename
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
+
         status = status_type()
         result = filename
     end subroutine directory_find_file
@@ -3968,6 +4439,7 @@ contains
         character(len=*), intent(in) :: filename, nodename
         logical, intent(in) :: no_going_back
         type(status_type), intent(out) :: status
+
         if (no_going_back .or. len(filename) < 0 .or. len(nodename) < 0) continue
         call info_insert_dir(status)
     end subroutine directory_find_node
@@ -3975,6 +4447,7 @@ contains
     !> Go to the Info directory node.  Port of info.el:Info-directory.
     recursive subroutine info_directory(status)
         type(status_type), intent(out) :: status
+
         call info_find_node("dir", "top", status)
     end subroutine info_directory
 
@@ -3990,11 +4463,13 @@ contains
         type(status_type) :: st
         logical :: fold, has_next, has_prev, ok
         integer :: i
+
         status = status_type()
         fold = bind_case_fold(.true.)
         str = "\*note "//regexp_quote(footnotename)
         ! Each space as any white space.
         i = 1
+
         do
             p = index(str(i:), " ")
             if (p == 0) exit
@@ -4002,7 +4477,9 @@ contains
             str = str(1:i - 1)//"[ "//TAB//LF//"]+"//str(i + 1:)
             i = i + 6
         end do
+
         opoint = point()
+
         ! Move point to the beginning of reference if point is on
         ! reference
         if (.not. looking("\*note[ "//LF//TAB//"]+")) then
@@ -4010,6 +4487,7 @@ contains
             bol = skip_chars_backward(" "//LF//TAB, st)
             bol = line_beginning_position(1_int64)
             call goto_char(p)
+
             if (looking_back("\*note[ "//LF//TAB//"]+", st, bol)) then
                 call goto_char(mbeg(0))
             else
@@ -4017,11 +4495,13 @@ contains
                 ok = rebwd("\*note[ "//LF//TAB//"]+")
                 if (ok) ok = looking(str)
                 call goto_char(p)
+
                 if (ok) then
                     if (point() <= mend(0)) call goto_char(mbeg(0))
                 end if
             end if
         end if
+
         ! Go to the reference closest to point
         p = point()
         has_next = refwd(str)
@@ -4030,6 +4510,7 @@ contains
         has_prev = rebwd(str)
         if (has_prev) prev_ref = mbeg(0) + 5
         call goto_char(p)
+
         if (has_next .and. has_prev) then
             if (abs(next_ref - point()) < abs(prev_ref - point())) then
                 call goto_char(next_ref)
@@ -4046,6 +4527,7 @@ contains
             call user_error(status, "No cross-reference named "//footnotename)
             return
         end if
+
         call info_extract_menu_node_name(target, multi_line=.true.)
         call goto_char(opoint)
         fold = bind_case_fold(fold)
@@ -4059,6 +4541,7 @@ contains
         character(len=:), allocatable :: str, default, alt_default, input
         integer(int64) :: start_point, bol, eol, opoint
         logical :: fold, saved_ignore, has_default, has_alt
+
         status = status_type()
         fold = bind_case_fold(.true.)
         allocate (completions(0))
@@ -4070,39 +4553,49 @@ contains
         eol = line_end_position(1_int64)
         bol = line_beginning_position(1_int64)
         call goto_min()
+
         do while (refwd("\*note[ "//LF//TAB//"]+\([^:]*\):"))
             str = canonicalize_whitespace(match_string_no_properties(1))
+
             ! See if this one should be the default.
             if (.not. has_default .and. mbeg(0) <= start_point .and. start_point <= point()) then
                 has_default = .true.
                 default = str
             end if
+
             ! See if this one should be the alternate default.
             if (.not. has_alt .and. bol <= mbeg(0) .and. point() <= eol) then
                 has_alt = .true.
                 alt_default = str
             end if
+
             ! Don't add this string if it's a duplicate.
             if (.not. has_string(completions, str, .true.)) call add_string(completions, str)
         end do
+
         call goto_char(opoint)
         fold = bind_case_fold(fold)
+
         ! If no good default was found, try an alternate.
         if (.not. has_default .and. has_alt) then
             default = alt_default
             has_default = .true.
         end if
+
         ! If only one cross-reference found, then make it default.
         if (size(completions) == 1) then
             default = completions(1)%s
             has_default = .true.
         end if
+
         if (size(completions) == 0) then
             call user_error(status, "No cross-references in this node")
             return
         end if
+
         saved_ignore = completion_ignore_case%value
         completion_ignore_case%value = .true.
+
         if (has_default) then
             call completing_read(format_prompt("Follow reference named", default), &
                                  completion_list_table(strings_value(completions)), input, status, &
@@ -4111,15 +4604,19 @@ contains
             call completing_read("Follow reference named: ", completion_list_table(strings_value(completions)), &
                                  input, status, require_match=REQUIRE_MATCH_T)
         end if
+
         completion_ignore_case%value = saved_ignore
         if (.not. status%ok()) return
+
         if (len(input) == 0) then
             if (.not. has_default) then
                 call plain_error(status, "No reference was specified")
                 return
             end if
+
             input = default
         end if
+
         call info_follow_reference(input, status)
     end subroutine cmd_info_follow_reference
 
@@ -4127,6 +4624,7 @@ contains
     function format_prompt(prompt, default) result(p)
         character(len=*), intent(in) :: prompt, default
         character(len=:), allocatable :: p
+
         p = prompt//" (default "//default//"): "
     end function format_prompt
 
@@ -4143,11 +4641,13 @@ contains
         type(status_type) :: st
         integer(int64) :: moved
         logical :: multi, idx
+
         multi = .false.
         if (present(multi_line)) multi = multi_line
         idx = .false.
         if (present(index_node)) idx = index_node
         moved = skip_chars_forward(" "//TAB//LF, st)
+
         if (idx) then
             allowed = "^,"//TAB//LF
         else if (multi) then
@@ -4155,10 +4655,12 @@ contains
         else
             allowed = "^.,"//TAB//LF
         end if
+
         re = INFO_MENU_ENTRY_NAME_RE//":\(:\|"//following_node_name_re(allowed)//"\)"
         if (idx) re = re//"\.\(?:["//" "//TAB//LF//"]+(line +\([0-9]+\))\)?"
         name = ""
         if (.not. looking(re)) return
+
         if (idx) then
             if (mbeg(5) > 0) then
                 point_loc_kind = LOC_LINE
@@ -4169,6 +4671,7 @@ contains
                 point_loc_name = text(mbeg(0), mbeg(1) - 1)
             end if
         end if
+
         if (len(match_string_no_properties(2)) > 0) then
             name = canonicalize_whitespace(match_string_no_properties(2))
         else
@@ -4195,6 +4698,7 @@ contains
         integer(int64) :: opoint
         integer :: k
         logical :: fold, cached
+
         status = status_type()
         result = nil()
         if (present(suffix)) continue
@@ -4205,6 +4709,7 @@ contains
         opoint = point()
         fold = bind_case_fold(.true.)
         call goto_min()
+
         if (.not. sfwd(LF//"* Menu:")) then
             call user_error(status, "No menu in this node")
         else
@@ -4218,22 +4723,26 @@ contains
                 k = here()
                 ! Check the cache.
                 cached = .false.
+
                 if (locals(k)%has_complete_cache) then
                     cached = locals(k)%cache_file == current_file_or_empty() .and. &
                              locals(k)%cache_node == current_node_or_empty()
                     if (cached) cached = string_prefix_ignore_case(locals(k)%cache_string, string)
                 end if
+
                 if (cached) then
                     ! We can reuse the previous list.
                     completions = locals(k)%cache_completions
                 else
                     ! The cache can't be used.
                     allocate (completions(0))
+
                     do while (refwd(pattern))
                         if (.not. has_string(completions, match_string_no_properties(1))) then
                             call add_string(completions, match_string_no_properties(1))
                         end if
                     end do
+
                     ! Update the cache.
                     locals(k)%has_complete_cache = .true.
                     locals(k)%cache_file = current_file_or_empty()
@@ -4241,9 +4750,11 @@ contains
                     locals(k)%cache_string = string
                     locals(k)%cache_completions = completions
                 end if
+
                 call complete_with_action(action, completions, string, result, status, pred)
             end select
         end if
+
         call goto_char(opoint)
         fold = bind_case_fold(fold)
         call set_buffer(old, st)
@@ -4253,6 +4764,7 @@ contains
     ! PREFIX S t)).
     logical function string_prefix_ignore_case(prefix, s)
         character(len=*), intent(in) :: prefix, s
+
         string_prefix_ignore_case = .false.
         if (len(prefix) > len(s)) return
         string_prefix_ignore_case = lower(prefix) == lower(s(1:len(prefix)))
@@ -4262,6 +4774,7 @@ contains
     ! of info.el Info-node-spec-re.
     function node_spec_re() result(re)
         character(len=:), allocatable :: re
+
         re = following_node_name_re("^.,:")//"[,:.]"
     end function node_spec_re
 
@@ -4274,6 +4787,7 @@ contains
         character(len=*), intent(in) :: menu_item
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: node
+
         ! there is a problem here in that if several menu items have the
         ! same name you can only go to the node of the first with this
         ! command.
@@ -4287,6 +4801,7 @@ contains
         character(len=:), allocatable :: default, item
         integer(int64) :: p, beg, opoint
         logical :: fold, has_default, saved_ignore
+
         status = status_type()
         ! If point is within a menu item, use that item as the default
         has_default = .false.
@@ -4294,27 +4809,34 @@ contains
         opoint = point()
         fold = bind_case_fold(.true.)
         call goto_min()
+
         if (.not. sfwd(LF//"* menu:")) then
             call goto_char(opoint)
             fold = bind_case_fold(fold)
             call user_error(status, "No menu in this node")
             return
         end if
+
         beg = point()
+
         if (point() < p) then
             call goto_char(p)
             call end_of_line(1_int64)
+
             if (rebwd(LF//"\* +\("//INFO_MENU_ENTRY_NAME_RE//"\):", beg)) then
                 default = match_string_no_properties(1)
                 has_default = .true.
             end if
         end if
+
         call goto_char(opoint)
         fold = bind_case_fold(fold)
         complete_menu_buffer = current_buffer()
         saved_ignore = completion_ignore_case%value
+
         do
             completion_ignore_case%value = .true.
+
             if (has_default) then
                 call completing_read(format_prompt("Menu item", default), completion_function_table(complete_menu_item), &
                                      item, status, require_match=REQUIRE_MATCH_T, default=default)
@@ -4322,10 +4844,12 @@ contains
                 call completing_read("Menu item: ", completion_function_table(complete_menu_item), item, status, &
                                      require_match=REQUIRE_MATCH_T)
             end if
+
             completion_ignore_case%value = saved_ignore
             if (.not. status%ok()) return
             if (len(item) > 0) exit
         end do
+
         call info_menu(item, status)
     end subroutine cmd_info_menu
 
@@ -4338,12 +4862,14 @@ contains
         character(len=:), allocatable :: item
         integer(int64) :: opoint
         logical :: fold, is_index
+
         status = status_type()
         node = ""
         item = regexp_quote(menu_item)
         fold = bind_case_fold(.true.)
         opoint = point()
         call goto_min()
+
         if (.not. sfwd(LF//"* menu:")) then
             call user_error(status, "No menu in this node")
         else if (.not. (refwd(LF//"\* +"//item//":") .or. refwd(LF//"\* +"//item))) then
@@ -4354,6 +4880,7 @@ contains
             is_index = info_index_node()
             call info_extract_menu_node_name(node, index_node=is_index)
         end if
+
         call goto_char(opoint)
         fold = bind_case_fold(fold)
     end subroutine extract_menu_item
@@ -4368,11 +4895,13 @@ contains
         logical, intent(in), optional :: no_detail
         integer(int64) :: opoint, bound, found
         logical :: fold, is_index
+
         status = status_type()
         node = ""
         fold = bind_case_fold(.true.)
         opoint = point()
         bound = point_max()
+
         if (present(no_detail)) then
             if (no_detail) then
                 if (refwd("^[ "//TAB//"-]*The Detailed Node Listing")) then
@@ -4380,12 +4909,15 @@ contains
                 end if
             end if
         end if
+
         call goto_min()
+
         if (.not. sfwd(LF//"* menu:", bound)) then
             call user_error(status, "No menu in this node")
         else
             if (count > 0) then
                 call search_forward(LF//"* ", found, status, bound=bound, noerror=SEARCH_NOERROR, count=int(count, int64))
+
                 if (found == 0) then
                     status = status_type()
                     call plain_error(status, "Too few items in menu")
@@ -4394,11 +4926,13 @@ contains
                 do while (sfwd(LF//"* ", bound))
                 end do
             end if
+
             if (status%ok()) then
                 is_index = info_index_node()
                 call info_extract_menu_node_name(node, index_node=is_index)
             end if
         end if
+
         call goto_char(opoint)
         fold = bind_case_fold(fold)
     end subroutine extract_menu_counting
@@ -4409,6 +4943,7 @@ contains
         integer, intent(in) :: n
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: node
+
         call extract_menu_counting(n, node, status)
         if (.not. status%ok()) return
         call info_goto_node(node, status)
@@ -4417,6 +4952,7 @@ contains
     recursive subroutine cmd_info_nth_menu_item(status)
         type(status_type), intent(out) :: status
         integer :: key
+
         key = last_command_char()
         call info_nth_menu_item(key - iachar("0"), status)
     end subroutine cmd_info_nth_menu_item
@@ -4425,9 +4961,11 @@ contains
     ! ((aref (this-command-keys) (1- (length (this-command-keys))))).
     integer function last_command_char() result(c)
         integer :: n
+
         c = 0
         if (.not. allocated(this_command_keys)) return
         n = size(this_command_keys)
+
         if (n > 0) then
             if (fixnump(this_command_keys(n))) c = int(xfixnum(this_command_keys(n)))
         end if
@@ -4436,6 +4974,7 @@ contains
     !> Go to the Top node of this file.  Port of info.el:Info-top-node.
     recursive subroutine info_top_node(status)
         type(status_type), intent(out) :: status
+
         call info_goto_node("Top", status)
     end subroutine info_top_node
 
@@ -4446,6 +4985,7 @@ contains
         character(len=:), allocatable :: node
         logical :: fold, moved
         integer :: k
+
         call info_goto_node("Top", status)
         if (.not. status%ok()) return
         ! (let ((Info-history nil) ...): the nodes visited on the way are
@@ -4459,6 +4999,7 @@ contains
         ! detailed node listings.
         call extract_menu_counting(0, node, status, .true.)
         if (status%ok()) call info_goto_node(node, status)
+
         if (status%ok()) then
             ! If the last node in the menu is not last in pointer
             ! structure, move forward (but not down- or upward - see
@@ -4468,6 +5009,7 @@ contains
                 if (.not. status%ok() .or. .not. moved) exit
             end do
         end if
+
         if (status%ok()) then
             ! Then keep moving down to last subnode, unless we reach an
             ! index.
@@ -4477,6 +5019,7 @@ contains
                 if (.not. status%ok()) exit
             end do
         end if
+
         fold = bind_case_fold(fold)
         k = here()
         locals(k)%history = saved
@@ -4485,6 +5028,7 @@ contains
     ! (save-excursion (search-forward "\n* Menu:" nil t)).
     logical function menu_after_point()
         integer(int64) :: opoint
+
         opoint = point()
         menu_after_point = sfwd(LF//"* Menu:")
         call goto_char(opoint)
@@ -4508,6 +5052,7 @@ contains
         logical :: down, upward, quiet, fold, has_menu, has_next, has_up, success
         type(status_type) :: st
         integer :: k
+
         status = status_type()
         down = .true.
         if (present(not_down)) down = .not. not_down
@@ -4530,19 +5075,24 @@ contains
         has_next = sbwd("next:")
         call goto_char(opoint)
         has_up = .false.
+
         if (upward .and. .not. (has_menu .or. has_next)) then
             has_up = sbwd("up:")
             call goto_char(opoint)
+
             if (has_up) then
                 call info_extract_pointer("up", up, status)
+
                 if (.not. status%ok()) then
                     fold = bind_case_fold(fold)
                     return
                 end if
+
                 ! Use string-equal, not equal, to ignore text props.
                 has_up = lower(up) /= "top"
             end if
         end if
+
         if (has_menu) then
             call extract_menu_counting(1, node, status)
             if (status%ok()) call info_goto_node(node, status)
@@ -4551,16 +5101,19 @@ contains
         else if (has_up) then
             old_node = current_node_or_empty()
             call info_up(status)
+
             if (status%ok()) then
                 k = here()
                 old_history = locals(k)%history
                 call info_forward_node(status, .true., .false., quiet, success)
                 if (.not. status%ok()) success = .false.
                 if (.not. success) call info_goto_node(old_node, st)
+
                 if (info_history_skip_intermediate_nodes%value) then
                     k = here()
                     locals(k)%history = old_history
                 end if
+
                 if (present(moved)) moved = success
             end if
         else if (quiet) then
@@ -4568,6 +5121,7 @@ contains
         else
             call user_error(status, "No pointer forward from this node")
         end if
+
         fold = bind_case_fold(fold)
     end subroutine info_forward_node
 
@@ -4581,9 +5135,11 @@ contains
         type(info_history_entry_type), allocatable :: old_history(:)
         logical :: fold
         integer :: k
+
         call info_extract_pointer("prev[ious]*", prevnode, status, noerror=.true.)
         call info_extract_pointer("up", upnode, status, noerror=.true.)
         fold = bind_case_fold(.true.)
+
         if (allocated(upnode) .and. index(upnode_or_empty(), "(") > 0) then
             call user_error(status, "First node in file")
         else if (allocated(upnode) .and. (.not. allocated(prevnode) .or. &
@@ -4593,14 +5149,17 @@ contains
             ! If we move back at the same level, go down to find the last
             ! subnode*.
             call info_prev(status)
+
             if (status%ok()) then
                 k = here()
                 old_history = locals(k)%history
+
                 do while (.not. info_index_node() .and. menu_after_point())
                     call extract_menu_counting(0, node, status)
                     if (status%ok()) call info_goto_node(node, status)
                     if (.not. status%ok()) exit
                 end do
+
                 if (info_history_skip_intermediate_nodes%value) then
                     k = here()
                     locals(k)%history = old_history
@@ -4609,17 +5168,21 @@ contains
         else
             call user_error(status, "No pointer backward from this node")
         end if
+
         fold = bind_case_fold(fold)
+
     contains
 
         function upnode_or_empty() result(s)
             character(len=:), allocatable :: s
+
             s = ""
             if (allocated(upnode)) s = upnode
         end function upnode_or_empty
 
         function prevnode_or_empty() result(s)
             character(len=:), allocatable :: s
+
             s = ""
             if (allocated(prevnode)) s = prevnode
         end function prevnode_or_empty
@@ -4632,6 +5195,7 @@ contains
         character(len=:), allocatable :: node
         integer(int64) :: opoint
         logical :: fold, found, ok
+
         status = status_type()
         ! Bind this in case the user sets it to nil.
         fold = bind_case_fold(.true.)
@@ -4642,6 +5206,7 @@ contains
         if (found) call info_extract_menu_node_name(node)
         call goto_char(opoint)
         fold = bind_case_fold(fold)
+
         if (found) then
             call info_goto_node(node, status)
         else
@@ -4656,6 +5221,7 @@ contains
         character(len=:), allocatable :: node
         integer(int64) :: opoint, beg, after
         logical :: fold, has_beg, found
+
         status = status_type()
         opoint = point()
         call fwd_line(1_int64)
@@ -4667,12 +5233,14 @@ contains
         call goto_char(after)
         found = .false.
         if (has_beg) found = sbwd(LF//"* ", beg)
+
         if (.not. found) then
             call goto_char(opoint)
             fold = bind_case_fold(fold)
             call user_error(status, "No previous items in menu")
             return
         end if
+
         call goto_char(mend(0))
         call info_extract_menu_node_name(node)
         call goto_char(opoint)
@@ -4686,11 +5254,13 @@ contains
         type(status_type), intent(out) :: status
         type(info_history_entry_type), allocatable :: old_history(:)
         integer :: k
+
         call info_next_menu_item(status)
         if (status%ok()) return
         call info_next(status)
         if (status%ok()) return
         call info_up(status, .true.)
+
         if (status%ok()) then
             ! Since we have already gone thru all the items in this menu,
             ! go up to the end of this node.
@@ -4701,12 +5271,15 @@ contains
             k = here()
             old_history = locals(k)%history
             call info_next_preorder(status)
+
             if (info_history_skip_intermediate_nodes%value) then
                 k = here()
                 locals(k)%history = old_history
             end if
+
             return
         end if
+
         status = status_type()
         call user_error(status, "No more nodes")
     end subroutine info_next_preorder
@@ -4720,9 +5293,12 @@ contains
         type(status_type) :: st
         logical :: fold
         integer :: k
+
         status = status_type()
+
         if (info_scroll_prefer_subnodes%value) then
             call info_last_menu_item(st)
+
             if (st%ok()) then
                 ! If we go down a menu item, go to the end of the node so
                 ! we can scroll back through it.
@@ -4730,28 +5306,35 @@ contains
                 ! Keep going down, as long as there are nested menu nodes.
                 k = here()
                 old_history = locals(k)%history
+
                 do
                     call info_last_menu_item(st)
                     if (.not. st%ok()) exit
                     call goto_char(point_max())
                 end do
+
                 if (info_history_skip_intermediate_nodes%value) then
                     k = here()
                     locals(k)%history = old_history
                 end if
+
                 call recenter_last_line()
                 return
             end if
         end if
+
         call info_extract_pointer("prev", prev, st)
+
         if (st%ok()) then
             call info_extract_pointer("up", up, st)
             if (.not. st%ok()) up = achar(0)
+
             if (up /= prev) then
                 call info_prev(st)
                 call goto_char(point_max())
                 k = here()
                 old_history = locals(k)%history
+
                 do
                     call info_last_menu_item(st)
                     if (.not. st%ok()) exit
@@ -4759,15 +5342,19 @@ contains
                     ! so we can scroll back through it.
                     call goto_char(point_max())
                 end do
+
                 if (info_history_skip_intermediate_nodes%value) then
                     k = here()
                     locals(k)%history = old_history
                 end if
+
                 call recenter_last_line()
                 return
             end if
         end if
+
         call info_up(st, .true.)
+
         if (st%ok()) then
             call goto_min()
             fold = bind_case_fold(.true.)
@@ -4775,12 +5362,14 @@ contains
             fold = bind_case_fold(fold)
             return
         end if
+
         call user_error(status, "No previous nodes")
     end subroutine info_last_preorder
 
     ! (recenter -1).
     subroutine recenter_last_line()
         type(status_type) :: st
+
         call recenter(make_fixnum(-1_int64), .false., st)
     end subroutine recenter_last_line
 
@@ -4803,22 +5392,28 @@ contains
         type(status_type) :: st
         integer(int64) :: virtual_end, opoint, start
         logical :: fold
+
         status = status_type()
         start = sel_window_start()
+
         if (start < point_min() .or. start > point_max()) then
             call set_sel_window_start(point(), status)
             start = point()
         end if
+
         fold = bind_case_fold(.true.)
         opoint = point()
         call goto_min()
+
         if (info_scroll_prefer_subnodes%value .and. sfwd(LF//"* Menu:")) then
             virtual_end = point()
         else
             virtual_end = point_max()
         end if
+
         call goto_char(opoint)
         fold = bind_case_fold(fold)
+
         if (virtual_end < start .or. visible(virtual_end)) then
             if (info_scroll_prefer_subnodes%value) then
                 call info_next_preorder(status)
@@ -4842,13 +5437,17 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: current_point, opoint, start
         logical :: fold, virtual_end
+
         status = status_type()
         start = sel_window_start()
+
         if (start < point_min() .or. start > point_max()) then
             call set_sel_window_start(point(), status)
         end if
+
         fold = bind_case_fold(.true.)
         virtual_end = .false.
+
         if (info_scroll_prefer_subnodes%value) then
             opoint = point()
             current_point = line_beginning_position(1_int64)
@@ -4856,7 +5455,9 @@ contains
             virtual_end = sfwd(LF//"* Menu:", current_point)
             call goto_char(opoint)
         end if
+
         fold = bind_case_fold(fold)
+
         if (virtual_end .or. visible(point_min())) then
             call info_last_preorder(status)
         else
@@ -4876,6 +5477,7 @@ contains
         type(value_type) :: v
         integer(int64) :: opoint, pxref, plink, mb
         logical :: has_xref
+
         opoint = point()
         has_xref = refwd(pat)
         pxref = point()
@@ -4883,11 +5485,14 @@ contains
         if (mb == 0) mb = mbeg(0)
         call goto_char(opoint)
         plink = next_single_char_property_change(point(), sym(prop))
+
         if (plink < point_max()) then
             v = get_char_property(plink, sym(prop))
             if (nilp(v)) plink = next_single_char_property_change(plink, sym(prop))
         end if
+
         moved = .true.
+
         if (plink < point_max()) then
             if (has_xref .and. pxref <= plink) then
                 call goto_char(mb)
@@ -4908,6 +5513,7 @@ contains
         type(value_type) :: v
         integer(int64) :: opoint, pxref, plink, mb
         logical :: has_xref
+
         opoint = point()
         has_xref = rebwd(pat)
         pxref = point()
@@ -4915,11 +5521,14 @@ contains
         if (mb == 0) mb = mbeg(0)
         call goto_char(opoint)
         plink = previous_single_char_property_change(point(), sym(prop))
+
         if (plink > point_min()) then
             v = get_char_property(plink, sym(prop))
             if (nilp(v)) plink = previous_single_char_property_change(plink, sym(prop))
         end if
+
         moved = .true.
+
         if (plink > point_min()) then
             if (has_xref .and. pxref >= plink) then
                 call goto_char(mb)
@@ -4943,39 +5552,48 @@ contains
         character(len=*), parameter :: pat = "\*note[ "//LF//TAB//"]+\([^:]+\):\|^\* .*:\|[hf]t?tps?://"
         integer(int64) :: n, old_pt
         logical :: rec, fold
+
         status = status_type()
         rec = .false.
         if (present(recur)) rec = recur
         n = 1
         if (present(count)) n = count
+
         if (n < 0) then
             call info_prev_reference(status, rec, -n)
             return
         end if
+
         fold = bind_case_fold(.true.)
+
         do while (n > 0)
             n = n - 1
             old_pt = point()
             if (.not. eobp()) call goto_char(point() + 1)
+
             if (.not. next_reference_or_link(pat, "link")) then
                 call goto_min()
+
                 if (.not. next_reference_or_link(pat, "link")) then
                     call goto_char(old_pt)
                     call user_error(status, "No cross references in this node")
                     exit
                 end if
             end if
+
             if (looking("\* Menu:")) then
                 if (rec) then
                     call user_error(status, "No cross references in this node")
                     exit
                 end if
+
                 call info_next_reference(status, .true.)
                 if (.not. status%ok()) exit
             else if (looking("^\* ")) then
                 call goto_char(point() + 2)
             end if
         end do
+
         fold = bind_case_fold(fold)
     end subroutine info_next_reference
 
@@ -4989,48 +5607,59 @@ contains
         character(len=*), parameter :: pat = "\*note[ "//LF//TAB//"]+\([^:]+\):\|^\* .*:\|[hf]t?tps?://"
         integer(int64) :: n, old_pt
         logical :: rec, fold
+
         status = status_type()
         rec = .false.
         if (present(recur)) rec = recur
         n = 1
         if (present(count)) n = count
+
         if (n < 0) then
             call info_next_reference(status, rec, -n)
             return
         end if
+
         fold = bind_case_fold(.true.)
+
         do while (n > 0)
             n = n - 1
             old_pt = point()
+
             if (.not. prev_reference_or_link(pat, "link")) then
                 call goto_char(point_max())
+
                 if (.not. prev_reference_or_link(pat, "link")) then
                     call goto_char(old_pt)
                     call user_error(status, "No cross references in this node")
                     exit
                 end if
             end if
+
             if (looking("\* Menu:")) then
                 if (rec) then
                     call user_error(status, "No cross references in this node")
                     exit
                 end if
+
                 call info_prev_reference(status, .true.)
                 if (.not. status%ok()) exit
             else if (looking("^\* ")) then
                 call goto_char(point() + 2)
             end if
         end do
+
         fold = bind_case_fold(fold)
     end subroutine info_prev_reference
 
     recursive subroutine cmd_info_next_reference(status)
         type(status_type), intent(out) :: status
+
         call info_next_reference(status, count=prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_info_next_reference
 
     recursive subroutine cmd_info_prev_reference(status)
         type(status_type), intent(out) :: status
+
         call info_prev_reference(status, count=prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_info_prev_reference
 
@@ -5057,26 +5686,32 @@ contains
         integer(int64) :: opoint, bound
         integer :: i, saved_kind
         logical :: fold, has_main
+
         if (present(file)) then
             f = file
         else
             f = current_file_or_empty()
         end if
+
         allocate (nodes(0))
         if (.not. allocated(index_nodes_cache)) allocate (index_nodes_cache(0))
+
         do i = 1, size(index_nodes_cache)
             if (index_nodes_cache(i)%file == f) then
                 nodes = index_nodes_cache(i)%nodes
                 return
             end if
         end do
+
         ! Skip virtual Info files
         if (info_virtual_file_p(f)) then
             call cache(f)
             return
         end if
+
         old = current_buffer()
         saved_kind = point_loc_kind
+
         if (file_supports_index_cookies_of(f)) then
             ! Find nodes with index cookie
             call info_find_file(f, found, st)
@@ -5087,38 +5722,49 @@ contains
             main_file = found
             has_main = .true.
             allocate (subfiles(0))
+
             do while (has_main .or. size(subfiles) > 0)
                 call erase_buffer(st)
+
                 if (has_main) then
                     call info_insert_file_contents(main_file, st)
                 else
                     call info_insert_file_contents(subfiles(1)%s, st)
                 end if
+
                 if (.not. st%ok()) exit
                 call goto_min()
+
                 do while (sfwd(NUL//BS//"[index"//NUL//BS//"]", move=.true.))
                     opoint = point()
+
                     if (rebwd("^"//US)) then
                         if (sfwd("Node: ")) call add_string(nodes, following_node_name())
                     end if
+
                     call goto_char(opoint)
                 end do
+
                 if (has_main) then
                     call goto_min()
+
                     if (sfwd(LF//US//LF//"Indirect:")) then
                         opoint = point()
                         bound = point_max()
                         if (sfwd(LF//US)) bound = point()
                         call goto_char(opoint)
+
                         do while (refwd("^\(.*\): [0-9]+$", bound))
                             call add_string(subfiles, match_string_no_properties(1))
                         end do
                     end if
+
                     has_main = .false.
                 else
                     subfiles = subfiles(2:)
                 end if
             end do
+
             call set_buffer(old, st)
             call kill_buffer(temp, st)
         else
@@ -5128,6 +5774,7 @@ contains
             call set_buffer(temp, st)
             call info_mode(st)
             if (st%ok()) call info_find_node(f, "Top", st)
+
             if (st%ok()) then
                 if (sfwd(LF//"* menu:")) then
                     if (refwd(LF//"\* \(.*\<Index\>\)")) then
@@ -5135,6 +5782,7 @@ contains
                         call info_extract_menu_node_name(node)
                         call add_string(nodes, node)
                         call info_goto_node(node, st)
+
                         do while (st%ok())
                             call info_extract_pointer("next", node, st, noerror=.true.)
                             if (.not. allocated(node)) exit
@@ -5145,26 +5793,32 @@ contains
                     end if
                 end if
             end if
+
             call info_kill_buffer(st)
             call set_buffer(old, st)
             call kill_buffer(temp, st)
             fold = bind_case_fold(fold)
         end if
+
         point_loc_kind = saved_kind
         ! If file has no index nodes, still add it to the cache
         call cache(f)
+
     contains
 
         ! (setq Info-index-nodes (cons (cons FILE NODES) Info-index-nodes)).
         subroutine cache(name)
             character(len=*), intent(in) :: name
             integer :: m
+
             allocate (grown(size(index_nodes_cache) + 1))
             grown(1)%file = name
             grown(1)%nodes = nodes
+
             do m = 1, size(index_nodes_cache)
                 grown(m + 1) = index_nodes_cache(m)
             end do
+
             call move_alloc(grown, index_nodes_cache)
         end subroutine cache
     end subroutine info_index_nodes
@@ -5177,17 +5831,21 @@ contains
         type(handle_type) :: old, temp
         type(status_type) :: st
         integer :: i
+
         if (.not. allocated(cookies_cache)) allocate (cookies_cache(0))
+
         do i = 1, size(cookies_cache)
             if (cookies_cache(i)%file == file) then
                 supports = cookies_cache(i)%supports
                 return
             end if
         end do
+
         if (info_virtual_file_p(file)) then
             supports = file_supports_index_cookies(file)
             return
         end if
+
         old = current_buffer()
         call get_buffer_create(generate_new_buffer_name(" *temp*"), temp, st, inhibit_buffer_hooks=.true.)
         call set_buffer(temp, st)
@@ -5208,24 +5866,30 @@ contains
         integer(int64) :: opoint, from, bound
         logical :: cached
         integer :: i, k
+
         if (present(file)) then
             f = file
         else
             f = current_file_or_empty()
         end if
+
         if (present(node)) then
             n = node
         else
             n = current_node_or_empty()
         end if
+
         cached = .false.
+
         if (allocated(index_nodes_cache)) then
             do i = 1, size(index_nodes_cache)
                 if (index_nodes_cache(i)%file == f) cached = .true.
             end do
         end if
+
         k = here()
         is_index = .false.
+
         if ((present(node) .and. n /= current_node_or_empty()) .or. cached) then
             if (.not. locals(k)%current_node_virtual) then
                 call info_index_nodes(nodes, f)
@@ -5233,6 +5897,7 @@ contains
                 return
             end if
         end if
+
         ! Don't search all index nodes if request is only for the current
         ! node and file is not in the cache of index nodes
         if (supports_cookies(f)) then
@@ -5248,12 +5913,14 @@ contains
         else
             is_index = smatch("\<Index\>", n)
         end if
+
     contains
 
         ! (Info-file-supports-index-cookies FILE) in the current buffer.
         logical function supports_cookies(name)
             character(len=*), intent(in) :: name
             integer(int64) :: p
+
             p = point()
             supports_cookies = file_supports_index_cookies(name)
             call goto_char(p)
@@ -5267,6 +5934,7 @@ contains
     !> Make command be undefined in Info.  Port of info.el:Info-undefined.
     recursive subroutine info_undefined(status)
         type(status_type), intent(out) :: status
+
         call ding(.false., status)
     end subroutine info_undefined
 
@@ -5274,9 +5942,11 @@ contains
     recursive subroutine info_help(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: window
+
         call delete_other_windows(selected_window(), status)
         if (.not. status%ok()) return
         window = selected_window()
+
         if (windows(window%index)%total_lines < 23) then
             call info_find_node("info", "Help-Small-Screen", status)
         else
@@ -5294,9 +5964,11 @@ contains
         character(len=:), allocatable :: doc
         type(status_type) :: st
         logical :: flag, found, have
+
         status = status_type()
         call current_window_configuration(config)
         call switch_to_buffer("*Help*", status)
+
         if (status%ok()) then
             help = current_buffer()
             buffers(cur)%read_only = .false.
@@ -5306,31 +5978,40 @@ contains
             if (status%ok()) call insert(substitute_command_keys(doc), status)
             if (status%ok()) call help_mode(status)
         end if
+
         if (status%ok()) then
             call goto_min()
+
             do
                 flag = .not. visible(point_max())
+
                 if (flag) then
                     call message("Type Space to see more")
                 else
                     call message("Type Space to return to Info")
                 end if
+
                 call read_event(event, have, status)
                 if (.not. status%ok() .or. .not. have) exit
+
                 if (.not. fixnump(event)) then
                     call unread_command_events([event])
                     exit
                 end if
+
                 if (xfixnum(event) /= iachar(" ")) then
                     call unread_command_events([event])
                     exit
                 end if
+
                 if (.not. flag) exit
                 call scroll_up(nil(), status)
                 if (.not. status%ok()) exit
             end do
+
             call bury_buffer(st, help)
         end if
+
         call set_window_configuration(config)
         call free_window_configuration(config)
     end subroutine info_summary
@@ -5351,26 +6032,31 @@ contains
         logical, intent(out) :: found
         integer(int64) :: opoint
         logical :: fold, ok
+
         token = ""
         found = .false.
         fold = bind_case_fold(.true.)
         opoint = point()
         call goto_char(pos)
+
         ! First look for a match for START that goes across POS.
         do while (.not. bobp() .and. point() > pos - len(start))
             if (looking(start)) exit
             call goto_char(point() - 1)
         end do
+
         ! If we did not find one, search back for START (this finds only
         ! matches that end at or before POS).
         if (.not. looking(start)) then
             call goto_char(pos)
             ok = rebwd(start, max(point_min(), pos - 200), move=.true.)
         end if
+
         do while (refwd(all, min(point_max(), pos + 200), move=.true.))
             found = mbeg(0) <= pos .and. mend(0) > pos
             if (found) exit
         end do
+
         if (found) token = match_string_no_properties(1)
         call goto_char(opoint)
         fold = bind_case_fold(fold)
@@ -5386,16 +6072,20 @@ contains
         character(len=:), allocatable :: node
         integer(int64) :: opoint
         logical :: followed, in_menu
+
         call try_follow_nearest_node(followed, status)
         if (followed .or. .not. status%ok()) return
         opoint = point()
         in_menu = sbwd(LF//"* menu:")
         call goto_char(opoint)
+
         if (in_menu) then
             call beginning_of_line(1_int64)
+
             do while (.not. (bobp() .or. looking("[^ "//TAB//"]\|[ "//TAB//"]*$")))
                 call beginning_of_line(0_int64)
             end do
+
             if (looking("\* +\([^"//TAB//LF//"]*\):")) then
                 call extract_menu_item(match_string_no_properties(1), node, status)
                 call goto_char(opoint)
@@ -5403,8 +6093,10 @@ contains
                 call info_goto_node(node, status)
                 return
             end if
+
             call goto_char(opoint)
         end if
+
         call user_error(status, "Point neither on reference nor in menu item description")
     end subroutine info_follow_nearest_node
 
@@ -5417,20 +6109,25 @@ contains
         character(len=:), allocatable :: node
         integer(int64) :: old_point, new_point, opoint
         logical :: found, is_index
+
         status = status_type()
         followed = .true.
         call get_token(point(), "\*note[ "//LF//TAB//"]+", &
                        "\*note[ "//LF//TAB//"]+\([^:]*\):\(:\|[ "//LF//TAB//"]*(\)?", node, found)
+
         if (found) then
             call info_follow_reference(node, status)
             return
         end if
+
         ! footnote
         call get_token(point(), "(", "\(([0-9]+)\)", node, found)
+
         if (found) then
             old_point = point()
             new_point = 0
             call goto_min()
+
             if (refwd("^[ "//TAB//"]*-+ Footnotes -+$")) then
                 if (old_point < point()) then
                     ! Go to footnote reference
@@ -5440,20 +6137,26 @@ contains
                     if (sbwd(node)) new_point = point()
                 end if
             end if
+
             call goto_char(old_point)
+
             if (new_point > 0) then
                 call goto_char(new_point)
                 return
             end if
         end if
+
         ! menu item: node name
         call get_token(point(), "\* +", "\* +\([^:]*\)::", node, found)
+
         if (found) then
             call info_goto_node(node, status)
             return
         end if
+
         ! menu item: node name or index entry
         call get_token(point(), "\* +", "\* +\(.*\): ", node, found)
+
         if (found) then
             opoint = point()
             call beginning_of_line(1_int64)
@@ -5463,26 +6166,35 @@ contains
             call info_goto_node(node, status)
             return
         end if
+
         call get_token(point(), "Up: ", "Up: \([^,"//LF//TAB//"]*\)", node, found)
+
         if (found) then
             call info_goto_node(node, status)
             return
         end if
+
         call get_token(point(), "Next: ", "Next: \([^,"//LF//TAB//"]*\)", node, found)
+
         if (found) then
             call info_goto_node(node, status)
             return
         end if
+
         call get_token(point(), "File: ", "File: \([^,"//LF//TAB//"]*\)", node, found)
+
         if (found) then
             call info_goto_node("Top", status)
             return
         end if
+
         call get_token(point(), "Prev: ", "Prev: \([^,"//LF//TAB//"]*\)", node, found)
+
         if (found) then
             call info_goto_node(node, status)
             return
         end if
+
         followed = .false.
     end subroutine try_follow_nearest_node
 
@@ -5494,26 +6206,33 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg
         character(len=:), allocatable :: node, file
+
         status = status_type()
+
         if (.not. has_current_node()) then
             call user_error(status, "No current Info node")
             return
         end if
+
         file = info_current_file()
+
         if (allocated(file)) then
             node = "("//file_name_sans_extension(file_name_nondirectory(file))//") "//info_current_node()
         else
             node = ""
         end if
+
         if (present(arg)) then
             if (arg == 0) node = "(info """//node//""")"
         end if
+
         call kill_new(node)
         call message(node)
     end subroutine info_copy_current_node_name
 
     recursive subroutine cmd_info_copy_current_node_name(status)
         type(status_type), intent(out) :: status
+
         if (nilp(current_prefix_arg)) then
             call info_copy_current_node_name(status)
         else
@@ -5535,6 +6254,7 @@ contains
         type(status_type) :: st
         integer(int64) :: start
         integer :: i
+
         status = status_type()
         if (no_going_back) continue
         call insert(LF//US//LF//"File: "//filename//",  Node: "//nodename//",  Up: (dir)"//LF//LF, status)
@@ -5542,6 +6262,7 @@ contains
         call insert("************************"//LF//LF, status)
         call insert("* Menu:"//LF//LF, status)
         if (.not. allocated(info_history_list)) return
+
         do i = 1, size(info_history_list)
             file = info_history_list(i)%file
             node = info_history_list(i)%node
@@ -5559,6 +6280,7 @@ contains
     !> info.el:Info-history.
     recursive subroutine info_history(status)
         type(status_type), intent(out) :: status
+
         call info_find_node("*History*", "Top", status)
         if (.not. status%ok()) return
         call info_next_reference(status)
@@ -5576,6 +6298,7 @@ contains
         type(status_type) :: st
         integer :: saved_hide, k
         logical :: saved_visited
+
         status = status_type()
         if (no_going_back) continue
         call info_toc_nodes(filename, node_list)
@@ -5585,9 +6308,11 @@ contains
         call insert("*Note Top::"//LF, status)
         ! Get Top nodes
         k = toc_index(node_list, "Top")
+
         if (k > 0) then
             if (allocated(node_list(k)%children)) call toc_insert(node_list(k)%children, node_list, 0, filename)
         end if
+
         if (.not. bobp()) then
             saved_hide = info_hide_note_references
             saved_visited = info_fontify_visited_nodes%value
@@ -5596,11 +6321,13 @@ contains
             call set_current_file(filename)
             call set_current_node("*TOC*")
             call goto_min()
+
             if (refwd(LF//"["//US//FF//"]"//LF)) then
                 call narrow_to_region(point(), point_max(), st)
             else
                 call narrow_to_region(point_min(), point_max(), st)
             end if
+
             call info_fontify_node()
             call widen()
             info_hide_note_references = saved_hide
@@ -5612,9 +6339,11 @@ contains
     integer function toc_index(nodes, name) result(k)
         type(toc_node_type), intent(in) :: nodes(:)
         character(len=*), intent(in) :: name
+
         do k = 1, size(nodes)
             if (nodes(k)%name == name) return
         end do
+
         k = 0
     end function toc_index
 
@@ -5626,6 +6355,7 @@ contains
         character(len=:), allocatable :: prev_node
         integer(int64) :: p
         integer :: k
+
         call info_find_node(current_file_or_empty(), "*TOC*", status)
         if (.not. status%ok()) return
         k = here()
@@ -5634,6 +6364,7 @@ contains
         call goto_min()
         p = 0
         if (sfwd("*Note "//prev_node//":")) p = point() - len(prev_node) - 2
+
         if (p > 0) then
             call goto_char(p)
         else
@@ -5651,10 +6382,13 @@ contains
         character(len=:), allocatable :: section, indentation
         type(status_type) :: st
         integer :: i, k
+
         section = "Top"
         indentation = repeat(TAB, level)
+
         do i = 1, size(nodes)
             k = toc_index(node_list, nodes(i)%s)
+
             if (k > 0) then
                 if (node_list(k)%has_section) then
                     if (node_list(k)%section /= section .and. &
@@ -5664,18 +6398,22 @@ contains
                     end if
                 end if
             end if
+
             call insert(indentation//"*Note "//nodes(i)%s//":: "//LF, st)
+
             if (k > 0) then
                 if (allocated(node_list(k)%children)) then
                     call toc_insert(node_list(k)%children, node_list, level + 1, curr_file)
                 end if
             end if
         end do
+
     contains
 
         ! (equal (nth 1 node) (nth 2 node)).
         logical function parent_is_section(n)
             type(toc_node_type), intent(in) :: n
+
             parent_is_section = n%parent == n%section
         end function parent_is_section
     end subroutine toc_insert
@@ -5691,6 +6429,7 @@ contains
         type(status_type) :: st
         integer(int64) :: bound, opoint, detail
         logical :: has_main, has_up
+
         allocate (nodes(0), section_names(0), section_of(0))
         call add_string(section_names, "Top")
         call add_string(section_of, "Top")
@@ -5698,6 +6437,7 @@ contains
         call get_buffer_create(generate_new_buffer_name(" *temp*"), temp, st, inhibit_buffer_hooks=.true.)
         call set_buffer(temp, st)
         call info_find_file(file, found, st, noerror=.true.)
+
         if (allocated(found)) then
             buffers(cur)%directory = file_name_directory(found)
             main_file = found
@@ -5705,15 +6445,20 @@ contains
         else
             has_main = .false.
         end if
+
         allocate (subfiles(0))
+
         do while (has_main .or. size(subfiles) > 0)
             call erase_buffer(st)
+
             if (has_main) then
                 call info_insert_file_contents(main_file, st)
             else
                 call info_insert_file_contents(subfiles(1)%s, st)
             end if
+
             call goto_min()
+
             do
                 if (.not. sfwd(LF//US//LF//"File:", move=.true.)) exit
                 if (.not. sfwd("Node: ", move=.true.)) exit
@@ -5725,23 +6470,30 @@ contains
                 call goto_char(opoint)
                 has_up = refwd("Up:"//following_node_name_re(), bound)
                 if (has_up) upnode = match_string_no_properties(1)
+
                 if (has_up) then
                     if (index(upnode, "(") > 0) has_up = .false.
                 end if
+
                 section = "Top"
                 allocate (menu_items(0))
+
                 if (.not. info_index_node(nodename, file)) then
                     if (refwd("^\* Menu:", bound)) then
                         call fwd_line(1_int64)
                         call beginning_of_line(1_int64)
+
                         if (nodename == "Top") then
                             opoint = point()
+
                             if (refwd("^[ "//TAB//"—-]*The Detailed Node Listing")) then
                                 detail = point()
                                 bound = detail
                             end if
+
                             call goto_char(opoint)
                         end if
+
                         do while (point() < bound)
                             if (looking("^\* +[^:]+:")) then
                                 ! Menu item line
@@ -5749,6 +6501,7 @@ contains
                                 call goto_char(point() + 2)
                                 call info_extract_menu_node_name(menu_node_name)
                                 call add_string(menu_items, menu_node_name)
+
                                 if (nodename == "Top") then
                                     call add_string(section_names, menu_node_name)
                                     call add_string(section_of, section)
@@ -5758,35 +6511,43 @@ contains
                                 ! section names
                                 section = match_string_no_properties(1)
                             end if
+
                             call fwd_line(1_int64)
                             call beginning_of_line(1_int64)
                         end do
                     end if
                 end if
+
                 call add_toc_node(nodes, nodename, has_up, upnode, menu_items)
                 deallocate (menu_items)
                 call goto_char(bound)
             end do
+
             if (has_main) then
                 opoint = point()
                 call goto_min()
+
                 if (sfwd(LF//US//LF//"Indirect:")) then
                     opoint = point()
                     bound = point_max()
                     if (sfwd(LF//US)) bound = point()
                     call goto_char(opoint)
+
                     do while (refwd("^\(.*\): [0-9]+$", bound))
                         call add_string(subfiles, match_string_no_properties(1))
                     end do
                 end if
+
                 has_main = .false.
             else
                 subfiles = subfiles(2:)
             end if
         end do
+
         call set_buffer(old, st)
         call kill_buffer(temp, st)
         call set_sections()
+
     contains
 
         ! (push (list NODENAME UPNODE nil MENU-ITEMS) NODES), in order.
@@ -5798,10 +6559,13 @@ contains
             type(string_type), intent(in) :: children(:)
             type(toc_node_type), allocatable :: grown(:)
             integer :: m
+
             allocate (grown(size(list) + 1))
+
             do m = 1, size(list)
                 grown(m) = list(m)
             end do
+
             m = size(list) + 1
             grown(m)%name = name
             grown(m)%has_parent = has_parent
@@ -5814,6 +6578,7 @@ contains
         ! the most recent entry winning as with assoc on a pushed list.
         subroutine set_sections()
             integer :: m, j
+
             do m = 1, size(nodes)
                 do j = size(section_names), 1, -1
                     if (section_names(j)%s == nodes(m)%name) then
@@ -5834,7 +6599,9 @@ contains
         type(toc_node_type), allocatable, intent(out) :: nodes(:)
         type(toc_file_type), allocatable :: grown(:)
         integer :: i, k
+
         k = virtual_file_index(filename)
+
         if (k > 0) then
             if (info_virtual_files(k)%toc_nodes) then
                 allocate (nodes(1))
@@ -5843,13 +6610,16 @@ contains
                 return
             end if
         end if
+
         if (.not. allocated(toc_cache)) allocate (toc_cache(0))
+
         do i = 1, size(toc_cache)
             if (toc_cache(i)%file == filename) then
                 nodes = toc_cache(i)%nodes
                 return
             end if
         end do
+
         ! Skip virtual Info files
         if (info_virtual_file_p(filename)) then
             allocate (nodes(0))
@@ -5857,12 +6627,15 @@ contains
             ! Scan the entire manual and cache the result in Info-toc-nodes
             call toc_build(filename, nodes)
         end if
+
         allocate (grown(size(toc_cache) + 1))
         grown(1)%file = filename
         grown(1)%nodes = nodes
+
         do i = 1, size(toc_cache)
             grown(i + 1) = toc_cache(i)
         end do
+
         call move_alloc(grown, toc_cache)
     end subroutine info_toc_nodes
 
@@ -5882,16 +6655,19 @@ contains
         type(status_type) :: st
         logical :: has_line, has_node
         integer :: depth, i, k
+
         call info_toc_nodes(current_file_or_empty(), nodes)
         current = current_node_or_empty()
         node = current
         has_node = .true.
         allocate (rev(0))
         depth = info_breadcrumbs_depth
+
         ! Get ancestors from the cached parent-children node info
         do while (has_node .and. node /= "Top" .and. depth > 0)
             k = toc_index(nodes, node)
             has_node = .false.
+
             if (k > 0) then
                 if (nodes(k)%has_parent) then
                     node = nodes(k)%parent
@@ -5899,33 +6675,41 @@ contains
                     call add_string(rev, node)
                 end if
             end if
+
             depth = depth - 1
         end do
+
         ! (push node crumbs): the farthest ancestor first.
         allocate (crumbs(0))
+
         do i = size(rev), 1, -1
             call add_string(crumbs, rev(i)%s)
         end do
+
         ! Add bottom node.
         ! Let it disappear if crumbs is nil.
         if (info_use_header_line%value .and. size(crumbs) > 0) call add_string(crumbs, current)
         line = make_string("")
         has_line = .false.
+
         if (info_use_header_line%value .or. size(crumbs) > 0) then
             ! Add top node (and continuation if needed).
             call add_top(crumbs)
             ! Eliminate duplicate.
             call fwd_line(1_int64)
             manual = file_name_sans_extension(file_name_nondirectory(current_file_or_empty()))
+
             do i = 1, size(crumbs)
                 if (crumbs(i)%s /= "Top") then
                     txt = crumbs(i)%s
                 else
                     txt = "("//manual//")Top"
                 end if
+
                 if (has_line) then
                     line = propertized_concat(line, make_string(" > "))
                 end if
+
                 if (crumbs(i)%s == achar(0)) then
                     piece = make_string("...")
                 else if (crumbs(i)%s == current) then
@@ -5944,11 +6728,14 @@ contains
                     call string_put_text_property(0_int64, nchars_of(txt), sym("link_args"), &
                                                   make_string(txt), piece, st)
                 end if
+
                 line = propertized_concat(line, piece)
                 has_line = .true.
             end do
+
             line = propertized_concat(line, make_string(LF))
         end if
+
     contains
 
         ! (cons "Top" (if (member (pop crumbs) '(nil "Top")) crumbs (cons
@@ -5958,14 +6745,17 @@ contains
             type(string_type), allocatable :: rest(:)
             integer :: m
             logical :: first_is_top
+
             first_is_top = .true.
             if (size(list) > 0) first_is_top = list(1)%s == "Top"
             allocate (rest(0))
             call add_string(rest, "Top")
             if (.not. first_is_top) call add_string(rest, achar(0))
+
             do m = 2, size(list)
                 call add_string(rest, list(m)%s)
             end do
+
             call move_alloc(rest, list)
         end subroutine add_top
     end function breadcrumbs
@@ -5974,6 +6764,7 @@ contains
     integer(int64) function nchars_of(s)
         type(status_type) :: st
         character(len=*), intent(in) :: s
+
         call multibyte_chars_in_text(s, nchars_of, st)
     end function nchars_of
 
@@ -5990,6 +6781,7 @@ contains
         logical :: fold, not_fontified_p, fontify_visited_p, found, cont, ok, external_link_p
         integer :: hide, i, ios
         character :: c
+
         opoint = point()
         saved_ro = bind_inhibit_read_only()
         fold = bind_case_fold(.true.)
@@ -5999,29 +6791,35 @@ contains
         if (found) not_fontified_p = where == point_max()
         ! visited nodes need to be re-fontified
         fontify_visited_p = .false.
+
         if (info_fontify_visited_nodes%value .and. info_fontify_maximum_menu_size /= INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL) then
             ! Don't take time to refontify visited nodes in huge nodes
             fontify_visited_p = info_fontify_maximum_menu_size == INFO_FONTIFY_MAXIMUM_MENU_SIZE_T .or. &
                                 point_max() - point_min() < info_fontify_maximum_menu_size
         end if
+
         ! Disable Info-hide-note-references in nodes that are incompatible
         ! with that feature.
         hide = info_hide_note_references
         manual = file_name_sans_extension(file_name_nondirectory(current_file_or_empty()))
+
         if (lower(manual) == "texinfo" .and. current_node_or_empty() == "Cross Reference Commands") then
             hide = INFO_HIDE_NOTE_REFERENCES_NIL
         end if
 
         ! Fontify header line
         call goto_min()
+
         if (not_fontified_p .and. looking("^\(File: [^,: "//TAB//"]+,?[ "//TAB//"]+\)?")) then
             call goto_char(mend(0))
+
             do while (looking("[ "//TAB//"]*\([^:, "//TAB//LF//"]+\):[ "//TAB//"]+\([^:,"//TAB//LF//"]+\),?"))
                 call goto_char(mend(0))
                 nbeg = mbeg(2)
                 nend = mend(2)
                 tbeg = mbeg(1)
                 tag = match_string_no_properties(1)
+
                 if (lower(tag) == "node") then
                     call put_text_property(nbeg, nend, sym("font_lock_face"), symbol_value_of("info_header_node"), st)
                 else
@@ -6036,10 +6834,12 @@ contains
                     call put_text_property(tbeg, nend, sym("link_args"), symbol_value_of(lower(tag)), st)
                 end if
             end do
+
             ! Treat header line.
             if (info_use_header_line%value) then
                 call goto_min()
                 header_end = line_end_position(1_int64)
+
                 ! If we find neither Next: nor Prev: link, show the entire
                 ! node header.  Otherwise, don't show the File: and Node:
                 ! parts, to avoid wasting precious space on information that
@@ -6055,8 +6855,10 @@ contains
                     header = text(point(), header_end)
                     call note_header(point(), header_end, "")
                 end if
+
                 call put_text_property(point_min(), point_min() + 1, sym("header_line"), &
                                        make_string(replace_all("%", "%%", header)), st)
+
                 ! Hide the part of the first line that is in the header, if
                 ! it is just part.
                 if (info_breadcrumbs_depth > 0) then
@@ -6070,6 +6872,7 @@ contains
                     call put_text_property(point(), header_end, sym("invisible"), t_value(), st)
                     ! Hide the suffix of the Info file name.
                     call beginning_of_line(1_int64)
+
                     if (refwd("File: "//manual//"\([^,"//LF//TAB//"]+\),", header_end)) then
                         call put_text_property(mbeg(1), mend(1), sym("invisible"), t_value(), st)
                     end if
@@ -6079,6 +6882,7 @@ contains
 
         ! Fontify titles
         call goto_min()
+
         if (font_lock_mode_enabled() .and. not_fontified_p) then
             do while (refwd(LF//"\([^ "//TAB//LF//"].+\)"//LF//"\(\*\*+\|==+\|--+\|\.\.+\)$"))
                 ! Only consider it as an underlined title if the ASCII
@@ -6087,6 +6891,7 @@ contains
                 ! a line.
                 if (string_width(match_string_no_properties(1)) == string_width(match_string_no_properties(2))) then
                     c = text(point() - 1, point())
+
                     select case (c)
                     case ("*")
                         prop = symbol_value_of("info_title_1")
@@ -6097,7 +6902,9 @@ contains
                     case default
                         prop = symbol_value_of("info_title_4")
                     end select
+
                     call put_text_property(mbeg(1), mend(1), sym("font_lock_face"), prop, st)
+
                     ! This is a serious problem for trying to handle
                     ! multiple frame types at once.  We want this text to
                     ! be invisible on frames that can display the font
@@ -6115,6 +6922,7 @@ contains
 
         ! Fontify cross references
         call goto_min()
+
         if (not_fontified_p .or. fontify_visited_p) then
             do while (refwd("\(\*Note["//" "//LF//TAB//"]+\)\([^:]*\)\(:[ "//TAB//"]*\([^.,:(]*\)\(\(([^)]*)\)" &
                             //"[^.,:]*\)?[,:]?"//LF//"?\)"))
@@ -6123,19 +6931,21 @@ contains
         end if
 
         ! (Refilling paragraphs, `info_refill_paragraphs', is Deferred.)
-
         ! Fontify menu items
         call goto_min()
         ok = not_fontified_p .or. fontify_visited_p
         if (ok) ok = sfwd(LF//"* Menu:")
+
         if (ok) then
             ! Don't take time to annotate huge menus
             ok = info_fontify_maximum_menu_size /= INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL
             if (ok) ok = info_fontify_maximum_menu_size == INFO_FONTIFY_MAXIMUM_MENU_SIZE_T .or. &
                          point_max() - point() < info_fontify_maximum_menu_size
         end if
+
         if (ok) then
             n = 0
+
             do while (refwd("^\* Menu:\|\(?:^\* +\("//INFO_MENU_ENTRY_NAME_RE//"\)\(:"//node_spec_re() &
                             //"\([ "//TAB//"]*\)\)\)"))
                 if (mbeg(1) > 0) call menu_item()
@@ -6145,8 +6955,10 @@ contains
         ! Fontify menu headers
         ! Add the face `info-menu-header' to any header before a menu entry
         call goto_min()
+
         if (not_fontified_p .and. refwd("^\* Menu:")) then
             call put_text_property(mbeg(0), mend(0), sym("font_lock_face"), symbol_value_of("info_menu_header"), st)
+
             do while (refwd(LF//LF//"\([^*"//LF//" ].*\)"//LF//LF//"?[*]"))
                 call put_text_property(mbeg(1), mend(1), sym("font_lock_face"), symbol_value_of("info_menu_header"), st)
             end do
@@ -6154,6 +6966,7 @@ contains
 
         ! Hide index line numbers
         call goto_min()
+
         if (not_fontified_p) then
             if (info_index_node()) then
                 do while (refwd("[ "//TAB//LF//"]*(line +[0-9]+)"))
@@ -6164,6 +6977,7 @@ contains
 
         ! Fontify http and ftp references
         call goto_min()
+
         if (not_fontified_p) then
             do while (refwd("\(https?\|ftp\)://[^ "//TAB//LF//"""`‘({<>})’']+"))
                 call put_text_property(mbeg(0), mend(0), sym("font_lock_face"), symbol_value_of("info_xref"), st)
@@ -6174,18 +6988,23 @@ contains
 
         ! Fontify footnotes
         call goto_min()
+
         if (not_fontified_p .and. refwd("^[ "//TAB//"]*-+ Footnotes -+$")) then
             limit = point()
             fncount = 0
+
             ! How many footnotes do we have in this node?
             do while (refwd("^ [ "//TAB//"]*([0-9]+) "))
                 fncount = fncount + 1
             end do
+
             call goto_min()
+
             do while (refwd("\((\([0-9]+\))\)"))
                 s1 = match_string_no_properties(2)
                 read (s1, *, iostat=ios) footnote_num
                 if (ios /= 0) footnote_num = 0
+
                 ! Don't fontify parenthesized numbers that cannot possibly
                 ! be one of this node's footnotes.  This still doesn't
                 ! catch unrelated numbers that happen to be small enough,
@@ -6197,6 +7016,7 @@ contains
                     call put_text_property(mb, me, sym("font_lock_face"), symbol_value_of("info_xref"), st)
                     call put_text_property(mb, me, sym("link"), t_value(), st)
                     call put_text_property(mb, me, sym("mouse_face"), symbol_value_of("highlight"), st)
+
                     if (point() < limit) then
                         call put_text_property(mb, me, sym("help_echo"), &
                                                make_string("mouse-2: go to footnote definition"), st)
@@ -6212,11 +7032,11 @@ contains
         call goto_char(point_max())
         p0 = skip_chars_backward(LF, st)
         if (point() < point_max() - 1) call put_text_property(point(), point_max() - 1, sym("invisible"), t_value(), st)
-
         call restore_buffer_modified_p(.false.)
         fold = bind_case_fold(fold)
         call unbind_inhibit_read_only(saved_ro)
         call goto_char(min(max(opoint, point_min()), point_max()))
+
     contains
 
         ! Record the header line made of the text from B to E, after
@@ -6230,19 +7050,24 @@ contains
             integer(int64) :: pos, nxt
             logical :: has
             integer :: k
+
             if (len(prefix) > 0) call h%add(prefix)
             pos = b
+
             do while (pos < e)
                 call next_single_property_change(pos, sym("font_lock_face"), nxt, has, st, e)
                 if (.not. has .or. nxt > e) nxt = e
                 call get_text_property(pos, sym("font_lock_face"), f, st)
+
                 if (symbolp(f)) then
                     call h%add(text(pos, nxt), symbol_name_of(f))
                 else
                     call h%add(text(pos, nxt))
                 end if
+
                 pos = nxt
             end do
+
             if (.not. allocated(h%segments)) call h%add("")
             k = here()
             locals(k)%header = h
@@ -6254,10 +7079,12 @@ contains
             integer :: g
             character(len=:), allocatable :: m4, m5, m2
             logical :: fold2
+
             do g = 0, 6
                 m(g, 1) = mbeg(g)
                 m(g, 2) = mend(g)
             end do
+
             start = m(0, 1)
             next = point()
             m2 = text(m(2, 1), m(2, 2))
@@ -6265,22 +7092,27 @@ contains
             if (m(4, 1) > 0) m4 = text(m(4, 1), m(4, 2))
             m5 = ""
             if (m(5, 1) > 0) m5 = text(m(5, 1), m(5, 2))
+
             if (not_fontified_p) then
                 if (hide /= INFO_HIDE_NOTE_REFERENCES_NIL) then
                     other_tag = achar(0)
+
                     if (hide /= INFO_HIDE_NOTE_REFERENCES_HIDE .and. line_number_at_pos() > 4) then
                         ! Skip breadcrumbs
                         ! *Note is often used where *note should have been
                         call goto_char(start)
                         p0 = skip_syntax_backward(" ")
+
                         if (point() > point_min()) then
                             c = text(point() - 1, point())
+
                             if (c == "(" .or. c == "[" .or. c == "{") then
                                 ! Check whether the paren is preceded by an end
                                 ! of sentence
                                 p0 = skip_syntax_backward(" (")
                             end if
                         end if
+
                         if (looking_back("\(^\|[ (]\)see", st, point() - 4)) then
                             other_tag = ""
                         else
@@ -6290,6 +7122,7 @@ contains
                             fold2 = bind_case_fold(.false.)
                             ok = looking_back("\(^\| \)also", st, point() - 5)
                             fold2 = bind_case_fold(fold2)
+
                             if (ok) then
                                 other_tag = ""
                             else if (looking_back("\(^\| \)in", st, point() - 3)) then
@@ -6297,6 +7130,7 @@ contains
                             else
                                 c = " "
                                 if (point() > point_min()) c = text(point() - 1, point())
+
                                 if (point() == point_min() .or. c == "." .or. c == "!" .or. c == "?") then
                                     other_tag = "See "
                                 else if (sfwd(LF//LF, start)) then
@@ -6307,20 +7141,24 @@ contains
                             end if
                         end if
                     end if
+
                     call goto_char(next)
                     ! Don't hide \n after *Note
                     e1 = m(1, 2)
                     s1 = text(m(1, 1), m(1, 2))
                     i = index(s1, LF)
                     if (i > 0) e1 = m(1, 1) + string_char_count(s1, i)
+
                     if (other_tag /= achar(0)) then
                         call put_text_property(m(1, 1), e1, sym("display"), make_string(other_tag), st)
                     else
                         call put_text_property(m(1, 1), e1, sym("invisible"), t_value(), st)
                     end if
+
                     call put_text_property(m(1, 1), e1, sym("front_sticky"), nil(), st)
                     call put_text_property(m(1, 1), e1, sym("rear_nonsticky"), t_value(), st)
                 end if
+
                 if (m(5, 2) > 0 .or. len(m4) > 0) then
                     if (len(m5) > 0) then
                         s1 = "mouse-2: go to "//m5
@@ -6330,11 +7168,14 @@ contains
                 else
                     s1 = "mouse-2: go to this node"
                 end if
+
                 call put_text_property(m(2, 1), m(2, 2), sym("help_echo"), make_string(s1), st)
                 call put_text_property(m(2, 1), m(2, 2), sym("mouse_face"), symbol_value_of("highlight"), st)
             end if
+
             rbeg = m(2, 1)
             rend = m(2, 2)
+
             ! Display visited nodes in a different face
             if (len(m5) > 0) then
                 node = m5
@@ -6343,44 +7184,55 @@ contains
             else
                 node = m2
             end if
+
             node = trim_leading_space(canonicalize_whitespace(node))
+
             if (info_fontify_visited_nodes%value .and. visited(node)) then
                 call put_text_property(rbeg, rend, sym("font_lock_face"), symbol_value_of("info_xref_visited"), st)
             else
                 call put_text_property(rbeg, rend, sym("font_lock_face"), symbol_value_of("info_xref"), st)
             end if
+
             ! For multiline ref, unfontify newline and surrounding whitespace
             p0 = point()
             call goto_char(rbeg)
+
             do while (refwd("\s-*"//LF//"\s-*", rend))
                 call remove_property(mbeg(0), mend(0), "font_lock_face")
             end do
+
             call goto_char(p0)
+
             if (not_fontified_p) then
                 if (hide == INFO_HIDE_NOTE_REFERENCES_T .or. hide == INFO_HIDE_NOTE_REFERENCES_HIDE) then
                     call put_text_property(m(3, 1), m(3, 2), sym("invisible"), t_value(), st)
                     call put_text_property(m(3, 1), m(3, 2), sym("front_sticky"), nil(), st)
                     call put_text_property(m(3, 1), m(3, 2), sym("rear_nonsticky"), t_value(), st)
+
                     ! Unhide the file name of the external reference in parens
                     if (m(6, 1) > 0 .and. hide /= INFO_HIDE_NOTE_REFERENCES_HIDE) then
                         call remove_property(m(6, 1), m(6, 2), "invisible")
                         call remove_property(m(6, 1), m(6, 2), "front_sticky")
                         call remove_property(m(6, 1), m(6, 2), "rear_nonsticky")
                     end if
+
                     ! Unhide newline because hidden newlines cause too long
                     ! lines
                     p0 = point()
                     call goto_char(m(3, 1))
+
                     if (refwd(LF//"[ "//TAB//"]*", m(3, 2))) then
                         b1 = mbeg(0)
                         e1 = mend(0)
                         call goto_char(m(3, 2) + 1)
+
                         if (.not. looking("[.)]*$")) then
                             call remove_property(b1, e1, "invisible")
                             call remove_property(b1, e1, "front_sticky")
                             call remove_property(b1, e1, "rear_nonsticky")
                         end if
                     end if
+
                     call goto_char(p0)
                 end if
             end if
@@ -6391,45 +7243,56 @@ contains
             integer(int64) :: m(0:6, 2), ln_start
             integer :: g
             character(len=:), allocatable :: m3
+
             do g = 0, 6
                 m(g, 1) = mbeg(g)
                 m(g, 2) = mend(g)
             end do
+
             m3 = ""
             if (m(3, 1) > 0) m3 = text(m(3, 1), m(3, 2))
+
             if (not_fontified_p) then
                 n = n + 1
+
                 ! visual aids to help with 1-9 keys
                 if (n <= 9 .and. mod(n, 3_int64) == 0) then
                     call put_text_property(m(0, 1), m(0, 1) + 1, sym("font_lock_face"), &
                                            symbol_value_of("info_menu_star"), st)
                 end if
+
                 if (m(3, 2) > 0 .and. len(m3) > 0) then
                     s1 = "mouse-2: go to "//m3
                 else
                     s1 = "mouse-2: go to this node"
                 end if
+
                 call put_text_property(m(1, 1), m(1, 2), sym("help_echo"), make_string(s1), st)
                 call put_text_property(m(1, 1), m(1, 2), sym("mouse_face"), symbol_value_of("highlight"), st)
             end if
+
             ! Display visited menu items in a different face
             if (len(m3) == 0) then
                 node = text(m(1, 1), m(1, 2))
             else
                 node = m3
             end if
+
             if (info_fontify_visited_nodes%value .and. visited(node)) then
                 call put_text_property(m(1, 1), m(1, 2), sym("font_lock_face"), symbol_value_of("info_xref_visited"), st)
             else
                 call put_text_property(m(1, 1), m(1, 2), sym("font_lock_face"), symbol_value_of("info_xref"), st)
             end if
+
             if (not_fontified_p .and. (hide == INFO_HIDE_NOTE_REFERENCES_T .or. hide == INFO_HIDE_NOTE_REFERENCES_HIDE)) then
                 if (.not. info_index_node()) then
                     call put_text_property(m(2, 1), m(6, 2) - 1, sym("invisible"), t_value(), st)
+
                     ! Unhide the file name in parens
                     if (m(4, 2) > 0) then
                         if (text(m(4, 2), m(4, 2) + 1) /= ".") call remove_property(m(4, 1), m(4, 2), "invisible")
                     end if
+
                     ! We need a stretchable space like :align-to but with a
                     ! minimum value.
                     if (m(1, 2) - m(0, 1) <= 22) then
@@ -6437,17 +7300,21 @@ contains
                     else
                         call put_text_property(m(6, 2) - 1, m(6, 2), sym("display"), space_spec_value("width", 2), st)
                     end if
+
                     cont = looking(".")
+
                     do
                         if (forward_line(1_int64) /= 0) exit
                         if (.not. looking("\([ "//TAB//"]+\)[^*"//LF//"]")) exit
                         ln_start = mbeg(1)
                         call put_text_property(ln_start, mend(1) - 1, sym("invisible"), t_value(), st)
+
                         if (cont) then
                             call put_text_property(mend(1) - 1, mend(1), sym("display"), space_spec_value("align_to", 26), st)
                         else
                             call put_text_property(mend(1) - 1, mend(1), sym("display"), space_spec_value("align_to", 24), st)
                         end if
+
                         cont = .true.
                     end do
                 end if
@@ -6460,10 +7327,13 @@ contains
             character(len=*), intent(in) :: name
             character(len=:), allocatable :: nm, fl, hfile
             integer :: k
+
             nm = name
             external_link_p = smatch("(\([^)]+\))\([^)]*\)", nm, .true.)
+
             if (external_link_p) then
                 fl = file_name_nondirectory(match_string_no_properties(1, nm))
+
                 if (len(match_string_no_properties(2, nm)) == 0) then
                     nm = "Top"
                 else
@@ -6472,12 +7342,15 @@ contains
             else
                 fl = current_file_or_empty()
             end if
+
             visited = .false.
             if (.not. allocated(info_history_list)) return
+
             do k = 1, size(info_history_list)
                 if (info_history_list(k)%node /= nm) cycle
                 hfile = info_history_list(k)%file
                 if (external_link_p) hfile = file_name_nondirectory(hfile)
+
                 if (hfile == fl) then
                     visited = .true.
                     return
@@ -6491,7 +7364,9 @@ contains
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: t
         integer :: i
+
         i = verify(s, " "//TAB)
+
         if (i == 0) then
             t = ""
         else
@@ -6504,6 +7379,7 @@ contains
     integer(int64) function string_char_count(s, n) result(count)
         character(len=*), intent(in) :: s
         integer, intent(in) :: n
+
         count = nchars_of(s(1:n - 1))
     end function string_char_count
 
@@ -6511,6 +7387,7 @@ contains
     function symbol_value_of(name) result(v)
         character(len=*), intent(in) :: name
         type(value_type) :: v
+
         v = make_symbol_ref(intern(name))
     end function symbol_value_of
 
@@ -6518,6 +7395,7 @@ contains
     function symbol_name_of(v) result(name)
         type(value_type), intent(in) :: v
         character(len=:), allocatable :: name
+
         name = trim(symbols(xsymbol(v))%name)
     end function symbol_name_of
 
@@ -6526,6 +7404,7 @@ contains
         character(len=*), intent(in) :: key
         integer, intent(in) :: n
         type(value_type) :: v
+
         v = list(sym("space"), sym(":"//replace_all("_", "-", key)), make_fixnum(int(n, int64)))
     end function space_spec_value
 
@@ -6535,6 +7414,7 @@ contains
         character(len=*), intent(in) :: prop
         type(status_type) :: st
         logical :: changed
+
         call remove_text_properties(start, end, list(sym(prop), t_value()), changed, st)
     end subroutine remove_property
 
@@ -6546,9 +7426,11 @@ contains
         type(value_type) :: prop
         type(status_type) :: st
         integer :: k
+
         k = here()
         if (.not. locals(k)%header_from_property) return
         call get_text_property(point_min(), sym("header_line"), prop, st)
+
         if (nilp(prop) .or. .not. allocated(locals(k)%header%segments)) then
             call buffers(cur)%header_line_format%clear()
         else
@@ -6560,6 +7442,7 @@ contains
     subroutine define_info_faces()
         type(named_face_type), pointer :: f
         integer, parameter :: C = FACE_CLASS_COLOR
+
         f => info_node_face
         call f%define("info_node", "Face for Info node names.")
         call f%spec_entry(display_when(classes=[C], backgrounds=[FACE_BACKGROUND_LIGHT]), &
@@ -6678,6 +7561,7 @@ contains
         type(font_lock_keyword_type), allocatable :: keywords(:)
         logical :: saved
         integer :: k
+
         if (.not. associated(major_modes%info_mode%run)) call syms_of_info()
         call major_modes%info_mode%begin(saved, status)
         if (.not. status%ok()) return
@@ -6707,6 +7591,7 @@ contains
     subroutine info_mode_font_lock_keywords(keywords)
         type(font_lock_keyword_type), allocatable, intent(out) :: keywords(:)
         type(font_lock_highlight_type) :: h(1)
+
         allocate (keywords(1))
         h(1) = font_lock_highlight(1, face="info_quoted")
         keywords(1) = font_lock_keyword("‘\([‘’]\|[^‘’]*\)’", highlights=h)
@@ -6718,6 +7603,7 @@ contains
         type(status_type), intent(out) :: status
         type(status_type) :: st
         integer :: k
+
         status = status_type()
         if (.not. derived_mode_p(major_modes%info_mode)) return
         k = local_index(.false.)
@@ -6727,16 +7613,19 @@ contains
 
     recursive subroutine cmd_info_up(status)
         type(status_type), intent(out) :: status
+
         call info_up(status)
     end subroutine cmd_info_up
 
     recursive subroutine cmd_info_forward_node(status)
         type(status_type), intent(out) :: status
+
         call info_forward_node(status)
     end subroutine cmd_info_forward_node
 
     recursive subroutine cmd_info_follow_nearest_node(status)
         type(status_type), intent(out) :: status
+
         call info_follow_nearest_node(status)
     end subroutine cmd_info_follow_nearest_node
 
@@ -6745,6 +7634,7 @@ contains
     ! `this' in Info manuals.  Port of info.el Info-mode-syntax-table.
     subroutine init_info_mode_syntax_table()
         type(status_type) :: st
+
         if (.not. syntax_table_live_p(text_mode_syntax_table)) call syms_of_text_mode()
         call copy_syntax_table(info_mode_syntax_table, st, text_mode_syntax_table)
         call modify_syntax_entry(iachar("'"), iachar("'"), ".", st, info_mode_syntax_table)
@@ -6755,6 +7645,7 @@ contains
         type(status_type) :: st
         character(len=1) :: digit
         integer :: i
+
         if (associated(major_modes%info_mode%run)) return
         call define_info_faces()
         call info_mode_hook%add(turn_on_font_lock)
@@ -6805,10 +7696,12 @@ contains
         call keymap_set(info_mode_map, "TAB", "info_next_reference", st)
         call keymap_set(info_mode_map, "M-TAB", "info_prev_reference", st)
         call keymap_set(info_mode_map, "<backtab>", "info_prev_reference", st)
+
         do i = 1, 9
             write (digit, "(i1)") i
             call keymap_set(info_mode_map, digit, "info_nth_menu_item", st)
         end do
+
         call keymap_set(info_mode_map, "0", "undefined", st)
         call keymap_set(info_mode_map, "?", "info_summary", st)
         call keymap_set(info_mode_map, "]", "info_forward_node", st)
@@ -6843,5 +7736,4 @@ contains
         call keymap_set(info_mode_map, "DEL", "info_scroll_down", st)
         call add_local_variables_killer(kill_info_locals)
     end subroutine syms_of_info
-
 end module info_fm

@@ -154,10 +154,12 @@ contains
     !> Port of bindings.el:complete-symbol.
     subroutine cmd_complete_symbol(status)
         type(status_type), intent(out) :: status
+
         if (.not. nilp(current_prefix_arg)) then
             call set_error(status, FM_GENERIC_ERROR, "info_complete_symbol is not ported yet")
             return
         end if
+
         call completion_at_point(status)
     end subroutine cmd_complete_symbol
 
@@ -169,6 +171,7 @@ contains
     !> paragraphs only).
     subroutine cmd_right_char(status)
         type(status_type), intent(out) :: status
+
         call forward_char(status, prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_right_char
 
@@ -180,6 +183,7 @@ contains
     !> paragraphs only).
     subroutine cmd_left_char(status)
         type(status_type), intent(out) :: status
+
         call backward_char(status, prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_left_char
 
@@ -197,6 +201,7 @@ contains
     !> only).
     subroutine cmd_right_word(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call forward_word(prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_right_word
@@ -215,6 +220,7 @@ contains
     !> only).
     subroutine cmd_left_word(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call backward_word(prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_left_word
@@ -225,6 +231,7 @@ contains
         character(len=*), intent(in) :: keys, cmd
         type(value_type), allocatable :: key(:)
         type(status_type) :: status
+
         call key_parse(keys, key, status)
         call define_key(map, key, sym(cmd), status)
     end subroutine bind
@@ -236,6 +243,7 @@ contains
         character(len=*), intent(in) :: cmd
         type(value_type) :: key(1)
         type(status_type) :: status
+
         key(1) = make_fixnum(c)
         call define_key(map, key, sym(cmd), status)
     end subroutine bind_char
@@ -247,6 +255,7 @@ contains
         type(value_type), intent(in) :: to
         type(value_type), allocatable :: key(:)
         type(status_type) :: status
+
         call key_parse(from, key, status)
         call define_key(map, key, list(to), status)
     end subroutine translate
@@ -257,6 +266,7 @@ contains
         type(status_type) :: status
         type(value_type) :: key(1)
         integer(int64) :: c
+
         call intern_command_names()
         ! Rebuilding: drop the old maps.
         if (keymap_live_p(global_map)) call free_keymap(global_map, status)
@@ -334,9 +344,11 @@ contains
         key(1) = make_fixnum(24_int64)
         call define_key(global_map, key, make_keymap_ref(ctl_x_map), status)
         call bind_char(global_map, 9_int64, "self_insert_command")
+
         do c = 32, 126
             call bind_char(global_map, c, "self_insert_command")
         end do
+
         ! mule-conf.el: all non-ASCII characters self-insert (this covers
         ! subr.el's 0240..0377 loop too).
         call define_key_range(global_map, 128_int64, int(MAX_CHAR, int64), &
@@ -353,11 +365,13 @@ contains
         call bind(global_map, "C-o", "open_line")
         call bind(global_map, "C-q", "quoted_insert")
         call bind(global_map, "C-u", "universal_argument")
+
         do c = 0, 9
             call bind_char(esc_map, iachar("0") + c, "digit_argument")
             call bind_char(global_map, M_CTL + iachar("0") + c, "digit_argument")
             call bind_char(global_map, M_CTL + M_META + iachar("0") + c, "digit_argument")
         end do
+
         call bind(esc_map, "-", "negative_argument")
         call bind_char(global_map, M_CTL + iachar("-"), "negative_argument")
         call bind_char(global_map, M_CTL + M_META + iachar("-"), "negative_argument")
@@ -691,9 +705,11 @@ contains
         call translate(function_key_map, "<backspace>", make_fixnum(127_int64))
         call translate(function_key_map, "<delete>", make_fixnum(127_int64))
         call translate(function_key_map, "<kp-delete>", make_fixnum(127_int64))
+
         if (.not. keymap_live_p(local_function_key_map)) then
             call make_sparse_keymap(local_function_key_map)
         end if
+
         call set_keymap_parent(local_function_key_map, function_key_map, status)
         ! paren.el, electric.el and elec-pair.el; Show Paren mode and
         ! Electric Indent mode are on (their :init-value, set after the

@@ -43,6 +43,7 @@ contains
 
     subroutine collect_callproc_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("call-process-region-entire-buffer-with-delete", test_region_delete), &
                     new_unittest("call-process-output", test_output), &
@@ -61,6 +62,7 @@ contains
         character(len=*), intent(in) :: name, text
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call get_buffer_create(name, h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
@@ -70,6 +72,7 @@ contains
     subroutine done(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
+
         call kill_buffer(h, st)
     end subroutine done
 
@@ -80,6 +83,7 @@ contains
         type(handle_type) :: h
         type(value_type) :: r
         type(status_type) :: st
+
         call fresh_buffer("*callproc-test*", "Buffer contents"//new_line("a"), h)
         call call_process_region("true", r, st, delete=.true.)
         call check(error, st%ok(), format_error(st))
@@ -94,16 +98,20 @@ contains
         type(handle_type) :: h
         type(value_type) :: r
         type(status_type) :: st
+
         call fresh_buffer("*callproc-test*", "", h)
         call call_process("echo", r, st, destination=t_value(), &
                           args=list(make_string("hello"), make_string("w"//char(195)//char(182)//"rld")))
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, xfixnum(r) == 0, "status 0")
+
         if (.not. allocated(error)) then
             call check(error, buffer_string(), "hello w"//char(195)//char(182)//"rld"//new_line("a"))
         end if
+
         if (.not. allocated(error)) call check(error, buffer_size(), 12_int64)
         if (.not. allocated(error)) call check(error, point(), 13_int64)
+
         ! Standard error is mixed with the output; discarded with no
         ! destination.
         if (.not. allocated(error)) then
@@ -112,11 +120,13 @@ contains
                               args=list(make_string("-c"), make_string("echo out; echo err >&2")))
             call check(error, buffer_string(), "out"//new_line("a")//"err"//new_line("a"))
         end if
+
         if (.not. allocated(error)) then
             call erase_buffer(st)
             call call_process("echo", r, st, args=list(make_string("discarded")))
             call check(error, st%ok() .and. buffer_size() == 0, "discarded")
         end if
+
         call done(h)
     end subroutine test_output
 
@@ -124,6 +134,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: r
         type(status_type) :: st
+
         call call_process("false", r, st)
         call check(error, st%ok() .and. fixnump(r) .and. xfixnum(r) == 1, "false")
         if (allocated(error)) return
@@ -136,6 +147,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: r
         type(status_type) :: st
+
         call call_process("sh", r, st, args=list(make_string("-c"), make_string("kill -TERM $$")))
         call check(error, st%ok() .and. stringp(r), "a string")
         if (.not. allocated(error)) call check(error, xstring(r), "Terminated")
@@ -145,8 +157,10 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: r
         type(status_type) :: st
+
         call call_process("fortmacs-no-such-program", r, st)
         call check(error, st%code == FM_FILE_MISSING, "file_missing")
+
         if (.not. allocated(error)) then
             call check(error, format_error(st), &
                        "Searching for program: No such file or directory, fortmacs-no-such-program")
@@ -159,6 +173,7 @@ contains
         type(value_type) :: r
         type(status_type) :: st
         character(len=:), allocatable :: file
+
         file = temporary_file_directory()//"fortmacs-callproc-infile"
         call fresh_buffer("*callproc-test*", "from a file", h)
         call write_region(file, .false., st)
@@ -167,11 +182,13 @@ contains
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "from a file")
         call delete_file_internal(file, st)
+
         if (.not. allocated(error)) then
             call call_process("cat", r, st, infile=file)
             call check(error, format_error(st), &
                        "Opening process input file: No such file or directory, "//file)
         end if
+
         call done(h)
     end subroutine test_infile
 
@@ -180,6 +197,7 @@ contains
         type(handle_type) :: h, out, now
         type(value_type) :: r
         type(status_type) :: st
+
         call fresh_buffer("*callproc-test*", "", h)
         call call_process("echo", r, st, destination=make_string("*callproc-out*"), &
                           args=list(make_string("elsewhere")))
@@ -204,16 +222,19 @@ contains
         character(len=:), allocatable :: home
         integer(int32) :: e
         integer :: length, stat
+
         call fresh_buffer("*callproc-test*", "", h)
         buffers(cur)%directory = "/"
         call call_process("pwd", r, st, destination=t_value())
         call check(error, buffer_string(), "/"//new_line("a"))
+
         if (.not. allocated(error)) then
             buffers(cur)%directory = "/fortmacs-no-such-directory/"
             call call_process("pwd", r, st)
             call check(error, format_error(st), &
                        "Setting current directory: No such file or directory, /fortmacs-no-such-directory/")
         end if
+
         if (.not. allocated(error)) then
             ! A default-directory under `~' is expanded first.
             call get_environment_variable("HOME", length=length, status=stat)
@@ -223,13 +244,16 @@ contains
             call erase_buffer(st)
             buffers(cur)%directory = "~/"
             call call_process("pwd", r, st, destination=t_value())
+
             if (stat == 0) then
                 e = sys_setenv("HOME", home)
             else
                 e = sys_unsetenv("HOME")
             end if
+
             call check(error, buffer_string(), "/"//new_line("a"))
         end if
+
         call done(h)
     end subroutine test_directory
 
@@ -239,16 +263,19 @@ contains
         type(handle_type) :: h
         type(value_type) :: r
         type(status_type) :: st
+
         call fresh_buffer("*callproc-test*", "hello world", h)
         call call_process_region("tr", r, st, 1_int64, 6_int64, destination=t_value(), &
                                  args=list(make_string("a-z"), make_string("A-Z")))
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "hello worldHELLO")
+
         if (.not. allocated(error)) then
             call call_process_region("tr", r, st, 1_int64, 6_int64, delete=.true., destination=t_value(), &
                                      args=list(make_string("a-z"), make_string("A-Z")))
             call check(error, buffer_string(), " worldHELLOHELLO")
         end if
+
         call done(h)
     end subroutine test_region_filter
 end module test_callproc_fm

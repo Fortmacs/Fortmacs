@@ -94,6 +94,7 @@ contains
     integer(int64) function xterm_modifiers(m) result(bits)
         integer, intent(in) :: m
         integer :: p
+
         p = m - 1
         if (m == 13 .or. m == 14) p = m - 7
         bits = 0
@@ -106,6 +107,7 @@ contains
         integer, intent(in) :: n
         character(len=:), allocatable :: s
         character(len=12) :: buf
+
         write (buf, "(i0)") n
         s = trim(buf)
     end function itoa
@@ -118,10 +120,13 @@ contains
         type(value_type), allocatable :: key(:)
         type(status_type) :: status
         integer :: k
+
         allocate (key(len(seq)))
+
         do k = 1, len(seq)
             key(k) = make_fixnum(int(iachar(seq(k:k)), int64))
         end do
+
         call define_key(map, key, list(ev), status)
     end subroutine def
 
@@ -130,6 +135,7 @@ contains
         type(handle_type), intent(in) :: map
         character(len=*), intent(in) :: seq, name
         integer(int64), intent(in) :: bits
+
         call def(map, seq, apply_modifiers(bits, name))
     end subroutine defkey
 
@@ -144,21 +150,27 @@ contains
         character(len=5), parameter :: arrows(4) = [character(len=5) :: "up", "down", "right", "left"]
         character(len=4), parameter :: arrow_finals = "ABCD"
         integer :: k
+
         if (keymap_live_p(rxvt_map)) then
             map = rxvt_map
             return
         end if
+
         call make_sparse_keymap(map)
+
         do k = 1, size(tilde_codes)
             call defkey(map, ESC//"["//itoa(tilde_codes(k))//"~", 0_int64, trim(tilde_names(k)))
         end do
+
         call defkey(map, ESC//"[12~", 0_int64, "f2")
         call defkey(map, ESC//"[13~", 0_int64, "f3")
         call defkey(map, ESC//"[14~", 0_int64, "f4")
         call defkey(map, ESC//"[2;2~", M_SHIFT, "insert")
+
         do k = 1, 4
             call defkey(map, ESC//"["//arrow_finals(k:k), 0_int64, trim(arrows(k)))
         end do
+
         rxvt_map = map
     end function xterm_rxvt_function_map
 
@@ -182,42 +194,53 @@ contains
         integer, parameter :: fkey_mods(5) = [2, 5, 6, 3, 4]
         integer :: k, j, m
         character(len=3) :: fname
+
         if (keymap_live_p(xterm_map)) then
             map = xterm_map
             return
         end if
+
         call make_sparse_keymap(map)
         call set_keymap_parent(map, xterm_rxvt_function_map(), status)
+
         ! F1-F4 (SS3 P..S), F11, F12, and modified F1-F12.
         do k = 1, 4
             write (fname, '("f",i0)') k
             call defkey(map, ESC//"O"//pf_finals(k:k), 0_int64, trim(fname))
             call defkey(map, ESC//"[1;2"//pf_finals(k:k), M_SHIFT, trim(fname))
+
             do j = 1, size(fkey_mods)
                 m = fkey_mods(j)
                 call defkey(map, ESC//"O"//itoa(m)//pf_finals(k:k), xterm_modifiers(m), trim(fname))
             end do
         end do
+
         call defkey(map, ESC//"[23~", 0_int64, "f11")
         call defkey(map, ESC//"[24~", 0_int64, "f12")
+
         do k = 1, size(fkey_codes)
             write (fname, '("f",i0)') k + 4
+
             do j = 1, size(fkey_mods)
                 m = fkey_mods(j)
                 call defkey(map, ESC//"["//itoa(fkey_codes(k))//";"//itoa(m)//"~", &
                             xterm_modifiers(m), trim(fname))
             end do
         end do
+
         ! Cursor keys: SS3 form, and CSI 1;M with modifiers.
         do k = 1, 6
             call defkey(map, ESC//"O"//cursor_finals(k:k), 0_int64, trim(cursor_names(k)))
+
             do m = 2, 8
                 call defkey(map, ESC//"[1;"//itoa(m)//cursor_finals(k:k), &
                             xterm_modifiers(m), trim(cursor_names(k)))
             end do
+
             call defkey(map, ESC//"O2"//cursor_finals(k:k), M_SHIFT, trim(cursor_names(k)))
             call defkey(map, ESC//"O5"//cursor_finals(k:k), M_CTL, trim(cursor_names(k)))
         end do
+
         ! Insert, Delete, PageUp, PageDown with modifiers.
         do k = 1, 4
             do m = 2, 8
@@ -225,17 +248,21 @@ contains
                             xterm_modifiers(m), trim(edit_names(k)))
             end do
         end do
+
         call defkey(map, ESC//"[29~", 0_int64, "menu")
         call defkey(map, ESC//"[1~", 0_int64, "home")
+
         ! Keypad (application mode).
         do k = 1, 16
             call defkey(map, ESC//"O"//kp_finals(k:k), 0_int64, trim(kp_names(k)))
             if (k == 16) cycle
+
             do m = 2, 8, 2
                 call defkey(map, ESC//"O"//itoa(m)//kp_finals(k:k), xterm_modifiers(m), &
                             trim(kp_names(k)))
             end do
         end do
+
         call define_modify_other_keys(map)
         xterm_map = map
     end function xterm_function_map
@@ -254,11 +281,14 @@ contains
         integer, parameter :: shift_mods(3) = [6, 14, 8], tab_mods(5) = [5, 6, 13, 7, 2]
         integer :: k, j, m
         integer(int64) :: bits
+
         do k = 1, size(ctl_chars)
             call other_key(5, ctl_chars(k), make_fixnum(M_CTL + ctl_chars(k)))
         end do
+
         do j = 1, 2
             m = merge(13, 7, j == 1)
+
             do k = 1, size(ctl_meta_chars)
                 ! C-M-SPC is only reported with M = 7.
                 if (ctl_meta_chars(k) == 32 .and. m == 13) cycle
@@ -266,26 +296,32 @@ contains
                                make_fixnum(M_CTL + M_META + ctl_meta_chars(k)))
             end do
         end do
+
         do j = 1, 3
             m = shift_mods(j)
             bits = M_CTL
             if (m /= 6) bits = M_CTL + M_META
+
             do k = 1, size(ctl_shift_chars)
                 call other_key(m, ctl_shift_chars(k), make_fixnum(bits + ctl_shift_chars(k)))
             end do
         end do
+
         call other_key(3, 32, make_fixnum(M_META + 32))
+
         ! TAB and RET with modifiers become function keys.
         do j = 1, size(tab_mods)
             m = tab_mods(j)
             call other_key(m, 9, apply_modifiers(xterm_modifiers(m), "tab"))
             call other_key(m, 13, apply_modifiers(xterm_modifiers(m), "return"))
         end do
+
     contains
 
         subroutine other_key(m, c, ev)
             integer, intent(in) :: m, c
             type(value_type), intent(in) :: ev
+
             call def(map, ESC//"[27;"//itoa(m)//";"//itoa(c)//"~", ev)
             call def(map, ESC//"["//itoa(c)//";"//itoa(m)//"u", ev)
         end subroutine other_key
@@ -301,10 +337,13 @@ contains
     subroutine terminal_init_xterm(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: map
+
         map = xterm_function_map()
+
         if (.not. keymap_live_p(input_decode_map)) then
             call make_sparse_keymap(input_decode_map)
         end if
+
         call set_keymap_parent(input_decode_map, map, status)
         if (.not. status%ok()) return
         call xterm_register_default_colors(xterm_standard_colors, status)
@@ -314,6 +353,7 @@ contains
     !> Port of term/xterm.el:xterm-rgb-convert-to-16bit.
     elemental integer function xterm_rgb_convert_to_16bit(prim) result(value)
         integer, intent(in) :: prim
+
         value = ior(prim, ishft(prim, 8))
     end function xterm_rgb_convert_to_16bit
 
@@ -330,11 +370,13 @@ contains
         type(status_type), intent(out) :: status
         integer, parameter :: levels(0:3) = [0, 139, 205, 255]
         integer :: ncolors, i, idx, r, g, b, color
+
         ncolors = tty_display_color_cells
         ! Clear the 8 default tty colors registered by startup.el
         if (ncolors > 0) call tty_color_clear()
         ! Only register as many colors as are supported by the display.
         i = 1
+
         do while (ncolors > 0 .and. i <= size(colors))
             call tty_color_define(trim(colors(i)%name), colors(i)%index, status, &
                                   xterm_rgb_convert_to_16bit(colors(i)%rgb))
@@ -342,6 +384,7 @@ contains
             i = i + 1
             ncolors = ncolors - 1
         end do
+
         ! We've exhausted the colors from `colors'.  If there are more
         ! colors to support, compute them now.
         if (ncolors > 0) then
@@ -349,6 +392,7 @@ contains
             case (16777200) ! 24-bit xterm
                 ! all named tty colors
                 idx = size(xterm_standard_colors)
+
                 do i = 1, color_name_count
                     if (.not. any(xterm_standard_colors%name == color_names(i))) then
                         call tty_color_define(trim(color_names(i)), idx, status, color_rgbs(:, i))
@@ -361,6 +405,7 @@ contains
                 r = 0
                 g = 0
                 b = 0
+
                 do while (ncolors > 24)
                     ! This and other formulas taken from 256colres.pl and
                     ! 88colres.pl in the xterm distribution.
@@ -368,16 +413,20 @@ contains
                                           xterm_rgb_convert_to_16bit([cube_level(r), cube_level(g), cube_level(b)]))
                     if (.not. status%ok()) return
                     b = b + 1
+
                     if (b > 5) then
                         g = g + 1
                         b = 0
                     end if
+
                     if (g > 5) then
                         r = r + 1
                         g = 0
                     end if
+
                     ncolors = ncolors - 1
                 end do
+
                 ! Now the 24 gray colors
                 do while (ncolors > 0)
                     color = xterm_rgb_convert_to_16bit(8 + (24 - ncolors)*10)
@@ -390,21 +439,26 @@ contains
                 r = 0
                 g = 0
                 b = 0
+
                 do while (ncolors > 8)
                     call tty_color_define("color-"//itoa(88 - ncolors), 88 - ncolors, status, &
                                           xterm_rgb_convert_to_16bit([levels(r), levels(g), levels(b)]))
                     if (.not. status%ok()) return
                     b = b + 1
+
                     if (b > 3) then
                         g = g + 1
                         b = 0
                     end if
+
                     if (g > 3) then
                         r = r + 1
                         g = 0
                     end if
+
                     ncolors = ncolors - 1
                 end do
+
                 ! Now the 8 gray colors
                 do while (ncolors > 0)
                     if (ncolors == 8) then
@@ -413,6 +467,7 @@ contains
                         color = xterm_rgb_convert_to_16bit(floor(real(8 - ncolors, real64)*23.18181818_real64 &
                                                                  + 69.54545454_real64))
                     end if
+
                     call tty_color_define("color-"//itoa(88 - ncolors), 88 - ncolors, status, [color, color, color])
                     if (.not. status%ok()) return
                     ncolors = ncolors - 1
@@ -422,13 +477,17 @@ contains
                 return
             end select
         end if
+
         ! Modifying color mappings means realized faces don't use the
         ! right colors, so clear them.
         if (associated(clear_face_cache_hook)) call clear_face_cache_hook()
+
     contains
+
         !> The 8-bit intensity of level `k' (0..5) of the 6x6x6 color cube.
         integer function cube_level(k)
             integer, intent(in) :: k
+
             cube_level = 0
             if (k /= 0) cube_level = k*40 + 55
         end function cube_level

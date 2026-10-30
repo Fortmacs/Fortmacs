@@ -223,6 +223,7 @@ contains
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: v
         integer :: length, stat
+
         v = ""
         call get_environment_variable(name, length=length, status=stat)
         if (stat /= 0 .or. length == 0) return
@@ -234,6 +235,7 @@ contains
 
     logical function file_exists(path)
         character(len=*), intent(in) :: path
+
         inquire (file=path, exist=file_exists)
     end function file_exists
 
@@ -242,6 +244,7 @@ contains
         character(len=*), intent(in) :: dir, term
         character(len=:), allocatable :: path
         character(len=2) :: hex
+
         path = dir//"/"//term(1:1)//"/"//term
         if (file_exists(path)) return
         write (hex, "(z2.2)") iachar(term(1:1))
@@ -254,7 +257,9 @@ contains
         character(len=*), intent(in) :: s
         character(len=len(s)) :: t
         integer :: k
+
         t = s
+
         do k = 1, len(s)
             if (s(k:k) >= "A" .and. s(k:k) <= "Z") t(k:k) = achar(iachar(s(k:k)) + 32)
         end do
@@ -266,37 +271,47 @@ contains
         character(len=:), allocatable :: path, dirs, home, dir
         character(len=*), parameter :: SYSTEM_DIRS = "/etc/terminfo:/lib/terminfo:/usr/share/terminfo"
         integer :: k
+
         path = ""
         dir = getenv_str("TERMINFO")
+
         if (len(dir) > 0) then
             path = entry_path(dir, term)
             if (len(path) > 0) return
         end if
+
         home = getenv_str("HOME")
+
         if (len(home) > 0) then
             path = entry_path(home//"/.terminfo", term)
             if (len(path) > 0) return
         end if
+
         dirs = getenv_str("TERMINFO_DIRS")
+
         if (len(dirs) == 0) then
             dirs = SYSTEM_DIRS
         else
             dirs = dirs//":"
         end if
+
         do while (len(dirs) > 0)
             k = index(dirs, ":")
             if (k == 0) k = len(dirs) + 1
             dir = dirs(1:k - 1)
+
             if (k > len(dirs)) then
                 dirs = ""
             else
                 dirs = dirs(k + 1:)
             end if
+
             if (len(dir) == 0) then
                 ! An empty element stands for the system directories.
                 if (index(dirs, SYSTEM_DIRS) /= 1) dirs = SYSTEM_DIRS//":"//dirs
                 cycle
             end if
+
             path = entry_path(dir, term)
             if (len(path) > 0) return
         end do
@@ -310,20 +325,25 @@ contains
         type(terminfo_type), intent(out) :: ti
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: path
+
         if (len(term) == 0 .or. index(term, "/") > 0) then
             call set_error(status, FM_GENERIC_ERROR, &
                            "Terminal type "//term//" is not defined")
             return
         end if
+
         path = find_entry(term)
+
         if (len(path) > 0) then
             call read_terminfo(path, ti, status)
             return
         end if
+
         if (index(term, "xterm") == 1) then
             call builtin_xterm(ti)
             return
         end if
+
         call set_error(status, FM_GENERIC_ERROR, "Terminal type "//term//" is not defined")
     end subroutine tgetent
 
@@ -335,24 +355,31 @@ contains
         character(len=:), allocatable :: data
         integer :: unit, ios
         integer(int64) :: size
+
         inquire (file=path, size=size)
+
         if (size <= 0) then
             call set_error(status, FM_FILE_ERROR, "Cannot read terminfo entry: "//path)
             return
         end if
+
         allocate (character(len=size) :: data)
         open (newunit=unit, file=path, access="stream", form="unformatted", &
               action="read", status="old", iostat=ios)
+
         if (ios /= 0) then
             call set_error(status, FM_FILE_ERROR, "Cannot read terminfo entry: "//path)
             return
         end if
+
         read (unit, iostat=ios) data
         close (unit)
+
         if (ios /= 0) then
             call set_error(status, FM_FILE_ERROR, "Cannot read terminfo entry: "//path)
             return
         end if
+
         call parse_terminfo(data, ti, status)
     end subroutine read_terminfo
 
@@ -360,6 +387,7 @@ contains
     integer(int32) function get16(data, off) result(v)
         character(len=*), intent(in) :: data
         integer(int64), intent(in) :: off
+
         v = ichar(data(off + 1:off + 1), int32) + 256*ichar(data(off + 2:off + 2), int32)
         if (v >= 32768) v = v - 65536
     end function get16
@@ -370,10 +398,13 @@ contains
         integer(int64), intent(in) :: off
         integer(int64) :: u
         integer :: k
+
         u = 0
+
         do k = 3, 0, -1
             u = 256*u + ichar(data(off + k + 1:off + k + 1), int64)
         end do
+
         if (u >= 2_int64**31) u = u - 2_int64**32
         v = int(u, int32)
     end function get32
@@ -384,7 +415,9 @@ contains
         integer(int64), intent(in) :: off
         character(len=:), allocatable :: s
         integer :: e
+
         e = index(table(off + 1:), achar(0))
+
         if (e == 0) then
             s = table(off + 1:)
         else
@@ -401,12 +434,16 @@ contains
                           ebools, enums, estrs, eitems, etab_size, o
         integer(int64) :: off, n, k, numsize, tab, names_start, last
         character(len=:), allocatable :: table
+
         n = len(data, kind=int64)
+
         if (n < 12) then
             call bad(status)
             return
         end if
+
         magic_number = get16(data, 0_int64)
+
         if (magic_number == MAGIC) then
             numsize = 2
         else if (magic_number == MAGIC2) then
@@ -415,27 +452,35 @@ contains
             call bad(status)
             return
         end if
+
         names_size = get16(data, 2_int64)
         nbools = get16(data, 4_int64)
         nnums = get16(data, 6_int64)
         nstrs = get16(data, 8_int64)
         tab_size = get16(data, 10_int64)
+
         if (names_size < 0 .or. nbools < 0 .or. nnums < 0 .or. nstrs < 0 .or. tab_size < 0) then
             call bad(status)
             return
         end if
+
         off = 12
+
         if (off + names_size + nbools + 1 + numsize*nnums + 2*nstrs + tab_size > n + 1) then
             call bad(status)
             return
         end if
+
         ti%names = cstring(data(off + 1:off + names_size), 0_int64)
         off = off + names_size
+
         do k = 1, min(int(nbools, int64), int(BOOLCOUNT, int64))
             ti%flags(k) = ichar(data(off + k:off + k)) == 1
         end do
+
         off = off + nbools
         if (mod(off, 2_int64) == 1) off = off + 1
+
         do k = 1, nnums
             if (k <= NUMCOUNT) then
                 if (numsize == 2) then
@@ -443,22 +488,30 @@ contains
                 else
                     ti%numbers(k) = get32(data, off)
                 end if
+
                 if (ti%numbers(k) < 0) ti%numbers(k) = -1
             end if
+
             off = off + numsize
         end do
+
         tab = off + 2*nstrs
+
         if (tab + tab_size > n) then
             call bad(status)
             return
         end if
+
         table = data(tab + 1:tab + tab_size)
+
         do k = 1, nstrs
             o = get16(data, off + 2*(k - 1))
+
             if (k <= STRCOUNT .and. o >= 0 .and. o < tab_size) then
                 ti%strings(k)%s = cstring(table, int(o, int64))
             end if
         end do
+
         off = tab + tab_size
         ! The extended section (ncurses), if present.
         allocate (ti%ext_flag_names(0), ti%ext_num_names(0), ti%ext_str_names(0), &
@@ -478,43 +531,54 @@ contains
         allocate (ti%ext_flag_names(ebools), ti%ext_num_names(enums), &
                   ti%ext_str_names(estrs), ti%ext_strs(estrs), ti%ext_flags(ebools), &
                   ti%ext_nums(enums))
+
         if (off + ebools > n) then
             call bad(status)
             return
         end if
+
         do k = 1, ebools
             ti%ext_flags(k) = ichar(data(off + k:off + k)) == 1
         end do
+
         off = off + ebools
         if (mod(off, 2_int64) == 1) off = off + 1
+
         if (off + numsize*enums + 2*eitems + etab_size > n) then
             call bad(status)
             return
         end if
+
         do k = 1, enums
             if (numsize == 2) then
                 ti%ext_nums(k) = get16(data, off)
             else
                 ti%ext_nums(k) = get32(data, off)
             end if
+
             if (ti%ext_nums(k) < 0) ti%ext_nums(k) = -1
             off = off + numsize
         end do
+
         tab = off + 2*eitems
         table = data(tab + 1:tab + etab_size)
         ! Values first; the names follow the last value string.
         names_start = 0
+
         do k = 1, estrs
             o = get16(data, off + 2*(k - 1))
+
             if (o >= 0 .and. o < etab_size) then
                 ti%ext_strs(k)%s = cstring(table, int(o, int64))
                 last = o + len(ti%ext_strs(k)%s) + 1
                 names_start = max(names_start, last)
             end if
         end do
+
         do k = 1, ebools + enums + estrs
             o = get16(data, off + 2*(estrs + k - 1))
             if (o < 0 .or. names_start + o >= etab_size) cycle
+
             if (k <= ebools) then
                 ti%ext_flag_names(k)%s = cstring(table, names_start + o)
             else if (k <= ebools + enums) then
@@ -523,10 +587,12 @@ contains
                 ti%ext_str_names(k - ebools - enums)%s = cstring(table, names_start + o)
             end if
         end do
+
     contains
 
         subroutine bad(status)
             type(status_type), intent(inout) :: status
+
             call set_error(status, FM_GENERIC_ERROR, "Invalid terminfo entry")
         end subroutine bad
     end subroutine parse_terminfo
@@ -537,19 +603,23 @@ contains
 
     integer function find_name(table, name) result(k)
         character(len=*), intent(in) :: table(:), name
+
         do k = 1, size(table)
             if (table(k) == name) return
         end do
+
         k = 0
     end function find_name
 
     integer function find_ext(names, name) result(k)
         type(cap_string), intent(in) :: names(:)
         character(len=*), intent(in) :: name
+
         do k = 1, size(names)
             if (.not. allocated(names(k)%s)) cycle
             if (names(k)%s == name) return
         end do
+
         k = 0
     end function find_ext
 
@@ -559,8 +629,10 @@ contains
         type(terminfo_type), intent(in) :: ti
         character(len=*), intent(in) :: name
         integer :: k
+
         v = .false.
         k = find_name(BOOL_NAMES, name)
+
         if (k > 0) then
             v = ti%flags(k)
         else if (allocated(ti%ext_flag_names)) then
@@ -574,8 +646,10 @@ contains
         type(terminfo_type), intent(in) :: ti
         character(len=*), intent(in) :: name
         integer :: k
+
         v = -1
         k = find_name(NUM_NAMES, name)
+
         if (k > 0) then
             v = ti%numbers(k)
         else if (allocated(ti%ext_num_names)) then
@@ -591,9 +665,11 @@ contains
         logical, intent(out), optional :: found
         character(len=:), allocatable :: s
         integer :: k
+
         s = ""
         if (present(found)) found = .false.
         k = find_name(STR_NAMES, name)
+
         if (k > 0) then
             if (.not. allocated(ti%strings(k)%s)) return
             s = ti%strings(k)%s
@@ -604,6 +680,7 @@ contains
             if (.not. allocated(ti%ext_strs(k)%s)) return
             s = ti%ext_strs(k)%s
         end if
+
         if (present(found)) found = .true.
     end function tigetstr
 
@@ -613,8 +690,10 @@ contains
         type(terminfo_type), intent(in) :: ti
         character(len=*), intent(in) :: code
         integer :: k
+
         k = 0
         if (len(code) == 2) k = find_name(BOOL_CODES, code)
+
         if (k > 0) then
             v = ti%flags(k)
         else
@@ -627,8 +706,10 @@ contains
         type(terminfo_type), intent(in) :: ti
         character(len=*), intent(in) :: code
         integer :: k
+
         k = 0
         if (len(code) == 2) k = find_name(NUM_CODES, code)
+
         if (k > 0) then
             v = ti%numbers(k)
         else
@@ -643,8 +724,10 @@ contains
         logical, intent(out), optional :: found
         character(len=:), allocatable :: s
         integer :: k
+
         k = 0
         if (len(code) == 2) k = find_name(STR_CODES, code)
+
         if (k > 0) then
             s = tigetstr(ti, trim(STR_NAMES(k)), found)
         else
@@ -660,6 +743,7 @@ contains
         type(terminfo_type), intent(inout) :: ti
         character(len=*), intent(in) :: name
         integer :: k
+
         k = find_name(BOOL_NAMES, name)
         if (k > 0) ti%flags(k) = .true.
     end subroutine set_flag
@@ -669,6 +753,7 @@ contains
         character(len=*), intent(in) :: name
         integer, intent(in) :: v
         integer :: k
+
         k = find_name(NUM_NAMES, name)
         if (k > 0) ti%numbers(k) = v
     end subroutine set_num
@@ -678,11 +763,14 @@ contains
         character(len=*), intent(in) :: name, v
         type(cap_string), allocatable :: names(:), values(:)
         integer :: k, n
+
         k = find_name(STR_NAMES, name)
+
         if (k > 0) then
             ti%strings(k)%s = v
             return
         end if
+
         n = size(ti%ext_str_names)
         allocate (names(n + 1), values(n + 1))
         names(1:n) = ti%ext_str_names
@@ -697,6 +785,7 @@ contains
     !> plus cursor and function keys (generated from ncurses 6.4's entry).
     subroutine builtin_xterm(ti)
         type(terminfo_type), intent(out) :: ti
+
         ti%names = "xterm-256color|xterm with 256 colors (built in)"
         allocate (ti%ext_flag_names(0), ti%ext_num_names(0), ti%ext_str_names(0), &
                   ti%ext_strs(0), ti%ext_flags(0), ti%ext_nums(0))
@@ -806,17 +895,22 @@ contains
                                         upper_digits = "0123456789ABCDEF"
         integer(int64) :: m
         integer :: d
+
         s = ""
         m = n
+
         do while (m > 0)
             d = int(mod(m, int(base, int64)))
+
             if (upper) then
                 s = upper_digits(d + 1:d + 1)//s
             else
                 s = lower_digits(d + 1:d + 1)//s
             end if
+
             m = m/base
         end do
+
         if (len(s) < mindigits) s = repeat("0", mindigits - len(s))//s
     end function int_digits
 
@@ -832,13 +926,16 @@ contains
         character(len=:), allocatable :: s, sign, digits, prefix
         integer(int64) :: u
         integer :: mindigits
+
         sign = ""
         prefix = ""
         mindigits = 1
         if (precision >= 0) mindigits = precision
+
         select case (conv)
         case ("d")
             u = abs(v)
+
             if (v < 0) then
                 sign = "-"
             else if (index(flags, "+") > 0) then
@@ -846,10 +943,12 @@ contains
             else if (index(flags, " ") > 0) then
                 sign = " "
             end if
+
             digits = int_digits(u, 10, .false., mindigits)
         case default
             ! Unsigned conversions see the value as a C unsigned int.
             u = iand(v, 4294967295_int64)
+
             select case (conv)
             case ("o")
                 digits = int_digits(u, 8, .false., mindigits)
@@ -862,8 +961,10 @@ contains
                 if (index(flags, "#") > 0 .and. u /= 0) prefix = "0X"
             end select
         end select
+
         if (precision == 0 .and. v == 0) digits = ""
         s = sign//prefix//digits
+
         if (len(s) < width) then
             if (index(flags, "-") > 0) then
                 s = s//repeat(" ", width - len(s))
@@ -889,6 +990,7 @@ contains
         character :: c
         character(len=:), allocatable :: flags
         logical :: zero
+
         params = 0
         if (present(p1)) params(1) = p1
         if (present(p2)) params(2) = p2
@@ -905,21 +1007,26 @@ contains
         out = ""
         n = len(str)
         i = 1
+
         do while (i <= n)
             c = str(i:i)
             i = i + 1
+
             if (c /= "%") then
                 out = out//c
                 cycle
             end if
+
             if (i > n) exit
             c = str(i:i)
             i = i + 1
+
             select case (c)
             case ("%")
                 out = out//"%"
             case ("c")
                 v = pop()
+
                 ! A NUL can't be sent through a C string; terminfo sends 0200.
                 if (iand(v, 255_int64) == 0) then
                     out = out//char(128)
@@ -952,11 +1059,13 @@ contains
                 i = i + 2
             case ("{")
                 v = 0
+
                 do while (i <= n)
                     if (str(i:i) == "}") exit
                     v = 10*v + iachar(str(i:i)) - iachar("0")
                     i = i + 1
                 end do
+
                 i = i + 1
                 call push(v)
             case ("+", "-", "*", "/", "m", "&", "|", "^", "=", "<", ">", "A", "O")
@@ -980,24 +1089,29 @@ contains
                 i = i - 1
                 if (str(i:i) == ":") i = i + 1
                 flags = ""
+
                 do while (i <= n)
                     if (index("-+# ", str(i:i)) == 0) exit
                     flags = flags//str(i:i)
                     i = i + 1
                 end do
+
                 zero = .false.
                 if (i <= n) zero = str(i:i) == "0"
                 width = read_int()
                 precision = -1
+
                 if (i <= n) then
                     if (str(i:i) == ".") then
                         i = i + 1
                         precision = read_int()
                     end if
                 end if
+
                 if (i > n) exit
                 c = str(i:i)
                 i = i + 1
+
                 if (index("doxX", c) > 0) then
                     out = out//format_int(pop(), c, flags, width, precision, zero)
                 else if (c == "s") then
@@ -1005,10 +1119,12 @@ contains
                 end if
             end select
         end do
+
     contains
 
         subroutine push(x)
             integer(int64), intent(in) :: x
+
             if (sp < size(stack)) then
                 sp = sp + 1
                 stack(sp) = x
@@ -1017,6 +1133,7 @@ contains
 
         integer(int64) function pop() result(x)
             x = 0
+
             if (sp > 0) then
                 x = stack(sp)
                 sp = sp - 1
@@ -1026,6 +1143,7 @@ contains
         subroutine set_var(name, x)
             character, intent(in) :: name
             integer(int64), intent(in) :: x
+
             if (name >= "a" .and. name <= "z") then
                 dynamic(iachar(name) - iachar("a") + 1) = x
             else if (name >= "A" .and. name <= "Z") then
@@ -1035,7 +1153,9 @@ contains
 
         integer(int64) function get_var(name) result(x)
             character, intent(in) :: name
+
             x = 0
+
             if (name >= "a" .and. name <= "z") then
                 x = dynamic(iachar(name) - iachar("a") + 1)
             else if (name >= "A" .and. name <= "Z") then
@@ -1045,6 +1165,7 @@ contains
 
         integer function read_int() result(x)
             x = 0
+
             do while (i <= n)
                 if (str(i:i) < "0" .or. str(i:i) > "9") exit
                 x = 10*x + iachar(str(i:i)) - iachar("0")
@@ -1056,12 +1177,15 @@ contains
         subroutine skip(to_else)
             logical, intent(in) :: to_else
             integer :: level
+
             level = 0
+
             do while (i < n)
                 if (str(i:i) /= "%") then
                     i = i + 1
                     cycle
                 end if
+
                 select case (str(i + 1:i + 1))
                 case ("?")
                     level = level + 1
@@ -1070,6 +1194,7 @@ contains
                         i = i + 2
                         return
                     end if
+
                     level = level - 1
                 case ("e")
                     if (level == 0 .and. to_else) then
@@ -1079,8 +1204,10 @@ contains
                 case default
                     ! Nothing to do for other values.
                 end select
+
                 i = i + 2
             end do
+
             i = n + 1
         end subroutine skip
     end function tparm
@@ -1088,6 +1215,7 @@ contains
     integer(int64) function binary(op, a, b) result(v)
         character, intent(in) :: op
         integer(int64), intent(in) :: a, b
+
         select case (op)
         case ("+")
             v = a + b
@@ -1125,6 +1253,7 @@ contains
         character(len=*), intent(in) :: str
         integer(int64), intent(in) :: arg1, arg2, arg3, arg4
         character(len=:), allocatable :: out
+
         out = tparm(str, arg1, arg2, arg3, arg4)
     end function tparam
 
@@ -1134,6 +1263,7 @@ contains
         character(len=*), intent(in) :: cm
         integer(int64), intent(in) :: col, row
         character(len=:), allocatable :: out
+
         out = tparm(cm, row, col)
     end function tgoto
 
@@ -1143,18 +1273,22 @@ contains
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: t
         integer :: i, e
+
         t = ""
         i = 1
+
         do while (i <= len(s))
             if (i < len(s)) then
                 if (s(i:i + 1) == "$<") then
                     e = index(s(i:), ">")
+
                     if (e > 0) then
                         i = i + e
                         cycle
                     end if
                 end if
             end if
+
             t = t//s(i:i)
             i = i + 1
         end do

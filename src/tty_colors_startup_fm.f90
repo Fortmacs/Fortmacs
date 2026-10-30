@@ -34,6 +34,7 @@ contains
         integer, intent(in) :: ncolors
         logical, intent(in) :: xterm
         type(status_type), intent(out) :: status
+
         tty_display_color_cells = ncolors
         call tty_register_default_colors()
         if (xterm) call xterm_register_default_colors(xterm_standard_colors, status)

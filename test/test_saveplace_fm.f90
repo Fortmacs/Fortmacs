@@ -48,6 +48,7 @@ contains
 
     subroutine collect_saveplace_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("saveplace-test-save-place-to-alist/dir", test_to_alist_dir), &
                     new_unittest("saveplace-test-save-place-to-alist/file", test_to_alist_file), &
@@ -61,6 +62,7 @@ contains
     function resource_directory() result(dir)
         character(len=:), allocatable :: dir
         type(status_type) :: st
+
         call init_fileio()
         call expand_file_name("test/saveplace-resources", dir, st, emacs_wd)
         dir = file_name_as_directory(dir)
@@ -71,6 +73,7 @@ contains
     subroutine start(loaded)
         logical, intent(in) :: loaded
         type(status_type) :: st
+
         call init_bindings()
         call minor_modes%save_place_mode%enable(st)
         if (allocated(save_place_alist)) deallocate (save_place_alist)
@@ -83,8 +86,10 @@ contains
         character(len=*), intent(in) :: files(:)
         integer(int64), intent(in) :: positions(:)
         integer :: k
+
         if (allocated(save_place_alist)) deallocate (save_place_alist)
         allocate (save_place_alist(size(files)))
+
         do k = 1, size(files)
             save_place_alist(k)%file = trim(files(k))
             save_place_alist(k)%position = positions(k)
@@ -96,6 +101,7 @@ contains
         type(handle_type) :: old
         type(status_type) :: st
         character(len=:), allocatable :: loc
+
         call start(.true.)
         loc = resource_directory()
         old = current_buffer()
@@ -120,6 +126,7 @@ contains
         type(handle_type) :: old, h
         type(status_type) :: st
         character(len=:), allocatable :: tmp, tmpfile
+
         call start(.true.)
         call make_temp_file("saveplace-test", tmp, st)
         call file_truename(tmp, tmpfile, st)
@@ -148,6 +155,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=:), allocatable :: tmpfile
+
         call start(.true.)
         call make_temp_file("saveplace-test", tmpfile, st)
         call set_alist([character(len=len(tmpfile) + 32) :: "/this/file/does/not/exist", tmpfile], [10_int64, 1917_int64])
@@ -166,6 +174,7 @@ contains
         type(handle_type) :: old, h
         character(len=:), allocatable :: tmpfile, tmpfile2, text
         integer(int64) :: inserted
+
         call start(.true.)
         call make_temp_file("saveplace-test", tmpfile, st)
         call make_temp_file("saveplace-test", tmpfile2, st)
@@ -188,6 +197,7 @@ contains
 
     subroutine test_load_alist(error)
         type(error_type), allocatable, intent(out) :: error
+
         call start(.false.)
         save_place_file = resource_directory()//"saveplace"
         call save_place_load_alist_from_file()

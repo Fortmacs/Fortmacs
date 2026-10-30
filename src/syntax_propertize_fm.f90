@@ -312,18 +312,23 @@ contains
     integer function data_index() result(k)
         type(ppss_data_type), allocatable :: grown(:)
         integer :: i, n
+
         if (.not. allocated(data)) allocate (data(0))
+
         do k = 1, size(data)
             if (data(k)%serial == buffers(cur)%serial) return
         end do
+
         do k = 1, size(data)
             if (.not. buffer_serial_live(data(k)%serial)) then
                 data(k) = ppss_data_type(serial=buffers(cur)%serial)
                 return
             end if
         end do
+
         n = size(data)
         allocate (grown(n + 1))
+
         do i = 1, n
             call move_cell(data(i)%wide, grown(i)%wide)
             call move_cell(data(i)%narrow, grown(i)%narrow)
@@ -333,6 +338,7 @@ contains
             grown(i)%has_table = data(i)%has_table
             grown(i)%table = data(i)%table
         end do
+
         grown(n + 1)%serial = buffers(cur)%serial
         call move_alloc(grown, data)
         k = n + 1
@@ -341,6 +347,7 @@ contains
     subroutine move_cell(from, to)
         type(ppss_cell_type), intent(inout) :: from
         type(ppss_cell_type), intent(inout) :: to
+
         to%exists = from%exists
         to%has_last = from%has_last
         to%last_pos = from%last_pos
@@ -354,14 +361,17 @@ contains
         procedure(syntax_propertize_proc) :: fn
         type(function_entry_type), allocatable :: grown(:)
         integer :: i, n
+
         if (cur == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
+
         do i = 1, size(self%entries)
             if (self%entries(i)%serial == buffers(cur)%serial) then
                 self%entries(i)%fn => fn
                 return
             end if
         end do
+
         do i = 1, size(self%entries)
             if (.not. buffer_serial_live(self%entries(i)%serial)) then
                 self%entries(i)%serial = buffers(cur)%serial
@@ -369,12 +379,15 @@ contains
                 return
             end if
         end do
+
         n = size(self%entries)
         allocate (grown(n + 1))
+
         do i = 1, n
             grown(i)%serial = self%entries(i)%serial
             grown(i)%fn => self%entries(i)%fn
         end do
+
         grown(n + 1)%serial = buffers(cur)%serial
         grown(n + 1)%fn => fn
         call move_alloc(grown, self%entries)
@@ -384,9 +397,11 @@ contains
         class(syntax_propertize_function_type), intent(in) :: self
         procedure(syntax_propertize_proc), pointer :: fn
         integer :: i
+
         fn => self%value
         if (cur == 0) return
         if (.not. allocated(self%entries)) return
+
         do i = 1, size(self%entries)
             if (self%entries(i)%serial == buffers(cur)%serial) then
                 if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
@@ -397,8 +412,10 @@ contains
     subroutine function_kill_local(self)
         class(syntax_propertize_function_type), intent(inout) :: self
         integer :: i
+
         if (cur == 0) return
         if (.not. allocated(self%entries)) return
+
         do i = 1, size(self%entries)
             if (self%entries(i)%serial == buffers(cur)%serial) then
                 self%entries(i)%serial = 0
@@ -410,6 +427,7 @@ contains
     subroutine ppss_table_set_local(h)
         type(handle_type), intent(in) :: h
         integer :: k
+
         if (cur == 0) return
         k = data_index()
         data(k)%has_table = .true.
@@ -420,6 +438,7 @@ contains
         type(handle_type), intent(out) :: h
         logical, intent(out) :: found
         integer :: k
+
         found = .false.
         if (cur == 0) return
         k = data_index()
@@ -429,6 +448,7 @@ contains
 
     subroutine ppss_table_kill_local()
         integer :: k
+
         if (cur == 0) return
         k = data_index()
         data(k)%has_table = .false.
@@ -437,6 +457,7 @@ contains
     ! kill-all-local-variables: forget the current buffer's values.
     subroutine kill_syntax_locals()
         integer :: k
+
         call syntax_propertize_function%kill_local()
         if (cur == 0) return
         k = data_index()
@@ -448,10 +469,13 @@ contains
     function ppss_syntax_table() result(h)
         type(handle_type) :: h
         logical :: found
+
         call ppss_table_get(h, found)
+
         if (found) then
             if (syntax_table_live_p(h)) return
         end if
+
         h = syntax_table()
     end function ppss_syntax_table
 
@@ -464,6 +488,7 @@ contains
     integer(int64) function syntax_lbp(arg) result(res)
         integer(int64), intent(in), optional :: arg
         integer(int64) :: pos, max
+
         pos = point()
         res = line_beginning_position(arg)
         if (abs(pos - res) < syntax_wholeline_max) return
@@ -473,6 +498,7 @@ contains
         ! to `syntax_propertize_wholelines' don't keep growing the bounds,
         ! i.e. it really behaves like additional line-breaks.
         max = syntax_wholeline_max
+
         if (res < pos) then
             res = maxval([point_min(), max*(pos/max)])
         else
@@ -491,6 +517,7 @@ contains
         integer(int64), intent(out) :: new_beg, new_end
         type(status_type), intent(out) :: status
         logical :: saved
+
         status = status_type()
         saved = inhibit_field_text_motion
         inhibit_field_text_motion = .true.
@@ -512,12 +539,15 @@ contains
         type(value_type) :: val
         integer(int64) :: pos
         logical :: found
+
         new_beg = beg
         new_end = end
         status = status_type()
+
         if (beg > point_min()) then
             call get_text_property(beg - 1, sym("syntax_multiline"), val, status)
             if (.not. status%ok()) return
+
             if (.not. nilp(val)) then
                 call previous_single_property_change(beg, sym("syntax_multiline"), pos, found, status)
                 if (.not. status%ok()) return
@@ -525,8 +555,10 @@ contains
                 if (found) new_beg = pos
             end if
         end if
+
         call get_text_property(end, sym("syntax_multiline"), val, status)
         if (.not. status%ok()) return
+
         if (.not. nilp(val)) then
             call text_property_any(end, point_max(), sym("syntax_multiline"), nil(), pos, found, status)
             if (.not. status%ok()) return
@@ -548,9 +580,11 @@ contains
         logical :: context
         character(len=12) :: buf
         character(len=:), allocatable :: digits
+
         new_re = ""
         ! (replace-regexp-in-string "\\\\(\\?\\([0-9]+\\):" ... re t t)
         pos = 1
+
         do
             idx = string_match("\\(\?\([0-9]+\):", re, status, pos)
             if (.not. status%ok()) return
@@ -564,8 +598,10 @@ contains
             new_re = new_re//chars(re, pos, mb)//trim(buf)
             pos = me
         end do
+
         new_re = new_re//chars(re, pos, char_count(re) + 1)
         pos = 1
+
         do
             idx = string_match("\\\([0-9]+\)", new_re, status, pos)
             if (.not. status%ok()) return
@@ -578,15 +614,18 @@ contains
             ! not in a character class or in a \{\} repetition.
             context = subregexp_context_p(new_re, mb0, status)
             if (.not. status%ok()) return
+
             if (context) then
                 digits = chars(new_re, mb, me)
                 read (digits, *, iostat=ios) num
                 if (ios /= 0) num = 0
                 num = n + num
+
                 if (num > 9) then
                     call set_error(status, FM_GENERIC_ERROR, "There may be at most nine back-references")
                     return
                 end if
+
                 write (buf, "(i0)") num
                 new_re = chars(new_re, 1_int64, mb)//trim(buf)//chars(new_re, me, char_count(new_re) + 1)
             end if
@@ -598,6 +637,7 @@ contains
         character(len=*), intent(in) :: s
         integer(int64), intent(in) :: b, e
         character(len=:), allocatable :: sub
+
         sub = s(string_index_to_offset(s, b) + 1:string_index_to_offset(s, e))
     end function chars
 
@@ -605,7 +645,9 @@ contains
     pure integer(int64) function char_count(s) result(n)
         character(len=*), intent(in) :: s
         integer :: i
+
         n = 0
+
         do i = 1, len(s)
             if (iand(ichar(s(i:i)), 192) /= 128) n = n + 1
         end do
@@ -620,6 +662,7 @@ contains
         character(len=:), allocatable :: re
         integer :: offset, local_offset, i, j, nrules, nh, depth
         logical :: has0, nocode
+
         status = status_type()
         saved = match_data()
         nrules = 0
@@ -628,15 +671,18 @@ contains
         allocate (self%branches(nrules))
         self%re = ""
         offset = 0
+
         do i = 1, nrules
             associate (rule => self%rules(i), branch => self%branches(i))
                 nh = 0
                 if (allocated(rule%highlights)) nh = size(rule%highlights)
                 re = rule%regexp
                 has0 = .false.
+
                 do j = 1, nh
                     if (rule%highlights(j)%group == 0) has0 = .true.
                 end do
+
                 if (has0 .and. nrules > 1) then
                     ! If there's more than 1 rule, and the rule want to apply
                     ! highlight to match 0, create an extra group to be able to
@@ -644,9 +690,11 @@ contains
                     offset = offset + 1
                     re = "\("//re//"\)"
                 end if
+
                 re = syntax_propertize_shift_groups_and_backrefs(re, offset, status)
                 if (.not. status%ok()) exit
                 branch%always = .false.
+
                 if (has0) then
                     if (offset == 0) then
                         branch%always = .true.
@@ -656,13 +704,16 @@ contains
                     end if
                 else
                     allocate (branch%groups(nh))
+
                     do j = 1, nh
                         branch%groups(j) = offset + rule%highlights(j)%group
                     end do
                 end if
+
                 local_offset = offset
                 nocode = .true.
                 branch%shift = 0
+
                 ! If some of the subgroup rules include code, then we
                 ! need to set the match-data so it's consistent with what the
                 ! code expects.  If not, then we can simply use shifted
@@ -672,23 +723,28 @@ contains
                         if (.not. allocated(rule%highlights(j)%syntax) .or. &
                             associated(rule%highlights(j)%after)) nocode = .false.
                     end do
+
                     if (.not. nocode) then
                         ! Keep match 0 as is, but shift everything else.
                         branch%shift = offset
                         local_offset = 0
                     end if
                 end if
+
                 ! Now construct the code for each subgroup rules.
                 allocate (branch%steps(nh))
+
                 do j = 1, nh
                     branch%steps(j)%gn = local_offset + rule%highlights(j)%group
                     branch%steps(j)%highlight = rule%highlights(j)
                     branch%steps(j)%conditional = nh > 1 .and. branch%steps(j)%gn /= 0
+
                     if (allocated(rule%highlights(j)%syntax)) then
                         call string_to_syntax(rule%highlights(j)%syntax, branch%steps(j)%descriptor, status)
                         if (.not. status%ok()) exit
                     end if
                 end do
+
                 if (.not. status%ok()) exit
                 depth = regexp_opt_depth(rule%regexp, status)
                 if (.not. status%ok()) exit
@@ -697,6 +753,7 @@ contains
                 self%re = self%re//re
             end associate
         end do
+
         call set_match_data(saved)
         if (status%ok()) self%compiled = .true.
     end subroutine rules_compile
@@ -710,33 +767,43 @@ contains
         integer(int64) :: found
         integer :: i, j
         logical :: matched
+
         status = status_type()
+
         if (.not. self%compiled) then
             call rules_compile(self, status)
             if (.not. status%ok()) return
         end if
+
         call goto_char(start)
+
         do while (point() < end)
             call re_search_forward(self%re, found, status, bound=end, noerror=SEARCH_NOERROR)
             if (.not. status%ok()) return
             if (found == 0) exit
+
             do i = 1, size(self%branches)
                 associate (branch => self%branches(i))
                     matched = branch%always
+
                     do j = 1, size(branch%groups)
                         if (matched) exit
                         matched = group_matched(branch%groups(j))
                     end do
+
                     if (.not. matched) cycle
                     if (branch%shift > 0) call shift_match_data(branch%shift)
+
                     do j = 1, size(branch%steps)
                         if (branch%steps(j)%conditional) then
                             if (.not. group_matched(branch%steps(j)%gn)) cycle
                         end if
+
                         call run_step(branch%steps(j), status)
                         if (.not. status%ok()) return
                     end do
                 end associate
+
                 exit
             end do
         end do
@@ -746,6 +813,7 @@ contains
     logical function group_matched(n)
         integer, intent(in) :: n
         type(status_type) :: st
+
         group_matched = match_beginning(n, st) > 0
     end function group_matched
 
@@ -754,8 +822,10 @@ contains
         integer, intent(in) :: n
         integer(int64), allocatable :: md(:), shifted(:)
         integer :: k
+
         md = match_data()
         k = 2*(n + 1)
+
         if (size(md) > k) then
             allocate (shifted(2 + size(md) - k))
             shifted(1:2) = md(1:2)
@@ -763,6 +833,7 @@ contains
         else
             shifted = md(1:min(2, size(md)))
         end if
+
         call set_match_data(shifted)
     end subroutine shift_match_data
 
@@ -772,7 +843,9 @@ contains
         type(status_type), intent(out) :: status
         type(syntax_property_type) :: prop
         integer(int64) :: mb, me
+
         status = status_type()
+
         if (allocated(step%highlight%syntax)) then
             mb = match_beginning(step%gn, status)
             me = match_end(step%gn, status)
@@ -783,11 +856,13 @@ contains
             me = match_end(step%gn, status)
             call step%highlight%value(prop, status)
             if (.not. status%ok()) return
+
             if (prop%apply) then
                 call put_property(mb, me, prop, status)
                 if (.not. status%ok()) return
             end if
         end if
+
         if (associated(step%highlight%after)) call step%highlight%after(status)
     end subroutine run_step
 
@@ -796,6 +871,7 @@ contains
         integer(int64), intent(in) :: start, end
         type(syntax_property_type), intent(in) :: prop
         type(status_type), intent(out) :: status
+
         if (prop%is_table) then
             call put_text_property(start, end, sym("syntax_table"), make_syntax_table_ref(prop%table), status)
         else
@@ -828,20 +904,25 @@ contains
         integer :: i, k
         logical :: first, repeat, saved_updated, changed
         character(len=24) :: b1, b2
+
         status = status_type()
         if (.not. (syntax_propertize__done%value < pos)) return
         fn => syntax_propertize_function%get()
+
         if (.not. associated(fn)) then
             call syntax_propertize__done%set_local(max(point_max(), pos))
             return
         end if
+
         call parse_sexp_lookup_properties%set_local(.true.)
+
         if (syntax_propertize__done%value < point_min()) then
             if (syntax_propertize__done%value > 0) then
                 write (b1, "(i0)") syntax_propertize__done%value
                 write (b2, "(i0)") point_min()
                 call message("Cannot syntax-propertize "//trim(b1)//".."//trim(b2)//" because of narrowing!")
             end if
+
             ! *Usually* syntax-propertize is called via syntax-ppss which
             ! takes care of adding syntax-ppss-flush-cache to b-c-f, but this
             ! is not *always* the case, so since we share a single "flush" function
@@ -849,6 +930,7 @@ contains
             ! sure the flush function is installed here (bug#29767).
             call before_change_functions%add(flush_cache_hook, depth=99, local=.true.)
         end if
+
         call copy_marker_at(point(), here, .false., st)
         call silent_modifications_begin(silent)
         old_table = syntax_table()
@@ -863,10 +945,12 @@ contains
         end = max(pos, min(point_max(), start + syntax_propertize_chunk_size))
         first = .true.
         repeat = .true.
+
         body: block
             do while (repeat)
                 repeat = .false.
                 fns = syntax_propertize_extend_region_functions%functions()
+
                 do i = 1, size(fns)
                     ! Bind `syntax_propertize__done' to avoid recursion!
                     saved_done = syntax_propertize__done%value
@@ -875,6 +959,7 @@ contains
                     call syntax_propertize__done%set_local(saved_done)
                     if (.not. status%ok()) exit body
                     changed = new_beg /= start .or. new_end /= end
+
                     if (changed .and. .not. (new_beg >= start .and. new_end <= end)) then
                         start = new_beg
                         end = new_end
@@ -884,9 +969,11 @@ contains
                         ! already seen.
                         if (.not. first) repeat = .true.
                     end if
+
                     first = .false.
                 end do
             end do
+
             ! Flush ppss cache between the original value of `start' and that
             ! set above by syntax-propertize-extend-region-functions.
             call syntax_ppss_flush_cache(start)
@@ -900,6 +987,7 @@ contains
             saved_done = syntax_propertize__done%value
             call syntax_propertize__done%set_local(MOST_POSITIVE_FIXNUM)
             call fn(start, end, status)
+
             if (status%ok()) then
                 k = data_index()
                 ! `syntax_ppss' was called and updated the cache while we
@@ -908,8 +996,10 @@ contains
                 ! properties.
                 if (data(k)%updated_cache) call syntax_ppss_flush_cache(start)
             end if
+
             call syntax_propertize__done%set_local(saved_done)
         end block body
+
         k = data_index()
         data(k)%updated_cache = saved_updated
         call set_syntax_table(old_table, st)
@@ -927,6 +1017,7 @@ contains
         integer(int64), intent(in) :: charpos
         integer(int64), allocatable :: saved(:)
         type(status_type) :: status
+
         ! save-match-data
         saved = match_data()
         call syntax_propertize(min(syntax_propertize_chunks + charpos, point_max()), status)
@@ -940,6 +1031,7 @@ contains
     !> The depth in parens of PPSS.  Port of syntax.el:syntax-ppss-depth.
     integer(int64) function syntax_ppss_depth(ppss)
         type(parse_state_type), intent(in) :: ppss
+
         syntax_ppss_depth = ppss%depth
     end function syntax_ppss_depth
 
@@ -952,13 +1044,16 @@ contains
     !> syntax.el:syntax-ppss-toplevel-pos.
     integer(int64) function syntax_ppss_toplevel_pos(ppss) result(pos)
         type(parse_state_type), intent(in) :: ppss
+
         pos = 0
+
         if (allocated(ppss%open_parens)) then
             if (size(ppss%open_parens) > 0) then
                 pos = ppss%open_parens(1)
                 return
             end if
         end if
+
         pos = ppss%comstr_start
     end function syntax_ppss_toplevel_pos
 
@@ -969,7 +1064,9 @@ contains
     !> syntax.el:syntax-ppss-context.
     integer function syntax_ppss_context(ppss) result(context)
         type(parse_state_type), intent(in) :: ppss
+
         context = SYNTAX_PPSS_NONE
+
         if (ppss%instring /= -1) then
             context = SYNTAX_PPSS_STRING
         else if (ppss%incomment /= 0) then
@@ -981,6 +1078,7 @@ contains
     recursive subroutine flush_cache_hook(beg, end, status)
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
+
         status = status_type()
         call syntax_ppss_flush_cache(beg)
         if (end < beg) continue
@@ -991,29 +1089,38 @@ contains
     recursive subroutine syntax_ppss_flush_cache(beg)
         integer(int64), intent(in) :: beg
         integer :: k
+
         if (cur == 0) return
+
         ! Set syntax-propertize to refontify anything past beg.
         if (.not. syntax_propertize_in_process_p()) then
             call syntax_propertize__done%set_local(min(beg, syntax_propertize__done%value))
         end if
+
         ! Flush invalid cache entries.
         k = data_index()
         call flush_cell(data(k)%wide)
         call flush_cell(data(k)%narrow)
+
     contains
+
         subroutine flush_cell(cell)
             type(ppss_cell_type), intent(inout) :: cell
             integer :: n, drop
             integer(int64) :: limit
+
             if (.not. cell%exists) return
             n = 0
             if (allocated(cell%cache_pos)) n = size(cell%cache_pos)
             drop = 0
+
             do while (drop < n)
                 if (cell%cache_pos(drop + 1) <= beg) exit
                 drop = drop + 1
             end do
+
             if (drop > 0) call remove_entries(cell, drop)
+
             ! Throw away `last' value if made invalid.
             if (cell%has_last) then
                 if (beg < cell%last_pos) then
@@ -1023,6 +1130,7 @@ contains
                     ! assumed nil state at BEG may not be valid any more.
                     limit = syntax_ppss_toplevel_pos(cell%last_ppss)
                     if (limit == 0) limit = cell%last_ppss%last_sexp_start
+
                     if (beg <= limit) then
                         cell%has_last = .false.
                     else
@@ -1040,12 +1148,15 @@ contains
         integer(int64), allocatable :: pos(:)
         type(parse_state_type), allocatable :: ppss(:)
         integer :: i, m
+
         m = size(cell%cache_pos) - n
         allocate (pos(m), ppss(m))
+
         do i = 1, m
             pos(i) = cell%cache_pos(n + i)
             ppss(i) = cell%cache_ppss(n + i)
         end do
+
         call move_alloc(pos, cell%cache_pos)
         call move_alloc(ppss, cell%cache_ppss)
     end subroutine remove_entries
@@ -1059,19 +1170,24 @@ contains
         integer(int64), allocatable :: new_pos(:)
         type(parse_state_type), allocatable :: new_ppss(:)
         integer :: i, n
+
         n = 0
         if (allocated(cell%cache_pos)) n = size(cell%cache_pos)
         allocate (new_pos(n + 1), new_ppss(n + 1))
+
         do i = 1, at - 1
             new_pos(i) = cell%cache_pos(i)
             new_ppss(i) = cell%cache_ppss(i)
         end do
+
         new_pos(at) = pos
         new_ppss(at) = ppss
+
         do i = at, n
             new_pos(i + 1) = cell%cache_pos(i)
             new_ppss(i + 1) = cell%cache_ppss(i)
         end do
+
         call move_alloc(new_pos, cell%cache_pos)
         call move_alloc(new_ppss, cell%cache_ppss)
     end subroutine insert_entry
@@ -1079,6 +1195,7 @@ contains
     subroutine update_stats(i, old, new)
         integer, intent(in) :: i
         integer(int64), intent(in) :: old, new
+
         stats_count(i) = stats_count(i) + 1
         stats_total(i) = stats_total(i) + (new - old)
     end subroutine update_stats
@@ -1088,8 +1205,10 @@ contains
     subroutine ppss_data(k, wide)
         integer, intent(out) :: k
         logical, intent(out) :: wide
+
         k = data_index()
         wide = point_min() == 1
+
         if (wide) then
             data(k)%wide%exists = .true.
         else
@@ -1122,6 +1241,7 @@ contains
         integer(int64) :: p, old_pos, pt_min, pt_best, new_min
         integer :: k, idx, cache_pred, n
         logical :: wide, has_old_ppss, has_ppss, has_best, use_begin
+
         ! Default values.
         p = point()
         if (present(pos)) p = pos
@@ -1129,11 +1249,13 @@ contains
         old_table = syntax_table()
         call set_syntax_table(ppss_syntax_table(), st)
         call ppss_data(k, wide)
+
         if (wide) then
             cell = data(k)%wide
         else
             cell = data(k)%narrow
         end if
+
         has_old_ppss = cell%has_last
         if (has_old_ppss) old_ppss = cell%last_ppss
         old_pos = 0
@@ -1141,6 +1263,7 @@ contains
         if (old_pos /= 0 .and. old_pos > p) old_pos = 0
         n = 0
         if (allocated(cell%cache_pos)) n = size(cell%cache_pos)
+
         body: block
             ! Use the OLD-POS if usable and close.  Don't update the `last' cache.
             if (old_pos /= 0) then
@@ -1152,8 +1275,10 @@ contains
                     return
                 end if
             end if
+
             ! Use OLD-PPSS if possible and close enough.
             pt_min = 0
+
             if (old_pos == 0 .and. has_old_ppss) then
                 ! If `pt-min' is too far from `pos', we could try to use
                 ! other positions in (nth 9 old-ppss), but that doesn't
@@ -1165,6 +1290,7 @@ contains
                 pt_min = syntax_ppss_toplevel_pos(old_ppss)
                 if (pt_min == 0) pt_min = old_ppss%last_sexp_start
             end if
+
             if (pt_min /= 0 .and. pt_min <= p .and. p - pt_min < syntax_ppss_max_span) then
                 call update_stats(1, pt_min, p)
                 call parse_partial_sexp(pt_min, p, ppss, status)
@@ -1183,16 +1309,19 @@ contains
                 has_ppss = .false.
                 ! look for a usable cache entry.
                 idx = 1
+
                 do while (idx <= n)
                     if (.not. p < cell%cache_pos(idx)) exit
                     cache_pred = idx
                     idx = idx + 1
                 end do
+
                 if (idx <= n) then
                     pt_min = cell%cache_pos(idx)
                     ppss = cell%cache_ppss(idx)
                     has_ppss = .true.
                 end if
+
                 ! Setup the before-change function if necessary.
                 if (n == 0 .and. .not. cell%has_last) then
                     ! Note: combine-change-calls-1 needs to be kept in sync
@@ -1202,6 +1331,7 @@ contains
                     ! after-change-functions.
                     call before_change_functions%add(flush_cache_hook, depth=99, local=.true.)
                 end if
+
                 ! Use the best of OLD-POS and CACHE.
                 if (old_pos == 0 .or. old_pos < pt_min) then
                     pt_best = pt_min
@@ -1213,6 +1343,7 @@ contains
                     has_best = has_old_ppss
                     if (has_best) ppss_best = old_ppss
                 end if
+
                 ! Use the `syntax-begin-function' if available.
                 ! We could try using that function earlier, but:
                 ! - The result might not be 100% reliable, so it's better to use
@@ -1228,28 +1359,34 @@ contains
                     ! Simple sanity checks.
                     ! backward-paragraph can fail here.
                     if (use_begin) use_begin = point() < p
+
                     if (use_begin) then
                         call get_text_property(point(), sym("face"), face, st)
+
                         if (symbolp(face)) then
                             if (value_eq(face, sym("font_lock_string_face")) .or. &
                                 value_eq(face, sym("font_lock_doc_face")) .or. &
                                 value_eq(face, sym("font_lock_comment_face"))) use_begin = .false.
                         end if
                     end if
+
                     if (use_begin) then
                         call update_stats(5, point(), p)
                         pt_best = point()
                         has_best = .false.
                     end if
                 end if
+
                 if (p - pt_best < syntax_ppss_max_span) then
                     ! Quick case when we found a nearby pos.
                     call update_stats(2, pt_best, p)
+
                     if (has_best) then
                         call parse_partial_sexp(pt_best, p, ppss, status, oldstate=ppss_best)
                     else
                         call parse_partial_sexp(pt_best, p, ppss, status)
                     end if
+
                     if (.not. status%ok()) exit body
                 else
                     ! Slow case: compute the state from some known position and
@@ -1257,6 +1394,7 @@ contains
                     call update_stats(3, pt_min, p)
                     k = data_index()
                     data(k)%updated_cache = .true.
+
                     ! If `pt-min' is too far, add a few intermediate entries.
                     do while (p - pt_min > 2*syntax_ppss_max_span)
                         new_min = (pt_min + p)/2
@@ -1265,12 +1403,14 @@ contains
                         pt_min = new_min
                         call insert_entry(cell, cache_pred + 1, pt_min, ppss)
                     end do
+
                     ! Compute the actual return value.
                     call parse_ppss(pt_min, p)
                     if (.not. status%ok()) exit body
                     ! Store it in the cache.
                     n = 0
                     if (allocated(cell%cache_pos)) n = size(cell%cache_pos)
+
                     if (cache_pred > 0) then
                         if (cell%cache_pos(cache_pred) - p > syntax_ppss_max_span) then
                             call insert_entry(cell, cache_pred + 1, p, ppss)
@@ -1290,37 +1430,45 @@ contains
                     end if
                 end if
             end if
+
             k = data_index()
             data(k)%updated_cache = .true.
             cell%has_last = .true.
             cell%last_pos = p
             cell%last_ppss = ppss
             cell%exists = .true.
+
             if (wide) then
                 data(k)%wide = cell
             else
                 data(k)%narrow = cell
             end if
+
             state = ppss
             call set_syntax_table(old_table, st)
             return
         end block body
+
         ! If the buffer is more narrowed than when we built the cache,
         ! we may end up calling parse-partial-sexp with a position before
         ! point-min.  In that case, just parse from point-min assuming
         ! a nil state.
         if (status%code == FM_ARGS_OUT_OF_RANGE) call parse_partial_sexp(point_min(), p, state, status)
         call set_syntax_table(old_table, st)
+
     contains
+
         ! (parse-partial-sexp FROM TO nil nil ppss) into ppss.
         recursive subroutine parse_ppss(from, to)
             integer(int64), intent(in) :: from, to
             type(parse_state_type) :: next
+
             if (has_ppss) then
                 call parse_partial_sexp(from, to, next, status, oldstate=ppss)
             else
                 call parse_partial_sexp(from, to, next, status)
             end if
+
             ppss = next
             has_ppss = .true.
         end subroutine parse_ppss

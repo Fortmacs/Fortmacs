@@ -32,6 +32,7 @@ contains
 
     module procedure log_edit_mode_help
     status = status_type()
+
     if (value_eq(last_command, sym("log_edit_mode_help"))) then
         call describe_function(buffers(cur)%major_mode, status)
     else
@@ -43,6 +44,7 @@ contains
     module procedure log_edit_diff_fileset
     type(vc_fileset_type) :: fs
     logical :: found
+
     ! Re NOT-ESSENTIAL non-nil: this function can get called from
     ! `log-edit-hook' and we don't want to abort the whole Log Edit setup
     ! because the user says no to saving a buffer.  The buffers will

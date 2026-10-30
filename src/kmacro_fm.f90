@@ -238,8 +238,10 @@ contains
         type(value_type), intent(in) :: arg
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
+
         call ensure_formats()
         call take_initial_counter_value()
+
         if (consp(arg)) then
             call format_integer(kmacro_counter_format, kmacro_last_counter, text, status)
             if (status%ok()) call insert(text, status)
@@ -267,12 +269,15 @@ contains
     !> it in the minibuffer.  Port of kmacro.el:kmacro-set-format.
     subroutine kmacro_set_format(format)
         character(len=*), intent(in) :: format
+
         call ensure_formats()
+
         if (len(format) == 0) then
             kmacro_counter_format = "%d"
         else
             kmacro_counter_format = format
         end if
+
         ! Redefine initial macro counter if we are not executing a macro.
         if (.not. (defining_kbd_macro_p() .or. executing_kbd_macro_p())) then
             kmacro_default_counter_format = kmacro_counter_format
@@ -286,6 +291,7 @@ contains
         integer(int64), intent(in), optional :: value
         character(len=:), allocatable :: text
         integer(int64) :: v
+
         call ensure_formats()
         v = kmacro_counter
         if (present(value)) v = value
@@ -299,17 +305,21 @@ contains
     subroutine kmacro_set_counter(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
+
         status = status_type()
+
         if (.not. (defining_kbd_macro_p() .or. executing_kbd_macro_p())) then
             kmacro_initial_counter_value = arg
             call kmacro_display_counter(status, kmacro_initial_counter_value)
         else
             kmacro_last_counter = kmacro_counter
+
             if (consp(current_prefix_arg)) then
                 kmacro_counter = kmacro_counter_value_start
             else
                 kmacro_counter = arg
             end if
+
             if (.not. executing_kbd_macro_p()) call kmacro_display_counter(status)
         end if
     end subroutine kmacro_set_counter
@@ -321,15 +331,18 @@ contains
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         integer(int64) :: last
+
         status = status_type()
         call take_initial_counter_value()
         last = kmacro_last_counter
         kmacro_last_counter = kmacro_counter
+
         if (consp(current_prefix_arg)) then
             kmacro_counter = last
         else
             kmacro_counter = kmacro_counter + arg
         end if
+
         if (.not. executing_kbd_macro_p()) call kmacro_display_counter(status)
     end subroutine kmacro_add_counter
 
@@ -338,6 +351,7 @@ contains
     subroutine kmacro_reg_load_counter(register)
         integer(int64), intent(in) :: register
         type(register_value_type) :: v
+
         call get_register(register, v)
         if (v%kind == REGISTER_NUMBER) kmacro_counter = v%number
     end subroutine kmacro_reg_load_counter
@@ -346,6 +360,7 @@ contains
     !> kmacro.el:kmacro-reg-save-counter.
     subroutine kmacro_reg_save_counter(register)
         integer(int64), intent(in) :: register
+
         call set_register(register, kmacro_counter)
     end subroutine kmacro_reg_save_counter
 
@@ -358,8 +373,10 @@ contains
         integer(int64), intent(in) :: register, arg
         type(status_type), intent(out) :: status
         integer(int64) :: n
+
         call register_as_number(register, n, status)
         if (.not. status%ok()) return
+
         if (compare(pred, kmacro_counter, n)) then
             current_prefix_arg = nil()
             call kmacro_add_counter(arg, status)
@@ -373,9 +390,11 @@ contains
         integer(int64), intent(out) :: n
         type(status_type), intent(out) :: status
         type(register_value_type) :: v
+
         status = status_type()
         n = 0
         call get_register(register, v)
+
         select case (v%kind)
         case (REGISTER_NUMBER)
             n = v%number
@@ -393,6 +412,7 @@ contains
         character(len=:), allocatable :: name
         type(status_type) :: st
         integer :: k
+
         select case (v%kind)
         case (REGISTER_EMPTY)
             s = ".false."
@@ -400,10 +420,12 @@ contains
             s = fortran_string(v%text)
         case (REGISTER_RECTANGLE)
             s = "["
+
             do k = 1, size(v%rectangle)
                 if (k > 1) s = s//", "
                 s = s//fortran_string(v%rectangle(k)%text)
             end do
+
             s = s//"]"
         case (REGISTER_WINDOW_CONFIGURATION)
             s = "(#<window-configuration> "//marker_repr(v%marker)//")"
@@ -421,6 +443,7 @@ contains
         case default
             s = ".false."
         end select
+
         st = status_type()
     end function register_value_repr
 
@@ -428,6 +451,7 @@ contains
     logical function compare(pred, a, b)
         integer, intent(in) :: pred
         integer(int64), intent(in) :: a, b
+
         select case (pred)
         case (KMACRO_PRED_LESS)
             compare = a < b
@@ -448,10 +472,12 @@ contains
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         integer(int64) :: a
+
         status = status_type()
         call take_initial_counter_value()
         a = arg
         if (nilp(current_prefix_arg)) a = 0
+
         if (compare(pred, kmacro_counter, a)) then
             if (associated(commands%keyboard_quit%run)) call commands%keyboard_quit%run(status)
         end if
@@ -482,6 +508,7 @@ contains
         integer(int64), intent(in), optional :: counter
         character(len=*), intent(in), optional :: format
         type(kmacro_type) :: m
+
         m%keys = keys
         m%counter = 0
         if (present(counter)) m%counter = counter
@@ -503,6 +530,7 @@ contains
         integer(int64) :: saved_counter
         character(len=:), allocatable :: saved_format
         integer :: k
+
         call ensure_formats()
         ! Use counter and format specific to the macro on the ring!
         saved_counter = kmacro_counter
@@ -511,14 +539,17 @@ contains
         kmacro_counter_format_start = m%format
         keys = m%keys
         call execute_kbd_macro(keys, arg, status, kmacro_loop_setup_function)
+
         if (status%ok()) then
             m%counter = kmacro_counter
+
             if (allocated(kmacro_ring)) then
                 do k = 1, size(kmacro_ring)
                     if (kmacro_ring(k)%id == m%id) kmacro_ring(k)%counter = m%counter
                 end do
             end if
         end if
+
         kmacro_counter = saved_counter
         kmacro_counter_format_start = saved_format
     end subroutine kmacro_call
@@ -529,6 +560,7 @@ contains
         type(value_type), intent(in) :: arg
         type(status_type), intent(out) :: status
         type(kmacro_type) :: m
+
         m = kmacro_ring(k)
         call kmacro_call(m, arg, status)
     end subroutine call_ring_element
@@ -538,6 +570,7 @@ contains
     subroutine kmacro_ring_head(head, found)
         type(kmacro_type), intent(out) :: head
         logical, intent(out) :: found
+
         call ensure_formats()
         found = allocated(last_kbd_macro)
         if (found) head = kmacro(last_kbd_macro, kmacro_counter, kmacro_counter_format_start)
@@ -553,8 +586,10 @@ contains
     logical function kmacro_equal(a, b)
         type(kmacro_type), intent(in) :: a, b
         integer :: k
+
         kmacro_equal = size(a%keys) == size(b%keys) .and. a%counter == b%counter .and. a%format == b%format
         if (.not. kmacro_equal) return
+
         do k = 1, size(a%keys)
             if (.not. value_eq(a%keys(k), b%keys(k))) then
                 kmacro_equal = .false.
@@ -572,25 +607,31 @@ contains
         type(kmacro_type), allocatable :: ring(:)
         logical :: found
         integer :: n, k
+
         if (present(elt)) then
             e = elt
         else
             call kmacro_ring_head(e, found)
             if (.not. found) return
         end if
+
         n = ring_size()
+
         if (n > 0) then
             if (kmacro_equal(kmacro_ring(1), e)) return
         end if
+
         if (kmacro_ring_max <= 0) then
             allocate (ring(0))
         else
             allocate (ring(min(int(kmacro_ring_max), n + 1)))
             ring(1) = e
+
             do k = 2, size(ring)
                 ring(k) = kmacro_ring(k - 1)
             end do
         end if
+
         call move_alloc(ring, kmacro_ring)
     end subroutine kmacro_push_ring
 
@@ -599,6 +640,7 @@ contains
     !> kmacro.el:kmacro-split-ring-element.
     subroutine kmacro_split_ring_element(elt)
         type(kmacro_type), intent(in) :: elt
+
         last_kbd_macro = elt%keys
         kmacro_counter = elt%counter
         kmacro_counter_format_start = elt%format
@@ -608,11 +650,14 @@ contains
     subroutine drop_first()
         type(kmacro_type), allocatable :: ring(:)
         integer :: k, n
+
         n = ring_size()
         allocate (ring(max(0, n - 1)))
+
         do k = 2, n
             ring(k - 1) = kmacro_ring(k)
         end do
+
         call move_alloc(ring, kmacro_ring)
     end subroutine drop_first
 
@@ -622,6 +667,7 @@ contains
     subroutine kmacro_pop_ring1(raw)
         logical, intent(in) :: raw
         type(kmacro_type) :: first
+
         if (ring_size() == 0) then
             if (.not. raw) then
                 ! (kmacro-split-ring-element nil) sets the head to nil.
@@ -629,8 +675,10 @@ contains
                 kmacro_counter = 0
                 kmacro_counter_format_start = "%d"
             end if
+
             return
         end if
+
         first = kmacro_ring(1)
         if (.not. raw) call kmacro_split_ring_element(first)
         call drop_first()
@@ -641,6 +689,7 @@ contains
     !> kmacro.el:kmacro-pop-ring.
     subroutine kmacro_pop_ring(raw)
         logical, intent(in) :: raw
+
         if (.not. kmacro_ring_empty_p()) call kmacro_pop_ring1(raw)
     end subroutine kmacro_pop_ring
 
@@ -650,12 +699,16 @@ contains
     logical function kmacro_ring_empty_p(none)
         logical, intent(in), optional :: none
         logical :: only_last
+
         only_last = .false.
         if (present(none)) only_last = none
+
         do while (.not. allocated(last_kbd_macro) .and. ring_size() > 0)
             call kmacro_pop_ring1(.false.)
         end do
+
         kmacro_ring_empty_p = .true.
+
         if (.not. allocated(last_kbd_macro)) then
             call message("No keyboard macro defined.")
         else if (.not. only_last .and. ring_size() == 0) then
@@ -678,8 +731,10 @@ contains
         character(len=:), allocatable :: m, d, counter_part
         integer, parameter :: x = 60
         logical :: z
+
         status = status_type()
         call ensure_formats()
+
         if (present(macro)) then
             m = format_kbd_macro(macro)
             z = .false.
@@ -687,11 +742,13 @@ contains
             d = "Macro"
             if (present(descr)) d = descr
             counter_part = ""
+
             if (kmacro_counter /= 0) then
                 call format_integer(kmacro_counter_format_start, kmacro_counter, counter_part, status)
                 if (.not. status%ok()) return
                 counter_part = " ["//counter_part//"]"
             end if
+
             if (z) then
                 call message(d//counter_part//": "//first_chars(m, x - 1)//"...")
             else
@@ -710,6 +767,7 @@ contains
         logical, intent(in), optional :: trunc
         character(len=*), intent(in), optional :: descr, empty
         type(value_type), allocatable :: macro(:)
+
         if (allocated(last_kbd_macro)) then
             macro = last_kbd_macro
             call kmacro_display(status, macro, trunc, descr, empty)
@@ -721,6 +779,7 @@ contains
     !> The `kmacro_repeat' property of command CMD.
     integer function repeat_property(cmd)
         type(value_type), intent(in) :: cmd
+
         repeat_property = REPEAT_NONE
         if (value_eq(cmd, sym("kmacro_end_or_call_macro_repeat"))) repeat_property = REPEAT_HEAD
         if (value_eq(cmd, sym("kmacro_call_ring_2nd_repeat"))) repeat_property = REPEAT_HEAD
@@ -737,6 +796,7 @@ contains
         type(status_type), intent(out) :: status
         type(value_type) :: saved_arg
         logical :: saved_no_prefix
+
         saved_arg = current_prefix_arg
         saved_no_prefix = kmacro_repeat_no_prefix
         current_prefix_arg = nil()
@@ -763,19 +823,23 @@ contains
         type(status_type) :: st
         logical :: done, have
         integer :: n
+
         status = status_type()
         k = keys
         n = size(k)
         done = .false.
+
         do
             if (.not. allocated(last_kbd_macro) .or. done) exit
             call read_event(ev, have, st)
             if (.not. have) return
             k(n) = ev
             call key_binding(k, cmd, st, accept_default=.true.)
+
             select case (repeat_property(cmd))
             case (REPEAT_RING)
                 call clear_this_command_keys()
+
                 if (ring_size() > 0) then
                     call call_without_prefix(cmd, status)
                 else
@@ -791,9 +855,11 @@ contains
             case default
                 exit
             end select
+
             if (.not. status%ok()) return
             last_input_event = nil()
         end do
+
         if (.not. nilp(last_input_event)) then
             call clear_this_command_keys()
             call unread_command_events([last_input_event])
@@ -805,6 +871,7 @@ contains
     subroutine kmacro_get_repeat_prefix(keys, found)
         type(value_type), allocatable, intent(out) :: keys(:)
         logical, intent(out) :: found
+
         found = .false.
         if (.not. kmacro_repeat_no_prefix) return
         if (.not. allocated(this_command_keys)) return
@@ -819,6 +886,7 @@ contains
     recursive subroutine kmacro_call_ring_2nd(arg, status)
         type(value_type), intent(in) :: arg
         type(status_type), intent(out) :: status
+
         status = status_type()
         if (.not. kmacro_ring_empty_p()) call call_ring_element(1, arg, status)
     end subroutine kmacro_call_ring_2nd
@@ -832,6 +900,7 @@ contains
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
         logical :: found
+
         call kmacro_get_repeat_prefix(keys, found)
         call kmacro_call_ring_2nd(arg, status)
         if (.not. status%ok()) return
@@ -843,7 +912,9 @@ contains
     subroutine kmacro_view_ring_2nd(status)
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
+
         status = status_type()
+
         if (.not. kmacro_ring_empty_p()) then
             keys = kmacro_ring(1)%keys
             call kmacro_display(status, keys, descr="2nd macro")
@@ -860,21 +931,26 @@ contains
         type(kmacro_type) :: elt
         logical :: found
         integer :: n, k
+
         status = status_type()
         if (kmacro_ring_empty_p()) return
         call kmacro_push_ring()
         call kmacro_get_repeat_prefix(keys, found)
         n = ring_size()
+
         if (n < 2) then
             ! (kmacro-split-ring-element nil)
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "kmacro, .false.")
             return
         end if
+
         elt = kmacro_ring(n)
         allocate (ring(n - 1))
+
         do k = 1, n - 1
             ring(k) = kmacro_ring(k)
         end do
+
         call move_alloc(ring, kmacro_ring)
         call kmacro_split_ring_element(elt)
         call display_last(status, trunc=.true.)
@@ -892,6 +968,7 @@ contains
         type(kmacro_type) :: cur
         logical :: found, have
         integer :: n, k
+
         status = status_type()
         if (kmacro_ring_empty_p()) return
         call kmacro_get_repeat_prefix(keys, found)
@@ -899,9 +976,11 @@ contains
         call kmacro_pop_ring1(.false.)
         n = ring_size()
         allocate (ring(n + 1))
+
         do k = 1, n
             ring(k) = kmacro_ring(k)
         end do
+
         ring(n + 1) = cur
         call move_alloc(ring, kmacro_ring)
         call display_last(status, trunc=.true.)
@@ -915,6 +994,7 @@ contains
         type(status_type), intent(out) :: status
         type(kmacro_type) :: cur
         logical :: have
+
         status = status_type()
         if (kmacro_ring_empty_p()) return
         call kmacro_ring_head(cur, have)
@@ -927,13 +1007,16 @@ contains
     !> kmacro.el:kmacro-delete-ring-head.
     subroutine kmacro_delete_ring_head(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         if (kmacro_ring_empty_p(.true.)) return
+
         if (ring_size() == 0) then
             if (allocated(last_kbd_macro)) deallocate (last_kbd_macro)
         else
             call kmacro_pop_ring(.false.)
         end if
+
         call display_last(status, trunc=.true., empty="Keyboard macro ring is now empty.")
     end subroutine kmacro_delete_ring_head
 
@@ -965,15 +1048,20 @@ contains
         type(status_type), intent(out) :: status
         logical :: append, no_exec
         integer(int64) :: n
+
         status = status_type()
         call ensure_formats()
+
         if (defining_kbd_macro_p() .or. executing_kbd_macro_p()) then
             call message("Already defining keyboard macro.")
             return
         end if
+
         append = consp(arg)
+
         if (.not. append) then
             if (allocated(last_kbd_macro)) call kmacro_push_ring()
+
             if (.not. nilp(arg)) then
                 kmacro_counter = prefix_numeric_value(arg)
             else if (allocated(kmacro_initial_counter_value)) then
@@ -981,21 +1069,26 @@ contains
             else
                 kmacro_counter = 0
             end if
+
             if (allocated(kmacro_initial_counter_value)) deallocate (kmacro_initial_counter_value)
             kmacro_counter_value_start = kmacro_counter
             kmacro_last_counter = kmacro_counter
             kmacro_counter_format = kmacro_default_counter_format
             kmacro_counter_format_start = kmacro_default_counter_format
         end if
+
         no_exec = .false.
+
         if (append) then
             n = prefix_numeric_value(arg)
+
             if (kmacro_execute_before_append) then
                 no_exec = n > 4
             else
                 no_exec = n == 4
             end if
         end if
+
         call start_kbd_macro(append, no_exec, status)
         if (.not. status%ok()) return
         if (defining_kbd_macro_p() .and. append) defining_kbd_macro = DEFINING_KBD_MACRO_APPEND
@@ -1012,16 +1105,19 @@ contains
     recursive subroutine kmacro_end_macro(arg, status)
         type(value_type), intent(in) :: arg
         type(status_type), intent(out) :: status
+
         status = status_type()
         ! Isearch may push the kmacro-end-macro key sequence onto the macro.
         ! Just ignore it when executing the macro.
         if (executing_kbd_macro_p()) return
         call end_kbd_macro(arg, status, kmacro_loop_setup_function)
         if (.not. status%ok()) return
+
         if (allocated(last_kbd_macro)) then
             if (size(last_kbd_macro) == 0) then
                 deallocate (last_kbd_macro)
                 call message("Ignore empty macro")
+
                 ! Don't call `kmacro-ring-empty-p' to avoid its messages.
                 do while (.not. allocated(last_kbd_macro) .and. ring_size() > 0)
                     call kmacro_pop_ring1(.false.)
@@ -1052,17 +1148,20 @@ contains
         character(len=:), allocatable :: times
         logical :: ending, had_saved
         integer :: nr
+
         status = status_type()
         nr = KMACRO_NO_REPEAT_NIL
         if (present(no_repeat)) nr = no_repeat
         ending = .false.
         if (present(end_macro)) ending = end_macro
         repeat_key = nil()
+
         if (nr == KMACRO_NO_REPEAT_REPEATING) then
             repeat_key = last_input_event
         else if (nr == KMACRO_NO_REPEAT_NIL .and. allocated(this_command_keys)) then
             if (size(this_command_keys) > 1) repeat_key = last_input_event
         end if
+
         if (ending) then
             ! Modifies last-kbd-macro.
             call kmacro_end_macro(arg, status)
@@ -1073,11 +1172,13 @@ contains
             if (had_saved) saved = last_kbd_macro
             if (present(macro)) last_kbd_macro = macro
             this_command = last_command
+
             if (allocated(last_kbd_macro)) then
                 real_this_command = make_list(last_kbd_macro)
             else
                 real_this_command = nil()
             end if
+
             if (defining_kbd_macro_p()) then
                 call set_error(status, FM_GENERIC_ERROR, "Can't execute anonymous macro while defining one")
             else if (.not. allocated(last_kbd_macro)) then
@@ -1087,19 +1188,24 @@ contains
                 call execute_kbd_macro(events, arg, status, kmacro_loop_setup_function)
                 if (status%ok()) this_command = last_command
             end if
+
             if (allocated(last_kbd_macro)) deallocate (last_kbd_macro)
             if (had_saved) call move_alloc(saved, last_kbd_macro)
             if (.not. status%ok()) return
         end if
+
         a = arg
         if (consp(a)) a = list_elt(a, 1_int64)
+
         if (.not. (nilp(a) .or. fixnump(a))) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "number_or_marker_p, -")
             return
         end if
+
         if (fixnump(a)) then
             if (xfixnum(a) <= 0) return
         end if
+
         select case (kmacro_call_repeat_key)
         case (KMACRO_CALL_REPEAT_LAST_KEY)
             continue
@@ -1108,23 +1214,30 @@ contains
         case default
             repeat_key = make_fixnum(int(kmacro_call_repeat_key, int64))
         end select
+
         if (nilp(repeat_key)) return
+
         ! Issue a hint to the user, if the echo area isn't in use.
         if (.not. current_message_p()) then
             times = ""
+
             if (kmacro_call_repeat_with_arg .and. fixnump(a)) then
                 if (xfixnum(a) > 1) times = " "//int_text(xfixnum(a))//" times"
             end if
+
             key(1) = repeat_key
             call message("(Type "//format_kbd_macro(key)//" to repeat macro"//times//")")
         end if
+
         ! The repeat key's map: (kmacro-call-macro RA 'repeating nil M).
         if (kmacro_call_repeat_with_arg) then
             repeat_arg = a
         else
             repeat_arg = nil()
         end if
+
         repeat_has_macro = .false.
+
         if (ending) then
             if (allocated(last_kbd_macro)) then
                 m = last_kbd_macro
@@ -1137,12 +1250,15 @@ contains
             m = last_kbd_macro
             repeat_has_macro = .true.
         end if
+
         if (repeat_has_macro) call move_alloc(m, repeat_macro)
         if (.not. keymap_live_p(repeat_map)) call make_sparse_keymap(repeat_map)
+
         if (.not. nilp(repeat_key_bound)) then
             key(1) = repeat_key_bound
             call define_key(repeat_map, key, nil(), st, remove=.true.)
         end if
+
         key(1) = repeat_key
         call define_key(repeat_map, key, sym("kmacro_call_macro_repeat"), st)
         repeat_key_bound = repeat_key
@@ -1182,6 +1298,7 @@ contains
     recursive subroutine kmacro_start_macro_or_insert_counter(arg, status)
         type(value_type), intent(in) :: arg
         type(status_type), intent(out) :: status
+
         if (defining_kbd_macro_p() .or. executing_kbd_macro_p()) then
             call kmacro_insert_counter(arg, status)
         else
@@ -1198,9 +1315,11 @@ contains
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: no_repeat
         integer :: nr
+
         nr = KMACRO_NO_REPEAT_NIL
         if (present(no_repeat)) nr = no_repeat
         status = status_type()
+
         if (defining_kbd_macro_p()) then
             if (kmacro_call_repeat_key /= KMACRO_CALL_REPEAT_DISABLED) then
                 call kmacro_call_macro(arg, status, nr, .true.)
@@ -1224,6 +1343,7 @@ contains
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
         logical :: found
+
         call kmacro_get_repeat_prefix(keys, found)
         call kmacro_end_or_call_macro(arg, status, KMACRO_NO_REPEAT_T)
         if (.not. status%ok()) return
@@ -1238,11 +1358,14 @@ contains
         type(value_type), intent(in) :: arg
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: no_repeat
+
         status = status_type()
+
         if (defining_kbd_macro_p()) then
             call kmacro_end_macro(nil(), status)
             if (.not. status%ok()) return
         end if
+
         call kmacro_call_macro(arg, status, no_repeat)
     end subroutine kmacro_end_and_call_macro
 
@@ -1257,7 +1380,9 @@ contains
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
         character(len=:), allocatable :: descr
+
         status = status_type()
+
         if (kmacro_ring_empty_p()) then
             kmacro_view_last_item = 0
         else if (.not. value_eq(last_command, sym("kmacro_view_macro"))) then
@@ -1270,9 +1395,11 @@ contains
             if (kmacro_view_last_item > ring_size()) kmacro_view_last_item = 0
             kmacro_view_item_no = kmacro_view_item_no + 1
         end if
+
         this_command = sym("kmacro_view_macro")
         ! In case we repeat.
         last_command = this_command
+
         if (kmacro_view_last_item > 0) then
             select case (kmacro_view_item_no)
             case (2)
@@ -1282,6 +1409,7 @@ contains
             case default
                 descr = int_text(kmacro_view_item_no)//"th"
             end select
+
             keys = kmacro_ring(kmacro_view_last_item)%keys
             call kmacro_display(status, keys, descr=descr//" previous macro")
         else
@@ -1300,6 +1428,7 @@ contains
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
         logical :: found
+
         call kmacro_get_repeat_prefix(keys, found)
         call kmacro_view_macro(status)
         if (.not. status%ok()) return
@@ -1310,11 +1439,14 @@ contains
     !> kmacro.el:kmacro-redisplay.
     subroutine kmacro_redisplay(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
+
         if (.not. (executing_kbd_macro_p() .or. defining_kbd_macro_p())) then
             call set_error(status, FM_USER_ERROR, "Not defining or executing keyboard macro")
             return
         end if
+
         if (executing_kbd_macro_p()) then
             if (associated(redisplay_hook)) call redisplay_hook()
         end if
@@ -1340,7 +1472,9 @@ contains
         character(len=*), intent(in) :: prompt
         integer(int64), intent(out) :: n
         type(status_type), intent(out) :: status
+
         status = status_type()
+
         if (.not. nilp(current_prefix_arg)) then
             n = prefix_numeric_value(current_prefix_arg)
         else
@@ -1368,6 +1502,7 @@ contains
     !> Port of kmacro.el:kmacro-start-macro.
     recursive subroutine cmd_kmacro_start_macro(status)
         type(status_type), intent(out) :: status
+
         call kmacro_start_macro(current_prefix_arg, status)
     end subroutine cmd_kmacro_start_macro
 
@@ -1381,6 +1516,7 @@ contains
     !> kmacro.el:kmacro-end-macro.
     recursive subroutine cmd_kmacro_end_macro(status)
         type(status_type), intent(out) :: status
+
         call kmacro_end_macro(make_fixnum(prefix_numeric_value(current_prefix_arg)), status)
     end subroutine cmd_kmacro_end_macro
 
@@ -1395,6 +1531,7 @@ contains
     !> kmacro.el:kmacro-call-macro.
     recursive subroutine cmd_kmacro_call_macro(status)
         type(status_type), intent(out) :: status
+
         call kmacro_call_macro(make_fixnum(prefix_numeric_value(current_prefix_arg)), status)
     end subroutine cmd_kmacro_call_macro
 
@@ -1406,7 +1543,9 @@ contains
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: m(:)
         type(value_type) :: ra
+
         ra = repeat_arg
+
         if (repeat_has_macro) then
             m = repeat_macro
             call kmacro_call_macro(ra, status, KMACRO_NO_REPEAT_REPEATING, .false., m)
@@ -1437,6 +1576,7 @@ contains
     !> kmacro.el:kmacro-start-macro-or-insert-counter.
     recursive subroutine cmd_kmacro_start_macro_or_insert_counter(status)
         type(status_type), intent(out) :: status
+
         call kmacro_start_macro_or_insert_counter(current_prefix_arg, status)
     end subroutine cmd_kmacro_start_macro_or_insert_counter
 
@@ -1446,6 +1586,7 @@ contains
     !> kmacro.el:kmacro-end-or-call-macro.
     recursive subroutine cmd_kmacro_end_or_call_macro(status)
         type(status_type), intent(out) :: status
+
         call kmacro_end_or_call_macro(current_prefix_arg, status)
     end subroutine cmd_kmacro_end_or_call_macro
 
@@ -1453,6 +1594,7 @@ contains
     !> Port of kmacro.el:kmacro-end-or-call-macro-repeat.
     recursive subroutine cmd_kmacro_end_or_call_macro_repeat(status)
         type(status_type), intent(out) :: status
+
         call kmacro_end_or_call_macro_repeat(current_prefix_arg, status)
     end subroutine cmd_kmacro_end_or_call_macro_repeat
 
@@ -1465,6 +1607,7 @@ contains
     !> kmacro.el:kmacro-end-and-call-macro.
     recursive subroutine cmd_kmacro_end_and_call_macro(status)
         type(status_type), intent(out) :: status
+
         call kmacro_end_and_call_macro(current_prefix_arg, status)
     end subroutine cmd_kmacro_end_and_call_macro
 
@@ -1480,6 +1623,7 @@ contains
     !> information.  Port of kmacro.el:kmacro-insert-counter.
     recursive subroutine cmd_kmacro_insert_counter(status)
         type(status_type), intent(out) :: status
+
         call kmacro_insert_counter(current_prefix_arg, status)
     end subroutine cmd_kmacro_insert_counter
 
@@ -1504,6 +1648,7 @@ contains
     recursive subroutine cmd_kmacro_set_format(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: format
+
         call read_string("Macro Counter Format: ", format, status)
         if (status%ok()) call kmacro_set_format(format)
     end subroutine cmd_kmacro_set_format
@@ -1517,6 +1662,7 @@ contains
     recursive subroutine cmd_kmacro_set_counter(status)
         type(status_type), intent(out) :: status
         integer(int64) :: n
+
         call read_n("Macro counter value: ", n, status)
         if (status%ok()) call kmacro_set_counter(n, status)
     end subroutine cmd_kmacro_set_counter
@@ -1529,6 +1675,7 @@ contains
     recursive subroutine cmd_kmacro_add_counter(status)
         type(status_type), intent(out) :: status
         integer(int64) :: n
+
         call read_n("Add to macro counter: ", n, status)
         if (status%ok()) call kmacro_add_counter(n, status)
     end subroutine cmd_kmacro_add_counter
@@ -1538,6 +1685,7 @@ contains
     recursive subroutine cmd_kmacro_reg_load_counter(status)
         type(status_type), intent(out) :: status
         integer(int64) :: register
+
         call register_read_with_preview("Load register to counter: ", register, status)
         if (status%ok()) call kmacro_reg_load_counter(register)
     end subroutine cmd_kmacro_reg_load_counter
@@ -1547,6 +1695,7 @@ contains
     recursive subroutine cmd_kmacro_reg_save_counter(status)
         type(status_type), intent(out) :: status
         integer(int64) :: register
+
         call register_read_with_preview("Save counter to register: ", register, status)
         if (status%ok()) call kmacro_reg_save_counter(register)
     end subroutine cmd_kmacro_reg_save_counter
@@ -1557,6 +1706,7 @@ contains
         integer, intent(in) :: pred
         type(status_type), intent(out) :: status
         integer(int64) :: register, arg
+
         arg = prefix_numeric_value(current_prefix_arg)
         call register_read_with_preview("Compare counter to register: ", register, status)
         if (status%ok()) call kmacro_reg_add_counter(pred, register, arg, status)
@@ -1568,6 +1718,7 @@ contains
     !> kmacro.el:kmacro-reg-add-counter-equal.
     recursive subroutine cmd_kmacro_reg_add_counter_equal(status)
         type(status_type), intent(out) :: status
+
         call reg_add_counter_command(KMACRO_PRED_EQUAL, status)
     end subroutine cmd_kmacro_reg_add_counter_equal
 
@@ -1577,6 +1728,7 @@ contains
     !> kmacro.el:kmacro-reg-add-counter-less.
     recursive subroutine cmd_kmacro_reg_add_counter_less(status)
         type(status_type), intent(out) :: status
+
         call reg_add_counter_command(KMACRO_PRED_LESS, status)
     end subroutine cmd_kmacro_reg_add_counter_less
 
@@ -1586,6 +1738,7 @@ contains
     !> kmacro.el:kmacro-reg-add-counter-greater.
     recursive subroutine cmd_kmacro_reg_add_counter_greater(status)
         type(status_type), intent(out) :: status
+
         call reg_add_counter_command(KMACRO_PRED_GREATER, status)
     end subroutine cmd_kmacro_reg_add_counter_greater
 
@@ -1594,6 +1747,7 @@ contains
     !> kmacro.el:kmacro-quit-counter-equal.
     recursive subroutine cmd_kmacro_quit_counter_equal(status)
         type(status_type), intent(out) :: status
+
         call kmacro_quit_counter(KMACRO_PRED_EQUAL, prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_kmacro_quit_counter_equal
 
@@ -1602,6 +1756,7 @@ contains
     !> kmacro.el:kmacro-quit-counter-less.
     recursive subroutine cmd_kmacro_quit_counter_less(status)
         type(status_type), intent(out) :: status
+
         call kmacro_quit_counter(KMACRO_PRED_LESS, prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_kmacro_quit_counter_less
 
@@ -1610,6 +1765,7 @@ contains
     !> kmacro.el:kmacro-quit-counter-greater.
     recursive subroutine cmd_kmacro_quit_counter_greater(status)
         type(status_type), intent(out) :: status
+
         call kmacro_quit_counter(KMACRO_PRED_GREATER, prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_kmacro_quit_counter_greater
 
@@ -1618,6 +1774,7 @@ contains
     !> Port of kmacro.el:kmacro-call-ring-2nd.
     recursive subroutine cmd_kmacro_call_ring_2nd(status)
         type(status_type), intent(out) :: status
+
         call kmacro_call_ring_2nd(make_fixnum(prefix_numeric_value(current_prefix_arg)), status)
     end subroutine cmd_kmacro_call_ring_2nd
 
@@ -1627,6 +1784,7 @@ contains
     !> kmacro.el:kmacro-call-ring-2nd-repeat.
     recursive subroutine cmd_kmacro_call_ring_2nd_repeat(status)
         type(status_type), intent(out) :: status
+
         call kmacro_call_ring_2nd_repeat(make_fixnum(prefix_numeric_value(current_prefix_arg)), status)
     end subroutine cmd_kmacro_call_ring_2nd_repeat
 
@@ -1634,6 +1792,7 @@ contains
     !> kmacro.el:kmacro-view-ring-2nd.
     recursive subroutine cmd_kmacro_view_ring_2nd(status)
         type(status_type), intent(out) :: status
+
         call kmacro_view_ring_2nd(status)
     end subroutine cmd_kmacro_view_ring_2nd
 
@@ -1643,6 +1802,7 @@ contains
     !> kmacro.el:kmacro-cycle-ring-next.
     recursive subroutine cmd_kmacro_cycle_ring_next(status)
         type(status_type), intent(out) :: status
+
         call kmacro_cycle_ring_next(status)
     end subroutine cmd_kmacro_cycle_ring_next
 
@@ -1652,6 +1812,7 @@ contains
     !> kmacro.el:kmacro-cycle-ring-previous.
     recursive subroutine cmd_kmacro_cycle_ring_previous(status)
         type(status_type), intent(out) :: status
+
         call kmacro_cycle_ring_previous(status)
     end subroutine cmd_kmacro_cycle_ring_previous
 
@@ -1659,6 +1820,7 @@ contains
     !> kmacro.el:kmacro-swap-ring.
     recursive subroutine cmd_kmacro_swap_ring(status)
         type(status_type), intent(out) :: status
+
         call kmacro_swap_ring(status)
     end subroutine cmd_kmacro_swap_ring
 
@@ -1667,6 +1829,7 @@ contains
     !> kmacro.el:kmacro-delete-ring-head.
     recursive subroutine cmd_kmacro_delete_ring_head(status)
         type(status_type), intent(out) :: status
+
         call kmacro_delete_ring_head(status)
     end subroutine cmd_kmacro_delete_ring_head
 
@@ -1675,6 +1838,7 @@ contains
     !> The ARG parameter is unused.  Port of kmacro.el:kmacro-view-macro.
     recursive subroutine cmd_kmacro_view_macro(status)
         type(status_type), intent(out) :: status
+
         call kmacro_view_macro(status)
     end subroutine cmd_kmacro_view_macro
 
@@ -1687,6 +1851,7 @@ contains
     !> kmacro.el:kmacro-view-macro-repeat.
     recursive subroutine cmd_kmacro_view_macro_repeat(status)
         type(status_type), intent(out) :: status
+
         call kmacro_view_macro_repeat(status)
     end subroutine cmd_kmacro_view_macro_repeat
 
@@ -1694,6 +1859,7 @@ contains
     !> kmacro.el:kmacro-redisplay.
     recursive subroutine cmd_kmacro_redisplay(status)
         type(status_type), intent(out) :: status
+
         call kmacro_redisplay(status)
     end subroutine cmd_kmacro_redisplay
 
@@ -1702,6 +1868,7 @@ contains
         character(len=*), intent(in) :: keys, cmd
         type(value_type), allocatable :: key(:)
         type(status_type) :: st
+
         call key_parse(keys, key, st)
         call define_key(kmacro_keymap, key, sym(cmd), st)
     end subroutine bind
@@ -1713,6 +1880,7 @@ contains
     !> (defining-kbd-macro mode-line-defining-kbd-macro)).
     subroutine syms_of_kmacro()
         type(status_type) :: st
+
         call ensure_formats()
         commands%kmacro_start_macro%run => cmd_kmacro_start_macro
         commands%kmacro_end_macro%run => cmd_kmacro_end_macro
@@ -1782,6 +1950,7 @@ contains
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
         character(len=24) :: buf
+
         write (buf, "(i0)") n
         s = trim(buf)
     end function int_text
@@ -1790,7 +1959,9 @@ contains
     integer function nchars(s)
         character(len=*), intent(in) :: s
         integer :: k
+
         nchars = 0
+
         do k = 1, len(s)
             if (iand(ichar(s(k:k)), 192) /= 128) nchars = nchars + 1
         end do
@@ -1802,16 +1973,20 @@ contains
         integer, intent(in) :: n
         character(len=:), allocatable :: t
         integer :: k, count
+
         count = 0
+
         do k = 1, len(s)
             if (iand(ichar(s(k:k)), 192) /= 128) then
                 count = count + 1
+
                 if (count > n) then
                     t = s(1:k - 1)
                     return
                 end if
             end if
         end do
+
         t = s
     end function first_chars
 end module kmacro_fm

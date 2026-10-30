@@ -58,6 +58,7 @@ contains
 
     subroutine collect_window_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("scroll-up-and-down", test_scroll), &
                     new_unittest("scroll-point-not-visible", test_not_visible), &
@@ -85,12 +86,14 @@ contains
     !> The selected window.
     function win() result(w)
         type(window_type), pointer :: w
+
         w => frame_selected_window_ref()
     end function win
 
     !> Line `k` of the test buffer starts here.
     pure integer(int64) function line(k)
         integer, intent(in) :: k
+
         line = 7*k - 6
     end function line
 
@@ -102,12 +105,15 @@ contains
         type(window_type), pointer :: w
         character(len=7) :: text
         integer :: k
+
         call get_buffer_create("window-test", h, st)
         call set_buffer(h, st)
+
         do k = 1, 30
             write (text, '("line", i2.2, a)') k, achar(10)
             call insert(text, st)
         end do
+
         call goto_char(1_int64)
         selected_frame%minibuffer_selected = .false.
         ! One window, 11 lines by 80 columns.
@@ -124,6 +130,7 @@ contains
     subroutine leave(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
+
         call kill_buffer(h, st)
         call delete_window_tree(selected_frame%root_window)
         selected_frame%root_window = null_handle()
@@ -134,6 +141,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call enter(h)
         ! A screenful less two lines of context; point follows the top.
         call scroll_up(nil(), st)
@@ -177,6 +185,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call enter(h)
         ! Point below the window: scroll from point recentered.
         call goto_char(line(20))
@@ -189,6 +198,7 @@ contains
     subroutine test_error_top_bottom(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
+
         call enter(h)
         scroll_error_top_bottom = .true.
         call check_error_top_bottom(error)
@@ -199,6 +209,7 @@ contains
     subroutine check_error_top_bottom(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call set_window_start(win(), line(25), st)
         call goto_char(line(26))
         call scroll_up_command(nil(), st)
@@ -223,6 +234,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call enter(h)
         goal_column = 3
         call scroll_up_command(nil(), st)
@@ -247,6 +259,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call enter(h)
         call goto_char(line(20) + 2)
         selected_frame%garbaged = .false.
@@ -288,9 +301,11 @@ contains
         type(status_type) :: st
         integer(int64), parameter :: expected(4) = [15, 20, 11, 15]
         integer :: k
+
         call enter(h)
         call goto_char(line(20))
         this_command = sym("recenter_top_bottom")
+
         ! Middle, top, bottom, then middle again.
         do k = 1, 4
             call recenter_top_bottom(nil(), st)
@@ -298,6 +313,7 @@ contains
             if (allocated(error)) return
             last_command = this_command
         end do
+
         ! Another command in between starts over.
         call recenter_top_bottom(nil(), st)
         last_command = nil()
@@ -317,6 +333,7 @@ contains
         integer(int64), parameter :: expected(4) = [6, 1, 10, 6]
         integer(int64) :: vpos
         integer :: k
+
         call enter(h)
         call goto_char(line(4))
         call move_to_window_line(nil(), vpos, st)
@@ -329,12 +346,14 @@ contains
         call check(error, point() == line(3) .and. vpos == 2, "line 2")
         if (allocated(error)) return
         this_command = sym("move_to_window_line_top_bottom")
+
         do k = 1, 4
             call move_to_window_line_top_bottom(nil(), st)
             call check(error, st%ok() .and. point() == line(int(expected(k))))
             if (allocated(error)) return
             last_command = this_command
         end do
+
         call leave(h)
     end subroutine test_move_to_window_line
 
@@ -343,6 +362,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call discard_input()
         prefix_arg = nil()
         call init_bindings()
@@ -366,6 +386,7 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
         type(window_type), pointer :: w
+
         call discard_input()
         prefix_arg = nil()
         call init_bindings()
@@ -386,12 +407,15 @@ contains
         type(handle_type), allocatable :: all(:)
         type(status_type) :: st
         integer :: k
+
         all = buffer_list()
+
         do k = 1, size(all)
             if (buffers(all(k)%index)%name == "split-test" .or. buffers(all(k)%index)%name == "other-test") then
                 call kill_buffer(all(k), st)
             end if
         end do
+
         call delete_window_tree(selected_frame%root_window)
         selected_frame%root_window = null_handle()
     end subroutine leave_frame
@@ -401,6 +425,7 @@ contains
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
+
         call key_parse(keys, evs, st)
         call unread_command_events(evs)
         call command_loop(st)
@@ -409,6 +434,7 @@ contains
     !> The live windows, top to bottom and left to right.
     function leaves() result(list)
         type(handle_type), allocatable :: list(:)
+
         call window_leaves(selected_frame%root_window, list)
     end function leaves
 
@@ -418,6 +444,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(handle_type), allocatable :: ws(:)
+
         call enter_frame("abc", h)
         call run_keys("C-x 2")
         ws = leaves()
@@ -456,6 +483,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(handle_type), allocatable :: ws(:)
+
         call enter_frame("abcdef", h)
         call run_keys("C-x 2 C-x 3")
         ws = leaves()
@@ -482,6 +510,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(handle_type), allocatable :: ws(:)
+
         call enter_frame("abc", h)
         call run_keys("C-x 0")
         call check(error, last_message == "Attempt to delete minibuffer or sole ordinary window", last_message)
@@ -514,6 +543,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, o, d
         type(handle_type), allocatable :: ws(:)
+
         call enter_frame("abc", h)
         call run_keys("C-x 2 C-x b o t h e r - t e s t RET")
         ws = leaves()
@@ -530,9 +560,12 @@ contains
         call run_keys("C-x b s p l i t - t e s t RET")
         call check(error, same_buffer(current_buffer(), h))
         call leave_frame()
+
     contains
+
         logical function same_buffer(a, b)
             type(handle_type), intent(in) :: a, b
+
             same_buffer = a%index == b%index .and. a%generation == b%generation
         end function same_buffer
     end subroutine test_switch_to_buffer
@@ -543,6 +576,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(handle_type), allocatable :: ws(:)
+
         call enter_frame("abc", h)
         call run_keys("C-x 2 C-x b o t h e r - t e s t RET C-x o C-x b o t h e r - t e s t RET")
         ws = leaves()
@@ -563,6 +597,7 @@ contains
         call check(error,.not. buffer_live_p(h), "yes: killed")
         call leave_frame()
     end subroutine test_kill_buffer
+
     !> display-buffer pops up a new window below the selected one (which
     !> stays selected); showing the buffer again reuses that window; q
     !> (quit-window) in it deletes it.
@@ -571,6 +606,7 @@ contains
         type(handle_type) :: h, o, w, again
         type(handle_type), allocatable :: ws(:)
         type(status_type) :: st
+
         call enter_frame("abc", h)
         call get_buffer_create("other-test", o, st)
         call display_buffer(o, w, st)
@@ -598,6 +634,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call enter_frame("abcdef", h)
         call goto_char(3_int64)
         call run_keys("C-x b o t h e r - t e s t RET")
@@ -624,6 +661,7 @@ contains
         type(handle_type) :: h
         type(handle_type), allocatable :: ws(:)
         type(status_type) :: st
+
         call enter_frame("abc", h)
         windows(selected_frame%selected_window%index)%dedicated = DEDICATED_STRONG
         call run_keys("C-x b")
@@ -649,11 +687,14 @@ contains
         character(len=:), allocatable :: text
         character(len=7) :: one
         integer :: k
+
         text = ""
+
         do k = 1, 30
             write (one, '("line", i2.2, a)') k, achar(10)
             text = text//one
         end do
+
         call enter_frame(text, h)
         call run_keys("C-x 2")
         ws = leaves()
@@ -670,6 +711,7 @@ contains
         call check(error, last_message == "There is no other window", last_message)
         call leave_frame()
     end subroutine test_scroll_other_window
+
     !> set-window-configuration puts back the windows, buffers and points
     !> a configuration recorded, reviving deleted windows.
     subroutine test_window_configuration(error)
@@ -677,6 +719,7 @@ contains
         type(handle_type) :: h, top
         type(handle_type), allocatable :: ws(:)
         type(window_configuration_type) :: config
+
         call enter_frame("abcdef", h)
         call run_keys("C-x 2")
         ws = leaves()
@@ -710,11 +753,14 @@ contains
         character(len=:), allocatable :: text
         character(len=7) :: one
         integer :: k
+
         text = ""
+
         do k = 1, 6
             write (one, '("line", i2.2, a)') k, achar(10)
             text = text//one
         end do
+
         call enter_frame(text//"end", h)
         call run_keys("C-x 2")
         ws = leaves()
@@ -736,6 +782,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call enter_frame("abc", h)
         call run_keys("C-x b o t h e r - t e s t RET")
         windows(selected_frame%selected_window%index)%dedicated = DEDICATED_STRONG

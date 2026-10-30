@@ -110,24 +110,28 @@ contains
     pure integer(int32) function byte_at(str, i)
         character(len=*), intent(in) :: str
         integer(int64), intent(in) :: i
+
         byte_at = ichar(str(i:i), kind=int32)
     end function byte_at
 
     !> Port of lisp.h:ASCII_CHAR_P.
     elemental logical function ascii_char_p(c)
         integer(int32), intent(in) :: c
+
         ascii_char_p = 0 <= c .and. c < 128
     end function ascii_char_p
 
     !> Port of character.h:SINGLE_BYTE_CHAR_P.
     elemental logical function single_byte_char_p(c)
         integer(int32), intent(in) :: c
+
         single_byte_char_p = 0 <= c .and. c < 256
     end function single_byte_char_p
 
     !> Port of character.h:CHAR_VALID_P.
     elemental logical function char_valid_p(c)
         integer(int32), intent(in) :: c
+
         char_valid_p = 0 <= c .and. c <= MAX_CHAR
     end function char_valid_p
 
@@ -135,6 +139,7 @@ contains
     !> Port of character.h:CHAR_BYTE8_P.
     elemental logical function char_byte8_p(c)
         integer(int32), intent(in) :: c
+
         char_byte8_p = MAX_5_BYTE_CHAR < c
     end function char_byte8_p
 
@@ -142,12 +147,14 @@ contains
     !> Port of character.h:BYTE8_TO_CHAR.
     elemental integer(int32) function byte8_to_char(byte)
         integer(int32), intent(in) :: byte
+
         byte8_to_char = byte + byte8_offset
     end function byte8_to_char
 
     !> Port of character.h:UNIBYTE_TO_CHAR.
     elemental integer(int32) function unibyte_to_char(byte)
         integer(int32), intent(in) :: byte
+
         if (ascii_char_p(byte)) then
             unibyte_to_char = byte
         else
@@ -158,6 +165,7 @@ contains
     !> Raw byte for character `c'.  Port of character.h:CHAR_TO_BYTE8.
     elemental integer(int32) function char_to_byte8(c)
         integer(int32), intent(in) :: c
+
         if (char_byte8_p(c)) then
             char_to_byte8 = c - byte8_offset
         else
@@ -169,6 +177,7 @@ contains
     !> Port of character.h:CHAR_TO_BYTE_SAFE.
     elemental integer(int32) function char_to_byte_safe(c)
         integer(int32), intent(in) :: c
+
         if (ascii_char_p(c)) then
             char_to_byte_safe = c
         else if (char_byte8_p(c)) then
@@ -182,12 +191,14 @@ contains
     !> Port of character.h:CHAR_BYTE8_HEAD_P.
     elemental logical function char_byte8_head_p(byte)
         integer(int32), intent(in) :: byte
+
         char_byte8_head_p = byte == int(z'C0', int32) .or. byte == int(z'C1', int32)
     end function char_byte8_head_p
 
     !> Length of the multibyte form of `c'.  Port of character.h:CHAR_BYTES.
     elemental integer(int32) function char_bytes(c)
         integer(int32), intent(in) :: c
+
         if (c <= MAX_1_BYTE_CHAR) then
             char_bytes = 1
         else if (c <= MAX_2_BYTE_CHAR) then
@@ -207,6 +218,7 @@ contains
     !> Port of character.h:CHAR_LEADING_CODE.
     elemental integer(int32) function char_leading_code(c)
         integer(int32), intent(in) :: c
+
         if (c <= MAX_1_BYTE_CHAR) then
             char_leading_code = c
         else if (c <= MAX_2_BYTE_CHAR) then
@@ -235,14 +247,17 @@ contains
         integer(int32) :: k
         character(len=8) :: hex
         integer(int64) :: uk
+
         buf = ""
         nbytes = 0
         k = c
+
         if (iand(k, CHAR_MODIFIER_MASK) /= 0) then
             k = char_resolve_modifier_mask(k)
             ! If C still has any modifier bits, just ignore it.
             k = iand(k, not(CHAR_MODIFIER_MASK))
         end if
+
         ! C is unsigned upstream: a negative code is a huge one.
         if (k < 0 .or. k > MAX_CHAR) then
             ! error ("Invalid character: %x", c), with the resolved C.
@@ -252,6 +267,7 @@ contains
             call set_error(status, FM_GENERIC_ERROR, "Invalid character: "//lower_hex(trim(hex)))
             return
         end if
+
         if (k <= MAX_1_BYTE_CHAR) then
             buf(1:1) = char(k)
             nbytes = 1
@@ -284,11 +300,13 @@ contains
             buf(2:2) = char(trail(k))
             nbytes = 2
         end if
+
     contains
 
         !> 10xxxxxx from the low six bits of `x'.
         pure integer(int32) function trail(x)
             integer(int32), intent(in) :: x
+
             trail = ior(int(z'80', int32), iand(x, int(z'3F', int32)))
         end function trail
 
@@ -297,7 +315,9 @@ contains
             character(len=*), intent(in) :: hex
             character(len=len(hex)) :: s
             integer :: i
+
             s = hex
+
             do i = 1, len(s)
                 if (s(i:i) >= "A" .and. s(i:i) <= "F") s(i:i) = achar(iachar(s(i:i)) + 32)
             end do
@@ -307,18 +327,21 @@ contains
     !> Port of character.h:LEADING_CODE_P.
     elemental logical function leading_code_p(byte)
         integer(int32), intent(in) :: byte
+
         leading_code_p = iand(byte, int(z'C0', int32)) == int(z'C0', int32)
     end function leading_code_p
 
     !> Port of character.h:TRAILING_CODE_P.
     elemental logical function trailing_code_p(byte)
         integer(int32), intent(in) :: byte
+
         trailing_code_p = iand(byte, int(z'C0', int32)) == int(z'80', int32)
     end function trailing_code_p
 
     !> True if `byte' starts a character.  Port of character.h:CHAR_HEAD_P.
     elemental logical function char_head_p(byte)
         integer(int32), intent(in) :: byte
+
         char_head_p = iand(byte, int(z'C0', int32)) /= int(z'80', int32)
     end function char_head_p
 
@@ -326,6 +349,7 @@ contains
     !> Port of character.h:BYTES_BY_CHAR_HEAD.
     elemental integer(int32) function bytes_by_char_head(byte)
         integer(int32), intent(in) :: byte
+
         if (iand(byte, int(z'80', int32)) == 0) then
             bytes_by_char_head = 1
         else if (iand(byte, int(z'20', int32)) == 0) then
@@ -349,42 +373,52 @@ contains
         integer(int64) :: pend
         integer(int32) :: c, d, e, f, w, w1, w2, lo2
         integer(int64) :: lw, w3
+
         multibyte_length = 0
         pend = len(str, kind=int64) + 1
         if (pos >= pend) return
         c = byte_at(str, pos)
+
         if (c < int(z'80', int32)) then
             multibyte_length = 1
             return
         end if
+
         if (pos + 1 >= pend) return
         d = byte_at(str, pos + 1)
         w = ishft(iand(d, int(z'C0', int32)), 2) + c
         lo2 = int(z'2C2', int32)
         if (allow_8bit) lo2 = int(z'2C0', int32)
+
         if (lo2 <= w .and. w <= int(z'2DF', int32)) then
             multibyte_length = 2
             return
         end if
+
         if (pos + 2 >= pend) return
         e = byte_at(str, pos + 2)
         w = w + ishft(iand(e, int(z'C0', int32)), 4)
         w1 = ior(w, ishft(iand(d, int(z'20', int32)), -2))
+
         if (int(z'AE1', int32) <= w1 .and. w1 <= int(z'AEF', int32)) then
             multibyte_length = 3
             return
         end if
+
         if (pos + 3 >= pend) return
         f = byte_at(str, pos + 3)
         w = w + ishft(iand(f, int(z'C0', int32)), 6)
         w2 = ior(w, ishft(iand(d, int(z'30', int32)), -3))
+
         if (int(z'2AF1', int32) <= w2 .and. w2 <= int(z'2AF7', int32)) then
             multibyte_length = 4
             return
         end if
+
         if (pos + 4 >= pend) return
         lw = int(w, int64) + ishft(int(iand(byte_at(str, pos + 4), int(z'C0', int32)), int64), 8)
         w3 = ishft(lw, 24) + ishft(int(d, int64), 16) + ishft(int(e, int64), 8) + int(f, int64)
+
         if (int(z'AAF8888080', int64) <= w3 .and. w3 <= int(z'AAF88FBFBD', int64)) then
             multibyte_length = 5
         end if
@@ -397,9 +431,11 @@ contains
         character(len=*), intent(in) :: str
         integer(int64), intent(in) :: pos
         integer(int32) :: n
+
         ! Upstream loops without bound; stopping at the text start and at
         ! MAX_MULTIBYTE_LENGTH keeps malformed input from reading out of range.
         raw_prev_char_len = 1
+
         do n = 1, MAX_MULTIBYTE_LENGTH
             if (pos - n < 1) exit
             raw_prev_char_len = n
@@ -415,31 +451,40 @@ contains
         integer(int64), intent(in) :: pos
         integer(int32), intent(out) :: ch, length
         integer(int32) :: c, d
+
         c = byte_at(str, pos)
+
         if (iand(c, int(z'80', int32)) == 0) then
             length = 1
             ch = c
             return
         end if
+
         d = ishft(c, 6) + byte_at(str, pos + 1) - (ishft(int(z'C0', int32), 6) + int(z'80', int32))
+
         if (iand(c, int(z'20', int32)) == 0) then
             length = 2
             ch = d
             if (c < int(z'C2', int32)) ch = d + int(z'3FFF80', int32)
             return
         end if
+
         d = ishft(d, 6) + byte_at(str, pos + 2) - (ishft(int(z'20', int32), 12) + int(z'80', int32))
+
         if (iand(c, int(z'10', int32)) == 0) then
             length = 3
             ch = d
             return
         end if
+
         d = ishft(d, 6) + byte_at(str, pos + 3) - (ishft(int(z'10', int32), 18) + int(z'80', int32))
+
         if (iand(c, int(z'08', int32)) == 0) then
             length = 4
             ch = d
             return
         end if
+
         d = ishft(d, 6) + byte_at(str, pos + 4) - (ishft(int(z'08', int32), 24) + int(z'80', int32))
         length = 5
         ch = d
@@ -450,6 +495,7 @@ contains
         character(len=*), intent(in) :: str
         integer(int64), intent(in) :: pos
         integer(int32) :: length
+
         call string_char_and_length(str, pos, string_char, length)
     end function string_char
 
@@ -463,14 +509,18 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: p
         integer(int32) :: n
+
         nchars = 0
         p = 1
+
         do while (p <= len(str, kind=int64))
             n = multibyte_length(str, p, .true.)
+
             if (n == 0) then
                 call set_error(status, FM_GENERIC_ERROR, "Invalid multibyte sequence")
                 return
             end if
+
             p = p + n
             nchars = nchars + 1
         end do
@@ -484,11 +534,14 @@ contains
         integer(int64), intent(out) :: nchars, nbytes
         integer(int64) :: p
         integer(int32) :: n
+
         nchars = 0
         nbytes = 0
         p = 1
+
         do while (p <= len(str, kind=int64))
             n = multibyte_length(str, p, .false.)
+
             if (n > 0) then
                 p = p + n
                 nbytes = nbytes + n
@@ -496,6 +549,7 @@ contains
                 p = p + 1
                 nbytes = nbytes + 2
             end if
+
             nchars = nchars + 1
         end do
     end subroutine parse_str_as_multibyte
@@ -510,13 +564,16 @@ contains
         integer(int64), intent(out), optional :: nchars
         integer(int64) :: p, q, chars, nbytes
         integer(int32) :: n, b
+
         call parse_str_as_multibyte(str, chars, nbytes)
         if (present(nchars)) nchars = chars
         allocate (character(len=nbytes) :: out)
         p = 1
         q = 1
+
         do while (p <= len(str, kind=int64))
             n = multibyte_length(str, p, .false.)
+
             if (n > 0) then
                 out(q:q + n - 1) = str(p:p + n - 1)
                 p = p + n
@@ -536,7 +593,9 @@ contains
     pure integer(int64) function count_size_as_multibyte(str)
         character(len=*), intent(in) :: str
         integer(int64) :: i
+
         count_size_as_multibyte = len(str, kind=int64)
+
         do i = 1, len(str, kind=int64)
             if (byte_at(str, i) > 127) count_size_as_multibyte = count_size_as_multibyte + 1
         end do
@@ -550,10 +609,13 @@ contains
         character(len=:), allocatable :: dst
         integer(int64) :: i, q
         integer(int32) :: b
+
         allocate (character(len=count_size_as_multibyte(src)) :: dst)
         q = 1
+
         do i = 1, len(src, kind=int64)
             b = byte_at(src, i)
+
             if (b <= 127) then
                 dst(q:q) = src(i:i)
                 q = q + 1
@@ -573,10 +635,13 @@ contains
         character(len=len(str)) :: work
         integer(int64) :: p, q
         integer(int32) :: c, n
+
         p = 1
         q = 0
+
         do while (p <= len(str, kind=int64))
             c = byte_at(str, p)
+
             if (char_byte8_head_p(c)) then
                 call string_char_and_length(str, p, c, n)
                 q = q + 1
@@ -586,8 +651,10 @@ contains
                 work(q + 1:q + n) = str(p:p + n - 1)
                 q = q + n
             end if
+
             p = p + n
         end do
+
         out = work(1:q)
     end function str_as_unibyte
 
@@ -596,11 +663,14 @@ contains
     elemental integer(int32) function char_resolve_modifier_mask(c) result(k)
         integer(int32), intent(in) :: c
         integer(int32) :: low
+
         k = c
         ! A non-ASCII character can't reflect modifier bits to the code.
         if (.not. ascii_char_p(iand(k, not(CHAR_MODIFIER_MASK)))) return
+
         if (iand(k, CHAR_SHIFT) /= 0) then
             low = iand(k, 255_int32)
+
             if (low >= iachar("A") .and. low <= iachar("Z")) then
                 k = iand(k, not(CHAR_SHIFT))
             else if (low >= iachar("a") .and. low <= iachar("z")) then
@@ -610,8 +680,10 @@ contains
                 k = iand(k, not(CHAR_SHIFT))
             end if
         end if
+
         if (iand(k, CHAR_CTL) /= 0) then
             low = iand(k, 255_int32)
+
             if (low == iachar(" ")) then
                 ! C-SPC -> NUL
                 k = iand(k, not(ior(127_int32, CHAR_CTL)))
@@ -632,6 +704,7 @@ contains
     !> Port of character.h:CHAR_VARIATION_SELECTOR_P.
     elemental integer(int32) function char_variation_selector_p(c)
         integer(int32), intent(in) :: c
+
         if (c < int(z'FE00', int32)) then
             char_variation_selector_p = 0
         else if (c <= int(z'FE0F', int32)) then
@@ -648,6 +721,7 @@ contains
     !> Port of character.h:char_surrogate_p.
     elemental logical function char_surrogate_p(c)
         integer(int32), intent(in) :: c
+
         char_surrogate_p = int(z'D800', int32) <= c .and. c <= int(z'DFFF', int32)
     end function char_surrogate_p
 
@@ -655,6 +729,7 @@ contains
     !> Port of character.h:char_hexdigit.
     elemental integer(int32) function char_hexdigit(c)
         integer(int32), intent(in) :: c
+
         if (c >= iachar("0") .and. c <= iachar("9")) then
             char_hexdigit = c - iachar("0")
         else if (c >= iachar("a") .and. c <= iachar("f")) then
@@ -672,13 +747,16 @@ contains
     pure integer function unicode_category(c) result(cat)
         integer(int32), intent(in) :: c
         integer :: lo, hi, mid
+
         cat = UNICODE_CATEGORY_UNKNOWN
         if (c < 0 .or. c > MAX_UNICODE_CHAR) return
         cat = UNICODE_CATEGORY_CN
         lo = 1
         hi = category_runs
+
         do while (lo <= hi)
             mid = (lo + hi)/2
+
             if (c < category_starts(mid)) then
                 hi = mid - 1
             else if (c > category_ends(mid)) then
@@ -694,6 +772,7 @@ contains
     !> character.c:alphabeticp.
     pure logical function alphabeticp(c)
         integer(int32), intent(in) :: c
+
         select case (unicode_category(c))
         case (UNICODE_CATEGORY_LU:UNICODE_CATEGORY_ME, UNICODE_CATEGORY_NL)
             alphabeticp = .true.
@@ -706,6 +785,7 @@ contains
     !> Port of character.c:alphanumericp.
     pure logical function alphanumericp(c)
         integer(int32), intent(in) :: c
+
         select case (unicode_category(c))
         case (UNICODE_CATEGORY_LU:UNICODE_CATEGORY_NL)
             alphanumericp = .true.
@@ -718,6 +798,7 @@ contains
     !> character.c:graphicp.
     pure logical function graphicp(c)
         integer(int32), intent(in) :: c
+
         select case (unicode_category(c))
         case (UNICODE_CATEGORY_UNKNOWN, UNICODE_CATEGORY_ZS:UNICODE_CATEGORY_CC, UNICODE_CATEGORY_CS, &
               UNICODE_CATEGORY_CN)
@@ -731,6 +812,7 @@ contains
     !> character.c:printablep.
     pure logical function printablep(c)
         integer(int32), intent(in) :: c
+
         select case (unicode_category(c))
         case (UNICODE_CATEGORY_UNKNOWN, UNICODE_CATEGORY_CC, UNICODE_CATEGORY_CS, UNICODE_CATEGORY_CN)
             printablep = .false.
@@ -744,6 +826,7 @@ contains
     !> of character.c:blankp.
     pure logical function blankp(c)
         integer(int32), intent(in) :: c
+
         blankp = unicode_category(c) == UNICODE_CATEGORY_ZS
     end function blankp
 end module character_fm

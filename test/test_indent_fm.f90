@@ -64,12 +64,14 @@ contains
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
         character(len=24) :: buf
+
         write (buf, "(i0)") n
         s = trim(buf)
     end function itoa
 
     subroutine collect_indent_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("current-column", test_current_column), &
                     new_unittest("move-to-column", test_move_to_column), &
@@ -101,6 +103,7 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
         type(window_type), pointer :: sw
+
         call get_buffer_create("indent-test", h, st)
         call set_buffer(h, st)
         call show_alone()
@@ -119,6 +122,7 @@ contains
         type(handle_type), intent(in) :: h
         type(status_type) :: st
         type(window_type), pointer :: sw
+
         call kill_buffer(h, st)
         sw => frame_selected_window_ref()
         sw%total_cols = 0
@@ -127,6 +131,7 @@ contains
     subroutine test_current_column(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
+
         ! "a<TAB>b", C-a (^A), a raw byte, then a wide character.
         call enter("a"//achar(9)//"b"//achar(1)//"c"//achar(195)//achar(169)//"x"// &
                    achar(228)//achar(184)//achar(173)//"y", 80, h)
@@ -150,6 +155,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         integer(int64) :: reached
+
         call enter("ab"//achar(9)//"cd"//nl//"next", 80, h)
         call move_to_column(1_int64, reached)
         call check(error, point() == 2 .and. reached == 1)
@@ -168,6 +174,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         integer(int64) :: moved
+
         call enter("one"//nl//"two"//nl//"three", 80, h)
         call vertical_motion(1_int64, moved)
         call check(error, moved == 1 .and. point() == 5)
@@ -185,6 +192,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         integer(int64) :: moved
+
         ! An 11-column window shows 10 characters per row.
         call enter("abcdefghijklmnopqrstuvwxy"//nl//"z", 11, h)
         call goto_char(4_int64)
@@ -212,6 +220,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(value_type) :: keys(2)
+
         call init_bindings()
         call discard_input()
         call enter("first line"//nl//"ab"//nl//"third line", 80, h)
@@ -235,6 +244,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call enter("one"//nl//"two", 80, h)
         call line_move(-1_int64, st)
         call check(error, st%code == FM_BEGINNING_OF_BUFFER)
@@ -253,9 +263,11 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call enter("abcdefghijklmnopqrstuvwxy"//nl//"z1234"//nl//"q", 11, h)
         call goto_char(3_int64)
         line_move_visual = .false.
+
         body: block
             call line_move(1_int64, st)
             call check(error, st%ok() .and. point() == 29, "column 2 of the next buffer line")
@@ -264,6 +276,7 @@ contains
             call line_move(-1_int64, st)
             call check(error, point() == 5, "goal-column 4")
         end block body
+
         line_move_visual = .true.
         goal_column = -1
         call leave(h)
@@ -275,6 +288,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: col
+
         call enter("ab", 80, h)
         call goto_char(2_int64)
         indent_tabs_mode = .true.
@@ -306,6 +320,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call enter("    foo  bar"//LF//"x", 80, h)
         indent_tabs_mode = .false.
         call goto_char(point_max())
@@ -353,6 +368,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call enter("a"//LF//"  b"//LF//LF//"c"//LF, 80, h)
         indent_tabs_mode = .false.
         call indent_rigidly(1_int64, point_max(), 2_int64, st)
@@ -386,6 +402,7 @@ contains
         type(handle_type) :: h
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
+
         call init_bindings()
         call enter("    a"//LF//"b", 80, h)
         indent_tabs_mode = .false.
@@ -417,6 +434,7 @@ contains
         call discard_input()
         call leave(h)
     end subroutine test_indent_keys
+
     !> C-x TAB: the transient map's message names its keys and comes back
     !> after each of its commands, which keep the region and undo
     !> together; another key ends it, clearing the message and the mark.
@@ -425,6 +443,7 @@ contains
         type(handle_type) :: h
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
+
         call init_bindings()
         call enter("a"//LF//"b", 80, h)
         indent_tabs_mode = .false.
@@ -463,6 +482,7 @@ contains
     subroutine cannot_indent(status, noindent)
         type(status_type), intent(out) :: status
         logical, intent(out) :: noindent
+
         status = status_type()
         noindent = .true.
     end subroutine cannot_indent
@@ -473,6 +493,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call enter("    a"//LF//"b", 80, h)
         indent_tabs_mode = .false.
         call goto_char(7_int64)
@@ -489,6 +510,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call enter("a"//LF//"b"//LF, 80, h)
         last_message = ""
         call indent_region_line_by_line(1_int64, point_max(), st)
@@ -501,6 +523,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call enter("", 80, h)
         buffers(cur)%multibyte = .false.
         call insert(" "//achar(160)//"x", st)
@@ -509,6 +532,7 @@ contains
         buffers(cur)%multibyte = .true.
         call leave(h)
     end subroutine test_indentation_unibyte
+
     !> current-column and move-to-column skip invisible text (not text
     !> shown as an ellipsis) and count display strings and spaces, as GNU
     !> Emacs does.
@@ -521,6 +545,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: reached
+
         call get_buffer_create("*column-props*", h, st)
         call set_buffer(h, st)
         call insert("abcdef", st)
@@ -561,6 +586,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: moved
+
         call get_buffer_create("*vmotion-props*", h, st)
         call set_buffer(h, st)
         call show_alone()
@@ -575,6 +601,7 @@ contains
         call check(error, moved == -1 .and. point() == 2, "back to one")
         call kill_buffer(h, st)
     end subroutine test_vertical_motion_invisible
+
     !> A temporary buffer holding TEXT with the text from each START(k)
     !> to END(k) invisible, after (move-to-column COLUMN t) from its start:
     !> its text from 1 to TO.
@@ -590,13 +617,16 @@ contains
         type(status_type) :: st
         integer(int64) :: reached
         integer :: k
+
         call get_buffer_create(" *move-to-column-invis*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert(text, st)
+
         do k = 1, size(starts)
             call put_text_property(starts(k), ends(k), sym("invisible"), t_value(), st)
         end do
+
         call goto_char(1_int64)
         call move_to_column(column, reached, force=.true.)
         call buffer_substring(1_int64, to, got, st)
@@ -607,6 +637,7 @@ contains
     subroutine test_move_to_column_invis_1tab(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: got
+
         got = move_to_column_invis(achar(9)//"Line starting with INVISIBLE text after TAB"//achar(10), [2_int64], &
                                    [21_int64], 7_int64, 8_int64)
         call check(error, got, "       ")
@@ -616,6 +647,7 @@ contains
     subroutine test_move_to_column_invis_2tabs(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: got
+
         got = move_to_column_invis(achar(9)//achar(9)//"Line starting with INVISIBLE text after TAB"//achar(10), &
                                    [3_int64], [22_int64], 12_int64, 11_int64)
         call check(error, got, achar(9)//"    "//achar(9)//"Line")
@@ -625,6 +657,7 @@ contains
     subroutine test_move_to_column_invis_between(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: got
+
         got = move_to_column_invis(achar(9)//"xxx"//achar(9)//"Line starting with INVISIBLE text after TAB"//achar(10), &
                                    [6_int64, 2_int64], [25_int64, 5_int64], 12_int64, 14_int64)
         call check(error, got, achar(9)//"xxx    "//achar(9)//"Line")
