@@ -474,7 +474,8 @@ ported. Their keys are unbound, as test_bindings_fm checks:
 - Blank lines as CLAUDE.md sets them (chosen with the user, 2026-10-29):
   in procedure bodies around block constructs and after the declarations,
   one around `contains`, between procedures and after a section banner
-  between procedures; module specification
+  between procedures, one after the file's header comment (2026-10-30,
+  after docs/init.f90 ran its header into `module`); module specification
   parts, interface blocks and type definitions keep theirs.
   `tools/blank-lines.awk` applies them (also to the generated files), and
   `tools/check.sh` fixes or checks them.
@@ -993,6 +994,7 @@ Each lists the default being used meanwhile.
 
 ## Session log
 
+- 2026-10-30 — Header blank line (`header-blank-line`, based on main; asked by the user): CLAUDE.md now says the file's header comment ends with one blank line, as every file in src/ already did; `tools/blank-lines.awk` applies it, so `tools/check.sh` fixes or flags it; docs/init.f90 was the only file without it.  Learned: a convention every file follows but no rule states goes unchecked, and examples outside src/ drift from it; consistency rules belong in CLAUDE.md and in the checker.
 - 2026-10-29 — Password prompts (roadmap step 38b, `step38b-passwords`, built on `step38-comint`): auth_source_fm (`read-passwd`, `read-passwd-mode`), mule_conf_fm (`password-word-equivalents`, `password-colon-equivalents`), comint_fm's `comint-password-prompt-regexp`, `comint-watch-for-password-prompt` (in the default `comint-output-filter-functions`), `comint-send-invisible`, `comint-password-function`.  minibuf_fm gains `read-hide-char` and a history of "t" keeping no history.  Ports the password tests of comint-tests.el.  Next: 38c.
 - 2026-10-29 — Comint history expansion and M-r (roadmap step 38a, `step38-comint`, built on `step34f-info-look` while #139 waits; step 38 is now five PRs, as recorded in the roadmap): comint_fm's history expansion, C-c ., Isearch in the input history, C-c C-z and scrolling on input.  isearch_fm gains `isearch-message-function`, `isearch-message-prefix-add`, `clear_local` for its function variables and setters of the barrier and starting point; process_fm `stop-process` and `continue-process`.  Own tests.  Next: 38b.
 - 2026-10-29 — info-look and C-h R (roadmap step 34f, `step34f-info-look`, built on `step34e-info-isearch` while #139 waits): info_look_fm (info-look.el: C-h S `info-lookup-symbol`, `info-lookup-file`, the help specifications of upstream's modes kept as data, keyed by Fortmacs mode names; the symbol prefixes of Emacs Lisp manuals keep their hyphens, being Lisp symbols in Lisp files), info_fm's `info-display-manual` (C-h R).  Own tests.  Step 34 is complete but for 34d (the manuals), which waits on questions for the user.
