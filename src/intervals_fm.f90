@@ -73,7 +73,7 @@ contains
         iv%runs(1)%length = length
     end subroutine create_root_interval
 
-    !> Position just past interval `k'.
+    !> Position just past interval `k'.  Not a port.
     elemental integer(int64) function interval_end(iv, k)
         type(intervals_type), intent(in) :: iv
         integer(int64), intent(in) :: k
@@ -105,6 +105,7 @@ contains
     end function find_interval
 
     !> Make room for a run at index `k' (shifting k..n up by one).
+    !> Not a port.
     pure subroutine open_slot(iv, k)
         type(intervals_type), intent(inout) :: iv
         integer(int64), intent(in) :: k
@@ -128,7 +129,7 @@ contains
         iv%n = iv%n + 1
     end subroutine open_slot
 
-    !> Remove run `k'.
+    !> Remove run `k'.  Not a port.
     pure subroutine close_slot(iv, k)
         type(intervals_type), intent(inout) :: iv
         integer(int64), intent(in) :: k
@@ -194,8 +195,8 @@ contains
 
     !> Value of text property `prop' in `plist', falling back to the
     !> `category' symbol's property, then to the first of the properties
-    !> `char_property_alias_alist' gives as alternatives for `prop'.  Port
-    !> of intervals.c:textget / lookup_char_property
+    !> `char_property_alias_alist' gives as alternatives for `prop'.
+    !> Port of intervals.c:textget and intervals.c:lookup_char_property
     !> (default-text-properties is not consulted yet).
     function textget(plist, prop) result(val)
         type(value_type), intent(in) :: plist, prop

@@ -1,5 +1,5 @@
 ! test_register_fm.f90 -- tests for the register commands (register_fm).
-! Ported from GNU Emacs 31.1 test/lisp/register-tests.el, plus our own.
+! Ports GNU Emacs 31.1 test/lisp/register-tests.el.
 !
 ! Copyright (C) 2017-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -57,6 +57,7 @@ module test_register_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_register_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

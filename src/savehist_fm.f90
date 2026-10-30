@@ -233,7 +233,8 @@ contains
         call minor_modes%savehist_mode%command(status)
     end subroutine savehist_mode
 
-    !> The body of Savehist mode.
+    !> The body of Savehist mode.  Port of savehist.el:savehist-mode (its
+    !> body).
     recursive subroutine savehist_mode_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
@@ -266,6 +267,7 @@ contains
         end if
     end function savehist_file_modtime
 
+    ! Not a port.
     logical function same_modtime(a, b)
         type(modtime_type), intent(in) :: a, b
 
@@ -330,6 +332,7 @@ contains
     end subroutine savehist_reload
 
     !> Set the variables of `savehist_file' to their saved values.
+    !> Not a port.
     recursive subroutine load_savehist_file(status)
         type(status_type), intent(out) :: status
         type(namelist_group_type), allocatable :: groups(:)
@@ -352,7 +355,7 @@ contains
         end do
     end subroutine load_savehist_file
 
-    !> Set the variable of ITEM to its value.
+    !> Set the variable of ITEM to its value.  Not a port.
     recursive subroutine set_saved(item, status)
         type(namelist_item_type), intent(in) :: item
         type(status_type), intent(out) :: status
@@ -391,7 +394,7 @@ contains
         end if
     end subroutine set_saved
 
-    !> A value as savehist saved it.
+    !> A value as savehist saved it.  Not a port.
     function saved_value(nv) result(v)
         type(namelist_value_type), intent(in) :: nv
         type(value_type) :: v
@@ -406,7 +409,7 @@ contains
         end select
     end function saved_value
 
-    !> The text of FILE.
+    !> The text of FILE.  Not a port.
     recursive subroutine file_text(file, text, status)
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: text
@@ -504,7 +507,7 @@ contains
         call savehist_manage_timer()
     end subroutine savehist_uninstall
 
-    !> Whether NAME is in the list NAMES.
+    !> Whether NAME is in the list NAMES.  Not a port.
     pure logical function member(name, names)
         character(len=*), intent(in) :: name
         character(len=64), allocatable, intent(in) :: names(:)
@@ -684,7 +687,7 @@ contains
         end subroutine subscript
     end subroutine savehist_save
 
-    !> Add V to ITEM's values if it can be written (OK).
+    !> Add V to ITEM's values if it can be written (OK).  Not a port.
     subroutine add_value(item, v, ok)
         type(namelist_item_type), intent(inout) :: item
         type(value_type), intent(in) :: v
@@ -717,7 +720,7 @@ contains
         if (minor_modes%savehist_mode%enabled()) call savehist_save(status, auto_save=.true.)
     end subroutine savehist_autosave
 
-    !> savehist_autosave for the timer and `kill_emacs_hook'.
+    !> savehist_autosave for the timer and `kill_emacs_hook'.  Not a port.
     recursive subroutine savehist_autosave_timer(status)
         type(status_type), intent(out) :: status
 
@@ -774,7 +777,7 @@ contains
         call move_alloc(grown, savehist_minibuffer_history_variables)
     end subroutine savehist_minibuffer_hook
 
-    !> savehist_minibuffer_hook on `minibuffer_setup_hook'.
+    !> savehist_minibuffer_hook on `minibuffer_setup_hook'.  Not a port.
     recursive subroutine savehist_minibuffer_hook_proc(status)
         type(status_type), intent(out) :: status
 
@@ -789,6 +792,7 @@ contains
     end subroutine cmd_savehist_save
 
     !> Define Savehist mode and its command, and the file's default name.
+    !> Not a port.
     subroutine syms_of_savehist()
         if (.not. allocated(savehist_file)) savehist_file = state_directory()//"history"
         if (.not. allocated(savehist_coding_system)) savehist_coding_system = "utf-8-emacs-unix"

@@ -100,39 +100,69 @@ module sys_linux_fm
     end type pollfd_type
 
     ! c_iflag (octal in the headers)
+    !> termios c_iflag bit IGNBRK.
     integer(c_int), parameter, public :: IGNBRK = int(o'0000001', c_int)
+    !> termios c_iflag bit BRKINT.
     integer(c_int), parameter, public :: BRKINT = int(o'0000002', c_int)
+    !> termios c_iflag bit ISTRIP.
     integer(c_int), parameter, public :: ISTRIP = int(o'0000040', c_int)
+    !> termios c_iflag bit INLCR.
     integer(c_int), parameter, public :: INLCR = int(o'0000100', c_int)
+    !> termios c_iflag bit IGNCR.
     integer(c_int), parameter, public :: IGNCR = int(o'0000200', c_int)
+    !> termios c_iflag bit IUCLC.
     integer(c_int), parameter, public :: IUCLC = int(o'0001000', c_int)
+    !> termios c_iflag bit ICRNL.
     integer(c_int), parameter, public :: ICRNL = int(o'0000400', c_int)
+    !> termios c_iflag bit IXON.
     integer(c_int), parameter, public :: IXON = int(o'0002000', c_int)
+    !> termios c_iflag bit IXANY.
     integer(c_int), parameter, public :: IXANY = int(o'0004000', c_int)
+    !> termios c_iflag bit IXOFF.
     integer(c_int), parameter, public :: IXOFF = int(o'0010000', c_int)
+    !> termios c_iflag bit IUTF8.
     integer(c_int), parameter, public :: IUTF8 = int(o'0040000', c_int)
     ! c_oflag
+    !> termios c_oflag bit OPOST.
     integer(c_int), parameter, public :: OPOST = int(o'0000001', c_int)
+    !> termios c_oflag bit OLCUC.
     integer(c_int), parameter, public :: OLCUC = int(o'0000002', c_int)
+    !> termios c_oflag bit NLDLY.
     integer(c_int), parameter, public :: NLDLY = int(o'0000400', c_int)
+    !> termios c_oflag bit CRDLY.
     integer(c_int), parameter, public :: CRDLY = int(o'0003000', c_int)
+    !> termios c_oflag bit BSDLY.
     integer(c_int), parameter, public :: BSDLY = int(o'0020000', c_int)
+    !> termios c_oflag bit VTDLY.
     integer(c_int), parameter, public :: VTDLY = int(o'0040000', c_int)
+    !> termios c_oflag bit FFDLY.
     integer(c_int), parameter, public :: FFDLY = int(o'0100000', c_int)
+    !> termios c_oflag bit ONLCR.
     integer(c_int), parameter, public :: ONLCR = int(o'0000004', c_int)
+    !> termios c_oflag bit TABDLY.
     integer(c_int), parameter, public :: TABDLY = int(o'0014000', c_int)
+    !> termios c_oflag bit TAB3.
     integer(c_int), parameter, public :: TAB3 = int(o'0014000', c_int)
     ! c_cflag
+    !> termios c_cflag bits CSIZE.
     integer(c_int), parameter, public :: CSIZE = int(o'0000060', c_int)
+    !> termios c_cflag bits CS8.
     integer(c_int), parameter, public :: CS8 = int(o'0000060', c_int)
+    !> termios c_cflag bits PARENB.
     integer(c_int), parameter, public :: PARENB = int(o'0000400', c_int)
     ! c_lflag
+    !> termios c_lflag bit ISIG.
     integer(c_int), parameter, public :: ISIG = int(o'0000001', c_int)
+    !> termios c_lflag bit ICANON.
     integer(c_int), parameter, public :: ICANON = int(o'0000002', c_int)
+    !> termios c_lflag bit ECHO.
     integer(c_int), parameter, public :: ECHO = int(o'0000010', c_int)
+    !> termios c_lflag bit ECHONL.
     integer(c_int), parameter, public :: ECHONL = int(o'0000100', c_int)
+    !> termios c_lflag bit IEXTEN.
     integer(c_int), parameter, public :: IEXTEN = int(o'0100000', c_int)
     ! c_cc indices, 1-based for Fortran (header value + 1)
+    !> Index of VINTR in termios c_cc (1-based).
     integer, parameter, public :: VINTR = 1, VQUIT = 2, VERASE = 3, VKILL = 4, &
                                   VEOF = 5, VTIME = 6, VMIN = 7, VSWTC = 8, &
                                   VSTART = 9, VSTOP = 10, VSUSP = 11, VEOL = 12, &
@@ -141,16 +171,24 @@ module sys_linux_fm
     !> _POSIX_VDISABLE on Linux.
     integer(c_signed_char), parameter, public :: CDISABLE = 0_c_signed_char
     ! tcsetattr actions
+    !> tcsetattr action TCSANOW.
     integer(c_int), parameter, public :: TCSANOW = 0, TCSADRAIN = 1, TCSAFLUSH = 2
     ! ioctl requests
+    !> ioctl request TIOCGWINSZ.
     integer(c_long), parameter, public :: TIOCGWINSZ = int(z'5413', c_long)
+    !> ioctl request TIOCSWINSZ.
     integer(c_long), parameter, public :: TIOCSWINSZ = int(z'5414', c_long)
     ! open flags
+    !> open flag O_RDONLY.
     integer(c_int), parameter, public :: O_RDONLY = 0, O_WRONLY = 1, O_RDWR = 2
+    !> open flag O_NOCTTY.
     integer(c_int), parameter, public :: O_NOCTTY = int(o'0000400', c_int)
+    !> open flag O_NONBLOCK.
     integer(c_int), parameter, public :: O_NONBLOCK = int(o'0004000', c_int)
+    !> open flag O_CLOEXEC.
     integer(c_int), parameter, public :: O_CLOEXEC = int(o'2000000', c_int)
     ! inotify event masks and watch flags (linux/inotify.h)
+    !> inotify event mask or watch flag IN_ACCESS.
     integer(c_int32_t), parameter, public :: IN_ACCESS = 1, IN_MODIFY = 2, IN_ATTRIB = 4, IN_CLOSE_WRITE = 8, &
                                              IN_CLOSE_NOWRITE = 16, IN_OPEN = 32, IN_MOVED_FROM = 64, &
                                              IN_MOVED_TO = 128, IN_CREATE = 256, IN_DELETE = 512, &
@@ -159,49 +197,74 @@ module sys_linux_fm
                                              IN_DONT_FOLLOW = 33554432, IN_EXCL_UNLINK = 67108864, &
                                              IN_MASK_ADD = 536870912, IN_ISDIR = 1073741824, &
                                              IN_ALL_EVENTS = 4095, IN_MOVE = 192, IN_CLOSE = 24
+    !> inotify event mask or watch flag O_CREAT.
     integer(c_int), parameter, public :: O_CREAT = int(o'0000100', c_int)
+    !> inotify event mask or watch flag O_EXCL.
     integer(c_int), parameter, public :: O_EXCL = int(o'0000200', c_int)
+    !> inotify event mask or watch flag O_TRUNC.
     integer(c_int), parameter, public :: O_TRUNC = int(o'0001000', c_int)
     ! access modes
+    !> access mode F_OK.
     integer(c_int), parameter, public :: F_OK = 0, X_OK = 1, W_OK = 2, R_OK = 4
     ! *at() directory argument for the current directory
+    !> AT_FDCWD: the current directory as the directory argument of the *at() calls.
     integer(c_int), parameter, public :: AT_FDCWD = -100
     ! statx
+    !> statx flag or mask AT_STATX_SYNC_AS_STAT.
     integer(c_int), parameter, public :: AT_STATX_SYNC_AS_STAT = 0
+    !> statx flag or mask AT_SYMLINK_NOFOLLOW.
     integer(c_int), parameter, public :: AT_SYMLINK_NOFOLLOW = int(z'100', c_int)
+    !> statx flag or mask STATX_BASIC_STATS.
     integer(c_int), parameter, public :: STATX_BASIC_STATS = int(z'7FF', c_int)
     ! renameat2 flags (linux/fs.h)
+    !> renameat2 flag RENAME_NOREPLACE.
     integer(c_int), parameter, public :: RENAME_NOREPLACE = 1
     ! clock_gettime clocks (linux/time.h)
+    !> clock_gettime clock CLOCK_REALTIME.
     integer(c_int), parameter, public :: CLOCK_REALTIME = 0
     ! utimensat special nanoseconds (linux/stat.h)
+    !> utimensat special nanoseconds value UTIME_NOW.
     integer(c_long), parameter, public :: UTIME_NOW = int(z'3FFFFFFF', c_long), &
                                           UTIME_OMIT = int(z'3FFFFFFE', c_long)
     ! poll events
+    !> poll event POLLIN.
     integer(c_short), parameter, public :: POLLIN = 1_c_short
+    !> poll event POLLHUP.
     integer(c_short), parameter, public :: POLLHUP = 16_c_short, POLLERR = 8_c_short
     ! signals
+    !> Signal number SIGINT.
     integer(c_int), parameter, public :: SIGINT = 2, SIGTERM = 15, SIGCONT = 18, &
                                          SIGTSTP = 20, SIGWINCH = 28
+    !> Signal number SIGHUP.
     integer(c_int), parameter, public :: SIGHUP = 1, SIGQUIT = 3, SIGKILL = 9, SIGPIPE = 13
     ! pthread_sigmask actions
+    !> pthread_sigmask action SIG_BLOCK.
     integer(c_int), parameter, public :: SIG_BLOCK = 0, SIG_SETMASK = 2
     ! waitpid options
+    !> waitpid option WNOHANG.
     integer(c_int), parameter, public :: WNOHANG = 1
     ! ioctl request making a terminal the controlling terminal
+    !> ioctl request TIOCSCTTY: make the terminal the controlling terminal.
     integer(c_long), parameter, public :: TIOCSCTTY = int(z'540E', c_long)
     ! fcntl commands (asm-generic/fcntl.h, linux/fcntl.h)
+    !> fcntl command or flag F_SETFD.
     integer(c_int), parameter, public :: F_SETFD = 2, F_GETFL = 3, F_SETFL = 4, F_DUPFD_CLOEXEC = 1030, &
                                          FD_CLOEXEC = 1
     ! errno
+    !> errno value ENOENT.
     integer(c_int), parameter, public :: ENOENT = 2, EINTR = 4, EAGAIN = 11, &
                                          EACCES = 13, EEXIST = 17, ENOTDIR = 20, &
                                          EISDIR = 21, ERANGE = 34, EXDEV = 18, EINVAL = 22, ENOTSUP = 95
+    !> errno value EIO.
     integer(c_int), parameter, public :: EIO = 5, ECHILD = 10, EPIPE = 32, ENOSYS = 38
     ! file type bits of st_mode (bits/stat.h)
+    !> File type bits S_IFMT of st_mode.
     integer(c_int), parameter, public :: S_IFMT = int(o'170000', c_int)
+    !> File type bits S_IFDIR of st_mode.
     integer(c_int), parameter, public :: S_IFDIR = int(o'040000', c_int)
+    !> File type bits S_IFREG of st_mode.
     integer(c_int), parameter, public :: S_IFREG = int(o'100000', c_int)
+    !> File type bits S_IFLNK of st_mode.
     integer(c_int), parameter, public :: S_IFLNK = int(o'120000', c_int)
 
     !> struct statx_timestamp.
@@ -289,6 +352,7 @@ module sys_linux_fm
     public :: errno, c_string_to_fortran
 
     interface
+        !> Binding of libc's tcgetattr.
         integer(c_int) function c_tcgetattr(fd, t) bind(C, name="tcgetattr")
             import :: c_int, termios_type
             implicit none(type, external)
@@ -303,6 +367,7 @@ module sys_linux_fm
             integer(c_int), value :: fd
         end function c_tcgetpgrp
 
+        !> Binding of libc's tcsetattr.
         integer(c_int) function c_tcsetattr(fd, action, t) bind(C, name="tcsetattr")
             import :: c_int, termios_type
             implicit none(type, external)
@@ -310,6 +375,7 @@ module sys_linux_fm
             type(termios_type), intent(in) :: t
         end function c_tcsetattr
 
+        !> Binding of libc's read.
         integer(c_long) function c_read(fd, buf, count) bind(C, name="read")
             import :: c_int, c_long, c_size_t, c_char
             implicit none(type, external)
@@ -318,6 +384,7 @@ module sys_linux_fm
             integer(c_size_t), value :: count
         end function c_read
 
+        !> Binding of libc's write.
         integer(c_long) function c_write(fd, buf, count) bind(C, name="write")
             import :: c_int, c_long, c_size_t, c_char
             implicit none(type, external)
@@ -326,18 +393,21 @@ module sys_linux_fm
             integer(c_size_t), value :: count
         end function c_write
 
+        !> Binding of libc's close.
         integer(c_int) function c_close(fd) bind(C, name="close")
             import :: c_int
             implicit none(type, external)
             integer(c_int), value :: fd
         end function c_close
 
+        !> Binding of libc's isatty.
         integer(c_int) function c_isatty(fd) bind(C, name="isatty")
             import :: c_int
             implicit none(type, external)
             integer(c_int), value :: fd
         end function c_isatty
 
+        !> Binding of libc's poll.
         integer(c_int) function c_poll(fds, nfds, timeout) bind(C, name="poll")
             import :: c_int, c_long, pollfd_type
             implicit none(type, external)
@@ -363,30 +433,35 @@ module sys_linux_fm
             type(c_funptr), value :: handler
         end function c_signal
 
+        !> Binding of libc's raise.
         integer(c_int) function c_raise(signum) bind(C, name="raise")
             import :: c_int
             implicit none(type, external)
             integer(c_int), value :: signum
         end function c_raise
 
+        !> Binding of libc's posix_openpt.
         integer(c_int) function c_posix_openpt(flags) bind(C, name="posix_openpt")
             import :: c_int
             implicit none(type, external)
             integer(c_int), value :: flags
         end function c_posix_openpt
 
+        !> Binding of libc's grantpt.
         integer(c_int) function c_grantpt(fd) bind(C, name="grantpt")
             import :: c_int
             implicit none(type, external)
             integer(c_int), value :: fd
         end function c_grantpt
 
+        !> Binding of libc's unlockpt.
         integer(c_int) function c_unlockpt(fd) bind(C, name="unlockpt")
             import :: c_int
             implicit none(type, external)
             integer(c_int), value :: fd
         end function c_unlockpt
 
+        !> Binding of libc's ptsname.
         type(c_ptr) function c_ptsname(fd) bind(C, name="ptsname")
             import :: c_int, c_ptr
             implicit none(type, external)
@@ -410,6 +485,7 @@ module sys_linux_fm
             integer(c_int), value :: mode
         end function c_creat
 
+        !> Binding of libc's access.
         integer(c_int) function c_access(path, mode) bind(C, name="access")
             import :: c_int, c_char
             implicit none(type, external)
@@ -417,18 +493,21 @@ module sys_linux_fm
             integer(c_int), value :: mode
         end function c_access
 
+        !> Binding of libc's rename.
         integer(c_int) function c_rename(old, new) bind(C, name="rename")
             import :: c_int, c_char
             implicit none(type, external)
             character(kind=c_char), intent(in) :: old(*), new(*)
         end function c_rename
 
+        !> Binding of libc's unlink.
         integer(c_int) function c_unlink(path) bind(C, name="unlink")
             import :: c_int, c_char
             implicit none(type, external)
             character(kind=c_char), intent(in) :: path(*)
         end function c_unlink
 
+        !> Binding of libc's mkdir.
         integer(c_int) function c_mkdir(path, mode) bind(C, name="mkdir")
             import :: c_int, c_char
             implicit none(type, external)
@@ -436,12 +515,14 @@ module sys_linux_fm
             integer(c_int), value :: mode
         end function c_mkdir
 
+        !> Binding of libc's rmdir.
         integer(c_int) function c_rmdir(path) bind(C, name="rmdir")
             import :: c_int, c_char
             implicit none(type, external)
             character(kind=c_char), intent(in) :: path(*)
         end function c_rmdir
 
+        !> Binding of libc's setenv.
         integer(c_int) function c_setenv(name, value, overwrite) bind(C, name="setenv")
             import :: c_int, c_char
             implicit none(type, external)
@@ -449,12 +530,14 @@ module sys_linux_fm
             integer(c_int), value :: overwrite
         end function c_setenv
 
+        !> Binding of libc's unsetenv.
         integer(c_int) function c_unsetenv(name) bind(C, name="unsetenv")
             import :: c_int, c_char
             implicit none(type, external)
             character(kind=c_char), intent(in) :: name(*)
         end function c_unsetenv
 
+        !> Binding of libc's chmod.
         integer(c_int) function c_chmod(path, mode) bind(C, name="chmod")
             import :: c_int, c_char
             implicit none(type, external)
@@ -462,6 +545,7 @@ module sys_linux_fm
             integer(c_int), value :: mode
         end function c_chmod
 
+        !> Binding of libc's statx.
         integer(c_int) function c_statx(dirfd, path, flags, mask, buf) bind(C, name="statx")
             import :: c_int, c_char, statx_type
             implicit none(type, external)
@@ -471,6 +555,7 @@ module sys_linux_fm
             type(statx_type), intent(out) :: buf
         end function c_statx
 
+        !> Binding of libc's getcwd.
         type(c_ptr) function c_getcwd(buf, size) bind(C, name="getcwd")
             import :: c_ptr, c_char, c_size_t
             implicit none(type, external)
@@ -478,16 +563,19 @@ module sys_linux_fm
             integer(c_size_t), value :: size
         end function c_getcwd
 
+        !> Binding of libc's getuid.
         integer(c_int32_t) function c_getuid() bind(C, name="getuid")
             import :: c_int32_t
             implicit none(type, external)
         end function c_getuid
 
+        !> Binding of libc's geteuid.
         integer(c_int32_t) function c_geteuid() bind(C, name="geteuid")
             import :: c_int32_t
             implicit none(type, external)
         end function c_geteuid
 
+        !> Binding of libc's gethostname.
         integer(c_int) function c_gethostname(name, len) bind(C, name="gethostname")
             import :: c_int, c_char, c_size_t
             implicit none(type, external)
@@ -495,29 +583,34 @@ module sys_linux_fm
             integer(c_size_t), value :: len
         end function c_gethostname
 
+        !> Binding of libc's getegid.
         integer(c_int32_t) function c_getegid() bind(C, name="getegid")
             import :: c_int32_t
             implicit none(type, external)
         end function c_getegid
 
+        !> Binding of libc's getpwnam.
         type(c_ptr) function c_getpwnam(name) bind(C, name="getpwnam")
             import :: c_ptr, c_char
             implicit none(type, external)
             character(kind=c_char), intent(in) :: name(*)
         end function c_getpwnam
 
+        !> Binding of libc's getpwuid.
         type(c_ptr) function c_getpwuid(uid) bind(C, name="getpwuid")
             import :: c_ptr, c_int32_t
             implicit none(type, external)
             integer(c_int32_t), value :: uid
         end function c_getpwuid
 
+        !> Binding of libc's strerror.
         type(c_ptr) function c_strerror(errnum) bind(C, name="strerror")
             import :: c_ptr, c_int
             implicit none(type, external)
             integer(c_int), value :: errnum
         end function c_strerror
 
+        !> Binding of libc's opendir.
         type(c_ptr) function c_opendir(path) bind(C, name="opendir")
             import :: c_ptr, c_char
             implicit none(type, external)
@@ -532,18 +625,21 @@ module sys_linux_fm
             type(c_ptr), value :: dirp
         end function c_readdir
 
+        !> Binding of libc's closedir.
         integer(c_int) function c_closedir(dirp) bind(C, name="closedir")
             import :: c_int, c_ptr
             implicit none(type, external)
             type(c_ptr), value :: dirp
         end function c_closedir
 
+        !> Binding of libc's symlink.
         integer(c_int) function c_symlink(target, linkpath) bind(C, name="symlink")
             import :: c_int, c_char
             implicit none(type, external)
             character(kind=c_char), intent(in) :: target(*), linkpath(*)
         end function c_symlink
 
+        !> Binding of libc's localtime_r.
         type(c_ptr) function c_localtime_r(time, result) bind(C, name="localtime_r")
             import :: c_ptr, c_int64_t, tm_type
             implicit none(type, external)
@@ -551,6 +647,7 @@ module sys_linux_fm
             type(tm_type), intent(out) :: result
         end function c_localtime_r
 
+        !> Binding of libc's statvfs.
         integer(c_int) function c_statvfs(path, buf) bind(C, name="statvfs")
             import :: c_int, c_char, statvfs_type
             implicit none(type, external)
@@ -558,17 +655,20 @@ module sys_linux_fm
             type(statvfs_type), intent(out) :: buf
         end function c_statvfs
 
+        !> Binding of libc's fork.
         integer(c_int32_t) function c_fork() bind(C, name="fork")
             import :: c_int32_t
             implicit none(type, external)
         end function c_fork
 
+        !> Binding of libc's dup2.
         integer(c_int) function c_dup2(oldfd, newfd) bind(C, name="dup2")
             import :: c_int
             implicit none(type, external)
             integer(c_int), value :: oldfd, newfd
         end function c_dup2
 
+        !> Binding of libc's chdir.
         integer(c_int) function c_chdir(path) bind(C, name="chdir")
             import :: c_int, c_char
             implicit none(type, external)
@@ -582,6 +682,7 @@ module sys_linux_fm
             integer(c_int), value :: status
         end subroutine c_exit
 
+        !> Binding of libc's pipe2.
         integer(c_int) function c_pipe2(fds, flags) bind(C, name="pipe2")
             import :: c_int
             implicit none(type, external)
@@ -589,6 +690,7 @@ module sys_linux_fm
             integer(c_int), value :: flags
         end function c_pipe2
 
+        !> Binding of libc's waitpid.
         integer(c_int32_t) function c_waitpid(pid, wstatus, options) bind(C, name="waitpid")
             import :: c_int, c_int32_t
             implicit none(type, external)
@@ -597,6 +699,7 @@ module sys_linux_fm
             integer(c_int), value :: options
         end function c_waitpid
 
+        !> Binding of libc's readlink.
         integer(c_long) function c_readlink(path, buf, bufsiz) bind(C, name="readlink")
             import :: c_long, c_size_t, c_char
             implicit none(type, external)
@@ -605,6 +708,7 @@ module sys_linux_fm
             integer(c_size_t), value :: bufsiz
         end function c_readlink
 
+        !> Binding of libc's execv.
         integer(c_int) function c_execv(path, argv) bind(C, name="execv")
             import :: c_int, c_char, c_ptr
             implicit none(type, external)
@@ -612,12 +716,14 @@ module sys_linux_fm
             type(c_ptr), intent(in) :: argv(*)
         end function c_execv
 
+        !> Binding of libc's strsignal.
         type(c_ptr) function c_strsignal(sig) bind(C, name="strsignal")
             import :: c_ptr, c_int
             implicit none(type, external)
             integer(c_int), value :: sig
         end function c_strsignal
 
+        !> Binding of libc's mkostemp.
         integer(c_int) function c_mkostemp(template, flags) bind(C, name="mkostemp")
             import :: c_int, c_char
             implicit none(type, external)
@@ -625,6 +731,7 @@ module sys_linux_fm
             integer(c_int), value :: flags
         end function c_mkostemp
 
+        !> Binding of libc's open (with a mode).
         integer(c_int) function c_open_mode(path, flags, mode) bind(C, name="open")
             import :: c_int, c_char
             implicit none(type, external)
@@ -632,12 +739,14 @@ module sys_linux_fm
             integer(c_int), value :: flags, mode
         end function c_open_mode
 
+        !> Binding of libc's link.
         integer(c_int) function c_link(old, new) bind(C, name="link")
             import :: c_int, c_char
             implicit none(type, external)
             character(kind=c_char), intent(in) :: old(*), new(*)
         end function c_link
 
+        !> Binding of libc's renameat2.
         integer(c_int) function c_renameat2(olddirfd, old, newdirfd, new, flags) bind(C, name="renameat2")
             import :: c_int, c_char
             implicit none(type, external)
@@ -645,6 +754,7 @@ module sys_linux_fm
             character(kind=c_char), intent(in) :: old(*), new(*)
         end function c_renameat2
 
+        !> Binding of libc's utimensat.
         integer(c_int) function c_utimensat(dirfd, path, times, flags) bind(C, name="utimensat")
             import :: c_int, c_char, timespec_type
             implicit none(type, external)
@@ -653,6 +763,7 @@ module sys_linux_fm
             type(timespec_type), intent(in) :: times(2)
         end function c_utimensat
 
+        !> Binding of libc's futimens.
         integer(c_int) function c_futimens(fd, times) bind(C, name="futimens")
             import :: c_int, timespec_type
             implicit none(type, external)
@@ -660,18 +771,21 @@ module sys_linux_fm
             type(timespec_type), intent(in) :: times(2)
         end function c_futimens
 
+        !> Binding of libc's umask.
         integer(c_int32_t) function c_umask(mask) bind(C, name="umask")
             import :: c_int32_t
             implicit none(type, external)
             integer(c_int32_t), value :: mask
         end function c_umask
 
+        !> Binding of libc's fchmod.
         integer(c_int) function c_fchmod(fd, mode) bind(C, name="fchmod")
             import :: c_int
             implicit none(type, external)
             integer(c_int), value :: fd, mode
         end function c_fchmod
 
+        !> Binding of libc's fchmodat.
         integer(c_int) function c_fchmodat(dirfd, path, mode, flags) bind(C, name="fchmodat")
             import :: c_int, c_char
             implicit none(type, external)
@@ -679,6 +793,7 @@ module sys_linux_fm
             character(kind=c_char), intent(in) :: path(*)
         end function c_fchmodat
 
+        !> Binding of libc's fchown.
         integer(c_int) function c_fchown(fd, owner, group) bind(C, name="fchown")
             import :: c_int, c_int32_t
             implicit none(type, external)
@@ -686,34 +801,41 @@ module sys_linux_fm
             integer(c_int32_t), value :: owner, group
         end function c_fchown
 
+        !> Binding of libc's getgrgid.
         type(c_ptr) function c_getgrgid(gid) bind(C, name="getgrgid")
             import :: c_ptr, c_int32_t
             implicit none(type, external)
             integer(c_int32_t), value :: gid
         end function c_getgrgid
 
+        !> Binding of libc's setpwent.
         subroutine c_setpwent() bind(C, name="setpwent")
             implicit none(type, external)
         end subroutine c_setpwent
 
+        !> Binding of libc's getpwent.
         type(c_ptr) function c_getpwent() bind(C, name="getpwent")
             import :: c_ptr
             implicit none(type, external)
         end function c_getpwent
 
+        !> Binding of libc's endpwent.
         subroutine c_endpwent() bind(C, name="endpwent")
             implicit none(type, external)
         end subroutine c_endpwent
 
+        !> Binding of libc's setgrent.
         subroutine c_setgrent() bind(C, name="setgrent")
             implicit none(type, external)
         end subroutine c_setgrent
 
+        !> Binding of libc's getgrent.
         type(c_ptr) function c_getgrent() bind(C, name="getgrent")
             import :: c_ptr
             implicit none(type, external)
         end function c_getgrent
 
+        !> Binding of libc's endgrent.
         subroutine c_endgrent() bind(C, name="endgrent")
             implicit none(type, external)
         end subroutine c_endgrent
@@ -735,17 +857,20 @@ module sys_linux_fm
             type(c_ptr), value :: retval
         end function c_pthread_join
 
+        !> Binding of libc's pthread_self.
         integer(c_long) function c_pthread_self() bind(C, name="pthread_self")
             import :: c_long
             implicit none(type, external)
         end function c_pthread_self
 
+        !> Binding of libc's pthread_mutex_lock.
         integer(c_int) function c_pthread_mutex_lock(mutex) bind(C, name="pthread_mutex_lock")
             import :: c_int, c_int64_t
             implicit none(type, external)
             integer(c_int64_t), intent(inout) :: mutex(*)
         end function c_pthread_mutex_lock
 
+        !> Binding of libc's pthread_mutex_unlock.
         integer(c_int) function c_pthread_mutex_unlock(mutex) bind(C, name="pthread_mutex_unlock")
             import :: c_int, c_int64_t
             implicit none(type, external)
@@ -761,6 +886,7 @@ module sys_linux_fm
             integer(c_int64_t), intent(out) :: oldset(16)
         end function c_pthread_sigmask
 
+        !> Binding of libc's kill.
         integer(c_int) function c_kill(pid, sig) bind(C, name="kill")
             import :: c_int, c_int32_t
             implicit none(type, external)
@@ -768,6 +894,7 @@ module sys_linux_fm
             integer(c_int), value :: sig
         end function c_kill
 
+        !> Binding of libc's setsid.
         integer(c_int32_t) function c_setsid() bind(C, name="setsid")
             import :: c_int32_t
             implicit none(type, external)
@@ -814,6 +941,7 @@ module sys_linux_fm
             integer(c_int), value :: arg
         end function c_ioctl_int
 
+        !> Binding of libc's execve.
         integer(c_int) function c_execve(path, argv, envp) bind(C, name="execve")
             import :: c_int, c_char, c_ptr
             implicit none(type, external)
@@ -838,6 +966,7 @@ module sys_linux_fm
             type(c_ptr), value :: tloc
         end function c_time
 
+        !> Binding of libc's clock_gettime.
         integer(c_int) function c_clock_gettime(clockid, tp) bind(C, name="clock_gettime")
             import :: c_int, timespec_type
             implicit none(type, external)

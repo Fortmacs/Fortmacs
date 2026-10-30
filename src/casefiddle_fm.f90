@@ -123,7 +123,8 @@ contains
         case_ch_is_word = syntax == SWORD .or. (case_symbols_as_words%value .and. syntax == SSYMBOL)
     end function case_ch_is_word
 
-    !> Whether C has the syntax prefix flag `p' (syntax_prefix_flag_p).
+    !> Whether C has the syntax prefix flag `p'.  Port of
+    !> syntax.c:syntax_prefix_flag_p.
     logical function syntax_prefix_flag_p(c)
         integer(int32), intent(in) :: c
         type(syntax_descriptor_type) :: d
@@ -132,7 +133,7 @@ contains
         syntax_prefix_flag_p = btest(d%code, 20)
     end function syntax_prefix_flag_p
 
-    !> The value for C in the sorted table KEYS/VALUES, or -1.
+    !> The value for C in the sorted table KEYS/VALUES, or -1.  Not a port.
     pure integer(int32) function lookup(c, keys, values) result(v)
         integer(int32), intent(in) :: c
         integer(int32), intent(in) :: keys(:), values(:)
@@ -156,7 +157,7 @@ contains
         end do
     end function lookup
 
-    !> The index of C in the sorted KEYS, or 0.
+    !> The index of C in the sorted KEYS, or 0.  Not a port.
     pure integer function find_key(c, keys) result(k)
         integer(int32), intent(in) :: c
         integer(int32), intent(in) :: keys(:)
@@ -181,7 +182,7 @@ contains
     end function find_key
 
     !> The special casing of CH for normalized FLAG into BUF, if there is
-    !> one (CHAR_TABLE_REF of the special-*case table).
+    !> one (CHAR_TABLE_REF of the special-*case table).  Not a port.
     logical function special_casing(flag, ch, buf) result(found)
         integer, intent(in) :: flag
         integer(int32), intent(in) :: ch
@@ -332,7 +333,7 @@ contains
         end if
     end function case_character
 
-    !> The UTF-8 form of the characters in BUF.
+    !> The UTF-8 form of the characters in BUF.  Not a port.
     function buf_text(buf) result(s)
         type(casing_str_buf), intent(in) :: buf
         character(len=:), allocatable :: s
@@ -701,7 +702,7 @@ contains
     end subroutine cmd_capitalize_word
 
     !> The region commands take the region (interactive
-    !> "(list (region-beginning) (region-end) ...)").
+    !> "(list (region-beginning) (region-end) ...)").  Not a port.
     subroutine region_command(flag, status)
         integer, intent(in) :: flag
         type(status_type), intent(out) :: status

@@ -83,7 +83,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Whether A and B are the same string (Fortran's == ignores
-    !> trailing blanks).
+    !> trailing blanks).  Not a port.
     pure logical function same_string(a, b)
         character(len=*), intent(in) :: a, b
 
@@ -93,7 +93,7 @@ contains
     end function same_string
 
     !> Whether A sorts before B by character codes (string-lessp): a
-    !> prefix sorts first.  UTF-8 keeps the order of the codes.
+    !> prefix sorts first.  UTF-8 keeps the order of the codes.  Not a port.
     pure logical function string_lessp(a, b)
         character(len=*), intent(in) :: a, b
         integer :: k
@@ -109,6 +109,7 @@ contains
     end function string_lessp
 
     !> The index of the abbrev named NAME in TABLE (interned upstream), or 0.
+    !> Not a port.
     pure integer function find_abbrev(table, name) result(k)
         type(abbrev_table_type), intent(in) :: table
         character(len=*), intent(in) :: name
@@ -125,7 +126,7 @@ contains
     end function find_abbrev
 
     !> The index of the abbrev named NAME in TABLE, added undefined if it
-    !> is not there (obarray-put).
+    !> is not there (obarray-put).  Not a port.
     integer function intern_abbrev(table, name) result(k)
         type(abbrev_table_type), intent(inout) :: table
         character(len=*), intent(in) :: name
@@ -147,7 +148,7 @@ contains
     end function intern_abbrev
 
     !> Put the built-in tables in `abbrev_table_name_list' the first time:
-    !> fundamental-mode-abbrev-table and global-abbrev-table.
+    !> fundamental-mode-abbrev-table and global-abbrev-table.  Not a port.
     subroutine ensure_tables()
         if (allocated(abbrev_table_name_list)) return
         allocate (abbrev_table_name_list(2))
@@ -364,7 +365,7 @@ contains
     end procedure abbrev_table_symbols
 
     !> The abbrevs of TABLE that `abbrev_table_symbols' gives (with SYSTEM),
-    !> sorted by name (string-lessp), as indices.
+    !> sorted by name (string-lessp), as indices.  Not a port.
     subroutine sorted_abbrevs(table, system, order)
         type(abbrev_table_type), intent(in) :: table
         logical, intent(in) :: system
@@ -429,6 +430,7 @@ contains
 
     !> Forget the current buffer's local abbrev table, as
     !> kill-all-local-variables resets BVAR abbrev_table to its default.
+    !> Not a port.
     subroutine kill_local_abbrev_table()
         if (cur == 0) return
         if (.not. allocated(local_tables)) return
@@ -474,7 +476,7 @@ contains
     end subroutine active_tables
 
     !> Take the first table off QUEUE into TABLE and put its parents in
-    !> front of the rest.
+    !> front of the rest.  Not a port.
     subroutine pop_table(queue, table)
         type(abbrev_table_ref_type), allocatable, intent(inout) :: queue(:)
         type(abbrev_table_type), pointer, intent(out) :: table
@@ -516,6 +518,7 @@ contains
     end function table_symbol
 
     !> abbrev-symbol over the tables TABLES.
+    !> Port of abbrev.el:abbrev-symbol, in part.
     subroutine symbol_in(abbrev, tables, result)
         character(len=*), intent(in) :: abbrev
         type(abbrev_table_ref_type), allocatable, intent(inout) :: tables(:)
@@ -559,7 +562,7 @@ contains
     ! Expanding
     ! ------------------------------------------------------------------
 
-    !> Forget `abbrev_start_location' (freeing its marker).
+    !> Forget `abbrev_start_location' (freeing its marker).  Not a port.
     subroutine clear_start_location()
         type(status_type) :: st
 
@@ -877,7 +880,7 @@ contains
     call free_marker(saved, st)
     end procedure unexpand_abbrev
 
-    !> The number of characters of the UTF-8 text S.
+    !> The number of characters of the UTF-8 text S.  Not a port.
     pure integer(int64) function char_count(s) result(n)
         character(len=*), intent(in) :: s
         integer :: k, b
@@ -928,7 +931,7 @@ contains
 
     !> STRING as Fortran source: a literal in pieces of at most 60
     !> bytes joined by //, control characters as achar(N), the pieces
-    !> continued over lines indented by IND.
+    !> continued over lines indented by IND.  Not a port.
     function fortran_literal(string, ind) result(s)
         character(len=*), intent(in) :: string, ind
         character(len=:), allocatable :: s, piece
@@ -979,6 +982,7 @@ contains
 
     !> The Fortran statement defining abbrev K of TABLE in `configure'
     !> (upstream's abbrev--write).
+    !> Port of abbrev.el:abbrev--write (a Fortran statement).
     function define_statement(table, k) result(s)
         type(abbrev_table_type), intent(in) :: table
         integer, intent(in) :: k
@@ -1133,7 +1137,7 @@ contains
     ! Saving abbrevs: the init file
     ! ------------------------------------------------------------------
 
-    !> `abbrev_file_name', or the init file when it is not set.
+    !> `abbrev_file_name', or the init file when it is not set.  Not a port.
     function abbrev_file() result(file)
         character(len=:), allocatable :: file
 
@@ -1306,6 +1310,7 @@ contains
 
     !> The table the mode-specific commands define abbrevs in:
     !> `global_abbrev_table' if `only_global_abbrevs', else the local table.
+    !> Not a port.
     function mode_table() result(table)
         type(abbrev_table_type), pointer :: table
 
@@ -1524,7 +1529,7 @@ contains
     end subroutine check_chars
 
     !> The character of the UTF-8 string S at character index I (1-based,
-    !> as string_match's positions).
+    !> as string_match's positions).  Not a port.
     function substring_at(s, i) result(c)
         character(len=*), intent(in) :: s
         integer(int64), intent(in) :: i

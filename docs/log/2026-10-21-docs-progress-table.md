@@ -1,0 +1,1 @@
+2026-10-21 — README: progress as a table of vertical SVG bars (`docs/progress/*.svg`, drawn by `tools/progress.sh --update-readme`; Total = Emacs + packages, Emacs with C and Elisp, Packages with each archive), a "Real parallel threads" section, the syntax point last with a deeper example, "Why not?" removed. On `docs-progress-table`.

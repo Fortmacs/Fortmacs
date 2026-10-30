@@ -74,7 +74,7 @@ module indent_fm
 
     abstract interface
         !> An `indent_line_function': indent the current line; `noindent'
-        !> says it could not (the value `noindent').
+        !> says it could not (the value `noindent').  Not a port.
         subroutine indent_line_proc(status, noindent)
             import :: status_type
             implicit none(type, external)
@@ -82,7 +82,7 @@ module indent_fm
             logical, intent(out) :: noindent
         end subroutine indent_line_proc
 
-        !> An `indent_region_function'.
+        !> An `indent_region_function'.  Not a port.
         subroutine indent_region_proc(start, end, status)
             import :: int64, status_type
             implicit none(type, external)
@@ -157,64 +157,132 @@ module indent_fm
     type(indent_region_function_type), public :: indent_region_function
 
     interface
+        !> Indent line in proper way for current major mode.
+        !> Normally, this is done by calling the function specified by the
+        !> variable `indent_line_function'.  However, if the value of that
+        !> variable is present in the `indent_line_ignored_functions' variable,
+        !> handle it specially (since those functions are used for tabbing);
+        !> in that case, indent by aligning to the previous non-blank line.
+        !>
+        !> Ignore restriction, unless the optional argument INHIBIT_WIDEN is
+        !> true.  Port of indent.el:indent-according-to-mode.
         module subroutine indent_according_to_mode(status, inhibit_widen)
             implicit none(type, external)
             type(status_type), intent(out) :: status
             logical, intent(in), optional :: inhibit_widen
         end subroutine indent_according_to_mode
 
+        !> Indent the current line or region, or insert a tab, as appropriate.
+        !> This function either inserts a tab, or indents the current line,
+        !> or performs symbol completion, depending on `tab_always_indent'.
+        !> The function called to actually indent the line or insert a tab
+        !> is given by the variable `indent_line_function'.
+        !>
+        !> In most major modes, if point was in the current line's
+        !> indentation, it is moved to the first non-whitespace character
+        !> after indenting; otherwise it stays at the same position relative
+        !> to the text.
+        !>
+        !> If `transient_mark_mode' is turned on and the region is active,
+        !> this function instead calls `indent_region'.  In this case, any
+        !> prefix argument is ignored.  Port of
+        !> indent.el:indent-for-tab-command (no prefix-argument sexp
+        !> reindentation, no completion).
         module subroutine indent_for_tab_command(arg, status)
             implicit none(type, external)
             type(value_type), intent(in) :: arg
             type(status_type), intent(out) :: status
         end subroutine indent_for_tab_command
 
+        !> Insert a tab, or indent to the next tab column, ARG times.  Port of
+        !> indent.el:insert-tab.
         module subroutine insert_tab(arg, status)
             implicit none(type, external)
             type(value_type), intent(in) :: arg
             type(status_type), intent(out) :: status
         end subroutine insert_tab
 
+        !> Indent all lines starting in the region.
+        !> If called interactively with no prefix argument, activate a
+        !> transient mode in which the indentation can be adjusted interactively
+        !> by typing <left>, <right>, S-<left>, or S-<right>.
+        !> In addition, TAB is also bound (and calls `indent_rigidly_right').
+        !>
+        !> Typing any other key exits this mode, and this key is then
+        !> acted upon as normally.  If `transient_mark_mode' is enabled,
+        !> exiting also deactivates the mark.
+        !>
+        !> If called from a program, or interactively with prefix ARG,
+        !> indent all lines starting in the region forward by ARG columns.
+        !> If called from a program, START and END specify the beginning and
+        !> end of the text to act on, in place of the region.
+        !>
+        !> Negative values of ARG indent backward, so you can remove all
+        !> indentation by specifying a large negative ARG.  Port of
+        !> indent.el:indent-rigidly (the program path; the command is
+        !> cmd_indent_rigidly).
         module subroutine indent_rigidly(start, end, arg, status)
             implicit none(type, external)
             integer(int64), intent(in) :: start, end, arg
             type(status_type), intent(out) :: status
         end subroutine indent_rigidly
 
+        !> Indent all lines between BEG and END leftward by one space.  Port of
+        !> indent.el:indent-rigidly-left.
         module subroutine indent_rigidly_left(beg, end, status)
             implicit none(type, external)
             integer(int64), intent(in) :: beg, end
             type(status_type), intent(out) :: status
         end subroutine indent_rigidly_left
 
+        !> Indent all lines between BEG and END rightward by one space.
+        !> Port of indent.el:indent-rigidly-right.
         module subroutine indent_rigidly_right(beg, end, status)
             implicit none(type, external)
             integer(int64), intent(in) :: beg, end
             type(status_type), intent(out) :: status
         end subroutine indent_rigidly_right
 
+        !> Indent all lines between BEG and END leftward to a tab stop.
+        !> Port of indent.el:indent-rigidly-left-to-tab-stop.
         module subroutine indent_rigidly_left_to_tab_stop(beg, end, status)
             implicit none(type, external)
             integer(int64), intent(in) :: beg, end
             type(status_type), intent(out) :: status
         end subroutine indent_rigidly_left_to_tab_stop
 
+        !> Indent all lines between BEG and END rightward to a tab stop.
+        !> Port of indent.el:indent-rigidly-right-to-tab-stop.
         module subroutine indent_rigidly_right_to_tab_stop(beg, end, status)
             implicit none(type, external)
             integer(int64), intent(in) :: beg, end
             type(status_type), intent(out) :: status
         end subroutine indent_rigidly_right_to_tab_stop
 
+        !> Indent current line to COLUMN.
+        !> This function removes or adds spaces and tabs at beginning of line
+        !> only if necessary.  It leaves point at end of indentation.  Port of
+        !> indent.el:indent-line-to.
         module subroutine indent_line_to(column, status)
             implicit none(type, external)
             integer(int64), intent(in) :: column
             type(status_type), intent(out) :: status
         end subroutine indent_line_to
 
+        !> Return the left margin to use for this line.
+        !> This is the value of the buffer-local variable `left_margin' plus the value
+        !> of the `left_margin' text-property at the start of the line.  Port of
+        !> indent.el:current-left-margin.
         module integer(int64) function current_left_margin()
             implicit none(type, external)
         end function current_left_margin
 
+        !> Move to the left margin of the current line.
+        !> With optional argument, move forward N-1 lines first.
+        !> The column moved to is the one given by the `current_left_margin' function.
+        !> If the line's indentation appears to be wrong, and this command is called
+        !> interactively or with optional argument FORCE, it will be fixed.
+        !> Port of indent.el:move-to-left-margin.
         module subroutine move_to_left_margin(status, n, force)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -222,23 +290,57 @@ module indent_fm
             logical, intent(in), optional :: force
         end subroutine move_to_left_margin
 
+        !> Indent current line to the column given by `current_left_margin'.
+        !> Port of indent.el:indent-to-left-margin.
         module subroutine indent_to_left_margin(status, noindent)
             implicit none(type, external)
             type(status_type), intent(out) :: status
             logical, intent(out) :: noindent
         end subroutine indent_to_left_margin
 
+        !> Remove left margin indentation from a region.
+        !> This deletes to the column given by `current_left_margin'.
+        !> In no case will it delete non-whitespace.
+        !> Args FROM and TO are optional; default is the whole buffer.  Port of
+        !> indent.el:delete-to-left-margin.
         module subroutine delete_to_left_margin(status, from, to)
             implicit none(type, external)
             type(status_type), intent(out) :: status
             integer(int64), intent(in), optional :: from, to
         end subroutine delete_to_left_margin
 
+        !> Move to the beginning of the text on this line.
+        !>
+        !> With optional argument N, move forward N-1 lines first.
+        !>
+        !> From the beginning of the line, moves past the `left_margin'
+        !> indentation, the `fill_prefix', and any indentation used for
+        !> centering or right-justifying the line, but does not move past
+        !> any whitespace that was explicitly inserted (such as a tab used
+        !> to indent the first line of a paragraph).  Port of
+        !> indent.el:beginning-of-line-text.
         module subroutine beginning_of_line_text(n)
             implicit none(type, external)
             integer(int64), intent(in), optional :: n
         end subroutine beginning_of_line_text
 
+        !> Indent each nonblank line in the region.
+        !> A numeric prefix argument specifies a column: indent each line to that column.
+        !>
+        !> With no prefix argument, the command chooses one of these methods and
+        !> indents all the lines with it:
+        !>
+        !>   1) If `fill_prefix' is allocated, insert `fill_prefix' at the
+        !>      beginning of each line in the region that does not already begin
+        !>      with it.
+        !>   2) If `indent_region_function' is associated, call that function
+        !>      to indent the region.
+        !>   3) Indent each line via `indent_according_to_mode'.
+        !>
+        !> Called from a program, START and END specify the region to indent.
+        !> If the third argument COLUMN is an integer, it specifies the
+        !> column to indent to; if it is absent, use one of the three methods above.
+        !> Port of indent.el:indent-region (no progress reporter).
         module subroutine indent_region(start, end, status, column)
             implicit none(type, external)
             integer(int64), intent(in) :: start, end
@@ -246,12 +348,30 @@ module indent_fm
             integer(int64), intent(in), optional :: column
         end subroutine indent_region
 
+        !> Indent each nonblank line from START to END with
+        !> `indent_according_to_mode', reporting progress (not in a
+        !> minibuffer).  Port of indent.el:indent-region-line-by-line.
         module subroutine indent_region_line_by_line(start, end, status)
             implicit none(type, external)
             integer(int64), intent(in) :: start, end
             type(status_type), intent(out) :: status
         end subroutine indent_region_line_by_line
 
+        !> Space out to under next indent point in previous nonblank line.
+        !> An indent point is a non-whitespace character following whitespace.
+        !> The following line shows the indentation points in this line.
+        !>     ^         ^    ^     ^   ^           ^      ^  ^    ^
+        !> If FIRST_ONLY is true, then only the first indent point is
+        !> considered.
+        !>
+        !> If the previous nonblank line has no indent points beyond the
+        !> column point starts at, then `tab_to_tab_stop' is done, if both
+        !> FIRST_ONLY and UNINDENTED_OK are false, otherwise nothing is done.
+        !> If there isn't a previous nonblank line and UNINDENTED_OK is false,
+        !> call `tab_to_tab_stop'.
+        !>
+        !> See also `indent_relative_first_indent_point'.  Port of
+        !> indent.el:indent-relative.
         module subroutine indent_relative(status, first_only, unindented_ok, noindent)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -261,6 +381,7 @@ module indent_fm
 
         !> The name of indent-line function P: `indent_relative' for null,
         !> "" for a procedure without a name.  (In indent_cmds_fm.)
+        !> Not a port.
         module function indent_line_function_name(p) result(name)
             implicit none(type, external)
             procedure(indent_line_proc), pointer, intent(in) :: p
@@ -269,41 +390,61 @@ module indent_fm
 
         !> Point P at the indent-line function named NAME; any other
         !> function is called by name with `funcall'.  (In indent_cmds_fm.)
+        !> Not a port.
         module subroutine indent_line_function_named(name, p)
             implicit none(type, external)
             character(len=*), intent(in) :: name
             procedure(indent_line_proc), pointer, intent(inout) :: p
         end subroutine indent_line_function_named
 
+        !> Indent the current line like the previous nonblank line.
+        !> Indent to the first indentation position in the previous nonblank
+        !> line if that position is greater than the current column.
+        !>
+        !> See also `indent_relative'.  Port of
+        !> indent.el:indent-relative-first-indent-point.
         module subroutine indent_relative_first_indent_point(status, noindent)
             implicit none(type, external)
             type(status_type), intent(out) :: status
             logical, intent(out) :: noindent
         end subroutine indent_relative_first_indent_point
 
+        !> Return the next tab stop after COLUMN.
+        !> If PREV is non-nil, return the previous one instead.  Port of
+        !> indent.el:indent-next-tab-stop.
         module integer(int64) function indent_next_tab_stop(column, prev)
             implicit none(type, external)
             integer(int64), intent(in) :: column
             logical, intent(in), optional :: prev
         end function indent_next_tab_stop
 
+        !> Get a list of tab stops before LIMIT (inclusive).  Port of
+        !> indent.el:indent-accumulate-tab-stops.
         module function indent_accumulate_tab_stops(limit) result(stops)
             implicit none(type, external)
             integer(int64), intent(in) :: limit
             integer(int64), allocatable :: stops(:)
         end function indent_accumulate_tab_stops
 
+        !> Insert spaces or tabs to next defined tab-stop column.
+        !> The variable `tab_stop_list' is an array of columns at which there are tab stops.
+        !> Whether this inserts tabs or spaces depends on `indent_tabs_mode'.
+        !> Port of indent.el:tab-to-tab-stop.
         module subroutine tab_to_tab_stop(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
         end subroutine tab_to_tab_stop
 
+        !> Move point to next defined tab-stop column.
+        !> The variable `tab_stop_list' is an array of columns at which there are tab stops.
+        !> Port of indent.el:move-to-tab-stop.
         module subroutine move_to_tab_stop(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
         end subroutine move_to_tab_stop
 
         !> Register the indentation commands.
+        !> Port of indent.c:syms_of_indent in part.
         module subroutine syms_of_indent()
             implicit none(type, external)
         end subroutine syms_of_indent
@@ -314,6 +455,7 @@ module indent_fm
 
 contains
 
+    ! Not a port.
     subroutine indent_region_set_local(self, fn)
         class(indent_region_function_type), intent(inout) :: self
         procedure(indent_region_proc) :: fn
@@ -352,6 +494,7 @@ contains
         call move_alloc(grown, self%entries)
     end subroutine indent_region_set_local
 
+    ! Not a port.
     function indent_region_get(self) result(fn)
         class(indent_region_function_type), intent(in) :: self
         procedure(indent_region_proc), pointer :: fn
@@ -368,6 +511,7 @@ contains
         end do
     end function indent_region_get
 
+    ! Not a port.
     subroutine indent_region_kill_local(self)
         class(indent_region_function_type), intent(inout) :: self
         integer :: i
@@ -384,7 +528,7 @@ contains
     end subroutine indent_region_kill_local
 
     !> kill-all-local-variables: forget the current buffer's
-    !> `indent_region_function'.
+    !> `indent_region_function'.  Not a port.
     subroutine kill_indent_locals()
         call indent_region_function%kill_local()
     end subroutine kill_indent_locals
@@ -567,6 +711,7 @@ contains
     end function check_display_width
 
     !> Columns STRING takes on display.  (character.c:Fstring_width.)
+    !> Not a port.
     integer(int64) function display_string_width(string) result(width)
         character(len=*), intent(in) :: string
         integer(int64) :: i
@@ -715,13 +860,14 @@ contains
     end function current_indentation
 
     !> tab-width, or 8 if it is not in 1..1000 (SANE_TAB_WIDTH).
+    !> Port of buffer.h:SANE_TAB_WIDTH.
     integer(int64) function sane_tab_width() result(tw)
         tw = tab_width%value
         if (tw <= 0 .or. tw > 1000) tw = 8
     end function sane_tab_width
 
     !> The width available for text in the selected window: its columns
-    !> less the last, which holds the continuation glyph.
+    !> less the last, which holds the continuation glyph.  Not a port.
     integer function window_text_width() result(width)
         type(window_type), pointer :: sw
 
@@ -736,6 +882,7 @@ contains
     end function window_text_width
 
     !> Point's column on its screen line (the cursor's x in the window).
+    !> Not a port.
     integer function screen_column() result(x)
         type(row_start_type), allocatable :: rows(:)
         type(row_start_type) :: row

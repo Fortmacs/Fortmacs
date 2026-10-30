@@ -1,0 +1,1 @@
+2026-10-21 — Naming: modules and files take an `_fm` suffix instead of an `fm_` prefix (buffer.c → `buffer_fm`, `test_buffer_fm`); no house blank-line rule (no guide sets one); on `rename-fm-suffix` (based on main after PR #27). Next: Phase 4, the config API.

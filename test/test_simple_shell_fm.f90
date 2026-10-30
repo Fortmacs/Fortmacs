@@ -1,6 +1,6 @@
 ! test_simple_shell_fm.f90 -- tests for the shell commands of simple_fm.
-! Ported from GNU Emacs 31.1 test/lisp/simple-tests.el (the shell command
-! tests that apply), plus our own.
+! Ports GNU Emacs 31.1 test/lisp/simple-tests.el in part; only the shell
+! command tests that apply.
 !
 ! Copyright (C) 2015-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -48,6 +48,7 @@ module test_simple_shell_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_simple_shell_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

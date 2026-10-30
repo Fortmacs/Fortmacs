@@ -507,6 +507,7 @@ contains
 
     !> `setup-function' of the Catalan language environment: make the
     !> middle dot `·' a word constituent.
+    !> Port of european.el:set-language-info-alist "Catalan" (its setup-function).
     subroutine catalan_setup(status)
         type(status_type), intent(out) :: status
 
@@ -515,6 +516,7 @@ contains
 
     !> `exit-function' of the Catalan language environment: make the
     !> middle dot `·' a symbol constituent again.
+    !> Port of european.el:set-language-info-alist "Catalan" (its exit-function).
     subroutine catalan_exit(status)
         type(status_type), intent(out) :: status
 

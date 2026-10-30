@@ -53,7 +53,9 @@ module mule_conf_fm
 contains
 
     !> Give `password_word_equivalents' and `password_colon_equivalents'
-    !> their default values (unless set already).
+    !> their default values (unless set already).  Port of the defcustoms of
+    !> mule-conf.el's password-word-equivalents and
+    !> password-colon-equivalents.
     subroutine syms_of_mule_conf()
         if (.not. allocated(password_word_equivalents)) then
             password_word_equivalents = [character(len=48) :: &
