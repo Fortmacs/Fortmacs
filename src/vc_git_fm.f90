@@ -1,4 +1,5 @@
 ! vc_git_fm.f90 -- VC backend for the git version control system.
+! Ported from GNU Emacs 31.1 lisp/vc/vc-git.el.
 !
 ! Copyright (C) 2006-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors

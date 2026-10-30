@@ -1,6 +1,7 @@
 ! test_xdisp_fm.f90 -- tests for xdisp_fm, window_fm and emacs_fm: how
 ! buffer text is laid out on the screen, and the editor's main loop on a
-! pty.  Own tests: upstream's xdisp-tests.el needs Lisp and GUI frames.
+! pty.
+! Own tests; upstream's xdisp-tests.el needs Lisp and GUI frames.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -61,6 +62,7 @@ module test_xdisp_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_xdisp_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

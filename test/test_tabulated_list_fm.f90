@@ -1,5 +1,6 @@
 ! test_tabulated_list_fm.f90 -- tests for tabulated_list_fm.
-! Ported from GNU Emacs 31.1 test/lisp/emacs-lisp/tabulated-list-tests.el.
+! Ports GNU Emacs 31.1 test/lisp/emacs-lisp/tabulated-list-tests.el in
+! part; the group tests wait for groups.
 !
 ! Copyright (C) 2015-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -49,6 +50,7 @@ module test_tabulated_list_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_tabulated_list_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

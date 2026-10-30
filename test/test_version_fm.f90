@@ -1,4 +1,5 @@
 ! test_version_fm.f90 -- tests for version_fm.
+! Own tests; upstream's version-tests.el is not ported yet.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -27,6 +28,7 @@ module test_version_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_version_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

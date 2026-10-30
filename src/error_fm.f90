@@ -1,6 +1,6 @@
 ! error_fm.f90 -- status values that replace Emacs's signal/throw.
-! The condition table is ported from GNU Emacs 31.1 src/data.c
-! (syms_of_data), src/fileio.c (syms_of_fileio) and src/alloc.c.
+! Ported from GNU Emacs 31.1 src/data.c (syms_of_data), src/fileio.c
+! (syms_of_fileio) and src/alloc.c (in part: their condition table).
 !
 ! Copyright (C) 1985-1986, 1988, 1993-1995, 1997-2026 Free Software
 ! Foundation, Inc.

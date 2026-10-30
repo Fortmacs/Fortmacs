@@ -1,6 +1,6 @@
 ! test_process_fm.f90 -- tests for process_fm and sys_worker_fm.
-! Ported from GNU Emacs 31.1 test/src/process-tests.el (the tests that
-! apply to what is ported), plus our own.
+! Ports GNU Emacs 31.1 test/src/process-tests.el in part; only the tests
+! that apply to what is ported.
 !
 ! Copyright (C) 2013-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -54,6 +54,7 @@ module test_process_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_process_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

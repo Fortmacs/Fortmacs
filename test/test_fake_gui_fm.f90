@@ -1,7 +1,7 @@
 ! test_fake_gui_fm.f90 -- redisplay on a fake window-system frame:
-! layout in pixels through the redisplay interface (fake_gui_fm), and the
-! same text as on a terminal.  Own tests: upstream's xdisp-tests.el needs
-! Lisp and real GUI frames.
+! layout in pixels through the redisplay interface (fake_gui_fm), and
+! the same text as on a terminal.
+! Own tests; upstream's xdisp-tests.el needs Lisp and real GUI frames.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -51,6 +51,7 @@ module test_fake_gui_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_fake_gui_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

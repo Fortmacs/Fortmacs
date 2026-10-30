@@ -1,4 +1,5 @@
 ! vc_hooks_fm.f90 -- resident support for version-control.
+! Ported from GNU Emacs 31.1 lisp/vc/vc-hooks.el.
 !
 ! Copyright (C) 1992-1996, 1998-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors

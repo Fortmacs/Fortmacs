@@ -1,4 +1,5 @@
 ! vc_dispatcher_fm.f90 -- generic command-dispatcher facility.
+! Ported from GNU Emacs 31.1 lisp/vc/vc-dispatcher.el.
 !
 ! Copyright (C) 2008-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
