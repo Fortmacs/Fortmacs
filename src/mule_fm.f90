@@ -85,10 +85,16 @@ module mule_fm
     use callint_fm, only: this_command, call_interactively
     use coding_fm, only: coding_system_for_write, coding_system_require_warning
     use process_fm, only: get_buffer_process, set_process_coding_system
+    use coding_fm, only: set_terminal_coding_system_internal, terminal_coding_system, &
+                         set_keyboard_coding_system_internal, keyboard_coding_system
+    use keyboard_fm, only: current_input_meta_mode, set_input_meta_mode
+    use dispnew_fm, only: redraw_frame
+    use frame_fm, only: selected_frame
     implicit none(type, external)
     private
 
-    public :: universal_coding_system_argument, set_buffer_process_coding_system
+    public :: universal_coding_system_argument, set_buffer_process_coding_system, set_terminal_coding_system, &
+              set_keyboard_coding_system
     public :: syms_of_mule, find_auto_coding, set_auto_coding, auto_coding_alist_lookup, after_insert_file_set_coding_1, &
               find_new_buffer_file_coding_system, merge_coding_systems, set_buffer_file_coding_system, &
               revert_buffer_with_coding_system, prefer_coding_system, set_default_coding_systems, &
@@ -133,7 +139,7 @@ module mule_fm
     character(len=:), allocatable, public :: last_coding_system_specified
 
     !> Keymap for Mule (Multilingual environment) specific commands.
-    !> Port of mule-cmds.el mule-keymap (the ported commands: c, f, p and r).
+    !> Port of mule-cmds.el mule-keymap (the ported commands: c, f, k, p, r and t).
     type(handle_type), public :: mule_keymap
 
     !> Per-buffer `buffer_file_coding_system_explicit': the coding systems
@@ -144,6 +150,35 @@ module mule_fm
         character(len=:), allocatable :: read, write
     end type explicit_type
     type(explicit_type), allocatable :: explicit(:)
+
+    !> Default value for the terminal coding system ("" for nil).  This is
+    !> normally set according to the selected language environment.  See
+    !> also the command `set_terminal_coding_system'.  Port of mule.el
+    !> default-terminal-coding-system.
+    character(len=:), allocatable, public :: default_terminal_coding_system
+
+    !> Default value of the keyboard coding system ("" for nil).  This is
+    !> normally set according to the selected language environment.  See
+    !> also the command `set_keyboard_coding_system'.  Port of mule.el
+    !> default-keyboard-coding-system.
+    character(len=:), allocatable, public :: default_keyboard_coding_system
+
+    !> Specify coding system for keyboard input.  If you set this on a
+    !> terminal which can't distinguish Meta keys from 8-bit characters,
+    !> you will have to use ESC to type Meta characters.  See Info node
+    !> `Terminal Coding' and Info node `Unibyte Mode'.
+    !>
+    !> This is set at startup based on the locale.
+    !>
+    !> Setting this variable directly does not take effect; use
+    !> \[set_keyboard_coding_system].  Port of mule.el
+    !> keyboard-coding-system (the variable; the function of that name is
+    !> `keyboard_coding_system').
+    character(len=:), allocatable, public :: keyboard_coding_system_variable
+
+    ! The terminal parameter keyboard-coding-saved-meta-mode.
+    integer :: saved_meta_mode = 2
+    logical :: has_saved_meta_mode = .false.
 
     ! mule-cmds--prefixed-command-next-coding-system and
     ! mule-cmds--prefixed-command-last-coding-system ("" for nil), and the
@@ -210,11 +245,18 @@ contains
         prefixed_next_coding_system = ""
         prefixed_last_coding_system = ""
         prefixed_coding_system = ""
+        if (.not. allocated(default_terminal_coding_system)) default_terminal_coding_system = ""
+        if (.not. allocated(default_keyboard_coding_system)) default_keyboard_coding_system = ""
+        if (.not. allocated(keyboard_coding_system_variable)) keyboard_coding_system_variable = "utf-8-unix"
+        commands%set_terminal_coding_system%run => cmd_set_terminal_coding_system
+        commands%set_keyboard_coding_system%run => cmd_set_keyboard_coding_system
         call make_sparse_keymap(mule_keymap)
         call bind(mule_keymap, "f", "set_buffer_file_coding_system")
         call bind(mule_keymap, "c", "universal_coding_system_argument")
         call bind(mule_keymap, "r", "revert_buffer_with_coding_system")
         call bind(mule_keymap, "p", "set_buffer_process_coding_system")
+        call bind(mule_keymap, "t", "set_terminal_coding_system")
+        call bind(mule_keymap, "k", "set_keyboard_coding_system")
         ! Keep "C-x C-m ..." for mule specific commands.
         call key_parse("C-m", key, st)
         call define_key(ctl_x_map, key, keymap_value(mule_keymap), st)
@@ -1045,6 +1087,120 @@ contains
         if (.not. status%ok()) return
         call set_buffer_process_coding_system(decoding, encoding, status)
     end subroutine cmd_set_buffer_process_coding_system
+
+    !> Set coding system of terminal output to CODING_SYSTEM.
+    !> All text output to the terminal will be encoded with the specified
+    !> coding system.
+    !>
+    !> For a list of possible values of CODING_SYSTEM, use
+    !> \[list_coding_systems].  The default is determined by the selected
+    !> language environment or by the previous use of this command.
+    !>
+    !> By default, this function will redraw the current frame; optional
+    !> argument INHIBIT_REFRESH, if true, prevents that.  Port of
+    !> mule.el:set-terminal-coding-system (the one terminal).
+    recursive subroutine set_terminal_coding_system(coding_system, status, inhibit_refresh)
+        character(len=*), intent(in) :: coding_system
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: inhibit_refresh
+        character(len=:), allocatable :: cs
+        logical :: refresh
+
+        cs = coding_system
+        if (len(cs) == 0 .and. len(terminal_coding_system()) == 0) cs = default_terminal_coding_system
+        if (len(cs) > 0) default_terminal_coding_system = cs
+        call set_terminal_coding_system_internal(cs, status)
+        if (.not. status%ok()) return
+        refresh = .true.
+        if (present(inhibit_refresh)) refresh = .not. inhibit_refresh
+        if (refresh) call redraw_frame(selected_frame)
+    end subroutine set_terminal_coding_system
+
+    recursive subroutine cmd_set_terminal_coding_system(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: default, coding
+
+        default = ""
+        if (len(terminal_coding_system()) == 0) default = default_terminal_coding_system
+        call read_coding_system(format_prompt("Coding system for terminal display", default), default, coding, status)
+        if (.not. status%ok()) return
+        call set_terminal_coding_system(coding, status)
+    end subroutine cmd_set_terminal_coding_system
+
+    !> Set coding system for keyboard input on the terminal to
+    !> CODING_SYSTEM.
+    !>
+    !> For a list of possible values of CODING_SYSTEM, use
+    !> \[list_coding_systems].  The default is determined by the selected
+    !> language environment or by the previous use of this command.
+    !>
+    !> If CODING_SYSTEM is nil or the coding-type of CODING_SYSTEM is
+    !> `raw-text', the decoding of keyboard input is disabled.
+    !>
+    !> The setting has no effect on graphical terminals.  Port of
+    !> mule.el:set-keyboard-coding-system (the one terminal; no coding
+    !> system is `:suitable-for-keyboard' without being ASCII compatible,
+    !> as the ISO-2022 family is Deferred).
+    recursive subroutine set_keyboard_coding_system(coding_system, status)
+        character(len=*), intent(in) :: coding_system
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: cs, coding_type, name
+        logical :: accept_8_bit
+
+        status = status_type()
+        cs = coding_system
+        name = cs
+        if (len(name) == 0) name = "nil"
+
+        if (len(cs) == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "Unsuitable coding system for keyboard: "//name)
+            return
+        end if
+
+        if (.not. coding_system_ascii_compatible_p(cs)) then
+            call set_error(status, FM_GENERIC_ERROR, "Unsuitable coding system for keyboard: "//name)
+            return
+        end if
+
+        coding_type = coding_system_type(cs)
+
+        select case (coding_type)
+        case ("raw-text", "charset", "utf-8", "shift-jis", "big5", "ccl")
+            accept_8_bit = .true.
+        case default
+            call set_error(status, FM_GENERIC_ERROR, "Unsupported coding system for keyboard: "//name)
+            return
+        end select
+
+        if (accept_8_bit) then
+            if (.not. has_saved_meta_mode) then
+                saved_meta_mode = current_input_meta_mode()
+                has_saved_meta_mode = .true.
+            end if
+
+            call set_input_meta_mode(2)
+        else if (has_saved_meta_mode) then
+            call set_input_meta_mode(saved_meta_mode)
+            has_saved_meta_mode = .false.
+        end if
+
+        ! Avoid end-of-line conversion.
+        cs = coding_system_change_eol_conversion(cs, EOL_UNIX)
+        call set_keyboard_coding_system_internal(cs, status)
+        if (.not. status%ok()) return
+        keyboard_coding_system_variable = cs
+    end subroutine set_keyboard_coding_system
+
+    recursive subroutine cmd_set_keyboard_coding_system(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: default, coding
+
+        default = ""
+        if (coding_system_type(keyboard_coding_system()) == "raw-text") default = default_keyboard_coding_system
+        call read_coding_system(format_prompt("Coding system for keyboard input", default), default, coding, status)
+        if (.not. status%ok()) return
+        call set_keyboard_coding_system(coding, status)
+    end subroutine cmd_set_keyboard_coding_system
 
     !> Visit the current buffer's file again using coding system CODING-SYSTEM.
     !> For a list of possible values of CODING-SYSTEM, use \[list_coding_systems].

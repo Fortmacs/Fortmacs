@@ -78,6 +78,8 @@ module coding_fm
     implicit none(type, external)
     private
 
+    public :: set_terminal_coding_system_internal, terminal_coding_system, set_keyboard_coding_system_internal, &
+              keyboard_coding_system
     public :: syms_of_coding, coding_system_p, check_coding_system, coding_system_id, coding_system_name, &
               coding_system_eol_type, coding_system_subsidiaries, coding_system_base, coding_system_type, &
               coding_system_mnemonic, coding_system_doc_string, coding_system_aliases, coding_system_equal, &
@@ -337,6 +339,12 @@ module coding_fm
         integer :: checked = 0, found = 0, rejected = 0
     end type detect_info_type
 
+
+    ! The coding systems of the terminal (there is one): for its output and
+    ! for decoding keyboard input (TERMINAL_TERMINAL_CODING and
+    ! TERMINAL_KEYBOARD_CODING); unallocated means utf-8-unix, the
+    ! startup value in a UTF-8 locale.
+    character(len=:), allocatable :: terminal_coding, keyboard_coding
 contains
 
     ! ------------------------------------------------------------------
@@ -2937,4 +2945,60 @@ contains
 
         last_coding_system_used = used
     end subroutine convert_region
+
+    !> Internal use only.  Port of
+    !> coding.c:Fset_terminal_coding_system_internal (the one terminal).
+    subroutine set_terminal_coding_system_internal(coding_system, status)
+        character(len=*), intent(in) :: coding_system
+        type(status_type), intent(out) :: status
+
+        if (len(coding_system) == 0) then
+            ! setup_coding_system of nil: undecided.
+            terminal_coding = "undecided"
+            status = status_type()
+            return
+        end if
+
+        call check_coding_system(coding_system, status)
+        if (.not. status%ok()) return
+        terminal_coding = coding_system
+    end subroutine set_terminal_coding_system_internal
+
+    !> Return coding system specified for terminal output on the
+    !> terminal ("" for nil).  Port of coding.c:Fterminal_coding_system.
+    function terminal_coding_system() result(name)
+        character(len=:), allocatable :: name
+
+        name = "utf-8-unix"
+        if (allocated(terminal_coding)) name = terminal_coding
+        ! For backward compatibility, return nil if it is `undecided'.
+        if (name == "undecided") name = ""
+    end function terminal_coding_system
+
+    !> Internal use only.  Port of
+    !> coding.c:Fset_keyboard_coding_system_internal (the one terminal).
+    subroutine set_keyboard_coding_system_internal(coding_system, status)
+        character(len=*), intent(in) :: coding_system
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+
+        if (len(coding_system) == 0) then
+            keyboard_coding = "no-conversion"
+            return
+        end if
+
+        call check_coding_system(coding_system, status)
+        if (.not. status%ok()) return
+        keyboard_coding = coding_system
+    end subroutine set_keyboard_coding_system_internal
+
+    !> Return coding system specified for decoding keyboard input.  Port
+    !> of coding.c:Fkeyboard_coding_system.
+    function keyboard_coding_system() result(name)
+        character(len=:), allocatable :: name
+
+        name = "utf-8-unix"
+        if (allocated(keyboard_coding)) name = keyboard_coding
+    end function keyboard_coding_system
 end module coding_fm
