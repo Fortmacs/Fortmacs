@@ -88,7 +88,7 @@ module inotify_fm
     end type inotify_event_type
 
     abstract interface
-        !> A watch's CALLBACK, called with each EVENT.
+        !> A watch's CALLBACK, called with each EVENT.  Not a port.
         recursive subroutine inotify_callback_proc(event, status)
             import :: inotify_event_type, status_type
             implicit none(type, external)
@@ -99,6 +99,7 @@ module inotify_fm
 
     !> Compare two watch descriptors (upstream's `equal').
     interface operator(==)
+        ! Not a port.
         module procedure descriptor_equal
     end interface operator(==)
 
@@ -132,6 +133,7 @@ module inotify_fm
 
 contains
 
+    ! Not a port.
     logical function descriptor_equal(a, b)
         type(watch_descriptor_type), intent(in) :: a, b
 
@@ -230,6 +232,7 @@ contains
         desc%id = id
     end function add_watch
 
+    ! Not a port.
     subroutine copy_watch(from, to)
         type(watch_type), intent(inout) :: from
         type(watch_type), intent(inout) :: to
@@ -242,7 +245,7 @@ contains
         to%mask = from%mask
     end subroutine copy_watch
 
-    !> Whether watch ID of descriptor WD exists.
+    !> Whether watch ID of descriptor WD exists.  Not a port.
     logical function id_in_use(wd, id)
         integer(int32), intent(in) :: wd
         integer(int64), intent(in) :: id
@@ -259,7 +262,8 @@ contains
         end do
     end function id_in_use
 
-    !> Whether some watch uses descriptor WD (inotify.c:find_descriptor).
+    !> Whether some watch uses descriptor WD.  Port of
+    !> inotify.c:find_descriptor.
     logical function find_descriptor(wd)
         integer(int32), intent(in) :: wd
 
@@ -268,7 +272,7 @@ contains
         find_descriptor = any(watch_list%used .and. watch_list%wd == wd)
     end function find_descriptor
 
-    !> The watches of descriptor WD, in the order of their IDs.
+    !> The watches of descriptor WD, in the order of their IDs.  Not a port.
     subroutine descriptor_watches(wd, idx)
         integer(int32), intent(in) :: wd
         integer, allocatable, intent(out) :: idx(:)
@@ -390,6 +394,7 @@ contains
     end subroutine inotify_callback
 
     !> Store EVENT for CALLBACK as a special event (kbd_buffer_store_event).
+    !> Not a port.
     subroutine store_event(event, callback)
         type(inotify_event_type), intent(in) :: event
         procedure(inotify_callback_proc) :: callback
@@ -552,6 +557,7 @@ contains
         desc = add_watch(wd, file_name, imask, callback)
     end subroutine inotify_add_watch
 
+    ! Not a port.
     logical function valid_watch_descriptor(wd)
         type(watch_descriptor_type), intent(in) :: wd
 

@@ -77,7 +77,7 @@ module lisp_cmds_fm
 
     abstract interface
         !> A `forward_sexp_function': move across ARG sexps, as
-        !> `forward_sexp' does.
+        !> `forward_sexp' does.  Not a port.
         subroutine forward_sexp_proc(arg, status)
             import :: int64, status_type
             implicit none(type, external)
@@ -225,6 +225,7 @@ module lisp_cmds_fm
 
 contains
 
+    ! Not a port.
     subroutine forward_sexp_set_local(self, fn)
         class(forward_sexp_function_type), intent(inout) :: self
         procedure(forward_sexp_proc), optional :: fn
@@ -263,7 +264,7 @@ contains
         end if
     end subroutine forward_sexp_set_local
 
-    ! The index of the current buffer's entry, 0 if none.
+    ! The index of the current buffer's entry, 0 if none.  Not a port.
     integer function local_entry(self) result(i)
         class(forward_sexp_function_type), intent(in) :: self
 
@@ -279,6 +280,7 @@ contains
         i = 0
     end function local_entry
 
+    ! Not a port.
     function forward_sexp_get(self) result(fn)
         class(forward_sexp_function_type), intent(in) :: self
         procedure(forward_sexp_proc), pointer :: fn
@@ -293,12 +295,14 @@ contains
         end if
     end function forward_sexp_get
 
+    ! Not a port.
     logical function forward_sexp_local_p(self)
         class(forward_sexp_function_type), intent(in) :: self
 
         forward_sexp_local_p = local_entry(self) > 0
     end function forward_sexp_local_p
 
+    ! Not a port.
     subroutine forward_sexp_kill_local(self)
         class(forward_sexp_function_type), intent(inout) :: self
         integer :: i
@@ -310,12 +314,13 @@ contains
     end subroutine forward_sexp_kill_local
 
     ! kill-all-local-variables: forget the current buffer's
-    ! `forward_sexp_function'.
+    ! `forward_sexp_function'.  Not a port.
     subroutine kill_lisp_cmds_locals()
         call forward_sexp_function%kill_local()
         call beginning_of_defun_function%kill_local()
     end subroutine kill_lisp_cmds_locals
 
+    ! Not a port.
     subroutine bod_set_local(self, fn)
         class(beginning_of_defun_function_type), intent(inout) :: self
         procedure(beginning_of_defun_proc), optional :: fn
@@ -355,6 +360,7 @@ contains
     end subroutine bod_set_local
 
     ! The index of the current buffer's entry, 0 if none.
+    ! Not a port.
     integer function bod_entry(self) result(i)
         class(beginning_of_defun_function_type), intent(in) :: self
 
@@ -370,6 +376,7 @@ contains
         i = 0
     end function bod_entry
 
+    ! Not a port.
     function bod_get(self) result(fn)
         class(beginning_of_defun_function_type), intent(in) :: self
         procedure(beginning_of_defun_proc), pointer :: fn
@@ -384,6 +391,7 @@ contains
         end if
     end function bod_get
 
+    ! Not a port.
     subroutine bod_kill_local(self)
         class(beginning_of_defun_function_type), intent(inout) :: self
         integer :: i
@@ -1132,6 +1140,7 @@ contains
     end subroutine beginning_of_defun_comments
 
     !> The default `end_of_defun_function': (forward-sexp 1).
+    !> Port of lisp.el:end-of-defun-function (its default value).
     recursive subroutine end_of_defun_default(status)
         type(status_type), intent(out) :: status
 
@@ -1139,6 +1148,7 @@ contains
     end subroutine end_of_defun_default
 
     ! Call `end_of_defun_function'.
+    ! Not a port.
     recursive subroutine call_end_of_defun_function(status)
         type(status_type), intent(out) :: status
 
@@ -1152,6 +1162,7 @@ contains
     ! (unless (bolp) (skip-chars-forward " \t") (if (looking-at "\\s<\\|\n")
     ! (forward-line 1))): a position right after the end of a function
     ! still counts as in it.
+    ! Port of lisp.el:end-of-defun (in part).
     subroutine skip_after_defun()
         type(status_type) :: st
         integer(int64) :: moved, shortage
@@ -1274,6 +1285,7 @@ contains
     end subroutine end_of_defun
 
     ! A `scan_error' in STATUS as a `user_error' with its message.
+    ! Not a port.
     subroutine scan_to_user_error(status)
         type(status_type), intent(inout) :: status
         character(len=:), allocatable :: message
@@ -1489,6 +1501,7 @@ contains
 
     ! The character of the last input event without its modifiers
     ! (subr.el's event-basic-type of a character), -1 if not a character.
+    ! Not a port.
     integer(int64) function event_basic_char() result(c)
         c = -1
         if (.not. fixnump(last_command_event)) return
@@ -1939,7 +1952,7 @@ contains
         call mark_sexp(prefix_numeric_value(current_prefix_arg),.not. nilp(current_prefix_arg), .true., status)
     end subroutine cmd_mark_sexp
 
-    !> Register the commands.
+    !> Register the commands.  Not a port.
     subroutine syms_of_lisp_cmds()
         forward_sexp_function%value => forward_sexp_default_function
         call add_local_variables_killer(kill_lisp_cmds_locals)

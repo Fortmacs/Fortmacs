@@ -240,6 +240,7 @@ contains
         if (doexit) call exit_minibuffer(status)
     end subroutine crm_complete_and_exit
 
+    ! Not a port.
     recursive subroutine set_doexit(status)
         type(status_type), intent(out) :: status
 
@@ -247,7 +248,7 @@ contains
         doexit = .true.
     end subroutine set_doexit
 
-    ! The minibuffer setup of `completing_read_multiple'.
+    ! The minibuffer setup of `completing_read_multiple'.  Not a port.
     subroutine crm_setup()
         procedure(minibuffer_setup_proc), pointer :: outer
         type(status_type) :: st
@@ -323,7 +324,7 @@ contains
     end subroutine completing_read_multiple
 
     ! (format-spec crm-prompt ...): %s the separator, %d its description,
-    ! %p the PROMPT.
+    ! %p the PROMPT.  Not a port.
     function format_prompt(prompt) result(s)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable :: s
@@ -356,7 +357,7 @@ contains
     end function format_prompt
 
     ! (split-string STRING crm-separator t): the parts of STRING between
-    ! matches of `crm_separator', without the empty ones.
+    ! matches of `crm_separator', without the empty ones.  Not a port.
     subroutine split_string(string, parts)
         use minibuf_fm, only: minibuffer_string_type
         character(len=*), intent(in) :: string
@@ -423,7 +424,7 @@ contains
         end subroutine add
     end subroutine split_string
 
-    ! [remap COMMAND] in MAP to NEW.
+    ! [remap COMMAND] in MAP to NEW.  Not a port.
     subroutine remap(map, command, new)
         type(handle_type), intent(in) :: map
         character(len=*), intent(in) :: command, new
@@ -434,7 +435,7 @@ contains
         call define_key(map, events, sym(new), st)
     end subroutine remap
 
-    !> Define crm.el's variables, keymaps and commands.
+    !> Define crm.el's variables, keymaps and commands.  Not a port.
     subroutine syms_of_crm()
         type(status_type) :: st
 

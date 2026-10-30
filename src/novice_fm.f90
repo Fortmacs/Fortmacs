@@ -70,6 +70,7 @@ contains
 
     !> The hook keyboard_fm runs before each command (command-execute's
     !> test of the `disabled' property).
+    !> Port of the disabled-command test of simple.el:command-execute.
     recursive subroutine check_disabled(cmd, handled, status)
         type(value_type), intent(in) :: cmd
         logical, intent(out) :: handled
@@ -196,6 +197,7 @@ contains
     end subroutine disabled_command_function
 
     !> TEXT with N spaces before each nonempty line (indent-rigidly).
+    !> Not a port.
     function indent(text, n) result(indented)
         character(len=*), intent(in) :: text
         integer, intent(in) :: n
@@ -367,6 +369,7 @@ contains
     ! Read the name of a command, as interactive "C" does
     ! (minibuf.c:Fread_command: completion over the commands; empty input
     ! is the symbol with an empty name).
+    ! Port of minibuf.c:Fread_command (in part).
     recursive subroutine read_command(prompt, name, status)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: name
@@ -395,7 +398,7 @@ contains
     !> Install the check for disabled commands, disable the commands
     !> upstream disables (subr.el `upcase_region' and `downcase_region')
     !> and register
-    !> `enable_command' and `disable_command'.
+    !> `enable_command' and `disable_command'.  Not a port.
     subroutine syms_of_novice()
         disabled_command_hook => check_disabled
         commands%enable_command%run => cmd_enable_command

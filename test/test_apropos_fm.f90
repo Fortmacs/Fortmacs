@@ -1,5 +1,8 @@
 ! test_apropos_fm.f90 -- tests for apropos_fm.
+! Ports GNU Emacs 31.1 test/lisp/apropos-tests.el in part;
+! apropos-tests-score-str and -format-plist wait for `apropos' itself.
 !
+! Copyright (C) 2020-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
 !
 ! This file is part of Fortmacs.
@@ -45,6 +48,7 @@ module test_apropos_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_apropos_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

@@ -211,7 +211,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Give the format variables their standard values ("%d") the first
-    !> time.
+    !> time.  Not a port.
     subroutine ensure_formats()
         if (.not. allocated(kmacro_default_counter_format)) kmacro_default_counter_format = "%d"
         if (.not. allocated(kmacro_counter_format)) kmacro_counter_format = "%d"
@@ -219,6 +219,7 @@ contains
     end subroutine ensure_formats
 
     !> Take up `kmacro_initial_counter_value', if set, as the counter.
+    !> Not a port.
     subroutine take_initial_counter_value()
         if (allocated(kmacro_initial_counter_value)) then
             kmacro_counter = kmacro_initial_counter_value
@@ -385,6 +386,7 @@ contains
 
     !> The contents of REGISTER as a number or marker position, as the
     !> arithmetic comparisons take them (else wrong-type-argument).
+    !> Not a port.
     subroutine register_as_number(register, n, status)
         integer(int64), intent(in) :: register
         integer(int64), intent(out) :: n
@@ -405,7 +407,7 @@ contains
         end select
     end subroutine register_as_number
 
-    !> The printed representation of register contents V.
+    !> The printed representation of register contents V.  Not a port.
     function register_value_repr(v) result(s)
         type(register_value_type), intent(in) :: v
         character(len=:), allocatable :: s
@@ -447,7 +449,7 @@ contains
         st = status_type()
     end function register_value_repr
 
-    !> PRED applied to A and B.
+    !> PRED applied to A and B.  Not a port.
     logical function compare(pred, a, b)
         integer, intent(in) :: pred
         integer(int64), intent(in) :: a, b
@@ -520,8 +522,8 @@ contains
 
     !> Run the keyboard macro M with ARG (a repeat count), with its own
     !> counter and format, and keep the counter it ends with in M (and
-    !> in the ring element that is M).  The function of kmacro.el:kmacro's
-    !> oclosure.
+    !> in the ring element that is M).  Port of kmacro.el:kmacro (the
+    !> function of its oclosure).
     recursive subroutine kmacro_call(m, arg, status)
         type(kmacro_type), intent(inout) :: m
         type(value_type), intent(in) :: arg
@@ -554,7 +556,7 @@ contains
         kmacro_counter_format_start = saved_format
     end subroutine kmacro_call
 
-    !> Run element K of the ring (funcall on it).
+    !> Run element K of the ring (funcall on it).  Not a port.
     recursive subroutine call_ring_element(k, arg, status)
         integer, intent(in) :: k
         type(value_type), intent(in) :: arg
@@ -576,13 +578,13 @@ contains
         if (found) head = kmacro(last_kbd_macro, kmacro_counter, kmacro_counter_format_start)
     end subroutine kmacro_ring_head
 
-    !> The number of macros in the ring.
+    !> The number of macros in the ring.  Not a port.
     integer function ring_size()
         ring_size = 0
         if (allocated(kmacro_ring)) ring_size = size(kmacro_ring)
     end function ring_size
 
-    !> Whether macros A and B are `equal'.
+    !> Whether macros A and B are `equal'.  Not a port.
     logical function kmacro_equal(a, b)
         type(kmacro_type), intent(in) :: a, b
         integer :: k
@@ -646,7 +648,7 @@ contains
         kmacro_counter_format_start = elt%format
     end subroutine kmacro_split_ring_element
 
-    !> Remove the first element of the ring.
+    !> Remove the first element of the ring.  Not a port.
     subroutine drop_first()
         type(kmacro_type), allocatable :: ring(:)
         integer :: k, n
@@ -762,6 +764,7 @@ contains
     end subroutine kmacro_display
 
     !> `kmacro_display' of `last_kbd_macro' (nil if not allocated).
+    !> Not a port.
     recursive subroutine display_last(status, trunc, descr, empty)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: trunc
@@ -776,7 +779,7 @@ contains
         end if
     end subroutine display_last
 
-    !> The `kmacro_repeat' property of command CMD.
+    !> The `kmacro_repeat' property of command CMD.  Not a port.
     integer function repeat_property(cmd)
         type(value_type), intent(in) :: cmd
 
@@ -790,7 +793,7 @@ contains
     end function repeat_property
 
     !> Call command CMD with a nil argument and `kmacro_repeat_no_prefix'
-    !> false ((funcall cmd nil) in a let).
+    !> false ((funcall cmd nil) in a let).  Not a port.
     recursive subroutine call_without_prefix(cmd, status)
         type(value_type), intent(in) :: cmd
         type(status_type), intent(out) :: status
@@ -806,7 +809,7 @@ contains
         current_prefix_arg = saved_arg
     end subroutine call_without_prefix
 
-    !> Clear `this_command_keys' (clear-this-command-keys).
+    !> Clear `this_command_keys' (clear-this-command-keys).  Not a port.
     subroutine clear_this_command_keys()
         if (allocated(this_command_keys)) deallocate (this_command_keys)
         allocate (this_command_keys(0))
@@ -1265,7 +1268,7 @@ contains
         call set_transient_map(repeat_map)
     end subroutine kmacro_call_macro
 
-    !> Whether the echo area shows a message (current-message).
+    !> Whether the echo area shows a message (current-message).  Not a port.
     logical function current_message_p()
         current_message_p = .false.
         if (allocated(last_message)) current_message_p = len(last_message) > 0
@@ -1467,7 +1470,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The prefix argument as interactive "N" reads it: its numeric value,
-    !> or a number read with PROMPT if there is none.
+    !> or a number read with PROMPT if there is none.  Not a port.
     subroutine read_n(prompt, n, status)
         character(len=*), intent(in) :: prompt
         integer(int64), intent(out) :: n
@@ -1701,7 +1704,7 @@ contains
     end subroutine cmd_kmacro_reg_save_counter
 
     !> Read the register to compare and increment the counter by the
-    !> numeric prefix if PRED holds.
+    !> numeric prefix if PRED holds.  Not a port.
     recursive subroutine reg_add_counter_command(pred, status)
         integer, intent(in) :: pred
         type(status_type), intent(out) :: status
@@ -1863,7 +1866,7 @@ contains
         call kmacro_redisplay(status)
     end subroutine cmd_kmacro_redisplay
 
-    !> Bind KEYS (kbd syntax) to command CMD in `kmacro_keymap'.
+    !> Bind KEYS (kbd syntax) to command CMD in `kmacro_keymap'.  Not a port.
     subroutine bind(keys, cmd)
         character(len=*), intent(in) :: keys, cmd
         type(value_type), allocatable :: key(:)
@@ -1877,7 +1880,7 @@ contains
     !> kmacro.el's autoloaded global keys: C-x (, C-x ), C-x e, <f3>, <f4>
     !> and C-x C-k), and show " Def" in the mode line while a macro is being
     !> defined (bindings.el's minor-mode-alist entry
-    !> (defining-kbd-macro mode-line-defining-kbd-macro)).
+    !> (defining-kbd-macro mode-line-defining-kbd-macro)).  Not a port.
     subroutine syms_of_kmacro()
         type(status_type) :: st
 
@@ -1945,7 +1948,7 @@ contains
                                     active=defining_kbd_macro_p)
     end subroutine syms_of_kmacro
 
-    !> N in decimal.
+    !> N in decimal.  Not a port.
     function int_text(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
@@ -1955,7 +1958,7 @@ contains
         s = trim(buf)
     end function int_text
 
-    !> The number of characters of the UTF-8 text S.
+    !> The number of characters of the UTF-8 text S.  Not a port.
     integer function nchars(s)
         character(len=*), intent(in) :: s
         integer :: k
@@ -1967,7 +1970,7 @@ contains
         end do
     end function nchars
 
-    !> The first N characters of the UTF-8 text S.
+    !> The first N characters of the UTF-8 text S.  Not a port.
     function first_chars(s, n) result(t)
         character(len=*), intent(in) :: s
         integer, intent(in) :: n

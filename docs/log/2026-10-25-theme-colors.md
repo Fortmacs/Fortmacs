@@ -1,0 +1,1 @@
+2026-10-25 — Theme colors (`theme-colors`): in light mode the syntax page highlights in purple (with cream text) and its sun is yellow; the progress pie shows the unported rest in black and MELPA in gray, with cream edges on the dark pie so the black slice shows on GitHub's dark background. These came after #107 was merged.

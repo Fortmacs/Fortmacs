@@ -98,6 +98,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The syntax of character C with its flags.  SYNTAX_WITH_FLAGS.
+    !> Port of syntax.h:SYNTAX_WITH_FLAGS.
     integer function syntax_with_flags(c)
         integer, intent(in) :: c
         type(syntax_descriptor_type) :: d
@@ -106,7 +107,7 @@ contains
         syntax_with_flags = d%code
     end function syntax_with_flags
 
-    !> The syntax class of character C.  SYNTAX.
+    !> The syntax class of character C.  SYNTAX.  Port of syntax.h:SYNTAX.
     integer function syntax_of(c)
         integer, intent(in) :: c
 
@@ -115,6 +116,7 @@ contains
 
     !> The syntax of character C at position POS with its flags:
     !> SYNTAX_WITH_FLAGS after UPDATE_SYNTAX_TABLE (POS).
+    !> Port of syntax.h:syntax_property_with_flags.
     recursive integer function swf_at(c, pos)
         integer, intent(in) :: c
         integer(int64), intent(in) :: pos
@@ -125,7 +127,7 @@ contains
     end function swf_at
 
     !> The syntax class of character C at position POS: SYNTAX after
-    !> UPDATE_SYNTAX_TABLE (POS).
+    !> UPDATE_SYNTAX_TABLE (POS).  Port of syntax.h:syntax_property.
     recursive integer function syn_at(c, pos)
         integer, intent(in) :: c
         integer(int64), intent(in) :: pos
@@ -133,42 +135,49 @@ contains
         syn_at = iand(swf_at(c, pos), 255)
     end function syn_at
 
+    ! Port of syntax.c:SYNTAX_FLAGS_COMSTART_FIRST.
     logical function comstart_first(flags)
         integer, intent(in) :: flags
 
         comstart_first = btest(flags, 16)
     end function comstart_first
 
+    ! Port of syntax.c:SYNTAX_FLAGS_COMSTART_SECOND.
     logical function comstart_second(flags)
         integer, intent(in) :: flags
 
         comstart_second = btest(flags, 17)
     end function comstart_second
 
+    ! Port of syntax.c:SYNTAX_FLAGS_COMEND_FIRST.
     logical function comend_first(flags)
         integer, intent(in) :: flags
 
         comend_first = btest(flags, 18)
     end function comend_first
 
+    ! Port of syntax.c:SYNTAX_FLAGS_COMEND_SECOND.
     logical function comend_second(flags)
         integer, intent(in) :: flags
 
         comend_second = btest(flags, 19)
     end function comend_second
 
+    ! Port of syntax.c:SYNTAX_FLAGS_COMSTARTEND_FIRST.
     logical function comstartend_first(flags)
         integer, intent(in) :: flags
 
         comstartend_first = iand(flags, int(z'50000')) /= 0
     end function comstartend_first
 
+    ! Port of syntax.c:SYNTAX_FLAGS_PREFIX.
     logical function prefix_flag(flags)
         integer, intent(in) :: flags
 
         prefix_flag = btest(flags, 20)
     end function prefix_flag
 
+    ! Port of syntax.c:SYNTAX_FLAGS_COMMENT_NESTED.
     logical function comment_nested(flags)
         integer, intent(in) :: flags
 
@@ -176,6 +185,7 @@ contains
     end function comment_nested
 
     !> SYNTAX_FLAGS_COMMENT_STYLEC2: 2 if FLAGS have the style c flag.
+    !> Port of syntax.c:SYNTAX_FLAGS_COMMENT_STYLEC2.
     integer function stylec2(flags)
         integer, intent(in) :: flags
 
@@ -184,7 +194,7 @@ contains
 
     !> SYNTAX_FLAGS_COMMENT_STYLE.  FLAGS should be the flags of the main
     !> char of the comment marker, e.g. the second for comstart and the
-    !> first for comend.
+    !> first for comend.  Port of syntax.c:SYNTAX_FLAGS_COMMENT_STYLE.
     integer function comment_style(flags, other_flags)
         integer, intent(in) :: flags, other_flags
 
@@ -211,13 +221,14 @@ contains
     ! ------------------------------------------------------------------
 
     !> The character at byte position POS_BYTE.  FETCH_CHAR_AS_MULTIBYTE.
+    !> Port of buffer.h:FETCH_CHAR_AS_MULTIBYTE.
     integer function fetch(pos_byte)
         integer(int64), intent(in) :: pos_byte
 
         fetch = int(buf_fetch_char(buffers(cur), pos_byte))
     end function fetch
 
-    !> INC_BOTH.
+    !> INC_BOTH.  Port of buffer.h:inc_both.
     subroutine inc_both(pos, pos_byte)
         integer(int64), intent(inout) :: pos, pos_byte
 
@@ -230,7 +241,7 @@ contains
         pos = pos + 1
     end subroutine inc_both
 
-    !> DEC_BOTH.
+    !> DEC_BOTH.  Port of buffer.h:dec_both.
     subroutine dec_both(pos, pos_byte)
         integer(int64), intent(inout) :: pos, pos_byte
 
@@ -271,7 +282,7 @@ contains
         end do
     end function char_quoted_at
 
-    !> SET_PT_BOTH.
+    !> SET_PT_BOTH.  Port of buffer.h:SET_PT_BOTH.
     subroutine set_pt_both(pos, pos_byte)
         integer(int64), intent(in) :: pos, pos_byte
 
@@ -279,6 +290,7 @@ contains
     end subroutine set_pt_both
 
     !> Signal `scan_error' with MESSAGE and the positions A and B.
+    !> Not a port.
     subroutine scan_error(status, message, a, b)
         type(status_type), intent(inout) :: status
         character(len=*), intent(in) :: message

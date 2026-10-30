@@ -1,6 +1,7 @@
 ! test_coding_fm.f90 -- tests for coding_fm and mule_fm.
-! Ports test/src/coding-tests.el and test/lisp/international/mule-tests.el
-! where the ported coding systems allow.
+! Ports GNU Emacs 31.1 test/src/coding-tests.el and
+! test/lisp/international/mule-tests.el in part; euc-jp and Shift-JIS
+! buffers are not set up, and coding-nocopy-trivial tests `eq'.
 !
 ! Copyright (C) 2013-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -68,6 +69,7 @@ module test_coding_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_coding_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

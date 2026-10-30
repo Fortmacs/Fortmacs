@@ -53,7 +53,7 @@ module help_mode_fm
 
 contains
 
-    !> Define Help mode and its parent, Special mode.
+    !> Define Help mode and its parent, Special mode.  Not a port.
     subroutine init_help_mode()
         call syms_of_simple_modes()
         call major_modes%help_mode%define("help_mode", "Help", help_mode, help_mode_hook, &

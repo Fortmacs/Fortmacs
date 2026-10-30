@@ -172,8 +172,8 @@ module python_fm
                                              logical_setting(name="python_indent_guess_indent_offset_variable", &
                                                              value=.true.)
 
-    !> True means to emit a warning when indentation guessing fails.  Port
-    !> of python.el python-indent-guess-indent-offset-verbose.
+    !> True means to emit a warning when indentation guessing fails.
+    !> Port of python.el python-indent-guess-indent-offset-verbose.
     type(logical_setting), target, public :: python_indent_guess_indent_offset_verbose = &
                                              logical_setting(name="python_indent_guess_indent_offset_verbose", &
                                                              value=.true.)
@@ -387,8 +387,9 @@ module python_fm
     !> python.el python-dotty-syntax-table.
     type(handle_type), public :: python_dotty_syntax_table
 
-    !> Hooks run at the end of the modes.
+    !> Normal hook run by `python_base_mode'.
     type(hook_type), target, public :: python_base_mode_hook = hook_type(name="python_base_mode_hook")
+    !> Normal hook run by `python_mode'.
     type(hook_type), target, public :: python_mode_hook = hook_type(name="python_mode_hook")
 
     ! The rules of python-syntax-propertize-function.
@@ -584,6 +585,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Define the Python modes, their keymaps, syntax tables and keywords.
+    !> Not a port.
     recursive subroutine syms_of_python()
         type(status_type) :: st
 
@@ -664,6 +666,7 @@ contains
     end subroutine syms_of_python
 
     ! Bind [remap FROM] to COMMAND in `python_base_mode_map'.
+    ! Not a port.
     recursive subroutine bind_remap(from, command)
         character(len=*), intent(in) :: from, command
         type(value_type), allocatable :: events(:)
@@ -673,6 +676,7 @@ contains
         call define_key(python_base_mode_map, events, sym(command), st)
     end subroutine bind_remap
 
+    ! Not a port.
     recursive subroutine init_syntax_tables()
         type(status_type) :: st
         type(handle_type) :: t
@@ -705,6 +709,7 @@ contains
     end subroutine init_syntax_tables
 
     ! A highlight of subexpression N in FACE.
+    ! Not a port.
     recursive function h(n, face, override, lax) result(hl)
         integer, intent(in) :: n
         character(len=*), intent(in) :: face
@@ -715,6 +720,7 @@ contains
         hl = font_lock_highlight(n, face=face, override=override, laxmatch=lax)
     end function h
 
+    ! Not a port.
     recursive subroutine init_keywords()
         character(len=*), parameter :: VA = "font_lock_variable_name_face", TY = "font_lock_type_face", &
                                        OP = "font_lock_operator_face", CO = "font_lock_constant_face"
@@ -827,6 +833,7 @@ contains
     end subroutine init_keywords
 
     ! The rules of python-syntax-propertize-function.
+    ! Not a port.
     recursive subroutine init_rules()
         type(syntax_highlight_type) :: hl
 
@@ -839,6 +846,7 @@ contains
     end subroutine init_rules
 
     ! (0 (ignore (python-syntax-stringify)))
+    ! Port of python.el:python-syntax-propertize-function (in part).
     recursive subroutine stringify_after(status)
         type(status_type), intent(out) :: status
 
@@ -848,6 +856,7 @@ contains
 
     ! The `syntax_propertize_function' of Python mode (python.el
     ! python-syntax-propertize-function).
+    ! Port of python.el:python-syntax-propertize-function.
     recursive subroutine python_syntax_propertize_function(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
@@ -858,6 +867,7 @@ contains
 
     ! kill-all-local-variables: forget the current buffer's navigation
     ! cache.
+    ! Not a port.
     recursive subroutine kill_python_locals()
         integer :: k
 
@@ -870,6 +880,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! The parse state at point (syntax-ppss).
+    ! Not a port.
     recursive function ppss_here() result(ppss)
         type(parse_state_type) :: ppss
 
@@ -877,6 +888,7 @@ contains
     end function ppss_here
 
     ! The parse state at POS, leaving point there ((syntax-ppss POS)).
+    ! Not a port.
     recursive function ppss_at(pos) result(ppss)
         integer(int64), intent(in) :: pos
         type(parse_state_type) :: ppss
@@ -1120,6 +1132,7 @@ contains
         end do
     end subroutine assignment_matcher
 
+    ! Not a port.
     recursive subroutine assignment_matcher_1(limit, found, status)
         integer(int64), intent(in) :: limit
         logical, intent(out) :: found
@@ -1129,6 +1142,7 @@ contains
         call assignment_matcher(ASSIGN1_RE, limit, found)
     end subroutine assignment_matcher_1
 
+    ! Not a port.
     recursive subroutine assignment_matcher_2(limit, found, status)
         integer(int64), intent(in) :: limit
         logical, intent(out) :: found
@@ -1138,6 +1152,7 @@ contains
         call assignment_matcher(ASSIGN2_RE, limit, found)
     end subroutine assignment_matcher_2
 
+    ! Not a port.
     recursive subroutine assignment_matcher_3(limit, found, status)
         integer(int64), intent(in) :: limit
         logical, intent(out) :: found
@@ -1150,6 +1165,7 @@ contains
     ! (progn (when-let* ((type-start (match-beginning 2)))
     !          (goto-char type-start))
     !        (match-end 0))
+    ! Port of python.el:python-font-lock-keywords-maximum-decoration (in part).
     recursive subroutine assignment_1_pre_form(limit)
         integer(int64), intent(out) :: limit
         integer(int64) :: type_start
@@ -1161,6 +1177,7 @@ contains
     end subroutine assignment_1_pre_form
 
     ! (progn (goto-char (match-end 1)) (match-beginning 2))
+    ! Port of python.el:python-font-lock-keywords-maximum-decoration (in part).
     recursive subroutine assignment_2_pre_form(limit)
         integer(int64), intent(out) :: limit
         type(status_type) :: st
@@ -1207,6 +1224,7 @@ contains
         end do
     end subroutine string_bytes_literal_matcher
 
+    ! Not a port.
     recursive subroutine bytes_escape_matcher(limit, found, status)
         integer(int64), intent(in) :: limit
         logical, intent(out) :: found
@@ -1216,6 +1234,7 @@ contains
         call string_bytes_literal_matcher(BYTES_ESCAPE_RE, NOT_RAW_BYTES_START_RE, limit, found)
     end subroutine bytes_escape_matcher
 
+    ! Not a port.
     recursive subroutine string_escape_matcher(limit, found, status)
         integer(int64), intent(in) :: limit
         logical, intent(out) :: found
@@ -1304,6 +1323,7 @@ contains
     end subroutine python_syntax_stringify
 
     ! (string-to-syntax "|") as a `syntax_table' property value.
+    ! Not a port.
     recursive function fence() result(v)
         use syntax_fm, only: syntax_descriptor_value
         type(value_type) :: v
@@ -1443,6 +1463,7 @@ contains
     end subroutine python_nav_beginning_of_defun
 
     ! (python-nav-beginning-of-defun ARG) as a function.
+    ! Not a port.
     recursive logical function nav_beginning_of_defun(arg) result(found)
         integer(int64), intent(in) :: arg
         type(status_type) :: st
@@ -1481,6 +1502,7 @@ contains
     end function python_nav_end_of_defun
 
     ! `python_nav_end_of_defun' as `end_of_defun_function'.
+    ! Not a port.
     recursive subroutine python_nav_end_of_defun_function(status)
         type(status_type), intent(out) :: status
         logical :: moved
@@ -1532,6 +1554,7 @@ contains
         end do
     end function nav_syntactically
 
+    ! Port of python.el:python-nav--forward-defun (in part: its forward search).
     recursive logical function search_defun_forward()
         integer(int64) :: f
         type(status_type) :: st
@@ -1540,6 +1563,7 @@ contains
         search_defun_forward = st%ok() .and. f > 0
     end function search_defun_forward
 
+    ! Port of python.el:python-nav--forward-defun (in part: its backward search).
     recursive logical function search_defun_backward()
         integer(int64) :: f
         type(status_type) :: st
@@ -1740,6 +1764,7 @@ contains
     end subroutine python_nav_forward_statement
 
     ! The index of the current buffer's navigation cache (made if MAKE).
+    ! Not a port.
     recursive integer function nav_cache_index(make) result(k)
         logical, intent(in) :: make
         type(nav_cache_type), allocatable :: grown(:)
@@ -1776,6 +1801,7 @@ contains
     end function nav_cache_index
 
     ! The current buffer's `buffer_chars_modified_tick'.
+    ! Not a port.
     recursive integer(int64) function chars_tick() result(tick)
         type(status_type) :: st
 
@@ -1809,8 +1835,8 @@ contains
     ! Add a key-value pair to the navigation cache.
     ! Invalidate the navigation cache if the current buffer has been modified.
     ! Then add a key-value pair to the navigation cache.  The key consists of
-    ! KIND and CURRENT line number, and the value is TARGET position.  Port
-    ! of python.el:python-nav-cache-set.
+    ! KIND and CURRENT line number, and the value is TARGET position.
+    ! Port of python.el:python-nav-cache-set.
     recursive subroutine nav_cache_set(kind, current, target)
         integer, intent(in) :: kind
         integer(int64), intent(in) :: current, target
@@ -2041,6 +2067,7 @@ contains
 
     ! The syntax class of the character at POS (syntax-class (syntax-after
     ! POS)), -1 if none.
+    ! Not a port.
     recursive integer function class_after(pos)
         integer(int64), intent(in) :: pos
         type(syntax_descriptor_type) :: d
@@ -2054,6 +2081,7 @@ contains
     end function class_after
 
     ! The syntax class of the descriptor STRING.
+    ! Not a port.
     recursive integer function class_of(string)
         character(len=*), intent(in) :: string
         type(syntax_descriptor_type) :: d
@@ -2064,6 +2092,7 @@ contains
     end function class_of
 
     ! The kinds of place `nav_forward_sexp_1' tells apart.
+    ! Port of python.el:python-nav--forward-sexp (in part: its context tests).
     recursive integer function sexp_context(next)
         logical, intent(in) :: next
 
@@ -2258,6 +2287,7 @@ contains
 
     ! (python-nav-forward-sexp ARG) as the default
     ! `python_forward_sexp_function'.
+    ! Not a port.
     recursive subroutine nav_forward_sexp_default(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
@@ -2284,8 +2314,8 @@ contains
     !> With ARG, do it that many times.  Negative arg -N means move
     !> backward N times.  With optional argument SKIP_PARENS_P force
     !> sexp motion to ignore parenthesized expressions when looking at
-    !> them in either direction (forced to true in interactive calls).  Port
-    !> of python.el:python-nav-forward-sexp-safe.
+    !> them in either direction (forced to true in interactive calls).
+    !> Port of python.el:python-nav-forward-sexp-safe.
     recursive subroutine python_nav_forward_sexp_safe(arg, status, skip_parens_p)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
@@ -2360,6 +2390,7 @@ contains
 
     ! (let ((forward-sexp-function)) (up-list DIR)): up-list-default-function
     ! without a `forward_sexp_function'.
+    ! Not a port.
     recursive subroutine up_list_default(dir, status)
         integer(int64), intent(in) :: dir
         type(status_type), intent(out) :: status
@@ -2726,6 +2757,7 @@ contains
 
     ! The motion of `python_info_dedenter_opening_block_positions': search
     ! back for a block start at the start of its line.
+    ! Port of python.el:python-info-dedenter-opening-block-positions (in part).
     recursive logical function search_block_start_at_bol() result(found)
         integer(int64) :: f
         integer(int64), allocatable :: md(:)
@@ -3270,8 +3302,8 @@ contains
     end subroutine python_util_goto_line
 
     !> Python mode specific version of `forward_comment'.
-    !> Optional argument DIRECTION defines the direction to move to.  Port
-    !> of python.el:python-util-forward-comment.
+    !> Optional argument DIRECTION defines the direction to move to.
+    !> Port of python.el:python-util-forward-comment.
     recursive logical function python_util_forward_comment(direction) result(moved)
         integer, intent(in), optional :: direction
         integer(int64) :: comment_start_pos, factor
@@ -3288,6 +3320,7 @@ contains
     end function python_util_forward_comment
 
     ! The character after POS, -1 if none.
+    ! Not a port.
     recursive integer function after_char_at(pos)
         integer(int64), intent(in) :: pos
         integer(int32) :: c
@@ -3300,6 +3333,7 @@ contains
     end function after_char_at
 
     ! The character before POS, -1 if none.
+    ! Not a port.
     recursive integer function before_char_at(pos)
         integer(int64), intent(in) :: pos
         integer(int32) :: c
@@ -4484,8 +4518,8 @@ contains
         call narrow_to_region(begv, buffers(cur)%text%z - zv_from_end, st)
     end subroutine python_fill_paren
 
-    !> Like `do_auto_fill', but bind `fill_indent_according_to_mode'.  Port
-    !> of python.el:python-do-auto-fill.
+    !> Like `do_auto_fill', but bind `fill_indent_according_to_mode'.
+    !> Port of python.el:python-do-auto-fill.
     recursive subroutine python_do_auto_fill(status)
         type(status_type), intent(out) :: status
         logical :: saved
@@ -4574,6 +4608,7 @@ contains
 
     ! (with-eval-after-load 'grep ...): the Python files alias and the
     ! directories `rgrep' ignores.
+    ! Port of python.el:python-base-mode (in part: its grep settings).
     recursive subroutine install_grep_settings()
         character(len=*), parameter :: DIRS(6) = [character(len=14) :: ".mypy_cache", ".pytest_cache", &
                                                                                      ".ropeproject", ".ruff_cache", ".tox", ".venv"]
@@ -4648,6 +4683,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! The position of marker M.
+    ! Not a port.
     recursive integer(int64) function mpos(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
@@ -4688,6 +4724,7 @@ contains
     end subroutine cmd_python_indent_dedent_line_backspace
 
     ! The region or the current line, and the count, of the shift commands.
+    ! Port of python.el:python-indent-shift-left (in part: its interactive spec).
     recursive subroutine shift_args(start, end, status)
         integer(int64), intent(out) :: start, end
         type(status_type), intent(out) :: status
@@ -4899,8 +4936,8 @@ contains
         call python_nav_backward_up_list(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_python_nav_backward_up_list
 
-    !> Move point at the beginning the __main__ block (the command).  Port
-    !> of python.el:python-nav-if-name-main.
+    !> Move point at the beginning the __main__ block (the command).
+    !> Port of python.el:python-nav-if-name-main.
     recursive subroutine cmd_python_nav_if_name_main(status)
         type(status_type), intent(out) :: status
         integer(int64) :: p
