@@ -123,6 +123,7 @@ program tester
     use test_recentf_fm, only: collect_recentf_fm
     use test_bookmark_fm, only: collect_bookmark_fm
     use test_info_fm, only: collect_info_fm
+    use test_info_look_fm, only: collect_info_look_fm
     use test_buff_menu_fm, only: collect_buff_menu_fm
     use test_ibuffer_fm, only: collect_ibuffer_fm
     use test_ibuf_ext_fm, only: collect_ibuf_ext_fm
@@ -242,7 +243,8 @@ program tester
                  new_testsuite("time_date_fm", collect_time_date_fm), &
                  new_testsuite("mule_util_fm", collect_mule_util_fm), &
                  new_testsuite("tabulated_list_fm", collect_tabulated_list_fm), &
-                 new_testsuite("info_fm", collect_info_fm) &
+                 new_testsuite("info_fm", collect_info_fm), &
+                 new_testsuite("info_look_fm", collect_info_look_fm) &
                  ]
     call get_argument(1, suite_name)
     call get_argument(2, test_name)

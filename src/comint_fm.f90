@@ -31,23 +31,24 @@
 !> sender and old-input function) is kept by buffer here; the input ring
 !> and its indices are permanent, as upstream's are.
 !>
-!> Not ported yet (Deferred): input history expansion
-!> (`comint_input_autoexpand', `comint_replace_by_expanded_history',
-!> `comint_magic_space', `comint_arguments' and
-!> `comint_insert_previous_argument' (C-c .)); completion
+!> Input history expansion (`comint_input_autoexpand',
+!> `comint_replace_by_expanded_history', `comint_magic_space',
+!> `comint_insert_previous_argument' on C-c .), Isearch in the input
+!> history (`comint_history_isearch_backward_regexp' on M-r,
+!> `comint_history_isearch'), `comint_stop_subjob' (C-c C-z) and
+!> `comint_continue_subjob', and `comint_scroll_to_bottom_on_input' are
+!> ported.
+!>
+!> Password prompts are recognized (`comint_watch_for_password_prompt'
+!> on `comint_output_filter_functions', `comint_password_prompt_regexp')
+!> and answered with `comint_send_invisible'.
+!>
+!> Not ported yet (Deferred): completion
 !> (`comint_completion_at_point', file name completion, the
 !> `comint_dynamic_*' commands, `comint_dynamic_list_input_ring' (C-c C-l),
-!> `comint_complete_input_ring' (C-x <up>)); Isearch in the input
-!> history (`comint_history_isearch_backward_regexp' on M-r,
-!> `comint_history_isearch'); password prompts
-!> (`comint_watch_for_password_prompt', `comint_send_invisible',
-!> `comint_password_prompt_regexp'), which upstream has in
-!> `comint_output_filter_functions'; ANSI colors
-!> (`ansi_color_process_output', also there); stopped processes
-!> (`comint_stop_subjob' on C-c C-z, `comint_continue_subjob'), which
-!> need process_fm's stopped processes; `comint_scroll_to_bottom_on_input'
-!> and `comint_preinput_scroll_to_bottom' (a buffer's own
-!> `pre_command_hook'); redirection (`comint_redirect_*'); network
+!> `comint_complete_input_ring' (C-x <up>)); ANSI colors
+!> (`ansi_color_process_output', also there); the status of a stopped
+!> process (process_fm reports none); redirection (`comint_redirect_*'); network
 !> connections and ptys without a program as PROGRAM; `comint_fontify_input_mode'
 !> and indirect buffers; the mouse (`comint_insert_input'), menus and
 !> `comint_repeat_map'; `insert_in_front_hooks' on output (the
@@ -57,7 +58,7 @@
 !> (`comint_get_source' and friends); `comint_run' with switches read
 !> after C-u (an error says so); coding systems.
 module comint_fm
-    use, intrinsic :: iso_fortran_env, only: int32, int64
+    use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type, set_error, format_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, nil, nilp, t_value, list, consp, symbolp, symbols, xsymbol, list_elements, &
@@ -73,23 +74,25 @@ module comint_fm
     use editfns_fm, only: interactive_region, point, point_min, point_max, goto_char, widen, narrow_to_region, delete_region, &
                           buffer_substring, line_beginning_position, line_end_position, following_char, eobp, &
                           bobp, bolp, field_beginning, field_end, field_string, constrain_to_field, &
-                          inhibit_field_text_motion
-    use textprop_fm, only: put_text_property, get_text_property, add_text_properties, remove_list_of_text_properties, &
+                          inhibit_field_text_motion, eolp
+    use textprop_fm, only: get_char_property, put_text_property, get_text_property, add_text_properties, &
+                           remove_list_of_text_properties, &
                            remove_text_properties, next_single_char_property_change, previous_single_char_property_change
-    use cmds_fm, only: delete_char, forward_char, forward_line, beginning_of_line, end_of_line
+    use cmds_fm, only: delete_char, forward_char, forward_line, beginning_of_line, end_of_line, self_insert_command
     use syntax_fm, only: skip_chars_forward
     use search_fm, only: looking_at, string_match, re_search_backward, match_beginning, match_end, regexp_quote, &
-                         SEARCH_NOERROR
+                         SEARCH_NOERROR, replace_match, case_fold_search
     use subr_fm, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end, match_string
     use eval_fm, only: hook_type, string_hook_type, string_filter_hook_type
     use keymap_fm, only: keymap_set, lookup_key, key_description, command_remapping, current_global_map, &
                          make_sparse_keymap, keymap_live_p, set_repeat_map
     use modes_fm, only: major_modes
-    use simple_fm, only: kill_region, copy_region_as_kill, push_mark, kill_whole_line
+    use simple_fm, only: kill_region, copy_region_as_kill, push_mark, kill_whole_line, just_one_space
     use process_fm, only: process_arg_type, make_process, get_buffer_process, process_status, process_mark, &
                           process_buffer, delete_process, set_process_filter, process_send_string, process_send_region, &
                           process_send_eof, interrupt_process, kill_process, quit_process, accept_process_output, &
-                          processp, process_connection_type, PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY
+                          processp, process_connection_type, PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY, &
+                          stop_process, continue_process
     use window_fm, only: windows, window_type, window_point, set_window_point, set_window_start, recenter, &
                          window_leaves, window_text_cols, select_window, same_handle
     use frame_fm, only: selected_frame
@@ -102,12 +105,24 @@ module comint_fm
     use minibuf_fm, only: read_from_minibuffer, read_string
     use minibuffer_fm, only: read_file_name
     use paragraphs_fm, only: paragraph_start, forward_paragraph
-    use callint_fm, only: current_prefix_arg, prefix_numeric_value, call_interactively
+    use callint_fm, only: current_prefix_arg, prefix_numeric_value, call_interactively, this_command
     use keyboard_fm, only: last_command, this_command_keys
     use dispnew_fm, only: ding
     use commands_fm, only: commands
     use ring_fm, only: ring_type
     use version_fm, only: upstream_version
+    use isearch_fm, only: isearch_mode, isearch_forward, isearch_success, isearch_error, isearch_nonincremental, &
+                          isearch_message_prefix, isearch_message_display, isearch_search_proc, isearch_pop_proc, &
+                          isearch_search_fun_default, isearch_search_fun_function, isearch_message_function, &
+                          isearch_wrap_function, isearch_push_state_function, isearch_mode_hook, isearch_mode_end_hook, &
+                          isearch_message_prefix_add, set_isearch_barrier, set_isearch_opoint
+    use itree_fm, only: make_overlay, move_overlay, delete_overlay, overlay_put, overlayp
+    use keyboard_fm, only: pre_command_hook
+    use auth_source_fm, only: read_passwd
+    use mule_conf_fm, only: password_word_equivalents, password_colon_equivalents, syms_of_mule_conf
+    use regexp_opt_fm, only: regexp_opt, REGEXP_OPT_T
+    use character_fm, only: char_string, MAX_MULTIBYTE_LENGTH
+    use timer_fm, only: run_at_time
     implicit none(type, external)
     private
 
@@ -128,8 +143,16 @@ module comint_fm
               comint_write_input_ring, comint_postoutput_scroll_to_bottom, comint_adjust_window_point, &
               comint_input_ring_item, comint_input_ring_length, comint_last_input_start, comint_last_input_end, &
               comint_last_output_start, set_comint_get_old_input, set_comint_input_sender, set_comint_input_filter, &
-              comint_ptyp, comint_arguments, comint_delim_arg, comint_substitute_in_file_name
-    public :: comint_input_sender_proc, comint_get_old_input_proc, comint_input_filter_proc
+              comint_ptyp, comint_arguments, comint_delim_arg, comint_substitute_in_file_name, &
+              comint_previous_input_string, comint_within_quotes, comint_how_many_region, &
+              comint_replace_by_expanded_history, comint_c_a_p_replace_by_expanded_history, &
+              comint_replace_by_expanded_history_before_point, comint_magic_space, comint_insert_previous_argument, &
+              comint_history_isearch_backward, comint_history_isearch_backward_regexp, comint_history_isearch_setup, &
+              comint_history_isearch_end, comint_goto_input, comint_preinput_scroll_to_bottom, comint_stop_subjob, &
+              comint_continue_subjob
+    public :: comint_input_sender_proc, comint_get_old_input_proc, comint_input_filter_proc, comint_password_proc
+    public :: comint_send_invisible, comint_read_noecho, comint_watch_for_password_prompt, &
+              set_comint_password_function, comint_password_prompt_regexp_default
 
     abstract interface
         !> A `comint_input_sender': send to PROCESS the input STRING.
@@ -156,6 +179,17 @@ module comint_fm
             implicit none(type, external)
             character(len=*), intent(in) :: input
         end function comint_input_filter_proc
+    end interface
+
+    abstract interface
+        !> A `comint_password_function': the password for PROMPT, FOUND
+        !> false if normal password prompting should occur.
+        recursive subroutine comint_password_proc(prompt, password, found)
+            implicit none(type, external)
+            character(len=*), intent(in) :: prompt
+            character(len=:), allocatable, intent(out) :: password
+            logical, intent(out) :: found
+        end subroutine comint_password_proc
     end interface
 
     !> Values of `comint_move_point_for_output'.
@@ -346,6 +380,70 @@ module comint_fm
     type(logical_setting), target, public :: comint_use_prompt_regexp = &
                                              logical_setting(name="comint_use_prompt_regexp", value=.false.)
 
+    !> Values of `comint_input_autoexpand'.
+    integer, parameter, public :: COMINT_AUTOEXPAND_NIL = 0, COMINT_AUTOEXPAND_T = 1, COMINT_AUTOEXPAND_INPUT = 2, &
+                                  COMINT_AUTOEXPAND_HISTORY = 3
+
+    !> If not COMINT_AUTOEXPAND_NIL, expand input command history
+    !> references on completion.  This mirrors the optional behavior of
+    !> tcsh (its autoexpand and histlist).
+    !>
+    !> If the value is COMINT_AUTOEXPAND_INPUT, then the expansion is seen
+    !> on input.  If the value is COMINT_AUTOEXPAND_HISTORY, then the
+    !> expansion is only when inserting into the buffer's input ring.
+    !> See also `comint_magic_space' and `completion_at_point'.
+    !>
+    !> This variable is buffer-local.  Port of comint.el
+    !> comint-input-autoexpand.
+    type(integer_setting), target, public :: comint_input_autoexpand = &
+                                             integer_setting(name="comint_input_autoexpand", value=COMINT_AUTOEXPAND_NIL)
+
+    !> Values of `comint_scroll_to_bottom_on_input'.
+    integer, parameter, public :: COMINT_SCROLL_ON_INPUT_NIL = 0, COMINT_SCROLL_ON_INPUT_T = 1, &
+                                  COMINT_SCROLL_ON_INPUT_ALL = 2, COMINT_SCROLL_ON_INPUT_THIS = 3
+
+    !> Controls whether input to interpreter causes window to scroll.
+    !> If COMINT_SCROLL_ON_INPUT_NIL, then do not scroll.  If
+    !> COMINT_SCROLL_ON_INPUT_T or COMINT_SCROLL_ON_INPUT_ALL, scroll all
+    !> windows showing buffer.  If COMINT_SCROLL_ON_INPUT_THIS, scroll only
+    !> the selected window.
+    !>
+    !> The default is COMINT_SCROLL_ON_INPUT_NIL.
+    !>
+    !> See `comint_preinput_scroll_to_bottom'.  This variable is
+    !> buffer-local.  Port of comint.el comint-scroll-to-bottom-on-input.
+    type(integer_setting), target, public :: comint_scroll_to_bottom_on_input = &
+                                             integer_setting(name="comint_scroll_to_bottom_on_input", &
+                                                             value=COMINT_SCROLL_ON_INPUT_NIL)
+
+    !> If true, `comint_insert_previous_argument' counts args from the
+    !> end.  If this variable is false, the default,
+    !> `comint_insert_previous_argument' counts the arguments from the
+    !> beginning; if true, it counts from the end instead.  This emulates
+    !> the behavior of `ESC-NUM ESC-.' in both Bash and zsh: in Bash,
+    !> `number' counts from the beginning (variable is false), while in
+    !> zsh, it counts from the end.  Port of comint.el
+    !> comint-insert-previous-argument-from-end.
+    type(logical_setting), target, public :: comint_insert_previous_argument_from_end = &
+                                             logical_setting(name="comint_insert_previous_argument_from_end", &
+                                                             value=.false.)
+
+    !> Values of `comint_history_isearch'.
+    integer, parameter, public :: COMINT_HISTORY_ISEARCH_NIL = 0, COMINT_HISTORY_ISEARCH_DWIM = 1, &
+                                  COMINT_HISTORY_ISEARCH_T = 2
+
+    !> If not COMINT_HISTORY_ISEARCH_NIL, Isearch in input history only,
+    !> not in comint buffer output.  If COMINT_HISTORY_ISEARCH_T, usual
+    !> Isearch keys like \`C-r' and \`C-M-r' in comint mode search in the
+    !> input history.  If COMINT_HISTORY_ISEARCH_DWIM, Isearch keys search
+    !> in the input history only when initial point position is at the
+    !> comint command line.  When starting Isearch from other parts of the
+    !> comint buffer, they search in the comint buffer.  If
+    !> COMINT_HISTORY_ISEARCH_NIL, Isearch operates on the whole comint
+    !> buffer.  Port of comint.el comint-history-isearch.
+    type(integer_setting), target, public :: comint_history_isearch = &
+                                             integer_setting(name="comint_history_isearch", value=COMINT_HISTORY_ISEARCH_NIL)
+
     !> Value to use for TERM when the system uses terminfo.
     !> If the system's terminfo database contains a definition for the
     !> "dumb-emacs-ansi" terminal (as all recent versions of terminfo do),
@@ -476,7 +574,49 @@ module comint_fm
         procedure(comint_get_old_input_proc), pointer, nopass :: get_old_input => null()
         procedure(comint_input_sender_proc), pointer, nopass :: input_sender => null()
         procedure(comint_input_filter_proc), pointer, nopass :: input_filter => null()
+        !> comint-insert-previous-argument-last-start-pos and
+        !> comint-insert-previous-argument-last-index.
+        type(handle_type) :: insert_previous_argument_last_start_pos
+        integer :: insert_previous_argument_last_index = 0
+        logical :: has_insert_previous_argument_last_index = .false.
+        !> comint-history-isearch-message-overlay.
+        type(handle_type) :: history_isearch_message_overlay
+        !> comint-password-function.
+        procedure(comint_password_proc), pointer, nopass :: password_function => null()
     end type comint_buffer_type
+
+    !> Regexp matching prompts for passwords in the inferior process.
+    !> This is used by `comint_watch_for_password_prompt'.  Port of
+    !> comint.el comint-password-prompt-regexp (made by
+    !> `comint_password_prompt_regexp_default' when Comint is set up).
+    character(len=:), allocatable, public :: comint_password_prompt_regexp
+
+    !> The maximum amount of text to examine when matching password
+    !> prompts.  This is used by `comint_watch_for_password_prompt' to
+    !> reduce the amount of time spent searching for password prompts.
+    !> Port of comint.el comint-password-prompt-max-length.
+    integer, public :: comint_password_prompt_max_length = 256
+
+    ! comint--prompt-recursion-depth.
+    integer :: comint_prompt_recursion_depth = 0
+
+    ! A password prompt waiting for the timer `comint_watch_for_password_prompt'
+    ! starts (the arguments of its lambda).
+    type :: pending_prompt_type
+        type(handle_type) :: buffer
+        character(len=:), allocatable :: prompt
+    end type pending_prompt_type
+
+    type(pending_prompt_type), allocatable :: pending_prompts(:)
+
+    !> True means to force searching in input history.
+    !> If false, respect the option `comint_history_isearch'.  Port of
+    !> comint.el comint--force-history-isearch.
+    logical :: comint_force_history_isearch = .false.
+
+    ! What comint-replace-by-expanded-history-before-point throws to
+    ! DRY-RUN: nothing, `message', `history' or `expand'.
+    integer, parameter :: DRY_RUN_NONE = 0, DRY_RUN_MESSAGE = 1, DRY_RUN_HISTORY = 2, DRY_RUN_EXPAND = 3
 
     type(comint_buffer_type), allocatable :: comint_buffers(:)
 
@@ -557,6 +697,15 @@ contains
         e%get_old_input => null()
         e%input_sender => null()
         e%input_filter => null()
+
+        if (e%insert_previous_argument_last_start_pos%index /= 0) then
+            call free_marker(e%insert_previous_argument_last_start_pos, st)
+        end if
+
+        e%insert_previous_argument_last_start_pos = null_handle()
+        e%has_insert_previous_argument_last_index = .false.
+        e%history_isearch_message_overlay = null_handle()
+        e%password_function => null()
         e%local = .false.
     end subroutine free_locals
 
@@ -736,6 +885,25 @@ contains
         comint_buffers(k)%input_filter => fn
     end subroutine set_comint_input_filter
 
+    !> Abnormal hook run when prompted for a password.
+    !> This function gets one argument, a string containing the prompt.
+    !> It may return a string containing the password, or nil if normal
+    !> password prompting should occur.  Sets the current buffer's
+    !> comint.el comint-password-function (buffer-local); without FN, nil.
+    subroutine set_comint_password_function(fn)
+        procedure(comint_password_proc), optional :: fn
+        integer :: k
+
+        if (cur == 0) return
+        k = local_entry()
+
+        if (present(fn)) then
+            comint_buffers(k)%password_function => fn
+        else
+            comint_buffers(k)%password_function => null()
+        end if
+    end subroutine set_comint_password_function
+
     ! ------------------------------------------------------------------
     ! Small helpers
     ! ------------------------------------------------------------------
@@ -862,8 +1030,10 @@ contains
         call comint_delimiter_argument_list%make_local()
         call comint_input_ring_size%make_local()
         call comint_input_ring_file_name%make_local()
+        call comint_input_autoexpand%make_local()
         call comint_input_ignoredups%make_local()
         call comint_eol_on_send%make_local()
+        call comint_scroll_to_bottom_on_input%make_local()
         call comint_move_point_for_output%make_local()
         call comint_scroll_show_maximum_output%make_local()
         call comint_process_echoes%make_local()
@@ -874,7 +1044,9 @@ contains
             comint_buffers(k)%has_ring = .true.
         end if
 
+        call pre_command_hook%add(comint_preinput_scroll_to_bottom, depth=90, local=.true.)
         call font_lock_defaults%set_local(keywords_only=.true.)
+        call isearch_mode_hook%add(comint_history_isearch_setup, local=.true.)
     end subroutine comint_mode_body
 
     !> Return true if there is a living process associated with BUFFER.
@@ -1969,8 +2141,8 @@ contains
         type(silent_modifications_type) :: silent
         type(status_type) :: st
         character(len=:), allocatable :: intxt, input, history, copy
-        integer(int64) :: pm, beg, end, echo_len, lie, lis
-        logical :: nonl, art, changed, got, filters
+        integer(int64) :: pm, beg, end, echo_len, lie, lis, start
+        logical :: nonl, art, changed, got, filters, expanded
         integer :: k
 
         nonl = .false.
@@ -2007,9 +2179,29 @@ contains
             intxt = copy
         end if
 
-        ! (comint-input-autoexpand is Deferred: the input as it is.)
-        input = intxt
-        history = input
+        if (comint_input_autoexpand%value /= COMINT_AUTOEXPAND_INPUT) then
+            ! Just whatever's already there.
+            input = intxt
+        else
+            ! Expand and leave it visible in buffer.
+            expanded = comint_replace_by_expanded_history(st, silent=.true., start=pm)
+            call buffer_substring(pm, point(), input, st)
+        end if
+
+        if (comint_input_autoexpand%value /= COMINT_AUTOEXPAND_HISTORY) then
+            history = input
+        else
+            ! This is messy 'cos ultimately the original functions used do
+            ! insertion, rather than return strings.  We have to expand,
+            ! then insert back.
+            expanded = comint_replace_by_expanded_history(st, silent=.true., start=pm)
+            call buffer_substring(pm, point(), copy, st)
+            start = point()
+            call insert(input, st)
+            call delete_region(pm, start, st)
+            history = copy
+        end if
+
         ! Delete and reinsert input.  This seems like a no-op, except for
         ! the resulting entries in the undo list: undoing this insertion
         ! will delete the region, moving the process mark back to its
@@ -3701,6 +3893,1236 @@ contains
     end subroutine cmd_comint_append_output_to_file
 
     ! ------------------------------------------------------------------
+    ! History expansion
+    ! ------------------------------------------------------------------
+
+    !> Return the string ARG places along the input ring.
+    !> Moves relative to `comint_input_ring_index'.  Port of
+    !> comint.el:comint-previous-input-string.
+    function comint_previous_input_string(arg) result(item)
+        integer, intent(in) :: arg
+        character(len=:), allocatable :: item
+        type(status_type) :: st
+        integer :: k
+
+        item = ""
+        k = entry_of(cur)
+        if (k == 0) return
+        if (.not. comint_buffers(k)%has_ring) return
+
+        if (comint_buffers(k)%input_ring_index >= 0) then
+            call comint_buffers(k)%input_ring%ref(arg + comint_buffers(k)%input_ring_index, item, st)
+        else
+            call comint_buffers(k)%input_ring%ref(arg, item, st)
+        end if
+    end function comint_previous_input_string
+
+    ! The length of the input ring (0 without one).
+    integer function ring_length()
+        integer :: k
+
+        ring_length = 0
+        k = entry_of(cur)
+        if (k == 0) return
+        if (comint_buffers(k)%has_ring) ring_length = comint_buffers(k)%input_ring%count()
+    end function ring_length
+
+    ! (setq comint-input-ring-index INDEX), -1 for nil.
+    subroutine set_input_ring_index(index)
+        integer, intent(in) :: index
+        integer :: k
+
+        k = local_entry()
+        comint_buffers(k)%input_ring_index = index
+    end subroutine set_input_ring_index
+
+    ! comint-input-ring-index, -1 for nil.
+    integer function input_ring_index()
+        integer :: k
+
+        input_ring_index = -1
+        k = entry_of(cur)
+        if (k > 0) input_ring_index = comint_buffers(k)%input_ring_index
+    end function input_ring_index
+
+    !> Return true if the number of quotes between BEG and END is odd.
+    !> Quotes are single and double.  Port of
+    !> comint.el:comint-within-quotes.
+    logical function comint_within_quotes(beg, end)
+        integer(int64), intent(in) :: beg, end
+        integer :: countsq, countdq
+
+        countsq = comint_how_many_region("\(^\|[^\]\)'", beg, end)
+        countdq = comint_how_many_region("\(^\|[^\]\)""", beg, end)
+        comint_within_quotes = modulo(countsq, 2) == 1 .or. modulo(countdq, 2) == 1
+    end function comint_within_quotes
+
+    !> Return number of matches for REGEXP from BEG to END.  Port of
+    !> comint.el:comint-how-many-region.
+    integer function comint_how_many_region(regexp, beg, end) result(count)
+        use search_fm, only: re_search_forward, match_data, set_match_data
+        character(len=*), intent(in) :: regexp
+        integer(int64), intent(in) :: beg, end
+        integer(int64), allocatable :: saved(:)
+        type(status_type) :: st
+        integer(int64) :: opoint, pos
+
+        count = 0
+        opoint = point()
+        saved = match_data()
+        call goto_char(beg)
+
+        do
+            call re_search_forward(regexp, pos, st, bound=end, noerror=SEARCH_NOERROR)
+            if (.not. st%ok() .or. pos == 0) exit
+            count = count + 1
+        end do
+
+        call set_match_data(saved)
+        call goto_char(opoint)
+    end function comint_how_many_region
+
+    ! From STRING, return the args depending on the range specified in the
+    ! text from BEGIN to END.  If BEGIN is 0, assume all args.  Ignore
+    ! leading `:'.  Range can be x-y, x-, -y, where x/y can be [0-9], *,
+    ! ^, $.  Port of comint.el:comint-args.
+    function comint_args(string, begin, end) result(args)
+        use search_fm, only: match_data, set_match_data
+        character(len=*), intent(in) :: string
+        integer(int64), intent(in) :: begin, end
+        character(len=:), allocatable :: args
+        character(len=:), allocatable :: range
+        integer(int64), allocatable :: saved(:)
+        type(status_type) :: st
+        integer :: nth, mth, d
+        logical :: has_nth, has_mth
+        integer(int64) :: b
+
+        saved = match_data()
+
+        if (begin == 0) then
+            args = comint_arguments(string, 0)
+        else
+            b = begin
+            if (char_after_is(begin, ":")) b = begin + 1
+            call buffer_substring(b, end, range, st)
+            has_nth = .true.
+
+            if (smatch("^[*^]", range)) then
+                nth = 1
+            else if (smatch("^-", range)) then
+                nth = 0
+            else if (range == "$") then
+                has_nth = .false.
+                nth = 0
+            else
+                nth = string_to_int(range)
+            end if
+
+            has_mth = .true.
+
+            if (smatch("[-*$]$", range)) then
+                has_mth = .false.
+                mth = 0
+            else if (index(range, "-") > 0) then
+                d = index(range, "-")
+                mth = string_to_int(range(d + 1:))
+            else
+                has_mth = has_nth
+                mth = nth
+            end if
+
+            if (has_nth .and. has_mth) then
+                args = comint_arguments(string, nth, mth)
+            else if (has_nth) then
+                args = comint_arguments(string, nth=nth)
+            else if (has_mth) then
+                args = comint_arguments(string, mth=mth)
+            else
+                args = comint_arguments(string)
+            end if
+        end if
+
+        call set_match_data(saved)
+
+    contains
+
+        ! (string-to-number S): the leading integer, 0 if none.
+        integer function string_to_int(s)
+            character(len=*), intent(in) :: s
+            integer :: j, ios
+
+            j = 0
+
+            do while (j < len(s))
+                if (verify(s(j + 1:j + 1), "0123456789") /= 0) exit
+                j = j + 1
+            end do
+
+            string_to_int = 0
+
+            if (j > 0) then
+                read (s(1:j), *, iostat=ios) string_to_int
+                if (ios /= 0) string_to_int = 0
+            end if
+        end function string_to_int
+    end function comint_args
+
+    ! Whether the character at POS is C.
+    logical function char_after_is(pos, c)
+        integer(int64), intent(in) :: pos
+        character(len=1), intent(in) :: c
+        character(len=:), allocatable :: s
+        type(status_type) :: st
+
+        char_after_is = .false.
+        if (pos < point_min() .or. pos >= point_max()) return
+        call buffer_substring(pos, pos + 1, s, st)
+        char_after_is = s == c
+    end function char_after_is
+
+    ! Whether REGEXP matches STR (without changing the match data).
+    logical function smatch(regexp, str)
+        character(len=*), intent(in) :: regexp, str
+        type(status_type) :: st
+
+        smatch = string_match(regexp, str, st, inhibit_modify=.true.) > 0
+    end function smatch
+
+    !> Expand input command history references before point.
+    !> Expansion is dependent on the value of `comint_input_autoexpand'.
+    !>
+    !> This function depends on the buffer's idea of the input history,
+    !> which may not match the command interpreter's idea, assuming it has
+    !> one.
+    !>
+    !> Assumes history syntax is like typical Un*x shells'.  However,
+    !> since Emacs cannot know the interpreter's idea of input line
+    !> numbers, assuming it has one, it cannot expand absolute input line
+    !> number references.
+    !>
+    !> If the optional argument SILENT is true, never complain even if
+    !> history reference seems erroneous.
+    !>
+    !> If the optional argument START is present, that specifies the start
+    !> of the text to scan for history references, rather than the logical
+    !> beginning of line.
+    !>
+    !> See `comint_magic_space' and
+    !> `comint_replace_by_expanded_history_before_point'.
+    !>
+    !> Returns true if successful.  Port of
+    !> comint.el:comint-replace-by-expanded-history.
+    recursive logical function comint_replace_by_expanded_history(status, silent, start) result(done)
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: silent
+        integer(int64), intent(in), optional :: start
+        integer(int64) :: tick
+
+        status = status_type()
+        done = .false.
+        if (.not. comint_c_a_p_replace_by_expanded_history(silent, start)) return
+        ! Looks like there might be history references in the command.
+        tick = buffers(cur)%text%modiff
+        call comint_replace_by_expanded_history_before_point(silent, status, start)
+        done = tick /= buffers(cur)%text%modiff
+    end function comint_replace_by_expanded_history
+
+    !> Whether there are input command history references at point to
+    !> expand: for use on `completion_at_point_functions', where upstream
+    !> returns the function doing the expansion.  Port of
+    !> comint.el:comint-c-a-p-replace-by-expanded-history.
+    recursive logical function comint_c_a_p_replace_by_expanded_history(silent, start) result(applies)
+        logical, intent(in), optional :: silent
+        integer(int64), intent(in), optional :: start
+        type(value_type) :: field
+        type(status_type) :: st
+        integer(int64) :: opoint
+        integer :: kind
+
+        applies = .false.
+        if (comint_input_autoexpand%value == COMINT_AUTOEXPAND_NIL) return
+
+        if (comint_use_prompt_regexp%value) then
+            ! Use comint-prompt-regexp
+            opoint = point()
+            call beginning_of_line()
+            applies = looking_at(comint_prompt_regexp%value//"!\|\^", st)
+            call goto_char(opoint)
+        else
+            ! Use input fields.  User input that hasn't been entered yet,
+            ! at the end of the buffer, has a nil `field' property.
+            field = get_char_property(point(), sym("field"))
+            if (nilp(field)) applies = smatch("!\|^\^", field_string(point()))
+        end if
+
+        if (.not. applies) return
+        call comint_replace_by_expanded_history_before_point(silent, st, start, dry_run=.true., kind=kind)
+        applies = kind /= DRY_RUN_NONE
+    end function comint_c_a_p_replace_by_expanded_history
+
+    !> Expand directory stack reference before point.
+    !> See `comint_replace_by_expanded_history'.
+    !>
+    !> If the optional argument START is present, that specifies the start
+    !> of the text to scan for history references, rather than the logical
+    !> beginning of line.
+    !>
+    !> If DRY_RUN is true, return in KIND what the first reference would
+    !> do before performing any actual side-effect (upstream throws it to
+    !> DRY-RUN).  Port of
+    !> comint.el:comint-replace-by-expanded-history-before-point.
+    recursive subroutine comint_replace_by_expanded_history_before_point(silent, status, start, dry_run, kind)
+        logical, intent(in), optional :: silent
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: start
+        logical, intent(in), optional :: dry_run
+        integer, intent(out), optional :: kind
+        character(len=:), allocatable :: exp, pref, old, new, input
+        type(status_type) :: st
+        type(handle_type) :: opoint
+        integer(int64) :: toend, beg, moved, mb1, me1, mb2, me2, mb4, me4, pos, mb0, me0
+        integer :: number, hpos
+        logical :: quiet, dry, matched, found
+
+        status = status_type()
+        quiet = .false.
+        if (present(silent)) quiet = silent
+        dry = .false.
+        if (present(dry_run)) dry = dry_run
+        if (present(kind)) kind = DRY_RUN_NONE
+        call copy_marker_at(point(), opoint, .false., st)
+        toend = line_end_position() - point()
+
+        if (present(start)) then
+            beg = start
+        else
+            beg = comint_line_beginning_position()
+        end if
+
+        call goto_char(beg)
+
+        do
+            moved = skip_chars_forward("^!^", st, line_end_position() - toend)
+            if (point() >= line_end_position() - toend) exit
+            ! This seems a bit complex.  We look for references such as !!,
+            ! !-num, !foo, !?foo, !{bar}, !?{bar}, ^oh, ^my^, ^god^it,
+            ! ^never^ends^.  If that wasn't enough, the plings can be
+            ! suffixed with argument range specifiers.  Argument ranges
+            ! are complex too, so we hive off the input line, referenced
+            ! with plings, with the range string to `comint-args'.
+            call set_input_ring_index(-1)
+
+            if (char_after_is(point() - 1, "\") .or. comint_within_quotes(beg, point())) then
+                ! The history is quoted, or we're in quotes.
+                call goto_char(point() + 1)
+            else if (looking_at("![0-9]+\($\|[^-]\)", st)) then
+                ! We cannot know the interpreter's idea of input line
+                ! numbers.
+                if (dry) then
+                    if (present(kind)) kind = DRY_RUN_MESSAGE
+                    exit
+                end if
+
+                call goto_char(match_end(0, st))
+                call message("Absolute reference cannot be expanded")
+            else if (looking_at("!-\([0-9]+\):?\([0-9^$*-]+\)?", st)) then
+                ! Just a number of args from `number' lines backward.
+                if (dry) then
+                    if (present(kind)) kind = DRY_RUN_HISTORY
+                    exit
+                end if
+
+                number = int(number_in(match_beginning(1, st), match_end(1, st))) - 1
+
+                if (number <= ring_length()) then
+                    mb2 = match_beginning(2, st)
+                    me2 = match_end(2, st)
+                    call replace_match(comint_args(comint_previous_input_string(number), mb2, me2), st, &
+                                       fixedcase=.true., literal=.true.)
+                    call set_input_ring_index(number)
+                    call message("History item: "//int_str(number + 1))
+                else
+                    call goto_char(match_end(0, st))
+                    call message("Relative reference exceeds input history size")
+                end if
+            else if (looking_at_either("!!?:?\([0-9^$*-]+\)", "!!")) then
+                ! Just a number of args from the previous input line.
+                if (dry) then
+                    if (present(kind)) kind = DRY_RUN_EXPAND
+                    exit
+                end if
+
+                call replace_match(comint_args(comint_previous_input_string(0), match_beginning(1, st), &
+                                               match_end(1, st)), st, fixedcase=.true., literal=.true.)
+                call message("History item: previous")
+            else if (looking_at("!\??\({\(.+\)}\|\(\sw+\)\):?\([0-9^$*-]+\)?", st)) then
+                ! Most recent input starting with or containing (possibly
+                ! protected) string, maybe just a number of args.  Phew.
+                if (dry) then
+                    if (present(kind)) kind = DRY_RUN_EXPAND
+                    exit
+                end if
+
+                mb1 = match_beginning(1, st)
+                me1 = match_end(1, st)
+                mb2 = match_beginning(2, st)
+                me2 = match_end(2, st)
+                mb4 = match_beginning(4, st)
+                me4 = match_end(4, st)
+                mb0 = match_beginning(0, st)
+                me0 = match_end(0, st)
+
+                if (mb2 > 0) then
+                    call buffer_substring(mb2, me2, exp, st)
+                else
+                    call buffer_substring(mb1, me1, exp, st)
+                end if
+
+                if (looking_at("!\?", st, inhibit_modify=.true.)) then
+                    pref = ""
+                else
+                    pref = "^"
+                end if
+
+                call comint_previous_matching_input_string_position(pref//regexp_quote(exp), 1, hpos, st)
+                ! (restore the match data the search changed)
+                matched = looking_at("!\??\({\(.+\)}\|\(\sw+\)\):?\([0-9^$*-]+\)?", st)
+
+                if (hpos < 0) then
+                    call goto_char(me0)
+
+                    if (.not. quiet) then
+                        call message("Not found")
+                        call ding()
+                    end if
+                else
+                    call set_input_ring_index(hpos)
+                    call comint_input_ring_ref(hpos, input)
+                    call replace_match(comint_args(input, mb4, me4), st, fixedcase=.true., literal=.true.)
+                    call message("History item: "//int_str(hpos + 1))
+                end if
+            else if (looking_at("\^\([^^]+\)\^?\([^^]*\)\^?", st)) then
+                ! Quick substitution on the previous input line.
+                if (dry) then
+                    if (present(kind)) kind = DRY_RUN_EXPAND
+                    exit
+                end if
+
+                call buffer_substring(match_beginning(1, st), match_end(1, st), old, st)
+                call buffer_substring(match_beginning(2, st), match_end(2, st), new, st)
+                mb0 = match_beginning(0, st)
+                call replace_match(comint_previous_input_string(0), st, fixedcase=.true., literal=.true.)
+                pos = point()
+                call goto_char(mb0)
+                call search_forward(old, found, st, bound=pos)
+
+                if (.not. found) then
+                    if (.not. quiet) then
+                        call set_error(status, FM_USER_ERROR, "Not found")
+                        exit
+                    end if
+                else
+                    call replace_match(new, st, fixedcase=.true., literal=.true.)
+                    call message("History item: substituted")
+                end if
+            else
+                call goto_char(point() + 1)
+            end if
+        end do
+
+        call goto_char(marker_pos(opoint))
+        call free_marker(opoint, st)
+
+    contains
+
+        ! The number in the buffer from B to E.
+        integer(int64) function number_in(b, e)
+            integer(int64), intent(in) :: b, e
+            character(len=:), allocatable :: s
+            type(status_type) :: st2
+            integer :: ios
+
+            call buffer_substring(b, e, s, st2)
+            number_in = 0
+            read (s, *, iostat=ios) number_in
+            if (ios /= 0) number_in = 0
+        end function number_in
+    end subroutine comint_replace_by_expanded_history_before_point
+
+    ! (or (looking-at RE1) (looking-at RE2)), the match data of the one
+    ! that matched.
+    logical function looking_at_either(re1, re2)
+        character(len=*), intent(in) :: re1, re2
+        type(status_type) :: st
+
+        looking_at_either = looking_at(re1, st)
+        if (.not. looking_at_either) looking_at_either = looking_at(re2, st)
+    end function looking_at_either
+
+    ! (search-forward STRING BOUND t): FOUND says whether it matched.
+    subroutine search_forward(string, found, status, bound)
+        use search_fm, only: search_forward_fm => search_forward
+        character(len=*), intent(in) :: string
+        logical, intent(out) :: found
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in) :: bound
+        integer(int64) :: pos
+
+        call search_forward_fm(string, pos, status, bound=bound, noerror=SEARCH_NOERROR)
+        found = status%ok() .and. pos > 0
+    end subroutine search_forward
+
+    ! N as decimal digits.
+    function int_str(n) result(s)
+        integer, intent(in) :: n
+        character(len=:), allocatable :: s
+        character(len=16) :: buf
+
+        write (buf, "(i0)") n
+        s = trim(buf)
+    end function int_str
+
+    !> Expand input history references before point and insert ARG
+    !> spaces.  A useful command to bind to SPC.  See
+    !> `comint_replace_by_expanded_history'.  Port of
+    !> comint.el:comint-magic-space.
+    recursive subroutine comint_magic_space(arg, status)
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        logical :: done
+
+        done = comint_replace_by_expanded_history(status)
+        if (.not. status%ok()) return
+        call self_insert_command(arg, int(iachar(" "), int64), status)
+    end subroutine comint_magic_space
+
+    recursive subroutine cmd_comint_magic_space(status)
+        type(status_type), intent(out) :: status
+
+        call comint_magic_space(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_comint_magic_space
+
+    recursive subroutine cmd_comint_replace_by_expanded_history(status)
+        type(status_type), intent(out) :: status
+        logical :: done
+
+        done = comint_replace_by_expanded_history(status)
+    end subroutine cmd_comint_replace_by_expanded_history
+
+    !> Insert the INDEXth argument from the previous Comint command-line
+    !> at point.  Spaces are added at beginning and/or end of the inserted
+    !> string if necessary to ensure that it's separated from adjacent
+    !> arguments.  Interactively, if no prefix argument is given, the last
+    !> argument is inserted.  Repeated interactive invocations will cycle
+    !> through the same argument from progressively earlier commands
+    !> (using the value of INDEX specified with the first command).
+    !> Values of INDEX < 0 count from the end, so INDEX = -1 is the last
+    !> argument.  This command is like "M-." in Bash and zsh.  HAS_INDEX
+    !> false is INDEX nil.  Port of
+    !> comint.el:comint-insert-previous-argument.
+    recursive subroutine comint_insert_previous_argument(index, has_index, status)
+        integer, intent(in) :: index
+        logical, intent(in) :: has_index
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: input_string
+        type(status_type) :: st
+        integer :: k, idx
+        logical :: has
+
+        status = status_type()
+        k = local_entry()
+        idx = index
+        has = has_index
+
+        if (value_eq(last_command, this_command) .and. .not. nilp(this_command)) then
+            ! Delete last input inserted by this command.
+            call delete_region(marker_pos(comint_buffers(k)%insert_previous_argument_last_start_pos), point(), st)
+            idx = comint_buffers(k)%insert_previous_argument_last_index
+            has = comint_buffers(k)%has_insert_previous_argument_last_index
+        else
+            ! This is a non-repeat invocation, so initialize state.
+            if (has .and. comint_insert_previous_argument_from_end%value) idx = -idx
+            comint_buffers(k)%input_ring_index = -1
+            comint_buffers(k)%insert_previous_argument_last_index = idx
+            comint_buffers(k)%has_insert_previous_argument_last_index = has
+
+            ! First usage; initialize to a marker
+            if (comint_buffers(k)%insert_previous_argument_last_start_pos%index == 0) then
+                call make_marker(comint_buffers(k)%insert_previous_argument_last_start_pos)
+            end if
+        end if
+
+        ! Make sure we're not in the prompt, and add a beginning space if
+        ! necessary.
+        if (point() <= comint_line_beginning_position()) then
+            call comint_bol(.false.)
+        else
+            call just_one_space(1_int64, st)
+        end if
+
+        ! Remember the beginning of what we insert, so we can delete it if
+        ! the command is repeated.
+        call set_marker(comint_buffers(k)%insert_previous_argument_last_start_pos, point(), st)
+        ! Insert the argument.
+        input_string = comint_previous_input_string(0)
+
+        if (has) then
+            call insert(comint_arguments(input_string, idx, idx), st)
+        else
+            call insert(comint_arguments(input_string), st)
+        end if
+
+        ! Make next invocation return arg from previous input
+        k = local_entry()
+        comint_buffers(k)%input_ring_index = max(comint_buffers(k)%input_ring_index, 0) + 1
+        ! Add a terminating space if necessary.
+        if (.not. eolp()) call just_one_space(1_int64, st)
+    end subroutine comint_insert_previous_argument
+
+    recursive subroutine cmd_comint_insert_previous_argument(status)
+        type(status_type), intent(out) :: status
+
+        if (nilp(current_prefix_arg)) then
+            call comint_insert_previous_argument(0, .false., status)
+        else
+            call comint_insert_previous_argument(int(prefix_numeric_value(current_prefix_arg)), .true., status)
+        end if
+    end subroutine cmd_comint_insert_previous_argument
+
+    ! ------------------------------------------------------------------
+    ! Isearch in comint input history
+    ! ------------------------------------------------------------------
+
+    !> Search for a string backward in input history using Isearch.  Port
+    !> of comint.el:comint-history-isearch-backward.
+    recursive subroutine comint_history_isearch_backward(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        comint_force_history_isearch = .true.
+        call isearch_mode(.false., .false.)
+    end subroutine comint_history_isearch_backward
+
+    !> Search for a regular expression backward in input history using
+    !> Isearch.  Port of comint.el:comint-history-isearch-backward-regexp.
+    recursive subroutine comint_history_isearch_backward_regexp(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        comint_force_history_isearch = .true.
+        call isearch_mode(.false., .true.)
+    end subroutine comint_history_isearch_backward_regexp
+
+    ! The beginning of the line of the prompt: (save-excursion (goto-char
+    ! (comint-line-beginning-position)) (forward-line 0) (point)).
+    integer(int64) function prompt_line_start()
+        integer(int64) :: opoint
+
+        opoint = point()
+        call goto_char(comint_line_beginning_position())
+        call beginning_of_line()
+        prompt_line_start = point()
+        call goto_char(opoint)
+    end function prompt_line_start
+
+    !> Set up a comint for using Isearch to search the input history.
+    !> Intended to be added to `isearch_mode_hook' in `comint_mode'.  Port
+    !> of comint.el:comint-history-isearch-setup (no lazy count).
+    recursive subroutine comint_history_isearch_setup(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        ! Prompt is not empty like in Async Shell Command buffers or in
+        ! finished shell buffers
+        if (prompt_line_start() == comint_line_beginning_position()) return
+        if (.not. (comint_force_history_isearch .or. comint_history_isearch%value == COMINT_HISTORY_ISEARCH_T .or. &
+                   (comint_history_isearch%value == COMINT_HISTORY_ISEARCH_DWIM .and. comint_after_pmark_p()))) return
+        isearch_message_prefix_add = "history "
+        call isearch_search_fun_function%set_local(comint_history_isearch_search)
+        call isearch_message_function%set_local(comint_history_isearch_message)
+        call isearch_wrap_function%set_local(comint_history_isearch_wrap)
+        call isearch_push_state_function%set_local(comint_history_isearch_push_state)
+        call isearch_mode_end_hook%add(comint_history_isearch_end, local=.true.)
+    end subroutine comint_history_isearch_setup
+
+    !> Clean up the comint after terminating Isearch in comint.  Port of
+    !> comint.el:comint-history-isearch-end.
+    recursive subroutine comint_history_isearch_end(status)
+        type(status_type), intent(out) :: status
+        type(status_type) :: st
+        integer :: k
+
+        status = status_type()
+        k = local_entry()
+
+        if (overlayp(comint_buffers(k)%history_isearch_message_overlay)) then
+            call delete_overlay(comint_buffers(k)%history_isearch_message_overlay)
+        end if
+
+        if (allocated(isearch_message_prefix_add)) deallocate (isearch_message_prefix_add)
+        call isearch_search_fun_function%clear_local()
+        call isearch_message_function%clear_local()
+        call isearch_wrap_function%clear_local()
+        call isearch_push_state_function%clear_local()
+        ! Force isearch to not change mark.
+        call set_isearch_opoint(point())
+        call isearch_mode_end_hook%remove(comint_history_isearch_end, local=.true.)
+        ! (isearch-suspended is not ported: it is always nil here.)
+        comint_force_history_isearch = .false.
+    end subroutine comint_history_isearch_end
+
+    !> Put input history item of the absolute history position POS (-1
+    !> for nil).  Port of comint.el:comint-goto-input.
+    recursive subroutine comint_goto_input(pos, status)
+        integer, intent(in) :: pos
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: old, item
+        integer :: k
+
+        status = status_type()
+        k = local_entry()
+
+        ! If leaving the edit line, save partial unfinished input.
+        if (comint_buffers(k)%input_ring_index < 0) then
+            call call_get_old_input(old, status)
+            if (.not. status%ok()) return
+            k = local_entry()
+            comint_buffers(k)%stored_incomplete_input = old
+        end if
+
+        comint_buffers(k)%input_ring_index = pos
+        call comint_delete_input(status)
+        if (.not. status%ok()) return
+        k = local_entry()
+
+        if (pos >= 0 .and. ring_length() > 0) then
+            call comint_input_ring_ref(pos, item)
+            call insert(item, status)
+        else if (allocated(comint_buffers(k)%stored_incomplete_input)) then
+            ! Restore partial unfinished input.
+            if (len(comint_buffers(k)%stored_incomplete_input) > 0) then
+                call insert(comint_buffers(k)%stored_incomplete_input, status)
+            end if
+        end if
+    end subroutine comint_goto_input
+
+    !> Return the proper search function, for Isearch in input history.
+    !> Port of comint.el:comint-history-isearch-search.
+    recursive subroutine comint_history_isearch_search(fn)
+        procedure(isearch_search_proc), pointer, intent(out) :: fn
+
+        fn => history_search
+    end subroutine comint_history_isearch_search
+
+    ! The search function comint-history-isearch-search returns.
+    recursive subroutine history_search(string, bound, noerror, pos, status)
+        character(len=*), intent(in) :: string
+        integer(int64), intent(in) :: bound
+        logical, intent(in) :: noerror
+        integer(int64), intent(out) :: pos
+        type(status_type), intent(out) :: status
+        procedure(isearch_search_proc), pointer :: search_fun
+        type(handle_type) :: proc
+        type(status_type) :: st
+        logical :: found
+
+        ! Use standard functions to search within comint text
+        search_fun => isearch_search_fun_default()
+        status = status_type()
+
+        ! Avoid lazy-highlighting matches in the comint prompt and in the
+        ! output when searching forward.  Lazy-highlight calls this lambda
+        ! with the bound arg, so skip the prompt and the output.
+        if (bound > 0 .and. isearch_forward .and. .not. comint_after_pmark_p()) then
+            call current_process(proc, st)
+            if (st%ok()) call goto_char(pmark_pos(proc))
+        end if
+
+        ! 1. First try searching in the initial comint text
+        if (isearch_forward) then
+            call search_fun(string, bound, noerror, pos, status)
+        else
+            call search_fun(string, comint_line_beginning_position(), noerror, pos, status)
+        end if
+
+        if (.not. status%ok() .or. pos > 0) return
+        ! 2. If the above search fails, start putting next/prev history
+        ! elements in the comint successively, and search the string in
+        ! them.  Do this only when bound is nil (i.e. not while
+        ! lazy-highlighting search strings in the current comint text).
+        if (bound > 0) return
+        found = .false.
+
+        do while (.not. found)
+            if (isearch_forward) then
+                ! Signal an error here explicitly, because
+                ! `comint-next-input' doesn't signal an error.
+                if (input_ring_index() < 0) return
+                call comint_next_input(1, st)
+                if (.not. st%ok()) return
+                call goto_char(comint_line_beginning_position())
+            else
+                ! Signal an error here explicitly, because
+                ! `comint-previous-input' doesn't signal an error.
+                if (input_ring_index() == ring_length() - 1) return
+                call comint_previous_input(1, st)
+                if (.not. st%ok()) return
+                call goto_char(point_max())
+            end if
+
+            call set_isearch_barrier(point())
+            call set_isearch_opoint(point())
+
+            ! After putting the next/prev history element, search the
+            ! string in them again, until comint-next-input or
+            ! comint-previous-input raises an error at the beginning/end
+            ! of history.
+            if (isearch_forward) then
+                call search_fun(string, 0_int64, noerror, pos, st)
+            else
+                ! For backward search, don't search in the comint prompt
+                call search_fun(string, comint_line_beginning_position(), noerror, pos, st)
+            end if
+
+            if (.not. st%ok()) return
+            found = pos > 0
+        end do
+
+        ! Return point of the new search result
+        pos = point()
+    end subroutine history_search
+
+    !> Display the input history search prompt.
+    !> If there are no search errors, this function displays an overlay
+    !> with the Isearch prompt which replaces the original comint prompt.
+    !> Otherwise, it displays the standard Isearch message returned from
+    !> the function `isearch_message'.  Port of
+    !> comint.el:comint-history-isearch-message.
+    recursive subroutine comint_history_isearch_message(c_q_hack, ellipsis)
+        logical, intent(in) :: c_q_hack, ellipsis
+        type(status_type) :: st
+        integer :: k
+
+        if (.not. (isearch_success .and. .not. allocated(isearch_error))) then
+            ! Use standard function `isearch-message' when not in comint
+            ! prompt, or search fails, or has an error (like incomplete
+            ! regexp).  This function displays isearch message in the echo
+            ! area, so it's possible to see what is wrong in the search
+            ! string.
+            call isearch_message_display(c_q_hack, ellipsis)
+            return
+        end if
+
+        ! Otherwise, put the overlay with the standard isearch prompt over
+        ! the initial comint prompt.
+        k = local_entry()
+
+        if (overlayp(comint_buffers(k)%history_isearch_message_overlay)) then
+            call move_overlay(comint_buffers(k)%history_isearch_message_overlay, prompt_line_start(), &
+                              comint_line_beginning_position(), st)
+        else
+            call make_overlay(comint_buffers(k)%history_isearch_message_overlay, prompt_line_start(), &
+                              comint_line_beginning_position(), st)
+            call overlay_put(comint_buffers(k)%history_isearch_message_overlay, "evaporate", t_value(), st)
+        end if
+
+        call overlay_put(comint_buffers(k)%history_isearch_message_overlay, "display", &
+                         make_str(isearch_message_prefix(isearch_nonincremental, ellipsis)), st)
+
+        if (comint_buffers(k)%input_ring_index >= 0 .and. .not. ellipsis) then
+            ! Display the current history index.
+            call message("History item: "//int_str(comint_buffers(k)%input_ring_index + 1))
+        else
+            ! Or clear a previous isearch message.
+            call message("")
+        end if
+    end subroutine comint_history_isearch_message
+
+    !> Wrap the input history search when search fails.
+    !> Move point to the first history element for a forward search, or
+    !> to the last history element for a backward search.  Port of
+    !> comint.el:comint-history-isearch-wrap.
+    recursive subroutine comint_history_isearch_wrap()
+        type(status_type) :: st
+
+        ! When `comint-history-isearch-search' fails on reaching the
+        ! beginning/end of the history, wrap the search to the first/last
+        ! input history element.
+        if (isearch_forward) then
+            call comint_goto_input(ring_length() - 1, st)
+            call goto_char(comint_line_beginning_position())
+        else
+            call comint_goto_input(-1, st)
+            call goto_char(point_max())
+        end if
+    end subroutine comint_history_isearch_wrap
+
+    !> Save a function restoring the state of input history search.
+    !> Save `comint_input_ring_index' to the additional state parameter in
+    !> the search status stack.  Port of
+    !> comint.el:comint-history-isearch-push-state.
+    recursive subroutine comint_history_isearch_push_state(data, pop)
+        character(len=:), allocatable, intent(out) :: data
+        procedure(isearch_pop_proc), pointer, intent(out) :: pop
+
+        data = int_str(input_ring_index())
+        pop => comint_history_isearch_pop_state
+    end subroutine comint_history_isearch_push_state
+
+    !> Restore the input history search state.
+    !> Go to the history element by the absolute history position
+    !> HIST_POS.  Port of comint.el:comint-history-isearch-pop-state.
+    recursive subroutine comint_history_isearch_pop_state(hist_pos)
+        character(len=*), intent(in) :: hist_pos
+        type(status_type) :: st
+        integer :: n, ios
+
+        read (hist_pos, *, iostat=ios) n
+        if (ios /= 0) n = -1
+        call comint_goto_input(n, st)
+    end subroutine comint_history_isearch_pop_state
+
+    ! ------------------------------------------------------------------
+    ! Scrolling on input, stopped subjobs
+    ! ------------------------------------------------------------------
+
+    !> Go to the end of buffer in all windows showing it.
+    !> Movement occurs if point in the selected window is not after the
+    !> process mark, and `this_command' is an insertion command.
+    !> Insertion commands recognized are `self_insert_command',
+    !> `comint_magic_space', `yank', and `hilit_yank'.  Depends on the
+    !> value of `comint_scroll_to_bottom_on_input'.
+    !>
+    !> This function should be a pre-command hook.  Port of
+    !> comint.el:comint-preinput-scroll-to-bottom.
+    recursive subroutine comint_preinput_scroll_to_bottom(status)
+        type(status_type), intent(out) :: status
+        type(handle_type) :: process, current
+        type(handle_type), allocatable :: leaves(:)
+        integer :: scroll, i
+
+        status = status_type()
+        scroll = int(comint_scroll_to_bottom_on_input%value)
+        if (scroll == COMINT_SCROLL_ON_INPUT_NIL) return
+        if (.not. (symbol_is(this_command, "self_insert_command") .or. symbol_is(this_command, "comint_magic_space") &
+                   .or. symbol_is(this_command, "yank") .or. symbol_is(this_command, "hilit_yank"))) return
+        current = current_buffer()
+        process = get_buffer_process(current)
+        if (process%index == 0) return
+        if (point() >= pmark_pos(process)) return
+
+        if (scroll == COMINT_SCROLL_ON_INPUT_THIS) then
+            call goto_char(point_max())
+        else
+            call window_leaves(selected_frame%root_window, leaves)
+
+            do i = 1, size(leaves)
+                if (same_handle(windows(leaves(i)%index)%buffer, current)) then
+                    call set_window_point(windows(leaves(i)%index), point_max(), status)
+                end if
+            end do
+
+            call goto_char(point_max())
+        end if
+    end subroutine comint_preinput_scroll_to_bottom
+
+    !> Stop the current subjob.
+    !>
+    !> WARNING: if there is no current subjob, you can end up suspending
+    !> the top-level process running in the buffer.  If you accidentally
+    !> do this, use \[comint_continue_subjob] to resume the process.
+    !> (This is not a problem with most shells, since they ignore this
+    !> signal.)  Port of comint.el:comint-stop-subjob.
+    recursive subroutine comint_stop_subjob(status)
+        type(status_type), intent(out) :: status
+
+        call comint_skip_input(status)
+        if (.not. status%ok()) return
+        call stop_process(status, current_group=comint_ptyp())
+    end subroutine comint_stop_subjob
+
+    !> Send CONT signal to process buffer's process group.
+    !> Useful if you accidentally suspend the top-level process.  Port of
+    !> comint.el:comint-continue-subjob.
+    subroutine comint_continue_subjob(status)
+        type(status_type), intent(out) :: status
+
+        call continue_process(status, current_group=comint_ptyp())
+    end subroutine comint_continue_subjob
+
+    ! ------------------------------------------------------------------
+    ! Passwords
+    ! ------------------------------------------------------------------
+
+    !> The default value of `comint_password_prompt_regexp', made from
+    !> `password_word_equivalents' and `password_colon_equivalents'.
+    !> Port of the value of comint.el comint-password-prompt-regexp.
+    function comint_password_prompt_regexp_default() result(re)
+        character(len=:), allocatable :: re
+        character(len=MAX_MULTIBYTE_LENGTH) :: buf
+        character(len=:), allocatable :: colons
+        type(status_type) :: st
+        integer(int32) :: nbytes
+        integer :: i
+
+        colons = ""
+
+        do i = 1, size(password_colon_equivalents)
+            call char_string(password_colon_equivalents(i), buf, nbytes, st)
+            colons = colons//buf(1:nbytes)
+        end do
+
+        re = "\(^ *\|"// &
+             regexp_opt([character(len=24) :: "Enter", "enter", "Enter same", "enter same", "Enter the", "enter the", &
+                         "Current", &
+                         ! Ansible.  (Bug#78442)
+                         "Vault", "SSH", "BECOME", &
+                         "Enter Auth", "enter auth", "Old", "old", "New", "new", "login", &
+                         "Kerberos", "CVS", "UNIX", " SMB", "LDAP", "PEM", "SUDO", &
+                         "[sudo]", "[sudo: authenticate]", "[su: authenticate]", &
+                         "doas", "Repeat", "Bad", "Retype", "Verify"], REGEXP_OPT_T)// &
+             ! Allow for user name to precede password equivalent
+             ! (Bug#31075).
+             " +.*\)"// &
+             "\(?:"//regexp_opt(password_word_equivalents)//"\|Response\)"// &
+             "\(?:\(?:, try\)? *again\| (empty for no passphrase)\| (again)\)?"// &
+             ! "[[:alpha:]]" used to be "for", which fails to match
+             ! non-English.
+             "\(?: [[:alpha:]]+ .+\)?[[:blank:]]*"// &
+             "["//colons//"][[:space:]]*\'"// &
+             ! The ccrypt encryption dialog doesn't end with a colon, so
+             ! treat it specially.
+             "\|^Enter encryption key: (repeat) *\'"// &
+             ! Ansible.  The vault-id syntax is a guess.  (Bug#78442)
+             "\|^Vault password ([^@-][^@]*): \'"// &
+             ! Default openssh format: "user@host's password:".
+             "\|^[^@ "//achar(9)//achar(10)//"]+@[^@ "//achar(9)//achar(10)//"]+'s password: *\'"// &
+             ! openssh-8.6p1 format: "(user@host) Password:".
+             ! "(user@host) Password for user@host:"  (Bug#79424)
+             "\|^([^)@ "//achar(9)//achar(10)//"]+@[^)@ "//achar(9)//achar(10)//"]+) Password\(?: for [^)@ "// &
+             achar(9)//achar(10)//"]+@[^)@ "//achar(9)//achar(10)//"]+\)?: *\'"
+    end function comint_password_prompt_regexp_default
+
+    !> Read a password with PROMPT (obsolete: use `read_passwd').  Port
+    !> of comint.el:comint-read-noecho.
+    recursive subroutine comint_read_noecho(prompt, result, status)
+        character(len=*), intent(in) :: prompt
+        character(len=:), allocatable, intent(out) :: result
+        type(status_type), intent(out) :: status
+
+        call read_passwd(prompt, result, status)
+    end subroutine comint_read_noecho
+
+    !> Read a string without echoing.
+    !> Then send it to the process running in the current buffer.
+    !> The string is sent using `comint_input_sender'.
+    !> Security bug: your string can still be temporarily recovered with
+    !> \[view_lossage]; `clear_this_command_keys' can fix that.  Port of
+    !> comint.el:comint-send-invisible.
+    recursive subroutine comint_send_invisible(status, prompt)
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: prompt
+        type(handle_type) :: proc, wbuf
+        character(len=:), allocatable :: prefix, prefix_prompt, str
+        integer :: k
+        logical :: found
+
+        status = status_type()
+        wbuf = windows(selected_frame%selected_window%index)%buffer
+
+        if (same_handle(wbuf, current_buffer())) then
+            prefix = ""
+        else
+            prefix = "(In buffer "//buffers(cur)%name//") "
+        end if
+
+        proc = get_buffer_process(current_buffer())
+
+        if (proc%index == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "Buffer "//buffers(cur)%name//" has no process")
+            return
+        end if
+
+        if (present(prompt)) then
+            prefix_prompt = prefix//prompt
+        else
+            prefix_prompt = prefix//"Non-echoed text: "
+        end if
+
+        found = .false.
+        k = local_entry()
+
+        if (associated(comint_buffers(k)%password_function)) then
+            call comint_buffers(k)%password_function(prefix_prompt, str, found)
+        end if
+
+        if (.not. found) then
+            call read_passwd(prefix_prompt, str, status)
+            found = status%ok()
+        end if
+
+        if (found) then
+            call comint_snapshot_last_prompt()
+            k = local_entry()
+            call comint_buffers(k)%input_sender(proc, str, status)
+        else
+            call message("Warning: text will be echoed")
+            status = status_type()
+        end if
+    end subroutine comint_send_invisible
+
+    recursive subroutine cmd_comint_send_invisible(status)
+        type(status_type), intent(out) :: status
+
+        call comint_send_invisible(status)
+    end subroutine cmd_comint_send_invisible
+
+    !> Prompt in the minibuffer for password and send without echoing.
+    !> Looks for a match to `comint_password_prompt_regexp' in order to
+    !> detect the need to (prompt and) send a password.  Ignores any
+    !> carriage returns (\r) in STRING.
+    !>
+    !> This function could be in the list
+    !> `comint_output_filter_functions'.  Port of
+    !> comint.el:comint-watch-for-password-prompt.
+    recursive subroutine comint_watch_for_password_prompt(string, status)
+        character(len=*), intent(in) :: string
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: text, content, prompt
+        type(pending_prompt_type), allocatable :: grown(:)
+        type(handle_type) :: timer
+        logical :: saved_fold, matched
+        integer :: n
+
+        status = status_type()
+        text = string_limit_end(without_cr(string), comint_password_prompt_max_length)
+        saved_fold = case_fold_search%value
+        case_fold_search = .true.
+        matched = string_match(comint_password_prompt_regexp, text, status) > 0
+        case_fold_search = saved_fold
+
+        if (.not. status%ok() .or. .not. matched) then
+            status = status_type()
+            return
+        end if
+
+        content = string_trim(match_string(0, text))
+        prompt = content
+
+        if (len(content) > 0) then
+            if (content(len(content):len(content)) /= " ") prompt = content//" "
+        end if
+
+        ! Use `run-at-time' in order not to pause execution of the process
+        ! filter with a minibuffer
+        if (.not. allocated(pending_prompts)) allocate (pending_prompts(0))
+        n = size(pending_prompts)
+        allocate (grown(n + 1))
+        grown(1:n) = pending_prompts
+        grown(n + 1)%buffer = current_buffer()
+        grown(n + 1)%prompt = prompt
+        call move_alloc(grown, pending_prompts)
+        call run_at_time(timer, 0.0_real64, send_pending_password, status)
+
+    contains
+
+        ! (string-replace "\r" "" S)
+        function without_cr(s) result(r)
+            character(len=*), intent(in) :: s
+            character(len=:), allocatable :: r
+            integer :: j, n
+
+            allocate (character(len=len(s)) :: r)
+            n = 0
+
+            do j = 1, len(s)
+                if (s(j:j) == achar(13)) cycle
+                n = n + 1
+                r(n:n) = s(j:j)
+            end do
+
+            r = r(1:n)
+        end function without_cr
+
+        ! (string-limit S N t): the last N bytes of S, not splitting a
+        ! character.
+        function string_limit_end(s, nmax) result(r)
+            character(len=*), intent(in) :: s
+            integer, intent(in) :: nmax
+            character(len=:), allocatable :: r
+            integer :: b
+
+            if (len(s) <= nmax) then
+                r = s
+                return
+            end if
+
+            b = len(s) - nmax + 1
+
+            ! Skip UTF-8 continuation bytes.
+            do while (b <= len(s))
+                if (iand(iachar(s(b:b)), 192) /= 128) exit
+                b = b + 1
+            end do
+
+            r = s(b:)
+        end function string_limit_end
+
+        ! (string-trim S "[ \n\r\t\v\f\b\a]+" "\n+")
+        function string_trim(s) result(r)
+            character(len=*), intent(in) :: s
+            character(len=:), allocatable :: r
+            integer :: b, e
+
+            b = 1
+
+            do while (b <= len(s))
+                if (index(" "//achar(10)//achar(13)//achar(9)//achar(11)//achar(12)//achar(8)//achar(7), s(b:b)) == 0) exit
+                b = b + 1
+            end do
+
+            e = len(s)
+
+            do while (e >= b)
+                if (s(e:e) /= achar(10)) exit
+                e = e - 1
+            end do
+
+            r = s(b:e)
+        end function string_trim
+    end subroutine comint_watch_for_password_prompt
+
+    ! The timer function of `comint_watch_for_password_prompt': send the
+    ! oldest pending password prompt's password.
+    recursive subroutine send_pending_password(status)
+        type(status_type), intent(out) :: status
+        type(pending_prompt_type) :: p
+        type(handle_type) :: old, proc
+        type(status_type) :: st
+
+        status = status_type()
+        if (.not. allocated(pending_prompts)) return
+        if (size(pending_prompts) == 0) return
+        p = pending_prompts(1)
+        pending_prompts = pending_prompts(2:)
+        if (.not. buffer_live_p(p%buffer)) return
+        old = current_buffer()
+        call set_buffer(p%buffer, st)
+        comint_prompt_recursion_depth = comint_prompt_recursion_depth + 1
+
+        if (comint_prompt_recursion_depth > 10) then
+            call message("Password prompt recursion too deep")
+        else
+            proc = get_buffer_process(current_buffer())
+            if (proc%index /= 0) call comint_send_invisible(status, p%prompt)
+        end if
+
+        comint_prompt_recursion_depth = comint_prompt_recursion_depth - 1
+        if (buffer_live_p(old)) call set_buffer(old, st)
+    end subroutine send_pending_password
+
+    ! ------------------------------------------------------------------
     ! Setup
     ! ------------------------------------------------------------------
 
@@ -3739,13 +5161,25 @@ contains
         call forward_setting(comint_use_prompt_regexp)
         call forward_setting(comint_terminfo_terminal)
         call forward_setting(comint_inhibit_carriage_motion)
+        ! (The default value lists comint-postoutput-scroll-to-bottom
+        ! before comint-watch-for-password-prompt; `add' puts a function
+        ! first.)
+        call comint_output_filter_functions%add(comint_watch_for_password_prompt)
         call comint_output_filter_functions%add(comint_postoutput_scroll_to_bottom)
+        call syms_of_mule_conf()
+
+        if (.not. allocated(comint_password_prompt_regexp)) then
+            comint_password_prompt_regexp = comint_password_prompt_regexp_default()
+        end if
+
+        commands%comint_send_invisible%run => cmd_comint_send_invisible
         call add_local_variables_killer(kill_comint_locals)
         ! Keys:
         call keymap_set(comint_mode_map, "M-p", "comint_previous_input", st)
         call keymap_set(comint_mode_map, "M-n", "comint_next_input", st)
         call keymap_set(comint_mode_map, "C-<up>", "comint_previous_input", st)
         call keymap_set(comint_mode_map, "C-<down>", "comint_next_input", st)
+        call keymap_set(comint_mode_map, "M-r", "comint_history_isearch_backward_regexp", st)
         call keymap_set(comint_mode_map, "C-c M-r", "comint_previous_matching_input_from_input", st)
         call keymap_set(comint_mode_map, "C-c M-s", "comint_next_matching_input_from_input", st)
         call keymap_set(comint_mode_map, "C-M-l", "comint_show_output", st)
@@ -3761,6 +5195,7 @@ contains
         call keymap_set(comint_mode_map, "C-c C-u", "comint_kill_input", st)
         call keymap_set(comint_mode_map, "C-c C-w", "backward_kill_word", st)
         call keymap_set(comint_mode_map, "C-c C-c", "comint_interrupt_subjob", st)
+        call keymap_set(comint_mode_map, "C-c C-z", "comint_stop_subjob", st)
         call keymap_set(comint_mode_map, "C-c C-\", "comint_quit_subjob", st)
         call keymap_set(comint_mode_map, "C-c RET", "comint_copy_old_input", st)
         call keymap_set(comint_mode_map, "C-c C-o", "comint_delete_output", st)
@@ -3779,6 +5214,7 @@ contains
 
         call keymap_set(comint_mode_map, "C-c C-d", "comint_send_eof", st)
         call keymap_set(comint_mode_map, "C-c C-s", "comint_write_output", st)
+        call keymap_set(comint_mode_map, "C-c .", "comint_insert_previous_argument", st)
         commands%comint_mode%run => comint_mode
         commands%comint_run%run => cmd_comint_run
         commands%comint_send_input%run => cmd_comint_send_input
@@ -3805,6 +5241,13 @@ contains
         commands%comint_interrupt_subjob%run => comint_interrupt_subjob
         commands%comint_kill_subjob%run => comint_kill_subjob
         commands%comint_quit_subjob%run => comint_quit_subjob
+        commands%comint_stop_subjob%run => comint_stop_subjob
+        commands%comint_continue_subjob%run => comint_continue_subjob
+        commands%comint_replace_by_expanded_history%run => cmd_comint_replace_by_expanded_history
+        commands%comint_magic_space%run => cmd_comint_magic_space
+        commands%comint_insert_previous_argument%run => cmd_comint_insert_previous_argument
+        commands%comint_history_isearch_backward%run => comint_history_isearch_backward
+        commands%comint_history_isearch_backward_regexp%run => comint_history_isearch_backward_regexp
         commands%comint_copy_old_input%run => comint_copy_old_input
         commands%comint_delete_output%run => cmd_comint_delete_output
         commands%comint_write_output%run => cmd_comint_write_output

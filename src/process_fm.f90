@@ -96,6 +96,7 @@ module process_fm
               set_process_filter, set_process_sentinel, process_tty_name, set_process_query_on_exit_flag, &
               process_filter, process_sentinel, &
               process_query_on_exit_flag, interrupt_process, kill_process, quit_process, signal_process, &
+              stop_process, continue_process, &
               process_send_string, set_process_coding_system, &
               process_coding_system, process_send_region, process_send_eof, accept_process_output, &
               internal_default_process_filter, internal_default_process_sentinel, kill_buffer_processes, &
@@ -1610,6 +1611,33 @@ contains
         call get_process_arg(i, status, process)
         if (status%ok()) call process_send_signal(i, 3, status, current_group)
     end subroutine quit_process
+
+    !> Stop process PROCESS.  May be process or name of one.
+    !> See function `interrupt_process' for more details on usage.  Port
+    !> of process.c:Fstop_process (a subprocess: network, serial and pipe
+    !> connections are not ported).
+    subroutine stop_process(status, process, current_group)
+        type(status_type), intent(out) :: status
+        type(handle_type), intent(in), optional :: process
+        logical, intent(in), optional :: current_group
+        integer(int64) :: i
+
+        call get_process_arg(i, status, process)
+        if (status%ok()) call process_send_signal(i, 20, status, current_group)
+    end subroutine stop_process
+
+    !> Continue process PROCESS.  May be process or name of one.
+    !> See function `interrupt_process' for more details on usage.  Port
+    !> of process.c:Fcontinue_process (a subprocess).
+    subroutine continue_process(status, process, current_group)
+        type(status_type), intent(out) :: status
+        type(handle_type), intent(in), optional :: process
+        logical, intent(in), optional :: current_group
+        integer(int64) :: i
+
+        call get_process_arg(i, status, process)
+        if (status%ok()) call process_send_signal(i, 18, status, current_group)
+    end subroutine continue_process
 
     !> Send PROCESS the signal with code SIGCODE.  `result' is kill's
     !> result (0, or -1).  Port of process.c:Finternal_default_signal_process
