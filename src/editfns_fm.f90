@@ -85,6 +85,7 @@ module editfns_fm
 
     abstract interface
         !> A function of no arguments returning a buffer position.
+        !> Not a port.
         recursive subroutine region_position_proc(pos, status)
             import :: int64, status_type
             implicit none(type, external)
@@ -116,8 +117,8 @@ contains
     end function point
 
     !> Return the minimum permissible value of point in the current buffer.
-    !> This is 1, unless narrowing (a buffer restriction) is in effect.  Port
-    !> of editfns.c:Fpoint_min.
+    !> This is 1, unless narrowing (a buffer restriction) is in effect.
+    !> Port of editfns.c:Fpoint_min.
     integer(int64) function point_min()
         point_min = buffers(cur)%begv
     end function point_min
@@ -228,7 +229,7 @@ contains
     end subroutine mark_marker
 
     !> The position of the current buffer's mark, or 0 if it has none (nil
-    !> upstream): `(marker-position (mark-marker))'.
+    !> upstream): `(marker-position (mark-marker))'.  Not a port.
     integer(int64) function mark_position() result(pos)
         integer(int64) :: i
         type(status_type) :: st
@@ -434,8 +435,8 @@ contains
     end function bolp
 
     !> Return true if point is at the end of a line.
-    !> `End of a line' includes point being at the end of the buffer.  Port
-    !> of editfns.c:Feolp.
+    !> `End of a line' includes point being at the end of the buffer.  Port of
+    !> editfns.c:Feolp.
     logical function eolp()
         associate (b => buffers(cur))
             eolp = b%pt == b%zv
@@ -598,7 +599,8 @@ contains
     !> Set up the user's names once, as editfns.c:init_editfns does: the
     !> real login name from the passwd entry of the real uid, the login
     !> name from LOGNAME or USER (else the effective uid's entry), and the
-    !> full name of that user (or NAME, or "unknown").
+    !> full name of that user (or NAME, or "unknown").  Port of
+    !> editfns.c:init_editfns (the user names).
     subroutine init_user_names()
         use sysdep_fm, only: passwd_entry_by_uid, emacs_getuid, emacs_geteuid
         character(len=:), allocatable :: name, gecos, user_name
@@ -664,6 +666,7 @@ contains
     end subroutine init_user_names
 
     !> The full name in the passwd entry of the user called LOGIN.
+    !> Not a port.
     subroutine full_name_of(login, full, found)
         use sysdep_fm, only: passwd_entry_by_name
         character(len=*), intent(in) :: login
@@ -677,7 +680,7 @@ contains
         if (found) full = gecos_full_name(gecos, name)
     end subroutine full_name_of
 
-    !> The full name in the passwd entry of user UID.
+    !> The full name in the passwd entry of user UID.  Not a port.
     subroutine full_name_of_uid(uid, full, found)
         use sysdep_fm, only: passwd_entry_by_uid
         integer, intent(in) :: uid
@@ -692,7 +695,8 @@ contains
 
     !> The full name in a gecos field: everything before the first comma,
     !> with `&' replaced by the login name LOGIN, its first character
-    !> upcased (AMPERSAND_FULL_NAME).  Part of editfns.c:Fuser_full_name.
+    !> upcased (AMPERSAND_FULL_NAME).
+    !> Port of part of editfns.c:Fuser_full_name.
     function gecos_full_name(gecos, login) result(full)
         character(len=*), intent(in) :: gecos, login
         character(len=:), allocatable :: full, sub
@@ -806,6 +810,8 @@ contains
         end = e
     end subroutine validate_region
 
+    ! An args-out-of-range error for A and B (args_out_of_range).
+    ! Not a port.
     subroutine range_error(status, a, b)
         type(status_type), intent(inout) :: status
         integer(int64), intent(in) :: a, b
@@ -983,7 +989,7 @@ contains
     ! properties only, as there are no overlays yet).
     ! ------------------------------------------------------------------
 
-    !> The `field' symbol.
+    !> The `field' symbol.  Not a port.
     function qfield() result(v)
         type(value_type) :: v
 
@@ -991,7 +997,7 @@ contains
     end function qfield
 
     !> `prop' of the current buffer's character at `pos' (nil outside the
-    !> accessible text); get_char_property without overlays.
+    !> accessible text); get_char_property without overlays.  Not a port.
     function char_property(pos, prop) result(v)
         integer(int64), intent(in) :: pos
         type(value_type), intent(in) :: prop
@@ -1181,8 +1187,8 @@ contains
     !> From START to END, replace FROMCHAR with TOCHAR each time it occurs.
     !> If optional arg NOUNDO is true, don't record this change for undo
     !> and don't mark the buffer as really changed.
-    !> Both characters must have the same length of multi-byte form.  Port
-    !> of editfns.c:Fsubst_char_in_region (compositions are not ported).
+    !> Both characters must have the same length of multi-byte form.  Port of
+    !> editfns.c:Fsubst_char_in_region (compositions are not ported).
     recursive subroutine subst_char_in_region(start, end, fromchar, tochar, status, noundo)
         integer(int64), intent(in) :: start, end
         integer(int32), intent(in) :: fromchar, tochar
