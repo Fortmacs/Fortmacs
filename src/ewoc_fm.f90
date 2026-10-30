@@ -62,7 +62,7 @@ module ewoc_fm
 
     abstract interface
         !> A pretty-printer: insert at point a representation of the
-        !> element DATA.
+        !> element DATA.  Not a port.
         recursive subroutine ewoc_pp_proc(data)
             import :: int64
             implicit none(type, external)
@@ -71,7 +71,7 @@ module ewoc_fm
 
         !> A function of an element DATA, for `ewoc_map' (refresh when
         !> true), `ewoc_filter' (keep when true) and `ewoc_collect'
-        !> (select when true).
+        !> (select when true).  Not a port.
         recursive logical function ewoc_predicate_proc(data)
             import :: int64
             implicit none(type, external)
@@ -113,7 +113,7 @@ contains
     ! The table and the nodes
     ! ------------------------------------------------------------------
 
-    ! The index of EWOC in `ewocs' (0 for a stale handle).
+    ! The index of EWOC in `ewocs' (0 for a stale handle).  Not a port.
     integer function slot(ewoc) result(i)
         type(ewoc_type), intent(in) :: ewoc
         integer(int64) :: k
@@ -125,7 +125,7 @@ contains
     end function slot
 
     ! A new node of E for DATA (and a header or footer string HF),
-    ! starting at POS.
+    ! starting at POS.  Not a port.
     integer function new_node(e, data, pos, hf) result(node)
         type(ewoc_data_type), intent(inout) :: e
         integer(int64), intent(in) :: data, pos
@@ -164,6 +164,7 @@ contains
         end if
     end function new_node
 
+    ! The position of NODE's start marker.  Not a port.
     integer(int64) function mpos(e, node)
         type(ewoc_data_type), intent(in) :: e
         integer, intent(in) :: node
@@ -172,7 +173,8 @@ contains
         call marker_position(e%nodes(node)%start_marker, mpos, st)
     end function mpos
 
-    ! Return the node after NODE, or nil if NODE is the last node.
+    ! Return the node after NODE, or nil if NODE is the last node.  Port of
+    ! ewoc.el:ewoc--node-next.
     integer function node_next(e, node) result(r)
         type(ewoc_data_type), intent(in) :: e
         integer, intent(in) :: node
@@ -182,6 +184,7 @@ contains
     end function node_next
 
     ! Return the node before NODE, or nil if NODE is the first node.
+    ! Port of ewoc.el:ewoc--node-prev.
     integer function node_prev(e, node) result(l)
         type(ewoc_data_type), intent(in) :: e
         integer, intent(in) :: node
@@ -192,7 +195,7 @@ contains
 
     ! Return the Nth node from the doubly linked list.
     ! N counts from zero.  If N is negative, return the -(N+1)th last element.
-    ! If N is out of range, return nil.
+    ! If N is out of range, return nil.  Port of ewoc.el:ewoc--node-nth.
     integer function node_nth(e, n_in) result(node)
         type(ewoc_data_type), intent(in) :: e
         integer, intent(in) :: n_in
@@ -224,6 +227,7 @@ contains
 
     ! Evaluate NODE once and return it.
     ! BUT if it is the header or the footer in E return nil instead.
+    ! Port of ewoc.el:ewoc--filter-hf-nodes.
     integer function filter_hf_nodes(e, node) result(r)
         type(ewoc_data_type), intent(in) :: e
         integer, intent(in) :: node
@@ -238,7 +242,7 @@ contains
     ! neighbor.  This operation is functionally equivalent to temporarily
     ! setting these nodes' markers' insertion type to t around the pretty-print
     ! call that precedes the call to `ewoc--adjust', and then changing them back
-    ! to nil.
+    ! to nil.  Port of ewoc.el:ewoc--adjust.
     subroutine adjust(e, beg, end, node_in)
         type(ewoc_data_type), intent(inout) :: e
         integer(int64), intent(in) :: beg, end
@@ -261,7 +265,7 @@ contains
     end subroutine adjust
 
     ! Print the data of NODE at point: the header or footer string, or the
-    ! pretty-printer's output, then a newline unless NOSEP.
+    ! pretty-printer's output, then a newline unless NOSEP.  Not a port.
     recursive subroutine print_node(e, node)
         type(ewoc_data_type), intent(in) :: e
         integer, intent(in) :: node
@@ -290,6 +294,7 @@ contains
     ! Insert before NODE a new node for DATA (or the header or footer HF).
     ! Call the pretty-printer with point at NODE's start, thus pushing back
     ! NODE and leaving the new node's start there.  Return the new node.
+    ! Port of ewoc.el:ewoc--insert-new-node.
     recursive integer function insert_new_node(i, node, data, hf) result(elemnode)
         integer, intent(in) :: i, node
         integer(int64), intent(in) :: data
@@ -313,6 +318,7 @@ contains
     end function insert_new_node
 
     ! Redisplay the element represented by NODE using the pretty-printer.
+    ! Port of ewoc.el:ewoc--refresh-node.
     recursive subroutine refresh_node(i, node)
         integer, intent(in) :: i, node
         integer(int64) :: m, end, opoint, offset, pos
@@ -361,7 +367,7 @@ contains
     end subroutine refresh_node
 
     ! with-current-buffer of an ewoc's buffer: make it current, keeping
-    ! the old one in OLD.
+    ! the old one in OLD.  Not a port.
     subroutine enter_buffer(i, old)
         integer, intent(in) :: i
         type(handle_type), intent(out) :: old
@@ -371,6 +377,7 @@ contains
         call set_buffer(ewocs(i)%buffer, st)
     end subroutine enter_buffer
 
+    ! Make OLD current again if it is live.  Not a port.
     subroutine leave_buffer(old)
         type(handle_type), intent(in) :: old
         type(status_type) :: st
@@ -458,7 +465,7 @@ contains
     end function ewoc_create
 
     !> Free EWOC and its markers (not a port: upstream relies on GC).  The
-    !> text stays in the buffer.
+    !> text stays in the buffer.  Not a port.
     subroutine ewoc_free(ewoc)
         type(ewoc_type), intent(in) :: ewoc
         type(status_type) :: st
@@ -689,8 +696,8 @@ contains
     !> Note that the buffer for EWOC will be the current buffer when PREDICATE
     !> is called.  PREDICATE must restore the current buffer before it returns
     !> if it changes it.
-    !> The PREDICATE is called with the element as its first argument.  Port
-    !> of ewoc.el:ewoc-filter.
+    !> The PREDICATE is called with the element as its first argument.  Port of
+    !> ewoc.el:ewoc-filter.
     recursive subroutine ewoc_filter(ewoc, predicate)
         type(ewoc_type), intent(in) :: ewoc
         procedure(ewoc_predicate_proc) :: predicate
@@ -1002,8 +1009,8 @@ contains
     end subroutine ewoc_collect
 
     !> Return the buffer that is associated with EWOC.
-    !> Return nil (the null handle) if the buffer has been deleted.  Port
-    !> of ewoc.el:ewoc-buffer.
+    !> Return nil (the null handle) if the buffer has been deleted.  Port of
+    !> ewoc.el:ewoc-buffer.
     function ewoc_buffer(ewoc) result(buf)
         type(ewoc_type), intent(in) :: ewoc
         type(handle_type) :: buf

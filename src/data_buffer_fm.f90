@@ -132,7 +132,7 @@ contains
     ! Forwarding
     ! ------------------------------------------------------------------
 
-    !> The forwarding table index of symbol ID, or -1.
+    !> The forwarding table index of symbol ID, or -1.  Not a port.
     integer function resolve(id) result(k)
         integer(int64), intent(in) :: id
         integer :: i
@@ -156,7 +156,7 @@ contains
     end function resolve
 
     !> Forward symbol ID to the setting forwarded with `forward_setting'
-    !> under its name, if any.
+    !> under its name, if any.  Not a port.
     subroutine resolve_forwarded(id)
         integer(int64), intent(in) :: id
         integer :: i
@@ -175,7 +175,7 @@ contains
     !> Forward symbol ID to the state of the minor mode of that name, if
     !> the mode keeps its own state: its variable is buffer-local when
     !> set unless the mode is global.  Forwarded minor modes come after
-    !> the table (NFWD + the mode's index).
+    !> the table (NFWD + the mode's index).  Not a port.
     subroutine resolve_minor_mode(id)
         integer(int64), intent(in) :: id
         type(minor_mode_type), pointer :: m
@@ -191,7 +191,7 @@ contains
         if (.not. m%global) symbols(id)%local_if_set = .true.
     end subroutine resolve_minor_mode
 
-    !> The kind of symbol ID: 0 for a plain variable.
+    !> The kind of symbol ID: 0 for a plain variable.  Not a port.
     integer function kind_of(id) result(kind)
         integer(int64), intent(in) :: id
         integer :: k
@@ -218,7 +218,7 @@ contains
     end function kind_of
 
     !> The value of an auto-fill-function as a value: its name (nil for
-    !> none; t for a procedure without a name).
+    !> none; t for a procedure without a name).  Not a port.
     function auto_fill_value(p) result(v)
         procedure(command_proc), pointer, intent(in) :: p
         type(value_type) :: v
@@ -239,7 +239,7 @@ contains
     end function auto_fill_value
 
     !> The value of an indent-line-function: its name (t for a procedure
-    !> without a name).
+    !> without a name).  Not a port.
     function indent_line_value(p) result(v)
         procedure(indent_line_proc), pointer, intent(in) :: p
         type(value_type) :: v
@@ -255,13 +255,14 @@ contains
     end function indent_line_value
 
     !> auto-fill-function set to a function that has no Fortran
-    !> procedure of this kind: call it by name.
+    !> procedure of this kind: call it by name.  Not a port.
     subroutine auto_fill_by_name(status)
         type(status_type), intent(out) :: status
 
         call funcall(auto_fill_function%exact, status)
     end subroutine auto_fill_by_name
 
+    ! Not a port.
     function bool_value(b) result(v)
         logical, intent(in) :: b
         type(value_type) :: v
@@ -274,7 +275,7 @@ contains
     end function bool_value
 
     !> The value of setting S given its Fortran value as FORTRAN: the exact
-    !> value if one is kept, unbound if void.
+    !> value if one is kept, unbound if void.  Not a port.
     subroutine setting_value(s, fortran, v, bound)
         class(setting_type), intent(in) :: s
         type(value_type), intent(in) :: fortran
@@ -291,6 +292,7 @@ contains
     end subroutine setting_value
 
     !> Keep V as the exact value of S (its Fortran value can't hold it).
+    !> Not a port.
     subroutine keep_exact(s, v)
         class(setting_type), intent(inout) :: s
         type(value_type), intent(in) :: v
@@ -302,7 +304,7 @@ contains
 
     !> Set integer setting S to V.  With INTEGERP (a DEFVAR_PER_BUFFER with
     !> predicate `integerp'), a non-nil V must be an integer; otherwise any
-    !> value is kept.
+    !> value is kept.  Not a port.
     subroutine set_integer(s, v, integerp, status)
         type(integer_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
@@ -321,7 +323,7 @@ contains
     end subroutine set_integer
 
     !> Set logical setting S to V (any value; the Fortran value is whether
-    !> it is non-nil).
+    !> it is non-nil).  Not a port.
     subroutine set_logical(s, v)
         type(logical_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
@@ -331,7 +333,7 @@ contains
     end subroutine set_logical
 
     !> Set string setting S to V (any value; the Fortran value is nil
-    !> unless it is a string).
+    !> unless it is a string).  Not a port.
     subroutine set_string(s, v)
         type(string_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
@@ -346,7 +348,7 @@ contains
 
     !> The value of forwarded variable K in buffer B (B matters only for
     !> slot variables; the others read the current value); BOUND is false
-    !> when it is void.
+    !> when it is void.  Not a port.
     subroutine fwd_get(k, b, v, bound)
         integer, intent(in) :: k
         integer(int64), intent(in) :: b
@@ -420,16 +422,16 @@ contains
         case ("electric_indent_inhibit")
             call setting_value(electric_indent_inhibit, bool_value(electric_indent_inhibit%value), v, bound)
         case ("major_mode")
-            if (b > 0 .and. allocated(buffers(b)%major_mode)) then
-                v = sym(buffers(b)%major_mode)
-            else
-                v = sym("fundamental_mode")
+            v = sym("fundamental_mode")
+
+            if (b > 0) then
+                if (allocated(buffers(b)%major_mode)) v = sym(buffers(b)%major_mode)
             end if
         case ("mode_name")
-            if (b > 0 .and. allocated(buffers(b)%mode_name)) then
-                v = make_string(buffers(b)%mode_name)
-            else
-                v = make_string("Fundamental")
+            v = make_string("Fundamental")
+
+            if (b > 0) then
+                if (allocated(buffers(b)%mode_name)) v = make_string(buffers(b)%mode_name)
             end if
         case ("buffer_read_only")
             v = nil()
@@ -458,7 +460,7 @@ contains
         end select
     end subroutine fwd_get
 
-    !> A string or nil.
+    !> A string or nil.  Not a port.
     function string_or_nil(s) result(v)
         character(len=:), allocatable, intent(in) :: s
         type(value_type) :: v
@@ -579,7 +581,7 @@ contains
     end subroutine fwd_set
 
     !> auto-fill-function := V: the procedure of the function V names, or
-    !> a call by name.
+    !> a call by name.  Not a port.
     subroutine set_auto_fill(s, v)
         type(function_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
@@ -603,7 +605,7 @@ contains
         end if
     end subroutine set_auto_fill
 
-    !> indent-line-function := V.
+    !> indent-line-function := V.  Not a port.
     subroutine set_indent_line(s, v)
         type(indent_line_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
@@ -623,7 +625,7 @@ contains
     end subroutine set_indent_line
 
     !> The value of a require-final-newline setting N: nil, t, `visit',
-    !> `visit_save' or (for any other non-nil value) `ask'.
+    !> `visit_save' or (for any other non-nil value) `ask'.  Not a port.
     function final_newline_value(n) result(v)
         integer(int64), intent(in) :: n
         type(value_type) :: v
@@ -642,7 +644,7 @@ contains
         end select
     end function final_newline_value
 
-    !> Set require-final-newline setting S to V.
+    !> Set require-final-newline setting S to V.  Not a port.
     subroutine set_final_newline(s, v)
         type(integer_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
@@ -661,7 +663,7 @@ contains
         end if
     end subroutine set_final_newline
 
-    !> Forget S's exact value and voidness.
+    !> Forget S's exact value and voidness.  Not a port.
     subroutine settle(s)
         class(setting_type), intent(inout) :: s
 
@@ -672,6 +674,7 @@ contains
 
     !> makunbound on forwarded variable K: Fset with Qunbound, which
     !> store_symval_forwarding checks against the variable's kind.
+    !> Not a port.
     subroutine fwd_makunbound(k, status)
         integer, intent(in) :: k
         type(status_type), intent(out) :: status
@@ -797,7 +800,7 @@ contains
     ! Current values and the swap
     ! ------------------------------------------------------------------
 
-    !> The current value of symbol ID.
+    !> The current value of symbol ID.  Not a port.
     subroutine get_current(id, v, bound)
         integer(int64), intent(in) :: id
         type(value_type), intent(out) :: v
@@ -815,6 +818,7 @@ contains
     end subroutine get_current
 
     !> Set the current value of symbol ID (not procedure variables).
+    !> Not a port.
     subroutine put_current(id, v, bound)
         integer(int64), intent(in) :: id
         type(value_type), intent(in) :: v
@@ -838,6 +842,7 @@ contains
     end subroutine put_current
 
     !> The index of symbol ID in buffer B's local variables, or 0.
+    !> Not a port.
     integer function local_index(b, id) result(k)
         integer(int64), intent(in) :: b, id
         integer :: i
@@ -854,6 +859,7 @@ contains
         end do
     end function local_index
 
+    ! Not a port.
     subroutine ensure_saved_procs(b)
         integer(int64), intent(in) :: b
         type(procs_type), allocatable :: tmp(:)
@@ -873,6 +879,7 @@ contains
     end subroutine ensure_saved_procs
 
     !> The index in `fn_store' of (B, K), made if MAKE; 0 if none.
+    !> Not a port.
     integer function fn_index(b, k, make) result(i)
         integer(int64), intent(in) :: b
         integer, intent(in) :: k
@@ -905,7 +912,7 @@ contains
     end function fn_index
 
     !> Save the current value of the forwarded function setting of symbol
-    !> ID as (B, its index).
+    !> ID as (B, its index).  Not a port.
     subroutine fn_save(id, b)
         integer(int64), intent(in) :: id, b
         integer :: k, i
@@ -920,6 +927,7 @@ contains
     end subroutine fn_save
 
     !> Make the value saved as (B, the index of symbol ID) current, if any.
+    !> Not a port.
     subroutine fn_restore(id, b)
         integer(int64), intent(in) :: id, b
         integer :: k, i
@@ -934,7 +942,7 @@ contains
         end select
     end subroutine fn_restore
 
-    !> The value saved as (B, the index of symbol ID).
+    !> The value saved as (B, the index of symbol ID).  Not a port.
     subroutine fn_saved_value(id, b, v, bound)
         integer(int64), intent(in) :: id, b
         type(value_type), intent(out) :: v
@@ -1000,7 +1008,7 @@ contains
     end subroutine swap_locals
 
     !> Restore the default value of symbol ID, local in the current
-    !> buffer at index I, and forget the local value.
+    !> buffer at index I, and forget the local value.  Not a port.
     subroutine drop_local(i)
         integer, intent(in) :: i
         integer(int64) :: id
@@ -1026,7 +1034,7 @@ contains
         buffers(cur)%nlocal = n - 1
     end subroutine drop_local
 
-    !> Check that VARIABLE is a symbol that can be made local.
+    !> Check that VARIABLE is a symbol that can be made local.  Not a port.
     subroutine check_localizable(variable, id, status)
         type(value_type), intent(in) :: variable
         integer(int64), intent(out) :: id
@@ -1196,7 +1204,7 @@ contains
     if (.not. local_variable_if_set_p .and. symbolp(variable)) local_variable_if_set_p = auto_local(xsymbol(variable))
     end procedure local_variable_if_set_p
 
-    !> The default value of symbol ID.
+    !> The default value of symbol ID.  Not a port.
     subroutine get_default(id, v, bound)
         integer(int64), intent(in) :: id
         type(value_type), intent(out) :: v

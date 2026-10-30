@@ -1,4 +1,5 @@
 ! test_error_fm.f90 -- tests for error_fm.
+! Own tests; upstream has no tests for the condition table.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -31,6 +32,7 @@ module test_error_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_error_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

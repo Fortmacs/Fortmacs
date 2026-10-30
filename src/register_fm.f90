@@ -153,13 +153,12 @@ module register_fm
     !> See the documentation of the variable `register_alist' for possible
     !> VALUEs.  Port of register.el:set-register.
     interface set_register
-        module procedure set_register_text
-        module procedure set_register_number
-        module procedure set_register_rectangle
+        module procedure set_register_text, set_register_number, set_register_rectangle
     end interface set_register
 
     abstract interface
         !> A test of register contents (the PRED of the preview).
+        !> Not a port.
         logical function register_value_predicate(value)
             import :: register_value_type
             implicit none(type, external)
@@ -182,6 +181,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The index of register REGISTER in `register_alist', 0 if none.
+    !> Not a port.
     integer function register_index(register) result(k)
         integer(int64), intent(in) :: register
 
@@ -206,7 +206,7 @@ contains
         if (k > 0) value = register_alist(k)%value
     end subroutine get_register
 
-    !> The kind of the contents of REGISTER.
+    !> The kind of the contents of REGISTER.  Not a port.
     integer function register_kind(register) result(kind)
         integer(int64), intent(in) :: register
         integer :: k
@@ -217,6 +217,7 @@ contains
     end function register_kind
 
     !> Free what VALUE owns: its marker and its window configuration.
+    !> Not a port.
     subroutine free_register_value(value)
         type(register_value_type), intent(inout) :: value
         type(status_type) :: st
@@ -236,7 +237,7 @@ contains
 
     !> Set REGISTER to VALUE, which then belongs to the register (the
     !> (setf (alist-get register register-alist) value) of set-register: a
-    !> new register goes first).
+    !> new register goes first).  Port of part of register.el:set-register.
     subroutine store_register(register, value)
         integer(int64), intent(in) :: register
         type(register_value_type), intent(in) :: value
@@ -260,7 +261,7 @@ contains
         call move_alloc(grown, register_alist)
     end subroutine store_register
 
-    !> `set_register' with text.
+    !> `set_register' with text.  Port of register.el:set-register (text).
     subroutine set_register_text(register, value)
         integer(int64), intent(in) :: register
         character(len=*), intent(in) :: value
@@ -272,6 +273,7 @@ contains
     end subroutine set_register_text
 
     !> `set_register' with a number.
+    !> Port of register.el:set-register (a number).
     subroutine set_register_number(register, value)
         integer(int64), intent(in) :: register
         integer(int64), intent(in) :: value
@@ -283,7 +285,7 @@ contains
     end subroutine set_register_number
 
     !> `set_register' with a rectangle (an empty one empties the register,
-    !> as nil).
+    !> as nil).  Port of register.el:set-register (a rectangle).
     subroutine set_register_rectangle(register, value)
         integer(int64), intent(in) :: register
         type(rectangle_line_type), intent(in) :: value(:)
@@ -301,7 +303,7 @@ contains
     ! Descriptions and the preview
     ! ------------------------------------------------------------------
 
-    !> The decimal digits of N.
+    !> The decimal digits of N.  Not a port.
     pure function int_text(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
@@ -312,6 +314,7 @@ contains
     end function int_text
 
     !> The description of register name REGISTER (single-key-description).
+    !> Not a port.
     function register_name_text(register) result(s)
         integer(int64), intent(in) :: register
         character(len=:), allocatable :: s
@@ -322,6 +325,7 @@ contains
     !> The buffer names of the windows of window configuration CONFIG, in
     !> the cyclic order from its selected window (the window list of
     !> a frame with that configuration, made in a save-window-excursion).
+    !> Not a port.
     function configuration_buffers(config) result(s)
         type(window_configuration_type), intent(in) :: config
         character(len=:), allocatable :: s
@@ -353,6 +357,7 @@ contains
     end function configuration_buffers
 
     !> "#<buffer NAME>" or "#<killed buffer>" (prin1 of a buffer).
+    !> Not a port.
     function buffer_repr(b) result(s)
         type(handle_type), intent(in) :: b
         character(len=:), allocatable :: s
@@ -364,7 +369,7 @@ contains
         end if
     end function buffer_repr
 
-    !> The width of the selected window (window-width).
+    !> The width of the selected window (window-width).  Not a port.
     integer function selected_window_width() result(width)
         type(window_type), pointer :: w
 
@@ -536,7 +541,7 @@ contains
     end function register_preview_default
 
     !> The window-height function of the preview's display action
-    !> (fit-window-to-buffer).
+    !> (fit-window-to-buffer).  Not a port.
     subroutine fit_preview_window(window)
         type(handle_type), intent(in) :: window
 
@@ -619,6 +624,7 @@ contains
     end subroutine register_preview
 
     !> Delete the window showing the preview and kill its buffer.
+    !> Not a port.
     subroutine remove_preview()
         type(handle_type) :: buf, w
         type(status_type) :: st
@@ -689,7 +695,7 @@ contains
         call remove_preview()
     end subroutine register_read_with_preview
 
-    !> Whether KEY is C-g, `escape' or C-[.
+    !> Whether KEY is C-g, `escape' or C-[.  Not a port.
     logical function quit_event_p(key)
         type(value_type), intent(in) :: key
 
@@ -831,7 +837,7 @@ contains
     end subroutine jump_to_register
 
     !> The buffer visiting FILE, or the null handle (find-buffer-visiting
-    !> without truenames).
+    !> without truenames).  Port of files.el:find-buffer-visiting (in part).
     function find_buffer_visiting(file) result(h)
         character(len=*), intent(in) :: file
         type(handle_type) :: h
@@ -909,7 +915,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The integer at the start of TEXT, after spaces and tabs
-    !> (string-to-number in base 10, integers only).
+    !> (string-to-number in base 10, integers only).  Not a port.
     pure integer(int64) function string_to_number(text) result(n)
         character(len=*), intent(in) :: text
         integer :: i
@@ -1176,7 +1182,7 @@ contains
     end subroutine copy_to_register
 
     !> The text of `register_separator' for `append_to_register' and
-    !> `prepend_to_register': the concat of its contents.
+    !> `prepend_to_register': the concat of its contents.  Not a port.
     subroutine separator_text(text, status)
         character(len=:), allocatable, intent(out) :: text
         type(status_type), intent(out) :: status
@@ -1210,6 +1216,8 @@ contains
     end subroutine separator_text
 
     !> Append or prepend (BEFORE) START..END to REGISTER.
+    !> Port of register.el:append-to-register and
+    !> register.el:prepend-to-register (their shared body).
     recursive subroutine collect_to_register(register, start, end, delete_flag, before, status)
         integer(int64), intent(in) :: register, start, end
         logical, intent(in) :: delete_flag, before
@@ -1318,6 +1326,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Whether the prefix argument is given (a "P" argument that is not nil).
+    !> Not a port.
     logical function prefix_given()
         prefix_given = .not. nilp(current_prefix_arg)
     end function prefix_given
@@ -1400,7 +1409,7 @@ contains
     end subroutine cmd_buffer_to_register
 
     !> Augment register predicate of `increment_register': a number, empty
-    !> or text.
+    !> or text.  Not a port.
     logical function number_or_text_p(regval)
         type(register_value_type), intent(in) :: regval
 
@@ -1409,14 +1418,14 @@ contains
     end function number_or_text_p
 
     !> The register predicate of `append_to_register' and
-    !> `prepend_to_register': empty or text.
+    !> `prepend_to_register': empty or text.  Not a port.
     logical function empty_or_text_p(regval)
         type(register_value_type), intent(in) :: regval
 
         empty_or_text_p = regval%kind == REGISTER_EMPTY .or. regval%kind == REGISTER_TEXT
     end function empty_or_text_p
 
-    !> The register predicate of `view_register': not empty.
+    !> The register predicate of `view_register': not empty.  Not a port.
     logical function nonempty_p(regval)
         type(register_value_type), intent(in) :: regval
 
@@ -1484,6 +1493,7 @@ contains
     end subroutine cmd_insert_register
 
     !> Read the register and the region for the region commands.
+    !> Not a port.
     recursive subroutine read_register_and_region(prompt, register, start, end, status, pred)
         character(len=*), intent(in) :: prompt
         integer(int64), intent(out) :: register, start, end
@@ -1557,7 +1567,7 @@ contains
         end if
     end subroutine cmd_copy_rectangle_to_register
 
-    !> The number of characters of the UTF-8 text S.
+    !> The number of characters of the UTF-8 text S.  Not a port.
     pure integer(int64) function len_chars(s) result(n)
         character(len=*), intent(in) :: s
         integer(int64) :: k
@@ -1569,7 +1579,7 @@ contains
         end do
     end function len_chars
 
-    !> Register the commands.
+    !> Register the commands.  Not a port.
     subroutine syms_of_register()
         commands%point_to_register%run => cmd_point_to_register
         commands%window_configuration_to_register%run => cmd_window_configuration_to_register

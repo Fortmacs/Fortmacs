@@ -1,6 +1,8 @@
 ! test_config_fm.f90 -- tests for config_fm: where the configuration
 ! lives and the parts of --recompile that need no installation (the
 ! build itself is tested by tools/test-recompile.sh).
+! Own tests; upstream has no tests for a configuration built into the
+! binary.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -42,6 +44,7 @@ module test_config_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_config_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

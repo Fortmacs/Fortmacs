@@ -170,7 +170,7 @@ module search_fm
             character(len=:), allocatable, intent(out), optional :: result
         end subroutine replace_match
 
-        !> Register the search commands.  (In search_regexp_fm.)
+        !> Register the search commands.  (In search_regexp_fm.) Not a port.
         module subroutine syms_of_search()
             implicit none(type, external)
         end subroutine syms_of_search
@@ -179,7 +179,7 @@ module search_fm
 contains
 
     !> Byte position of the first newline in [from_byte, to_byte) of the
-    !> current buffer, or 0.
+    !> current buffer, or 0.  Not a port.
     integer(int64) function next_newline_byte(from_byte, to_byte) result(found)
         integer(int64), intent(in) :: from_byte, to_byte
         integer(int64) :: a, b, k
@@ -212,6 +212,7 @@ contains
     end function next_newline_byte
 
     !> Byte position of the last newline in [from_byte, to_byte), or 0.
+    !> Not a port.
     integer(int64) function prev_newline_byte(from_byte, to_byte) result(found)
         integer(int64), intent(in) :: from_byte, to_byte
         integer(int64) :: a, b, k
@@ -388,6 +389,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The 1-based character index in STR of the byte offset `off'.
+    !> Not a port.
     pure integer(int64) function string_offset_to_index(str, off) result(idx)
         character(len=*), intent(in) :: str
         integer(int64), intent(in) :: off
@@ -402,6 +404,7 @@ contains
     end function string_offset_to_index
 
     !> The byte offset in STR of the 1-based character index `idx'.
+    !> Not a port.
     pure integer(int64) function string_index_to_offset(str, idx) result(off)
         character(len=*), intent(in) :: str
         integer(int64), intent(in) :: idx
@@ -418,7 +421,7 @@ contains
         end do
     end function string_index_to_offset
 
-    !> Number of characters in STR.
+    !> Number of characters in STR.  Not a port.
     pure integer(int64) function string_chars(str) result(n)
         character(len=*), intent(in) :: str
         integer(int64) :: off
@@ -434,7 +437,7 @@ contains
         end do
     end function string_chars
 
-    !> Make the match data `n' empty registers.
+    !> Make the match data `n' empty registers.  Not a port.
     subroutine clear_search_regs(n)
         integer, intent(in) :: n
 
@@ -499,7 +502,7 @@ contains
         matched = looking_at_1(regexp, .true.,.not. opt(inhibit_modify), status)
     end function posix_looking_at
 
-    !> The value of an optional logical, false if absent.
+    !> The value of an optional logical, false if absent.  Not a port.
     pure logical function opt(flag)
         logical, intent(in), optional :: flag
 
@@ -555,6 +558,7 @@ contains
     end function posix_string_match
 
     !> Signal that the matcher's stack overflowed (matcher_overflow).
+    !> Port of search.c:matcher_overflow.
     subroutine matcher_overflow(status)
         type(status_type), intent(inout) :: status
 
@@ -1152,11 +1156,12 @@ contains
     end subroutine match_data_translate
 
     !> The buffer the match data refer to (last_thing_searched).
+    !> Not a port.
     type(handle_type) function match_buffer()
         match_buffer = last_thing_searched
     end function match_buffer
 
-    !> Whether the last search was on a string.
+    !> Whether the last search was on a string.  Not a port.
     logical function match_in_string_p()
         match_in_string_p = last_search_in_string
     end function match_in_string_p

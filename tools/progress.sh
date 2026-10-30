@@ -144,7 +144,8 @@ p_done=$((gnu_done + nongnu_done + melpa_done))
 # from HTML in Markdown): the whole pie is everything to port, each colored
 # slice the ported part of one kind, to scale (a share too small to see
 # still shows a sliver), and the black slice what is still to port.
-# A legend on the right gives each kind's share and count.  The colors are
+# A legend on the right gives each kind's name, share and count and,
+# below a rule, the share and count of everything ported.  The colors are
 # the logo's: purple and blue first, then red, tan and gray.  The labels
 # are TEXT and the lines between slices EDGE: gray and cream for GitHub's
 # light theme, cream and cream for its dark one (outlining the pie).
@@ -161,7 +162,7 @@ pie_svg() {
             r = int(p * 100 + 0.5) / 100
             if (d > 0 && r == 0) r = 0.01
             if (d < t && r == 100) r = 99.99
-            return sprintf("%s%.2f%%", (r == p) ? "" : "≅", r)
+            return sprintf("%s%.2f%%", (r == p) ? "" : "≈", r)
         }
         # A wedge from A to B (fractions of a turn, clockwise from 12 o clock).
         function wedge(a, b, fill,   pi, x1, y1, x2, y2) {
@@ -174,7 +175,7 @@ pie_svg() {
         { n++; label[n] = $1; color[n] = $2; d[n] = $3; t[n] = $4; done += $3; total += $4 }
         END {
             rest = "#1A1A1A"
-            printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"520\" height=\"180\" viewBox=\"0 0 520 180\" font-family=\"-apple-system, Segoe UI, Helvetica, Arial, sans-serif\" font-size=\"13\">\n"
+            printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"520\" height=\"206\" viewBox=\"0 0 520 206\" font-family=\"-apple-system, Segoe UI, Helvetica, Arial, sans-serif\" font-size=\"13\">\n"
             at = 0
             for (i = 1; i <= n; i++) {
                 if (d[i] == 0) continue
@@ -187,17 +188,24 @@ pie_svg() {
             label[n + 1] = "Not yet ported"; color[n + 1] = rest; d[n + 1] = total - done; t[n + 1] = total
             for (i = 1; i <= n + 1; i++) {
                 y = 26 + (i - 1) * 26
-                printf "<text x=\"262\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s</text>\n", y, text, share(d[i], t[i])
-                printf "<rect x=\"272\" y=\"%d\" width=\"14\" height=\"14\" rx=\"2\" fill=\"%s\" stroke=\"%s\" stroke-width=\"1\"/>\n", y - 11, color[i], edge
-                printf "<text x=\"294\" y=\"%d\" fill=\"%s\">%s</text>\n", y, text, label[i]
+                printf "<text x=\"292\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s</text>\n", y, text, label[i]
+                printf "<rect x=\"302\" y=\"%d\" width=\"14\" height=\"14\" rx=\"2\" fill=\"%s\" stroke=\"%s\" stroke-width=\"1\"/>\n", y - 11, color[i], edge
+                printf "<text x=\"324\" y=\"%d\" fill=\"%s\">%s</text>\n", y, text, share(d[i], t[i])
                 printf "<text x=\"516\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s of %s</text>\n", y, text, commas(d[i]), commas(t[i])
             }
+            # The rule and the total.
+            y = 26 + n * 26 + 14
+            printf "<line x1=\"200\" y1=\"%d\" x2=\"516\" y2=\"%d\" stroke=\"%s\" stroke-width=\"1\"/>\n", y, y, text
+            y += 22
+            printf "<text x=\"292\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">Complete</text>\n", y, text
+            printf "<text x=\"324\" y=\"%d\" fill=\"%s\">%s</text>\n", y, text, share(done, total)
+            printf "<text x=\"516\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s of %s</text>\n", y, text, commas(done), commas(total)
             printf "</svg>\n"
         }' > "$root/docs/progress/$1.svg"
 }
 
 # "DONE<br>of TOTAL" with thousands separators, and the share rounded to
-# a hundredth of a percent ("≅" unless exact; never 0 or 100 unless it
+# a hundredth of a percent ("≈" unless exact; never 0 or 100 unless it
 # is).
 # Arguments: DONE TOTAL WHAT (count or share).
 figure() {
@@ -213,7 +221,7 @@ figure() {
             r = int(p * 100 + 0.5) / 100
             if (d > 0 && r == 0) r = 0.01
             if (d < t && r == 100) r = 99.99
-            printf "%s%.2f%%", (r == p) ? "" : "≅", r
+            printf "%s%.2f%%", (r == p) ? "" : "≈", r
         }'
 }
 
@@ -232,7 +240,7 @@ MELPA|#D6D6D3|$melpa_done|$melpa_total"
     echo
     echo "<picture>"
     echo "<source media=\"(prefers-color-scheme: dark)\" srcset=\"docs/progress/pie-dark.svg\">"
-    echo "<img src=\"docs/progress/pie.svg\" width=\"520\" height=\"180\" alt=\"Ported: $(figure "$((done + p_done))" "$((total + p_total))" share) of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA\">"
+    echo "<img src=\"docs/progress/pie.svg\" width=\"520\" height=\"206\" alt=\"Ported: $(figure "$((done + p_done))" "$((total + p_total))" share) of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA\">"
     echo "</picture>"
 }
 

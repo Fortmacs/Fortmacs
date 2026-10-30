@@ -99,18 +99,19 @@ module jit_lock_fm
 
 contains
 
-    !> Set up Just-in-time Lock (as loading jit-lock.el does).
+    !> Set up Just-in-time Lock (as loading jit-lock.el does).  Not a port.
     subroutine syms_of_jit_lock()
         call add_local_variables_killer(kill_jit_lock_locals)
     end subroutine syms_of_jit_lock
 
     !> kill-all-local-variables: `jit_lock_mode' is buffer-local.
+    !> Not a port.
     subroutine kill_jit_lock_locals()
         call set_jit_lock_mode(.false.)
     end subroutine kill_jit_lock_locals
 
     !> Whether Just-in-time Lock mode is on in the current buffer (the
-    !> variable `jit_lock_mode').
+    !> variable `jit_lock_mode').  Not a port.
     logical function jit_lock_mode_p()
         jit_lock_mode_p = .false.
         if (cur == 0) return
@@ -119,6 +120,7 @@ contains
     end function jit_lock_mode_p
 
     !> Record whether Just-in-time Lock mode is on in the current buffer.
+    !> Not a port.
     subroutine set_jit_lock_mode(arg)
         logical, intent(in) :: arg
         integer(int64), allocatable :: kept(:)

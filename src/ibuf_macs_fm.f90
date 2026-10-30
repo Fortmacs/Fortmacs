@@ -90,13 +90,14 @@ module ibuf_macs_fm
 
     abstract interface
         !> A size limit of a column computed when the list is drawn (a
-        !> function of no arguments returning an integer).
+        !> function of no arguments returning an integer).  Not a port.
         integer function ibuffer_size_proc()
             implicit none(type, external)
         end function ibuffer_size_proc
 
         !> A column's BODY: the text of the column for BUFFER, whose mark is
         !> MARK, made with BUFFER current (`define-ibuffer-column').
+        !> Not a port.
         recursive function ibuffer_column_proc(buffer, mark) result(cell)
             import :: handle_type, ibuffer_cell_type
             implicit none(type, external)
@@ -105,17 +106,19 @@ module ibuf_macs_fm
             type(ibuffer_cell_type) :: cell
         end function ibuffer_column_proc
 
-        !> A column's SUMMARIZER: the text to display at the bottom of the
-        !> column, from the column's CELLS.
-        function ibuffer_summarizer_proc(cells) result(text)
+        !> A column's SUMMARIZER: the TEXT to display at the bottom of the
+        !> column, from the column's CELLS (a subroutine: gfortran frees a
+        !> pointer component to a function with a deferred-length result).
+        !> Not a port.
+        subroutine ibuffer_summarizer_proc(cells, text)
             import :: ibuffer_cell_type
             implicit none(type, external)
             type(ibuffer_cell_type), intent(in) :: cells(:)
-            character(len=:), allocatable :: text
-        end function ibuffer_summarizer_proc
+            character(len=:), allocatable, intent(out) :: text
+        end subroutine ibuffer_summarizer_proc
 
         !> A sorting method: whether buffer A is "less than" buffer B
-        !> (`define-ibuffer-sorter').
+        !> (`define-ibuffer-sorter').  Not a port.
         recursive logical function ibuffer_sorter_proc(a, b)
             import :: handle_type
             implicit none(type, external)
@@ -124,7 +127,7 @@ module ibuf_macs_fm
 
         !> An operation's BODY for BUF, marked with MARK: RESULT is an
         !> IBUFFER_OP_* value.  Unless the operation is COMPLEX, BUF is
-        !> current and point is saved around it.
+        !> current and point is saved around it.  Not a port.
         recursive subroutine ibuffer_op_proc(buf, mark, result, status)
             import :: handle_type, status_type
             implicit none(type, external)
@@ -134,7 +137,7 @@ module ibuf_macs_fm
             type(status_type), intent(out) :: status
         end subroutine ibuffer_op_proc
 
-        !> An operation's BEFORE or AFTER form.
+        !> An operation's BEFORE or AFTER form.  Not a port.
         recursive subroutine ibuffer_op_hook_proc(status)
             import :: status_type
             implicit none(type, external)
@@ -142,7 +145,7 @@ module ibuf_macs_fm
         end subroutine ibuffer_op_hook_proc
 
         !> A predicate on BUFFER (`ibuffer_maybe_show_predicates' and the
-        !> like).
+        !> like).  Not a port.
         recursive logical function ibuffer_buffer_predicate_proc(buffer)
             import :: handle_type
             implicit none(type, external)
@@ -150,7 +153,7 @@ module ibuf_macs_fm
         end function ibuffer_buffer_predicate_proc
 
         !> The FORM of an `ibuffer_fontification_alist' entry, evaluated in
-        !> the buffer.
+        !> the buffer.  Not a port.
         recursive logical function ibuffer_form_proc()
             implicit none(type, external)
         end function ibuffer_form_proc
@@ -373,6 +376,7 @@ module ibuf_macs_fm
     abstract interface
         !> A filter's BODY: whether BUF should be displayed, given the
         !> QUALIFIER of the filter specification (`define-ibuffer-filter').
+        !> Not a port.
         recursive logical function ibuffer_filter_test_proc(buf, qualifier, status) result(included)
             import :: handle_type, status_type, ibuffer_filter_node_type
             implicit none(type, external)
@@ -419,6 +423,7 @@ contains
     !> A column entry of a format: the column NAME, limited to between
     !> MIN_SIZE and MAX_SIZE characters (0 and -1 by default), aligned by
     !> ALIGN (IBUFFER_ALIGN_LEFT by default) and elided if ELIDE.
+    !> Not a port.
     function ibuffer_column(name, min_size, max_size, align, elide, min_function, max_function) result(spec)
         character(len=*), intent(in) :: name
         integer, intent(in), optional :: min_size, max_size, align
@@ -435,7 +440,7 @@ contains
         if (present(max_function)) spec%max_function => max_function
     end function ibuffer_column
 
-    !> A literal string entry of a format: TEXT.
+    !> A literal string entry of a format: TEXT.  Not a port.
     function ibuffer_text(text) result(spec)
         character(len=*), intent(in) :: text
         type(ibuffer_column_spec_type) :: spec
@@ -444,6 +449,7 @@ contains
         spec%text_len = min(len(text), IBUFFER_TEXT_LEN)
     end function ibuffer_text
 
+    ! The %add of ibuffer_formats_type.  Not a port.
     subroutine formats_add(self, entries)
         class(ibuffer_formats_type), intent(inout) :: self
         type(ibuffer_column_spec_type), intent(in) :: entries(:)
@@ -463,6 +469,7 @@ contains
         call move_alloc(grown, self%formats)
     end subroutine formats_add
 
+    ! The %clear of ibuffer_formats_type.  Not a port.
     subroutine formats_clear(self)
         class(ibuffer_formats_type), intent(inout) :: self
 
@@ -470,6 +477,7 @@ contains
         allocate (self%formats(0))
     end subroutine formats_clear
 
+    ! The %count of ibuffer_formats_type.  Not a port.
     integer function formats_count(self) result(n)
         class(ibuffer_formats_type), intent(in) :: self
 
@@ -482,6 +490,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> A compound filter specification: the logical-and of the filters F1, F2, ... (one or more, up to 16): (and FILTER-SPECS...).
+    !> Not a port.
     function ibuffer_and(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16) result(f)
         type(ibuffer_filter_type), intent(in) :: f1
         type(ibuffer_filter_type), intent(in), optional :: f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, &
@@ -573,6 +582,7 @@ contains
     end function ibuffer_and
 
     !> A compound filter specification: the logical-or of the filters F1, F2, ... (one or more, up to 16): (or FILTER-SPECS...).
+    !> Not a port.
     function ibuffer_or(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16) result(f)
         type(ibuffer_filter_type), intent(in) :: f1
         type(ibuffer_filter_type), intent(in), optional :: f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, &
@@ -664,7 +674,7 @@ contains
     end function ibuffer_or
 
     !> A compound filter specification: the logical complement of F
-    !> (not FILTER-SPEC).
+    !> (not FILTER-SPEC).  Not a port.
     function ibuffer_not(f1) result(f)
         type(ibuffer_filter_type), intent(in) :: f1
         type(ibuffer_filter_type) :: f
@@ -676,7 +686,7 @@ contains
     end function ibuffer_not
 
     !> The filter saved under the string NAME in `ibuffer_saved_filters'
-    !> (saved . "NAME").
+    !> (saved . "NAME").  Not a port.
     function ibuffer_saved(name) result(f)
         character(len=*), intent(in) :: name
         type(ibuffer_filter_type) :: f
@@ -689,6 +699,7 @@ contains
     !> A simple filter specification (SYMBOL . QUALIFIER): the filter NAME
     !> of `ibuffer_filtering_alist' with the string QUALIFIER, the integer
     !> NUMBER or the PREDICATE (none for a filter without qualifier).
+    !> Not a port.
     function ibuffer_filter(name, qualifier, number, predicate) result(f)
         character(len=*), intent(in) :: name
         character(len=*), intent(in), optional :: qualifier
@@ -713,6 +724,7 @@ contains
         end if
     end function ibuffer_filter
 
+    ! Give NODE the string qualifier S.  Not a port.
     subroutine set_string(node, s)
         type(ibuffer_filter_node_type), intent(inout) :: node
         character(len=*), intent(in) :: s
@@ -722,7 +734,7 @@ contains
         node%qualifier_len = min(len(s), len(node%qualifier))
     end subroutine set_string
 
-    !> Buffers whose major mode is MODE (mode . MODE).
+    !> Buffers whose major mode is MODE (mode . MODE).  Not a port.
     function ibuffer_major_mode(mode) result(f)
         character(len=*), intent(in) :: mode
         type(ibuffer_filter_type) :: f
@@ -731,6 +743,7 @@ contains
     end function ibuffer_major_mode
 
     !> Buffers whose major mode, one in use, is MODE (used-mode . MODE).
+    !> Not a port.
     function ibuffer_used_mode(mode) result(f)
         character(len=*), intent(in) :: mode
         type(ibuffer_filter_type) :: f
@@ -739,6 +752,7 @@ contains
     end function ibuffer_used_mode
 
     !> Buffers whose major mode derives from MODE (derived-mode . MODE).
+    !> Not a port.
     function ibuffer_derived_mode(mode) result(f)
         character(len=*), intent(in) :: mode
         type(ibuffer_filter_type) :: f
@@ -746,7 +760,7 @@ contains
         f = ibuffer_filter("derived_mode", qualifier=mode)
     end function ibuffer_derived_mode
 
-    !> Buffers whose name matches REGEXP (name . REGEXP).
+    !> Buffers whose name matches REGEXP (name . REGEXP).  Not a port.
     function ibuffer_name(regexp) result(f)
         character(len=*), intent(in) :: regexp
         type(ibuffer_filter_type) :: f
@@ -754,7 +768,7 @@ contains
         f = ibuffer_filter("name", qualifier=regexp)
     end function ibuffer_name
 
-    !> Buffers running a process (process).
+    !> Buffers running a process (process).  Not a port.
     function ibuffer_process() result(f)
         type(ibuffer_filter_type) :: f
 
@@ -762,6 +776,7 @@ contains
     end function ibuffer_process
 
     !> Buffers whose name begins and ends with * (starred-name).
+    !> Not a port.
     function ibuffer_starred_name() result(f)
         type(ibuffer_filter_type) :: f
 
@@ -769,6 +784,7 @@ contains
     end function ibuffer_starred_name
 
     !> Buffers whose full file name matches REGEXP (filename . REGEXP).
+    !> Not a port.
     function ibuffer_filename(regexp) result(f)
         character(len=*), intent(in) :: regexp
         type(ibuffer_filter_type) :: f
@@ -777,6 +793,7 @@ contains
     end function ibuffer_filename
 
     !> Buffers whose file basename matches REGEXP (basename . REGEXP).
+    !> Not a port.
     function ibuffer_basename(regexp) result(f)
         character(len=*), intent(in) :: regexp
         type(ibuffer_filter_type) :: f
@@ -785,7 +802,7 @@ contains
     end function ibuffer_basename
 
     !> Buffers whose file name extension matches REGEXP (file-extension .
-    !> REGEXP).
+    !> REGEXP).  Not a port.
     function ibuffer_file_extension(regexp) result(f)
         character(len=*), intent(in) :: regexp
         type(ibuffer_filter_type) :: f
@@ -794,6 +811,7 @@ contains
     end function ibuffer_file_extension
 
     !> Buffers whose directory matches REGEXP (directory . REGEXP).
+    !> Not a port.
     function ibuffer_directory(regexp) result(f)
         character(len=*), intent(in) :: regexp
         type(ibuffer_filter_type) :: f
@@ -801,7 +819,7 @@ contains
         f = ibuffer_filter("directory", qualifier=regexp)
     end function ibuffer_directory
 
-    !> Buffers bigger than SIZE (size-gt . SIZE).
+    !> Buffers bigger than SIZE (size-gt . SIZE).  Not a port.
     function ibuffer_size_gt(size) result(f)
         integer(int64), intent(in) :: size
         type(ibuffer_filter_type) :: f
@@ -809,7 +827,7 @@ contains
         f = ibuffer_filter("size_gt", number=size)
     end function ibuffer_size_gt
 
-    !> Buffers smaller than SIZE (size-lt . SIZE).
+    !> Buffers smaller than SIZE (size-lt . SIZE).  Not a port.
     function ibuffer_size_lt(size) result(f)
         integer(int64), intent(in) :: size
         type(ibuffer_filter_type) :: f
@@ -817,21 +835,21 @@ contains
         f = ibuffer_filter("size_lt", number=size)
     end function ibuffer_size_lt
 
-    !> Modified buffers (modified).
+    !> Modified buffers (modified).  Not a port.
     function ibuffer_modified() result(f)
         type(ibuffer_filter_type) :: f
 
         f = ibuffer_filter("modified")
     end function ibuffer_modified
 
-    !> Buffers visiting a file (visiting-file).
+    !> Buffers visiting a file (visiting-file).  Not a port.
     function ibuffer_visiting_file() result(f)
         type(ibuffer_filter_type) :: f
 
         f = ibuffer_filter("visiting_file")
     end function ibuffer_visiting_file
 
-    !> Buffers whose contents match REGEXP (content . REGEXP).
+    !> Buffers whose contents match REGEXP (content . REGEXP).  Not a port.
     function ibuffer_content(regexp) result(f)
         character(len=*), intent(in) :: regexp
         type(ibuffer_filter_type) :: f
@@ -840,7 +858,7 @@ contains
     end function ibuffer_content
 
     !> Buffers for which PREDICATE, called with the buffer current, returns
-    !> true (predicate . FORM).
+    !> true (predicate . FORM).  Not a port.
     function ibuffer_predicate(predicate) result(f)
         procedure(ibuffer_buffer_predicate_proc) :: predicate
         type(ibuffer_filter_type) :: f
@@ -848,7 +866,7 @@ contains
         f = ibuffer_filter("predicate", predicate=predicate)
     end function ibuffer_predicate
 
-    ! Append the nodes of FROM to F.
+    ! Append the nodes of FROM to F.  Not a port.
     subroutine append_nodes(f, from)
         type(ibuffer_filter_type), intent(inout) :: f
         type(ibuffer_filter_type), intent(in) :: from
@@ -865,7 +883,7 @@ contains
     end subroutine append_nodes
 
     !> The number of nodes of the filter starting at node K of F (the node
-    !> and its operands).
+    !> and its operands).  Not a port.
     recursive integer function ibuffer_filter_extent(f, k) result(n)
         type(ibuffer_filter_type), intent(in) :: f
         integer, intent(in) :: k
@@ -884,7 +902,7 @@ contains
         end select
     end function ibuffer_filter_extent
 
-    !> The filter of the nodes K..K+N-1 of F (an operand).
+    !> The filter of the nodes K..K+N-1 of F (an operand).  Not a port.
     function ibuffer_filter_part(f, k, n) result(part)
         type(ibuffer_filter_type), intent(in) :: f
         integer, intent(in) :: k, n
@@ -895,6 +913,7 @@ contains
     end function ibuffer_filter_part
 
     !> Whether filters A and B are the same specification (`equal').
+    !> Not a port.
     logical function ibuffer_filter_equal(a, b) result(same)
         type(ibuffer_filter_type), intent(in) :: a, b
         integer :: k
@@ -919,7 +938,7 @@ contains
         same = .true.
     end function ibuffer_filter_equal
 
-    ! Add a list of filters F1, F2, ... to FILTERS.
+    ! Add a list of filters F1, F2, ... to FILTERS.  Not a port.
     subroutine add_filters(filters, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16)
         type(ibuffer_filter_type), allocatable, intent(out) :: filters(:)
         type(ibuffer_filter_type), intent(in), optional :: f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, &
@@ -957,6 +976,7 @@ contains
         end subroutine put
     end subroutine add_filters
 
+    ! The %add of ibuffer_saved_filters_type.  Not a port.
     subroutine saved_filters_add(self, name, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16)
         class(ibuffer_saved_filters_type), intent(inout) :: self
         character(len=*), intent(in) :: name
@@ -968,6 +988,7 @@ contains
         call self%set(name, filters)
     end subroutine saved_filters_add
 
+    ! The %set of ibuffer_saved_filters_type.  Not a port.
     subroutine saved_filters_set(self, name, filters, front)
         class(ibuffer_saved_filters_type), intent(inout) :: self
         character(len=*), intent(in) :: name
@@ -1009,6 +1030,7 @@ contains
         self%entries(k)%filters = filters
     end subroutine saved_filters_set
 
+    ! Move the name and filters of FROM to TO.  Not a port.
     subroutine move_saved(from, to)
         type(ibuffer_saved_filter_type), intent(inout) :: from, to
 
@@ -1016,6 +1038,7 @@ contains
         call move_alloc(from%filters, to%filters)
     end subroutine move_saved
 
+    ! The %find of ibuffer_saved_filters_type.  Not a port.
     integer function saved_filters_find(self, name) result(k)
         class(ibuffer_saved_filters_type), intent(in) :: self
         character(len=*), intent(in) :: name
@@ -1029,6 +1052,7 @@ contains
         k = 0
     end function saved_filters_find
 
+    ! The %remove of ibuffer_saved_filters_type.  Not a port.
     subroutine saved_filters_remove(self, name)
         class(ibuffer_saved_filters_type), intent(inout) :: self
         character(len=*), intent(in) :: name
@@ -1053,6 +1077,7 @@ contains
         end do
     end subroutine saved_filters_remove
 
+    ! The %clear of ibuffer_saved_filters_type.  Not a port.
     subroutine saved_filters_clear(self)
         class(ibuffer_saved_filters_type), intent(inout) :: self
 
@@ -1060,6 +1085,7 @@ contains
         allocate (self%entries(0))
     end subroutine saved_filters_clear
 
+    ! The %count of ibuffer_saved_filters_type.  Not a port.
     integer function saved_filters_count(self) result(n)
         class(ibuffer_saved_filters_type), intent(in) :: self
 
@@ -1067,6 +1093,7 @@ contains
         if (allocated(self%entries)) n = size(self%entries)
     end function saved_filters_count
 
+    ! The %add of ibuffer_filter_groups_type.  Not a port.
     subroutine filter_groups_add(self, name, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16)
         class(ibuffer_filter_groups_type), intent(inout) :: self
         character(len=*), intent(in) :: name
@@ -1078,6 +1105,7 @@ contains
         call self%insert(name, filters, size_of_groups(self) + 1)
     end subroutine filter_groups_add
 
+    ! The number of groups in GROUPS.  Not a port.
     integer function size_of_groups(groups) result(n)
         class(ibuffer_filter_groups_type), intent(in) :: groups
 
@@ -1085,6 +1113,7 @@ contains
         if (allocated(groups%groups)) n = size(groups%groups)
     end function size_of_groups
 
+    ! The %insert of ibuffer_filter_groups_type.  Not a port.
     subroutine filter_groups_insert(self, name, filters, at)
         class(ibuffer_filter_groups_type), intent(inout) :: self
         character(len=*), intent(in) :: name
@@ -1113,6 +1142,7 @@ contains
         call move_alloc(grown, self%groups)
     end subroutine filter_groups_insert
 
+    ! The %find of ibuffer_filter_groups_type.  Not a port.
     integer function filter_groups_find(self, name) result(k)
         class(ibuffer_filter_groups_type), intent(in) :: self
         character(len=*), intent(in) :: name
@@ -1126,6 +1156,7 @@ contains
         k = 0
     end function filter_groups_find
 
+    ! The %remove of ibuffer_filter_groups_type.  Not a port.
     subroutine filter_groups_remove(self, name)
         class(ibuffer_filter_groups_type), intent(inout) :: self
         character(len=*), intent(in) :: name
@@ -1150,6 +1181,7 @@ contains
         end do
     end subroutine filter_groups_remove
 
+    ! The %clear of ibuffer_filter_groups_type.  Not a port.
     subroutine filter_groups_clear(self)
         class(ibuffer_filter_groups_type), intent(inout) :: self
 
@@ -1157,12 +1189,14 @@ contains
         allocate (self%groups(0))
     end subroutine filter_groups_clear
 
+    ! The %count of ibuffer_filter_groups_type.  Not a port.
     integer function filter_groups_count(self) result(n)
         class(ibuffer_filter_groups_type), intent(in) :: self
 
         n = size_of_groups(self)
     end function filter_groups_count
 
+    ! The %add of ibuffer_saved_filter_groups_type.  Not a port.
     subroutine saved_groups_add(self, name, groups, front)
         class(ibuffer_saved_filter_groups_type), intent(inout) :: self
         character(len=*), intent(in) :: name
@@ -1202,6 +1236,7 @@ contains
         self%entries(k)%groups = groups
     end subroutine saved_groups_add
 
+    ! Move the name and groups of FROM to TO.  Not a port.
     subroutine move_named(from, to)
         type(ibuffer_named_groups_type), intent(inout) :: from, to
 
@@ -1209,6 +1244,7 @@ contains
         call move_alloc(from%groups%groups, to%groups%groups)
     end subroutine move_named
 
+    ! The %find of ibuffer_saved_filter_groups_type.  Not a port.
     integer function saved_groups_find(self, name) result(k)
         class(ibuffer_saved_filter_groups_type), intent(in) :: self
         character(len=*), intent(in) :: name
@@ -1222,6 +1258,7 @@ contains
         k = 0
     end function saved_groups_find
 
+    ! The %remove of ibuffer_saved_filter_groups_type.  Not a port.
     subroutine saved_groups_remove(self, name)
         class(ibuffer_saved_filter_groups_type), intent(inout) :: self
         character(len=*), intent(in) :: name
@@ -1246,6 +1283,7 @@ contains
         end do
     end subroutine saved_groups_remove
 
+    ! The %clear of ibuffer_saved_filter_groups_type.  Not a port.
     subroutine saved_groups_clear(self)
         class(ibuffer_saved_filter_groups_type), intent(inout) :: self
 
@@ -1253,6 +1291,7 @@ contains
         allocate (self%entries(0))
     end subroutine saved_groups_clear
 
+    ! The %count of ibuffer_saved_filter_groups_type.  Not a port.
     integer function saved_groups_count(self) result(n)
         class(ibuffer_saved_filter_groups_type), intent(in) :: self
 
@@ -1260,6 +1299,7 @@ contains
         if (allocated(self%entries)) n = size(self%entries)
     end function saved_groups_count
 
+    ! The %add of ibuffer_filter_formats_type.  Not a port.
     subroutine filter_formats_add(self, filter, formats)
         class(ibuffer_filter_formats_type), intent(inout) :: self
         character(len=*), intent(in) :: filter
@@ -1281,6 +1321,7 @@ contains
         call move_alloc(grown, self%entries)
     end subroutine filter_formats_add
 
+    ! The %clear of ibuffer_filter_formats_type.  Not a port.
     subroutine filter_formats_clear(self)
         class(ibuffer_filter_formats_type), intent(inout) :: self
 
@@ -1288,6 +1329,7 @@ contains
         allocate (self%entries(0))
     end subroutine filter_formats_clear
 
+    ! The %find of ibuffer_filter_formats_type.  Not a port.
     integer function filter_formats_find(self, filter) result(k)
         class(ibuffer_filter_formats_type), intent(in) :: self
         character(len=*), intent(in) :: filter

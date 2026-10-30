@@ -1,4 +1,6 @@
-! test_font_lock_fm.f90 -- tests for font_core_fm, font_lock_fm and jit_lock_fm.
+! test_font_lock_fm.f90 -- tests for font_core_fm, font_lock_fm and
+! jit_lock_fm.
+! Own tests; upstream's font-lock-tests.el is not ported yet.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -49,6 +51,7 @@ module test_font_lock_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_font_lock_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

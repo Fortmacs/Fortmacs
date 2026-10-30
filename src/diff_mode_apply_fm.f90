@@ -491,7 +491,7 @@ contains
         call choose(forw, fb, fe, back, bb, be, orig, found, beg, end)
     end subroutine diff_find_text
 
-    !> The nearer to ORIG of the forward and backward matches.
+    !> The nearer to ORIG of the forward and backward matches.  Not a port.
     subroutine choose(forw, fb, fe, back, bb, be, orig, found, beg, end)
         logical, intent(in) :: forw, back
         integer(int64), intent(in) :: fb, fe, bb, be, orig

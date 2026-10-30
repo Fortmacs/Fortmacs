@@ -40,6 +40,7 @@ module fns_fm
 
     abstract interface
         !> A two-argument test such as `eq', `equal' or `string<'.
+        !> Not a port.
         logical function value_predicate(a, b)
             import :: value_type
             implicit none(type, external)
@@ -131,6 +132,7 @@ contains
         eq = i > size(a%a, kind=int64) .and. j > size(b%a, kind=int64)
     end function value_equal
 
+    ! Port of part of fns.c:internal_equal_1 (atoms).
     recursive logical function atom_equal(x, y) result(eq)
         type(atom_type), intent(in) :: x, y
         integer(int64) :: ix, iy
@@ -263,6 +265,7 @@ contains
     end function member
 
     !> Text of a string, or the name of a symbol; `ok' false otherwise.
+    !> Not a port.
     subroutine string_or_name(v, text, ok)
         type(value_type), intent(in) :: v
         character(len=:), allocatable, intent(out) :: text
@@ -446,7 +449,7 @@ contains
         if (.not. ok) call set_error(status, FM_ARGS_OUT_OF_RANGE, fortran_string(string)//", "//from_text//", "//to_text)
     end subroutine validate_subarray
 
-    !> The decimal text of N.
+    !> The decimal text of N.  Not a port.
     pure function int_text(n) result(text)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: text
@@ -515,7 +518,7 @@ contains
         r = string(first:last - 1)
     end function substring
 
-    !> The characters of UTF-8 string `s'.
+    !> The characters of UTF-8 string `s'.  Not a port.
     pure subroutine string_chars(s, chars)
         character(len=*), intent(in) :: s
         integer(int32), allocatable, intent(out) :: chars(:)
@@ -545,7 +548,7 @@ contains
         string_greaterp = string_lessp(b, a)
     end function string_greaterp
 
-    !> Compare with `predicate', or `eq' by default.
+    !> Compare with `predicate', or `eq' by default.  Not a port.
     logical function matches(a, b, predicate)
         type(value_type), intent(in) :: a, b
         procedure(value_predicate), optional :: predicate
