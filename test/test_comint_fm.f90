@@ -38,7 +38,10 @@ module test_comint_fm
     use comint_fm, only: make_comint, comint_send_input, comint_arguments, comint_input_ring_item, &
                          comint_input_ring_length, comint_previous_input, comint_interrupt_subjob, comint_bol, &
                          comint_replace_by_expanded_history, comint_insert_previous_argument, comint_input_autoexpand, &
-                         COMINT_AUTOEXPAND_T, COMINT_AUTOEXPAND_INPUT, comint_within_quotes
+                         COMINT_AUTOEXPAND_T, COMINT_AUTOEXPAND_INPUT, comint_within_quotes, &
+                         comint_password_prompt_regexp, comint_send_invisible, set_comint_password_function, &
+                         comint_password_proc
+    use search_fm, only: string_match
     implicit none(type, external)
     private
 
@@ -57,7 +60,11 @@ contains
                     new_unittest("comint-command-loop", test_command_loop), &
                     new_unittest("comint-interrupt-subjob", test_interrupt), &
                     new_unittest("comint-history-expansion", test_history_expansion), &
-                    new_unittest("comint-within-quotes", test_within_quotes) &
+                    new_unittest("comint-within-quotes", test_within_quotes), &
+                    new_unittest("comint-test-password-regexp", test_password_regexp), &
+                    new_unittest("comint-test-no-password-function", test_no_password_function), &
+                    new_unittest("comint-test-password-function-with-value", test_password_function_with_value), &
+                    new_unittest("comint-test-password-function-with-nil", test_password_function_with_nil) &
                     ]
     end subroutine collect_comint_fm
 
@@ -342,4 +349,154 @@ contains
         if (.not. allocated(error)) call check(error, comint_within_quotes(1_int64, 14_int64), "after a double quote")
         call kill_buffer(h, st)
     end subroutine test_within_quotes
+
+    !> Test `comint_password_prompt_regexp' against common password
+    !> strings.  Port of comint-tests.el comint-test-password-regexp
+    !> (with comint-testsuite-password-strings).
+    subroutine test_password_regexp(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=*), parameter :: strings(32) = [character(len=56) :: &
+                                                      "foo@example.net's password: ", & ! ssh
+                                                      "Password for foo@example.org: ", & ! kinit
+                                                      "Password for 'https://foo@example.org':", & ! git push Bug#20910
+                                                      "Please enter the password for foo@example.org: ", & ! kinit
+                                                      "Kerberos password for devnull/root <at> GNU.ORG: ", & ! ksu
+                                                      "Enter passphrase: ", & ! ssh-add
+                                                      "Enter passphrase (empty for no passphrase): ", & ! ssh-keygen
+                                                      "Enter same passphrase again: ", & ! ssh-keygen
+                                                      "Enter your password: ", & ! python3 -m twine ... Bug#37636
+                                                      "Passphrase for key root@GNU.ORG: ", & ! plink
+                                                      "[sudo] password for user:", & ! Ubuntu sudo
+                                                      "[sudo: authenticate] Password:", & ! sudo-rs
+                                                      "[su: authenticate] Password:", & ! su-rs
+                                                      "[sudo] user 的密码：", & ! localized
+                                                      "doas (user@host) password:", & ! OpenBSD doas
+                                                      "PIN for user:", & ! Bug#35523
+                                                      "Password (again):", &
+                                                      "Enter password:", &
+                                                      "(user@host) Password: ", & ! openssh-8.6p1
+                                                      "(user@host) Password for user@host:", & ! (Bug#79424)
+                                                      "Current password:", & ! "passwd" (to change password) in Debian.
+                                                      "Enter encryption key: ", & ! ccrypt
+                                                      "Enter decryption key: ", & ! ccrypt
+                                                      "Enter encryption key: (repeat) ", & ! ccrypt
+                                                      "Enter Auth Password:", & ! OpenVPN (Bug#35724)
+                                                      "Verify password: ", & ! zip -e zipfile.zip ... (Bug#47209)
+                                                      "Vault password: ", & ! ansible-playbook --ask-vault-pass
+                                                      "Vault password (dev): ", & ! ansible-playbook --vault-id
+                                                      "SSH password: ", & ! ansible-playbook --ask-pass
+                                                      "BECOME password: ", & ! ansible-playbook --ask-become-pass
+                                                      "Mot de Passe :", & ! localized (Bug#29729)
+                                                      "Passwort:"] ! localized
+        ! The lengths of the strings (their trailing spaces count).
+        integer, parameter :: lengths(32) = [28, 30, 39, 47, 49, 18, 44, 29, 21, 33, 25, 30, 28, 24, 26, 13, 17, 15, &
+                                             22, 35, 17, 22, 22, 31, 20, 17, 16, 22, 14, 17, 14, 9]
+        type(status_type) :: st
+        integer :: k
+
+        call init_bindings()
+
+        do k = 1, size(strings)
+            call check(error, string_match(comint_password_prompt_regexp, strings(k) (1:lengths(k)), st) > 0, &
+                       "matches: "//strings(k) (1:lengths(k)))
+            if (allocated(error)) return
+        end do
+    end subroutine test_password_regexp
+
+    !> PASSWORD_FUNCTION can return nothing or a string: the password
+    !> typed in the minibuffer (here "non-nil") or its value is sent.
+    !> Port of comint-tests.el comint-tests/test-password-function.
+    subroutine test_password_function(error, password_function, expected)
+        type(error_type), allocatable, intent(out) :: error
+        procedure(comint_password_proc), optional :: password_function
+        character(len=*), intent(in) :: expected
+        type(handle_type) :: h
+        type(status_type) :: st
+        logical :: saved
+
+        call init_bindings()
+        saved = process_connection_type%value
+        process_connection_type = .false.
+        call make_comint("test-comint-password", "cat", h, st)
+        process_connection_type = saved
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        call set_buffer(h, st)
+        call show_alone()
+        call set_comint_password_function(password_function)
+        call discard_input()
+        call type_text("non-nil"//achar(13))
+        call comint_send_invisible(st, "Password: ")
+        call check(error, st%ok(), format_error(st))
+
+        if (.not. allocated(error)) then
+            call wait_for(expected//new_line("a"))
+            call check(error, buffer_string(), expected//new_line("a"))
+        end if
+
+        call discard_input()
+        call finish(h)
+    end subroutine test_password_function
+
+    !> Test that `comint_password_function' not being set does not alter
+    !> normal password flow.  Port of comint-tests.el
+    !> comint-test-no-password-function.
+    subroutine test_no_password_function(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call test_password_function(error, expected="non-nil")
+    end subroutine test_no_password_function
+
+    !> Test that `comint_password_function' alters normal password flow.
+    !> Hook function returns alternative password.  Port of
+    !> comint-tests.el comint-test-password-function-with-value.
+    subroutine test_password_function_with_value(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call test_password_function(error, magic_password, "MaGiC-PaSsWoRd789")
+    end subroutine test_password_function_with_value
+
+    !> Test that `comint_password_function' does not alter the normal
+    !> password flow if it returns a nil value.  Port of comint-tests.el
+    !> comint-test-password-function-with-nil.
+    subroutine test_password_function_with_nil(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call test_password_function(error, ignore_password, "non-nil")
+    end subroutine test_password_function_with_nil
+
+    recursive subroutine magic_password(prompt, password, found)
+        character(len=*), intent(in) :: prompt
+        character(len=:), allocatable, intent(out) :: password
+        logical, intent(out) :: found
+
+        password = "MaGiC-PaSsWoRd789"
+        found = len(prompt) >= 0
+    end subroutine magic_password
+
+    recursive subroutine ignore_password(prompt, password, found)
+        character(len=*), intent(in) :: prompt
+        character(len=:), allocatable, intent(out) :: password
+        logical, intent(out) :: found
+
+        password = ""
+        found = len(prompt) < 0
+    end subroutine ignore_password
+
+    !> Queue TEXT as input events (for the minibuffer).
+    subroutine type_text(text)
+        use lisp_fm, only: value_type, make_fixnum
+        use keyboard_fm, only: unread_command_events
+        character(len=*), intent(in) :: text
+        type(value_type), allocatable :: evs(:)
+        integer :: i
+
+        allocate (evs(len(text)))
+
+        do i = 1, len(text)
+            evs(i) = make_fixnum(int(iachar(text(i:i)), int64))
+        end do
+
+        call unread_command_events(evs)
+    end subroutine type_text
 end module test_comint_fm

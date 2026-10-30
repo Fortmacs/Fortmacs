@@ -185,6 +185,7 @@ module commands_fm
         type(command_type) :: comint_run
         type(command_type) :: comint_send_eof
         type(command_type) :: comint_send_input
+        type(command_type) :: comint_send_invisible
         type(command_type) :: comint_set_process_mark
         type(command_type) :: comint_show_maximum_output
         type(command_type) :: comint_show_output
@@ -850,6 +851,8 @@ module commands_fm
         type(command_type) :: read_char_from_minibuffer_insert_char
         type(command_type) :: read_char_from_minibuffer_insert_other
         type(command_type) :: read_only_mode
+        type(command_type) :: read_passwd_mode
+        type(command_type) :: read_passwd_toggle_visibility
         type(command_type) :: recenter
         type(command_type) :: recenter_top_bottom
         type(command_type) :: recentf
@@ -1070,7 +1073,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1032) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1035) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1224,6 +1227,7 @@ module commands_fm
                                                                   "comint_run", &
                                                                   "comint_send_eof", &
                                                                   "comint_send_input", &
+                                                                  "comint_send_invisible", &
                                                                   "comint_set_process_mark", &
                                                                   "comint_show_maximum_output", &
                                                                   "comint_show_output", &
@@ -1889,6 +1893,8 @@ module commands_fm
                                                                   "read_char_from_minibuffer_insert_char", &
                                                                   "read_char_from_minibuffer_insert_other", &
                                                                   "read_only_mode", &
+                                                                  "read_passwd_mode", &
+                                                                  "read_passwd_toggle_visibility", &
                                                                   "recenter", &
                                                                   "recenter_top_bottom", &
                                                                   "recentf", &
@@ -2421,6 +2427,8 @@ contains
             p => commands%comint_send_eof
         case ("comint_send_input")
             p => commands%comint_send_input
+        case ("comint_send_invisible")
+            p => commands%comint_send_invisible
         case ("comint_set_process_mark")
             p => commands%comint_set_process_mark
         case ("comint_show_maximum_output")
@@ -3751,6 +3759,10 @@ contains
             p => commands%read_char_from_minibuffer_insert_other
         case ("read_only_mode")
             p => commands%read_only_mode
+        case ("read_passwd_mode")
+            p => commands%read_passwd_mode
+        case ("read_passwd_toggle_visibility")
+            p => commands%read_passwd_toggle_visibility
         case ("recenter")
             p => commands%recenter
         case ("recenter_top_bottom")
