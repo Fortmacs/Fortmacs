@@ -61,6 +61,7 @@ module text_mode_fm
 contains
 
     !> Build text-mode-syntax-table.
+    !> Port of the text-mode-syntax-table defvar of text-mode.el.
     subroutine init_text_mode_syntax_table()
         type(status_type) :: st
 
@@ -100,6 +101,7 @@ contains
     end subroutine text_mode
 
     !> Define Text mode.
+    !> Not a port: upstream defines Text mode at top level.
     subroutine syms_of_text_mode()
         if (.not. syntax_table_live_p(text_mode_syntax_table)) call init_text_mode_syntax_table()
         call major_modes%text_mode%define("text_mode", "Text", text_mode, text_mode_hook, &

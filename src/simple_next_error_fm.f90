@@ -57,6 +57,7 @@ submodule(simple_fm) simple_next_error_fm
 
 contains
 
+    ! Not a port.
     integer function entry_of(bi) result(k)
         integer(int64), intent(in) :: bi
 
@@ -69,6 +70,7 @@ contains
         k = 0
     end function entry_of
 
+    ! Not a port.
     integer function current_entry() result(k)
         type(next_error_entry_type), allocatable :: grown(:)
         integer :: n
@@ -85,7 +87,7 @@ contains
     end function current_entry
 
     !> Forget the current buffer's next-error-function and
-    !> next-error-buffer (kill-all-local-variables).
+    !> next-error-buffer (kill-all-local-variables).  Not a port.
     subroutine kill_next_error_locals()
         integer :: k
 
@@ -141,6 +143,7 @@ contains
         if (buffer_live_p(old)) call set_buffer(old, st)
     end function next_error_buffer_p
 
+    ! Not a port.
     logical function same_buffer(a, b)
         type(handle_type), intent(in) :: a, b
 
@@ -357,6 +360,7 @@ contains
     end subroutine previous_error_no_select
 
     !> next-error-no-select with N: next-error in save-selected-window.
+    !> Not a port.
     recursive subroutine no_select(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status

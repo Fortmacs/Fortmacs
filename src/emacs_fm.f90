@@ -73,7 +73,7 @@ module emacs_fm
 
     abstract interface
         !> The user's configuration: `configure' in init.f90, run once at
-        !> startup the way upstream loads the init file.
+        !> startup the way upstream loads the init file.  Not a port.
         subroutine init_proc(status)
             import :: status_type
             implicit none(type, external)
@@ -183,7 +183,7 @@ module emacs_fm
 
 contains
 
-    !> keyboard.c's redisplay before waiting for input.
+    !> keyboard.c's redisplay before waiting for input.  Not a port.
     subroutine do_redisplay()
         type(status_type) :: status
 
@@ -193,6 +193,7 @@ contains
     !> Whether terminal type `term' gets term/xterm.el's setup, as
     !> faces.el:tty-run-terminal-initialization finds term/xterm.el for
     !> "xterm*" (and term/screen.el and term/tmux.el, which use it).
+    !> Not a port.
     logical function xterm_like(term)
         character(len=*), intent(in) :: term
 
@@ -203,6 +204,7 @@ contains
     !> Whether `s' is "+" followed by digits, then optionally ":" and
     !> digits; `line' gets the first number and `column' the second (0
     !> if absent).
+    !> Port of part of startup.el:command-line-1 (the +LINE:COLUMN argument).
     logical function line_arg_p(s, line, column)
         character(len=*), intent(in) :: s
         integer(int64), intent(out) :: line, column
@@ -322,6 +324,7 @@ contains
 
     !> Display the first two buffers in DISPLAYABLE; the first one will
     !> be focused.  Part of startup.el:command-line-1.
+    !> Port of part of startup.el:command-line-1.
     subroutine display_buffers(displayable, status)
         type(handle_type), intent(in) :: displayable(:)
         type(status_type), intent(out) :: status
@@ -360,7 +363,7 @@ contains
     end subroutine display_buffers
 
     !> Visit `name' (relative to `dir'), make its buffer current and go to
-    !> line `line' if positive.
+    !> line `line' if positive.  Port of part of startup.el:command-line-1.
     subroutine visit(name, dir, line, column, status)
         character(len=*), intent(in) :: name, dir
         integer(int64), intent(in) :: line, column
@@ -771,7 +774,7 @@ contains
     !> What `try_completion' gives for STRING against the names
     !> COLLECTION (blank-padded): EXACT when STRING is the only completion
     !> and matches exactly (t), else the longest common prefix of the
-    !> completions in COMPLETION ("" for none, nil).
+    !> completions in COMPLETION ("" for none, nil).  Not a port.
     subroutine try_completion_list(string, collection, completion, exact)
         character(len=*), intent(in) :: string, collection(:)
         character(len=:), allocatable, intent(out) :: completion
@@ -938,7 +941,7 @@ contains
     end subroutine run
 
     !> `fortmacs --recompile': build the init file into the user's own
-    !> fortmacs, reporting on standard output and error.
+    !> fortmacs, reporting on standard output and error.  Not a port.
     subroutine do_recompile(installed, install, exit_code)
         logical, intent(in) :: installed
         character(len=*), intent(in) :: install
@@ -969,6 +972,7 @@ contains
     end subroutine do_recompile
 
     !> --version in a user build: which configuration it carries.
+    !> Not a port.
     subroutine write_configuration()
         integer :: n
 
@@ -982,7 +986,7 @@ contains
     end subroutine write_configuration
 
     !> --list-generations, --rollback and --switch-generation N, reporting
-    !> as Guix does ("switched from generation 3 to 2").
+    !> as Guix does ("switched from generation 3 to 2").  Not a port.
     subroutine do_generations(args, exit_code)
         type(arg_type), intent(in) :: args(:)
         integer, intent(out) :: exit_code
@@ -1029,7 +1033,7 @@ contains
 
     !> Replace this process with the user's build, if there is one and it
     !> is newer than this fortmacs; otherwise `reminder' says what to do.
-    !> Returns only if the build is not run.
+    !> Returns only if the build is not run.  Not a port.
     subroutine run_user_build(args, reminder)
         type(arg_type), intent(in) :: args(:)
         character(len=:), allocatable, intent(inout) :: reminder
