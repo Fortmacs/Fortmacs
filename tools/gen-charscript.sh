@@ -176,4 +176,6 @@ END {
 if command -v fprettify >/dev/null 2>&1; then
     fprettify --config-file .fprettify.rc "$out" 2>/dev/null
 fi
+# The blank lines of CLAUDE.md.
+awk -f tools/blank-lines.awk "$out" >"$out.bl" && mv "$out.bl" "$out"
 echo "wrote $out"
