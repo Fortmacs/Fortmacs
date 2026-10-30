@@ -154,7 +154,7 @@ module grep_fm
     abstract interface
         !> The car of a cons element of `grep_find_ignored_files_variable' and
         !> `grep_find_ignored_directories': whether the element applies to
-        !> the search directory DIR.
+        !> the search directory DIR.  Not a port.
         logical function grep_ignore_predicate(dir)
             implicit none(type, external)
             character(len=*), intent(in) :: dir
@@ -162,6 +162,7 @@ module grep_fm
 
         !> `grep_read_files_function': the file name whose extension gives
         !> the default for `grep_read_files' (FOUND false for none).
+        !> Not a port.
         subroutine grep_read_files_proc(name, found)
             implicit none(type, external)
             character(len=:), allocatable, intent(out) :: name
@@ -169,7 +170,7 @@ module grep_fm
         end subroutine grep_read_files_proc
 
         !> A function value of `grep_save_buffers': called with each buffer
-        !> current, whether that buffer should be saved.
+        !> current, whether that buffer should be saved.  Not a port.
         logical function grep_save_buffers_proc()
             implicit none(type, external)
         end function grep_save_buffers_proc
@@ -536,6 +537,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The entry of the current buffer in `locals', made if needed.
+    !> Not a port.
     integer function local_entry() result(k)
         type(grep_local_type), allocatable :: grown(:)
         type(handle_type) :: h
@@ -568,7 +570,7 @@ contains
         k = n + 1
     end function local_entry
 
-    !> Free what entry K holds and make it unused.
+    !> Free what entry K holds and make it unused.  Not a port.
     subroutine reset_local(k)
         integer, intent(in) :: k
         type(grep_local_type) :: empty
@@ -579,7 +581,7 @@ contains
     end subroutine reset_local
 
     !> Forget the current buffer's grep variables, when
-    !> `kill_all_local_variables' runs.
+    !> `kill_all_local_variables' runs.  Not a port.
     subroutine kill_grep_locals()
         type(handle_type) :: h
         integer :: k
@@ -658,6 +660,7 @@ contains
     end subroutine grep_apply_setting
 
     !> The current values of the settings `grep_compute_defaults' computes.
+    !> Not a port.
     function current_defaults() result(d)
         type(grep_defaults_type) :: d
 
@@ -675,6 +678,7 @@ contains
     end function current_defaults
 
     !> Set the settings `grep_compute_defaults' computes to D's values.
+    !> Not a port.
     subroutine set_defaults(d)
         type(grep_defaults_type), intent(in) :: d
 
@@ -717,7 +721,7 @@ contains
 
     !> The column (relative to the end of the match) of the first grep
     !> match on a line, from the faces `grep_filter' put there: COL of the
-    !> `grep_regexp_alist' rule.
+    !> `grep_regexp_alist' rule.  Not a port.
     subroutine first_match_column(number, found)
         integer(int64), intent(out) :: number
         logical, intent(out) :: found
@@ -734,7 +738,7 @@ contains
     end subroutine first_match_column
 
     !> The end column of the first grep match on a line: END-COL of the
-    !> `grep_regexp_alist' rule.
+    !> `grep_regexp_alist' rule.  Not a port.
     subroutine first_match_end_column(number, found)
         integer(int64), intent(out) :: number
         logical, intent(out) :: found
@@ -753,7 +757,7 @@ contains
     end subroutine first_match_end_column
 
     !> The end of the line at POS (save-excursion, goto-char,
-    !> line-end-position).
+    !> line-end-position).  Not a port.
     integer(int64) function line_end_at(pos) result(eol)
         integer(int64), intent(in) :: pos
         integer(int64) :: opoint
@@ -764,7 +768,7 @@ contains
         call goto_char(opoint)
     end function line_end_at
 
-    !> The value of `grep_regexp_alist'.
+    !> The value of `grep_regexp_alist'.  Not a port.
     subroutine init_grep_regexp_alist()
         if (allocated(grep_regexp_alist)) deallocate (grep_regexp_alist)
         allocate (grep_regexp_alist(2))
@@ -800,7 +804,7 @@ contains
     end subroutine init_grep_regexp_alist
 
     !> The value of `grep_mode_font_lock_keywords' (the faces of the face
-    !> variables are read when the keywords are made).
+    !> variables are read when the keywords are made).  Not a port.
     subroutine init_grep_mode_font_lock_keywords()
         type(font_lock_keyword_type), allocatable :: k(:)
         character(len=*), parameter :: NO_MESSAGE(3) = [character(len=19) :: "compilation_message", "help_echo", &
@@ -845,7 +849,7 @@ contains
         call move_alloc(k, grep_mode_font_lock_keywords)
     end subroutine init_grep_mode_font_lock_keywords
 
-    !> S, or "" for nil.
+    !> S, or "" for nil.  Not a port.
     function setting_value(s) result(v)
         character(len=:), allocatable, intent(in) :: s
         character(len=:), allocatable :: v
@@ -856,7 +860,7 @@ contains
 
     !> (if (eq (char-after (match-beginning 1)) ?\0) `(face nil display
     !> ,(match-string 2))): a NUL separator of a context line is shown as
-    !> the separator after the line number.
+    !> the separator after the line number.  Not a port.
     subroutine context_separator_properties(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
@@ -871,7 +875,7 @@ contains
     end subroutine context_separator_properties
 
     !> (if grep-find-abbreviate grep-find-abbreviate-properties '(face nil
-    !> abbreviated-command t)).
+    !> abbreviated-command t)).  Not a port.
     subroutine abbreviate_properties(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
@@ -977,7 +981,7 @@ contains
     end subroutine grep_mode
 
     !> Save the buffers before the grep commands run, as
-    !> `grep_save_buffers' says.
+    !> `grep_save_buffers' says.  Port of grep.el:grep--save-buffers.
     recursive subroutine grep_save_buffers_now(status)
         type(status_type), intent(out) :: status
 
@@ -990,6 +994,8 @@ contains
         end if
     end subroutine grep_save_buffers_now
 
+    ! Whether the current buffer should be saved, as the function in
+    ! `grep_save_buffers' says.  Not a port.
     logical function save_predicate()
         save_predicate = grep_save_buffers_function()
     end function save_predicate
@@ -1155,8 +1161,8 @@ contains
         end subroutine forward_line_0
     end subroutine grep_filter
 
-    !> Filter function to add headings to output of a grep process.  Port
-    !> of grep.el:grep--heading-filter.
+    !> Filter function to add headings to output of a grep process.
+    !> Port of grep.el:grep--heading-filter.
     recursive subroutine grep_heading_filter(status)
         type(status_type), intent(out) :: status
         type(value_type) :: annotation
@@ -1216,7 +1222,7 @@ contains
         call goto_char(opoint)
     end subroutine grep_heading_filter
 
-    !> The number of characters of the UTF-8 string S.
+    !> The number of characters of the UTF-8 string S.  Not a port.
     integer(int64) function len_chars(s) result(n)
         character(len=*), intent(in) :: s
         integer :: i
@@ -1233,7 +1239,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Make a temporary buffer current (with-temp-buffer); OLD is the
-    !> buffer to go back to.
+    !> buffer to go back to.  Not a port.
     subroutine temp_begin(old, tmp)
         type(handle_type), intent(out) :: old, tmp
         type(status_type) :: st
@@ -1248,6 +1254,7 @@ contains
     end subroutine temp_begin
 
     !> Kill the temporary buffer TMP and make OLD current again.
+    !> Not a port.
     subroutine temp_end(old, tmp)
         type(handle_type), intent(in) :: old, tmp
         type(status_type) :: st
@@ -1539,6 +1546,7 @@ contains
     end subroutine grep_compute_defaults
 
     !> The strings WORDS (trimmed), then FILE and EXTRA if given.
+    !> Not a port.
     function strings(words, file, extra) result(list)
         character(len=*), intent(in) :: words(:)
         character(len=*), intent(in), optional :: file, extra
@@ -1567,7 +1575,7 @@ contains
         end if
     end function strings
 
-    !> A regexp matching exactly S (regexp-quote).
+    !> A regexp matching exactly S (regexp-quote).  Not a port.
     function regexp_quote(s) result(r)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: r
@@ -1604,7 +1612,7 @@ contains
         if (.not. found) tag = ""
     end function grep_tag_default
 
-    !> The first element of the history list HISTORY, if any.
+    !> The first element of the history list HISTORY, if any.  Not a port.
     subroutine history_first(history, first, found)
         character(len=*), intent(in) :: history
         character(len=:), allocatable, intent(out) :: first
@@ -1721,6 +1729,7 @@ contains
 
     !> `grep', appending `null_device' when USE_NULL_DEVICE and
     !> `grep_use_null_device' say so.
+    !> Port of grep.el:grep, in part (its body).
     recursive subroutine grep_1(command_args, use_null_device, status)
         character(len=*), intent(in) :: command_args
         logical, intent(in) :: use_null_device
@@ -2212,7 +2221,7 @@ contains
     end subroutine grep_read_files
 
     !> The next word of S (split-string on whitespace) from START: B to E,
-    !> B 0 for none.
+    !> B 0 for none.  Not a port.
     subroutine next_word(s, start, b, e)
         character(len=*), intent(in) :: s
         integer(int64), intent(in) :: start
@@ -2496,7 +2505,7 @@ contains
         end if
     end subroutine lgrep
 
-    !> Whether A and B are the same buffer.
+    !> Whether A and B are the same buffer.  Not a port.
     logical function same_buffer(a, b)
         type(handle_type), intent(in) :: a, b
 
@@ -2504,7 +2513,7 @@ contains
     end function same_buffer
 
     !> Give OLD its directory back (the end of a let binding of
-    !> `default_directory').
+    !> `default_directory').  Not a port.
     subroutine restore_directory(old, had_dir, saved_dir)
         type(handle_type), intent(in) :: old
         logical, intent(in) :: had_dir
@@ -2519,7 +2528,7 @@ contains
         end if
     end subroutine restore_directory
 
-    !> S, or "" for nil.
+    !> S, or "" for nil.  Not a port.
     function setting(s) result(v)
         character(len=:), allocatable, intent(in) :: s
         character(len=:), allocatable :: v
@@ -2531,6 +2540,8 @@ contains
     !> The arguments of `lgrep', `rgrep' and `zrgrep' read interactively:
     !> with C-u C-u the command (RUN, from COMMAND and HISTORY), else the
     !> REGEXP, FILES, DIR (prompted with DIR_PROMPT) and CONFIRM (C-u).
+    !> Port of grep.el:lgrep, grep.el:rgrep and grep.el:zrgrep, in part
+    !> (their interactive specs).
     recursive subroutine read_grep_args(command, history, dir_prompt, run, regexp, files, dir, confirm, status)
         character(len=:), allocatable, intent(in) :: command
         character(len=*), intent(in) :: history, dir_prompt
@@ -2593,7 +2604,7 @@ contains
         end if
     end subroutine cmd_lgrep
 
-    !> The current buffer's `default_directory'.
+    !> The current buffer's `default_directory'.  Not a port.
     function buffer_dir() result(dir)
         character(len=:), allocatable :: dir
 
@@ -2946,7 +2957,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Give the variables their defaults, define Grep mode and register
-    !> the commands.
+    !> the commands.  Not a port.
     subroutine syms_of_grep()
         type(status_type) :: st
         integer :: i, n

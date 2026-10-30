@@ -84,6 +84,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> `dest' = termcap string capability `code', unallocated if absent.
+    !> Not a port.
     subroutine getcap(tty, code, dest)
         type(tty_display_info), intent(in) :: tty
         character(len=*), intent(in) :: code
@@ -95,7 +96,7 @@ contains
         if (found) dest = s
     end subroutine getcap
 
-    !> Like `getcap' with a terminfo name.
+    !> Like `getcap' with a terminfo name.  Not a port.
     subroutine getcap_ti(tty, name, dest)
         type(tty_display_info), intent(in) :: tty
         character(len=*), intent(in) :: name
@@ -107,6 +108,7 @@ contains
         if (found) dest = s
     end subroutine getcap_ti
 
+    ! N as a decimal string.  Not a port.
     function itoa(n) result(s)
         integer, intent(in) :: n
         character(len=:), allocatable :: s
@@ -134,6 +136,7 @@ contains
     end subroutine init_tty
 
     !> init_tty with the terminal description `ti' already loaded.
+    !> Port of term.c:init_tty, in part.
     subroutine init_tty_entry(tty, ti, terminal_type, fd, status)
         type(tty_display_info), intent(out) :: tty
         type(terminfo_type), intent(in) :: ti
@@ -894,7 +897,7 @@ contains
     end function encode_terminal_code
 
     !> Whether attribute `attr' may be combined with colors.
-    !> term.c's MAY_USE_WITH_COLORS_P.
+    !> Port of term.c:MAY_USE_WITH_COLORS_P.
     logical function may_use_with_colors(tty, attr)
         type(tty_display_info), intent(in) :: tty
         integer, intent(in) :: attr
@@ -934,7 +937,7 @@ contains
         end function try
     end function tty_capable_p
 
-    !> Output a color capability for `color'.
+    !> Output a color capability for `color'.  Not a port.
     subroutine set_color(tty, cap, color)
         type(tty_display_info), intent(inout) :: tty
         character(len=:), allocatable, intent(in) :: cap
@@ -1058,6 +1061,7 @@ contains
     end subroutine turn_off_face
 
     !> The face for `face_id', or the default face if out of range.
+    !> Not a port.
     function face_of(faces, face_id) result(face)
         type(face_type), intent(in) :: faces(0:)
         integer(int32), intent(in) :: face_id

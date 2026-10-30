@@ -127,7 +127,7 @@ module vc_dispatcher_fm
     end type vc_action_type
 
     abstract interface
-        !> An action to run once a VC process has finished.
+        !> An action to run once a VC process has finished.  Not a port.
         recursive subroutine vc_action_proc(action, status)
             import :: vc_action_type, status_type
             implicit none(type, external)
@@ -162,9 +162,9 @@ module vc_dispatcher_fm
         logical :: valid = .false.
     end type vc_context_type
 
-    !> A procedure run with the visited file of a buffer resynched
-    !> (vc-mode-line-hook; set by vc_fm to `vc_mode_line').
     abstract interface
+        !> A procedure run with the visited file of a buffer resynched
+        !> (vc-mode-line-hook; set by vc_fm to `vc_mode_line').  Not a port.
         subroutine vc_mode_line_hook_proc(file)
             implicit none(type, external)
             character(len=*), intent(in) :: file
@@ -187,7 +187,7 @@ module vc_dispatcher_fm
 
     abstract interface
         !> What `vc_finish_logentry' calls with the log message COMMENT for
-        !> FILES.
+        !> FILES.  Not a port.
         recursive subroutine vc_log_operation_proc(operation, files, comment, status)
             import :: vc_log_operation_type, vc_string_type, status_type
             implicit none(type, external)
@@ -293,6 +293,8 @@ contains
     ! The parent buffer
     ! ------------------------------------------------------------------
 
+    ! The index of the current buffer's entry in `parents', made if
+    ! CREATE (0 if none).  Not a port.
     integer function parent_index(create) result(k)
         logical, intent(in) :: create
         type(vc_parent_type), allocatable :: grown(:)
@@ -318,6 +320,7 @@ contains
 
     !> The current buffer's `vc_parent_buffer': in a log entry or output
     !> buffer, the buffer for which it was made (a null handle for nil).
+    !> Not a port.
     function vc_parent_buffer() result(h)
         type(handle_type) :: h
         integer :: k
@@ -328,6 +331,7 @@ contains
     end function vc_parent_buffer
 
     !> The current buffer's `vc_parent_buffer_name' (" from NAME").
+    !> Not a port.
     function vc_parent_buffer_name() result(name)
         character(len=:), allocatable :: name
         integer :: k
@@ -340,7 +344,7 @@ contains
 
     !> The `vc_parent_buffer_name' of buffer slot BI, shown in the mode
     !> line while it has a `vc_parent_buffer' (vc.el's minor-mode-alist
-    !> entry (vc-parent-buffer vc-parent-buffer-name)).
+    !> entry (vc-parent-buffer vc-parent-buffer-name)).  Not a port.
     subroutine parent_name_of(bi, text)
         integer(int64), intent(in) :: bi
         character(len=:), allocatable, intent(out) :: text
@@ -359,6 +363,7 @@ contains
 
     !> Show `vc_parent_buffer_name' in the mode line of buffers with a
     !> `vc_parent_buffer'.  Part of vc.el (its minor-mode-alist entry).
+    !> Not a port.
     subroutine syms_of_vc_dispatcher()
         use data_fm, only: add_local_variables_killer
 
@@ -371,7 +376,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The index of the current buffer's entry in `log_locals', made if
-    !> MAKE (0 if none).
+    !> MAKE (0 if none).  Not a port.
     integer function log_local_index(make) result(k)
         logical, intent(in) :: make
         type(vc_log_local_type), allocatable :: grown(:)
@@ -408,6 +413,7 @@ contains
     end function log_local_index
 
     ! kill-all-local-variables: forget the current buffer's values.
+    ! Not a port.
     subroutine kill_log_locals()
         integer :: k
 
@@ -416,7 +422,7 @@ contains
     end subroutine kill_log_locals
 
     !> The current buffer's `vc_log_fileset' (FOUND false if it has none):
-    !> the files of the log entry.
+    !> the files of the log entry.  Not a port.
     subroutine vc_log_fileset(files, found)
         type(vc_string_type), allocatable, intent(out) :: files(:)
         logical, intent(out) :: found
@@ -433,7 +439,7 @@ contains
         end if
     end subroutine vc_log_fileset
 
-    !> Set the current buffer's `vc_log_fileset' to FILES.
+    !> Set the current buffer's `vc_log_fileset' to FILES.  Not a port.
     subroutine set_vc_log_fileset(files)
         type(vc_string_type), intent(in) :: files(:)
         integer :: k
@@ -444,6 +450,7 @@ contains
     end subroutine set_vc_log_fileset
 
     !> The current buffer's `vc_patch_string' (unallocated for nil).
+    !> Not a port.
     subroutine vc_patch_string(patch)
         character(len=:), allocatable, intent(out) :: patch
         integer :: k
@@ -454,6 +461,7 @@ contains
     end subroutine vc_patch_string
 
     !> Set the current buffer's `vc_patch_string' to PATCH (nil if absent).
+    !> Not a port.
     subroutine set_vc_patch_string(patch)
         character(len=*), intent(in), optional :: patch
         integer :: k
@@ -464,6 +472,7 @@ contains
     end subroutine set_vc_patch_string
 
     !> Set the current buffer's `vc_log_operation' to OPERATION.
+    !> Not a port.
     subroutine set_vc_log_operation(operation)
         type(vc_log_operation_type), intent(in) :: operation
         integer :: k
@@ -474,7 +483,7 @@ contains
     end subroutine set_vc_log_operation
 
     !> Set the current buffer's `vc_log_after_operation_hook' to HOOK (nil
-    !> if absent).
+    !> if absent).  Not a port.
     subroutine set_vc_log_after_operation_hook(hook)
         type(hook_type), intent(in), target, optional :: hook
         integer :: k
@@ -493,7 +502,7 @@ contains
     end function vc_dispatcher_browsing
 
     !> Set the current buffer's `vc_parent_buffer' to PARENT and its
-    !> `vc_parent_buffer_name' to NAME.
+    !> `vc_parent_buffer_name' to NAME.  Not a port.
     subroutine set_vc_parent_buffer(parent, name)
         type(handle_type), intent(in) :: parent
         character(len=*), intent(in) :: name
@@ -644,7 +653,7 @@ contains
         end if
     end subroutine vc_exec_after
 
-    !> Show the busy indicator in buffer BUF.
+    !> Show the busy indicator in buffer BUF.  Not a port.
     subroutine in_buffer_busy(buf)
         type(handle_type), intent(in) :: buf
         type(handle_type) :: old
@@ -657,7 +666,7 @@ contains
     end subroutine in_buffer_busy
 
     !> Run ACTION if its OKSTATUS allows the exit of process P (null for
-    !> none).
+    !> none).  Not a port.
     recursive subroutine run_action(action, p, status)
         type(vc_action_type), intent(in) :: action
         type(handle_type), intent(in) :: p
@@ -674,7 +683,7 @@ contains
         call action%run(action, status)
     end subroutine run_action
 
-    !> Add ACTION to those run when process P is done.
+    !> Add ACTION to those run when process P is done.  Not a port.
     subroutine queue_action(p, action)
         type(handle_type), intent(in) :: p
         type(vc_action_type), intent(in) :: action
@@ -710,6 +719,7 @@ contains
     !> The sentinel of VC's processes: when one is done, run the actions
     !> waiting for it in its buffer, from its mark, as vc-exec-after's
     !> sentinel function does.
+    !> Port of vc-dispatcher.el:vc-exec-after, in part (its sentinel).
     recursive subroutine vc_sentinel(proc, event, status)
         type(handle_type), intent(in) :: proc
         character(len=*), intent(in) :: event
@@ -765,6 +775,7 @@ contains
     end subroutine vc_sentinel
 
     ! Remove PENDING(K) (without an emptying array constructor).
+    ! Not a port.
     subroutine drop_pending(k)
         integer, intent(in) :: k
         type(vc_pending_type), allocatable :: rest(:)
@@ -1017,7 +1028,7 @@ contains
         end function flag_list
     end subroutine vc_do_command
 
-    !> N as a decimal string.
+    !> N as a decimal string.  Not a port.
     function itoa(n) result(s)
         integer, intent(in) :: n
         character(len=:), allocatable :: s
@@ -1081,7 +1092,7 @@ contains
         call goto_char(saved)
     end function vc_find_position_by_context
 
-    !> The number of characters of UTF-8 TEXT.
+    !> The number of characters of UTF-8 TEXT.  Not a port.
     integer(int64) function text_chars(text) result(n)
         character(len=*), intent(in) :: text
         integer :: k
@@ -1156,7 +1167,7 @@ contains
         end if
     end subroutine vc_revert_buffer_internal
 
-    !> (set-mark POS)
+    !> (set-mark POS) Not a port.
     subroutine set_mark_at(pos)
         use simple_fm, only: set_mark
         integer(int64), intent(in) :: pos
@@ -1164,7 +1175,7 @@ contains
         call set_mark(pos)
     end subroutine set_mark_at
 
-    !> Run `vc_mode_line_hook' with FILE.
+    !> Run `vc_mode_line_hook' with FILE.  Not a port.
     subroutine vc_mode_line_hook_run(file)
         character(len=*), intent(in) :: file
 
@@ -1172,7 +1183,7 @@ contains
     end subroutine vc_mode_line_hook_run
 
     !> The name FILE is visited under: itself if absolute, else expanded
-    !> from ROOT.
+    !> from ROOT.  Not a port.
     function resynch_name(file, root) result(name)
         character(len=*), intent(in) :: file, root
         character(len=:), allocatable :: name
