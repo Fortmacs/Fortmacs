@@ -106,6 +106,7 @@ contains
         end if
     end function rmc_add_key_description
 
+    ! Not a port.
     pure function upcase_ascii(c) result(u)
         character, intent(in) :: c
         character :: u
@@ -187,7 +188,9 @@ contains
     end subroutine read_multiple_choice
 
     !> The prompt: PROMPT, then the names with their keys, and "[?]"
-    !> unless the help shows from the start.
+    !> unless the help shows from the start.  Port of the full-prompt of
+    !> rmc.el:read-multiple-choice--short-answers and
+    !> rmc.el:read-multiple-choice--from-minibuffer.
     function full_prompt() result(full)
         character(len=:), allocatable :: full
         type(rmc_choice_type) :: question
@@ -344,7 +347,7 @@ contains
         end do
     end subroutine from_minibuffer
 
-    !> Make the minibuffer path's commands known.
+    !> Make the minibuffer path's commands known.  Not a port.
     subroutine define_commands()
         if (len_trim(cmd_char%name) > 0) return
         cmd_char = command_type("rmc__char", rmc_char)
@@ -355,7 +358,8 @@ contains
         call cmd_wrong%define()
     end subroutine define_commands
 
-    !> cmd-char: the key is the answer.
+    !> cmd-char: the key is the answer.  Port of the cmd-char lambda of
+    !> rmc.el:read-multiple-choice--from-minibuffer.
     subroutine rmc_char(status)
         type(status_type), intent(out) :: status
 
@@ -364,7 +368,8 @@ contains
         call exit_minibuffer(status)
     end subroutine rmc_char
 
-    !> cmd-help: show the help.
+    !> cmd-help: show the help.  Port of the cmd-help lambda of
+    !> rmc.el:read-multiple-choice--from-minibuffer.
     subroutine rmc_help(status)
         type(status_type), intent(out) :: status
 
@@ -372,7 +377,8 @@ contains
         call show_help_window()
     end subroutine rmc_help
 
-    !> cmd-wrong: an invalid choice.
+    !> cmd-wrong: an invalid choice.  Port of the cmd-wrong lambda of
+    !> rmc.el:read-multiple-choice--from-minibuffer.
     subroutine rmc_wrong(status)
         type(status_type), intent(out) :: status
 
@@ -417,6 +423,7 @@ contains
     end subroutine long_answers
 
     !> rmc--show-help: fill the help buffer and show it at the bottom.
+    !> Port of rmc.el:rmc--show-help.
     subroutine show_help_window()
         type(handle_type) :: previous
         character(len=:), allocatable :: text
@@ -464,7 +471,7 @@ contains
         call set_window_buffer(rmc_help_window, rmc_buf, st)
     end subroutine show_help_window
 
-    ! (/ (window-width) 25): the columns of the generated help.
+    ! (/ (window-width) 25): the columns of the generated help.  Not a port.
     integer function help_columns() result(columns)
         type(window_type), pointer :: w
 
@@ -474,7 +481,7 @@ contains
         if (w%total_cols > 0) columns = max(1, w%total_cols/25)
     end function help_columns
 
-    ! Number of characters of the UTF-8 string S.
+    ! Number of characters of the UTF-8 string S.  Not a port.
     pure integer function nchars(s)
         character(len=*), intent(in) :: s
         integer :: i
@@ -487,7 +494,7 @@ contains
     end function nchars
 
     ! TEXT (one line) filled at fill-column 21: the lines, each ended by
-    ! a newline.
+    ! a newline.  Not a port.
     function fill21(text) result(filled)
         character(len=*), intent(in) :: text
         character(len=:), allocatable :: filled, line, word

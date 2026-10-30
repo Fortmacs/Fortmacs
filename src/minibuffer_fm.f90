@@ -128,10 +128,11 @@ module minibuffer_fm
     end type string_box
 
     !> The completion table of the active minibuffer (minibuffer.el
-    !> minibuffer-completion-table), its predicate (null for none) and
-    !> minibuffer-completion-confirm (a REQUIRE_MATCH_ value).
+    !> minibuffer-completion-table).
     type(completion_table_type), public :: minibuffer_completion_table
+    !> The predicate of `minibuffer_completion_table' (null for none).
     procedure(completion_predicate), pointer, public :: minibuffer_completion_predicate => null()
+    !> minibuffer.el minibuffer-completion-confirm (a REQUIRE_MATCH_ value).
     integer, public :: minibuffer_completion_confirm = REQUIRE_MATCH_NIL
 
     !> Whether the minibuffer is completing a file name.  Port of
@@ -143,8 +144,8 @@ module minibuffer_fm
     !> ported.)  Port of minibuffer.el completion-auto-help.
     logical, public :: completion_auto_help = .true.
 
-    !> If true, print helpful inline messages during completion.  Port
-    !> of minibuffer.el completion-show-inline-help.
+    !> If true, print helpful inline messages during completion.
+    !> Port of minibuffer.el completion-show-inline-help.
     logical, public :: completion_show_inline_help = .true.
 
     !> If true, stay quiet when there is no match.  Port of
@@ -164,8 +165,8 @@ module minibuffer_fm
     !> command, unlike the display), for programs and tests.
     character(len=:), allocatable, public :: last_minibuffer_message
 
-    !> The timer that removes the text `minibuffer_message' shows.  Port
-    !> of minibuffer.el minibuffer--message-timer.
+    !> The timer that removes the text `minibuffer_message' shows.
+    !> Port of minibuffer.el minibuffer--message-timer.
     type(handle_type) :: minibuffer_message_timer
 
     !> Maximum height for *Completions* buffer window (0 for no maximum).
@@ -253,8 +254,8 @@ module minibuffer_fm
     !> wildcard.  Port of minibuffer.el completion-pcm-leading-wildcard.
     logical, public :: completion_pcm_leading_wildcard = .false.
 
-    !> True if `flex' completion rejects spaces in search pattern.  Port
-    !> of minibuffer.el completion-flex-nospace.
+    !> True if `flex' completion rejects spaces in search pattern.
+    !> Port of minibuffer.el completion-flex-nospace.
     logical, public :: completion_flex_nospace = .false.
 
     !> Whether the last `completion_all_completions' used the flex style
@@ -273,7 +274,7 @@ module minibuffer_fm
     type(flex_cost_type), allocatable :: flex_costs(:)
 
     abstract interface
-        !> The EXIT_FUNCTION of `completion_complete_and_exit'.
+        !> The EXIT_FUNCTION of `completion_complete_and_exit'.  Not a port.
         recursive subroutine completion_exit_proc(status)
             import :: status_type
             implicit none(type, external)
@@ -281,12 +282,12 @@ module minibuffer_fm
         end subroutine completion_exit_proc
 
         !> A completion-in-region-mode-predicate: whether
-        !> `completion_in_region_mode' should stay on.
+        !> `completion_in_region_mode' should stay on.  Not a port.
         recursive logical function cir_predicate_proc()
             implicit none(type, external)
         end function cir_predicate_proc
 
-        !> A `completion_in_region_function'.
+        !> A `completion_in_region_function'.  Not a port.
         recursive logical function completion_in_region_proc(start, end, collection, predicate)
             import :: int64, completion_table_type, completion_predicate
             implicit none(type, external)
@@ -400,7 +401,7 @@ module minibuffer_fm
         end subroutine completion_all_completions
 
         !> Set the completion style settings not set yet to their
-        !> defaults.
+        !> defaults.  Not a port.
         module subroutine completion_settings_defaults()
             implicit none(type, external)
         end subroutine completion_settings_defaults
@@ -706,7 +707,7 @@ contains
         call read_file_name(prompt, result, status, d, default, mustmatch, initial, directory_predicate)
     end subroutine read_directory_name
 
-    !> file-directory-p as a completion predicate.
+    !> file-directory-p as a completion predicate.  Not a port.
     logical function directory_predicate(elt)
         type(value_type), intent(in) :: elt
 
@@ -718,7 +719,7 @@ contains
     !> minibuffer's default-directory is the directory read in, a first
     !> default equal to the initial input is dropped, and
     !> `completion_ignore_case' is `read_file_name_completion_ignore_case'.
-    !> Part of minibuffer.el:read-file-name-default.
+    !> Port of minibuffer.el:read-file-name-default in part.
     subroutine read_file_name_setup()
         type(minibuffer_string_type), allocatable :: rest(:)
         integer :: k
@@ -894,7 +895,7 @@ contains
     end subroutine with_minibuffer_selected_window
 
     !> Register the commands, minibuffer.el's minibuffer-local-map keys, and
-    !> the completion keymaps.
+    !> the completion keymaps.  Not a port.
     subroutine syms_of_minibuffer()
         type(status_type) :: status
 
@@ -1017,7 +1018,7 @@ contains
     end subroutine completion_boundaries
 
     ! The minibuffer's table and predicate (a null predicate pointer is
-    ! passed as an absent argument).
+    ! passed as an absent argument).  Not a port.
     subroutine mb_boundaries(string, suffix, bstart, bend)
         character(len=*), intent(in) :: string, suffix
         integer(int64), intent(out) :: bstart, bend
@@ -1030,6 +1031,7 @@ contains
         end if
     end subroutine mb_boundaries
 
+    ! Not a port.
     subroutine mb_try_completion(string, point, res)
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: point
@@ -1043,6 +1045,7 @@ contains
         end if
     end subroutine mb_try_completion
 
+    ! Not a port.
     subroutine mb_all_completions(string, point, all, base_size)
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: point
@@ -1057,6 +1060,7 @@ contains
         end if
     end subroutine mb_all_completions
 
+    ! Not a port.
     logical function mb_test(string)
         character(len=*), intent(in) :: string
 
@@ -1067,6 +1071,7 @@ contains
         end if
     end function mb_test
 
+    ! Not a port.
     subroutine mb_try(string, result, status)
         character(len=*), intent(in) :: string
         type(value_type), intent(out) :: result
@@ -1130,7 +1135,7 @@ contains
         if (allocated(minibuffer_message_text)) deallocate (minibuffer_message_text)
     end subroutine delete_message_overlay
 
-    !> `delete_message_overlay' as a timer function.
+    !> `delete_message_overlay' as a timer function.  Not a port.
     subroutine delete_message_overlay_timer(status)
         type(status_type), intent(out) :: status
 
@@ -1365,6 +1370,7 @@ contains
 
     !> Whether `c' has word syntax (ASCII letters and digits, and non-ASCII
     !> characters: the standard syntax table's main word characters).
+    !> Not a port.
     elemental logical function word_char_p(c)
         integer(int32), intent(in) :: c
 
@@ -1583,7 +1589,7 @@ contains
     end function completion_in_region_1
 
     !> Reverse tab in the completion list WINDOW: if its beginning is in
-    !> view, scroll up to the end, else scroll down one screen.
+    !> view, scroll up to the end, else scroll down one screen.  Not a port.
     subroutine reverse_scroll_completions(window)
         type(handle_type), intent(in) :: window
         type(status_type) :: status
@@ -1604,7 +1610,7 @@ contains
         end if
     end subroutine reverse_scroll_completions
 
-    !> Forget completion-in-region--data, freeing its markers.
+    !> Forget completion-in-region--data, freeing its markers.  Not a port.
     subroutine free_cir_data()
         type(status_type) :: st
 
@@ -1685,6 +1691,7 @@ contains
         end if
     end subroutine completion_in_region_mode_body
 
+    ! Not a port.
     subroutine free_capf_field(m)
         type(handle_type), intent(inout) :: m
         type(status_type) :: st
@@ -1746,6 +1753,7 @@ contains
 
     !> completion-at-point's completion-in-region-mode-predicate: we're
     !> still in the same completion field.
+    !> Port of minibuffer.el:completion-at-point in part.
     recursive logical function capf_same_field() result(same)
         type(capf_data_type) :: data
         type(status_type) :: st
@@ -1978,7 +1986,7 @@ contains
         end select
     end subroutine completion_complete_and_exit
 
-    !> Whether `cmd' is in minibuffer-confirm-exit-commands.
+    !> Whether `cmd' is in minibuffer-confirm-exit-commands.  Not a port.
     logical function confirm_exit_command(cmd)
         type(value_type), intent(in) :: cmd
 
@@ -2003,8 +2011,8 @@ contains
     end function completions_visible
 
     !> Scroll the window of possible completions: to the top when its end
-    !> is visible, else down a screen.  The scrolling part of
-    !> completion--in-region-1.
+    !> is visible, else down a screen.  Port of
+    !> minibuffer.el:completion--in-region-1 (its scrolling part).
     subroutine scroll_completions(window)
         type(handle_type), intent(in) :: window
         type(status_type) :: status
@@ -2134,7 +2142,7 @@ contains
         end if
     end subroutine completions_fit_window_to_buffer
 
-    !> Sort `strings' as `string_lessp' does.
+    !> Sort `strings' as `string_lessp' does.  Not a port.
     subroutine sort_strings(strings)
         type(string_box), intent(inout) :: strings(:)
         character(len=:), allocatable :: tmp
@@ -2155,7 +2163,7 @@ contains
     end subroutine sort_strings
 
     !> Sort `strings' by their flex cost in `flex_costs' (lower first,
-    !> keeping the order of equal costs).
+    !> keeping the order of equal costs).  Not a port.
     subroutine sort_by_flex_cost(strings)
         type(string_box), intent(inout) :: strings(:)
         character(len=:), allocatable :: tmp
@@ -2335,8 +2343,8 @@ contains
     !>  REQUIRE_MATCH argument of `completing_read'.
     !> If `read_buffer_completion_ignore_case' is true, completion ignores
     !> case while reading the buffer name.
-    !> The buffer `except' (if given) is left out of the completions.  Port
-    !> of minibuf.c:Fread_buffer (`except' as internal-complete-buffer-except;
+    !> The buffer `except' (if given) is left out of the completions.
+    !> Port of minibuf.c:Fread_buffer (`except' as internal-complete-buffer-except;
     !> read-buffer-to-switch puts that table in the minibuffer; no
     !> PREDICATE or read-buffer-function).
     recursive subroutine read_buffer(prompt, result, status, def, require_match, except)
@@ -2398,7 +2406,7 @@ contains
     end subroutine read_buffer
 
     !> The names of all buffers, in the order of `buffer_list'
-    !> (Vbuffer_alist).
+    !> (Vbuffer_alist).  Not a port.
     function buffer_names() result(names)
         type(value_type) :: names
         type(handle_type), allocatable :: all(:)
@@ -2519,6 +2527,7 @@ contains
 
     !> internal-complete-buffer-except's predicate: the buffer is not
     !> `rbts_except' (and PRED2 accepts it).
+    !> Port of minibuffer.el:internal-complete-buffer-except in part.
     recursive logical function not_except(elt)
         type(value_type), intent(in) :: elt
 
@@ -2630,6 +2639,7 @@ contains
     end subroutine completing_read
 
     !> completing-read-default's minibuffer-with-setup-hook function.
+    !> Port of minibuffer.el:completing-read-default in part.
     subroutine completing_read_setup()
         procedure(minibuffer_setup_proc), pointer :: outer
 
@@ -2943,7 +2953,7 @@ contains
     end subroutine completion_table_with_context
 
     ! The predicate of `completion_table_with_context': its PRED called
-    ! with the prefix and the candidate.
+    ! with the prefix and the candidate.  Not a port.
     logical function context_predicate(elt)
         type(value_type), intent(in) :: elt
 

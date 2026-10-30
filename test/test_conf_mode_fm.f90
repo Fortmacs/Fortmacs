@@ -1,4 +1,5 @@
 ! test_conf_mode_fm.f90 -- tests for Conf mode (conf_mode_fm).
+! Ports GNU Emacs 31.1 test/lisp/textmodes/conf-mode-tests.el.
 !
 ! Copyright (C) 2016-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -57,6 +58,7 @@ module test_conf_mode_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_conf_mode_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

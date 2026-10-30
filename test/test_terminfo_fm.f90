@@ -1,5 +1,5 @@
-! test_terminfo_fm.f90 -- tests for terminfo_fm.  Own tests: upstream has
-! no terminfo tests (it relies on ncurses).
+! test_terminfo_fm.f90 -- tests for terminfo_fm.
+! Own tests; upstream has no terminfo tests (it relies on ncurses).
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -34,6 +34,7 @@ module test_terminfo_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_terminfo_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

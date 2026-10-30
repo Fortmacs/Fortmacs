@@ -1,4 +1,5 @@
 ! test_css_mode_fm.f90 -- tests for CSS mode (css_mode_fm).
+! Ports GNU Emacs 31.1 test/lisp/textmodes/css-mode-tests.el.
 !
 ! Copyright (C) 2016-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -228,6 +229,7 @@ module test_css_mode_fm
 
 contains
 
+    !> Collect all exported unit tests.
     !> Collect all exported unit tests.
     subroutine collect_css_mode_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)

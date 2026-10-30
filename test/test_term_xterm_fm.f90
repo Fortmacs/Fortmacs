@@ -1,6 +1,7 @@
 ! test_term_xterm_fm.f90 -- tests for term_xterm_fm: xterm escape
-! sequences arriving as function keys.  Own tests (upstream's xterm-tests.el
-! covers selection and color queries, not ported).
+! sequences arriving as function keys.
+! Own tests; upstream's xterm-tests.el covers selection and color
+! queries, which are not ported.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -39,6 +40,7 @@ module test_term_xterm_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_term_xterm_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

@@ -161,7 +161,7 @@ module sysdep_fm
 
 contains
 
-    !> Fill `status' from errno after the C call `what' failed.
+    !> Fill `status' from errno after the C call `what' failed.  Not a port.
     subroutine sys_error(status, what, err)
         type(status_type), intent(inout) :: status
         character(len=*), intent(in) :: what
@@ -224,6 +224,7 @@ contains
     !> byte, and special characters disabled except C-g for SIGINT/SIGQUIT
     !> on the controlling terminal.  The termios part of
     !> sysdep.c:init_sys_modes, separated so it can be tested.
+    !> Port of part of sysdep.c:init_sys_modes.
     pure function tty_raw_settings(old, flow_control, meta_key, controlling) result(tty)
         type(emacs_tty_type), intent(in) :: old
         logical, intent(in) :: flow_control, meta_key, controlling
@@ -313,6 +314,7 @@ contains
     end subroutine reset_sys_modes
 
     !> Whether `fd' is a terminal.  The isatty check of emacs.c:main.
+    !> Not a port.
     logical function emacs_isatty(fd)
         integer(int32), intent(in) :: fd
 
@@ -468,13 +470,14 @@ contains
 
     !> SIGWINCH handler: only sets a flag.  The work happens in the
     !> command loop.  Cf. dispnew.c:deliver_window_change_signal.
+    !> Not a port.
     subroutine handle_window_change_signal(signum) bind(C)
         integer(c_int), value :: signum
 
         winch_flag = signum
     end subroutine handle_window_change_signal
 
-    !> Install the SIGWINCH handler.
+    !> Install the SIGWINCH handler.  Not a port.
     subroutine install_window_change_handler()
         type(c_funptr) :: old
 
@@ -483,14 +486,14 @@ contains
 
     !> SIGINT handler, for the quit character typed on the controlling
     !> terminal: only sets a flag, which the command loop reads.  Cf.
-    !> keyboard.c:handle_interrupt_signal.
+    !> keyboard.c:handle_interrupt_signal.  Not a port.
     subroutine handle_interrupt_signal(signum) bind(C)
         integer(c_int), value :: signum
 
         sigint_flag = signum
     end subroutine handle_interrupt_signal
 
-    !> Install the SIGINT handler (keyboard.c:init_keyboard).
+    !> Install the SIGINT handler (keyboard.c:init_keyboard).  Not a port.
     subroutine install_interrupt_handler()
         type(c_funptr) :: old
 
@@ -498,12 +501,13 @@ contains
     end subroutine install_interrupt_handler
 
     !> True if the quit character was typed (SIGINT) since the last call.
+    !> Not a port.
     logical function interrupt_pending()
         interrupt_pending = sigint_flag /= 0
         sigint_flag = 0
     end function interrupt_pending
 
-    !> True if the terminal was resized since the last call.
+    !> True if the terminal was resized since the last call.  Not a port.
     logical function window_change_pending()
         window_change_pending = winch_flag /= 0
         winch_flag = 0
@@ -540,7 +544,7 @@ contains
         end if
     end subroutine open_pty
 
-    !> Close `fd', ignoring errors.  Cf. sysdep.c:emacs_close.
+    !> Close `fd', ignoring errors.  Cf. sysdep.c:emacs_close.  Not a port.
     subroutine close_fd(fd)
         integer(int32), intent(in) :: fd
         integer(c_int) :: r
@@ -553,7 +557,7 @@ contains
     ! can build their messages (report_file_errno) without ISO_C_BINDING.
     ! ------------------------------------------------------------------
 
-    !> `name' as a NUL-terminated C string.
+    !> `name' as a NUL-terminated C string.  Not a port.
     pure function c_path(name) result(p)
         character(len=*), intent(in) :: name
         character(len=len(name) + 1) :: p
@@ -562,7 +566,7 @@ contains
     end function c_path
 
     !> Open `file' for reading.  Cf. sysdep.c:emacs_open (O_CLOEXEC added,
-    !> retrying on EINTR).
+    !> retrying on EINTR).  Not a port.
     integer(int32) function emacs_open_read(file, fd) result(err)
         character(len=*), intent(in) :: file
         integer(int32), intent(out) :: fd
@@ -579,6 +583,7 @@ contains
 
     !> Create (or truncate) `file' for writing with permission bits `mode'
     !> (before the umask).  Cf. sysdep.c:emacs_open with O_CREAT | O_TRUNC.
+    !> Not a port.
     integer(int32) function emacs_creat(file, mode, fd) result(err)
         character(len=*), intent(in) :: file
         integer(int32), intent(in) :: mode
@@ -595,6 +600,7 @@ contains
     end function emacs_creat
 
     !> access(2) with `mode' (F_OK, R_OK, W_OK, X_OK); 0 if allowed.
+    !> Not a port.
     integer(int32) function sys_access(file, mode) result(err)
         character(len=*), intent(in) :: file
         integer(int32), intent(in) :: mode
@@ -603,7 +609,7 @@ contains
         if (c_access(c_path(file), mode) /= 0) err = errno()
     end function sys_access
 
-    !> rename(2).
+    !> rename(2).  Not a port.
     integer(int32) function sys_rename(old, new) result(err)
         character(len=*), intent(in) :: old, new
 
@@ -611,7 +617,7 @@ contains
         if (c_rename(c_path(old), c_path(new)) /= 0) err = errno()
     end function sys_rename
 
-    !> unlink(2).
+    !> unlink(2).  Not a port.
     integer(int32) function sys_unlink(file) result(err)
         character(len=*), intent(in) :: file
 
@@ -619,7 +625,7 @@ contains
         if (c_unlink(c_path(file)) /= 0) err = errno()
     end function sys_unlink
 
-    !> mkdir(2) with permission bits `mode' (before the umask).
+    !> mkdir(2) with permission bits `mode' (before the umask).  Not a port.
     integer(int32) function sys_mkdir(dir, mode) result(err)
         character(len=*), intent(in) :: dir
         integer(int32), intent(in) :: mode
@@ -628,7 +634,7 @@ contains
         if (c_mkdir(c_path(dir), mode) /= 0) err = errno()
     end function sys_mkdir
 
-    !> rmdir(2).
+    !> rmdir(2).  Not a port.
     integer(int32) function sys_rmdir(dir) result(err)
         character(len=*), intent(in) :: dir
 
@@ -637,7 +643,7 @@ contains
     end function sys_rmdir
 
     !> Set environment variable `name' to `value' for this process (and
-    !> so for get_environment_variable).
+    !> so for get_environment_variable).  Not a port.
     integer(int32) function sys_setenv(name, value) result(err)
         character(len=*), intent(in) :: name, value
 
@@ -650,7 +656,7 @@ contains
         end if
     end function sys_setenv
 
-    !> Remove environment variable `name'.
+    !> Remove environment variable `name'.  Not a port.
     integer(int32) function sys_unsetenv(name) result(err)
         character(len=*), intent(in) :: name
 
@@ -664,6 +670,7 @@ contains
     end function sys_unsetenv
 
     ! Read the environment the editor started with into `environment'.
+    ! Not a port.
     subroutine read_environment()
         character(len=1) :: c
         character(len=:), allocatable :: entry
@@ -693,7 +700,7 @@ contains
     end subroutine read_environment
 
     ! Put "NAME=VALUE" ENTRY in `environment', replacing NAME's entry;
-    ! a "NAME" without "=" removes it.
+    ! a "NAME" without "=" removes it.  Not a port.
     subroutine environment_set(entry)
         character(len=*), intent(in) :: entry
         type(sys_string_type), allocatable :: grown(:)
@@ -735,7 +742,7 @@ contains
         environment(environment_count)%s = entry
     end subroutine environment_set
 
-    !> chmod(2).
+    !> chmod(2).  Not a port.
     integer(int32) function sys_chmod(file, mode) result(err)
         character(len=*), intent(in) :: file
         integer(int32), intent(in) :: mode
@@ -746,7 +753,7 @@ contains
 
     !> Status of `file', following symbolic links unless `nofollow'.
     !> Cf. emacs_fstatat (statx is used because its layout is the same on
-    !> both targets).
+    !> both targets).  Not a port.
     integer(int32) function sys_stat(file, st, nofollow) result(err)
         character(len=*), intent(in) :: file
         type(file_stat_type), intent(out) :: st
@@ -831,7 +838,7 @@ contains
     end function emacs_get_current_dir_name
 
     !> Home directory of the user called `name' (getpwnam).  `found' is
-    !> false when there is no such user.
+    !> false when there is no such user.  Not a port.
     subroutine passwd_home_by_name(name, home, found)
         character(len=*), intent(in) :: name
         character(len=:), allocatable, intent(out) :: home
@@ -840,7 +847,7 @@ contains
         call passwd_home(c_getpwnam(c_path(name)), home, found)
     end subroutine passwd_home_by_name
 
-    !> Home directory of the real user (getpwuid (getuid ())).
+    !> Home directory of the real user (getpwuid (getuid ())).  Not a port.
     subroutine passwd_home_of_user(home, found)
         character(len=:), allocatable, intent(out) :: home
         logical, intent(out) :: found
@@ -850,7 +857,7 @@ contains
 
     !> Login name of the real user (getpwuid (getuid ())), as
     !> editfns.c:Fuser_real_login_name finds it.  `found' is false when the
-    !> user has no passwd entry.
+    !> user has no passwd entry.  Not a port.
     subroutine passwd_name_of_user(name, found)
         character(len=:), allocatable, intent(out) :: name
         logical, intent(out) :: found
@@ -865,6 +872,7 @@ contains
         name = c_string_to_fortran(pw%pw_name)
     end subroutine passwd_name_of_user
 
+    ! Not a port.
     subroutine passwd_home(p, home, found)
         type(c_ptr), intent(in) :: p
         character(len=:), allocatable, intent(out) :: home
@@ -878,22 +886,23 @@ contains
         home = c_string_to_fortran(pw%pw_dir)
     end subroutine passwd_home
 
-    !> The effective user id (editfns.c:Fuser_uid).
+    !> The effective user id (editfns.c:Fuser_uid).  Not a port.
     integer(int32) function emacs_geteuid()
         emacs_geteuid = c_geteuid()
     end function emacs_geteuid
 
-    !> The real user id (editfns.c:Fuser_real_uid).
+    !> The real user id (editfns.c:Fuser_real_uid).  Not a port.
     integer(int32) function emacs_getuid()
         emacs_getuid = c_getuid()
     end function emacs_getuid
 
-    !> The effective group id (editfns.c:Fgroup_gid).
+    !> The effective group id (editfns.c:Fgroup_gid).  Not a port.
     integer(int32) function emacs_getegid()
         emacs_getegid = c_getegid()
     end function emacs_getegid
 
     !> Text describing errno value `err'.  Cf. sysdep.c:emacs_strerror.
+    !> Not a port.
     function emacs_strerror(err) result(text)
         integer(int32), intent(in) :: err
         character(len=:), allocatable :: text
@@ -905,7 +914,7 @@ contains
     ! Processes.  Like the file calls, each returns 0 or the errno value.
     ! ------------------------------------------------------------------
 
-    !> Fill `argv' (which must be a target) from `args'.
+    !> Fill `argv' (which must be a target) from `args'.  Not a port.
     subroutine make_argv(args, argv)
         type(sys_string_type), intent(in) :: args(:)
         type(c_argv_type), intent(out), target :: argv
@@ -938,8 +947,8 @@ contains
     !> instead (created or truncated).  `pid' is the child, which starts a
     !> new session with SIGINT, SIGQUIT and SIGPIPE at their defaults.
     !> The caller checks that `path', `infile' and `dir' can be used first;
-    !> if the child still fails to start, it exits with status 127.  Port
-    !> of callproc.c:emacs_spawn (the fork path, without a pty).
+    !> if the child still fails to start, it exits with status 127.
+    !> Port of callproc.c:emacs_spawn (the fork path, without a pty).
     integer(int32) function emacs_spawn(path, args, infile, out_fd, dir, pid, err_file, env) result(err)
         character(len=*), intent(in) :: path, infile, dir
         type(sys_string_type), intent(in) :: args(:)
@@ -1013,7 +1022,7 @@ contains
     !> editor's terminal) and put back the default handling of SIGINT,
     !> SIGQUIT and SIGPIPE (which the editor ignores).  Cf.
     !> process.c:dissociate_controlling_tty and the signal resets of
-    !> callproc.c:emacs_spawn.
+    !> callproc.c:emacs_spawn.  Not a port.
     subroutine child_signals()
         type(c_funptr) :: old
         integer(c_int32_t) :: sid
@@ -1251,7 +1260,7 @@ contains
     end function emacs_pipe
 
     !> The editor's environment: its "NAME=VALUE" entries (the
-    !> strings of `process_environment' upstream).
+    !> strings of `process_environment' upstream).  Not a port.
     function emacs_environment() result(all)
         type(sys_string_type), allocatable :: all(:)
         type(sys_string_type) :: none(0)
@@ -1262,7 +1271,7 @@ contains
     !> The editor's environment with the "NAME=VALUE" entries `env' first,
     !> replacing the variables they name (earlier entries win); an entry
     !> "NAME" without "=" removes the variable.  Cf.
-    !> callproc.c:make_environment_block.
+    !> callproc.c:make_environment_block.  Not a port.
     function environment_with(env) result(all)
         type(sys_string_type), intent(in) :: env(:)
         type(sys_string_type), allocatable :: all(:), grown(:)
@@ -1406,13 +1415,14 @@ contains
         end function omp_threads
     end function emacs_num_processors
 
-    !> The current time in seconds since the epoch (time(2)).
+    !> The current time in seconds since the epoch (time(2)).  Not a port.
     integer(int64) function emacs_time()
         emacs_time = c_time(c_null_ptr)
     end function emacs_time
 
     !> The current time as seconds and nanoseconds since the epoch
     !> (clock_gettime(2) with CLOCK_REALTIME; gnulib current_timespec).
+    !> Not a port.
     subroutine emacs_clock_realtime(sec, nsec)
         integer(int64), intent(out) :: sec
         integer(int32), intent(out) :: nsec
@@ -1428,7 +1438,7 @@ contains
     end subroutine emacs_clock_realtime
 
     !> The local time of `seconds' since the epoch: year, month (1-12),
-    !> day, hour, minute, second and weekday (0 for Sunday).
+    !> day, hour, minute, second and weekday (0 for Sunday).  Not a port.
     function emacs_localtime_wday(seconds) result(parts)
         integer(int64), intent(in) :: seconds
         integer :: parts(7)
@@ -1478,7 +1488,7 @@ contains
     end function child_setup_tty
 
     !> kill(2): send signal `sig' to process `pid' (a process group if
-    !> negative).  Returns 0 or errno.
+    !> negative).  Returns 0 or errno.  Not a port.
     integer(int32) function emacs_kill(pid, sig) result(err)
         integer(int32), intent(in) :: pid, sig
 
@@ -1488,6 +1498,7 @@ contains
 
     !> The foreground process group of the terminal `fd' (a pty master: its
     !> slave's), or -1.  The TIOCGPGRP part of process.c:emacs_get_tty_pgrp.
+    !> Port of process.c:emacs_get_tty_pgrp (in part).
     integer(int32) function emacs_get_tty_pgrp(fd) result(gid)
         integer(int32), intent(in) :: fd
 
@@ -1498,6 +1509,7 @@ contains
     !> SIGTSTP) on the terminal `fd': its INTR, QUIT or SUSP character, or
     !> -1 if it has none (disabled, or another signal).  The
     !> SIGNALS_VIA_CHARACTERS part of process.c:process_send_signal.
+    !> Port of part of process.c:process_send_signal.
     integer function emacs_tty_signal_char(fd, signo) result(c)
         integer(int32), intent(in) :: fd
         integer, intent(in) :: signo
@@ -1527,6 +1539,7 @@ contains
     !> Ignore SIGPIPE, so that writing to a subprocess that has exited is
     !> an EPIPE error, not the editor's death (sysdep.c:init_signals; the
     !> children get the default back).
+    !> Port of part of sysdep.c:init_signals.
     subroutine ignore_sigpipe()
         type(c_funptr) :: old
 
@@ -1535,7 +1548,7 @@ contains
 
     !> Write `buf' to `fd' without waiting: `written' is how much was
     !> written before the pipe or terminal was full (EAGAIN) or an error
-    !> (`err', errno; EAGAIN is not an error).
+    !> (`err', errno; EAGAIN is not an error).  Not a port.
     subroutine emacs_write_nonblock(fd, buf, written, err)
         integer(int32), intent(in) :: fd
         character(len=*), intent(in) :: buf
@@ -1563,7 +1576,7 @@ contains
         end do
     end subroutine emacs_write_nonblock
 
-    !> A close-on-exec duplicate of `fd' (-1 on failure).
+    !> A close-on-exec duplicate of `fd' (-1 on failure).  Not a port.
     integer(int32) function emacs_dup_cloexec(fd)
         integer(int32), intent(in) :: fd
 
@@ -1573,7 +1586,7 @@ contains
     !> Wait up to `timeout_ms' milliseconds (0: just check; negative: no
     !> limit) until one of the descriptors `fds' has input; `ready' says
     !> which have (negative descriptors are ignored).  Like
-    !> `input_available', for several descriptors.
+    !> `input_available', for several descriptors.  Not a port.
     subroutine inputs_available(fds, timeout_ms, ready)
         integer(int32), intent(in) :: fds(:), timeout_ms
         logical, intent(out) :: ready(:)
@@ -1599,7 +1612,7 @@ contains
         end do
     end subroutine inputs_available
 
-    !> Make `fd' non-blocking (O_NONBLOCK).
+    !> Make `fd' non-blocking (O_NONBLOCK).  Not a port.
     subroutine set_nonblocking(fd)
         integer(int32), intent(in) :: fd
         integer(c_int) :: flags, r
@@ -1609,6 +1622,7 @@ contains
     end subroutine set_nonblocking
 
     !> The description of signal `sig' ("Killed"), as strsignal gives it.
+    !> Not a port.
     function emacs_strsignal(sig) result(text)
         integer(int32), intent(in) :: sig
         character(len=:), allocatable :: text
@@ -1618,6 +1632,7 @@ contains
     end function emacs_strsignal
 
     !> The target of symbolic link `path'.  Cf. sysdep.c:emacs_readlinkat.
+    !> Not a port.
     integer(int32) function emacs_readlink(path, target) result(err)
         character(len=*), intent(in) :: path
         character(len=:), allocatable, intent(out) :: target
@@ -1654,7 +1669,7 @@ contains
 
     !> Replace this process with the program `path', given arguments
     !> `args' (args(1) is its name) and the same environment.  Returns
-    !> only on failure.
+    !> only on failure.  Not a port.
     integer(int32) function emacs_execv(path, args) result(err)
         character(len=*), intent(in) :: path
         type(sys_string_type), intent(in) :: args(:)
@@ -1668,7 +1683,7 @@ contains
 
     !> Create a new file from `template', whose last six characters are
     !> "XXXXXX" (replaced to make the name unique); `fd' is open for
-    !> writing, close-on-exec.  Cf. sysdep.c's use of mkostemp.
+    !> writing, close-on-exec.  Cf. sysdep.c's use of mkostemp.  Not a port.
     integer(int32) function emacs_mkostemp(template, fd) result(err)
         ! The name is filled in, so its length is the caller's.
         ! allow(assumed-size-character-intent)
@@ -1689,7 +1704,7 @@ contains
 
     !> The names of the entries of directory `dir', "." and ".." included,
     !> in the order the file system gives them.  Cf. dired.c's use of
-    !> opendir and readdir.
+    !> opendir and readdir.  Not a port.
     integer(int32) function emacs_directory_entries(dir, names) result(err)
         character(len=*), intent(in) :: dir
         type(sys_string_type), allocatable, intent(out) :: names(:)
@@ -1741,7 +1756,7 @@ contains
         names = names(1:n)
     end function emacs_directory_entries
 
-    !> symlink(2): make `link' a symbolic link to `target'.
+    !> symlink(2): make `link' a symbolic link to `target'.  Not a port.
     integer(int32) function sys_symlink(target, link) result(err)
         character(len=*), intent(in) :: target, link
 
@@ -1750,7 +1765,7 @@ contains
     end function sys_symlink
 
     !> The local time of `seconds' since the epoch: year, month (1-12),
-    !> day, hour, minute and second.
+    !> day, hour, minute and second.  Not a port.
     function emacs_localtime(seconds) result(parts)
         integer(int64), intent(in) :: seconds
         integer :: parts(6)
@@ -1764,6 +1779,7 @@ contains
     !> Open `file' with `flags' (O_WRONLY with O_CREAT, O_EXCL or O_TRUNC)
     !> and, when it is created, permission bits `mode' (before the umask),
     !> close-on-exec, retrying on EINTR.  Cf. sysdep.c:emacs_open.
+    !> Not a port.
     integer(int32) function emacs_open_mode(file, flags, mode, fd) result(err)
         character(len=*), intent(in) :: file
         integer(int32), intent(in) :: flags, mode
@@ -1779,7 +1795,7 @@ contains
         end do
     end function emacs_open_mode
 
-    !> link(2).
+    !> link(2).  Not a port.
     integer(int32) function sys_link(old, new) result(err)
         character(len=*), intent(in) :: old, new
 
@@ -1789,6 +1805,7 @@ contains
 
     !> Rename `old' to `new' unless `new' exists (renameat2 with
     !> RENAME_NOREPLACE).  Cf. sysdep.c:renameat_noreplace.
+    !> Port of sysdep.c:renameat_noreplace (the Linux case).
     integer(int32) function sys_rename_noreplace(old, new) result(err)
         character(len=*), intent(in) :: old, new
 
@@ -1798,7 +1815,7 @@ contains
 
     !> Set the access and modification times of `file' (a nanoseconds
     !> value of UTIME_NOW means the current time), the link itself if
-    !> `nofollow' (utimensat(2)).
+    !> `nofollow' (utimensat(2)).  Not a port.
     integer(int32) function sys_set_file_times(file, atime_sec, atime_nsec, mtime_sec, mtime_nsec, nofollow) result(err)
         character(len=*), intent(in) :: file
         integer(int64), intent(in) :: atime_sec, mtime_sec
@@ -1818,6 +1835,7 @@ contains
     end function sys_set_file_times
 
     !> futimens(2): the access and modification times of open file `fd'.
+    !> Not a port.
     integer(int32) function sys_futimens(fd, atime_sec, atime_nsec, mtime_sec, mtime_nsec) result(err)
         integer(int32), intent(in) :: fd
         integer(int64), intent(in) :: atime_sec, mtime_sec
@@ -1833,6 +1851,7 @@ contains
     end function sys_futimens
 
     !> The process's file mode creation mask (umask(2), set back at once).
+    !> Not a port.
     integer(int32) function emacs_umask() result(mask)
         integer(c_int32_t) :: old, zero
 
@@ -1841,7 +1860,7 @@ contains
         mask = old
     end function emacs_umask
 
-    !> fchmod(2).
+    !> fchmod(2).  Not a port.
     integer(int32) function sys_fchmod(fd, mode) result(err)
         integer(int32), intent(in) :: fd, mode
 
@@ -1850,7 +1869,7 @@ contains
     end function sys_fchmod
 
     !> Set the permission bits of `file', of the link itself if
-    !> `nofollow' (fchmodat(2)).  Cf. sysdep.c:emacs_fchmodat.
+    !> `nofollow' (fchmodat(2)).  Cf. sysdep.c:emacs_fchmodat.  Not a port.
     integer(int32) function sys_chmod_at(file, mode, nofollow) result(err)
         character(len=*), intent(in) :: file
         integer(int32), intent(in) :: mode
@@ -1863,7 +1882,7 @@ contains
         if (c_fchmodat(AT_FDCWD, c_path(file), mode, flags) /= 0) err = errno()
     end function sys_chmod_at
 
-    !> fchown(2); -1 leaves the owner or group as it is.
+    !> fchown(2); -1 leaves the owner or group as it is.  Not a port.
     integer(int32) function sys_fchown(fd, uid, gid) result(err)
         integer(int32), intent(in) :: fd, uid, gid
 
@@ -1872,7 +1891,7 @@ contains
     end function sys_fchown
 
     !> The name of group `gid' (getgrgid(3)); `found' is false if it has
-    !> no entry.
+    !> no entry.  Not a port.
     subroutine group_name_of_gid(gid, name, found)
         integer(int32), intent(in) :: gid
         character(len=:), allocatable, intent(out) :: name
@@ -1889,7 +1908,7 @@ contains
     end subroutine group_name_of_gid
 
     !> The login name of user `uid' (getpwuid(3)); `found' is false if it
-    !> has no entry.
+    !> has no entry.  Not a port.
     subroutine user_name_of_uid(uid, name, found)
         integer(int32), intent(in) :: uid
         character(len=:), allocatable, intent(out) :: name
@@ -1906,7 +1925,7 @@ contains
     end subroutine user_name_of_uid
 
     !> The login name, gecos field and uid of user UID (getpwuid(3));
-    !> FOUND is false if it has no entry.
+    !> FOUND is false if it has no entry.  Not a port.
     subroutine passwd_entry_by_uid(uid, name, gecos, found)
         integer(int32), intent(in) :: uid
         character(len=:), allocatable, intent(out) :: name, gecos
@@ -1917,7 +1936,7 @@ contains
 
     !> The login name and gecos field of the user called LOGIN
     !> (getpwnam(3)); FOUND is false if there is no such user.  UID is the
-    !> user's uid.
+    !> user's uid.  Not a port.
     subroutine passwd_entry_by_name(login, name, gecos, uid, found)
         character(len=*), intent(in) :: login
         character(len=:), allocatable, intent(out) :: name, gecos
@@ -1934,6 +1953,7 @@ contains
         uid = pw%pw_uid
     end subroutine passwd_entry_by_name
 
+    ! Not a port.
     subroutine passwd_entry(p, name, gecos, found)
         type(c_ptr), intent(in) :: p
         character(len=:), allocatable, intent(out) :: name, gecos
@@ -1951,6 +1971,7 @@ contains
 
     !> The host name (gethostname(2)), growing the buffer until the name
     !> fits, as sysdep.c:init_system_name does.
+    !> Port of part of sysdep.c:init_system_name.
     function emacs_gethostname() result(hostname)
         character(len=:), allocatable :: hostname
         character(kind=c_char, len=:), allocatable :: buf
@@ -1973,7 +1994,7 @@ contains
     end function emacs_gethostname
 
     !> The login names of all users of the password database, in its
-    !> order (getpwent(3)).  Cf. dired.c:Fsystem_users.
+    !> order (getpwent(3)).  Cf. dired.c:Fsystem_users.  Not a port.
     subroutine system_user_names(names)
         type(sys_string_type), allocatable, intent(out) :: names(:)
         type(sys_string_type), allocatable :: grown(:)
@@ -1999,7 +2020,7 @@ contains
     end subroutine system_user_names
 
     !> The names of all groups of the group database, in its order
-    !> (getgrent(3)).  Cf. dired.c:Fsystem_groups.
+    !> (getgrent(3)).  Cf. dired.c:Fsystem_groups.  Not a port.
     subroutine system_group_names(names)
         type(sys_string_type), allocatable, intent(out) :: names(:)
         type(sys_string_type), allocatable :: grown(:)
@@ -2026,6 +2047,7 @@ contains
 
     !> The file system holding `path': its total, free and available
     !> space in bytes (statvfs(3): blocks times the fragment size).
+    !> Not a port.
     integer(int32) function emacs_statvfs(path, total, free, avail) result(err)
         character(len=*), intent(in) :: path
         integer(int64), intent(out) :: total, free, avail
@@ -2051,7 +2073,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> A new inotify instance, non-blocking and close-on-exec, in FD.
-    !> The result is 0 or errno.
+    !> The result is 0 or errno.  Not a port.
     integer(int32) function emacs_inotify_init(fd) result(err)
         integer(int32), intent(out) :: fd
 
@@ -2061,7 +2083,7 @@ contains
     end function emacs_inotify_init
 
     !> Watch FILE for the events in MASK on inotify instance FD, giving
-    !> the watch descriptor in WD.  The result is 0 or errno.
+    !> the watch descriptor in WD.  The result is 0 or errno.  Not a port.
     integer(int32) function emacs_inotify_add_watch(fd, file, mask, wd) result(err)
         integer(int32), intent(in) :: fd, mask
         character(len=*), intent(in) :: file
@@ -2073,6 +2095,7 @@ contains
     end function emacs_inotify_add_watch
 
     !> Remove watch WD from inotify instance FD.  The result is 0 or errno.
+    !> Not a port.
     integer(int32) function emacs_inotify_rm_watch(fd, wd) result(err)
         integer(int32), intent(in) :: fd, wd
 
@@ -2081,7 +2104,7 @@ contains
     end function emacs_inotify_rm_watch
 
     !> Read the events waiting on inotify instance FD, oldest first,
-    !> without blocking.  ERR is 0 or errno.
+    !> without blocking.  ERR is 0 or errno.  Not a port.
     subroutine emacs_inotify_read(fd, events, err)
         integer(int32), intent(in) :: fd
         type(inotify_raw_event_type), allocatable, intent(out) :: events(:)

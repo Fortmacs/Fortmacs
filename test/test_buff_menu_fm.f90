@@ -1,5 +1,5 @@
 ! test_buff_menu_fm.f90 -- tests for buff_menu_fm.
-! Ported from GNU Emacs 31.1 test/lisp/buff-menu-tests.el.
+! Ports GNU Emacs 31.1 test/lisp/buff-menu-tests.el.
 !
 ! Copyright (C) 2016-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -47,6 +47,7 @@ module test_buff_menu_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_buff_menu_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

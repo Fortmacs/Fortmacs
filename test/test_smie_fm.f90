@@ -1,4 +1,5 @@
 ! test_smie_fm.f90 -- tests for SMIE (smie_fm).
+! Own tests; upstream has no SMIE tests.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -49,6 +50,7 @@ module test_smie_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_smie_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

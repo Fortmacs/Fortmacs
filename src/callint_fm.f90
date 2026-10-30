@@ -80,7 +80,7 @@ contains
 
     !> The function named NAME: one defined with `command_type%define',
     !> else a built-in one (`commands'); null if there is none or it has no
-    !> procedure.
+    !> procedure.  Not a port.
     function find_command(name) result(p)
         character(len=*), intent(in) :: name
         type(command_type), pointer :: p
@@ -93,7 +93,7 @@ contains
         end if
     end function find_command
 
-    !> The function named by symbol V, or null.
+    !> The function named by symbol V, or null.  Not a port.
     function symbol_command(v) result(p)
         type(value_type), intent(in) :: v
         type(command_type), pointer :: p
@@ -104,6 +104,7 @@ contains
     end function symbol_command
 
     !> The name of the function whose procedure is PROC ("" if none).
+    !> Not a port.
     function command_name_of(proc) result(name)
         procedure(command_proc) :: proc
         character(len=:), allocatable :: name
@@ -126,7 +127,7 @@ contains
     end function command_name_of
 
     !> Intern the names of the built-in commands, so that completion over
-    !> the obarray (M-x) sees them.
+    !> the obarray (M-x) sees them.  Not a port.
     subroutine intern_command_names()
         integer :: i
         integer(int64) :: id
@@ -145,7 +146,7 @@ contains
     end function fboundp
 
     !> Whether symbol `v' names a defined command (a function with an
-    !> interactive spec).
+    !> interactive spec).  Not a port.
     logical function command_defined_p(v)
         type(value_type), intent(in) :: v
         type(command_type), pointer :: p
@@ -173,7 +174,7 @@ contains
 
     !> Make the command named NAME disabled or not (its `disabled'
     !> property), for a name only known at run time; built-in commands
-    !> are `commands%NAME%disabled'.
+    !> are `commands%NAME%disabled'.  Not a port.
     subroutine set_command_disabled(name, disabled, status)
         character(len=*), intent(in) :: name
         logical, intent(in) :: disabled

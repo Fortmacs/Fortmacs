@@ -1,7 +1,7 @@
 ! test_dired_aux_fm.f90 -- tests for the Dired file operations
 ! (dired-aux.el, in dired_mode_fm's submodule dired_aux_fm).
-! Ported from GNU Emacs 31.1 test/lisp/dired-aux-tests.el
-! (dired-test-bug28834, dired-test-bug30624); the others are our own.
+! Ports GNU Emacs 31.1 test/lisp/dired-aux-tests.el in part; only
+! dired-test-bug28834 and dired-test-bug30624 concern what is ported.
 !
 ! Copyright (C) 2017-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -57,6 +57,7 @@ module test_dired_aux_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_dired_aux_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

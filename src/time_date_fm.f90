@@ -191,7 +191,7 @@ contains
         end if
     end function seconds_to_string
 
-    ! The unit HERE for VAL: abbreviated, singular or PLURAL.
+    ! The unit HERE for VAL: abbreviated, singular or PLURAL.  Not a port.
     function unit_name(val, here, abbrev, plural) result(name)
         real(real64), intent(in) :: val
         integer, intent(in) :: here
@@ -208,6 +208,7 @@ contains
     end function unit_name
 
     ! (round X DIVISOR): the integer nearest to X/DIVISOR, ties to even.
+    ! Not a port.
     real(real64) function lisp_round(x, divisor) result(r)
         real(real64), intent(in) :: x, divisor
         real(real64) :: q, f
@@ -226,6 +227,7 @@ contains
         end if
     end function lisp_round
 
+    ! Not a port.
     function itoa(n) result(s)
         integer, intent(in) :: n
         character(len=:), allocatable :: s

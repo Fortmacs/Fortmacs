@@ -290,7 +290,7 @@ module autorevert_fm
     logical :: tail_mode_binding = .false.
 
     abstract interface
-        !> The BODY of `inhibit_auto_revert'.
+        !> The BODY of `inhibit_auto_revert'.  Not a port.
         recursive subroutine inhibit_body_proc(status)
             import :: status_type
             implicit none(type, external)
@@ -305,7 +305,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The index of the current buffer's entry in `locals', made if MAKE
-    !> (0 if none).
+    !> (0 if none).  Not a port.
     integer function local_index(make) result(k)
         logical, intent(in) :: make
         type(local_type), allocatable :: grown(:)
@@ -346,7 +346,7 @@ contains
         k = n + 1
     end function local_index
 
-    !> Whether a buffer with SERIAL is live.
+    !> Whether a buffer with SERIAL is live.  Not a port.
     logical function serial_live(serial)
         integer(int64), intent(in) :: serial
         integer(int64) :: b
@@ -362,6 +362,7 @@ contains
     end function serial_live
 
     !> kill-all-local-variables: the variables that are not permanent.
+    !> Not a port.
     subroutine kill_autorevert_locals()
         integer :: k
 
@@ -412,11 +413,12 @@ contains
     end function auto_revert_tail_pos
 
     !> Whether the Auto-Revert timer is active (auto-revert-timer).
+    !> Not a port.
     logical function auto_revert_timer_active_p()
         auto_revert_timer_active_p = timerp(auto_revert_timer)
     end function auto_revert_timer_active_p
 
-    !> Whether BUFFER is in `auto_revert_buffer_list'.
+    !> Whether BUFFER is in `auto_revert_buffer_list'.  Not a port.
     logical function auto_revert_buffer_list_p(buffer)
         type(handle_type), intent(in) :: buffer
 
@@ -424,7 +426,7 @@ contains
     end function auto_revert_buffer_list_p
 
     !> The size of FILE (file-attribute-size of file-attributes); 0 if
-    !> it can't be read.
+    !> it can't be read.  Not a port.
     integer(int64) function file_size(file)
         character(len=*), intent(in) :: file
         type(file_stat_type) :: st
@@ -435,7 +437,7 @@ contains
         if (found) file_size = st%size
     end function file_size
 
-    !> The current time in seconds (current-time, as float-time).
+    !> The current time in seconds (current-time, as float-time).  Not a port.
     real(real64) function now_seconds()
         integer(int64) :: count, rate
 
@@ -447,6 +449,7 @@ contains
     ! Lists of buffers
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     logical function memq(buffer, list)
         type(handle_type), intent(in) :: buffer
         type(handle_type), allocatable, intent(in) :: list(:)
@@ -463,7 +466,7 @@ contains
         end do
     end function memq
 
-    !> (delq BUFFER LIST)
+    !> (delq BUFFER LIST)  Not a port.
     subroutine delq(buffer, list)
         type(handle_type), intent(in) :: buffer
         type(handle_type), allocatable, intent(inout) :: list(:)
@@ -483,7 +486,7 @@ contains
         list = kept(1:n)
     end subroutine delq
 
-    !> (push BUFFER LIST)
+    !> (push BUFFER LIST)  Not a port.
     subroutine push(buffer, list)
         type(handle_type), intent(in) :: buffer
         type(handle_type), allocatable, intent(inout) :: list(:)
@@ -497,7 +500,7 @@ contains
     end subroutine push
 
     !> (with-current-buffer BUFFER ...): make BUFFER current, keeping the
-    !> current buffer in SAVED.
+    !> current buffer in SAVED.  Not a port.
     subroutine enter_buffer(buffer, saved)
         type(handle_type), intent(in) :: buffer
         integer(int64), intent(out) :: saved
@@ -506,7 +509,7 @@ contains
         call set_buffer_internal(buffer%index)
     end subroutine enter_buffer
 
-    !> The end of `enter_buffer'.
+    !> The end of `enter_buffer'.  Not a port.
     subroutine leave_buffer(saved)
         integer(int64), intent(in) :: saved
 
@@ -529,6 +532,7 @@ contains
     end subroutine auto_revert_remove_current_buffer
 
     !> `auto_revert_remove_current_buffer' as a kill-buffer-hook function.
+    !> Not a port.
     recursive subroutine remove_current_buffer_hook(status)
         type(status_type), intent(out) :: status
 
@@ -540,8 +544,8 @@ contains
     ! The modes
     ! ------------------------------------------------------------------
 
-    !> The find-file-hook function: remember the size of the file.  Port
-    !> of autorevert.el:auto-revert-find-file-function.
+    !> The find-file-hook function: remember the size of the file.  Port of
+    !> autorevert.el:auto-revert-find-file-function.
     recursive subroutine auto_revert_find_file_function(status)
         type(status_type), intent(out) :: status
         integer :: k
@@ -577,6 +581,7 @@ contains
     end subroutine auto_revert_mode
 
     !> The body of Auto-Revert Mode.
+    !> Port of autorevert.el:auto-revert-mode (its body).
     recursive subroutine auto_revert_mode_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
@@ -637,6 +642,7 @@ contains
     end subroutine auto_revert_tail_mode
 
     !> The body of Auto-Revert Tail Mode.
+    !> Port of autorevert.el:auto-revert-tail-mode (its body).
     recursive subroutine auto_revert_tail_mode_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
@@ -693,13 +699,14 @@ contains
     end subroutine auto_revert_tail_mode_body
 
     !> (add-hook 'before-save-hook (lambda () (auto-revert-tail-mode 0)) nil t)
+    !> Not a port.
     subroutine before_save_tail_off_hook_add()
         use files_fm, only: before_save_hook
 
         call before_save_hook%add(tail_mode_off, local=.true.)
     end subroutine before_save_tail_off_hook_add
 
-    !> (lambda () (auto-revert-tail-mode 0))
+    !> (lambda () (auto-revert-tail-mode 0))  Not a port.
     recursive subroutine tail_mode_off(status)
         type(status_type), intent(out) :: status
 
@@ -743,6 +750,7 @@ contains
     end subroutine global_auto_revert_mode
 
     !> The body of Global Auto-Revert Mode.
+    !> Port of autorevert.el:global-auto-revert-mode (its body).
     recursive subroutine global_auto_revert_mode_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
@@ -863,7 +871,7 @@ contains
 
     !> Whether buffer slot B is in Auto-Revert Mode, Auto-Revert Tail Mode
     !> or tracked by Global Auto-Revert Mode, and whether it has a watch
-    !> descriptor.
+    !> descriptor.  Not a port.
     subroutine buffer_state(b, tracked, has_desc)
         integer(int64), intent(in) :: b
         logical, intent(out) :: tracked, has_desc
@@ -1041,6 +1049,7 @@ contains
     end subroutine auto_revert_notify_rm_watch
 
     !> `auto_revert_notify_rm_watch' as a kill-buffer-hook function.
+    !> Not a port.
     recursive subroutine notify_rm_watch_hook(status)
         type(status_type), intent(out) :: status
 
@@ -1188,7 +1197,7 @@ contains
         end do
     end subroutine auto_revert_end_lockout
 
-    !> The live buffer with SERIAL (0 for none).
+    !> The live buffer with SERIAL (0 for none).  Not a port.
     integer(int64) function buffer_of_serial(serial) result(b)
         integer(int64), intent(in) :: serial
         integer(int64) :: i
@@ -1335,7 +1344,7 @@ contains
     end subroutine auto_revert_handler
 
     !> The point of window W (window-point: the buffer's point in the
-    !> selected window).
+    !> selected window).  Not a port.
     integer(int64) function window_point_of(w) result(pos)
         type(handle_type), intent(in) :: w
 
@@ -1346,7 +1355,7 @@ contains
         end if
     end function window_point_of
 
-    !> Set the point of window W to POS (set-window-point).
+    !> Set the point of window W to POS (set-window-point).  Not a port.
     subroutine set_window_point_of(w, pos)
         type(handle_type), intent(in) :: w
         integer(int64), intent(in) :: pos
@@ -1359,8 +1368,8 @@ contains
         end if
     end subroutine set_window_point_of
 
-    !> Append the new tail of the visited file, of SIZE bytes now.  Port
-    !> of autorevert.el:auto-revert-tail-handler.
+    !> Append the new tail of the visited file, of SIZE bytes now.  Port of
+    !> autorevert.el:auto-revert-tail-handler.
     recursive subroutine auto_revert_tail_handler(fsize)
         integer(int64), intent(in) :: fsize
         character(len=:), allocatable :: file
@@ -1545,7 +1554,7 @@ contains
         call auto_revert_set_timer(status)
     end subroutine cmd_auto_revert_set_timer
 
-    !> Define the Auto-Revert modes, hooks and commands.
+    !> Define the Auto-Revert modes, hooks and commands.  Not a port.
     subroutine syms_of_autorevert()
         type(status_type) :: st
 

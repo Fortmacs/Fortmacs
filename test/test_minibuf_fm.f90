@@ -1,6 +1,9 @@
 ! test_minibuf_fm.f90 -- tests for the minibuffer (minibuf_fm,
 ! minibuffer_fm, minibuffer history in simple_fm, yes-or-no-p, fields).
+! Ports GNU Emacs 31.1 test/src/minibuf-tests.el in part; only the
+! completion tests on lists and alists of strings and symbols.
 !
+! Copyright (C) 2016-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
 !
 ! This file is part of Fortmacs.
@@ -94,6 +97,7 @@ module test_minibuf_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_minibuf_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
@@ -1223,8 +1227,9 @@ contains
         if (w%index == 0) return
         ! A window of its own at the bottom of the frame.
         call window_leaves(selected_frame%root_window, leaves)
-        showing_completions = size(leaves) == 2 .and. same_window(w, leaves(2)) .and. &
-                              .not. same_window(w, selected_frame%selected_window)
+        showing_completions = .false.
+        if (size(leaves) == 2) showing_completions = same_window(w, leaves(2)) .and. &
+                                                     .not. same_window(w, selected_frame%selected_window)
     end function showing_completions
 
     !> Fresh scratch with <f9> recording the completion state.

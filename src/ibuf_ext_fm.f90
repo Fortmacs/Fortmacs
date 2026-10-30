@@ -96,6 +96,7 @@ submodule(ibuffer_fm) ibuf_ext_fm
     logical :: mark_on_all = .false.
 
     abstract interface
+        ! Not a port.
         recursive logical function ibuffer_buffer_predicate_proc_x(buf)
             import :: handle_type
             implicit none(type, external)
@@ -324,7 +325,7 @@ contains
     end function included_in_filter_p_1
 
     ! The index in `ibuffer_filtering_alist' of the filter NAME (0 for
-    ! none).
+    ! none).  Not a port.
     integer function filter_index(name) result(i)
         character(len=*), intent(in) :: name
 
@@ -337,7 +338,7 @@ contains
         i = 0
     end function filter_index
 
-    ! The string qualifier of NODE.
+    ! The string qualifier of NODE.  Not a port.
     function qualifier_text(node) result(s)
         type(ibuffer_filter_node_type), intent(in) :: node
         character(len=:), allocatable :: s
@@ -345,7 +346,7 @@ contains
         s = node%qualifier(1:node%qualifier_len)
     end function qualifier_text
 
-    ! The operands of the compound FILTER.
+    ! The operands of the compound FILTER.  Not a port.
     subroutine operands(filter, parts)
         type(ibuffer_filter_type), intent(in) :: filter
         type(ibuffer_filter_type), allocatable, intent(out) :: parts(:)
@@ -362,7 +363,7 @@ contains
     end subroutine operands
 
     ! The compound filter of KIND (`not', `and' or `or') with the operands
-    ! PARTS.
+    ! PARTS.  Not a port.
     function compound(kind, parts) result(f)
         integer, intent(in) :: kind
         type(ibuffer_filter_type), intent(in) :: parts(:)
@@ -386,7 +387,7 @@ contains
         end do
     end function compound
 
-    ! Add F before the filters of LIST.
+    ! Add F before the filters of LIST.  Not a port.
     subroutine push_front(list, f)
         type(ibuffer_filter_type), allocatable, intent(inout) :: list(:)
         type(ibuffer_filter_type), intent(in) :: f
@@ -403,7 +404,7 @@ contains
         call move_alloc(grown, list)
     end subroutine push_front
 
-    ! The filters A followed by B.
+    ! The filters A followed by B.  Not a port.
     function joined(a, b) result(ab)
         type(ibuffer_filter_type), intent(in) :: a(:), b(:)
         type(ibuffer_filter_type), allocatable :: ab(:)
@@ -563,8 +564,8 @@ contains
         if (buffer_live_p(old)) call set_buffer(old, st)
     end subroutine ibuffer_auto_update_changed
 
-    !> Toggle the display status of the filter group on this line.  Port
-    !> of ibuf-ext.el:ibuffer-toggle-filter-group.
+    !> Toggle the display status of the filter group on this line.
+    !> Port of ibuf-ext.el:ibuffer-toggle-filter-group.
     recursive subroutine ibuffer_toggle_filter_group(status)
         type(status_type), intent(out) :: status
 
@@ -699,6 +700,7 @@ contains
 
     ! ibuffer-current-filter-groups-with-position: the names and positions
     ! of the filter group headers.
+    ! Port of ibuf-ext.el:ibuffer-current-filter-groups-with-position.
     subroutine current_filter_groups_with_position(names, positions, n)
         character(len=256), allocatable, intent(out) :: names(:)
         integer(int64), allocatable, intent(out) :: positions(:)
@@ -773,6 +775,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! ibuffer--maybe-erase-shell-cmd-output.
+    ! Port of ibuf-ext.el:ibuffer--maybe-erase-shell-cmd-output.
     recursive subroutine maybe_erase_shell_cmd_output(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buf, old
@@ -811,6 +814,7 @@ contains
         if (status%ok()) call ibuffer_do_shell_command_pipe(command, status)
     end subroutine cmd_ibuffer_do_shell_command_pipe
 
+    ! Port of part of ibuf-ext.el:ibuffer-do-shell-command-pipe (its body).
     recursive subroutine shell_command_pipe_body(buf, mark, result, status)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
@@ -855,6 +859,8 @@ contains
         if (status%ok()) call ibuffer_do_shell_command_pipe_replace(command, status)
     end subroutine cmd_ibuffer_do_shell_command_pipe_replace
 
+    ! Port of part of ibuf-ext.el:ibuffer-do-shell-command-pipe-replace (its
+    ! body).
     recursive subroutine shell_command_pipe_replace_body(buf, mark, result, status)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
@@ -890,6 +896,7 @@ contains
         if (status%ok()) call ibuffer_do_shell_command_file(command, status)
     end subroutine cmd_ibuffer_do_shell_command_file
 
+    ! Port of part of ibuf-ext.el:ibuffer-do-shell-command-file (its body).
     recursive subroutine shell_command_file_body(buf, mark, result, status)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
@@ -936,6 +943,7 @@ contains
         call ibuffer_operate(op, status)
     end subroutine ibuffer_do_rename_uniquely
 
+    ! Port of part of ibuf-ext.el:ibuffer-do-rename-uniquely (its body).
     recursive subroutine rename_uniquely_body(buf, mark, result, status)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
@@ -962,6 +970,7 @@ contains
         call ibuffer_operate(op, status)
     end subroutine ibuffer_do_revert
 
+    ! Port of part of ibuf-ext.el:ibuffer-do-revert (its body).
     recursive subroutine revert_body(buf, mark, result, status)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
@@ -1000,6 +1009,7 @@ contains
         call ibuffer_do_replace_regexp(from_str, to_str, status)
     end subroutine cmd_ibuffer_do_replace_regexp
 
+    ! Port of part of ibuf-ext.el:ibuffer-do-replace-regexp (its body).
     recursive subroutine replace_regexp_body(buf, mark, result, status)
         use search_fm, only: case_fold_search
         type(handle_type), intent(in) :: buf
@@ -1075,6 +1085,8 @@ contains
         if (status%ok()) call ibuffer_do_query_replace_regexp(from, to, status, delimited, backward)
     end subroutine cmd_ibuffer_do_query_replace_regexp
 
+    ! Port of part of ibuf-ext.el:ibuffer-do-query-replace and
+    ! ibuf-ext.el:ibuffer-do-query-replace-regexp.
     recursive subroutine query_replace_op(from, to, regexp, status, delimited, backward)
         character(len=*), intent(in) :: from, to
         logical, intent(in) :: regexp
@@ -1096,6 +1108,8 @@ contains
         call ibuffer_operate(op, status)
     end subroutine query_replace_op
 
+    ! Port of part of ibuf-ext.el:ibuffer-do-query-replace and
+    ! ibuf-ext.el:ibuffer-do-query-replace-regexp (their body).
     recursive subroutine query_replace_body(buf, mark, result, status)
         use search_fm, only: case_fold_search
         type(handle_type), intent(in) :: buf
@@ -1208,7 +1222,7 @@ contains
         call ibuffer_redisplay(status, .true.)
     end subroutine ibuffer_invert_sorting
 
-    ! The major mode name of BUF, downcased.
+    ! The major mode name of BUF, downcased.  Not a port.
     function major_mode_of(buf) result(name)
         type(handle_type), intent(in) :: buf
         character(len=:), allocatable :: name
@@ -1217,6 +1231,7 @@ contains
         if (allocated(buffers(buf%index)%major_mode)) name = buffers(buf%index)%major_mode
     end function major_mode_of
 
+    ! Not a port.
     function downcased(s) result(d)
         character(len=*), intent(in) :: s
         character(len=len(s)) :: d
@@ -1229,7 +1244,7 @@ contains
         end do
     end function downcased
 
-    ! (string-lessp A B)
+    ! (string-lessp A B)  Not a port.
     logical function string_lessp(a, b)
         character(len=*), intent(in) :: a, b
         integer :: k, n
@@ -1281,7 +1296,7 @@ contains
         less = buffers(a%index)%text%z < buffers(b%index)%text%z
     end function sort_size
 
-    ! The file name or process name of BUF ("" for none).
+    ! The file name or process name of BUF ("" for none).  Not a port.
     function file_or_process(buf) result(name)
         type(handle_type), intent(in) :: buf
         character(len=:), allocatable :: name
@@ -1352,7 +1367,7 @@ contains
     ! Handy functions
     ! ------------------------------------------------------------------
 
-    ! Read a string after PROMPT (an "s" interactive argument).
+    ! Read a string after PROMPT (an "s" interactive argument).  Not a port.
     recursive subroutine read_string_arg(prompt, result, status, initial)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: result
@@ -1422,8 +1437,8 @@ contains
     !> mark to move by.  The default is `ibuffer_marked_char'.
     !>
     !> If DIRECTION is present, it should be an integer; negative integers
-    !> mean move backwards, non-negative integers mean move forwards.  Port
-    !> of ibuf-ext.el:ibuffer-forward-next-marked.
+    !> mean move backwards, non-negative integers mean move forwards.
+    !> Port of ibuf-ext.el:ibuffer-forward-next-marked.
     recursive subroutine ibuffer_forward_next_marked(status, count, mark, direction)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: count
@@ -1495,6 +1510,7 @@ contains
         end if
     end subroutine ibuffer_do_kill_lines
 
+    ! Port of part of ibuf-ext.el:ibuffer-do-kill-lines.
     recursive integer function kill_line(buf, mark) result(r)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
@@ -1707,6 +1723,7 @@ contains
 
     ! ibuffer--near-buffers: the buffers of the N lines around point
     ! (after it if N is positive, before otherwise).
+    ! Port of ibuffer.el:ibuffer--near-buffers.
     subroutine near_buffers(n, bufs)
         integer(int64), intent(in) :: n
         type(handle_type), allocatable, intent(out) :: bufs(:)
@@ -1742,7 +1759,7 @@ contains
 
     ! The buffers `ibuffer_copy_filename_as_kill' and
     ! `ibuffer_copy_buffername_as_kill' copy: next ARG buffers, or the
-    ! marked buffers, or the one at point.
+    ! marked buffers, or the one at point.  Not a port.
     recursive subroutine copy_buffers(bufs, status)
         type(handle_type), allocatable, intent(out) :: bufs(:)
         type(status_type), intent(out) :: status
@@ -1773,6 +1790,7 @@ contains
     end subroutine copy_buffers
 
     ! Copy STRING into the kill ring (appending after a kill-region).
+    ! Not a port.
     recursive subroutine copy_as_kill(string)
         character(len=*), intent(in) :: string
 
@@ -1898,6 +1916,7 @@ contains
         end if
     end subroutine ibuffer_mark_on_buffer
 
+    ! Port of part of ibuf-ext.el:ibuffer-mark-on-buffer.
     recursive integer function mark_if(buf, mark) result(r)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
@@ -1911,7 +1930,7 @@ contains
         end if
     end function mark_if
 
-    ! (string-match MARK-ON-REGEXP TEXT)
+    ! (string-match MARK-ON-REGEXP TEXT)  Not a port.
     logical function regexp_matches(text)
         character(len=*), intent(in) :: text
         integer(int64) :: m
@@ -1931,6 +1950,7 @@ contains
         call ibuffer_mark_on_buffer(name_matches, status)
     end subroutine ibuffer_mark_by_name_regexp
 
+    ! Port of part of ibuf-ext.el:ibuffer-mark-by-name-regexp.
     recursive logical function name_matches(buf)
         type(handle_type), intent(in) :: buf
 
@@ -1963,6 +1983,7 @@ contains
         call ibuffer_mark_on_buffer(mode_matches, status)
     end subroutine ibuffer_mark_by_mode_regexp
 
+    ! Port of part of ibuf-ext.el:ibuffer-mark-by-mode-regexp.
     recursive logical function mode_matches(buf)
         type(handle_type), intent(in) :: buf
 
@@ -1987,6 +2008,7 @@ contains
         call ibuffer_mark_on_buffer(file_name_matches, status)
     end subroutine ibuffer_mark_by_file_name_regexp
 
+    ! Port of part of ibuf-ext.el:ibuffer-mark-by-file-name-regexp.
     recursive logical function file_name_matches(buf)
         type(handle_type), intent(in) :: buf
         character(len=:), allocatable :: name
@@ -2028,6 +2050,7 @@ contains
         call ibuffer_mark_on_buffer(content_matches, status)
     end subroutine ibuffer_mark_by_content_regexp
 
+    ! Port of part of ibuf-ext.el:ibuffer-mark-by-content-regexp.
     recursive logical function content_matches(buf)
         type(handle_type), intent(in) :: buf
         type(handle_type) :: old
@@ -2074,6 +2097,7 @@ contains
         call ibuffer_mark_on_buffer(mode_is, status)
     end subroutine ibuffer_mark_by_mode
 
+    ! Not a port.
     recursive logical function mode_is(buf)
         type(handle_type), intent(in) :: buf
 
@@ -2132,6 +2156,7 @@ contains
         call ibuffer_mark_on_buffer(is_modified, status)
     end subroutine ibuffer_mark_modified_buffers
 
+    ! Port of part of ibuf-ext.el:ibuffer-mark-modified-buffers.
     recursive logical function is_modified(buf)
         type(handle_type), intent(in) :: buf
         type(status_type) :: st
@@ -2147,6 +2172,7 @@ contains
         call ibuffer_mark_on_buffer(is_unsaved, status)
     end subroutine ibuffer_mark_unsaved_buffers
 
+    ! Port of part of ibuf-ext.el:ibuffer-mark-unsaved-buffers.
     recursive logical function is_unsaved(buf)
         type(handle_type), intent(in) :: buf
 
@@ -2165,6 +2191,7 @@ contains
         call ibuffer_mark_on_buffer(is_dissociated, status)
     end subroutine ibuffer_mark_dissociated_buffers
 
+    ! Port of part of ibuf-ext.el:ibuffer-mark-dissociated-buffers.
     recursive logical function is_dissociated(buf)
         type(handle_type), intent(in) :: buf
         type(handle_type) :: old
@@ -2197,6 +2224,7 @@ contains
         call ibuffer_mark_on_buffer(is_help, status)
     end subroutine ibuffer_mark_help_buffers
 
+    ! Port of part of ibuf-ext.el:ibuffer-mark-help-buffers.
     recursive logical function is_help(buf)
         type(handle_type), intent(in) :: buf
 
@@ -2211,6 +2239,7 @@ contains
         call ibuffer_mark_on_buffer(is_compressed, status)
     end subroutine ibuffer_mark_compressed_file_buffers
 
+    ! Port of part of ibuf-ext.el:ibuffer-mark-compressed-file-buffers.
     recursive logical function is_compressed(buf)
         type(handle_type), intent(in) :: buf
         type(handle_type) :: old
@@ -2230,6 +2259,7 @@ contains
         call ibuffer_mark_on_buffer(is_old, status)
     end subroutine ibuffer_mark_old_buffers
 
+    ! Port of part of ibuf-ext.el:ibuffer-mark-old-buffers.
     recursive logical function is_old(buf)
         type(handle_type), intent(in) :: buf
         integer(int64) :: sec
@@ -2261,6 +2291,7 @@ contains
         call ibuffer_mark_on_buffer(is_read_only, status)
     end subroutine ibuffer_mark_read_only_buffers
 
+    ! Port of part of ibuf-ext.el:ibuffer-mark-read-only-buffers.
     recursive logical function is_read_only(buf)
         type(handle_type), intent(in) :: buf
 
@@ -2308,6 +2339,7 @@ contains
         call occur_1(regexp, .true., n, sources, status)
     end subroutine ibuffer_do_occur
 
+    ! Port of part of ibuf-ext.el:ibuffer-do-occur.
     recursive integer function push_buffer(buf, mark) result(r)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
@@ -2370,7 +2402,7 @@ contains
     ! Filter definitions (define-ibuffer-filter)
     ! ------------------------------------------------------------------
 
-    ! The string qualifier of NODE, an error if it has none.
+    ! The string qualifier of NODE, an error if it has none.  Not a port.
     subroutine string_qualifier(node, s, status)
         type(ibuffer_filter_node_type), intent(in) :: node
         character(len=:), allocatable, intent(out) :: s
@@ -2384,7 +2416,7 @@ contains
         end if
     end subroutine string_qualifier
 
-    ! (string-match QUALIFIER STRING).
+    ! (string-match QUALIFIER STRING).  Not a port.
     recursive logical function qualifier_matches(node, string, status) result(hit)
         type(ibuffer_filter_node_type), intent(in) :: node
         character(len=*), intent(in) :: string
@@ -2397,7 +2429,7 @@ contains
         hit = string_match(regexp, string, status) > 0
     end function qualifier_matches
 
-    ! The `ibuffer_buffer_file_name' of BUF.
+    ! The `ibuffer_buffer_file_name' of BUF.  Not a port.
     function file_name_of(buf) result(name)
         type(handle_type), intent(in) :: buf
         character(len=:), allocatable :: name
@@ -2528,7 +2560,7 @@ contains
     end function filter_directory
 
     ! The size of BUF and the number qualifier of NODE, an error if it has
-    ! none.
+    ! none.  Not a port.
     subroutine size_and_number(buf, node, size, number, status)
         type(handle_type), intent(in) :: buf
         type(ibuffer_filter_node_type), intent(in) :: node
@@ -2640,6 +2672,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! Jump back to BUF after an update (it may have been filtered out).
+    ! Not a port.
     recursive subroutine jump_back(buf, status)
         type(handle_type), intent(in) :: buf
         type(status_type), intent(out) :: status
@@ -2878,11 +2911,11 @@ contains
 
     ! ibuffer-maybe-save-stuff: with `ibuffer_save_with_custom', Customize
     ! saves `ibuffer_saved_filters' and `ibuffer_saved_filter_groups'
-    ! (Deferred with Customize, step 26).
+    ! (Deferred with Customize, step 26).  Not a port.
     subroutine maybe_save_stuff()
     end subroutine maybe_save_stuff
 
-    ! A completion table of the names of NAMES.
+    ! A completion table of the names of NAMES.  Not a port.
     function names_table(names) result(table)
         type(minibuffer_string_type), intent(in) :: names(:)
         type(completion_table_type) :: table
@@ -2899,7 +2932,7 @@ contains
         table%list = make_list(values)
     end function names_table
 
-    ! The names of the saved filters.
+    ! The names of the saved filters.  Not a port.
     function saved_filter_names() result(names)
         type(minibuffer_string_type), allocatable :: names(:)
         integer :: j
@@ -2912,7 +2945,7 @@ contains
     end function saved_filter_names
 
     ! Read the name of a saved filter with PROMPT ("No saved filters" if
-    ! there are none).
+    ! there are none).  Not a port.
     recursive subroutine read_saved_filter_name(prompt, name, status)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: name
@@ -3059,7 +3092,7 @@ contains
         call ibuffer_set_filter_groups_by_mode(status)
     end subroutine cmd_ibuffer_set_filter_groups_by_mode
 
-    ! Error "No filter groups active" if there are none.
+    ! Error "No filter groups active" if there are none.  Not a port.
     logical function no_filter_groups(status) result(none)
         type(status_type), intent(out) :: status
         integer :: k
@@ -3308,7 +3341,7 @@ contains
         if (status%ok()) call ibuffer_save_filter_groups(name, ibuffer_filter_groups(), status)
     end subroutine cmd_ibuffer_save_filter_groups
 
-    ! The names of the saved sets of filter groups.
+    ! The names of the saved sets of filter groups.  Not a port.
     function saved_group_names() result(names)
         type(minibuffer_string_type), allocatable :: names(:)
         integer :: j
@@ -3384,7 +3417,7 @@ contains
     ! Filtering commands (define-ibuffer-filter)
     ! ------------------------------------------------------------------
 
-    ! The description of the filter NAME.
+    ! The description of the filter NAME.  Not a port.
     function filter_description(name) result(desc)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: desc
@@ -3396,7 +3429,7 @@ contains
     end function filter_description
 
     ! Push FILTER, a filter by NAME, and tell (with the qualifier text QSTR
-    ! if HAS_QSTR).
+    ! if HAS_QSTR).  Not a port.
     recursive subroutine apply_filter(name, filter, has_qstr, qstr, status)
         character(len=*), intent(in) :: name, qstr
         type(ibuffer_filter_type), intent(in) :: filter
@@ -3438,7 +3471,7 @@ contains
     end procedure ibuffer_filter_by
 
     ! The command of a filter with ACCEPT-LIST: the filter NAME with each
-    ! of the qualifiers QUALIFIER, composed with `or'.
+    ! of the qualifiers QUALIFIER, composed with `or'.  Not a port.
     recursive subroutine filter_by_list(name, qualifier, status)
         character(len=*), intent(in) :: name, qualifier(:)
         type(status_type), intent(out) :: status
@@ -3557,7 +3590,7 @@ contains
     modes = found(n:1:-1)
     end procedure ibuffer_list_buffer_modes
 
-    ! PROMPT with DEFAULT, as format-prompt makes it.
+    ! PROMPT with DEFAULT, as format-prompt makes it.  Not a port.
     function prompt_with_default(prompt, default) result(full)
         character(len=*), intent(in) :: prompt, default
         character(len=:), allocatable :: full
@@ -3568,7 +3601,7 @@ contains
     end function prompt_with_default
 
     ! Whether ELT is a symbol whose name ends in "_mode" (string-match
-    ! "-mode\\'").
+    ! "-mode\\'").  Not a port.
     logical function mode_symbol_p(elt)
         type(value_type), intent(in) :: elt
         integer :: n
@@ -3581,7 +3614,7 @@ contains
     end function mode_symbol_p
 
     ! Read a comma separated list of mode names with PROMPT from TABLE
-    ! (with PREDICATE if MODES_ONLY), offering DEFAULT.
+    ! (with PREDICATE if MODES_ONLY), offering DEFAULT.  Not a port.
     recursive subroutine read_modes(prompt, table, default, modes_only, modes, status)
         character(len=*), intent(in) :: prompt, default
         type(completion_table_type), intent(in) :: table
@@ -3612,7 +3645,7 @@ contains
         end do
     end subroutine read_modes
 
-    ! The major mode of the buffer on this line ("" for none).
+    ! The major mode of the buffer on this line ("" for none).  Not a port.
     function line_buffer_mode() result(default)
         character(len=:), allocatable :: default
         type(handle_type) :: buf
@@ -3626,7 +3659,7 @@ contains
         end if
     end function line_buffer_mode
 
-    ! A completion table of the mode names MODES.
+    ! A completion table of the mode names MODES.  Not a port.
     function modes_table(modes) result(table)
         character(len=*), intent(in) :: modes(:)
         type(completion_table_type) :: table
@@ -3728,7 +3761,7 @@ contains
     end subroutine cmd_ibuffer_filter_by_directory
 
     ! (string-to-number S) for a size: its integer part (0 if S is not a
-    ! number).
+    ! number).  Not a port.
     integer(int64) function size_number(s) result(n)
         character(len=*), intent(in) :: s
         integer :: k
@@ -4142,6 +4175,7 @@ contains
     call make_filter_group_map()
     end procedure syms_of_ibuf_ext
 
+    ! Not a port.
     subroutine make_filter_group_map()
         use keymap_fm, only: make_sparse_keymap, keymap_live_p, free_keymap
         type(status_type) :: st

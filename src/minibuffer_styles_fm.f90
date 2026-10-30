@@ -62,7 +62,7 @@ contains
     ! Helpers
     ! ------------------------------------------------------------------
 
-    !> The strings of the list V.
+    !> The strings of the list V.  Not a port.
     subroutine to_boxes(v, boxes)
         type(value_type), intent(in) :: v
         type(string_box), allocatable, intent(out) :: boxes(:)
@@ -77,7 +77,7 @@ contains
         end do
     end subroutine to_boxes
 
-    !> BOXES as a list of strings.
+    !> BOXES as a list of strings.  Not a port.
     function from_boxes(boxes) result(v)
         type(string_box), intent(in) :: boxes(:)
         type(value_type) :: v
@@ -93,7 +93,7 @@ contains
         v = make_list(elts)
     end function from_boxes
 
-    !> Append S to BOXES.
+    !> Append S to BOXES.  Not a port.
     subroutine push_box(boxes, s)
         type(string_box), allocatable, intent(inout) :: boxes(:)
         character(len=*), intent(in) :: s
@@ -108,7 +108,7 @@ contains
         call move_alloc(grown, boxes)
     end subroutine push_box
 
-    !> Append an element to the pattern P.
+    !> Append an element to the pattern P.  Not a port.
     subroutine push_elt(p, kind, s)
         type(pat_elt), allocatable, intent(inout) :: p(:)
         integer, intent(in) :: kind
@@ -133,6 +133,7 @@ contains
 
     !> Whether regexp RE matches STRING (from 1-based index START), with
     !> case folded when `completion_ignore_case'; keeps the match data.
+    !> Not a port.
     integer(int64) function re_match(re, string, start) result(idx)
         character(len=*), intent(in) :: re, string
         integer(int64), intent(in), optional :: start
@@ -161,7 +162,7 @@ contains
         end do
     end function regexp_quote
 
-    !> The try-completion value of STRING over the strings BOXES.
+    !> The try-completion value of STRING over the strings BOXES.  Not a port.
     subroutine try_strings(string, boxes, res)
         character(len=*), intent(in) :: string
         type(string_box), intent(in) :: boxes(:)
@@ -198,7 +199,7 @@ contains
         end do
     end function merge_suffix
 
-    !> The `try_completion' value `v' as a try result.
+    !> The `try_completion' value `v' as a try result.  Not a port.
     subroutine set_try_result(v, res)
         type(value_type), intent(in) :: v
         type(try_result_type), intent(out) :: res
@@ -552,7 +553,7 @@ contains
     ! Patterns
     ! ------------------------------------------------------------------
 
-    !> Remove the empty strings of P.
+    !> Remove the empty strings of P.  Not a port.
     subroutine delete_empty(p)
         type(pat_elt), allocatable, intent(inout) :: p(:)
         type(pat_elt), allocatable :: q(:)
@@ -1011,7 +1012,7 @@ contains
         if (stringp(t)) s = reverse_chars(xstring(t))
     end function common_suffix
 
-    !> S with its characters in reverse order.
+    !> S with its characters in reverse order.  Not a port.
     function reverse_chars(s) result(r)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: r
@@ -1167,7 +1168,7 @@ contains
     end subroutine merge_completions
 
     !> Whether S is one of COMPS, ignoring case (assoc-string with
-    !> CASE-FOLD).
+    !> CASE-FOLD).  Not a port.
     logical function assoc_string(s, comps)
         character(len=*), intent(in) :: s
         type(string_box), intent(in) :: comps(:)
@@ -1459,7 +1460,7 @@ contains
         cost = best_cost
     end subroutine flex_cost_gotoh
 
-    !> The characters of multibyte S.
+    !> The characters of multibyte S.  Not a port.
     subroutine chars_of(s, cs)
         character(len=*), intent(in) :: s
         integer, allocatable, intent(out) :: cs(:)
@@ -1566,8 +1567,8 @@ contains
         call merge_try(pattern, all, prefix, suffix, res)
     end subroutine flex_try_completion
 
-    !> Get flex-completions of STRING in TABLE, given PRED and POINT.  Port
-    !> of minibuffer.el:completion-flex-all-completions (the costs go to
+    !> Get flex-completions of STRING in TABLE, given PRED and POINT.  Port of
+    !> minibuffer.el:completion-flex-all-completions (the costs go to
     !> `flex_costs' for the display sorting of
     !> completion--flex-adjust-metadata).
     subroutine flex_all_completions(string, table, point, all, base_size, pred)

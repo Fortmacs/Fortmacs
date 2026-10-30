@@ -1,6 +1,8 @@
 ! test_indent_fm.f90 -- tests for indent_fm and vertical motion in
 ! simple_fm (next-line, previous-line).
+! Ports GNU Emacs 31.1 test/src/indent-tests.el.
 !
+! Copyright (C) 2020-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
 !
 ! This file is part of Fortmacs.
@@ -69,6 +71,7 @@ contains
         s = trim(buf)
     end function itoa
 
+    !> Collect all exported unit tests.
     subroutine collect_indent_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

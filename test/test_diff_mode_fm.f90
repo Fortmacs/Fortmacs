@@ -1,4 +1,7 @@
 ! test_diff_mode_fm.f90 -- tests for diff_mode_fm and diff_fm.
+! Ports GNU Emacs 31.1 test/lisp/vc/diff-mode-tests.el in part; the
+! overlay halves of the font-lock tests need diff refinement and syntax
+! highlighting, which are deferred.
 !
 ! Copyright (C) 2017-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -178,6 +181,7 @@ contains
         end do
     end function on_path
 
+    !> Collect all exported unit tests.
     subroutine collect_diff_mode_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
