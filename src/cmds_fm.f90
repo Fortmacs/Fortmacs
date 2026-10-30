@@ -69,7 +69,7 @@ module cmds_fm
 
     abstract interface
         !> simple.el:internal-auto-fill: `filled' is its value (true
-        !> when the auto-fill function did any work).
+        !> when the auto-fill function did any work).  Not a port.
         subroutine internal_auto_fill_proc(status, filled)
             import :: status_type
             implicit none(type, external)
@@ -78,7 +78,7 @@ module cmds_fm
         end subroutine internal_auto_fill_proc
 
         !> simple.el:kill-forward-chars: kill `n' characters after point
-        !> (before, if negative).
+        !> (before, if negative).  Not a port.
         subroutine kill_chars_proc(n, status)
             import :: int64, status_type
             implicit none(type, external)
@@ -335,7 +335,7 @@ contains
     end subroutine internal_self_insert
 
     !> Whether `auto_fill_chars' contains `c' (space and
-    !> newline when it is not a char-table).
+    !> newline when it is not a char-table).  Not a port.
     logical function auto_fill_char_p(c)
         integer(int32), intent(in) :: c
         integer :: k
@@ -359,7 +359,7 @@ contains
     ! Commands (the interactive side of the DEFUNs)
     ! ------------------------------------------------------------------
 
-    !> Interactive "p": the numeric prefix argument.
+    !> Interactive "p": the numeric prefix argument.  Not a port.
     integer(int64) function arg_p()
         arg_p = prefix_numeric_value(current_prefix_arg)
     end function arg_p

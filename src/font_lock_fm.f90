@@ -99,8 +99,8 @@ module font_lock_fm
 
     !> Regular expression depth of
     !> `CPP_FONT_LOCK_KEYWORDS_SOURCE_DIRECTIVES'.  Used in
-    !> `cpp_font_lock_keywords'.  Port of font-lock.el
-    !> cpp-font-lock-keywords-source-depth.
+    !> `cpp_font_lock_keywords'.
+    !> Port of font-lock.el:cpp-font-lock-keywords.source-depth.
     integer, parameter, public :: CPP_FONT_LOCK_KEYWORDS_SOURCE_DEPTH = 0
     public :: syms_of_font_lock, font_lock_specified_p, font_lock_mode_internal, font_lock_set_defaults, &
               font_lock_fontify_buffer, font_lock_unfontify_buffer, font_lock_fontify_region, font_lock_unfontify_region, &
@@ -125,8 +125,8 @@ module font_lock_fm
     !> by major mode, is deferred).
     integer, public :: font_lock_maximum_decoration = FONT_LOCK_DECORATION_MAX
 
-    !> If true, means show status messages for buffer fontification.  Port
-    !> of font-lock.el:font-lock-verbose (the size threshold form is
+    !> If true, means show status messages for buffer fontification.  Port of
+    !> font-lock.el:font-lock-verbose (the size threshold form is
     !> deferred).
     logical, public :: font_lock_verbose = .false.
 
@@ -181,7 +181,7 @@ module font_lock_fm
     abstract interface
         !> `font_lock_syntactic_face_function': FACE gets the name of the
         !> face to give the string or comment whose parse state (at its
-        !> start) is STATE ("" for none).
+        !> start) is STATE ("" for none).  Not a port.
         subroutine syntactic_face_iface(state, face)
             import :: parse_state_type
             implicit none(type, external)
@@ -286,14 +286,14 @@ module font_lock_fm
     !> Font Lock mode face used to highlight variable names.  Port of
     !> font-lock.el:font-lock-variable-name-face.
     type(named_face_type), target, public :: font_lock_variable_name_face
-    !> Font Lock mode face used to highlight variable references.  Port
-    !> of font-lock.el:font-lock-variable-use-face.
+    !> Font Lock mode face used to highlight variable references.  Port of
+    !> font-lock.el:font-lock-variable-use-face.
     type(named_face_type), target, public :: font_lock_variable_use_face
-    !> Font Lock mode face used to highlight type and class names.  Port
-    !> of font-lock.el:font-lock-type-face.
+    !> Font Lock mode face used to highlight type and class names.  Port of
+    !> font-lock.el:font-lock-type-face.
     type(named_face_type), target, public :: font_lock_type_face
-    !> Font Lock mode face used to highlight constants and labels.  Port
-    !> of font-lock.el:font-lock-constant-face.
+    !> Font Lock mode face used to highlight constants and labels.  Port of
+    !> font-lock.el:font-lock-constant-face.
     type(named_face_type), target, public :: font_lock_constant_face
     !> Font Lock mode face used to highlight warnings.  Port of
     !> font-lock.el:font-lock-warning-face.
@@ -330,8 +330,8 @@ module font_lock_fm
     !> For example, property lookup of fields in a struct.  Port of
     !> font-lock.el:font-lock-property-use-face.
     type(named_face_type), target, public :: font_lock_property_use_face
-    !> Font Lock mode face used to highlight punctuation characters.  Port
-    !> of font-lock.el:font-lock-punctuation-face.
+    !> Font Lock mode face used to highlight punctuation characters.  Port of
+    !> font-lock.el:font-lock-punctuation-face.
     type(named_face_type), target, public :: font_lock_punctuation_face
     !> Font Lock mode face used to highlight brackets, braces, and parens.
     !> Port of font-lock.el:font-lock-bracket-face.
@@ -354,7 +354,7 @@ contains
     !> A MATCH-HIGHLIGHT: give subexpression SUBEXP of the match the face
     !> FACE (or the face FACE_FUNCTION names), combined with existing
     !> fontification as OVERRIDE says (FONT_LOCK_OVERRIDE_NIL by default),
-    !> LAXMATCH if SUBEXP need not match.
+    !> LAXMATCH if SUBEXP need not match.  Not a port.
     function font_lock_highlight(subexp, face, override, laxmatch, face_function, true_properties, nil_properties, &
                                  display, properties_function) result(h)
         integer, intent(in) :: subexp
@@ -401,7 +401,7 @@ contains
 
     !> A MATCH-ANCHORED highlight: REGEXP (or MATCHER) searched for after
     !> each match of the keyword, each match highlighted as HIGHLIGHTS say
-    !> (their `match' parts).
+    !> (their `match' parts).  Not a port.
     function font_lock_anchored(highlights, regexp, matcher, pre_match_form, post_match_form) result(h)
         type(font_lock_highlight_type), intent(in) :: highlights(:)
         character(len=*), intent(in), optional :: regexp
@@ -426,7 +426,7 @@ contains
     !> only FACE, subexpression 0 (or SUBEXP) in FACE; with neither,
     !> subexpression 0 (or SUBEXP) in `font_lock_keyword_face'
     !> (font-lock-compile-keyword's forms MATCHER, (MATCHER . SUBEXP),
-    !> (MATCHER . FACENAME)).
+    !> (MATCHER . FACENAME)).  Not a port.
     function font_lock_keyword(regexp, highlights, face, subexp, matcher) result(k)
         character(len=*), intent(in), optional :: regexp
         type(font_lock_highlight_type), intent(in), optional :: highlights(:)
@@ -463,6 +463,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The index of the current buffer's entry in `locals', made if MAKE.
+    !> Not a port.
     integer function local_index(make) result(k)
         logical, intent(in) :: make
         type(locals_type), allocatable :: grown(:)
@@ -510,7 +511,7 @@ contains
     end subroutine set_local_font_lock_fontify_region_function
 
     !> kill-all-local-variables: forget the current buffer's font-lock.el
-    !> variables.
+    !> variables.  Not a port.
     subroutine kill_font_lock_locals()
         integer :: k
 
@@ -520,6 +521,7 @@ contains
     end subroutine kill_font_lock_locals
 
     !> Whether the current buffer's `font_lock_fontified' is true.
+    !> Not a port.
     logical function font_lock_fontified()
         integer :: k
 
@@ -529,6 +531,7 @@ contains
     end function font_lock_fontified
 
     !> The current buffer's `font_lock_keywords' (empty if not set).
+    !> Not a port.
     function font_lock_keywords_of_buffer() result(keywords)
         type(font_lock_keyword_type), allocatable :: keywords(:)
         integer :: k
@@ -540,7 +543,7 @@ contains
     end function font_lock_keywords_of_buffer
 
     !> Make KEYWORDS the current buffer's `font_lock_keywords' (setq
-    !> font-lock-keywords).
+    !> font-lock-keywords).  Not a port.
     subroutine set_font_lock_keywords(keywords)
         type(font_lock_keyword_type), intent(in) :: keywords(:)
         integer :: k
@@ -619,12 +622,12 @@ contains
     end subroutine font_lock_mode_internal
 
     !> Arrange for the current buffer to be refontified after changes
-    !> (font-lock-mode-internal's after-change-functions part).
+    !> (font-lock-mode-internal's after-change-functions part).  Not a port.
     subroutine add_after_change_function()
         call after_change_functions%add(font_lock_after_change_function, depth=90, local=.true.)
     end subroutine add_after_change_function
 
-    !> Stop refontifying the current buffer after changes.
+    !> Stop refontifying the current buffer after changes.  Not a port.
     subroutine remove_after_change_function()
         call after_change_functions%remove(font_lock_after_change_function, local=.true.)
     end subroutine remove_after_change_function
@@ -669,7 +672,7 @@ contains
 
     !> `font_lock_fontify_region' as a function of `jit_lock_functions':
     !> DONE_BEG and DONE_END give the region actually fontified
-    !> (jit-lock-bounds).
+    !> (jit-lock-bounds).  Not a port.
     subroutine jit_fontify_region(beg, end, done_beg, done_end, status)
         integer(int64), intent(in) :: beg, end
         integer(int64), intent(out) :: done_beg, done_end
@@ -678,26 +681,20 @@ contains
         call font_lock_fontify_region(beg, end, status, done_beg=done_beg, done_end=done_end)
     end subroutine jit_fontify_region
 
-    !> Function meant for `jit_lock_after_change_extend_region_functions'.
-    !> This function does 2 things:
-    !> - extend the region so that it not only includes the part that was
-    !>   modified but also the surrounding text whose highlighting may
-    !>   change as a consequence.
-    !> - anticipate (part of) the region extension that will happen later
-    !>   in `font_lock_default_fontify_region', in order to avoid the need
-    !>   for double-redisplay in `jit_lock_fontify_now'.  Port of
-    !> font-lock.el:font-lock-extend-jit-lock-region-after-change.
     !> Font lock keywords for C preprocessor directives.
     !> `c_mode', `c++_mode' and `objc_mode' have their own font lock
     !> keywords for C preprocessor directives.  This definition is for the
     !> other modes in which C preprocessor directives are used, e.g.
-    !> `asm_mode' and `ld_script_mode'.  Port of font-lock.el
-    !> cpp-font-lock-keywords.
+    !> `asm_mode' and `ld_script_mode'.
+    !> Port of font-lock.el:cpp-font-lock-keywords.
     function cpp_font_lock_keywords() result(kw)
-        type(font_lock_keyword_type) :: kw(5)
+        type(font_lock_keyword_type), allocatable :: kw(:)
         type(font_lock_highlight_type) :: h1(1), h2(2), a(1)
         character(len=*), parameter :: P = "font_lock_variable_name_face"
 
+        ! (Allocated here, not a fixed-size result: gfortran leaves the
+        ! components of a fixed-size result uninitialized on the stack.)
+        allocate (kw(5))
         ! Fontify error directives.
         h1(1) = font_lock_highlight(1, "font_lock_warning_face", FONT_LOCK_OVERRIDE_PREPEND)
         kw(1) = font_lock_keyword("^#[ "//achar(9)//"]*\(?:error\|warning\)[ "//achar(9)//"]+\(.+\)", highlights=h1)
@@ -728,6 +725,7 @@ contains
     end function cpp_font_lock_keywords
 
     ! The matcher of macro arguments in `cpp_font_lock_keywords'.
+    ! Port of font-lock.el:cpp-font-lock-keywords (in part: its macro argument matcher).
     subroutine cpp_macro_argument(limit, found, status)
         integer(int64), intent(in) :: limit
         logical, intent(out) :: found
@@ -743,6 +741,16 @@ contains
         found = pos > 0
     end subroutine cpp_macro_argument
 
+    !> Function meant for `jit_lock_after_change_extend_region_functions'.
+    !> This function does 2 things:
+    !> - extend the region so that it not only includes the part that was
+    !>   modified but also the surrounding text whose highlighting may
+    !>   change as a consequence.
+    !> - anticipate (part of) the region extension that will happen later
+    !>   in `font_lock_default_fontify_region', in order to avoid the need
+    !>   for double-redisplay in `jit_lock_fontify_now'.
+    !> Port of font-lock.el:font-lock-extend-jit-lock-region-after-change
+    !> (in part: without font-lock-extend-after-change-region-function).
     subroutine font_lock_extend_jit_lock_region_after_change(beg_in, end_in, old_len, status)
         integer(int64), intent(in) :: beg_in, end_in, old_len
         type(status_type), intent(out) :: status
@@ -920,7 +928,7 @@ contains
     end subroutine font_lock_set_defaults
 
     !> Make `font_lock_set_defaults' set the defaults up again in the
-    !> current buffer: (setq font-lock-set-defaults nil).
+    !> current buffer: (setq font-lock-set-defaults nil).  Not a port.
     subroutine font_lock_forget_defaults()
         integer :: k
 
@@ -929,7 +937,8 @@ contains
     end subroutine font_lock_forget_defaults
 
     !> Add KEYWORDS to the current buffer's `font_lock_keywords' as HOW
-    !> says (the buffer part of font-lock-add-keywords).
+    !> says (the buffer part of font-lock-add-keywords).  Port of the buffer
+    !> part of font-lock.el:font-lock-add-keywords.
     subroutine add_keywords_here(keywords, how)
         type(font_lock_keyword_type), intent(in) :: keywords(:)
         integer, intent(in) :: how
@@ -1121,8 +1130,8 @@ contains
     end subroutine font_lock_fontify_region
 
     !> Unfontify the text between BEG and END.
-    !> This works by calling `font_lock_unfontify_region_function'.  Port
-    !> of font-lock.el:font-lock-unfontify-region.
+    !> This works by calling `font_lock_unfontify_region_function'.  Port of
+    !> font-lock.el:font-lock-unfontify-region.
     subroutine font_lock_unfontify_region(beg, end, status)
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
@@ -1261,6 +1270,7 @@ contains
     end subroutine font_lock_default_unfontify_buffer
 
     !> Narrow back to BEGV...ZV (the end of a save-restriction).
+    !> Not a port.
     subroutine restore_restriction(begv, zv)
         integer(int64), intent(in) :: begv, zv
         type(status_type) :: st
@@ -1511,7 +1521,7 @@ contains
         end do
     end subroutine add_text_property
 
-    !> Whether V is a list whose first element is a keyword.
+    !> Whether V is a list whose first element is a keyword.  Not a port.
     logical function keyword_head(v)
         type(value_type), intent(in) :: v
         type(value_type), allocatable :: elts(:)
@@ -1654,6 +1664,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The value of a highlight's FACE: the name of its face, "" for none.
+    !> Not a port.
     function highlight_face(h) result(face)
         type(font_lock_match_highlight_type), intent(in) :: h
         character(len=:), allocatable :: face
@@ -1752,6 +1763,7 @@ contains
 
     !> Search forward from point for MATCHER (REGEXP or the function
     !> MATCHER), not beyond LIMIT; FOUND tells whether it matched.
+    !> Not a port.
     subroutine search_matcher(regexp, matcher, limit, found, status)
         character(len=:), allocatable, intent(in) :: regexp
         procedure(font_lock_matcher_proc), pointer, intent(in) :: matcher
@@ -1777,6 +1789,7 @@ contains
     end subroutine search_matcher
 
     !> `font_lock_keywords_case_fold_search' in the current buffer.
+    !> Not a port.
     logical function keywords_case_fold()
         integer :: k
 
@@ -1896,6 +1909,8 @@ contains
 
     !> The default `font_lock_syntactic_face_function': strings in
     !> `font_lock_string_face', comments in `font_lock_comment_face'.
+    !> Port of the default value of font-lock.el's
+    !> font-lock-syntactic-face-function.
     subroutine default_syntactic_face(state, face)
         type(parse_state_type), intent(in) :: state
         character(len=:), allocatable, intent(out) :: face
@@ -1947,6 +1962,7 @@ contains
 
     ! The body of font-lock-default-fontify-syntactically, in
     ! (with-syntax-table (or syntax-ppss-table (syntax-table)) ...).
+    ! Port of part of font-lock.el:font-lock-default-fontify-syntactically.
     subroutine fontify_syntactically(start, end, loudly, has_ppss_table, status)
         integer(int64), intent(in) :: start, end
         logical, intent(in) :: loudly, has_ppss_table
@@ -2009,7 +2025,8 @@ contains
 
     !> Find the delimiters of the comment from BEG to point and give them
     !> `font_lock_comment_delimiter_face' (in
-    !> font-lock-default-fontify-syntactically).
+    !> font-lock-default-fontify-syntactically).  Port of part of
+    !> font-lock.el:font-lock-default-fontify-syntactically.
     subroutine comment_delimiters(beg, status)
         integer(int64), intent(in) :: beg
         type(status_type), intent(out) :: status
@@ -2059,7 +2076,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Define the faces, commands and functions of font-lock.el (as
-    !> loading it does).
+    !> loading it does).  Not a port.
     subroutine syms_of_font_lock()
         ! (faces.el is loaded before font-lock.el.)
         call init_faces()
@@ -2144,7 +2161,7 @@ contains
     end subroutine font_lock_debug_fontify
 
     !> Define the faces of font-lock.el with their specs (as loading
-    !> font-lock.el does).
+    !> font-lock.el does).  Not a port.
     subroutine init_font_lock_faces()
         integer, parameter :: C = FACE_CLASS_COLOR, G = FACE_CLASS_GRAYSCALE
         integer, parameter :: LIGHT = FACE_BACKGROUND_LIGHT, DARK = FACE_BACKGROUND_DARK

@@ -1,6 +1,7 @@
 ! test_sgml_mode_fm.f90 -- tests for SGML mode (sgml_mode_fm).
+! Ports GNU Emacs 31.1 test/lisp/textmodes/sgml-mode-tests.el.
 !
-! Copyright (C) 2016-2026 Free Software Foundation, Inc.
+! Copyright (C) 2015-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
 !
 ! This file is part of Fortmacs.
@@ -47,6 +48,7 @@ module test_sgml_mode_fm
 
 contains
 
+    !> Collect all exported unit tests.
     !> Collect all exported unit tests.
     subroutine collect_sgml_mode_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)

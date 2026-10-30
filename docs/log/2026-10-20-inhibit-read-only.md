@@ -1,0 +1,1 @@
+2026-10-20 — Text properties (`intervals_fm`, `textprop_fm`), read-only text in insdel, `inhibit-read-only` in barf, on `phase1-textprop` (PR #12). Next: strings with properties / buffer-substring with properties, or Phase 2 keymaps.

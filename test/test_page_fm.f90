@@ -1,4 +1,5 @@
 ! test_page_fm.f90 -- tests for the page commands (page_fm).
+! Ports GNU Emacs 31.1 test/lisp/textmodes/page-tests.el.
 !
 ! Copyright (C) 2019-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -42,6 +43,7 @@ module test_page_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_page_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

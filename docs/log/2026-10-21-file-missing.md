@@ -1,0 +1,1 @@
+2026-10-21 — Phase 3.4a: visiting and saving files (`fileio_fm`, `files_fm`, `subr_fm`, `map_ynp_fm`; command-line files in `emacs_fm`; file bindings in src/sys; `file-missing`), on `phase3-files` (based on main after PR #21). Milestone reached: `fortmacs FILE`, edit, `C-x C-s`. Next: Phase 3.4b, a minimal minibuffer (`C-x C-f`, `yes-or-no-p`).

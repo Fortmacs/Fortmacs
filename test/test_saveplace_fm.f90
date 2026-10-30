@@ -1,5 +1,5 @@
 ! test_saveplace_fm.f90 -- tests for saveplace_fm.
-! Ported from GNU Emacs 31.1 test/lisp/saveplace-tests.el.
+! Ports GNU Emacs 31.1 test/lisp/saveplace-tests.el.
 !
 ! Copyright (C) 2019-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -46,6 +46,7 @@ module test_saveplace_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_saveplace_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

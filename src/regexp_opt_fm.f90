@@ -186,7 +186,7 @@ contains
         end if
     end function regexp_opt
 
-    !> STRINGS sorted (string<) without duplicates.
+    !> STRINGS sorted (string<) without duplicates.  Not a port.
     subroutine sorted_unique(strings, list)
         character(len=*), intent(in) :: strings(:)
         type(str_type), allocatable, intent(out) :: list(:)
@@ -227,7 +227,7 @@ contains
         list = list(1:n)
     end subroutine sorted_unique
 
-    !> The number of characters of S (UTF-8).
+    !> The number of characters of S (UTF-8).  Not a port.
     pure integer function nchars(s)
         character(len=*), intent(in) :: s
         integer :: i
@@ -241,6 +241,7 @@ contains
 
     !> The length in bytes of the longest common prefix of the strings
     !> of LIST, ending on a character boundary (try-completion "").
+    !> Not a port.
     integer function common_prefix(list) result(n)
         type(str_type), intent(in) :: list(:)
         integer :: i, k
@@ -267,7 +268,7 @@ contains
     end function common_prefix
 
     !> The length in bytes of the longest common suffix of the strings of
-    !> LIST, starting on a character boundary.
+    !> LIST, starting on a character boundary.  Not a port.
     integer function common_suffix(list) result(n)
         type(str_type), intent(in) :: list(:)
         integer :: i, k, l1, li
@@ -437,7 +438,7 @@ contains
         re = open_group//sub1//"\|"//sub2//close_group
     end function opt_group
 
-    !> Sort LIST (string<), keeping duplicates.
+    !> Sort LIST (string<), keeping duplicates.  Not a port.
     subroutine sort_list(list)
         type(str_type), intent(inout) :: list(:)
         type(str_type) :: tmp
@@ -457,7 +458,7 @@ contains
         end do
     end subroutine sort_list
 
-    !> The first character of S, as a string.
+    !> The first character of S, as a string.  Not a port.
     function char_prefix(s) result(c)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: c
@@ -473,7 +474,7 @@ contains
         c = s(1:k)
     end function char_prefix
 
-    !> The code point of the first character of S (UTF-8).
+    !> The code point of the first character of S (UTF-8).  Not a port.
     integer(int32) function first_char(s) result(c)
         character(len=*), intent(in) :: s
         integer :: b, n, k
@@ -500,7 +501,7 @@ contains
         end do
     end function first_char
 
-    !> The UTF-8 string of character C.
+    !> The UTF-8 string of character C.  Not a port.
     function utf8(c) result(s)
         integer(int32), intent(in) :: c
         character(len=:), allocatable :: s
@@ -600,7 +601,7 @@ contains
         end subroutine flush
     end function regexp_opt_charset
 
-    !> Whether C is not in SET.
+    !> Whether C is not in SET.  Not a port.
     pure logical function all_differ(set, c)
         integer(int32), intent(in) :: set(:), c
 

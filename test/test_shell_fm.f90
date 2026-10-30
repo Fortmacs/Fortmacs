@@ -1,5 +1,8 @@
 ! test_shell_fm.f90 -- tests for shell_fm.
+! Ports GNU Emacs 31.1 test/lisp/shell-tests.el in part; the completion
+! tests wait for shell completion.
 !
+! Copyright (C) 2010-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
 !
 ! This file is part of Fortmacs.
@@ -47,6 +50,7 @@ module test_shell_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_shell_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

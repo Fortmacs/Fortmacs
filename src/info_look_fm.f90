@@ -74,7 +74,7 @@ module info_look_fm
 
     abstract interface
         !> A TRANS-FUNC of a documentation specification: the help item of
-        !> the index ENTRY, FOUND false if it has none.
+        !> the index ENTRY, FOUND false if it has none.  Not a port.
         recursive subroutine info_lookup_trans_proc(entry, item, found)
             implicit none(type, external)
             character(len=*), intent(in) :: entry
@@ -83,7 +83,7 @@ module info_look_fm
         end subroutine info_lookup_trans_proc
 
         !> A PARSE-RULE function: the help item at point, FOUND false if
-        !> there is none.
+        !> there is none.  Not a port.
         recursive subroutine info_lookup_parse_proc(item, found)
             implicit none(type, external)
             character(len=:), allocatable, intent(out) :: item
@@ -115,7 +115,7 @@ module info_look_fm
 
     abstract interface
         !> A `doc_spec_function': the documentation specifications of a
-        !> mode, computed when the user asks for help in it.
+        !> mode, computed when the user asks for help in it.  Not a port.
         recursive subroutine info_lookup_doc_spec_proc(specs)
             import :: info_lookup_doc_specs_type
             implicit none(type, external)
@@ -225,7 +225,7 @@ contains
 
     !> Add the documentation specification of the Info index NODE: see
     !> `info_lookup_doc_spec_type' for TRANS_PREFIX, TRANS, PREFIX and
-    !> SUFFIX.
+    !> SUFFIX.  Not a port.
     subroutine doc_specs_add(self, node, trans_prefix, trans, prefix, suffix)
         class(info_lookup_doc_specs_type), intent(inout) :: self
         character(len=*), intent(in) :: node
@@ -370,7 +370,7 @@ contains
         end if
     end subroutine add_help_star
 
-    ! Whether help modes A and B are the same (equal).
+    ! Whether help modes A and B are the same (equal).  Not a port.
     pure logical function same_mode(a, b)
         type(help_mode_type), intent(in) :: a, b
 
@@ -386,7 +386,7 @@ contains
         same_mode = .true.
     end function same_mode
 
-    ! The help mode of the mode named NAME.
+    ! The help mode of the mode named NAME.  Not a port.
     function plain_mode(name) result(m)
         character(len=*), intent(in) :: name
         type(help_mode_type) :: m
@@ -396,6 +396,8 @@ contains
 
     ! The indexes of TOPIC in `info_lookup_alist' and of MODE in it (0
     ! for none): info-lookup->topic-value and info-lookup->mode-value.
+    ! Port of info-look.el:info-lookup->topic-value and
+    ! info-look.el:info-lookup->mode-value.
     subroutine find_mode_value(topic, mode, ti, mi)
         character(len=*), intent(in) :: topic
         type(help_mode_type), intent(in) :: mode
@@ -424,6 +426,7 @@ contains
     end subroutine find_mode_value
 
     ! Whether TOPIC has help data for MODE (info-lookup->mode-value).
+    ! Port of info-look.el:info-lookup->mode-value.
     logical function has_mode_value(topic, mode)
         character(len=*), intent(in) :: topic
         type(help_mode_type), intent(in) :: mode
@@ -454,7 +457,7 @@ contains
         end associate
     end subroutine expand_info
 
-    ! info-look.el:info-lookup->ignore-case.
+    ! Port of info-look.el:info-lookup->ignore-case.
     logical function ignore_case_of(topic, mode)
         character(len=*), intent(in) :: topic
         type(help_mode_type), intent(in) :: mode
@@ -465,7 +468,7 @@ contains
         if (mi > 0) ignore_case_of = info_lookup_alist(ti)%modes(mi)%ignore_case
     end function ignore_case_of
 
-    ! info-look.el:info-lookup->doc-spec (none if not HAS).
+    ! Port of info-look.el:info-lookup->doc-spec (none if not HAS).
     subroutine doc_spec_of(topic, mode, specs, has)
         character(len=*), intent(in) :: topic
         type(help_mode_type), intent(in) :: mode
@@ -483,7 +486,7 @@ contains
         if (.not. allocated(specs%specs)) allocate (specs%specs(0))
     end subroutine doc_spec_of
 
-    ! info-look.el:info-lookup->other-modes.
+    ! Port of info-look.el:info-lookup->other-modes.
     subroutine other_modes_of(topic, mode, others)
         character(len=*), intent(in) :: topic
         type(help_mode_type), intent(in) :: mode
@@ -504,7 +507,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! The index of TOPIC's MODE in `info_lookup_cache' (0 for none):
-    ! info-lookup->mode-cache.
+    ! Port of info-look.el:info-lookup->mode-cache.
     integer function mode_cache(topic, mode) result(k)
         character(len=*), intent(in) :: topic
         type(help_mode_type), intent(in) :: mode
@@ -521,7 +524,7 @@ contains
         end do
     end function mode_cache
 
-    ! info-look.el:info-lookup->initialized.
+    ! Port of info-look.el:info-lookup->initialized.
     integer function initialized(topic, mode)
         character(len=*), intent(in) :: topic
         type(help_mode_type), intent(in) :: mode
@@ -595,8 +598,8 @@ contains
     ! ------------------------------------------------------------------
 
     !> The current buffer's help mode (unallocated for nil): help is
-    !> provided according to the buffer's major mode if it is nil.  Port
-    !> of info-look.el info-lookup-mode (buffer-local).
+    !> provided according to the buffer's major mode if it is nil.  Port of
+    !> info-look.el info-lookup-mode (buffer-local).
     function info_lookup_mode() result(mode)
         character(len=:), allocatable :: mode
         integer :: k
@@ -608,7 +611,7 @@ contains
         end if
     end function info_lookup_mode
 
-    ! (setq info-lookup-mode MODE).
+    ! (setq info-lookup-mode MODE).  Not a port.
     subroutine set_info_lookup_mode(mode)
         character(len=*), intent(in) :: mode
         integer :: k
@@ -618,7 +621,7 @@ contains
     end subroutine set_info_lookup_mode
 
     ! The current buffer's entry in `local_modes', made if CREATE (0 if
-    ! none).
+    ! none).  Not a port.
     integer function local_slot(create) result(k)
         logical, intent(in) :: create
         type(local_mode_type), allocatable :: grown(:)
@@ -654,7 +657,7 @@ contains
     end function local_slot
 
     ! Forget the current buffer's `info_lookup_mode'
-    ! (kill-all-local-variables).
+    ! (kill-all-local-variables).  Not a port.
     subroutine kill_info_look_locals()
         integer :: k
 
@@ -789,7 +792,7 @@ contains
         if (len(value) == 0 .and. has_default) value = default
     end subroutine interactive_arguments
 
-    ! The help items of COMPLETIONS as a list value.
+    ! The help items of COMPLETIONS as a list value.  Not a port.
     function items_value(completions) result(v)
         type(completion_type), intent(in) :: completions(:)
         type(value_type) :: v
@@ -1161,12 +1164,12 @@ contains
         if (info_lookup_other_window_flag%value .and. found) call select_window(window, status)
     end subroutine info_lookup
 
-    ! Whether the terminal can display colors (display-color-p).
+    ! Whether the terminal can display colors (display-color-p).  Not a port.
     logical function display_color_p()
         display_color_p = selected_frame%tty%tn_max_colors > 0
     end function display_color_p
 
-    ! STR in lower case (downcase).
+    ! STR in lower case (downcase).  Not a port.
     function downcase(str) result(r)
         character(len=*), intent(in) :: str
         character(len=:), allocatable :: r
@@ -1609,7 +1612,7 @@ contains
         end subroutine split_words
     end subroutine info_lookup_guess_gdb_script_symbol
 
-    ! The parse rule `ignore': no item.
+    ! The parse rule `ignore': no item.  Not a port.
     recursive subroutine parse_ignore(item, found)
         character(len=:), allocatable, intent(out) :: item
         logical, intent(out) :: found
@@ -1619,7 +1622,7 @@ contains
     end subroutine parse_ignore
 
     ! The parse rule of Custom mode: the symbol of the `custom_data'
-    ! property at point.
+    ! property at point.  Not a port.
     recursive subroutine parse_custom(item, found)
         character(len=:), allocatable, intent(out) :: item
         logical, intent(out) :: found
@@ -1636,7 +1639,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! Whether REGEXP matches STR (case-sensitively if EXACT), setting the
-    ! match data.
+    ! match data.  Not a port.
     logical function smatch(regexp, str, exact)
         character(len=*), intent(in) :: regexp, str
         logical, intent(in), optional :: exact
@@ -1653,7 +1656,7 @@ contains
         case_fold_search = saved
     end function smatch
 
-    ! Texinfo: ignore Emacs commands and prepend a `@'.
+    ! Texinfo: ignore Emacs commands and prepend a `@'.  Not a port.
     recursive subroutine trans_texinfo(entry, item, found)
         character(len=*), intent(in) :: entry
         character(len=:), allocatable, intent(out) :: item
@@ -1665,7 +1668,7 @@ contains
 
     ! Autoconf Macro Index entries are without an "AC_" prefix, but with
     ! "AH_" or "AU_" for those.  So add "AC_" if there isn't already an
-    ! "A._".
+    ! "A._".  Not a port.
     recursive subroutine trans_autoconf_macro(entry, item, found)
         character(len=*), intent(in) :: entry
         character(len=:), allocatable, intent(out) :: item
@@ -1683,7 +1686,7 @@ contains
     ! M4 Macro Index entries are without "AS_" prefixes, and mostly
     ! without "m4_" prefixes.  "dnl" is an exception, not wanting any
     ! prefix.  So AS_ is added back to upper-case names (if needed), m4_
-    ! to others which don't already an m4_.
+    ! to others which don't already an m4_.  Not a port.
     recursive subroutine trans_autoconf_m4(entry, item, found)
         character(len=*), intent(in) :: entry
         character(len=:), allocatable, intent(out) :: item
@@ -1702,7 +1705,7 @@ contains
         end if
     end subroutine trans_autoconf_m4
 
-    ! The items of the gawk index for awk mode.
+    ! The items of the gawk index for awk mode.  Not a port.
     recursive subroutine trans_awk(entry, item, found)
         character(len=*), intent(in) :: entry
         character(len=:), allocatable, intent(out) :: item
@@ -1731,7 +1734,7 @@ contains
         end if
     end subroutine trans_awk
 
-    ! Perl functions.
+    ! Perl functions.  Not a port.
     recursive subroutine trans_perl_function(entry, item, found)
         character(len=*), intent(in) :: entry
         character(len=:), allocatable, intent(out) :: item
@@ -1741,7 +1744,7 @@ contains
         if (found) item = match_string_no_properties(1, entry)
     end subroutine trans_perl_function
 
-    ! Perl variables: work around bad formatted array variables.
+    ! Perl variables: work around bad formatted array variables.  Not a port.
     recursive subroutine trans_perl_variable(entry, item, found)
         character(len=*), intent(in) :: entry
         character(len=:), allocatable, intent(out) :: item
@@ -1763,7 +1766,7 @@ contains
         if (found) item = s
     end subroutine trans_perl_variable
 
-    ! Octave: catch lines of the form "xyz statement".
+    ! Octave: catch lines of the form "xyz statement".  Not a port.
     recursive subroutine trans_octave_concept(entry, item, found)
         character(len=*), intent(in) :: entry
         character(len=:), allocatable, intent(out) :: item
@@ -1774,7 +1777,7 @@ contains
     end subroutine trans_octave_concept
 
     ! coreutils: exclude extraneous stuff (most of it) by demanding
-    ! "[a-z]+".
+    ! "[a-z]+".  Not a port.
     recursive subroutine trans_coreutils(entry, item, found)
         character(len=*), intent(in) :: entry
         character(len=:), allocatable, intent(out) :: item
@@ -1784,7 +1787,7 @@ contains
         if (found) item = entry
     end subroutine trans_coreutils
 
-    ! diff: index entries are things like "foo invocation".
+    ! diff: index entries are things like "foo invocation".  Not a port.
     recursive subroutine trans_diff(entry, item, found)
         character(len=*), intent(in) :: entry
         character(len=:), allocatable, intent(out) :: item
@@ -1795,7 +1798,7 @@ contains
     end subroutine trans_diff
 
     ! sed: there's no plain "sed" index entry as such, mung another
-    ! hopefully unique one to get to the invocation section.
+    ! hopefully unique one to get to the invocation section.  Not a port.
     recursive subroutine trans_sed(entry, item, found)
         character(len=*), intent(in) :: entry
         character(len=:), allocatable, intent(out) :: item
@@ -1807,6 +1810,7 @@ contains
 
     ! gawk for sh mode: there's no plain "awk" or "gawk" index entries,
     ! mung other hopefully unique ones to get to the command line options.
+    ! Not a port.
     recursive subroutine trans_gawk_sh(entry, item, found)
         character(len=*), intent(in) :: entry
         character(len=:), allocatable, intent(out) :: item
@@ -1823,7 +1827,7 @@ contains
         end if
     end subroutine trans_gawk_sh
 
-    ! cfengine: index entries may be like `IsPlain()'.
+    ! cfengine: index entries may be like `IsPlain()'.  Not a port.
     recursive subroutine trans_cfengine(entry, item, found)
         character(len=*), intent(in) :: entry
         character(len=:), allocatable, intent(out) :: item
@@ -1840,7 +1844,7 @@ contains
 
     ! Python: Debian includes Python info files, but they're
     ! version-named instead of having a symlink.  Python is released
-    ! annually (PEP 602).
+    ! annually (PEP 602).  Not a port.
     recursive subroutine python_doc_spec(specs)
         type(info_lookup_doc_specs_type), intent(out) :: specs
         character(len=:), allocatable :: manual, found
@@ -1872,6 +1876,7 @@ contains
 
     !> Register the commands and add the help specifications of upstream's
     !> common modes ("Initialize some common modes" in info-look.el).
+    !> Not a port.
     subroutine syms_of_info_look()
         type(info_lookup_doc_specs_type) :: s
         character(len=:), allocatable :: latex_node, found

@@ -202,7 +202,7 @@ contains
 
     !> The events of MACRO, a list of events or a string (its
     !> characters).  (Here, not keyboard_fm's sequence_events: gfortran
-    !> drops private parent procedures that submodules call.)
+    !> drops private parent procedures that submodules call.)  Not a port.
     subroutine macro_events_of(macro, evs)
         type(value_type), intent(in) :: macro
         type(value_type), allocatable, intent(out) :: evs(:)
@@ -235,7 +235,8 @@ contains
     end procedure execute_kbd_macro_vector
 
     !> Execute the events FINAL (of a string macro if IS_STRING) COUNT
-    !> times: the body of macros.c:Fexecute_kbd_macro, with pop_kbd_macro.
+    !> times.  Port of macros.c:Fexecute_kbd_macro, in part (its body), and
+    !> macros.c:pop_kbd_macro.
     recursive subroutine execute_events(final, is_string, count, status, loopfunc)
         type(value_type), intent(in) :: final(:), count
         logical, intent(in) :: is_string

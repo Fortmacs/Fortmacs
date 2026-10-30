@@ -81,7 +81,7 @@ contains
     end subroutine make_temp_file
 
     !> The shell `insert_directory' runs a wildcard listing with:
-    !> `shell_file_name' (callproc.c).
+    !> `shell_file_name' (callproc.c).  Not a port.
     function shell_name() result(sh)
         character(len=:), allocatable :: sh
 
@@ -521,6 +521,7 @@ contains
 
     !> The loop of file-truename, with COUNTER links left to chase and the
     !> PREV_DIRS truenames already computed.
+    !> Port of files.el:file-truename, in part.
     recursive subroutine truename_1(filename_in, counter, prev_dirs, filename, status)
         character(len=*), intent(in) :: filename_in
         integer, intent(inout) :: counter

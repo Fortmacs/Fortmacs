@@ -116,14 +116,14 @@ module syntax_fm
     type(logical_setting), target, public :: parse_sexp_lookup_properties = &
                                              logical_setting(name="parse_sexp_lookup_properties", value=.false.)
 
-    !> Position up to which syntax-table properties have been set.  Port
-    !> of syntax.c syntax-propertize--done (buffer-local when set).
+    !> Position up to which syntax-table properties have been set.
+    !> Port of syntax.c syntax-propertize--done (buffer-local when set).
     type(integer_setting), target, public :: syntax_propertize__done = &
                                              integer_setting(name="syntax_propertize__done", value=-1)
 
     abstract interface
         !> syntax.el's internal--syntax-propertize, which syntax.c calls
-        !> to set `syntax_table' properties up to CHARPOS.
+        !> to set `syntax_table' properties up to CHARPOS.  Not a port.
         subroutine internal_syntax_propertize_proc(charpos)
             import :: int64
             implicit none(type, external)
@@ -195,7 +195,7 @@ module syntax_fm
     end type parse_state_type
 
     abstract interface
-        !> syntax.el's `syntax_ppss', when it is defined.
+        !> syntax.el's `syntax_ppss', when it is defined.  Not a port.
         subroutine syntax_ppss_proc(state, pos)
             import :: parse_state_type, int64
             implicit none(type, external)
@@ -354,6 +354,7 @@ contains
     ! Registry
     ! ------------------------------------------------------------------
 
+    ! Not a port.
     subroutine new_table(h, parent)
         type(handle_type), intent(out) :: h
         type(handle_type), intent(in) :: parent
@@ -374,7 +375,7 @@ contains
         tables(h%index)%parent = parent
     end subroutine new_table
 
-    !> Slot of table `h', or a wrong-type-argument error.
+    !> Slot of table `h', or a wrong-type-argument error.  Not a port.
     subroutine resolve_table(h, i, status)
         type(handle_type), intent(in) :: h
         integer(int64), intent(out) :: i
@@ -384,7 +385,7 @@ contains
         if (.not. status%ok()) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "syntax_table_p")
     end subroutine resolve_table
 
-    !> Whether `h' is a live syntax table.
+    !> Whether `h' is a live syntax table.  Not a port.
     logical function syntax_table_live_p(h)
         type(handle_type), intent(in) :: h
 
@@ -483,7 +484,7 @@ contains
     end subroutine init_syntax_once
 
     !> characters_syntax's callback: a modify-syntax-entry on the table
-    !> being painted.
+    !> being painted.  Not a port.
     subroutine characters_entry(from, to, descriptor)
         integer, intent(in) :: from, to
         character(len=*), intent(in) :: descriptor
@@ -573,6 +574,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Give characters `from' to `to' entry `d' in table slot `t'.
+    !> Not a port.
     subroutine set_range(t, from, to, d)
         integer(int64), intent(in) :: t
         integer, intent(in) :: from, to
@@ -587,7 +589,7 @@ contains
     end subroutine set_range
 
     !> Set the non-ASCII characters `from' to `to' of table slot `t' to
-    !> `d', keeping the runs sorted and disjoint.
+    !> `d', keeping the runs sorted and disjoint.  Not a port.
     subroutine paint(t, from, to, d)
         integer(int64), intent(in) :: t
         integer, intent(in) :: from, to
@@ -661,6 +663,7 @@ contains
         end subroutine grow
     end subroutine paint
 
+    ! Not a port.
     pure logical function same(a, b)
         type(syntax_descriptor_type), intent(in) :: a, b
 
@@ -668,7 +671,7 @@ contains
     end function same
 
     !> The entry of character `c' in table slot `t' itself (nil, code -1,
-    !> if it has none).
+    !> if it has none).  Not a port.
     function own_entry(t, c) result(d)
         integer(int64), intent(in) :: t
         integer, intent(in) :: c
@@ -699,7 +702,7 @@ contains
 
     !> The raw syntax descriptor of character `c' in `table' (default: the
     !> current buffer's), inherited from parents as needed; whitespace if
-    !> no table has one.  SYNTAX_ENTRY.
+    !> no table has one.  Port of syntax.h:SYNTAX_ENTRY.
     function syntax_entry(c, table_h) result(d)
         integer, intent(in) :: c
         type(handle_type), intent(in), optional :: table_h
@@ -732,7 +735,7 @@ contains
 
     !> The raw syntax descriptor that the `syntax_table' property value V
     !> holds, (CODE) or (CODE MATCH) (upstream's (CODE . MATCH)); FOUND
-    !> false if V is not one.
+    !> false if V is not one.  Not a port.
     subroutine descriptor_of_value(v, d, found)
         type(value_type), intent(in) :: v
         type(syntax_descriptor_type), intent(out) :: d
@@ -751,7 +754,7 @@ contains
 
     !> The `syntax_table' property value of descriptor D: (CODE), or
     !> (CODE MATCH) when it has a matching character (upstream's
-    !> (CODE . MATCH), as `string_to_syntax' returns it).
+    !> (CODE . MATCH), as `string_to_syntax' returns it).  Not a port.
     function syntax_descriptor_value(d) result(v)
         type(syntax_descriptor_type), intent(in) :: d
         type(value_type) :: v
@@ -786,6 +789,7 @@ contains
     !> yet; else (or without the property) from the buffer's syntax table.
     !> What syntax.c's SYNTAX_ENTRY gives after UPDATE_SYNTAX_TABLE (POS)
     !> (gl_state's property intervals are looked up afresh).
+    !> Port of syntax.h:SYNTAX_ENTRY and syntax.h:UPDATE_SYNTAX_TABLE in part.
     recursive function syntax_entry_at(c, pos) result(d)
         integer, intent(in) :: c
         integer(int64), intent(in) :: pos
@@ -825,6 +829,7 @@ contains
 
     !> The syntax class of character C at position POS (SYNTAX after
     !> UPDATE_SYNTAX_TABLE (POS)).
+    !> Port of syntax.h:SYNTAX and syntax.h:UPDATE_SYNTAX_TABLE in part.
     recursive integer function syntax_class_at(c, pos)
         integer, intent(in) :: c
         integer(int64), intent(in) :: pos
@@ -835,7 +840,8 @@ contains
         if (d%code < 0) syntax_class_at = SWHITESPACE
     end function syntax_class_at
 
-    !> The syntax class of character `c' in the current buffer.  SYNTAX.
+    !> The syntax class of character `c' in the current buffer.
+    !> Port of syntax.h:SYNTAX.
     integer function char_syntax_class(c)
         integer, intent(in) :: c
         type(syntax_descriptor_type) :: d
@@ -1048,7 +1054,7 @@ contains
         end function between
     end function word_boundary_p
 
-    !> Whether syntax class `code' is part of a word.
+    !> Whether syntax class `code' is part of a word.  Not a port.
     logical function word_code_p(code)
         integer, intent(in) :: code
 
@@ -1184,7 +1190,7 @@ contains
         call forward_word(prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_forward_word
 
-    !> Register the commands.
+    !> Register the commands.  Port of syntax.c:syms_of_syntax in part.
     subroutine syms_of_syntax()
         call forward_setting(parse_sexp_lookup_properties, local_if_set=.true.)
         call forward_setting(syntax_propertize__done, local_if_set=.true.)
@@ -1254,6 +1260,7 @@ contains
 
     !> The limit of a skip: LIM (default the end of the accessible region
     !> in the direction of motion), kept inside the accessible region.
+    !> Not a port.
     integer(int64) function skip_limit(forwardp, lim) result(limit)
         logical, intent(in) :: forwardp
         integer(int64), intent(in), optional :: lim
@@ -1376,7 +1383,7 @@ contains
         if (ios /= 0) end = 0
     end subroutine scan_error_data
 
-    ! The character before POS.
+    ! The character before POS.  Not a port.
     integer function fetch_char_before(pos) result(c)
         integer(int64), intent(in) :: pos
         integer(int64) :: pos_byte

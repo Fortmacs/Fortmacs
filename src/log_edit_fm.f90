@@ -135,7 +135,7 @@ module log_edit_fm
 
     abstract interface
         !> `log_edit_listfun': the list of files that are concerned by the
-        !> current operation (using relative names).
+        !> current operation (using relative names).  Not a port.
         recursive subroutine log_edit_listfun_proc(files, status)
             import :: log_edit_string_type, status_type
             implicit none(type, external)
@@ -145,6 +145,7 @@ module log_edit_fm
 
         !> The FUNCTION of a header for `log_edit_extract_headers': the
         !> strings to append to the arguments for the header's VALUE.
+        !> Not a port.
         subroutine log_edit_header_function(value, args)
             import :: log_edit_string_type
             implicit none(type, external)
@@ -152,7 +153,7 @@ module log_edit_fm
             type(log_edit_string_type), allocatable, intent(out) :: args(:)
         end subroutine log_edit_header_function
 
-        !> The LAST-MSG-FN of `log_edit_toggle_amend'.
+        !> The LAST-MSG-FN of `log_edit_toggle_amend'.  Not a port.
         recursive subroutine log_edit_last_msg_proc(msg, status)
             import :: status_type
             implicit none(type, external)
@@ -358,7 +359,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! The index of the current buffer's entry in `locals', made if MAKE
-    ! (0 if none).
+    ! (0 if none).  Not a port.
     integer function local_index(make) result(k)
         logical, intent(in) :: make
         type(local_type), allocatable :: grown(:)
@@ -395,6 +396,7 @@ contains
     end function local_index
 
     ! kill-all-local-variables: forget the current buffer's values.
+    ! Not a port.
     subroutine kill_log_edit_locals()
         integer :: k
 
@@ -404,6 +406,7 @@ contains
 
     !> The current buffer's `log_edit_vc_backend' (a VC backend index, 0
     !> for nil): the VC fileset backend corresponding to the current log.
+    !> Not a port.
     integer function log_edit_vc_backend() result(b)
         integer :: k
 
@@ -413,7 +416,7 @@ contains
     end function log_edit_vc_backend
 
     !> Set the current buffer's `log_edit_callback' (setq-local): the
-    !> command `log_edit_done' calls to perform the operation.
+    !> command `log_edit_done' calls to perform the operation.  Not a port.
     subroutine set_log_edit_callback(callback)
         procedure(command_proc) :: callback
         integer :: k
@@ -423,7 +426,7 @@ contains
     end subroutine set_log_edit_callback
 
     !> Set the current buffer's `log_edit_vc_backend' (setq-local): B is
-    !> a VC backend index, 0 for nil.
+    !> a VC backend index, 0 for nil.  Not a port.
     subroutine set_log_edit_vc_backend(b)
         integer, intent(in) :: b
         integer :: k
@@ -433,6 +436,7 @@ contains
     end subroutine set_log_edit_vc_backend
 
     ! The current value of log-edit-comment-ring-index (SET false for nil).
+    ! Not a port.
     subroutine get_ring_index(set, index)
         logical, intent(out) :: set
         integer, intent(out) :: index
@@ -452,7 +456,7 @@ contains
         index = ring_index
     end subroutine get_ring_index
 
-    ! Set log-edit-comment-ring-index.
+    ! Set log-edit-comment-ring-index.  Not a port.
     subroutine set_ring_index(index)
         integer, intent(in) :: index
         integer :: k
@@ -472,7 +476,7 @@ contains
     end subroutine set_ring_index
 
     ! A marker at POS (save-excursion and save-restriction keep
-    ! positions in markers).
+    ! positions in markers).  Not a port.
     function marker_at(pos, insertion_type) result(m)
         integer(int64), intent(in) :: pos
         logical, intent(in), optional :: insertion_type
@@ -485,7 +489,7 @@ contains
         call copy_marker_at(pos, m, it, st)
     end function marker_at
 
-    ! The position of marker M.
+    ! The position of marker M.  Not a port.
     integer(int64) function mpos(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
@@ -495,6 +499,7 @@ contains
 
     ! The buffer visiting FILE, or the null handle (files.el
     ! find-buffer-visiting without truenames).
+    ! Port of files.el:find-buffer-visiting (in part).
     function find_buffer_visiting(file) result(h)
         character(len=*), intent(in) :: file
         type(handle_type) :: h
@@ -517,7 +522,7 @@ contains
         full = full//": "
     end function format_prompt
 
-    ! The position of marker M, which is then freed.
+    ! The position of marker M, which is then freed.  Not a port.
     integer(int64) function release(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
@@ -526,7 +531,7 @@ contains
         call free_marker(m, st)
     end function release
 
-    ! The searches, telling whether they found a match (FOUND).
+    ! The searches, telling whether they found a match (FOUND).  Not a port.
     recursive subroutine re_search_forward(regexp, found, status, bound, noerror)
         character(len=*), intent(in) :: regexp
         logical, intent(out) :: found
@@ -539,6 +544,7 @@ contains
         found = pos /= 0 .and. status%ok()
     end subroutine re_search_forward
 
+    ! Not a port.
     recursive subroutine re_search_backward(regexp, found, status, bound, noerror)
         character(len=*), intent(in) :: regexp
         logical, intent(out) :: found
@@ -551,6 +557,7 @@ contains
         found = pos /= 0 .and. status%ok()
     end subroutine re_search_backward
 
+    ! Not a port.
     recursive subroutine search_forward(string, found, status, noerror)
         character(len=*), intent(in) :: string
         logical, intent(out) :: found
@@ -562,6 +569,7 @@ contains
         found = pos /= 0 .and. status%ok()
     end subroutine search_forward
 
+    ! Not a port.
     recursive subroutine search_backward(string, found, status, noerror)
         character(len=*), intent(in) :: string
         logical, intent(out) :: found
@@ -761,6 +769,7 @@ contains
 
     ! The face of a header's name: (if (assoc-string (match-string 2)
     ! log-edit-headers-alist t) 'log-edit-header 'log-edit-unknown-header).
+    ! Not a port.
     subroutine header_name_face(face)
         character(len=:), allocatable, intent(out) :: face
 
@@ -772,7 +781,7 @@ contains
     end subroutine header_name_face
 
     ! The face of a header's contents: (or (cdr (assoc-string ...))
-    ! 'log-edit-header).
+    ! 'log-edit-header).  Not a port.
     subroutine header_contents_face(face)
         character(len=:), allocatable, intent(out) :: face
 
@@ -781,7 +790,7 @@ contains
     end subroutine header_contents_face
 
     ! Whether NAME is in log-edit-headers-alist (ignoring case):
-    ! ("Summary" . log-edit-summary) ("Fixes") ("Author").
+    ! ("Summary" . log-edit-summary) ("Fixes") ("Author").  Not a port.
     logical function known_header(name)
         character(len=*), intent(in) :: name
 
@@ -789,7 +798,7 @@ contains
                        string_equal_ci(name, "Author")
     end function known_header
 
-    ! The face log-edit-headers-alist gives NAME ("" for none).
+    ! The face log-edit-headers-alist gives NAME ("" for none).  Not a port.
     function header_alist_face(name) result(face)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: face
@@ -799,6 +808,7 @@ contains
     end function header_alist_face
 
     ! Whether A and B are equal ignoring the case of ASCII letters.
+    ! Not a port.
     logical function string_equal_ci(a, b)
         character(len=*), intent(in) :: a, b
         integer :: i
@@ -813,7 +823,7 @@ contains
         string_equal_ci = .true.
     end function string_equal_ci
 
-    ! C in lower case (ASCII).
+    ! C in lower case (ASCII).  Not a port.
     character function lower(c)
         character, intent(in) :: c
 
@@ -821,7 +831,7 @@ contains
         if (c >= "A" .and. c <= "Z") lower = achar(iachar(c) + 32)
     end function lower
 
-    ! (progn (goto-char (match-beginning 0)) (match-end 0)).
+    ! (progn (goto-char (match-beginning 0)) (match-end 0)).  Not a port.
     subroutine headers_pre_form(limit)
         integer(int64), intent(out) :: limit
         type(status_type) :: st
@@ -832,6 +842,7 @@ contains
 
     ! (and (not (bound-and-true-p git-commit-mode))
     !      (progn (goto-char (match-end 0)) (1+ (match-end 0)))).
+    ! Not a port.
     subroutine separator_pre_form(limit)
         integer(int64), intent(out) :: limit
         type(status_type) :: st
@@ -841,6 +852,7 @@ contains
     end subroutine separator_pre_form
 
     ! The face of ("^(" (0 ...)) in log-edit-font-lock-gnu-keywords.
+    ! Not a port.
     subroutine gnu_punctuate_face(face)
         use syntax_fm, only: char_syntax
         character(len=:), allocatable, intent(out) :: face
@@ -1087,7 +1099,7 @@ contains
         call log_edit_comment_ring%insert(c)
     end subroutine log_edit_remember_comment
 
-    ! log-edit-remember-comment on `kill_buffer_hook'.
+    ! log-edit-remember-comment on `kill_buffer_hook'.  Not a port.
     recursive subroutine log_edit_remember_comment_hook(status)
         type(status_type), intent(out) :: status
 
@@ -1305,7 +1317,7 @@ contains
     end subroutine log_edit_show_diff
 
     ! The current buffer's log-edit-diff-function, for
-    ! `log_edit_maybe_show_diff' (in log_edit_vc_fm).
+    ! `log_edit_maybe_show_diff' (in log_edit_vc_fm).  Not a port.
     recursive subroutine call_diff_function(status)
         type(status_type), intent(out) :: status
 
@@ -1359,7 +1371,7 @@ contains
         call set_buffer(old, st)
     end subroutine log_edit_show_files
 
-    ! (window-height . shrink-window-if-larger-than-buffer).
+    ! (window-height . shrink-window-if-larger-than-buffer).  Not a port.
     subroutine shrink_window(window)
         type(handle_type), intent(in) :: window
 
@@ -1400,6 +1412,7 @@ contains
     ! Insert the header line of HEADER with VALUE, making \[move_beginning_of_line]
     ! work like it does in other buffers with header names (the
     ! `field' property header and `rear_nonsticky' on the name).
+    ! Not a port.
     recursive subroutine insert_header_line(header, status, value)
         character(len=*), intent(in) :: header
         type(status_type), intent(out) :: status
@@ -1445,7 +1458,7 @@ contains
         call end_of_line(-1_int64)
     end subroutine log_edit_insert_message_template
 
-    ! log-edit-insert-message-template on `log_edit_hook'.
+    ! log-edit-insert-message-template on `log_edit_hook'.  Not a port.
     recursive subroutine hook_insert_message_template(status)
         type(status_type), intent(out) :: status
 
@@ -1477,7 +1490,7 @@ contains
         end if
     end subroutine log_edit_insert_cvs_template
 
-    ! log-edit-insert-cvs-template on `log_edit_hook'.
+    ! log-edit-insert-cvs-template on `log_edit_hook'.  Not a port.
     recursive subroutine hook_insert_cvs_template(status)
         type(status_type), intent(out) :: status
 
@@ -1748,7 +1761,7 @@ contains
         end if
     end subroutine log_edit_changelog_paragraph
 
-    ! (skip-chars-backward " \t\n" (point-min)).
+    ! (skip-chars-backward " \t\n" (point-min)).  Not a port.
     integer(int64) function skip_chars_backward_ws() result(moved)
         use syntax_fm, only: skip_chars_backward
         type(status_type) :: st
@@ -1825,7 +1838,7 @@ contains
             mail = user_mail_address_value()
         end if
 
-        time = add_log_time_format()
+        call add_log_time_format(time)
 
         if (.not. changelog_use_first) then
             ours = looking_at(regexp_quote(time//"  "//name//"  <"//mail//">"), st)
@@ -2489,7 +2502,7 @@ contains
     end subroutine cmd_log_edit_next_comment
 
     ! The `*' of an interactive spec: signal buffer_read_only if the
-    ! buffer is read-only.
+    ! buffer is read-only.  Not a port.
     logical function read_only(status)
         use error_fm, only: FM_BUFFER_READ_ONLY
         type(status_type), intent(out) :: status
@@ -2499,7 +2512,7 @@ contains
         if (read_only) call set_error(status, FM_BUFFER_READ_ONLY, buffers(cur)%name)
     end function read_only
 
-    ! The interactive argument of the comment searches.
+    ! The interactive argument of the comment searches.  Not a port.
     recursive subroutine read_comment_substring(str, status)
         character(len=:), allocatable, intent(out) :: str
         type(status_type), intent(out) :: status
@@ -2571,7 +2584,7 @@ contains
     ! Definitions
     ! ------------------------------------------------------------------
 
-    !> The faces of log-edit.el.
+    !> The faces of log-edit.el.  Port of the defface forms of log-edit.el.
     subroutine define_faces()
         type(named_face_type), pointer :: f
 
@@ -2818,6 +2831,7 @@ contains
         call strip_cvs_lines(.true., status)
     end subroutine cmd_log_edit_done_strip_cvs_lines
 
+    ! Port of log-edit.el:log-edit-done-strip-cvs-lines (its body).
     recursive subroutine strip_cvs_lines(interactive, status)
         use vc_hooks_fm, only: vc_backends
         use search_fm, only: case_fold_search
@@ -2845,7 +2859,7 @@ contains
     end subroutine strip_cvs_lines
 
     !> Define Log Edit mode, its keymap, faces and hooks, and register the
-    !> commands.
+    !> commands.  Not a port.
     subroutine syms_of_log_edit()
         type(status_type) :: st
 
@@ -2894,14 +2908,14 @@ contains
         call add_local_variables_killer(kill_log_edit_locals)
     end subroutine syms_of_log_edit
 
-    ! log-edit-insert-changelog on `log_edit_hook'.
+    ! log-edit-insert-changelog on `log_edit_hook'.  Not a port.
     recursive subroutine log_edit_insert_changelog_hook(status)
         type(status_type), intent(out) :: status
 
         call log_edit_insert_changelog(status)
     end subroutine log_edit_insert_changelog_hook
 
-    ! log-edit-show-files on `log_edit_hook'.
+    ! log-edit-show-files on `log_edit_hook'.  Not a port.
     recursive subroutine log_edit_show_files_hook(status)
         type(status_type), intent(out) :: status
 

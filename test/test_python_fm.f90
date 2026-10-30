@@ -1,4 +1,7 @@
 ! test_python_fm.f90 -- tests for Python mode (python_fm).
+! Ports GNU Emacs 31.1 test/lisp/progmodes/python-tests.el in part; the
+! indentation, navigation, syntax context and info tests whose forms use
+! only what is ported.
 !
 ! Copyright (C) 2013-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -76,6 +79,7 @@ module test_python_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_python_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

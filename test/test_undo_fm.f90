@@ -1,8 +1,8 @@
 ! test_undo_fm.f90 -- tests for undo: recording (undo_fm) and the undo
 ! commands (simple_fm).
-! Ported from GNU Emacs 31.1 test/src/undo-tests.el and
-! test/lisp/simple-tests.el (the undo tests that need no text properties,
-! words or regions), plus our own.
+! Ports GNU Emacs 31.1 test/src/undo-tests.el and
+! test/lisp/simple-tests.el in part; only the undo tests that need no
+! text properties, words or regions.
 !
 ! Copyright (C) 2012-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -48,6 +48,7 @@ module test_undo_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_undo_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

@@ -1,4 +1,5 @@
 ! test_recentf_fm.f90 -- tests for recentf_fm.
+! Own tests; upstream has no recentf tests.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -41,6 +42,7 @@ module test_recentf_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_recentf_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

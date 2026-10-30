@@ -364,7 +364,7 @@ contains
         end do
     end function format_kbd_macro
 
-    !> The active keymaps (current-active-maps) as an array.
+    !> The active keymaps (current-active-maps) as an array.  Not a port.
     subroutine active_map_list(maps)
         type(value_type), allocatable, intent(out) :: maps(:)
         type(value_type) :: all
@@ -380,6 +380,7 @@ contains
     end subroutine active_map_list
 
     !> The events of a key translation (a list of events or a string).
+    !> Not a port.
     subroutine translation_events(v, evs)
         type(value_type), intent(in) :: v
         type(value_type), allocatable, intent(out) :: evs(:)
@@ -414,6 +415,7 @@ contains
     end subroutine translation_events
 
     !> The character code of event EV, or -1 if it is not a character.
+    !> Not a port.
     integer(int64) function int_event(ev)
         type(value_type), intent(in) :: ev
 
@@ -422,6 +424,7 @@ contains
     end function int_event
 
     !> Whether EV is one of M-- M-0 ... M-9 (only M-0 ... M-9 if DIGITS_ONLY).
+    !> Not a port.
     logical function in_mdigs(ev, digits_only)
         type(value_type), intent(in) :: ev
         logical, intent(in) :: digits_only
@@ -437,7 +440,7 @@ contains
     end function in_mdigs
 
     !> Whether EV is one of the prefix-argument keys (pkeys): the end of
-    !> the macro, 0 ... 9, -, C-u, M--, M-0 ... M-9.
+    !> the macro, 0 ... 9, -, C-u, M--, M-0 ... M-9.  Not a port.
     logical function in_pkeys(ev)
         type(value_type), intent(in) :: ev
         integer(int64) :: c
@@ -451,6 +454,7 @@ contains
     end function in_pkeys
 
     !> Whether character CH, as a key, runs `self_insert_command'.
+    !> Not a port.
     recursive logical function self_inserting(ch)
         integer(int64), intent(in) :: ch
         type(value_type) :: key(1), b
@@ -461,7 +465,7 @@ contains
         self_inserting = value_eq(b, sym("self_insert_command"))
     end function self_inserting
 
-    !> The characters EVS (all ASCII) as a string.
+    !> The characters EVS (all ASCII) as a string.  Not a port.
     function event_chars(evs) result(s)
         type(value_type), intent(in) :: evs(:)
         character(len=:), allocatable :: s
@@ -476,6 +480,7 @@ contains
 
     !> Whether DESC matches "^;;\|^<.*>$\|^\\[0-9]+$\|^[0-9]+\*.": text
     !> that would read back as something else.
+    !> Port of part of edmacro.el:edmacro-format-keys.
     logical function reserved_desc(desc)
         character(len=*), intent(in) :: desc
         integer :: k
@@ -499,7 +504,7 @@ contains
     end function reserved_desc
 
     !> Whether DESC is one of the reserved words NUL TAB LFD RET ESC SPC DEL
-    !> REM.
+    !> REM.  Port of part of edmacro.el:edmacro-format-keys.
     logical function res_word(desc)
         character(len=*), intent(in) :: desc
 
@@ -513,7 +518,7 @@ contains
 
     !> The description of event EV in a macro: modifiers ACHMsS, then NUL,
     !> TAB, LFD, RET, ESC, SPC, C-x, DEL, the character, or \OCTAL; <NAME>
-    !> for a function key.
+    !> for a function key.  Port of part of edmacro.el:edmacro-format-keys.
     function event_description(ev, maxkey) result(s)
         type(value_type), intent(in) :: ev
         integer(int64), intent(in) :: maxkey
@@ -574,7 +579,7 @@ contains
         end if
     end function event_description
 
-    !> N in decimal.
+    !> N in decimal.  Not a port.
     function int_text(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
@@ -584,7 +589,7 @@ contains
         s = trim(buf)
     end function int_text
 
-    !> The number of characters of the UTF-8 text S.
+    !> The number of characters of the UTF-8 text S.  Not a port.
     integer(int64) function nchars(s)
         character(len=*), intent(in) :: s
         integer :: k

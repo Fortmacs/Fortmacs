@@ -1,5 +1,7 @@
 ! test_ibuffer_fm.f90 -- tests for ibuffer_fm.
-! Ported from GNU Emacs 31.1 test/lisp/ibuffer-tests.el.
+! Ports GNU Emacs 31.1 test/lisp/ibuffer-tests.el in part;
+! ibuffer-test-Bug25000 here, the filter tests in test_ibuf_ext_fm, and
+! ibuffer-0autoload does not apply.
 !
 ! Copyright (C) 2016-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -51,6 +53,7 @@ module test_ibuffer_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_ibuffer_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
