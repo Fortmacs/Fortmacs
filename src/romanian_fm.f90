@@ -42,15 +42,15 @@ contains
     !> Port of the language environments of romanian.el (set-language-info-alist).
     module subroutine language_info_romanian()
         call set_language_info_alist("Romanian", &
-                    documentation="Romanian environment using Latin-2 encoding."//achar(10)//"An environment " &
-                    //"for generic Latin-10 encoding is also available.", &
-                    charsets=[character(len=40) :: "iso-8859-2"], &
-                    sample_text="Bună ziua, bine aţi venit!", &
-                    coding_systems=[character(len=40) :: "iso-8859-2", "iso-latin-10"], &
-                    coding_priority=[character(len=40) :: "iso-8859-2"], &
-                    nonascii_translation="iso-8859-2", &
-                    input_method="latin-2-postfix", &
-                    unibyte_display="iso-8859-2", &
-                    tutorial="TUTORIAL.ro")
+                                     documentation="Romanian environment using Latin-2 encoding."//achar(10)//"An environment " &
+                                     //"for generic Latin-10 encoding is also available.", &
+                                     charsets=[character(len=40) :: "iso-8859-2"], &
+                                     sample_text="Bună ziua, bine aţi venit!", &
+                                     coding_systems=[character(len=40) :: "iso-8859-2", "iso-latin-10"], &
+                                     coding_priority=[character(len=40) :: "iso-8859-2"], &
+                                     nonascii_translation="iso-8859-2", &
+                                     input_method="latin-2-postfix", &
+                                     unibyte_display="iso-8859-2", &
+                                     tutorial="TUTORIAL.ro")
     end subroutine language_info_romanian
 end submodule romanian_fm

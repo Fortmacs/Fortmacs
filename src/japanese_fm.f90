@@ -154,17 +154,17 @@ contains
     !> Port of the language environments of japanese.el (set-language-info-alist).
     module subroutine language_info_japanese()
         call set_language_info_alist("Japanese", &
-                    documentation_t=.true., &
-                    charsets=[character(len=40) :: "japanese-jisx0208", "japanese-jisx0212", "latin-jisx0201", &
-                            "katakana-jisx0201", "japanese-jisx0213.2004-1", "japanese-jisx0213-1", &
-                            "japanese-jisx0213-2", "japanese-jisx0208-1978"], &
-                    sample_text="Japanese (日本語)"//achar(9)//"こんにちは, ｺﾝﾆﾁﾊ", &
-                    coding_systems=[character(len=40) :: "iso-2022-jp", "japanese-iso-8bit", "japanese-shift-jis", &
-                            "japanese-iso-7bit-1978-irv", "iso-2022-jp-2004", "japanese-shift-jis-2004", "euc-jis-2004"], &
-                    coding_priority=[character(len=40) :: "iso-2022-jp", "japanese-iso-8bit", "japanese-shift-jis", &
-                            "iso-2022-jp-2004", "euc-jis-2004", "japanese-shift-jis-2004", "iso-2022-jp-2"], &
-                    input_method="japanese", &
-                    tutorial="TUTORIAL.ja", &
-                    iso639_language="ja")
+                                     documentation_t=.true., &
+                                     charsets=[character(len=40) :: "japanese-jisx0208", "japanese-jisx0212", "latin-jisx0201", &
+                                               "katakana-jisx0201", "japanese-jisx0213.2004-1", "japanese-jisx0213-1", &
+                                               "japanese-jisx0213-2", "japanese-jisx0208-1978"], &
+                                     sample_text="Japanese (日本語)"//achar(9)//"こんにちは, ｺﾝﾆﾁﾊ", &
+                                    coding_systems=[character(len=40) :: "iso-2022-jp", "japanese-iso-8bit", "japanese-shift-jis", &
+                                     "japanese-iso-7bit-1978-irv", "iso-2022-jp-2004", "japanese-shift-jis-2004", "euc-jis-2004"], &
+                                   coding_priority=[character(len=40) :: "iso-2022-jp", "japanese-iso-8bit", "japanese-shift-jis", &
+                                                  "iso-2022-jp-2004", "euc-jis-2004", "japanese-shift-jis-2004", "iso-2022-jp-2"], &
+                                     input_method="japanese", &
+                                     tutorial="TUTORIAL.ja", &
+                                     iso639_language="ja")
     end subroutine language_info_japanese
 end submodule japanese_fm

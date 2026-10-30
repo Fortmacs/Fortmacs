@@ -32,10 +32,10 @@ contains
     !> Port of the language environments of burmese.el (set-language-info-alist).
     module subroutine language_info_burmese()
         call set_language_info_alist("Burmese", &
-                    documentation_t=.true., &
-                    charsets=[character(len=40) :: "unicode"], &
-                    sample_text="Burmese (မ္ရန္‌မာ)"//achar(9)//"မင္‍ဂလာပာ", &
-                    coding_systems=[character(len=40) :: "utf-8"], &
-                    coding_priority=[character(len=40) :: "utf-8"])
+                                     documentation_t=.true., &
+                                     charsets=[character(len=40) :: "unicode"], &
+                                     sample_text="Burmese (မ္ရန္‌မာ)"//achar(9)//"မင္‍ဂလာပာ", &
+                                     coding_systems=[character(len=40) :: "utf-8"], &
+                                     coding_priority=[character(len=40) :: "utf-8"])
     end subroutine language_info_burmese
 end submodule burmese_fm

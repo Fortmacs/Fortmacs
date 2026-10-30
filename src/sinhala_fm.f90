@@ -32,10 +32,10 @@ contains
     !> Port of the language environments of sinhala.el (set-language-info-alist).
     module subroutine language_info_sinhala()
         call set_language_info_alist("Sinhala", &
-                    documentation_t=.true., &
-                    charsets=[character(len=40) :: "unicode"], &
-                    sample_text="Sinhala (සිංහල)"//achar(9)//"ආයුබෝවන්", &
-                    coding_systems=[character(len=40) :: "utf-8"], &
-                    coding_priority=[character(len=40) :: "utf-8"])
+                                     documentation_t=.true., &
+                                     charsets=[character(len=40) :: "unicode"], &
+                                     sample_text="Sinhala (සිංහල)"//achar(9)//"ආයුබෝවන්", &
+                                     coding_systems=[character(len=40) :: "utf-8"], &
+                                     coding_priority=[character(len=40) :: "utf-8"])
     end subroutine language_info_sinhala
 end submodule sinhala_fm

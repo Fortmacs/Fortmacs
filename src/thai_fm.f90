@@ -59,23 +59,24 @@ contains
     !> Port of the language environments of thai.el (set-language-info-alist).
     module subroutine language_info_thai()
         call set_language_info_alist("Thai", &
-                    documentation_t=.true., &
-                    charsets=[character(len=40) :: "thai-tis620"], &
-                    sample_text="Thai (ภาษาไทย)"//achar(9)//achar(9) &
-                    //"สวัสดีครับ, สวัสดีค่" &
-                    //"ะ", &
-                    coding_systems=[character(len=40) :: "thai-tis620", "iso-8859-11", "cp874"], &
-                    coding_priority=[character(len=40) :: "thai-tis620"], &
-                    nonascii_translation="tis620-2533", &
-                    input_method="thai-kesmanee", &
-                    unibyte_display="thai-tis620", &
-                    tutorial="TUTORIAL.th")
+                                     documentation_t=.true., &
+                                     charsets=[character(len=40) :: "thai-tis620"], &
+                                     sample_text="Thai (ภาษาไทย)"//achar(9)//achar(9) &
+                                     //"สวัสดีครับ, สวัสดีค่" &
+                                     //"ะ", &
+                                     coding_systems=[character(len=40) :: "thai-tis620", "iso-8859-11", "cp874"], &
+                                     coding_priority=[character(len=40) :: "thai-tis620"], &
+                                     nonascii_translation="tis620-2533", &
+                                     input_method="thai-kesmanee", &
+                                     unibyte_display="thai-tis620", &
+                                     tutorial="TUTORIAL.th")
         call set_language_info_alist("Northern Thai", &
-                    documentation_t=.true., &
-                    charsets=[character(len=40) :: "unicode"], &
-                    sample_text="Northern Thai (ᨣᩣᩴᨾᩮ" &
-                    //"ᩬᩥᨦ / ᨽᩣᩈᩣᩃ᩶ᩣ᩠ᨶᨶᩣ)"//achar(9)//"ᩈ᩠ᩅᩢᩔ᩠ᨯᩦᨣᩕᩢ᩠ᨸ", &
-                    coding_systems=[character(len=40) :: "utf-8"], &
-                    coding_priority=[character(len=40) :: "utf-8"])
+                                     documentation_t=.true., &
+                                     charsets=[character(len=40) :: "unicode"], &
+                                     sample_text="Northern Thai (ᨣᩣᩴᨾᩮ" &
+                                     //"ᩬᩥᨦ / ᨽᩣᩈᩣᩃ᩶ᩣ᩠ᨶᨶᩣ)"//achar(9) &
+                                     //"ᩈ᩠ᩅᩢᩔ᩠ᨯᩦᨣᩕᩢ᩠ᨸ", &
+                                     coding_systems=[character(len=40) :: "utf-8"], &
+                                     coding_priority=[character(len=40) :: "utf-8"])
     end subroutine language_info_thai
 end submodule thai_fm

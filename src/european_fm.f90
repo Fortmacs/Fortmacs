@@ -247,7 +247,7 @@ contains
                     //"h Gaelic, Spanish, and Swedish."//achar(10)//"We also have specific langua" &
                     //"ge environments for the following languages:"//achar(10)//"  For Dutch, ""D" &
                     //"utch""."//achar(10)//"  For German, ""German""."//achar(10)//"  For French, &
-                            ""French""."//achar(10)//"  For" &
+&                            ""French""."//achar(10)//"  For" &
                     //" Italian, ""Italian""."//achar(10)//"  For Slovenian, ""Slovenian""."//achar(10)//"  For Spa" &
                     //"nish, ""Spanish""."//achar(10)//achar(10)//"Latin-1 also covers several written langua" &
                     //"ges outside Europe, including"//achar(10)//"Indonesian/Malay, Tagalog (Phi" &
@@ -260,248 +260,249 @@ contains
                     input_method="latin-1-prefix", &
                     unibyte_display="iso-latin-1")
         call set_language_info_alist("Latin-2", &
-                    documentation="This language environment is a generic one for the Latin-2 (" &
-                    //"ISO-8859-2)"//achar(10)//"character set which supports the following langu" &
-                    //"ages:"//achar(10)//" Albanian, Czech, English, German, Hungarian, Polish, " &
-                    //"Romanian,"//achar(10)//" Serbo-Croatian or Croatian, Slovak, Slovene, Sorb" &
-                    //"ian (upper and lower),"//achar(10)//" and Swedish."//achar(10)//"We also have specific l" &
-                    //"anguage environments for the following languages:"//achar(10)//"  For Czec" &
-                    //"h, ""Czech""."//achar(10)//"  For Croatian, ""Croatian""."//achar(10)//"  For Polish, ""Polis" &
-                    //"h""."//achar(10)//"  For Romanian, ""Romanian""."//achar(10)//"  For Slovak, ""Slovak"".", &
-                    charsets=[character(len=40) :: "iso-8859-2"], &
-                    coding_systems=[character(len=40) :: "iso-latin-2", "windows-1250"], &
-                    coding_priority=[character(len=40) :: "iso-latin-2"], &
-                    nonascii_translation="iso-8859-2", &
-                    input_method="latin-2-prefix", &
-                    unibyte_display="iso-latin-2")
+                                     documentation="This language environment is a generic one for the Latin-2 (" &
+                                     //"ISO-8859-2)"//achar(10)//"character set which supports the following langu" &
+                                     //"ages:"//achar(10)//" Albanian, Czech, English, German, Hungarian, Polish, " &
+                                     //"Romanian,"//achar(10)//" Serbo-Croatian or Croatian, Slovak, Slovene, Sorb" &
+                                     //"ian (upper and lower),"//achar(10)//" and Swedish."//achar(10)//"We also have specific l" &
+                                     //"anguage environments for the following languages:"//achar(10)//"  For Czec" &
+                                 //"h, ""Czech""."//achar(10)//"  For Croatian, ""Croatian""."//achar(10)//"  For Polish, ""Polis" &
+                                     //"h""."//achar(10)//"  For Romanian, ""Romanian""."//achar(10)//"  For Slovak, ""Slovak"".", &
+                                     charsets=[character(len=40) :: "iso-8859-2"], &
+                                     coding_systems=[character(len=40) :: "iso-latin-2", "windows-1250"], &
+                                     coding_priority=[character(len=40) :: "iso-latin-2"], &
+                                     nonascii_translation="iso-8859-2", &
+                                     input_method="latin-2-prefix", &
+                                     unibyte_display="iso-latin-2")
         call set_language_info_alist("Latin-3", &
-                    documentation="These languages are supported with the Latin-3 (ISO-8859-3) " &
-                    //"character set:"//achar(10)//" Afrikaans, Catalan, Dutch, English, Esperant" &
-                    //"o, French, Galician,"//achar(10)//" German, Italian, Maltese, Spanish, and" &
-                    //" Turkish.", &
-                    charsets=[character(len=40) :: "iso-8859-3"], &
-                    coding_systems=[character(len=40) :: "iso-latin-3"], &
-                    coding_priority=[character(len=40) :: "iso-latin-3"], &
-                    nonascii_translation="iso-8859-3", &
-                    input_method="latin-3-prefix", &
-                    unibyte_display="iso-latin-3")
+                                     documentation="These languages are supported with the Latin-3 (ISO-8859-3) " &
+                                     //"character set:"//achar(10)//" Afrikaans, Catalan, Dutch, English, Esperant" &
+                                     //"o, French, Galician,"//achar(10)//" German, Italian, Maltese, Spanish, and" &
+                                     //" Turkish.", &
+                                     charsets=[character(len=40) :: "iso-8859-3"], &
+                                     coding_systems=[character(len=40) :: "iso-latin-3"], &
+                                     coding_priority=[character(len=40) :: "iso-latin-3"], &
+                                     nonascii_translation="iso-8859-3", &
+                                     input_method="latin-3-prefix", &
+                                     unibyte_display="iso-latin-3")
         call set_language_info_alist("Latin-4", &
-                    documentation="These languages are supported with the Latin-4 (ISO-8859-4) " &
-                    //"character set:"//achar(10)//" Danish, English, Estonian, Finnish, German, " &
-                    //"Greenlandic, Latvian,"//achar(10)//" Lithuanian, Norwegian, and Sami.", &
-                    charsets=[character(len=40) :: "iso-8859-4"], &
-                    coding_systems=[character(len=40) :: "iso-8859-4"], &
-                    coding_priority=[character(len=40) :: "iso-8859-4"], &
-                    nonascii_translation="iso-8859-4", &
-                    input_method="latin-4-postfix", &
-                    unibyte_display="iso-8859-4")
+                                     documentation="These languages are supported with the Latin-4 (ISO-8859-4) " &
+                                     //"character set:"//achar(10)//" Danish, English, Estonian, Finnish, German, " &
+                                     //"Greenlandic, Latvian,"//achar(10)//" Lithuanian, Norwegian, and Sami.", &
+                                     charsets=[character(len=40) :: "iso-8859-4"], &
+                                     coding_systems=[character(len=40) :: "iso-8859-4"], &
+                                     coding_priority=[character(len=40) :: "iso-8859-4"], &
+                                     nonascii_translation="iso-8859-4", &
+                                     input_method="latin-4-postfix", &
+                                     unibyte_display="iso-8859-4")
         call set_language_info_alist("Latin-5", &
-                    documentation="Support for Latin-5.See also the Turkish environment.", &
-                    charsets=[character(len=40) :: "iso-8859-9"], &
-                    coding_systems=[character(len=40) :: "iso-latin-5"], &
-                    coding_priority=[character(len=40) :: "iso-latin-5"], &
-                    nonascii_translation="iso-8859-9", &
-                    input_method="latin-5-postfix", &
-                    unibyte_display="iso-latin-5")
+                                     documentation="Support for Latin-5.See also the Turkish environment.", &
+                                     charsets=[character(len=40) :: "iso-8859-9"], &
+                                     coding_systems=[character(len=40) :: "iso-latin-5"], &
+                                     coding_priority=[character(len=40) :: "iso-latin-5"], &
+                                     nonascii_translation="iso-8859-9", &
+                                     input_method="latin-5-postfix", &
+                                     unibyte_display="iso-latin-5")
         call set_language_info_alist("Latin-6", &
-                    documentation="Support for Latin-6.", &
-                    charsets=[character(len=40) :: "iso-8859-10"], &
-                    coding_systems=[character(len=40) :: "latin-6"], &
-                    coding_priority=[character(len=40) :: "latin-6"], &
-                    nonascii_translation="nil", &
-                    input_method="latin-prefix", &
-                    unibyte_display="iso-latin-6")
+                                     documentation="Support for Latin-6.", &
+                                     charsets=[character(len=40) :: "iso-8859-10"], &
+                                     coding_systems=[character(len=40) :: "latin-6"], &
+                                     coding_priority=[character(len=40) :: "latin-6"], &
+                                     nonascii_translation="nil", &
+                                     input_method="latin-prefix", &
+                                     unibyte_display="iso-latin-6")
         call set_language_info_alist("Latin-7", &
-                    documentation="Support for Latin-7, e.g. Latvian, Lithuanian.", &
-                    charsets=[character(len=40) :: "iso-8859-13"], &
-                    coding_systems=[character(len=40) :: "latin-7"], &
-                    coding_priority=[character(len=40) :: "latin-7"], &
-                    nonascii_translation="iso-8859-13", &
-                    input_method="latin-prefix", &
-                    unibyte_display="iso-latin-7")
+                                     documentation="Support for Latin-7, e.g. Latvian, Lithuanian.", &
+                                     charsets=[character(len=40) :: "iso-8859-13"], &
+                                     coding_systems=[character(len=40) :: "latin-7"], &
+                                     coding_priority=[character(len=40) :: "latin-7"], &
+                                     nonascii_translation="iso-8859-13", &
+                                     input_method="latin-prefix", &
+                                     unibyte_display="iso-latin-7")
         call set_language_info_alist("Latin-8", &
-                    documentation="This language environment is a generic one for the Latin-8 (" &
-                    //"ISO-8859-14)"//achar(10)//"character set which supports the Celtic languag" &
-                    //"es, including those not"//achar(10)//"covered by other ISO-8859 character " &
-                    //"sets:"//achar(10)//" Welsh, Manx Gaelic and Irish Gaelic (old orthography)" &
-                    //".", &
-                    charsets=[character(len=40) :: "iso-8859-14"], &
-                    sample_text="ḃ ŵ Ŷ", &
-                    coding_systems=[character(len=40) :: "iso-latin-8"], &
-                    coding_priority=[character(len=40) :: "iso-latin-8"], &
-                    nonascii_translation="iso-8859-14", &
-                    input_method="latin-8-prefix", &
-                    unibyte_display="iso-latin-8")
+                                     documentation="This language environment is a generic one for the Latin-8 (" &
+                                     //"ISO-8859-14)"//achar(10)//"character set which supports the Celtic languag" &
+                                     //"es, including those not"//achar(10)//"covered by other ISO-8859 character " &
+                                     //"sets:"//achar(10)//" Welsh, Manx Gaelic and Irish Gaelic (old orthography)" &
+                                     //".", &
+                                     charsets=[character(len=40) :: "iso-8859-14"], &
+                                     sample_text="ḃ ŵ Ŷ", &
+                                     coding_systems=[character(len=40) :: "iso-latin-8"], &
+                                     coding_priority=[character(len=40) :: "iso-latin-8"], &
+                                     nonascii_translation="iso-8859-14", &
+                                     input_method="latin-8-prefix", &
+                                     unibyte_display="iso-latin-8")
         call set_language_info_alist("Latin-9", &
-                    documentation="This language environment is a generic one for the Latin-9 (" &
-                    //"ISO-8859-15)"//achar(10)//"character set which supports the same languages" &
-                    //" as Latin-1 with the"//achar(10)//"addition of the Euro sign and some addi" &
-                    //"tional French and Finnish letters."//achar(10)//"Latin-9 is sometimes nick" &
-                    //"named `Latin-0'.", &
-                    charsets=[character(len=40) :: "iso-8859-15"], &
-                    sample_text="AVE. ŠšŽžŒœŸ €", &
-                    coding_systems=[character(len=40) :: "iso-latin-9"], &
-                    coding_priority=[character(len=40) :: "iso-latin-9"], &
-                    nonascii_translation="iso-8859-15", &
-                    input_method="latin-9-prefix", &
-                    unibyte_display="iso-latin-9")
+                                     documentation="This language environment is a generic one for the Latin-9 (" &
+                                     //"ISO-8859-15)"//achar(10)//"character set which supports the same languages" &
+                                     //" as Latin-1 with the"//achar(10)//"addition of the Euro sign and some addi" &
+                                     //"tional French and Finnish letters."//achar(10)//"Latin-9 is sometimes nick" &
+                                     //"named `Latin-0'.", &
+                                     charsets=[character(len=40) :: "iso-8859-15"], &
+                                     sample_text="AVE. ŠšŽžŒœŸ €", &
+                                     coding_systems=[character(len=40) :: "iso-latin-9"], &
+                                     coding_priority=[character(len=40) :: "iso-latin-9"], &
+                                     nonascii_translation="iso-8859-15", &
+                                     input_method="latin-9-prefix", &
+                                     unibyte_display="iso-latin-9")
         call set_language_info_alist("Esperanto", &
-                    documentation="Support for Esperanto with ISO-8859-3 character set.", &
-                    charsets=[character(len=40) :: "iso-8859-3"], &
-                    coding_systems=[character(len=40) :: "iso-latin-3"], &
-                    coding_priority=[character(len=40) :: "iso-latin-3"], &
-                    nonascii_translation="latin-iso8859-3", &
-                    input_method="latin-3-prefix", &
-                    unibyte_display="iso-latin-3", &
-                    tutorial="TUTORIAL.eo")
+                                     documentation="Support for Esperanto with ISO-8859-3 character set.", &
+                                     charsets=[character(len=40) :: "iso-8859-3"], &
+                                     coding_systems=[character(len=40) :: "iso-latin-3"], &
+                                     coding_priority=[character(len=40) :: "iso-latin-3"], &
+                                     nonascii_translation="latin-iso8859-3", &
+                                     input_method="latin-3-prefix", &
+                                     unibyte_display="iso-latin-3", &
+                                     tutorial="TUTORIAL.eo")
         call set_language_info_alist("Dutch", &
-                    documentation="This language environment is almost the same as Latin-1,"//achar(10)//"but" &
-                    //" it selects the Dutch tutorial and input method.", &
-                    charsets=[character(len=40) :: "iso-8859-1"], &
-                    sample_text="Er is een aantal manieren waarop je dit kan doen", &
-                    coding_systems=[character(len=40) :: "iso-latin-1", "iso-latin-9"], &
-                    coding_priority=[character(len=40) :: "iso-latin-1"], &
-                    nonascii_translation="iso-8859-1", &
-                    input_method="dutch", &
-                    unibyte_display="iso-latin-1", &
-                    tutorial="TUTORIAL.nl")
+                                     documentation="This language environment is almost the same as Latin-1,"//achar(10)//"but" &
+                                     //" it selects the Dutch tutorial and input method.", &
+                                     charsets=[character(len=40) :: "iso-8859-1"], &
+                                     sample_text="Er is een aantal manieren waarop je dit kan doen", &
+                                     coding_systems=[character(len=40) :: "iso-latin-1", "iso-latin-9"], &
+                                     coding_priority=[character(len=40) :: "iso-latin-1"], &
+                                     nonascii_translation="iso-8859-1", &
+                                     input_method="dutch", &
+                                     unibyte_display="iso-latin-1", &
+                                     tutorial="TUTORIAL.nl")
         call set_language_info_alist("German", &
-                    documentation="This language environment is almost the same as Latin-1,"//achar(10)//"but" &
-                    //" sets the default input method to ""german-postfix""."//achar(10)//"Addition" &
-                    //"ally, it selects the German tutorial.", &
-                    charsets=[character(len=40) :: "iso-8859-1"], &
-                    sample_text="German (Deutsch Nord)"//achar(9)//"Guten Tag"//achar(10)//"German (Deutsch Süd)" &
-                    //achar(9)//"Grüß Go" &
-                    //"tt", &
-                    coding_systems=[character(len=40) :: "iso-latin-1", "iso-latin-9"], &
-                    coding_priority=[character(len=40) :: "iso-latin-1"], &
-                    nonascii_translation="iso-8859-1", &
-                    input_method="german-postfix", &
-                    unibyte_display="iso-latin-1", &
-                    tutorial="TUTORIAL.de")
+                                     documentation="This language environment is almost the same as Latin-1,"//achar(10)//"but" &
+                                     //" sets the default input method to ""german-postfix""."//achar(10)//"Addition" &
+                                     //"ally, it selects the German tutorial.", &
+                                     charsets=[character(len=40) :: "iso-8859-1"], &
+                                     sample_text="German (Deutsch Nord)"//achar(9)//"Guten Tag"//achar(10) &
+                                     //"German (Deutsch Süd)" &
+                                     //achar(9)//"Grüß Go" &
+                                     //"tt", &
+                                     coding_systems=[character(len=40) :: "iso-latin-1", "iso-latin-9"], &
+                                     coding_priority=[character(len=40) :: "iso-latin-1"], &
+                                     nonascii_translation="iso-8859-1", &
+                                     input_method="german-postfix", &
+                                     unibyte_display="iso-latin-1", &
+                                     tutorial="TUTORIAL.de")
         call set_language_info_alist("French", &
-                    documentation="This language environment is almost the same as Latin-1,"//achar(10)//"but" &
-                    //" it selects the French tutorial and input method.", &
-                    charsets=[character(len=40) :: "iso-8859-1"], &
-                    sample_text="French (Français)"//achar(9)//"Bonjour, Salut", &
-                    coding_systems=[character(len=40) :: "iso-latin-1", "iso-latin-9"], &
-                    coding_priority=[character(len=40) :: "iso-latin-1"], &
-                    nonascii_translation="iso-8859-1", &
-                    input_method="latin-1-prefix", &
-                    unibyte_display="iso-latin-1", &
-                    tutorial="TUTORIAL.fr")
+                                     documentation="This language environment is almost the same as Latin-1,"//achar(10)//"but" &
+                                     //" it selects the French tutorial and input method.", &
+                                     charsets=[character(len=40) :: "iso-8859-1"], &
+                                     sample_text="French (Français)"//achar(9)//"Bonjour, Salut", &
+                                     coding_systems=[character(len=40) :: "iso-latin-1", "iso-latin-9"], &
+                                     coding_priority=[character(len=40) :: "iso-latin-1"], &
+                                     nonascii_translation="iso-8859-1", &
+                                     input_method="latin-1-prefix", &
+                                     unibyte_display="iso-latin-1", &
+                                     tutorial="TUTORIAL.fr")
         call set_language_info_alist("Italian", &
-                    documentation="This language environment is almost the same as Latin-1,"//achar(10)//"but" &
-                    //" sets the default input method to ""italian-postfix""."//achar(10)//"Additio" &
-                    //"nally, it selects the Italian tutorial.", &
-                    charsets=[character(len=40) :: "iso-8859-1"], &
-                    sample_text="Salve, ciao!", &
-                    coding_systems=[character(len=40) :: "iso-latin-1", "iso-latin-9"], &
-                    coding_priority=[character(len=40) :: "iso-latin-1"], &
-                    nonascii_translation="iso-8859-1", &
-                    input_method="italian-postfix", &
-                    unibyte_display="iso-latin-1", &
-                    tutorial="TUTORIAL.it")
+                                     documentation="This language environment is almost the same as Latin-1,"//achar(10)//"but" &
+                                     //" sets the default input method to ""italian-postfix""."//achar(10)//"Additio" &
+                                     //"nally, it selects the Italian tutorial.", &
+                                     charsets=[character(len=40) :: "iso-8859-1"], &
+                                     sample_text="Salve, ciao!", &
+                                     coding_systems=[character(len=40) :: "iso-latin-1", "iso-latin-9"], &
+                                     coding_priority=[character(len=40) :: "iso-latin-1"], &
+                                     nonascii_translation="iso-8859-1", &
+                                     input_method="italian-postfix", &
+                                     unibyte_display="iso-latin-1", &
+                                     tutorial="TUTORIAL.it")
         call set_language_info_alist("Slovenian", &
-                    documentation="This language environment is almost the same as Latin-2,"//achar(10)//"but" &
-                    //" it selects the Slovenian tutorial and input method.", &
-                    charsets=[character(len=40) :: "iso-8859-2"], &
-                    sample_text="Želimo vam uspešen dan!", &
-                    coding_systems=[character(len=40) :: "iso-8859-2", "windows-1250"], &
-                    coding_priority=[character(len=40) :: "iso-8859-2"], &
-                    nonascii_translation="iso-8859-2", &
-                    input_method="slovenian", &
-                    unibyte_display="iso-8859-2", &
-                    tutorial="TUTORIAL.sl")
+                                     documentation="This language environment is almost the same as Latin-2,"//achar(10)//"but" &
+                                     //" it selects the Slovenian tutorial and input method.", &
+                                     charsets=[character(len=40) :: "iso-8859-2"], &
+                                     sample_text="Želimo vam uspešen dan!", &
+                                     coding_systems=[character(len=40) :: "iso-8859-2", "windows-1250"], &
+                                     coding_priority=[character(len=40) :: "iso-8859-2"], &
+                                     nonascii_translation="iso-8859-2", &
+                                     input_method="slovenian", &
+                                     unibyte_display="iso-8859-2", &
+                                     tutorial="TUTORIAL.sl")
         call set_language_info_alist("Spanish", &
-                    documentation="This language environment is almost the same as Latin-1,"//achar(10)//"but" &
-                    //" it sets the default input method to ""spanish-postfix"","//achar(10)//"and " &
-                    //"it selects the Spanish tutorial.", &
-                    charsets=[character(len=40) :: "iso-8859-1"], &
-                    sample_text="Spanish (Español)"//achar(9)//"¡Hola!", &
-                    coding_systems=[character(len=40) :: "iso-latin-1", "iso-latin-9"], &
-                    coding_priority=[character(len=40) :: "iso-latin-1"], &
-                    nonascii_translation="iso-8859-1", &
-                    input_method="spanish-postfix", &
-                    unibyte_display="iso-latin-1", &
-                    tutorial="TUTORIAL.es")
+                                     documentation="This language environment is almost the same as Latin-1,"//achar(10)//"but" &
+                                     //" it sets the default input method to ""spanish-postfix"","//achar(10)//"and " &
+                                     //"it selects the Spanish tutorial.", &
+                                     charsets=[character(len=40) :: "iso-8859-1"], &
+                                     sample_text="Spanish (Español)"//achar(9)//"¡Hola!", &
+                                     coding_systems=[character(len=40) :: "iso-latin-1", "iso-latin-9"], &
+                                     coding_priority=[character(len=40) :: "iso-latin-1"], &
+                                     nonascii_translation="iso-8859-1", &
+                                     input_method="spanish-postfix", &
+                                     unibyte_display="iso-latin-1", &
+                                     tutorial="TUTORIAL.es")
         call set_language_info_alist("Turkish", &
-                    documentation="Support for Turkish."//achar(10)//"Differs from the Latin-5 environment in" &
-                    //" using the `turkish-postfix' input"//achar(10)//"method and applying Turki" &
-                    //"sh case rules for the characters i, I, ı, İ.", &
-                    charsets=[character(len=40) :: "iso-8859-9"], &
-                    sample_text="Turkish (Türkçe)"//achar(9)//"Esenlikler / Merhaba", &
-                    coding_systems=[character(len=40) :: "iso-latin-5", "windows-1254", "iso-latin-3"], &
-                    coding_priority=[character(len=40) :: "iso-latin-5"], &
-                    nonascii_translation="iso-8859-9", &
-                    input_method="turkish-postfix", &
-                    unibyte_display="iso-latin-5")
+                                     documentation="Support for Turkish."//achar(10)//"Differs from the Latin-5 environment in" &
+                                     //" using the `turkish-postfix' input"//achar(10)//"method and applying Turki" &
+                                     //"sh case rules for the characters i, I, ı, İ.", &
+                                     charsets=[character(len=40) :: "iso-8859-9"], &
+                                     sample_text="Turkish (Türkçe)"//achar(9)//"Esenlikler / Merhaba", &
+                                     coding_systems=[character(len=40) :: "iso-latin-5", "windows-1254", "iso-latin-3"], &
+                                     coding_priority=[character(len=40) :: "iso-latin-5"], &
+                                     nonascii_translation="iso-8859-9", &
+                                     input_method="turkish-postfix", &
+                                     unibyte_display="iso-latin-5")
         call set_language_info_alist("Polish", &
-                    documentation_t=.true., &
-                    charsets=[character(len=40) :: "iso-8859-2"], &
-                    sample_text="Pójdź, kiń-że tę chmurność w głąb flaszy", &
-                    coding_systems=[character(len=40) :: "iso-8859-2", "windows-1250"], &
-                    coding_priority=[character(len=40) :: "iso-8859-2"], &
-                    nonascii_translation="iso-8859-2", &
-                    input_method="polish-slash", &
-                    unibyte_display="iso-8859-2", &
-                    tutorial="TUTORIAL.pl")
+                                     documentation_t=.true., &
+                                     charsets=[character(len=40) :: "iso-8859-2"], &
+                                     sample_text="Pójdź, kiń-że tę chmurność w głąb flaszy", &
+                                     coding_systems=[character(len=40) :: "iso-8859-2", "windows-1250"], &
+                                     coding_priority=[character(len=40) :: "iso-8859-2"], &
+                                     nonascii_translation="iso-8859-2", &
+                                     input_method="polish-slash", &
+                                     unibyte_display="iso-8859-2", &
+                                     tutorial="TUTORIAL.pl")
         call set_language_info_alist("Welsh", &
-                    documentation="Support for Welsh, using Unicode.", &
-                    coding_systems=[character(len=40) :: "utf-8", "latin-8"], &
-                    coding_priority=[character(len=40) :: "utf-8", "latin-8"], &
-                    nonascii_translation="iso-8859-14", &
-                    input_method="welsh")
+                                     documentation="Support for Welsh, using Unicode.", &
+                                     coding_systems=[character(len=40) :: "utf-8", "latin-8"], &
+                                     coding_priority=[character(len=40) :: "utf-8", "latin-8"], &
+                                     nonascii_translation="iso-8859-14", &
+                                     input_method="welsh")
         call set_language_info_alist("Lithuanian", &
-                    documentation="Support for Lithuanian.", &
-                    coding_systems=[character(len=40) :: "latin-7", "windows-1257"], &
-                    coding_priority=[character(len=40) :: "latin-7"], &
-                    nonascii_translation="iso-8859-13", &
-                    input_method="lithuanian-keyboard")
+                                     documentation="Support for Lithuanian.", &
+                                     coding_systems=[character(len=40) :: "latin-7", "windows-1257"], &
+                                     coding_priority=[character(len=40) :: "latin-7"], &
+                                     nonascii_translation="iso-8859-13", &
+                                     input_method="lithuanian-keyboard")
         call set_language_info_alist("Latvian", &
-                    documentation="Support for Latvian.", &
-                    coding_systems=[character(len=40) :: "latin-7", "windows-1257"], &
-                    coding_priority=[character(len=40) :: "latin-7"], &
-                    nonascii_translation="iso-8859-13", &
-                    input_method="latvian-keyboard")
+                                     documentation="Support for Latvian.", &
+                                     coding_systems=[character(len=40) :: "latin-7", "windows-1257"], &
+                                     coding_priority=[character(len=40) :: "latin-7"], &
+                                     nonascii_translation="iso-8859-13", &
+                                     input_method="latvian-keyboard")
         call set_language_info_alist("Swedish", &
-                    documentation="Support for Swedish", &
-                    charsets=[character(len=40) :: "iso-8859-1"], &
-                    sample_text="Goddag Hej", &
-                    coding_systems=[character(len=40) :: "iso-latin-1"], &
-                    coding_priority=[character(len=40) :: "iso-latin-1"], &
-                    nonascii_translation="iso-8859-1", &
-                    unibyte_display="iso-latin-1", &
-                    tutorial="TUTORIAL.sv")
+                                     documentation="Support for Swedish", &
+                                     charsets=[character(len=40) :: "iso-8859-1"], &
+                                     sample_text="Goddag Hej", &
+                                     coding_systems=[character(len=40) :: "iso-latin-1"], &
+                                     coding_priority=[character(len=40) :: "iso-latin-1"], &
+                                     nonascii_translation="iso-8859-1", &
+                                     unibyte_display="iso-latin-1", &
+                                     tutorial="TUTORIAL.sv")
         call set_language_info_alist("Croatian", &
-                    documentation="Support for Croatian with Latin-2 encoding.", &
-                    charsets=[character(len=40) :: "iso-8859-2"], &
-                    coding_systems=[character(len=40) :: "iso-8859-2"], &
-                    coding_priority=[character(len=40) :: "iso-8859-2"], &
-                    nonascii_translation="iso-8859-2", &
-                    input_method="croatian", &
-                    unibyte_display="iso-8859-2")
+                                     documentation="Support for Croatian with Latin-2 encoding.", &
+                                     charsets=[character(len=40) :: "iso-8859-2"], &
+                                     coding_systems=[character(len=40) :: "iso-8859-2"], &
+                                     coding_priority=[character(len=40) :: "iso-8859-2"], &
+                                     nonascii_translation="iso-8859-2", &
+                                     input_method="croatian", &
+                                     unibyte_display="iso-8859-2")
         call set_language_info_alist("Brazilian Portuguese", &
-                    documentation="Support for Brazilian Portuguese.", &
-                    charsets=[character(len=40) :: "iso-8859-1"], &
-                    sample_text="Oi", &
-                    coding_systems=[character(len=40) :: "iso-latin-1", "iso-latin-9"], &
-                    coding_priority=[character(len=40) :: "iso-latin-1"], &
-                    nonascii_translation="iso-8859-1", &
-                    input_method="latin-1-prefix", &
-                    unibyte_display="iso-8859-1", &
-                    tutorial="TUTORIAL.pt_BR")
+                                     documentation="Support for Brazilian Portuguese.", &
+                                     charsets=[character(len=40) :: "iso-8859-1"], &
+                                     sample_text="Oi", &
+                                     coding_systems=[character(len=40) :: "iso-latin-1", "iso-latin-9"], &
+                                     coding_priority=[character(len=40) :: "iso-latin-1"], &
+                                     nonascii_translation="iso-8859-1", &
+                                     input_method="latin-1-prefix", &
+                                     unibyte_display="iso-8859-1", &
+                                     tutorial="TUTORIAL.pt_BR")
         call set_language_info_alist("Catalan", setup_function=catalan_setup, exit_function=catalan_exit, &
-                    documentation="This language environment uses the ISO-8859-1 character set," &
-                    //achar(10)//"sets the default input method to ""catalan-prefix"", and sets" &
-                    //achar(10)//"the syntax of the middle dot character `·' to word.", &
-                    charsets=[character(len=40) :: "iso-8859-1"], &
-                    sample_text="Catalan (Català)  Avui demà i ahir s'esfullarà una rosa.", &
-                    coding_systems=[character(len=40) :: "iso-8859-1", "iso-8859-15"], &
-                    coding_priority=[character(len=40) :: "iso-8859-1"], &
-                    nonascii_translation="iso-8859-1", &
-                    input_method="catalan-prefix", &
-                    unibyte_display="iso-8859-1")
+                                     documentation="This language environment uses the ISO-8859-1 character set," &
+                                     //achar(10)//"sets the default input method to ""catalan-prefix"", and sets" &
+                                     //achar(10)//"the syntax of the middle dot character `·' to word.", &
+                                     charsets=[character(len=40) :: "iso-8859-1"], &
+                                     sample_text="Catalan (Català)  Avui demà i ahir s'esfullarà una rosa.", &
+                                     coding_systems=[character(len=40) :: "iso-8859-1", "iso-8859-15"], &
+                                     coding_priority=[character(len=40) :: "iso-8859-1"], &
+                                     nonascii_translation="iso-8859-1", &
+                                     input_method="catalan-prefix", &
+                                     unibyte_display="iso-8859-1")
     end subroutine language_info_european
 
     !> `setup-function' of the Catalan language environment: make the

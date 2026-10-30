@@ -44,7 +44,8 @@ contains
                                      //achar(10)//"Both the script and languages have the same origin as that " &
                                      //"of Thai"//achar(10)//"language/script used in Thailand, but now they diffe" &
                                      //"r from each"//achar(10)//"other in a significant way (especially the scrip" &
-                                     //"ts are)."//achar(10)//achar(10)//"The language name is spelled as ""ꪁꪫꪱꪣ ꪼꪕ"", and the" &
+                                     //"ts are)."//achar(10)//achar(10)//"The language na"//"me is spelled a" &
+                                     //"s ""ꪁꪫꪱꪣ ꪼꪕ"", "//"and the" &
                                      //" script name is"//achar(10)//"spelled as ""ꪎꪳ ꪼꪕ"".", &
                                      charsets=[character(len=40) :: "unicode"], &
                                      sample_text="TaiViet (ꪁꪫꪱꪣ ꪼꪕ)"//achar(9)//achar(9) &

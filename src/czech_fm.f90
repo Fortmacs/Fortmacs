@@ -30,16 +30,16 @@ contains
     !> Port of the language environments of czech.el (set-language-info-alist).
     module subroutine language_info_czech()
         call set_language_info_alist("Czech", &
-                    documentation="This language environment is almost the same as Latin-2,"//achar(10)//"but" &
-                    //" sets the default input method to ""czech"","//achar(10)//"and selects the C" &
-                    //"zech tutorial.", &
-                    charsets=[character(len=40) :: "ascii", "latin-iso8859-2"], &
-                    sample_text="Přejeme vám hezký den!", &
-                    coding_systems=[character(len=40) :: "iso-8859-2"], &
-                    coding_priority=[character(len=40) :: "iso-8859-2"], &
-                    nonascii_translation="iso-8859-2", &
-                    input_method="czech", &
-                    unibyte_display="iso-8859-2", &
-                    tutorial="TUTORIAL.cs")
+                                     documentation="This language environment is almost the same as Latin-2,"//achar(10)//"but" &
+                                     //" sets the default input method to ""czech"","//achar(10)//"and selects the C" &
+                                     //"zech tutorial.", &
+                                     charsets=[character(len=40) :: "ascii", "latin-iso8859-2"], &
+                                     sample_text="Přejeme vám hezký den!", &
+                                     coding_systems=[character(len=40) :: "iso-8859-2"], &
+                                     coding_priority=[character(len=40) :: "iso-8859-2"], &
+                                     nonascii_translation="iso-8859-2", &
+                                     input_method="czech", &
+                                     unibyte_display="iso-8859-2", &
+                                     tutorial="TUTORIAL.cs")
     end subroutine language_info_czech
 end submodule czech_fm

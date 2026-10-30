@@ -42,10 +42,10 @@ contains
     !> Port of the language environments of georgian.el (set-language-info-alist).
     module subroutine language_info_georgian()
         call set_language_info_alist("Georgian", &
-                    documentation="Support for georgian-ps character set.", &
-                    coding_systems=[character(len=40) :: "georgian-ps"], &
-                    coding_priority=[character(len=40) :: "georgian-ps"], &
-                    nonascii_translation="georgian-ps", &
-                    input_method="georgian")
+                                     documentation="Support for georgian-ps character set.", &
+                                     coding_systems=[character(len=40) :: "georgian-ps"], &
+                                     coding_priority=[character(len=40) :: "georgian-ps"], &
+                                     nonascii_translation="georgian-ps", &
+                                     input_method="georgian")
     end subroutine language_info_georgian
 end submodule georgian_fm

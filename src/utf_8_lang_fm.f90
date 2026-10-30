@@ -30,11 +30,11 @@ contains
     !> Port of the language environments of utf-8-lang.el (set-language-info-alist).
     module subroutine language_info_utf_8_lang()
         call set_language_info_alist("UTF-8", &
-                    documentation="This language environment is a generic one for the Unicode c" &
-                    //"haracter set"//achar(10)//"encoded in UTF-8.", &
-                    charsets=[character(len=40) :: "unicode-bmp", "unicode"], &
-                    coding_systems=[character(len=40) :: "utf-8"], &
-                    coding_priority=[character(len=40) :: "utf-8"], &
-                    input_method="rfc1345")
+                                     documentation="This language environment is a generic one for the Unicode c" &
+                                     //"haracter set"//achar(10)//"encoded in UTF-8.", &
+                                     charsets=[character(len=40) :: "unicode-bmp", "unicode"], &
+                                     coding_systems=[character(len=40) :: "utf-8"], &
+                                     coding_priority=[character(len=40) :: "utf-8"], &
+                                     input_method="rfc1345")
     end subroutine language_info_utf_8_lang
 end submodule utf_8_lang_fm

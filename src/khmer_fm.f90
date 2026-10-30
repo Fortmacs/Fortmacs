@@ -32,10 +32,10 @@ contains
     !> Port of the language environments of khmer.el (set-language-info-alist).
     module subroutine language_info_khmer()
         call set_language_info_alist("Khmer", &
-                    documentation_t=.true., &
-                    charsets=[character(len=40) :: "unicode"], &
-                    sample_text="Khmer (ភាសាខ្មែរ)"//achar(9)//"ជំរាបសួរ", &
-                    coding_systems=[character(len=40) :: "utf-8"], &
-                    coding_priority=[character(len=40) :: "utf-8"])
+                                     documentation_t=.true., &
+                                     charsets=[character(len=40) :: "unicode"], &
+                                     sample_text="Khmer (ភាសាខ្មែរ)"//achar(9)//"ជំរាបសួរ", &
+                                     coding_systems=[character(len=40) :: "utf-8"], &
+                                     coding_priority=[character(len=40) :: "utf-8"])
     end subroutine language_info_khmer
 end submodule khmer_fm

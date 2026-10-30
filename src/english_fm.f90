@@ -58,14 +58,14 @@ contains
     !> Port of the language environments of english.el (set-language-info-alist).
     module subroutine language_info_english()
         call set_language_info_alist("English", &
-                    documentation="Nothing special is needed to handle English.", &
-                    charsets=[character(len=40) :: "ascii"], &
-                    sample_text="Hello!, Hi!, How are you?", &
-                    tutorial="TUTORIAL")
+                                     documentation="Nothing special is needed to handle English.", &
+                                     charsets=[character(len=40) :: "ascii"], &
+                                     sample_text="Hello!, Hi!, How are you?", &
+                                     tutorial="TUTORIAL")
         call set_language_info_alist("ASCII", &
-                    documentation="Nothing special is needed to handle English.", &
-                    charsets=[character(len=40) :: "ascii"], &
-                    sample_text="Hello!, Hi!, How are you?", &
-                    tutorial="TUTORIAL")
+                                     documentation="Nothing special is needed to handle English.", &
+                                     charsets=[character(len=40) :: "ascii"], &
+                                     sample_text="Hello!, Hi!, How are you?", &
+                                     tutorial="TUTORIAL")
     end subroutine language_info_english
 end submodule english_fm

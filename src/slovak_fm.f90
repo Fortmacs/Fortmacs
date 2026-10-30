@@ -31,16 +31,16 @@ contains
     !> Port of the language environments of slovak.el (set-language-info-alist).
     module subroutine language_info_slovak()
         call set_language_info_alist("Slovak", &
-                    documentation="This language environment is almost the same as Latin-2,"//achar(10)//"but" &
-                    //" sets the default input method to ""slovak"","//achar(10)//"and selects the " &
-                    //"Slovak tutorial.", &
-                    charsets=[character(len=40) :: "ascii", "latin-iso8859-2"], &
-                    sample_text="Prajeme Vám príjemný deň!", &
-                    coding_systems=[character(len=40) :: "iso-8859-2"], &
-                    coding_priority=[character(len=40) :: "iso-8859-2"], &
-                    nonascii_translation="iso-8859-2", &
-                    input_method="slovak", &
-                    unibyte_display="iso-8859-2", &
-                    tutorial="TUTORIAL.sk")
+                                     documentation="This language environment is almost the same as Latin-2,"//achar(10)//"but" &
+                                     //" sets the default input method to ""slovak"","//achar(10)//"and selects the " &
+                                     //"Slovak tutorial.", &
+                                     charsets=[character(len=40) :: "ascii", "latin-iso8859-2"], &
+                                     sample_text="Prajeme Vám príjemný deň!", &
+                                     coding_systems=[character(len=40) :: "iso-8859-2"], &
+                                     coding_priority=[character(len=40) :: "iso-8859-2"], &
+                                     nonascii_translation="iso-8859-2", &
+                                     input_method="slovak", &
+                                     unibyte_display="iso-8859-2", &
+                                     tutorial="TUTORIAL.sk")
     end subroutine language_info_slovak
 end submodule slovak_fm

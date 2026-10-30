@@ -94,81 +94,81 @@ contains
     !> Port of the language environments of cyrillic.el (set-language-info-alist).
     module subroutine language_info_cyrillic()
         call set_language_info_alist("Cyrillic-ISO", &
-                    documentation="Support for Cyrillic ISO-8859-5.", &
-                    charsets=[character(len=40) :: "iso-8859-5"], &
-                    sample_text="Russian (Русский)"//achar(9)//"Здравствуйте!", &
-                    coding_systems=[character(len=40) :: "cyrillic-iso-8bit"], &
-                    coding_priority=[character(len=40) :: "cyrillic-iso-8bit"], &
-                    nonascii_translation="iso-8859-5", &
-                    input_method="cyrillic-yawerty", &
-                    unibyte_display="cyrillic-iso-8bit")
+                                     documentation="Support for Cyrillic ISO-8859-5.", &
+                                     charsets=[character(len=40) :: "iso-8859-5"], &
+                                     sample_text="Russian (Русский)"//achar(9)//"Здравствуйте!", &
+                                     coding_systems=[character(len=40) :: "cyrillic-iso-8bit"], &
+                                     coding_priority=[character(len=40) :: "cyrillic-iso-8bit"], &
+                                     nonascii_translation="iso-8859-5", &
+                                     input_method="cyrillic-yawerty", &
+                                     unibyte_display="cyrillic-iso-8bit")
         call set_language_info_alist("Cyrillic-KOI8", &
-                    documentation="Support for Cyrillic KOI8-R.", &
-                    charsets=[character(len=40) :: "koi8"], &
-                    sample_text="Russian (Русский)"//achar(9)//"Здравствуйте!", &
-                    coding_systems=[character(len=40) :: "cyrillic-koi8"], &
-                    coding_priority=[character(len=40) :: "cyrillic-koi8", "cyrillic-iso-8bit"], &
-                    nonascii_translation="koi8", &
-                    input_method="russian-typewriter", &
-                    unibyte_display="cyrillic-koi8")
+                                     documentation="Support for Cyrillic KOI8-R.", &
+                                     charsets=[character(len=40) :: "koi8"], &
+                                     sample_text="Russian (Русский)"//achar(9)//"Здравствуйте!", &
+                                     coding_systems=[character(len=40) :: "cyrillic-koi8"], &
+                                     coding_priority=[character(len=40) :: "cyrillic-koi8", "cyrillic-iso-8bit"], &
+                                     nonascii_translation="koi8", &
+                                     input_method="russian-typewriter", &
+                                     unibyte_display="cyrillic-koi8")
         call set_language_info_alist("Russian", &
-                    documentation="Support for Russian using koi8-r and the russian-computer in" &
-                    //"put method.", &
-                    charsets=[character(len=40) :: "cyrillic-iso8859-5"], &
-                    sample_text="Russian (Русский)"//achar(9)//"Здравствуйте!", &
-                    coding_systems=[character(len=40) :: "cyrillic-koi8"], &
-                    coding_priority=[character(len=40) :: "cyrillic-koi8", "cyrillic-iso-8bit"], &
-                    nonascii_translation="nil", &
-                    input_method="russian-computer", &
-                    unibyte_display="cyrillic-koi8", &
-                    tutorial="TUTORIAL.ru")
+                                     documentation="Support for Russian using koi8-r and the russian-computer in" &
+                                     //"put method.", &
+                                     charsets=[character(len=40) :: "cyrillic-iso8859-5"], &
+                                     sample_text="Russian (Русский)"//achar(9)//"Здравствуйте!", &
+                                     coding_systems=[character(len=40) :: "cyrillic-koi8"], &
+                                     coding_priority=[character(len=40) :: "cyrillic-koi8", "cyrillic-iso-8bit"], &
+                                     nonascii_translation="nil", &
+                                     input_method="russian-computer", &
+                                     unibyte_display="cyrillic-koi8", &
+                                     tutorial="TUTORIAL.ru")
         call set_language_info_alist("Ukrainian", &
-                    documentation="Support for Ukrainian with koi8-u character set.", &
-                    charsets=[character(len=40) :: "koi8-u"], &
-                    sample_text="Ukrainian (Українськ" &
-                    //"а)"//achar(9)//"Вітаю / Добрий день!" &
-                    //" / Привіт", &
-                    coding_systems=[character(len=40) :: "koi8-u"], &
-                    coding_priority=[character(len=40) :: "koi8-u"], &
-                    nonascii_translation="koi8-u", &
-                    input_method="ukrainian-computer", &
-                    tutorial="TUTORIAL.uk")
+                                     documentation="Support for Ukrainian with koi8-u character set.", &
+                                     charsets=[character(len=40) :: "koi8-u"], &
+                                     sample_text="Ukrainian (Українськ" &
+                                     //"а)"//achar(9)//"Вітаю / Добрий день!" &
+                                     //" / Привіт", &
+                                     coding_systems=[character(len=40) :: "koi8-u"], &
+                                     coding_priority=[character(len=40) :: "koi8-u"], &
+                                     nonascii_translation="koi8-u", &
+                                     input_method="ukrainian-computer", &
+                                     tutorial="TUTORIAL.uk")
         call set_language_info_alist("Cyrillic-ALT", &
-                    documentation="Support for Cyrillic ALTERNATIVNYJ.", &
-                    charsets=[character(len=40) :: "alternativnyj"], &
-                    sample_text="Russian (Русский)"//achar(9)//"Здравствуйте!", &
-                    coding_systems=[character(len=40) :: "cyrillic-alternativnyj"], &
-                    coding_priority=[character(len=40) :: "cyrillic-alternativnyj"], &
-                    nonascii_translation="alternativnyj", &
-                    input_method="russian-typewriter", &
-                    unibyte_display="cyrillic-alternativnyj")
+                                     documentation="Support for Cyrillic ALTERNATIVNYJ.", &
+                                     charsets=[character(len=40) :: "alternativnyj"], &
+                                     sample_text="Russian (Русский)"//achar(9)//"Здравствуйте!", &
+                                     coding_systems=[character(len=40) :: "cyrillic-alternativnyj"], &
+                                     coding_priority=[character(len=40) :: "cyrillic-alternativnyj"], &
+                                     nonascii_translation="alternativnyj", &
+                                     input_method="russian-typewriter", &
+                                     unibyte_display="cyrillic-alternativnyj")
         call set_language_info_alist("Tajik", &
-                    documentation="Support for Tajik using KOI8-T.", &
-                    charsets=[character(len=40) :: "koi8-t"], &
-                    coding_systems=[character(len=40) :: "koi8-t"], &
-                    coding_priority=[character(len=40) :: "koi8-t"], &
-                    nonascii_translation="cyrillic-koi8-t", &
-                    input_method="russian-typewriter")
+                                     documentation="Support for Tajik using KOI8-T.", &
+                                     charsets=[character(len=40) :: "koi8-t"], &
+                                     coding_systems=[character(len=40) :: "koi8-t"], &
+                                     coding_priority=[character(len=40) :: "koi8-t"], &
+                                     nonascii_translation="cyrillic-koi8-t", &
+                                     input_method="russian-typewriter")
         call set_language_info_alist("Bulgarian", &
-                    documentation="Support for Bulgarian with windows-1251 character set.", &
-                    charsets=[character(len=40) :: "windows-1251"], &
-                    coding_systems=[character(len=40) :: "windows-1251"], &
-                    coding_priority=[character(len=40) :: "windows-1251"], &
-                    nonascii_translation="windows-1251", &
-                    input_method="bulgarian-bds")
+                                     documentation="Support for Bulgarian with windows-1251 character set.", &
+                                     charsets=[character(len=40) :: "windows-1251"], &
+                                     coding_systems=[character(len=40) :: "windows-1251"], &
+                                     coding_priority=[character(len=40) :: "windows-1251"], &
+                                     nonascii_translation="windows-1251", &
+                                     input_method="bulgarian-bds")
         call set_language_info_alist("Belarusian", &
-                    documentation="Support for Belarusian with windows-1251 character set."//achar(10)//"(The" &
-                    //" name Belarusian replaced Byelorussian in the early 1990s.)", &
-                    charsets=[character(len=40) :: "windows-1251"], &
-                    coding_systems=[character(len=40) :: "windows-1251"], &
-                    coding_priority=[character(len=40) :: "windows-1251"], &
-                    nonascii_translation="windows-1251", &
-                    input_method="belarusian")
+                                     documentation="Support for Belarusian with windows-1251 character set."//achar(10)//"(The" &
+                                     //" name Belarusian replaced Byelorussian in the early 1990s.)", &
+                                     charsets=[character(len=40) :: "windows-1251"], &
+                                     coding_systems=[character(len=40) :: "windows-1251"], &
+                                     coding_priority=[character(len=40) :: "windows-1251"], &
+                                     nonascii_translation="windows-1251", &
+                                     input_method="belarusian")
         call set_language_info_alist("Mongolian-cyrillic", &
-                    documentation="Support for Mongolian language with Cyrillic alphabet.", &
-                    sample_text="Mongolian (монгол хэл)"//achar(9)//"Сайн байна уу?", &
-                    coding_systems=[character(len=40) :: "utf-8"], &
-                    coding_priority=[character(len=40) :: "utf-8"], &
-                    input_method="cyrillic-mongolian")
+                                     documentation="Support for Mongolian language with Cyrillic alphabet.", &
+                                     sample_text="Mongolian (монгол хэл)"//achar(9)//"Сайн байна уу?", &
+                                     coding_systems=[character(len=40) :: "utf-8"], &
+                                     coding_priority=[character(len=40) :: "utf-8"], &
+                                     input_method="cyrillic-mongolian")
     end subroutine language_info_cyrillic
 end submodule cyrillic_fm

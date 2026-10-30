@@ -2262,7 +2262,7 @@ contains
 
         if (k == 0) then
             if (nlanguages == size(language_info_alist)) then
-                allocate (grown(2 * nlanguages))
+                allocate (grown(2*nlanguages))
 
                 do i = 1, nlanguages
                     grown(i) = language_info_alist(i)
@@ -2500,9 +2500,11 @@ contains
         call set_language_environment_charset(k, status)
         if (.not. status%ok()) return
         if (associated(language_info_alist(k)%setup_function)) call language_info_alist(k)%setup_function(st)
+
         if (allocated(language_info_alist(k)%iso639_language)) then
-          call set_current_iso639_language(language_info_alist(k)%iso639_language)
+            call set_current_iso639_language(language_info_alist(k)%iso639_language)
         end if
+
         call set_language_environment_hook%run(st)
     end subroutine set_language_environment
 
@@ -2525,9 +2527,11 @@ contains
         if (stringp(v)) dflt = xstring(v)
         if (len(dflt) == 0) dflt = "unix"
         eol = coding_system_eol_type(dflt)
+
         if (eol == EOL_UNIX .or. eol == EOL_DOS .or. eol == EOL_MAC) then
-          default_coding = coding_system_change_eol_conversion(default_coding, eol)
+            default_coding = coding_system_change_eol_conversion(default_coding, eol)
         end if
+
         call set_default_coding_systems(default_coding, status)
         if (.not. status%ok()) return
         call set_coding_system_priority(language_info_alist(k)%coding_priority, status)

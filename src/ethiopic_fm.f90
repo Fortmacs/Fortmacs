@@ -34,18 +34,18 @@ contains
     !> Port of the language environments of ethiopic.el (set-language-info-alist).
     module subroutine language_info_ethiopic()
         call set_language_info_alist("Ethiopic", &
-                    documentation="This language environment provides these function key bindin" &
-                    //"gs:"//achar(10)//"    [f3]   ethio-fidel-to-sera-buffer"//achar(10)//"    [S-f3] ethio-f" &
-                    //"idel-to-sera-region"//achar(10)//"    [C-f3] ethio-fidel-to-sera-marker"//achar(10)//achar(10)//" " &
-                    //"   [f4]   ethio-sera-to-fidel-buffer"//achar(10)//"    [S-f4] ethio-sera-t" &
-                    //"o-fidel-region"//achar(10)//"    [C-f4] ethio-sera-to-fidel-marker"//achar(10)//achar(10)//"    [S" &
-                    //"-f5] ethio-toggle-punctuation"//achar(10)//"    [S-f6] ethio-modify-vowel"//achar(10) &
-                    //"    [S-f7] ethio-replace-space"//achar(10)//achar(10)//"    [S-f9] ethio-replace-spa" &
-                    //"ce"//achar(10)//"    [C-f9] ethio-toggle-space", &
-                    charsets=[character(len=40) :: "ethiopic"], &
-                    sample_text="ፊደል", &
-                    coding_systems=[character(len=40) :: "utf-8-emacs"], &
-                    coding_priority=[character(len=40) :: "utf-8-emacs"], &
-                    input_method="ethiopic")
+                                     documentation="This language environment provides these function key bindin" &
+                                     //"gs:"//achar(10)//"    [f3]   ethio-fidel-to-sera-buffer"//achar(10)//"    [S-f3] ethio-f" &
+                            //"idel-to-sera-region"//achar(10)//"    [C-f3] ethio-fidel-to-sera-marker"//achar(10)//achar(10)//" " &
+                                     //"   [f4]   ethio-sera-to-fidel-buffer"//achar(10)//"    [S-f4] ethio-sera-t" &
+                            //"o-fidel-region"//achar(10)//"    [C-f4] ethio-sera-to-fidel-marker"//achar(10)//achar(10)//"    [S" &
+                                     //"-f5] ethio-toggle-punctuation"//achar(10)//"    [S-f6] ethio-modify-vowel"//achar(10) &
+                                     //"    [S-f7] ethio-replace-space"//achar(10)//achar(10)//"    [S-f9] ethio-replace-spa" &
+                                     //"ce"//achar(10)//"    [C-f9] ethio-toggle-space", &
+                                     charsets=[character(len=40) :: "ethiopic"], &
+                                     sample_text="ፊደል", &
+                                     coding_systems=[character(len=40) :: "utf-8-emacs"], &
+                                     coding_priority=[character(len=40) :: "utf-8-emacs"], &
+                                     input_method="ethiopic")
     end subroutine language_info_ethiopic
 end submodule ethiopic_fm
