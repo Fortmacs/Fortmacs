@@ -600,7 +600,9 @@ it, otherwise into this checklist.
   `[t(name="a")]`): gfortran 13 leaks them (checked with valgrind,
   2026-10-28). Use `list(...)`, variables, element-by-element assignment,
   a typed `%add`, or fixed-length components. No recursive allocatable types (gfortran copies them
-  shallowly). `tools/check.sh --valgrind` (run in CI) catches leaks.
+  shallowly). `tools/check.sh --valgrind` (run in CI) catches leaks: it runs
+  each suite alone under valgrind, in parallel; `--valgrind-combined` (CI
+  on main) also runs all suites in one process.
 - Objects are freed explicitly: every `make_marker` needs a `free_marker`.
 - Change hooks run user code in the middle of editing primitives, which
   may call them again: the primitives and every procedure on the way to a
@@ -1043,6 +1045,7 @@ Each lists the default being used meanwhile.
 ## Session log
 
 - 2026-10-30 — Hazards (`hazard-check`, based on main; asked by the user): `tools/hazards.awk` reports the hazards of CLAUDE.md and PORTING.md that a script can find (short-circuit guards, initialized locals, pointers to deferred-result functions, leaking array constructors, recursive allocatable types, the form of `implicit none`, `stop`, obsolete statements), run by `tools/check.sh`; justified exceptions carry `! hazard-ok(NAME): why`.  New section "Hazards" with the checklist of those checked by hand on every PR; CLAUDE.md says so.  Audit of the codebase: short-circuit guards fixed in buffer_fm (`generate-new-buffer-name` with an empty name), data_buffer_fm (`major-mode`, `mode-name` with no buffer) and eight tests; leaking array constructors fixed in easy_mmode_fm, f90_fm and vc_fm; the pointer interfaces of add-log's time format, Ibuffer's summarizers, `Info-url-alist` functions and VC's working revision symbol are subroutines; the rest are false positives marked hazard-ok.
+- 2026-10-30 — Faster CI (`ci-parallel`, based on main; asked by the user): `tools/check.sh` runs the suites alone, and under valgrind each suite alone, in parallel (one job per CPU), printing the log of each failing suite; pushes to main add `--valgrind-combined`, which also runs every suite in one valgrind process so leaks across suites are still caught. The release build in `tools/test-recompile.sh` stays, as it is the only release-profile build per PR. The per-suite valgrind run found test/main.f90 leaking the suite and test names (main-program variables live on the stack of MAIN__), now freed.
 - 2026-10-30 — Header blank line (`header-blank-line`, based on main; asked by the user): CLAUDE.md now says the file's header comment ends with one blank line, as every file in src/ already did; `tools/blank-lines.awk` applies it, so `tools/check.sh` fixes or flags it; docs/init.f90 was the only file without it.  Learned: a convention every file follows but no rule states goes unchecked, and examples outside src/ drift from it; consistency rules belong in CLAUDE.md and in the checker.
 - 2026-10-30 — Approximate percentages (`approx-sign`, based on main; chosen with the user): the README progress block and pie charts mark rounded percentages with ≈ (approximately equal) instead of ≅ (congruent).
 - 2026-10-29 — ANSI colors (roadmap step 38c, `step38c-ansi-color`, built on `step38b-passwords`; step 38 is now six PRs: completion needs `completion-table-with-quoting` in the core completion tables, so it moves after ansi-color and `list-processes`, as 38e and 38f): ansi_color_fm (ansi-color.el), on `comint-output-filter-functions`; shell_fm's `shell-apply-ansi-color` and `shell-reapply-ansi-color`.  Ports ansi-color-tests.el.  Next: 38d.
