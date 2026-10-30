@@ -478,6 +478,10 @@ ported. Their keys are unbound, as test_bindings_fm checks:
 
 ## Conventions learned while porting
 
+- Newer valgrind (Fedora's) reports `realloc() with size 0`, which
+  gfortran calls when an array constructor with no elements is assigned
+  to an allocatable (`list = [a(1:0), b(1:0)]`): allocate the empty array
+  explicitly instead (autorevert_fm's `auto_revert_buffer_candidates`).
 - GitHub runs no CI for a pull request that conflicts with its base (a
   PORTING.md session log entry added on both sides is enough).  Merge the
   current main into a branch right before opening its PR and whenever main
@@ -979,7 +983,7 @@ Each lists the default being used meanwhile.
 
 ## Session log
 
-- 2026-10-29 — Isearch across Info nodes (roadmap step 34e, `step34e-info-isearch`, built on `step34c-info-search` while #139 waits; 34d, the manuals, waits on questions for the user): isearch_fm gains `isearch-mode-hook`, `isearch-mode-end-hook`, and the buffer-local `isearch-search-fun-function`, `isearch-wrap-function`, `isearch-push-state-function` and `isearch-filter-predicate` (typed objects set with `set_local`; a search function is set through an argument, since gfortran mishandles functions returning procedure pointers that return them); info_fm's `Info-isearch-*` and `Info-search`'s Isearch failures ("end of node", "end of manual").  Own test.  Next: 34f.
+- 2026-10-29 — Isearch across Info nodes (roadmap step 34e, `step34e-info-isearch`, built on `step34c-info-search` while #139 waits; 34d, the manuals, waits on questions for the user): isearch_fm gains `isearch-mode-hook`, `isearch-mode-end-hook`, and the buffer-local `isearch-search-fun-function`, `isearch-wrap-function`, `isearch-push-state-function` and `isearch-filter-predicate` (typed objects set with `set_local`; a search function is set through an argument, since gfortran mishandles functions returning procedure pointers that return them); info_fm's `Info-isearch-*` and `Info-search`'s Isearch failures ("end of node", "end of manual").  autorevert_fm: no zero-size reallocation when there are no candidates (valgrind on Fedora).  Own test.  Next: 34f.
 - 2026-10-29 — Searching Info and its indexes (roadmap step 34c, `step34c-info-search`, built on `step34b-info-display` while #139 waits; step 34 is now six PRs, Isearch across nodes becoming 34e and info-look.el with C-h R 34f): info_fm's `Info-search` (s, S) across subfiles, `Info-index` (i), `Info-index-next` (,), `Info-virtual-index` (I), `info-apropos`, C-h F and C-h K.  lisp_fm's `command_type` gains `info_file` (the `info-file` property); error_fm `user_search_failed`.  Own tests.  Next: 34d (the manuals).
 - 2026-10-29 — Blank lines (`blank-lines`, based on main; chosen with the user): CLAUDE.md sets where blank lines go (around block constructs and after the declarations in procedure bodies, one around `contains` and between procedures); `tools/blank-lines.awk` applies them, `tools/check.sh` fixes or checks them, and the generators run it on their output; the whole codebase and the docs/syntax.html example are reformatted (blank lines only).  Conventions: a PR that conflicts with main gets no CI run.
 - 2026-10-29 — The display of Info nodes (roadmap step 34b, `step34b-info-display`, built on `step34-info` while #139 waits; the table of contents and history nodes moved here from 34c, as breadcrumbs need the table of contents): info_fm's `Info-fontify-node` (header line, breadcrumbs, titles, references, menus, footnotes, URLs), the Info faces, `Info-toc` (T) and `Info-history` (L), virtual nodes.  xdisp_fm shows display strings in their faces.  Own tests.  Next: 34c (search and indexes).
