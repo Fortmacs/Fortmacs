@@ -1,4 +1,7 @@
 ! test_f90_fm.f90 -- tests for F90 mode (f90_fm).
+! Ports GNU Emacs 31.1 test/lisp/progmodes/f90-tests.el and
+! test/lisp/emacs-lisp/regexp-opt-tests.el in part; f90-test-bug3729 is
+! an expected failure upstream.
 !
 ! Copyright (C) 2011-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -48,6 +51,7 @@ module test_f90_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_f90_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

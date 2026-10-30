@@ -1,6 +1,7 @@
 ! test_callproc_fm.f90 -- tests for callproc_fm.
-! Ported from GNU Emacs 31.1 test/src/callproc-tests.el (the test that
-! applies on GNU/Linux), plus our own.
+! Ports GNU Emacs 31.1 test/src/callproc-tests.el in part;
+! initial-environment-preserved and call-process-w32-debug-spawn-error
+! are for MS-Windows.
 !
 ! Copyright (C) 2016-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -41,6 +42,7 @@ module test_callproc_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_callproc_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

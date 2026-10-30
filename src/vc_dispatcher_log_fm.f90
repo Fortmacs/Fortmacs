@@ -97,7 +97,7 @@ contains
     end if
     end procedure vc_start_logentry
 
-    ! (substitute-command-keys FORMAT) with %s replaced by MSG.
+    ! (substitute-command-keys FORMAT) with %s replaced by MSG.  Not a port.
     function substitute_keys(format, msg) result(text)
         use help_fm, only: substitute_command_keys
         character(len=*), intent(in) :: format, msg
@@ -160,7 +160,7 @@ contains
     end subroutine call_log_edit
     end procedure vc_log_edit
 
-    ! Whether the file lists A and B are equal.
+    ! Whether the file lists A and B are equal.  Not a port.
     logical function same_files(a, b)
         type(vc_string_type), intent(in) :: a(:), b(:)
         integer :: i
@@ -176,7 +176,7 @@ contains
     end function same_files
 
     ! The PARAMS of `vc_log_edit': vc-log-fileset (and vc-patch-string,
-    ! already set).
+    ! already set).  Port of the PARAMS of vc-dispatcher.el:vc-log-edit.
     recursive subroutine set_params(status)
         type(status_type), intent(out) :: status
 
@@ -185,7 +185,8 @@ contains
     end subroutine set_params
 
     ! log-edit-listfun of `vc_log_edit': the files of `vc_log_fileset'
-    ! relative to the root.
+    ! relative to the root.  Port of the log-edit-listfun lambda of
+    ! vc-dispatcher.el:vc-log-edit.
     recursive subroutine log_listfun(files, status)
         use files_fm, only: file_relative_name
         type(log_edit_string_type), allocatable, intent(out) :: files(:)
@@ -221,7 +222,8 @@ contains
         end do
     end subroutine log_listfun
 
-    ! log-edit-callback: (call-interactively 'vc-finish-logentry).
+    ! log-edit-callback: (call-interactively 'vc-finish-logentry).  Port of
+    ! the log-edit-callback lambda of vc-dispatcher.el:vc-log-edit.
     recursive subroutine vc_finish_logentry_command(status)
         type(status_type), intent(out) :: status
 

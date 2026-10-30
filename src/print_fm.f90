@@ -105,7 +105,7 @@ contains
     !> double quote), other symbols by name (as named constants are
     !> written), lists as array constructors; buffers, markers and keymaps,
     !> which have no Fortran notation, as `prin1_to_string' gives them.
-    !> (Ours: Fortmacs shows values as Fortran, not as Lisp.)
+    !> (Ours: Fortmacs shows values as Fortran, not as Lisp.)  Not a port.
     recursive function fortran_repr(object) result(s)
         type(value_type), intent(in) :: object
         character(len=:), allocatable :: s
@@ -143,6 +143,7 @@ contains
 
     !> The string TEXT as a Fortran literal: in double quotes, each double
     !> quote doubled.  (Ours: how help and error messages show a string.)
+    !> Not a port.
     pure function fortran_string(text) result(s)
         character(len=*), intent(in) :: text
         character(len=:), allocatable :: s
@@ -177,8 +178,8 @@ contains
     end function prin1_string
 
     !> "#<marker at N in BUFFER>", "#<marker in no buffer>", after
-    !> "(moves after insertion) " for that insertion type.  The marker
-    !> case of print.c:print_vectorlike.
+    !> "(moves after insertion) " for that insertion type.  Port of
+    !> print.c:print_vectorlike (the marker case).
     function marker_repr(m) result(s)
         type(handle_type), intent(in) :: m
         character(len=:), allocatable :: s
@@ -208,7 +209,7 @@ contains
         s = s//">"
     end function marker_repr
 
-    !> The name of the buffer in registry slot `slot'.
+    !> The name of the buffer in registry slot `slot'.  Not a port.
     subroutine marker_buffer_name(slot, name)
         integer(int64), intent(in) :: slot
         character(len=:), allocatable, intent(out) :: name
@@ -219,6 +220,7 @@ contains
     !> The elements of keymap `km''s list printed, "keymap (97 . undo)
     !> ...": its bindings newest first, its prompt, then its parent's.
     !> As print.c prints the list (keymap ENTRIES... PROMPT . PARENT).
+    !> Not a port.
     recursive function keymap_elements(km) result(s)
         type(handle_type), intent(in) :: km
         character(len=:), allocatable :: s
@@ -256,7 +258,7 @@ contains
     end function keymap_elements
 
     !> The cons (CAR . CDR) printed, `car' already printed: "(CAR)" for a
-    !> nil CDR, "(CAR ELEMENTS...)" for a list or keymap.
+    !> nil CDR, "(CAR ELEMENTS...)" for a list or keymap.  Not a port.
     recursive function cons_repr(car, cdr) result(s)
         character(len=*), intent(in) :: car
         type(value_type), intent(in) :: cdr

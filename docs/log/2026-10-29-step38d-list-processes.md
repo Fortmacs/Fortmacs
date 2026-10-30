@@ -1,0 +1,1 @@
+2026-10-29 — The process list (roadmap step 38d, `step38d-list-processes`, built on `step38c-ansi-color`): simple_process_fm, a submodule of simple_fm (`list-processes`, Process Menu mode, d), defined after Tabulated List mode; process_fm's documentation no longer lists them as deferred.  Own test.  Next: 38e (completion).

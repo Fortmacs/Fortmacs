@@ -98,6 +98,7 @@ module tty_colors_fm
     procedure(clear_face_cache_proc), pointer, public :: clear_face_cache_hook => null()
 
     abstract interface
+        !> The type of `clear_face_cache_hook'.  Not a port.
         subroutine clear_face_cache_proc()
             implicit none(type, external)
         end subroutine clear_face_cache_proc
@@ -126,6 +127,7 @@ contains
 
     !> Record that the terminal supports `ncolors' colors (display-color-cells),
     !> without registering any.  `tty_register_colors' does this too.
+    !> Not a port.
     subroutine set_tty_display_color_cells(ncolors)
         integer, intent(in) :: ncolors
 
@@ -133,7 +135,7 @@ contains
     end subroutine set_tty_display_color_cells
 
     !> Whether `a' and `b' are the same string (Fortran's `==' ignores
-    !> trailing blanks).
+    !> trailing blanks).  Not a port.
     pure logical function same_string(a, b)
         character(len=*), intent(in) :: a, b
 
@@ -142,7 +144,7 @@ contains
     end function same_string
 
     !> The position of `name' in `tty_defined_color_alist', 0 if absent
-    !> (`assoc').
+    !> (`assoc').  Not a port.
     integer function alist_position(name) result(pos)
         character(len=*), intent(in) :: name
         integer :: i
@@ -359,7 +361,7 @@ contains
     end function tty_color_off_gray_diag
 
     !> The position in `tty_defined_color_alist' of the color that best
-    !> approximates `rgb', 0 if none has RGB values.
+    !> approximates `rgb', 0 if none has RGB values.  Not a port.
     integer function approximate_position(rgb) result(best)
         integer, intent(in) :: rgb(3)
         integer :: best_distance, r, g, b, try_r, try_g, try_b, dif_r, dif_g, dif_b, dist, i
@@ -397,6 +399,7 @@ contains
     end function approximate_position
 
     !> Copy element `pos' of `tty_defined_color_alist' to the outputs.
+    !> Not a port.
     subroutine describe(pos, index, r, g, b, name, has_rgb)
         integer, intent(in) :: pos
         integer, intent(out) :: index, r, g, b
@@ -471,6 +474,7 @@ contains
     !> Whether `s' is a decimal floating-point number as C's strtod reads
     !> it entirely: an optional sign, digits with an optional point (at
     !> least one digit), and an optional exponent with at least one digit.
+    !> Not a port.
     logical function strtod_decimal_p(s) result(ok)
         character(len=*), intent(in) :: s
         integer :: i, n, digits
@@ -653,6 +657,7 @@ contains
     !> Look COLOR up in `tty_color_alist' as it is (no canonicalization):
     !> `found' tells whether it is there, with its INDEX and R, G, B (-1
     !> each without RGB values).  The `assoc' xfaces.c:map_tty_color does.
+    !> Not a port.
     subroutine tty_color_assoc(color, found, index, r, g, b)
         character(len=*), intent(in) :: color
         logical, intent(out) :: found

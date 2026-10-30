@@ -1,6 +1,6 @@
 ! test_cmds_fm.f90 -- tests for search_fm (newlines), line positions in
-! editfns_fm, and cmds_fm.  Includes a case ported from GNU Emacs 31.1
-! test/src/cmds-tests.el.
+! editfns_fm, and cmds_fm.
+! Ports GNU Emacs 31.1 test/src/cmds-tests.el.
 !
 ! Copyright (C) 2015-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -23,7 +23,7 @@
 module test_cmds_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_fm, only: status_type, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER
+    use error_fm, only: status_type, format_error, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER
     use handle_fm, only: handle_type
     use buffer_fm, only: get_buffer_create, kill_buffer, set_buffer, &
                          current_buffer, buffer_live_p
@@ -32,7 +32,7 @@ module test_cmds_fm
     use editfns_fm, only: point, goto_char, buffer_string, pos_bol, pos_eol, &
                           narrow_to_region
     use cmds_fm, only: backward_char, beginning_of_line, delete_char, end_of_line, forward_char, &
-                       forward_line
+                       forward_line, self_insert_command
     implicit none(type, external)
     private
 
@@ -46,6 +46,7 @@ module test_cmds_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_cmds_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
@@ -56,6 +57,7 @@ contains
                     new_unittest("pos-bol-eol", test_bol_eol), &
                     new_unittest("forward-backward-char", test_chars), &
                     new_unittest("forward-line", test_forward_line), &
+                    new_unittest("self-insert-command-with-negative-argument", test_self_insert_negative), &
                     new_unittest("forward-line-with-bignum", test_bignum), &
                     new_unittest("beginning-end-of-line", test_bol_cmds), &
                     new_unittest("delete-char", test_delete_char) &
@@ -208,6 +210,18 @@ contains
         call check(error, point(), 1_int64)
         call leave(h, old)
     end subroutine test_forward_line
+
+    !> cmds-tests.el: self-insert-command-with-negative-argument.
+    subroutine test_self_insert_negative(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+
+        call enter("tc-selfneg", h, old)
+        call self_insert_command(-1_int64, int(iachar("a"), int64), st)
+        call check(error, format_error(st), "Negative repetition argument -1")
+        call leave(h, old)
+    end subroutine test_self_insert_negative
 
     !> cmds-tests.el: forward-line-with-bignum.
     subroutine test_bignum(error)

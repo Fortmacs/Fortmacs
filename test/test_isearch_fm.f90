@@ -1,4 +1,7 @@
 ! test_isearch_fm.f90 -- tests for incremental search (isearch_fm).
+! Ports GNU Emacs 31.1 test/lisp/isearch-tests.el in part; only
+! isearch--test-done; the others need invisible text, outlines or text
+! properties.
 !
 ! Copyright (C) 2013-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -48,6 +51,7 @@ module test_isearch_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_isearch_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

@@ -82,6 +82,7 @@ module font_fm
     end type font_driver_type
 
     abstract interface
+        ! Not a port.
         integer function load_for_lface_proc(self, lface) result(id)
             import :: font_driver_type, face_attributes_type
             implicit none(type, external)
@@ -89,6 +90,7 @@ module font_fm
             type(face_attributes_type), intent(in) :: lface
         end function load_for_lface_proc
 
+        ! Not a port.
         function font_proc(self, id) result(ft)
             import :: font_driver_type, font_type
             implicit none(type, external)
@@ -97,6 +99,7 @@ module font_fm
             type(font_type) :: ft
         end function font_proc
 
+        ! Not a port.
         subroutine text_extents_proc(self, id, c, metrics, found)
             import :: font_driver_type, font_metrics_type, int32
             implicit none(type, external)

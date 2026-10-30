@@ -46,8 +46,8 @@ contains
     !> Normally the result is three floating-point numbers, (RED GREEN
     !> BLUE), each between 0.0 and 1.0 inclusive.
     !>
-    !> If the selected frame cannot display COLOR, `found' is false.  Port
-    !> of color.el:color-name-to-rgb.
+    !> If the selected frame cannot display COLOR, `found' is false.
+    !> Port of color.el:color-name-to-rgb.
     subroutine color_name_to_rgb(color, rgb, found)
         character(len=*), intent(in) :: color
         real(real64), intent(out) :: rgb(3)
@@ -136,6 +136,7 @@ contains
     end function color_hsl_to_rgb
 
     ! S with its ASCII letters in lower case.
+    ! Not a port.
     pure function to_lower(s) result(out)
         character(len=*), intent(in) :: s
         character(len=len(s)) :: out

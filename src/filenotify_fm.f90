@@ -70,7 +70,7 @@ module filenotify_fm
     end type file_notify_event_type
 
     abstract interface
-        !> The CALLBACK of `file_notify_add_watch'.
+        !> The CALLBACK of `file_notify_add_watch'.  Not a port.
         recursive subroutine file_notify_callback_proc(event, status)
             import :: file_notify_event_type, status_type
             implicit none(type, external)
@@ -80,8 +80,8 @@ module filenotify_fm
     end interface
 
     !> The internal struct for bookkeeping watched files or directories,
-    !> under its descriptor: an entry of `file_notify_descriptors'.  Port
-    !> of filenotify.el's file-notify--watch (FILENAME unallocated for a
+    !> under its descriptor: an entry of `file_notify_descriptors'.
+    !> Port of filenotify.el's file-notify--watch (FILENAME unallocated for a
     !> watched directory).
     type :: watch_type
         logical :: used = .false.
@@ -115,6 +115,7 @@ module filenotify_fm
 contains
 
     !> The entry of DESC in `file_notify_descriptors' (0 for none).
+    !> Not a port.
     integer function find_watch(desc) result(k)
         type(watch_descriptor_type), intent(in) :: desc
         integer :: i
@@ -133,7 +134,7 @@ contains
     end function find_watch
 
     !> The number of registered watches (the count of
-    !> `file_notify_descriptors').
+    !> `file_notify_descriptors').  Not a port.
     integer function file_notify_watch_count()
         file_notify_watch_count = 0
         if (allocated(file_notify_descriptors)) file_notify_watch_count = count(file_notify_descriptors%used)
@@ -290,6 +291,7 @@ contains
 
     !> Call the callback of the watch with descriptor DESC, if it is
     !> still registered, with ACTION, FILE and FILE1 (if present).
+    !> Not a port.
     recursive subroutine call_callback(desc, action, file, status, file1)
         type(watch_descriptor_type), intent(in) :: desc
         integer, intent(in) :: action

@@ -1,6 +1,6 @@
 ! test_keyboard_fm.f90 -- tests for keyboard_fm and callint_fm.
-! Own tests: upstream keyboard-tests.el and callint-tests.el need Lisp
-! (read-event with timers, call-interactively on lambdas).
+! Own tests; upstream's keyboard-tests.el and callint-tests.el need
+! Lisp.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -59,6 +59,7 @@ module test_keyboard_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_keyboard_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

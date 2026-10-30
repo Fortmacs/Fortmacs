@@ -308,6 +308,7 @@ contains
     end subroutine what_page
 
     ! N as a decimal string.
+    ! Not a port.
     function itoa(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
@@ -335,7 +336,7 @@ contains
         call narrow_to_page(n, status)
     end subroutine cmd_narrow_to_page
 
-    !> Register the commands.
+    !> Register the commands.  Not a port.
     subroutine syms_of_page()
         commands%forward_page%run => cmd_forward_page
         commands%backward_page%run => cmd_backward_page
