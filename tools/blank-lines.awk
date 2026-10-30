@@ -33,6 +33,8 @@
 # procedure) and between procedures, none before the end of a module.
 # Module specification parts, interface blocks and derived type
 # definitions keep their blank lines.
+# The file's header comment (its first lines, comments but not `!>'
+# documentation) ends with one blank line.
 
 # Set `code' to LINE without its comment and with the text of its
 # strings removed, and `cont' to whether it continues on the next line.
@@ -162,6 +164,15 @@ function emit(n, s,    k, rules) {
 { lines[++nlines] = $0 }
 
 END {
+    # The header comment ends with a blank line.
+    h = 0
+    while (h < nlines && lines[h + 1] ~ /^!/ && lines[h + 1] !~ /^!>/) h++
+    if (h > 0 && h < nlines && lines[h + 1] !~ /^[ \t]*$/) {
+        for (i = nlines; i > h; i--) lines[i + 1] = lines[i]
+        lines[h + 1] = ""
+        nlines++
+    }
+
     # Group the lines into units: blank lines, comment lines and
     # statements (with their continuation lines).
     quote = ""
