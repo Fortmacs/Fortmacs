@@ -1301,7 +1301,7 @@ module docstrings_fm
                                                                     "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(549) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(550) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1635,6 +1635,7 @@ module docstrings_fm
                                                                       "insert_directory_program", &
                                                                       "isearch_lax_whitespace", &
                                                                       "jit_lock_chunk_size", &
+                                                                      "keyboard_coding_system", &
                                                                       "kill_read_only_ok", &
                                                                       "kill_ring_max", &
                                                                       "kill_whole_line", &
@@ -20222,6 +20223,7 @@ contains
         case ("keyboard_coding_system")
             entry%file = "mule_fm.f90"
             entry%fortran = "keyboard_coding_system_variable"
+            entry%user_option = .true.
 
             if (allocated(keyboard_coding_system_variable)) then
                 entry%value = repr(keyboard_coding_system_variable)
@@ -25354,6 +25356,8 @@ contains
             kind = OPTION_LOGICAL
         case ("jit_lock_chunk_size")
             kind = OPTION_INTEGER
+        case ("keyboard_coding_system")
+            kind = OPTION_STRING
         case ("kill_read_only_ok")
             kind = OPTION_LOGICAL
         case ("kill_ring_max")
@@ -27033,6 +27037,8 @@ contains
             info_search_whitespace_regexp = v
         case ("insert_directory_program")
             insert_directory_program = v
+        case ("keyboard_coding_system")
+            keyboard_coding_system_variable = v
         case ("list_matching_lines_buffer_name_face")
             list_matching_lines_buffer_name_face = v
         case ("list_matching_lines_current_line_face")

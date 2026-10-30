@@ -40,11 +40,14 @@
 !> through `this_command_wrapper') and C-x RET p
 !> (`set_buffer_process_coding_system') are ported.
 !>
+!> C-x RET t (`set_terminal_coding_system') and C-x RET k
+!> (`set_keyboard_coding_system') set the terminal's coding systems.
+!>
 !> Deferred: the echo of C-x RET c's coding system while the next
-!> command's keys are typed, the terminal, keyboard, selection and
-!> file-name coding system commands (C-x RET t, k, x, X, F), input
-!> methods and language environments (C-x RET l, C-x RET C-\, C-\), `auto_coding_functions' (the xml, html and sgml
-!> detection), `enable_character_translation' tags, the help-xref
+!> command's keys are typed, the selection and file-name coding system
+!> commands (C-x RET x, X, F), input methods and language environments
+!> (C-x RET l, C-x RET C-\, C-\), `auto_coding_functions' (the xml, html
+!> and sgml detection), `enable_character_translation' tags, the help-xref
 !> buttons of the *Warning* and *Help* buffers, completion of only the
 !> coding systems that encode the buffer first (completion-table-in-turn),
 !> `list_coding_systems' and `describe_current_coding_system_briefly'.

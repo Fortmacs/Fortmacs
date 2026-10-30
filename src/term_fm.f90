@@ -913,7 +913,6 @@ contains
         end if
 
         ! UTF-8, or no terminal coding system: the internal representation.
-
         do k = 1, size(glyphs)
             if (glyphs(k)%padding) cycle
 

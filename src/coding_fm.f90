@@ -339,12 +339,12 @@ module coding_fm
         integer :: checked = 0, found = 0, rejected = 0
     end type detect_info_type
 
-
     ! The coding systems of the terminal (there is one): for its output and
     ! for decoding keyboard input (TERMINAL_TERMINAL_CODING and
     ! TERMINAL_KEYBOARD_CODING); unallocated means utf-8-unix, the
     ! startup value in a UTF-8 locale.
     character(len=:), allocatable :: terminal_coding, keyboard_coding
+
 contains
 
     ! ------------------------------------------------------------------
