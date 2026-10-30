@@ -937,9 +937,12 @@ module commands_fm
         type(command_type) :: shell_command_mode
         type(command_type) :: shell_command_on_region
         type(command_type) :: shell_dirtrack_mode
+        type(command_type) :: shell_dynamic_complete_command
+        type(command_type) :: shell_dynamic_complete_environment_variable
         type(command_type) :: shell_forward_command
         type(command_type) :: shell_mode
         type(command_type) :: shell_narrow_to_prompt
+        type(command_type) :: shell_replace_by_expanded_directory
         type(command_type) :: shell_script_mode
         type(command_type) :: show_paren_local_mode
         type(command_type) :: show_paren_mode
@@ -1084,7 +1087,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1045) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1048) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1989,9 +1992,12 @@ module commands_fm
                                                                   "shell_command_mode", &
                                                                   "shell_command_on_region", &
                                                                   "shell_dirtrack_mode", &
+                                                                  "shell_dynamic_complete_command", &
+                                                                  "shell_dynamic_complete_environment_variable", &
                                                                   "shell_forward_command", &
                                                                   "shell_mode", &
                                                                   "shell_narrow_to_prompt", &
+                                                                  "shell_replace_by_expanded_directory", &
                                                                   "shell_script_mode", &
                                                                   "show_paren_local_mode", &
                                                                   "show_paren_mode", &
@@ -3950,12 +3956,18 @@ contains
             p => commands%shell_command_on_region
         case ("shell_dirtrack_mode")
             p => commands%shell_dirtrack_mode
+        case ("shell_dynamic_complete_command")
+            p => commands%shell_dynamic_complete_command
+        case ("shell_dynamic_complete_environment_variable")
+            p => commands%shell_dynamic_complete_environment_variable
         case ("shell_forward_command")
             p => commands%shell_forward_command
         case ("shell_mode")
             p => commands%shell_mode
         case ("shell_narrow_to_prompt")
             p => commands%shell_narrow_to_prompt
+        case ("shell_replace_by_expanded_directory")
+            p => commands%shell_replace_by_expanded_directory
         case ("shell_script_mode")
             p => commands%shell_script_mode
         case ("show_paren_local_mode")

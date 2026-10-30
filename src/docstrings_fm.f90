@@ -350,6 +350,12 @@ module docstrings_fm
                         show_paren_priority, show_paren_ring_bell_on_mismatch, show_paren_style, &
                         SHOW_PAREN_PARENTHESIS, SHOW_PAREN_EXPRESSION, SHOW_PAREN_MIXED, &
                         show_paren_when_point_in_periphery, show_paren_when_point_inside_paren
+    use pcomplete_fm, only: pcomplete_allow_modifications, pcomplete_autolist, &
+                            pcomplete_command_completion_function, pcomplete_default_completion_function, &
+                            pcomplete_dir_ignore, pcomplete_expand_before_complete, pcomplete_file_ignore, &
+                            pcomplete_hosts_file, pcomplete_parse_arguments_function, pcomplete_recexact, &
+                            pcomplete_remote_file_ignore, pcomplete_termination_string, pcomplete_try_first_hook, &
+                            pcomplete_use_paring
     use process_fm, only: delete_exited_processes, process_connection_type
     use prog_mode_fm, only: prog_indentation_context, prog_mode_abbrev_table, prog_mode_hook, &
                             prog_mode_map
@@ -411,10 +417,13 @@ module docstrings_fm
                             sh_shell_file, sh_smie_rc_grammar, sh_smie_sh_grammar, sh_variables
     use shell_fm, only: explicit_bash_args, explicit_csh_args, explicit_shell_file_name, &
                         list_buffers_directory, shell_cd_regexp, shell_command_mode_hook, shell_command_mode_map, &
-                        shell_command_regexp, shell_command_separator_regexp, shell_delimiter_argument_list, &
-                        shell_dirstack_query, shell_dirtrack_mode_hook, shell_dirtrack_verbose, &
-                        shell_dumb_shell_regexp, shell_get_old_input_include_continuation_lines, shell_has_auto_cd, &
-                        shell_history_file_name, shell_kill_buffer_on_exit, shell_mode_hook, shell_mode_map, &
+                        shell_command_regexp, shell_command_separator_regexp, shell_completion_execonly, &
+                        shell_completion_fignore, shell_delimiter_argument_list, shell_dirstack_query, &
+                        shell_dirtrack_mode_hook, shell_dirtrack_verbose, shell_dumb_shell_regexp, &
+                        shell_dynamic_complete_functions, shell_file_name_chars, shell_file_name_quote_list, &
+                        shell_get_old_input_include_continuation_lines, shell_has_auto_cd, shell_history_file_name, &
+                        shell_input_autoexpand, COMINT_AUTOEXPAND_NIL, COMINT_AUTOEXPAND_T, COMINT_AUTOEXPAND_INPUT, &
+                        COMINT_AUTOEXPAND_HISTORY, shell_kill_buffer_on_exit, shell_mode_hook, shell_mode_map, &
                         shell_popd_regexp, shell_prompt_pattern, shell_pushd_dextract, shell_pushd_dunique, &
                         shell_pushd_regexp, shell_pushd_tohome, shell_repeat_map
     use simple_fm, only: async_shell_command_buffer, ASYNC_CONFIRM_KILL_PROCESS, &
@@ -520,7 +529,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1309) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1312) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -864,10 +873,11 @@ module docstrings_fm
                                                                     "sh_execute_region", "sh_make_vars_local", "sh_mode", &
                                                                  "sh_reset_indent_vars_to_global_values", "sh_set_shell", "shell", &
                                                                   "shell_backward_command", "shell_command", "shell_command_mode", &
-                                          "shell_command_on_region", "shell_dirtrack_mode", "shell_forward_command", "shell_mode", &
-                                                             "shell_narrow_to_prompt", "shell_script_mode", "show_paren__default", &
-                                                       "show_paren_default_predicate", "show_paren_local_mode", "show_paren_mode", &
-                                                              "skip_chars_backward", "skip_chars_forward", "skip_syntax_backward", &
+                                               "shell_command_on_region", "shell_dirtrack_mode", "shell_dynamic_complete_command", &
+                                             "shell_dynamic_complete_environment_variable", "shell_forward_command", "shell_mode", &
+                                             "shell_narrow_to_prompt", "shell_replace_by_expanded_directory", "shell_script_mode", &
+                                                   "show_paren__default", "show_paren_default_predicate", "show_paren_local_mode", &
+                                           "show_paren_mode", "skip_chars_backward", "skip_chars_forward", "skip_syntax_backward", &
                                                   "skip_syntax_forward", "smie__next_indent_change", "smie_backward_sexp_command", &
                                                "smie_close_block", "smie_down_list", "smie_forward_sexp_command", "spaces_string", &
                                                        "special_mode", "split_window", "split_window_below", "split_window_right", &
@@ -912,7 +922,7 @@ module docstrings_fm
                                                                     "yank_rectangle", "yes_or_no_p", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1076) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1096) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -1177,7 +1187,13 @@ module docstrings_fm
                                                  "only_global_abbrevs", "open_paren_in_column_0_is_defun_start", "page_delimiter", &
                                                           "paragraph_ignore_fill_prefix", "paragraph_separate", "paragraph_start", &
                                                                     "parse_sexp_ignore_comments", "parse_sexp_lookup_properties", &
-                                                   "password_colon_equivalents", "password_word_equivalents", "pending_undo_list", &
+                                                                    "password_colon_equivalents", "password_word_equivalents", &
+                                                                    "pcomplete_allow_modifications", "pcomplete_autolist", &
+                                                 "pcomplete_command_completion_function", "pcomplete_default_completion_function", &
+                                              "pcomplete_dir_ignore", "pcomplete_expand_before_complete", "pcomplete_file_ignore", &
+                                               "pcomplete_hosts_file", "pcomplete_parse_arguments_function", "pcomplete_recexact", &
+                                                                   "pcomplete_remote_file_ignore", "pcomplete_termination_string", &
+                                                          "pcomplete_try_first_hook", "pcomplete_use_paring", "pending_undo_list", &
                                                "pop_up_windows", "post_command_hook", "post_self_insert_hook", "pre_command_hook", &
                                                   "process_connection_type", "prog_indentation_context", "prog_mode_abbrev_table", &
                                                                     "prog_mode_hook", "prog_mode_map", "query_replace_defaults", &
@@ -1232,13 +1248,15 @@ module docstrings_fm
                                                                     "shell_cd_regexp", "shell_command_default_error_buffer", &
                                            "shell_command_dont_erase_buffer", "shell_command_mode_hook", "shell_command_mode_map", &
                                                                     "shell_command_prompt_show_cwd", "shell_command_regexp", &
-                                                                    "shell_command_separator_regexp", "shell_command_switch", &
-                                              "shell_delimiter_argument_list", "shell_dirstack_query", "shell_dirtrack_mode_hook", &
-                                                           "shell_dirtrack_verbose", "shell_dumb_shell_regexp", "shell_file_name", &
-                                                            "shell_get_old_input_include_continuation_lines", "shell_has_auto_cd", &
-                                                        "shell_history_file_name", "shell_kill_buffer_on_exit", "shell_mode_hook", &
-                                            "shell_mode_map", "shell_popd_regexp", "shell_prompt_pattern", "shell_pushd_dextract", &
-                                            "shell_pushd_dunique", "shell_pushd_regexp", "shell_pushd_tohome", "shell_repeat_map", &
+                                            "shell_command_separator_regexp", "shell_command_switch", "shell_completion_execonly", &
+                                              "shell_completion_fignore", "shell_delimiter_argument_list", "shell_dirstack_query", &
+                                                  "shell_dirtrack_mode_hook", "shell_dirtrack_verbose", "shell_dumb_shell_regexp", &
+                                                   "shell_dynamic_complete_functions", "shell_file_name", "shell_file_name_chars", &
+                                                   "shell_file_name_quote_list", "shell_get_old_input_include_continuation_lines", &
+                                                         "shell_has_auto_cd", "shell_history_file_name", "shell_input_autoexpand", &
+                                            "shell_kill_buffer_on_exit", "shell_mode_hook", "shell_mode_map", "shell_popd_regexp", &
+                                                            "shell_prompt_pattern", "shell_pushd_dextract", "shell_pushd_dunique", &
+                                                                   "shell_pushd_regexp", "shell_pushd_tohome", "shell_repeat_map", &
                                                                     "show_paren_context_when_offscreen", "show_paren_delay", &
                                            "show_paren_highlight_openparen", "show_paren_local_mode_hook", "show_paren_mode_hook", &
                                                                    "show_paren_not_in_comments_or_strings", "show_paren_priority", &
@@ -1285,7 +1303,7 @@ module docstrings_fm
                                                                     "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(530) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(549) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1658,6 +1676,19 @@ module docstrings_fm
                                                                       "parse_sexp_ignore_comments", &
                                                                       "password_colon_equivalents", &
                                                                       "password_word_equivalents", &
+                                                                      "pcomplete_autolist", &
+                                                                      "pcomplete_command_completion_function", &
+                                                                      "pcomplete_default_completion_function", &
+                                                                      "pcomplete_dir_ignore", &
+                                                                      "pcomplete_expand_before_complete", &
+                                                                      "pcomplete_file_ignore", &
+                                                                      "pcomplete_hosts_file", &
+                                                                      "pcomplete_parse_arguments_function", &
+                                                                      "pcomplete_recexact", &
+                                                                      "pcomplete_remote_file_ignore", &
+                                                                      "pcomplete_termination_string", &
+                                                                      "pcomplete_try_first_hook", &
+                                                                      "pcomplete_use_paring", &
                                                                       "pop_up_windows", &
                                                                       "prog_mode_hook", &
                                                                       "query_replace_from_history_variable", &
@@ -1734,13 +1765,19 @@ module docstrings_fm
                                                                       "shell_command_prompt_show_cwd", &
                                                                       "shell_command_regexp", &
                                                                       "shell_command_separator_regexp", &
+                                                                      "shell_completion_execonly", &
+                                                                      "shell_completion_fignore", &
                                                                       "shell_delimiter_argument_list", &
                                                                       "shell_dirtrack_verbose", &
                                                                       "shell_dumb_shell_regexp", &
+                                                                      "shell_dynamic_complete_functions", &
                                                                       "shell_file_name", &
+                                                                      "shell_file_name_chars", &
+                                                                      "shell_file_name_quote_list", &
                                                                       "shell_get_old_input_include_continuation_lines", &
                                                                       "shell_has_auto_cd", &
                                                                       "shell_history_file_name", &
+                                                                      "shell_input_autoexpand", &
                                                                       "shell_kill_buffer_on_exit", &
                                                                       "shell_mode_hook", &
                                                                       "shell_popd_regexp", &
@@ -11449,6 +11486,37 @@ contains
             entry%interactive = .true.
             entry%doc = "Toggle directory tracking in this shell buffer (Shell Dirtrack mode)."//LF// &
                         "This assigns a buffer-local true value to `shell_dirtrack_mode'."
+        case ("shell_dynamic_complete_command")
+            entry%file = "shell_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Dynamically complete the command at point."//LF// &
+                        "This function is similar to `comint_dynamic_complete_filename',"//LF// &
+                        "except that it searches `exec_path' (minus trailing"//LF// &
+                        "`exec_directory') for completion candidates.  Note that this may"//LF// &
+                        "not be the same as the shell's idea of the path."//LF// &
+                        ""//LF// &
+                        "Completion is dependent on the value of `shell_completion_execonly',"//LF// &
+                        "`shell_completion_fignore', plus those that affect file completion."//LF// &
+                        "See Info node `Shell Options'."//LF// &
+                        ""//LF// &
+                        "Returns true if successful."
+        case ("shell_dynamic_complete_environment_variable")
+            entry%file = "shell_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Dynamically complete the environment variable at point."//LF// &
+                        "Completes if after a variable, i.e., if it starts with a ""$""."//LF// &
+                        ""//LF// &
+                        "This function is similar to `comint_dynamic_complete_filename',"//LF// &
+                        "except that it searches `process_environment' for completion"//LF// &
+                        "candidates.  Note that this may not be the same as the"//LF// &
+                        "interpreter's idea of variable names.  The main problem with this"//LF// &
+                        "type of completion is that `process_environment' is the"//LF// &
+                        "environment which Emacs started with.  Emacs does not track changes"//LF// &
+                        "to the environment made by the interpreter.  Perhaps it would be"//LF// &
+                        "more accurate if this function was called"//LF// &
+                        "`shell_dynamic_complete_process_environment_variable'."//LF// &
+                        ""//LF// &
+                        "Returns true if successful."
         case ("shell_forward_command")
             entry%file = "shell_fm.f90"
             entry%interactive = .true.
@@ -11503,6 +11571,14 @@ contains
             entry%interactive = .true.
             entry%doc = "Narrow buffer to the command line (and any following command output)"//LF// &
                         "at point."
+        case ("shell_replace_by_expanded_directory")
+            entry%file = "shell_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Expand directory stack reference before point."//LF// &
+                        "Directory stack references are of the form ""=digit"" or ""=-""."//LF// &
+                        "See `default_directory' and `shell_dirstack'."//LF// &
+                        ""//LF// &
+                        "Returns true if successful."
         case ("shell_script_mode")
             entry%file = "sh_script_fm.f90"
             entry%interactive = .true.
@@ -21083,6 +21159,151 @@ contains
                         "password prompts, including prompts in languages other than"//LF// &
                         "English.  Different case choices should not be assumed to be"//LF// &
                         "included; callers should bind `case_fold_search' to true."
+        case ("pcomplete_allow_modifications")
+            entry%file = "pcomplete_fm.f90"
+            entry%fortran = "pcomplete_allow_modifications"
+            entry%original = ".false."
+            entry%value = repr(pcomplete_allow_modifications)
+            entry%doc = "If true, allow effects in `pcomplete_parse_arguments_function'."//LF// &
+                        "For `completion_at_point_functions' this is false, and it tells"//LF// &
+                        "`pcomplete_parse_arguments_function' whether it can do"//LF// &
+                        "modifications to the buffer, like expanding variables and such,"//LF// &
+                        "or whether it should refrain from doing so."
+        case ("pcomplete_autolist")
+            entry%file = "pcomplete_fm.f90"
+            entry%fortran = "pcomplete_autolist"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(pcomplete_autolist%value)
+            entry%doc = "If true, automatically list possibilities on partial completion."//LF// &
+                        "This mirrors the optional behavior of tcsh."
+        case ("pcomplete_command_completion_function")
+            entry%file = "pcomplete_fm.f90"
+            entry%fortran = "pcomplete_command_completion_function"
+            entry%user_option = .true.
+            entry%doc = "Function called for completing the initial command argument."
+        case ("pcomplete_default_completion_function")
+            entry%file = "pcomplete_fm.f90"
+            entry%fortran = "pcomplete_default_completion_function"
+            entry%user_option = .true.
+            entry%doc = "Function called when no completion rule can be found."//LF// &
+                        "This function is used to generate completions for every argument."
+        case ("pcomplete_dir_ignore")
+            entry%file = "pcomplete_fm.f90"
+            entry%fortran = "pcomplete_dir_ignore"
+            entry%user_option = .true.
+
+            if (allocated(pcomplete_dir_ignore%value)) then
+                entry%value = repr(pcomplete_dir_ignore%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "A regexp of names to be disregarded during directory completion"//LF// &
+                        "(unallocated for nil)."
+        case ("pcomplete_expand_before_complete")
+            entry%file = "pcomplete_fm.f90"
+            entry%fortran = "pcomplete_expand_before_complete"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(pcomplete_expand_before_complete%value)
+            entry%doc = "If true, expand the current argument before completing it."//LF// &
+                        "This means that typing something such as `$HOME/bi' followed by"//LF// &
+                        "completion will cause the variable reference to be resolved"//LF// &
+                        "first, and the resultant value that will be completed against to"//LF// &
+                        "be inserted in the buffer.  Note that exactly what gets expanded"//LF// &
+                        "and how is entirely up to the behavior of the"//LF// &
+                        "`pcomplete_parse_arguments_function'."
+        case ("pcomplete_file_ignore")
+            entry%file = "pcomplete_fm.f90"
+            entry%fortran = "pcomplete_file_ignore"
+            entry%user_option = .true.
+
+            if (allocated(pcomplete_file_ignore%value)) then
+                entry%value = repr(pcomplete_file_ignore%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "A regexp of filenames to be disregarded during file completion"//LF// &
+                        "(unallocated for nil)."
+        case ("pcomplete_hosts_file")
+            entry%file = "pcomplete_fm.f90"
+            entry%fortran = "pcomplete_hosts_file"
+            entry%user_option = .true.
+
+            if (allocated(pcomplete_hosts_file%value)) then
+                entry%value = repr(pcomplete_hosts_file%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The name of the /etc/hosts file (unallocated for none)."
+        case ("pcomplete_parse_arguments_function")
+            entry%file = "pcomplete_fm.f90"
+            entry%fortran = "pcomplete_parse_arguments_function"
+            entry%user_option = .true.
+            entry%doc = "A function to call to parse the current line's arguments."//LF// &
+                        "It should be called with no parameters, and with point at the"//LF// &
+                        "position of the argument that is to be completed."//LF// &
+                        ""//LF// &
+                        "It gives the final value of each command line argument (which need"//LF// &
+                        "not match the textual representation of that argument), and the"//LF// &
+                        "beginning position of each argument, as it is seen by the user."//LF// &
+                        "This establishes a relationship between the fully resolved value"//LF// &
+                        "of the argument, and the textual representation of the argument."
+        case ("pcomplete_recexact")
+            entry%file = "pcomplete_fm.f90"
+            entry%fortran = "pcomplete_recexact"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(pcomplete_recexact%value)
+            entry%doc = "If true, use shortest completion if characters cannot be added."//LF// &
+                        "This mirrors the optional behavior of tcsh."//LF// &
+                        ""//LF// &
+                        "A true value is useful if `pcomplete_autolist' is true too."
+        case ("pcomplete_remote_file_ignore")
+            entry%file = "pcomplete_fm.f90"
+            entry%fortran = "pcomplete_remote_file_ignore"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(pcomplete_remote_file_ignore%value)
+            entry%doc = "Whether to ignore remote file names."
+        case ("pcomplete_termination_string")
+            entry%file = "pcomplete_fm.f90"
+            entry%fortran = "pcomplete_termination_string"
+            entry%user_option = .true.
+
+            if (allocated(pcomplete_termination_string%value)) then
+                entry%value = repr(pcomplete_termination_string%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "A string that is inserted after any completion or expansion."//LF// &
+                        "This is usually a space character, useful when completing lists of"//LF// &
+                        "words separated by spaces.  However, if your list uses a different"//LF// &
+                        "separator character, or if the completion occurs in a word that is"//LF// &
+                        "already terminated by a character, this variable should be locally"//LF// &
+                        "modified to be an empty string, or the desired separation string."
+        case ("pcomplete_try_first_hook")
+            entry%file = "pcomplete_fm.f90"
+            entry%fortran = "pcomplete_try_first_hook"
+            entry%user_option = .true.
+            entry%doc = "A list of functions which are called before completing an"//LF// &
+                        "argument.  This can be used, for example, for completing things"//LF// &
+                        "which might apply to all arguments, such as variable names after"//LF// &
+                        "a $."
+        case ("pcomplete_use_paring")
+            entry%file = "pcomplete_fm.f90"
+            entry%fortran = "pcomplete_use_paring"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(pcomplete_use_paring%value)
+            entry%doc = "If true, pare alternatives that have already been used."//LF// &
+                        "If false, you will always see the completion set of possible"//LF// &
+                        "options, no matter which of those options have already been used"//LF// &
+                        "in previous command arguments."
         case ("pending_undo_list")
             entry%file = "simple_fm.f90"
             entry%fortran = "pending_undo_list"
@@ -22900,6 +23121,32 @@ contains
             end if
 
             entry%doc = "Switch used to have the shell execute its command line argument."
+        case ("shell_completion_execonly")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_completion_execonly"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(shell_completion_execonly%value)
+            entry%doc = "If true, use executable files only for completion candidates."//LF// &
+                        "This mirrors the optional behavior of tcsh."//LF// &
+                        ""//LF// &
+                        "Detecting executability of files may slow command completion"//LF// &
+                        "considerably."
+        case ("shell_completion_fignore")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_completion_fignore"
+            entry%user_option = .true.
+
+            if (allocated(shell_completion_fignore)) then
+                entry%value = repr(shell_completion_fignore)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "List of suffixes to be disregarded during file/command completion."//LF// &
+                        "This variable is used to initialize `comint_completion_fignore' in"//LF// &
+                        "the shell buffer.  The default is none, for compatibility with most"//LF// &
+                        "shells.  Some people like [""~"", ""#"", ""%""]."
         case ("shell_delimiter_argument_list")
             entry%file = "shell_fm.f90"
             entry%fortran = "shell_delimiter_argument_list"
@@ -22954,6 +23201,13 @@ contains
                         "match this regexp, Emacs will write out the command history when the"//LF// &
                         "shell finishes, and won't remove backslashes when it unquotes shell"//LF// &
                         "arguments."
+        case ("shell_dynamic_complete_functions")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_dynamic_complete_functions"
+            entry%user_option = .true.
+            entry%doc = "List of functions called to perform completion."//LF// &
+                        "This variable is used to initialize"//LF// &
+                        "`comint_dynamic_complete_functions' in the shell buffer."
         case ("shell_file_name")
             entry%file = "callproc_fm.f90"
             entry%fortran = "shell_file_name"
@@ -22968,6 +23222,36 @@ contains
             entry%doc = "File name to load inferior shells from."//LF// &
                         "Initialized from the SHELL environment variable, or to a system-dependent"//LF// &
                         "default if SHELL is unset.  See Info node `(elisp)Security Considerations'."
+        case ("shell_file_name_chars")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_file_name_chars"
+            entry%user_option = .true.
+
+            if (allocated(shell_file_name_chars%value)) then
+                entry%value = repr(shell_file_name_chars%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "String of characters valid in a file name."//LF// &
+                        "This variable is used to initialize `comint_file_name_chars' in the"//LF// &
+                        "shell buffer.  The value may depend on the operating system or"//LF// &
+                        "shell."
+        case ("shell_file_name_quote_list")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_file_name_quote_list"
+            entry%user_option = .true.
+
+            if (allocated(shell_file_name_quote_list%value)) then
+                entry%value = repr(shell_file_name_quote_list%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "The characters to quote when in a file name."//LF// &
+                        "This variable is used to initialize `comint_file_name_quote_list'"//LF// &
+                        "in the shell buffer.  The value may depend on the operating system"//LF// &
+                        "or shell."
         case ("shell_get_old_input_include_continuation_lines")
             entry%file = "shell_fm.f90"
             entry%fortran = "shell_get_old_input_include_continuation_lines"
@@ -23003,6 +23287,36 @@ contains
                         ""//LF// &
                         "If no history file name can be determined, a default according to"//LF// &
                         "the shell type is used."
+        case ("shell_input_autoexpand")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_input_autoexpand"
+            entry%user_option = .true.
+            entry%original = "COMINT_AUTOEXPAND_HISTORY"
+
+            select case (shell_input_autoexpand%value)
+            case (COMINT_AUTOEXPAND_NIL)
+                entry%value = "COMINT_AUTOEXPAND_NIL"
+            case (COMINT_AUTOEXPAND_T)
+                entry%value = "COMINT_AUTOEXPAND_T"
+            case (COMINT_AUTOEXPAND_INPUT)
+                entry%value = "COMINT_AUTOEXPAND_INPUT"
+            case (COMINT_AUTOEXPAND_HISTORY)
+                entry%value = "COMINT_AUTOEXPAND_HISTORY"
+            case default
+                entry%value = repr(shell_input_autoexpand%value)
+            end select
+
+            entry%doc = "If not COMINT_AUTOEXPAND_NIL, expand input command history"//LF// &
+                        "references on completion.  This mirrors the optional behavior of"//LF// &
+                        "tcsh (its autoexpand and histlit)."//LF// &
+                        ""//LF// &
+                        "If the value is COMINT_AUTOEXPAND_INPUT, then the expansion is seen"//LF// &
+                        "on input.  If the value is COMINT_AUTOEXPAND_HISTORY, then the"//LF// &
+                        "expansion is only when inserting into the buffer's input ring.  See"//LF// &
+                        "also `comint_magic_space' and `comint_dynamic_complete_functions'."//LF// &
+                        ""//LF// &
+                        "This variable supplies a default for `comint_input_autoexpand', for"//LF// &
+                        "Shell mode only."
         case ("shell_kill_buffer_on_exit")
             entry%file = "shell_fm.f90"
             entry%fortran = "shell_kill_buffer_on_exit"
@@ -25086,6 +25400,33 @@ contains
         case ("parse_sexp_ignore_comments")
             kind = OPTION_LOGICAL
             setting = .true.
+        case ("pcomplete_autolist")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("pcomplete_dir_ignore")
+            kind = OPTION_STRING
+            setting = .true.
+        case ("pcomplete_expand_before_complete")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("pcomplete_file_ignore")
+            kind = OPTION_STRING
+            setting = .true.
+        case ("pcomplete_hosts_file")
+            kind = OPTION_STRING
+            setting = .true.
+        case ("pcomplete_recexact")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("pcomplete_remote_file_ignore")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("pcomplete_termination_string")
+            kind = OPTION_STRING
+            setting = .true.
+        case ("pcomplete_use_paring")
+            kind = OPTION_LOGICAL
+            setting = .true.
         case ("pop_up_windows")
             kind = OPTION_LOGICAL
         case ("query_replace_from_history_variable")
@@ -25240,6 +25581,9 @@ contains
         case ("shell_command_separator_regexp")
             kind = OPTION_STRING
             setting = .true.
+        case ("shell_completion_execonly")
+            kind = OPTION_LOGICAL
+            setting = .true.
         case ("shell_delimiter_argument_list")
             kind = OPTION_STRING
             setting = .true.
@@ -25252,6 +25596,12 @@ contains
         case ("shell_file_name")
             kind = OPTION_STRING
             setting = .true.
+        case ("shell_file_name_chars")
+            kind = OPTION_STRING
+            setting = .true.
+        case ("shell_file_name_quote_list")
+            kind = OPTION_STRING
+            setting = .true.
         case ("shell_get_old_input_include_continuation_lines")
             kind = OPTION_LOGICAL
             setting = .true.
@@ -25260,6 +25610,9 @@ contains
             setting = .true.
         case ("shell_history_file_name")
             kind = OPTION_STRING
+            setting = .true.
+        case ("shell_input_autoexpand")
+            kind = OPTION_CHOICE
             setting = .true.
         case ("shell_kill_buffer_on_exit")
             kind = OPTION_LOGICAL
@@ -25836,6 +26189,36 @@ contains
             else
                 parse_sexp_ignore_comments = v
             end if
+        case ("pcomplete_autolist")
+            if (local) then
+                call pcomplete_autolist%set_local(v)
+            else
+                pcomplete_autolist = v
+            end if
+        case ("pcomplete_expand_before_complete")
+            if (local) then
+                call pcomplete_expand_before_complete%set_local(v)
+            else
+                pcomplete_expand_before_complete = v
+            end if
+        case ("pcomplete_recexact")
+            if (local) then
+                call pcomplete_recexact%set_local(v)
+            else
+                pcomplete_recexact = v
+            end if
+        case ("pcomplete_remote_file_ignore")
+            if (local) then
+                call pcomplete_remote_file_ignore%set_local(v)
+            else
+                pcomplete_remote_file_ignore = v
+            end if
+        case ("pcomplete_use_paring")
+            if (local) then
+                call pcomplete_use_paring%set_local(v)
+            else
+                pcomplete_use_paring = v
+            end if
         case ("pop_up_windows")
             pop_up_windows = v
         case ("query_replace_show_replacement")
@@ -25881,6 +26264,12 @@ contains
                 call shell_command_prompt_show_cwd%set_local(v)
             else
                 shell_command_prompt_show_cwd = v
+            end if
+        case ("shell_completion_execonly")
+            if (local) then
+                call shell_completion_execonly%set_local(v)
+            else
+                shell_completion_execonly = v
             end if
         case ("shell_dirtrack_verbose")
             if (local) then
@@ -26647,6 +27036,30 @@ contains
             else
                 paragraph_start = v
             end if
+        case ("pcomplete_dir_ignore")
+            if (local) then
+                call pcomplete_dir_ignore%set_local(v)
+            else
+                pcomplete_dir_ignore = v
+            end if
+        case ("pcomplete_file_ignore")
+            if (local) then
+                call pcomplete_file_ignore%set_local(v)
+            else
+                pcomplete_file_ignore = v
+            end if
+        case ("pcomplete_hosts_file")
+            if (local) then
+                call pcomplete_hosts_file%set_local(v)
+            else
+                pcomplete_hosts_file = v
+            end if
+        case ("pcomplete_termination_string")
+            if (local) then
+                call pcomplete_termination_string%set_local(v)
+            else
+                pcomplete_termination_string = v
+            end if
         case ("query_replace_from_history_variable")
             query_replace_from_history_variable = v
         case ("query_replace_from_to_separator")
@@ -26714,6 +27127,18 @@ contains
                 call shell_file_name%set_local(v)
             else
                 shell_file_name = v
+            end if
+        case ("shell_file_name_chars")
+            if (local) then
+                call shell_file_name_chars%set_local(v)
+            else
+                shell_file_name_chars = v
+            end if
+        case ("shell_file_name_quote_list")
+            if (local) then
+                call shell_file_name_quote_list%set_local(v)
+            else
+                shell_file_name_quote_list = v
             end if
         case ("shell_history_file_name")
             if (local) then
@@ -28147,6 +28572,35 @@ contains
                     call shell_command_dont_erase_buffer%set_local(DONT_ERASE_SAVE_POINT)
                 else
                     shell_command_dont_erase_buffer = DONT_ERASE_SAVE_POINT
+                end if
+            case default
+                ok = .false.
+            end select
+        case ("shell_input_autoexpand")
+            select case (constant)
+            case ("COMINT_AUTOEXPAND_NIL")
+                if (local) then
+                    call shell_input_autoexpand%set_local(COMINT_AUTOEXPAND_NIL)
+                else
+                    shell_input_autoexpand = COMINT_AUTOEXPAND_NIL
+                end if
+            case ("COMINT_AUTOEXPAND_T")
+                if (local) then
+                    call shell_input_autoexpand%set_local(COMINT_AUTOEXPAND_T)
+                else
+                    shell_input_autoexpand = COMINT_AUTOEXPAND_T
+                end if
+            case ("COMINT_AUTOEXPAND_INPUT")
+                if (local) then
+                    call shell_input_autoexpand%set_local(COMINT_AUTOEXPAND_INPUT)
+                else
+                    shell_input_autoexpand = COMINT_AUTOEXPAND_INPUT
+                end if
+            case ("COMINT_AUTOEXPAND_HISTORY")
+                if (local) then
+                    call shell_input_autoexpand%set_local(COMINT_AUTOEXPAND_HISTORY)
+                else
+                    shell_input_autoexpand = COMINT_AUTOEXPAND_HISTORY
                 end if
             case default
                 ok = .false.
