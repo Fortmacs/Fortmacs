@@ -1,0 +1,60 @@
+name: Progress
+
+# After each merge, redraw the README's progress block and pie charts
+# (tools/progress.sh --update-readme) and commit them to main. Branches
+# never touch them, so open PRs don't conflict over them. The commit
+# changes only README.md and docs/progress, which CI ignores, and a push
+# made with GITHUB_TOKEN starts no workflows. If main refuses the push
+# (branch protection), the update goes to a PR instead.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**.f90"
+      - tools/progress.sh
+      - tools/package-totals
+      - tools/ported-packages
+      - .github/workflows/progress.yml
+  workflow_dispatch:
+
+# One update at a time, each from the latest main.
+concurrency:
+  group: progress
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: Fetch upstream
+        run: tools/fetch-upstream.sh
+
+      - name: Update the progress block
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tools/progress.sh --update-readme
+          if git diff --quiet -- README.md docs/progress; then
+            echo "The progress block is current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md docs/progress
+          git commit -q -m "README: update the progress block"
+          if git push origin HEAD:main; then
+            exit 0
+          fi
+          branch=progress-update-${{ github.run_id }}
+          git push origin "HEAD:$branch"
+          gh pr create --base main --head "$branch" \
+            --title "README: update the progress block" \
+            --body "main refused the Progress workflow's push; this PR carries tools/progress.sh --update-readme for ${{ github.sha }}."
