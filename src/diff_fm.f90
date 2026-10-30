@@ -273,7 +273,7 @@ contains
     end subroutine diff_check_labels
 
     !> How OPERAND reads in a label: its file name or the buffer
-    !> (prin1-to-string).
+    !> (prin1-to-string).  Not a port.
     function operand_label(operand) result(s)
         type(diff_operand_type), intent(in) :: operand
         character(len=:), allocatable :: s
@@ -430,7 +430,7 @@ contains
         call set_buffer(obuf, st)
     end subroutine diff_no_select
 
-    !> The current buffer's `revert_buffer_function' arguments.
+    !> The current buffer's `revert_buffer_function' arguments.  Not a port.
     subroutine remember_revert_args(old, new, switches, no_async)
         type(diff_operand_type), intent(in) :: old, new
         character(len=*), intent(in) :: switches
@@ -460,7 +460,8 @@ contains
     end subroutine remember_revert_args
 
     !> The `revert_buffer_function' of *Diff* buffers: run the diff
-    !> again (the lambda of diff-no-select).
+    !> again (the lambda of diff-no-select).  Port of the
+    !> revert-buffer-function lambda of diff.el:diff-no-select.
     recursive subroutine diff_revert(ignore_auto, noconfirm, status)
         logical, intent(in) :: ignore_auto, noconfirm
         type(status_type), intent(out) :: status
@@ -481,7 +482,7 @@ contains
         end associate
     end subroutine diff_revert
 
-    !> Record the temporary files of diff process PROC.
+    !> Record the temporary files of diff process PROC.  Not a port.
     subroutine remember_process(proc, old_temp, new_temp)
         type(handle_type), intent(in) :: proc
         character(len=:), allocatable, intent(in) :: old_temp, new_temp
@@ -541,7 +542,8 @@ contains
     end subroutine diff_process_filter
 
     !> The process sentinel of diff: run `diff_sentinel' in the process
-    !> buffer.
+    !> buffer.  Port of the process sentinel lambda of
+    !> diff.el:diff-no-select.
     recursive subroutine diff_process_sentinel(proc, event, status)
         type(handle_type), intent(in) :: proc
         character(len=*), intent(in) :: event
@@ -575,6 +577,7 @@ contains
 
     !> Forget entry K of `diff_processes' (copied element by element: an
     !> array constructor of this type reallocates to size 0 when it empties).
+    !> Not a port.
     subroutine drop_process(k)
         integer, intent(in) :: k
         type(diff_process_type), allocatable :: rest(:)
@@ -791,7 +794,7 @@ contains
     end subroutine cmd_diff_buffers
 
     !> Register the commands of diff.el and give the settings their
-    !> defaults.
+    !> defaults.  Not a port.
     subroutine syms_of_diff()
         commands%diff%run => cmd_diff
         commands%diff_backup%run => cmd_diff_backup

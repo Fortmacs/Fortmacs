@@ -140,7 +140,7 @@ contains
         end associate
     end subroutine compile_pattern
 
-    !> Whether two handles are the same.
+    !> Whether two handles are the same.  Not a port.
     pure logical function same_handle(a, b)
         type(handle_type), intent(in) :: a, b
 
@@ -148,7 +148,7 @@ contains
     end function same_handle
 
     !> Make the match data from `regs', offsets in the current buffer's
-    !> accessible portion.
+    !> accessible portion.  Not a port.
     subroutine set_regs_from_buffer(regs)
         type(re_registers_type), intent(in) :: regs
         integer :: i
@@ -166,7 +166,7 @@ contains
         last_search_in_string = .false.
     end subroutine set_regs_from_buffer
 
-    !> Make the match data from `regs', offsets in STR.
+    !> Make the match data from `regs', offsets in STR.  Not a port.
     subroutine set_regs_from_string(regs, str)
         type(re_registers_type), intent(in) :: regs
         character(len=*), intent(in) :: str
@@ -624,7 +624,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The search commands read their argument in the minibuffer
-    !> (interactive "MSearch: " and "sRE search: ").
+    !> (interactive "MSearch: " and "sRE search: ").  Not a port.
     subroutine search_cmd(prompt, re, posix, direction, status)
         character(len=*), intent(in) :: prompt
         logical, intent(in) :: re, posix

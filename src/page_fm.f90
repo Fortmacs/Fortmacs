@@ -143,7 +143,7 @@ contains
         call backward_page(status, prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_backward_page
 
-    !> Register the commands.
+    !> Register the commands.  Not a port.
     subroutine syms_of_page()
         commands%forward_page%run => cmd_forward_page
         commands%backward_page%run => cmd_backward_page

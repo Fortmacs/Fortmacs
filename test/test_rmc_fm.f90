@@ -1,4 +1,6 @@
 ! test_rmc_fm.f90 -- tests for read-multiple-choice (rmc_fm).
+! Ports GNU Emacs 31.1 test/lisp/emacs-lisp/rmc-tests.el in part; only
+! the non-graphical cases.
 !
 ! Copyright (C) 2021-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -39,6 +41,7 @@ module test_rmc_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_rmc_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

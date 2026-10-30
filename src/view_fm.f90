@@ -78,7 +78,7 @@ module view_fm
 
     abstract interface
         !> A `view_exit_action': called with the viewed BUFFER when finished
-        !> viewing.
+        !> viewing.  Not a port.
         recursive subroutine view_exit_action_proc(buffer, status)
             import :: handle_type, status_type
             implicit none(type, external)
@@ -148,7 +148,7 @@ contains
     ! Buffer-local variables
     ! ------------------------------------------------------------------
 
-    !> Whether a live buffer has serial number SERIAL.
+    !> Whether a live buffer has serial number SERIAL.  Not a port.
     logical function serial_live(serial)
         integer(int64), intent(in) :: serial
         integer(int64) :: k
@@ -164,7 +164,7 @@ contains
     end function serial_live
 
     !> The index of the current buffer's entry in `locals', made if MAKE
-    !> (0 if none).
+    !> (0 if none).  Not a port.
     integer function local_index(make) result(k)
         logical, intent(in) :: make
         type(view_local_type), allocatable :: grown(:)
@@ -207,6 +207,7 @@ contains
     end function local_index
 
     !> kill-all-local-variables: View mode's buffer-local variables.
+    !> Not a port.
     subroutine kill_view_locals()
         integer :: k
 
@@ -215,7 +216,7 @@ contains
     end subroutine kill_view_locals
 
     !> The value of `view_read_only' in the current buffer: its
-    !> buffer-local value if it has one.
+    !> buffer-local value if it has one.  Not a port.
     logical function view_read_only_value()
         integer :: k
 
@@ -225,7 +226,7 @@ contains
         if (locals(k)%has_view_read_only) view_read_only_value = locals(k)%view_read_only
     end function view_read_only_value
 
-    !> (setq-local view-read-only VALUE).
+    !> (setq-local view-read-only VALUE).  Not a port.
     subroutine set_view_read_only_local(value)
         logical, intent(in) :: value
         integer :: k
@@ -237,7 +238,7 @@ contains
     end subroutine set_view_read_only_local
 
     !> Whether View mode is on in the current buffer (the variable
-    !> `view_mode').
+    !> `view_mode').  Not a port.
     logical function view_mode_enabled()
         view_mode_enabled = minor_modes%view_mode%enabled()
     end function view_mode_enabled
@@ -260,7 +261,7 @@ contains
         if (.not. modified) call kill_buffer(buf, status)
     end subroutine kill_buffer_if_not_modified
 
-    !> `kill_buffer' as an exit action.
+    !> `kill_buffer' as an exit action.  Not a port.
     recursive subroutine kill_buffer_action(buf, status)
         type(handle_type), intent(in) :: buf
         type(status_type), intent(out) :: status
@@ -269,7 +270,7 @@ contains
     end subroutine kill_buffer_action
 
     !> Whether the current buffer's major mode is special (its
-    !> `mode_class' property is `special').
+    !> `mode_class' property is `special').  Not a port.
     logical function special_major_mode()
         type(major_mode_type), pointer :: p
 
@@ -440,7 +441,7 @@ contains
         call view_buffer(buffer_by_name(name), status)
     end subroutine cmd_view_buffer
 
-    !> The live buffer named NAME (the null handle if none).
+    !> The live buffer named NAME (the null handle if none).  Not a port.
     function buffer_by_name(name) result(h)
         character(len=*), intent(in) :: name
         type(handle_type) :: h
@@ -460,8 +461,9 @@ contains
     end function buffer_by_name
 
     !> View BUFFER in View mode in another window.  EXIT_ACTION, if
-    !> present, is called with the buffer when finished viewing it.  Port
-    !> of view.el:view-buffer-other-window (NOT-RETURN is ignored upstream).
+    !> present, is called with the buffer when finished viewing it.
+    !> Port of view.el:view-buffer-other-window (NOT-RETURN is ignored
+    !> upstream).
     recursive subroutine view_buffer_other_window(buffer, status, exit_action)
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
@@ -602,6 +604,7 @@ contains
     end subroutine view_mode
 
     !> The body of `view_mode': view--enable or view--disable.
+    !> Port of view.el:view-mode, in part (its body).
     recursive subroutine view_mode_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
@@ -750,7 +753,7 @@ contains
         end if
     end subroutine view_mode_exit
 
-    !> The buffer shown in WINDOW.
+    !> The buffer shown in WINDOW.  Not a port.
     function window_buffer(window) result(buffer)
         type(handle_type), intent(in) :: window
         type(handle_type) :: buffer
@@ -911,8 +914,8 @@ contains
     ! Some help routines
     ! ------------------------------------------------------------------
 
-    !> The height of the current window, excluding the mode line.  Port
-    !> of view.el:view-window-size.
+    !> The height of the current window, excluding the mode line.
+    !> Port of view.el:view-window-size.
     integer(int64) function view_window_size()
         type(handle_type) :: w
 
@@ -982,7 +985,7 @@ contains
     end subroutine view_set_half_page_size_default
 
     !> The prefix argument as "P" gives it: HAS false for nil, else its
-    !> numeric value.
+    !> numeric value.  Not a port.
     subroutine raw_prefix(has, n)
         logical, intent(out) :: has
         integer(int64), intent(out) :: n
@@ -1198,7 +1201,7 @@ contains
     end subroutine view_scroll_page_backward_set_page_size
 
     !> The page scrolling commands: BACKWARD, and with SET_SIZE setting
-    !> `view_page_size' from the prefix argument.
+    !> `view_page_size' from the prefix argument.  Not a port.
     recursive subroutine page_scroll(backward, set_size, status)
         logical, intent(in) :: backward, set_size
         type(status_type), intent(out) :: status
@@ -1518,7 +1521,7 @@ contains
     ! Initialization
     ! ------------------------------------------------------------------
 
-    !> Define View mode, its keymap and commands.
+    !> Define View mode, its keymap and commands.  Not a port.
     subroutine syms_of_view()
         type(status_type) :: st
         integer :: d

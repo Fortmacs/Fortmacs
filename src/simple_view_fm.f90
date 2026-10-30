@@ -34,7 +34,8 @@ submodule(simple_fm) simple_view_fm
 contains
 
     !> The body of `read_only_mode': set `buffer_read_only' (the mode's
-    !> variable), then enter or leave View mode.
+    !> variable), then enter or leave View mode.  Port of
+    !> simple.el:read-only-mode (its body).
     recursive subroutine read_only_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status

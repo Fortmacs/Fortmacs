@@ -73,7 +73,7 @@ module minibuf_fm
 
     abstract interface
         !> A function run once the minibuffer is set up (see
-        !> `minibuffer_setup_function').
+        !> `minibuffer_setup_function').  Not a port.
         subroutine minibuffer_setup_proc()
             implicit none(type, external)
         end subroutine minibuffer_setup_proc
@@ -177,7 +177,8 @@ module minibuf_fm
 contains
 
     !> Create minibuffer-local-map (its bindings are made by minibuffer.el
-    !> and bindings.el, i.e. minibuffer_fm and bindings_fm).
+    !> and bindings.el, i.e. minibuffer_fm and bindings_fm).  Not a port:
+    !> upstream makes the map in keymap.c:syms_of_keymap.
     subroutine init_minibuf()
         if (.not. keymap_live_p(minibuffer_local_map)) call make_sparse_keymap(minibuffer_local_map)
         minibuf_level = 0
@@ -625,7 +626,7 @@ contains
     !> The elements of a non-function table: `elts' (the list elements or
     !> symbols, given to the predicate) and the string each one completes
     !> to (`names'; `ok' is false for elements that are not strings or
-    !> symbols).
+    !> symbols).  Not a port.
     subroutine table_elements(table, elts, names, ok)
         type(completion_table_type), intent(in) :: table
         type(value_type), allocatable, intent(out) :: elts(:)
@@ -673,7 +674,7 @@ contains
         end do
     end subroutine table_elements
 
-    !> Whether completion candidate `name' begins with STRING.
+    !> Whether completion candidate `name' begins with STRING.  Not a port.
     logical function prefix_matches(string, name)
         character(len=*), intent(in) :: string, name
         integer(int64) :: n
@@ -1065,7 +1066,7 @@ contains
     end subroutine quoting_table_call
 
     ! The boundaries of the function table INNER for STRING and SUFFIX
-    ! (completion-boundaries).
+    ! (completion-boundaries).  Not a port.
     recursive subroutine inner_boundaries(inner, string, suffix, bstart, bend, predicate)
         type(completion_table_type), intent(in) :: inner
         character(len=*), intent(in) :: string, suffix
@@ -1082,7 +1083,7 @@ contains
         if (fixnump(list_elt(boundaries, 2_int64))) bend = xfixnum(list_elt(boundaries, 2_int64))
     end subroutine inner_boundaries
 
-    ! Whether PREFIX is a prefix of STRING (string-prefix-p).
+    ! Whether PREFIX is a prefix of STRING (string-prefix-p).  Not a port.
     logical function string_prefix_p(prefix, string)
         character(len=*), intent(in) :: prefix, string
 
@@ -1092,7 +1093,7 @@ contains
     end function string_prefix_p
 
     ! The longest common prefix of S1 and S2
-    ! (fill-common-string-prefix).
+    ! (fill-common-string-prefix).  Not a port.
     function fill_common_string_prefix(s1, s2) result(prefix)
         character(len=*), intent(in) :: s1, s2
         character(len=:), allocatable :: prefix

@@ -94,7 +94,7 @@ module electric_fm
 contains
 
     !> Define Electric Indent mode and its local mode, and bind C-j in
-    !> GLOBAL_MAP (as loading electric.el does).
+    !> GLOBAL_MAP (as loading electric.el does).  Not a port.
     subroutine syms_of_electric(global_map)
         type(handle_type), intent(in) :: global_map
         type(value_type), allocatable :: key(:)
@@ -122,7 +122,7 @@ contains
         call define_key(global_map, key, sym("electric_newline_and_maybe_indent"), st)
     end subroutine syms_of_electric
 
-    !> The character `last_command_event' is, or -1.
+    !> The character `last_command_event' is, or -1.  Not a port.
     integer function event_char()
         event_char = -1
         if (fixnump(last_command_event)) event_char = int(xfixnum(last_command_event))
@@ -323,7 +323,8 @@ contains
         call minor_modes%electric_indent_mode%command(status)
     end subroutine electric_indent_mode
 
-    !> The body of Electric Indent mode.
+    !> The body of Electric Indent mode.  Port of
+    !> electric.el:electric-indent-mode (its body).
     subroutine electric_indent_mode_body(on, status)
         logical, intent(in) :: on
         type(status_type), intent(out) :: status
@@ -367,13 +368,14 @@ contains
     end subroutine electric_indent_local_mode
 
     !> The state of Electric Indent Local mode: `electric_indent_mode' in
-    !> the current buffer.
+    !> the current buffer.  Not a port.
     logical function electric_indent_local_mode_p() result(on)
         on = minor_modes%electric_indent_mode%state%value
     end function electric_indent_local_mode_p
 
     !> The body of Electric Indent Local mode with its new state VAL: the
-    !> setter (setq-local electric-indent-mode VAL), then the body.
+    !> setter (setq-local electric-indent-mode VAL), then the body.  Port of
+    !> electric.el:electric-indent-local-mode (its body).
     subroutine electric_indent_local_mode_body(val, status)
         logical, intent(in) :: val
         type(status_type), intent(out) :: status

@@ -156,6 +156,7 @@ contains
     !> lread.c:read0 for integers: decimal with an optional sign and
     !> trailing dot, #x, #o, #b and #RADIXr prefixes, and ?C characters.
     !> Floats are not read (the result is an integer): Deferred.
+    !> Port of lread.c:read0 in part.
     subroutine read_integer(str, n, ok)
         character(len=*), intent(in) :: str
         integer(int64), intent(out) :: n
@@ -298,6 +299,7 @@ contains
 
     !> TOKEN as an integer in RADIX with an optional sign (and, if
     !> `trailing_dot', an optional trailing "."): lread.c:string_to_number.
+    !> Port of lread.c:string_to_number in part.
     subroutine parse_digits(token, radix, trailing_dot, n, ok)
         character(len=*), intent(in) :: token
         integer, intent(in) :: radix
@@ -538,6 +540,7 @@ contains
         call insert_answer("n", status)
     end subroutine y_or_n_p_insert_n
 
+    ! Not a port.
     subroutine insert_answer(text, status)
         character(len=*), intent(in) :: text
         type(status_type), intent(out) :: status
@@ -619,7 +622,7 @@ contains
         call define_remap(read_char_from_minibuffer_map, "scroll_down_command", "minibuffer_scroll_down_command")
     end subroutine init_read_char_from_minibuffer_map
 
-    !> (define-key MAP [remap FROM] TO).
+    !> (define-key MAP [remap FROM] TO).  Not a port.
     subroutine define_remap(map, from, to)
         type(handle_type), intent(in) :: map
         character(len=*), intent(in) :: from, to

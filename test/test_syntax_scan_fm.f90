@@ -1,6 +1,10 @@
 ! test_syntax_scan_fm.f90 -- tests for comments, lists and sexps
 ! (syntax_scan_fm) and the sexp commands (lisp_cmds_fm).
+! Ports GNU Emacs 31.1 test/src/syntax-tests.el and
+! test/lisp/emacs-lisp/lisp-tests.el in part; only the comment and sexp
+! tests of the ported scanner.
 !
+! Copyright (C) 2017-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
 !
 ! This file is part of Fortmacs.
@@ -61,6 +65,7 @@ module test_syntax_scan_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_syntax_scan_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

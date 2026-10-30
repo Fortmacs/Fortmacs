@@ -111,13 +111,14 @@ module elec_pair_fm
 
     abstract interface
         !> A predicate on a character (`electric_pair_skip_self',
-        !> `electric_pair_inhibit_predicate').
+        !> `electric_pair_inhibit_predicate').  Not a port.
         logical function electric_pair_char_proc(char)
             implicit none(type, external)
             integer, intent(in) :: char
         end function electric_pair_char_proc
 
         !> A function giving a buffer position (`electric_pair_string_bound_function').
+        !> Not a port.
         integer(int64) function electric_pair_position_proc()
             import :: int64
             implicit none(type, external)
@@ -259,12 +260,12 @@ module elec_pair_fm
     !> the electric-pair-mode-hook define-minor-mode defines.
     type(hook_type), target, public :: electric_pair_mode_hook = hook_type(name="electric_pair_mode_hook")
 
-    !> Hook run after entering or leaving `electric_pair_local_mode'.  Port
-    !> of the electric-pair-local-mode-hook define-minor-mode defines.
+    !> Hook run after entering or leaving `electric_pair_local_mode'.  Port of
+    !> the electric-pair-local-mode-hook define-minor-mode defines.
     type(hook_type), target, public :: electric_pair_local_mode_hook = hook_type(name="electric_pair_local_mode_hook")
 
     abstract interface
-        !> A procedure of no arguments that moves point.
+        !> A procedure of no arguments that moves point.  Not a port.
         subroutine command_proc_local(status)
             import :: status_type
             implicit none(type, external)
@@ -283,7 +284,7 @@ module elec_pair_fm
 contains
 
     !> Define Electric Pair mode and its local mode, with their variables'
-    !> defaults (as loading elec-pair.el does).
+    !> defaults (as loading elec-pair.el does).  Not a port.
     subroutine syms_of_elec_pair()
         call minor_modes%electric_pair_mode%define("electric_pair_mode", global=.true., keymap=.true., &
                                                    body=electric_pair_mode_body, hook=electric_pair_mode_hook)
@@ -328,6 +329,7 @@ contains
     end subroutine syms_of_elec_pair
 
     !> The default `electric_pair_string_bound_function': `point_max'.
+    !> Not a port.
     integer(int64) function string_bound_point_max()
         string_bound_point_max = point_max()
     end function string_bound_point_max
@@ -336,19 +338,19 @@ contains
     ! Helpers
     ! ------------------------------------------------------------------
 
-    !> The character `last_command_event' is, or -1.
+    !> The character `last_command_event' is, or -1.  Not a port.
     integer function event_char()
         event_char = -1
         if (fixnump(last_command_event)) event_char = int(xfixnum(last_command_event))
     end function event_char
 
     !> (prefix-numeric-value current-prefix-arg) as a post-self-insert
-    !> function sees it.
+    !> function sees it.  Not a port.
     integer(int64) function psi_num()
         psi_num = prefix_numeric_value(hook_current_prefix_arg)
     end function psi_num
 
-    !> The character after POS (default point), or -1 for nil.
+    !> The character after POS (default point), or -1 for nil.  Not a port.
     integer function after(pos)
         integer(int64), intent(in), optional :: pos
         integer(int32) :: c
@@ -359,7 +361,7 @@ contains
         if (found) after = int(c)
     end function after
 
-    !> The character before POS (default point), or -1 for nil.
+    !> The character before POS (default point), or -1 for nil.  Not a port.
     integer function before(pos)
         integer(int64), intent(in), optional :: pos
         integer(int32) :: c
@@ -371,6 +373,7 @@ contains
     end function before
 
     !> The syntax descriptor character of C in the current syntax table.
+    !> Not a port.
     character function syntax_char(c)
         integer, intent(in) :: c
 
@@ -378,7 +381,7 @@ contains
         if (c >= 0) syntax_char = char_syntax(c)
     end function syntax_char
 
-    !> (matching-paren C): -1 for nil.
+    !> (matching-paren C): -1 for nil.  Not a port.
     integer function matching(c)
         integer, intent(in) :: c
 
@@ -386,7 +389,7 @@ contains
         if (c >= 0) matching = matching_paren(c)
     end function matching
 
-    !> The UTF-8 encoding of character C.
+    !> The UTF-8 encoding of character C.  Not a port.
     function char_text(c) result(s)
         integer, intent(in) :: c
         character(len=:), allocatable :: s
@@ -401,8 +404,8 @@ contains
     !> Run with the `electric_pair_text_syntax_table' when
     !> STRING_OR_COMMENT (the start position of the string/comment in which
     !> we are) is not 0: set it as the buffer's syntax table, keeping the
-    !> old one in SAVED.  Port of the entry of elec-pair.el:
-    !> electric-pair--with-syntax-1.
+    !> old one in SAVED.  Port of the entry of
+    !> elec-pair.el:electric-pair--with-syntax-1.
     subroutine with_syntax_begin(string_or_comment, saved)
         integer(int64), intent(in) :: string_or_comment
         type(handle_type), intent(out) :: saved
@@ -411,13 +414,15 @@ contains
         if (string_or_comment /= 0) buffers(cur)%syntax_table = electric_pair_text_syntax_table
     end subroutine with_syntax_begin
 
+    ! Restore the syntax table SAVED.  Port of the exit of
+    ! elec-pair.el:electric-pair--with-syntax-1.
     subroutine with_syntax_end(saved)
         type(handle_type), intent(in) :: saved
 
         buffers(cur)%syntax_table = saved
     end subroutine with_syntax_end
 
-    !> Begin a save-excursion: HERE marks point.
+    !> Begin a save-excursion: HERE marks point.  Not a port.
     subroutine save_excursion_begin(here)
         type(handle_type), intent(out) :: here
         type(status_type) :: st
@@ -425,7 +430,7 @@ contains
         call copy_marker_at(point(), here, .false., st)
     end subroutine save_excursion_begin
 
-    !> End a save-excursion: back to HERE, which is freed.
+    !> End a save-excursion: back to HERE, which is freed.  Not a port.
     subroutine save_excursion_end(here)
         type(handle_type), intent(in) :: here
         type(status_type) :: st
@@ -436,7 +441,7 @@ contains
         call free_marker(here, st)
     end subroutine save_excursion_end
 
-    !> (syntax-ppss POS): the state at POS; point moves to POS.
+    !> (syntax-ppss POS): the state at POS; point moves to POS.  Not a port.
     subroutine ppss_at(pos, state)
         integer(int64), intent(in) :: pos
         type(parse_state_type), intent(out) :: state
@@ -760,8 +765,8 @@ contains
         end subroutine ended_prematurely
     end subroutine electric_pair_balance_info
 
-    !> Return true if there are unbalanced strings started by CHAR.  Port
-    !> of elec-pair.el:electric-pair--unbalanced-strings-p.
+    !> Return true if there are unbalanced strings started by CHAR.  Port of
+    !> elec-pair.el:electric-pair--unbalanced-strings-p.
     logical function unbalanced_strings_p(char)
         integer, intent(in) :: char
         type(parse_state_type) :: selector_ppss, relevant_ppss
@@ -890,8 +895,8 @@ contains
         end if
     end function electric_pair_default_skip_self
 
-    !> The default `electric_pair_inhibit_predicate': help balance.  Port
-    !> of elec-pair.el:electric-pair-default-inhibit.
+    !> The default `electric_pair_inhibit_predicate': help balance.  Port of
+    !> elec-pair.el:electric-pair-default-inhibit.
     logical function electric_pair_default_inhibit(char) result(inhibit)
         integer, intent(in) :: char
 
@@ -1180,7 +1185,8 @@ contains
         call minor_modes%electric_pair_mode%command(status)
     end subroutine electric_pair_mode
 
-    !> The body of Electric Pair mode.
+    !> The body of Electric Pair mode.  Port of
+    !> elec-pair.el:electric-pair-mode (its body).
     subroutine electric_pair_mode_body(on, status)
         logical, intent(in) :: on
         type(status_type), intent(out) :: status
@@ -1211,13 +1217,14 @@ contains
     end subroutine electric_pair_local_mode
 
     !> The state of Electric Pair Local mode: `electric_pair_mode' in the
-    !> current buffer.
+    !> current buffer.  Not a port.
     logical function electric_pair_local_mode_p() result(on)
         on = minor_modes%electric_pair_mode%state%value
     end function electric_pair_local_mode_p
 
     !> The body of Electric Pair Local mode with its new state VAL: the
-    !> setter (setq-local electric-pair-mode VAL), then the body.
+    !> setter (setq-local electric-pair-mode VAL), then the body.  Port of
+    !> elec-pair.el:electric-pair-local-mode (its body).
     subroutine electric_pair_local_mode_body(val, status)
         logical, intent(in) :: val
         type(status_type), intent(out) :: status

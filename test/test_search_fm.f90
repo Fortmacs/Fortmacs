@@ -1,5 +1,7 @@
 ! test_search_fm.f90 -- tests for string search (search_fm).
+! Ports GNU Emacs 31.1 test/src/search-tests.el.
 !
+! Copyright (C) 2015-2016, 2018-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
 !
 ! This file is part of Fortmacs.
@@ -43,6 +45,7 @@ module test_search_fm
 
 contains
 
+    !> Collect all exported unit tests.
     subroutine collect_search_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 

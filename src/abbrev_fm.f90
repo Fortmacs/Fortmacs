@@ -85,7 +85,7 @@ module abbrev_fm
     abstract interface
         !> An abbrev's hook, called after its expansion is inserted;
         !> VALUE is its value (true for non-nil), which matters for an
-        !> abbrev whose `no_self_insert' is true.
+        !> abbrev whose `no_self_insert' is true.  Not a port.
         subroutine abbrev_hook_proc(value, status)
             import :: status_type
             implicit none(type, external)
@@ -95,6 +95,7 @@ module abbrev_fm
 
         !> An enable function: whether the abbrevs of a table (or one
         !> abbrev) should be used for this call of `expand_abbrev'.
+        !> Not a port.
         logical function abbrev_enable_proc()
             implicit none(type, external)
         end function abbrev_enable_proc
@@ -178,7 +179,7 @@ module abbrev_fm
 
     abstract interface
         !> The function `expand_abbrev' calls: ABBREV is the abbrev that
-        !> was expanded, if expansion took place.
+        !> was expanded, if expansion took place.  Not a port.
         recursive subroutine abbrev_expand_proc(abbrev, status)
             import :: abbrev_ref_type, status_type
             implicit none(type, external)
@@ -359,7 +360,7 @@ module abbrev_fm
         end function abbrev_table_empty_p
 
         !> Add PARENT to the tables from which the table inherits abbrevs
-        !> (its `parents').
+        !> (its `parents').  Not a port.
         module subroutine abbrev_table_add_parent(self, parent)
             implicit none(type, external)
             class(abbrev_table_type), intent(inout) :: self
@@ -749,7 +750,7 @@ module abbrev_fm
         end function local_abbrev_table
 
         !> Make TABLE the local abbrev table of the current buffer, as
-        !> `(setq local-abbrev-table TABLE)'.
+        !> `(setq local-abbrev-table TABLE)'.  Not a port.
         module subroutine set_local_abbrev_table(table)
             implicit none(type, external)
             type(abbrev_table_type), intent(in), target :: table
@@ -765,19 +766,20 @@ module abbrev_fm
 
         !> Whether ABBREV has a hook with the `no_self_insert' property
         !> (cmds.c's test after expanding in self-insert-command).
+        !> Not a port.
         module logical function abbrev_no_self_insert(abbrev)
             implicit none(type, external)
             type(abbrev_ref_type), intent(in) :: abbrev
         end function abbrev_no_self_insert
 
         !> Whether Abbrev mode is on in the current buffer (BVAR
-        !> abbrev_mode, for cmds.c's self-insert-command).
+        !> abbrev_mode, for cmds.c's self-insert-command).  Not a port.
         module logical function abbrev_mode_p()
             implicit none(type, external)
         end function abbrev_mode_p
 
         !> Define Abbrev mode, Edit-Abbrevs mode and the tables, and
-        !> register the commands.
+        !> register the commands.  Not a port.
         module subroutine syms_of_abbrev()
             implicit none(type, external)
         end subroutine syms_of_abbrev
