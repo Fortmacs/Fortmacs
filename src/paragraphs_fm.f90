@@ -139,6 +139,7 @@ module paragraphs_fm
 contains
 
     !> Give the variables their default values, unless already set.
+    !> Not a port.
     subroutine init_paragraph_variables()
         if (.not. allocated(paragraph_start%value)) paragraph_start = achar(FORMFEED)//"\|[ "//achar(TAB)//"]*$"
         if (.not. allocated(paragraph_separate%value)) paragraph_separate = "[ "//achar(TAB)//achar(FORMFEED)//"]*$"
@@ -148,6 +149,7 @@ contains
     end subroutine init_paragraph_variables
 
     !> The character at `pos', or -1 outside the accessible region.
+    !> Not a port.
     integer function char_at(pos)
         integer(int64), intent(in) :: pos
 
@@ -157,7 +159,7 @@ contains
     end function char_at
 
     !> The first position from `pos' on that is not one of `chars'
-    !> (skip-chars-forward).
+    !> (skip-chars-forward).  Not a port.
     integer(int64) function skip(pos, chars) result(p)
         integer(int64), intent(in) :: pos
         integer, intent(in) :: chars(:)
@@ -169,7 +171,7 @@ contains
         end do
     end function skip
 
-    !> (looking-at REGEXP), false for an invalid one.
+    !> (looking-at REGEXP), false for an invalid one.  Not a port.
     logical function looking_at_p(regexp)
         character(len=*), intent(in) :: regexp
         type(status_type) :: status
@@ -179,7 +181,7 @@ contains
     end function looking_at_p
 
     !> (re-search-backward REGEXP BOUND NOERROR) for NOERROR t or other
-    !> than nil and t (`mode').
+    !> than nil and t (`mode').  Not a port.
     logical function re_search_back(regexp, mode, bound) result(found)
         character(len=*), intent(in) :: regexp
         integer, intent(in) :: mode
@@ -192,7 +194,7 @@ contains
     end function re_search_back
 
     !> (re-search-forward REGEXP BOUND NOERROR) for NOERROR t or other than
-    !> nil and t (`mode').
+    !> nil and t (`mode').  Not a port.
     logical function re_search_fwd(regexp, mode, bound) result(found)
         character(len=*), intent(in) :: regexp
         integer, intent(in) :: mode
@@ -204,14 +206,14 @@ contains
         found = status%ok() .and. pos > 0
     end function re_search_fwd
 
-    !> (move-to-left-margin)
+    !> (move-to-left-margin) Not a port.
     subroutine to_left_margin()
         type(status_type) :: st
 
         call move_to_left_margin(st)
     end subroutine to_left_margin
 
-    !> skip-chars-backward " \t".
+    !> skip-chars-backward " \t".  Not a port.
     subroutine skip_blanks_backward()
         do while (point() > buffers(cur)%begv)
             if (char_at(point() - 1) /= SPACE .and. char_at(point() - 1) /= TAB) exit
@@ -219,7 +221,7 @@ contains
         end do
     end subroutine skip_blanks_backward
 
-    !> REGEXP without a leading ^.
+    !> REGEXP without a leading ^.  Not a port.
     function unanchored(regexp) result(r)
         character(len=*), intent(in) :: regexp
         character(len=:), allocatable :: r
@@ -618,7 +620,7 @@ contains
         end function back_twice
     end subroutine forward_sentence
 
-    !> skip-chars-backward " \t\n".
+    !> skip-chars-backward " \t\n".  Not a port.
     subroutine skip_whitespace_backward()
         do while (point() > buffers(cur)%begv)
             if (all(char_at(point() - 1) /= [SPACE, TAB, NEWLINE])) exit
@@ -663,8 +665,8 @@ contains
 
     !> Put mark at end of sentence.
     !> ARG works as in `forward_sentence'.  If this command is repeated,
-    !> it marks the next ARG sentences after the ones already marked.  Port
-    !> of paragraphs.el:mark-end-of-sentence.
+    !> it marks the next ARG sentences after the ones already marked.
+    !> Port of paragraphs.el:mark-end-of-sentence.
     subroutine mark_end_of_sentence(arg)
         integer(int64), intent(in) :: arg
         integer(int64) :: opoint, target
@@ -780,6 +782,7 @@ contains
         call transpose_subr(move_sentences, arg, status)
     end subroutine transpose_sentences
 
+    ! Move over N paragraphs, for `transpose_subr'.  Not a port.
     subroutine move_paragraphs(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
@@ -789,6 +792,7 @@ contains
         left = forward_paragraph(n)
     end subroutine move_paragraphs
 
+    ! Move over N sentences, for `transpose_subr'.  Not a port.
     subroutine move_sentences(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
@@ -812,6 +816,7 @@ contains
     end subroutine cmd_transpose_sentences
 
     !> Give the variables their defaults and register the commands.
+    !> Not a port.
     subroutine syms_of_paragraphs()
         call init_paragraph_variables()
         commands%forward_sentence%run => cmd_forward_sentence

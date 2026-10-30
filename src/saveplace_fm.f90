@@ -276,7 +276,7 @@ contains
         call save_place_normalize_alist()
     end subroutine save_place_load_alist_from_file
 
-    !> The text of FILE.
+    !> The text of FILE.  Not a port.
     recursive subroutine file_text(file, text, status)
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: text
@@ -295,7 +295,7 @@ contains
         call set_buffer(old, st)
     end subroutine file_text
 
-    !> Append PLACE to `save_place_alist'.
+    !> Append PLACE to `save_place_alist'.  Not a port.
     subroutine append_place(place)
         type(save_place_type), intent(in) :: place
         type(save_place_type), allocatable :: grown(:)
@@ -313,6 +313,7 @@ contains
         call move_alloc(grown, save_place_alist)
     end subroutine append_place
 
+    ! Move place FROM to TO.  Not a port.
     subroutine move_place(from, to)
         type(save_place_type), intent(inout) :: from
         type(save_place_type), intent(out) :: to
@@ -322,7 +323,7 @@ contains
         if (allocated(from%dired_filename)) call move_alloc(from%dired_filename, to%dired_filename)
     end subroutine move_place
 
-    !> Keep the first N places.
+    !> Keep the first N places.  Not a port.
     subroutine truncate_places(n)
         integer, intent(in) :: n
         type(save_place_type), allocatable :: kept(:)
@@ -337,7 +338,7 @@ contains
         call move_alloc(kept, save_place_alist)
     end subroutine truncate_places
 
-    !> Remove place K.
+    !> Remove place K.  Not a port.
     subroutine delete_place(k)
         integer, intent(in) :: k
         type(save_place_type), allocatable :: kept(:)
@@ -353,7 +354,7 @@ contains
     end subroutine delete_place
 
     !> FILE abbreviated or expanded, as `save_place_abbreviate_file_names'
-    !> says.
+    !> says.  Not a port.
     function normal_name(file) result(name)
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: name
@@ -403,6 +404,7 @@ contains
     end subroutine save_place_normalize_alist
 
     !> FILE expanded (expand_file_name), or FILE itself if that fails.
+    !> Not a port.
     recursive function expand(file) result(name)
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: name
@@ -412,6 +414,7 @@ contains
         if (.not. st%ok()) name = file
     end function expand
 
+    ! Whether file names A and B are the same.  Not a port.
     pure logical function same(a, b)
         character(len=*), intent(in) :: a, b
 
@@ -420,6 +423,7 @@ contains
     end function same
 
     !> The index of FILE's place in `save_place_alist', 0 for none.
+    !> Not a port.
     integer function place_index(file) result(k)
         character(len=*), intent(in) :: file
 
@@ -465,6 +469,7 @@ contains
     end subroutine save_place_autosave
 
     !> The value of `save_place_mode' (buffer-local) in the current buffer.
+    !> Not a port.
     logical function save_place_mode_on() result(on)
         type(value_type) :: v
         type(status_type) :: st
@@ -496,6 +501,7 @@ contains
     end subroutine save_place_mode
 
     !> The body of Save-Place mode.
+    !> Port of saveplace.el:save-place-mode, in part (its body).
     recursive subroutine save_place_mode_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
@@ -519,6 +525,7 @@ contains
     end subroutine save_place_local_mode
 
     !> The body of Save-Place-Local mode.
+    !> Port of saveplace.el:save-place-local-mode, in part (its body).
     recursive subroutine save_place_local_mode_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
@@ -541,7 +548,7 @@ contains
         end if
     end subroutine save_place_local_mode_body
 
-    !> The current Dired directory of a Dired buffer, else "".
+    !> The current Dired directory of a Dired buffer, else "".  Not a port.
     function dired_directory() result(dir)
         character(len=:), allocatable :: dir
         type(dired_string_type), allocatable :: dirs(:)
@@ -616,6 +623,7 @@ contains
         end if
     end subroutine save_place_to_alist
 
+    ! `save_place_to_alist' as a hook function.  Not a port.
     recursive subroutine save_place_to_alist_proc(status)
         type(status_type), intent(out) :: status
 
@@ -624,6 +632,7 @@ contains
     end subroutine save_place_to_alist_proc
 
     !> Whether the place of FILE is kept when forgetting unreadable files.
+    !> Not a port.
     logical function keep_place(file) result(keep)
         character(len=*), intent(in) :: file
         type(status_type) :: st
@@ -765,6 +774,7 @@ contains
         call save_place_after_find_file_hook%run(status)
     end subroutine save_place_find_file_hook
 
+    ! `save_place_find_file_hook' as a hook function.  Not a port.
     recursive subroutine save_place_find_file_hook_proc(status)
         type(status_type), intent(out) :: status
 
@@ -799,6 +809,7 @@ contains
         call set(sym("save_place_mode"), t_value(), st)
     end subroutine save_place_dired_hook
 
+    ! `save_place_dired_hook' as a hook function.  Not a port.
     recursive subroutine save_place_dired_hook_proc(status)
         type(status_type), intent(out) :: status
 
@@ -812,6 +823,7 @@ contains
         if (save_place_loaded) call save_place_alist_to_file()
     end subroutine save_place_kill_emacs_hook
 
+    ! `save_place_kill_emacs_hook' as a hook function.  Not a port.
     recursive subroutine save_place_kill_emacs_hook_proc(status)
         type(status_type), intent(out) :: status
 
@@ -819,7 +831,7 @@ contains
         call save_place_kill_emacs_hook()
     end subroutine save_place_kill_emacs_hook_proc
 
-    !> Define the modes, the command and the options' defaults.
+    !> Define the modes, the command and the options' defaults.  Not a port.
     subroutine syms_of_saveplace()
         type(status_type) :: st
 

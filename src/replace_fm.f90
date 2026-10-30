@@ -158,7 +158,7 @@ module replace_fm
     abstract interface
         !> A function computing each replacement string from the number of
         !> replacements done so far: the (FUNCTION . DATA) form of
-        !> `perform_replace''s REPLACEMENTS.
+        !> `perform_replace''s REPLACEMENTS.  Not a port.
         function replacement_function(count) result(text)
             import :: int64
             implicit none(type, external)
@@ -388,7 +388,7 @@ module replace_fm
 
 contains
 
-    !> The decimal representation of `n'.
+    !> The decimal representation of `n'.  Not a port.
     function number_to_string(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
@@ -444,6 +444,7 @@ contains
     !> The position of the first backslash of `string' at or after
     !> `from', not itself escaped, that is followed by one of `chars'; or
     !> 0.  (What the regexp \(\`\|[^\]\)\(\\\\\)*\\[CHARS] finds.)
+    !> Not a port.
     integer function find_directive(string, from, chars) result(at)
         character(len=*), intent(in) :: string, chars
         integer, intent(in) :: from
@@ -498,6 +499,7 @@ contains
 
     !> TO with each `\#' replaced by COUNT, as the compiled replacement
     !> (concat ... (number-to-string replace-count) ...) computes it.
+    !> Not a port.
     function replace_expand_count(to, count) result(text)
         character(len=*), intent(in) :: to
         integer(int64), intent(in) :: count
@@ -529,7 +531,7 @@ contains
         full = full//": "
     end function format_prompt
 
-    !> The first string of the list in variable `name', if any.
+    !> The first string of the list in variable `name', if any.  Not a port.
     subroutine history_head(name, head, found)
         character(len=*), intent(in) :: name
         character(len=:), allocatable, intent(out) :: head
@@ -576,6 +578,7 @@ contains
     end subroutine push_defaults
 
     !> Append `s' to the list `list' (allocated, `n' used) unless absent.
+    !> Not a port.
     subroutine push_string(list, n, s)
         type(minibuffer_string_type), allocatable, intent(inout) :: list(:)
         integer, intent(inout) :: n
@@ -597,7 +600,7 @@ contains
         list(n)%s = s
     end subroutine push_string
 
-    !> The region's text, if `use_region_p'.
+    !> The region's text, if `use_region_p'.  Not a port.
     subroutine region_text(text, found)
         character(len=:), allocatable, intent(out) :: text
         logical, intent(out) :: found
@@ -772,8 +775,8 @@ contains
     !> Prompt with PROMPT.  REGEXP-FLAG non-nil means the response should
     !> be a regexp.  The return value can also be a pair (FROM . TO)
     !> indicating that the user wants to replace FROM with TO: then
-    !> `have_to' is true, and `counted' says whether TO uses `\#'.  Port
-    !> of replace.el:query-replace-read-from.
+    !> `have_to' is true, and `counted' says whether TO uses `\#'.
+    !> Port of replace.el:query-replace-read-from.
     recursive subroutine query_replace_read_from(prompt, regexp_flag, from, to, have_to, counted, status)
         character(len=*), intent(in) :: prompt
         logical, intent(in) :: regexp_flag
@@ -946,6 +949,7 @@ contains
         if (.not. have_to) call query_replace_read_to(from, prompt, regexp_flag, to, counted, status)
     end subroutine query_replace_read_args
 
+    ! Whether the optional X is present and true.  Not a port.
     logical function present_true(x)
         logical, intent(in), optional :: x
 
@@ -953,8 +957,8 @@ contains
         if (present(x)) present_true = x
     end function present_true
 
-    !> Search for the next occurrence of SEARCH-STRING to replace.  Port
-    !> of replace.el:replace-search with isearch-search-fun-default
+    !> Search for the next occurrence of SEARCH-STRING to replace.
+    !> Port of replace.el:replace-search with isearch-search-fun-default
     !> (non-incremental: no lax word search).
     logical function replace_search(search_string, limit, regexp_flag, delimited_flag, case_fold, status, &
                                     backward) result(found)
@@ -1013,8 +1017,8 @@ contains
     !> used to reverse the replacement direction.
     !>
     !> The return value is non-nil if there has been no `\?' or NOEDIT was
-    !> passed in.  If LITERAL is set, no checking is done, anyway.  Port
-    !> of replace.el:replace-match-maybe-edit (the edited text is read
+    !> passed in.  If LITERAL is set, no checking is done, anyway.
+    !> Port of replace.el:replace-match-maybe-edit (the edited text is read
     !> with point at its end).
     recursive logical function replace_match_maybe_edit(newtext, fixedcase, literal, noedit, data, status, &
                                                         backward) result(unedited)
@@ -1100,7 +1104,7 @@ contains
     end subroutine push_stack
 
     !> The match data after `looking_at(regexp)' at `pos', point left
-    !> where it was (save-excursion).
+    !> where it was (save-excursion).  Not a port.
     function match_data_at(pos, regexp) result(data)
         integer(int64), intent(in) :: pos
         character(len=*), intent(in) :: regexp
@@ -2096,6 +2100,7 @@ contains
 
     !> The interactive prompt of a replace command: BASE, then " backward"
     !> or " word" for the prefix argument, then WHAT and " in region".
+    !> Not a port.
     function command_prompt(base, what) result(prompt)
         character(len=*), intent(in) :: base, what
         character(len=:), allocatable :: prompt
@@ -2115,7 +2120,7 @@ contains
     end function command_prompt
 
     ! The interactive commands: read the arguments, then operate on the
-    ! region when it is in use.
+    ! region when it is in use.  Not a port.
     recursive subroutine run_command(base, what, regexp_flag, query, status)
         character(len=*), intent(in) :: base, what
         logical, intent(in) :: regexp_flag, query
@@ -2194,6 +2199,7 @@ contains
     end subroutine cmd_map_query_replace_regexp
 
     !> Give the variables their defaults and register the commands.
+    !> Not a port.
     subroutine syms_of_replace()
         integer, parameter :: C = FACE_CLASS_COLOR, M = FACE_CLASS_MONO, LIGHT = FACE_BACKGROUND_LIGHT, &
                               DARK = FACE_BACKGROUND_DARK
@@ -2244,6 +2250,7 @@ contains
     end subroutine keep_lines_read_args
 
     !> The case-fold-search of the keep-lines commands for REGEXP.
+    !> Not a port.
     logical function lines_case_fold(regexp) result(fold)
         character(len=*), intent(in) :: regexp
 
@@ -2382,7 +2389,7 @@ contains
     end subroutine cmd_flush_lines
 
     !> The start and end marker of the keep-lines commands: RSTART and
-    !> REND, the region interactively, else point to the end.
+    !> REND, the region interactively, else point to the end.  Not a port.
     subroutine lines_bounds(rend_m, rstart, rend, inter)
         type(handle_type), intent(out) :: rend_m
         integer(int64), intent(in), optional :: rstart, rend
@@ -2408,6 +2415,8 @@ contains
     !> Kill (COPY false) or copy (COPY true) the lines containing matches
     !> for REGEXP: the body of `kill_matching_lines' and
     !> `copy_matching_lines'.
+    !> Port of replace.el:kill-matching-lines and
+    !> replace.el:copy-matching-lines, in part.
     recursive subroutine kill_or_copy_matching_lines(regexp, copy, count, status, rstart, rend, inter)
         character(len=*), intent(in) :: regexp
         logical, intent(in) :: copy
@@ -2540,7 +2549,7 @@ contains
         if (status%ok() .and. inter) call message(plural(count, "Copied", "matching line"))
     end subroutine copy_matching_lines
 
-    !> "VERB N NOUN" or "VERB N NOUNs" (ngettext).
+    !> "VERB N NOUN" or "VERB N NOUNs" (ngettext).  Not a port.
     function plural(n, verb, noun) result(text)
         integer(int64), intent(in) :: n
         character(len=*), intent(in) :: verb, noun
@@ -2670,6 +2679,7 @@ contains
     ! Occur buffers
     ! ------------------------------------------------------------------
 
+    ! Whether handles A and B are the same object.  Not a port.
     logical function same_buffer_handle(a, b)
         type(handle_type), intent(in) :: a, b
 
@@ -2677,7 +2687,7 @@ contains
     end function same_buffer_handle
 
     !> The entry of buffer H in `occur_buffers' (0 for none), made with
-    !> CREATE (in the slot of a dead buffer if there is one).
+    !> CREATE (in the slot of a dead buffer if there is one).  Not a port.
     integer function occur_entry(h, create) result(k)
         type(handle_type), intent(in) :: h
         logical, intent(in) :: create
@@ -2713,7 +2723,7 @@ contains
         k = n + 1
     end function occur_entry
 
-    !> Free the targets of entry K.
+    !> Free the targets of entry K.  Not a port.
     subroutine occur_free_targets(k)
         integer, intent(in) :: k
         type(status_type) :: st
@@ -2734,7 +2744,7 @@ contains
         occur_buffers(k)%ntargets = 0
     end subroutine occur_free_targets
 
-    !> Free the region markers of SOURCES.
+    !> Free the region markers of SOURCES.  Not a port.
     subroutine occur_free_sources(sources)
         type(occur_source_type), intent(inout) :: sources(:)
         type(status_type) :: st
@@ -2747,7 +2757,7 @@ contains
         end do
     end subroutine occur_free_sources
 
-    !> Free what entry K holds and make it unused.
+    !> Free what entry K holds and make it unused.  Not a port.
     subroutine occur_reset_entry(k)
         integer, intent(in) :: k
         type(occur_buffer_type) :: empty
@@ -2770,7 +2780,7 @@ contains
 
     !> Add a target, the matches BEG(i) to END(i) (markers given to the
     !> current buffer's targets), to the current buffer's targets; its
-    !> index is the value of the `occur_target' text property.
+    !> index is the value of the `occur_target' text property.  Not a port.
     integer function occur_add_target(beg, end) result(idx)
         type(handle_type), intent(in) :: beg(:), end(:)
         type(occur_target_type), allocatable :: grown(:)
@@ -2820,7 +2830,7 @@ contains
     end subroutine occur_mode
 
     !> The body of `occur_mode' (also run by `occur_edit_mode' as its
-    !> parent).
+    !> parent).  Port of replace.el:occur-mode, in part (its body).
     subroutine occur_mode_body()
         buffers(cur)%read_only = .true.
         call revert_buffer_function%set_local(occur_revert_function)
@@ -2860,7 +2870,7 @@ contains
     end subroutine occur_cease_edit
 
     !> The `occur_target' at POS of the current buffer: its index in the
-    !> buffer's targets (0 for none).
+    !> buffer's targets (0 for none).  Not a port.
     integer function target_at(pos) result(idx)
         integer(int64), intent(in) :: pos
         type(value_type) :: v
@@ -3386,7 +3396,7 @@ contains
     end subroutine occur
 
     !> `occur' restricted to the region from START to END (upstream the
-    !> REGION argument, a list of (START . END)).
+    !> REGION argument, a list of (START . END)).  Not a port.
     recursive subroutine occur_in_region(regexp, start, end, status, nlines, collect)
         character(len=*), intent(in) :: regexp
         integer(int64), intent(in) :: start, end
@@ -3690,6 +3700,7 @@ contains
     !> Show the control characters from B to E of the current buffer as
     !> ^C in the face `escape_glyph' (the display properties of
     !> query-replace-descr).
+    !> Port of replace.el:query-replace-descr, in part.
     subroutine descr_display(b, e)
         integer(int64), intent(in) :: b, e
         type(status_type) :: st
@@ -3717,7 +3728,7 @@ contains
     end subroutine descr_display
 
     !> The live sources of SOURCES (buffers alive, regions whose buffer is
-    !> alive).
+    !> alive).  Not a port.
     function active_sources(sources) result(active)
         type(occur_source_type), intent(in) :: sources(:)
         type(occur_source_type), allocatable :: active(:)
@@ -3955,7 +3966,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Insert TEXT in the current buffer at point; START and END get where
-    !> it went.
+    !> it went.  Not a port.
     subroutine out_insert(text, start, end)
         character(len=*), intent(in) :: text
         integer(int64), intent(out) :: start, end
@@ -3966,7 +3977,7 @@ contains
         end = point()
     end subroutine out_insert
 
-    !> Put PROP with VALUE on START..END of the current buffer.
+    !> Put PROP with VALUE on START..END of the current buffer.  Not a port.
     subroutine put_prop(start, end, prop, value)
         integer(int64), intent(in) :: start, end
         character(len=*), intent(in) :: prop
@@ -3980,6 +3991,7 @@ contains
     !> buffer at point, with its text properties when KEEP_PROPS (but
     !> `occur_excluded_properties'): occur-engine-line and its insertion.
     !> START and END get where it went.
+    !> Port of replace.el:occur-engine-line, in part.
     subroutine insert_source_line(src, sbeg, send, keep_props, start, end)
         type(handle_type), intent(in) :: src
         integer(int64), intent(in) :: sbeg, send
@@ -4046,6 +4058,7 @@ contains
     !> Insert a context line (occur-engine-add-prefix): the prefix
     !> "       :" in PREFIX_FACE, the line SBEG..SEND of SRC (with the
     !> current-line face when CURRENT) and a newline.
+    !> Port of replace.el:occur-engine-add-prefix, in part.
     subroutine insert_context_line(src, sbeg, send, keep_props, prefix_face, current)
         type(handle_type), intent(in) :: src
         integer(int64), intent(in) :: sbeg, send
@@ -4062,6 +4075,7 @@ contains
     end subroutine insert_context_line
 
     !> Give B..E the current-line face and the `current_line' property.
+    !> Not a port.
     subroutine mark_current_line(b, e)
         integer(int64), intent(in) :: b, e
         type(status_type) :: st
@@ -4475,7 +4489,7 @@ contains
     !> of a multi-line match after a prefix "       :", and a newline;
     !> with the target TIDX, the matches MATCH_STARTS..MATCH_ENDS (0-based
     !> offsets in CURSTRING) in MATCH_FACE, the current-line face when
-    !> CURRENT.
+    !> CURRENT.  Port of replace.el:occur-engine, in part.
     subroutine insert_match(src, begpt, endpt, curstring, curr_line, tidx, match_starts, match_ends, current, &
                             keep_props, prefix_face, match_face)
         type(handle_type), intent(in) :: src
@@ -4610,7 +4624,7 @@ contains
 
     !> Define Occur mode and Occur-Edit mode, give the Occur variables
     !> their defaults and register the commands (after Text mode, whose map
-    !> Occur-Edit mode's inherits).
+    !> Occur-Edit mode's inherits).  Not a port.
     subroutine syms_of_occur()
         type(status_type) :: st
 
@@ -4671,7 +4685,7 @@ contains
         commands%occur_prev%run => occur_prev
     end subroutine syms_of_occur
 
-    !> turn-on-font-lock as a function of `occur_mode_hook'.
+    !> turn-on-font-lock as a function of `occur_mode_hook'.  Not a port.
     recursive subroutine turn_on_font_lock_hook(status)
         type(status_type), intent(out) :: status
 

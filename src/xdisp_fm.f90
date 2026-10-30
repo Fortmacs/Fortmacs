@@ -149,6 +149,7 @@ module xdisp_fm
         !> WINDOW, which shows it.  RB and RE are what redisplay paints in
         !> the `region' face (upstream's region overlay of priority
         !> (nil . 100)); both 0 when the function shows the region itself.
+        !> Not a port.
         subroutine highlight_region_proc(start, end, window, rb, re)
             import :: int64, handle_type
             implicit none(type, external)
@@ -157,7 +158,7 @@ module xdisp_fm
             integer(int64), intent(out) :: rb, re
         end subroutine highlight_region_proc
 
-        !> Remove the region highlighting of WINDOW.
+        !> Remove the region highlighting of WINDOW.  Not a port.
         subroutine unhighlight_region_proc(window)
             import :: handle_type
             implicit none(type, external)
@@ -250,6 +251,7 @@ module xdisp_fm
     abstract interface
         !> Whether a minor-mode-alist entry's variable is true, for a
         !> variable kept in Fortran (such as `defining_kbd_macro').
+        !> Not a port.
         logical function lighter_active_proc()
             implicit none(type, external)
         end function lighter_active_proc
@@ -257,7 +259,7 @@ module xdisp_fm
         !> variable holds the text itself ("" when it is nil).  (A
         !> subroutine: gfortran frees the target of a procedure pointer
         !> component returning an allocatable string when an array of the
-        !> type is deallocated.)
+        !> type is deallocated.) Not a port.
         subroutine lighter_text_proc(bi, text)
             import :: int64
             implicit none(type, external)
@@ -307,7 +309,7 @@ module xdisp_fm
 
     abstract interface
         !> The status of the process of buffer slot BI, as %s in a mode
-        !> line shows it ("no process" if it has none).
+        !> line shows it ("no process" if it has none).  Not a port.
         subroutine process_status_proc(bi, status_name)
             import :: int64
             implicit none(type, external)
@@ -427,8 +429,8 @@ contains
 
     !> Lay out the frame's windows, making them if need be: the window
     !> tree above (at first one window, selected), the one-line minibuffer
-    !> window at the bottom.  The window part of frame.c:make_terminal_frame
-    !> and window.c:make_frame_without_minibuffer.
+    !> window at the bottom.  Port of frame.c:make_terminal_frame and
+    !> frame.c:make_frame_without_minibuffer, in part (their window part).
     subroutine init_frame_windows(f)
         type(frame_type), intent(inout) :: f
         integer :: rows, cols
@@ -457,6 +459,7 @@ contains
     !> Columns character `c' takes: 2 for East Asian wide and fullwidth
     !> characters and emoji, else 1.  An approximation of
     !> character.c:char_width with characters.el's char-width-table.
+    !> Not a port.
     elemental integer function glyph_width(c)
         integer(int32), intent(in) :: c
 
@@ -485,6 +488,8 @@ contains
     !> character one glyph, their widths given later by
     !> gui_produce_glyph; ^X and \ooo are display vectors, one glyph an
     !> element, as on a terminal.
+    !> Port of xdisp.c:get_next_display_element and term.c:produce_glyphs,
+    !> in part.
     subroutine produce_char(c, x, cells, n, gui)
         integer(int32), intent(in) :: c
         integer, intent(in) :: x
@@ -530,7 +535,7 @@ contains
     end subroutine produce_char
 
     !> Columns character `c' takes when displayed at column `x' (for
-    !> TAB, the distance to the next tab stop).
+    !> TAB, the distance to the next tab stop).  Not a port.
     integer function glyph_columns(c, x) result(n)
         integer(int32), intent(in) :: c
         integer, intent(in) :: x
@@ -631,7 +636,7 @@ contains
 
     !> The continuation glyph: \ in the default face, sized for frame `f'.
     !> The IT_CONTINUATION part of xdisp.c:produce_special_glyphs (no
-    !> display table).
+    !> display table).  Port of xdisp.c:produce_special_glyphs, in part.
     function continuation_glyph(f) result(g)
         type(frame_type), intent(in) :: f
         type(glyph_type) :: g
@@ -644,6 +649,7 @@ contains
     !> The width of the continuation glyph, which the text area leaves
     !> room for at the right of a window without a right fringe
     !> (it->continuation_pixel_width, set in xdisp.c:init_iterator).
+    !> Port of xdisp.c:init_iterator, in part.
     integer function continuation_pixel_width(f) result(w)
         type(frame_type), intent(in) :: f
         type(glyph_type) :: g
@@ -933,11 +939,9 @@ contains
         end function compare
     end subroutine load_overlay_strings
 
-    !> Append an item of KIND with string STR (and for a stretch, WIDTH
-    !> and ALIGN_TO) to ITEMS.
     !> Whether OVERLAY applies to the window being displayed: it has no
     !> `window' property, or that window.  (The test of xdisp.c and
-    !> xfaces.c on an overlay's `window' property.)
+    !> xfaces.c on an overlay's `window' property.)  Not a port.
     logical function overlay_for_window(overlay) result(applies)
         type(handle_type), intent(in) :: overlay
         type(value_type) :: window
@@ -954,7 +958,7 @@ contains
     end function overlay_for_window
 
     !> The window being displayed (it->w): the one redisplay is at, else
-    !> the selected window.
+    !> the selected window.  Not a port.
     function iterator_window() result(w)
         type(handle_type) :: w
 
@@ -965,7 +969,7 @@ contains
     !> Append to ITEMS the overlay string STRING: its text, and a stretch
     !> for each run of characters whose `display' property is a `(space
     !> ...)' spec (handle_display_prop on an overlay string; other
-    !> display specs in overlay strings are Deferred).
+    !> display specs in overlay strings are Deferred).  Not a port.
     subroutine push_overlay_string(items, string)
         type(display_item_type), allocatable, intent(inout) :: items(:)
         type(value_type), intent(in) :: string
@@ -1020,7 +1024,7 @@ contains
     end subroutine push_overlay_string
 
     !> Record in ITEM the runs of overlay string STRING's `face' and
-    !> `cursor' properties, as byte ranges of its text.
+    !> `cursor' properties, as byte ranges of its text.  Not a port.
     subroutine string_display_props(string, item)
         type(value_type), intent(in) :: string
         type(display_item_type), intent(inout) :: item
@@ -1060,6 +1064,8 @@ contains
         end do
     end subroutine string_display_props
 
+    !> Append an item of KIND with string STR (and for a stretch, WIDTH
+    !> and ALIGN_TO) to ITEMS.  Not a port.
     subroutine push_item(items, kind, str, width, align_to)
         type(display_item_type), allocatable, intent(inout) :: items(:)
         integer, intent(in) :: kind
@@ -1143,6 +1149,7 @@ contains
     !> no fringes, the text with such a property is not displayed (the
     !> !FRAME_WINDOW_P case of the fringe part of
     !> xdisp.c:handle_single_display_spec).
+    !> Port of xdisp.c:handle_single_display_spec, in part.
     logical function fringe_spec(v) result(is_fringe)
         type(value_type), intent(in) :: v
         type(value_type), allocatable :: elts(:)
@@ -1157,6 +1164,7 @@ contains
     !> What comes next from `s' in buffer slot `bi' (without moving
     !> past it), handling the properties at stops on the way.
     !> (xdisp.c:get_next_display_element.)
+    !> Port of xdisp.c:get_next_display_element.
     subroutine peek_element(bi, s, el)
         integer(int64), intent(in) :: bi
         type(row_start_type), intent(inout) :: s
@@ -1249,7 +1257,7 @@ contains
     end subroutine peek_element
 
     !> Move `s' past the element `el' peek_element gave.
-    !> (xdisp.c:set_iterator_to_next.)
+    !> (xdisp.c:set_iterator_to_next.) Port of xdisp.c:set_iterator_to_next.
     subroutine consume_element(s, el)
         type(row_start_type), intent(inout) :: s
         type(element_type), intent(in) :: el
@@ -1279,6 +1287,7 @@ contains
     !> a character of an overlay string or a display string with a `face'
     !> property, that merged in (xdisp.c:handle_face_prop for strings,
     !> the underlying face as the base face).
+    !> Port of xdisp.c:handle_face_prop, in part.
     integer(int32) function string_face(f, s, el, face_id) result(id)
         type(frame_type), intent(inout) :: f
         type(row_start_type), intent(in) :: s
@@ -1295,7 +1304,7 @@ contains
     !> PT is from BPOS_MAX (the last buffer position shown before it on
     !> the row, or the row's start) to N after it.  (The `cursor' property
     !> part of xdisp.c:set_cursor_from_row; other values than integers
-    !> are Deferred.)
+    !> are Deferred.) Port of xdisp.c:set_cursor_from_row, in part.
     logical function string_cursor_p(s, el, pt, bpos_max) result(here)
         type(row_start_type), intent(in) :: s
         type(element_type), intent(in) :: el
@@ -1314,7 +1323,7 @@ contains
     !> a buffer character at `pt'; the first glyph of a display string or
     !> space shown at `pt'; or the first glyph not from an overlay string
     !> after hidden text that `pt' is in (text that is invisible, or
-    !> replaced from after its first position).
+    !> replaced from after its first position).  Not a port.
     logical function cursor_at_element(s, el, pt) result(here)
         type(row_start_type), intent(in) :: s
         type(element_type), intent(in) :: el
@@ -1358,7 +1367,7 @@ contains
     !> window-system frame (with `glyphs' and `f'), `last_x' and
     !> `cursor_col' are pixels and display_row_gui lays the row out;
     !> `cursor_hpos' is the glyph of the cursor, `ascent' and `descent'
-    !> the row's (0 on a terminal).
+    !> the row's (0 on a terminal).  Port of xdisp.c:display_line, in part.
     subroutine display_row(bi, s, last_x, pt, ends, cursor_col, used, glyphs, rb, re, f, cursor_hpos, ascent, descent, &
                            goal_x, goal_pos)
         integer(int64), intent(in) :: bi
@@ -1784,6 +1793,7 @@ contains
     end subroutine display_row_gui
 
     !> The `stretch' argument of gui_produce_glyph for a stretch item.
+    !> Not a port.
     integer function stretch_cols(item) result(n)
         type(display_item_type), intent(in) :: item
 
@@ -1836,6 +1846,7 @@ contains
     !> escape-glyph face merged in, non-ASCII spaces and hyphens with
     !> nobreak-space and nobreak-hyphen (nobreak-char-display t).  The
     !> face part of xdisp.c:get_next_display_element.
+    !> Port of xdisp.c:get_next_display_element, in part.
     integer(int32) function char_face(f, c, face_id) result(id)
         type(frame_type), intent(inout) :: f
         integer(int32), intent(in) :: c, face_id
@@ -1857,7 +1868,7 @@ contains
 
     !> Whether C is a non-ASCII blank (Unicode general category Zs), as
     !> character.c:blankp tells for the characters `nobreak_char_display'
-    !> highlights.
+    !> highlights.  Not a port.
     elemental logical function nonascii_blank_p(c)
         integer(int32), intent(in) :: c
 
@@ -1869,7 +1880,7 @@ contains
     !> The screen rows of the line starting at `bol' in buffer slot `bi',
     !> rows(1:nrows) where each starts, and `eol' where the line ends (its
     !> newline, or the end of the accessible text).  `last_x' as for
-    !> display_row; on window-system frame `f', pixels.
+    !> display_row; on window-system frame `f', pixels.  Not a port.
     subroutine display_line_rows(bi, bol, last_x, rows, nrows, eol, f)
         integer(int64), intent(in) :: bi, bol
         integer, intent(in) :: last_x
@@ -1916,6 +1927,7 @@ contains
     end subroutine display_line_rows
 
     !> The row among rows(1:nrows) on which the display of `pos' begins.
+    !> Not a port.
     pure integer function display_row_of(pos, rows, nrows) result(k)
         integer(int64), intent(in) :: pos
         type(row_start_type), intent(in) :: rows(:)
@@ -1934,6 +1946,7 @@ contains
     !> the start of its line, or of the line before when the newline
     !> before it is invisible.  (xdisp.c:back_to_previous_visible_line_start;
     !> no selective display.)
+    !> Port of xdisp.c:back_to_previous_visible_line_start.
     integer(int64) function line_beginning(bi, pos) result(bol)
         integer(int64), intent(in) :: bi, pos
         integer(int64) :: saved
@@ -1951,7 +1964,7 @@ contains
         if (saved > 0) call set_buffer_internal(saved)
     end function line_beginning
 
-    !> The start of the line holding `pos' in buffer slot `bi'.
+    !> The start of the line holding `pos' in buffer slot `bi'.  Not a port.
     integer(int64) function raw_line_beginning(bi, pos) result(bol)
         integer(int64), intent(in) :: bi, pos
         integer(int64) :: byte, begv_byte
@@ -2003,7 +2016,7 @@ contains
     !> the text area in pixels); `nrows' tells how many, `cursor_hpos' the
     !> glyph of the cursor.  Rows get their pixel position and metrics
     !> (xdisp.c:compute_line_metrics).  The core of xdisp.c:try_window
-    !> with display_line.
+    !> with display_line.  Port of xdisp.c:try_window, in part.
     subroutine layout_window(bi, start, pt, width, rows, cursor_row, cursor_col, &
                              end_pos, reached_end, region_beg, region_end, f, last_y, nrows, cursor_hpos)
         integer(int64), intent(in) :: bi, start, pt
@@ -2126,6 +2139,7 @@ contains
     !> holding `pt' (not before the accessible start).  The terminal part
     !> of xdisp.c:move_it_vertically_backward as redisplay_window's
     !> recentering uses it.
+    !> Port of xdisp.c:move_it_vertically_backward, in part.
     integer(int64) function recenter_start(bi, pt, last_x, dy) result(start)
         integer(int64), intent(in) :: bi, pt
         integer, intent(in) :: last_x, dy
@@ -2156,7 +2170,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Make row `vpos' of the desired matrix a full-width blank row, to be
-    !> filled by the windows on it.
+    !> filled by the windows on it.  Not a port.
     subroutine blank_row(f, vpos)
         type(frame_type), intent(inout) :: f
         integer, intent(in) :: vpos
@@ -2178,6 +2192,7 @@ contains
 
     !> Copy window rows into the frame's desired matrix, from column
     !> `left' (0-based), with the vertical border after them if `divider'.
+    !> Not a port.
     subroutine put_rows(f, top, left, rows, divider)
         type(frame_type), intent(inout) :: f
         integer, intent(in) :: top, left
@@ -2354,6 +2369,7 @@ contains
     end subroutine redisplay_window
 
     !> 1 + the number of newlines before `pos' in buffer slot `bi'.
+    !> Not a port.
     integer(int64) function line_number(bi, pos) result(n)
         integer(int64), intent(in) :: bi, pos
         integer(int64) :: byte, end_byte
@@ -2369,7 +2385,7 @@ contains
     end function line_number
 
     !> The characters of `text' (internal multibyte form), a byte that is
-    !> not part of a valid form taken as a raw byte.
+    !> not part of a valid form taken as a raw byte.  Not a port.
     subroutine decode_string(text, chars, n)
         character(len=*), intent(in) :: text
         integer(int32), allocatable, intent(out) :: chars(:)
@@ -2397,7 +2413,7 @@ contains
     end subroutine decode_string
 
     !> `text' padded with spaces to `width' characters (display_string's
-    !> FIELD_WIDTH).
+    !> FIELD_WIDTH).  Not a port.
     function pad_chars(text, width) result(s)
         character(len=*), intent(in) :: text
         integer, intent(in) :: width
@@ -2410,6 +2426,7 @@ contains
     end function pad_chars
 
     !> The first `width' characters of `text' (display_string's PRECISION).
+    !> Not a port.
     function truncate_chars(text, width) result(s)
         character(len=*), intent(in) :: text
         integer, intent(in) :: width
@@ -2470,7 +2487,7 @@ contains
     end function mode_line_mule_info
 
     !> The `vc_mode' of buffer BI, "" when its file is not under version
-    !> control (nil).
+    !> control (nil).  Not a port.
     function buffer_vc_mode(bi) result(vc)
         integer(int64), intent(in) :: bi
         character(len=:), allocatable :: vc
@@ -2499,6 +2516,8 @@ contains
     !> is " ", the frame identification "  " (mode-line-frame-control) and
     !> there are no end dashes.  PREFIX is what `mode_line_modes' shows
     !> before its "(".
+    !> Port of xdisp.c:display_mode_element and xdisp.c:decode_mode_spec,
+    !> in part.
     function mode_line_text(name, modified, read_only, position, line, width, modes, graphic, prefix, mule, vc, &
                             identification) result(s)
         character(len=*), intent(in) :: name, position, line
@@ -2577,8 +2596,8 @@ contains
     !> buffer name and "%%" for "%", or by default the name padded to 12
     !> columns ("%12b", from propertized-buffer-identification).  SPANS
     !> give the characters of ID (counted from 1) that are in a face,
-    !> FACES the names of those faces.  Part of xdisp.c:display_mode_element
-    !> and decode_mode_spec.
+    !> FACES the names of those faces.  Port of
+    !> xdisp.c:display_mode_element and xdisp.c:decode_mode_spec, in part.
     subroutine mode_line_identification(bi, id, spans, faces)
         integer(int64), intent(in) :: bi
         character(len=:), allocatable, intent(out) :: id
@@ -2687,6 +2706,7 @@ contains
     !> window start are too long to count (line-number-display-limit-width
     !> 200).  The counting part of the %l case of xdisp.c:decode_mode_spec
     !> (no base line cache, line-number-display-limit nil).
+    !> Port of xdisp.c:decode_mode_spec, in part.
     function mode_line_line(bi, start, pt, height) result(s)
         integer(int64), intent(in) :: bi, start, pt
         integer, intent(in) :: height
@@ -2734,6 +2754,7 @@ contains
     !> while they start left of it (the last may be cut off there), then
     !> spaces fill the rest ("Fill up with spaces" in
     !> xdisp.c:display_mode_line); `used' gives the number of glyphs.
+    !> Port of xdisp.c:display_string and xdisp.c:pad_mode_line, in part.
     subroutine mode_line_row(text, width, row, face_id, span_first, span_last, span_face, spans, f, used)
         character(len=*), intent(in) :: text
         integer, intent(in) :: width
@@ -2910,6 +2931,7 @@ contains
     end subroutine add_minor_mode_lighter
 
     !> The entry of buffer slot BI in `process_entries' (0 for none).
+    !> Not a port.
     integer function process_entry_of(bi) result(k)
         integer(int64), intent(in) :: bi
 
@@ -2957,6 +2979,7 @@ contains
 
     !> Make the current buffer's `mode_line_process' empty (nil): when its
     !> local variables are killed, as kill_all_local_variables does.
+    !> Not a port.
     subroutine clear_mode_line_process()
         integer :: k
 
@@ -2969,6 +2992,7 @@ contains
 
     !> TEXT of a `mode_line_process' part as buffer slot BI's mode line
     !> shows it: %s is the status of its process, %% a percent sign.
+    !> Port of xdisp.c:decode_mode_spec, in part (the %s case).
     function expand_process_part(bi, text) result(s)
         integer(int64), intent(in) :: bi
         character(len=*), intent(in) :: text
@@ -3003,7 +3027,7 @@ contains
     end function expand_process_part
 
     !> The text `mode_line_process' adds to buffer slot BI's mode line
-    !> (for tests and for help).
+    !> (for tests and for help).  Not a port.
     function mode_line_process_text(bi) result(s)
         integer(int64), intent(in) :: bi
         character(len=:), allocatable :: s
@@ -3051,7 +3075,7 @@ contains
     end subroutine add_mode_line_modes_entry
 
     !> The text the active entries of `mode_line_modes' added with
-    !> `add_mode_line_modes_entry' show before its "(".
+    !> `add_mode_line_modes_entry' show before its "(".  Not a port.
     function mode_line_modes_prefix() result(s)
         character(len=:), allocatable :: s
         integer :: k
@@ -3066,7 +3090,7 @@ contains
 
     !> The modes part of buffer BI's mode line: `mode_name', " Narrow"
     !> if the buffer is narrowed (%n), and the lighters of
-    !> `minor_mode_alist' whose variables are non-nil there.
+    !> `minor_mode_alist' whose variables are non-nil there.  Not a port.
     function mode_line_modes(bi) result(s)
         integer(int64), intent(in) :: bi
         character(len=:), allocatable :: s
@@ -3078,7 +3102,7 @@ contains
 
     !> MODES, the modes part of buffer BI's mode line (mode_line_modes),
     !> with the characters SPANS(K)%FIRST to SPANS(K)%LAST of the
-    !> lighters that have a face in face FACES(K).
+    !> lighters that have a face in face FACES(K).  Not a port.
     subroutine mode_line_modes_faces(bi, modes, spans, faces)
         integer(int64), intent(in) :: bi
         character(len=:), allocatable, intent(out) :: modes
@@ -3473,8 +3497,8 @@ contains
 
     !> Draw the borders of window `w' on window-system frame `f' with the
     !> windows beside it, over its last pixel column (and its left
-    !> neighbor's), down the text area (`text_bottom' pixels high).  Port
-    !> of xdisp.c:gui_draw_vertical_border (no scroll bars, fringes or
+    !> neighbor's), down the text area (`text_bottom' pixels high).
+    !> Port of xdisp.c:gui_draw_vertical_border (no scroll bars, fringes or
     !> dividers).
     subroutine gui_draw_vertical_border(f, w, text_bottom)
         type(frame_type), intent(inout) :: f
@@ -3639,7 +3663,7 @@ contains
     !> horizontally to keep point visible ("$" marks text cut off at
     !> either edge).  `cursor_col' is point's column on the screen line.
     !> The one-line case of xdisp.c:display_line for a minibuffer window
-    !> with auto-hscroll.
+    !> with auto-hscroll.  Port of xdisp.c:display_line, in part.
     subroutine display_minibuffer(f, cursor_col)
         type(frame_type), intent(inout) :: f
         integer, intent(out) :: cursor_col
@@ -3783,6 +3807,7 @@ contains
     !> (print.c:printchar with stream t): without a newline, which the
     !> next message adds.  For the error messages of the command loop
     !> (keyboard.c:Fcommand_error_default_function).
+    !> Port of print.c:printchar, in part.
     recursive subroutine message_log_echo(text)
         character(len=*), intent(in) :: text
 
@@ -3997,7 +4022,7 @@ contains
         end if
     end function message_log_check_duplicate
 
-    !> The byte at byte position `pos' of the current buffer.
+    !> The byte at byte position `pos' of the current buffer.  Not a port.
     character function byte_at(pos)
         integer(int64), intent(in) :: pos
 
@@ -4005,6 +4030,7 @@ contains
     end function byte_at
 
     !> The number of characters in the UTF-8 (internal encoding) `text'.
+    !> Not a port.
     integer(int64) function chars_in_text(text) result(n)
         character(len=*), intent(in) :: text
         integer :: k
@@ -4017,7 +4043,7 @@ contains
         end do
     end function chars_in_text
 
-    !> Whether `text' matches "\` *\[.+\]\'".
+    !> Whether `text' matches "\` *\[.+\]\'".  Not a port.
     pure logical function bracketed_message_p(text) result(p)
         character(len=*), intent(in) :: text
         integer :: k
@@ -4030,7 +4056,8 @@ contains
     end function bracketed_message_p
 
     !> Whether the selected frame's minibuffer is active (the minibuffer
-    !> window shows a minibuffer): window.c:Factive_minibuffer_window.
+    !> window shows a minibuffer): minibuf.c:Factive_minibuffer_window.
+    !> Port of minibuf.c:Factive_minibuffer_window, in part.
     logical function minibuffer_active_p() result(p)
         integer(int64) :: bi
         type(status_type) :: status
