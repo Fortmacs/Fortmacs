@@ -1,4 +1,4 @@
-! korean_fm.f90 -- the korean coding systems of type `charset'.
+! korean_fm.f90 -- the korean coding systems of type `charset' and `iso-2022'.
 ! Ported from GNU Emacs 31.1 lisp/language/korean.el.
 !
 ! Copyright (C) 1998, 2001-2026 Free Software Foundation, Inc.
@@ -26,7 +26,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The coding systems of type `charset' that korean.el defines, with their
+!> The coding systems of type `charset' and `iso-2022' that korean.el defines, with their
 !> aliases (its other coding systems and its language environments are
 !> Deferred).  A submodule of coding_fm, which defines them when it
 !> starts.
@@ -37,6 +37,31 @@ contains
 
     !> Port of the `charset' coding systems of korean.el.
     module subroutine syms_of_korean()
+        call define_iso_2022_coding_system("korean-iso-8bit", iachar("K"), &
+                                           doc="ISO 2022 based EUC encoding for Korean KSC5601 (MIME:EUC-KR)" &
+                                           //".", &
+                                           initial=[character(len=CHARSET_NAME_LEN) :: "ascii", "korean-ksc5601", "", ""], &
+                                           request_charsets=[character(len=CHARSET_NAME_LEN) :: "korean-ksc5601", "ascii"], &
+                                           request_registers=[integer :: 1, 0], &
+                                           reg_usage=[4, 4], &
+                                           flags=[character(len=16) ::], &
+                                           charsets=[character(len=CHARSET_NAME_LEN) :: "ascii", "korean-ksc5601"], &
+                                           mime_charset="euc-kr")
+        call define_coding_system_alias("euc-kr", "korean-iso-8bit")
+        call define_coding_system_alias("euc-korea", "korean-iso-8bit")
+        call define_coding_system_alias("ks_c_5601-1987", "korean-iso-8bit")
+        call define_iso_2022_coding_system("iso-2022-kr", iachar("k"), &
+                                           doc="ISO 2022 based 7-bit encoding for Korean KSC5601 (MIME:ISO-2" &
+                                           //"022-KR).", &
+                                           initial=[character(len=CHARSET_NAME_LEN) :: "ascii", "", "", ""], &
+                                           request_charsets=[character(len=CHARSET_NAME_LEN) :: "korean-ksc5601", "ascii"], &
+                                           request_registers=[integer :: 1, 0], &
+                                           reg_usage=[4, 4], &
+                                           flags=[character(len=16) :: "ascii-at-eol", "ascii-at-cntl", "7-bit", "designation", &
+                                                  "locking-shift", "designation-bol"], &
+                                           charsets=[character(len=CHARSET_NAME_LEN) :: "ascii", "korean-ksc5601"], &
+                                           mime_charset="iso-2022-kr")
+        call define_coding_system_alias("korean-iso-7bit-lock", "iso-2022-kr")
         call define_charset_coding_system("korean-cp949", iachar("K"), &
                                           charsets=[character(len=CHARSET_NAME_LEN) :: "ascii", "cp949"], &
                                           doc="CP949 (Microsoft Unified Hangul Code)")

@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="520" height="180" viewBox="0 0 520 180" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13">
-<path d="M90 90 L90.00 10.00 A80 80 0 0 1 97.45 10.35 Z" fill="#557D59" stroke="#D6D6D3" stroke-width="1"/>
-<path d="M90 90 L97.45 10.35 A80 80 0 0 1 111.87 13.05 Z" fill="#346A74" stroke="#D6D6D3" stroke-width="1"/>
-<path d="M90 90 L111.87 13.05 A80 80 0 1 1 90.00 10.00 Z" fill="#1A1A1A" stroke="#D6D6D3" stroke-width="1"/>
-<text x="262" y="26" fill="#D6D6D3" text-anchor="end">≅11.12%</text>
+<path d="M90 90 L90.00 10.00 A80 80 0 0 1 97.49 10.35 Z" fill="#557D59" stroke="#D6D6D3" stroke-width="1"/>
+<path d="M90 90 L97.49 10.35 A80 80 0 0 1 111.90 13.06 Z" fill="#346A74" stroke="#D6D6D3" stroke-width="1"/>
+<path d="M90 90 L111.90 13.06 A80 80 0 1 1 90.00 10.00 Z" fill="#1A1A1A" stroke="#D6D6D3" stroke-width="1"/>
+<text x="262" y="26" fill="#D6D6D3" text-anchor="end">≅11.17%</text>
 <rect x="272" y="15" width="14" height="14" rx="2" fill="#557D59" stroke="#D6D6D3" stroke-width="1"/>
 <text x="294" y="26" fill="#D6D6D3">C</text>
-<text x="516" y="26" fill="#D6D6D3" text-anchor="end">950 of 8,547</text>
+<text x="516" y="26" fill="#D6D6D3" text-anchor="end">955 of 8,547</text>
 <text x="262" y="52" fill="#D6D6D3" text-anchor="end">≅3.87%</text>
 <rect x="272" y="41" width="14" height="14" rx="2" fill="#346A74" stroke="#D6D6D3" stroke-width="1"/>
 <text x="294" y="52" fill="#D6D6D3">Elisp</text>
@@ -25,5 +25,5 @@
 <text x="262" y="156" fill="#D6D6D3" text-anchor="end">≅95.59%</text>
 <rect x="272" y="145" width="14" height="14" rx="2" fill="#1A1A1A" stroke="#D6D6D3" stroke-width="1"/>
 <text x="294" y="156" fill="#D6D6D3">Not yet ported</text>
-<text x="516" y="156" fill="#D6D6D3" text-anchor="end">61,179 of 63,999</text>
+<text x="516" y="156" fill="#D6D6D3" text-anchor="end">61,174 of 63,999</text>
 </svg>

@@ -61,6 +61,8 @@ module charset_fm
     public :: charset_range_proc, charset_info_type, syms_of_charset
     public :: charset_id_of, charset_name_of, charset_decode_id, charset_encode_id, charset_dimension_of
     public :: charset_code_space_of, charset_ascii_compatible_of, char_charset_among
+    public :: iso_2022_charset_ids, iso_charset_id, charset_iso_final_of, charset_iso_revision_of
+    public :: charset_iso_chars_96_of
 
     !> The longest charset name the arrays of names hold.
     integer, parameter, public :: CHARSET_NAME_LEN = 32
@@ -1799,6 +1801,49 @@ contains
 
         charset_ascii_compatible_of = charsets(id)%ascii_compatible_p
     end function charset_ascii_compatible_of
+
+    !> The ids of the ISO-2022 charsets in priority order
+    !> (Viso_2022_charset_list).
+    function iso_2022_charset_ids() result(ids)
+        integer, allocatable :: ids(:)
+
+        call syms_of_charset()
+        ids = iso_2022_list
+    end function iso_2022_charset_ids
+
+    !> The id of the charset of ISO's DIMENSION, 96 characters if CHARS_96
+    !> (94 otherwise) and FINAL (0 for none).  Port of
+    !> charset.h:ISO_CHARSET_TABLE.
+    integer function iso_charset_id(dimension, chars_96, final) result(id)
+        integer, intent(in) :: dimension, final
+        logical, intent(in) :: chars_96
+
+        call syms_of_charset()
+        id = 0
+        if (dimension < 1 .or. dimension > 3 .or. final < 0 .or. final > 127) return
+        id = iso_charset_table(dimension, merge(1, 0, chars_96), final)
+    end function iso_charset_id
+
+    !> The ISO final character of charset ID (-1 for none).
+    integer function charset_iso_final_of(id)
+        integer, intent(in) :: id
+
+        charset_iso_final_of = charsets(id)%iso_final
+    end function charset_iso_final_of
+
+    !> The ISO revision number of charset ID (-1 for none).
+    integer function charset_iso_revision_of(id)
+        integer, intent(in) :: id
+
+        charset_iso_revision_of = charsets(id)%iso_revision
+    end function charset_iso_revision_of
+
+    !> Whether charset ID has 96 characters per dimension (ISO).
+    logical function charset_iso_chars_96_of(id)
+        integer, intent(in) :: id
+
+        charset_iso_chars_96_of = charsets(id)%iso_chars_96
+    end function charset_iso_chars_96_of
 
     !> The first of the charsets IDS that contains C, with its code point in
     !> CODE; 0 if none.  Port of charset.c:char_charset with a charset list.
