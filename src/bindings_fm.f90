@@ -58,6 +58,7 @@ module bindings_fm
     use fill_fm, only: syms_of_fill
     use isearch_fm, only: syms_of_isearch
     use window_fm, only: syms_of_window
+    use buffer_fm, only: syms_of_buffer
     use files_fm, only: syms_of_files
     use vc_hooks_fm, only: syms_of_vc_hooks
     use vc_fm, only: syms_of_vc
@@ -297,6 +298,7 @@ contains
         call syms_of_cmds()
         call syms_of_simple()
         call syms_of_window()
+        call syms_of_buffer()
         commands%right_char%run => cmd_right_char
         commands%complete_symbol%run => cmd_complete_symbol
         commands%left_char%run => cmd_left_char

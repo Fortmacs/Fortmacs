@@ -120,6 +120,7 @@ module commands_fm
         type(command_type) :: bookmark_set_no_overwrite
         type(command_type) :: bookmark_write
         type(command_type) :: bookmark_yank_word
+        type(command_type) :: buffer_enable_undo
         type(command_type) :: buffer_menu
         type(command_type) :: buffer_menu_1_window
         type(command_type) :: buffer_menu_2_window
@@ -917,7 +918,9 @@ module commands_fm
         type(command_type) :: set_buffer_process_coding_system
         type(command_type) :: set_fill_column
         type(command_type) :: set_fill_prefix
+        type(command_type) :: set_keyboard_coding_system
         type(command_type) :: set_mark_command
+        type(command_type) :: set_terminal_coding_system
         type(command_type) :: set_variable
         type(command_type) :: sh_add
         type(command_type) :: sh_assignment
@@ -1089,7 +1092,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1050) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1053) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1177,6 +1180,7 @@ module commands_fm
                                                                   "bookmark_set_no_overwrite", &
                                                                   "bookmark_write", &
                                                                   "bookmark_yank_word", &
+                                                                  "buffer_enable_undo", &
                                                                   "buffer_menu", &
                                                                   "buffer_menu_1_window", &
                                                                   "buffer_menu_2_window", &
@@ -1974,7 +1978,9 @@ module commands_fm
                                                                   "set_buffer_process_coding_system", &
                                                                   "set_fill_column", &
                                                                   "set_fill_prefix", &
+                                                                  "set_keyboard_coding_system", &
                                                                   "set_mark_command", &
+                                                                  "set_terminal_coding_system", &
                                                                   "set_variable", &
                                                                   "sh_add", &
                                                                   "sh_assignment", &
@@ -2326,6 +2332,8 @@ contains
             p => commands%bookmark_write
         case ("bookmark_yank_word")
             p => commands%bookmark_yank_word
+        case ("buffer_enable_undo")
+            p => commands%buffer_enable_undo
         case ("buffer_menu")
             p => commands%buffer_menu
         case ("buffer_menu_1_window")
@@ -3920,8 +3928,12 @@ contains
             p => commands%set_fill_column
         case ("set_fill_prefix")
             p => commands%set_fill_prefix
+        case ("set_keyboard_coding_system")
+            p => commands%set_keyboard_coding_system
         case ("set_mark_command")
             p => commands%set_mark_command
+        case ("set_terminal_coding_system")
+            p => commands%set_terminal_coding_system
         case ("set_variable")
             p => commands%set_variable
         case ("sh_add")

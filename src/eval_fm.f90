@@ -47,8 +47,9 @@
 !> friends (no hook uses them yet).
 module eval_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_fm, only: status_type
-    use lisp_fm, only: value_type, nil, command_proc
+    use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_VOID_FUNCTION
+    use lisp_fm, only: value_type, nil, nilp, command_proc, symbolp, symbols, xsymbol
+    use handle_fm, only: handle_type
     use callint_fm, only: funcall, current_prefix_arg
     use buffer_fm, only: buffers, cur
     use minibuf_table_fm, only: capf_data_type
@@ -58,6 +59,7 @@ module eval_fm
     public :: funcall_noargs, kill_local_hooks
     public :: change_function, after_change_function, position_function, region_function, region_entry_type
     public :: string_function, string_filter_function, capf_function, capf_entry_type
+    public :: overlay_change_function, call_property_function, call_overlay_change_function
 
     !> The value `current_prefix_arg' had where the normal hook whose
     !> function is running was run.  The functions of a normal hook run
@@ -141,6 +143,22 @@ module eval_fm
             type(capf_data_type), intent(out) :: data
             type(status_type), intent(out) :: status
         end subroutine capf_function
+
+        !> A function named by an overlay's `modification_hooks',
+        !> `insert_in_front_hooks' or `insert_behind_hooks' property:
+        !> OVERLAY is the overlay, AFTER false before the change and true
+        !> after it, BEG and END the bounds of the change, and OLD_LEN
+        !> (present only after the change) the length of the text it
+        !> replaced.  Not a port.
+        recursive subroutine overlay_change_function(overlay, after, beg, end, status, old_len)
+            import :: handle_type, int64, status_type
+            implicit none(type, external)
+            type(handle_type), intent(in) :: overlay
+            logical, intent(in) :: after
+            integer(int64), intent(in) :: beg, end
+            type(status_type), intent(out) :: status
+            integer(int64), intent(in), optional :: old_len
+        end subroutine overlay_change_function
     end interface
 
     !> A function of a `capf_hook_type' hook, as `capf_hook_functions'
@@ -345,6 +363,53 @@ module eval_fm
     !> The function `kill_all_local_variables' runs this before doing
     !> anything else.  Port of buffer.c change-major-mode-hook.
     type(hook_type), public, target :: change_major_mode_hook = hook_type(name="change_major_mode_hook")
+
+    !> Hook run when the buffer list changes.
+    !> Functions (implicitly) running this hook are `get_buffer_create',
+    !> `make_indirect_buffer', `rename_buffer', `kill_buffer', `bury_buffer'
+    !> and `select_window'.  This hook is not run for internal or temporary
+    !> buffers created by `get_buffer_create' or `generate_new_buffer' with
+    !> argument INHIBIT_BUFFER_HOOKS true.
+    !>
+    !> Functions run by this hook should avoid calling `select_window' with a
+    !> false NORECORD argument since it may lead to infinite recursion.
+    !> Port of buffer.c buffer-list-update-hook.
+    type(hook_type), public, target :: buffer_list_update_hook = hook_type(name="buffer_list_update_hook")
+
+    !> A function that text properties and overlay properties name with a
+    !> symbol: the hooks of the `modification_hooks',
+    !> `insert_in_front_hooks', `insert_behind_hooks', `point_entered' and
+    !> `point_left' properties.  Upstream such a property holds functions
+    !> (symbols with a function cell); here the symbol's name must be that
+    !> of a defined property function, which gives the procedure:
+    !> `positions' for the functions taking two positions (the text
+    !> property hooks, called with the bounds of the change or the old
+    !> and new point), `overlay_change' for those of overlays.  Define one
+    !> as a `target' variable:
+    !>
+    !>     type(property_function_type), target :: my_freeze
+    !>     my_freeze = property_function_type("my_freeze", overlay_change=my_freeze_proc)
+    !>     call my_freeze%define()
+    type, public :: property_function_type
+        !> The symbol's name.
+        character(len=:), allocatable :: name
+        !> The procedure taking two positions, or null.
+        procedure(change_function), pointer, nopass :: positions => null()
+        !> The procedure taking an overlay, or null.
+        procedure(overlay_change_function), pointer, nopass :: overlay_change => null()
+    contains
+        !> Make the function known by its name.
+        procedure :: define => define_property_function
+    end type property_function_type
+
+    !> The pointer to a defined property function.
+    type :: property_function_ref_type
+        type(property_function_type), pointer :: p => null()
+    end type property_function_ref_type
+
+    !> Property functions defined with `define'.
+    type(property_function_ref_type), allocatable :: property_functions(:)
+    integer :: n_property_functions = 0
 
 contains
 
@@ -1442,4 +1507,106 @@ contains
         e%string_filter_fn => fn
         found = self%member_entry(e)
     end function string_filter_hook_member
+
+    ! ------------------------------------------------------------------
+    ! Property functions
+    ! ------------------------------------------------------------------
+
+    !> Make property function SELF known by its name (replacing an earlier
+    !> one of the same name).  Not a port.
+    subroutine define_property_function(self)
+        class(property_function_type), target, intent(inout) :: self
+        type(property_function_ref_type), allocatable :: grown(:)
+        integer :: i
+
+        do i = 1, n_property_functions
+            if (property_functions(i)%p%name == self%name .and. &
+                len(property_functions(i)%p%name) == len(self%name)) then
+                property_functions(i)%p => self
+                return
+            end if
+        end do
+
+        if (.not. allocated(property_functions)) allocate (property_functions(16))
+
+        if (n_property_functions == size(property_functions)) then
+            allocate (grown(2*n_property_functions))
+            grown(1:n_property_functions) = property_functions
+            call move_alloc(grown, property_functions)
+        end if
+
+        n_property_functions = n_property_functions + 1
+        property_functions(n_property_functions)%p => self
+    end subroutine define_property_function
+
+    !> The property function that FN (a symbol) names, or null; STATUS is
+    !> `void_function' (or `invalid_function' for a non-symbol) when there
+    !> is none.  Not a port.
+    function property_function(fn, status) result(p)
+        type(value_type), intent(in) :: fn
+        type(status_type), intent(out) :: status
+        type(property_function_type), pointer :: p
+        character(len=:), allocatable :: name
+        integer :: i
+
+        p => null()
+
+        if (.not. symbolp(fn) .or. nilp(fn)) then
+            call set_error(status, FM_GENERIC_ERROR, "Invalid function")
+            return
+        end if
+
+        name = symbols(xsymbol(fn))%name
+
+        do i = n_property_functions, 1, -1
+            if (property_functions(i)%p%name == name .and. len(property_functions(i)%p%name) == len(name)) then
+                p => property_functions(i)%p
+                return
+            end if
+        end do
+
+        call set_error(status, FM_VOID_FUNCTION, name)
+    end function property_function
+
+    !> Call the property function FN (a symbol) with the positions A and B.
+    !> Port of eval.c:Ffuncall (for a property function of two positions).
+    recursive subroutine call_property_function(fn, a, b, status)
+        type(value_type), intent(in) :: fn
+        integer(int64), intent(in) :: a, b
+        type(status_type), intent(out) :: status
+        type(property_function_type), pointer :: p
+
+        p => property_function(fn, status)
+        if (.not. associated(p)) return
+
+        if (.not. associated(p%positions)) then
+            call set_error(status, FM_GENERIC_ERROR, "Wrong number of arguments: "//p%name//", 2")
+            return
+        end if
+
+        call p%positions(a, b, status)
+    end subroutine call_property_function
+
+    !> Call the property function FN (a symbol) with OVERLAY, AFTER, BEG,
+    !> END and, if present, OLD_LEN.  Port of eval.c:Ffuncall (for the
+    !> functions of overlay properties).
+    recursive subroutine call_overlay_change_function(fn, overlay, after, beg, end, status, old_len)
+        type(value_type), intent(in) :: fn
+        type(handle_type), intent(in) :: overlay
+        logical, intent(in) :: after
+        integer(int64), intent(in) :: beg, end
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: old_len
+        type(property_function_type), pointer :: p
+
+        p => property_function(fn, status)
+        if (.not. associated(p)) return
+
+        if (.not. associated(p%overlay_change)) then
+            call set_error(status, FM_GENERIC_ERROR, "Wrong number of arguments: "//p%name)
+            return
+        end if
+
+        call p%overlay_change(overlay, after, beg, end, status, old_len)
+    end subroutine call_overlay_change_function
 end module eval_fm

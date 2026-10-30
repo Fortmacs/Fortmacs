@@ -78,10 +78,11 @@ module keyboard_fm
     use itree_fm, only: overlay_start, overlay_end, overlay_get
     use editfns_fm, only: goto_char
     use timer_fm, only: timer_check, timer_start_idle, timer_stop_idle, timers_run, timer_error_message
+    use coding_fm, only: keyboard_coding_system, coding_system_type, decode_coding_string
     implicit none(type, external)
     private
 
-    public :: set_input_meta_mode, set_input_fd, kbd_store_bytes, &
+    public :: current_input_meta_mode, set_input_meta_mode, set_input_fd, kbd_store_bytes, &
               tty_read_avail_input, unread_command_events, &
               discard_input, input_pending_p, read_event, unread_command_events_p
     public :: read_key_sequence, command_loop_step, command_loop, &
@@ -152,6 +153,8 @@ module keyboard_fm
     integer(int32) :: input_fd = -1
     !> Bytes of an incomplete UTF-8 sequence.
     character(len=:), allocatable :: pending_bytes
+    ! Bytes of an incomplete sequence in the keyboard coding system.
+    character(len=:), allocatable :: pending_encoded
 
     !> The event queue (keyboard.c:kbd_buffer): events(head:tail).
     type(value_type), allocatable :: events(:)
@@ -561,6 +564,13 @@ contains
         meta_key = mode
     end subroutine set_input_meta_mode
 
+    !> The META element of `current_input_mode': 0 (nil: the 8th bit is
+    !> stripped), 1 (t: it is Meta) or 2 (encoded: bytes go on to keyboard
+    !> decoding).  Port of the META part of keyboard.c:Fcurrent_input_mode.
+    integer function current_input_meta_mode()
+        current_input_meta_mode = meta_key
+    end function current_input_meta_mode
+
     !> Read keyboard input from `fd' (-1 for none).  Not a port.
     subroutine set_input_fd(fd)
         integer(int32), intent(in) :: fd
@@ -658,6 +668,57 @@ contains
         end if
     end subroutine decode_byte
 
+    ! Decode the byte B of keyboard input with the keyboard coding system
+    ! (`set_keyboard_coding_system').  Port of
+    ! keyboard.c:read_decoded_event_from_main_queue, in part.
+    subroutine decode_keyboard_byte(b)
+        integer(int32), intent(in) :: b
+        character(len=:), allocatable :: coding, text
+        type(status_type) :: st
+        integer(int64) :: k
+        integer(int32) :: ch, length
+
+        coding = keyboard_coding_system()
+
+        select case (coding_system_type(coding))
+        case ("utf-8", "undecided")
+            call decode_byte(b)
+        case ("raw-text")
+            ! No decoding needed.
+            call store_char(int(b, int64))
+        case default
+            ! An encoded byte sequence, let's try to decode it.
+            if (allocated(pending_encoded)) then
+                pending_encoded = pending_encoded//char(b)
+            else
+                pending_encoded = char(b)
+            end if
+
+            call decode_coding_string(pending_encoded, coding, text, st)
+
+            if (.not. st%ok() .or. len(text) == 0) then
+                ! The encoded sequence is incomplete: read on, unless it is
+                ! too long (MAX_ENCODED_BYTES).
+                if (len(pending_encoded) < 16) return
+                text = ""
+
+                do k = 1, len(pending_encoded, kind=int64)
+                    call store_char(int(ichar(pending_encoded(k:k), int32), int64))
+                end do
+            end if
+
+            k = 1
+
+            do while (k <= len(text, kind=int64))
+                call string_char_and_length(text, k, ch, length)
+                call store_char(int(ch, int64))
+                k = k + length
+            end do
+
+            deallocate (pending_encoded)
+        end select
+    end subroutine decode_keyboard_byte
+
     !> Turn terminal input `bytes' into events.  Port of
     !> keyboard.c:tty_read_avail_input (the per-byte part).
     subroutine kbd_store_bytes(bytes)
@@ -676,7 +737,7 @@ contains
                     call store_char(int(b, int64))
                 end if
             case (2)
-                call decode_byte(b)
+                call decode_keyboard_byte(b)
             case default
                 call store_char(int(iand(b, 127_int32), int64))
             end select

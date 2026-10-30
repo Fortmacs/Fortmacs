@@ -343,6 +343,7 @@ insert_default_directory
 insert_directory_program
 isearch_lax_whitespace
 jit_lock_chunk_size
+keyboard_coding_system
 kill_read_only_ok
 kill_ring_max
 kill_whole_line

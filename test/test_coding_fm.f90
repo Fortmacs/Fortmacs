@@ -52,8 +52,12 @@ module test_coding_fm
                          coding_system_for_write, last_coding_system_used, buffer_file_coding_system, &
                          inhibit_eol_conversion, EOL_UNIX, EOL_DOS, EOL_MAC, EOL_UNDECIDED
     use mule_fm, only: find_auto_coding, set_buffer_file_coding_system, prefer_coding_system, describe_coding_system, &
-                       set_buffer_process_coding_system
-    use keyboard_fm, only: kbd_store_bytes, command_loop, discard_input
+                       set_buffer_process_coding_system, set_terminal_coding_system, set_keyboard_coding_system
+    use coding_fm, only: terminal_coding_system, keyboard_coding_system
+    use term_fm, only: encode_terminal_code
+    use dispextern_fm, only: glyph_type
+    use lisp_fm, only: value_type, xfixnum
+    use keyboard_fm, only: kbd_store_bytes, command_loop, discard_input, read_event
     implicit none(type, external)
     private
 
@@ -85,7 +89,8 @@ contains
                     new_unittest("mode-line-mule-info", test_mode_line), &
                     new_unittest("prefer-coding-system", test_prefer), &
                     new_unittest("describe-coding-system", test_describe), &
-                    new_unittest("universal-coding-system-argument", test_universal_coding_system_argument) &
+                    new_unittest("universal-coding-system-argument", test_universal_coding_system_argument), &
+                    new_unittest("terminal-keyboard-coding", test_terminal_keyboard_coding) &
                     ]
     end subroutine collect_coding_fm
 
@@ -851,4 +856,54 @@ contains
         call kill_buffer(old, st)
         call remove_files(["utf8.txt"])
     end subroutine test_universal_coding_system_argument
+
+    !> C-x RET t: the terminal output is encoded with the terminal coding
+    !> system ("?" for what it can't encode).  C-x RET k: keyboard input is
+    !> decoded with the keyboard coding system.
+    subroutine test_terminal_keyboard_coding(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(glyph_type) :: glyphs(3)
+        type(value_type) :: ev
+        type(status_type) :: st
+        logical :: have
+
+        call setup()
+        call set_terminal_coding_system("iso-latin-1-unix", st, inhibit_refresh=.true.)
+        call check(error, terminal_coding_system(), "iso-latin-1-unix")
+
+        if (.not. allocated(error)) then
+            glyphs(1)%ch = iachar("a")
+            glyphs(2)%ch = 233
+            glyphs(3)%ch = int(z'20AC')
+            call check(error, encode_terminal_code(glyphs), "a"//char(233)//"?")
+        end if
+
+        call set_terminal_coding_system("utf-8-unix", st, inhibit_refresh=.true.)
+        if (.not. allocated(error)) call check(error, encode_terminal_code(glyphs), "aé€")
+
+        if (.not. allocated(error)) then
+            call set_keyboard_coding_system("iso-latin-1", st)
+            call check(error, keyboard_coding_system(), "iso-latin-1-unix")
+        end if
+
+        if (.not. allocated(error)) then
+            call discard_input()
+            call kbd_store_bytes(char(233))
+            call read_event(ev, have, st)
+            call check(error, have .and. xfixnum(ev) == 233, "é from Latin-1")
+        end if
+
+        call set_keyboard_coding_system("utf-8", st)
+
+        if (.not. allocated(error)) then
+            call kbd_store_bytes("é")
+            call read_event(ev, have, st)
+            call check(error, have .and. xfixnum(ev) == 233, "é from UTF-8")
+        end if
+
+        if (.not. allocated(error)) then
+            call set_keyboard_coding_system("", st)
+            call check(error, format_error(st), "Unsuitable coding system for keyboard: nil")
+        end if
+    end subroutine test_terminal_keyboard_coding
 end module test_coding_fm

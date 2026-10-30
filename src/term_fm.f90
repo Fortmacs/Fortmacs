@@ -50,6 +50,7 @@ module term_fm
                              TTY_CAP_STRIKE_THROUGH
     use keymap_fm, only: make_sparse_keymap, define_key, keymap_live_p
     use keyboard_fm, only: input_decode_map
+    use coding_fm, only: terminal_coding_system, coding_system_type, encode_coding_string, char_encodable_p
     use sysdep_fm, only: get_tty_size, tabs_safe_p, init_sys_modes, &
                          reset_sys_modes
     implicit none(type, external)
@@ -866,19 +867,55 @@ contains
     ! Glyphs
     ! ------------------------------------------------------------------
 
-    !> The bytes that show `glyphs' on a UTF-8 terminal; padding glyphs
-    !> (the rest of a wide character) produce nothing.  Port of
-    !> term.c:encode_terminal_code for the UTF-8 terminal coding system.
+    !> The bytes that show `glyphs' on the terminal, encoded with the
+    !> terminal coding system (`set_terminal_coding_system'); padding
+    !> glyphs (the rest of a wide character) produce nothing.  Port of
+    !> term.c:encode_terminal_code (no composition, display table glyph
+    !> strings or terminal-specific charset lists).
     function encode_terminal_code(glyphs) result(bytes)
         type(glyph_type), intent(in) :: glyphs(:)
         character(len=:), allocatable :: bytes
         character(len=MAX_MULTIBYTE_LENGTH) :: buf
+        character(len=:), allocatable :: coding, text
         integer(int32) :: n
+        logical :: unencodable
         type(status_type) :: status
         integer :: k
 
         bytes = ""
+        coding = terminal_coding_system()
 
+        if (len(coding) > 0) then
+            if (coding_system_type(coding) /= "utf-8") then
+                ! The text in the internal representation, encoded.
+                text = ""
+                unencodable = .false.
+
+                do k = 1, size(glyphs)
+                    if (glyphs(k)%padding) then
+                        ! The rest of a wide character it can't encode.
+                        if (unencodable) text = text//"?"
+                        cycle
+                    end if
+
+                    unencodable = .not. char_encodable_p(int(glyphs(k)%ch), coding)
+
+                    if (unencodable) then
+                        ! C is not encodable.
+                        text = text//"?"
+                    else
+                        call char_string(glyphs(k)%ch, buf, n, status)
+                        if (status%ok()) text = text//buf(1:n)
+                    end if
+                end do
+
+                call encode_coding_string(text, coding, bytes, status)
+                if (.not. status%ok()) bytes = text
+                return
+            end if
+        end if
+
+        ! UTF-8, or no terminal coding system: the internal representation.
         do k = 1, size(glyphs)
             if (glyphs(k)%padding) cycle
 
