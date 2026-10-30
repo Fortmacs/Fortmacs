@@ -194,201 +194,201 @@ module mule_fm
     !> language name, the coding system comes from the locale's codeset or
     !> from `locale_preferred_coding_systems'.
     type(locale_entry_type), public :: locale_language_names(194) = [ &
-                                   locale_entry_type(regexp="aa_DJ", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="aa", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="af", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="am", language="Ethiopic", coding="utf-8"), &
-                                   locale_entry_type(regexp="an", language="Latin-9", coding=""), &
-                                   locale_entry_type(regexp="arn", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="ar", language="Arabic", coding=""), &
-                                   locale_entry_type(regexp="as", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="az", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="ba", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="be", language="Belarusian", coding="cp1251"), &
-                                   locale_entry_type(regexp="bg", language="Bulgarian", coding="cp1251"), &
-                                   locale_entry_type(regexp="bn", language="Bengali", coding="utf-8"), &
-                                   locale_entry_type(regexp="bo", language="Tibetan", coding=""), &
-                                   locale_entry_type(regexp="br", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="bs", language="Latin-2", coding=""), &
-                                   locale_entry_type(regexp="byn", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="ca", language="Catalan", coding="iso-8859-1"), &
-                                   locale_entry_type(regexp="co", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="cs", language="Czech", coding="iso-8859-2"), &
-                                   locale_entry_type(regexp="cy", language="Welsh", coding="iso-8859-14"), &
-                                   locale_entry_type(regexp="da", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="de", language="German", coding="iso-8859-1"), &
-                                   locale_entry_type(regexp="dv", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="ee", language="Latin-4", coding=""), &
-                                   locale_entry_type(regexp="el", language="Greek", coding="iso-8859-7"), &
-                                   locale_entry_type(regexp="en_IN", language="English", coding="utf-8"), &
-                                   locale_entry_type(regexp="en", language="English", coding="iso-8859-1"), &
-                                   locale_entry_type(regexp="eo", language="Esperanto", coding=""), &
-                                   locale_entry_type(regexp="es", language="Spanish", coding="iso-8859-1"), &
-                                   locale_entry_type(regexp="et", language="Latin-9", coding=""), &
-                                   locale_entry_type(regexp="eu", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="fa", language="Persian", coding="utf-8"), &
-                                   locale_entry_type(regexp="fil", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="fpo", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="fi", language="Latin-9", coding=""), &
-                                   locale_entry_type(regexp="fj", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="fo", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="fr", language="French", coding="iso-8859-1"), &
-                                   locale_entry_type(regexp="fy", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="ga", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="gd", language="Latin-9", coding=""), &
-                                   locale_entry_type(regexp="gez", language="Ethiopic", coding="utf-8"), &
-                                   locale_entry_type(regexp="gla", language="Latin-9", coding=""), &
-                                   locale_entry_type(regexp="gl", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="gu", language="Gujarati", coding="utf-8"), &
-                                   locale_entry_type(regexp="gv", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="he", language="Hebrew", coding="iso-8859-8"), &
-                                   locale_entry_type(regexp="hi", language="Devanagari", coding="utf-8"), &
-                                   locale_entry_type(regexp="hni_IN", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="hr", language="Croatian", coding="iso-8859-2"), &
-                                   locale_entry_type(regexp="hu", language="Latin-2", coding=""), &
-                                   locale_entry_type(regexp="hy", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="id", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="ig", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="ibo", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="is", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="it", language="Italian", coding="iso-8859-1"), &
-                                   locale_entry_type(regexp="iw", language="Hebrew", coding="iso-8859-8"), &
-                                   locale_entry_type(regexp="ja", language="Japanese", coding="euc-jp"), &
-                                   locale_entry_type(regexp="kal", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="ka", language="Georgian", coding="georgian-ps"), &
-                                   locale_entry_type(regexp="kk", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="kl", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="km", language="Khmer", coding="utf-8"), &
-                                   locale_entry_type(regexp="knk", language="Devanagari", coding="utf-8"), &
-                                   locale_entry_type(regexp="kok", language="Devanagari", coding="utf-8"), &
-                                   locale_entry_type(regexp="kn", language="Kannada", coding="utf-8"), &
-                                   locale_entry_type(regexp="ko", language="Korean", coding="euc-kr"), &
-                                   locale_entry_type(regexp="ks", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="kw", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="ky", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="lao", language="Lao", coding="utf-8"), &
-                                   locale_entry_type(regexp="la", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="lb", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="lg", language="Latin-6", coding=""), &
-                                   locale_entry_type(regexp="lo", language="Lao", coding="utf-8"), &
-                                   locale_entry_type(regexp="lt", language="Lithuanian", coding="iso-8859-13"), &
-                                   locale_entry_type(regexp="lv", language="Latvian", coding="iso-8859-13"), &
-                                   locale_entry_type(regexp="mi", language="Latin-7", coding=""), &
-                                   locale_entry_type(regexp="mk", language="Cyrillic-ISO", coding="iso-8859-5"), &
-                                   locale_entry_type(regexp="mlt", language="Latin-3", coding=""), &
-                                   locale_entry_type(regexp="ml", language="Malayalam", coding="utf-8"), &
-                                   locale_entry_type(regexp="mn", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="mri", language="Latin-7", coding=""), &
-                                   locale_entry_type(regexp="mr", language="Devanagari", coding="utf-8"), &
-                                   locale_entry_type(regexp="ms", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="mt", language="Latin-3", coding=""), &
-                                   locale_entry_type(regexp="mym", language="Malayalam", coding="utf-8"), &
-                                   locale_entry_type(regexp="my", language="Burmese", coding="utf-8"), &
-                                   locale_entry_type(regexp="nb", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="ne", language="Devanagari", coding="utf-8"), &
-                                   locale_entry_type(regexp="nl", language="Dutch", coding="iso-8859-1"), &
-                                   locale_entry_type(regexp="nn", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="non", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="no", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="nr_ZA", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="nso_ZA", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="oc", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="om_ET", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="om", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="or", language="Oriya", coding="utf-8"), &
-                                   locale_entry_type(regexp="pa", language="Punjabi", coding="utf-8"), &
-                                   locale_entry_type(regexp="pl", language="Polish", coding="iso-8859-2"), &
-                                   locale_entry_type(regexp="ps", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="pas", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="pt_BR", language="Brazilian Portuguese", coding="iso-8859-1"), &
-                                   locale_entry_type(regexp="pt", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="rm", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="ro", language="Romanian", coding="iso-8859-2"), &
-                                   locale_entry_type(regexp="ru_RU.koi8r", language="Cyrillic-KOI8", coding="koi8-r"), &
-                                   locale_entry_type(regexp="ru_RU", language="Russian", coding="iso-8859-5"), &
-                                   locale_entry_type(regexp="ru_UA", language="Russian", coding="koi8-u"), &
-                                   locale_entry_type(regexp="rw", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="sa", language="Devanagari", coding=""), &
-                                   locale_entry_type(regexp="se", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="sh", language="Latin-2", coding=""), &
-                                   locale_entry_type(regexp="si", language="Sinhala", coding="utf-8"), &
-                                   locale_entry_type(regexp="sid", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="sk", language="Slovak", coding="iso-8859-2"), &
-                                   locale_entry_type(regexp="sl", language="Slovenian", coding="iso-8859-2"), &
-                                   locale_entry_type(regexp="so_ET", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="so", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="sq", language="Latin-2", coding=""), &
-                                   locale_entry_type(regexp="sr", language="Latin-2", coding=""), &
-                                   locale_entry_type(regexp="st", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="sv", language="Swedish", coding="iso-8859-1"), &
-                                   locale_entry_type(regexp="sw", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="taj", language="Tajik", coding="koi8-t"), &
-                                   locale_entry_type(regexp="ta", language="Tamil", coding="utf-8"), &
-                                   locale_entry_type(regexp="te", language="Telugu", coding="utf-8"), &
-                                   locale_entry_type(regexp="tg", language="Tajik", coding="koi8-t"), &
-                                   locale_entry_type(regexp="th_TH.tis620", language="Thai", coding="tis-620"), &
-                                   locale_entry_type(regexp="th_TH.TIS-620", language="Thai", coding="tis-620"), &
-                                   locale_entry_type(regexp="th_TH", language="Thai", coding="iso-8859-11"), &
-                                   locale_entry_type(regexp="th", language="Thai", coding="iso-8859-11"), &
-                                   locale_entry_type(regexp="ti", language="Ethiopic", coding="utf-8"), &
-                                   locale_entry_type(regexp="tig_ER", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="tk", language="Latin-5", coding=""), &
-                                   locale_entry_type(regexp="tuk", language="Latin-5", coding=""), &
-                                   locale_entry_type(regexp="tl", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="tn", language="Latin-9", coding=""), &
-                                   locale_entry_type(regexp="tr", language="Turkish", coding="iso-8859-9"), &
-                                   locale_entry_type(regexp="tsn", language="Latin-9", coding=""), &
-                                   locale_entry_type(regexp="ts", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="tt", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="ug", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="uk", language="Ukrainian", coding="koi8-u"), &
-                                   locale_entry_type(regexp="ur", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="uz_UZ@cyrillic", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="uz", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="ve", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="vi", language="Vietnamese", coding="utf-8"), &
-                                   locale_entry_type(regexp="wa", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="wo", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="xh", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="yi", language="Windows-1255", coding=""), &
-                                   locale_entry_type(regexp="yo", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="zh_HK", language="Chinese-Big5", coding=""), &
-                                   locale_entry_type(regexp="zh_TW", language="Chinese-Big5", coding=""), &
-                                   locale_entry_type(regexp="zh_CN.GB2312", language="Chinese-GB", coding=""), &
-                                   locale_entry_type(regexp="zh_CN.GBK", language="Chinese-GBK", coding=""), &
-                                   locale_entry_type(regexp="zh_CN.GB18030", language="Chinese-GB18030", coding=""), &
-                                   locale_entry_type(regexp="zh_CN.UTF-8", language="Chinese-GBK", coding=""), &
-                                   locale_entry_type(regexp="zh_CN", language="Chinese-GB", coding=""), &
-                                   locale_entry_type(regexp="zhh", language="Chinese-Big5", coding=""), &
-                                   locale_entry_type(regexp="zhi", language="Chinese-GBK", coding=""), &
-                                   locale_entry_type(regexp="zhm", language="Chinese-Big5", coding=""), &
-                                   locale_entry_type(regexp="zh", language="Chinese-GB", coding=""), &
-                                   locale_entry_type(regexp="zu", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="c$", language="ASCII", coding=""), &
-                                   locale_entry_type(regexp="posix$", language="ASCII", coding=""), &
-                                   locale_entry_type(regexp="ipa$", language="IPA", coding=""), &
-                                   locale_entry_type(regexp="cz", language="Czech", coding=""), &
-                                   locale_entry_type(regexp="iw", language="Hebrew", coding=""), &
-                                   locale_entry_type(regexp="sp", language="Cyrillic-ISO", coding=""), &
-                                   locale_entry_type(regexp="su", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="jp", language="Japanese", coding=""), &
-                                   locale_entry_type(regexp="chs", language="Chinese-GBK", coding=""), &
-                                   locale_entry_type(regexp="cht", language="Chinese-BIG5", coding=""), &
-                                   locale_entry_type(regexp="gbz", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="div", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="wee", language="Latin-2", coding=""), &
-                                   locale_entry_type(regexp="wen", language="Latin-2", coding=""), &
-                                   locale_entry_type(regexp="ind", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="sme", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="smf", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="smg", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="kdi", language="Kannada", coding="utf-8"), &
-                                   locale_entry_type(regexp="mar", language="Devanagari", coding="utf-8"), &
-                                   locale_entry_type(regexp="khm", language="Khmer", coding="utf-8"), &
-                                   locale_entry_type(regexp="iri", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp="uig", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp="kin", language="UTF-8", coding="") &
-                                   ]
+                                       locale_entry_type(regexp="aa_DJ", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="aa", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="af", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="am", language="Ethiopic", coding="utf-8"), &
+                                       locale_entry_type(regexp="an", language="Latin-9", coding=""), &
+                                       locale_entry_type(regexp="arn", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="ar", language="Arabic", coding=""), &
+                                       locale_entry_type(regexp="as", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="az", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="ba", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="be", language="Belarusian", coding="cp1251"), &
+                                       locale_entry_type(regexp="bg", language="Bulgarian", coding="cp1251"), &
+                                       locale_entry_type(regexp="bn", language="Bengali", coding="utf-8"), &
+                                       locale_entry_type(regexp="bo", language="Tibetan", coding=""), &
+                                       locale_entry_type(regexp="br", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="bs", language="Latin-2", coding=""), &
+                                       locale_entry_type(regexp="byn", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="ca", language="Catalan", coding="iso-8859-1"), &
+                                       locale_entry_type(regexp="co", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="cs", language="Czech", coding="iso-8859-2"), &
+                                       locale_entry_type(regexp="cy", language="Welsh", coding="iso-8859-14"), &
+                                       locale_entry_type(regexp="da", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="de", language="German", coding="iso-8859-1"), &
+                                       locale_entry_type(regexp="dv", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="ee", language="Latin-4", coding=""), &
+                                       locale_entry_type(regexp="el", language="Greek", coding="iso-8859-7"), &
+                                       locale_entry_type(regexp="en_IN", language="English", coding="utf-8"), &
+                                       locale_entry_type(regexp="en", language="English", coding="iso-8859-1"), &
+                                       locale_entry_type(regexp="eo", language="Esperanto", coding=""), &
+                                       locale_entry_type(regexp="es", language="Spanish", coding="iso-8859-1"), &
+                                       locale_entry_type(regexp="et", language="Latin-9", coding=""), &
+                                       locale_entry_type(regexp="eu", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="fa", language="Persian", coding="utf-8"), &
+                                       locale_entry_type(regexp="fil", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="fpo", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="fi", language="Latin-9", coding=""), &
+                                       locale_entry_type(regexp="fj", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="fo", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="fr", language="French", coding="iso-8859-1"), &
+                                       locale_entry_type(regexp="fy", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="ga", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="gd", language="Latin-9", coding=""), &
+                                       locale_entry_type(regexp="gez", language="Ethiopic", coding="utf-8"), &
+                                       locale_entry_type(regexp="gla", language="Latin-9", coding=""), &
+                                       locale_entry_type(regexp="gl", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="gu", language="Gujarati", coding="utf-8"), &
+                                       locale_entry_type(regexp="gv", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="he", language="Hebrew", coding="iso-8859-8"), &
+                                       locale_entry_type(regexp="hi", language="Devanagari", coding="utf-8"), &
+                                       locale_entry_type(regexp="hni_IN", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="hr", language="Croatian", coding="iso-8859-2"), &
+                                       locale_entry_type(regexp="hu", language="Latin-2", coding=""), &
+                                       locale_entry_type(regexp="hy", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="id", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="ig", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="ibo", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="is", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="it", language="Italian", coding="iso-8859-1"), &
+                                       locale_entry_type(regexp="iw", language="Hebrew", coding="iso-8859-8"), &
+                                       locale_entry_type(regexp="ja", language="Japanese", coding="euc-jp"), &
+                                       locale_entry_type(regexp="kal", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="ka", language="Georgian", coding="georgian-ps"), &
+                                       locale_entry_type(regexp="kk", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="kl", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="km", language="Khmer", coding="utf-8"), &
+                                       locale_entry_type(regexp="knk", language="Devanagari", coding="utf-8"), &
+                                       locale_entry_type(regexp="kok", language="Devanagari", coding="utf-8"), &
+                                       locale_entry_type(regexp="kn", language="Kannada", coding="utf-8"), &
+                                       locale_entry_type(regexp="ko", language="Korean", coding="euc-kr"), &
+                                       locale_entry_type(regexp="ks", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="kw", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="ky", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="lao", language="Lao", coding="utf-8"), &
+                                       locale_entry_type(regexp="la", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="lb", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="lg", language="Latin-6", coding=""), &
+                                       locale_entry_type(regexp="lo", language="Lao", coding="utf-8"), &
+                                       locale_entry_type(regexp="lt", language="Lithuanian", coding="iso-8859-13"), &
+                                       locale_entry_type(regexp="lv", language="Latvian", coding="iso-8859-13"), &
+                                       locale_entry_type(regexp="mi", language="Latin-7", coding=""), &
+                                       locale_entry_type(regexp="mk", language="Cyrillic-ISO", coding="iso-8859-5"), &
+                                       locale_entry_type(regexp="mlt", language="Latin-3", coding=""), &
+                                       locale_entry_type(regexp="ml", language="Malayalam", coding="utf-8"), &
+                                       locale_entry_type(regexp="mn", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="mri", language="Latin-7", coding=""), &
+                                       locale_entry_type(regexp="mr", language="Devanagari", coding="utf-8"), &
+                                       locale_entry_type(regexp="ms", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="mt", language="Latin-3", coding=""), &
+                                       locale_entry_type(regexp="mym", language="Malayalam", coding="utf-8"), &
+                                       locale_entry_type(regexp="my", language="Burmese", coding="utf-8"), &
+                                       locale_entry_type(regexp="nb", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="ne", language="Devanagari", coding="utf-8"), &
+                                       locale_entry_type(regexp="nl", language="Dutch", coding="iso-8859-1"), &
+                                       locale_entry_type(regexp="nn", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="non", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="no", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="nr_ZA", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="nso_ZA", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="oc", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="om_ET", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="om", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="or", language="Oriya", coding="utf-8"), &
+                                       locale_entry_type(regexp="pa", language="Punjabi", coding="utf-8"), &
+                                       locale_entry_type(regexp="pl", language="Polish", coding="iso-8859-2"), &
+                                       locale_entry_type(regexp="ps", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="pas", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="pt_BR", language="Brazilian Portuguese", coding="iso-8859-1"), &
+                                       locale_entry_type(regexp="pt", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="rm", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="ro", language="Romanian", coding="iso-8859-2"), &
+                                       locale_entry_type(regexp="ru_RU.koi8r", language="Cyrillic-KOI8", coding="koi8-r"), &
+                                       locale_entry_type(regexp="ru_RU", language="Russian", coding="iso-8859-5"), &
+                                       locale_entry_type(regexp="ru_UA", language="Russian", coding="koi8-u"), &
+                                       locale_entry_type(regexp="rw", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="sa", language="Devanagari", coding=""), &
+                                       locale_entry_type(regexp="se", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="sh", language="Latin-2", coding=""), &
+                                       locale_entry_type(regexp="si", language="Sinhala", coding="utf-8"), &
+                                       locale_entry_type(regexp="sid", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="sk", language="Slovak", coding="iso-8859-2"), &
+                                       locale_entry_type(regexp="sl", language="Slovenian", coding="iso-8859-2"), &
+                                       locale_entry_type(regexp="so_ET", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="so", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="sq", language="Latin-2", coding=""), &
+                                       locale_entry_type(regexp="sr", language="Latin-2", coding=""), &
+                                       locale_entry_type(regexp="st", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="sv", language="Swedish", coding="iso-8859-1"), &
+                                       locale_entry_type(regexp="sw", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="taj", language="Tajik", coding="koi8-t"), &
+                                       locale_entry_type(regexp="ta", language="Tamil", coding="utf-8"), &
+                                       locale_entry_type(regexp="te", language="Telugu", coding="utf-8"), &
+                                       locale_entry_type(regexp="tg", language="Tajik", coding="koi8-t"), &
+                                       locale_entry_type(regexp="th_TH.tis620", language="Thai", coding="tis-620"), &
+                                       locale_entry_type(regexp="th_TH.TIS-620", language="Thai", coding="tis-620"), &
+                                       locale_entry_type(regexp="th_TH", language="Thai", coding="iso-8859-11"), &
+                                       locale_entry_type(regexp="th", language="Thai", coding="iso-8859-11"), &
+                                       locale_entry_type(regexp="ti", language="Ethiopic", coding="utf-8"), &
+                                       locale_entry_type(regexp="tig_ER", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="tk", language="Latin-5", coding=""), &
+                                       locale_entry_type(regexp="tuk", language="Latin-5", coding=""), &
+                                       locale_entry_type(regexp="tl", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="tn", language="Latin-9", coding=""), &
+                                       locale_entry_type(regexp="tr", language="Turkish", coding="iso-8859-9"), &
+                                       locale_entry_type(regexp="tsn", language="Latin-9", coding=""), &
+                                       locale_entry_type(regexp="ts", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="tt", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="ug", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="uk", language="Ukrainian", coding="koi8-u"), &
+                                       locale_entry_type(regexp="ur", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="uz_UZ@cyrillic", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="uz", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="ve", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="vi", language="Vietnamese", coding="utf-8"), &
+                                       locale_entry_type(regexp="wa", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="wo", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="xh", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="yi", language="Windows-1255", coding=""), &
+                                       locale_entry_type(regexp="yo", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="zh_HK", language="Chinese-Big5", coding=""), &
+                                       locale_entry_type(regexp="zh_TW", language="Chinese-Big5", coding=""), &
+                                       locale_entry_type(regexp="zh_CN.GB2312", language="Chinese-GB", coding=""), &
+                                       locale_entry_type(regexp="zh_CN.GBK", language="Chinese-GBK", coding=""), &
+                                       locale_entry_type(regexp="zh_CN.GB18030", language="Chinese-GB18030", coding=""), &
+                                       locale_entry_type(regexp="zh_CN.UTF-8", language="Chinese-GBK", coding=""), &
+                                       locale_entry_type(regexp="zh_CN", language="Chinese-GB", coding=""), &
+                                       locale_entry_type(regexp="zhh", language="Chinese-Big5", coding=""), &
+                                       locale_entry_type(regexp="zhi", language="Chinese-GBK", coding=""), &
+                                       locale_entry_type(regexp="zhm", language="Chinese-Big5", coding=""), &
+                                       locale_entry_type(regexp="zh", language="Chinese-GB", coding=""), &
+                                       locale_entry_type(regexp="zu", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="c$", language="ASCII", coding=""), &
+                                       locale_entry_type(regexp="posix$", language="ASCII", coding=""), &
+                                       locale_entry_type(regexp="ipa$", language="IPA", coding=""), &
+                                       locale_entry_type(regexp="cz", language="Czech", coding=""), &
+                                       locale_entry_type(regexp="iw", language="Hebrew", coding=""), &
+                                       locale_entry_type(regexp="sp", language="Cyrillic-ISO", coding=""), &
+                                       locale_entry_type(regexp="su", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="jp", language="Japanese", coding=""), &
+                                       locale_entry_type(regexp="chs", language="Chinese-GBK", coding=""), &
+                                       locale_entry_type(regexp="cht", language="Chinese-BIG5", coding=""), &
+                                       locale_entry_type(regexp="gbz", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="div", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="wee", language="Latin-2", coding=""), &
+                                       locale_entry_type(regexp="wen", language="Latin-2", coding=""), &
+                                       locale_entry_type(regexp="ind", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="sme", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="smf", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="smg", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="kdi", language="Kannada", coding="utf-8"), &
+                                       locale_entry_type(regexp="mar", language="Devanagari", coding="utf-8"), &
+                                       locale_entry_type(regexp="khm", language="Khmer", coding="utf-8"), &
+                                       locale_entry_type(regexp="iri", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp="uig", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp="kin", language="UTF-8", coding="") &
+                                       ]
 
     !> List of pairs of locale regexps and charset language names.
     !> The first element whose locale regexp matches the start of a downcased
@@ -396,47 +396,47 @@ module mule_fm
     !> locale.  This language name is used if the locale is not listed in
     !> `locale_language_names'.
     type(locale_entry_type), public :: locale_charset_language_names(9) = [ &
-                                   locale_entry_type(regexp=".*8859[-_]?1\>", language="Latin-1", coding=""), &
-                                   locale_entry_type(regexp=".*8859[-_]?2\>", language="Latin-2", coding=""), &
-                                   locale_entry_type(regexp=".*8859[-_]?3\>", language="Latin-3", coding=""), &
-                                   locale_entry_type(regexp=".*8859[-_]?4\>", language="Latin-4", coding=""), &
-                                   locale_entry_type(regexp=".*8859[-_]?9\>", language="Latin-5", coding=""), &
-                                   locale_entry_type(regexp=".*8859[-_]?14\>", language="Latin-8", coding=""), &
-                                   locale_entry_type(regexp=".*8859[-_]?15\>", language="Latin-9", coding=""), &
-                                   locale_entry_type(regexp=".*utf\(?:-?8\)?\>", language="UTF-8", coding=""), &
-                                   locale_entry_type(regexp=".*@euro\>", language="Latin-9", coding="") &
-                                   ]
+                                       locale_entry_type(regexp=".*8859[-_]?1\>", language="Latin-1", coding=""), &
+                                       locale_entry_type(regexp=".*8859[-_]?2\>", language="Latin-2", coding=""), &
+                                       locale_entry_type(regexp=".*8859[-_]?3\>", language="Latin-3", coding=""), &
+                                       locale_entry_type(regexp=".*8859[-_]?4\>", language="Latin-4", coding=""), &
+                                       locale_entry_type(regexp=".*8859[-_]?9\>", language="Latin-5", coding=""), &
+                                       locale_entry_type(regexp=".*8859[-_]?14\>", language="Latin-8", coding=""), &
+                                       locale_entry_type(regexp=".*8859[-_]?15\>", language="Latin-9", coding=""), &
+                                       locale_entry_type(regexp=".*utf\(?:-?8\)?\>", language="UTF-8", coding=""), &
+                                       locale_entry_type(regexp=".*@euro\>", language="Latin-9", coding="") &
+                                       ]
 
     !> List of pairs of locale regexps and preferred coding systems.
     !> The first element whose locale regexp matches the start of a downcased
     !> locale specifies the coding system to prefer when using that locale.
     !> This coding system is used if the locale specifies a specific charset.
     type(locale_entry_type), public :: locale_preferred_coding_systems(24) = [ &
-                                   locale_entry_type(regexp=".*8859[-_]?1\>", language="", coding="iso-8859-1"), &
-                                   locale_entry_type(regexp=".*8859[-_]?2\>", language="", coding="iso-8859-2"), &
-                                   locale_entry_type(regexp=".*8859[-_]?3\>", language="", coding="iso-8859-3"), &
-                                   locale_entry_type(regexp=".*8859[-_]?4\>", language="", coding="iso-8859-4"), &
-                                   locale_entry_type(regexp=".*8859[-_]?9\>", language="", coding="iso-8859-9"), &
-                                   locale_entry_type(regexp=".*8859[-_]?14\>", language="", coding="iso-8859-14"), &
-                                   locale_entry_type(regexp=".*8859[-_]?15\>", language="", coding="iso-8859-15"), &
-                                   locale_entry_type(regexp=".*utf\(?:-?8\)?", language="", coding="utf-8"), &
-                                   locale_entry_type(regexp=".*@euro", language="", coding="iso-8859-15"), &
-                                   locale_entry_type(regexp="koi8-?r", language="", coding="koi8-r"), &
-                                   locale_entry_type(regexp="koi8-?u", language="", coding="koi8-u"), &
-                                   locale_entry_type(regexp="tcvn", language="", coding="tcvn"), &
-                                   locale_entry_type(regexp="big5[-_]?hkscs", language="", coding="big5-hkscs"), &
-                                   locale_entry_type(regexp="big5", language="", coding="big5"), &
-                                   locale_entry_type(regexp="euc-?tw", language="", coding="euc-tw"), &
-                                   locale_entry_type(regexp="euc-?cn", language="", coding="euc-cn"), &
-                                   locale_entry_type(regexp="gb2312", language="", coding="gb2312"), &
-                                   locale_entry_type(regexp="gbk", language="", coding="gbk"), &
-                                   locale_entry_type(regexp="gb18030", language="", coding="gb18030"), &
-                                   locale_entry_type(regexp="ja.*[._]euc", language="", coding="japanese-iso-8bit"), &
-                                   locale_entry_type(regexp="ja.*[._]jis7", language="", coding="iso-2022-jp"), &
-                                   locale_entry_type(regexp="ja.*[._]pck", language="", coding="japanese-shift-jis"), &
-                                   locale_entry_type(regexp="ja.*[._]sjis", language="", coding="japanese-shift-jis"), &
-                                   locale_entry_type(regexp="jpn", language="", coding="japanese-shift-jis") &
-                                   ]
+                                       locale_entry_type(regexp=".*8859[-_]?1\>", language="", coding="iso-8859-1"), &
+                                       locale_entry_type(regexp=".*8859[-_]?2\>", language="", coding="iso-8859-2"), &
+                                       locale_entry_type(regexp=".*8859[-_]?3\>", language="", coding="iso-8859-3"), &
+                                       locale_entry_type(regexp=".*8859[-_]?4\>", language="", coding="iso-8859-4"), &
+                                       locale_entry_type(regexp=".*8859[-_]?9\>", language="", coding="iso-8859-9"), &
+                                       locale_entry_type(regexp=".*8859[-_]?14\>", language="", coding="iso-8859-14"), &
+                                       locale_entry_type(regexp=".*8859[-_]?15\>", language="", coding="iso-8859-15"), &
+                                       locale_entry_type(regexp=".*utf\(?:-?8\)?", language="", coding="utf-8"), &
+                                       locale_entry_type(regexp=".*@euro", language="", coding="iso-8859-15"), &
+                                       locale_entry_type(regexp="koi8-?r", language="", coding="koi8-r"), &
+                                       locale_entry_type(regexp="koi8-?u", language="", coding="koi8-u"), &
+                                       locale_entry_type(regexp="tcvn", language="", coding="tcvn"), &
+                                       locale_entry_type(regexp="big5[-_]?hkscs", language="", coding="big5-hkscs"), &
+                                       locale_entry_type(regexp="big5", language="", coding="big5"), &
+                                       locale_entry_type(regexp="euc-?tw", language="", coding="euc-tw"), &
+                                       locale_entry_type(regexp="euc-?cn", language="", coding="euc-cn"), &
+                                       locale_entry_type(regexp="gb2312", language="", coding="gb2312"), &
+                                       locale_entry_type(regexp="gbk", language="", coding="gbk"), &
+                                       locale_entry_type(regexp="gb18030", language="", coding="gb18030"), &
+                                       locale_entry_type(regexp="ja.*[._]euc", language="", coding="japanese-iso-8bit"), &
+                                       locale_entry_type(regexp="ja.*[._]jis7", language="", coding="iso-2022-jp"), &
+                                       locale_entry_type(regexp="ja.*[._]pck", language="", coding="japanese-shift-jis"), &
+                                       locale_entry_type(regexp="ja.*[._]sjis", language="", coding="japanese-shift-jis"), &
+                                       locale_entry_type(regexp="jpn", language="", coding="japanese-shift-jis") &
+                                       ]
 
     !> File name for the system's file of locale-name aliases, or "" if none.
     character(len=:), allocatable, public :: locale_translation_file_name
@@ -2953,6 +2953,7 @@ contains
         if (.not. status%ok()) return
         call describe_language_environment(name, status)
     end subroutine cmd_describe_language_environment
+
     !> Search for KEY in ALIST, which should be a list of regexp-value pairs.
     !> Return the index of the first entry whose regexp matches the start of
     !> KEY, or 0 if there is no match.  Port of mule-cmds.el:locale-name-match.
@@ -3110,7 +3111,7 @@ contains
     !> (the 8-bit display of `standard-display-european-internal' waits
     !> for display tables).
     recursive subroutine set_display_table_and_terminal_coding_system(language_name, coding_system, status, &
-                                                                     inhibit_refresh)
+                                                                      inhibit_refresh)
         character(len=*), intent(in) :: language_name, coding_system
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: inhibit_refresh
@@ -3170,10 +3171,10 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: inhibit_refresh
         character(len=*), parameter :: FILES(5) = [character(len=40) :: "/usr/share/X11/locale/locale.alias", &
-                                                    "/usr/lib/X11/locale/locale.alias", &
-                                                    "/usr/X11R6/lib/X11/locale/locale.alias", &
-                                                    "/usr/openwin/lib/locale/locale.alias", &
-                                                    "/usr/share/locale/locale.alias"]
+                                                                                               "/usr/lib/X11/locale/locale.alias", &
+                                                                                         "/usr/X11R6/lib/X11/locale/locale.alias", &
+                                                                                           "/usr/openwin/lib/locale/locale.alias", &
+                                                                                                   "/usr/share/locale/locale.alias"]
         character(len=*), parameter :: VARS(3) = [character(len=8) :: "LC_ALL", "LC_CTYPE", "LANG"]
         character(len=:), allocatable :: locale, language_name, coding_system, kcs, dflt
         type(value_type) :: v
@@ -3216,8 +3217,9 @@ contains
         end if
 
         if (len(locale) >= 2) then
-            if (is_lower_letter(locale(1:1)) .and. is_lower_letter(locale(2:2))) &
+            if (is_lower_letter(locale(1:1)) .and. is_lower_letter(locale(2:2))) then
                 call set_current_iso639_language(locale(1:2))
+            end if
         end if
 
         locale = lower(locale)
@@ -3278,8 +3280,9 @@ contains
 
             if (len(kcs) == 0) then
                 if (allocated(language_info_alist(k)%coding_systems)) then
-                    if (size(language_info_alist(k)%coding_systems) > 0) &
+                    if (size(language_info_alist(k)%coding_systems) > 0) then
                         kcs = trim(language_info_alist(k)%coding_systems(1))
+                    end if
                 end if
             end if
 
@@ -3291,8 +3294,9 @@ contains
             locale_coding_system%value = ""
 
             if (allocated(language_info_alist(k)%coding_priority)) then
-                if (size(language_info_alist(k)%coding_priority) > 0) &
+                if (size(language_info_alist(k)%coding_priority) > 0) then
                     locale_coding_system%value = trim(language_info_alist(k)%coding_priority(1))
+                end if
             end if
         end if
 

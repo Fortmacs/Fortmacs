@@ -1225,6 +1225,7 @@ contains
         call restore_priority(saved)
         call set_charset_priority(charsets, st)
     end subroutine test_language_environments
+
     !> set-locale-environment, as in Emacs: the language environment, the
     !> preferred, locale, terminal and keyboard coding systems for locales
     !> naming a language and a codeset, and the codeset names it knows.
