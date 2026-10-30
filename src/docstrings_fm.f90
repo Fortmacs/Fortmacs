@@ -529,7 +529,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1343) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1345) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -774,10 +774,10 @@ module docstrings_fm
                                                           "insert_abbrev_table_description", "insert_abbrevs", "insert_rectangle", &
                                                        "insert_register", "interactive_region", "internal_default_process_filter", &
                                                            "internal_default_process_sentinel", "internal_default_signal_process", &
-                                                           "interrupt_process", "inverse_add_abbrev", "inverse_add_global_abbrev", &
-                                                                   "inverse_add_mode_abbrev", "isearch_abort", "isearch_backward", &
-                                                       "isearch_backward_regexp", "isearch_beginning_of_buffer", "isearch_cancel", &
-                                                                 "isearch_del_char", "isearch_delete_char", "isearch_edit_string", &
+                                                      "internal_describe_syntax_value", "interrupt_process", "inverse_add_abbrev", &
+                                                          "inverse_add_global_abbrev", "inverse_add_mode_abbrev", "isearch_abort", &
+                                                     "isearch_backward", "isearch_backward_regexp", "isearch_beginning_of_buffer", &
+                                               "isearch_cancel", "isearch_del_char", "isearch_delete_char", "isearch_edit_string", &
                                              "isearch_end_of_buffer", "isearch_exit", "isearch_forward", "isearch_forward_regexp", &
                                                          "isearch_printing_char", "isearch_quote_char", "isearch_repeat_backward", &
                                                          "isearch_repeat_forward", "isearch_ring_advance", "isearch_ring_retreat", &
@@ -893,7 +893,7 @@ module docstrings_fm
                                                         "standard_case_table", "standard_category_table", "standard_syntax_table", &
                                                     "start_kbd_macro", "start_process", "string_insert_rectangle", "string_match", &
                                               "string_match_p", "string_rectangle", "substitute_command_keys", "switch_to_buffer", &
-                                                                    "syntax_table", "tab_to_tab_stop", "tabulated_list_mode", &
+                                                       "syntax_table", "syntax_table_p", "tab_to_tab_stop", "tabulated_list_mode", &
                                                              "tabulated_list_narrow_current_column", "tabulated_list_next_column", &
                                                  "tabulated_list_previous_column", "tabulated_list_revert", "tabulated_list_sort", &
                                               "tabulated_list_widen_current_column", "text_mode", "timerp", "transient_mark_mode", &
@@ -8078,6 +8078,10 @@ contains
             entry%fortran = "call signal_process(process, sigcode, result, status)"
             entry%doc = "Send PROCESS the signal with code SIGCODE.  `result' is kill's"//LF// &
                         "result (0, or -1)."
+        case ("internal_describe_syntax_value")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "internal_describe_syntax_value(syntax)"
+            entry%doc = "Insert a description of the internal syntax description SYNTAX at point."
         case ("interrupt_process")
             entry%file = "process_fm.f90"
             entry%fortran = "call interrupt_process(status, process, current_group)"
@@ -12101,6 +12105,10 @@ contains
             entry%fortran = "syntax_table()"
             entry%doc = "Return the current syntax table."//LF// &
                         "This is the one specified by the current buffer."
+        case ("syntax_table_p")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "syntax_table_live_p(h)"
+            entry%doc = "Return true if OBJECT is a syntax table."
         case ("tab_to_tab_stop")
             entry%file = "indent_fm.f90"
             entry%fortran = "call tab_to_tab_stop(status)"

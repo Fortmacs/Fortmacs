@@ -124,6 +124,7 @@ module fortmacs
                          delete_all_space, just_one_space, fixup_whitespace, delete_blank_lines, delete_indentation
     use paragraphs_fm, only: transpose_sentences, transpose_paragraphs
     use syntax_fm, only: skip_chars_forward, skip_chars_backward, skip_syntax_forward, skip_syntax_backward
+    use syntax_fm, only: syntax_table_live_p, internal_describe_syntax_value
     use chartab_fm, only: make_char_table, char_table_p, char_table_subtype, char_table_parent, set_char_table_parent, &
                           char_table_extra_slot, set_char_table_extra_slot, char_table_extra_table, &
                           set_char_table_extra_table, char_table_range, set_char_table_range, map_char_table, &
@@ -723,6 +724,7 @@ module fortmacs
               char_table_extra_slot, set_char_table_extra_slot, char_table_extra_table, set_char_table_extra_table, &
               char_table_range, set_char_table_range, map_char_table, optimize_char_table, char_table_map_proc, NO_VALUE
     public :: case_table_p, current_case_table, standard_case_table, set_case_table, set_standard_case_table
+    public :: syntax_table_live_p, internal_describe_syntax_value
     public :: category_set_type, make_category_set, define_category, category_docstring, get_unused_category, &
               category_table_p, category_table, standard_category_table, copy_category_table, make_category_table, &
               set_category_table, char_category_set, category_set_mnemonics, modify_category_entry
