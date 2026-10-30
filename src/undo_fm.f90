@@ -56,6 +56,7 @@ module undo_fm
     !> undo.c point_before_last_command_or_undo and
     !> buffer_before_last_command_or_undo.
     integer(int64), public :: point_before_last_command_or_undo = 0
+    !> The buffer of `point_before_last_command_or_undo' (its serial number).
     integer(int64), public :: buffer_before_last_command_or_undo = -1
 
     !> The maximum number of changes to possibly amalgamate when undoing

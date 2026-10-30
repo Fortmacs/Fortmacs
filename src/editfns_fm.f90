@@ -99,6 +99,8 @@ module editfns_fm
     !> rectangle_mark_mode).  (Ours: upstream's advice-add as a procedure
     !> pointer.)
     procedure(region_position_proc), pointer, public :: region_beginning_function => primitive_region_beginning
+    !> The function `region_end' calls, as `region_beginning_function' for
+    !> `region_beginning'.
     procedure(region_position_proc), pointer, public :: region_end_function => primitive_region_end
 
 contains

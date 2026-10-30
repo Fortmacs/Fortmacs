@@ -184,8 +184,9 @@ module saveplace_fm
     type(hook_type), target, public :: save_place_after_find_file_hook = &
                                        hook_type(name="save_place_after_find_file_hook")
 
-    !> Hooks of the two modes.
+    !> Hook run at the end of `save_place_mode'.
     type(hook_type), target, public :: save_place_mode_hook = hook_type(name="save_place_mode_hook")
+    !> Hook run at the end of `save_place_local_mode'.
     type(hook_type), target, public :: save_place_local_mode_hook = hook_type(name="save_place_local_mode_hook")
 
     type(handle_type) :: save_place_autosave_timer

@@ -177,17 +177,27 @@ module conf_mode_fm
     !> whitespace.  Port of conf-mode.el conf-assignment-regexp.
     type(string_setting), target, public :: conf_assignment_regexp = string_setting(name="conf_assignment_regexp")
 
-    !> Hooks run at the end of the modes.
+    !> Hook run at the end of `conf_mode'.
     type(hook_type), target, public :: conf_mode_hook = hook_type(name="conf_mode_hook")
+    !> Hook run at the end of `conf_unix_mode'.
     type(hook_type), target, public :: conf_unix_mode_hook = hook_type(name="conf_unix_mode_hook")
+    !> Hook run at the end of `conf_windows_mode'.
     type(hook_type), target, public :: conf_windows_mode_hook = hook_type(name="conf_windows_mode_hook")
+    !> Hook run at the end of `conf_javaprop_mode'.
     type(hook_type), target, public :: conf_javaprop_mode_hook = hook_type(name="conf_javaprop_mode_hook")
+    !> Hook run at the end of `conf_space_mode'.
     type(hook_type), target, public :: conf_space_mode_hook = hook_type(name="conf_space_mode_hook")
+    !> Hook run at the end of `conf_colon_mode'.
     type(hook_type), target, public :: conf_colon_mode_hook = hook_type(name="conf_colon_mode_hook")
+    !> Hook run at the end of `conf_ppd_mode'.
     type(hook_type), target, public :: conf_ppd_mode_hook = hook_type(name="conf_ppd_mode_hook")
+    !> Hook run at the end of `conf_xdefaults_mode'.
     type(hook_type), target, public :: conf_xdefaults_mode_hook = hook_type(name="conf_xdefaults_mode_hook")
+    !> Hook run at the end of `conf_toml_mode'.
     type(hook_type), target, public :: conf_toml_mode_hook = hook_type(name="conf_toml_mode_hook")
+    !> Hook run at the end of `conf_desktop_mode'.
     type(hook_type), target, public :: conf_desktop_mode_hook = hook_type(name="conf_desktop_mode_hook")
+    !> Hook run at the end of `conf_npmrc_mode'.
     type(hook_type), target, public :: conf_npmrc_mode_hook = hook_type(name="conf_npmrc_mode_hook")
 
     !> Whether `conf_mode' is running its guessed sub-mode (so it doesn't

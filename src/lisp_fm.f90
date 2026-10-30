@@ -199,6 +199,7 @@ module lisp_fm
 
     !> Symbol storage, indexed by id; maintained by lread_fm.
     type(symbol_type), allocatable, public :: symbols(:)
+    !> The number of symbols in `symbols'.
     integer(int64), public :: nsymbols = 0
 
     public :: nil, t_value, make_fixnum, make_string, make_symbol_ref, &

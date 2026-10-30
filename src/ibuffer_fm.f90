@@ -147,14 +147,14 @@ module ibuffer_fm
               mode_name_of, serial_buffer, string_prop, update_mode_line_process, ibuffer_local_index, filter_symbol
     public :: ibuffer_column, ibuffer_text
 
-    ! The values of `ibuffer_always_show_last_buffer'.
+    !> The values of `ibuffer_always_show_last_buffer'.
     integer, parameter, public :: IBUFFER_SHOW_LAST_NEVER = 0, IBUFFER_SHOW_LAST_ALWAYS = 1, &
                                   IBUFFER_SHOW_LAST_NOMINI = 2
-    ! The values of `ibuffer_use_header_line'.
+    !> The values of `ibuffer_use_header_line'.
     integer, parameter, public :: IBUFFER_HEADER_LINE_NIL = 0, IBUFFER_HEADER_LINE_T = 1, &
                                   IBUFFER_HEADER_LINE_TITLE = 2
-    ! The values of the SHRINK argument of `ibuffer'
-    ! (`ibuffer-shrink-to-minimum-size').
+    !> The values of the SHRINK argument of `ibuffer'
+    !> (`ibuffer-shrink-to-minimum-size').
     integer, parameter, public :: IBUFFER_SHRINK_NIL = 0, IBUFFER_SHRINK_T = 1, IBUFFER_SHRINK_ONEWINDOW = 2
 
     ! What a mapping function returns for a buffer (`ibuffer_map_lines').
@@ -923,8 +923,8 @@ contains
     ! Buffer-local variables
     ! ------------------------------------------------------------------
 
-    ! The index of the current buffer's entry in `locals', made if MAKE
-    ! (0 if there is none).
+    !> The index of the current buffer's entry in `locals', made if MAKE
+    !> (0 if there is none).
     integer function ibuffer_local_index(make) result(k)
         logical, intent(in) :: make
         type(local_type), allocatable :: grown(:)
@@ -1078,8 +1078,8 @@ contains
         f = ibuffer_formats
     end function formats_of
 
-    ! (car FILTER): the name of a simple filter, else "not", "and", "or"
-    ! or "saved".
+    !> (car FILTER): the name of a simple filter, else "not", "and", "or"
+    !> or "saved".
     function filter_symbol(filter) result(name)
         type(ibuffer_filter_type), intent(in) :: filter
         character(len=:), allocatable :: name
@@ -1106,7 +1106,7 @@ contains
     ! Text properties of the lines
     ! ------------------------------------------------------------------
 
-    ! The text property NAME at POS: false outside the accessible text.
+    !> The text property NAME at POS: false outside the accessible text.
     logical function has_prop(pos, name)
         integer(int64), intent(in) :: pos
         character(len=*), intent(in) :: name
@@ -1119,7 +1119,7 @@ contains
         has_prop = st%ok() .and. .not. nilp(v)
     end function has_prop
 
-    ! The string text property NAME at POS ("" for none).
+    !> The string text property NAME at POS ("" for none).
     function string_prop(pos, name) result(s)
         integer(int64), intent(in) :: pos
         character(len=*), intent(in) :: name
@@ -1133,7 +1133,7 @@ contains
         if (st%ok() .and. stringp(v)) s = xstring(v)
     end function string_prop
 
-    ! Whether there is a string text property NAME at POS.
+    !> Whether there is a string text property NAME at POS.
     logical function has_string_prop(pos, name)
         integer(int64), intent(in) :: pos
         character(len=*), intent(in) :: name
@@ -1146,7 +1146,7 @@ contains
         has_string_prop = st%ok() .and. stringp(v)
     end function has_string_prop
 
-    ! The serial number of the buffer of the line at POS (0 for none).
+    !> The serial number of the buffer of the line at POS (0 for none).
     integer(int64) function line_serial(pos) result(serial)
         integer(int64), intent(in) :: pos
         type(value_type) :: v
@@ -1158,8 +1158,8 @@ contains
         if (st%ok() .and. fixnump(v)) serial = xfixnum(v)
     end function line_serial
 
-    ! The live buffer with serial number SERIAL (the null handle for
-    ! none).
+    !> The live buffer with serial number SERIAL (the null handle for
+    !> none).
     function serial_buffer(serial) result(h)
         integer(int64), intent(in) :: serial
         type(handle_type) :: h
@@ -1581,7 +1581,7 @@ contains
         end do
     end subroutine ibuffer_do_view_1
 
-    ! ibuffer-map-marked-lines: FUNC on the marked lines, then redisplay.
+    !> ibuffer-map-marked-lines: FUNC on the marked lines, then redisplay.
     recursive integer function map_marked_lines(func, status) result(count)
         procedure(map_proc) :: func
         type(status_type), intent(out) :: status
@@ -1816,7 +1816,7 @@ contains
         if (len(dirname) > 0) call expand_file_name(dirname, name, st)
     end function ibuffer_buffer_file_name
 
-    ! Abbreviate FILENAME using `ibuffer_directory_abbrev_alist'.
+    !> Abbreviate FILENAME using `ibuffer_directory_abbrev_alist'.
     function ibuffer_abbreviate_file_name(filename) result(abbrev)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: abbrev
@@ -2560,7 +2560,7 @@ contains
         call beginning_of_line()
     end subroutine ibuffer_set_mark
 
-    ! ibuffer-set-mark-1: set the mark of the current line.
+    !> ibuffer-set-mark-1: set the mark of the current line.
     recursive subroutine ibuffer_set_mark_1(mark)
         character, intent(in) :: mark
         integer(int64) :: beg, end, serial
@@ -3168,7 +3168,7 @@ contains
         end do
     end subroutine current_buffers_with_marks
 
-    ! ibuffer-buf-matches-predicates.
+    !> ibuffer-buf-matches-predicates.
     recursive logical function buf_matches_predicates(buf, predicates) result(hit)
         type(handle_type), intent(in) :: buf
         type(ibuffer_show_predicate_type), intent(in) :: predicates(:)
@@ -3188,7 +3188,7 @@ contains
         end do
     end function buf_matches_predicates
 
-    ! (ibuffer-buf-matches-predicates BUF REGEXPS) for a list of regexps.
+    !> (ibuffer-buf-matches-predicates BUF REGEXPS) for a list of regexps.
     logical function buf_matches_regexps(buf, regexps) result(hit)
         type(handle_type), intent(in) :: buf
         character(len=*), intent(in) :: regexps(:)
@@ -3452,7 +3452,7 @@ contains
         cell%mouse_face = "highlight"
     end function column_mode
 
-    ! (format-mode-line mode-name nil nil BUFFER).
+    !> (format-mode-line mode-name nil nil BUFFER).
     function mode_name_of(buffer) result(name)
         type(handle_type), intent(in) :: buffer
         character(len=:), allocatable :: name
@@ -4207,11 +4207,11 @@ contains
         call ibuffer_update(status, ignore_auto, noconfirm)
     end subroutine revert_function
 
-    ! The mode line's state info next to the mode name: " by " and the
-    ! sorting mode, " [rev]", " (Auto)" and the filters unless they're
-    ! already in the header line (upstream evaluated by the mode line);
-    ! the header line showing the filters gets the same, after the mode
-    ! name (ibuffer-header-line-format).
+    !> The mode line's state info next to the mode name: " by " and the
+    !> sorting mode, " [rev]", " (Auto)" and the filters unless they're
+    !> already in the header line (upstream evaluated by the mode line);
+    !> the header line showing the filters gets the same, after the mode
+    !> name (ibuffer-header-line-format).
     recursive subroutine update_mode_line_process()
         type(mode_line_part_type), allocatable :: parts(:)
 
@@ -4651,8 +4651,8 @@ contains
         call ibuffer_jump(status,.not. nilp(current_prefix_arg))
     end subroutine cmd_ibuffer_jump
 
-    ! Move point to the line of the buffer NAME in the current Ibuffer
-    ! buffer (the part of `ibuffer_jump_to_buffer' that finds it).
+    !> Move point to the line of the buffer NAME in the current Ibuffer
+    !> buffer (the part of `ibuffer_jump_to_buffer' that finds it).
     recursive subroutine jump_to_buffer_by_name(name, status)
         character(len=*), intent(in) :: name
         type(status_type), intent(out) :: status
@@ -4968,6 +4968,9 @@ contains
         form_read_only = buffers(cur)%read_only
     end function form_read_only
 
+    !> Whether the current buffer visits a compressed file
+    !> (`ibuffer_compressed_file_name_regexp'), a default form of
+    !> `ibuffer_fontification_alist'.  Port of ibuffer.el's fontification form.
     recursive logical function form_compressed()
         integer(int64) :: m
         type(status_type) :: st

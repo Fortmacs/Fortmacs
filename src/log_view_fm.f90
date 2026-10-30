@@ -90,9 +90,9 @@ module log_view_fm
               set_log_view_expanded_log_entry_function, set_log_view_vc_fileset, set_log_view_vc_backend, &
               set_log_view_font_lock_keywords, log_view_font_lock_keywords, syms_of_log_view
 
-    !> `log_view_expanded_log_entry_function': return in TEXT the detailed
-    !> description of the Log View entry REVISION (FOUND false for nil).
     abstract interface
+        !> `log_view_expanded_log_entry_function': return in TEXT the detailed
+        !> description of the Log View entry REVISION (FOUND false for nil).
         recursive subroutine log_view_entry_proc(revision, text, found)
             implicit none(type, external)
             character(len=*), intent(in) :: revision

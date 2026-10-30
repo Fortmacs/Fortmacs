@@ -127,6 +127,7 @@ module vc_dispatcher_fm
     end type vc_action_type
 
     abstract interface
+        !> An action to run once a VC process has finished.
         recursive subroutine vc_action_proc(action, status)
             import :: vc_action_type, status_type
             implicit none(type, external)
@@ -185,6 +186,8 @@ module vc_dispatcher_fm
     end type vc_log_operation_type
 
     abstract interface
+        !> What `vc_finish_logentry' calls with the log message COMMENT for
+        !> FILES.
         recursive subroutine vc_log_operation_proc(operation, files, comment, status)
             import :: vc_log_operation_type, vc_string_type, status_type
             implicit none(type, external)
@@ -367,8 +370,8 @@ contains
     ! The log entry buffer's variables
     ! ------------------------------------------------------------------
 
-    ! The index of the current buffer's entry in `log_locals', made if
-    ! MAKE (0 if none).
+    !> The index of the current buffer's entry in `log_locals', made if
+    !> MAKE (0 if none).
     integer function log_local_index(make) result(k)
         logical, intent(in) :: make
         type(vc_log_local_type), allocatable :: grown(:)

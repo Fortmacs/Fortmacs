@@ -83,8 +83,7 @@ module emacs_fm
 
     !> startup.el:init-file-had-error: whether the init file's
     !> `configure' failed at startup.
-    public :: init_file_had_error
-    logical, protected :: init_file_had_error = .false.
+    logical, public, protected :: init_file_had_error = .false.
 
     !> A message for the echo area once the editor is up ("" for none).
     character(len=:), allocatable :: startup_message

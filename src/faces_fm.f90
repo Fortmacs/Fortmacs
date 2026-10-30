@@ -69,9 +69,9 @@ module faces_fm
     !> flat button (a plain box in the background color).
     integer, parameter, public :: FACE_BOX_RELEASED_BUTTON = 1, FACE_BOX_PRESSED_BUTTON = 2, FACE_BOX_FLAT_BUTTON = 3
 
-    !> Display classes and background modes of a frame (the
-    !> `display_type' and `background_mode' frame parameters).
+    !> Display classes of a frame (the `display_type' frame parameter).
     integer, parameter, public :: FACE_CLASS_COLOR = 1, FACE_CLASS_GRAYSCALE = 2, FACE_CLASS_MONO = 3
+    !> Background modes of a frame (the `background_mode' frame parameter).
     integer, parameter, public :: FACE_BACKGROUND_LIGHT = 1, FACE_BACKGROUND_DARK = 2
 
     !> An attribute that is unspecified, nil or t (`:inverse_video',

@@ -1786,7 +1786,7 @@ contains
         end subroutine set_pos
     end subroutine justify_current_line
 
-    ! Whether point is before a non-empty `fill-prefix`.
+    !> Whether point is before a non-empty `fill-prefix`.
     logical function prefix_at_point() result(at)
         character(len=:), allocatable :: text
         type(status_type) :: st
@@ -1798,6 +1798,7 @@ contains
         at = text == fill_prefix%value .and. len(text) == len(fill_prefix%value)
     end function prefix_at_point
 
+    !> The number of characters of the UTF-8 string S.  Not a port.
     pure integer(int64) function nchars(s)
         character(len=*), intent(in) :: s
         integer :: i
@@ -2059,6 +2060,8 @@ contains
         call fill_paragraph_function%kill_local()
     end subroutine kill_fill_locals
 
+    !> Set up fill.el's variables and commands.  Not a port: upstream
+    !> defines them where fill.el is loaded.
     subroutine syms_of_fill()
         call init_fill_variables()
         call add_local_variables_killer(kill_fill_locals)
