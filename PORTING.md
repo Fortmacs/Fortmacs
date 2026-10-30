@@ -225,29 +225,46 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
    41. Charsets and the other coding systems: charset maps (ISO-8859-x,
        Windows code pages, KOI8), ISO-2022, Shift-JIS, Big5, emacs-mule,
        language environments (C-x RET l) and input methods (`C-\`).
-   42. Spelling: `ispell` and `flyspell` over an external speller process.
-   43. Terminal frames: several frames on one terminal (C-x 5), and
+   42. Terminal core C: the C files the terminal editor rests on,
+       finished file by file to everything but what is Not applicable
+       (the Lisp engine: allocation and GC, the reader and printer,
+       bytecode, the dumper, modules) or waits for the GUI, each listed
+       in the file's status row.  In dependency order: 42a buffer.c,
+       insdel.c, marker.c, intervals.c, textprop.c, itree.c; 42b
+       search.c, syntax.c, casefiddle.c, casetab.c, chartab.c,
+       category.c; 42c keyboard.c, keymap.c, minibuf.c, callint.c,
+       cmds.c; 42d window.c, dispnew.c, term.c, the terminal parts of
+       xdisp.c, bidi.c; 42e fileio.c, process.c, callproc.c, sysdep.c,
+       timefns.c, floatfns.c; 42f the parts of fns.c, editfns.c and
+       data.c that are not the Lisp engine.  Before it: the citation
+       burn-down of tools/audit-baseline (so the remaining functions are
+       known exactly), then the rest of steps 40 and 41 (skeletons,
+       input methods).  External libraries (treesit.c, json.c, gnutls.c,
+       sqlite.c, dbusbind.c) are decided separately: only libc, FreeType
+       and HarfBuzz may be bound.
+   43. Spelling: `ispell` and `flyspell` over an external speller process.
+   44. Terminal frames: several frames on one terminal (C-x 5), and
        `tab-bar-mode`/`tab-line-mode`.
-   44. Windows, the rest: `winner-mode`, `windmove`, `follow-mode`,
+   45. Windows, the rest: `winner-mode`, `windmove`, `follow-mode`,
        `window-divider` and side windows.
-   45. Calendar and diary.
-   46. VC, the rest: `vc-annotate` (C-x v g), branches and tags, pull
+   46. Calendar and diary.
+   47. VC, the rest: `vc-annotate` (C-x v g), branches and tags, pull
        and push, incoming and outgoing logs, and the vc-hg and vc-svn
        backends.
-   47. Smerge mode (conflict markers, `vc-git-resolve-conflicts`) and
+   48. Smerge mode (conflict markers, `vc-git-resolve-conflicts`) and
        Ediff.
-   48. Projects and cross-references: project.el (C-x p), xref.el and
+   49. Projects and cross-references: project.el (C-x p), xref.el and
        etags.el (M-., M-?, M-,), Imenu and `which-function-mode`.
-   49. Change logs, the rest: `add-change-log-entry` (C-x 4 a),
+   50. Change logs, the rest: `add-change-log-entry` (C-x 4 a),
        `log-edit-generate-changelog-from-diff`, `diff-add-log-current-defuns`.
-   50. Buttons (button.el: `insert-text-button`, `forward-button` TAB,
+   51. Buttons (button.el: `insert-text-button`, `forward-button` TAB,
        `push-button` RET), then what waits on them: Help's cross-references
        and the help-xref stack (l, r), and the buttons at the end of VC logs.
-   51. Mail: composing and sending (`compose-mail` C-x m, sendmail.el,
+   52. Mail: composing and sending (`compose-mail` C-x m, sendmail.el,
        message.el, smtpmail.el over a socket in src/sys, mail-utils.el,
        mailabbrev.el), then Rmail (rmail.el, rmailsum.el, rmailout.el,
        rmailedit.el, rmailkwd.el, rmailmm.el; mbox files and movemail).
-   52. The X11 GUI (the protocol over a Unix socket in Fortran, FreeType and
+   53. The X11 GUI (the protocol over a Unix socket in Fortran, FreeType and
        HarfBuzz fonts), then Wayland.
 
 The GUI (X11 protocol over a Unix socket from Fortran, our own font
@@ -997,6 +1014,7 @@ Each lists the default being used meanwhile.
 
 ## Session log
 
+- 2026-10-30 — Roadmap: step 42 "Terminal core C" added at the user's request (finish the terminal-relevant C files before more Elisp features, after the citation burn-down and the rest of steps 40 and 41); the later steps move to 43–53.  Counts at the time: 909 of 8547 C functions cited, of which about 1,300 are the Lisp engine (Not applicable), 2,300 the GUI and 250 external libraries; about 2,500 remain in the terminal core.
 - 2026-10-30 — Approximate percentages (`approx-sign`, based on main; chosen with the user): the README progress block and pie charts mark rounded percentages with ≈ (approximately equal) instead of ≅ (congruent).
 - 2026-10-29 — ANSI colors (roadmap step 38c, `step38c-ansi-color`, built on `step38b-passwords`; step 38 is now six PRs: completion needs `completion-table-with-quoting` in the core completion tables, so it moves after ansi-color and `list-processes`, as 38e and 38f): ansi_color_fm (ansi-color.el), on `comint-output-filter-functions`; shell_fm's `shell-apply-ansi-color` and `shell-reapply-ansi-color`.  Ports ansi-color-tests.el.  Next: 38d.
 - 2026-10-29 — Password prompts (roadmap step 38b, `step38b-passwords`, built on `step38-comint`): auth_source_fm (`read-passwd`, `read-passwd-mode`), mule_conf_fm (`password-word-equivalents`, `password-colon-equivalents`), comint_fm's `comint-password-prompt-regexp`, `comint-watch-for-password-prompt` (in the default `comint-output-filter-functions`), `comint-send-invisible`, `comint-password-function`.  minibuf_fm gains `read-hide-char` and a history of "t" keeping no history.  Ports the password tests of comint-tests.el.  Next: 38c.
