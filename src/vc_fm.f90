@@ -133,8 +133,8 @@ module vc_fm
     type(vc_switches_type), public :: vc_checkin_switches
 
     !> A string or list of strings specifying extra switches for checkout.
-    !> These are passed to the checkout program by `vc_checkout'.  Port
-    !> of vc.el vc-checkout-switches.
+    !> These are passed to the checkout program by `vc_checkout'.
+    !> Port of vc.el vc-checkout-switches.
     type(vc_switches_type), public :: vc_checkout_switches
 
     !> A string or list of strings; extra switches for registering a file.
@@ -304,7 +304,7 @@ module vc_fm
 
     interface
         !> The backend of a VC-Dir, Log View or Log Edit buffer (HANDLED
-        !> false in other buffers).  (In vc_deduce_fm.)
+        !> false in other buffers).  (In vc_deduce_fm.)  Not a port.
         module subroutine mode_backend(b, handled)
             implicit none(type, external)
             integer, intent(out) :: b
@@ -312,7 +312,7 @@ module vc_fm
         end subroutine mode_backend
 
         !> The fileset of a VC-Dir buffer (HANDLED false in other
-        !> buffers).  (In vc_deduce_fm.)
+        !> buffers).  (In vc_deduce_fm.)  Not a port.
         recursive module subroutine vc_dir_fileset(fs, status, state_model_only_files, handled)
             implicit none(type, external)
             type(vc_fileset_type), intent(out) :: fs
@@ -322,7 +322,7 @@ module vc_fm
         end subroutine vc_dir_fileset
 
         !> The fileset of a Log View buffer (HANDLED false in other
-        !> buffers).  (In vc_deduce_fm.)
+        !> buffers).  (In vc_deduce_fm.)  Not a port.
         module subroutine log_view_fileset(fs, handled)
             implicit none(type, external)
             type(vc_fileset_type), intent(out) :: fs
@@ -331,6 +331,7 @@ module vc_fm
 
         !> In a VC-Dir buffer, make the buffer visiting the file at point
         !> current (HANDLED false in other buffers).  (In vc_deduce_fm.)
+        !> Not a port.
         recursive module subroutine vc_dir_ensure_buffer(status, handled)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -416,7 +417,7 @@ contains
     ! Helpers
     ! ------------------------------------------------------------------
 
-    !> Append S to LIST.
+    !> Append S to LIST.  Not a port.
     subroutine push(list, s)
         type(vc_string_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
@@ -431,7 +432,7 @@ contains
         call move_alloc(grown, list)
     end subroutine push
 
-    !> A list of the one string S.
+    !> A list of the one string S.  Not a port.
     subroutine one(list, s)
         type(vc_string_type), allocatable, intent(out) :: list(:)
         character(len=*), intent(in) :: s
@@ -440,7 +441,7 @@ contains
         list(1)%s = s
     end subroutine one
 
-    !> Whether S is one of LIST.
+    !> Whether S is one of LIST.  Not a port.
     logical function member(s, list)
         character(len=*), intent(in) :: s
         type(vc_string_type), intent(in) :: list(:)
@@ -456,7 +457,7 @@ contains
         end do
     end function member
 
-    !> FILE expanded.
+    !> FILE expanded.  Not a port.
     function expand(file, dir) result(full)
         character(len=*), intent(in) :: file
         character(len=*), intent(in), optional :: dir
@@ -467,7 +468,7 @@ contains
         if (.not. st%ok()) full = file
     end function expand
 
-    !> The current buffer's `default_directory'.
+    !> The current buffer's `default_directory'.  Not a port.
     function default_directory() result(dir)
         character(len=:), allocatable :: dir
 
@@ -476,7 +477,7 @@ contains
         if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
     end function default_directory
 
-    !> The current buffer's visited file ("" for none).
+    !> The current buffer's visited file ("" for none).  Not a port.
     function buffer_file_name() result(file)
         character(len=:), allocatable :: file
 
@@ -485,7 +486,7 @@ contains
         if (allocated(buffers(cur)%filename)) file = buffers(cur)%filename
     end function buffer_file_name
 
-    !> Whether the current buffer is modified.
+    !> Whether the current buffer is modified.  Not a port.
     logical function buffer_modified_p(h)
         type(handle_type), intent(in) :: h
 
@@ -495,6 +496,7 @@ contains
     end function buffer_modified_p
 
     !> Whether the current buffer's major mode is MODE or derives from it.
+    !> Not a port.
     logical function derived_mode_p(mode)
         use derived_fm, only: provided_mode_derived_p
         character(len=*), intent(in) :: mode
@@ -505,7 +507,7 @@ contains
         derived_mode_p = provided_mode_derived_p(buffers(cur)%major_mode, mode)
     end function derived_mode_p
 
-    !> N as a decimal string.
+    !> N as a decimal string.  Not a port.
     function itoa(n) result(s)
         integer, intent(in) :: n
         character(len=:), allocatable :: s
@@ -516,7 +518,7 @@ contains
     end function itoa
 
     !> The index of the current buffer's VC variables in `locals' (made
-    !> with CREATE; 0 if none).
+    !> with CREATE; 0 if none).  Not a port.
     integer function local_index(create) result(k)
         logical, intent(in) :: create
         type(vc_locals_type), allocatable :: grown(:)
@@ -541,6 +543,7 @@ contains
     end function local_index
 
     !> Forget the current buffer's VC variables (kill-all-local-variables).
+    !> Not a port.
     subroutine kill_vc_locals()
         logical, allocatable :: keep(:)
         integer :: k
@@ -557,6 +560,7 @@ contains
 
     !> Set the current buffer's `vc_buffer_overriding_fileset' to FS, or
     !> clear it (nil) when FS is absent: as binding it does upstream.
+    !> Not a port.
     subroutine set_vc_buffer_overriding_fileset(fs)
         type(vc_fileset_type), intent(in), optional :: fs
         integer :: k
@@ -567,7 +571,7 @@ contains
     end subroutine set_vc_buffer_overriding_fileset
 
     !> The index of the current buffer's entry in `log_buffers', made if
-    !> CREATE (0 if none).  (Public for vc_log_fm.)
+    !> CREATE (0 if none).  (Public for vc_log_fm.)  Not a port.
     integer function log_buffer_index(create) result(k)
         logical, intent(in) :: create
         type(vc_log_buffer_type), allocatable :: grown(:)
@@ -604,7 +608,7 @@ contains
     end function log_buffer_index
 
     !> The current buffer's `vc_log_view_type' (VC_LOG_VIEW_NIL if not
-    !> set): the type of VC log shown in it.
+    !> set): the type of VC log shown in it.  Not a port.
     integer function vc_log_view_type()
         integer :: k
 
@@ -614,6 +618,7 @@ contains
     end function vc_log_view_type
 
     !> The current buffer's `vc--shortlog': whether this is a shortlog.
+    !> Not a port.
     logical function vc_shortlog()
         integer :: k
 
@@ -1587,7 +1592,7 @@ contains
     end subroutine vc_checkin
 
     ! The log operation of `vc_checkin': (lambda (files comment) ...),
-    ! run in the parent buffer.
+    ! run in the parent buffer.  Port of vc.el:vc-checkin in part.
     recursive subroutine checkin_operation(operation, files, comment_in, status)
         use help_fm, only: substitute_command_keys
         type(vc_log_operation_type), intent(in) :: operation
@@ -1693,8 +1698,8 @@ contains
 
     contains
 
-        ! Are any files in the directory browser explicitly marked?  Port
-        ! of vc-dispatcher.el:vc-dispatcher--explicit-marks-p (VC-Dir is
+        ! Are any files in the directory browser explicitly marked?
+        ! Port of vc-dispatcher.el:vc-dispatcher--explicit-marks-p (VC-Dir is
         ! not ported).
         logical function explicit_marks_p()
             type(dired_string_type), allocatable :: marked(:)
@@ -2038,7 +2043,7 @@ contains
 
     !> The files of with-vc-properties for FILES: each file, and for a
     !> directory the visited files of buffers in it; start recording the
-    !> properties set.
+    !> properties set.  Port of vc.el:with-vc-properties in part.
     subroutine with_properties_begin(files, flist)
         type(vc_string_type), intent(in) :: files(:)
         type(vc_string_type), allocatable, intent(out) :: flist(:)
@@ -2142,6 +2147,7 @@ contains
     end subroutine vc_diff_finish
 
     !> Insert TEXT ignoring read-only (let ((inhibit-read-only t)) ...).
+    !> Not a port.
     subroutine bind_read_only_insert(text)
         use lisp_fm, only: t_value
         character(len=*), intent(in) :: text
@@ -2305,7 +2311,7 @@ contains
     end subroutine vc_diff_internal
 
     !> Remember the arguments `vc_diff_revert' runs `vc_diff_internal' with
-    !> in the current buffer.
+    !> in the current buffer.  Not a port.
     subroutine remember_diff_args(async, fs, verbose, rev1, rev2)
         logical, intent(in) :: async, verbose
         type(vc_fileset_type), intent(in) :: fs
@@ -2324,7 +2330,7 @@ contains
     end subroutine remember_diff_args
 
     !> The `revert_buffer_function' of *vc-diff* buffers: make the diff
-    !> again.
+    !> again.  Port of vc.el:vc-diff-internal in part.
     recursive subroutine vc_diff_revert(ignore_auto, noconfirm, status)
         logical, intent(in) :: ignore_auto, noconfirm
         type(status_type), intent(out) :: status
@@ -2468,7 +2474,7 @@ contains
         call diff_revs(vc_allow_async_diff, fs, rev1, rev2, opt(interactive), changes, status)
     end subroutine vc_version_diff
 
-    !> `vc_diff_internal' with REV1 and REV2 ("" for nil).
+    !> `vc_diff_internal' with REV1 and REV2 ("" for nil).  Not a port.
     recursive subroutine diff_revs(async, fs, rev1, rev2, verbose, changes, status, buffer)
         logical, intent(in) :: async, verbose
         type(vc_fileset_type), intent(in) :: fs
@@ -2488,6 +2494,7 @@ contains
         end if
     end subroutine diff_revs
 
+    ! Not a port.
     logical function opt(flag)
         logical, intent(in), optional :: flag
 
@@ -2499,7 +2506,7 @@ contains
     !> backend deduced, or the one responsible for a directory read with
     !> DESC (vc--with-backend-in-rootdir), and that directory.  Sets
     !> `default_directory' to the root, as the macro binds it (the caller
-    !> restores SAVED_DIR).
+    !> restores SAVED_DIR).  Port of vc.el:vc--with-backend-in-rootdir.
     recursive subroutine with_backend_in_rootdir(desc, fs, saved_dir, status)
         character(len=*), intent(in) :: desc
         type(vc_fileset_type), intent(out) :: fs
@@ -2568,8 +2575,8 @@ contains
     !>
     !> Optional argument NOT_ESSENTIAL true means it is okay to say no to
     !> saving the buffer.
-    !> Optional argument FILESET, if present, overrides the fileset.  Port
-    !> of vc.el:vc-diff.
+    !> Optional argument FILESET, if present, overrides the fileset.
+    !> Port of vc.el:vc-diff.
     recursive subroutine vc_diff(status, historic, not_essential, fileset, interactive)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: historic, not_essential, interactive
@@ -2980,8 +2987,8 @@ contains
     end subroutine vc_version_backup_file
 
     !> Revert FILE back to the repository working revision it was based on.
-    !> If FILE is a directory, revert all files inside that directory.  Port
-    !> of vc.el:vc-revert-file.
+    !> If FILE is a directory, revert all files inside that directory.
+    !> Port of vc.el:vc-revert-file.
     recursive subroutine vc_revert_file(file, status)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
@@ -3040,7 +3047,7 @@ contains
     !> Set FILE's properties after reverting it from STATE, those the
     !> backend did not set (with-vc-properties's settings): an added file
     !> becomes unregistered, others up to date; the checkout time is the
-    !> modification time.
+    !> modification time.  Not a port.
     subroutine set_after_revert(file, state)
         character(len=*), intent(in) :: file
         integer, intent(in) :: state
@@ -3433,7 +3440,7 @@ contains
     end subroutine vc_rename_file
 
     !> Whether DIRNAME contains a VC-managed file (vc-file-tree-walk
-    !> throwing `done' at the first).
+    !> throwing `done' at the first).  Not a port.
     recursive logical function vc_file_tree_walk_any(dirname) result(found)
         character(len=*), intent(in) :: dirname
         type(vc_string_type), allocatable :: files(:)
@@ -3645,14 +3652,14 @@ contains
         call vc_clear_context()
     end subroutine cmd_vc_clear_context
 
-    !> `vc_mode_line' as vc-mode-line-hook.
+    !> `vc_mode_line' as vc-mode-line-hook.  Not a port.
     subroutine mode_line_hook(file)
         character(len=*), intent(in) :: file
 
         call vc_mode_line(file)
     end subroutine mode_line_hook
 
-    !> Register VC's commands and options.
+    !> Register VC's commands and options.  Not a port.
     subroutine syms_of_vc()
         if (.not. allocated(vc_deduce_backend_nonvc_modes)) then
             vc_deduce_backend_nonvc_modes = [character(len=32) :: "dired_mode", "shell_mode", "eshell_mode", &
