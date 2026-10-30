@@ -91,10 +91,13 @@ contains
     logical function function_known_p(name)
         character(len=*), intent(in) :: name
         integer :: k
+
         function_known_p = .true.
+
         do k = 1, size(function_names)
             if (trim(function_names(k)) == name) return
         end do
+
         function_known_p = fboundp(sym(name))
     end function function_known_p
 
@@ -103,6 +106,7 @@ contains
         type(value_type), intent(in) :: elt
         character(len=:), allocatable :: name
         type(status_type) :: status
+
         call symbol_name(elt, name, status)
         function_symbol_p = status%ok()
         if (function_symbol_p) function_symbol_p = function_known_p(name)
@@ -115,10 +119,12 @@ contains
         type(value_type) :: head
         character(len=:), allocatable :: base
         integer(int64) :: bits, c
+
         head = ev
         ! A list (a character interval here): its car.
         if (vtag(ev) == V_LIST) head = list_elt(ev, 1_int64)
         unmodified_event_p = .false.
+
         if (fixnump(head)) then
             ! subr.el:event-modifiers for a character.
             bits = iand(xfixnum(head), M_MODS)
@@ -139,7 +145,9 @@ contains
         character(len=:), allocatable :: s
         type(value_type), allocatable :: events(:)
         integer :: k
+
         s = ""
+
         do k = 1, size(keys)
             if (k == 1) then
                 s = ""
@@ -148,6 +156,7 @@ contains
             else
                 s = s//", "
             end if
+
             call list_elements(keys(k), events)
             s = s//key_description(events)
         end do
@@ -164,11 +173,14 @@ contains
         type(value_type), allocatable :: keys(:), events(:), rest(:)
         logical, allocatable :: unmodified(:)
         integer :: k, n, nunmod
+
         s = ""
         call where_is_internal(sym(name), all)
         call list_elements(all, keys)
+
         if (name == "self_insert_command" .and. size(keys) > 0) then
             call list_elements(keys(1), events)
+
             if (size(events) > 0) then
                 if (vtag(events(1)) == V_LIST) then
                     s = "It is bound to many ordinary text characters."//LF
@@ -176,16 +188,21 @@ contains
                 end if
             end if
         end if
+
         ! Which non-control non-meta keys run this command?
         allocate (unmodified(size(keys)))
+
         do k = 1, size(keys)
             call list_elements(keys(k), events)
             unmodified(k) = .false.
             if (size(events) > 0) unmodified(k) = unmodified_event_p(events(1))
         end do
+
         nunmod = count(unmodified)
+
         if (size(keys) > 0) then
             s = "It is bound to "
+
             ! If lots of ordinary text characters run this command, don't
             ! mention them one by one.
             if (nunmod < 10) then
@@ -193,11 +210,13 @@ contains
             else
                 allocate (rest(size(keys) - nunmod))
                 n = 0
+
                 do k = 1, size(keys)
                     if (unmodified(k)) cycle
                     n = n + 1
                     rest(n) = keys(k)
                 end do
+
                 if (n > 0) then
                     s = s//bindings_text(rest)//", and many ordinary text characters"
                 else
@@ -205,6 +224,7 @@ contains
                 end if
             end if
         end if
+
         if (size(keys) > 0 .or. nunmod > 0) s = s//"."//LF
     end function key_bindings_text
 
@@ -217,6 +237,7 @@ contains
         character(len=:), allocatable :: filled
         type(handle_type) :: previous, temp
         type(status_type) :: st
+
         filled = text
         if (len(text) == 0) return
         previous = current_buffer()
@@ -244,6 +265,7 @@ contains
         type(doc_entry_type) :: entry
         character(len=:), allocatable :: keys, doc
         logical :: found, interactive, subroutine_p
+
         call function_doc(name, entry, found)
         interactive = command_defined_p(sym(name))
         if (found) interactive = interactive .or. entry%interactive
@@ -251,31 +273,38 @@ contains
         if (found) subroutine_p = len(entry%fortran) == 0 .or. index(entry%fortran, "call ") == 1
         text = ""
         if (present(lead)) text = lead
+
         if (interactive) then
             text = text//"an interactive "
         else
             text = text//"a "
         end if
+
         if (subroutine_p) then
             text = text//"Fortran subroutine"
         else
             text = text//"Fortran function"
         end if
+
         if (found) text = text//" in "//LQUOTE//entry%file//RQUOTE
         text = fill_text(text//".", .true.)//LF//LF
+
         if (interactive) then
             keys = fill_text(key_bindings_text(name), .false.)
+
             if (len(keys) > 0) then
                 if (keys(len(keys):) /= LF) keys = keys//LF
                 text = text//keys//LF
             end if
         end if
+
         if (found) then
             if (len(entry%fortran) > 0) text = text//entry%fortran//LF//LF
             doc = entry%doc
         else
             doc = ""
         end if
+
         if (len(doc) == 0) doc = "Not documented."
         text = text//substitute_command_keys(doc)//LF
     end subroutine describe_function_1
@@ -286,6 +315,7 @@ contains
         character(len=*), intent(in) :: function
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
+
         call describe_function_1(function, text, function//" is ")
         call with_help_window(text, status)
     end subroutine describe_function
@@ -299,12 +329,16 @@ contains
         logical, intent(out) :: found
         type(doc_entry_type) :: entry
         character(len=:), allocatable :: doc, extra
+
         call variable_doc(name, entry, found)
+
         if (.not. found) then
             text = name//" is void as a variable."//LF
             return
         end if
+
         text = name//" is a variable defined in "//LQUOTE//entry%file//RQUOTE//"."//LF//LF
+
         ! No value line for a value without a printed form (unallocated
         ! here, or empty for a procedure without a name).
         if (allocated(entry%value)) then
@@ -315,6 +349,7 @@ contains
                 else
                     text = text//"Its value is"//LF//entry%value//LF
                 end if
+
                 if (len(entry%original) > 0 .and. entry%original /= entry%value) then
                     ! A short value stays on the line.
                     if (len(entry%original) < 20) then
@@ -325,6 +360,7 @@ contains
                 end if
             end if
         end if
+
         text = text//"Its Fortran name is "//LQUOTE//entry%fortran//RQUOTE//"."//LF//LF
         doc = entry%doc
         if (len(doc) == 0) doc = "Not documented as a variable."
@@ -347,6 +383,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
         logical :: found
+
         call describe_variable_text(variable, text, found)
         call with_help_window(text, status)
     end subroutine describe_variable
@@ -356,15 +393,18 @@ contains
     recursive subroutine cmd_describe_function(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
+
         call completing_read("Describe function: ", completion_obarray_table("symbol-help"), name, status, &
                              function_symbol_p, require_match=REQUIRE_MATCH_T)
         if (.not. status%ok()) return
+
         ! help-fns--describe-function-or-command-prompt (no function at
         ! point yet)
         if (len(name) == 0) then
             call set_error(status, FM_USER_ERROR, format_message("You didn't specify a function symbol"))
             return
         end if
+
         call describe_function(name, status)
     end subroutine cmd_describe_function
 
@@ -375,18 +415,23 @@ contains
         character(len=:), allocatable :: name
         type(value_type), allocatable :: names(:)
         integer :: k
+
         allocate (names(size(variable_names)))
+
         do k = 1, size(variable_names)
             names(k) = make_string(trim(variable_names(k)))
         end do
+
         call completing_read("Describe variable: ", completion_list_table(make_list(names), "symbol-help"), name, status, &
                              require_match=REQUIRE_MATCH_T)
         if (.not. status%ok()) return
+
         ! (No variable at point yet.)
         if (len(name) == 0) then
             call set_error(status, FM_USER_ERROR, format_message("You didn't specify a variable"))
             return
         end if
+
         call describe_variable(name, status)
     end subroutine cmd_describe_variable
 
@@ -394,10 +439,13 @@ contains
     logical function variable_known_p(name)
         character(len=*), intent(in) :: name
         integer :: k
+
         variable_known_p = .true.
+
         do k = 1, size(variable_names)
             if (trim(variable_names(k)) == name) return
         end do
+
         variable_known_p = .false.
     end function variable_known_p
 
@@ -413,6 +461,7 @@ contains
     subroutine describe_mode(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
+
         call describe_mode_text(text)
         call with_help_window(text, status)
     end subroutine describe_mode
@@ -429,6 +478,7 @@ contains
         type(minor_mode_type), pointer :: m
         logical :: found
         integer :: k, nl, ng
+
         major = "fundamental_mode"
         if (allocated(buffers(cur)%major_mode)) major = buffers(cur)%major_mode
         mname = "Fundamental"
@@ -437,9 +487,11 @@ contains
         allocate (local_modes(minor_mode_count()), global_modes(minor_mode_count()))
         nl = 0
         ng = 0
+
         do k = 1, minor_mode_count()
             m => minor_mode_at(k)
             if (.not. m%enabled()) cycle
+
             if (m%global) then
                 ng = ng + 1
                 global_modes(ng) = m%name
@@ -448,20 +500,24 @@ contains
                 local_modes(nl) = m%name
             end if
         end do
+
         ! Document the major mode.
         text = "Major mode "//major//LF//LF//"The major mode is "//mname//" mode"
         call function_doc(major, entry, found)
         if (found) text = text//" defined in "//entry%file
         text = text//":"//LF//LF
         if (found) text = text//substitute_command_keys(entry%doc)
+
         ! (ensure-empty-lines 1)
         do while (len(text) > 0)
             if (text(len(text):len(text)) /= LF) exit
             text = text(1:len(text) - 1)
         end do
+
         text = text//LF//LF
         call minor_modes(local_modes(1:nl), "Local")
         call minor_modes(global_modes(1:ng), "Global")
+
     contains
 
         !> Append the description of the minor modes `modes', sorted.
@@ -476,17 +532,22 @@ contains
             integer :: i, j
             type(doc_entry_type) :: e
             logical :: have
+
             sorted = modes
+
             do i = 2, size(sorted)
                 x = sorted(i)
                 j = i - 1
+
                 do while (j >= 1)
                     if (llt(sorted(j), x) .or. sorted(j) == x) exit
                     sorted(j + 1) = sorted(j)
                     j = j - 1
                 end do
+
                 sorted(j + 1) = x
             end do
+
             do i = 1, size(sorted)
                 name = trim(sorted(i))
                 pretty = pretty_minor_mode(name)
@@ -494,11 +555,13 @@ contains
                 mm => minor_mode_at(minor_mode_index_of(name))
                 indicator = ""
                 if (allocated(mm%lighter)) indicator = mm%lighter
+
                 if (len(indicator) == 0) then
                     indicator = "no indicator"
                 else
                     indicator = "indicator"//indicator
                 end if
+
                 text = text//pretty//" minor mode ("//indicator//"):"//LF
                 call function_doc(name, e, have)
                 doc = ""
@@ -513,10 +576,12 @@ contains
     integer function minor_mode_index_of(name) result(k)
         character(len=*), intent(in) :: name
         type(minor_mode_type), pointer :: m
+
         do k = 1, minor_mode_count()
             m => minor_mode_at(k)
             if (trim(m%name) == name) return
         end do
+
         k = 0
     end function minor_mode_index_of
 
@@ -525,13 +590,17 @@ contains
     function pretty_minor_mode(name) result(pretty)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: pretty
+
         pretty = name
+
         if (len(pretty) >= 11) then
             if (pretty(len(pretty) - 10:) == "_minor_mode") pretty = pretty(1:len(pretty) - 11)
         end if
+
         if (len(pretty) >= 5) then
             if (pretty(len(pretty) - 4:) == "_mode") pretty = pretty(1:len(pretty) - 5)
         end if
+
         pretty = capitalize_string(pretty)
     end function pretty_minor_mode
 
@@ -545,18 +614,21 @@ contains
         logical, intent(out) :: found
         character(len=:), allocatable :: ftext, vtext
         logical :: is_function, is_variable, vfound
+
         is_function = function_known_p(name)
         is_variable = variable_known_p(name)
         found = is_function .or. is_variable
         text = ""
         if (is_function) call describe_function_1(name, ftext, name//" is ")
         if (is_variable) call describe_variable_text(name, vtext, vfound)
+
         if (is_function .and. is_variable) then
             ! The function's documentation, then a separator line.
             do while (len(ftext) > 0)
                 if (verify(ftext(len(ftext):len(ftext)), " "//achar(9)//LF) /= 0) exit
                 ftext = ftext(1:len(ftext) - 1)
             end do
+
             text = ftext//LF//LF//make_separator_line()//LF//vtext
         else if (is_function) then
             text = ftext
@@ -574,11 +646,14 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
         logical :: found
+
         call describe_symbol_text(name, text, found)
+
         if (.not. found) then
             call set_error(status, FM_USER_ERROR, "Unknown symbol: "//name)
             return
         end if
+
         call with_help_window(text, status)
     end subroutine describe_symbol
 
@@ -588,6 +663,7 @@ contains
         type(value_type), intent(in) :: elt
         character(len=:), allocatable :: name
         type(status_type) :: st
+
         call symbol_name(elt, name, st)
         symbol_known_p = st%ok()
         if (symbol_known_p) symbol_known_p = function_known_p(name) .or. variable_known_p(name)
@@ -600,13 +676,16 @@ contains
     recursive subroutine cmd_describe_symbol(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
+
         call completing_read("Describe symbol: ", completion_obarray_table("symbol-help"), name, status, symbol_known_p, &
                              require_match=REQUIRE_MATCH_T)
         if (.not. status%ok()) return
+
         if (len(name) == 0) then
             call set_error(status, FM_USER_ERROR, format_message("You didn't specify a function or variable"))
             return
         end if
+
         call describe_symbol(name, status)
     end subroutine cmd_describe_symbol
 
@@ -617,13 +696,16 @@ contains
     recursive subroutine cmd_describe_command(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
+
         call completing_read("Describe command: ", completion_obarray_table("symbol-help"), name, status, commandp, &
                              require_match=REQUIRE_MATCH_T)
         if (.not. status%ok()) return
+
         if (len(name) == 0) then
             call set_error(status, FM_USER_ERROR, format_message("You didn't specify a command's symbol"))
             return
         end if
+
         call describe_function(name, status)
     end subroutine cmd_describe_command
 
@@ -639,6 +721,7 @@ contains
     !> `describe_mode_outline' true).
     subroutine cmd_describe_mode(status)
         type(status_type), intent(out) :: status
+
         call describe_mode(status)
     end subroutine cmd_describe_mode
 
@@ -647,13 +730,16 @@ contains
     subroutine syms_of_help_fns()
         type(value_type) :: s
         integer :: k
+
         do k = 1, size(function_names)
             s = sym(trim(function_names(k)))
         end do
+
         ! The documented variables too (upstream interns every defvar).
         do k = 1, size(variable_names)
             s = sym(trim(variable_names(k)))
         end do
+
         describe_function_1_hook => describe_function_1
         documentation_hook => documentation
         commands%describe_function%run => cmd_describe_function
@@ -670,6 +756,7 @@ contains
         character(len=:), allocatable, intent(out) :: doc
         logical, intent(out) :: found
         type(doc_entry_type) :: entry
+
         doc = ""
         call function_doc(name, entry, found)
         if (found .and. allocated(entry%doc)) doc = entry%doc

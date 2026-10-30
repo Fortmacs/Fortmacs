@@ -48,6 +48,7 @@ contains
 
     subroutine collect_newcomment_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("test-uncomment-space-comment-continue", test_space_continue), &
                     new_unittest("comment-strings", test_strings), &
@@ -63,6 +64,7 @@ contains
         character(len=*), intent(in) :: text
         type(handle_type), intent(out) :: h, table
         type(status_type) :: st
+
         call init_bindings()
         call get_buffer_create(" *newcomment-test*", h, st)
         call set_buffer(h, st)
@@ -79,6 +81,7 @@ contains
         character(len=*), intent(in) :: text
         type(handle_type), intent(out) :: h, table
         type(status_type) :: st
+
         call temp_buffer(text, h, table)
         call modify_syntax_entry(iachar("#"), iachar("#"), "<", st)
         call modify_syntax_entry(10, 10, ">", st)
@@ -88,6 +91,7 @@ contains
     subroutine leave(h, table)
         type(handle_type), intent(in) :: h, table
         type(status_type) :: st
+
         indent_tabs_mode = .true.
         call kill_buffer(h, st)
         call free_syntax_table(table, st)
@@ -99,7 +103,9 @@ contains
         type(handle_type) :: h, table
         type(status_type) :: st
         integer(int64) :: saved_style
+
         call temp_buffer("", h, table)
+
         checks: block
             ! C mode's comments.
             call modify_syntax_entry(iachar("/"), iachar("/"), ". 124b", st)
@@ -120,6 +126,7 @@ contains
             if (allocated(error)) exit checks
             call check(error, buffer_string(), "  a"//LF//"  b")
         end block checks
+
         comment_style = saved_style
         call leave(h, table)
     end subroutine test_space_continue
@@ -128,6 +135,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, table
         type(status_type) :: st
+
         call check(error, comment_string_strip("  ab  ", .true., .true.), "ab")
         if (allocated(error)) return
         call check(error, comment_string_strip("  ab  ", .false., .true.), "  ab")
@@ -135,6 +143,7 @@ contains
         call check(error, comment_string_reverse("/* "), " */")
         if (allocated(error)) return
         call hash_buffer("", h, table)
+
         checks: block
             call comment_normalize_vars(st)
             call check(error, comment_padright("# "), "# ")
@@ -143,6 +152,7 @@ contains
             if (allocated(error)) exit checks
             call check(error, comment_padleft(" */", 1_int64), " **/")
         end block checks
+
         call leave(h, table)
     end subroutine test_strings
 
@@ -150,7 +160,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, table
         type(status_type) :: st
+
         call hash_buffer("a"//LF//"  b"//LF, h, table)
+
         checks: block
             call comment_region(point_min(), point_max(), st)
             call check(error, st%ok(), "comment_region failed")
@@ -160,6 +172,7 @@ contains
             call uncomment_region(point_min(), point_max(), st)
             call check(error, buffer_string(), "a"//LF//"  b"//LF)
         end block checks
+
         call leave(h, table)
     end subroutine test_region_hash
 
@@ -167,7 +180,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, table
         type(status_type) :: st
+
         call hash_buffer("foo", h, table)
+
         checks: block
             call goto_char(1_int64)
             call comment_indent(st)
@@ -177,6 +192,7 @@ contains
             if (allocated(error)) exit checks
             call check(error, point() == point_max(), "point is not after the comment starter")
         end block checks
+
         call leave(h, table)
     end subroutine test_indent_hash
 
@@ -184,7 +200,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, table
         type(status_type) :: st
+
         call hash_buffer("a"//LF//"b"//LF, h, table)
+
         checks: block
             call goto_char(1_int64)
             call comment_line(1_int64, st)
@@ -198,6 +216,7 @@ contains
             call comment_line(1_int64, st)
             call check(error, buffer_string(), "a"//LF//"b"//LF)
         end block checks
+
         call leave(h, table)
     end subroutine test_line_hash
 
@@ -205,13 +224,16 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, table
         type(status_type) :: st
+
         call hash_buffer("", h, table)
+
         checks: block
             call comment_dwim(st)
             call check(error, st%ok(), "comment_dwim failed")
             if (allocated(error)) exit checks
             call check(error, buffer_string(), "# ")
         end block checks
+
         call leave(h, table)
     end subroutine test_dwim_blank
 end module test_newcomment_fm

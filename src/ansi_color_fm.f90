@@ -328,16 +328,20 @@ contains
         logical, intent(in) :: create
         type(context_type), allocatable :: grown(:)
         integer :: i, n
+
         k = 0
         if (cur == 0) return
         if (.not. allocated(contexts)) allocate (contexts(0))
+
         do i = 1, size(contexts)
             if (contexts(i)%serial == buffers(cur)%serial) then
                 k = i
                 return
             end if
         end do
+
         if (.not. create) return
+
         do i = 1, size(contexts)
             if (contexts(i)%serial == 0) then
                 contexts(i)%serial = buffers(cur)%serial
@@ -345,6 +349,7 @@ contains
                 return
             end if
         end do
+
         n = size(contexts)
         allocate (grown(n + 1))
         grown(1:n) = contexts
@@ -359,6 +364,7 @@ contains
     subroutine reset_ansi_color_context()
         type(status_type) :: st
         integer :: k
+
         k = context_slot(.false.)
         if (k == 0) return
         if (contexts(k)%region_marker%index /= 0) call free_marker(contexts(k)%region_marker, st)
@@ -370,14 +376,17 @@ contains
         procedure(ansi_color_face_proc) :: fn
         type(face_function_entry_type), allocatable :: grown(:)
         integer :: i, n
+
         if (cur == 0) return
         if (.not. allocated(self%entries)) allocate (self%entries(0))
+
         do i = 1, size(self%entries)
             if (self%entries(i)%serial == buffers(cur)%serial) then
                 self%entries(i)%fn => fn
                 return
             end if
         end do
+
         n = size(self%entries)
         allocate (grown(n + 1))
         grown(1:n) = self%entries
@@ -390,8 +399,10 @@ contains
         class(ansi_color_apply_face_function_type), intent(in) :: self
         procedure(ansi_color_face_proc), pointer :: fn
         integer :: i
+
         fn => ansi_color_apply_overlay_face
         if (cur == 0 .or. .not. allocated(self%entries)) return
+
         do i = 1, size(self%entries)
             if (self%entries(i)%serial == buffers(cur)%serial) fn => self%entries(i)%fn
         end do
@@ -400,8 +411,10 @@ contains
     ! Forget the current buffer's values (kill-all-local-variables).
     subroutine kill_ansi_color_locals()
         integer :: i
+
         call reset_ansi_color_context()
         if (cur == 0 .or. .not. allocated(ansi_color_apply_face_function%entries)) return
+
         do i = 1, size(ansi_color_apply_face_function%entries)
             if (ansi_color_apply_face_function%entries(i)%serial == buffers(cur)%serial) then
                 ansi_color_apply_face_function%entries(i) = face_function_entry_type()
@@ -417,6 +430,7 @@ contains
     !> ansi-color.el:ansi-color-for-comint-mode-on.
     subroutine ansi_color_for_comint_mode_on(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         ansi_color_for_comint_mode = ANSI_COLOR_T
     end subroutine ansi_color_for_comint_mode_on
@@ -425,6 +439,7 @@ contains
     !> ansi-color.el:ansi-color-for-comint-mode-off.
     subroutine ansi_color_for_comint_mode_off(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         ansi_color_for_comint_mode = ANSI_COLOR_NIL
     end subroutine ansi_color_for_comint_mode_off
@@ -433,6 +448,7 @@ contains
     !> ansi-color.el:ansi-color-for-comint-mode-filter.
     subroutine ansi_color_for_comint_mode_filter(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         ansi_color_for_comint_mode = ANSI_COLOR_FILTER
     end subroutine ansi_color_for_comint_mode_filter
@@ -455,6 +471,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: proc
         integer(int64) :: start, end
+
         status = status_type()
         if (len(ignored) < 0) return
         proc = get_buffer_process(current_buffer())
@@ -462,10 +479,12 @@ contains
         start = comint_last_output_start()
         if (start <= 0) start = point_min()
         call marker_position(process_mark(proc), end, status)
+
         if (.not. status%ok()) then
             status = status_type()
             return
         end if
+
         select case (int(ansi_color_for_comint_mode%value))
         case (ANSI_COLOR_NIL)
         case (ANSI_COLOR_FILTER)
@@ -483,9 +502,11 @@ contains
         type(status_type), intent(out) :: status
         type(value_type) :: saved
         type(status_type) :: st
+
         status = status_type()
         call symbol_value(sym("inhibit_read_only"), saved, st)
         call set(sym("inhibit_read_only"), t_value(), st)
+
         select case (int(ansi_color_for_compilation_mode%value))
         case (ANSI_COLOR_NIL)
         case (ANSI_COLOR_FILTER)
@@ -493,6 +514,7 @@ contains
         case default
             call ansi_color_apply_on_region(compilation_filter_start, point())
         end select
+
         call set(sym("inhibit_read_only"), saved, st)
     end subroutine ansi_color_compilation_filter
 
@@ -504,6 +526,7 @@ contains
     ! (ansi-color--ensure-context with POSITION nil).
     integer function ensure_string_context() result(k)
         k = context_slot(.true.)
+
         if (.not. contexts(k)%has_string) then
             contexts(k)%has_string = .true.
             contexts(k)%string_face_vec = face_vec_type()
@@ -515,7 +538,9 @@ contains
     integer(int64) function nchars_of(text) result(n)
         character(len=*), intent(in) :: text
         integer :: i
+
         n = 0
+
         do i = 1, len(text)
             if (iand(iachar(text(i:i)), 192) /= 128) n = n + 1
         end do
@@ -528,12 +553,15 @@ contains
         integer(int64), intent(in) :: from, to
         character(len=:), allocatable :: s
         integer(int64) :: b, e
+
         b = char_byte_offset(text, from)
+
         if (to < 0) then
             e = len(text)
         else
             e = char_byte_offset(text, to)
         end if
+
         s = text(b + 1:e)
     end function char_range
 
@@ -542,14 +570,18 @@ contains
         character(len=*), intent(in) :: text
         integer(int64), intent(in) :: n
         integer(int64) :: count
+
         off = 0
         count = 0
+
         do while (off < len(text) .and. count < n)
             off = off + 1
+
             do while (off < len(text))
                 if (iand(iachar(text(off + 1:off + 1)), 192) /= 128) exit
                 off = off + 1
             end do
+
             count = count + 1
         end do
     end function char_byte_offset
@@ -571,12 +603,14 @@ contains
         type(status_type) :: st
         integer(int64) :: start, end, pos
         integer :: k
+
         k = ensure_string_context()
         ! if context was saved and is a string, prepend it
         text = contexts(k)%fragment//string
         contexts(k)%fragment = ""
         res = ""
         start = 0
+
         ! find the next escape sequence
         do
             end = string_match(ansi_color_control_seq_regexp, text, st, start=start + 1)
@@ -584,9 +618,11 @@ contains
             res = res//char_range(text, start, end - 1)
             start = match_end(0, st) - 1
         end do
+
         ! save context, add the remainder of the string to the result
         fragment = ""
         pos = string_match("\(?:"//control_seq_fragment_regexp//"\)\'", text, st, start=start + 1)
+
         if (pos > 0) then
             pos = pos - 1
             fragment = char_range(text, pos, -1_int64)
@@ -594,6 +630,7 @@ contains
         else
             res = res//char_range(text, start, -1_int64)
         end if
+
         k = ensure_string_context()
         contexts(k)%fragment = fragment
     end function ansi_color_filter_apply
@@ -622,6 +659,7 @@ contains
         type(status_type) :: st
         integer(int64) :: start, end, esc_end, pos, nchars
         integer :: k
+
         k = ensure_string_context()
         face_vec = contexts(k)%string_face_vec
         ! If context was saved and is a string, prepend it.
@@ -631,6 +669,7 @@ contains
         nchars = nchars_of(raw)
         res = make_string("")
         start = 0
+
         ! Find the next escape sequence.
         do
             end = string_match(ansi_color_control_seq_regexp, raw, st, start=start + 1)
@@ -644,12 +683,14 @@ contains
             start = esc_end
             ! If this is a color escape sequence,
             seq = char_range(raw, end, esc_end)
+
             if (seq(len(seq):len(seq)) == "m") then
                 ! create a new face from it.
                 call parse_codes(seq, codes)
                 call update_face_vec(face_vec, codes)
             end if
         end do
+
         ! if the rest of the string should have a face, put it there
         face = face_vec_face(face_vec)
         if (.not. nilp(face)) call string_put_text_property(start, nchars, sym("font_lock_face"), face, text, st)
@@ -657,6 +698,7 @@ contains
         k = ensure_string_context()
         contexts(k)%string_face_vec = face_vec
         pos = string_match("\(?:"//control_seq_fragment_regexp//"\)\'", raw, st, start=start + 1)
+
         if (pos > 0) then
             pos = pos - 1
             contexts(k)%fragment = char_range(raw, pos, -1_int64)
@@ -675,8 +717,10 @@ contains
         integer(int64) :: pos, idx, n, mb, me
         integer :: ios
         character(len=:), allocatable :: digits
+
         allocate (codes(0))
         pos = 0
+
         do
             idx = string_match(ansi_color_parameter_regexp, seq, st, start=pos + 1)
             if (idx == 0) exit
@@ -685,10 +729,12 @@ contains
             me = match_end(1, st) - 1
             digits = seq(mb + 1:me)
             n = 0
+
             if (len(digits) > 0) then
                 read (digits, *, iostat=ios) n
                 if (ios /= 0) n = 0
             end if
+
             codes = [codes, n]
         end do
     end subroutine parse_codes
@@ -701,20 +747,25 @@ contains
         type(value_type) :: faces(10)
         integer :: n, i
         logical :: bright
+
         bright = ansi_color_bold_is_bright%value .and. face_vec%basic(1)
         n = 0
+
         ! (The faces are pushed: the list is built backwards.)
         if (face_vec%fg >= 0) then
             n = n + 1
             faces(n) = list(sym(":foreground"), color_value(face_vec%fg, .true.))
         end if
+
         if (face_vec%bg >= 0) then
             n = n + 1
             faces(n) = list(sym(":background"), color_value(face_vec%bg, .false.))
         end if
+
         do i = 7, 0, -1
             if (face_vec%basic(i)) then
                 n = n + 1
+
                 if (len_trim(ansi_color_basic_faces_vector(i)) > 0) then
                     faces(n) = sym(trim(ansi_color_basic_faces_vector(i)))
                 else
@@ -722,6 +773,7 @@ contains
                 end if
             end if
         end do
+
         ! Avoid some long-lived conses in the common case.
         if (n == 0) then
             face = nil()
@@ -730,7 +782,9 @@ contains
         else
             face = make_list(faces(n:1:-1))
         end if
+
     contains
+
         ! The color of CODE: its hex form, or the foreground (FG) or
         ! background of its face.
         function color_value(code, fg) result(v)
@@ -739,19 +793,24 @@ contains
             type(value_type) :: v
             character(len=:), allocatable :: hex, name
             type(named_face_type), pointer :: f
+
             hex = ansi_color_code_as_hex(code)
+
             if (len(hex) > 0) then
                 v = make_string(hex)
                 return
             end if
+
             if (bright .or. code >= 8) then
                 name = trim(ansi_color_bright_colors_vector(modulo(code, 8_int64)))
             else
                 name = trim(ansi_color_normal_colors_vector(modulo(code, 8_int64)))
             end if
+
             v = nil()
             f => face_named(name)
             if (.not. associated(f)) return
+
             if (fg) then
                 if (allocated(f%lface%foreground)) v = make_string(f%lface%foreground)
             else
@@ -773,10 +832,12 @@ contains
         character(len=:), allocatable :: hex
         character(len=8) :: buf
         integer(int64) :: c, res, frac, color_num
+
         if (color < 16) then
             hex = ""
             return
         end if
+
         if (color >= 256) then
             res = color - 256
         else if (color >= 232) then
@@ -787,6 +848,7 @@ contains
             c = color - 16
             res = 0
             frac = 6*6
+
             do while (frac >= 1)
                 ! Repeat 3 times
                 res = res*int(z'000100', int64)
@@ -795,6 +857,7 @@ contains
                 frac = frac/6
             end do
         end if
+
         write (buf, "(a,z6.6)") "#", res
         hex = trim(buf)
     end function ansi_color_code_as_hex
@@ -810,7 +873,9 @@ contains
         integer(int64), intent(in) :: position
         type(status_type) :: st
         type(handle_type) :: mb
+
         k = context_slot(.true.)
+
         if (.not. contexts(k)%has_region) then
             contexts(k)%has_region = .true.
             contexts(k)%region_face_vec = face_vec_type()
@@ -825,6 +890,7 @@ contains
     integer(int64) function mpos(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
+
         call marker_position(m, mpos, st)
     end function mpos
 
@@ -843,30 +909,36 @@ contains
         type(status_type) :: st
         integer(int64) :: opoint, pos, last_mb
         integer :: k
+
         call copy_marker_at(end, end_marker, .false., st)
         k = ensure_region_context(begin)
         start = contexts(k)%region_marker
         opoint = point()
         call goto_char(mpos(start))
+
         ! Delete escape sequences.
         do
             call re_search_forward(ansi_color_control_seq_regexp, pos, st, bound=mpos(end_marker), noerror=SEARCH_NOERROR)
             if (.not. st%ok() .or. pos == 0) exit
             call delete_region(match_beginning(0, st), match_end(0, st), st)
         end do
+
         ! save context, add the remainder of the string to the result
         call set_marker(start, point(), st)
         last_mb = 0
+
         do
             call re_search_forward(control_seq_fragment_regexp, pos, st, bound=mpos(end_marker), noerror=SEARCH_NOERROR)
             if (.not. st%ok() .or. pos == 0) exit
             last_mb = match_beginning(0, st)
         end do
+
         if (point() /= mpos(start) .and. point() == mpos(end_marker)) then
             call set_marker(start, last_mb, st)
         else
             call detach_marker(start, st)
         end if
+
         call goto_char(opoint)
         call free_marker(end_marker, st)
     end subroutine ansi_color_filter_region
@@ -902,6 +974,7 @@ contains
         integer(int64) :: opoint, pos, esc_beg, esc_end, old_start, last_mb
         logical :: preserve
         integer :: k
+
         preserve = .false.
         if (present(preserve_sequences)) preserve = preserve_sequences
         apply => ansi_color_apply_face_function%get()
@@ -911,6 +984,7 @@ contains
         call copy_marker_at(end, end_marker, .false., st)
         opoint = point()
         call goto_char(mpos(start_marker))
+
         ! Find the next escape sequence.
         do
             call re_search_forward(ansi_color_control_seq_regexp, pos, st, bound=mpos(end_marker), noerror=SEARCH_NOERROR)
@@ -925,10 +999,12 @@ contains
             call apply(old_start, esc_beg, face_vec_face(face_vec))
             ! If this is a color sequence,
             call buffer_substring(esc_beg, esc_end, seq, st)
+
             if (seq(len(seq):len(seq)) == "m") then
                 call parse_codes(seq, codes)
                 call update_face_vec(face_vec, codes)
             end if
+
             if (preserve) then
                 ! Make the escape sequence transparent.
                 call make_overlay(ov, esc_beg, esc_end, st)
@@ -937,15 +1013,19 @@ contains
                 ! Otherwise, strip.
                 call delete_region(esc_beg, esc_end, st)
             end if
+
             call goto_char(mpos(start_marker))
         end do
+
         ! search for the possible start of a new escape sequence
         last_mb = 0
+
         do
             call re_search_forward(control_seq_fragment_regexp, pos, st, bound=mpos(end_marker), noerror=SEARCH_NOERROR)
             if (.not. st%ok() .or. pos == 0) exit
             last_mb = match_beginning(0, st)
         end do
+
         if (point() /= mpos(start_marker) .and. point() == mpos(end_marker)) then
             call goto_char(last_mb)
             call apply(mpos(start_marker), point(), face_vec_face(face_vec))
@@ -953,6 +1033,7 @@ contains
         else
             faces = face_vec_face(face_vec)
             call apply(mpos(start_marker), mpos(end_marker), faces)
+
             ! Save a restart position when there are codes active.  It's
             ! convenient for man.el's process filter to pass `begin'
             ! positions that overlap regions previously colored; these
@@ -964,6 +1045,7 @@ contains
                 call set_marker(start_marker, mpos(end_marker), st)
             end if
         end if
+
         k = context_slot(.true.)
         contexts(k)%region_face_vec = face_vec
         call goto_char(opoint)
@@ -979,6 +1061,7 @@ contains
         type(value_type), intent(in) :: face
         type(handle_type) :: ov
         type(status_type) :: st
+
         if (nilp(face)) return
         call ansi_color_make_extent(beg, end, ov)
         call overlay_put(ov, "face", face, st)
@@ -991,6 +1074,7 @@ contains
         integer(int64), intent(in) :: beg, end
         type(value_type), intent(in) :: face
         type(status_type) :: st
+
         if (nilp(face)) return
         call put_text_property(beg, end, sym("font_lock_face"), face, st)
     end subroutine ansi_color_apply_text_property_face
@@ -1001,6 +1085,7 @@ contains
         integer(int64), intent(in) :: from, to
         type(handle_type), intent(out) :: overlay
         type(status_type) :: st
+
         ! The overlay might end at the process-mark in comint buffers.  In
         ! that case, new text will be inserted before the process-mark,
         ! ie. inside the overlay (using insert-before-marks).  In order to
@@ -1034,13 +1119,16 @@ contains
         integer(int64) :: new, q, r, red, green, blue, val
         integer :: i
         logical :: do_clear, fg_cell, got_red, got_green, got_blue, got
+
         i = 0
         do_clear = .false.
         fg_cell = .true.
+
         do
             call next(new, got)
             if (.not. got) exit
             q = new/10
+
             select case (q)
             case (0)
                 if (new == 0 .or. new == 8 .or. new == 9) then
@@ -1056,6 +1144,7 @@ contains
                     ! https://en.wikipedia.org/wiki/ANSI_escape_code claims
                     ! `21 Bright/Bold: off or Underline: Double'.
                     face_vec%basic(new - 20) = .false.
+
                     select case (new)
                     case (22)
                         face_vec%basic(1) = .false.
@@ -1068,11 +1157,14 @@ contains
             case (3, 4, 9, 10)
                 r = modulo(new, 10_int64)
                 fg_cell = q == 3 .or. q == 9
+
                 select case (r)
                 case (8)
                     call next(val, got)
+
                     if (got .and. val == 5) then
                         call next(new, got)
+
                         if (got) then
                             call set_cell(new)
                             do_clear = new >= 256
@@ -1084,8 +1176,10 @@ contains
                         call next(red, got_red)
                         call next(green, got_green)
                         call next(blue, got_blue)
+
                         if (got_red .and. got_green .and. got_blue) then
                             new = int(z'010000', int64)*red + int(z'000100', int64)*green + blue
+
                             if (new <= int(z'FFFFFF', int64)) then
                                 call set_cell(256 + new)
                             else
@@ -1109,17 +1203,22 @@ contains
             case default
                 do_clear = .true.
             end select
+
             if (do_clear) then
                 do_clear = .false.
                 face_vec = face_vec_type()
             end if
         end do
+
     contains
+
         subroutine next(v, ok)
             integer(int64), intent(out) :: v
             logical, intent(out) :: ok
+
             ok = i < size(codes)
             v = 0
+
             if (ok) then
                 i = i + 1
                 v = codes(i)
@@ -1128,6 +1227,7 @@ contains
 
         subroutine set_cell(v)
             integer(int64), intent(in) :: v
+
             if (fg_cell) then
                 face_vec%fg = v
             else
@@ -1145,6 +1245,7 @@ contains
     !> `comint_output_filter_functions' (as its default value lists it).
     subroutine syms_of_ansi_color()
         type(face_attributes_type) :: attrs
+
         call ansi_color_bold%define("ansi_color_bold", "Face used to render bold text.")
         call ansi_color_bold%spec_entry(display_when(), face_attrs(inherit="bold"))
         call ansi_color_faint%define("ansi_color_faint", "Face used to render faint text.")

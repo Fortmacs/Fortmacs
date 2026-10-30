@@ -52,6 +52,7 @@ contains
 
     subroutine collect_editfns_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("point-and-bounds", test_bounds), &
                     new_unittest("goto-char-clips", test_goto), &
@@ -76,6 +77,7 @@ contains
         character(len=*), intent(in) :: name
         type(handle_type), intent(out) :: h, old
         type(status_type) :: st
+
         old = current_buffer()
         call get_buffer_create(name, h, st)
         call set_buffer(h, st)
@@ -84,6 +86,7 @@ contains
     subroutine leave(h, old)
         type(handle_type), intent(in) :: h, old
         type(status_type) :: st
+
         if (buffer_live_p(old)) call set_buffer(old, st)
         call kill_buffer(h, st)
     end subroutine leave
@@ -93,6 +96,7 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
         integer(int64) :: size
+
         call enter("te-bounds", h, old)
         call check(error, point() == 1 .and. point_min() == 1 .and. point_max() == 1, "empty")
         if (allocated(error)) return
@@ -110,6 +114,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("te-goto", h, old)
         call insert("hello", st)
         call goto_char(3_int64)
@@ -131,6 +136,7 @@ contains
         type(status_type) :: st
         integer(int64) :: bytepos
         logical :: found
+
         call enter("te-gm-mb", mb, old)
         call insert(euro//euro//euro, st)
         call make_marker(m)
@@ -153,6 +159,7 @@ contains
         type(status_type) :: st
         integer(int64) :: p
         logical :: found
+
         call enter("te-pb", h, old)
         call insert("a"//euro//"b", st)            ! bytes: a=1, euro=2..4, b=5
         call position_bytes(3_int64, p, found)
@@ -175,6 +182,7 @@ contains
         type(status_type) :: st
         integer(int32) :: c
         logical :: found
+
         call enter("te-chars", h, old)
         call insert("a"//euro, st)
         call check(error, following_char(), 0_int32)
@@ -204,6 +212,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("te-lines", h, old)
         call insert("ab"//new_line("a")//"cd", st)
         call check(error, eolp() .and. eobp() .and. .not. bolp(), "at end")
@@ -223,6 +232,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("te-narrow", h, old)
         call insert("0123456789", st)                 ! point at 11
         call narrow_to_region(7_int64, 3_int64, st)   ! reversed is fine
@@ -248,6 +258,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("te-narrow-edit", h, old)
         call insert("abcdef", st)
         call narrow_to_region(2_int64, 5_int64, st)   ! "bcd"
@@ -273,6 +284,7 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
         character(len=:), allocatable :: s
+
         call enter("te-substr", h, old)
         call insert("x"//euro//"yz", st)
         call buffer_substring(4_int64, 2_int64, s, st)
@@ -293,6 +305,7 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
         type(value_type) :: v
+
         call enter("te-subst", h, old)
         call insert("a"//char(9)//"b"//char(9)//"c", st)
         call put_text_property(2_int64, 3_int64, sym("face"), sym("bold"), st)
@@ -320,6 +333,7 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
         character(len=:), allocatable :: s
+
         call enter("te-delete", h, old)
         call insert("hello world", st)
         call delete_and_extract_region(6_int64, 12_int64, s, st)
@@ -337,6 +351,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("te-insert-char", h, old)
         call insert_char_n(int(z'20AC', int32), 2000_int64, st)   ! 6000 bytes: two chunks
         call check(error, st%ok(), "insert-char failed")
@@ -358,6 +373,7 @@ contains
         type(handle_type) :: h, old, pm, lo, hi
         type(status_type) :: st
         integer(int64) :: p
+
         call enter("te-pm", h, old)
         call insert("abcdef", st)
         call narrow_to_region(2_int64, 5_int64, st)
@@ -383,6 +399,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
+
         call enter("te-erase", h, old)
         call insert("abcdef", st)
         call narrow_to_region(2_int64, 4_int64, st)
@@ -398,6 +415,7 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
         logical :: changed
+
         call enter("te-fields", h, old)
         call insert("foobarzot", st)
         call add_text_properties(4_int64, 7_int64, list(sym("field"), sym("bar")), changed, st)
@@ -426,6 +444,7 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
         logical :: changed
+
         call enter("te-prompt", h, old)
         call insert("Find file: ", st)
         call add_text_properties(1_int64, point(), &

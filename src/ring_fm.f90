@@ -82,6 +82,7 @@ contains
     subroutine ring_make(self, size)
         class(ring_type), intent(inout) :: self
         integer, intent(in) :: size
+
         self%head = 0
         self%length = 0
         if (allocated(self%vec)) deallocate (self%vec)
@@ -91,6 +92,7 @@ contains
     !> Return INDEX+1, with wraparound.  Port of ring.el:ring-plus1.
     pure integer function ring_plus1(index, veclen) result(new_index)
         integer, intent(in) :: index, veclen
+
         new_index = index + 1
         if (new_index == veclen) new_index = 0
     end function ring_plus1
@@ -98,6 +100,7 @@ contains
     !> Return INDEX-1, with wraparound.  Port of ring.el:ring-minus1.
     pure integer function ring_minus1(index, veclen) result(new_index)
         integer, intent(in) :: index, veclen
+
         if (index == 0) then
             new_index = veclen - 1
         else
@@ -109,6 +112,7 @@ contains
     !> ring.el:ring-length.
     pure integer function ring_length(self)
         class(ring_type), intent(in) :: self
+
         ring_length = self%length
     end function ring_length
 
@@ -120,6 +124,7 @@ contains
     !> ring.el:ring-index.
     pure integer function ring_index(index, head, ringlen, veclen) result(k)
         integer, intent(in) :: index, head, ringlen, veclen
+
         k = modulo(index, ringlen)
         k = modulo(head + (ringlen - k) - 1, veclen)
     end function ring_index
@@ -128,6 +133,7 @@ contains
     !> ring.el:ring-empty-p.
     pure logical function ring_empty_p(self)
         class(ring_type), intent(in) :: self
+
         ring_empty_p = self%length == 0
     end function ring_empty_p
 
@@ -135,6 +141,7 @@ contains
     !> contain.  Port of ring.el:ring-size.
     pure integer function ring_size(self)
         class(ring_type), intent(in) :: self
+
         ring_size = 0
         if (allocated(self%vec)) ring_size = size(self%vec)
     end function ring_size
@@ -145,6 +152,7 @@ contains
         class(ring_type), intent(inout) :: self
         character(len=*), intent(in) :: item
         integer :: veclen
+
         veclen = self%size()
         if (veclen == 0) return
         self%length = min(veclen, self%length + 1)
@@ -159,10 +167,12 @@ contains
         class(ring_type), intent(inout) :: self
         character(len=*), intent(in) :: item
         integer :: veclen
+
         veclen = self%size()
         ! (A ring of size 0 holds nothing; upstream divides by zero.)
         if (veclen == 0) return
         self%vec(modulo(self%head + self%length, veclen))%s = item
+
         if (self%length == veclen) then
             self%head = ring_plus1(self%head, veclen)
         else
@@ -179,29 +189,37 @@ contains
         integer, intent(in), optional :: index
         character(len=:), allocatable, intent(out), optional :: item
         integer :: veclen, tl, k
+
         if (self%empty_p()) then
             call set_error(status, FM_GENERIC_ERROR, "Ring empty")
             return
         end if
+
         veclen = self%size()
         tl = modulo(self%head + self%length - 1, veclen)
+
         if (present(index)) then
             k = index
         else
             k = self%length - 1
         end if
+
         k = ring_index(k, self%head, self%length, veclen)
+
         if (present(item)) then
             if (allocated(self%vec(k)%s)) item = self%vec(k)%s
         end if
+
         do while (k /= tl)
             if (allocated(self%vec(ring_plus1(k, veclen))%s)) then
                 self%vec(k)%s = self%vec(ring_plus1(k, veclen))%s
             else if (allocated(self%vec(k)%s)) then
                 deallocate (self%vec(k)%s)
             end if
+
             k = ring_plus1(k, veclen)
         end do
+
         if (allocated(self%vec(tl)%s)) deallocate (self%vec(tl)%s)
         self%length = self%length - 1
     end subroutine ring_remove
@@ -218,12 +236,15 @@ contains
         character(len=:), allocatable, intent(out) :: item
         type(status_type), intent(out) :: status
         integer :: k
+
         if (self%empty_p()) then
             call set_error(status, FM_GENERIC_ERROR, "Accessing an empty ring")
             item = ""
             return
         end if
+
         k = ring_index(index, self%head, self%length, self%size())
+
         if (allocated(self%vec(k)%s)) then
             item = self%vec(k)%s
         else
@@ -238,14 +259,17 @@ contains
         class(ring_type), intent(in) :: self
         character(len=*), intent(in) :: item
         integer :: k
+
         do ind = 0, self%length - 1
             k = ring_index(ind, self%head, self%length, self%size())
+
             if (allocated(self%vec(k)%s)) then
                 if (len(self%vec(k)%s) == len(item)) then
                     if (self%vec(k)%s == item) return
                 end if
             end if
         end do
+
         ind = -1
     end function ring_member
 
@@ -253,6 +277,7 @@ contains
     subroutine ring_extend(self, x)
         class(ring_type), intent(inout) :: self
         integer, intent(in) :: x
+
         if (x > 0) call self%resize(x + self%size())
     end subroutine ring_extend
 
@@ -264,21 +289,26 @@ contains
         integer, intent(in) :: size
         type(ring_item_type), allocatable :: new_vec(:)
         integer :: copy_length, copy_hd, old_size, j, k
+
         allocate (new_vec(0:max(size, 0) - 1))
+
         if (self%length == 0) then
             self%length = 0
             call move_alloc(new_vec, self%vec)
             return
         end if
+
         old_size = self%size()
         copy_length = min(size, self%length)
         copy_hd = modulo(self%head + (self%length - copy_length), self%length)
+
         ! If the ring is wrapped, the existing elements must be written
         ! out in the right order.
         do j = 0, copy_length - 1
             k = modulo(copy_hd + j, old_size)
             if (allocated(self%vec(k)%s)) call move_alloc(self%vec(k)%s, new_vec(j)%s)
         end do
+
         call move_alloc(new_vec, self%vec)
         self%length = copy_length
         self%head = 0

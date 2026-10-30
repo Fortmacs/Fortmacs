@@ -50,6 +50,7 @@ contains
 
     subroutine collect_f90_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("f90-test-indent", test_indent), &
                     new_unittest("f90-test-bug3730", test_bug3730), &
@@ -78,6 +79,7 @@ contains
     subroutine f90_buffer(h)
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+
         call init_bindings()
         call get_buffer_create(" *f90-test*", h, st)
         call set_buffer(h, st)
@@ -88,6 +90,7 @@ contains
     subroutine leave(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
+
         call kill_buffer(h, st)
     end subroutine leave
 
@@ -95,6 +98,7 @@ contains
     subroutine ins(s)
         character(len=*), intent(in) :: s
         type(status_type) :: st
+
         call insert(s, st)
     end subroutine ins
 
@@ -102,6 +106,7 @@ contains
     subroutine fl(n)
         integer(int64), intent(in) :: n
         integer(int64) :: shortage
+
         shortage = forward_line(n)
     end subroutine fl
 
@@ -110,6 +115,7 @@ contains
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
         type(status_type) :: st
+
         call buffer_substring(point(), min(point() + n, point_max()), s, st)
     end function ahead
 
@@ -147,6 +153,7 @@ contains
                                        "!!! Comment."//LF// &
                                        LF// &
                                        "end program progname"//LF
+
         call f90_buffer(h)
         call ins(text)
         call indent_rigidly(point_min(), point_max(), -999_int64, st)
@@ -162,6 +169,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: col, moved
+
         call f90_buffer(h)
         call ins("a")
         call move_to_column(68_int64, col, force=.true.)
@@ -181,20 +189,24 @@ contains
         integer(int64), intent(in) :: up, expected
         type(handle_type) :: h
         type(status_type) :: st
+
         call f90_buffer(h)
         call ins(text)
         call f90_indent_subprogram(st)
         call check(error, st%ok(), "f90_indent_subprogram failed")
+
         if (.not. allocated(error)) then
             call fl(-up)
             call check(error, current_indentation() == expected, "wrong indentation")
         end if
+
         call leave(h)
     end subroutine indent_check
 
     !> Port of f90-tests.el:f90-test-bug8691.
     subroutine test_bug8691(error)
         type(error_type), allocatable, intent(out) :: error
+
         call indent_check(error, "module modname"//LF//"type, bind(c) :: type1"//LF//"integer :: part1"//LF// &
                           "end type type1"//LF//"end module modname", 1_int64, 2_int64)
     end subroutine test_bug8691
@@ -203,6 +215,7 @@ contains
     subroutine test_bug8820(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
+
         call f90_buffer(h)
         call check(error, char_syntax(iachar("%")), ".")
         call leave(h)
@@ -213,6 +226,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call f90_buffer(h)
         call ins("!!!"//repeat(" aaaa", 20))
         call f90_do_auto_fill(st)
@@ -226,6 +240,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call f90_buffer(h)
         call ins("!!!"//repeat(" aaaa", 13)//"a, aaaa")
         call f90_do_auto_fill(st)
@@ -239,6 +254,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call f90_buffer(h)
         call ins("#include ""foo.h""")
         call f90_indent_line(st)
@@ -251,6 +267,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call f90_buffer(h)
         call ins("program prog"//LF//"  integer :: i = &"//LF//"#ifdef foo"//LF//"       & 1"//LF//"#else"//LF// &
                  "       & 2"//LF//"#endif"//LF//LF//"  write(*,*) i"//LF//"end program prog")
@@ -266,6 +283,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(f90_block_type) :: b
+
         call f90_buffer(h)
         ! The Fortran standard says that continued strings should have
         ! '&' at the start of continuation lines, but it seems gfortran
@@ -280,6 +298,7 @@ contains
     !> Port of f90-tests.el:f90-test-bug20680.
     subroutine test_bug20680(error)
         type(error_type), allocatable, intent(out) :: error
+
         call indent_check(error, "module modname"//LF//"type, extends ( sometype ) :: type1"//LF// &
                           "integer :: part1"//LF//"end type type1"//LF//"end module modname", 1_int64, 2_int64)
     end subroutine test_bug20680
@@ -287,6 +306,7 @@ contains
     !> Port of f90-tests.el:f90-test-bug20680b.
     subroutine test_bug20680b(error)
         type(error_type), allocatable, intent(out) :: error
+
         call indent_check(error, "module modname"//LF//"enum, bind(c)"//LF//"enumerator :: e1 = 0"//LF// &
                           "end enum"//LF//"end module modname", 1_int64, 2_int64)
     end subroutine test_bug20680b
@@ -294,6 +314,7 @@ contains
     !> Port of f90-tests.el:f90-test-bug20969.
     subroutine test_bug20969(error)
         type(error_type), allocatable, intent(out) :: error
+
         call indent_check(error, "module modname"//LF//"type, extends ( sometype ), private :: type1"//LF// &
                           "integer :: part1"//LF//"end type type1"//LF//"end module modname", 1_int64, 2_int64)
     end subroutine test_bug20969
@@ -301,6 +322,7 @@ contains
     !> Port of f90-tests.el:f90-test-bug20969b.
     subroutine test_bug20969b(error)
         type(error_type), allocatable, intent(out) :: error
+
         call indent_check(error, "module modname"//LF//"type, private, extends ( sometype ) :: type1"//LF// &
                           "integer :: part1"//LF//"end type type1"//LF//"end module modname", 1_int64, 2_int64)
     end subroutine test_bug20969b
@@ -308,6 +330,7 @@ contains
     !> Port of f90-tests.el:f90-test-bug21794.
     subroutine test_bug21794(error)
         type(error_type), allocatable, intent(out) :: error
+
         call indent_check(error, "program prog"//LF//"do i=1,10"//LF//"associate (x => xa(i), y => ya(i))"//LF// &
                           "a(x,y,i) = fun(x,y,i)"//LF//"end associate"//LF//"end do"//LF//"end program prog", &
                           2_int64, 5_int64)
@@ -318,10 +341,12 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+
         call f90_buffer(h)
         call ins("program prog"//LF//"select type (a)"//LF//"type is (t1)"//LF//"x = 2"//LF//"class is (c1)"//LF// &
                  "x = 1"//LF//"class default"//LF//"x=3"//LF//"end select"//LF//"end program prog")
         call f90_indent_subprogram(st)
+
         checks: block
             call fl(-3_int64)
             call check(error, current_indentation() == 2, "class default")
@@ -332,6 +357,7 @@ contains
             call fl(-2_int64)
             call check(error, current_indentation() == 2, "type is")
         end block checks
+
         call leave(h)
     end subroutine test_bug25039
 
@@ -341,8 +367,10 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         character(len=:), allocatable :: s
+
         call f90_buffer(h)
         call f90_smart_end%set_local(F90_SMART_END_NO_BLINK)
+
         checks: block
             call ins("module function foo(x)"//LF//"real :: x"//LF//"end")
             call f90_indent_line(st)
@@ -355,6 +383,7 @@ contains
             call buffer_substring(point(), line_end_position(), s, st)
             call check(error, s, " subroutine bar")
         end block checks
+
         call leave(h)
     end subroutine test_bug38415
 
@@ -367,6 +396,7 @@ contains
         integer :: i, j, k, l
         integer(int64) :: idx
         type(status_type) :: st
+
         do i = 1, 4
             do j = 1, 4
                 do k = 1, 4
@@ -385,6 +415,7 @@ contains
     !> Port of regexp-opt-tests.el:regexp-opt-charset.
     subroutine test_charset(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, regexp_opt_charset([97, 98, 97]), "[ab]")
         if (allocated(error)) return
         call check(error, regexp_opt_charset([68, 100, 66, 97, 98, 67, 55, 97, 99, 65]), "[7A-Da-d]")
@@ -428,12 +459,15 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: idx
+
         call f90_buffer(h)
         call check(error, f90_program_block_re, "\(function\|module\|program\|sub\(?:\(?:modul\|routin\)e\)\)")
+
         if (.not. allocated(error)) then
             idx = string_match(f90_keywords_re, "x = error stop", st)
             call check(error, idx == 5, "keywords: error stop")
         end if
+
         call leave(h)
     end subroutine test_groups
 
@@ -444,6 +478,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: saved
+
         call f90_buffer(h)
         saved = fill_column%value
         fill_column = 20

@@ -192,6 +192,7 @@ contains
     !> timer.  Port of savehist.el:savehist--manage-timer.
     subroutine savehist_manage_timer()
         type(status_type) :: st
+
         if (minor_modes%savehist_mode%enabled() .and. savehist_autosave_interval > 0 .and. &
             .not. timerp(savehist_timer)) then
             call run_with_timer(savehist_timer, real(savehist_autosave_interval, real64), savehist_autosave_timer, &
@@ -228,6 +229,7 @@ contains
     !> savehist.el:savehist-mode.
     recursive subroutine savehist_mode(status)
         type(status_type), intent(out) :: status
+
         call minor_modes%savehist_mode%command(status)
     end subroutine savehist_mode
 
@@ -235,7 +237,9 @@ contains
     recursive subroutine savehist_mode_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
+
         status = status_type()
+
         if (.not. enable) then
             call savehist_uninstall()
         else
@@ -251,9 +255,11 @@ contains
         type(modtime_type) :: m
         type(file_stat_type) :: st
         logical :: found
+
         m%known = .true.
         call file_attributes(savehist_file, st, found)
         m%exists = found
+
         if (found) then
             m%sec = st%mtime_sec
             m%nsec = st%mtime_nsec
@@ -262,6 +268,7 @@ contains
 
     logical function same_modtime(a, b)
         type(modtime_type), intent(in) :: a, b
+
         same_modtime = (a%known .eqv. b%known) .and. (a%exists .eqv. b%exists) .and. a%sec == b%sec .and. &
                        a%nsec == b%nsec
     end function same_modtime
@@ -278,6 +285,7 @@ contains
         type(status_type) :: st
         logical :: bound
         integer :: k, n
+
         status = status_type()
         if (.not. file_exists_p(savehist_file)) return
         if (savehist_loaded .and. same_modtime(savehist_file_sync_modtime, savehist_file_modtime())) return
@@ -285,14 +293,17 @@ contains
         n = 0
         if (allocated(savehist_minibuffer_history_variables)) n = size(savehist_minibuffer_history_variables)
         allocate (old_names(n), old_values(n))
+
         do k = 1, n
             old_names(k) = savehist_minibuffer_history_variables(k)
             call boundp(sym(trim(old_names(k))), bound, st)
             if (bound) call symbol_value(sym(trim(old_names(k))), old_values(k), st)
             if (.not. bound) old_names(k) = ""
         end do
+
         if (interactively) call message("Loading "//savehist_file//" (source)...")
         call load_savehist_file(status)
+
         if (.not. status%ok()) then
             ! Don't install the mode if reading failed.  Doing so would
             ! effectively destroy the user's data at the next save.
@@ -300,9 +311,11 @@ contains
             call savehist_uninstall()
             return
         end if
+
         if (interactively) call message("Loading "//savehist_file//" (source)...done")
         savehist_file_sync_modtime = savehist_file_modtime()
         savehist_loaded = .true.
+
         ! In case we're loading the file late, there was info in the
         ! history variables that may have been overwritten by the info
         ! extracted from the file, so put it back in.
@@ -322,13 +335,16 @@ contains
         type(namelist_group_type), allocatable :: groups(:)
         character(len=:), allocatable :: text
         integer :: g, k
+
         call file_text(savehist_file, text, status)
         if (.not. status%ok()) return
         call read_namelist(text, groups, status)
         if (.not. status%ok()) return
+
         do g = 1, size(groups)
             if (groups(g)%name /= "savehist") cycle
             if (.not. allocated(groups(g)%items)) cycle
+
             do k = 1, size(groups(g)%items)
                 call set_saved(groups(g)%items(k), status)
                 if (.not. status%ok()) return
@@ -342,24 +358,33 @@ contains
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: elems(:)
         integer :: k
+
         status = status_type()
+
         if (item%name == "savehist_minibuffer_history_variables") then
             if (allocated(savehist_minibuffer_history_variables)) deallocate (savehist_minibuffer_history_variables)
+
             if (.not. item%subscripted) then
                 allocate (savehist_minibuffer_history_variables(0))
                 return
             end if
+
             allocate (savehist_minibuffer_history_variables(size(item%values)))
+
             do k = 1, size(item%values)
                 savehist_minibuffer_history_variables(k) = item%values(k)%string
             end do
+
             return
         end if
+
         if (item%subscripted) then
             allocate (elems(size(item%values)))
+
             do k = 1, size(item%values)
                 elems(k) = saved_value(item%values(k))
             end do
+
             call set(sym(item%name), make_list(elems), status)
         else if (size(item%values) > 0) then
             call set(sym(item%name), saved_value(item%values(1)), status)
@@ -370,6 +395,7 @@ contains
     function saved_value(nv) result(v)
         type(namelist_value_type), intent(in) :: nv
         type(value_type) :: v
+
         select case (nv%kind)
         case (NAMELIST_INTEGER)
             v = make_fixnum(nv%integer)
@@ -388,6 +414,7 @@ contains
         type(handle_type) :: old, h
         type(status_type) :: st
         integer(int64) :: inserted
+
         text = ""
         old = current_buffer()
         call get_buffer_create(generate_new_buffer_name(" *temp*"), h, st)
@@ -408,12 +435,14 @@ contains
         type(value_type), allocatable :: o(:), n(:), res(:)
         integer :: i, j, k, m
         logical :: dup
+
         call list_elements(old, o)
         call list_elements(new, n)
         allocate (res(size(o) + size(n)))
         m = 0
         i = 1
         j = 1
+
         ! Keep the first element first.
         do while (i <= size(o) .and. j <= size(n))
             call push(o(i))
@@ -421,26 +450,34 @@ contains
             i = i + 1
             j = j + 1
         end do
+
         do while (i <= size(o))
             call push(o(i))
             i = i + 1
         end do
+
         do while (j <= size(n))
             call push(n(j))
             j = j + 1
         end do
+
         merged = make_list(res(1:m))
+
     contains
+
         !> Append E unless an equal element is there already (delete-dups).
         subroutine push(e)
             type(value_type), intent(in) :: e
+
             dup = .false.
+
             do k = 1, m
                 if (value_equal(res(k), e)) then
                     dup = .true.
                     exit
                 end if
             end do
+
             if (dup) return
             m = m + 1
             res(m) = e
@@ -472,8 +509,10 @@ contains
         character(len=*), intent(in) :: name
         character(len=64), allocatable, intent(in) :: names(:)
         integer :: k
+
         member = .false.
         if (.not. allocated(names)) return
+
         do k = 1, size(names)
             if (trim(names(k)) == trim(name)) then
                 member = .true.
@@ -499,6 +538,7 @@ contains
         character(len=:), allocatable :: text, wrote, dir, name
         logical :: auto, bound, ok
         integer :: k, j, n, m
+
         status = status_type()
         auto = .false.
         if (present(auto_save)) auto = auto_save
@@ -507,6 +547,7 @@ contains
         ! there aren't such variables.
         n = 0
         if (allocated(savehist_additional_variables)) n = size(savehist_additional_variables)
+
         if (n == 0 .and. .not. same_modtime(savehist_file_sync_modtime, savehist_file_modtime())) then
             ! The file has been changed since last time we saw it.
             ! Probably some other Fortmacs session.  Load the corresponding
@@ -514,22 +555,28 @@ contains
             ! overwriting it.
             call savehist_reload(.false., st)
         end if
+
         call savehist_save_hook%run(st)
         group%name = "savehist"
+
         ! Save the minibuffer histories, along with the value of
         ! savehist_minibuffer_history_variables itself.
         if (savehist_save_minibuffer_history) then
             item = namelist_item_type(name="savehist_minibuffer_history_variables")
             if (.not. allocated(savehist_minibuffer_history_variables)) allocate (savehist_minibuffer_history_variables(0))
+
             if (size(savehist_minibuffer_history_variables) == 0) then
                 call item%add_logical(.false.)
             else
                 call subscript(item, size(savehist_minibuffer_history_variables))
+
                 do k = 1, size(savehist_minibuffer_history_variables)
                     call item%add_string(trim(savehist_minibuffer_history_variables(k)))
                 end do
             end if
+
             call group%add(item)
+
             do k = 1, size(savehist_minibuffer_history_variables)
                 ! (A variable, not an associate name: with gfortran, `cycle' out
                 ! of an associate block whose selector is an expression frees
@@ -544,14 +591,17 @@ contains
                 ! that can't be written are left out.
                 item = namelist_item_type(name=name)
                 call list_elements(value, elems)
+
                 do j = 1, size(elems)
                     call add_value(item, elems(j), ok)
                 end do
+
                 if (.not. allocated(item%values)) cycle
                 call subscript(item, size(item%values))
                 call group%add(item)
             end do
         end if
+
         ! Save the additional variables.
         do k = 1, n
             associate (var => savehist_additional_variables(k))
@@ -561,14 +611,17 @@ contains
                 call symbol_value(sym(trim(var%name)), value, st)
                 if (.not. savehist_printable(value)) cycle
                 item = namelist_item_type(name=trim(var%name))
+
                 if (vtag(value) == V_LIST) then
                     ! When we have a max-size, chop off the last elements.
                     call list_elements(value, elems)
                     m = size(elems)
                     if (var%max_size >= 0) m = min(m, var%max_size)
+
                     do j = 1, m
                         call add_value(item, elems(j), ok)
                     end do
+
                     if (m == 0) then
                         call item%add_logical(.false.)
                     else
@@ -577,16 +630,20 @@ contains
                 else
                     call add_value(item, value, ok)
                 end if
+
                 call group%add(item)
             end associate
         end do
+
         text = "! Minibuffer history file, automatically generated by `savehist'."//achar(10)//achar(10)// &
                namelist_text(group)
+
         ! If autosaving, avoid writing if nothing has changed since the
         ! last write.
         if (auto .and. allocated(savehist_last_text)) then
             if (savehist_last_text == text .and. len(savehist_last_text) == len(text)) return
         end if
+
         ! Ensure that the directory exists before saving.
         dir = file_name_directory(savehist_file)
         if (.not. file_exists_p(dir)) call make_directory(dir, st, parents=.true.)
@@ -599,22 +656,28 @@ contains
         call coding_system_for_write%clear()
         call kill_buffer(h, st)
         call set_buffer(old, st)
+
         if (.not. status%ok()) then
             ! (The warning is Deferred: warnings.el is not ported.)
             savehist_has_given_file_warning = .true.
             status = status_type()
             return
         end if
+
         if (present(interactive)) then
             if (interactive) call message(wrote)
         end if
+
         if (savehist_file_modes >= 0) call set_file_modes(savehist_file, int(savehist_file_modes, int32), st)
         savehist_file_sync_modtime = savehist_file_modtime()
         savehist_last_text = text
+
     contains
+
         subroutine subscript(it, count)
             type(namelist_item_type), intent(inout) :: it
             integer, intent(in) :: count
+
             it%subscripted = .true.
             it%lower = 1
             it%upper = count
@@ -626,7 +689,9 @@ contains
         type(namelist_item_type), intent(inout) :: item
         type(value_type), intent(in) :: v
         logical, intent(out) :: ok
+
         ok = .true.
+
         select case (vtag(v))
         case (V_STRING)
             call item%add_string(xstring(v))
@@ -647,6 +712,7 @@ contains
     !> savehist.el:savehist-autosave.
     recursive subroutine savehist_autosave(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         if (minor_modes%savehist_mode%enabled()) call savehist_save(status, auto_save=.true.)
     end subroutine savehist_autosave
@@ -654,6 +720,7 @@ contains
     !> savehist_autosave for the timer and `kill_emacs_hook'.
     recursive subroutine savehist_autosave_timer(status)
         type(status_type), intent(out) :: status
+
         call savehist_autosave(status)
     end subroutine savehist_autosave_timer
 
@@ -665,15 +732,18 @@ contains
         type(value_type), allocatable :: elems(:)
         type(namelist_item_type) :: scratch
         integer :: k
+
         select case (vtag(value))
         case (V_LIST)
             printable = .true.
             call list_elements(value, elems)
+
             do k = 1, size(elems)
                 if (vtag(elems(k)) == V_LIST) then
                     printable = .false.
                     return
                 end if
+
                 call add_value(scratch, elems(k), printable)
                 if (.not. printable) return
             end do
@@ -689,6 +759,7 @@ contains
     subroutine savehist_minibuffer_hook()
         character(len=64), allocatable :: grown(:)
         integer :: n
+
         if (.not. allocated(minibuffer_history_variable)) return
         if (minibuffer_history_variable == "t") return
         if (member(minibuffer_history_variable, savehist_ignored_variables)) return
@@ -706,12 +777,14 @@ contains
     !> savehist_minibuffer_hook on `minibuffer_setup_hook'.
     recursive subroutine savehist_minibuffer_hook_proc(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call savehist_minibuffer_hook()
     end subroutine savehist_minibuffer_hook_proc
 
     recursive subroutine cmd_savehist_save(status)
         type(status_type), intent(out) :: status
+
         call savehist_save(status, interactive=.true.)
     end subroutine cmd_savehist_save
 

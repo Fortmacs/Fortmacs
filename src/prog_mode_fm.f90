@@ -79,6 +79,7 @@ contains
     recursive subroutine prog_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
+
         call major_modes%prog_mode%begin(saved, status)
         if (.not. status%ok()) return
         call require_final_newline%set_local(mode_require_final_newline)

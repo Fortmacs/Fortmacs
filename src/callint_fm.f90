@@ -84,8 +84,10 @@ contains
     function find_command(name) result(p)
         character(len=*), intent(in) :: name
         type(command_type), pointer :: p
+
         p => defined_command(name)
         if (.not. associated(p)) p => builtin_command(name)
+
         if (associated(p)) then
             if (.not. associated(p%run)) p => null()
         end if
@@ -95,6 +97,7 @@ contains
     function symbol_command(v) result(p)
         type(value_type), intent(in) :: v
         type(command_type), pointer :: p
+
         p => null()
         if (.not. symbolp(v) .or. nilp(v)) return
         p => find_command(symbols(xsymbol(v))%name)
@@ -106,12 +109,15 @@ contains
         character(len=:), allocatable :: name
         type(command_type), pointer :: p
         integer :: i
+
         name = defined_command_name_of(proc)
         if (len(name) > 0) return
+
         do i = 1, size(BUILTIN_COMMAND_NAMES)
             p => builtin_command(trim(BUILTIN_COMMAND_NAMES(i)))
             if (.not. associated(p)) cycle
             if (.not. associated(p%run)) cycle
+
             if (associated(p%run, proc)) then
                 name = trim(BUILTIN_COMMAND_NAMES(i))
                 return
@@ -124,6 +130,7 @@ contains
     subroutine intern_command_names()
         integer :: i
         integer(int64) :: id
+
         do i = 1, size(BUILTIN_COMMAND_NAMES)
             id = intern(trim(BUILTIN_COMMAND_NAMES(i)))
         end do
@@ -133,6 +140,7 @@ contains
     !> data.c:Ffboundp.
     logical function fboundp(v)
         type(value_type), intent(in) :: v
+
         fboundp = associated(symbol_command(v))
     end function fboundp
 
@@ -141,6 +149,7 @@ contains
     logical function command_defined_p(v)
         type(value_type), intent(in) :: v
         type(command_type), pointer :: p
+
         p => symbol_command(v)
         command_defined_p = associated(p)
         if (command_defined_p) command_defined_p = p%interactive
@@ -151,6 +160,7 @@ contains
     !> eval.c:Fcommandp (for the kinds of commands that exist here).
     logical function commandp(v)
         type(value_type), intent(in) :: v
+
         select case (vtag(v))
         case (V_STRING)
             commandp = .true.
@@ -169,13 +179,16 @@ contains
         logical, intent(in) :: disabled
         type(status_type), intent(out) :: status
         type(command_type), pointer :: p
+
         status = status_type()
         p => defined_command(name)
         if (.not. associated(p)) p => builtin_command(name)
+
         if (.not. associated(p)) then
             call set_error(status, FM_GENERIC_ERROR, format_message("Invalid command name `")//name//format_message("'"))
             return
         end if
+
         p%disabled = disabled
         if (allocated(p%disabled_message)) deallocate (p%disabled_message)
     end subroutine set_command_disabled
@@ -188,18 +201,23 @@ contains
         type(status_type), intent(out) :: status
         type(command_type), pointer :: p
         type(value_type) :: saved
+
         p => symbol_command(cmd)
+
         if (associated(p)) then
             if (.not. p%interactive) p => null()
         end if
+
         if (.not. associated(p)) then
             if (symbolp(cmd)) then
                 call set_error(status, FM_WRONG_TYPE_ARGUMENT, "commandp, "//symbols(xsymbol(cmd))%name)
             else
                 call set_error(status, FM_WRONG_TYPE_ARGUMENT, "commandp")
             end if
+
             return
         end if
+
         saved = current_minibuffer_command
         current_minibuffer_command = this_command
         call p%run(status)
@@ -212,15 +230,19 @@ contains
         type(value_type), intent(in) :: fn
         type(status_type), intent(out) :: status
         type(command_type), pointer :: p
+
         p => symbol_command(fn)
+
         if (.not. associated(p)) then
             if (symbolp(fn)) then
                 call set_error(status, FM_VOID_FUNCTION, symbols(xsymbol(fn))%name)
             else
                 call set_error(status, FM_GENERIC_ERROR, "Invalid function")
             end if
+
             return
         end if
+
         call p%run(status)
     end subroutine funcall
 
@@ -229,8 +251,10 @@ contains
     integer(int64) function prefix_numeric_value(raw) result(n)
         type(value_type), intent(in) :: raw
         type(value_type) :: head
+
         n = 1
         if (nilp(raw)) return
+
         if (value_eq(raw, sym("-"))) then
             n = -1
         else if (consp(raw)) then

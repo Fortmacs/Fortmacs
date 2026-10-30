@@ -93,6 +93,7 @@ contains
     !> Whether `f' is a window-system frame.  frame.h:FRAME_WINDOW_P.
     logical function frame_window_p(f)
         type(frame_type), intent(in) :: f
+
         frame_window_p = associated(f%rif)
     end function frame_window_p
 
@@ -100,6 +101,7 @@ contains
     !> on a terminal frame.
     integer function frame_lines(f)
         type(frame_type), intent(in) :: f
+
         if (frame_window_p(f)) then
             frame_lines = f%text_lines
         else
@@ -110,6 +112,7 @@ contains
     !> The frame's width in columns (frame.h:FRAME_COLS).
     integer function frame_cols(f)
         type(frame_type), intent(in) :: f
+
         if (frame_window_p(f)) then
             frame_cols = f%text_cols
         else
@@ -122,6 +125,7 @@ contains
     integer function window_pixel_left(f, w)
         type(frame_type), intent(in) :: f
         type(window_type), intent(in) :: w
+
         window_pixel_left = w%left_col*f%column_width
     end function window_pixel_left
 
@@ -129,6 +133,7 @@ contains
     integer function window_pixel_top(f, w)
         type(frame_type), intent(in) :: f
         type(window_type), intent(in) :: w
+
         window_pixel_top = w%top_line*f%line_height
     end function window_pixel_top
 
@@ -136,6 +141,7 @@ contains
     integer function window_pixel_width(f, w)
         type(frame_type), intent(in) :: f
         type(window_type), intent(in) :: w
+
         window_pixel_width = w%total_cols*f%column_width
     end function window_pixel_width
 
@@ -144,6 +150,7 @@ contains
     integer function window_pixel_height(f, w)
         type(frame_type), intent(in) :: f
         type(window_type), intent(in) :: w
+
         window_pixel_height = w%total_lines*f%line_height
     end function window_pixel_height
 
@@ -155,6 +162,7 @@ contains
     integer function window_body_pixel_width(f, w)
         type(frame_type), intent(in) :: f
         type(window_type), intent(in) :: w
+
         if (frame_window_p(f)) then
             window_body_pixel_width = window_pixel_width(f, w)
         else
@@ -170,9 +178,11 @@ contains
             call make_window(selected_frame%root_window)
             selected_frame%selected_window = selected_frame%root_window
         end if
+
         if (.not. window_valid_p(selected_frame%selected_window)) then
             selected_frame%selected_window = selected_frame%root_window
         end if
+
         if (.not. window_valid_p(selected_frame%minibuffer_window)) then
             call make_window(selected_frame%minibuffer_window)
             windows(selected_frame%minibuffer_window%index)%mini = .true.
@@ -184,7 +194,9 @@ contains
     !> which many commands apply.  Port of window.c:Fselected_window.
     function selected_window() result(h)
         type(handle_type) :: h
+
         call ensure_frame_windows()
+
         if (selected_frame%minibuffer_selected) then
             h = selected_frame%minibuffer_window
         else
@@ -196,6 +208,7 @@ contains
     !> it is selected, else `selected_window'.  window.c:selected_window.
     function selected_window_ref() result(w)
         type(window_type), pointer :: w
+
         if (selected_frame%minibuffer_selected) then
             w => minibuffer_window_ref()
         else
@@ -208,6 +221,7 @@ contains
     !> Valid until a window is made.
     function frame_selected_window_ref() result(w)
         type(window_type), pointer :: w
+
         call ensure_frame_windows()
         w => window_ref(selected_frame%selected_window)
     end function frame_selected_window_ref
@@ -215,6 +229,7 @@ contains
     !> The minibuffer window.  Valid until a window is made.
     function minibuffer_window_ref() result(w)
         type(window_type), pointer :: w
+
         call ensure_frame_windows()
         w => window_ref(selected_frame%minibuffer_window)
     end function minibuffer_window_ref

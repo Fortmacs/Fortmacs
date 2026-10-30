@@ -60,6 +60,7 @@ contains
 
     subroutine collect_help_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("help-tests-substitute-command-keys/no-change", test_no_change), &
                     new_unittest("help-tests-substitute-command-keys/commands", test_commands), &
@@ -111,6 +112,7 @@ contains
     subroutine fresh_scratch()
         type(handle_type) :: buf
         type(status_type) :: st
+
         call init_bindings()
         call discard_input()
         call get_buffer_create("*scratch*", buf, st)
@@ -128,6 +130,7 @@ contains
         character(len=:), allocatable :: text
         type(handle_type) :: old
         type(status_type) :: st
+
         old = current_buffer()
         call set_buffer(get_buffer("*Help*"), st)
         text = buffer_string()
@@ -137,6 +140,7 @@ contains
     !> The number of windows on the frame.
     integer function window_count()
         type(handle_type), allocatable :: leaves(:)
+
         call window_leaves(selected_frame%root_window, leaves)
         window_count = size(leaves)
     end function window_count
@@ -144,6 +148,7 @@ contains
     !> The name of the buffer shown in the selected window.
     function selected_buffer_name() result(name)
         character(len=:), allocatable :: name
+
         name = buffers(windows(selected_frame%selected_window%index)%buffer%index)%name
     end function selected_buffer_name
 
@@ -152,6 +157,7 @@ contains
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
+
         call key_parse(keys, evs, st)
         call unread_command_events(evs)
     end subroutine type_keys
@@ -161,12 +167,14 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=*), intent(in) :: input, want
         character(len=:), allocatable :: got
+
         got = substitute_command_keys(input)
         call check(error, got == want .and. len(got) == len(want), input//" gave "//got//", want "//want)
     end subroutine test_sck
 
     subroutine test_no_change(error)
         type(error_type), allocatable, intent(out) :: error
+
         call fresh_scratch()
         call test_sck(error, "foo", "foo")
         if (allocated(error)) return
@@ -176,6 +184,7 @@ contains
     !> As upstream, but with forward-char for goto-char (on M-g c there).
     subroutine test_commands(error)
         type(error_type), allocatable, intent(out) :: error
+
         call fresh_scratch()
         call test_sck(error, "foo \[forward_char]", "foo C-f")
         if (allocated(error)) return
@@ -198,6 +207,7 @@ contains
 
     subroutine test_literal_keys(error)
         type(error_type), allocatable, intent(out) :: error
+
         call fresh_scratch()
         call test_sck(error, "\`C-m'", "C-m")
         if (allocated(error)) return
@@ -212,6 +222,7 @@ contains
 
     subroutine test_literal_keys_invalid(error)
         type(error_type), allocatable, intent(out) :: error
+
         call fresh_scratch()
         call test_sck(error, "ab\`'cd", "ab\"//LQ//RQ//"cd")
         if (allocated(error)) return
@@ -223,6 +234,7 @@ contains
     !> The text-quoting-style `curve` cases.
     subroutine test_quotes(error)
         type(error_type), allocatable, intent(out) :: error
+
         call fresh_scratch()
         call test_sck(error, "quotes "//LQ//"like this"//RQ, "quotes "//LQ//"like this"//RQ)
         if (allocated(error)) return
@@ -237,6 +249,7 @@ contains
 
     subroutine test_literals(error)
         type(error_type), allocatable, intent(out) :: error
+
         call fresh_scratch()
         call test_sck(error, "foo \=\[goto_char]", "foo \[goto_char]")
         if (allocated(error)) return
@@ -251,6 +264,7 @@ contains
 
     subroutine test_no_change_2(error)
         type(error_type), allocatable, intent(out) :: error
+
         call fresh_scratch()
         call test_sck(error, "\[foobar", "\[foobar")
         if (allocated(error)) return
@@ -260,6 +274,7 @@ contains
     !> \<MAP> makes \[COMMAND] look in MAP (and the global map).
     subroutine test_keymap(error)
         type(error_type), allocatable, intent(out) :: error
+
         call fresh_scratch()
         call test_sck(error, "\[next_history_element]", "M-x next_history_element")
         if (allocated(error)) return
@@ -273,6 +288,7 @@ contains
     subroutine test_describe_command(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: text
+
         call fresh_scratch()
         call describe_function_1("forward_char", text)
         call check(error, index(text, "an interactive Fortran subroutine in "//LQ//"cmds_fm.f90"//RQ//"."//LF//LF) == 1, &
@@ -304,6 +320,7 @@ contains
     subroutine test_describe_api(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: text
+
         call fresh_scratch()
         call describe_function_1("insert", text)
         call check(error, index(text, "a Fortran subroutine in "//LQ//"insdel_fm.f90"//RQ//"."//LF//LF// &
@@ -322,6 +339,7 @@ contains
         character(len=:), allocatable :: text
         logical :: found
         integer :: saved
+
         call fresh_scratch()
         if (allocated(fill_prefix%value)) deallocate (fill_prefix%value)
         saved = tab_width%value
@@ -378,6 +396,7 @@ contains
         character(len=:), allocatable :: text
         logical :: found
         type(value_type) :: elems(1)
+
         call fresh_scratch()
         call describe_variable_text("case_fold_search", text, found)
         call check(error, index(text, "Its value is .true."//LF) > 0, text)
@@ -432,6 +451,7 @@ contains
     subroutine test_function_file(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: text
+
         call fresh_scratch()
         call describe_function_1("kill_line", text, "kill_line is ")
         call check(error, index(text, "kill_line is an interactive Fortran subroutine in "//LQ//"simple_fm.f90"//RQ// &
@@ -466,6 +486,7 @@ contains
     subroutine test_fortran_repr(error)
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: elems(3)
+
         call check(error, fortran_repr(nil()) == ".false." .and. fortran_repr(t_value()) == ".true.")
         if (allocated(error)) return
         call check(error, fortran_repr(make_fixnum(-12_int64)) == "-12", fortran_repr(make_fixnum(-12_int64)))
@@ -484,6 +505,7 @@ contains
     subroutine test_empty_input(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call fresh_scratch()
         call type_keys("C-h f RET")
         call command_loop(st)
@@ -504,6 +526,7 @@ contains
         type(status_type) :: st
         type(handle_type) :: help
         logical :: modified
+
         call fresh_scratch()
         call with_help_window("Some help."//LF, st)
         ! The help buffer pops up in a new window below; the selected
@@ -532,6 +555,7 @@ contains
     subroutine test_describe_key(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call fresh_scratch()
         call type_keys("C-h k C-f")
         call command_loop(st)
@@ -558,6 +582,7 @@ contains
     subroutine test_describe_key_undefined(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call fresh_scratch()
         call type_keys("C-h k C-x y")
         call command_loop(st)
@@ -579,6 +604,7 @@ contains
     subroutine test_binding_locus(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call fresh_scratch()
         call switch_to_buffer("*locus*", st)
         call text_mode(st)
@@ -594,6 +620,7 @@ contains
     !> bindings.el's :advertised-binding of undo and set-mark-command.
     subroutine test_advertised_binding(error)
         type(error_type), allocatable, intent(out) :: error
+
         call fresh_scratch()
         call test_sck(error, "\[undo]", "C-x u")
         if (allocated(error)) return
@@ -605,6 +632,7 @@ contains
     subroutine test_describe_key_briefly(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call fresh_scratch()
         call type_keys("C-h c C-n")
         call command_loop(st)
@@ -614,6 +642,7 @@ contains
     subroutine test_where_is(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call fresh_scratch()
         call type_keys("C-h w f o r w a r d _ c h a r RET")
         call command_loop(st)
@@ -627,6 +656,7 @@ contains
     subroutine test_describe_function_keys(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call fresh_scratch()
         call type_keys("C-h f i n s e r t RET")
         call command_loop(st)
@@ -640,6 +670,7 @@ contains
     subroutine test_describe_variable_keys(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call fresh_scratch()
         call type_keys("C-h v t a b _ w i d t h RET")
         call command_loop(st)
@@ -649,6 +680,7 @@ contains
         ! Back to one window.
         call fresh_scratch()
     end subroutine test_describe_variable_keys
+
     subroutine test_sck_keymaps(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: map
@@ -669,11 +701,14 @@ contains
                                                                                               "previous_matching_history_element", &
                                                                            "next_matching_history_element", "switch_to_completions"]
         integer :: k
+
         call fresh_scratch()
         call make_sparse_keymap(map)
+
         do k = 1, size(keys)
             call keymap_set(map, trim(keys(k)), sym(trim(defs(k))), st)
         end do
+
         call register_keymap_name("help_tests_test_keymap", map)
         call test_sck(error, "\{help_tests_test_keymap}", LF//"Key             Binding"//LF//sep()// &
                       "C-g"//TAB//TAB//"abort_minibuffers"//LF//"TAB"//TAB//TAB//"minibuffer_complete"//LF// &
@@ -693,6 +728,7 @@ contains
 
     subroutine test_sck_undefined_map(error)
         type(error_type), allocatable, intent(out) :: error
+
         call test_sck(error, "\{foobar_map}", LF//"Uses keymap "//LQ//"foobar_map"//RQ//", which is not currently defined."//LF)
     end subroutine test_sck_undefined_map
 
@@ -702,6 +738,7 @@ contains
         logical, intent(in) :: partial, mention
         type(value_type), intent(in) :: shadow(:)
         character(len=:), allocatable :: text
+
         text = ""
         call describe_map_tree(map, partial, shadow, "", .false., text, mention_shadow=mention)
     end function map_tree_text
@@ -710,6 +747,7 @@ contains
     !> in tests run alone), else a newline.
     function sep() result(s)
         character(len=:), allocatable :: s
+
         s = make_separator_line()
     end function sep
 
@@ -718,6 +756,7 @@ contains
         type(value_type), allocatable, intent(out) :: shadow(:)
         type(handle_type) :: s
         type(status_type) :: st
+
         call make_sparse_keymap(map)
         call keymap_set(map, "C-a", sym("foo"), st)
         call keymap_set(map, "C-b", sym("bar"), st)
@@ -733,6 +772,7 @@ contains
         type(value_type), allocatable :: shadow(:)
         character(len=:), allocatable :: text
         type(status_type) :: st
+
         call fresh_scratch()
         call shadow_maps(map, shadow)
         text = map_tree_text(map, .true., shadow, .true.)
@@ -747,6 +787,7 @@ contains
         type(value_type), allocatable :: shadow(:)
         character(len=:), allocatable :: text
         type(status_type) :: st
+
         call fresh_scratch()
         call shadow_maps(map, shadow)
         text = map_tree_text(map, .true., shadow, .false.)
@@ -759,6 +800,7 @@ contains
         type(handle_type) :: map
         type(value_type), allocatable :: none(:)
         type(status_type) :: st
+
         call fresh_scratch()
         allocate (none(0))
         call make_sparse_keymap(map)
@@ -774,6 +816,7 @@ contains
         type(handle_type) :: map
         type(value_type), allocatable :: none(:)
         type(status_type) :: st
+
         call fresh_scratch()
         allocate (none(0))
         call make_sparse_keymap(map)
@@ -792,6 +835,7 @@ contains
         type(handle_type) :: map
         type(value_type), allocatable :: none(:)
         type(status_type) :: st
+
         call fresh_scratch()
         allocate (none(0))
         call make_sparse_keymap(map)
@@ -816,6 +860,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: text
         integer :: k1, k2
+
         call fresh_scratch()
         call switch_to_buffer("*bindings*", st)
         call text_mode(st)
@@ -844,6 +889,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=:), allocatable :: text
+
         call fresh_scratch()
         call switch_to_buffer("*mode*", st)
         call text_mode(st)
@@ -873,6 +919,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=:), allocatable :: text
+
         call fresh_scratch()
         call type_keys("C-h o t r a n s i e n t _ m a r k _ m o d e RET")
         call command_loop(st)
@@ -893,6 +940,7 @@ contains
     subroutine test_describe_command_x(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call fresh_scratch()
         call type_keys("C-h x f o r w a r d _ c h a r RET")
         call command_loop(st)
@@ -911,6 +959,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: text
         logical :: found
+
         call fresh_scratch()
         call describe_variable_text("fill_column", text, found)
         call check(error, index(text, "C-x f."//LF//LF//"  Automatically becomes buffer-local when set."//LF// &
@@ -931,6 +980,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=:), allocatable :: text
+
         call fresh_scratch()
         call type_keys("a C-b C-f C-x h C-h l")
         call command_loop(st)
@@ -952,6 +1002,7 @@ contains
     subroutine test_lossage_indent(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: text
+
         text = " a b c d e f g h i j k l m n ;; x"//LF//" C-f ;; y"//LF
         call lossage_comment_indent(text)
         call check(error, text, " a b c d e f g h i j k l m n ;; x"//LF//" C-f"//TAB//TAB//TAB//"     ;; y"//LF)
@@ -962,6 +1013,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=:), allocatable :: text
+
         call fresh_scratch()
         call message("First message")
         call message("Second message")
@@ -989,6 +1041,7 @@ contains
     subroutine test_messages_duplicates(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: text
+
         call fresh_scratch()
         call message("Unique start")
         call message("Again")
@@ -1006,6 +1059,7 @@ contains
         type(status_type) :: st
         type(value_type) :: ev(1)
         character(len=:), allocatable :: text
+
         call fresh_scratch()
         call type_keys("C-h C-h SPC f")
         ev(1) = sym("x")
@@ -1034,6 +1088,7 @@ contains
     subroutine test_help_for_help_unbound(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+
         call fresh_scratch()
         call type_keys("C-h ? z")
         call command_loop(st)
@@ -1047,6 +1102,7 @@ contains
         character(len=:), allocatable :: text
         type(handle_type) :: old
         type(status_type) :: st
+
         old = current_buffer()
         text = "(none)"
         if (.not. buffer_live_p(get_buffer(name))) return

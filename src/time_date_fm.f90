@@ -82,10 +82,12 @@ contains
         real(real64) :: round_to, cnt, cnt_pre, cnt_val
         character(len=:), allocatable :: padding
         character(len=64) :: buf
+
         how = SECONDS_TO_STRING_PLAIN
         if (present(readable)) how = readable
         abbreviate = .false.
         if (present(abbrev)) abbreviate = abbrev
+
         if (delay < 0) then
             ! (Upstream passes PRECISION as ABBREV here.)
             if (present(precision)) then
@@ -95,10 +97,13 @@ contains
             else
                 s = "-"//seconds_to_string(-delay, how)
             end if
+
             return
         end if
+
         if (how /= SECONDS_TO_STRING_PLAIN) then
             expanded = how == SECONDS_TO_STRING_EXPANDED
+
             if (present(precision)) then
                 digits = precision
                 round_to = 10.0_real64**(-precision)
@@ -109,30 +114,38 @@ contains
                 digits = 0
                 round_to = 1
             end if
+
             padding = " "
             if (abbreviate) padding = ""
+
             if (abs(lisp_round(delay, round_to)) < 0.5_real64) then
                 if (abbreviate) then
                     s = "0s"
                 else
                     s = "0 seconds"
                 end if
+
                 return
             end if
+
             here = 1
+
             do while (here < size(READABLE_SECS))
                 if (delay/real(READABLE_SECS(here), real64) >= 1) exit
                 here = here + 1
             end do
+
             have_pre = .false.
             here_pre = 0
             cnt_pre = 0
+
             if (expanded .and. here < size(READABLE_SECS)) then
                 here_pre = here
                 here = here + 1
                 cnt_pre = floor(delay/real(READABLE_SECS(here_pre), real64))
                 cnt = lisp_round((delay - cnt_pre*real(READABLE_SECS(here_pre), real64)) &
                                  /real(READABLE_SECS(here), real64), round_to)
+
                 if (cnt > 0) then
                     have_pre = .true.
                 else
@@ -140,14 +153,17 @@ contains
                     here = here_pre
                 end if
             end if
+
             if (.not. have_pre) cnt = lisp_round(delay/real(READABLE_SECS(here), real64), round_to)
             cnt_val = cnt*round_to
             isfloatp = digits > 0 .and. cnt_val - floor(cnt_val) > 0
             s = ""
+
             if (have_pre) then
                 write (buf, "(i0)") int(cnt_pre, int64)
                 s = trim(buf)//padding//unit_name(cnt_pre, here_pre, abbreviate, .false.)//" "
             end if
+
             if (isfloatp) then
                 write (buf, "(f0."//itoa(digits)//")") cnt_val
                 buf = adjustl(buf)
@@ -155,16 +171,19 @@ contains
             else
                 write (buf, "(i0)") floor(cnt_val, int64)
             end if
+
             ! Float formats are always plural.
             s = s//trim(buf)//padding//unit_name(cnt_val, here, abbreviate, isfloatp)
         else if (.not. (delay > 0)) then
             s = "0s"
         else
             k = 1
+
             do while (k <= size(PLAIN_LIMITS))
                 if (.not. (PLAIN_LIMITS(k) <= delay)) exit
                 k = k + 1
             end do
+
             write (buf, "(f0.2)") delay/PLAIN_SECS(k)
             buf = adjustl(buf)
             if (buf(1:1) == ".") buf = "0"//buf(1:len(buf) - 1)
@@ -178,6 +197,7 @@ contains
         integer, intent(in) :: here
         logical, intent(in) :: abbrev, plural
         character(len=:), allocatable :: name
+
         if (abbrev) then
             name = trim(READABLE_ABBREV(here))
         else if (.not. plural .and. floor(val) <= 1) then
@@ -191,8 +211,10 @@ contains
     real(real64) function lisp_round(x, divisor) result(r)
         real(real64), intent(in) :: x, divisor
         real(real64) :: q, f
+
         q = x/divisor
         f = floor(q)
+
         if (q - f > 0.5_real64) then
             r = f + 1
         else if (q - f < 0.5_real64) then
@@ -208,6 +230,7 @@ contains
         integer, intent(in) :: n
         character(len=:), allocatable :: s
         character(len=12) :: buf
+
         write (buf, "(i0)") n
         s = trim(buf)
     end function itoa

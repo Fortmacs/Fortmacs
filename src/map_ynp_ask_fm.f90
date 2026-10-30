@@ -77,6 +77,7 @@ contains
         type(status_type) :: st
         integer :: k, how, answer
         logical :: had_msg, saved_enable, again
+
         actions = 0
         status = status_type()
         object = "object"
@@ -90,30 +91,37 @@ contains
         if (had_msg) msg = last_message
         call init_query_replace_map()
         k = 0
+
         objects_loop: do while (k < n)
             k = k + 1
             call prompter(k, how, prompt)
             if (how == YNP_SKIP) cycle objects_loop
+
             if (how == YNP_ACT) then
                 call actor(k, status)
                 if (.not. status%ok()) exit objects_loop
                 actions = actions + 1
                 cycle objects_loop
             end if
+
             full = prompt//"(y, n, !, ., q, or C-h) "
             again = .true.
+
             do while (again)
                 again = .false.
                 if (allocated(chars)) deallocate (chars)
+
                 if (y_or_n_p_use_read_key) then
                     ! Prompt in the echo area using `read_key'.
                     call read_key(full, key, status)
                     if (.not. status%ok()) exit objects_loop
                     chars = [key]
+
                     if (is_quit(key)) then
                         call set_error(status, FM_QUIT)
                         exit objects_loop
                     end if
+
                     ! Show the answer to the question.
                     call message(full//key_description(chars))
                 else
@@ -123,28 +131,34 @@ contains
                     saved_real_this = real_this_command
                     saved_enable = enable_recursive_minibuffers
                     enable_recursive_minibuffers = .true.
+
                     if (allocated(y_or_n_p_history_variable)) then
                         call read_from_minibuffer(full, str, status, keymap=ynp_remap, &
                                                   history=y_or_n_p_history_variable)
                     else
                         call read_from_minibuffer(full, str, status, keymap=ynp_remap, history="t")
                     end if
+
                     enable_recursive_minibuffers = saved_enable
                     this_command = saved_this
                     real_this_command = saved_real_this
                     if (.not. status%ok()) exit objects_loop
+
                     if (allocated(chars)) then
                         call message(full//key_description(chars))
                     else
                         call message(full)
                     end if
                 end if
+
                 answer = -1
                 def = nil()
+
                 if (allocated(chars)) then
                     answer = query_replace_answer(chars(1))
                     call lookup_key(make_keymap_ref(query_replace_map), chars, def, st)
                 end if
+
                 select case (answer)
                 case (ANSWER_EXIT)
                     exit objects_loop
@@ -170,6 +184,7 @@ contains
                     call actor(k, status)
                     if (.not. status%ok()) exit objects_loop
                     actions = actions + 1
+
                     do while (k < n)
                         k = k + 1
                         call prompter(k, how, prompt)
@@ -196,10 +211,12 @@ contains
                         call ding()
                         call sit_for(1000)
                     end if
+
                     again = .true.
                 end select
             end do
         end do objects_loop
+
         ! Clear the last prompt from the minibuffer, and restore the
         ! previous echo-area message, if any.
         if (had_msg) then
@@ -207,11 +224,13 @@ contains
         else
             call message("")
         end if
+
     contains
 
         ! [?\C-g] or [ESC ESC ESC]
         logical function is_quit(ev)
             type(value_type), intent(in) :: ev
+
             is_quit = value_eq(ev, make_fixnum(7_int64))
         end function is_quit
     end subroutine map_y_or_n_p
@@ -225,6 +244,7 @@ contains
         type(status_type) :: st
         integer :: k
         integer(int64) :: c
+
         if (keymap_live_p(ynp_remap)) return
         cmd_char = command_type("map_y_or_n_p__char", ynp_char)
         call cmd_char%define()
@@ -232,20 +252,25 @@ contains
         call cmd_help%define()
         call make_sparse_keymap(ynp_remap)
         call set_keymap_parent(ynp_remap, minibuffer_local_map, st)
+
         ! [remap self-insert-command]
         do c = 0, 127
             key1(1) = make_fixnum(c)
             call lookup_key(make_keymap_ref(minibuffer_local_map), key1, b, st)
             if (nilp(b)) call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
+
             if (value_eq(b, sym("self_insert_command"))) then
                 call define_key(ynp_remap, key1, sym("map_y_or_n_p__help"), st)
             end if
         end do
+
         key1(1) = make_fixnum(128_int64)
         call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
+
         if (value_eq(b, sym("self_insert_command"))) then
             call define_key_range(ynp_remap, 128_int64, int(MAX_CHAR, int64), sym("map_y_or_n_p__help"), st)
         end if
+
         do k = 1, size(QRM_KEYS)
             call key_parse(trim(QRM_KEYS(k)), seq, st)
             if (st%ok()) call define_key(ynp_remap, seq, sym("map_y_or_n_p__char"), st)
@@ -255,6 +280,7 @@ contains
     !> cmd-char: record the keys and exit the minibuffer.
     subroutine ynp_char(status)
         type(status_type), intent(out) :: status
+
         chars = this_command_keys
         call exit_minibuffer(status)
     end subroutine ynp_char
@@ -262,6 +288,7 @@ contains
     !> cmd-help: say how to get help.
     subroutine ynp_help(status)
         type(status_type), intent(out) :: status
+
         status = status_type()
         call message("Type C-h for help")
     end subroutine ynp_help
@@ -279,15 +306,19 @@ contains
         type(status_type) :: st
         logical :: short, has_help, found
         integer :: k
+
         if (read_answer_short == READ_ANSWER_SHORT_AUTO) then
             short = use_short_answers
         else
             short = read_answer_short == READ_ANSWER_SHORT_T
         end if
+
         has_help = .false.
+
         do k = 1, size(answers)
             if (answers(k)%long == "help") has_help = .true.
         end do
+
         if (has_help) then
             with_help = answers
         else
@@ -298,13 +329,16 @@ contains
             with_help(1:size(answers)) = answers
             with_help(size(answers) + 1) = help_answer
         end if
+
         prompt = question//"("
         msg = "Please answer "
+
         do k = 1, size(with_help)
             if (k > 1) then
                 prompt = prompt//", "
                 msg = msg//" or "
             end if
+
             if (short) then
                 prompt = prompt//char_string_of(with_help(k)%short)
                 msg = msg//"`"//char_string_of(with_help(k)%short)//"'"
@@ -313,8 +347,10 @@ contains
                 msg = msg//"`"//with_help(k)%long//"'"
             end if
         end do
+
         prompt = prompt//") "
         msg = msg//"."
+
         if (short) then
             ! short-answer-map
             if (.not. associated(cmd_answer_select%run)) then
@@ -323,48 +359,62 @@ contains
                 cmd_answer_reject = command_type("read_answer__reject", answer_reject)
                 call cmd_answer_reject%define()
             end if
+
             if (keymap_live_p(short_answer_map)) call free_keymap(short_answer_map, st)
             call make_sparse_keymap(short_answer_map)
             call set_keymap_parent(short_answer_map, minibuffer_local_map, st)
+
             do k = 1, size(with_help)
                 key1(1) = make_fixnum(int(with_help(k)%short, int64))
                 call define_key(short_answer_map, key1, sym("read_answer__select"), st)
             end do
+
             call list_elements(list(sym("remap"), sym("self_insert_command")), remap_events)
             call define_key(short_answer_map, remap_events, sym("read_answer__reject"), st)
             short_answers = with_help
             short_answer_message = msg
         end if
+
         status = status_type()
+
         do
             saved_this = this_command
             saved_real_this = real_this_command
+
             if (short) then
                 call read_from_minibuffer(prompt, str, status, keymap=short_answer_map, history="read_char_history")
             else
                 call read_from_minibuffer(prompt, str, status, history="yes_or_no_p_history")
             end if
+
             this_command = saved_this
             real_this_command = saved_real_this
             if (.not. status%ok()) exit
             answer = downcase_string(str)
             found = .false.
+
             do k = 1, size(with_help)
                 if (with_help(k)%long == "help") cycle
                 if (with_help(k)%long == answer .and. len(with_help(k)%long) == len(answer)) found = .true.
             end do
+
             if (found) exit
+
             if (answer == "help" .and. len(answer) == 4) then
                 text = "Type:"//achar(10)
+
                 do k = 1, size(with_help)
                     if (k > 1) text = text//","//achar(10)
+
                     if (short) then
                         text = text//"`"//char_string_of(with_help(k)%short)//"' ("//with_help(k)%long//")"
                     else
                         text = text//"`"//with_help(k)%long//"'"
                     end if
+
                     text = text//" to "//with_help(k)%help
                 end do
+
                 call with_help_window(text//"."//achar(10), st)
             else
                 call ding()
@@ -372,6 +422,7 @@ contains
                 call sit_for(2000)
             end if
         end do
+
         if (short) then
             call free_keymap(short_answer_map, st)
             deallocate (short_answers)
@@ -384,14 +435,17 @@ contains
         type(status_type), intent(out) :: status
         integer :: k
         integer(int64) :: c
+
         status = status_type()
         if (.not. allocated(this_command_keys)) return
         if (size(this_command_keys) < 1) return
         c = xfixnum_or_zero(this_command_keys(size(this_command_keys)))
         call delete_minibuffer_contents(status)
+
         do k = 1, size(short_answers)
             if (short_answers(k)%short == c) call insert(short_answers(k)%long, status)
         end do
+
         call exit_minibuffer(status)
     end subroutine answer_select
 
@@ -399,6 +453,7 @@ contains
     !> bell and show the message.
     subroutine answer_reject(status)
         type(status_type), intent(out) :: status
+
         call delete_minibuffer_contents(status)
         call ding()
         call message(short_answer_message)
@@ -412,6 +467,7 @@ contains
         character(len=MAX_MULTIBYTE_LENGTH) :: buf
         integer(int32) :: n
         type(status_type) :: st
+
         call char_string(int(c, int32), buf, n, st)
         text = buf(1:n)
     end function char_string_of
@@ -419,6 +475,7 @@ contains
     !> The character of event EV, or 0.
     integer(int64) function xfixnum_or_zero(ev) result(c)
         type(value_type), intent(in) :: ev
+
         c = 0
         if (fixnump(ev)) c = xfixnum(ev)
     end function xfixnum_or_zero

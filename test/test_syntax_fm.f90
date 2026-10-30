@@ -51,6 +51,7 @@ contains
 
     subroutine collect_syntax_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
         testsuite = [ &
                     new_unittest("syntax-class-character-test", test_class_character), &
                     new_unittest("standard-syntax-table-ascii", test_standard_ascii), &
@@ -72,6 +73,7 @@ contains
         character(len=*), intent(in) :: text
         type(handle_type) :: buf
         type(status_type) :: st
+
         call init_bindings()
         call discard_input()
         call get_buffer_create(" *syntax-test*", buf, st)
@@ -89,6 +91,7 @@ contains
         integer, intent(in) :: c
         type(handle_type), intent(in) :: t
         type(syntax_descriptor_type) :: d
+
         d = syntax_entry(c, t)
         class_in = iand(d%code, 255)
     end function class_in
@@ -97,6 +100,7 @@ contains
     function u(c) result(s)
         integer, intent(in) :: c
         character(len=:), allocatable :: s
+
         if (c < 128) then
             s = achar(c)
         else if (c < 2048) then
@@ -116,11 +120,13 @@ contains
         type(status_type) :: st
         character :: ch
         integer :: i
+
         do i = 0, len(chars) - 1
             call syntax_class_to_char(i, ch, st)
             call check(error, st%ok() .and. ch == chars(i + 1:i + 1), chars(i + 1:i + 1))
             if (allocated(error)) return
             call string_to_syntax(chars(i + 1:i + 1), d, st)
+
             ! "@" (inherit) gives nil.
             if (d%code >= 0) then
                 call syntax_class_to_char(iand(d%code, 255), ch, st)
@@ -128,6 +134,7 @@ contains
                 if (allocated(error)) return
             end if
         end do
+
         call syntax_class_to_char(-1, ch, st)
         call check(error,.not. st%ok())
         if (allocated(error)) return
@@ -142,12 +149,15 @@ contains
                                        achar(0)//achar(127)
         character(len=*), parameter :: want = "w wwwww()()()""\__________............  .."
         integer :: i
+
         call temp_buffer("")
+
         do i = 1, len(chars)
             call check(error, char_syntax(iachar(chars(i:i))) == want(i:i), "syntax of "//chars(i:i)// &
                        " is "//char_syntax(iachar(chars(i:i))))
             if (allocated(error)) return
         end do
+
         call check(error, matching_paren(iachar("(")) == iachar(")") .and. matching_paren(iachar("a")) == -1)
     end subroutine test_standard_ascii
 
@@ -161,11 +171,14 @@ contains
                                        int(z'03B1'), int(z'2039'), int(z'1F600')]
         character(len=*), parameter :: want = "._. www_._.()(()ww.w.w_w"
         integer :: i
+
         call temp_buffer("")
+
         do i = 1, size(cs)
             call check(error, char_syntax(cs(i)) == want(i:i), "syntax of "//u(cs(i))//" is "//char_syntax(cs(i)))
             if (allocated(error)) return
         end do
+
         ! 「 is an open paren matching 」.
         call check(error, matching_paren(int(z'300C')) == int(z'300D'))
     end subroutine test_characters_el
@@ -174,6 +187,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(syntax_descriptor_type) :: d
         type(status_type) :: st
+
         call string_to_syntax("()", d, st)
         call check(error, st%ok() .and. d%code == SOPEN .and. d%match == iachar(")"))
         if (allocated(error)) return
@@ -197,6 +211,7 @@ contains
         type(handle_type) :: t1, t2
         type(status_type) :: st
         type(syntax_descriptor_type) :: d
+
         call temp_buffer("")
         call make_syntax_table(t1, st)
         call modify_syntax_entry(iachar("_"), iachar("_"), "w", st, t1)
@@ -232,6 +247,7 @@ contains
 
     subroutine test_char_script(error)
         type(error_type), allocatable, intent(out) :: error
+
         call check(error, trim(script_names(char_script(iachar("a")))) == "latin" .and. &
                    trim(script_names(char_script(int(z'03B1')))) == "greek" .and. &
                    trim(script_names(char_script(int(z'4E00')))) == "han" .and. &
@@ -242,6 +258,7 @@ contains
 
     subroutine test_word_boundaries(error)
         type(error_type), allocatable, intent(out) :: error
+
         ! Same script: no boundary.
         call check(error,.not. word_boundary_p(iachar("a"), iachar("b")))
         if (allocated(error)) return
@@ -265,6 +282,7 @@ contains
     subroutine test_forward_word(error)
         type(error_type), allocatable, intent(out) :: error
         logical :: ok
+
         call temp_buffer("Hello, world!  foo_bar "//u(int(z'03B1'))//u(int(z'03B2'))//"abc")
         call forward_word(1_int64, ok)
         call check(error, ok .and. point() == 6)
@@ -298,6 +316,7 @@ contains
         type(status_type) :: st
         type(value_type), allocatable :: evs(:)
         character(len=:), allocatable :: killed
+
         call temp_buffer("one two three four")
         call key_parse("M-f M-f M-b", evs, st)
         call unread_command_events(evs)
@@ -337,6 +356,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: moved
+
         call temp_buffer("abcXYZ-123 éü!")
         call goto_char(1_int64)
         moved = skip_chars_forward("a-z", st)
@@ -371,6 +391,7 @@ contains
     subroutine test_skip_syntax(error)
         type(error_type), allocatable, intent(out) :: error
         integer(int64) :: moved
+
         call temp_buffer("foo_bar  (baz)")
         call goto_char(1_int64)
         moved = skip_syntax_forward("w")
@@ -396,6 +417,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: t1
         type(status_type) :: st
+
         call temp_buffer("")
         call make_syntax_table(t1, st)
         call set_syntax_table(t1, st)
