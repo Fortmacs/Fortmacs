@@ -317,9 +317,11 @@ info_hide_note_references
 info_history_skip_intermediate_nodes
 info_mode_hook
 info_scroll_prefer_subnodes
+info_search_whitespace_regexp
 info_selection_hook
 info_url_alist
 info_use_header_line
+info_warn_on_index_alternatives_wrap
 inhibit_eol_conversion
 insert_default_directory
 insert_directory_program

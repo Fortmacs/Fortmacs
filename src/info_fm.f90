@@ -38,32 +38,35 @@
 !> `info_history_variable' and `info_history_forward_variable', as the
 !> commands have their names.
 !>
-!> Deferred: the fontification of nodes (`info_fontify_node': titles,
-!> references, menus, `info_hide_note_references', `info_refill_paragraphs'),
-!> the header line and breadcrumbs (`info_use_header_line',
-!> `info_breadcrumbs_depth'), the faces, `info_search' (s, S) and
-!> Isearch across nodes, the indexes (`info_index' i, `info_index_next' ,,
-!> `info_virtual_index' I, `info_apropos'), the table of contents (T)
-!> and the history node (L), `info_finder', `info_goto_node_web' (G,
-!> needing browse-url), following URLs, `info_goto_emacs_command_node'
-!> and `info_goto_emacs_key_command_node' (C-h F, C-h K),
-!> `info_display_manual', `info_standalone', `clone_buffer' (M-n),
-!> images (Fortmacs displays none, so their text is shown), the mouse,
-!> menu bar, tool bar and context menu commands, bookmarks, desktop
-!> saving, speedbar, active nodes (`info_enable_active_nodes'), the
-!> display table for terminals without UTF-8, and the Info files of the
-!> source tree (`source_directory').
+!> Nodes are fontified (`info_fontify_node'), with the header line and
+!> breadcrumbs; T and L show the table of contents and the nodes
+!> visited. `info_search' (s, S), the indexes (`info_index' i,
+!> `info_index_next' ,, `info_virtual_index' I, `info_apropos') and
+!> `info_goto_emacs_command_node' and `info_goto_emacs_key_command_node'
+!> (C-h F, C-h K) are ported.
+!>
+!> Deferred: `info_refill_paragraphs', Isearch across nodes,
+!> `info_finder', `info_goto_node_web' (G, needing browse-url),
+!> following URLs, `info_display_manual', `info_standalone',
+!> `clone_buffer' (M-n), images (Fortmacs displays none, so their text
+!> is shown), the mouse, menu bar, tool bar and context menu commands,
+!> bookmarks, desktop saving, speedbar, active nodes
+!> (`info_enable_active_nodes'), the display table for terminals without
+!> UTF-8, and the Info files of the source tree (`source_directory').
 module info_fm
     use, intrinsic :: iso_fortran_env, only: int64, int32
-    use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_SEARCH_FAILED
+    use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_SEARCH_FAILED, &
+                        FM_USER_SEARCH_FAILED, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, t_value, nilp, make_string, make_list, list, make_fixnum, stringp, consp, &
-                       fixnump, xstring, xfixnum, list_length, list_elt, make_symbol_ref, symbols, xsymbol, symbolp
+    use lisp_fm, only: command_type, value_type, nil, t_value, nilp, make_string, make_list, list, make_fixnum, &
+                       stringp, consp, &
+                       fixnump, xstring, xfixnum, list_length, list_elt, make_symbol_ref, symbols, xsymbol, symbolp, &
+                       list_elements
     use lread_fm, only: sym, intern
-    use data_fm, only: logical_setting, set, add_local_variables_killer
+    use data_fm, only: logical_setting, set, add_local_variables_killer, symbol_value
     use eval_fm, only: hook_type
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, buffer_live_p, buffer_serial_live, get_buffer_create, &
-                         generate_new_buffer_name, kill_buffer, erase_buffer, restore_buffer_modified_p, &
+                         generate_new_buffer_name, kill_buffer, erase_buffer, restore_buffer_modified_p, get_buffer, &
                          inhibit_read_only, transient_mark_mode, header_line_format_type
     use marker_fm, only: make_marker, free_marker, marker_buffer, marker_position, set_marker, &
                          detach_marker, set_marker_insertion_type, byte_to_char, char_to_byte
@@ -74,7 +77,7 @@ module info_fm
     use cmds_fm, only: forward_line, beginning_of_line, end_of_line
     use search_fm, only: looking_at, string_match, search_forward, search_backward, re_search_forward, &
                          re_search_backward, match_beginning, match_end, replace_match, regexp_quote, &
-                         string_index_to_offset, case_fold_search, SEARCH_NOERROR, SEARCH_MOVE
+                         string_index_to_offset, case_fold_search, search_spaces_regexp, SEARCH_NOERROR, SEARCH_MOVE
     use subr_fm, only: match_string_no_properties, looking_back, y_or_n_p
     use syntax_fm, only: skip_chars_forward, skip_chars_backward, copy_syntax_table, modify_syntax_entry, &
                          syntax_table_live_p, skip_syntax_backward
@@ -82,7 +85,7 @@ module info_fm
     use textprop_fm, only: get_text_property, put_text_property, get_char_property, &
                            next_single_char_property_change, previous_single_char_property_change, &
                            next_single_property_change, remove_text_properties, propertized_concat, &
-                           string_put_text_property
+                           string_put_text_property, text_property_not_all
     use character_fm, only: multibyte_chars_in_text
     use itree_fm, only: make_overlay, overlay_put
     use faces_fm, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
@@ -100,9 +103,9 @@ module info_fm
     use config_fm, only: configure_info_directory
     use coding_fm, only: inhibit_null_byte_detection, buffer_file_coding_system
     use callproc_fm, only: call_process
-    use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use keyboard_fm, only: this_command_keys, read_event, unread_command_events
-    use keymap_fm, only: keymap_set
+    use callint_fm, only: current_prefix_arg, prefix_numeric_value, find_command, commandp
+    use keyboard_fm, only: this_command_keys, read_event, unread_command_events, read_key_sequence
+    use keymap_fm, only: keymap_set, where_is_internal, key_description, key_binding
     use commands_fm, only: commands
     use modes_fm, only: major_modes
     use derived_fm, only: derived_mode_p
@@ -112,12 +115,13 @@ module info_fm
     use window_fm, only: windows, display_buffer, select_window, get_buffer_window, window_start, set_window_start, &
                          scroll_up, scroll_down, recenter, display_alist_type, DISPLAY_ACTION_SAME_WINDOW, &
                          window_configuration_type, current_window_configuration, set_window_configuration, &
-                         free_window_configuration, delete_other_windows, switch_to_buffer, bury_buffer
+                         free_window_configuration, delete_other_windows, switch_to_buffer, bury_buffer, pop_to_buffer
     use frame_fm, only: selected_window, selected_frame, frame_window_p
     use dispnew_fm, only: ding
     use minibuf_fm, only: completion_ignore_case, try_completion, all_completions, test_completion, &
                           completion_table_type, completion_list_table, completion_function_table, &
-                          completion_predicate, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST, COMPLETE_BOUNDARIES
+                          completion_predicate, completion_obarray_table, read_string, COMPLETE_TRY, COMPLETE_ALL, &
+                          COMPLETE_TEST, COMPLETE_BOUNDARIES
     use minibuffer_fm, only: completing_read, read_file_name, REQUIRE_MATCH_T
     use text_mode_fm, only: text_mode_syntax_table, text_mode_abbrev_table, syms_of_text_mode
     use shell_fm, only: list_buffers_directory
@@ -136,7 +140,10 @@ module info_fm
               info_copy_current_node_name, info_extract_pointer, info_extract_menu_node_name, info_select_node, &
               info_current_file, info_current_node, info_current_subfile, info_insert_file_contents, &
               info_build_node_completions, info_undefined, info_help, info_summary, info_kill_buffer, &
-              info_toc, info_history, info_fontify_node, syms_of_info
+              info_toc, info_history, info_fontify_node, syms_of_info, &
+              info_search, info_search_backward, info_search_next, info_search_case_sensitively, &
+              info_index, info_index_next, info_virtual_index, info_apropos, &
+              info_goto_emacs_command_node, info_goto_emacs_key_command_node
 
     !> A node visited: the Info FILE (as `info_current_file'), the NODE name
     !> and the position POS of point in it.  An element of the stacks
@@ -170,6 +177,22 @@ module info_fm
         character(len=32) :: name = ""
     end type info_heading_type
 
+    ! A string, as an element of an array of strings of any lengths.
+    type :: string_type
+        character(len=:), allocatable :: s
+    end type string_type
+
+    ! An element of the table of contents of an Info file (an element of
+    ! Info-toc-nodes): the node NAME, its PARENT from the Up pointer, the
+    ! SECTION name in the Top node where it is placed, and its CHILDREN
+    ! from the node menu.
+    type :: toc_node_type
+        character(len=:), allocatable :: name
+        logical :: has_parent = .false., has_section = .false.
+        character(len=:), allocatable :: parent, section
+        type(string_type), allocatable :: children(:)
+    end type toc_node_type
+
     abstract interface
         !> The find-file operation of a virtual Info file: the file name
         !> `info_find_file' returns for FILENAME.
@@ -190,19 +213,29 @@ module info_fm
             logical, intent(in) :: no_going_back
             type(status_type), intent(out) :: status
         end subroutine info_virtual_find_node_proc
+
+        !> The toc-nodes operation of a virtual Info file: the node list
+        !> of FILENAME with parent-children information (as
+        !> `info_toc_nodes' gives).
+        recursive subroutine info_virtual_toc_nodes_proc(filename, nodes)
+            import :: toc_node_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: filename
+            type(toc_node_type), allocatable, intent(out) :: nodes(:)
+        end subroutine info_virtual_toc_nodes_proc
     end interface
 
     !> A virtual Info file (an element of `info_virtual_files') or node
     !> (of `info_virtual_nodes'): file or node names matching the regexp
-    !> NAME are handled by FIND_FILE and FIND_NODE instead of being read
-    !> from disk.  TOC_NODES true gives the file the table of contents
-    !> of the virtual files of Info: a Top node without parent, section
-    !> or children (their toc-nodes operation).
+    !> NAME are handled by FIND_FILE, FIND_NODE and TOC_NODES instead of
+    !> being read from disk.  SLOW marks the files that are expensive to
+    !> compute.
     type, public :: info_virtual_file_type
         character(len=64) :: name = ""
         procedure(info_virtual_find_file_proc), pointer, nopass :: find_file => null()
         procedure(info_virtual_find_node_proc), pointer, nopass :: find_node => null()
-        logical :: toc_nodes = .false.
+        procedure(info_virtual_toc_nodes_proc), pointer, nopass :: toc_nodes => null()
+        logical :: slow = .false.
     end type info_virtual_file_type
 
     ! ------------------------------------------------------------------
@@ -381,10 +414,6 @@ module info_fm
     end type file_time_type
     type(file_time_type), allocatable :: file_times(:)
 
-    type :: string_type
-        character(len=:), allocatable :: s
-    end type string_type
-
     type :: index_nodes_type
         character(len=:), allocatable :: file
         type(string_type), allocatable :: nodes(:)
@@ -402,6 +431,18 @@ module info_fm
         type(string_type), allocatable :: nodes(:)
     end type completions_type
     type(completions_type), allocatable :: file_completions(:)
+
+    ! An index entry matching a topic (an element of
+    ! Info-index-alternatives, Info-virtual-index-nodes and
+    ! Info-apropos-nodes): the ENTRY text, with the part from MATCH_BEG to
+    ! MATCH_END (characters) matching the topic, the node NODENAME it
+    ! points to, the INDEX_NODE it was found in (the manual for
+    ! `info_apropos') and the LINE in the node (0 for none).
+    type :: index_match_type
+        character(len=:), allocatable :: entry, nodename, index_node
+        integer(int64) :: line = 0
+        integer(int64) :: match_beg = 0, match_end = 0
+    end type index_match_type
 
     ! The buffer-local values of an Info buffer, by serial number:
     ! Info-history, Info-history-forward, Info-current-file,
@@ -429,12 +470,15 @@ module info_fm
         type(file_time_type), allocatable :: dir_file_attributes(:)
         character(len=:), allocatable :: dir_file_name
         logical :: has_complete_cache = .false.
-        character(len=:), allocatable :: cache_file, cache_node, cache_string
+        character(len=:), allocatable :: cache_file, cache_node, cache_string, cache_nodes
         type(string_type), allocatable :: cache_completions(:)
         ! The header-line-format of Info mode, (:eval (get-text-property
         ! (point-min) 'header-line)), and the header with its faces.
         logical :: header_from_property = .false.
         type(header_line_format_type) :: header
+        ! Info-index-alternatives and Info--current-index-alternative.
+        type(index_match_type), allocatable :: index_alternatives(:)
+        integer(int64) :: current_index_alternative = 0
     end type local_type
 
     type(local_type), allocatable :: locals(:)
@@ -536,16 +580,119 @@ module info_fm
     !> Face used for quoted elements.  Port of info.el Info-quoted.
     type(named_face_type), target, public :: info_quoted_face
 
-    ! An element of the table of contents of an Info file (an element of
-    ! Info-toc-nodes): the node NAME, its PARENT from the Up pointer, the
-    ! SECTION name in the Top node where it is placed, and its CHILDREN
-    ! from the node menu.
-    type :: toc_node_type
-        character(len=:), allocatable :: name
-        logical :: has_parent = .false., has_section = .false.
-        character(len=:), allocatable :: parent, section
-        type(string_type), allocatable :: children(:)
-    end type toc_node_type
+    ! A cached search of `info_virtual_index': the matches of TOPIC in
+    ! FILE.
+    type :: virtual_index_type
+        character(len=:), allocatable :: file, topic
+        type(index_match_type), allocatable :: matches(:)
+    end type virtual_index_type
+
+    ! Info-virtual-index-nodes, the most recent first.
+    type(virtual_index_type), allocatable :: virtual_index_nodes(:)
+
+    ! A cached search of `info_apropos': the NODENAME that holds the search
+    ! result, the search STRING and its MATCHES (HAS_MATCHES false for
+    ! nil).
+    type :: apropos_node_type
+        character(len=:), allocatable :: nodename, string
+        logical :: has_matches = .false.
+        type(index_match_type), allocatable :: matches(:)
+    end type apropos_node_type
+
+    ! Info-apropos-nodes, the most recent first.
+    type(apropos_node_type), allocatable :: apropos_nodes(:)
+
+    !> Info file name of the virtual manual for matches of `info_apropos'.
+    !> Port of info.el Info-apropos-file.
+    character(len=*), parameter, public :: INFO_APROPOS_FILE = "*Apropos*"
+
+    !> If true, regular expression to match a sequence of whitespace
+    !> chars.  This applies to Info search for regular expressions.  You
+    !> might want to use something like "[ \t\r\n]+" instead.  Don't add
+    !> any capturing groups into this value; that can change the numbering
+    !> of existing capture groups in unexpected ways.  (Unallocated for
+    !> nil.)  Port of info.el Info-search-whitespace-regexp.
+    character(len=:), allocatable, public :: info_search_whitespace_regexp
+
+    ! The value of `case_fold_search' from previous `info_search' command
+    ! (Info-search-case-fold).
+    logical :: info_search_case_fold = .false.
+
+    !> Warn when wrapping to the beginning/end when displaying index
+    !> alternatives.  Port of info.el Info-warn-on-index-alternatives-wrap.
+    type(logical_setting), public :: info_warn_on_index_alternatives_wrap = &
+                                     logical_setting(name="info_warn_on_index_alternatives_wrap", value=.true.)
+
+    !> An element of `info_file_list_for_emacs': the PREFIX of command
+    !> names and the Info FILE that documents them.
+    type, public :: info_file_prefix_type
+        character(len=16) :: prefix = ""
+        character(len=12) :: file = ""
+    end type info_file_prefix_type
+
+    !> List of Info files that describe Emacs commands.  An element gives
+    !> a name PREFIX and the FILE to look in for the commands whose names
+    !> start with it (followed by "_" or nothing).  Port of info.el
+    !> Info-file-list-for-emacs.
+    type(info_file_prefix_type), public :: info_file_list_for_emacs(54) = [ &
+                                           info_file_prefix_type("ediff", "ediff"), &
+                                           info_file_prefix_type("eudc", "eudc"), &
+                                           info_file_prefix_type("forms", "forms"), &
+                                           info_file_prefix_type("gnus", "gnus"), &
+                                           info_file_prefix_type("info", "info"), &
+                                           info_file_prefix_type("Info", "info"), &
+                                           info_file_prefix_type("mh", "mh-e"), &
+                                           info_file_prefix_type("sc", "sc"), &
+                                           info_file_prefix_type("message", "message"), &
+                                           info_file_prefix_type("dired", "dired-x"), &
+                                           info_file_prefix_type("viper", "viper"), &
+                                           info_file_prefix_type("idlwave", "idlwave"), &
+                                           info_file_prefix_type("c", "ccmode"), &
+                                           info_file_prefix_type("c++", "ccmode"), &
+                                           info_file_prefix_type("objc", "ccmode"), &
+                                           info_file_prefix_type("java", "ccmode"), &
+                                           info_file_prefix_type("idl", "ccmode"), &
+                                           info_file_prefix_type("pike", "ccmode"), &
+                                           info_file_prefix_type("skeleton", "autotype"), &
+                                           info_file_prefix_type("auto_insert", "autotype"), &
+                                           info_file_prefix_type("copyright", "autotype"), &
+                                           info_file_prefix_type("executable", "autotype"), &
+                                           info_file_prefix_type("tempo", "autotype"), &
+                                           info_file_prefix_type("hippie_expand", "autotype"), &
+                                           info_file_prefix_type("cvs", "pcl-cvs"), &
+                                           info_file_prefix_type("ada", "ada-mode"), &
+                                           info_file_prefix_type("calc", "calc"), &
+                                           info_file_prefix_type("calcAlg", "calc"), &
+                                           info_file_prefix_type("calcDigit", "calc"), &
+                                           info_file_prefix_type("calcVar", "calc"), &
+                                           info_file_prefix_type("ebrowse", "ebrowse"), &
+                                           info_file_prefix_type("eshell", "eshell"), &
+                                           info_file_prefix_type("cl", "cl"), &
+                                           info_file_prefix_type("reftex", "reftex"), &
+                                           info_file_prefix_type("speedbar", "speedbar"), &
+                                           info_file_prefix_type("widget", "widget"), &
+                                           info_file_prefix_type("woman", "woman"), &
+                                           info_file_prefix_type("mail_header", "emacs-mime"), &
+                                           info_file_prefix_type("mail_content", "emacs-mime"), &
+                                           info_file_prefix_type("mail_encode", "emacs-mime"), &
+                                           info_file_prefix_type("mail_decode", "emacs-mime"), &
+                                           info_file_prefix_type("rfc2045", "emacs-mime"), &
+                                           info_file_prefix_type("rfc2231", "emacs-mime"), &
+                                           info_file_prefix_type("rfc2047", "emacs-mime"), &
+                                           info_file_prefix_type("rfc2045", "emacs-mime"), &
+                                           info_file_prefix_type("rfc1843", "emacs-mime"), &
+                                           info_file_prefix_type("ietf_drums", "emacs-mime"), &
+                                           info_file_prefix_type("quoted_printable", "emacs-mime"), &
+                                           info_file_prefix_type("binhex", "emacs-mime"), &
+                                           info_file_prefix_type("uudecode", "emacs-mime"), &
+                                           info_file_prefix_type("mailcap", "emacs-mime"), &
+                                           info_file_prefix_type("mm", "emacs-mime"), &
+                                           info_file_prefix_type("mml", "emacs-mime"), &
+                                           info_file_prefix_type("tramp", "tramp")]
+
+    ! Info-complete-nodes: the other nodes whose menus `complete_menu_item'
+    ! completes in (the index nodes, for `info_index').
+    type(string_type), allocatable :: complete_nodes(:)
 
     ! The cached table of contents of FILE.
     type :: toc_file_type
@@ -4408,19 +4555,43 @@ contains
 
     ! The virtual Info files defined so far: the directory.
     subroutine init_virtual_files()
-        allocate (info_virtual_files(2))
+        allocate (info_virtual_files(3))
         info_virtual_files(1)%name = "\`dir\'"
         info_virtual_files(1)%find_file => directory_find_file
         info_virtual_files(1)%find_node => directory_find_node
-        info_virtual_files(1)%toc_nodes = .true.
+        info_virtual_files(1)%toc_nodes => top_toc_nodes
         info_virtual_files(2)%name = "\`\*History\*\'"
         info_virtual_files(2)%find_file => directory_find_file
         info_virtual_files(2)%find_node => history_find_node
-        info_virtual_files(2)%toc_nodes = .true.
-        allocate (info_virtual_nodes(1))
+        info_virtual_files(2)%toc_nodes => top_toc_nodes
+        info_virtual_files(3)%name = "\`\*Apropos\*\'"
+        info_virtual_files(3)%find_file => directory_find_file
+        info_virtual_files(3)%find_node => apropos_find_node
+        info_virtual_files(3)%toc_nodes => apropos_toc_nodes
+        info_virtual_files(3)%slow = .true.
+        if (.not. allocated(virtual_index_nodes)) allocate (virtual_index_nodes(0))
+        if (.not. allocated(apropos_nodes)) allocate (apropos_nodes(0))
+        if (.not. allocated(info_search_whitespace_regexp)) info_search_whitespace_regexp = "\s-+"
+        allocate (info_virtual_nodes(2))
         info_virtual_nodes(1)%name = "\`\*TOC\*\'"
         info_virtual_nodes(1)%find_node => toc_find_node
+        info_virtual_nodes(2)%name = "\`\*Index.*\*\'"
+        info_virtual_nodes(2)%find_node => virtual_index_find_node
+        info_virtual_nodes(2)%slow = .true.
     end subroutine init_virtual_files
+
+    ! The table of contents of the directory and history files: a Top
+    ! node without parent, section or children.  Port of
+    ! info.el:Info-directory-toc-nodes and Info-history-toc-nodes.
+    recursive subroutine top_toc_nodes(filename, nodes)
+        character(len=*), intent(in) :: filename
+        type(toc_node_type), allocatable, intent(out) :: nodes(:)
+
+        if (len(filename) < 0) continue
+        allocate (nodes(1))
+        nodes(1)%name = "Top"
+        allocate (nodes(1)%children(0))
+    end subroutine top_toc_nodes
 
     ! Directory-specific implementation of `info_find_file'.  Port of
     ! info.el:Info-directory-find-file.
@@ -4692,11 +4863,11 @@ contains
         procedure(completion_predicate), optional :: pred
         character(len=*), intent(in), optional :: suffix
         type(string_type), allocatable :: completions(:)
-        character(len=:), allocatable :: pattern
+        character(len=:), allocatable :: pattern, orignode
         type(handle_type) :: old
         type(status_type) :: st
         integer(int64) :: opoint
-        integer :: k
+        integer :: k, j
         logical :: fold, cached
 
         status = status_type()
@@ -4730,19 +4901,37 @@ contains
                     if (cached) cached = string_prefix_ignore_case(locals(k)%cache_string, string)
                 end if
 
+                if (cached) cached = locals(k)%cache_nodes == nodes_key()
+
                 if (cached) then
                     ! We can reuse the previous list.
                     completions = locals(k)%cache_completions
                 else
                     ! The cache can't be used.
                     allocate (completions(0))
+                    orignode = current_node_or_empty()
+                    j = 1
 
-                    do while (refwd(pattern))
-                        if (.not. has_string(completions, match_string_no_properties(1))) then
-                            call add_string(completions, match_string_no_properties(1))
-                        end if
+                    do
+                        do while (refwd(pattern))
+                            if (.not. has_string(completions, match_string_no_properties(1))) then
+                                call add_string(completions, match_string_no_properties(1))
+                            end if
+                        end do
+
+                        ! Check subsequent nodes if applicable.
+                        if (.not. allocated(complete_nodes)) exit
+                        j = j + 1
+                        if (j > size(complete_nodes)) exit
+                        call info_goto_node(complete_nodes(j)%s, st)
+                        if (.not. st%ok()) exit
+                        call goto_min()
                     end do
 
+                    ! Go back to the start node (for the next completion).
+                    if (current_node_or_empty() /= orignode) call info_goto_node(orignode, st)
+                    k = here()
+                    locals(k)%cache_nodes = nodes_key()
                     ! Update the cache.
                     locals(k)%has_complete_cache = .true.
                     locals(k)%cache_file = current_file_or_empty()
@@ -4758,6 +4947,21 @@ contains
         call goto_char(opoint)
         fold = bind_case_fold(fold)
         call set_buffer(old, st)
+
+    contains
+
+        ! Info-complete-nodes as one string, for the cache.
+        function nodes_key() result(key)
+            character(len=:), allocatable :: key
+            integer :: m
+
+            key = ""
+            if (.not. allocated(complete_nodes)) return
+
+            do m = 1, size(complete_nodes)
+                key = key//complete_nodes(m)%s//achar(0)
+            end do
+        end function nodes_key
     end subroutine complete_menu_item
 
     ! Whether PREFIX is a prefix of S, ignoring case ((string-prefix-p
@@ -6241,6 +6445,1460 @@ contains
     end subroutine cmd_info_copy_current_node_name
 
     ! ------------------------------------------------------------------
+    ! Searching
+    ! ------------------------------------------------------------------
+
+    ! Search for REGEXP from point (backward if BACKWARD) up to BOUND (0
+    ! for none), skipping the matches `info_isearch_filter' rejects;
+    ! return the position of the match found (0 if none).  Port of
+    ! info.el:Info--search-loop.
+    integer(int64) function search_loop(regexp, bound, backward) result(found)
+        character(len=*), intent(in) :: regexp
+        integer(int64), intent(in) :: bound
+        logical, intent(in) :: backward
+        character(len=:), allocatable :: saved_spaces
+        type(status_type) :: st
+        integer(int64) :: beg_found, pos, head
+        logical :: give_up, had_spaces, ok
+
+        if (backward) then
+            ! Hide Info file header for backward search.
+            pos = point()
+            call goto_min()
+            ok = sfwd(LF//US)
+            head = point() - 1
+            call goto_char(pos)
+            call narrow_to_region(head, point_max(), st)
+        end if
+
+        give_up = .false.
+        found = 0
+        beg_found = 0
+        had_spaces = allocated(search_spaces_regexp)
+        if (had_spaces) saved_spaces = search_spaces_regexp
+
+        do
+            if (give_up) exit
+
+            if (found /= 0) then
+                if (info_isearch_filter(beg_found, found)) exit
+            end if
+
+            if (allocated(search_spaces_regexp)) deallocate (search_spaces_regexp)
+            if (allocated(info_search_whitespace_regexp)) search_spaces_regexp = info_search_whitespace_regexp
+
+            if (backward) then
+                if (bound > 0) then
+                    ok = rebwd(regexp, bound)
+                else
+                    ok = rebwd(regexp)
+                end if
+            else
+                if (bound > 0) then
+                    ok = refwd(regexp, bound)
+                else
+                    ok = refwd(regexp)
+                end if
+            end if
+
+            if (allocated(search_spaces_regexp)) deallocate (search_spaces_regexp)
+            if (had_spaces) search_spaces_regexp = saved_spaces
+
+            if (ok) then
+                found = point()
+
+                if (backward) then
+                    beg_found = mend(0)
+                else
+                    beg_found = mbeg(0)
+                end if
+            else
+                give_up = .true.
+                found = 0
+            end if
+        end do
+    end function search_loop
+
+    ! Test whether the current search hit is a visible useful text.
+    ! Return true if the text from BEG_FOUND to FOUND is visible and is
+    ! not in the header line or a tag table.  Port of
+    ! info.el:Info-isearch-filter (`search_invisible' being `open').
+    logical function info_isearch_filter(beg_found, found) result(useful)
+        integer(int64), intent(in) :: beg_found, found
+        type(status_type) :: st
+        integer(int64) :: opoint, r, a, b
+        logical :: backward, invisible, header, tags, f1, f2
+
+        backward = found < beg_found
+        a = min(beg_found, found)
+        b = max(beg_found, found)
+        call text_property_not_all(a, b, sym("invisible"), nil(), r, f1, st)
+        call text_property_not_all(a, b, sym("display"), nil(), r, f2, st)
+        invisible = f1 .or. f2
+        ! Skip node header line
+        opoint = point()
+        call fwd_line(-1_int64)
+        header = looking(US)
+        call goto_char(opoint)
+
+        if (header) then
+            if (backward) then
+                call fwd_line(-1_int64)
+            else
+                call fwd_line(1_int64)
+            end if
+        end if
+
+        ! Skip Tag Table node
+        opoint = point()
+        tags = .false.
+        if (sbwd(US)) tags = looking(US//LF//"\(Tag Table\|Local Variables\)")
+        call goto_char(opoint)
+        useful = .not. (invisible .or. header .or. tags)
+    end function info_isearch_filter
+
+    !> Search for REGEXP, starting from point, and select node it's found
+    !> in.  If BACKWARD is true, search in the reverse direction.  BOUND
+    !> limits the search.  (The Isearch part of upstream's function is
+    !> Deferred with Isearch across nodes.)  Port of info.el:Info-search.
+    recursive subroutine info_search(regexp, status, bound, backward)
+        character(len=*), intent(in) :: regexp
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: bound
+        logical, intent(in), optional :: backward
+        character(len=:), allocatable :: re, onode, ofile, osubfile, thisfile
+        type(string_type), allocatable :: names(:)
+        integer(int64), allocatable :: positions(:)
+        type(handle_type) :: rb, re_m, old, tagbuf
+        type(status_type) :: st
+        integer(int64) :: opoint, opoint_min, opoint_max, ostart, found, bnd, mpos, p
+        logical :: back, has_bound, ok
+        integer :: i, k
+
+        status = status_type()
+        re = regexp
+
+        if (len(re) == 0) then
+            if (.not. history_first("info_search_history", re)) return
+        end if
+
+        info_search_case_fold = case_fold_search%value
+        back = .false.
+        if (present(backward)) back = backward
+        has_bound = .false.
+        bnd = 0
+
+        if (present(bound)) then
+            has_bound = bound > 0
+            bnd = bound
+        end if
+
+        onode = current_node_or_empty()
+        ofile = current_file_or_empty()
+        opoint = point()
+        opoint_min = point_min()
+        opoint_max = point_max()
+        ostart = sel_window_start()
+        osubfile = info_current_subfile()
+        if (.not. allocated(osubfile)) osubfile = achar(0)
+        call save_restriction(rb, re_m)
+        call widen()
+        found = search_loop(re, bnd, back)
+        call restore_restriction(rb, re_m)
+        call goto_char(opoint)
+
+        ! If no subfiles, give error now.
+        if (found == 0 .and. osubfile == achar(0)) then
+            call with_spaces(ok)
+
+            if (.not. ok) then
+                call search_failed(status, re)
+                return
+            end if
+        end if
+
+        if ((has_bound .or. osubfile == achar(0)) .and. found == 0) then
+            call search_failed(status, re)
+            return
+        end if
+
+        if (found == 0 .and. .not. has_bound) then
+            ! Try other subfiles.
+            k = here()
+            old = current_buffer()
+            call marker_buffer(locals(k)%tag_table_marker, tagbuf, st)
+            call set_buffer(tagbuf, st)
+            call goto_min()
+            allocate (names(0), positions(0))
+
+            if (sfwd(LF//US//LF//"Indirect:")) then
+                p = point()
+                ok = sfwd(LF//US)
+                call narrow_to_region(p, point() - 1, st)
+                call goto_min()
+
+                ! Find the subfile we just searched.
+                if (sfwd(LF//osubfile//": ")) then
+                    ! Skip that one.
+                    if (back) then
+                        call fwd_line(0_int64)
+                        call goto_char(point() - 1)
+                    else
+                        call fwd_line(1_int64)
+                    end if
+
+                    ! Make a list of all following subfiles.
+                    do while (.not. merge(bobp(), eobp(), back))
+                        if (back) then
+                            ok = rebwd("\(^.*\): [0-9]+$")
+                        else
+                            ok = refwd("\(^.*\): [0-9]+$")
+                        end if
+
+                        if (.not. ok) exit
+                        thisfile = match_string_no_properties(1)
+                        call goto_char(mend(1) + 2)
+                        mpos = read_number()
+                        call add_string(names, thisfile)
+                        positions = [positions, mpos]
+
+                        if (back) then
+                            call goto_char(mbeg_of_line() - 1)
+                        else
+                            call goto_char(min(point_max(), line_end_position(1_int64) + 1))
+                        end if
+                    end do
+                end if
+
+                call widen()
+            end if
+
+            call set_buffer(old, st)
+
+            do i = 1, size(names)
+                call message("Searching subfile "//names(i)%s//"...")
+                call read_subfile_named(names(i)%s, st)
+                if (back) call goto_char(point_max())
+                found = search_loop(re, 0_int64, back)
+                if (found /= 0) exit
+            end do
+
+            if (found /= 0) then
+                call message("")
+            else
+                call read_subfile_named(osubfile, st)
+                call goto_char(opoint)
+                call info_select_node(st)
+                call set_sel_window_start(ostart, st)
+                call search_failed(status, re)
+                return
+            end if
+        end if
+
+        thisfile = info_current_subfile()
+        if (.not. allocated(thisfile)) thisfile = achar(0)
+
+        if (osubfile == thisfile .and. found > opoint_min .and. found < opoint_max) then
+            ! Search landed in the same node
+            call goto_char(found)
+        else
+            call deactivate_mark()
+            call widen()
+            call goto_char(found)
+            call info_select_node(status)
+            if (.not. status%ok()) return
+        end if
+
+        ! Use string-equal, not equal, to ignore text props.
+        if (.not. (onode == current_node_or_empty() .and. ofile == current_file_or_empty())) then
+            k = here()
+            call push_history(locals(k)%history, ofile, onode, opoint)
+        end if
+
+    contains
+
+        ! The search of the current buffer without subfiles, for the
+        ! message: (re-search-forward regexp nil t) with the whitespace
+        ! regexp.
+        subroutine with_spaces(matched)
+            logical, intent(out) :: matched
+            character(len=:), allocatable :: saved
+            logical :: had
+
+            had = allocated(search_spaces_regexp)
+            if (had) saved = search_spaces_regexp
+            if (allocated(search_spaces_regexp)) deallocate (search_spaces_regexp)
+            if (allocated(info_search_whitespace_regexp)) search_spaces_regexp = info_search_whitespace_regexp
+
+            if (back) then
+                matched = rebwd(re)
+            else
+                matched = refwd(re)
+            end if
+
+            if (allocated(search_spaces_regexp)) deallocate (search_spaces_regexp)
+            if (had) search_spaces_regexp = saved
+        end subroutine with_spaces
+
+        ! The beginning of the match's line.
+        integer(int64) function mbeg_of_line()
+            mbeg_of_line = mbeg(0)
+        end function mbeg_of_line
+    end subroutine info_search
+
+    ! Signal user-search-failed for REGEXP.
+    subroutine search_failed(status, regexp)
+        type(status_type), intent(inout) :: status
+        character(len=*), intent(in) :: regexp
+
+        call set_error(status, FM_USER_SEARCH_FAILED, """"//regexp//"""")
+    end subroutine search_failed
+
+    ! The most recent element of the minibuffer history NAME (FOUND false
+    ! if it is empty).
+    logical function history_first(name, value) result(found)
+        character(len=*), intent(in) :: name
+        character(len=:), allocatable, intent(out) :: value
+        type(value_type) :: hist
+        type(status_type) :: st
+
+        found = .false.
+        value = ""
+        call symbol_value(sym(name), hist, st)
+        if (.not. st%ok()) return
+        if (.not. consp(hist)) return
+        if (.not. stringp(list_elt(hist, 1_int64))) return
+        value = xstring(list_elt(hist, 1_int64))
+        found = .true.
+    end function history_first
+
+    ! Read the regexp of `info_search' and `info_search_backward'.
+    recursive subroutine read_search_regexp(regexp, status, backward)
+        character(len=:), allocatable, intent(out) :: regexp
+        type(status_type), intent(out) :: status
+        logical, intent(in) :: backward
+        character(len=:), allocatable :: last, prompt
+        logical :: has_last
+
+        has_last = history_first("info_search_history", last)
+        prompt = "Regexp search"
+        if (.not. case_fold_search%value) prompt = prompt//" case-sensitively"
+        if (backward) prompt = prompt//" backward"
+
+        if (has_last) then
+            prompt = format_prompt(prompt, last)
+        else
+            prompt = prompt//": "
+        end if
+
+        call read_string(prompt, regexp, status, history="info_search_history")
+    end subroutine read_search_regexp
+
+    recursive subroutine cmd_info_search(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: regexp
+
+        call read_search_regexp(regexp, status, .false.)
+        if (.not. status%ok()) return
+        call info_search(regexp, status)
+    end subroutine cmd_info_search
+
+    !> Search for a regexp case-sensitively.  Port of
+    !> info.el:Info-search-case-sensitively.
+    recursive subroutine info_search_case_sensitively(status)
+        type(status_type), intent(out) :: status
+        logical :: fold
+
+        fold = bind_case_fold(.false.)
+        call cmd_info_search(status)
+        fold = bind_case_fold(fold)
+    end subroutine info_search_case_sensitively
+
+    !> Search for next regexp from a previous `info_search' command.  Port
+    !> of info.el:Info-search-next.
+    recursive subroutine info_search_next(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: last
+        logical :: fold
+
+        fold = bind_case_fold(info_search_case_fold)
+
+        if (history_first("info_search_history", last)) then
+            call info_search(last, status)
+        else
+            call cmd_info_search(status)
+        end if
+
+        fold = bind_case_fold(fold)
+    end subroutine info_search_next
+
+    !> Search for REGEXP in the reverse direction.  Port of
+    !> info.el:Info-search-backward.
+    recursive subroutine info_search_backward(regexp, status, bound)
+        character(len=*), intent(in) :: regexp
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: bound
+
+        call info_search(regexp, status, bound, backward=.true.)
+    end subroutine info_search_backward
+
+    recursive subroutine cmd_info_search_backward(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: regexp
+
+        call read_search_regexp(regexp, status, .true.)
+        if (.not. status%ok()) return
+        call info_search_backward(regexp, status)
+    end subroutine cmd_info_search_backward
+
+    ! ------------------------------------------------------------------
+    ! The indexes
+    ! ------------------------------------------------------------------
+
+    ! Go to the first index node.  Port of info.el:Info-goto-index.
+    recursive subroutine goto_index(status)
+        type(status_type), intent(out) :: status
+        type(string_type), allocatable :: nodes(:)
+
+        status = status_type()
+        call info_index_nodes(nodes)
+
+        if (size(nodes) == 0) then
+            call plain_error(status, "No index")
+            return
+        end if
+
+        call info_goto_node(nodes(1)%s, status)
+    end subroutine goto_index
+
+    ! Signal an error in the directory node, which has no index.  Port of
+    ! info.el:info--ensure-not-in-directory-node.
+    subroutine ensure_not_in_directory_node(status)
+        type(status_type), intent(inout) :: status
+
+        if (lower(file_name_nondirectory(current_file_or_empty())) == "dir") then
+            call user_error(status, substitute_command_keys("The Info directory node has no index; "// &
+                                                            "type `\<info_mode_map>\[info_menu]' to select a manual"))
+        end if
+    end subroutine ensure_not_in_directory_node
+
+    ! Read an index topic with completion over the entries of the index
+    ! nodes of the current Info file.  (Upstream completes in a clone of
+    ! the Info buffer; this uses a temporary Info buffer on the same file,
+    ! `clone_buffer' not being ported.)  Part of the interactive spec of
+    ! info.el:Info-index.
+    recursive subroutine read_index_topic(topic, status)
+        character(len=:), allocatable, intent(out) :: topic
+        type(status_type), intent(out) :: status
+        type(handle_type) :: old, temp
+        type(string_type), allocatable :: nodes(:)
+        type(info_node_ref_type), allocatable :: saved_history_list(:)
+        character(len=:), allocatable :: file
+        type(status_type) :: st
+        logical :: saved_ignore
+        integer :: k
+
+        status = status_type()
+        call ensure_not_in_directory_node(status)
+        if (.not. status%ok()) return
+        call info_index_nodes(nodes)
+        file = current_file_or_empty()
+        ! (let ((Info-history-list nil)) ...)
+        if (allocated(info_history_list)) saved_history_list = info_history_list
+        old = current_buffer()
+        call get_buffer_create(generate_new_buffer_name(" *info index*"), temp, st)
+        call set_buffer(temp, st)
+        call info_mode(st)
+        k = here()
+
+        if (size(nodes) > 0) then
+            call info_find_node(file, nodes(1)%s, status)
+        else
+            call plain_error(status, "No index")
+        end if
+
+        if (status%ok()) then
+            complete_menu_buffer = temp
+            complete_nodes = nodes
+            saved_ignore = completion_ignore_case%value
+            completion_ignore_case%value = .true.
+            call completing_read("Index topic: ", completion_function_table(complete_menu_item), topic, status)
+            completion_ignore_case%value = saved_ignore
+            deallocate (complete_nodes)
+        end if
+
+        call info_kill_buffer(st)
+        call set_buffer(old, st)
+        call kill_buffer(temp, st)
+
+        if (allocated(saved_history_list)) then
+            info_history_list = saved_history_list
+        else if (allocated(info_history_list)) then
+            deallocate (info_history_list)
+        end if
+    end subroutine read_index_topic
+
+    !> Look up a string TOPIC in the index for this manual and go to that
+    !> entry.  If there are no exact matches to the specified topic, this
+    !> chooses the first match which is a case-insensitive substring of a
+    !> topic.  Use the \<info_mode_map>\[info_index_next] command to see
+    !> the other matches.  Give an empty topic name to go to the Index node
+    !> itself.  Port of info.el:Info-index.
+    recursive subroutine info_index(topic, status)
+        character(len=*), intent(in) :: topic
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: t, orignode, pattern, entry, nodename
+        type(string_type), allocatable :: nodes(:)
+        type(info_node_ref_type), allocatable :: ohist_list(:)
+        type(index_match_type), allocatable :: matches(:), exact(:)
+        type(info_history_entry_type), allocatable :: saved_history(:)
+        type(index_match_type) :: m
+        integer(int64) :: line
+        logical :: fold
+        integer :: i, k, ios
+
+        status = status_type()
+        call ensure_not_in_directory_node(status)
+        if (.not. status%ok()) return
+        ! Strip leading colon in topic; index format does not allow them.
+        t = topic
+
+        if (len(t) > 0) then
+            if (t(1:1) == ":") t = t(2:)
+        end if
+
+        orignode = current_node_or_empty()
+        pattern = LF//"\* +\([^"//LF//"]*\("//regexp_quote(t)//"\)[^"//LF//"]*\):["//" "//TAB//"]+\([^"//LF// &
+                  "]*\)\.\(?:[ "//TAB//LF//"]*(line +\([0-9]+\))\)?"
+        call info_index_nodes(nodes)
+        if (allocated(info_history_list)) ohist_list = info_history_list
+        fold = bind_case_fold(.true.)
+        call goto_index(status)
+
+        if (.not. status%ok() .or. len(t) == 0) then
+            fold = bind_case_fold(fold)
+            return
+        end if
+
+        allocate (matches(0), exact(0))
+        ! We bind Info-history to nil for internal node-switches so that we
+        ! don't put junk in the history.  In the first Info-goto-index call,
+        ! above, we do update the history because that is what the user's
+        ! previous node choice into it.
+        k = here()
+        saved_history = locals(k)%history
+        deallocate (locals(k)%history)
+        allocate (locals(k)%history(0))
+        i = 1
+
+        do
+            call goto_min()
+
+            do while (refwd(pattern))
+                m%entry = match_string_no_properties(1)
+                m%nodename = match_string_no_properties(3)
+                m%index_node = current_node_or_empty()
+                m%line = 0
+
+                if (mbeg(4) > 0) then
+                    entry = match_string_no_properties(4)
+                    read (entry, *, iostat=ios) line
+                    if (ios == 0) m%line = line
+                end if
+
+                m%match_beg = nchars_of(text(mbeg(1), mbeg(2)))
+                m%match_end = nchars_of(text(mbeg(1), mend(2)))
+                call prepend_match(matches, m)
+            end do
+
+            i = i + 1
+            if (i > size(nodes)) exit
+            call info_goto_node(nodes(i)%s, status)
+            if (.not. status%ok()) exit
+        end do
+
+        k = here()
+        locals(k)%history = saved_history
+
+        if (status%ok() .and. size(matches) == 0) then
+            call info_goto_node(orignode, status)
+            if (status%ok()) call user_error(status, "No `"//t//"' in index")
+        end if
+
+        if (.not. status%ok()) then
+            fold = bind_case_fold(fold)
+            return
+        end if
+
+        ! Here it is a feature that assoc is case-sensitive.
+        do
+            k = 0
+
+            do i = 1, size(matches)
+                if (matches(i)%entry == t) then
+                    k = i
+                    exit
+                end if
+            end do
+
+            if (k == 0) exit
+            call prepend_match(exact, matches(k))
+
+            if (size(matches) == 1) then
+                deallocate (matches)
+                allocate (matches(0))
+            else
+                matches = [matches(1:k - 1), matches(k + 1:)]
+            end if
+        end do
+
+        if (allocated(ohist_list)) then
+            info_history_list = ohist_list
+        else if (allocated(info_history_list)) then
+            deallocate (info_history_list)
+        end if
+
+        k = here()
+        ! (nconc exact (nreverse matches))
+        if (allocated(locals(k)%index_alternatives)) deallocate (locals(k)%index_alternatives)
+        allocate (locals(k)%index_alternatives(0))
+
+        do i = 1, size(exact)
+            call append_match(locals(k)%index_alternatives, exact(i))
+        end do
+
+        do i = size(matches), 1, -1
+            call append_match(locals(k)%index_alternatives, matches(i))
+        end do
+
+        locals(k)%current_index_alternative = 0
+        fold = bind_case_fold(fold)
+        call info_index_next(0_int64, status)
+        if (.false.) nodename = ""
+    end subroutine info_index
+
+    ! (push M LIST).
+    subroutine prepend_match(list, m)
+        type(index_match_type), allocatable, intent(inout) :: list(:)
+        type(index_match_type), intent(in) :: m
+        type(index_match_type), allocatable :: grown(:)
+        integer :: i
+
+        allocate (grown(size(list) + 1))
+        grown(1) = m
+
+        do i = 1, size(list)
+            grown(i + 1) = list(i)
+        end do
+
+        call move_alloc(grown, list)
+    end subroutine prepend_match
+
+    ! Append M to LIST.
+    subroutine append_match(list, m)
+        type(index_match_type), allocatable, intent(inout) :: list(:)
+        type(index_match_type), intent(in) :: m
+        type(index_match_type), allocatable :: grown(:)
+        integer :: i
+
+        allocate (grown(size(list) + 1))
+
+        do i = 1, size(list)
+            grown(i) = list(i)
+        end do
+
+        grown(size(list) + 1) = m
+        call move_alloc(grown, list)
+    end subroutine append_match
+
+    recursive subroutine cmd_info_index(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: topic
+
+        call read_index_topic(topic, status)
+        if (.not. status%ok()) return
+        call info_index(topic, status)
+    end subroutine cmd_info_index
+
+    !> Go to the next matching index item from the last
+    !> \<info_mode_map>\[info_index] command.  If given a numeric prefix,
+    !> skip that many index items forward (or backward).
+    !>
+    !> Also see the `info_warn_on_index_alternatives_wrap' user option.
+    !> Port of info.el:Info-index-next.
+    recursive subroutine info_index_next(num, status)
+        integer(int64), intent(in) :: num
+        type(status_type), intent(out) :: status
+        type(index_match_type) :: entry
+        character(len=:), allocatable :: next_key
+        type(value_type) :: keys
+        integer(int64) :: idx, total
+        logical :: wrapped
+        integer :: k
+
+        status = status_type()
+        k = here()
+
+        if (.not. allocated(locals(k)%index_alternatives)) then
+            call user_error(status, "No previous `i' command")
+            return
+        end if
+
+        if (size(locals(k)%index_alternatives) == 0) then
+            call user_error(status, "No previous `i' command")
+            return
+        end if
+
+        idx = locals(k)%current_index_alternative + num
+        total = size(locals(k)%index_alternatives)
+        call where_is_internal(sym("info_index_next"), keys, .true.)
+        next_key = ""
+        if (.not. nilp(keys)) next_key = key_description(vector_elements(keys))
+        wrapped = .false.
+
+        if (info_warn_on_index_alternatives_wrap%value .and. total > 1) then
+            if (idx < 0) then
+                locals(k)%current_index_alternative = total - 2
+                call message("No previous matches, use `"//next_key//"' to continue from end of list")
+                wrapped = .true.
+            else if (idx >= total) then
+                locals(k)%current_index_alternative = -1
+                call message("No previous matches, use `"//next_key//"' to continue from start of list")
+                wrapped = .true.
+            end if
+        end if
+
+        if (wrapped) return
+        idx = modulo(idx, total)
+        locals(k)%current_index_alternative = idx
+        entry = locals(k)%index_alternatives(idx + 1)
+        call info_goto_node(entry%nodename, status)
+        if (.not. status%ok()) return
+
+        if (entry%line > 0) then
+            ! Forward 2 lines less because `Info-find-node-2' initially
+            ! puts point to the 2nd line.
+            call fwd_line(entry%line - 2)
+        else
+            ! don't search in headers
+            call fwd_line(3_int64)
+            call find_index_name(entry%entry)
+        end if
+
+        if (total > 1) then
+            call message("Found `"//entry%entry//"' in "//entry%index_node//".  ("//int_text(total)// &
+                         " total; use `"//next_key//"' for next)")
+        else
+            call message("Found `"//entry%entry//"' in "//entry%index_node//".  (Only match)")
+        end if
+    end subroutine info_index_next
+
+    recursive subroutine cmd_info_index_next(status)
+        type(status_type), intent(out) :: status
+
+        call info_index_next(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_info_index_next
+
+    ! The decimal digits of N.
+    function int_text(n) result(s)
+        integer(int64), intent(in) :: n
+        character(len=:), allocatable :: s
+        character(len=24) :: buf
+
+        write (buf, "(i0)") n
+        s = trim(buf)
+    end function int_text
+
+    ! The keys of the key sequence V (a vector or list of events).
+    function vector_elements(v) result(keys)
+        type(value_type), intent(in) :: v
+        type(value_type), allocatable :: keys(:)
+
+        call list_elements(v, keys)
+    end function vector_elements
+
+    ! Index-specific implementation of `Info-find-node-2'.  Port of
+    ! info.el:Info-virtual-index-find-node.
+    recursive subroutine virtual_index_find_node(filename, nodename, no_going_back, status)
+        character(len=*), intent(in) :: filename, nodename
+        logical, intent(in) :: no_going_back
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: topic, label
+        type(status_type) :: st
+        integer :: i, j
+
+        status = status_type()
+        if (no_going_back) continue
+
+        if (smatch("^\*Index for ‘\(.+\)’\*$", nodename, .true.)) then
+            ! Generate Index-like menu of matches
+            topic = match_string_no_properties(1, nodename)
+            call insert(LF//US//LF//"File: "//filename//",  Node: "//nodename//",  Up: *Index*"//LF//LF, status)
+            call insert("Info Virtual Index"//LF, st)
+            call insert("******************"//LF//LF, st)
+            call insert("Index entries that match ‘"//topic//"’:"//LF//LF, st)
+            call insert(NUL//BS//"[index"//NUL//BS//"]"//LF, st)
+            j = 0
+
+            do i = 1, size(virtual_index_nodes)
+                if (virtual_index_nodes(i)%file == filename .and. virtual_index_nodes(i)%topic == topic) j = i
+                if (j > 0) exit
+            end do
+
+            if (j == 0) then
+                call insert("No matches found."//LF, st)
+            else if (size(virtual_index_nodes(j)%matches) == 0) then
+                call insert("No matches found."//LF, st)
+            else
+                call insert("* Menu:"//LF//LF, st)
+
+                do i = 1, size(virtual_index_nodes(j)%matches)
+                    associate (e => virtual_index_nodes(j)%matches(i))
+                        label = e%entry//" ["//e%index_node//"]:"
+                        call insert_entry("* ", label, 38, e)
+                        call insert(" "//e%nodename//".", st)
+                        if (e%line > 0) call insert(" (line "//int_text(e%line)//")", st)
+                        call insert(LF, st)
+                    end associate
+                end do
+            end if
+        else
+            ! Else, Generate a list of previous search results
+            call insert(LF//US//LF//"File: "//filename//",  Node: "//nodename//",  Up: Top"//LF//LF, status)
+            call insert("Info Virtual Index"//LF, st)
+            call insert("******************"//LF//LF, st)
+            call insert("This is a list of search results produced by"//LF// &
+                        "‘Info-virtual-index’ for the current manual."//LF//LF, st)
+            call insert("* Menu:"//LF//LF, st)
+
+            do i = size(virtual_index_nodes), 1, -1
+                if (virtual_index_nodes(i)%file /= filename) cycle
+                label = "*Index for ‘"//virtual_index_nodes(i)%topic//"’*::"
+                call insert("* "//pad_to(label, 20)//" "//virtual_index_nodes(i)%topic//"."//LF, st)
+            end do
+        end if
+    end subroutine virtual_index_find_node
+
+    ! Insert PREFIX and LABEL padded to WIDTH characters, the part of the
+    ! entry of E that matched the topic in `info_index_match' (the
+    ! property `Info-index' puts on its entries).
+    subroutine insert_entry(prefix, label, width, e)
+        character(len=*), intent(in) :: prefix, label
+        integer, intent(in) :: width
+        type(index_match_type), intent(in) :: e
+        type(status_type) :: st
+        integer(int64) :: start
+
+        call insert(prefix, st)
+        start = point()
+        call insert(pad_to(label, width), st)
+
+        if (e%match_end > e%match_beg) then
+            call put_text_property(start + e%match_beg, start + e%match_end, sym("face"), &
+                                   symbol_value_of("info_index_match"), st)
+        end if
+    end subroutine insert_entry
+
+    ! S padded with spaces to WIDTH characters ((format "%-WIDTHs" S)).
+    function pad_to(s, width) result(t)
+        character(len=*), intent(in) :: s
+        integer, intent(in) :: width
+        character(len=:), allocatable :: t
+
+        t = s//repeat(" ", max(0, width - int(nchars_of(s))))
+    end function pad_to
+
+    !> Show a node with all lines in the index containing a string TOPIC.
+    !> Like `info_index' but displays a node with index search results.
+    !> Give an empty topic name to go to the node with links to previous
+    !> search results.  Port of info.el:Info-virtual-index.
+    recursive subroutine info_virtual_index(topic, status)
+        character(len=*), intent(in) :: topic
+        type(status_type), intent(out) :: status
+        type(virtual_index_type), allocatable :: grown(:)
+        type(info_node_ref_type), allocatable :: ohist_list(:)
+        character(len=:), allocatable :: orignode, file
+        logical :: cached
+        integer :: i, k
+
+        status = status_type()
+        file = current_file_or_empty()
+
+        if (len(topic) == 0) then
+            call info_find_node(file, "*Index*", status)
+            return
+        end if
+
+        cached = .false.
+
+        do i = 1, size(virtual_index_nodes)
+            if (virtual_index_nodes(i)%file == file .and. virtual_index_nodes(i)%topic == topic) cached = .true.
+        end do
+
+        if (.not. cached) then
+            orignode = current_node_or_empty()
+            if (allocated(info_history_list)) ohist_list = info_history_list
+            ! Reuse `Info-index' to set `Info-index-alternatives'.
+            call info_index(topic, status)
+            if (.not. status%ok()) return
+            k = here()
+            allocate (grown(size(virtual_index_nodes) + 1))
+            grown(1)%file = file
+            grown(1)%topic = topic
+            grown(1)%matches = locals(k)%index_alternatives
+
+            do i = 1, size(virtual_index_nodes)
+                grown(i + 1) = virtual_index_nodes(i)
+            end do
+
+            call move_alloc(grown, virtual_index_nodes)
+
+            ! Clean up unnecessary side-effects of `Info-index'.
+            if (allocated(ohist_list)) then
+                info_history_list = ohist_list
+            else if (allocated(info_history_list)) then
+                deallocate (info_history_list)
+            end if
+
+            call info_goto_node(orignode, status)
+            if (.not. status%ok()) return
+            call message("")
+        end if
+
+        call info_find_node(file, "*Index for ‘"//topic//"’*", status)
+    end subroutine info_virtual_index
+
+    recursive subroutine cmd_info_virtual_index(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: topic
+
+        call read_index_topic(topic, status)
+        if (.not. status%ok()) return
+        call info_virtual_index(topic, status)
+    end subroutine cmd_info_virtual_index
+
+    ! Apropos-specific implementation of `Info-toc-nodes'.  Port of
+    ! info.el:Info-apropos-toc-nodes.
+    recursive subroutine apropos_toc_nodes(filename, nodes)
+        character(len=*), intent(in) :: filename
+        type(toc_node_type), allocatable, intent(out) :: nodes(:)
+        integer :: i, n
+
+        if (len(filename) < 0) continue
+        n = size(apropos_nodes)
+        allocate (nodes(n + 1))
+        nodes(1)%name = "Top"
+        allocate (nodes(1)%children(0))
+
+        do i = n, 1, -1
+            call add_string(nodes(1)%children, apropos_nodes(i)%nodename)
+            nodes(n - i + 2)%name = apropos_nodes(i)%nodename
+            nodes(n - i + 2)%has_parent = .true.
+            nodes(n - i + 2)%parent = "Top"
+            allocate (nodes(n - i + 2)%children(0))
+        end do
+    end subroutine apropos_toc_nodes
+
+    ! Apropos-specific implementation of `Info-find-node-2'.  Port of
+    ! info.el:Info-apropos-find-node.
+    recursive subroutine apropos_find_node(filename, nodename, no_going_back, status)
+        character(len=*), intent(in) :: filename, nodename
+        logical, intent(in) :: no_going_back
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: label
+        type(status_type) :: st
+        integer :: i, j
+
+        status = status_type()
+        if (no_going_back .or. len(filename) < 0) continue
+
+        if (nodename == "Top") then
+            ! Generate Top menu
+            call insert(LF//US//LF//"File: "//INFO_APROPOS_FILE//",  Node: "//nodename//",  Up: (dir)"//LF//LF, st)
+            call insert("Apropos Index"//LF, st)
+            call insert("*************"//LF//LF, st)
+            call insert("This is a list of search results produced by ‘info-apropos’."//LF//LF, st)
+            call insert("* Menu:"//LF//LF, st)
+
+            do i = size(apropos_nodes), 1, -1
+                call insert("* "//pad_to(apropos_nodes(i)%nodename//"::", 20)//" "//apropos_nodes(i)%string//"."//LF, st)
+            end do
+
+            return
+        end if
+
+        ! Else, Generate Index-like menu of matches
+        j = 0
+
+        do i = 1, size(apropos_nodes)
+            if (apropos_nodes(i)%nodename == nodename) then
+                j = i
+                exit
+            end if
+        end do
+
+        if (j == 0) return
+        if (.not. apropos_nodes(j)%has_matches) return
+        call insert(LF//US//LF//"File: "//INFO_APROPOS_FILE//",  Node: "//nodename//",  Up: Top"//LF//LF, st)
+        call insert("Apropos Index"//LF, st)
+        call insert("*************"//LF//LF, st)
+        call insert("Index entries that match ‘"//apropos_nodes(j)%string//"’:"//LF//LF, st)
+        call insert(NUL//BS//"[index"//NUL//BS//"]"//LF, st)
+
+        if (size(apropos_nodes(j)%matches) == 0) then
+            call insert("No matches found."//LF, st)
+        else
+            call insert("* Menu:"//LF//LF, st)
+
+            do i = 1, size(apropos_nodes(j)%matches)
+                associate (e => apropos_nodes(j)%matches(i))
+                    label = e%entry//" ["//e%index_node//"]:"
+                    call insert_entry("* ", label, 38, e)
+                    call insert(" ("//e%index_node//")"//e%nodename//".", st)
+                    if (e%line > 0) call insert(" (line "//int_text(e%line)//")", st)
+                    call insert(LF, st)
+                end associate
+            end do
+        end if
+    end subroutine apropos_find_node
+
+    ! Collect STRING matches from all known Info files on your system.  If
+    ! REGEXP, use regexp matching instead of literal matching.  Return the
+    ! matches, each with the manual (in INDEX_NODE), the index text, the
+    ! node name and the line number.  Port of info.el:Info-apropos-matches.
+    recursive subroutine apropos_matches(string, regexp, matches, status)
+        character(len=*), intent(in) :: string
+        logical, intent(in) :: regexp
+        type(index_match_type), allocatable, intent(out) :: matches(:)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: pattern, current_node, current_file, found, entry
+        type(string_type), allocatable :: manuals(:), nodes(:)
+        type(info_history_entry_type), allocatable :: ohist(:)
+        type(info_node_ref_type), allocatable :: ohist_list(:)
+        type(index_match_type) :: m
+        type(status_type) :: st
+        integer(int64) :: line
+        integer :: i, j, k, saved_size, ios
+
+        status = status_type()
+        allocate (matches(0))
+        if (len(string) == 0) return
+
+        if (regexp) then
+            pattern = string
+        else
+            pattern = regexp_quote(string)
+        end if
+
+        pattern = LF//"\* +\([^"//LF//"]*\("//pattern//"\)[^"//LF//"]*\):[ "//TAB//"]+\([^"//LF// &
+                  "]+\)\.\(?:[ "//TAB//LF//"]*(line +\([0-9]+\))\)?"
+        k = here()
+        ohist = locals(k)%history
+        if (allocated(info_history_list)) ohist_list = info_history_list
+        current_node = info_current_node()
+        current_file = info_current_file()
+        saved_size = info_fontify_maximum_menu_size
+        info_fontify_maximum_menu_size = INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL
+        call info_directory(st)
+
+        ! current-node and current-file are nil when they invoke
+        ! info-apropos as the first Info command, i.e. info-apropos loads
+        ! info.el.  In that case, we use (DIR)Top instead, to avoid
+        ! signaling an error after the search is complete.
+        if (.not. allocated(current_node)) then
+            current_file = current_file_or_empty()
+            current_node = current_node_or_empty()
+        end if
+
+        call message("Searching indices...")
+        call goto_min()
+        allocate (manuals(0))
+        if (refwd("\* Menu: *"//LF)) continue
+
+        do while (refwd("\*.*: *(\([^)]+\))"))
+            ! Make sure we don't have duplicates in `manuals', so that the
+            ! following loop runs faster.
+            if (.not. has_string(manuals, match_string_no_properties(1))) then
+                call add_string(manuals, match_string_no_properties(1))
+            end if
+        end do
+
+        do i = 1, size(manuals)
+            call message("Searching "//manuals(i)%s)
+            call info_find_file(manuals(i)%s, found, st, noerror=.true.)
+            if (.not. allocated(found)) cycle
+            call info_index_nodes(nodes, found)
+            if (size(nodes) == 0) cycle
+            call info_find_node(manuals(i)%s, nodes(1)%s, st, noerror=.true.)
+
+            if (.not. st%ok()) then
+                call message(format_error(st))
+                cycle
+            end if
+
+            j = 1
+
+            do
+                call goto_min()
+
+                do while (refwd(pattern))
+                    m%entry = match_string_no_properties(1)
+                    m%nodename = match_string_no_properties(3)
+                    m%index_node = manuals(i)%s
+                    m%line = 0
+
+                    if (mbeg(4) > 0) then
+                        entry = match_string_no_properties(4)
+                        read (entry, *, iostat=ios) line
+                        if (ios == 0) m%line = line
+                    end if
+
+                    m%match_beg = nchars_of(text(mbeg(1), mbeg(2)))
+                    m%match_end = nchars_of(text(mbeg(1), mend(2)))
+                    call prepend_match(matches, m)
+                end do
+
+                j = j + 1
+                if (j > size(nodes)) exit
+                call info_goto_node(nodes(j)%s, st)
+                if (.not. st%ok()) exit
+            end do
+        end do
+
+        info_fontify_maximum_menu_size = saved_size
+        call info_find_node(current_file, current_node, st)
+        k = here()
+        locals(k)%history = ohist
+
+        if (allocated(ohist_list)) then
+            info_history_list = ohist_list
+        else if (allocated(info_history_list)) then
+            deallocate (info_history_list)
+        end if
+
+        call message("Searching indices...done")
+        ! (nreverse matches)
+        matches = matches(size(matches):1:-1)
+    end subroutine apropos_matches
+
+    !> Search indices of all known Info files on your system for STRING.
+    !> If REGEXP (interactively, the prefix), use a regexp match.
+    !>
+    !> Display a menu of the possible matches.  Port of
+    !> info.el:info-apropos.
+    recursive subroutine info_apropos(string, status, regexp)
+        character(len=*), intent(in) :: string
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: regexp
+        type(apropos_node_type), allocatable :: grown(:)
+        type(index_match_type), allocatable :: matches(:)
+        character(len=:), allocatable :: nodename
+        logical :: re
+        integer :: i
+
+        status = status_type()
+
+        if (len(string) == 0) then
+            call info_find_node(INFO_APROPOS_FILE, "Top", status)
+            return
+        end if
+
+        do i = 1, size(apropos_nodes)
+            if (apropos_nodes(i)%string == string) then
+                call info_find_node(INFO_APROPOS_FILE, apropos_nodes(i)%nodename, status, noerror=.true.)
+                return
+            end if
+        end do
+
+        re = .false.
+        if (present(regexp)) re = regexp
+        nodename = "Index for ‘"//string//"’"
+        call apropos_matches(string, re, matches, status)
+        if (.not. status%ok()) return
+        allocate (grown(size(apropos_nodes) + 1))
+        grown(1)%nodename = nodename
+        grown(1)%string = string
+        grown(1)%has_matches = .true.
+        grown(1)%matches = matches
+
+        do i = 1, size(apropos_nodes)
+            grown(i + 1) = apropos_nodes(i)
+        end do
+
+        call move_alloc(grown, apropos_nodes)
+        call info_find_node(INFO_APROPOS_FILE, nodename, status)
+    end subroutine info_apropos
+
+    recursive subroutine cmd_info_apropos(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: string
+
+        call read_string("Index apropos: ", string, status)
+        if (.not. status%ok()) return
+        call info_apropos(string, status,.not. nilp(current_prefix_arg))
+    end subroutine cmd_info_apropos
+
+    ! ------------------------------------------------------------------
+    ! The documentation of commands
+    ! ------------------------------------------------------------------
+
+    ! Return the locations documenting COMMAND: elements (FILENAME
+    ! NODENAME BUFFERPOS), where BUFFERPOS is the line number in the
+    ! first element of the returned list (which is treated specially in
+    ! `info_goto_emacs_command_node'), and 0 for the rest elements of the
+    ! list.  The `info_file' of COMMAND says which Info manual to search.
+    ! If COMMAND has none, `info_file_list_for_emacs' defines heuristics
+    ! for which Info manual to try.  Port of
+    ! info.el:Info-find-emacs-command-nodes.
+    recursive subroutine find_emacs_command_nodes(command, places, status)
+        character(len=*), intent(in) :: command
+        type(info_history_entry_type), allocatable, intent(out) :: places(:)
+        type(status_type), intent(out) :: status
+        type(command_type), pointer :: cmd
+        type(string_type), allocatable :: nodes(:)
+        type(info_history_entry_type), allocatable :: saved_history(:)
+        type(info_node_ref_type), allocatable :: saved_history_list(:)
+        character(len=:), allocatable :: cmd_desc, info_file, name, digits
+        integer(int64) :: line_number
+        logical :: fold, has_line, found
+        integer :: i, k, ios
+
+        status = status_type()
+        allocate (places(0))
+        cmd_desc = "^\* +"//regexp_quote(command)//"\( <[0-9]+>\)?:\s *\(.*\)\." &
+                   //"\(?:[ "//TAB//LF//"]+(line +\([0-9]+\))\)?"
+        ! default
+        info_file = "emacs"
+        ! Determine which Info file this command is documented in.
+        cmd => find_command(command)
+        found = .false.
+        if (associated(cmd)) found = allocated(cmd%info_file)
+
+        if (found) then
+            info_file = cmd%info_file
+        else
+            ! If it doesn't say explicitly, test its name against various
+            ! prefixes that we know.
+            fold = bind_case_fold(.false.)
+
+            do i = 1, size(info_file_list_for_emacs)
+                name = trim(info_file_list_for_emacs(i)%prefix)
+
+                if (smatch("\`"//regexp_quote(name)//"\(\'\|_\)", command)) then
+                    info_file = trim(info_file_list_for_emacs(i)%file)
+                    exit
+                end if
+            end do
+
+            fold = bind_case_fold(fold)
+        end if
+
+        call info_find_node(info_file, "Top", status)
+        if (.not. status%ok()) return
+        ! Bind Info-history to nil, to prevent the index nodes from getting
+        ! into the node history.
+        k = here()
+        saved_history = locals(k)%history
+        deallocate (locals(k)%history)
+        allocate (locals(k)%history(0))
+        if (allocated(info_history_list)) saved_history_list = info_history_list
+        if (allocated(info_history_list)) deallocate (info_history_list)
+        call info_index_nodes(nodes)
+        has_line = .false.
+        line_number = 0
+        if (size(nodes) > 0) call info_goto_node(nodes(1)%s, status)
+        i = 1
+
+        do while (status%ok() .and. size(nodes) > 0)
+            call goto_min()
+
+            do while (refwd(cmd_desc))
+                call prepend_entry(places, current_file_or_empty(), match_string_no_properties(2), 0_int64)
+                has_line = mbeg(3) > 0
+
+                if (has_line) then
+                    digits = match_string_no_properties(3)
+                    read (digits, *, iostat=ios) line_number
+                    if (ios /= 0) line_number = 0
+                end if
+            end do
+
+            i = i + 1
+            if (i > size(nodes)) exit
+            call info_goto_node(nodes(i)%s, status)
+        end do
+
+        k = here()
+        locals(k)%history = saved_history
+
+        if (allocated(saved_history_list)) then
+            info_history_list = saved_history_list
+        else if (allocated(info_history_list)) then
+            deallocate (info_history_list)
+        end if
+
+        if (has_line .and. size(places) > 0) places(1)%pos = line_number
+
+    contains
+
+        ! (push (list FILE NODE POS) LIST).
+        subroutine prepend_entry(list, file, node, pos)
+            type(info_history_entry_type), allocatable, intent(inout) :: list(:)
+            character(len=*), intent(in) :: file, node
+            integer(int64), intent(in) :: pos
+
+            call push_history(list, file, node, pos)
+        end subroutine prepend_entry
+    end subroutine find_emacs_command_nodes
+
+    !> Go to the Info node in the Emacs manual for command COMMAND.  The
+    !> command is found by looking up in Emacs manual's indices or in
+    !> another manual found via COMMAND's `info_file' or the variable
+    !> `info_file_list_for_emacs'.  COMMAND is the name of a command.
+    !> Port of info.el:Info-goto-emacs-command-node.
+    recursive subroutine info_goto_emacs_command_node(command, status)
+        character(len=*), intent(in) :: command
+        type(status_type), intent(out) :: status
+        type(info_history_entry_type), allocatable :: places(:), saved_history(:)
+        type(info_node_ref_type), allocatable :: saved_history_list(:)
+        type(window_configuration_type) :: config
+        type(handle_type) :: info_buffer
+        type(status_type) :: st
+        integer(int64) :: line_number
+        integer :: num_matches, i, k
+
+        status = status_type()
+
+        if (.not. associated(find_command(command))) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "commandp, "//command)
+            return
+        end if
+
+        call find_emacs_command_nodes(command, places, status)
+        if (.not. status%ok()) return
+
+        if (size(places) == 0) then
+            call plain_error(status, "Couldn't find documentation for "//command)
+            return
+        end if
+
+        num_matches = size(places)
+        ! Get Info running, and pop to it in another window.
+        call current_window_configuration(config)
+        call info(st)
+        call set_window_configuration(config)
+        call free_window_configuration(config)
+
+        if (.not. derived_mode_p(major_modes%info_mode)) then
+            info_buffer = get_buffer("*info*")
+            if (info_buffer%index == 0) call get_buffer_create("*info*", info_buffer, st)
+            call pop_to_buffer(info_buffer, status)
+            if (.not. status%ok()) return
+        end if
+
+        ! Bind Info-history to nil, to prevent the last Index node visited
+        ! by Info-find-emacs-command-nodes from being pushed onto the
+        ! history.
+        k = here()
+        saved_history = locals(k)%history
+        deallocate (locals(k)%history)
+        allocate (locals(k)%history(0))
+        if (allocated(info_history_list)) saved_history_list = info_history_list
+        if (allocated(info_history_list)) deallocate (info_history_list)
+        line_number = places(1)%pos
+        call info_find_node(places(1)%file, places(1)%node, status)
+        if (status%ok() .and. line_number > 0) call fwd_line(line_number - 1)
+        k = here()
+        locals(k)%history = saved_history
+
+        if (allocated(saved_history_list)) then
+            info_history_list = saved_history_list
+        else if (allocated(info_history_list)) then
+            deallocate (info_history_list)
+        end if
+
+        if (.not. status%ok()) return
+
+        if (num_matches > 1) then
+            ! (car where) will be pushed onto Info-history when/if they go
+            ! to another node.  Put the other nodes that were found on the
+            ! history.
+            do i = num_matches, 2, -1
+                call push_history(locals(k)%history, places(i)%file, places(i)%node, places(i)%pos)
+            end do
+
+            if (num_matches > 2) then
+                call message("Found "//int_text(int(num_matches - 1, int64))//" other entries.  Use "// &
+                             substitute_command_keys("\[info_history_back]")//" to see them.")
+            else
+                call message("Found "//int_text(int(num_matches - 1, int64))//" other entry.  Use "// &
+                             substitute_command_keys("\[info_history_back]")//" to see it.")
+            end if
+        end if
+    end subroutine info_goto_emacs_command_node
+
+    recursive subroutine cmd_info_goto_emacs_command_node(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
+
+        call completing_read("Find documentation for command: ", completion_obarray_table(), name, status, &
+                             commandp, require_match=REQUIRE_MATCH_T)
+        if (.not. status%ok()) return
+        call info_goto_emacs_command_node(name, status)
+    end subroutine cmd_info_goto_emacs_command_node
+
+    !> Go to the node in the Emacs manual which describes the command bound
+    !> to KEY.  KEY is a key sequence.  Interactively, if the binding is
+    !> `execute_extended_command', a command is read.  The command is found
+    !> by looking up in Emacs manual's indices or in another manual found
+    !> via COMMAND's `info_file' or the variable
+    !> `info_file_list_for_emacs'.  Port of
+    !> info.el:Info-goto-emacs-key-command-node.
+    recursive subroutine info_goto_emacs_key_command_node(key, status, interactive)
+        type(value_type), intent(in) :: key(:)
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: interactive
+        type(value_type) :: command
+        character(len=:), allocatable :: name
+        logical :: inter
+
+        status = status_type()
+        inter = .false.
+        if (present(interactive)) inter = interactive
+        call key_binding(key, command, status)
+        if (.not. status%ok()) return
+
+        if (nilp(command)) then
+            call message(key_description(key)//" is undefined")
+        else if (symbolp(command)) then
+            name = trim(symbols(xsymbol(command))%name)
+
+            if (inter .and. name == "execute_extended_command") then
+                call completing_read("Find documentation for command: ", completion_obarray_table(), name, status, &
+                                     commandp, require_match=REQUIRE_MATCH_T)
+                if (.not. status%ok()) return
+            end if
+
+            call info_goto_emacs_command_node(name, status)
+        else
+            call message(substitute_command_keys("\`"//key_description(key)// &
+                                                 "' invokes an anonymous command defined with `lambda'"))
+        end if
+    end subroutine info_goto_emacs_key_command_node
+
+    recursive subroutine cmd_info_goto_emacs_key_command_node(status)
+        type(status_type), intent(out) :: status
+        type(value_type), allocatable :: keys(:)
+        type(value_type) :: binding
+        logical :: eof
+
+        call message("Find documentation for key: ")
+        call read_key_sequence(keys, binding, eof, status)
+        if (.not. status%ok() .or. eof) return
+        call info_goto_emacs_key_command_node(keys, status, .true.)
+    end subroutine cmd_info_goto_emacs_key_command_node
+
+    ! ------------------------------------------------------------------
     ! The table of contents and the history node
     ! ------------------------------------------------------------------
 
@@ -6603,10 +8261,8 @@ contains
         k = virtual_file_index(filename)
 
         if (k > 0) then
-            if (info_virtual_files(k)%toc_nodes) then
-                allocate (nodes(1))
-                nodes(1)%name = "Top"
-                allocate (nodes(1)%children(0))
+            if (associated(info_virtual_files(k)%toc_nodes)) then
+                call info_virtual_files(k)%toc_nodes(filename, nodes)
                 return
             end if
         end if
@@ -7546,6 +9202,13 @@ contains
     !> \[end_of_buffer]        Go to end of node.
     !>
     !> Advanced commands:
+    !> \[info_search]        Search through this Info file for specified regexp,
+    !>           and select the node in which the next occurrence is found.
+    !> \[info_search_case_sensitively]        Search through this Info file for specified regexp case-sensitively.
+    !> \[info_index]        Search for a topic in this manual's Index and go to index entry.
+    !> \[info_index_next]        (comma) Move to the next match from a previous \<info_mode_map>\[info_index] command.
+    !> \[info_virtual_index]        Look for a string and display the index node with results.
+    !> \[info_apropos]        Look for a string in the indices of all manuals.
     !> \[info_goto_node]        Move to node specified by name.
     !>           You may include a filename as well, as (FILENAME)NODENAME.
     !> 1 .. 9        Pick first ... ninth item in node's menu.
@@ -7689,6 +9352,19 @@ contains
         commands%info_summary%run => info_summary
         commands%info_toc%run => info_toc
         commands%info_history%run => info_history
+        commands%info_search%run => cmd_info_search
+        commands%info_search_case_sensitively%run => info_search_case_sensitively
+        commands%info_search_next%run => info_search_next
+        commands%info_search_backward%run => cmd_info_search_backward
+        commands%info_index%run => cmd_info_index
+        commands%info_index_next%run => cmd_info_index_next
+        commands%info_virtual_index%run => cmd_info_virtual_index
+        commands%info_apropos%run => cmd_info_apropos
+        commands%info_goto_emacs_command_node%run => cmd_info_goto_emacs_command_node
+        commands%info_goto_emacs_key_command_node%run => cmd_info_goto_emacs_key_command_node
+        commands%info%info_file = "emacs"
+        commands%info_goto_emacs_command_node%info_file = "emacs"
+        commands%info_goto_emacs_key_command_node%info_file = "emacs"
         call keymap_set(info_mode_map, ".", "beginning_of_buffer", st)
         call keymap_set(info_mode_map, "SPC", "info_scroll_up", st)
         call keymap_set(info_mode_map, "S-SPC", "info_scroll_down", st)
@@ -7718,6 +9394,8 @@ contains
         ! Though for some time, standalone info had H and h reversed.
         ! See <https://debbugs.gnu.org/16455>.
         call keymap_set(info_mode_map, "H", "describe_mode", st)
+        call keymap_set(info_mode_map, "i", "info_index", st)
+        call keymap_set(info_mode_map, "I", "info_virtual_index", st)
         call keymap_set(info_mode_map, "l", "info_history_back", st)
         call keymap_set(info_mode_map, "L", "info_history", st)
         call keymap_set(info_mode_map, "m", "info_menu", st)
@@ -7725,6 +9403,8 @@ contains
         call keymap_set(info_mode_map, "p", "info_prev", st)
         call keymap_set(info_mode_map, "q", "quit_window", st)
         call keymap_set(info_mode_map, "r", "info_history_forward", st)
+        call keymap_set(info_mode_map, "s", "info_search", st)
+        call keymap_set(info_mode_map, "S", "info_search_case_sensitively", st)
         call keymap_set(info_mode_map, "t", "info_top_node", st)
         call keymap_set(info_mode_map, "T", "info_toc", st)
         call keymap_set(info_mode_map, "u", "info_up", st)
@@ -7733,6 +9413,7 @@ contains
         call keymap_set(info_mode_map, "c", "info_copy_current_node_name", st)
         ! `^' for consistency with `dired-up-directory'.
         call keymap_set(info_mode_map, "^", "info_up", st)
+        call keymap_set(info_mode_map, ",", "info_index_next", st)
         call keymap_set(info_mode_map, "DEL", "info_scroll_down", st)
         call add_local_variables_killer(kill_info_locals)
     end subroutine syms_of_info

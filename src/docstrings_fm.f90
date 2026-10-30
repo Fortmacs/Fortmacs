@@ -255,15 +255,16 @@ module docstrings_fm
     use indent_fm, only: indent_line_function, indent_line_function_name, indent_region_function, &
                          indent_tabs_mode, standard_indent, tab_always_indent, tab_stop_list
     use info_fm, only: info_additional_directory_list, info_breadcrumbs_depth, &
-                       info_default_directory_list, info_directory_list, info_fontify_maximum_menu_size, &
-                       info_fontify_visited_nodes, info_header_node_face, info_header_xref_face, &
-                       info_hide_note_references, INFO_HIDE_NOTE_REFERENCES_NIL, INFO_HIDE_NOTE_REFERENCES_T, &
-                       INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, &
+                       info_default_directory_list, info_directory_list, info_file_list_for_emacs, &
+                       info_fontify_maximum_menu_size, info_fontify_visited_nodes, info_header_node_face, &
+                       info_header_xref_face, info_hide_note_references, INFO_HIDE_NOTE_REFERENCES_NIL, &
+                       INFO_HIDE_NOTE_REFERENCES_T, INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, &
                        info_history_skip_intermediate_nodes, info_index_match_face, info_menu_header_face, &
                        info_menu_star_face, info_mode_hook, info_mode_map, info_mode_syntax_table, info_node_face, &
-                       info_scroll_prefer_subnodes, info_selection_hook, info_streamline_headings, info_suffix_list, &
-                       info_title_1_face, info_title_2_face, info_title_3_face, info_title_4_face, info_url_alist, &
-                       info_use_header_line, info_xref_face, info_xref_visited_face
+                       info_scroll_prefer_subnodes, info_search_whitespace_regexp, info_selection_hook, &
+                       info_streamline_headings, info_suffix_list, info_title_1_face, info_title_2_face, &
+                       info_title_3_face, info_title_4_face, info_url_alist, info_use_header_line, &
+                       info_warn_on_index_alternatives_wrap, info_xref_face, info_xref_visited_face
     use insdel_fm, only: after_change_functions, before_change_functions, first_change_hook, &
                          inhibit_modification_hooks
     use isearch_fm, only: isearch_lax_whitespace, isearch_mode_map, isearch_regexp_lax_whitespace, &
@@ -494,7 +495,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1269) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1279) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -709,16 +710,18 @@ module docstrings_fm
                                                          "indent_region", "indent_relative", "indent_relative_first_indent_point", &
                                                        "indent_rigidly", "indent_rigidly_left", "indent_rigidly_left_to_tab_stop", &
                                                    "indent_rigidly_right", "indent_rigidly_right_to_tab_stop", "indent_tabs_mode", &
-                                                         "indent_to", "info", "info_backward_node", "info_copy_current_node_name", &
+                                         "indent_to", "info", "info_apropos", "info_backward_node", "info_copy_current_node_name", &
                                                        "info_directory", "info_emacs_bug", "info_emacs_manual", "info_final_node", &
                                                          "info_follow_nearest_node", "info_follow_reference", "info_forward_node", &
-                                                               "info_goto_node", "info_help", "info_history", "info_history_back", &
-                                                 "info_history_forward", "info_last_menu_item", "info_last_preorder", "info_menu", &
-                                                            "info_mode", "info_next", "info_next_menu_item", "info_next_preorder", &
-                                                            "info_next_reference", "info_nth_menu_item", "info_on_current_buffer", &
-                                                      "info_other_window", "info_prev", "info_prev_reference", "info_scroll_down", &
-                                                  "info_scroll_up", "info_summary", "info_toc", "info_top_node", "info_undefined", &
-                                                         "info_up", "insert", "insert_abbrev_table_description", "insert_abbrevs", &
+                                             "info_goto_emacs_command_node", "info_goto_emacs_key_command_node", "info_goto_node", &
+                                           "info_help", "info_history", "info_history_back", "info_history_forward", "info_index", &
+                                         "info_index_next", "info_last_menu_item", "info_last_preorder", "info_menu", "info_mode", &
+                                                  "info_next", "info_next_menu_item", "info_next_preorder", "info_next_reference", &
+                                                 "info_nth_menu_item", "info_on_current_buffer", "info_other_window", "info_prev", &
+                                                       "info_prev_reference", "info_scroll_down", "info_scroll_up", "info_search", &
+                                                       "info_search_backward", "info_search_case_sensitively", "info_search_next", &
+                                                         "info_summary", "info_toc", "info_top_node", "info_undefined", "info_up", &
+                                              "info_virtual_index", "insert", "insert_abbrev_table_description", "insert_abbrevs", &
                                                                     "insert_rectangle", "insert_register", "interactive_region", &
                                                            "internal_default_process_filter", "internal_default_process_sentinel", &
                                                      "internal_default_signal_process", "interrupt_process", "inverse_add_abbrev", &
@@ -871,7 +874,7 @@ module docstrings_fm
                                                                     "yank_rectangle", "yes_or_no_p", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1025) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1028) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -1074,12 +1077,14 @@ module docstrings_fm
                                                          "ibuffer_view_ibuffer", "indent_line_function", "indent_region_function", &
                                                     "indent_tabs_mode", "indent_tabs_mode_hook", "info_additional_directory_list", &
                                                    "info_breadcrumbs_depth", "info_default_directory_list", "info_directory_list", &
-                                               "info_fontify_maximum_menu_size", "info_fontify_visited_nodes", "info_header_node", &
-                                          "info_header_xref", "info_hide_note_references", "info_history_skip_intermediate_nodes", &
-                                                       "info_index_match", "info_menu_header", "info_menu_star", "info_mode_hook", &
-                                            "info_mode_map", "info_mode_syntax_table", "info_node", "info_scroll_prefer_subnodes", &
-                                            "info_selection_hook", "info_streamline_headings", "info_suffix_list", "info_title_1", &
-                                         "info_title_2", "info_title_3", "info_title_4", "info_url_alist", "info_use_header_line", &
+                                                                    "info_file_list_for_emacs", "info_fontify_maximum_menu_size", &
+                                                             "info_fontify_visited_nodes", "info_header_node", "info_header_xref", &
+                                          "info_hide_note_references", "info_history_skip_intermediate_nodes", "info_index_match", &
+                                                          "info_menu_header", "info_menu_star", "info_mode_hook", "info_mode_map", &
+                                                             "info_mode_syntax_table", "info_node", "info_scroll_prefer_subnodes", &
+                                               "info_search_whitespace_regexp", "info_selection_hook", "info_streamline_headings", &
+                                               "info_suffix_list", "info_title_1", "info_title_2", "info_title_3", "info_title_4", &
+                                                 "info_url_alist", "info_use_header_line", "info_warn_on_index_alternatives_wrap", &
                                                   "info_xref", "info_xref_visited", "inhibit_auto_fill", "inhibit_eol_conversion", &
                                                                     "inhibit_field_text_motion", "inhibit_iso_escape_detection", &
                                           "inhibit_modification_hooks", "inhibit_null_byte_detection", "insert_default_directory", &
@@ -1225,7 +1230,7 @@ module docstrings_fm
                                                                     "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(510) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(512) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1533,9 +1538,11 @@ module docstrings_fm
                                                                       "info_history_skip_intermediate_nodes", &
                                                                       "info_mode_hook", &
                                                                       "info_scroll_prefer_subnodes", &
+                                                                      "info_search_whitespace_regexp", &
                                                                       "info_selection_hook", &
                                                                       "info_url_alist", &
                                                                       "info_use_header_line", &
+                                                                      "info_warn_on_index_alternatives_wrap", &
                                                                       "inhibit_eol_conversion", &
                                                                       "insert_default_directory", &
                                                                       "insert_directory_program", &
@@ -7295,6 +7302,13 @@ contains
                         "path."//LF// &
                         ""//LF// &
                         "See a list of available Info commands in `info_mode'."
+        case ("info_apropos")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Search indices of all known Info files on your system for STRING."//LF// &
+                        "If REGEXP (interactively, the prefix), use a regexp match."//LF// &
+                        ""//LF// &
+                        "Display a menu of the possible matches."
         case ("info_backward_node")
             entry%file = "info_fm.f90"
             entry%interactive = .true.
@@ -7335,6 +7349,14 @@ contains
             entry%file = "info_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
+        case ("info_goto_emacs_command_node")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("info_goto_emacs_key_command_node")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
         case ("info_goto_node")
             entry%file = "info_fm.f90"
             entry%interactive = .true.
@@ -7355,6 +7377,14 @@ contains
             entry%file = "info_fm.f90"
             entry%interactive = .true.
             entry%doc = "Go forward in the history of visited nodes."
+        case ("info_index")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("info_index_next")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
         case ("info_last_menu_item")
             entry%file = "info_fm.f90"
             entry%interactive = .true.
@@ -7415,6 +7445,15 @@ contains
                         "\[end_of_buffer]        Go to end of node."//LF// &
                         ""//LF// &
                         "Advanced commands:"//LF// &
+                        "\[info_search]        Search through this Info file for specified regexp,"//LF// &
+                        "          and select the node in which the next occurrence is found."//LF// &
+                        "\[info_search_case_sensitively]        Search through this Info file for specified regexp "// &
+                        "case-sensitively."//LF// &
+                        "\[info_index]        Search for a topic in this manual's Index and go to index entry."//LF// &
+                        "\[info_index_next]        (comma) Move to the next match from a previous \<info_mode_map>\"// &
+                        "[info_index] command."//LF// &
+                        "\[info_virtual_index]        Look for a string and display the index node with results."//LF// &
+                        "\[info_apropos]        Look for a string in the indices of all manuals."//LF// &
                         "\[info_goto_node]        Move to node specified by name."//LF// &
                         "          You may include a filename as well, as (FILENAME)NODENAME."//LF// &
                         "1 .. 9        Pick first ... ninth item in node's menu."//LF// &
@@ -7486,6 +7525,22 @@ contains
                         "true and point is inside the menu of a node, it moves to subnode"//LF// &
                         "indicated by the following menu item.  (That case won't normally"//LF// &
                         "result from this command, but can happen in other ways.)"
+        case ("info_search")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("info_search_backward")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("info_search_case_sensitively")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Search for a regexp case-sensitively."
+        case ("info_search_next")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Search for next regexp from a previous `info_search' command."
         case ("info_summary")
             entry%file = "info_fm.f90"
             entry%interactive = .true.
@@ -7504,6 +7559,10 @@ contains
             entry%interactive = .true.
             entry%doc = "Make command be undefined in Info."
         case ("info_up")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("info_virtual_index")
             entry%file = "info_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
@@ -18891,6 +18950,12 @@ contains
                         ""//LF// &
                         "If you want to override the order of directories in"//LF// &
                         "`info_default_directory_list', set INFOPATH in the environment."
+        case ("info_file_list_for_emacs")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_file_list_for_emacs"
+            entry%doc = "List of Info files that describe Emacs commands.  An element gives"//LF// &
+                        "a name PREFIX and the FILE to look in for the commands whose names"//LF// &
+                        "start with it (followed by ""_"" or nothing)."
         case ("info_fontify_maximum_menu_size")
             entry%file = "info_fm.f90"
             entry%fortran = "info_fontify_maximum_menu_size"
@@ -18995,6 +19060,23 @@ contains
                         "first subnode of that menu.  If false, \[info_scroll_up] scrolls"//LF// &
                         "the menu as long as it is not all visible and then visits the next"//LF// &
                         "node (if any) (in this case, the menu's subnodes are skipped)."
+        case ("info_search_whitespace_regexp")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_search_whitespace_regexp"
+            entry%user_option = .true.
+
+            if (allocated(info_search_whitespace_regexp)) then
+                entry%value = repr(info_search_whitespace_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "If true, regular expression to match a sequence of whitespace"//LF// &
+                        "chars.  This applies to Info search for regular expressions.  You"//LF// &
+                        "might want to use something like ""[ \t\r\n]+"" instead.  Don't add"//LF// &
+                        "any capturing groups into this value; that can change the numbering"//LF// &
+                        "of existing capture groups in unexpected ways.  (Unallocated for"//LF// &
+                        "nil.)"
         case ("info_selection_hook")
             entry%file = "info_fm.f90"
             entry%fortran = "info_selection_hook"
@@ -19064,6 +19146,14 @@ contains
             entry%doc = "True means to put the beginning-of-node links in an Emacs"//LF// &
                         "header-line.  A header-line does not scroll with the rest of the"//LF// &
                         "buffer."
+        case ("info_warn_on_index_alternatives_wrap")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_warn_on_index_alternatives_wrap"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(info_warn_on_index_alternatives_wrap%value)
+            entry%doc = "Warn when wrapping to the beginning/end when displaying index"//LF// &
+                        "alternatives."
         case ("info_xref")
             entry%file = "info_fm.f90"
             entry%fortran = "info_xref_face"
@@ -24012,7 +24102,12 @@ contains
         case ("info_scroll_prefer_subnodes")
             kind = OPTION_LOGICAL
             setting = .true.
+        case ("info_search_whitespace_regexp")
+            kind = OPTION_STRING
         case ("info_use_header_line")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("info_warn_on_index_alternatives_wrap")
             kind = OPTION_LOGICAL
             setting = .true.
         case ("inhibit_eol_conversion")
@@ -24756,6 +24851,12 @@ contains
                 call info_use_header_line%set_local(v)
             else
                 info_use_header_line = v
+            end if
+        case ("info_warn_on_index_alternatives_wrap")
+            if (local) then
+                call info_warn_on_index_alternatives_wrap%set_local(v)
+            else
+                info_warn_on_index_alternatives_wrap = v
             end if
         case ("inhibit_eol_conversion")
             if (local) then
@@ -25574,6 +25675,8 @@ contains
             ibuffer_read_only_char = v
         case ("ibuffer_title_face")
             ibuffer_title_face = v
+        case ("info_search_whitespace_regexp")
+            info_search_whitespace_regexp = v
         case ("insert_directory_program")
             insert_directory_program = v
         case ("list_matching_lines_buffer_name_face")

@@ -474,7 +474,9 @@ module fortmacs
                        info_fontify_maximum_menu_size, INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL, &
                        INFO_FONTIFY_MAXIMUM_MENU_SIZE_T, info_fontify_visited_nodes, info_use_header_line, &
                        info_hide_note_references, INFO_HIDE_NOTE_REFERENCES_NIL, INFO_HIDE_NOTE_REFERENCES_T, &
-                       INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, info_breadcrumbs_depth
+                       INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, info_breadcrumbs_depth, &
+                       info_search_whitespace_regexp, info_warn_on_index_alternatives_wrap, &
+                       info_file_list_for_emacs, info_file_prefix_type
     use ibuffer_fm, only: ibuffer_formats, ibuffer_always_compile_formats, ibuffer_fontification_alist, &
                           ibuffer_human_readable_size, ibuffer_use_other_window, &
                           ibuffer_default_shrink_to_minimum_size, ibuffer_display_summary, ibuffer_truncate_lines, &
@@ -851,7 +853,8 @@ module fortmacs
               INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL, INFO_FONTIFY_MAXIMUM_MENU_SIZE_T, info_fontify_visited_nodes, &
               info_use_header_line, info_hide_note_references, INFO_HIDE_NOTE_REFERENCES_NIL, &
               INFO_HIDE_NOTE_REFERENCES_T, INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, &
-              info_breadcrumbs_depth
+              info_breadcrumbs_depth, info_search_whitespace_regexp, info_warn_on_index_alternatives_wrap, &
+              info_file_list_for_emacs, info_file_prefix_type
     public :: ibuffer_formats, ibuffer_always_compile_formats, ibuffer_fontification_alist, &
               ibuffer_human_readable_size, ibuffer_use_other_window, ibuffer_default_shrink_to_minimum_size, &
               ibuffer_display_summary, ibuffer_truncate_lines, ibuffer_case_fold_search, &

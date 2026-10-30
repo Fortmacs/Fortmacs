@@ -2289,6 +2289,8 @@ contains
         call keymap_set(help_map, "d", "apropos_documentation", status)
         call keymap_set(help_map, "e", "view_echo_area_messages", status)
         call keymap_set(help_map, "f", "describe_function", status)
+        call keymap_set(help_map, "F", "info_goto_emacs_command_node", status)
+        call keymap_set(help_map, "K", "info_goto_emacs_key_command_node", status)
         call keymap_set(help_map, "i", "info", status)
         call keymap_set(help_map, "4 i", "info_other_window", status)
         call keymap_set(help_map, "u", "apropos_user_option", status)

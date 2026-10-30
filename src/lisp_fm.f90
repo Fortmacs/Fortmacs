@@ -127,6 +127,10 @@ module lisp_fm
         !> A hint shown by Repeat mode for the command's key (the
         !> `repeat-hint' property); unallocated for none.
         character(len=:), allocatable :: repeat_hint
+        !> The Info manual that documents the command (the `info-file'
+        !> property, for `info_goto_emacs_command_node'); unallocated for
+        !> none.
+        character(len=:), allocatable :: info_file
     contains
         !> Make this command known by its name, to M-x, keymaps and the
         !> help commands (upstream's defun).
