@@ -158,7 +158,7 @@ module fortmacs
                        rectangle_mark_mode, rectangle_mark_mode_map, rectangle_mark_mode_hook
     use simple_fm, only: deactivate_mark_hook, region_bounds, is_region_noncontiguous
     use editfns_fm, only: interactive_region
-    use register_fm, only: register_type, register_value_type, get_register, set_register, point_to_register, &
+    use register_fm, only: register_type, register_contents_type, get_register, set_register, point_to_register, &
                            window_configuration_to_register, jump_to_register, file_to_register, buffer_to_register, &
                            number_to_register, increment_register, view_register, list_registers, insert_register, &
                            copy_to_register, append_to_register, prepend_to_register, copy_rectangle_to_register, &
@@ -226,7 +226,7 @@ module fortmacs
                           isearch_regexp_lax_whitespace
     use paragraphs_fm, only: paragraph_start, paragraph_separate, sentence_end, sentence_end_base, &
                              sentence_end_double_space, sentence_end_without_period, sentence_end_without_space
-    use casefiddle_fm, only: case_symbols_as_words
+    use casefiddle_fm, only: case_identifiers_as_words
     use simple_fm, only: fill_prefix, cycle_spacing_actions, cycle_spacing_action_type, CYCLE_JUST_ONE_SPACE, &
                          CYCLE_DELETE_SPACE_AFTER, CYCLE_DELETE_SPACE_BEFORE, CYCLE_DELETE_ALL_SPACE, CYCLE_RESTORE, &
                          CYCLE_ARG_NONE, CYCLE_ARG_FIXED, CYCLE_ARG_INVERTED, CYCLE_ARG_MINUS
@@ -263,7 +263,7 @@ module fortmacs
     use help_mode_fm, only: help_mode_hook, help_mode_map
     use simple_fm, only: turn_on_auto_fill, turn_off_auto_fill
     use text_mode_fm, only: text_mode_variant
-    use syntax_fm, only: parse_expression_ignore_comments, comment_end_can_be_escaped, multibyte_syntax_as_symbol, &
+    use syntax_fm, only: parse_expression_ignore_comments, comment_end_can_be_escaped, multibyte_syntax_as_identifier, &
                          open_paren_in_column_0_is_subprogram_start, comment_use_syntax_ppss
     use syntax_fm, only: forward_comment, scan_groups, scan_expressions, parse_partial_expression, parse_state_type, &
                          ST_COMMENT_STYLE, ST_STRING_STYLE, COMMENTSTOP_NO, COMMENTSTOP_COMMENT, COMMENTSTOP_SYNTAX_TABLE
@@ -387,8 +387,8 @@ module fortmacs
                          comint_password_prompt_max_length
     use mule_conf_fm, only: password_word_equivalents, password_colon_equivalents
     use ansi_color_fm, only: ansi_color_for_comint_mode, ansi_color_for_compilation_mode, ANSI_COLOR_NO, &
-                             ANSI_COLOR_FILTER, ANSI_COLOR_YES, ansi_color_bold_is_bright, ansi_color_basic_faces_vector, &
-                             ansi_color_normal_colors_vector, ansi_color_bright_colors_vector, &
+                             ANSI_COLOR_FILTER, ANSI_COLOR_YES, ansi_color_bold_is_bright, ansi_color_basic_faces, &
+                             ansi_color_normal_colors, ansi_color_bright_colors, &
                              ansi_color_apply_face_function, ansi_color_face_proc, ansi_color_compilation_filter, &
                              ansi_color_process_output
     use minibuf_fm, only: read_hide_char
@@ -413,7 +413,7 @@ module fortmacs
                          edit_abbrevs_mode_abbrev_table, kill_all_abbrevs, copy_abbrev_table, insert_abbrevs, &
                          list_abbrevs, abbrev_table_name, edit_abbrevs, write_abbrev_file, inverse_add_mode_abbrev, &
                          inverse_add_global_abbrev, inverse_add_abbrev, abbrev_prefix_mark, expand_region_abbrevs, &
-                         define_global_abbrev, define_mode_abbrev, abbrev_symbol, abbrev_expansion, abbrev_insert, &
+                         define_global_abbrev, define_mode_abbrev, abbrev_name, abbrev_expansion, abbrev_insert, &
                          expand_abbrev, abbrev_default_expand, unexpand_abbrev, insert_abbrev_table_description, &
                          local_abbrev_table, set_local_abbrev_table
     use text_mode_fm, only: text_mode_abbrev_table
@@ -449,7 +449,7 @@ module fortmacs
                          shell_command_switch, shell_command_default_error_buffer, shell_command_prompt_show_cwd, &
                          shell_command_dont_erase_buffer, shell_command_buffer_name, DONT_ERASE_NO, DONT_ERASE_ERASE, &
                          DONT_ERASE_BEG_LAST_OUT, DONT_ERASE_END_LAST_OUT, DONT_ERASE_SAVE_POINT
-    use help_fns_fm, only: describe_mode, describe_symbol
+    use help_fns_fm, only: describe_mode, describe_name
     use help_fm, only: describe_bindings, view_lossage, view_echo_area_messages
     use xdisp_fm, only: message_log_max, MESSAGE_LOG_DISABLED, MESSAGE_LOG_UNLIMITED
     use simple_fm, only: messages_buffer_mode_hook, messages_buffer_mode_map
@@ -562,7 +562,7 @@ module fortmacs
     use repeat_fm, only: repeat_mode, repeat_mode_hook, repeat_too_dangerous, repeat_on_final_keystroke, &
                          repeat_exit_key, repeat_exit_timeout, repeat_keep_prefix, repeat_check_key, &
                          repeat_echo_function, repeat_echo_proc, repeat_echo_message, repeat_exit
-    use lisp_fm, only: PROPERTY_UNSET, PROPERTY_TRUE, PROPERTY_NO
+    use lisp_fm, only: REPEAT_CHECK_KEY_DEFAULT, REPEAT_CHECK_KEY_YES, REPEAT_CHECK_KEY_NO
     use keymap_fm, only: set_repeat_map
     use comint_fm, only: comint_repeat_map
     use shell_fm, only: shell_repeat_map
@@ -715,8 +715,8 @@ module fortmacs
               comint_password_prompt_regexp, comint_password_prompt_max_length
     public :: password_word_equivalents, password_colon_equivalents, read_hide_char
     public :: ansi_color_for_comint_mode, ansi_color_for_compilation_mode, ANSI_COLOR_NO, ANSI_COLOR_FILTER, &
-              ANSI_COLOR_YES, ansi_color_bold_is_bright, ansi_color_basic_faces_vector, ansi_color_normal_colors_vector, &
-              ansi_color_bright_colors_vector, ansi_color_apply_face_function, ansi_color_face_proc, &
+              ANSI_COLOR_YES, ansi_color_bold_is_bright, ansi_color_basic_faces, ansi_color_normal_colors, &
+              ansi_color_bright_colors, ansi_color_apply_face_function, ansi_color_face_proc, &
               ansi_color_compilation_filter, ansi_color_process_output
     public :: shell, shell_mode, shell_dumb_shell_regexp, shell_prompt_pattern, shell_delimiter_argument_list, &
               shell_command_regexp, shell_command_separator_regexp, shell_popd_regexp, shell_pushd_regexp, &
@@ -791,7 +791,7 @@ module fortmacs
               string_rectangle, string_insert_rectangle, clear_rectangle, rectangle_number_lines, spaces_string, &
               rectangle_mark_mode, rectangle_mark_mode_map, rectangle_mark_mode_hook, deactivate_mark_hook, &
               region_bounds, is_region_noncontiguous, interactive_region, &
-              killed_rectangle, register_type, register_value_type, register_table, register_separator, get_register, &
+              killed_rectangle, register_type, register_contents_type, register_table, register_separator, get_register, &
               set_register, point_to_register, window_configuration_to_register, jump_to_register, file_to_register, &
               buffer_to_register, number_to_register, increment_register, view_register, list_registers, &
               insert_register, copy_to_register, append_to_register, prepend_to_register, copy_rectangle_to_register, &
@@ -812,7 +812,7 @@ module fortmacs
               regexp_search_ring_max, search_whitespace_regexp, isearch_lax_whitespace, &
               isearch_regexp_lax_whitespace, paragraph_start, paragraph_separate, sentence_end, sentence_end_base, &
               sentence_end_double_space, sentence_end_without_period, sentence_end_without_space, &
-              case_symbols_as_words, case_replace, replace_lax_whitespace, replace_regexp_lax_whitespace, &
+              case_identifiers_as_words, case_replace, replace_lax_whitespace, replace_regexp_lax_whitespace, &
               query_replace_skip_read_only, query_replace_show_replacement, query_replace_from_to_separator, &
               fill_prefix, cycle_spacing_actions, cycle_spacing_action_type, CYCLE_JUST_ONE_SPACE, &
               CYCLE_DELETE_SPACE_AFTER, CYCLE_DELETE_SPACE_BEFORE, CYCLE_DELETE_ALL_SPACE, CYCLE_RESTORE, &
@@ -828,7 +828,7 @@ module fortmacs
               major_mode_named, text_mode_hook, text_mode_map, text_mode_syntax_table, prog_mode_hook, &
               prog_mode_map, special_mode_hook, special_mode_map, transient_mark_mode_hook, indent_tabs_mode_hook, &
               auto_fill_mode_hook, help_mode_hook, help_mode_map, turn_on_auto_fill, turn_off_auto_fill, text_mode_variant, &
-              parse_expression_ignore_comments, comment_end_can_be_escaped, multibyte_syntax_as_symbol, &
+              parse_expression_ignore_comments, comment_end_can_be_escaped, multibyte_syntax_as_identifier, &
               open_paren_in_column_0_is_subprogram_start, comment_use_syntax_ppss, require_final_newline, &
               mode_require_final_newline, FINAL_NEWLINE_NEVER, &
               FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, change_hook_type, &
@@ -848,7 +848,7 @@ module fortmacs
     public :: kbd_macro_termination_hook, kmacro_ring_max, kmacro_execute_before_append, kmacro_repeat_no_prefix, &
               kmacro_call_repeat_key, kmacro_call_repeat_with_arg, KMACRO_CALL_REPEAT_DISABLED, &
               KMACRO_CALL_REPEAT_LAST_KEY, edmacro_eight_bits
-    public :: describe_mode, describe_symbol, describe_bindings, view_lossage, view_echo_area_messages, &
+    public :: describe_mode, describe_name, describe_bindings, view_lossage, view_echo_area_messages, &
               message_log_max, MESSAGE_LOG_DISABLED, MESSAGE_LOG_UNLIMITED, messages_buffer_mode_hook, &
               messages_buffer_mode_map, apropos_mode_hook, apropos_mode_map
     public :: abbrev_table_type, abbrev_type, abbrev_ref_type, abbrev_table_ref_type, abbrev_hook_proc, abbrev_enable_proc, &
@@ -859,7 +859,7 @@ module fortmacs
               edit_abbrevs_mode_abbrev_table, kill_all_abbrevs, copy_abbrev_table, insert_abbrevs, list_abbrevs, &
               abbrev_table_name, edit_abbrevs, write_abbrev_file, inverse_add_mode_abbrev, inverse_add_global_abbrev, &
               inverse_add_abbrev, abbrev_prefix_mark, expand_region_abbrevs, define_global_abbrev, define_mode_abbrev, &
-              abbrev_symbol, abbrev_expansion, abbrev_insert, expand_abbrev, abbrev_default_expand, unexpand_abbrev, &
+              abbrev_name, abbrev_expansion, abbrev_insert, expand_abbrev, abbrev_default_expand, unexpand_abbrev, &
               insert_abbrev_table_description, local_abbrev_table, set_local_abbrev_table, text_mode_abbrev_table, &
               prog_mode_abbrev_table, special_mode_abbrev_table, help_mode_abbrev_table, save_some_buffers_proc, &
               save_some_buffers_function_type, save_some_buffers_functions, add_save_some_buffers_function, &
@@ -974,7 +974,7 @@ module fortmacs
               buffer_menu_human_readable_sizes, buffer_menu_mode_hook, buffer_menu_mode_map
     public :: repeat_mode, repeat_mode_hook, repeat_too_dangerous, repeat_on_final_keystroke, repeat_exit_key, &
               repeat_exit_timeout, repeat_keep_prefix, repeat_check_key, repeat_echo_function, repeat_echo_proc, &
-              repeat_echo_message, repeat_exit, PROPERTY_UNSET, PROPERTY_TRUE, PROPERTY_NO, set_repeat_map, &
+            repeat_echo_message, repeat_exit, REPEAT_CHECK_KEY_DEFAULT, REPEAT_CHECK_KEY_YES, REPEAT_CHECK_KEY_NO, set_repeat_map, &
               comint_repeat_map, shell_repeat_map
     public :: buffer_stale_function, buffer_stale_proc, BUFFER_STALE_NO, BUFFER_STALE_YES, BUFFER_STALE_FAST, &
               buffer_auto_revert_by_notification, mounted_file_systems, after_set_visited_file_name_hook

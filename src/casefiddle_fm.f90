@@ -25,7 +25,7 @@
 !> unconditional special casings (uni_special_casing_fm: ß upcases to SS,
 !> ﬁ to FI), and the Greek final sigma rule.  Words are runs of
 !> word-constituent characters (and symbol constituents with
-!> `case_symbols_as_words') by the current syntax table.
+!> `case_identifiers_as_words') by the current syntax table.
 !>
 !> Strings are always multibyte here (casefiddle.c's unibyte string paths
 !> are Not applicable); unibyte buffers are cased byte by byte, as
@@ -77,8 +77,8 @@ module casefiddle_fm
     !> first letter of a symbol's name is ever capitalized.  Port of
     !> casefiddle.c case-symbols-as-words (automatically buffer-local
     !> when set).
-    type(logical_setting), public :: case_symbols_as_words = &
-                                     logical_setting(name="case_symbols_as_words", value=.false.)
+    type(logical_setting), public :: case_identifiers_as_words = &
+                                     logical_setting(name="case_identifiers_as_words", value=.false.)
 
     !> In Greek, lower case sigma has two forms: one when used in the middle
     !> and one when used at the end of a word.
@@ -146,7 +146,7 @@ contains
     logical function case_ch_is_word(syntax)
         integer, intent(in) :: syntax
 
-        case_ch_is_word = syntax == SWORD .or. (case_symbols_as_words%value .and. syntax == SSYMBOL)
+        case_ch_is_word = syntax == SWORD .or. (case_identifiers_as_words%value .and. syntax == SSYMBOL)
     end function case_ch_is_word
 
     !> Whether C has the syntax prefix flag `p'.  Port of

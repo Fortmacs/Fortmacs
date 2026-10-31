@@ -101,7 +101,7 @@ contains
                     new_unittest("describe-map-tree-ranges-and-prefixes", test_map_tree_ranges), &
                     new_unittest("describe-bindings", test_describe_bindings), &
                     new_unittest("describe-mode", test_describe_mode), &
-                    new_unittest("help-fns-test-describe-symbol", test_describe_symbol), &
+                    new_unittest("help-fns-test-describe-symbol", test_describe_name), &
                     new_unittest("describe-command", test_describe_command_x), &
                     new_unittest("describe-variable-customize", test_describe_variable_customize), &
                     new_unittest("view-lossage", test_view_lossage), &
@@ -925,7 +925,7 @@ contains
 
     !> describe-symbol shows a function and a variable of that name, with
     !> a separator line between them.
-    subroutine test_describe_symbol(error)
+    subroutine test_describe_name(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=:), allocatable :: text
@@ -945,7 +945,7 @@ contains
         call command_loop(st)
         call check(error, last_message, "You didn"//RQ//"t specify a function or variable")
         call fresh_scratch()
-    end subroutine test_describe_symbol
+    end subroutine test_describe_name
 
     subroutine test_describe_command_x(error)
         type(error_type), allocatable, intent(out) :: error

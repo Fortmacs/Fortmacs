@@ -1052,7 +1052,7 @@ contains
         ! Err out if depth gets less than this.
         min_depth = depth
         last_good = from0
-        multibyte_symbol_p = expression_flag .and. multibyte_syntax_as_symbol
+        multibyte_symbol_p = expression_flag .and. multibyte_syntax_as_identifier
         if (depth > 0) min_depth = 0
         from_byte = char_to_byte(from)
 

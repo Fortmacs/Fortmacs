@@ -51,7 +51,7 @@
 !> property holding their index; a region searched is markers, not an
 !> overlay.  Deferred: the overlay arrow, the highlighting of the visited
 !> occurrence (`next_error_highlight'), mouse events (mouse-2,
-!> `occur_word_at_mouse', `occur_symbol_at_mouse', the context menu), the
+!> `occur_word_at_mouse', `occur_identifier_at_mouse', the context menu), the
 !> menu, C-c C-f (`next_error_follow_minor_mode'), l
 !> (`recenter_current_error'), c (`clone_buffer'), the coding system of
 !> the buffers searched, `isearch_occur' and the isearch descriptions of
@@ -78,7 +78,7 @@ module replace_fm
                          regexp_quote, string_match, SEARCH_NOERROR
     use subr_fm, only: read_key, add_to_history, defvar_nil, history_length, query_replace_answer, match_string, &
                        looking_back, match_substitute_replacement, find_tag_default, find_tag_default_as_regexp, &
-                       find_tag_default_as_symbol_regexp, &
+                       find_tag_default_as_identifier_regexp, &
                        ANSWER_ACT, ANSWER_SKIP, ANSWER_EXIT, ANSWER_ACT_AND_EXIT, ANSWER_AUTOMATIC, &
                        ANSWER_RECENTER, ANSWER_HELP, ANSWER_QUIT, ANSWER_EDIT_REPLACEMENT, &
                        ANSWER_EDIT_REPLACEMENT_EXACT_CASE, ANSWER_ACT_AND_SHOW, ANSWER_EDIT, &
@@ -658,7 +658,7 @@ contains
         if (found) call push_string(list, n, s)
         call find_tag_default_as_regexp(s, found)
         if (found) call push_string(list, n, s)
-        call find_tag_default_as_symbol_regexp(s, found)
+        call find_tag_default_as_identifier_regexp(s, found)
         if (found) call push_string(list, n, s)
         call history_head("regexp_search_ring", s, found)
         if (found) call push_string(list, n, s)

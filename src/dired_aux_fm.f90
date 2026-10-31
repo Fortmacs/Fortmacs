@@ -855,9 +855,9 @@ contains
     ! no previous answer - ask now
     chars = [iachar("y"), iachar(" "), iachar("n"), 127, iachar("!"), iachar("q"), 27]
 
-    if (present(help_form)) then
+    if (present(help_procedure)) then
         full = prompt//" [Type yn!q or C-h] "
-        call read_char_choice(full, chars, c, status, help_form=help_form)
+        call read_char_choice(full, chars, c, status, help_procedure=help_procedure)
     else
         full = prompt//" [Type y, n, q or !] "
         call read_char_choice(full, chars, c, status)
@@ -2690,7 +2690,7 @@ contains
                                                "files,"//LF//"\`!' to overwrite all remaining files "// &
                                                "with no more questions.")
                 call dired_query(overwrite_query, format_message("Overwrite `")//to//format_message("'?"), &
-                                 overwrite_confirmed, status, help_form=help)
+                                 overwrite_confirmed, status, help_procedure=help)
                 if (.not. status%ok()) return
             end if
 
@@ -3253,7 +3253,7 @@ contains
                 to = new
                 prompt = regexp_operation//format_message(" `")//from//format_message("' to `")//to// &
                          format_message("'?")
-                call dired_query(regexp_query, prompt, answer, status, help_form=regexp_help)
+                call dired_query(regexp_query, prompt, answer, status, help_procedure=regexp_help)
                 if (.not. status%ok()) return
                 skip = .not. answer
             else
@@ -3270,7 +3270,7 @@ contains
                 to = aux_expand_in(new, file_name_directory(from))
                 prompt = regexp_operation//format_message(" `")//dired_make_relative(from)// &
                          format_message("' to `")//dired_make_relative(to)//format_message("'?")
-                call dired_query(regexp_query, prompt, answer, status, help_form=regexp_help)
+                call dired_query(regexp_query, prompt, answer, status, help_procedure=regexp_help)
                 if (.not. status%ok()) return
                 skip = .not. answer
             else
@@ -3489,7 +3489,7 @@ contains
 
         prompt = non_directory_operation//format_message(" `")//dired_make_relative(from)//format_message("' to `")// &
                  dired_make_relative(to)//format_message("'")
-        call dired_query(non_directory_query, prompt, answer, status, help_form=non_directory_help)
+        call dired_query(non_directory_query, prompt, answer, status, help_procedure=non_directory_help)
         skip = .not. (status%ok() .and. answer)
     end subroutine non_directory_constructor
 

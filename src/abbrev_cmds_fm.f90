@@ -329,7 +329,7 @@ contains
     end do
     end procedure abbrev_table_name
 
-    module procedure abbrev_table_symbols
+    module procedure abbrev_table_names
     integer :: k, m
     logical :: sys
     integer :: width
@@ -362,9 +362,9 @@ contains
         user_abbrev = allocated(table%abbrevs(i)%expansion)
         if (user_abbrev .and. .not. sys) user_abbrev = .not. table%abbrevs(i)%system
     end function user_abbrev
-    end procedure abbrev_table_symbols
+    end procedure abbrev_table_names
 
-    !> The abbrevs of TABLE that `abbrev_table_symbols' gives (with SYSTEM),
+    !> The abbrevs of TABLE that `abbrev_table_names' gives (with SYSTEM),
     !> sorted by name (string-lessp), as indices.  Not a port.
     subroutine sorted_abbrevs(table, system, order)
         type(abbrev_table_type), intent(in) :: table
@@ -538,18 +538,18 @@ contains
         end do
     end subroutine symbol_in
 
-    module procedure abbrev_symbol
+    module procedure abbrev_name
     type(abbrev_table_ref_type), allocatable :: tables(:)
 
     call active_tables(tables, table)
     call symbol_in(abbrev, tables, result)
-    end procedure abbrev_symbol
+    end procedure abbrev_name
 
     module procedure abbrev_expansion
     type(abbrev_ref_type) :: sym
     integer :: k
 
-    call abbrev_symbol(abbrev, sym, table)
+    call abbrev_name(abbrev, sym, table)
     if (.not. associated(sym%table)) return
     k = find_abbrev(sym%table, sym%name)
 
@@ -853,7 +853,7 @@ contains
             end if
 
             if (.not. allocated(val)) then
-                call set_error(status, FM_GENERIC_ERROR, "Value of abbrev_symbol must be a string")
+                call set_error(status, FM_GENERIC_ERROR, "Value of abbrev_name must be a string")
             else
                 vlen = char_count(val)
                 tlen = char_count(last_abbrev_text)
@@ -1198,7 +1198,7 @@ contains
 
     do k = 1, m
         if (.not. status%ok()) exit
-        call abbrev_table_symbols(sorted(k)%p, names)
+        call abbrev_table_names(sorted(k)%p, names)
         if (size(names) > 0) call insert_abbrev_table_description(sorted(k)%p, status)
     end do
 

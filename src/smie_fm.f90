@@ -52,7 +52,7 @@
 module smie_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_SCAN_ERROR, FM_USER_ERROR
-    use print_fm, only: fortran_string, prin1_string
+    use print_fm, only: fortran_string, quoted_repr
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, buffer_serial_live, current_buffer, buffer_chars_modified_tick
     use lisp_fm, only: command_proc, fixnump, xfixnum
@@ -1979,7 +1979,7 @@ contains
                         call push_levels(smie_level_type(), smie_level_type(kind=SMIE_LEVEL_NUMBER, value=0))
                     end if
                 else
-                    call set_error(status, FM_GENERIC_ERROR, "Unknown token: "//prin1_string(token))
+                    call set_error(status, FM_GENERIC_ERROR, "Unknown token: "//quoted_repr(token))
                     return
                 end if
             end if
@@ -3604,7 +3604,7 @@ contains
         if (is_eob()) return
 
         if (allocated(tok)) then
-            call set_error(status, FM_GENERIC_ERROR, "Bumped into unknown token: "//prin1_string(tok))
+            call set_error(status, FM_GENERIC_ERROR, "Bumped into unknown token: "//quoted_repr(tok))
         else
             call set_error(status, FM_GENERIC_ERROR, "Bumped into unknown token: nil")
         end if

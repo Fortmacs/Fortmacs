@@ -24,7 +24,7 @@
 !> a rectangle, a number, a window configuration with a position, a file
 !> name, a file and position to visit again, or a buffer.  The registers
 !> are `register_table', an array of `register_type' (a name and a
-!> typed `register_value_type'), read with `get_register' and set with
+!> typed `register_contents_type'), read with `get_register' and set with
 !> `set_register' or the commands; the markers and window configurations
 !> in it belong to it and are freed when a register is set again.
 !>
@@ -106,7 +106,7 @@ module register_fm
     !> a string, a list of strings, a number, (WINDOW-CONFIGURATION
     !> POSITION), (file . FILE-NAME), (file-query FILE-NAME POSITION) or
     !> (buffer . BUFFER)).
-    type, public :: register_value_type
+    type, public :: register_contents_type
         !> One of the REGISTER_ kinds.
         integer :: kind = REGISTER_EMPTY
         !> The text, or the file name of a file or file-query reference.
@@ -122,12 +122,12 @@ module register_fm
         type(handle_type) :: buffer
         !> The window configuration.
         type(window_configuration_type) :: configuration
-    end type register_value_type
+    end type register_contents_type
 
     !> A register: its NAME (a character) and its contents.
     type, public :: register_type
         integer(int64) :: name = 0
-        type(register_value_type) :: value
+        type(register_contents_type) :: value
     end type register_type
 
     !> The registers, one element for each Emacs register, the most
@@ -160,9 +160,9 @@ module register_fm
         !> A test of register contents (the PRED of the preview).
         !> Not a port.
         logical function register_value_predicate(value)
-            import :: register_value_type
+            import :: register_contents_type
             implicit none(type, external)
-            type(register_value_type), intent(in) :: value
+            type(register_contents_type), intent(in) :: value
         end function register_value_predicate
     end interface
 
@@ -199,7 +199,7 @@ contains
     !> in VALUE belong to the register.  Port of register.el:get-register.
     subroutine get_register(register, value)
         integer(int64), intent(in) :: register
-        type(register_value_type), intent(out) :: value
+        type(register_contents_type), intent(out) :: value
         integer :: k
 
         k = register_index(register)
@@ -219,7 +219,7 @@ contains
     !> Free what VALUE owns: its marker and its window configuration.
     !> Not a port.
     subroutine free_register_value(value)
-        type(register_value_type), intent(inout) :: value
+        type(register_contents_type), intent(inout) :: value
         type(status_type) :: st
 
         select case (value%kind)
@@ -232,7 +232,7 @@ contains
             continue
         end select
 
-        value = register_value_type()
+        value = register_contents_type()
     end subroutine free_register_value
 
     !> Set REGISTER to VALUE, which then belongs to the register (the
@@ -240,7 +240,7 @@ contains
     !> new register goes first).  Port of part of register.el:set-register.
     subroutine store_register(register, value)
         integer(int64), intent(in) :: register
-        type(register_value_type), intent(in) :: value
+        type(register_contents_type), intent(in) :: value
         type(register_type), allocatable :: grown(:)
         integer :: k, n
 
@@ -265,7 +265,7 @@ contains
     subroutine set_register_text(register, value)
         integer(int64), intent(in) :: register
         character(len=*), intent(in) :: value
-        type(register_value_type) :: v
+        type(register_contents_type) :: v
 
         v%kind = REGISTER_TEXT
         v%text = value
@@ -277,7 +277,7 @@ contains
     subroutine set_register_number(register, value)
         integer(int64), intent(in) :: register
         integer(int64), intent(in) :: value
-        type(register_value_type) :: v
+        type(register_contents_type) :: v
 
         v%kind = REGISTER_NUMBER
         v%number = value
@@ -289,7 +289,7 @@ contains
     subroutine set_register_rectangle(register, value)
         integer(int64), intent(in) :: register
         type(rectangle_line_type), intent(in) :: value(:)
-        type(register_value_type) :: v
+        type(register_contents_type) :: v
 
         if (size(value) > 0) then
             v%kind = REGISTER_RECTANGLE
@@ -421,7 +421,7 @@ contains
     !> X contains ").  VERBOSE means produce a more detailed description.
     !> Port of register.el:register-val-describe.
     function register_val_describe(val, verbose) result(s)
-        type(register_value_type), intent(in) :: val
+        type(register_contents_type), intent(in) :: val
         logical, intent(in) :: verbose
         character(len=:), allocatable :: s
         type(handle_type) :: b
@@ -477,7 +477,7 @@ contains
         integer(int64), intent(in) :: register
         logical, intent(in), optional :: verbose
         character(len=:), allocatable :: s
-        type(register_value_type) :: val
+        type(register_contents_type) :: val
         logical :: v
 
         v = .false.
@@ -727,7 +727,7 @@ contains
         integer(int64), intent(in) :: register
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: arg
-        type(register_value_type) :: v
+        type(register_contents_type) :: v
 
         status = status_type()
 
@@ -751,7 +751,7 @@ contains
     !> Port of register.el:window-configuration-to-register.
     subroutine window_configuration_to_register(register)
         integer(int64), intent(in) :: register
-        type(register_value_type) :: v
+        type(register_contents_type) :: v
 
         ! current-window-configuration does not include the value
         ! of point in the current buffer, so record that separately.
@@ -781,7 +781,7 @@ contains
         integer(int64), intent(in) :: register
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: delete
-        type(register_value_type) :: val
+        type(register_contents_type) :: val
         type(handle_type) :: b
         type(status_type) :: st
         integer(int64) :: pos
@@ -860,7 +860,7 @@ contains
     subroutine file_to_register(file_name, register)
         character(len=*), intent(in) :: file_name
         integer(int64), intent(in) :: register
-        type(register_value_type) :: v
+        type(register_contents_type) :: v
 
         v%kind = REGISTER_FILE
         v%text = file_name
@@ -877,7 +877,7 @@ contains
     subroutine buffer_to_register(buffer, register)
         type(handle_type), intent(in) :: buffer
         integer(int64), intent(in) :: register
-        type(register_value_type) :: v
+        type(register_contents_type) :: v
 
         v%kind = REGISTER_BUFFER
         v%buffer = buffer
@@ -887,7 +887,7 @@ contains
     !> Return true if `register_val_jump_to' is implemented for REGVAL.
     !> Port of register.el:register--jumpable-p.
     logical function is_register_jumpable(regval)
-        type(register_value_type), intent(in) :: regval
+        type(register_contents_type), intent(in) :: regval
 
         select case (regval%kind)
         case (REGISTER_MARKER, REGISTER_WINDOW_CONFIGURATION, REGISTER_FILE, REGISTER_BUFFER, REGISTER_FILE_QUERY)
@@ -900,7 +900,7 @@ contains
     !> Return true if `register_val_insert' is implemented for REGVAL.
     !> Port of register.el:register--insertable-p.
     logical function is_register_insertable(regval)
-        type(register_value_type), intent(in) :: regval
+        type(register_contents_type), intent(in) :: regval
 
         select case (regval%kind)
         case (REGISTER_TEXT, REGISTER_NUMBER, REGISTER_MARKER, REGISTER_RECTANGLE)
@@ -998,7 +998,7 @@ contains
         integer(int64), intent(in) :: register
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: prefix
-        type(register_value_type) :: val
+        type(register_contents_type) :: val
         integer(int64) :: number, b, e
 
         status = status_type()
@@ -1093,7 +1093,7 @@ contains
         integer(int64), intent(in) :: register
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: arg
-        type(register_value_type) :: val
+        type(register_contents_type) :: val
         type(status_type) :: st
         integer(int64) :: pos
         logical :: after
@@ -1186,7 +1186,7 @@ contains
     subroutine separator_text(text, status)
         character(len=:), allocatable, intent(out) :: text
         type(status_type), intent(out) :: status
-        type(register_value_type) :: sep
+        type(register_contents_type) :: sep
 
         status = status_type()
         text = ""
@@ -1222,7 +1222,7 @@ contains
         integer(int64), intent(in) :: register, start, end
         logical, intent(in) :: delete_flag, before
         type(status_type), intent(out) :: status
-        type(register_value_type) :: reg
+        type(register_contents_type) :: reg
         character(len=:), allocatable :: text, separator
 
         call get_register(register, reg)
@@ -1411,7 +1411,7 @@ contains
     !> Augment register predicate of `increment_register': a number, empty
     !> or text.  Not a port.
     logical function is_number_or_text(regval)
-        type(register_value_type), intent(in) :: regval
+        type(register_contents_type), intent(in) :: regval
 
         is_number_or_text = regval%kind == REGISTER_NUMBER .or. regval%kind == REGISTER_EMPTY .or. &
                             regval%kind == REGISTER_TEXT
@@ -1420,14 +1420,14 @@ contains
     !> The register predicate of `append_to_register' and
     !> `prepend_to_register': empty or text.  Not a port.
     logical function is_empty_or_text(regval)
-        type(register_value_type), intent(in) :: regval
+        type(register_contents_type), intent(in) :: regval
 
         is_empty_or_text = regval%kind == REGISTER_EMPTY .or. regval%kind == REGISTER_TEXT
     end function is_empty_or_text
 
     !> The register predicate of `view_register': not empty.  Not a port.
     logical function is_nonempty(regval)
-        type(register_value_type), intent(in) :: regval
+        type(register_contents_type), intent(in) :: regval
 
         is_nonempty = regval%kind /= REGISTER_EMPTY
     end function is_nonempty
@@ -1547,7 +1547,7 @@ contains
     recursive subroutine cmd_copy_rectangle_to_register(status)
         type(status_type), intent(out) :: status
         integer(int64) :: register, start, end
-        type(register_value_type) :: val
+        type(register_contents_type) :: val
         logical :: del
 
         del = prefix_given()

@@ -70,7 +70,7 @@ module apropos_fm
 
     public :: apropos_command, apropos_documentation, apropos_read_pattern, apropos_parse_pattern, apropos_mode, &
               apropos_words_to_regexp, apropos_true_hit, apropos_calc_scores, apropos_pattern, apropos_regexp, &
-              apropos_all_words_regexp, syms_of_apropos, apropos_score_doc, apropos_score_symbol, button_at
+              apropos_all_words_regexp, syms_of_apropos, apropos_score_doc, apropos_score_name, button_at
     public :: VAR_NONE, VAR_USER_OPTION, VAR_ANY
 
     !> What `apropos_command' lists: functions (VAR_NONE), user options or
@@ -442,7 +442,7 @@ contains
 
     !> Return apropos score for SYMBOL (a name), times WEIGHT.  Port of
     !> apropos.el:apropos-score-symbol.
-    integer(int64) function apropos_score_symbol(name, weight) result(score)
+    integer(int64) function apropos_score_name(name, weight) result(score)
         character(len=*), intent(in) :: name
         integer, intent(in) :: weight
         integer(int64), allocatable :: scores(:)
@@ -458,7 +458,7 @@ contains
         end do
 
         score = score*weight
-    end function apropos_score_symbol
+    end function apropos_score_name
 
     ! ------------------------------------------------------------------
     ! Apropos mode
@@ -514,7 +514,7 @@ contains
 
     !> Move cursor down to the next symbol in an `apropos_mode' buffer.
     !> Port of apropos.el:apropos-next-symbol.
-    subroutine apropos_next_symbol(status)
+    subroutine apropos_next_name(status)
         type(status_type), intent(out) :: status
         integer(int64) :: shortage
 
@@ -524,11 +524,11 @@ contains
         do while (.not. is_at_name() .and. buffers(cur)%pt < point_max())
             shortage = forward_line(1_int64)
         end do
-    end subroutine apropos_next_symbol
+    end subroutine apropos_next_name
 
     !> Move cursor back to the last symbol in an `apropos_mode' buffer.
     !> Port of apropos.el:apropos-previous-symbol.
-    subroutine apropos_previous_symbol(status)
+    subroutine apropos_previous_name(status)
         type(status_type), intent(out) :: status
         integer(int64) :: shortage
 
@@ -538,7 +538,7 @@ contains
         do while (.not. is_at_name() .and. buffers(cur)%pt > point_min())
             shortage = forward_line(-1_int64)
         end do
-    end subroutine apropos_previous_symbol
+    end subroutine apropos_previous_name
 
     ! ------------------------------------------------------------------
     ! Interactive commands
@@ -662,13 +662,13 @@ contains
         ! of RET, so that users can use it anywhere in an apropos item.
         call keymap_set(apropos_mode_map, "C-m", "apropos_follow", st)
         ! Movement keys.
-        call keymap_set(apropos_mode_map, "n", "apropos_next_symbol", st)
-        call keymap_set(apropos_mode_map, "p", "apropos_previous_symbol", st)
+        call keymap_set(apropos_mode_map, "n", "apropos_next_name", st)
+        call keymap_set(apropos_mode_map, "p", "apropos_previous_name", st)
         call register_keymap_name("apropos_mode_map", apropos_mode_map)
         commands%apropos_mode%run => apropos_mode
         commands%apropos_follow%run => apropos_follow
-        commands%apropos_next_symbol%run => apropos_next_symbol
-        commands%apropos_previous_symbol%run => apropos_previous_symbol
+        commands%apropos_next_name%run => apropos_next_name
+        commands%apropos_previous_name%run => apropos_previous_name
         commands%apropos_command%run => cmd_apropos_command
         commands%apropos_function%run => cmd_apropos_function
         commands%apropos_user_option%run => cmd_apropos_user_option

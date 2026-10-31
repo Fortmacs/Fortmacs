@@ -38,7 +38,7 @@ module test_register_fm
     use frame_fm, only: selected_frame, selected_window
     use window_fm, only: split_window, delete_other_windows, window_leaves, windows, get_buffer_window, is_window_live
     use rect_fm, only: rectangle_line_type
-    use register_fm, only: register_table, register_value_type, get_register, set_register, point_to_register, &
+    use register_fm, only: register_table, register_contents_type, get_register, set_register, point_to_register, &
                            jump_to_register, window_configuration_to_register, copy_to_register, insert_register, &
                            append_to_register, prepend_to_register, copy_rectangle_to_register, number_to_register, &
                            increment_register, file_to_register, buffer_to_register, is_register_jumpable, &
@@ -112,7 +112,7 @@ contains
     !> The contents of register R.
     function value_of(r) result(v)
         integer(int64), intent(in) :: r
-        type(register_value_type) :: v
+        type(register_contents_type) :: v
 
         call get_register(r, v)
     end function value_of
@@ -120,7 +120,7 @@ contains
     !> The kind of the contents of register R.
     integer function kind_of(r)
         integer(int64), intent(in) :: r
-        type(register_value_type) :: v
+        type(register_contents_type) :: v
 
         call get_register(r, v)
         kind_of = v%kind
@@ -130,7 +130,7 @@ contains
     function text_of(r) result(s)
         integer(int64), intent(in) :: r
         character(len=:), allocatable :: s
-        type(register_value_type) :: v
+        type(register_contents_type) :: v
 
         call get_register(r, v)
         s = ""
@@ -140,7 +140,7 @@ contains
     !> The number in register R.
     integer(int64) function number_of(r)
         integer(int64), intent(in) :: r
-        type(register_value_type) :: v
+        type(register_contents_type) :: v
 
         call get_register(r, v)
         number_of = v%number
@@ -206,7 +206,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(register_value_type) :: v
+        type(register_contents_type) :: v
 
         call fresh(h, "text")
         call point_to_register(ra, st)
@@ -387,7 +387,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(register_value_type) :: v
+        type(register_contents_type) :: v
 
         call fresh(h, "abcdef"//nl//"ghijkl"//nl//"mnopqr")
         call copy_rectangle_to_register(ra, 2_int64, 19_int64, st)
@@ -582,7 +582,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         character(len=:), allocatable :: text
-        type(register_value_type) :: v
+        type(register_contents_type) :: v
 
         call fresh(h, "alpha beta")
         ! C-x r SPC a at 3, M-> then C-x r j a.

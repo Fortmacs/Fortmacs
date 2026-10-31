@@ -148,7 +148,7 @@ module ansi_color_fm
     type(named_face_type), target, public :: ansi_color_bright_white
 
     !> Faces used for SGR control sequences determining a face.
-    !> This vector holds the faces used for SGR control sequence
+    !> This array holds the faces used for SGR control sequence
     !> parameters 0 to 7 ("" is nil).
     !>
     !> Parameter  Description
@@ -162,13 +162,13 @@ module ansi_color_fm
     !>   7        negative image
     !>
     !> Port of ansi-color.el ansi-color-basic-faces-vector.
-    character(len=32), public :: ansi_color_basic_faces_vector(0:7) = [character(len=32) :: "", "ansi_color_bold", &
+    character(len=32), public :: ansi_color_basic_faces(0:7) = [character(len=32) :: "", "ansi_color_bold", &
                                                                                           "ansi_color_faint", "ansi_color_italic", &
                                                                                   "ansi_color_underline", "ansi_color_slow_blink", &
                                                                                       "ansi_color_fast_blink", "ansi_color_inverse"]
 
     !> Faces used for SGR control sequences determining a color.
-    !> This vector holds the faces used for SGR control sequence
+    !> This array holds the faces used for SGR control sequence
     !> parameters 30 to 37 (foreground colors) and 40 to 47 (background
     !> colors).
     !>
@@ -183,14 +183,14 @@ module ansi_color_fm
     !>   37  47   white
     !>
     !> Port of ansi-color.el ansi-color-normal-colors-vector.
-    character(len=32), public :: ansi_color_normal_colors_vector(0:7) = [character(len=32) :: "ansi_color_black", &
+    character(len=32), public :: ansi_color_normal_colors(0:7) = [character(len=32) :: "ansi_color_black", &
                                                                                              "ansi_color_red", "ansi_color_green", &
                                                                                            "ansi_color_yellow", "ansi_color_blue", &
                                                                                           "ansi_color_magenta", "ansi_color_cyan", &
                                                                                                                  "ansi_color_white"]
 
     !> Faces used for SGR control sequences determining a "bright"
-    !> color.  This vector holds the faces used for SGR control sequence
+    !> color.  This array holds the faces used for SGR control sequence
     !> parameters 90 to 97 (bright foreground colors) and 100 to 107
     !> (bright background colors).
     !>
@@ -205,15 +205,15 @@ module ansi_color_fm
     !>   97  107   bright white
     !>
     !> Port of ansi-color.el ansi-color-bright-colors-vector.
-    character(len=32), public :: ansi_color_bright_colors_vector(0:7) = [character(len=32) :: &
-                                                                         "ansi_color_bright_black", &
-                                                                         "ansi_color_bright_red", &
-                                                                         "ansi_color_bright_green", &
-                                                                         "ansi_color_bright_yellow", &
-                                                                         "ansi_color_bright_blue", &
-                                                                         "ansi_color_bright_magenta", &
-                                                                         "ansi_color_bright_cyan", &
-                                                                         "ansi_color_bright_white"]
+    character(len=32), public :: ansi_color_bright_colors(0:7) = [character(len=32) :: &
+                                                                  "ansi_color_bright_black", &
+                                                                  "ansi_color_bright_red", &
+                                                                  "ansi_color_bright_green", &
+                                                                  "ansi_color_bright_yellow", &
+                                                                  "ansi_color_bright_blue", &
+                                                                  "ansi_color_bright_magenta", &
+                                                                  "ansi_color_bright_cyan", &
+                                                                  "ansi_color_bright_white"]
 
     !> If set to true, combining ANSI bold and a color produces the bright
     !> version of that color.  Port of ansi-color.el
@@ -774,8 +774,8 @@ contains
             if (face_vec%basic(i)) then
                 n = n + 1
 
-                if (len_trim(ansi_color_basic_faces_vector(i)) > 0) then
-                    faces(n) = sym(trim(ansi_color_basic_faces_vector(i)))
+                if (len_trim(ansi_color_basic_faces(i)) > 0) then
+                    faces(n) = sym(trim(ansi_color_basic_faces(i)))
                 else
                     faces(n) = nil()
                 end if
@@ -810,9 +810,9 @@ contains
             end if
 
             if (bright .or. code >= 8) then
-                name = trim(ansi_color_bright_colors_vector(modulo(code, 8_int64)))
+                name = trim(ansi_color_bright_colors(modulo(code, 8_int64)))
             else
-                name = trim(ansi_color_normal_colors_vector(modulo(code, 8_int64)))
+                name = trim(ansi_color_normal_colors(modulo(code, 8_int64)))
             end if
 
             v = nil()

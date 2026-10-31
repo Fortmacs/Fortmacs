@@ -555,3 +555,55 @@ name	VC_DISPLAY_STATUS_T	VC_DISPLAY_STATUS_YES
 name	VC_STATE_NIL	VC_STATE_UNKNOWN
 name	VC_MODEL_NIL	VC_MODEL_UNKNOWN
 name	VC_RENAME_NIL	VC_RENAME_NONE
+
+# B2: a symbol in the object sense is a name; in the syntax-class sense
+# (word and symbol constituents) an identifier.
+name	describe_symbol	describe_name
+name	complete_symbol	complete_name
+name	apropos_next_symbol	apropos_next_name
+name	apropos_previous_symbol	apropos_previous_name
+name	apropos_score_symbol	apropos_score_name
+name	info_lookup_symbol	info_lookup_name
+name	info_lookup_guess_c_symbol	info_lookup_guess_c_name
+name	info_lookup_guess_gdb_script_symbol	info_lookup_guess_gdb_script_name
+name	info_lookup_guess_custom_symbol	info_lookup_guess_custom_name
+name	abbrev_symbol	abbrev_name
+name	abbrev_table_symbols	abbrev_table_names
+name	forward_symbol	forward_identifier
+name	beginning_of_symbol	beginning_of_identifier
+name	bounds_of_symbol_at_point	bounds_of_identifier_at_point
+name	symbols_as_words	identifiers_as_words
+name	word_or_symbol	word_or_identifier
+name	find_tag_default_as_symbol_regexp	find_tag_default_as_identifier_regexp
+name	multibyte_syntax_as_symbol	multibyte_syntax_as_identifier
+name	occur_symbol_at_mouse	occur_identifier_at_mouse
+name	regexp_opt_symbols	regexp_opt_identifiers
+# Emacs Lisp completion, an obsolete Lisp-mode command named in prose.
+keep	lisp_complete_symbol
+
+# B3: arrays have plural names, without `_vector'.
+name	ansi_color_basic_faces_vector	ansi_color_basic_faces
+name	ansi_color_bright_colors_vector	ansi_color_bright_colors
+name	ansi_color_normal_colors_vector	ansi_color_normal_colors
+
+# B4: the repeat-check-key states of a command.
+name	PROPERTY_UNSET	REPEAT_CHECK_KEY_DEFAULT
+name	PROPERTY_TRUE	REPEAT_CHECK_KEY_YES
+name	PROPERTY_NO	REPEAT_CHECK_KEY_NO
+
+# B5: the help procedure of the minibuffer and of read_key.
+name	help_form	help_procedure
+
+# B7: the printed representation of a value (prin1-to-string), and of a
+# string (prin1's string case); help shows values with fortran_repr.
+name	prin1_to_string	readable_repr
+name	prin1_string	quoted_repr
+
+# C5-6: what a register holds.
+name	register_value_type	register_contents_type
+
+# The intrinsics check and its fixture name the forms it rejects.
+keep	tools/intrinsics.awk
+keep	tools/intrinsics-baseline
+keep	tools/intrinsics-test/sample.f90
+keep	tools/intrinsics-test/expected

@@ -20,15 +20,15 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Looking up symbols and files in the Info manuals of the buffer's
-!> major mode: `info_lookup_symbol' (C-h S), `info_lookup_file' and
+!> major mode: `info_lookup_name' (C-h S), `info_lookup_file' and
 !> `info_lookup_reset'.  The manuals of each mode are help
 !> specifications added with `info_lookup_add_help' (the modes of
 !> upstream's info-look.el are added by `syms_of_info_look'): the index
 !> nodes to read the documented items from, and how to find an item in
 !> the text of its node.
 !>
-!> Deferred: `info_complete_symbol' and `info_complete_file' (completion
-!> in the buffer), the obsolete `info_lookup_guess_custom_symbol', and
+!> Deferred: `info_complete_name' and `info_complete_file' (completion
+!> in the buffer), the obsolete `info_lookup_guess_custom_name', and
 !> raising another frame that shows *info*.
 module info_look_fm
     use, intrinsic :: iso_fortran_env, only: int64, int32
@@ -68,9 +68,9 @@ module info_look_fm
     implicit none(type, external)
     private
 
-    public :: info_lookup_add_help, info_lookup_maybe_add_help, info_lookup_symbol, info_lookup_file, &
-              info_lookup_reset, info_lookup, info_lookup_guess_default, info_lookup_guess_c_symbol, &
-              info_lookup_guess_gdb_script_symbol, info_lookup_mode, syms_of_info_look
+    public :: info_lookup_add_help, info_lookup_maybe_add_help, info_lookup_name, info_lookup_file, &
+              info_lookup_reset, info_lookup, info_lookup_guess_default, info_lookup_guess_c_name, &
+              info_lookup_guess_gdb_script_name, info_lookup_mode, syms_of_info_look
 
     abstract interface
         !> A TRANS-FUNC of a documentation specification: the help item of
@@ -682,14 +682,14 @@ contains
     !>
     !> Is SAME_WINDOW, try to reuse the current window instead of popping
     !> up a new one.  Port of info-look.el:info-lookup-symbol.
-    recursive subroutine info_lookup_symbol(symbol, status, mode, same_window)
+    recursive subroutine info_lookup_name(symbol, status, mode, same_window)
         character(len=*), intent(in) :: symbol
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: mode
         logical, intent(in), optional :: same_window
 
         call info_lookup("symbol", symbol, status, mode, same_window)
-    end subroutine info_lookup_symbol
+    end subroutine info_lookup_name
 
     !> Look up and display documentation of FILE in the relevant Info
     !> manual.  FILE should be the name of a file; a notable example is a
@@ -716,14 +716,14 @@ contains
         call info_lookup("file", file, status, mode)
     end subroutine info_lookup_file
 
-    recursive subroutine cmd_info_lookup_symbol(status)
+    recursive subroutine cmd_info_lookup_name(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: value, mode
 
         call interactive_arguments("symbol",.not. nilp(current_prefix_arg), value, mode, status)
         if (.not. status%ok()) return
-        call info_lookup_symbol(value, status, mode)
-    end subroutine cmd_info_lookup_symbol
+        call info_lookup_name(value, status, mode)
+    end subroutine cmd_info_lookup_name
 
     recursive subroutine cmd_info_lookup_file(status)
         type(status_type), intent(out) :: status
@@ -1483,7 +1483,7 @@ contains
 
     !> Get the C symbol at point.  Port of
     !> info-look.el:info-lookup-guess-c-symbol.
-    recursive subroutine info_lookup_guess_c_symbol(item, found)
+    recursive subroutine info_lookup_guess_c_name(item, found)
         character(len=:), allocatable, intent(out) :: item
         logical, intent(out) :: found
         character(len=:), allocatable :: prefix, name
@@ -1532,11 +1532,11 @@ contains
             if (has_name) item = item//name
             found = .true.
         end if
-    end subroutine info_lookup_guess_c_symbol
+    end subroutine info_lookup_guess_c_name
 
     !> Get symbol at point in GDB script buffers.  Port of
     !> info-look.el:info-lookup-guess-gdb-script-symbol.
-    recursive subroutine info_lookup_guess_gdb_script_symbol(item, found)
+    recursive subroutine info_lookup_guess_gdb_script_name(item, found)
         character(len=:), allocatable, intent(out) :: item
         logical, intent(out) :: found
         character(len=:), allocatable :: line, str
@@ -1610,7 +1610,7 @@ contains
                 p = q
             end do
         end subroutine split_words
-    end subroutine info_lookup_guess_gdb_script_symbol
+    end subroutine info_lookup_guess_gdb_script_name
 
     ! The parse rule `ignore': no item.  Not a port.
     recursive subroutine parse_ignore(item, found)
@@ -1882,8 +1882,8 @@ contains
         character(len=:), allocatable :: latex_node, found
         type(status_type) :: st
 
-        commands%info_lookup_symbol%run => cmd_info_lookup_symbol
-        commands%info_lookup_symbol%info_file = "emacs"
+        commands%info_lookup_name%run => cmd_info_lookup_name
+        commands%info_lookup_name%info_file = "emacs"
         commands%info_lookup_file%run => cmd_info_lookup_file
         commands%info_lookup_file%info_file = "emacs"
         commands%info_lookup_reset%run => cmd_info_lookup_reset
@@ -1911,7 +1911,7 @@ contains
         call s%add("(termcap)Var Index", prefix="^[ "//TAB//"]*['`‘]", suffix="['’]")
         call info_lookup_maybe_add_help(mode="c_mode", topic="symbol", &
                                         regexp="\(struct \|union \|enum \)?[_a-zA-Z][_a-zA-Z0-9]*", doc_spec=s, &
-                                        parse_function=info_lookup_guess_c_symbol)
+                                        parse_function=info_lookup_guess_c_name)
         s = info_lookup_doc_specs_type()
         call s%add("(libc)File Index")
         call info_lookup_maybe_add_help(mode="c_mode", topic="file", regexp="[_a-zA-Z0-9./+-]+", doc_spec=s)
@@ -2139,7 +2139,7 @@ contains
         call s%add("(gdb)Command and Variable Index")
         call info_lookup_maybe_add_help(mode="gdb_script_mode", ignore_case=.false., &
                                         regexp="\([-a-z]+\(\s-+[-a-z]+\)*\)", doc_spec=s, &
-                                        parse_function=info_lookup_guess_gdb_script_symbol)
+                                        parse_function=info_lookup_guess_gdb_script_name)
 
     contains
 

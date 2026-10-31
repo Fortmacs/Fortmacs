@@ -47,7 +47,7 @@
 !>
 !> Not ported yet: idle hooks, mouse and
 !> switch-frame events, the (t . EVENT) and (no-record . EVENT) forms of
-!> `unread_command_events', `help_form' and `prefix_help_command', quit
+!> `unread_command_events', `help_procedure' and `prefix_help_command', quit
 !> while computing (C-g is an ordinary key), `ring_bell_function', the
 !> `minibuffer_quit' condition (a quit in the minibuffer is handled as any
 !> quit) and `minibuffer_error_function'.
@@ -464,7 +464,7 @@ module keyboard_fm
 
     !> Character to recognize as meaning Help.
     !> When it is read, do `(eval help-form)', and display result if it's a string.
-    !> If the value of `help_form' is nil, this char can be read normally.
+    !> If the value of `help_procedure' is nil, this char can be read normally.
     !> Port of keyboard.c help-char (a character).
     integer(int64), public :: help_char = 8
     !> List of input events to recognize as meaning Help.

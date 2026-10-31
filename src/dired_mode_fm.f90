@@ -116,7 +116,7 @@ module dired_mode_fm
     use minibuffer_fm, only: read_file_name, completion_insert_strings
     use replace_fm, only: read_regexp
     use help_fm, only: substitute_command_keys, register_keymap_name
-    use print_fm, only: prin1_to_string
+    use print_fm, only: readable_repr
     use eval_fm, only: hook_type
     use derived_fm, only: is_derived_mode
     use modes_fm, only: major_modes
@@ -1076,16 +1076,16 @@ module dired_mode_fm
         !>
         !> If STATE already holds an answer (it starts as 0), this function
         !> may return automatically without querying the user.  If STATE
-        !> is !, ANSWER is true; if STATE is q or ESC, false.  HELP_FORM is
+        !> is !, ANSWER is true; if STATE is q or ESC, false.  HELP_PROCEDURE is
         !> what the help character shows.  Port of dired-aux.el:dired-query.
         !> (In dired_aux_fm.)
-        recursive module subroutine dired_query(state, prompt, answer, status, help_form)
+        recursive module subroutine dired_query(state, prompt, answer, status, help_procedure)
             implicit none(type, external)
             integer, intent(inout) :: state
             character(len=*), intent(in) :: prompt
             logical, intent(out) :: answer
             type(status_type), intent(out) :: status
-            character(len=*), intent(in), optional :: help_form
+            character(len=*), intent(in), optional :: help_procedure
         end subroutine dired_query
 
         !> Copy FROM to TO, overwriting it if OK_FLAG, as Dired's file
@@ -5798,7 +5798,7 @@ contains
                 call goto_char(found_pos)
                 if (.not. (st%ok() .and. file_found)) cycle
                 call dired_query(query, format_message("Unmark file `")//file//format_message("'? "), answer, status, &
-                                 help_form=help)
+                                 help_procedure=help)
                 call goto_char(found_pos)
                 if (.not. status%ok()) exit
                 if (.not. answer) cycle
@@ -6666,7 +6666,7 @@ contains
                 if (k > 1) string = string//" "
 
                 if (scan(files(k)%s, " ""'") > 0) then
-                    string = string//prin1_to_string(make_string(files(k)%s))
+                    string = string//readable_repr(make_string(files(k)%s))
                 else
                     string = string//files(k)%s
                 end if
@@ -7333,7 +7333,7 @@ contains
         commands%dired%run => cmd_dired
         commands%dired_other_window%run => cmd_dired_other_window
         commands%dired_mode%run => dired_mode_cmd
-        commands%dired_mode%interactive = .false.
+        commands%dired_mode%is_command = .false.
         commands%dired_next_line%run => cmd_dired_next_line
         commands%dired_previous_line%run => cmd_dired_previous_line
         commands%dired_next_dirline%run => cmd_dired_next_dirline

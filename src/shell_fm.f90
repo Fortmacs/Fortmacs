@@ -2458,7 +2458,7 @@ contains
         call keymap_set(shell_mode_map, "C-x n d", "shell_narrow_to_prompt", st)
         commands%shell%run => cmd_shell
         commands%shell_mode%run => shell_mode
-        commands%shell_mode%interactive = .false.
+        commands%shell_mode%is_command = .false.
         commands%shell_command_mode%run => shell_command_mode
         commands%shell_dirtrack_mode%run => shell_dirtrack_mode
         commands%shell_forward_command%run => cmd_shell_forward_command

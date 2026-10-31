@@ -76,7 +76,7 @@ module lisp_fm
     end interface
 
     !> Values of a command property that is unset (nil), t, or `no'.
-    integer, parameter, public :: PROPERTY_UNSET = 0, PROPERTY_TRUE = 1, PROPERTY_NO = 2
+    integer, parameter, public :: REPEAT_CHECK_KEY_DEFAULT = 0, REPEAT_CHECK_KEY_YES = 1, REPEAT_CHECK_KEY_NO = 2
 
     !> A named function: what upstream keeps in a symbol's function cell,
     !> its interactive spec (`interactive': a command) and its `disabled'
@@ -94,7 +94,7 @@ module lisp_fm
         procedure(command_proc), pointer, nopass :: run => null()
         !> Whether it is a command (has an interactive spec), so M-x and
         !> keys can run it.
-        logical :: interactive = .true.
+        logical :: is_command = .true.
         !> True means running it interactively asks for confirmation
         !> first (novice.el; the `disabled' property).
         logical :: disabled = .false.
@@ -115,9 +115,9 @@ module lisp_fm
         logical :: repeat_continue_all = .false.
         type(handle_type), allocatable :: repeat_continue(:)
         !> Whether Repeat mode checks that the last key is in the repeat
-        !> map (the `repeat-check-key' property): PROPERTY_UNSET to use
-        !> `repeat_check_key', PROPERTY_TRUE, or PROPERTY_NO.
-        integer :: repeat_check_key = PROPERTY_UNSET
+        !> map (the `repeat-check-key' property): REPEAT_CHECK_KEY_DEFAULT to use
+        !> `repeat_check_key', REPEAT_CHECK_KEY_YES, or REPEAT_CHECK_KEY_NO.
+        integer :: repeat_check_key = REPEAT_CHECK_KEY_DEFAULT
         !> The idle time after which the repeating sequence ends (the
         !> `repeat-exit-timeout' property; negative to use
         !> `repeat_exit_timeout'), or no timeout (`repeat_exit_timeout_no',

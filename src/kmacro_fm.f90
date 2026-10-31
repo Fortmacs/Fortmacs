@@ -72,7 +72,7 @@ module kmacro_fm
     use print_fm, only: fortran_string, marker_repr
     use subr_fm, only: read_number
     use minibuf_fm, only: read_string
-    use register_fm, only: register_read_with_preview, get_register, set_register, register_value_type, REGISTER_EMPTY, &
+    use register_fm, only: register_read_with_preview, get_register, set_register, register_contents_type, REGISTER_EMPTY, &
                            REGISTER_MARKER, REGISTER_TEXT, REGISTER_RECTANGLE, REGISTER_NUMBER, &
                            REGISTER_WINDOW_CONFIGURATION, REGISTER_FILE, REGISTER_FILE_QUERY, REGISTER_BUFFER
     use rect_fm, only: format_integer
@@ -354,7 +354,7 @@ contains
     !> kmacro.el:kmacro-reg-load-counter.
     subroutine kmacro_reg_load_counter(register)
         integer(int64), intent(in) :: register
-        type(register_value_type) :: v
+        type(register_contents_type) :: v
 
         call get_register(register, v)
         if (v%kind == REGISTER_NUMBER) kmacro_counter = v%number
@@ -394,7 +394,7 @@ contains
         integer(int64), intent(in) :: register
         integer(int64), intent(out) :: n
         type(status_type), intent(out) :: status
-        type(register_value_type) :: v
+        type(register_contents_type) :: v
 
         status = status_type()
         n = 0
@@ -412,7 +412,7 @@ contains
 
     !> The printed representation of register contents V.  Not a port.
     function register_value_repr(v) result(s)
-        type(register_value_type), intent(in) :: v
+        type(register_contents_type), intent(in) :: v
         character(len=:), allocatable :: s
         character(len=:), allocatable :: name
         type(status_type) :: st

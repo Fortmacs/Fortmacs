@@ -58,9 +58,9 @@ module test_abbrev_fm
                          abbrev_table_name_list, abbrev_mode, abbrev_all_caps, only_global_abbrevs, abbrevs_changed, &
                          abbrev_file_name, save_abbrevs, SAVE_ABBREVS_ASK, SAVE_ABBREVS_NEVER, last_abbrev_text, &
                          kill_all_abbrevs, copy_abbrev_table, insert_abbrevs, abbrev_table_name, prepare_abbrev_list_buffer, &
-                         write_abbrev_file, inverse_add_abbrev, abbrev_expansion, abbrev_table_symbols, expand_abbrev, &
+                         write_abbrev_file, inverse_add_abbrev, abbrev_expansion, abbrev_table_names, expand_abbrev, &
                          unexpand_abbrev, expand_region_abbrevs, define_global_abbrev, abbrev_possibly_save, &
-                         local_abbrev_table, abbrev_symbol
+                         local_abbrev_table, abbrev_name
     implicit none(type, external)
     private
 
@@ -245,12 +245,12 @@ contains
         call fresh(h)
         call setup_test_abbrev_table()
         call ert_test_abbrevs%define("sys", "system abbrev", system=.true.)
-        call abbrev_table_symbols(ert_test_abbrevs, names)
+        call abbrev_table_names(ert_test_abbrevs, names)
         call check(error, size(names), 1)
         if (allocated(error)) return
         call check(error, trim(names(1)), "a-e-t")
         if (allocated(error)) return
-        call abbrev_table_symbols(ert_test_abbrevs, names, system=.true.)
+        call abbrev_table_names(ert_test_abbrevs, names, system=.true.)
         call check(error, size(names), 2)
         if (allocated(error)) return
         call check(error, trim(names(1)) == "a-e-t" .and. trim(names(2)) == "sys", "with system abbrevs")
@@ -844,7 +844,7 @@ contains
         if (allocated(error)) return
         ! Parents: unlisted_table inherits global_abbrev_table.
         call unlisted_table%add_parent(global_abbrev_table)
-        call abbrev_symbol("teh", sym, unlisted_table)
+        call abbrev_name("teh", sym, unlisted_table)
         call check(error, associated(sym%table, global_abbrev_table), "found in the parent")
         call kill_buffer(h, st)
     end subroutine test_table_properties

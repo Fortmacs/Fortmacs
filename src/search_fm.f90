@@ -155,7 +155,7 @@ module search_fm
         !> Otherwise if all words are capitalized in the replaced text,
         !> capitalize each word in NEWTEXT.  Note that what exactly is a
         !> word is determined by the syntax tables in effect in the current
-        !> buffer, and the variable `case_symbols_as_words'.
+        !> buffer, and the variable `case_identifiers_as_words'.
         !>
         !> If optional third arg LITERAL is true, insert NEWTEXT
         !> literally.  Otherwise treat `\' as special:

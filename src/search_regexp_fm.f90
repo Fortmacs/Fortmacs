@@ -31,7 +31,7 @@ submodule(search_fm) search_regexp_fm
     use syntax_fm, only: syntax_table, syntax_modiff
     use minibuf_fm, only: read_string
     use casefiddle_fm, only: upcase_string, upcase_initials_string, upcase_region, upcase_initials_region, &
-                             case_symbols_as_words
+                             case_identifiers_as_words
     use casetab_fm, only: is_lowercase, is_uppercase
     use syntax_fm, only: char_syntax_class, SWORD, SSYMBOL
     use insdel_fm, only: replace_range
@@ -464,18 +464,18 @@ contains
                 ! Cannot be all caps if any original char is lower case.
                 some_lowercase = .true.
 
-                if (.not. word_or_symbol(prevc)) then
+                if (.not. word_or_identifier(prevc)) then
                     some_nonuppercase_initial = .true.
                 else
                     some_multiletter_word = .true.
                 end if
             else if (is_uppercase(c)) then
                 some_uppercase = .true.
-                if (word_or_symbol(prevc)) some_multiletter_word = .true.
+                if (word_or_identifier(prevc)) some_multiletter_word = .true.
             else
                 ! If the initial is a caseless word constituent, treat that
                 ! like a lowercase initial.
-                if (.not. word_or_symbol(prevc)) some_nonuppercase_initial = .true.
+                if (.not. word_or_identifier(prevc)) some_nonuppercase_initial = .true.
             end if
 
             prevc = c
@@ -667,13 +667,13 @@ contains
     end function present_true
 
     !> SYNTAX (prevc) is a word (or a symbol, with case-symbols-as-words).
-    logical function word_or_symbol(ch)
+    logical function word_or_identifier(ch)
         integer(int32), intent(in) :: ch
         integer :: syn
 
         syn = char_syntax_class(ch)
-        word_or_symbol = syn == SWORD .or. (case_symbols_as_words%value .and. syn == SSYMBOL)
-    end function word_or_symbol
+        word_or_identifier = syn == SWORD .or. (case_identifiers_as_words%value .and. syn == SSYMBOL)
+    end function word_or_identifier
 
     !> Characters B to E (exclusive, 1-based) of STR.
     function substring(str, b, e) result(sub_text)

@@ -472,11 +472,11 @@ contains
     ! turn-on-auto-fill, turn-off-auto-fill and do-auto-fill are
     ! functions, not commands.
     commands%turn_on_auto_fill%run => turn_on_auto_fill
-    commands%turn_on_auto_fill%interactive = .false.
+    commands%turn_on_auto_fill%is_command = .false.
     commands%turn_off_auto_fill%run => turn_off_auto_fill
-    commands%turn_off_auto_fill%interactive = .false.
+    commands%turn_off_auto_fill%is_command = .false.
     commands%do_auto_fill%run => do_auto_fill
-    commands%do_auto_fill%interactive = .false.
+    commands%do_auto_fill%is_command = .false.
     commands%set_fill_column%run => cmd_set_fill_column
     commands%default_indent_new_line%run => cmd_default_indent_new_line
     end procedure syms_of_simple_fill

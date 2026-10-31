@@ -37,10 +37,10 @@ module docstrings_fm
                           add_log_mailing_address, change_log_date, change_log_default_name, &
                           change_log_directory_files, change_log_mode_hook, change_log_mode_map, &
                           change_log_mode_syntax_table
-    use ansi_color_fm, only: ansi_color_apply_face_function, ansi_color_basic_faces_vector, &
-                             ansi_color_bold_is_bright, ansi_color_bright_colors_vector, ansi_color_for_comint_mode, &
+    use ansi_color_fm, only: ansi_color_apply_face_function, ansi_color_basic_faces, &
+                             ansi_color_bold_is_bright, ansi_color_bright_colors, ansi_color_for_comint_mode, &
                              ANSI_COLOR_NO, ANSI_COLOR_FILTER, ANSI_COLOR_YES, ansi_color_for_compilation_mode, &
-                             ANSI_COLOR_NO, ANSI_COLOR_FILTER, ANSI_COLOR_YES, ansi_color_normal_colors_vector
+                             ANSI_COLOR_NO, ANSI_COLOR_FILTER, ANSI_COLOR_YES, ansi_color_normal_colors
     use apropos_fm, only: apropos_all_words_regexp, apropos_mode_hook, apropos_mode_map, &
                           apropos_pattern, apropos_regexp
     use autorevert_fm, only: auto_revert_lockout_interval, auto_revert_avoid_polling, &
@@ -77,7 +77,7 @@ module docstrings_fm
     use callint_fm, only: command_name_of, current_minibuffer_command, current_prefix_arg, &
                           mark_even_if_inactive, this_command
     use callproc_fm, only: shell_file_name
-    use casefiddle_fm, only: case_symbols_as_words
+    use casefiddle_fm, only: case_identifiers_as_words
     use cmds_fm, only: auto_fill_chars, post_self_insert_hook
     use coding_fm, only: buffer_file_coding_system, coding_system_for_read, coding_system_for_write, &
                          coding_system_require_warning, default_process_coding_system, eol_mnemonic_dos, &
@@ -480,7 +480,7 @@ module docstrings_fm
                        history_delete_duplicates, history_length, read_y_or_n_history_variable, &
                        read_y_or_n_use_read_key
     use syntax_fm, only: comment_end_can_be_escaped, comment_use_syntax_ppss, &
-                         multibyte_syntax_as_symbol, open_paren_in_column_0_is_subprogram_start, &
+                         multibyte_syntax_as_identifier, open_paren_in_column_0_is_subprogram_start, &
                          parse_expression_ignore_comments, parse_expression_lookup_properties, &
                          syntax_propertize__done, words_include_escapes
     use syntax_propertize_fm, only: syntax_ppss_max_span, syntax_ppss_table, &
@@ -550,7 +550,7 @@ module docstrings_fm
         !> A variable: its Fortran name.
         character(len=:), allocatable :: fortran
         !> A function that is a command.
-        logical :: interactive = .false.
+        logical :: command = .false.
         !> A variable: its value and its value at startup ("" when
         !> unknown), as Fortran.
         character(len=:), allocatable :: value, original
@@ -561,22 +561,22 @@ module docstrings_fm
     !> The documented functions, sorted.
     character(len=50), parameter, public :: function_names(1416) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
-                                                            "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
-                                                         "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
-                                            "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
-                                                          "add_mode_abbrev", "add_name_to_file", "add_save_some_buffers_function", &
-                                                             "ansi_color_compilation_filter", "ansi_color_for_comint_mode_filter", &
-                                                                "ansi_color_for_comint_mode_off", "ansi_color_for_comint_mode_on", &
-                                                          "ansi_color_process_output", "append_to_register", "apply_on_rectangle", &
-                                                 "apropos_command", "apropos_documentation", "apropos_follow", "apropos_function", &
-                                          "apropos_mode", "apropos_next_symbol", "apropos_previous_symbol", "apropos_user_option", &
-                                                  "apropos_variable", "async_shell_command", "auto_fill_mode", "auto_revert_mode", &
-                                         "auto_revert_set_timer", "auto_revert_tail_mode", "back_to_indentation", "backward_char", &
-                                                         "backward_delete_char_untabify", "backward_expression", "backward_group", &
-                                                  "backward_kill_expression", "backward_kill_paragraph", "backward_kill_sentence", &
-                                                 "backward_kill_word", "backward_page", "backward_paragraph", "backward_sentence", &
-                                                 "backward_up_group", "backward_word", "beginning_of_buffer", "beginning_of_line", &
-                                          "beginning_of_line_text", "beginning_of_subprogram", "beginning_of_subprogram_comments", &
+                                         "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
+                                                      "abbreviate_file_name_handler", "abort_minibuffers", "abort_recursive_edit", &
+                                                 "accept_process_output", "add_auto_mode", "add_global_abbrev", "add_mode_abbrev", &
+                                            "add_name_to_file", "add_save_some_buffers_function", "ansi_color_compilation_filter", &
+                                                            "ansi_color_for_comint_mode_filter", "ansi_color_for_comint_mode_off", &
+                                               "ansi_color_for_comint_mode_on", "ansi_color_process_output", "append_to_register", &
+                                               "apply_on_rectangle", "apropos_command", "apropos_documentation", "apropos_follow", &
+                                                 "apropos_function", "apropos_mode", "apropos_next_name", "apropos_previous_name", &
+                                               "apropos_user_option", "apropos_variable", "async_shell_command", "auto_fill_mode", &
+                                                             "auto_revert_mode", "auto_revert_set_timer", "auto_revert_tail_mode", &
+                                                          "back_to_indentation", "backward_char", "backward_delete_char_untabify", &
+                                                              "backward_expression", "backward_group", "backward_kill_expression", &
+                                                        "backward_kill_paragraph", "backward_kill_sentence", "backward_kill_word", &
+                                                  "backward_page", "backward_paragraph", "backward_sentence", "backward_up_group", &
+                                            "backward_word", "beginning_of_buffer", "beginning_of_line", "beginning_of_line_text", &
+                                                                    "beginning_of_subprogram", "beginning_of_subprogram_comments", &
                                             "beginning_of_subprogram_raw", "blink_matching_check_mismatch", "blink_matching_open", &
                                              "bookmark_bmenu_1_window", "bookmark_bmenu_2_window", "bookmark_bmenu_backup_unmark", &
                                           "bookmark_bmenu_delete", "bookmark_bmenu_delete_all", "bookmark_bmenu_delete_backwards", &
@@ -637,7 +637,7 @@ module docstrings_fm
                                          "compilation_next_error_function", "compilation_next_file", "compilation_previous_error", &
                                                                     "compilation_previous_file", "compilation_set_skip_threshold", &
                                              "compilation_shell_minor_mode", "compilation_start", "compile", "compile_goto_error", &
-                                                             "complete_symbol", "completing_read_multiple", "completion_at_point", &
+                                                               "complete_name", "completing_read_multiple", "completion_at_point", &
                                                 "completion_help_at_point", "completion_in_region_mode", "conf_align_assignments", &
                                                         "conf_colon_mode", "conf_desktop_mode", "conf_javaprop_mode", "conf_mode", &
                                                        "conf_mode_maybe", "conf_npmrc_mode", "conf_ppd_mode", "conf_quote_normal", &
@@ -661,7 +661,7 @@ module docstrings_fm
                                               "delete_rectangle", "delete_region", "delete_whitespace_rectangle", "delete_window", &
                                                                 "describe_bindings", "describe_coding_system", "describe_command", &
                                                             "describe_current_coding_system", "describe_function", "describe_key", &
-                                                  "describe_key_briefly", "describe_mode", "describe_symbol", "describe_variable", &
+                                                    "describe_key_briefly", "describe_mode", "describe_name", "describe_variable", &
                                                       "detect_coding_region", "detect_coding_string", "diff", "diff_apply_buffer", &
                                                         "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", "diff_buffers", &
                                                   "diff_delete_other_hunks", "diff_file_kill", "diff_file_next", "diff_file_prev", &
@@ -729,8 +729,8 @@ module docstrings_fm
                                              "global_font_lock_mode_enable_in_buffer", "global_set_key", "goto_char", "goto_line", &
                                               "goto_line_relative", "grep", "grep_apply_setting", "grep_change_to_grep_edit_mode", &
                                                  "grep_compute_defaults", "grep_edit_mode", "grep_edit_save_changes", "grep_find", &
-                                                  "grep_find_toggle_abbreviation", "grep_mode", "help_for_help", "help_form_show", &
-                                                     "help_mode", "help_quit", "how_many", "ibuffer", "ibuffer_add_saved_filters", &
+                                                       "grep_find_toggle_abbreviation", "grep_mode", "help_for_help", "help_mode", &
+                                           "help_procedure_show", "help_quit", "how_many", "ibuffer", "ibuffer_add_saved_filters", &
                                                               "ibuffer_add_to_tmp_hide", "ibuffer_add_to_tmp_show", "ibuffer_and", &
                                                        "ibuffer_and_filter", "ibuffer_auto_mode", "ibuffer_backward_filter_group", &
                                                      "ibuffer_backward_line", "ibuffer_backwards_next_marked", "ibuffer_basename", &
@@ -795,8 +795,8 @@ module docstrings_fm
                                              "info_goto_emacs_command_node", "info_goto_emacs_key_command_node", "info_goto_node", &
                                            "info_help", "info_history", "info_history_back", "info_history_forward", "info_index", &
                                            "info_index_next", "info_last_menu_item", "info_last_preorder", "info_lookup_add_help", &
-                                                            "info_lookup_file", "info_lookup_maybe_add_help", "info_lookup_reset", &
-                                               "info_lookup_symbol", "info_menu", "info_mode", "info_next", "info_next_menu_item", &
+                                                             "info_lookup_file", "info_lookup_maybe_add_help", "info_lookup_name", &
+                                                "info_lookup_reset", "info_menu", "info_mode", "info_next", "info_next_menu_item", &
                                                                 "info_next_preorder", "info_next_reference", "info_nth_menu_item", &
                                                 "info_on_current_buffer", "info_other_window", "info_prev", "info_prev_reference", &
                                                       "info_scroll_down", "info_scroll_up", "info_search", "info_search_backward", &
@@ -992,14 +992,13 @@ module docstrings_fm
                                              "add_log_dont_create_changelog_file", "add_log_full_name", "add_log_mailing_address", &
                                                     "after_change_functions", "after_change_major_mode_hook", "after_revert_hook", &
                                                  "after_save_hook", "after_set_visited_file_name_hook", "amalgamating_undo_limit", &
-                                                                "ansi_color_apply_face_function", "ansi_color_basic_faces_vector", &
-                                                                   "ansi_color_bold_is_bright", "ansi_color_bright_colors_vector", &
-                                                                  "ansi_color_for_comint_mode", "ansi_color_for_compilation_mode", &
-                                               "ansi_color_normal_colors_vector", "apropos_all_words_regexp", "apropos_mode_hook", &
-                                            "apropos_mode_map", "apropos_pattern", "apropos_regexp", "async_shell_command_buffer", &
-                                                                 "async_shell_command_display_buffer", "async_shell_command_mode", &
-                                                     "async_shell_command_width", "auto_coding_regexp_table", "auto_coding_table", &
-                                                              "auto_fill_chars", "auto_fill_function", "auto_fill_inhibit_regexp", &
+                                          "ansi_color_apply_face_function", "ansi_color_basic_faces", "ansi_color_bold_is_bright", &
+                                                                    "ansi_color_bright_colors", "ansi_color_for_comint_mode", &
+                                                                    "ansi_color_for_compilation_mode", "ansi_color_normal_colors", &
+                                           "apropos_all_words_regexp", "apropos_mode_hook", "apropos_mode_map", "apropos_pattern", &
+                                             "apropos_regexp", "async_shell_command_buffer", "async_shell_command_display_buffer", &
+                                              "async_shell_command_mode", "async_shell_command_width", "auto_coding_regexp_table", &
+                                         "auto_coding_table", "auto_fill_chars", "auto_fill_function", "auto_fill_inhibit_regexp", &
                                            "auto_fill_mode_hook", "auto_mode_interpreter_regexp", "auto_revert__lockout_interval", &
                                                                     "auto_revert_avoid_polling", "auto_revert_buffer_in_progress", &
                                                      "auto_revert_check_vc_info", "auto_revert_interval", "auto_revert_mode_hook", &
@@ -1030,19 +1029,20 @@ module docstrings_fm
                                                        "buffer_menu_mode_map", "buffer_menu_mode_width", "buffer_menu_name_width", &
                                                                     "buffer_menu_size_width", "buffer_menu_use_frame_buffer_list", &
                                                        "buffer_menu_use_header_line", "buffer_stale_function", "case_fold_search", &
-                                            "case_replace", "case_symbols_as_words", "change_log_date", "change_log_default_name", &
-                                                      "change_log_directory_files", "change_log_mode_hook", "change_log_mode_map", &
-                                                              "change_log_mode_syntax_table", "change_major_mode_after_body_hook", &
-                                           "change_major_mode_hook", "change_major_mode_with_file_name", "coding_system_for_read", &
-                                                 "coding_system_for_write", "coding_system_require_warning", "colon_double_space", &
-                                                                    "combine_after_change_calls", "comint_buffer_maximum_size", &
-                                         "comint_completion_addsuffix", "comint_completion_autolist", "comint_completion_fignore", &
-                                                                   "comint_completion_recexact", "comint_delimiter_argument_list", &
-                                                    "comint_dynamic_complete_functions", "comint_eol_on_send", "comint_exec_hook", &
-                                               "comint_file_name_chars", "comint_file_name_prefix", "comint_file_name_quote_list", &
-                                             "comint_highlight_input", "comint_history_isearch", "comint_inhibit_carriage_motion", &
-                                                                    "comint_input_autoexpand", "comint_input_filter_functions", &
-                                          "comint_input_history_ignore", "comint_input_ignoredups", "comint_input_ring_file_name", &
+                                                                   "case_identifiers_as_words", "case_replace", "change_log_date", &
+                                                  "change_log_default_name", "change_log_directory_files", "change_log_mode_hook", &
+                                                                    "change_log_mode_map", "change_log_mode_syntax_table", &
+                                                                    "change_major_mode_after_body_hook", "change_major_mode_hook", &
+                                          "change_major_mode_with_file_name", "coding_system_for_read", "coding_system_for_write", &
+                                              "coding_system_require_warning", "colon_double_space", "combine_after_change_calls", &
+                                                                    "comint_buffer_maximum_size", "comint_completion_addsuffix", &
+                                          "comint_completion_autolist", "comint_completion_fignore", "comint_completion_recexact", &
+                                                            "comint_delimiter_argument_list", "comint_dynamic_complete_functions", &
+                                                               "comint_eol_on_send", "comint_exec_hook", "comint_file_name_chars", &
+                                               "comint_file_name_prefix", "comint_file_name_quote_list", "comint_highlight_input", &
+                                            "comint_history_isearch", "comint_inhibit_carriage_motion", "comint_input_autoexpand", &
+                                                                   "comint_input_filter_functions", "comint_input_history_ignore", &
+                                                                    "comint_input_ignoredups", "comint_input_ring_file_name", &
                                          "comint_input_ring_file_prefix", "comint_input_ring_separator", "comint_input_ring_size", &
                                                      "comint_input_sender_no_newline", "comint_insert_previous_argument_from_end", &
                                                     "comint_mode_hook", "comint_mode_map", "comint_move_point_for_matching_input", &
@@ -1266,7 +1266,7 @@ module docstrings_fm
                                                                     "minibuffer_completing_file_name", "minibuffer_exit_hook", &
                                                                "minibuffer_local_shell_command_map", "minibuffer_message_timeout", &
                                                 "minibuffer_scroll_window", "minibuffer_setup_hook", "mode_require_final_newline", &
-                                                              "mounted_file_systems", "mule_keymap", "multibyte_syntax_as_symbol", &
+                                                          "mounted_file_systems", "mule_keymap", "multibyte_syntax_as_identifier", &
                                              "narrow_to_subprogram_include_comments", "next_error_hook", "next_error_last_buffer", &
                                                    "next_error_verbose", "next_screen_context_lines", "normal_auto_fill_function", &
                                                             "num_input_keys", "num_nonmacro_input_events", "occur_edit_mode_hook", &
@@ -2015,15 +2015,22 @@ contains
                         "see `define_abbrev' for details."
         case ("abbrev_mode")
             entry%file = "abbrev_cmds_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle Abbrev mode in the current buffer."//LF// &
                         ""//LF// &
                         "In Abbrev mode, inserting an abbreviation causes it to expand and"//LF// &
                         "be replaced by its expansion."
+        case ("abbrev_name")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "call abbrev_name(abbrev, result, table)"
+            entry%doc = "Return the abbrev named ABBREV in TABLE, in RESULT (no table if"//LF// &
+                        "such an abbrev is not defined)."//LF// &
+                        "Optional second arg TABLE is the abbrev table to look it up in."//LF// &
+                        "The default is to try buffer's mode-specific abbrev table, then global table."
         case ("abbrev_prefix_mark")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "call abbrev_prefix_mark(status, arg)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark point as the beginning of an abbreviation."//LF// &
                         "The abbrev to be expanded starts at point rather than at the"//LF// &
                         "beginning of a word.  This way, you can expand an abbrev with"//LF// &
@@ -2036,13 +2043,6 @@ contains
                         "If the prefix is itself an abbrev, this command expands it,"//LF// &
                         "unless ARG is true.  Interactively, ARG is the prefix"//LF// &
                         "argument."
-        case ("abbrev_symbol")
-            entry%file = "abbrev_fm.f90"
-            entry%fortran = "call abbrev_symbol(abbrev, result, table)"
-            entry%doc = "Return the abbrev named ABBREV in TABLE, in RESULT (no table if"//LF// &
-                        "such an abbrev is not defined)."//LF// &
-                        "Optional second arg TABLE is the abbrev table to look it up in."//LF// &
-                        "The default is to try buffer's mode-specific abbrev table, then global table."
         case ("abbrev_table_name")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "abbrev_table_name(table)"
@@ -2054,13 +2054,13 @@ contains
             entry%doc = "abbreviate-file-name as a `recentf_filename_handlers' element."
         case ("abort_minibuffers")
             entry%file = "minibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Abort the current minibuffer."//LF// &
                         "If we are not currently in the innermost minibuffer, prompt the user to"//LF// &
                         "confirm the aborting of the current minibuffer and all contained ones."
         case ("abort_recursive_edit")
             entry%file = "subr_read_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Abort the command that requested this recursive edit or minibuffer input."
         case ("accept_process_output")
             entry%file = "process_fm.f90"
@@ -2085,7 +2085,7 @@ contains
                         "files_mode_fm.)"
         case ("add_global_abbrev")
             entry%file = "abbrev_cmds_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Define a global (all modes) abbrev whose expansion is last word before point."//LF// &
                         "If there's an active region, use that as the expansion."//LF// &
                         ""//LF// &
@@ -2103,7 +2103,7 @@ contains
                         "Don't use this function in a program; use `define_abbrev' instead."
         case ("add_mode_abbrev")
             entry%file = "abbrev_cmds_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Define a mode-specific abbrev whose expansion is the last word before point."//LF// &
                         "If there's an active region, use that as the expansion."//LF// &
                         ""//LF// &
@@ -2141,15 +2141,15 @@ contains
                         "variable, and is meant to be used in `compilation_filter_hook'."
         case ("ansi_color_for_comint_mode_filter")
             entry%file = "ansi_color_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set `ansi_color_for_comint_mode' to ANSI_COLOR_FILTER."
         case ("ansi_color_for_comint_mode_off")
             entry%file = "ansi_color_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set `ansi_color_for_comint_mode' to ANSI_COLOR_NO."
         case ("ansi_color_for_comint_mode_on")
             entry%file = "ansi_color_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set `ansi_color_for_comint_mode' to ANSI_COLOR_YES."
         case ("ansi_color_process_output")
             entry%file = "ansi_color_fm.f90"
@@ -2169,7 +2169,7 @@ contains
         case ("append_to_register")
             entry%file = "register_fm.f90"
             entry%fortran = "call append_to_register(register, start, end, status, delete_flag)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Append region of text between START and END to REGISTER."//LF// &
                         "If DELETE_FLAG is true (interactively, prefix arg), delete the region"//LF// &
                         "after appending."//LF// &
@@ -2189,7 +2189,7 @@ contains
                         "FINAL_POINT.  Point is restored afterwards, also on an error."
         case ("apropos_command")
             entry%file = "apropos_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Show commands (interactively callable functions) that match PATTERN."//LF// &
                         "PATTERN can be a word, a list of words (separated by spaces),"//LF// &
                         "or a regexp (using some regexp special characters).  If it is a word,"//LF// &
@@ -2200,7 +2200,7 @@ contains
                         "functions."
         case ("apropos_documentation")
             entry%file = "apropos_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Show symbols whose documentation contains matches for PATTERN."//LF// &
                         "PATTERN can be a word, a list of words (separated by spaces),"//LF// &
                         "or a regexp (using some regexp special characters).  If it is a word,"//LF// &
@@ -2210,12 +2210,12 @@ contains
                         "Returns list of symbols and documentation found."
         case ("apropos_follow")
             entry%file = "apropos_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Invokes any button at point, otherwise invokes the nearest label"//LF// &
                         "button."
         case ("apropos_function")
             entry%file = "apropos_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Show functions that match PATTERN."//LF// &
                         ""//LF// &
                         "PATTERN can be a word, a list of words (separated by spaces),"//LF// &
@@ -2227,21 +2227,21 @@ contains
                         "\[universal_argument] prefix."
         case ("apropos_mode")
             entry%file = "apropos_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode for following hyperlinks in output of apropos commands."//LF// &
                         ""//LF// &
                         "\{apropos_mode_map}"
-        case ("apropos_next_symbol")
+        case ("apropos_next_name")
             entry%file = "apropos_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move cursor down to the next symbol in an `apropos_mode' buffer."
-        case ("apropos_previous_symbol")
+        case ("apropos_previous_name")
             entry%file = "apropos_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move cursor back to the last symbol in an `apropos_mode' buffer."
         case ("apropos_user_option")
             entry%file = "apropos_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Show user options that match PATTERN."//LF// &
                         "PATTERN can be a word, a list of words (separated by spaces),"//LF// &
                         "or a regexp (using some regexp special characters).  If it is a word,"//LF// &
@@ -2252,21 +2252,21 @@ contains
                         "user options."
         case ("apropos_variable")
             entry%file = "apropos_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Show variables that match PATTERN."//LF// &
                         "With the prefix \[universal_argument], show user options only,"//LF// &
                         "i.e. behave like `apropos_user_option'."
         case ("async_shell_command")
             entry%file = "simple_fm.f90"
             entry%fortran = "call async_shell_command(command, status, output_buffer, output_buffer_name, error_buffer)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: read COMMAND (with the visited file as default).  The"//LF// &
                         "interactive form of simple.el:async-shell-command."//LF// &
                         ""//LF// &
                         "Execute string COMMAND asynchronously in background."
         case ("auto_fill_mode")
             entry%file = "simple_fill_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle automatic line breaking (Auto Fill mode)."//LF// &
                         ""//LF// &
                         "When Auto Fill mode is enabled, inserting a space at a column"//LF// &
@@ -2283,7 +2283,7 @@ contains
         case ("auto_revert_mode")
             entry%file = "autorevert_fm.f90"
             entry%fortran = "call auto_revert_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle reverting buffer when the file changes (Auto-Revert Mode)."//LF// &
                         ""//LF// &
                         "Auto-Revert Mode is a minor mode that affects only the current"//LF// &
@@ -2302,12 +2302,12 @@ contains
                         "without being changed in the part that is already in the buffer."
         case ("auto_revert_set_timer")
             entry%file = "autorevert_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The interactive form of `auto_revert_set_timer'."
         case ("auto_revert_tail_mode")
             entry%file = "autorevert_fm.f90"
             entry%fortran = "call auto_revert_tail_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle reverting tail of buffer when the file grows."//LF// &
                         ""//LF// &
                         "When Auto-Revert Tail Mode is enabled, the tail of the file is"//LF// &
@@ -2327,12 +2327,12 @@ contains
         case ("back_to_indentation")
             entry%file = "simple_fm.f90"
             entry%fortran = "call back_to_indentation()"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point to the first non-whitespace character on this line."
         case ("backward_char")
             entry%file = "cmds_fm.f90"
             entry%fortran = "call backward_char(status, n)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point N characters backward (forward if N is negative)."//LF// &
                         "On attempt to pass beginning or end of buffer, stop and signal error."//LF// &
                         "Interactively, N is the numeric prefix argument."//LF// &
@@ -2344,7 +2344,7 @@ contains
         case ("backward_delete_char_untabify")
             entry%file = "simple_fm.f90"
             entry%fortran = "call backward_delete_char_untabify(arg, status, killp)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Delete characters backward, changing tabs into spaces."//LF// &
                         "The exact behavior depends on `backward_delete_char_untabify_method'."//LF// &
                         ""//LF// &
@@ -2359,7 +2359,7 @@ contains
         case ("backward_expression")
             entry%file = "expression_motion_fm.f90"
             entry%fortran = "call backward_expression(arg, status, interactive)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move backward across one balanced expression."//LF// &
                         "With ARG, do it that many times.  Negative arg -N means"//LF// &
                         "move forward across N balanced expressions."//LF// &
@@ -2370,7 +2370,7 @@ contains
         case ("backward_group")
             entry%file = "expression_motion_fm.f90"
             entry%fortran = "call backward_group(arg, status, interactive)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move backward across one balanced group of parentheses."//LF// &
                         "This command will also work on other parentheses-like expressions"//LF// &
                         "defined by the current language mode."//LF// &
@@ -2383,7 +2383,7 @@ contains
         case ("backward_kill_expression")
             entry%file = "expression_motion_fm.f90"
             entry%fortran = "call backward_kill_expression(arg, status, interactive)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill the balanced expression preceding point."//LF// &
                         "With ARG, kill that many expressions before point."//LF// &
                         "Negative arg -N means kill N expressions after point."//LF// &
@@ -2393,31 +2393,31 @@ contains
         case ("backward_kill_paragraph")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call backward_kill_paragraph(arg, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill back to start of paragraph."//LF// &
                         "With ARG N, kill back to Nth start of paragraph;"//LF// &
                         "negative ARG -N means kill forward to Nth end of paragraph."
         case ("backward_kill_sentence")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call backward_kill_sentence(arg, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill back from point to start of sentence."//LF// &
                         "With ARG, repeat, or kill forward to Nth end of sentence if"//LF// &
                         "negative ARG -N."
         case ("backward_kill_word")
             entry%file = "simple_fm.f90"
             entry%fortran = "call backward_kill_word(arg, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill characters backward until encountering the beginning of a word."//LF// &
                         "With argument ARG, do this that many times."
         case ("backward_page")
             entry%file = "page_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move backward to page boundary (page-delimiter ""^\f"")."
         case ("backward_paragraph")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call backward_paragraph(arg)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move backward to start of paragraph."//LF// &
                         "With argument ARG, do it ARG times;"//LF// &
                         "a negative argument ARG = -N means move forward N paragraphs."//LF// &
@@ -2432,14 +2432,14 @@ contains
         case ("backward_sentence")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call backward_sentence(arg)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move backward to start of sentence."//LF// &
                         "With ARG, do it ARG times.  See `forward_sentence' for more"//LF// &
                         "information."
         case ("backward_up_group")
             entry%file = "expression_motion_fm.f90"
             entry%fortran = "call backward_up_group(arg, status, escape_strings, no_syntax_crossing)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move backward out of one level of parentheses."//LF// &
                         "This command will also work on other parentheses-like expressions"//LF// &
                         "defined by the current language mode.  With ARG, do this that"//LF// &
@@ -2457,7 +2457,7 @@ contains
         case ("backward_word")
             entry%file = "simple_fm.f90"
             entry%fortran = "call backward_word(arg)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move backward until encountering the beginning of a word."//LF// &
                         "With argument ARG, do this that many times."//LF// &
                         "If ARG is omitted, move point backward one word."//LF// &
@@ -2467,7 +2467,7 @@ contains
                         "`char_script_table')."
         case ("beginning_of_buffer")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point to the beginning of the buffer."//LF// &
                         "With numeric arg N, put point N/10 of the way from the beginning."//LF// &
                         "If the buffer is narrowed, this command uses the beginning of the"//LF// &
@@ -2479,7 +2479,7 @@ contains
         case ("beginning_of_line")
             entry%file = "cmds_fm.f90"
             entry%fortran = "call beginning_of_line(n)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point to beginning of current line (in the logical order)."//LF// &
                         "With argument N not 1, move forward N - 1 lines first."//LF// &
                         "If point reaches the beginning or end of buffer, it stops there."//LF// &
@@ -2493,7 +2493,7 @@ contains
         case ("beginning_of_line_text")
             entry%file = "indent_fm.f90"
             entry%fortran = "call beginning_of_line_text(n)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move to the beginning of the text on this line."//LF// &
                         ""//LF// &
                         "With optional argument N, move forward N-1 lines first."//LF// &
@@ -2505,7 +2505,7 @@ contains
                         "to indent the first line of a paragraph)."
         case ("beginning_of_subprogram")
             entry%file = "expression_motion_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move backward to the beginning of a subprogram."//LF// &
                         "With ARG, do it that many times.  Negative ARG means move forward"//LF// &
                         "to the ARGth following beginning of subprogram."//LF// &
@@ -2531,11 +2531,11 @@ contains
                         "beginning of the line whenever the search is successful."
         case ("beginning_of_subprogram_comments")
             entry%file = "expression_motion_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move to the beginning of ARGth subprogram, including comments."
         case ("beginning_of_subprogram_raw")
             entry%file = "expression_motion_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point to the character that starts a subprogram."//LF// &
                         "This is identical to function `beginning_of_subprogram', except that point"//LF// &
                         "does not move to the beginning of the line when `subprogram_prompt_regexp'"//LF// &
@@ -2556,30 +2556,30 @@ contains
         case ("blink_matching_open")
             entry%file = "simple_fm.f90"
             entry%fortran = "call blink_matching_open(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Momentarily highlight the beginning of the expression before point."
         case ("bookmark_bmenu_1_window")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Select this line's bookmark, alone, in full frame."
         case ("bookmark_bmenu_2_window")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Select this line's bookmark, with previous buffer in second window."
         case ("bookmark_bmenu_backup_unmark")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move up and cancel all requested operations on bookmark on line"//LF// &
                         "above."
         case ("bookmark_bmenu_delete")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark bookmark on this line to be deleted."//LF// &
                         "To carry out the deletions that you've marked, use"//LF// &
                         "\<bookmark_bmenu_mode_map>\[bookmark_bmenu_execute_deletions]."
         case ("bookmark_bmenu_delete_all")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark all listed bookmarks as to be deleted."//LF// &
                         "To remove all deletion marks, use"//LF// &
                         "\<bookmark_bmenu_mode_map>\[bookmark_bmenu_unmark_all].  To carry"//LF// &
@@ -2587,30 +2587,30 @@ contains
                         "\<bookmark_bmenu_mode_map>\[bookmark_bmenu_execute_deletions]."
         case ("bookmark_bmenu_delete_backwards")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark bookmark on this line to be deleted, then move up one line."//LF// &
                         "To carry out the deletions that you've marked, use"//LF// &
                         "\<bookmark_bmenu_mode_map>\[bookmark_bmenu_execute_deletions]."
         case ("bookmark_bmenu_edit_annotation")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Edit the annotation for the current bookmark in another window."
         case ("bookmark_bmenu_execute_deletions")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Delete bookmarks flagged `D'."//LF// &
                         "If `bookmark_menu_confirm_deletion' is true, prompt for confirmation"//LF// &
                         "first."
         case ("bookmark_bmenu_list")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display a list of existing bookmarks."//LF// &
                         "The list is displayed in a buffer named `*Bookmark List*'."//LF// &
                         "The leftmost column displays a D if the bookmark is flagged for"//LF// &
                         "deletion, or > if it is flagged for displaying."
         case ("bookmark_bmenu_load")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Load bookmarks from a file and rebuild the bookmark menu-buffer."//LF// &
                         "Prompt for a file, with the default choice being the value of"//LF// &
                         "`bookmark_default_file'."//LF// &
@@ -2626,21 +2626,21 @@ contains
                         "the related behaviors of `bookmark_save' and `bookmark_bmenu_save'."
         case ("bookmark_bmenu_locate")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display the location of the bookmark for this line."
         case ("bookmark_bmenu_mark")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark bookmark on this line to be displayed by"//LF// &
                         "\<bookmark_bmenu_mode_map>\[bookmark_bmenu_select]."
         case ("bookmark_bmenu_mark_all")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark all listed bookmarks to be displayed by"//LF// &
                         "\<bookmark_bmenu_mode_map>\[bookmark_bmenu_select]."
         case ("bookmark_bmenu_mode")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode for editing a list of bookmarks."//LF// &
                         "Each line describes one of the bookmarks in Fortmacs."//LF// &
                         "Letters do not insert themselves; instead, they are commands."//LF// &
@@ -2700,21 +2700,21 @@ contains
                         "  if `bookmark_sort_flag' is false)."
         case ("bookmark_bmenu_other_window")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Select this line's bookmark in other window, leaving bookmark menu"//LF// &
                         "visible."
         case ("bookmark_bmenu_relocate")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Change the absolute file name of the bookmark on the current line."//LF// &
                         "Prompt with completion for the new path."
         case ("bookmark_bmenu_rename")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Rename bookmark on current line.  Prompts for a new name."
         case ("bookmark_bmenu_save")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Save the current list into a bookmark file."//LF// &
                         "With a prefix arg, prompt for a file to save them in."//LF// &
                         ""//LF// &
@@ -2722,49 +2722,49 @@ contains
                         "`bookmark_bmenu_load'."
         case ("bookmark_bmenu_search")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Incremental search of bookmarks, hiding the non-matches as we go."
         case ("bookmark_bmenu_select")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Select this line's bookmark; also display bookmarks marked with"//LF// &
                         "`>'.  You can mark bookmarks with the"//LF// &
                         "\<bookmark_bmenu_mode_map>\[bookmark_bmenu_mark] or"//LF// &
                         "\<bookmark_bmenu_mode_map>\[bookmark_bmenu_mark_all] commands."
         case ("bookmark_bmenu_show_all_annotations")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Show the annotation for all bookmarks in another window."
         case ("bookmark_bmenu_show_annotation")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Show the annotation for the current bookmark in another window."
         case ("bookmark_bmenu_switch_other_window")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Make the other window select this line's bookmark."//LF// &
                         "The current window remains selected."
         case ("bookmark_bmenu_this_window")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Select this line's bookmark in this window."
         case ("bookmark_bmenu_toggle_filenames")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle whether filenames are shown in the bookmark list."//LF// &
                         "Optional argument SHOW means show them unconditionally."
         case ("bookmark_bmenu_unmark")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Cancel all requested operations on bookmark on this line and move"//LF// &
                         "down.  Optional BACKUP means move up."
         case ("bookmark_bmenu_unmark_all")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Cancel all requested operations on all listed bookmarks."
         case ("bookmark_delete")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Delete BOOKMARK_NAME from the bookmark list."//LF// &
                         ""//LF// &
                         "Removes only the first instance of a bookmark with that name.  If"//LF// &
@@ -2775,22 +2775,22 @@ contains
                         "buffer, probably because we were called from there."
         case ("bookmark_delete_all")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Permanently delete all bookmarks."//LF// &
                         "If optional argument NO_CONFIRM is true, don't ask for"//LF// &
                         "confirmation."
         case ("bookmark_edit_annotation_cancel")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Cancel the current annotation edit."
         case ("bookmark_edit_annotation_confirm")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Use buffer contents as annotation for a bookmark."//LF// &
                         "Lines beginning with `#' are ignored."
         case ("bookmark_edit_annotation_mode")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mode for editing the annotation of bookmarks."//LF// &
                         "\<bookmark_edit_annotation_mode_map>When you have finished"//LF// &
                         "composing, type \[bookmark_edit_annotation_confirm] or"//LF// &
@@ -2799,7 +2799,7 @@ contains
                         "\{bookmark_edit_annotation_mode_map}"
         case ("bookmark_insert")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert the text of the file pointed to by bookmark BOOKMARK_NAME."//LF// &
                         "BOOKMARK_NAME is a bookmark name (a string), not a bookmark record."//LF// &
                         ""//LF// &
@@ -2809,14 +2809,14 @@ contains
                         "this."
         case ("bookmark_insert_location")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert the name of the file associated with BOOKMARK_NAME."//LF// &
                         ""//LF// &
                         "Optional second arg NO_HISTORY means don't record this in the"//LF// &
                         "minibuffer history list `bookmark_history'."
         case ("bookmark_jump")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Jump to bookmark BOOKMARK (a point in some file)."//LF// &
                         "You may have a problem using this function if the value of variable"//LF// &
                         "`bookmark_table' is empty.  If that happens, you need to load in"//LF// &
@@ -2837,11 +2837,11 @@ contains
                         "`switch_to_buffer_other_window'."
         case ("bookmark_jump_other_window")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Jump to BOOKMARK in another window.  See `bookmark_jump' for more."
         case ("bookmark_load")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Load bookmarks from FILE (which must be in bookmark format)."//LF// &
                         "Appends loaded bookmarks to the front of the list of bookmarks."//LF// &
                         "If argument OVERWRITE is true, existing bookmarks are destroyed."//LF// &
@@ -2862,14 +2862,14 @@ contains
                         "get unique numeric suffixes ""<2>"", ""<3>"", etc."
         case ("bookmark_locate")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert the name of the file associated with BOOKMARK_NAME."//LF// &
                         ""//LF// &
                         "Optional second arg NO_HISTORY means don't record this in the"//LF// &
                         "minibuffer history list `bookmark_history'."
         case ("bookmark_relocate")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Relocate BOOKMARK_NAME to another file, reading file name with"//LF// &
                         "minibuffer."//LF// &
                         ""//LF// &
@@ -2878,7 +2878,7 @@ contains
                         "after a bookmark was set in it."
         case ("bookmark_rename")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Change the name of OLD_NAME bookmark to NEW_NAME name."//LF// &
                         "If called from keyboard, prompt for OLD_NAME and NEW_NAME."//LF// &
                         ""//LF// &
@@ -2891,7 +2891,7 @@ contains
                         "name."
         case ("bookmark_save")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Save currently defined bookmarks in FILE."//LF// &
                         "FILE defaults to `bookmark_default_file'."//LF// &
                         "With prefix PARG, query user for a file to save in."//LF// &
@@ -2906,7 +2906,7 @@ contains
                         "`bookmark_default_file'."
         case ("bookmark_set")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set a bookmark named NAME at the current location."//LF// &
                         "If NAME is absent, then prompt the user."//LF// &
                         ""//LF// &
@@ -2934,7 +2934,7 @@ contains
                         "the list of bookmarks.)"
         case ("bookmark_set_no_overwrite")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set a bookmark named NAME at the current location."//LF// &
                         "If NAME is absent, then prompt the user."//LF// &
                         ""//LF// &
@@ -2965,23 +2965,23 @@ contains
                         "the list of bookmarks.)"
         case ("bookmark_write")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Write bookmarks to a file (reading the file name with the"//LF// &
                         "minibuffer)."
         case ("bookmark_yank_word")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Get the next word from buffer `bookmark_current_buffer' and append"//LF// &
                         "it to the name of the bookmark currently being set, advancing"//LF// &
                         "`bookmark_yank_point' by one word."
         case ("buffer_enable_undo")
             entry%file = "buffer_ops_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Start keeping undo information for buffer BUFFER."//LF// &
                         "No argument or nil as argument means do this for the current buffer."
         case ("buffer_menu")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Switch to the Buffer Menu."//LF// &
                         "By default, the Buffer Menu lists all buffers except those whose"//LF// &
                         "names start with a space (which are for internal use).  With"//LF// &
@@ -3006,43 +3006,43 @@ contains
                         "`buffer_menu_mode_width' variables."
         case ("buffer_menu_1_window")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Select this line's buffer, alone, in full frame."
         case ("buffer_menu_2_window")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Select this line's buffer, with previous buffer in second window."
         case ("buffer_menu_backup_unmark")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move up and cancel all requested operations on buffer on line"//LF// &
                         "above."
         case ("buffer_menu_bury")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Bury the buffer listed on this line."
         case ("buffer_menu_delete")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("buffer_menu_delete_backwards")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("buffer_menu_execute")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Save and/or delete marked buffers in the Buffer Menu."//LF// &
                         "Buffers marked with \<buffer_menu_mode_map>\[buffer_menu_save] are saved."//LF// &
                         "Buffers marked with \<buffer_menu_mode_map>\[buffer_menu_delete] are deleted."
         case ("buffer_menu_mark")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark the Buffer menu entry at point for later display."//LF// &
                         "It will be displayed by the \<buffer_menu_mode_map>\[buffer_menu_select] command."
         case ("buffer_menu_mode")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode for Buffer Menu buffers."//LF// &
                         "The Buffer Menu is invoked by the commands \[list_buffers],"//LF// &
                         "\[buffer_menu], and \[buffer_menu_other_window]."//LF// &
@@ -3080,15 +3080,15 @@ contains
                         "\[buffer_menu_bury]    Bury the buffer listed on this line."
         case ("buffer_menu_multi_occur")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("buffer_menu_not_modified")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("buffer_menu_other_window")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display the Buffer Menu in another window."//LF// &
                         "See `buffer_menu' for a description of the Buffer Menu."//LF// &
                         ""//LF// &
@@ -3097,18 +3097,18 @@ contains
                         "ARG, show only buffers that are visiting files."
         case ("buffer_menu_other_window_command")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Select this line's buffer in other window, leaving buffer menu"//LF// &
                         "visible."
         case ("buffer_menu_save")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark the buffer on this Buffer Menu line for saving."//LF// &
                         "A subsequent \<buffer_menu_mode_map>\[buffer_menu_execute]"//LF// &
                         "command will save it."
         case ("buffer_menu_select")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Select this line's buffer; also, display buffers marked with `>'."//LF// &
                         "You can mark buffers with the \<buffer_menu_mode_map>\[buffer_menu_mark] command."//LF// &
                         ""//LF// &
@@ -3116,49 +3116,49 @@ contains
                         "in the selected frame, and will remove any marks."
         case ("buffer_menu_switch_other_window")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Make the other window select this line's buffer."//LF// &
                         "The current window remains selected."
         case ("buffer_menu_this_window")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Select this line's buffer in this window."
         case ("buffer_menu_toggle_files_only")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle whether the current `buffer_menu' displays only file buffers."//LF// &
                         "With a positive ARG, display only file buffers.  With zero or"//LF// &
                         "negative ARG, display other buffers as well."
         case ("buffer_menu_toggle_internal")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle whether the current `buffer_menu' displays internal buffers."//LF// &
                         "With a positive ARG, don't show internal buffers.  With zero or"//LF// &
                         "negative ARG, display internal buffers as well."
         case ("buffer_menu_toggle_read_only")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle read-only status of buffer on this line."//LF// &
                         "This behaves like invoking \[read_only_mode] in that buffer."
         case ("buffer_menu_unmark")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("buffer_menu_unmark_all")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Cancel all requested operations on buffers."
         case ("buffer_menu_unmark_all_buffers")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("buffer_menu_view")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "View this line's buffer in View mode."
         case ("buffer_menu_view_other_window")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "View this line's buffer in View mode in another window."
         case ("buffer_name")
             entry%file = "buffer_fm.f90"
@@ -3171,7 +3171,7 @@ contains
         case ("buffer_to_register")
             entry%file = "register_fm.f90"
             entry%fortran = "call buffer_to_register(buffer, register)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Store reference to BUFFER in REGISTER."//LF// &
                         "To visit the buffer, use \[jump_to_register]."//LF// &
                         ""//LF// &
@@ -3179,7 +3179,7 @@ contains
                         "With a prefix argument, prompt for BUFFER as well."
         case ("bury_buffer")
             entry%file = "window_display_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Put BUFFER_OR_NAME at the end of the list of all buffers."//LF// &
                         "There it is the least likely candidate for `other_buffer' to"//LF// &
                         "return; thus, the least likely buffer for \[switch_to_buffer] to"//LF// &
@@ -3192,7 +3192,7 @@ contains
                         "displayed there."
         case ("call_last_kbd_macro")
             entry%file = "macros_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Call the last keyboard macro that you defined with \[start_kbd_macro]."//LF// &
                         ""//LF// &
                         "A prefix argument serves as a repeat count.  Zero means repeat until"//LF// &
@@ -3216,7 +3216,7 @@ contains
         case ("capitalize_region")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "call capitalize_region(beg, end, status, region_noncontiguous)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Convert the region to capitalized form."//LF// &
                         "This means that each word's first character is converted to either"//LF// &
                         "title case or upper case, and the rest to lower case."//LF// &
@@ -3225,7 +3225,7 @@ contains
         case ("capitalize_word")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "call capitalize_word(arg, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Capitalize from point to the end of word, moving over."//LF// &
                         "With numerical argument ARG, capitalize the next ARG-1 words as"//LF// &
                         "well.  This gives the word(s) a first character in upper case and"//LF// &
@@ -3298,7 +3298,7 @@ contains
                         "function `define_coding_system'."
         case ("check_parens")
             entry%file = "expression_motion_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Check for unbalanced parentheses in the current buffer."//LF// &
                         "More accurately, check the narrowed part of the buffer for unbalanced"//LF// &
                         "expressions in general.  This is done according to the"//LF// &
@@ -3309,7 +3309,7 @@ contains
         case ("clear_rectangle")
             entry%file = "rect_fm.f90"
             entry%fortran = "call clear_rectangle(start, end, status, fill)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Blank out the region-rectangle."//LF// &
                         "The text previously in the region is overwritten with blanks."//LF// &
                         ""//LF// &
@@ -3376,7 +3376,7 @@ contains
                         "See the function `define_coding_system' for more detail."
         case ("comint_accumulate")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Accumulate a line to send as input along with more lines."//LF// &
                         "This inserts a newline so that you can enter more text to be sent"//LF// &
                         "along with this line.  Use \[comint_send_input] to send all the"//LF// &
@@ -3384,19 +3384,19 @@ contains
                         "item in the input history when you send it."
         case ("comint_append_output_to_file")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Append output from interpreter since last input to FILENAME."
         case ("comint_backward_matching_input")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Search backward through buffer for input fields that match REGEXP."
         case ("comint_bol")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the beginning of line, then skip past the prompt, if any."
         case ("comint_bol_or_process_mark")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point to beginning of line (after prompt) or to the process"//LF// &
                         "mark.  The first time you use this command, it moves to the"//LF// &
                         "beginning of the line (but after the prompt, if any).  If you repeat"//LF// &
@@ -3409,39 +3409,39 @@ contains
                         "the process mark is at the beginning of the accumulated input."
         case ("comint_clear_buffer")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Clear the comint buffer."
         case ("comint_complete_input_ring")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Complete a list of recent inputs entered into the current buffer."//LF// &
                         "Like `minibuffer_complete_history' but completes on comint inputs."//LF// &
                         "This function makes `comint_dynamic_list_input_ring' obsolete."
         case ("comint_continue_subjob")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Send CONT signal to process buffer's process group."//LF// &
                         "Useful if you accidentally suspend the top-level process."
         case ("comint_copy_old_input")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert after prompt old input at point as new input to be edited."//LF// &
                         "Calls `comint_get_old_input' to get old input."
         case ("comint_delchar_or_maybe_eof")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Behave like the global binding or send an EOF to subprocess."//LF// &
                         "Sends an EOF only if point is at the end of the buffer and there is"//LF// &
                         "no input."
         case ("comint_delete_output")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: with a prefix argument, kill the output."//LF// &
                         ""//LF// &
                         "Delete all output from interpreter since last input."
         case ("comint_dynamic_complete_filename")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Dynamically complete the filename at point."//LF// &
                         "Completes if after a filename."//LF// &
                         "This function is similar to `comint_replace_by_expanded_filename',"//LF// &
@@ -3458,7 +3458,7 @@ contains
                         "Returns true if successful."
         case ("comint_dynamic_list_filename_completions")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display a list of possible completions for the filename at point."
         case ("comint_exec")
             entry%file = "comint_fm.f90"
@@ -3476,31 +3476,31 @@ contains
                         "call)."
         case ("comint_forward_matching_input")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Search forward through buffer for input fields that match REGEXP."
         case ("comint_get_next_from_history")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "After fetching a line from input history, this fetches the following"//LF// &
                         "line.  In other words, this recalls the input line after the line"//LF// &
                         "you recalled last.  You can use this to repeat a sequence of input"//LF// &
                         "lines."
         case ("comint_goto_process_mark")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command.  Move point to the process mark."
         case ("comint_history_isearch_backward")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Search for a string backward in input history using Isearch."
         case ("comint_history_isearch_backward_regexp")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Search for a regular expression backward in input history using"//LF// &
                         "Isearch."
         case ("comint_insert_previous_argument")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert the INDEXth argument from the previous Comint command-line"//LF// &
                         "at point.  Spaces are added at beginning and/or end of the inserted"//LF// &
                         "string if necessary to ensure that it's separated from adjacent"//LF// &
@@ -3513,34 +3513,34 @@ contains
                         "false is INDEX nil."
         case ("comint_interrupt_subjob")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Interrupt the current subjob."
         case ("comint_kill_input")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill all text from last stuff output by interpreter to point."
         case ("comint_kill_region")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Like `kill_region', but ignore read-only properties, if safe."
         case ("comint_kill_subjob")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Send kill signal to the current subjob."
         case ("comint_kill_whole_line")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill current line, ignoring read-only and field properties."
         case ("comint_magic_space")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Expand input history references before point and insert ARG"//LF// &
                         "spaces.  A useful command to bind to SPC.  See"//LF// &
                         "`comint_replace_by_expanded_history'."
         case ("comint_mode")
             entry%file = "comint_fm.f90"
             entry%fortran = "call comint_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode for interacting with an inferior interpreter."//LF// &
                         "Interpreter name is same as buffer name, sans the asterisks."//LF// &
                         "Return at end of buffer sends line as input."//LF// &
@@ -3568,19 +3568,19 @@ contains
                         "Entry to this mode runs the hooks on `comint_mode_hook'."
         case ("comint_next_input")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Cycle forwards through input history."
         case ("comint_next_matching_input")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Search forwards through input history for match for REGEXP."
         case ("comint_next_matching_input_from_input")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Search forwards through input history for match for current input."
         case ("comint_next_prompt")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move to end of Nth next prompt in the buffer."
         case ("comint_postoutput_scroll_to_bottom")
             entry%file = "comint_fm.f90"
@@ -3593,27 +3593,27 @@ contains
                         "This function should be in the hook `comint_output_filter_functions'."
         case ("comint_previous_input")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Cycle backwards through input history, saving input."
         case ("comint_previous_matching_input")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Search backwards through input history for match for REGEXP."
         case ("comint_previous_matching_input_from_input")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Search backwards through input history for match for current input."
         case ("comint_previous_prompt")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move to end of Nth previous prompt in the buffer."
         case ("comint_quit_subjob")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Send quit signal to the current subjob."
         case ("comint_replace_by_expanded_filename")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Dynamically expand and complete the filename at point."//LF// &
                         "Replace the filename with an expanded, canonicalized and completed"//LF// &
                         "replacement, i.e. substituting environment variables (e.g. $HOME),"//LF// &
@@ -3622,7 +3622,7 @@ contains
                         "For completion see `comint_dynamic_complete_filename'."
         case ("comint_replace_by_expanded_history")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Expand input command history references before point."//LF// &
                         "Expansion is dependent on the value of `comint_input_autoexpand'."//LF// &
                         ""//LF// &
@@ -3648,31 +3648,31 @@ contains
                         "Returns true if successful."
         case ("comint_restore_input")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Restore unfinished input."
         case ("comint_run")
             entry%file = "comint_fm.f90"
             entry%fortran = "call comint_run(program, status, switches)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: read PROGRAM and run it.  The interactive form of"//LF// &
                         "comint.el:comint-run."//LF// &
                         ""//LF// &
                         "Run PROGRAM in a Comint buffer and switch to that buffer."
         case ("comint_send_eof")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Send an EOF to the current buffer's process."
         case ("comint_send_input")
             entry%file = "comint_fm.f90"
             entry%fortran = "call comint_send_input(status, no_newline, artificial, sender, run_filters)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: send input to process.  The interactive form of"//LF// &
                         "comint.el:comint-send-input."//LF// &
                         ""//LF// &
                         "Send input to process."
         case ("comint_send_invisible")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Read a string without echoing."//LF// &
                         "Then send it to the process running in the current buffer."//LF// &
                         "The string is sent using `comint_input_sender'."//LF// &
@@ -3685,21 +3685,21 @@ contains
                         "Comint mode."
         case ("comint_set_process_mark")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set the process mark at point."
         case ("comint_show_maximum_output")
             entry%file = "comint_fm.f90"
             entry%fortran = "call comint_show_maximum_output(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Put the end of the buffer at the bottom of the window."
         case ("comint_show_output")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display start of this batch of interpreter output at top of window."//LF// &
                         "Sets mark to the value of point when this command is run."
         case ("comint_stop_subjob")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Stop the current subjob."//LF// &
                         ""//LF// &
                         "WARNING: if there is no current subjob, you can end up suspending"//LF// &
@@ -3710,49 +3710,49 @@ contains
         case ("comint_strip_ctrl_m")
             entry%file = "comint_fm.f90"
             entry%fortran = "call comint_strip_ctrl_m(string, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command.  Strip trailing `^M' characters from the current"//LF// &
                         "output group."
         case ("comint_truncate_buffer")
             entry%file = "comint_fm.f90"
             entry%fortran = "call comint_truncate_buffer(string, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command.  Truncate the buffer to `comint_buffer_maximum_size'."
         case ("comint_write_output")
             entry%file = "comint_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: read the file name."//LF// &
                         ""//LF// &
                         "Write output from interpreter since last input to FILENAME."
         case ("comment_box")
             entry%file = "newcomment_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Comment out the BEG .. END region, putting it inside a box."//LF// &
                         "The numeric prefix ARG specifies how many characters to add to begin- and"//LF// &
                         "end- comment markers additionally to what variable `comment_add' already"//LF// &
                         "specifies."
         case ("comment_dwim")
             entry%file = "newcomment_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "`comment_dwim' as a command."
         case ("comment_indent")
             entry%file = "newcomment_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "`comment_indent' as a command."
         case ("comment_indent_new_line")
             entry%file = "newcomment_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Break line at point and indent, continuing comment if within one."//LF// &
                         "(the command: `indent_new_comment_line')."
         case ("comment_kill")
             entry%file = "newcomment_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill the first comment on this line, if any."//LF// &
                         "With prefix ARG, kill comments on that many lines starting with this"//LF// &
                         "one."
         case ("comment_line")
             entry%file = "newcomment_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Comment or uncomment current line and leave point after it."//LF// &
                         "With positive prefix, apply to N lines including current one."//LF// &
                         "With negative prefix, apply to -N lines above.  Also, further"//LF// &
@@ -3763,13 +3763,13 @@ contains
                         "Unlike `comment_dwim', this always comments whole lines."
         case ("comment_or_uncomment_region")
             entry%file = "newcomment_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Call `comment_region', unless the region only consists of comments,"//LF// &
                         "in which case call `uncomment_region'.  If a prefix arg is given, it"//LF// &
                         "is passed on to the respective function."
         case ("comment_region")
             entry%file = "newcomment_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Comment or uncomment each line in the region."//LF// &
                         "With just \[universal_argument] prefix arg, uncomment each line in region BEG .. END."//LF// &
                         "Numeric prefix ARG means use ARG comment characters."//LF// &
@@ -3786,7 +3786,7 @@ contains
                         "changed with `comment_style'."
         case ("comment_set_column")
             entry%file = "newcomment_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set the comment column based on point."//LF// &
                         "With no ARG, set the comment column to the current column."//LF// &
                         "With just minus as arg, kill any comment on this line."//LF// &
@@ -3794,12 +3794,12 @@ contains
                         " and then align or create a comment on this line at that column."
         case ("compilation_display_error")
             entry%file = "compile_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display the source for current error in another window."
         case ("compilation_minor_mode")
             entry%file = "compile_fm.f90"
             entry%fortran = "call compilation_minor_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle Compilation minor mode."//LF// &
                         ""//LF// &
                         "When Compilation minor mode is enabled, all the error-parsing"//LF// &
@@ -3808,7 +3808,7 @@ contains
         case ("compilation_mode")
             entry%file = "compile_fm.f90"
             entry%fortran = "call compilation_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode for compilation log buffers."//LF// &
                         "\<compilation_mode_map>To visit the source for a line-numbered"//LF// &
                         "error, move point to the error message line and type"//LF// &
@@ -3819,13 +3819,13 @@ contains
         case ("compilation_next_error")
             entry%file = "compile_fm.f90"
             entry%fortran = "call compilation_next_error(n, status, different_file, pt)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: move by the prefix argument."//LF// &
                         ""//LF// &
                         "Move point to the next error in the compilation buffer."
         case ("compilation_next_error_function")
             entry%file = "compile_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: visit the error the prefix argument says."//LF// &
                         ""//LF// &
                         "Advance to the next error message and visit the file where the"//LF// &
@@ -3833,7 +3833,7 @@ contains
         case ("compilation_next_file")
             entry%file = "compile_fm.f90"
             entry%fortran = "call compilation_next_file(n, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: move by the prefix argument."//LF// &
                         ""//LF// &
                         "Move point to the next error for a different file than the current"//LF// &
@@ -3841,21 +3841,21 @@ contains
         case ("compilation_previous_error")
             entry%file = "compile_fm.f90"
             entry%fortran = "call compilation_previous_error(n, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: move back by the prefix argument."//LF// &
                         ""//LF// &
                         "Move point to the previous error in the compilation buffer."
         case ("compilation_previous_file")
             entry%file = "compile_fm.f90"
             entry%fortran = "call compilation_previous_file(n, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: move back by the prefix argument."//LF// &
                         ""//LF// &
                         "Move point to the previous error for a different file than the"//LF// &
                         "current one."
         case ("compilation_set_skip_threshold")
             entry%file = "compile_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: the level is the prefix argument, or the next one,"//LF// &
                         "modulo 3."//LF// &
                         ""//LF// &
@@ -3863,7 +3863,7 @@ contains
         case ("compilation_shell_minor_mode")
             entry%file = "compile_fm.f90"
             entry%fortran = "call compilation_shell_minor_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle Compilation Shell minor mode."//LF// &
                         ""//LF// &
                         "When Compilation Shell minor mode is enabled, all the error-parsing"//LF// &
@@ -3886,7 +3886,7 @@ contains
         case ("compile")
             entry%file = "compile_fm.f90"
             entry%fortran = "call compile(command, status, comint)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: interactively, read the command (if"//LF// &
                         "`compilation_read_command' or with a prefix argument), then compile,"//LF// &
                         "in Comint mode with C-u.  The interactive form of compile.el:compile."//LF// &
@@ -3896,18 +3896,18 @@ contains
         case ("compile_goto_error")
             entry%file = "compile_fm.f90"
             entry%fortran = "call compile_goto_error(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Visit the source for the error message at point."//LF// &
                         "Use this command in a compilation log buffer."
-        case ("complete_symbol")
+        case ("complete_name")
             entry%file = "bindings_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Perform completion on the text around point."//LF// &
                         "The completion method is determined by `completion_at_point_functions'."//LF// &
                         ""//LF// &
                         "With a prefix argument, this command does completion within"//LF// &
                         "the collection of symbols listed in the index of the manual for the"//LF// &
-                        "language you are using (info_complete_symbol, not ported yet)."
+                        "language you are using (info_complete_name, not ported yet)."
         case ("completing_read_multiple")
             entry%file = "crm_fm.f90"
             entry%fortran = "call completing_read_multiple(prompt, table, results, status, predicate, require_match, in"// &
@@ -3931,29 +3931,29 @@ contains
                         "with empty strings removed."
         case ("completion_at_point")
             entry%file = "minibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Perform completion on the text around point."//LF// &
                         "The completion method is determined by"//LF// &
                         "`completion_at_point_functions'."
         case ("completion_help_at_point")
             entry%file = "minibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display the completions on the text around point."//LF// &
                         "The completion method is determined by"//LF// &
                         "`completion_at_point_functions'."
         case ("completion_in_region_mode")
             entry%file = "minibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Transient minor mode used during `completion_in_region'."
         case ("conf_align_assignments")
             entry%file = "conf_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Align the assignments in the buffer or active region."//LF// &
                         "In Transient Mark mode, if the mark is active, operate on the"//LF// &
                         "contents of the region.  Otherwise, operate on the whole buffer."
         case ("conf_colon_mode")
             entry%file = "conf_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Conf Mode starter for Colon files."//LF// &
                         """Assignments"" are with `:'."//LF// &
                         "For details see `conf_mode'.  Example:"//LF// &
@@ -3964,7 +3964,7 @@ contains
                         "<Multi_key> <c> <slash>                 : ""\242""        cent"
         case ("conf_desktop_mode")
             entry%file = "conf_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Conf Mode started for freedesktop.org Desktop files."//LF// &
                         "Comments start with `#' and ""assignments"" are with `='."//LF// &
                         "For details see `conf_mode'."//LF// &
@@ -3977,7 +3977,7 @@ contains
                         "        Terminal=false"
         case ("conf_javaprop_mode")
             entry%file = "conf_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Conf Mode starter for Java properties files."//LF// &
                         "Comments start with `#'.  Example:"//LF// &
                         ""//LF// &
@@ -3991,7 +3991,7 @@ contains
                         "x.2.y.1.z.2.zz ="
         case ("conf_mode")
             entry%file = "conf_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mode for Unix and Windows Conf files and Java properties."//LF// &
                         "Most conf files know only three kinds of constructs: parameter"//LF// &
                         "assignments optionally grouped into sections and comments.  Yet"//LF// &
@@ -4026,12 +4026,12 @@ contains
             entry%doc = "Select Conf mode or XML mode according to start of file."
         case ("conf_npmrc_mode")
             entry%file = "conf_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Conf Mode starter for .npmrc files."//LF// &
                         "Comments start with `#' and `;'. For details see `conf_mode'."
         case ("conf_ppd_mode")
             entry%file = "conf_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Conf Mode starter for Adobe/CUPS PPD files."//LF// &
                         "Comments start with `*%' and ""assignments"" are with `:'."//LF// &
                         "For details see `conf_mode'.  Example:"//LF// &
@@ -4042,16 +4042,16 @@ contains
                         "*Transfer Null.Inverse: ""{ 1 exch sub }"""
         case ("conf_quote_normal")
             entry%file = "conf_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set the syntax of \=' and "" to punctuation (the command)."
         case ("conf_space_keywords")
             entry%file = "conf_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Enter Conf Space mode using regexp KEYWORDS to match the keywords"//LF// &
                         "(the command `conf_space_keywords')."
         case ("conf_space_mode")
             entry%file = "conf_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Conf Mode starter for space separated conf files."//LF// &
                         """Assignments"" are with ` '.  Keywords before the parameters are"//LF// &
                         "recognized according to the variable `conf_space_keywords_table'."//LF// &
@@ -4075,7 +4075,7 @@ contains
                         "add /dev/mixer          desktop"
         case ("conf_toml_mode")
             entry%file = "conf_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Conf Mode starter for TOML files."//LF// &
                         "Comments start with `#' and ""assignments"" are with `='."//LF// &
                         "For details see `conf_mode'.  Example:"//LF// &
@@ -4086,12 +4086,12 @@ contains
                         "value = ""some string"""
         case ("conf_unix_mode")
             entry%file = "conf_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Conf Mode starter for Unix style Conf files."//LF// &
                         "Comments start with `#'.  For details see `conf_mode'."
         case ("conf_windows_mode")
             entry%file = "conf_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Conf Mode starter for Windows style Conf files."//LF// &
                         "Comments start with `;'."//LF// &
                         "For details see `conf_mode'.  Example:"//LF// &
@@ -4106,7 +4106,7 @@ contains
                         "PersistMoniker=file://Folder.htt"
         case ("conf_xdefaults_mode")
             entry%file = "conf_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Conf Mode starter for Xdefaults files."//LF// &
                         "Comments start with `!' and ""assignments"" are with `:'."//LF// &
                         "For details see `conf_mode'.  Example:"//LF// &
@@ -4176,7 +4176,7 @@ contains
         case ("copy_matching_lines")
             entry%file = "replace_fm.f90"
             entry%fortran = "call copy_matching_lines(regexp, count, status, rstart, rend, interactive)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: read the regexp, then `copy_matching_lines'.  The"//LF// &
                         "interactive form of replace.el:copy-matching-lines."//LF// &
                         ""//LF// &
@@ -4184,12 +4184,12 @@ contains
         case ("copy_rectangle_as_kill")
             entry%file = "rect_fm.f90"
             entry%fortran = "call copy_rectangle_as_kill(start, end, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Copy the region-rectangle and save it as the last killed one."
         case ("copy_rectangle_to_register")
             entry%file = "register_fm.f90"
             entry%fortran = "call copy_rectangle_to_register(register, start, end, status, delete_flag)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Copy rectangular region of text between START and END into REGISTER."//LF// &
                         "If DELETE_FLAG is true (interactively, prefix arg), delete the region"//LF// &
                         "after copying."//LF// &
@@ -4202,7 +4202,7 @@ contains
                         "and use mark and point as START and END."
         case ("copy_region_as_kill")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Save the region as if killed, but don't kill it."//LF// &
                         "In Transient Mark mode, deactivate the mark.  Save the text between"//LF// &
                         "BEG and END, or with REGION true the region."
@@ -4214,7 +4214,7 @@ contains
         case ("copy_to_register")
             entry%file = "register_fm.f90"
             entry%fortran = "call copy_to_register(register, start, end, status, delete_flag, region)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Copy region of text between START and END into REGISTER."//LF// &
                         "If DELETE_FLAG is true (interactively, prefix arg), delete the region"//LF// &
                         "after copying."//LF// &
@@ -4235,25 +4235,25 @@ contains
                         "not at the start of a line."
         case ("count_lines_page")
             entry%file = "page_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Report number of lines on current page, and how many are before or after point."
         case ("count_matches")
             entry%file = "replace_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: read the regexp, then `how_many'.  The interactive"//LF// &
                         "form of replace.el:how-many."//LF// &
                         ""//LF// &
                         "Print the number of matches for a regexp following point."
         case ("count_words")
             entry%file = "simple_goto_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Count words between START and END (the command): report the number"//LF// &
                         "of lines, sentences, words, and chars of the region if it is active,"//LF// &
                         "else of the buffer; with a prefix argument, also those of the"//LF// &
                         "entire (un-narrowed) buffer."
         case ("count_words_region")
             entry%file = "simple_goto_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Count the number of words in the region."//LF// &
                         "If called interactively, print a message reporting the number of"//LF// &
                         "lines, words, and characters in the region (whether or not the"//LF// &
@@ -4264,7 +4264,7 @@ contains
                         "START and END."
         case ("crm_complete")
             entry%file = "crm_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Complete the current element."//LF// &
                         "If no characters can be completed, display a list of possible"//LF// &
                         "completions."//LF// &
@@ -4273,19 +4273,19 @@ contains
                         "return false."
         case ("crm_complete_and_exit")
             entry%file = "crm_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Exit if all of the minibuffer elements are valid completions."//LF// &
                         "Otherwise, try to complete the minibuffer contents."//LF// &
                         "This behaves like `minibuffer_complete_and_exit' (which see),"//LF// &
                         "adjusted for the presence of multiple elements."
         case ("crm_complete_word")
             entry%file = "crm_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Complete the current element at most a single word."//LF// &
                         "Like `minibuffer_complete_word' but for `completing_read_multiple'."
         case ("crm_completion_help")
             entry%file = "crm_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display a list of possible completions of the current minibuffer"//LF// &
                         "element."
         case ("current_buffer")
@@ -4337,7 +4337,7 @@ contains
                         "of the `left_margin' text-property at the start of the line."
         case ("cycle_spacing")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Manipulate whitespace around point in a smart way."//LF// &
                         "Repeated calls perform the actions in `cycle_spacing_actions' one"//LF// &
                         "after the other, wrapping around after the last one."//LF// &
@@ -4377,7 +4377,7 @@ contains
                         "of the buffers that are not discarded."
         case ("dabbrev_completion")
             entry%file = "dabbrev_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Completion on current word."//LF// &
                         "Like \[dabbrev_expand] but finds all expansions in the current buffer"//LF// &
                         "and presents suggestions for completion."//LF// &
@@ -4392,7 +4392,7 @@ contains
         case ("dabbrev_expand")
             entry%file = "dabbrev_fm.f90"
             entry%fortran = "call dabbrev_expand(status, arg)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Expand previous word ""dynamically""."//LF// &
                         ""//LF// &
                         "Expands to the most recent, preceding word for which this is a prefix."//LF// &
@@ -4444,7 +4444,7 @@ contains
         case ("default_indent_new_line")
             entry%file = "simple_fm.f90"
             entry%fortran = "call default_indent_new_line(status, soft, force)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Break line at point and indent."//LF// &
                         "If a comment syntax is defined, call `comment_line_break_function'."//LF// &
                         ""//LF// &
@@ -4469,7 +4469,7 @@ contains
         case ("define_global_abbrev")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "call define_global_abbrev(abbrev, expansion, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Define ABBREV as a global abbreviation that expands into EXPANSION."//LF// &
                         "The characters in ABBREV must all be word constituents in the standard"//LF// &
                         "syntax table."
@@ -4498,18 +4498,18 @@ contains
         case ("define_mode_abbrev")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "call define_mode_abbrev(abbrev, expansion, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Define ABBREV as a mode-specific abbreviation that expands into EXPANSION."//LF// &
                         "The characters in ABBREV must all be word-constituents in the current mode."
         case ("delete_all_space")
             entry%file = "simple_fm.f90"
             entry%fortran = "call delete_all_space(backward_only, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Delete all spaces, tabs, and newlines around point."//LF// &
                         "If BACKWARD_ONLY is true, delete them only before point."
         case ("delete_backward_char")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Delete the previous N characters (following if N is negative)."//LF// &
                         "If Transient Mark mode is enabled, the mark is active, and N is 1,"//LF// &
                         "delete the text in the region and deactivate the mark instead."//LF// &
@@ -4521,13 +4521,13 @@ contains
         case ("delete_blank_lines")
             entry%file = "simple_fm.f90"
             entry%fortran = "call delete_blank_lines(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "On blank line, delete all surrounding blank lines, leaving just one."//LF// &
                         "On isolated blank line, delete that one."//LF// &
                         "On nonblank line, delete any immediately following blank lines."
         case ("delete_char")
             entry%file = "cmds_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Delete the following N characters (previous if N is negative)."//LF// &
                         "Interactively, N is the prefix arg."//LF// &
                         ""//LF// &
@@ -4548,7 +4548,7 @@ contains
                         "deleted."
         case ("delete_forward_char")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Delete the following N characters (previous if N is negative)."//LF// &
                         "If Transient Mark mode is enabled, the mark is active, and N is 1,"//LF// &
                         "delete the text in the region and deactivate the mark instead."//LF// &
@@ -4560,14 +4560,14 @@ contains
         case ("delete_horizontal_space")
             entry%file = "simple_fm.f90"
             entry%fortran = "call delete_horizontal_space(backward_only, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Delete all spaces and tabs around point."//LF// &
                         "If BACKWARD_ONLY is true (interactively, the prefix argument), delete"//LF// &
                         "them only before point."
         case ("delete_indentation")
             entry%file = "simple_fm.f90"
             entry%fortran = "call delete_indentation(arg, status, beg, end)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Join this line to previous and fix up whitespace at join."//LF// &
                         "If there is a fill prefix, delete it from the beginning of this"//LF// &
                         "line."//LF// &
@@ -4578,14 +4578,14 @@ contains
                         "ignored if prefix ARG is given.)"
         case ("delete_matching_lines")
             entry%file = "replace_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: read the regexp, then `flush_lines' (interactively)."//LF// &
                         "The interactive form of replace.el:flush-lines."//LF// &
                         ""//LF// &
                         "Delete lines containing matches for a regexp."
         case ("delete_non_matching_lines")
             entry%file = "replace_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: read the regexp, then `keep_lines' (interactively)."//LF// &
                         "The interactive form of replace.el:keep-lines."//LF// &
                         ""//LF// &
@@ -4593,12 +4593,12 @@ contains
         case ("delete_other_windows")
             entry%file = "window_fm.f90"
             entry%fortran = "call delete_other_windows(window, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Make WINDOW fill its frame."//LF// &
                         "WINDOW must be a valid window and defaults to the selected one."
         case ("delete_pair")
             entry%file = "expression_motion_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Delete a pair of characters enclosing ARG expressions that follow point."//LF// &
                         "A negative ARG deletes a pair around the preceding ARG expressions instead."//LF// &
                         "The option `delete_pair_blink_delay' can disable blinking.  With"//LF// &
@@ -4607,12 +4607,12 @@ contains
         case ("delete_process")
             entry%file = "process_fm.f90"
             entry%fortran = "call delete_process(process, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: delete the current buffer's process, saying so."
         case ("delete_rectangle")
             entry%file = "rect_fm.f90"
             entry%fortran = "call delete_rectangle(start, end, status, fill)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Delete (don't save) text in the region-rectangle."//LF// &
                         "The same range of columns is deleted in each line starting with the"//LF// &
                         "line where the region begins and ending with the line where the region"//LF// &
@@ -4628,7 +4628,7 @@ contains
         case ("delete_whitespace_rectangle")
             entry%file = "rect_fm.f90"
             entry%fortran = "call delete_whitespace_rectangle(start, end, status, fill)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Delete all whitespace following a specified column in each line."//LF// &
                         "The left edge of the rectangle specifies the position in each line"//LF// &
                         "at which whitespace deletion should begin.  On each line in the"//LF// &
@@ -4639,7 +4639,7 @@ contains
         case ("delete_window")
             entry%file = "window_fm.f90"
             entry%fortran = "call delete_window(window, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Delete specified WINDOW."//LF// &
                         "WINDOW must be a valid window and defaults to the selected one."//LF// &
                         ""//LF// &
@@ -4650,41 +4650,41 @@ contains
         case ("describe_bindings")
             entry%file = "help_fm.f90"
             entry%fortran = "call describe_bindings(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display a buffer showing a list of all defined keys, and their"//LF// &
                         "definitions.  The keys are displayed in order of precedence."
         case ("describe_coding_system")
             entry%file = "mule_fm.f90"
             entry%fortran = "call describe_coding_system(coding_system, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display information about CODING-SYSTEM."
         case ("describe_command")
             entry%file = "help_fns_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display the full documentation of COMMAND (a name)."
         case ("describe_current_coding_system")
             entry%file = "mule_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display coding systems currently used, in detail."
         case ("describe_function")
             entry%file = "help_fns_fm.f90"
             entry%fortran = "call describe_function(function, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display the full documentation of FUNCTION (a name)."
         case ("describe_key")
             entry%file = "help_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display documentation of the function invoked by KEY_LIST."//LF// &
                         "Interactively, this command can't describe prefix commands, but"//LF// &
                         "will always wait for the user to type the complete key sequence."
         case ("describe_key_briefly")
             entry%file = "help_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Print the name of the functions KEY_LIST invokes."
         case ("describe_mode")
             entry%file = "help_fns_fm.f90"
             entry%fortran = "call describe_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display documentation of current major mode and minor modes."//LF// &
                         "A brief summary of the minor modes comes first, followed by the"//LF// &
                         "major mode description.  This is followed by detailed"//LF// &
@@ -4693,16 +4693,16 @@ contains
                         "For this to work correctly for a minor mode, the mode's indicator"//LF// &
                         "variable (listed in `minor_mode_table') must also be a function"//LF// &
                         "whose documentation describes the minor mode."
-        case ("describe_symbol")
+        case ("describe_name")
             entry%file = "help_fns_fm.f90"
-            entry%fortran = "call describe_symbol(name, status)"
-            entry%interactive = .true.
+            entry%fortran = "call describe_name(name, status)"
+            entry%command = .true.
             entry%doc = "Display the full documentation of SYMBOL (a name)."//LF// &
                         "Will show the info of SYMBOL as a function, variable, and/or face."
         case ("describe_variable")
             entry%file = "help_fns_fm.f90"
             entry%fortran = "call describe_variable(variable, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display the full documentation of VARIABLE (a name)."
         case ("detect_coding_region")
             entry%file = "coding_fm.f90"
@@ -4717,7 +4717,7 @@ contains
                         "MULTIBYTE).  See `detect_coding_bytes'."
         case ("diff")
             entry%file = "diff_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Find and display the differences between OLD and NEW files."//LF// &
                         "When called interactively, read NEW, then OLD, using the"//LF// &
                         "minibuffer.  The default for NEW is the current buffer's file name,"//LF// &
@@ -4732,17 +4732,17 @@ contains
                         "Non-interactively, OLD and NEW may each be a file or a buffer."
         case ("diff_apply_buffer")
             entry%file = "diff_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Apply the diff in the entire diff buffer (or the hunks from"//LF// &
                         "BEG to END): FAILURES gets the number of failed hunks."
         case ("diff_apply_hunk")
             entry%file = "diff_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Apply the current hunk to its source file and go to the next"//LF// &
                         "hunk."
         case ("diff_backup")
             entry%file = "diff_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Diff this file with its backup file or vice versa."//LF// &
                         "Uses the latest backup, if there are several numerical backups."//LF// &
                         "If this file is a backup, diff it with its original."//LF// &
@@ -4750,13 +4750,13 @@ contains
                         "With prefix arg SWITCHES, prompt for diff switches."
         case ("diff_buffer_with_file")
             entry%file = "diff_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "View the differences between BUFFER and its associated file."//LF// &
                         "This requires the external program `diff' to be in your"//LF// &
                         "`exec_path'."
         case ("diff_buffers")
             entry%file = "diff_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Find and display the differences between OLD and NEW buffers."//LF// &
                         ""//LF// &
                         "When called interactively, read NEW, then OLD, using the"//LF// &
@@ -4771,40 +4771,40 @@ contains
                         "Also see the `diff_entire_buffers' variable."
         case ("diff_delete_other_hunks")
             entry%file = "diff_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Delete hunks other than the current one."//LF// &
                         "Interactively, if the region is active, delete all hunks that the"//LF// &
                         "region overlaps; otherwise delete all hunks except the current one."
         case ("diff_file_kill")
             entry%file = "diff_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill current file's hunks."//LF// &
                         "When called from programs with DELETE true, delete them, instead."
         case ("diff_file_next")
             entry%file = "diff_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the next COUNT'th file."//LF// &
                         "Interactively, COUNT is the prefix numeric argument, and defaults"//LF// &
                         "to 1."
         case ("diff_file_prev")
             entry%file = "diff_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the previous COUNT'th file."//LF// &
                         "Interactively, COUNT is the prefix numeric argument, and defaults"//LF// &
                         "to 1."
         case ("diff_fixup_modifs")
             entry%file = "diff_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Fixup the hunk headers (in case the buffer was modified)."//LF// &
                         "START and END are either taken from the region (if a prefix arg is"//LF// &
                         "given) or else cover the whole buffer."
         case ("diff_goto_source")
             entry%file = "diff_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Jump to the corresponding source line."
         case ("diff_hunk_kill")
             entry%file = "diff_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill the hunk at point."//LF// &
                         "When killing the last hunk left for a file, kill the file header"//LF// &
                         "too.  Interactively, if the region is active, kill all hunks that"//LF// &
@@ -4815,23 +4815,23 @@ contains
                         "interactively with an active region delimited by BEG and END."
         case ("diff_hunk_next")
             entry%file = "diff_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the next COUNT'th hunk."//LF// &
                         "Interactively, COUNT is the prefix numeric argument, and defaults"//LF// &
                         "to 1."
         case ("diff_hunk_prev")
             entry%file = "diff_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the previous COUNT'th hunk."//LF// &
                         "Interactively, COUNT is the prefix numeric argument, and defaults"//LF// &
                         "to 1."
         case ("diff_kill_junk")
             entry%file = "diff_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill spurious empty diffs."
         case ("diff_mode")
             entry%file = "diff_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode for viewing/editing context diffs."//LF// &
                         "Supports unified and context diffs as well as, to a lesser extent,"//LF// &
                         "diffs in the old ""normal"" format.  (Unified diffs have become the"//LF// &
@@ -4842,13 +4842,13 @@ contains
                         "\{diff_read_only_map}"
         case ("diff_restrict_view")
             entry%file = "diff_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Restrict the view to the current hunk."//LF// &
                         "If FILE is true (the prefix ARG is given), restrict the view to the"//LF// &
                         "current file instead."
         case ("diff_revert_and_kill_hunk")
             entry%file = "diff_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Reverse-apply and then kill the hunk at point.  Save changed buffer."//LF// &
                         "Interactively, if the region is active, reverse-apply and kill all"//LF// &
                         "hunks that the region overlaps."//LF// &
@@ -4866,22 +4866,22 @@ contains
                         "that."
         case ("diff_split_hunk")
             entry%file = "diff_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Split the current (unified diff) hunk at point into two hunks."
         case ("diff_test_hunk")
             entry%file = "diff_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "See whether it's possible to apply the current hunk.  With"//LF// &
                         "REVERSE, try to reverse the hunk."
         case ("digit_argument")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Part of the numeric argument for the next command."//LF// &
                         "\[universal_argument] following digits or minus sign ends the argument."
         case ("dired")
             entry%file = "dired_mode_fm.f90"
             entry%fortran = "call dired(dirname, status, switches)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = """Edit"" directory DIRNAME--delete, rename, print, etc. some files in it."//LF// &
                         "Optional second argument SWITCHES specifies the options to be used"//LF// &
                         "when invoking `insert_directory_program', usually `ls', which"//LF// &
@@ -4897,7 +4897,7 @@ contains
                         "refresh."
         case ("dired_backup_diff")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Diff this file with its backup file or vice versa."//LF// &
                         "Uses the latest backup, if there are several numerical backups."//LF// &
                         "If this file is a backup, diff it with its original."//LF// &
@@ -4905,17 +4905,17 @@ contains
                         "With prefix arg, prompt for argument SWITCHES which is options for `diff'."
         case ("dired_build_subdir_table")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Build `dired_subdir_table' by parsing the buffer."//LF// &
                         "Returns the new value of `dired_subdir_table'."
         case ("dired_change_marks")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Change all OLD marks to NEW marks."//LF// &
                         "OLD and NEW are both characters used to mark files."
         case ("dired_copy_filename_as_kill")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Copy names of marked (or next ARG) files into the kill ring."//LF// &
                         "If there are several names, they will be separated by a space,"//LF// &
                         "and file names that have spaces or quote characters in them will"//LF// &
@@ -4932,13 +4932,13 @@ contains
                         "You can then feed the file name(s) to other commands with \[yank]."
         case ("dired_create_directory")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Create a directory called DIRECTORY."//LF// &
                         "Parent directories of DIRECTORY are created as needed."//LF// &
                         "If DIRECTORY already exists, signal an error."
         case ("dired_create_empty_file")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Create an empty file called FILE."//LF// &
                         "Parent directories of FILE are created as needed."//LF// &
                         "Add an entry in the Dired buffer for the topmost new parent"//LF// &
@@ -4949,7 +4949,7 @@ contains
                         "If FILE already exists, signal an error."
         case ("dired_diff")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Compare file at point with FILE using `diff'."//LF// &
                         "If called interactively, prompt for FILE."//LF// &
                         "If the mark is active in Transient Mark mode, use the file at the mark"//LF// &
@@ -4969,18 +4969,18 @@ contains
                         "the string of command switches used as the third argument of `diff'."
         case ("dired_display_file")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "In Dired, display this file or directory in another window."
         case ("dired_do_chgrp")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Change the group of the marked (or next ARG) files."//LF// &
                         "After invoking the command, type"//LF// &
                         "\<minibuffer_local_completion_map>\[next_history_element] to pull"//LF// &
                         "the file attributes of the file at point into the minibuffer."
         case ("dired_do_chmod")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Change the mode of the marked (or next ARG) files."//LF// &
                         "Both octal numeric modes like `644' and symbolic modes like `g+w'"//LF// &
                         "are supported."//LF// &
@@ -4992,14 +4992,14 @@ contains
                         "Alternatively, see the man page for ""chmod(1)""."
         case ("dired_do_chown")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Change the owner of the marked (or next ARG) files."//LF// &
                         "After invoking the command, type"//LF// &
                         "\<minibuffer_local_completion_map>\[next_history_element] to pull"//LF// &
                         "the file attributes of the file at point into the minibuffer."
         case ("dired_do_compress")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Compress or uncompress marked (or next ARG) files."//LF// &
                         "If invoked on a directory, compress all of the files in"//LF// &
                         "the directory and all of its subdirectories, recursively,"//LF// &
@@ -5008,14 +5008,14 @@ contains
                         "uncompress and unpack all the files in the archive."
         case ("dired_do_compress_to")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Compress selected files and directories to an archive."//LF// &
                         "Prompt for the archive file name."//LF// &
                         "Choose the archiving command based on the archive file-name extension"//LF// &
                         "and `dired_compress_files_table'."
         case ("dired_do_copy")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Copy all marked (or next ARG) files, or copy the current file."//LF// &
                         "ARG has to be numeric for above functionality.  See"//LF// &
                         "`dired_get_marked_files' for more details."//LF// &
@@ -5048,24 +5048,24 @@ contains
                         "Also see `dired_do_revert_buffer'."
         case ("dired_do_copy_regexp")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Copy selected files whose names match REGEXP to NEWNAME."//LF// &
                         "See function `dired_do_rename_regexp' for more info."
         case ("dired_do_delete")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Delete all marked (or next ARG) files."//LF// &
                         "`dired_recursive_deletes' controls whether deletion of"//LF// &
                         "non-empty directories is allowed."
         case ("dired_do_flagged_delete")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "In Dired, delete the files flagged for deletion."//LF// &
                         "`dired_recursive_deletes' controls whether deletion of"//LF// &
                         "non-empty directories is allowed."
         case ("dired_do_hardlink")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Add names (hard links) current file or all marked (or next ARG) files."//LF// &
                         "When operating on just the current file, you specify the new name."//LF// &
                         "When operating on multiple or marked files, you specify a directory"//LF// &
@@ -5077,12 +5077,12 @@ contains
                         "Also see `dired_do_revert_buffer'."
         case ("dired_do_hardlink_regexp")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Hardlink selected files whose names match REGEXP to NEWNAME."//LF// &
                         "See function `dired_do_rename_regexp' for more info."
         case ("dired_do_kill_lines")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Remove all marked lines, or the next ARG lines."//LF// &
                         "The files or directories on those lines are _not_ deleted.  Only the"//LF// &
                         "Dired listing is affected.  To restore the removals, use \[revert_buffer]."//LF// &
@@ -5100,7 +5100,7 @@ contains
                         "this command with any prefix arg."
         case ("dired_do_redisplay")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Redisplay all marked (or next ARG) files."//LF// &
                         "If on a subdir line, redisplay that subdirectory.  In that case,"//LF// &
                         "a prefix arg lets you edit the `ls' switches used for the new listing."//LF// &
@@ -5111,7 +5111,7 @@ contains
                         "may have to reset some subdirectory switches after a `dired_undo'."
         case ("dired_do_relsymlink")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Relative symlink all marked (or next ARG) files into a directory."//LF// &
                         "Otherwise make a relative symbolic link to the current file."//LF// &
                         "This creates relative symbolic links like"//LF// &
@@ -5125,13 +5125,13 @@ contains
                         "For absolute symlinks, use \[dired_do_symlink]."
         case ("dired_do_relsymlink_regexp")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "RelSymlink all marked files containing REGEXP to NEWNAME."//LF// &
                         "See functions `dired_do_rename_regexp' and `dired_do_relsymlink'"//LF// &
                         "for more info."
         case ("dired_do_rename")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Rename current file or all marked (or next ARG) files."//LF// &
                         "When renaming just the current file, you specify the new name."//LF// &
                         "When renaming multiple or marked files, you specify a directory."//LF// &
@@ -5142,7 +5142,7 @@ contains
                         "Also see `dired_do_revert_buffer'."
         case ("dired_do_rename_regexp")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Rename selected files whose names match REGEXP to NEWNAME."//LF// &
                         ""//LF// &
                         "With non-zero prefix argument ARG, the command operates on the next ARG"//LF// &
@@ -5158,7 +5158,7 @@ contains
                         "Normally, only the non-directory part of the file name is used and changed."
         case ("dired_do_symlink")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Make symbolic links to current file or all marked (or next ARG) files."//LF// &
                         "When operating on just the current file, you specify the new name."//LF// &
                         "When operating on multiple or marked files, you specify a directory"//LF// &
@@ -5172,12 +5172,12 @@ contains
                         "Also see `dired_do_revert_buffer'."
         case ("dired_do_symlink_regexp")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Symlink selected files whose names match REGEXP to NEWNAME."//LF// &
                         "See function `dired_do_rename_regexp' for more info."
         case ("dired_do_touch")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Change the timestamp of the marked (or next ARG) files."//LF// &
                         "This calls touch."//LF// &
                         "After invoking the command, type"//LF// &
@@ -5185,36 +5185,36 @@ contains
                         "the file attributes of the file at point into the minibuffer."
         case ("dired_downcase")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Rename all marked (or next ARG) files to lower case."
         case ("dired_find_file")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "In Dired, visit the file or directory named on this line."
         case ("dired_find_file_other_window")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "In Dired, visit this file or directory in another window."//LF// &
                         "If this command needs to split the current window, it by default obeys"//LF// &
                         "the user options `split_height_threshold' and `split_width_threshold',"//LF// &
                         "when it decides whether to split the window horizontally or vertically."
         case ("dired_flag_auto_save_files")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Flag for deletion files whose names suggest they are auto save files."//LF// &
                         "A prefix argument says to unmark or unflag those files instead."//LF// &
                         "If the region is active in Transient Mark mode, flag files"//LF// &
                         "only in the active region if `dired_mark_region' is true."
         case ("dired_flag_backup_files")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Flag all backup files (names ending with `~') for deletion."//LF// &
                         "With prefix argument, unmark or unflag these files."//LF// &
                         "If the region is active in Transient Mark mode, flag files"//LF// &
                         "only in the active region if `dired_mark_region' is true."
         case ("dired_flag_file_deletion")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "In Dired, flag the current line's file for deletion."//LF// &
                         "If the region is active, flag all files in the region."//LF// &
                         "Otherwise, with a prefix arg, flag files on the next ARG lines."//LF// &
@@ -5224,33 +5224,33 @@ contains
                         "in the active region."
         case ("dired_flag_files_regexp")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "In Dired, flag all files containing the specified REGEXP for deletion."//LF// &
                         "The match is against the non-directory part of the filename.  Use `^'"//LF// &
                         "  and `$' to anchor matches.  Exclude subdirs by hiding them."//LF// &
                         "`.' and `..' are never flagged."
         case ("dired_flag_garbage_files")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Flag for deletion all files that match `dired_garbage_files_regexp'."
         case ("dired_goto_file")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to line describing file FILE in this Dired buffer."
         case ("dired_kill_line")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill the current line (not the files)."//LF// &
                         "With a prefix argument, kill that many lines starting with the current line."//LF// &
                         "(A negative argument kills backward.)"
         case ("dired_kill_subdir")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Remove all lines of current subdirectory."//LF// &
                         "Lower levels are unaffected."
         case ("dired_mark")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark the file at point in the Dired buffer."//LF// &
                         "If the region is active in Transient Mark mode, mark all files"//LF// &
                         "in the region if `dired_mark_region' is true."//LF// &
@@ -5263,27 +5263,27 @@ contains
                         "this subdir."
         case ("dired_mark_directories")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark all directory file lines except `.' and `..'."//LF// &
                         "With prefix argument, unmark or unflag all those files."//LF// &
                         "If the region is active in Transient Mark mode, mark files"//LF// &
                         "only in the active region if `dired_mark_region' is true."
         case ("dired_mark_executables")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark all executable files."//LF// &
                         "With prefix argument, unmark or unflag all those files."//LF// &
                         "If the region is active in Transient Mark mode, mark files"//LF// &
                         "only in the active region if `dired_mark_region' is true."
         case ("dired_mark_files_containing_regexp")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark all files with contents containing REGEXP for use in later commands."//LF// &
                         "A prefix argument means to unmark them instead."//LF// &
                         "`.' and `..' are never marked."
         case ("dired_mark_files_regexp")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark all files matching REGEXP for use in later commands."//LF// &
                         "A prefix argument means to unmark them instead."//LF// &
                         "`.' and `..' are never marked."//LF// &
@@ -5295,13 +5295,13 @@ contains
                         "object files--just `.o' will mark more than you might think."
         case ("dired_mark_subdir_files")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark all files except `.' and `..' in current subdirectory."//LF// &
                         "If the Dired buffer shows multiple directories, this command"//LF// &
                         "marks the files listed in the subdirectory that point is in."
         case ("dired_mark_symlinks")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark all symbolic links."//LF// &
                         "With prefix argument, unmark or unflag all those files."//LF// &
                         "If the region is active in Transient Mark mode, mark files"//LF// &
@@ -5312,14 +5312,14 @@ contains
             entry%doc = "`dired_mode' as a command procedure (not interactive)."
         case ("dired_next_dirline")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Goto ARGth next directory file line."//LF// &
                         ""//LF// &
                         "Whether to skip empty lines and how to move from last line"//LF// &
                         "is controlled by `dired_movement_style'."
         case ("dired_next_line")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move down ARG lines, then position at filename."//LF// &
                         "The argument ARG (interactively, prefix argument) says how many lines"//LF// &
                         "to move; the default is one line."//LF// &
@@ -5328,14 +5328,14 @@ contains
                         "is controlled by `dired_movement_style'."
         case ("dired_next_marked_file")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move to the ARGth next marked file."//LF// &
                         "ARG is the numeric prefix argument and defaults to 1."//LF// &
                         "Interactively, wrap around to the beginning of the buffer and"//LF// &
                         "search from there, if no marked file is found after this line."
         case ("dired_next_subdir")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to next subdirectory, regardless of level."
         case ("dired_noselect")
             entry%file = "dired_mode_fm.f90"
@@ -5343,26 +5343,26 @@ contains
             entry%doc = "Like `dired' but return the Dired buffer as value, do not select it."
         case ("dired_number_of_marked_files")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display the number and total size of the marked files."
         case ("dired_other_window")
             entry%file = "dired_mode_fm.f90"
             entry%fortran = "call dired_other_window(dirname, status, switches)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = """Edit"" directory DIRNAME.  Like `dired' but select in another window."//LF// &
                         "If this command needs to split the current window, it by default obeys"//LF// &
                         "the user options `split_height_threshold' and `split_width_threshold',"//LF// &
                         "when it decides whether to split the window horizontally or vertically."
         case ("dired_prev_dirline")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Goto ARGth previous directory file line."//LF// &
                         ""//LF// &
                         "Whether to skip empty lines and how to move from last line"//LF// &
                         "is controlled by `dired_movement_style'."
         case ("dired_prev_marked_file")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move to the ARGth previous marked file."//LF// &
                         "ARG is the numeric prefix argument and defaults to 1."//LF// &
                         "Interactively, wrap around to the end of the buffer and search"//LF// &
@@ -5370,13 +5370,13 @@ contains
                         "line."
         case ("dired_prev_subdir")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to previous subdirectory, regardless of level."//LF// &
                         "When called interactively and not on a subdir line, go to this"//LF// &
                         "subdir's line."
         case ("dired_previous_line")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move up ARG lines, then position at filename."//LF// &
                         "The argument ARG (interactively, prefix argument) says how many lines"//LF// &
                         "to move; the default is one line."//LF// &
@@ -5385,23 +5385,23 @@ contains
                         "is controlled by `dired_movement_style'."
         case ("dired_show_file_type")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Print the type of FILE, according to the `file' command."//LF// &
                         "If you give a prefix to this command, and FILE is a symbolic"//LF// &
                         "link, then the command will print the type of the target of the link"//LF// &
                         "instead."
         case ("dired_sort_toggle_or_edit")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle sorting by date, and refresh the Dired buffer."//LF// &
                         "With a prefix argument, edit the current listing switches instead."
         case ("dired_summary")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Summarize basic Dired commands and show recent Dired errors."
         case ("dired_toggle_marks")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle marks: marked files become unmarked, and vice versa."//LF// &
                         "Flagged files (indicated with flags such as `C' and `D', not"//LF// &
                         "with `*') are not affected, and `.' and `..' are never toggled."//LF// &
@@ -5412,14 +5412,14 @@ contains
                         "on the whole buffer."
         case ("dired_undo")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Undo in a Dired buffer."//LF// &
                         "A numeric ARG serves as a repeat count."//LF// &
                         "This doesn't recover lost files, it just undoes changes in the buffer itself."//LF// &
                         "You can use it to recover marks, killed lines or subdirs."
         case ("dired_unmark")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Unmark the file at point in the Dired buffer."//LF// &
                         "If the region is active, unmark all files in the region."//LF// &
                         "Otherwise, with a prefix arg, unmark files on the next ARG lines."//LF// &
@@ -5429,7 +5429,7 @@ contains
                         "in the active region."
         case ("dired_unmark_all_files")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Remove a specific mark (or any mark) from every file."//LF// &
                         "After this command, type the mark character to remove,"//LF// &
                         "or type RET to remove all marks."//LF// &
@@ -5437,11 +5437,11 @@ contains
                         "Type \[help_command] at that time for help."
         case ("dired_unmark_all_marks")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Remove all marks from all files in the Dired buffer."
         case ("dired_unmark_backward")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "In Dired, move up lines and remove marks or deletion flags there."//LF// &
                         "Optional prefix ARG says how many lines to unmark/unflag; default"//LF// &
                         "is one line."//LF// &
@@ -5449,7 +5449,7 @@ contains
                         "in the active region."
         case ("dired_up_directory")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Run Dired on parent directory of current directory."//LF// &
                         "Find the parent directory either in this buffer or another buffer."//LF// &
                         "Creates a buffer if necessary."//LF// &
@@ -5457,17 +5457,17 @@ contains
                         "directory in another window."
         case ("dired_upcase")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Rename all marked (or next ARG) files to upper case."
         case ("dired_view_file")
             entry%file = "dired_aux_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "In Dired, examine a file in view mode, returning to Dired when done."//LF// &
                         "When file is a directory, show it in this buffer if it is inserted."//LF// &
                         "Otherwise, display it in another buffer."
         case ("dired_why")
             entry%file = "dired_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Pop up a buffer with error log output from Dired."//LF// &
                         "A group of errors from a single command ends with a formfeed."//LF// &
                         "Thus, use \[backward_page] to find the beginning of a group of"//LF// &
@@ -5475,7 +5475,7 @@ contains
         case ("disable_command")
             entry%file = "novice_fm.f90"
             entry%fortran = "call disable_command(command, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Require special confirmation to execute COMMAND from now on."//LF// &
                         "COMMAND is a command name."//LF// &
                         "This command alters your init file so that this choice applies to"//LF// &
@@ -5494,7 +5494,7 @@ contains
         case ("down_group")
             entry%file = "expression_motion_fm.f90"
             entry%fortran = "call down_group(arg, status, interactive)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move forward down one level of parentheses."//LF// &
                         "This command will also work on other parentheses-like expressions"//LF// &
                         "defined by the current language mode."//LF// &
@@ -5510,7 +5510,7 @@ contains
         case ("downcase_region")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "call downcase_region(beg, end, status, region_noncontiguous)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Convert the region to lower case.  In programs, wants two arguments."//LF// &
                         "These arguments specify the starting and ending character numbers"//LF// &
                         "of the region to operate on.  When used as a command, the text"//LF// &
@@ -5518,7 +5518,7 @@ contains
         case ("downcase_word")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "call downcase_word(arg, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Convert to lower case from point to end of word, moving over."//LF// &
                         ""//LF// &
                         "If point is in the middle of a word, the part of that word before"//LF// &
@@ -5528,7 +5528,7 @@ contains
         case ("edit_abbrevs")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "call edit_abbrevs(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Alter abbrev definitions by editing the list of abbrevs."//LF// &
                         "This selects a buffer containing the list of abbrev definitions"//LF// &
                         "with point located in the abbrev table for the current buffer, and"//LF// &
@@ -5546,7 +5546,7 @@ contains
                         "that may be omitted (it is usually omitted)."
         case ("edit_bookmarks")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display a list of existing bookmarks."//LF// &
                         "The list is displayed in a buffer named `*Bookmark List*'."//LF// &
                         "The leftmost column displays a D if the bookmark is flagged for"//LF// &
@@ -5554,17 +5554,17 @@ contains
         case ("electric_indent_just_newline")
             entry%file = "electric_fm.f90"
             entry%fortran = "call electric_indent_just_newline(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert just a newline, without any auto-indentation."
         case ("electric_indent_local_mode")
             entry%file = "electric_fm.f90"
             entry%fortran = "call electric_indent_local_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle `electric_indent_mode' only in this buffer."
         case ("electric_indent_mode")
             entry%file = "electric_fm.f90"
             entry%fortran = "call electric_indent_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle on-the-fly reindentation of text lines (Electric Indent mode)."//LF// &
                         ""//LF// &
                         "When enabled, this reindents whenever the hook `electric_indent_functions'"//LF// &
@@ -5581,7 +5581,7 @@ contains
         case ("electric_newline_and_maybe_indent")
             entry%file = "electric_fm.f90"
             entry%fortran = "call electric_newline_and_maybe_indent(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert a newline."//LF// &
                         "If `electric_indent_mode' is enabled, that's that, but if it"//LF// &
                         "is *disabled* then additionally indent according to major mode."//LF// &
@@ -5604,19 +5604,19 @@ contains
         case ("electric_pair_delete_pair")
             entry%file = "elec_pair_fm.f90"
             entry%fortran = "call electric_pair_delete_pair(arg, status, killp)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "When between adjacent paired delimiters, delete both of them."//LF// &
                         "ARG and KILLP are passed directly to"//LF// &
                         "`backward_delete_char_untabify', which see."
         case ("electric_pair_local_mode")
             entry%file = "elec_pair_fm.f90"
             entry%fortran = "call electric_pair_local_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle `electric_pair_mode' only in this buffer."
         case ("electric_pair_mode")
             entry%file = "elec_pair_fm.f90"
             entry%fortran = "call electric_pair_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle automatic pairing of delimiters (Electric Pair mode)."//LF// &
                         ""//LF// &
                         "Electric Pair mode is a global minor mode.  When enabled, typing an"//LF// &
@@ -5629,7 +5629,7 @@ contains
         case ("enable_command")
             entry%file = "novice_fm.f90"
             entry%fortran = "call enable_command(command, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Allow COMMAND to be executed without special confirmation from now on."//LF// &
                         "COMMAND is a command name."//LF// &
                         "This command alters the user's init file so that this will apply"//LF// &
@@ -5655,7 +5655,7 @@ contains
                         "CODING-SYSTEM."
         case ("end_kbd_macro")
             entry%file = "macros_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Finish defining a keyboard macro."//LF// &
                         "The definition was started by \[start_kbd_macro]."//LF// &
                         "The macro is now available for use via \[call_last_kbd_macro]."//LF// &
@@ -5665,7 +5665,7 @@ contains
                         "An argument of zero means repeat until error."
         case ("end_of_buffer")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point to the end of the buffer."//LF// &
                         "With numeric arg N, put point N/10 of the way from the end."//LF// &
                         "If the buffer is narrowed, this command uses the end of the"//LF// &
@@ -5677,7 +5677,7 @@ contains
         case ("end_of_line")
             entry%file = "cmds_fm.f90"
             entry%fortran = "call end_of_line(n)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point to end of current line (in the logical order)."//LF// &
                         "With argument N not 1, move forward N - 1 lines first."//LF// &
                         "If point reaches the beginning or end of buffer, it stops there."//LF// &
@@ -5689,7 +5689,7 @@ contains
                         "to true."
         case ("end_of_subprogram")
             entry%file = "expression_motion_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move forward to next end of subprogram."//LF// &
                         "With argument, do it that many times."//LF// &
                         "Negative argument -N means move back to Nth preceding end of subprogram."//LF// &
@@ -5723,7 +5723,7 @@ contains
                         "SYMBOL upstream."
         case ("exchange_point_and_mark")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Put the mark where point is now, and point where the mark is now."//LF// &
                         "This command works even when the mark is not active, and it"//LF// &
                         "reactivates the mark.  If Transient Mark mode is on, a prefix ARG"//LF// &
@@ -5737,12 +5737,12 @@ contains
                         "file modes."
         case ("executable_self_display")
             entry%file = "executable_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Turn a text file into a self-displaying Un*x command."//LF// &
                         "The magic number of such a command displays all lines but itself."
         case ("executable_set_magic")
             entry%file = "executable_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set this buffer's interpreter to INTERPRETER with optional ARGUMENT."//LF// &
                         "The variables `executable_magicless_file_regexp', `executable_prefix_env',"//LF// &
                         "`executable_insert', `executable_query' and `executable_chmod' control"//LF// &
@@ -5750,7 +5750,7 @@ contains
                         "executable.  The interpreter's file name is returned in RESULT."
         case ("execute_extended_command")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Read a command name, then read the arguments and call the command."//LF// &
                         "To pass a prefix argument to the command you are invoking, give a"//LF// &
                         "prefix argument to `execute_extended_command'."//LF// &
@@ -5758,16 +5758,16 @@ contains
                         "This command provides completion when reading the command name."
         case ("exit_minibuffer")
             entry%file = "minibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Terminate this minibuffer argument."
         case ("exit_recursive_edit")
             entry%file = "subr_read_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Exit from the innermost recursive edit or minibuffer."
         case ("expand_abbrev")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "call expand_abbrev(status, expanded)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Expand the abbrev before point, if there is an abbrev there."//LF// &
                         "Effective when explicitly called even when `abbrev_mode' is false."//LF// &
                         "Calls the value of `abbrev_expand_function' with no argument to do"//LF// &
@@ -5776,7 +5776,7 @@ contains
         case ("expand_region_abbrevs")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "call expand_region_abbrevs(start, end, status, noquery)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "For each abbrev occurrence in the region, offer to expand it."//LF// &
                         "Ask the user to type `y' or `n' for each occurrence."//LF// &
                         "A prefix argument means don't query; expand all abbrevs."
@@ -5793,136 +5793,136 @@ contains
                         "line of the rectangle."
         case ("f90_abbrev_help")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "List the currently defined abbrevs in F90 mode."
         case ("f90_abbrev_start")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Typing `\[help_command] or `? lists all the F90 abbrevs."//LF// &
                         "Any other key combination is executed normally."
         case ("f90_beginning_of_block")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point backwards to the start of the current code block (the"//LF// &
                         "command)."
         case ("f90_beginning_of_subprogram")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point to the beginning of the current subprogram (the command)."
         case ("f90_break_line")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Break line at point, insert continuation marker(s) and indent (the"//LF// &
                         "command)."
         case ("f90_calculate_indent")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Calculate the indent column based on previous statements (the"//LF// &
                         "command)."
         case ("f90_capitalize_keywords")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Capitalize all F90 keywords in the buffer."
         case ("f90_capitalize_region_keywords")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Capitalize all F90 keywords in the region."
         case ("f90_comment_region")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Comment/uncomment every line in the region (the command)."
         case ("f90_do_auto_fill")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Break line if non-white characters beyond `fill_column' (the"//LF// &
                         "command)."
         case ("f90_downcase_keywords")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Downcase all F90 keywords in the buffer."
         case ("f90_downcase_region_keywords")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Downcase all F90 keywords in the region."
         case ("f90_electric_insert")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Change keyword case and auto-fill line as operators are inserted"//LF// &
                         "(the command)."
         case ("f90_end_of_block")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point forward to the end of the current code block (the"//LF// &
                         "command)."
         case ("f90_end_of_subprogram")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point to the end of the current subprogram (the command)."
         case ("f90_fill_paragraph")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "In a comment, fill it as a paragraph, else fill the current statement"//LF// &
                         "(the command)."
         case ("f90_fill_region")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Fill every line in region by forward parsing (the command)."
         case ("f90_font_lock_1")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set `font_lock_keywords' to `f90_font_lock_keywords_1'."
         case ("f90_font_lock_2")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set `font_lock_keywords' to `f90_font_lock_keywords_2'."
         case ("f90_font_lock_3")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set `font_lock_keywords' to `f90_font_lock_keywords_3'."
         case ("f90_font_lock_4")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set `font_lock_keywords' to `f90_font_lock_keywords_4'."
         case ("f90_indent_line")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Indent current line as F90 code (the command)."
         case ("f90_indent_new_line")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Re-indent current line, insert a newline and indent the newline (the"//LF// &
                         "command)."
         case ("f90_indent_region")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Indent every line in region by forward parsing (the command)."
         case ("f90_indent_subprogram")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Properly indent the subprogram containing point (the command)."
         case ("f90_insert_end")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert a complete end statement matching beginning of present block"//LF// &
                         "(the command)."
         case ("f90_join_lines")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Join current line to previous, fix whitespace, continuation, comments"//LF// &
                         "(the command)."
         case ("f90_mark_subprogram")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Put mark at end of F90 subprogram, point at beginning, push mark"//LF// &
                         "(the command)."
         case ("f90_match_end")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "From an end block statement, find the corresponding block and name"//LF// &
                         "(the command)."
         case ("f90_mode")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode for editing Fortran 90,95 code in free format."//LF// &
                         "For fixed format code, use `fortran_mode'."//LF// &
                         ""//LF// &
@@ -5985,29 +5985,29 @@ contains
                         "with no args, if that value is true."
         case ("f90_next_block")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point forward to the next end or start of a code block (the"//LF// &
                         "command)."
         case ("f90_next_statement")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point to beginning of the next F90 statement (the command)."
         case ("f90_previous_block")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point backward to the previous end or start of a code block"//LF// &
                         "(the command)."
         case ("f90_previous_statement")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point to beginning of the previous F90 statement (the command)."
         case ("f90_upcase_keywords")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Upcase all F90 keywords in the buffer."
         case ("f90_upcase_region_keywords")
             entry%file = "f90_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Upcase all F90 keywords in the region."
         case ("face_box")
             entry%file = "faces_fm.f90"
@@ -6070,7 +6070,7 @@ contains
         case ("file_to_register")
             entry%file = "register_fm.f90"
             entry%fortran = "call file_to_register(file_name, register)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert FILE_NAME into REGISTER."//LF// &
                         "To visit the file, use \[jump_to_register]."//LF// &
                         ""//LF// &
@@ -6085,7 +6085,7 @@ contains
         case ("fill_paragraph")
             entry%file = "fill_fm.f90"
             entry%fortran = "call fill_paragraph(status, justify, region, used)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Fill paragraph at or after point."//LF// &
                         ""//LF// &
                         "If JUSTIFY is present (interactively, with prefix argument), justify as well."//LF// &
@@ -6102,7 +6102,7 @@ contains
         case ("fill_region")
             entry%file = "fill_fm.f90"
             entry%fortran = "call fill_region(from, to, status, justify, nosqueeze, to_eop, used)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Fill each of the paragraphs in the region."//LF// &
                         "A prefix arg means justify as well."//LF// &
                         "The `fill_column' variable controls the width."//LF// &
@@ -6123,7 +6123,7 @@ contains
                         "space does not end a sentence, so don't break a line there."
         case ("fill_region_as_paragraph")
             entry%file = "fill_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Fill the region as if it were a single paragraph."//LF// &
                         "The implementation is `fill_region_as_paragraph_default'."//LF// &
                         ""//LF// &
@@ -6175,13 +6175,13 @@ contains
         case ("find_file")
             entry%file = "files_fm.f90"
             entry%fortran = "call find_file(filename, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Edit file FILENAME: visit it with `find_file_noselect' and switch to"//LF// &
                         "its buffer in the selected window (`pop_to_buffer_same_window')."
         case ("find_file_other_window")
             entry%file = "files_fm.f90"
             entry%fortran = "call find_file_other_window(filename, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Edit file FILENAME, in another window."//LF// &
                         ""//LF// &
                         "Like \[find_file] (which see), but creates a new window or reuses"//LF// &
@@ -6198,14 +6198,14 @@ contains
         case ("find_file_read_only")
             entry%file = "files_fm.f90"
             entry%fortran = "call find_file_read_only(filename, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Edit file FILENAME but don't allow changes."//LF// &
                         "Like \[find_file], but marks buffer as read-only."//LF// &
                         "Use \[read_only_mode] to permit editing."
         case ("find_file_read_only_other_window")
             entry%file = "files_fm.f90"
             entry%fortran = "call find_file_read_only_other_window(filename, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Edit file FILENAME in another window but don't allow changes."//LF// &
                         "Like \[find_file_other_window], but marks buffer as read-only."//LF// &
                         "Use \[read_only_mode] to permit editing."//LF// &
@@ -6214,14 +6214,14 @@ contains
                         "when it decides whether to split the window horizontally or vertically."
         case ("find_grep")
             entry%file = "grep_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: read the find command, then `grep_find'.  The"//LF// &
                         "interactive form of grep.el:grep-find."//LF// &
                         ""//LF// &
                         "Run grep via find, with user-specified args."
         case ("first_error")
             entry%file = "simple_next_error_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Restart at the first error."//LF// &
                         "Visit corresponding source code."//LF// &
                         "With prefix arg N, visit the source code of the Nth error."//LF// &
@@ -6230,13 +6230,13 @@ contains
         case ("fixup_whitespace")
             entry%file = "simple_fm.f90"
             entry%fortran = "call fixup_whitespace(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Fixup white space between objects around point."//LF// &
                         "Leave one space or none, according to the context."
         case ("flush_lines")
             entry%file = "replace_fm.f90"
             entry%fortran = "call flush_lines(regexp, count, status, rstart, rend, interactive)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: read the regexp, then `flush_lines' (interactively)."//LF// &
                         "The interactive form of replace.el:flush-lines."//LF// &
                         ""//LF// &
@@ -6282,7 +6282,7 @@ contains
                         "major mode changes)."
         case ("font_lock_debug_fontify")
             entry%file = "font_lock_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Reinitialize the font-lock machinery and (re-)fontify the buffer."//LF// &
                         "This functions is a convenience functions when developing font"//LF// &
                         "locking for a mode, and is not meant to be called from Fortran code."
@@ -6293,14 +6293,14 @@ contains
                         "this function onto `change_major_mode_hook'."
         case ("font_lock_fontify_block")
             entry%file = "font_lock_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Fontify some lines the way `font_lock_fontify_buffer' would."//LF// &
                         "The lines could be a function or paragraph, or a specified number"//LF// &
                         "of lines.  If ARG is given, fontify that many lines before and after"//LF// &
                         "point, or 16 lines if no ARG is given."
         case ("font_lock_fontify_buffer")
             entry%file = "font_lock_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The interactive `font_lock_fontify_buffer'."
         case ("font_lock_highlight")
             entry%file = "font_lock_fm.f90"
@@ -6320,7 +6320,7 @@ contains
                         "(MATCHER . FACENAME))."
         case ("font_lock_mode")
             entry%file = "font_core_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle syntax highlighting in this buffer (Font Lock mode)."//LF// &
                         ""//LF// &
                         "When Font Lock mode is enabled, text is fontified as you type it:"//LF// &
@@ -6380,7 +6380,7 @@ contains
                         "`font_lock_add_keywords'."
         case ("font_lock_update")
             entry%file = "font_lock_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Update the syntax highlighting in this buffer."//LF// &
                         "Refontify the accessible portion of this buffer, or enable Font Lock"//LF// &
                         "mode in this buffer if it is currently disabled.  With prefix ARG,"//LF// &
@@ -6393,7 +6393,7 @@ contains
         case ("forward_char")
             entry%file = "cmds_fm.f90"
             entry%fortran = "call forward_char(status, n)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point N characters forward (backward if N is negative)."//LF// &
                         "On reaching end or beginning of buffer, stop and signal error."//LF// &
                         "Interactively, N is the numeric prefix argument."//LF// &
@@ -6413,7 +6413,7 @@ contains
         case ("forward_expression")
             entry%file = "expression_motion_fm.f90"
             entry%fortran = "call forward_expression(arg, status, interactive)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move forward across one balanced expression."//LF// &
                         "With ARG, do it that many times.  Negative arg -N means move"//LF// &
                         "backward across N balanced expressions.  This command assumes"//LF// &
@@ -6427,7 +6427,7 @@ contains
         case ("forward_group")
             entry%file = "expression_motion_fm.f90"
             entry%fortran = "call forward_group(arg, status, interactive)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move forward across one balanced group of parentheses."//LF// &
                         "This command will also work on other parentheses-like expressions"//LF// &
                         "defined by the current language mode."//LF// &
@@ -6439,7 +6439,7 @@ contains
         case ("forward_line")
             entry%file = "cmds_fm.f90"
             entry%fortran = "forward_line(n)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move N lines forward (backward if N is negative)."//LF// &
                         "Precisely, if point is on line I, move to the start of line I + N"//LF// &
                         "(""start of line"" in the logical order)."//LF// &
@@ -6458,14 +6458,14 @@ contains
                         "line."
         case ("forward_page")
             entry%file = "page_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move forward to page boundary.  With arg, repeat, or go back if negative."//LF// &
                         "A page boundary is any line whose beginning matches the regexp"//LF// &
                         "`page_delimiter'."
         case ("forward_paragraph")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "forward_paragraph(arg)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move forward to end of paragraph."//LF// &
                         "With argument ARG, do it ARG times;"//LF// &
                         "a negative argument ARG = -N means move backward N paragraphs."//LF// &
@@ -6477,7 +6477,7 @@ contains
         case ("forward_sentence")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call forward_sentence(arg)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move forward to next end of sentence.  With argument ARG, repeat."//LF// &
                         "If ARG is negative, move backward repeatedly to start of sentence."//LF// &
                         ""//LF// &
@@ -6487,7 +6487,7 @@ contains
         case ("forward_word")
             entry%file = "syntax_fm.f90"
             entry%fortran = "call forward_word(arg, ok)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point forward ARG words (backward if ARG is negative)."//LF// &
                         "If ARG is omitted, move point forward one word."//LF// &
                         "If an edge of the buffer or a field boundary is reached, point is"//LF// &
@@ -6508,7 +6508,7 @@ contains
         case ("fundamental_mode")
             entry%file = "simple_fm.f90"
             entry%fortran = "call fundamental_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode not specialized for anything in particular."//LF// &
                         "Other major modes are defined by comparison with this one."
         case ("get_buffer_create")
@@ -6544,7 +6544,7 @@ contains
         case ("global_auto_revert_mode")
             entry%file = "autorevert_fm.f90"
             entry%fortran = "call global_auto_revert_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle Global Auto-Revert Mode."//LF// &
                         ""//LF// &
                         "Global Auto-Revert Mode is a global minor mode that reverts any"//LF// &
@@ -6565,7 +6565,7 @@ contains
                         "specifies in the mode line."
         case ("global_font_lock_mode")
             entry%file = "font_core_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle Font Lock mode in many buffers."//LF// &
                         "Specifically, Font Lock mode is enabled in all buffers where"//LF// &
                         "`turn_on_font_lock_if_desired' would do it."//LF// &
@@ -6586,7 +6586,7 @@ contains
         case ("goto_char")
             entry%file = "editfns_fm.f90"
             entry%fortran = "call goto_char(position)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set point to POSITION, a number or marker."//LF// &
                         "Beginning of buffer is position (point-min), end is (point-max)."//LF// &
                         ""//LF// &
@@ -6597,17 +6597,17 @@ contains
                         "minibuffer.  The default value is the number at point (if any)."
         case ("goto_line")
             entry%file = "simple_goto_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to LINE, counting from line 1 at beginning of buffer (the"//LF// &
                         "command)."
         case ("goto_line_relative")
             entry%file = "simple_goto_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to LINE, counting from line at (point-min) (the command)."
         case ("grep")
             entry%file = "grep_fm.f90"
             entry%fortran = "call grep(command_args, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: read the command, then `grep'.  The interactive form of"//LF// &
                         "grep.el:grep."//LF// &
                         ""//LF// &
@@ -6624,7 +6624,7 @@ contains
                         "`grep_highlight_matches', or `grep_quoting_style'."
         case ("grep_change_to_grep_edit_mode")
             entry%file = "grep_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Switch to `grep_edit_mode' to edit *grep* buffer."
         case ("grep_compute_defaults")
             entry%file = "grep_fm.f90"
@@ -6636,7 +6636,7 @@ contains
                         "`grep_highlight_matches', and `grep_quoting_style'."
         case ("grep_edit_mode")
             entry%file = "grep_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode for editing *grep* buffers."//LF// &
                         "In this mode, changes to the *grep* buffer are applied to the"//LF// &
                         "originating files."//LF// &
@@ -6647,54 +6647,54 @@ contains
                         "The only editable texts in a Grep-Edit buffer are the match results."
         case ("grep_edit_save_changes")
             entry%file = "grep_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Switch back to Grep mode."
         case ("grep_find")
             entry%file = "grep_fm.f90"
             entry%fortran = "call grep_find(command_args, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: read the find command, then `grep_find'.  The"//LF// &
                         "interactive form of grep.el:grep-find."//LF// &
                         ""//LF// &
                         "Run grep via find, with user-specified args."
         case ("grep_find_toggle_abbreviation")
             entry%file = "grep_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle showing the hidden part of rgrep/lgrep/zrgrep command line."
         case ("grep_mode")
             entry%file = "grep_fm.f90"
             entry%fortran = "call grep_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Sets `grep_last_buffer' and `compilation_window_height'."
         case ("help_for_help")
             entry%file = "help_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Help command.  Show the help text and read a help option, then run"//LF// &
                         "the help command bound to it in `help_map'."
-        case ("help_form_show")
-            entry%file = "subr_read_fm.f90"
-            entry%interactive = .true.
-            entry%doc = "Display the output of a `help_form' (the text bound by the"//LF// &
-                        "caller)."
         case ("help_mode")
             entry%file = "help_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode for viewing help text and navigating references in it."
+        case ("help_procedure_show")
+            entry%file = "subr_read_fm.f90"
+            entry%command = .true.
+            entry%doc = "Display the output of a `help_procedure' (the text bound by the"//LF// &
+                        "caller)."
         case ("help_quit")
             entry%file = "help_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Just exit from the Help command's command loop."
         case ("how_many")
             entry%file = "replace_fm.f90"
             entry%fortran = "call how_many(regexp, count, status, rstart, rend, interactive)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: read the regexp, then `how_many'.  The interactive"//LF// &
                         "form of replace.el:how-many."//LF// &
                         ""//LF// &
                         "Print the number of matches for a regexp following point."
         case ("ibuffer")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Begin using Ibuffer to edit a list of buffers."//LF// &
                         "Type \<ibuffer_mode_map>\[describe_mode] after entering ibuffer for"//LF// &
                         "more information."//LF// &
@@ -6714,18 +6714,18 @@ contains
                         "  that value locally in this buffer."
         case ("ibuffer_add_saved_filters")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Add saved filters from `ibuffer_saved_filters' to this buffer's"//LF// &
                         "filters."
         case ("ibuffer_add_to_tmp_hide")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Add REGEXP to `ibuffer_tmp_hide_regexps'."//LF// &
                         "This means that buffers whose name matches REGEXP will not be shown"//LF// &
                         "for this Ibuffer session."
         case ("ibuffer_add_to_tmp_show")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Add REGEXP to `ibuffer_tmp_show_regexps'."//LF// &
                         "This means that buffers whose name matches REGEXP will always be shown"//LF// &
                         "for this Ibuffer session."
@@ -6736,25 +6736,25 @@ contains
                         "up to 16): (and FILTER-SPECS...)."
         case ("ibuffer_and_filter")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Replace the top two filters in this buffer with their logical"//LF// &
                         "AND.  If optional argument DECOMPOSE is true, instead break the"//LF// &
                         "top AND filter into parts."
         case ("ibuffer_auto_mode")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle use of Ibuffer's auto-update facility (Ibuffer Auto mode)."
         case ("ibuffer_backward_filter_group")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point backwards by COUNT filtering groups."
         case ("ibuffer_backward_line")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move backwards ARG lines, wrapping around the list if necessary."
         case ("ibuffer_backwards_next_marked")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move backwards by COUNT marked buffers (default 1)."//LF// &
                         ""//LF// &
                         "If MARK is present, it should be a character denoting the type of"//LF// &
@@ -6765,24 +6765,24 @@ contains
             entry%doc = "Buffers whose file basename matches REGEXP (basename . REGEXP)."
         case ("ibuffer_bs_show")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Emulate `bs_show' from the bs.el package."
         case ("ibuffer_bs_toggle_all")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Emulate `bs_toggle_show_all' from the bs.el package."
         case ("ibuffer_bury_buffer")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Bury the buffer on this line."
         case ("ibuffer_change_marks")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Change all OLD marks to NEW marks."//LF// &
                         "OLD and NEW are both characters used to mark buffers."
         case ("ibuffer_clear_filter_groups")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Remove all filter groups."
         case ("ibuffer_content")
             entry%file = "ibuf_macs_fm.f90"
@@ -6790,13 +6790,13 @@ contains
             entry%doc = "Buffers whose contents match REGEXP (content . REGEXP)."
         case ("ibuffer_copy_buffername_as_kill")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Copy buffer names of marked (or next ARG) buffers into the kill ring."//LF// &
                         "The names are separated by a space."//LF// &
                         "You can then feed the file name(s) to other commands with \[yank]."
         case ("ibuffer_copy_filename_as_kill")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Copy filenames of marked (or next ARG) buffers into the kill ring."//LF// &
                         ""//LF// &
                         "The names are separated by a space."//LF// &
@@ -6810,7 +6810,7 @@ contains
                         "You can then feed the file name(s) to other commands with \[yank]."
         case ("ibuffer_decompose_filter")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Separate this buffer's top compound filter (AND, OR, NOT, or"//LF// &
                         "SAVED)."//LF// &
                         ""//LF// &
@@ -6820,16 +6820,16 @@ contains
                         "bar_mode]."
         case ("ibuffer_decompose_filter_group")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Decompose the filter group GROUP into active filters."
         case ("ibuffer_delete_saved_filter_groups")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Delete saved filter groups with NAME."//LF// &
                         "They are removed from `ibuffer_saved_filter_groups'."
         case ("ibuffer_delete_saved_filters")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Delete saved filters with NAME from `ibuffer_saved_filters'."
         case ("ibuffer_derived_mode")
             entry%file = "ibuf_macs_fm.f90"
@@ -6837,7 +6837,7 @@ contains
             entry%doc = "Buffers whose major mode derives from MODE (derived-mode . MODE)."
         case ("ibuffer_diff_with_file")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "View the differences between marked buffers and their associated"//LF// &
                         "files.  If no buffers are marked, use buffer at point."//LF// &
                         "This requires the external program `diff_command' to be in your"//LF// &
@@ -6848,115 +6848,115 @@ contains
             entry%doc = "Buffers whose directory matches REGEXP (directory . REGEXP)."
         case ("ibuffer_do_delete")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill marked buffers as with `kill_this_buffer'."
         case ("ibuffer_do_kill_lines")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Hide all of the currently marked lines."
         case ("ibuffer_do_kill_on_deletion_marks")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill buffers marked for deletion as with `kill_this_buffer'."
         case ("ibuffer_do_occur")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "View lines which match REGEXP in all marked buffers."//LF// &
                         "Optional argument NLINES says how many lines of context to display:"//LF// &
                         "it defaults to one."
         case ("ibuffer_do_query_replace")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Perform a `query_replace' in marked buffers."
         case ("ibuffer_do_query_replace_regexp")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Perform a `query_replace_regexp' in marked buffers."
         case ("ibuffer_do_rename_uniquely")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Rename marked buffers as with `rename_uniquely'."
         case ("ibuffer_do_replace_regexp")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Perform a `replace_regexp' in marked buffers."
         case ("ibuffer_do_revert")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Revert marked buffers as with `revert_buffer'."
         case ("ibuffer_do_save")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Save marked buffers as with `save_buffer'."
         case ("ibuffer_do_shell_command_file")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Run shell command COMMAND separately on files of marked buffers."
         case ("ibuffer_do_shell_command_pipe")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Pipe the contents of each marked buffer to shell command COMMAND."
         case ("ibuffer_do_shell_command_pipe_replace")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Replace the contents of marked buffers with output of pipe to"//LF// &
                         "COMMAND."
         case ("ibuffer_do_sort_by_alphabetic")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Sort the buffers by their names."//LF// &
                         "Ordering is lexicographic."
         case ("ibuffer_do_sort_by_filename_process")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Sort the buffers by their file name/process name."
         case ("ibuffer_do_sort_by_major_mode")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Sort the buffers by major modes."//LF// &
                         "Ordering is lexicographic."
         case ("ibuffer_do_sort_by_mode_name")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Sort the buffers by their mode name."//LF// &
                         "Ordering is lexicographic."
         case ("ibuffer_do_sort_by_recency")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Sort the buffers by how recently they've been used."
         case ("ibuffer_do_sort_by_size")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Sort the buffers by their size."
         case ("ibuffer_do_toggle_lock")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle locked status in marked buffers.  (emacs-lock.el is not"//LF// &
                         "ported: this does nothing.)"
         case ("ibuffer_do_toggle_modified")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle modification flag of marked buffers."
         case ("ibuffer_do_toggle_read_only")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle read only status in marked buffers."//LF// &
                         "If optional ARG is a non-negative integer, make buffers read only."//LF// &
                         "If ARG is a negative integer or 0, make buffers writable."//LF// &
                         "Otherwise, toggle read only status."
         case ("ibuffer_do_view")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "View marked buffers, or the buffer on the current line."//LF// &
                         "Display each buffer as a new window in the current frame, splitting"//LF// &
                         "vertically."
         case ("ibuffer_do_view_horizontally")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "As `ibuffer_do_view', but split windows horizontally."
         case ("ibuffer_exchange_filters")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Exchange the top two filters on the stack in this buffer."
         case ("ibuffer_file_extension")
             entry%file = "ibuf_macs_fm.f90"
@@ -6975,7 +6975,7 @@ contains
                         "NUMBER or the PREDICATE (none for a filter without qualifier)."
         case ("ibuffer_filter_by_basename")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Limit current view to buffers with file basename matching"//LF// &
                         "QUALIFIER."//LF// &
                         ""//LF// &
@@ -6983,11 +6983,11 @@ contains
                         "matches against `c.d'."
         case ("ibuffer_filter_by_content")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Limit current view to buffers whose contents match QUALIFIER."
         case ("ibuffer_filter_by_derived_mode")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Limit current view to buffers with major mode(s) specified by"//LF// &
                         "QUALIFIER.  QUALIFIER is the mode name or a list of names."//LF// &
                         " Restrict the view to buffers whose major mode derivates"//LF// &
@@ -6996,7 +6996,7 @@ contains
                         "names."
         case ("ibuffer_filter_by_directory")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Limit current view to buffers with directory matching QUALIFIER."//LF// &
                         ""//LF// &
                         "For a buffer associated with file '/a/b/c.d', this matches"//LF// &
@@ -7004,7 +7004,7 @@ contains
                         "matches against the value of `default_directory' in that buffer."
         case ("ibuffer_filter_by_file_extension")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Limit current view to buffers with filename extension matching"//LF// &
                         "QUALIFIER."//LF// &
                         ""//LF// &
@@ -7013,7 +7013,7 @@ contains
                         "`/a/b/c.d', this matches against `d'."
         case ("ibuffer_filter_by_filename")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Limit current view to buffers with full file name matching"//LF// &
                         "QUALIFIER."//LF// &
                         ""//LF// &
@@ -7021,40 +7021,40 @@ contains
                         "matches against '/a/b/c.d'."
         case ("ibuffer_filter_by_mode")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Limit current view to buffers with major mode(s) specified by"//LF// &
                         "QUALIFIER.  QUALIFIER is the mode name or a list of names."//LF// &
                         "Called interactively, accept a comma separated list of mode"//LF// &
                         "names."
         case ("ibuffer_filter_by_modified")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Limit current view to buffers that are marked as modified."
         case ("ibuffer_filter_by_name")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Limit current view to buffers with name matching QUALIFIER."
         case ("ibuffer_filter_by_process")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Limit current view to buffers running a process."
         case ("ibuffer_filter_by_size_gt")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Limit current view to buffers with size greater than QUALIFIER."
         case ("ibuffer_filter_by_size_lt")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Limit current view to buffers with size less than QUALIFIER."
         case ("ibuffer_filter_by_starred_name")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Limit current view to buffers with name beginning and ending"//LF// &
                         "with *, along with an optional suffix of the form digits or"//LF// &
                         "<digits>."
         case ("ibuffer_filter_by_used_mode")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Limit current view to buffers with major mode(s) specified by"//LF// &
                         "QUALIFIER.  QUALIFIER is the mode name or a list of names."//LF// &
                         ""//LF// &
@@ -7062,11 +7062,11 @@ contains
                         "currently used by buffers."
         case ("ibuffer_filter_by_visiting_file")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Limit current view to buffers that are visiting a file."
         case ("ibuffer_filter_chosen_by_completion")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Select and apply filter chosen by completion against available"//LF// &
                         "filters.  Indicates corresponding key sequences in echo area after"//LF// &
                         "filtering."//LF// &
@@ -7075,7 +7075,7 @@ contains
                         "each filter in `ibuffer_filtering_table'."
         case ("ibuffer_filter_disable")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Disable all filters currently in effect in this buffer."//LF// &
                         "With optional arg DELETE_FILTER_GROUPS true, delete all filter"//LF// &
                         "group definitions by setting `ibuffer_filter_groups' to empty."
@@ -7110,24 +7110,24 @@ contains
                         "This variable is local to each ibuffer buffer."
         case ("ibuffer_filters_to_filter_group")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Make the current filters into a filtering group."
         case ("ibuffer_find_file")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Like `find_file', but default to the directory of the buffer at"//LF// &
                         "point."
         case ("ibuffer_forward_filter_group")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point forwards by COUNT filtering groups."
         case ("ibuffer_forward_line")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move forward ARG lines, wrapping around the list if necessary."
         case ("ibuffer_forward_next_marked")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move forward by COUNT marked buffers (default 1)."//LF// &
                         ""//LF// &
                         "If MARK is present, it should be a character denoting the type of"//LF// &
@@ -7137,20 +7137,20 @@ contains
                         "mean move backwards, non-negative integers mean move forwards."
         case ("ibuffer_interactive_filter_by_mode")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Enable or disable filtering by the major mode at point."
         case ("ibuffer_invert_sorting")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle whether or not sorting is in reverse order."
         case ("ibuffer_jump")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Call Ibuffer and set point at the line listing the current buffer."//LF// &
                         "If optional arg OTHER_WINDOW is true, then use another window."
         case ("ibuffer_jump_to_buffer")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point to the buffer whose name is NAME."//LF// &
                         ""//LF// &
                         "If called interactively, prompt for a buffer name and go to the"//LF// &
@@ -7162,21 +7162,21 @@ contains
                         "a prefix argument reverses the meaning of that variable."
         case ("ibuffer_jump_to_filter_group")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point to the filter group whose name is NAME."
         case ("ibuffer_kill_filter_group")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill the filter group named NAME."//LF// &
                         "The group will be added to `ibuffer_filter_group_kill_ring'."
         case ("ibuffer_kill_line")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill the filter group at point."//LF// &
                         "See also `ibuffer_kill_filter_group'."
         case ("ibuffer_list_buffers")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display a list of buffers, in another window."//LF// &
                         "If optional argument FILES_ONLY is true, then add a filter for"//LF// &
                         "buffers which are visiting a file."
@@ -7186,7 +7186,7 @@ contains
             entry%doc = "Buffers whose major mode is MODE (mode . MODE)."
         case ("ibuffer_mark_by_content_regexp")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark all buffers whose content matches REGEXP."//LF// &
                         "Optional arg ALL_BUFFERS, if true, then search in all buffers."//LF// &
                         "Otherwise buffers whose name matches an element of"//LF// &
@@ -7194,80 +7194,80 @@ contains
                         "`ibuffer_never_search_content_mode' are excluded."
         case ("ibuffer_mark_by_file_name_regexp")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark all buffers whose file name matches REGEXP."
         case ("ibuffer_mark_by_locked")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark all locked buffers.  (emacs-lock.el is not ported: there are"//LF// &
                         "none.)"
         case ("ibuffer_mark_by_mode")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark all buffers whose major mode equals MODE."
         case ("ibuffer_mark_by_mode_regexp")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark all buffers whose major mode matches REGEXP."
         case ("ibuffer_mark_by_name_regexp")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark all buffers whose name matches REGEXP."
         case ("ibuffer_mark_compressed_file_buffers")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark buffers whose associated file is compressed."
         case ("ibuffer_mark_dired_buffers")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark all `dired' buffers."
         case ("ibuffer_mark_dissociated_buffers")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark all buffers whose associated file does not exist."
         case ("ibuffer_mark_for_delete")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark for deletion the buffers in the region, or ARG buffers."//LF// &
                         "If point is on a group name, this function operates on that group."
         case ("ibuffer_mark_for_delete_backwards")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark for deletion the ARG previous buffers."//LF// &
                         "If point is on a group name, this function operates on that group."
         case ("ibuffer_mark_forward")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark the buffers in the region, or ARG buffers."//LF// &
                         "If point is on a group name, this function operates on that group."
         case ("ibuffer_mark_help_buffers")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark buffers whose major mode is in variable"//LF// &
                         "`ibuffer_help_buffer_modes'."
         case ("ibuffer_mark_modified_buffers")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark all modified buffers."
         case ("ibuffer_mark_old_buffers")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark buffers which have not been viewed in `ibuffer_old_time' hours."
         case ("ibuffer_mark_read_only_buffers")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark all read-only buffers."
         case ("ibuffer_mark_special_buffers")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark all buffers whose name begins and ends with `*'."
         case ("ibuffer_mark_unsaved_buffers")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark all modified buffers that have an associated file."
         case ("ibuffer_mode")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "A major mode for viewing a list of buffers."//LF// &
                         "In Ibuffer, you can conveniently perform many operations on the"//LF// &
                         "currently open buffers, in addition to filtering your view to a"//LF// &
@@ -7462,7 +7462,7 @@ contains
             entry%doc = "Buffers whose name matches REGEXP (name . REGEXP)."
         case ("ibuffer_negate_filter")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Negate the sense of the top filter in the current buffer."
         case ("ibuffer_not")
             entry%file = "ibuf_macs_fm.f90"
@@ -7476,23 +7476,23 @@ contains
                         "p to 16): (or FILTER-SPECS...)."
         case ("ibuffer_or_filter")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Replace the top two filters in this buffer with their logical"//LF// &
                         "OR.  If optional argument DECOMPOSE is true, instead break the"//LF// &
                         "top OR filter into parts."
         case ("ibuffer_other_window")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Like `ibuffer', but displayed in another window by default."//LF// &
                         "If optional argument FILES_ONLY is true, then add a filter for"//LF// &
                         "buffers which are visiting a file."
         case ("ibuffer_pop_filter")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Remove the top filter in this buffer."
         case ("ibuffer_pop_filter_group")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Remove the first filter group."
         case ("ibuffer_predicate")
             entry%file = "ibuf_macs_fm.f90"
@@ -7505,25 +7505,25 @@ contains
             entry%doc = "Buffers running a process (process)."
         case ("ibuffer_recompile_formats")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Recompile `ibuffer_formats': check that their columns exist."//LF// &
                         "(Fortmacs interprets the formats.)"
         case ("ibuffer_redisplay")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Redisplay the current list of buffers."//LF// &
                         "This does not show new buffers; use `ibuffer_update' for that."//LF// &
                         ""//LF// &
                         "If optional arg SILENT is true, do not display progress messages."
         case ("ibuffer_save_filter_groups")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Save all active filter groups GROUPS as NAME."//LF// &
                         "They are added to `ibuffer_saved_filter_groups'.  Interactively,"//LF// &
                         "prompt for NAME, and use the current filters."
         case ("ibuffer_save_filters")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Save FILTERS in this buffer with name NAME in"//LF// &
                         "`ibuffer_saved_filters'.  Interactively, prompt for NAME, and use"//LF// &
                         "the current filters."
@@ -7539,7 +7539,7 @@ contains
                         "GROUPS."
         case ("ibuffer_set_filter_groups_by_mode")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set the current filter groups to filter by mode."
         case ("ibuffer_set_filtering_qualifiers")
             entry%file = "ibuffer_fm.f90"
@@ -7560,27 +7560,27 @@ contains
             entry%doc = "Buffers whose name begins and ends with * (starred-name)."
         case ("ibuffer_switch_format")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Switch the current display format."
         case ("ibuffer_switch_to_saved_filter_groups")
             entry%file = "ibuffer_fm.f90"
             entry%fortran = "call ibuffer_switch_to_saved_filter_groups(name, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set this buffer's filter groups to saved version with NAME."//LF// &
                         "The value from `ibuffer_saved_filter_groups' is used."
         case ("ibuffer_switch_to_saved_filters")
             entry%file = "ibuffer_fm.f90"
             entry%fortran = "call ibuffer_switch_to_saved_filters(name, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set this buffer's filters to filters with NAME from"//LF// &
                         "`ibuffer_saved_filters'."
         case ("ibuffer_toggle_filter_group")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle the display status of the filter group on this line."
         case ("ibuffer_toggle_marks")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle which buffers are marked."//LF// &
                         "In other words, unmarked buffers become marked, and marked buffers"//LF// &
                         "become unmarked."//LF// &
@@ -7588,7 +7588,7 @@ contains
                         "group."
         case ("ibuffer_toggle_sorting_mode")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle the current sorting mode."//LF// &
                         "Default sorting modes are:"//LF// &
                         " Recency - the last time the buffer was viewed"//LF// &
@@ -7597,25 +7597,25 @@ contains
                         " Size - the size of the buffer"
         case ("ibuffer_unmark_all")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Unmark all buffers with mark MARK (RET means all)."
         case ("ibuffer_unmark_all_marks")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Remove all marks from all marked buffers in Ibuffer."
         case ("ibuffer_unmark_backward")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Unmark the buffers in the region, or previous ARG buffers."//LF// &
                         "If point is on a group name, this function operates on that group."
         case ("ibuffer_unmark_forward")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Unmark the buffers in the region, or ARG buffers."//LF// &
                         "If point is on a group name, this function operates on that group."
         case ("ibuffer_update")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Regenerate the list of all buffers."//LF// &
                         ""//LF// &
                         "ARG true means to toggle whether buffers that match"//LF// &
@@ -7628,21 +7628,21 @@ contains
             entry%doc = "Buffers whose major mode, one in use, is MODE (used-mode . MODE)."
         case ("ibuffer_visit_buffer")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Visit the buffer on this line."//LF// &
                         "If optional argument SINGLE is true, then also ensure there is only"//LF// &
                         "one window."
         case ("ibuffer_visit_buffer_1_window")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Visit the buffer on this line, and delete other windows."
         case ("ibuffer_visit_buffer_other_window")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Visit the buffer on this line in another window."
         case ("ibuffer_visit_buffer_other_window_noselect")
             entry%file = "ibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Visit the buffer on this line in another window, but don't select"//LF// &
                         "it."
         case ("ibuffer_visiting_file")
@@ -7651,22 +7651,22 @@ contains
             entry%doc = "Buffers visiting a file (visiting-file)."
         case ("ibuffer_yank")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Yank the last killed filter group before group at point."
         case ("ibuffer_yank_filter_group")
             entry%file = "ibuf_ext_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Yank the last killed filter group before group named NAME."
         case ("ignore")
             entry%file = "subr_read_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Ignore ARGUMENTS, do nothing, and return nil."//LF// &
                         "This function accepts any number of arguments in ARGUMENTS."//LF// &
                         "Also see `always'."
         case ("increment_register")
             entry%file = "register_fm.f90"
             entry%fortran = "call increment_register(register, status, prefix)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Augment contents of REGISTER using PREFIX."//LF// &
                         "Interactively, PREFIX is the raw prefix argument."//LF// &
                         ""//LF// &
@@ -7680,7 +7680,7 @@ contains
         case ("indent_according_to_mode")
             entry%file = "indent_fm.f90"
             entry%fortran = "call indent_according_to_mode(status, inhibit_widen)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Indent line in proper way for current major mode."//LF// &
                         "Normally, this is done by calling the function specified by the"//LF// &
                         "variable `indent_line_function'.  However, if the value of that"//LF// &
@@ -7692,7 +7692,7 @@ contains
                         "true."
         case ("indent_for_tab_command")
             entry%file = "indent_cmds_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Indent the current line or region, or insert a tab, as appropriate."//LF// &
                         "This function either inserts a tab, or indents the current line,"//LF// &
                         "or performs symbol completion, depending on `tab_always_indent'."//LF// &
@@ -7716,7 +7716,7 @@ contains
         case ("indent_region")
             entry%file = "indent_fm.f90"
             entry%fortran = "call indent_region(start, end, status, column)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Indent each nonblank line in the region."//LF// &
                         "A numeric prefix argument specifies a column: indent each line to that column."//LF// &
                         ""//LF// &
@@ -7736,7 +7736,7 @@ contains
         case ("indent_relative")
             entry%file = "indent_fm.f90"
             entry%fortran = "call indent_relative(status, first_only, unindented_ok, noindent)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Space out to under next indent point in previous nonblank line."//LF// &
                         "An indent point is a non-whitespace character following whitespace."//LF// &
                         "The following line shows the indentation points in this line."//LF// &
@@ -7753,7 +7753,7 @@ contains
                         "See also `indent_relative_first_indent_point'."
         case ("indent_relative_first_indent_point")
             entry%file = "indent_cmds_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Indent the current line like the previous nonblank line."//LF// &
                         "Indent to the first indentation position in the previous nonblank"//LF// &
                         "line if that position is greater than the current column."//LF// &
@@ -7762,7 +7762,7 @@ contains
         case ("indent_rigidly")
             entry%file = "indent_fm.f90"
             entry%fortran = "call indent_rigidly(start, end, arg, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Indent all lines starting in the region."//LF// &
                         "If called interactively with no prefix argument, activate a"//LF// &
                         "transient mode in which the indentation can be adjusted interactively"//LF// &
@@ -7782,28 +7782,28 @@ contains
                         "indentation by specifying a large negative ARG."
         case ("indent_rigidly_left")
             entry%file = "indent_cmds_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Indent all lines between BEG and END leftward by one space."
         case ("indent_rigidly_left_to_tab_stop")
             entry%file = "indent_cmds_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Indent all lines between BEG and END leftward to a tab stop."
         case ("indent_rigidly_right")
             entry%file = "indent_cmds_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Indent all lines between BEG and END rightward by one space."
         case ("indent_rigidly_right_to_tab_stop")
             entry%file = "indent_cmds_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Indent all lines between BEG and END rightward to a tab stop."
         case ("indent_tabs_mode")
             entry%file = "simple_modes_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle whether indentation can insert TAB characters."
         case ("indent_to")
             entry%file = "indent_fm.f90"
             entry%fortran = "indent_to(column, status, minimum)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Indent from point with tabs and spaces until COLUMN is reached."//LF// &
                         "Optional second argument MINIMUM says always do at least MINIMUM spaces"//LF// &
                         "even if that goes past COLUMN; by default, MINIMUM is zero."//LF// &
@@ -7813,7 +7813,7 @@ contains
                         "The return value is the column where the insertion ends."
         case ("info")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Enter Info, the documentation browser."//LF// &
                         "Optional argument FILE_OR_NODE specifies the file to examine;"//LF// &
                         "the default is the top-level directory of Info."//LF// &
@@ -7838,29 +7838,29 @@ contains
                         "See a list of available Info commands in `info_mode'."
         case ("info_apropos")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Search indices of all known Info files on your system for STRING."//LF// &
                         "If REGEXP (interactively, the prefix), use a regexp match."//LF// &
                         ""//LF// &
                         "Display a menu of the possible matches."
         case ("info_backward_node")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go backward one node, considering all nodes as forming one sequence."//LF// &
                         "If the current node has a ""previous"" node, go to it, descending"//LF// &
                         "into its last sub-node, if any; otherwise go ""up"" to the parent"//LF// &
                         "node."
         case ("info_copy_current_node_name")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("info_directory")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the Info directory node."
         case ("info_display_manual")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display an Info buffer displaying MANUAL."//LF// &
                         "If there is an existing Info buffer for MANUAL, display it."//LF// &
                         "Otherwise, visit the manual in a new Info buffer.  In interactive"//LF// &
@@ -7868,72 +7868,72 @@ contains
                         "completion alternatives to currently visited manuals."
         case ("info_emacs_bug")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display the ""Reporting Bugs"" section of the Emacs manual in Info"//LF// &
                         "mode."
         case ("info_emacs_manual")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display the Emacs manual in Info mode."
         case ("info_final_node")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the final node in this file."
         case ("info_follow_nearest_node")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("info_follow_reference")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("info_forward_node")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("info_goto_emacs_command_node")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("info_goto_emacs_key_command_node")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("info_goto_node")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("info_help")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Enter the Info tutorial."
         case ("info_history")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to a node with a menu of visited nodes."
         case ("info_history_back")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go back in the history to the last node visited."
         case ("info_history_forward")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go forward in the history of visited nodes."
         case ("info_index")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("info_index_next")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("info_last_menu_item")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the node of the previous menu item."
         case ("info_last_preorder")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the last node, popping up a level if there is none."
         case ("info_lookup_add_help")
             entry%file = "info_look_fm.f90"
@@ -7951,7 +7951,7 @@ contains
                         "help modes."
         case ("info_lookup_file")
             entry%file = "info_look_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Look up and display documentation of FILE in the relevant Info"//LF// &
                         "manual.  FILE should be the name of a file; a notable example is a"//LF// &
                         "standard header file that is part of the C or C++ standard"//LF// &
@@ -7975,16 +7975,9 @@ contains
             entry%doc = "Add a help specification if none is defined.  See the"//LF// &
                         "documentation of the function `info_lookup_add_help' for more"//LF// &
                         "details."
-        case ("info_lookup_reset")
+        case ("info_lookup_name")
             entry%file = "info_look_fm.f90"
-            entry%interactive = .true.
-            entry%doc = "Throw away all cached data."//LF// &
-                        "This command is useful if the user wants to start at the beginning"//LF// &
-                        "without quitting Emacs, for example, after some Info documents"//LF// &
-                        "were updated on the system."
-        case ("info_lookup_symbol")
-            entry%file = "info_look_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Look up and display documentation of SYMBOL in the relevant Info"//LF// &
                         "manual.  SYMBOL should be an identifier: a function or method, a"//LF// &
                         "macro, a variable, a data type, a class, etc."//LF// &
@@ -8002,13 +7995,20 @@ contains
                         ""//LF// &
                         "Is SAME_WINDOW, try to reuse the current window instead of popping"//LF// &
                         "up a new one."
+        case ("info_lookup_reset")
+            entry%file = "info_look_fm.f90"
+            entry%command = .true.
+            entry%doc = "Throw away all cached data."//LF// &
+                        "This command is useful if the user wants to start at the beginning"//LF// &
+                        "without quitting Emacs, for example, after some Info documents"//LF// &
+                        "were updated on the system."
         case ("info_menu")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("info_mode")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Info mode provides commands for browsing through the Info"//LF// &
                         "documentation tree.  Documentation in Info is divided into ""nodes"","//LF// &
                         "each of which discusses one topic and contains references to other"//LF// &
@@ -8075,47 +8075,47 @@ contains
                         "info*<N>."
         case ("info_next")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the ""next"" node, staying on the same hierarchical level."//LF// &
                         "This command doesn't descend into sub-nodes, like"//LF// &
                         "\<info_mode_map>\[info_forward_node] does."
         case ("info_next_menu_item")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the node of the next menu item."
         case ("info_next_preorder")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the next subnode or the next node, or go up a level."
         case ("info_next_reference")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("info_nth_menu_item")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("info_on_current_buffer")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("info_other_window")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Like `info' but show the Info buffer in another window."
         case ("info_prev")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the ""previous"" node, staying on the same hierarchical level."//LF// &
                         "This command doesn't go up to the parent node, like"//LF// &
                         "\<info_mode_map>\[info_backward_node] does."
         case ("info_prev_reference")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("info_scroll_down")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Scroll one screenful back in Info, considering all nodes as one"//LF// &
                         "sequence.  If point is within the menu of a node, and"//LF// &
                         "`info_scroll_prefer_subnodes' is true, this goes to its last"//LF// &
@@ -8123,7 +8123,7 @@ contains
                         "the previous node or back up to the parent node."
         case ("info_scroll_up")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Scroll one screenful forward in Info, considering all nodes as one"//LF// &
                         "sequence.  Once you scroll far enough in a node that its menu"//LF// &
                         "appears on the screen but after point, the next scroll moves into"//LF// &
@@ -8138,44 +8138,44 @@ contains
                         "result from this command, but can happen in other ways.)"
         case ("info_search")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("info_search_backward")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("info_search_case_sensitively")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Search for a regexp case-sensitively."
         case ("info_search_next")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Search for next regexp from a previous `info_search' command."
         case ("info_summary")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display a brief summary of all Info commands."
         case ("info_toc")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to a node with table of contents of the current Info file."//LF// &
                         "Table of contents is created from the tree structure of menus."
         case ("info_top_node")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the Top node of this file."
         case ("info_undefined")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Make command be undefined in Info."
         case ("info_up")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("info_virtual_index")
             entry%file = "info_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("insert")
             entry%file = "insdel_fm.f90"
@@ -8195,12 +8195,12 @@ contains
         case ("insert_abbrevs")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "call insert_abbrevs(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert the description of all defined abbrevs after point."//LF// &
                         "Set mark after the inserted text."
         case ("insert_pair")
             entry%file = "expression_motion_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Enclose following ARG expressions in a pair of OPEN and CLOSE characters."//LF// &
                         "Leave point after the first character."//LF// &
                         "A negative ARG encloses the preceding ARG expressions instead."//LF// &
@@ -8219,7 +8219,7 @@ contains
                         "This command assumes point is not in a string or comment."
         case ("insert_parentheses")
             entry%file = "expression_motion_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Enclose following ARG expressions in parentheses."//LF// &
                         "Leave point after open-paren."//LF// &
                         "A negative ARG encloses the preceding ARG expressions instead."//LF// &
@@ -8241,7 +8241,7 @@ contains
         case ("insert_register")
             entry%file = "register_fm.f90"
             entry%fortran = "call insert_register(register, status, arg)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert contents of REGISTER at point."//LF// &
                         "REGISTER is a character, the name of the register."//LF// &
                         "Normally puts point before and mark after the inserted text, but"//LF// &
@@ -8309,7 +8309,7 @@ contains
         case ("inverse_add_global_abbrev")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "call inverse_add_global_abbrev(n, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Define the word before point as a global (mode-independent) abbreviation."//LF// &
                         "With prefix argument N, define the Nth word before point as the"//LF// &
                         "abbreviation.  Negative N means use the Nth word after point."//LF// &
@@ -8323,7 +8323,7 @@ contains
         case ("inverse_add_mode_abbrev")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "call inverse_add_mode_abbrev(n, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Define the word before point as a mode-specific abbreviation."//LF// &
                         "With prefix argument N, define the Nth word before point as the"//LF// &
                         "abbreviation.  Negative N means use the Nth word after point."//LF// &
@@ -8467,21 +8467,21 @@ contains
             entry%doc = "Return true if TIMER is a timer."
         case ("isearch_abort")
             entry%file = "isearch_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Abort incremental search mode if searching is successful, signaling"//LF// &
                         "quit.  Otherwise, revert to previous successful search and continue"//LF// &
                         "searching.  Use `isearch_exit' to quit without signaling."
         case ("isearch_backward")
             entry%file = "isearch_fm.f90"
             entry%fortran = "call isearch_backward_command(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Do incremental search backward."//LF// &
                         "With a prefix argument, do a regular expression search instead."//LF// &
                         "See the command `isearch_forward' for more information."
         case ("isearch_backward_regexp")
             entry%file = "isearch_fm.f90"
             entry%fortran = "call isearch_backward_regexp_command(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Do incremental search backward for regular expression."//LF// &
                         "With a prefix argument, do a regular string search instead."//LF// &
                         "Like ordinary incremental search except that your input is treated"//LF// &
@@ -8489,44 +8489,44 @@ contains
                         "information."
         case ("isearch_beginning_of_buffer")
             entry%file = "isearch_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the first occurrence of the current search string."//LF// &
                         "Move point to the beginning of the buffer and search forwards from"//LF// &
                         "the top.  With a numeric argument, go to the ARGth absolute"//LF// &
                         "occurrence counting from the beginning of the buffer."
         case ("isearch_cancel")
             entry%file = "isearch_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Terminate the search and go back to the starting point."
         case ("isearch_del_char")
             entry%file = "isearch_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Delete character from end of search string and search again."//LF// &
                         "Unlike `isearch_delete_char', it only deletes the last character,"//LF// &
                         "but doesn't cancel the effect of other isearch command."//LF// &
                         "If search string is empty, just beep."
         case ("isearch_delete_char")
             entry%file = "isearch_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Undo last input item during a search."//LF// &
                         "An input item is the result of a command that pushes a new state"//LF// &
                         "of isearch to `isearch_cmds'.  If no input items have been entered"//LF// &
                         "yet, just beep."
         case ("isearch_edit_string")
             entry%file = "isearch_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Edit the search string in the minibuffer."//LF// &
                         "RET resumes incremental searching with the edited string."
         case ("isearch_end_of_buffer")
             entry%file = "isearch_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the last occurrence of the current search string."//LF// &
                         "Move point to the end of the buffer and search backwards from the"//LF// &
                         "bottom.  With a numeric argument, go to the ARGth absolute"//LF// &
                         "occurrence counting from the end of the buffer."
         case ("isearch_exit")
             entry%file = "isearch_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Exit search normally."//LF// &
                         "However, if this is the first command after starting incremental"//LF// &
                         "search and `search_nonincremental_instead' is true, do a"//LF// &
@@ -8534,7 +8534,7 @@ contains
         case ("isearch_forward")
             entry%file = "isearch_fm.f90"
             entry%fortran = "call isearch_forward_command(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Do incremental search forward."//LF// &
                         "With a prefix argument, do an incremental regular expression"//LF// &
                         "search instead."//LF// &
@@ -8552,7 +8552,7 @@ contains
         case ("isearch_forward_regexp")
             entry%file = "isearch_fm.f90"
             entry%fortran = "call isearch_forward_regexp_command(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Do incremental search forward for regular expression."//LF// &
                         "With a prefix argument, do a regular string search instead."//LF// &
                         "Like ordinary incremental search except that your input is treated"//LF// &
@@ -8567,79 +8567,79 @@ contains
                         "support character folding."
         case ("isearch_printing_char")
             entry%file = "isearch_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Add this ordinary printing CHAR to the search string and search."//LF// &
                         "With argument, add COUNT copies of the character."
         case ("isearch_quote_char")
             entry%file = "isearch_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Quote special characters for incremental search."//LF// &
                         "With argument, add COUNT copies of the character."
         case ("isearch_repeat_backward")
             entry%file = "isearch_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Repeat incremental search backwards."//LF// &
                         "With a numeric argument, repeat the search ARG times."//LF// &
                         "A negative argument searches forwards."
         case ("isearch_repeat_forward")
             entry%file = "isearch_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Repeat incremental search forwards."//LF// &
                         "With a numeric argument, repeat the search ARG times."//LF// &
                         "A negative argument searches backwards."
         case ("isearch_ring_advance")
             entry%file = "isearch_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Advance to the next search string in the ring."
         case ("isearch_ring_retreat")
             entry%file = "isearch_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Retreat to the previous search string in the ring."
         case ("isearch_toggle_case_fold")
             entry%file = "isearch_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle case folding in searching on or off."//LF// &
                         "Toggles the value of the variable `isearch_case_fold_search'."
         case ("isearch_toggle_lax_whitespace")
             entry%file = "isearch_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle lax-whitespace searching on or off."//LF// &
                         "In ordinary search, toggles the value of the variable"//LF// &
                         "`isearch_lax_whitespace'.  In regexp search, toggles the value of"//LF// &
                         "the variable `isearch_regexp_lax_whitespace'."
         case ("isearch_toggle_regexp")
             entry%file = "isearch_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle regexp searching on or off."
         case ("isearch_yank_char")
             entry%file = "isearch_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Pull next character from buffer into search string."//LF// &
                         "If optional ARG is given, pull in the next ARG characters."
         case ("isearch_yank_kill")
             entry%file = "isearch_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Pull string from kill ring into search string."
         case ("isearch_yank_line")
             entry%file = "isearch_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Pull rest of line from buffer into search string."//LF// &
                         "If optional ARG is given, yank the next ARG lines."
         case ("isearch_yank_pop_only")
             entry%file = "isearch_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Replace just-yanked search string with previously killed string."//LF// &
                         "When this command is called not immediately after a"//LF// &
                         "`isearch_yank_kill' or a `isearch_yank_pop_only', it only pops the"//LF// &
                         "last killed string."
         case ("isearch_yank_word_or_char")
             entry%file = "isearch_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Pull next character or word from buffer into search string."//LF// &
                         "If optional ARG is given, pull in the next ARG characters/words."
         case ("join_line")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Join this line to previous and fix up whitespace at join."//LF// &
                         "If there is a fill prefix, delete it from the beginning of this"//LF// &
                         "line."//LF// &
@@ -8651,7 +8651,7 @@ contains
         case ("jump_to_register")
             entry%file = "register_fm.f90"
             entry%fortran = "call jump_to_register(register, status, delete)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to location stored in REGISTER, or restore configuration stored there."//LF// &
                         "Push the mark if going to the location moves point, unless called in succession."//LF// &
                         "If the register contains a file name, find that file."//LF// &
@@ -8669,7 +8669,7 @@ contains
         case ("just_one_space")
             entry%file = "simple_fm.f90"
             entry%fortran = "call just_one_space(n, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Delete all spaces and tabs around point, leaving one space (or N spaces)."//LF// &
                         "Interactively, N is the prefix numeric argument."//LF// &
                         "If N is negative, delete newlines as well, leaving -N spaces."//LF// &
@@ -8677,7 +8677,7 @@ contains
         case ("justify_current_line")
             entry%file = "fill_fm.f90"
             entry%fortran = "call justify_current_line(status, how_in, eop, nosqueeze)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Do some kind of justification on this line."//LF// &
                         "Normally does full justification: adds spaces to the line to make it end at"//LF// &
                         "the column given by `current_fill_column'."//LF// &
@@ -8695,14 +8695,14 @@ contains
         case ("keep_lines")
             entry%file = "replace_fm.f90"
             entry%fortran = "call keep_lines(regexp, status, rstart, rend, interactive)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: read the regexp, then `keep_lines' (interactively)."//LF// &
                         "The interactive form of replace.el:keep-lines."//LF// &
                         ""//LF// &
                         "Delete all lines except those containing matches for a regexp."
         case ("keyboard_quit")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Signal a `quit' condition."//LF// &
                         "At top-level, as an editor command, this simply beeps."
         case ("keymap_global_set")
@@ -8717,12 +8717,12 @@ contains
         case ("kill_all_abbrevs")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "call kill_all_abbrevs()"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Undefine all defined abbrevs."
         case ("kill_buffer")
             entry%file = "buffer_fm.f90"
             entry%fortran = "call kill_buffer(h, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill the buffer specified by BUFFER_OR_NAME."//LF// &
                         "The argument may be a buffer or the name of an existing buffer."//LF// &
                         "Argument omitted means kill the current buffer."//LF// &
@@ -8732,12 +8732,12 @@ contains
         case ("kill_compilation")
             entry%file = "compile_fm.f90"
             entry%fortran = "call kill_compilation(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill the process made by the \[compile] or \[grep] commands."
         case ("kill_expression")
             entry%file = "expression_motion_fm.f90"
             entry%fortran = "call kill_expression(arg, status, interactive)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill the balanced expression following point."//LF// &
                         "With ARG, kill that many expressions after point."//LF// &
                         "Negative arg -N means kill N expressions before point."//LF// &
@@ -8746,11 +8746,11 @@ contains
                         "report errors as appropriate for this kind of usage."
         case ("kill_grep")
             entry%file = "grep_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill the process made by the \[compile] or \[grep] commands."
         case ("kill_line")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill the rest of the current line; if no nonblanks there, kill thru"//LF// &
                         "newline.  With prefix argument ARG, kill that many lines from point."//LF// &
                         "Negative arguments kill lines backward.  With zero argument, kills"//LF// &
@@ -8758,7 +8758,7 @@ contains
         case ("kill_matching_lines")
             entry%file = "replace_fm.f90"
             entry%fortran = "call kill_matching_lines(regexp, count, status, rstart, rend, interactive)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: read the regexp, then `kill_matching_lines'.  The"//LF// &
                         "interactive form of replace.el:kill-matching-lines."//LF// &
                         ""//LF// &
@@ -8778,7 +8778,7 @@ contains
         case ("kill_paragraph")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call kill_paragraph(arg, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill forward to end of paragraph."//LF// &
                         "With ARG N, kill forward to Nth end of paragraph;"//LF// &
                         "negative ARG -N means kill backward to Nth start of paragraph."
@@ -8790,7 +8790,7 @@ contains
         case ("kill_rectangle")
             entry%file = "rect_fm.f90"
             entry%fortran = "call kill_rectangle(start, end, status, fill)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Delete the region-rectangle and save it as the last killed one."//LF// &
                         ""//LF// &
                         "When called from a program the rectangle's corners are START and END."//LF// &
@@ -8807,7 +8807,7 @@ contains
         case ("kill_region")
             entry%file = "simple_fm.f90"
             entry%fortran = "call kill_region(beg, end, status, region, read_only_ok)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill (""cut"") text between BEG and END."//LF// &
                         "This deletes the text from the buffer and saves it in the kill ring."//LF// &
                         "The command `yank' can retrieve it from there."//LF// &
@@ -8824,7 +8824,7 @@ contains
                         "command always does)."
         case ("kill_ring_save")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Save the region as if killed, but don't kill it."//LF// &
                         "In Transient Mark mode, deactivate the mark."//LF// &
                         ""//LF// &
@@ -8833,13 +8833,13 @@ contains
         case ("kill_sentence")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call kill_sentence(arg, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill from point to end of sentence."//LF// &
                         "With ARG, repeat; negative ARG -N means kill back to Nth start of"//LF// &
                         "sentence."
         case ("kill_whole_line")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill current line."//LF// &
                         "With prefix ARG, kill that many lines starting from the current line."//LF// &
                         "If ARG is negative, kill backward.  Also kill the preceding newline."//LF// &
@@ -8847,12 +8847,12 @@ contains
         case ("kill_word")
             entry%file = "simple_fm.f90"
             entry%fortran = "call kill_word(arg, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill characters forward until encountering the end of a word."//LF// &
                         "With argument ARG, do this that many times."
         case ("kmacro_add_counter")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Add the value of numeric prefix arg (prompt if missing) to `kmacro_counter'."//LF// &
                         "With \[universal_argument], restore previous counter value."//LF// &
                         ""//LF// &
@@ -8860,7 +8860,7 @@ contains
                         "information."
         case ("kmacro_call_macro")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Call the keyboard MACRO that you defined with \[kmacro_start_macro]."//LF// &
                         "A prefix argument serves as a repeat count.  Zero means repeat until error."//LF// &
                         "MACRO defaults to `last_kbd_macro'."//LF// &
@@ -8871,42 +8871,42 @@ contains
                         "for details on how to adjust or disable this behavior."
         case ("kmacro_call_macro_repeat")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Call the keyboard macro again, with the argument and macro of the"//LF// &
                         "call it repeats (the command of the repeat key after"//LF// &
                         "\[kmacro_end_and_call_macro]).  Upstream an anonymous command made"//LF// &
                         "by kmacro.el:kmacro-call-macro."
         case ("kmacro_call_ring_2nd")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Execute second keyboard macro in macro ring."//LF// &
                         "With numeric argument ARG, execute the macro that many times."
         case ("kmacro_call_ring_2nd_repeat")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Execute second keyboard macro in macro ring."//LF// &
                         "This is like `kmacro_call_ring_2nd', but allows repeating macro commands"//LF// &
                         "without repeating the prefix."
         case ("kmacro_cycle_ring_next")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move to next keyboard macro in keyboard macro ring."//LF// &
                         "Displays the selected macro in the echo area."//LF// &
                         "The ARG parameter is unused."
         case ("kmacro_cycle_ring_previous")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move to previous keyboard macro in keyboard macro ring."//LF// &
                         "Displays the selected macro in the echo area."//LF// &
                         "The ARG parameter is unused."
         case ("kmacro_delete_ring_head")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Delete current macro from keyboard macro ring."//LF// &
                         "The ARG parameter is unused."
         case ("kmacro_end_and_call_macro")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Call last keyboard macro, ending it first if currently being defined."//LF// &
                         "With numeric prefix ARG, repeat macro that many times."//LF// &
                         "Zero argument means repeat until there is an error."//LF// &
@@ -8915,7 +8915,7 @@ contains
                         "macros, use \[kmacro_name_last_macro]."
         case ("kmacro_end_macro")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Finish defining a keyboard macro."//LF// &
                         "The definition was started by \[kmacro_start_macro]."//LF// &
                         "The macro is now available for use via \[kmacro_call_macro]."//LF// &
@@ -8925,17 +8925,17 @@ contains
                         "An argument of zero means repeat until error."
         case ("kmacro_end_or_call_macro")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "End kbd macro if currently being defined; else call last kbd macro."//LF// &
                         "With numeric prefix ARG, repeat macro that many times."//LF// &
                         "With \[universal_argument], call second macro in macro ring."
         case ("kmacro_end_or_call_macro_repeat")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "As `kmacro_end_or_call_macro' but allow repeat without repeating prefix."
         case ("kmacro_insert_counter")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert current value of `kmacro_counter', then increment it by ARG."//LF// &
                         "Interactively, ARG defaults to 1.  With \[universal_argument], insert"//LF// &
                         "the previous value of `kmacro_counter', and do not increment the"//LF// &
@@ -8948,52 +8948,52 @@ contains
                         "information."
         case ("kmacro_quit_counter_equal")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Quit the keyboard macro if the counter is equal to ARG."//LF// &
                         "ARG defaults to zero if omitted (no prefix argument)."
         case ("kmacro_quit_counter_greater")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Quit the keyboard macro if the counter is greater than ARG."//LF// &
                         "ARG defaults to zero if omitted (no prefix argument)."
         case ("kmacro_quit_counter_less")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Quit the keyboard macro if the counter is less than ARGS."//LF// &
                         "ARG defaults to zero if omitted (no prefix argument)."
         case ("kmacro_redisplay")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Force redisplay during keyboard macro execution."
         case ("kmacro_reg_add_counter_equal")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Increment counter by one if it is equal to register value."//LF// &
                         "Prompt for the register to compare."//LF// &
                         "Optional ARG (the prefix argument) specifies the increment."
         case ("kmacro_reg_add_counter_greater")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Increment counter by one if it is greater than register value."//LF// &
                         "Prompt for the register to compare."//LF// &
                         "Optional ARG (the prefix argument) specifies increment."
         case ("kmacro_reg_add_counter_less")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Increment counter by one if it is less than register value."//LF// &
                         "Prompt for the register to compare."//LF// &
                         "Optional ARG (the prefix argument) specifies increment."
         case ("kmacro_reg_load_counter")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Load the value of a REGISTER into `kmacro_counter'."
         case ("kmacro_reg_save_counter")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Save the value of `kmacro_counter' to a REGISTER."
         case ("kmacro_set_counter")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set the value of `kmacro_counter' to ARG, or prompt for value if no argument."//LF// &
                         "With \[universal_argument] prefix, reset counter to its value prior to this iteration of t"// &
                         "he"//LF// &
@@ -9003,7 +9003,7 @@ contains
                         "information."
         case ("kmacro_set_format")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set the format of `kmacro_counter' to FORMAT."//LF// &
                         ""//LF// &
                         "The default format is ""%d"", which means to insert the number in"//LF// &
@@ -9024,7 +9024,7 @@ contains
                         "information."
         case ("kmacro_start_macro")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Record subsequent keyboard input, defining a keyboard macro."//LF// &
                         "The commands are recorded even as they are executed."//LF// &
                         "Use \[kmacro_end_macro] to finish recording and make the macro available."//LF// &
@@ -9045,7 +9045,7 @@ contains
                         "The format of the counter can be modified via \[kmacro_set_format]."
         case ("kmacro_start_macro_or_insert_counter")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Record subsequent keyboard input, defining a keyboard macro."//LF// &
                         "The commands are recorded even as they are executed."//LF// &
                         ""//LF// &
@@ -9067,17 +9067,17 @@ contains
                         "via \[kmacro_set_format]."
         case ("kmacro_swap_ring")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Swap first two elements on keyboard macro ring."
         case ("kmacro_view_macro")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display the last keyboard macro."//LF// &
                         "If repeated, it shows previous elements in the macro ring."//LF// &
                         "The ARG parameter is unused."
         case ("kmacro_view_macro_repeat")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display the last keyboard macro."//LF// &
                         "If repeated, it shows previous elements in the macro ring."//LF// &
                         "To execute the displayed macro ring item without changing the macro ring,"//LF// &
@@ -9086,11 +9086,11 @@ contains
                         "without repeating the prefix."
         case ("kmacro_view_ring_2nd")
             entry%file = "kmacro_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display the second macro in the keyboard macro ring."
         case ("left_char")
             entry%file = "bindings_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point N characters to the left (to the right if N is negative)."//LF// &
                         "On reaching beginning or end of buffer, stop and signal error."//LF// &
                         ""//LF// &
@@ -9098,7 +9098,7 @@ contains
                         "\[backward_char]."
         case ("left_word")
             entry%file = "bindings_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point N words to the left (to the right if N is negative)."//LF// &
                         ""//LF// &
                         "In left-to-right text this moves backward in the buffer, like"//LF// &
@@ -9113,7 +9113,7 @@ contains
         case ("lgrep")
             entry%file = "grep_fm.f90"
             entry%fortran = "call lgrep(regexp, status, files, dir, confirm)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: read the arguments, then `lgrep'.  The interactive form"//LF// &
                         "of grep.el:lgrep."//LF// &
                         ""//LF// &
@@ -9132,21 +9132,21 @@ contains
         case ("list_abbrevs")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "call list_abbrevs(status, local)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display a list of the defined abbrevs."//LF// &
                         "If LOCAL is true (interactively, when invoked with a"//LF// &
                         "prefix arg), display only local, i.e. mode-specific, abbrevs."//LF// &
                         "Otherwise display all the abbrevs."
         case ("list_bookmarks")
             entry%file = "bookmark_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display a list of existing bookmarks."//LF// &
                         "The list is displayed in a buffer named `*Bookmark List*'."//LF// &
                         "The leftmost column displays a D if the bookmark is flagged for"//LF// &
                         "deletion, or > if it is flagged for displaying."
         case ("list_buffers")
             entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display a list of existing buffers."//LF// &
                         "The list is displayed in a buffer named ""*Buffer List*""."//LF// &
                         "See `buffer_menu' for a description of the Buffer Menu."//LF// &
@@ -9156,7 +9156,7 @@ contains
                         "ARG, show only buffers that are visiting files."
         case ("list_matching_lines")
             entry%file = "replace_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: read the arguments, then `occur' (on the region if it"//LF// &
                         "is active).  The interactive form of replace.el:occur."//LF// &
                         ""//LF// &
@@ -9164,7 +9164,7 @@ contains
                         "regexp."
         case ("list_processes")
             entry%file = "simple_process_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display a list of all processes that are Emacs sub-processes."//LF// &
                         "If optional argument QUERY_ONLY_ARG is true, only processes with"//LF// &
                         "the query-on-exit flag set are listed.  Optional argument BUFFER"//LF// &
@@ -9172,7 +9172,7 @@ contains
         case ("list_registers")
             entry%file = "register_fm.f90"
             entry%fortran = "call list_registers(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display the list of nonempty registers with brief descriptions of"//LF// &
                         "contents."
         case ("local_abbrev_table")
@@ -9182,32 +9182,32 @@ contains
                         "none)."
         case ("log_edit_comment_search_backward")
             entry%file = "log_edit_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Search backwards through VC commit comment history for a match of STR."//LF// &
                         "If the optional argument STRIDE is present, that is a step-width to use"//LF// &
                         "when going through the comment ring, `log_edit_comment_ring'."
         case ("log_edit_comment_search_forward")
             entry%file = "log_edit_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Search forwards through VC commit comment history for a match of STR."
         case ("log_edit_diff_fileset")
             entry%file = "log_edit_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display diffs for the files to be committed."
         case ("log_edit_done")
             entry%file = "log_edit_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Finish editing the VC commit log message, and commit the files."//LF// &
                         "If you want to abort the commit, simply delete the buffer."
         case ("log_edit_done_strip_cvs_lines")
             entry%file = "log_edit_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Strip lines starting with ""CVS:"" from commit log message."//LF// &
                         "When not called interactively do this only when the VC backend is CVS."//LF// &
                         "This mimicks what CVS does when invoked as 'cvs commit [files...]'."
         case ("log_edit_insert_changelog")
             entry%file = "log_edit_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert a VC commit log message by looking at the ChangeLog."//LF// &
                         "The idea is to write your ChangeLog entries first, and then use this"//LF// &
                         "command to commit your changes with that log."//LF// &
@@ -9225,37 +9225,37 @@ contains
                         "name or time."
         case ("log_edit_insert_cvs_rcstemplate")
             entry%file = "log_edit_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert the RCS commit log template from the CVS repository."//LF// &
                         "This contacts the repository to get the rcstemplate file and"//LF// &
                         "can thus take some time."
         case ("log_edit_insert_cvs_template")
             entry%file = "log_edit_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert the commit log template specified by the CVS administrator, if any."//LF// &
                         "This simply uses the local CVS/Template file."
         case ("log_edit_insert_filenames")
             entry%file = "log_edit_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert the list of files that are to be committed."
         case ("log_edit_insert_filenames_without_changelog")
             entry%file = "log_edit_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert the list of files that have no ChangeLog message."
         case ("log_edit_insert_message_template")
             entry%file = "log_edit_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert the default VC commit log template with Summary and Author."//LF// &
                         "INTERACTIVE is (called-interactively-p 'interactive)."
         case ("log_edit_kill_buffer")
             entry%file = "log_edit_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill the current VC commit log buffer."//LF// &
                         "This command saves the contents of the log buffer in the VC commit"//LF// &
                         "comment history, see `log_edit_comment_ring', and hides `log_edit_files_buf'."
         case ("log_edit_mode")
             entry%file = "log_edit_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode for editing version-control (VC) commit log messages."//LF// &
                         "When done editing the log entry, type \[log_edit_done], which will"//LF// &
                         "trigger the actual commit of the file(s)."//LF// &
@@ -9266,35 +9266,35 @@ contains
                         "\{log_edit_mode_map}"
         case ("log_edit_mode_help")
             entry%file = "log_edit_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Provide help for the `log_edit_mode_map'."
         case ("log_edit_next_comment")
             entry%file = "log_edit_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Cycle forwards through VC commit comment history."//LF// &
                         "With a numeric prefix ARG, go forward ARG comments."
         case ("log_edit_previous_comment")
             entry%file = "log_edit_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Cycle backwards through VC commit comment history."//LF// &
                         "With a numeric prefix ARG, go back ARG comments."
         case ("log_edit_show_diff")
             entry%file = "log_edit_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Show diff for the changes to be committed."
         case ("log_edit_show_files")
             entry%file = "log_edit_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Show the list of files to be committed."
         case ("log_view_copy_revision_as_kill")
             entry%file = "log_view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Copy the ID of the revision at point to the kill ring."//LF// &
                         "If there are marked revisions, copy the IDs of those, separated by"//LF// &
                         "spaces."
         case ("log_view_diff")
             entry%file = "log_view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Get the diff between two revisions."//LF// &
                         "If the region is inactive or the mark is on the revision at"//LF// &
                         "point, get the diff between the revision at point and its"//LF// &
@@ -9306,7 +9306,7 @@ contains
                         "file(s)."
         case ("log_view_diff_changeset")
             entry%file = "log_view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Get the diff between two revisions."//LF// &
                         "If the region is inactive or the mark is on the revision at"//LF// &
                         "point, get the diff between the revision at point and its"//LF// &
@@ -9318,7 +9318,7 @@ contains
                         "considered file(s)."
         case ("log_view_display_entry_and_diff")
             entry%file = "log_view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Expand current Log View entry, if possible, and also display its diff."//LF// &
                         "If the current Log View entry is already expanded, only display its"//LF// &
                         "diff; this command never collapses entries."//LF// &
@@ -9327,22 +9327,22 @@ contains
                         "See also `log_view_toggle_entry_display'."
         case ("log_view_file_next")
             entry%file = "log_view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the next COUNT'th file."//LF// &
                         "Interactively, COUNT is the numeric prefix argument, and defaults to 1."
         case ("log_view_file_prev")
             entry%file = "log_view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the previous COUNT'th file."//LF// &
                         "Interactively, COUNT is the numeric prefix argument, and defaults to 1."
         case ("log_view_find_revision")
             entry%file = "log_view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Visit the version at POS."//LF// &
                         "If called interactively, visit the version at point."
         case ("log_view_mark_entry")
             entry%file = "log_view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark the log entry at point."//LF// &
                         "If the region is active in Transient Mark mode, mark all entries."//LF// &
                         "When called with a prefix argument, mark that many log entries."//LF// &
@@ -9357,47 +9357,47 @@ contains
                         "marked revisions."
         case ("log_view_mode")
             entry%file = "log_view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode for browsing CVS log output."
         case ("log_view_msg_and_diff_next")
             entry%file = "log_view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to next COUNT'th entry, expand it if possible, and show its diff."//LF// &
                         "Interactively, COUNT is the numeric prefix argument, and defaults to 1."
         case ("log_view_msg_and_diff_prev")
             entry%file = "log_view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to previous COUNT'th entry, expand it if possible, and show its diff."//LF// &
                         "Interactively, COUNT is the numeric prefix argument, and defaults to 1."
         case ("log_view_msg_next")
             entry%file = "log_view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the next COUNT'th log message."//LF// &
                         ""//LF// &
                         "Interactively, COUNT is the numeric prefix argument, and defaults to 1."
         case ("log_view_msg_prev")
             entry%file = "log_view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the previous COUNT'th log message."//LF// &
                         "Interactively, COUNT is the numeric prefix argument, and defaults to 1."
         case ("log_view_toggle_entry_display")
             entry%file = "log_view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "If possible, expand the current Log View entry."//LF// &
                         "This calls `log_view_expanded_log_entry_function' to do the work."//LF// &
                         "See also `log_view_display_entry_and_diff'."
         case ("log_view_toggle_mark_entry")
             entry%file = "log_view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle the marked state for the log entry at point."//LF// &
                         "See `log_view_mark_entry'."
         case ("log_view_unmark_all_entries")
             entry%file = "log_view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Unmark all marked log entries in this buffer."
         case ("log_view_unmark_entry")
             entry%file = "log_view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Unmark the log entry at point."//LF// &
                         "If the region is active in Transient Mark mode, unmark all entries."//LF// &
                         "When called with a prefix argument, unmark that many log entries."//LF// &
@@ -9431,7 +9431,7 @@ contains
         case ("lossage_size")
             entry%file = "keyboard_fm.f90"
             entry%fortran = "lossage_size(arg, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Return or set the maximum number of keystrokes to save."//LF// &
                         "If called with a non-nil ARG, set the limit to ARG and return it."//LF// &
                         "Otherwise, return the current limit."//LF// &
@@ -9545,80 +9545,80 @@ contains
                         "from `standard_syntax_table' otherwise."
         case ("makefile_automake_mode")
             entry%file = "make_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "An adapted `makefile_mode' that knows about automake."
         case ("makefile_backslash_region")
             entry%file = "make_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert, align, or delete end-of-line backslashes on the lines in the"//LF// &
                         "region (the command)."
         case ("makefile_bsdmake_mode")
             entry%file = "make_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "An adapted `makefile_mode' that knows about BSD make."
         case ("makefile_create_up_to_date_overview")
             entry%file = "make_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Create a buffer containing an overview of the state of all known targets."//LF// &
                         "Known targets are targets that are explicitly defined in that makefile;"//LF// &
                         "in other words, all targets that appear on the left hand side of a"//LF// &
                         "dependency in the makefile."
         case ("makefile_electric_colon")
             entry%file = "make_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Prompt for name of new target (the command)."
         case ("makefile_electric_dot")
             entry%file = "make_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Prompt for the name of a special target to insert (the command)."
         case ("makefile_electric_equal")
             entry%file = "make_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Prompt for name of a macro to insert (the command)."
         case ("makefile_gmake_mode")
             entry%file = "make_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "An adapted `makefile_mode' that knows about gmake."
         case ("makefile_imake_mode")
             entry%file = "make_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "An adapted `makefile_mode' that knows about imake."
         case ("makefile_insert_gmake_function")
             entry%file = "make_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert a GNU make function call."//LF// &
                         "Asks for the name of the function to use (with completion)."//LF// &
                         "Then prompts for all required parameters."
         case ("makefile_insert_macro")
             entry%file = "make_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Prepare definition of a new macro (the command)."
         case ("makefile_insert_macro_ref")
             entry%file = "make_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Complete on a list of known macros, then insert complete ref at point"//LF// &
                         "(the command)."
         case ("makefile_insert_special_target")
             entry%file = "make_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Prompt for and insert a special target name."//LF// &
                         "Uses `makefile_special_targets' list."
         case ("makefile_insert_target")
             entry%file = "make_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Prepare definition of a new target (the command)."
         case ("makefile_insert_target_ref")
             entry%file = "make_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Complete on a list of known targets, then insert it at point (the"//LF// &
                         "command)."
         case ("makefile_makepp_mode")
             entry%file = "make_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "An adapted `makefile_mode' that knows about makepp."
         case ("makefile_mode")
             entry%file = "make_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode for editing standard Makefiles."//LF// &
                         ""//LF// &
                         "If you are editing a file for a different make, try one of the"//LF// &
@@ -9675,29 +9675,29 @@ contains
                         "   at the beginning of a line in Makefile mode."
         case ("makefile_next_dependency")
             entry%file = "make_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point to the beginning of the next dependency line."
         case ("makefile_pickup_everything")
             entry%file = "make_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Notice names of all macros and targets in Makefile (the command)."
         case ("makefile_pickup_filenames_as_targets")
             entry%file = "make_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Scan the current directory for filenames to use as targets."//LF// &
                         "Checks each filename against `makefile_ignored_files_in_pickup_regex'"//LF// &
                         "and adds all qualifying names to the list of known targets."
         case ("makefile_pickup_macros")
             entry%file = "make_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Notice names of all macro definitions in Makefile."
         case ("makefile_pickup_targets")
             entry%file = "make_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Notice names of all target definitions in Makefile."
         case ("makefile_previous_dependency")
             entry%file = "make_mode_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point to the beginning of the previous dependency line."
         case ("map_char_table")
             entry%file = "chartab_fm.f90"
@@ -9710,7 +9710,7 @@ contains
         case ("map_query_replace_regexp")
             entry%file = "replace_fm.f90"
             entry%fortran = "call map_query_replace_regexp(regexp, to_strings, status, n, start, end)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Replace some matches for REGEXP with various strings, in rotation."//LF// &
                         "The second argument TO_STRINGS contains the replacement strings,"//LF// &
                         "separated by spaces.  This command works like"//LF// &
@@ -9745,14 +9745,14 @@ contains
         case ("mark_end_of_sentence")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call mark_end_of_sentence(arg)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Put mark at end of sentence."//LF// &
                         "ARG works as in `forward_sentence'.  If this command is repeated,"//LF// &
                         "it marks the next ARG sentences after the ones already marked."
         case ("mark_expression")
             entry%file = "expression_motion_fm.f90"
             entry%fortran = "call mark_expression(arg, have_arg, allow_extend, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set mark ARG expressions from point or move mark one expression."//LF// &
                         "With ALLOW_EXTEND false, mark is set ARG expressions from point."//LF// &
                         "With ARG given (HAVE_ARG) and ALLOW_EXTEND both true (interactively,"//LF// &
@@ -9771,14 +9771,14 @@ contains
                         "This command assumes point is not in a string or comment."
         case ("mark_page")
             entry%file = "page_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Put mark at end of page, point at beginning."//LF// &
                         "A numeric arg specifies to move forward or backward by that many pages,"//LF// &
                         "thus marking a page other than the one point was originally in."
         case ("mark_paragraph")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call mark_paragraph(arg, allow_extend, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Put point at beginning of this paragraph, mark at end."//LF// &
                         "The paragraph marked is the one that contains point or follows point."//LF// &
                         ""//LF// &
@@ -9793,7 +9793,7 @@ contains
                         "it marks the next ARG paragraphs after the ones already marked."
         case ("mark_subprogram")
             entry%file = "expression_motion_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Put mark at end of this subprogram, point at beginning."//LF// &
                         "The subprogram marked is the one that contains point or follows point."//LF// &
                         "With positive ARG, mark this and that many next subprograms; with negative"//LF// &
@@ -9806,7 +9806,7 @@ contains
                         "report errors as appropriate for this kind of usage."
         case ("mark_whole_buffer")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Put point at beginning and mark at end of buffer."//LF// &
                         "Also push mark at point before pushing mark at end of buffer."//LF// &
                         "If narrowing is in effect, uses only the accessible part of the"//LF// &
@@ -9814,7 +9814,7 @@ contains
         case ("mark_word")
             entry%file = "simple_fm.f90"
             entry%fortran = "call mark_word(arg, have_arg, allow_extend)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set mark ARG words from point or move mark one word."//LF// &
                         "With ALLOW_EXTEND false, mark is set ARG words from point."//LF// &
                         "With ARG given (`have_arg') and ALLOW_EXTEND (interactively, with"//LF// &
@@ -9911,11 +9911,11 @@ contains
                         "(`message_dolog'), if `message_log_max' allows."
         case ("messages_buffer_mode")
             entry%file = "simple_modes_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode used in the ""*Messages*"" buffer."
         case ("minibuffer_complete")
             entry%file = "minibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Complete the minibuffer contents as far as possible."//LF// &
                         "Return false if there is no valid completion, else true.  If no"//LF// &
                         "characters can be completed, display a list of possible"//LF// &
@@ -9923,7 +9923,7 @@ contains
                         "list, scroll the window of possible completions."
         case ("minibuffer_complete_and_exit")
             entry%file = "minibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Exit if the minibuffer contains a valid completion."//LF// &
                         "Otherwise, try to complete the minibuffer contents.  If completion"//LF// &
                         "leads to a valid completion, a repetition of this command will"//LF// &
@@ -9938,34 +9938,34 @@ contains
                         "otherwise."
         case ("minibuffer_complete_word")
             entry%file = "minibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Complete the minibuffer contents at most a single word."//LF// &
                         "After one word is completed as much as possible, a space or hyphen"//LF// &
                         "is added, provided that matches some possible completion.  Return"//LF// &
                         "false if there is no valid completion, else true."
         case ("minibuffer_completion_exit")
             entry%file = "minibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Call `exit_minibuffer' (there is no selected completion to insert"//LF// &
                         "first yet)."
         case ("minibuffer_completion_help")
             entry%file = "minibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display a list of possible completions of the current minibuffer"//LF// &
                         "contents.  The list goes in buffer *Completions*, shown in the"//LF// &
                         "frame's root window until the minibuffer is done (there is no"//LF// &
                         "window splitting yet)."
         case ("minibuffer_recenter_top_bottom")
             entry%file = "minibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Run `recenter_top_bottom' from the minibuffer in its original window."
         case ("minibuffer_scroll_down_command")
             entry%file = "minibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Run `scroll_down_command' from the minibuffer in its original window."
         case ("minibuffer_scroll_up_command")
             entry%file = "minibuffer_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Run `scroll_up_command' from the minibuffer in its original window."
         case ("modify_category_entry")
             entry%file = "category_fm.f90"
@@ -10000,7 +10000,7 @@ contains
                         "(comment sequences and prefix characters; see the Emacs manual)."
         case ("move_beginning_of_line")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point to visible beginning of current logical line."//LF// &
                         "This disregards any invisible newline characters."//LF// &
                         ""//LF// &
@@ -10019,7 +10019,7 @@ contains
                         "For motion by visual lines, see `beginning_of_visual_line'."
         case ("move_end_of_line")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point to end of current line as displayed."//LF// &
                         "With argument ARG not 1, move forward ARG - 1 lines first."//LF// &
                         "If point reaches the beginning or end of buffer, it stops there."//LF// &
@@ -10031,7 +10031,7 @@ contains
                         "rests."
         case ("move_to_column")
             entry%file = "simple_goto_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point to column COLUMN in the current line."//LF// &
                         "Interactively, COLUMN is the value of prefix numeric argument."//LF// &
                         "The column of a character is calculated by adding together the widths"//LF// &
@@ -10056,7 +10056,7 @@ contains
         case ("move_to_left_margin")
             entry%file = "indent_fm.f90"
             entry%fortran = "call move_to_left_margin(status, n, force)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move to the left margin of the current line."//LF// &
                         "With optional argument, move forward N-1 lines first."//LF// &
                         "The column moved to is the one given by the `current_left_margin' function."//LF// &
@@ -10065,12 +10065,12 @@ contains
         case ("move_to_tab_stop")
             entry%file = "indent_fm.f90"
             entry%fortran = "call move_to_tab_stop(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point to next defined tab-stop column."//LF// &
                         "The variable `tab_stop_list' is an array of columns at which there are tab stops."
         case ("move_to_window_line")
             entry%file = "window_scroll_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Position point relative to window."//LF// &
                         "ARG .false. means position point at center of window."//LF// &
                         "Else, ARG specifies vertical position within the window;"//LF// &
@@ -10082,7 +10082,7 @@ contains
                         "from the top of the window."
         case ("move_to_window_line_top_bottom")
             entry%file = "window_scroll_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Position point relative to window."//LF// &
                         ""//LF// &
                         "With a prefix argument ARG, acts like `move_to_window_line'."//LF// &
@@ -10093,7 +10093,7 @@ contains
         case ("multi_occur")
             entry%file = "replace_fm.f90"
             entry%fortran = "call multi_occur(bufs, regexp, status, nlines, collect)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: read the buffers one by one, then the arguments of"//LF// &
                         "`occur', then `multi_occur'.  The interactive form of"//LF// &
                         "replace.el:multi-occur."//LF// &
@@ -10102,7 +10102,7 @@ contains
         case ("multi_occur_in_matching_buffers")
             entry%file = "replace_fm.f90"
             entry%fortran = "call multi_occur_in_matching_buffers(bufregexp, regexp, status, allbufs, nlines, collect)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: read the buffer regexp, then the arguments of `occur',"//LF// &
                         "then `multi_occur_in_matching_buffers'.  The interactive form of"//LF// &
                         "replace.el:multi-occur-in-matching-buffers."//LF// &
@@ -10110,13 +10110,13 @@ contains
                         "Show all lines matching a regexp in buffers specified by a regexp."
         case ("narrow_to_page")
             entry%file = "page_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Make text outside current page invisible."//LF// &
                         "A numeric arg specifies to move forward or backward by that many pages,"//LF// &
                         "thus showing a page other than the one point was originally in."
         case ("narrow_to_region")
             entry%file = "simple_goto_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Restrict editing in this buffer to the current region."//LF// &
                         "The rest of the text becomes temporarily invisible and untouchable"//LF// &
                         "but is not deleted; if you save the buffer in a file, the invisible"//LF// &
@@ -10128,19 +10128,19 @@ contains
                         "remain visible."
         case ("narrow_to_subprogram")
             entry%file = "expression_motion_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Make text outside current subprogram invisible."//LF// &
                         "The current subprogram is the one that contains point or follows point."//LF// &
                         "Preceding comments are included if INCLUDE_COMMENTS is true."//LF// &
                         "Interactively, the behavior depends on `narrow_to_subprogram_include_comments'."
         case ("negative_argument")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Begin a negative numeric argument for the next command."//LF// &
                         "\[universal_argument] following digits or minus sign ends the argument."
         case ("newline")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert a newline, and move to left margin of the new line."//LF// &
                         "With prefix argument ARG, insert that many newlines."//LF// &
                         ""//LF// &
@@ -10152,7 +10152,7 @@ contains
         case ("newline_and_indent")
             entry%file = "simple_fm.f90"
             entry%fortran = "call newline_and_indent(status, arg)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert a newline, then indent according to major mode."//LF// &
                         "Indentation is done using the value of `indent_line_function'."//LF// &
                         "In programming language modes, this is the same as TAB."//LF// &
@@ -10162,21 +10162,21 @@ contains
                         "With ARG, perform this action that many times."
         case ("next_buffer")
             entry%file = "window_display_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "In selected window switch to ARGth next buffer."//LF// &
                         "Call `switch_to_next_buffer' unless the selected window is the"//LF// &
                         "minibuffer window or is dedicated to its buffer."
         case ("next_error")
             entry%file = "simple_fm.f90"
             entry%fortran = "call next_error(status, n, reset)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: with C-u, start at the first error.  The interactive"//LF// &
                         "form of simple.el:next-error."//LF// &
                         ""//LF// &
                         "Visit next `next_error' message and corresponding source code."
         case ("next_error_no_select")
             entry%file = "simple_next_error_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point to the next error in the `next_error' buffer and"//LF// &
                         "highlight match.  Prefix arg N says how many error messages to move"//LF// &
                         "forwards (or backwards, if negative).  Finds and highlights the"//LF// &
@@ -10184,14 +10184,14 @@ contains
                         "buffer."
         case ("next_history_element")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert into the minibuffer the Nth next element of minibuffer history."//LF// &
                         "Interactively, N is the prefix numeric argument and defaults to 1."//LF// &
                         "The value N can go beyond the current position in the minibuffer"//LF// &
                         "history,  and invoke ""future history."""
         case ("next_line")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move cursor vertically down ARG lines."//LF// &
                         "ARG defaults to 1."//LF// &
                         ""//LF// &
@@ -10212,14 +10212,14 @@ contains
                         "lines rather than by display lines."
         case ("next_line_or_history_element")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move cursor vertically down ARG lines, or to the next history element."//LF// &
                         "When point moves over the bottom line of multi-line minibuffer, puts ARGth"//LF// &
                         "next element of the minibuffer history in the minibuffer."
         case ("normal_mode")
             entry%file = "files_fm.f90"
             entry%fortran = "call normal_mode(status, find_file)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Choose the major mode for this buffer automatically."//LF// &
                         "Uses the visited file name and the -*- line."//LF// &
                         ""//LF// &
@@ -10235,7 +10235,7 @@ contains
         case ("number_to_register")
             entry%file = "register_fm.f90"
             entry%fortran = "call number_to_register(register, status, number)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Store NUMBER in REGISTER."//LF// &
                         "REGISTER is a character, the name of the register."//LF// &
                         "If NUMBER is absent, a decimal number is read from the buffer"//LF// &
@@ -10246,7 +10246,7 @@ contains
         case ("occur")
             entry%file = "replace_fm.f90"
             entry%fortran = "call occur(regexp, status, nlines, collect)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: read the arguments, then `occur' (on the region if it"//LF// &
                         "is active).  The interactive form of replace.el:occur."//LF// &
                         ""//LF// &
@@ -10254,12 +10254,12 @@ contains
                         "regexp."
         case ("occur_cease_edit")
             entry%file = "replace_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Switch from Occur Edit mode to Occur mode."
         case ("occur_edit_mode")
             entry%file = "replace_fm.f90"
             entry%fortran = "call occur_edit_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode for editing *Occur* buffers."//LF// &
                         "In this mode, changes to the *Occur* buffer are also applied to the"//LF// &
                         "originating buffer."//LF// &
@@ -10273,7 +10273,7 @@ contains
         case ("occur_mode")
             entry%file = "replace_fm.f90"
             entry%fortran = "call occur_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode for output from \[occur]."//LF// &
                         "\<occur_mode_map>Move point to one of the items in this buffer,"//LF// &
                         "then use \[occur_mode_goto_occurrence] to go to the occurrence that"//LF// &
@@ -10283,15 +10283,15 @@ contains
                         "\{occur_mode_map}"
         case ("occur_mode_display_occurrence")
             entry%file = "replace_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display in another window the occurrence the current line describes."
         case ("occur_mode_goto_occurrence")
             entry%file = "replace_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the occurrence on the current line."
         case ("occur_mode_goto_occurrence_other_window")
             entry%file = "replace_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the occurrence the current line describes, in another window."//LF// &
                         "If this command needs to split the current window, it by default"//LF// &
                         "obeys the user options `split_height_threshold' and"//LF// &
@@ -10299,20 +10299,20 @@ contains
                         "horizontally or vertically."
         case ("occur_mode_mouse_goto")
             entry%file = "replace_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the occurrence on the current line."
         case ("occur_next")
             entry%file = "replace_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move to the Nth (default 1) next match in an Occur mode buffer."
         case ("occur_prev")
             entry%file = "replace_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move to the Nth (default 1) previous match in an Occur mode buffer."
         case ("occur_rename_buffer")
             entry%file = "replace_fm.f90"
             entry%fortran = "call occur_rename_buffer(status, unique_p, interactive_p)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: `occur_rename_buffer' with the prefix argument as"//LF// &
                         "UNIQUE_P.  The interactive form of replace.el:occur-rename-buffer."//LF// &
                         ""//LF// &
@@ -10320,7 +10320,7 @@ contains
         case ("open_dribble_file")
             entry%file = "fileio_fm.f90"
             entry%fortran = "call open_dribble_file(status, file)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Edit file FILENAME."//LF// &
                         "\<minibuffer_local_map>Switch to a buffer visiting file FILENAME, creating one if none"//LF// &
                         "already exists."//LF// &
@@ -10329,7 +10329,7 @@ contains
                         "type \[next_history_element] to pull it into the minibuffer."
         case ("open_line")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert a newline and leave point before it."//LF// &
                         "If there is a fill prefix and/or a `left_margin', insert them on"//LF// &
                         "the new line if the line would have been blank."//LF// &
@@ -10337,7 +10337,7 @@ contains
         case ("open_rectangle")
             entry%file = "rect_fm.f90"
             entry%fortran = "call open_rectangle(start, end, status, fill)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Blank out the region-rectangle, shifting text right."//LF// &
                         ""//LF// &
                         "The text previously in the region is not overwritten by the blanks,"//LF// &
@@ -10363,7 +10363,7 @@ contains
         case ("other_window")
             entry%file = "window_fm.f90"
             entry%fortran = "call other_window(count, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Select another window in cyclic ordering of windows."//LF// &
                         "COUNT specifies the number of windows to skip, starting with the"//LF// &
                         "selected window, before making the selection.  If COUNT is"//LF// &
@@ -10373,7 +10373,7 @@ contains
                         "COUNT is the numeric prefix argument."
         case ("other_window_backward")
             entry%file = "window_cmds_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Select another window in the reverse cyclic ordering of windows."//LF// &
                         "COUNT specifies the number of windows to skip, (by default) backward,"//LF// &
                         "starting with the selected window, before making the selection.  Like"//LF// &
@@ -10423,7 +10423,7 @@ contains
         case ("point_to_register")
             entry%file = "register_fm.f90"
             entry%fortran = "call point_to_register(register, status, arg)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Store current location of point in REGISTER."//LF// &
                         "With prefix argument ARG, store current frame configuration (a.k.a."//LF// &
                         """frameset"")."//LF// &
@@ -10434,7 +10434,7 @@ contains
                         "Interactively, prompt for REGISTER using `register_read_with_preview'."
         case ("pop_to_mark_command")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Jump to mark, and pop a new position for mark off the ring."
         case ("posix_looking_at")
             entry%file = "search_fm.f90"
@@ -10449,7 +10449,7 @@ contains
         case ("posix_search_backward")
             entry%file = "search_fm.f90"
             entry%fortran = "call posix_search_backward(regexp, found, status, bound, noerror, count)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Search backward from point for match for REGEXP according to Posix"//LF// &
                         "rules.  Find the longest match in accord with Posix regular"//LF// &
                         "expression rules.  This function is almost identical to"//LF// &
@@ -10459,7 +10459,7 @@ contains
         case ("posix_search_forward")
             entry%file = "search_fm.f90"
             entry%fortran = "call posix_search_forward(regexp, found, status, bound, noerror, count)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Search forward from point for REGEXP according to Posix rules."//LF// &
                         "Find the longest match in accord with Posix regular expression rules."//LF// &
                         "Set point to the end of the occurrence found, and return point."//LF// &
@@ -10483,7 +10483,7 @@ contains
         case ("prefer_coding_system")
             entry%file = "mule_fm.f90"
             entry%fortran = "call prefer_coding_system(coding_system, status, interactive)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Add CODING-SYSTEM at the front of the priority list for automatic detection."//LF// &
                         "This also sets the following coding systems:"//LF// &
                         "  o coding system of a newly created buffer"//LF// &
@@ -10501,7 +10501,7 @@ contains
         case ("prepend_to_register")
             entry%file = "register_fm.f90"
             entry%fortran = "call prepend_to_register(register, start, end, status, delete_flag)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Prepend region of text between START and END to REGISTER."//LF// &
                         "If DELETE_FLAG is true (interactively, prefix arg), delete the region"//LF// &
                         "after prepending."//LF// &
@@ -10512,13 +10512,13 @@ contains
                         "and use mark and point as START and END."
         case ("previous_buffer")
             entry%file = "window_display_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "In selected window switch to ARGth previous buffer."//LF// &
                         "Call `switch_to_prev_buffer' unless the selected window is the"//LF// &
                         "minibuffer window or is dedicated to its buffer."
         case ("previous_error")
             entry%file = "simple_next_error_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Visit previous `next_error' message and corresponding source code."//LF// &
                         ""//LF// &
                         "Prefix arg N says how many error messages to move backwards (or"//LF// &
@@ -10530,7 +10530,7 @@ contains
                         "See `next_error' for the details."
         case ("previous_error_no_select")
             entry%file = "simple_next_error_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point to the previous error in the `next_error' buffer and"//LF// &
                         "highlight match.  Prefix arg N says how many error messages to move"//LF// &
                         "backwards (or forwards, if negative).  Finds and highlights the"//LF// &
@@ -10538,12 +10538,12 @@ contains
                         "buffer."
         case ("previous_history_element")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert into the minibuffer the Nth previous element of minibuffer history."//LF// &
                         "Interactively, N is the prefix numeric argument and defaults to 1."
         case ("previous_line")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move cursor vertically up ARG lines."//LF// &
                         "ARG defaults to 1."//LF// &
                         ""//LF// &
@@ -10562,7 +10562,7 @@ contains
                         "lines rather than by display lines."
         case ("previous_line_or_history_element")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move cursor vertically up ARG lines, or to the previous history element."//LF// &
                         "When point moves over the top line of multi-line minibuffer, puts ARGth"//LF// &
                         "previous element of the minibuffer history in the minibuffer."
@@ -10605,11 +10605,11 @@ contains
             entry%doc = "Return the marker for the end of the last output from PROCESS."
         case ("process_menu_delete_process")
             entry%file = "simple_process_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill process at point in a `list_processes' buffer."
         case ("process_menu_mode")
             entry%file = "simple_process_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode for listing the processes called by Emacs."
         case ("process_name")
             entry%file = "process_fm.f90"
@@ -10660,7 +10660,7 @@ contains
         case ("prog_mode")
             entry%file = "prog_mode_fm.f90"
             entry%fortran = "call prog_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode for editing programming language source code."
         case ("provided_mode_derived_p")
             entry%file = "derived_fm.f90"
@@ -10677,7 +10677,7 @@ contains
         case ("query_replace")
             entry%file = "replace_fm.f90"
             entry%fortran = "call query_replace(from_string, to_string, status, delimited, start, end, backward)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Replace some occurrences of FROM_STRING with TO_STRING."//LF// &
                         "As each match is found, the user must type a character saying"//LF// &
                         "what to do with it.  Type SPC or `y' to replace the match,"//LF// &
@@ -10727,7 +10727,7 @@ contains
             entry%file = "replace_fm.f90"
             entry%fortran = "call query_replace_regexp(regexp, to_string, status, delimited, start, end, backward, coun"// &
                             "ted)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Replace some things after point matching REGEXP with TO_STRING."//LF// &
                         "As each match is found, the user must type a character saying"//LF// &
                         "what to do with it.  Type SPC or `y' to replace the match,"//LF// &
@@ -10786,7 +10786,7 @@ contains
         case ("quit_window")
             entry%file = "window_fm.f90"
             entry%fortran = "call quit_window(kill, status, window)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Quit WINDOW and bury its buffer."//LF// &
                         "WINDOW must be a live window and defaults to the selected one."//LF// &
                         "With prefix argument KILL true, kill the buffer instead of"//LF// &
@@ -10801,7 +10801,7 @@ contains
                         "anything else."
         case ("quoted_insert")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Read next input character and insert it."//LF// &
                         "This is useful for inserting control characters."//LF// &
                         "With argument, insert ARG copies of the character."//LF// &
@@ -10818,7 +10818,7 @@ contains
                         "change accordingly: 0 to 9 for decimal, 0 to F for hex."
         case ("raise_expression")
             entry%file = "expression_motion_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Raise N expressions one level higher up the tree."//LF// &
                         ""//LF// &
                         "This function removes the expression enclosing the form which follows"//LF// &
@@ -10842,7 +10842,7 @@ contains
         case ("re_search_backward")
             entry%file = "search_fm.f90"
             entry%fortran = "call re_search_backward(regexp, found, status, bound, noerror, count)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Search backward from point for regular expression REGEXP."//LF// &
                         "This function is almost identical to `re_search_forward', except that"//LF// &
                         "by default it searches backward instead of forward, and the sign of"//LF// &
@@ -10854,7 +10854,7 @@ contains
         case ("re_search_forward")
             entry%file = "search_fm.f90"
             entry%fortran = "call re_search_forward(regexp, found, status, bound, noerror, count)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Search forward from point for regular expression REGEXP."//LF// &
                         "Set point to the end of the occurrence found, and return point"//LF// &
                         "in `found' (0 for none)."//LF// &
@@ -10943,12 +10943,12 @@ contains
                         "`inhibited_interaction' error."
         case ("read_char_from_minibuffer_insert_char")
             entry%file = "subr_read_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert the character you type into the minibuffer and exit minibuffer."//LF// &
                         "Discard all previous input before inserting and exiting the minibuffer."
         case ("read_char_from_minibuffer_insert_other")
             entry%file = "subr_read_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Reject a disallowed character typed into the minibuffer."//LF// &
                         "This command is intended to be bound to keys that users are not"//LF// &
                         "allowed to type into the minibuffer.  When the user types any"//LF// &
@@ -11077,7 +11077,7 @@ contains
         case ("read_only_mode")
             entry%file = "simple_fm.f90"
             entry%fortran = "call read_only_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Change whether the current buffer is read-only."//LF// &
                         ""//LF// &
                         "If buffer is read-only and `view_read_only' is true, enter"//LF// &
@@ -11096,11 +11096,11 @@ contains
                         "this command."
         case ("read_passwd_mode")
             entry%file = "auth_source_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle visibility of password in minibuffer."
         case ("read_passwd_toggle_visibility")
             entry%file = "auth_source_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle minibuffer contents visibility."//LF// &
                         "Adapt also mode line.  If optional FORCE is true, hide the"//LF// &
                         "minibuffer contents."
@@ -11147,18 +11147,18 @@ contains
                         "like) while `read_y_or_n' is running)."
         case ("read_y_or_n_insert_n")
             entry%file = "subr_read_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert the answer ""n"" and exit the minibuffer of `read_y_or_n'."//LF// &
                         "Discard all previous input before inserting and exiting the minibuffer."
         case ("read_y_or_n_insert_other")
             entry%file = "subr_read_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Handle inserting of other answers in the minibuffer of `read_y_or_n'."//LF// &
                         "Display an error on trying to insert a disallowed character."//LF// &
                         "Also discard all previous input in the minibuffer."
         case ("read_y_or_n_insert_y")
             entry%file = "subr_read_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert the answer ""y"" and exit the minibuffer of `read_y_or_n'."//LF// &
                         "Discard all previous input before inserting and exiting the minibuffer."
         case ("read_yes_or_no")
@@ -11180,7 +11180,7 @@ contains
                         "ignore the value of `yes_or_no_prompt')."
         case ("recenter")
             entry%file = "window_scroll_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Center point in selected window and maybe redisplay frame."//LF// &
                         "With a numeric prefix argument ARG, recenter putting point on"//LF// &
                         "screen line ARG relative to the selected window.  If ARG is"//LF// &
@@ -11196,7 +11196,7 @@ contains
                         "and redisplay normally--don't erase and redraw the frame."
         case ("recenter_top_bottom")
             entry%file = "window_scroll_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Scroll the window so that current line is in the middle of the"//LF// &
                         "window.  Successive invocations scroll the window in a cyclical"//LF// &
                         "order to put the current line at certain places within the"//LF// &
@@ -11210,13 +11210,13 @@ contains
                         "to window center."
         case ("recentf")
             entry%file = "recentf_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Prompt for FILE in `recentf_list' and visit it."//LF// &
                         "Enable `recentf_mode' if it isn't already."
         case ("recentf_cleanup")
             entry%file = "recentf_fm.f90"
             entry%fortran = "call recentf_cleanup()"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Cleanup the recent list."//LF// &
                         "That is, remove duplicates, non-kept, and excluded files."
         case ("recentf_keep_default_predicate")
@@ -11225,7 +11225,7 @@ contains
             entry%doc = "Return true if FILE should be kept in the recent list."
         case ("recentf_load_list")
             entry%file = "recentf_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Load a previously saved recent list."//LF// &
                         "Read data from the file specified by `recentf_save_file'."//LF// &
                         "When `recentf_initialize_file_name_history' is true, initialize an"//LF// &
@@ -11233,7 +11233,7 @@ contains
         case ("recentf_mode")
             entry%file = "recentf_fm.f90"
             entry%fortran = "call recentf_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle keeping track of opened files (Recentf mode)."//LF// &
                         "This mode maintains a list of recently opened files and makes it"//LF// &
                         "easy to visit them.  The recent files list is automatically saved"//LF// &
@@ -11247,13 +11247,13 @@ contains
         case ("recentf_open")
             entry%file = "recentf_fm.f90"
             entry%fortran = "call recentf_open(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Prompt for FILE in `recentf_list' and visit it."//LF// &
                         "Enable `recentf_mode' if it isn't already."
         case ("recentf_open_most_recent_file")
             entry%file = "recentf_fm.f90"
             entry%fortran = "call recentf_open_most_recent_file(n_in, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Open the Nth most recent file."//LF// &
                         "Optional argument N must be a valid digit number.  It defaults to 1."//LF// &
                         "1 opens the most recent file, 2 the second most recent one, etc.."//LF// &
@@ -11261,19 +11261,19 @@ contains
         case ("recentf_save_list")
             entry%file = "recentf_fm.f90"
             entry%fortran = "call recentf_save_list(interactive)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Save the recent list."//LF// &
                         "Write data into the file specified by `recentf_save_file'."
         case ("recompile")
             entry%file = "compile_fm.f90"
             entry%fortran = "call recompile(status, edit_command)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: recompile, editing the command with a prefix argument."//LF// &
                         ""//LF// &
                         "Re-compile the program including the current buffer."
         case ("rectangle_backward_char")
             entry%file = "rect_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Like `backward_char' but steps into wide chars and moves past EOL."
         case ("rectangle_dimensions")
             entry%file = "rect_fm.f90"
@@ -11282,34 +11282,34 @@ contains
                         "The returned values are WIDTH and HEIGHT."
         case ("rectangle_exchange_point_and_mark")
             entry%file = "rect_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Like `exchange_point_and_mark' but cycles through the rectangle's"//LF// &
                         "corners."
         case ("rectangle_forward_char")
             entry%file = "rect_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Like `forward_char' but steps into wide chars and moves past EOL."
         case ("rectangle_left_char")
             entry%file = "rect_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Like `left_char' but steps into wide chars and moves past EOL."
         case ("rectangle_mark_mode")
             entry%file = "rect_fm.f90"
             entry%fortran = "call rectangle_mark_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle the region as rectangular."//LF// &
                         ""//LF// &
                         "Activates the region if it's inactive and Transient Mark mode is"//LF// &
                         "on.  Only lasts until the region is next deactivated."
         case ("rectangle_next_line")
             entry%file = "rect_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Like `next_line' but steps into wide chars and moves past EOL."//LF// &
                         "Ignores `line_move_visual'."
         case ("rectangle_number_lines")
             entry%file = "rect_fm.f90"
             entry%fortran = "call rectangle_number_lines(start, end, start_at, status, format)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert numbers in front of the region-rectangle."//LF// &
                         ""//LF// &
                         "START_AT, if present, should be a number from which to begin"//LF// &
@@ -11323,12 +11323,12 @@ contains
                         "POSITION specifies a position of the current buffer."
         case ("rectangle_previous_line")
             entry%file = "rect_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Like `previous_line' but steps into wide chars and moves past EOL."//LF// &
                         "Ignores `line_move_visual'."
         case ("rectangle_right_char")
             entry%file = "rect_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Like `right_char' but steps into wide chars and moves past EOL."
         case ("recursion_depth")
             entry%file = "keyboard_fm.f90"
@@ -11337,13 +11337,13 @@ contains
         case ("recursive_edit")
             entry%file = "keyboard_fm.f90"
             entry%fortran = "call recursive_edit(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Invoke the editor command loop recursively."//LF// &
                         "To get out of the recursive edit, a command can throw to `exit' --"//LF// &
                         "for instance \[exit_recursive_edit] or \[abort_recursive_edit]."
         case ("redraw_display")
             entry%file = "dispnew_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Clear and redisplay all visible frames."
         case ("regexp_quote")
             entry%file = "search_fm.f90"
@@ -11381,7 +11381,7 @@ contains
                         "represents an empty register."
         case ("reindent_then_newline_and_indent")
             entry%file = "simple_electric_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Reindent current line, insert newline, then indent the new line."
         case ("rename_file")
             entry%file = "fileio_fm.f90"
@@ -11396,7 +11396,7 @@ contains
                         "unless optional third argument OK_IF_ALREADY_EXISTS is true."
         case ("repeat")
             entry%file = "repeat_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Repeat most recently executed command."//LF// &
                         "If REPEAT_ARG is true (interactively, with a prefix argument),"//LF// &
                         "supply a prefix argument to that command.  Otherwise, give the"//LF// &
@@ -11418,14 +11418,14 @@ contains
         case ("repeat_exit")
             entry%file = "repeat_fm.f90"
             entry%fortran = "call repeat_exit(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Exit the repeating sequence."//LF// &
                         "This function can be used to force exit of repetition while it's"//LF// &
                         "active."
         case ("repeat_mode")
             entry%file = "repeat_fm.f90"
             entry%fortran = "call repeat_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle Repeat mode."//LF// &
                         "When Repeat mode is enabled, certain commands bound to multi-key"//LF// &
                         "sequences can be repeated by typing a single key, after typing the"//LF// &
@@ -11457,7 +11457,7 @@ contains
                         "Otherwise if all words are capitalized in the replaced text,"//LF// &
                         "capitalize each word in NEWTEXT.  Note that what exactly is a"//LF// &
                         "word is determined by the syntax tables in effect in the current"//LF// &
-                        "buffer, and the variable `case_symbols_as_words'."//LF// &
+                        "buffer, and the variable `case_identifiers_as_words'."//LF// &
                         ""//LF// &
                         "If optional third arg LITERAL is true, insert NEWTEXT"//LF// &
                         "literally.  Otherwise treat `\' as special:"//LF// &
@@ -11484,7 +11484,7 @@ contains
             entry%file = "replace_fm.f90"
             entry%fortran = "call replace_regexp(regexp, to_string, status, delimited, start, end, backward, counted, r"// &
                             "eplacement_fn)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Replace things after point matching REGEXP with TO_STRING."//LF// &
                         "Preserve case in each match if `case_replace' and `case_fold_search'"//LF// &
                         "are true and REGEXP has no uppercase letters."//LF// &
@@ -11529,7 +11529,7 @@ contains
         case ("replace_string")
             entry%file = "replace_fm.f90"
             entry%fortran = "call replace_string(from_string, to_string, status, delimited, start, end, backward)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Replace occurrences of FROM_STRING with TO_STRING."//LF// &
                         "Preserve case in each match if `case_replace' and `case_fold_search'"//LF// &
                         "are true and FROM_STRING has no uppercase letters."//LF// &
@@ -11566,7 +11566,7 @@ contains
         case ("revert_buffer")
             entry%file = "files_fm.f90"
             entry%fortran = "call revert_buffer(status, ignore_auto, noconfirm, preserve_modes)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Replace current buffer text with the text of the visited file on disk."//LF// &
                         "This undoes all changes since the file was visited or saved."//LF// &
                         "With a prefix argument, offer to revert from latest auto-save file, if"//LF// &
@@ -11580,7 +11580,7 @@ contains
                         "appropriate data."
         case ("revert_buffer_with_coding_system")
             entry%file = "mule_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Visit the current buffer's file again using coding system CODING-SYSTEM."//LF// &
                         "For a list of possible values of CODING-SYSTEM, use \[list_coding_systems]."//LF// &
                         ""//LF// &
@@ -11592,14 +11592,14 @@ contains
         case ("rgrep")
             entry%file = "grep_fm.f90"
             entry%fortran = "call rgrep(regexp, status, files, dir, confirm)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: read the arguments, then `rgrep'.  The interactive form"//LF// &
                         "of grep.el:rgrep."//LF// &
                         ""//LF// &
                         "User-friendly recursive grep in directory tree."
         case ("right_char")
             entry%file = "bindings_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point N characters to the right (to the left if N is negative)."//LF// &
                         "On reaching beginning or end of buffer, stop and signal error."//LF// &
                         ""//LF// &
@@ -11607,7 +11607,7 @@ contains
                         "\[forward_char]."
         case ("right_word")
             entry%file = "bindings_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point N words to the right (to the left if N is negative)."//LF// &
                         ""//LF// &
                         "In left-to-right text this moves forward in the buffer, like"//LF// &
@@ -11621,7 +11621,7 @@ contains
                         "true."
         case ("rotate_yank_pointer")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Rotate the yanking point in the kill ring."//LF// &
                         "With ARG, rotate that many kills forward (or backward, if negative)."
         case ("run_at_time")
@@ -11679,7 +11679,7 @@ contains
                         "`cancel_timer'."
         case ("rzgrep")
             entry%file = "grep_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: compute the zgrep defaults, read the arguments, then"//LF// &
                         "`zrgrep'.  The interactive form of grep.el:zrgrep."//LF// &
                         ""//LF// &
@@ -11687,7 +11687,7 @@ contains
         case ("save_buffer")
             entry%file = "files_fm.f90"
             entry%fortran = "call save_buffer(arg, called_interactively, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Save current buffer in visited file if modified."//LF// &
                         "Variations are described below."//LF// &
                         ""//LF// &
@@ -11711,20 +11711,20 @@ contains
                         "If a file's name is FOO, its backup file is called FOO~."
         case ("save_buffers_kill_terminal")
             entry%file = "files_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Offer to save each buffer, then kill Emacs."//LF// &
                         ""//LF// &
                         "With prefix ARG, silently save all file-visiting buffers, then kill."
         case ("save_place_forget_unreadable_files")
             entry%file = "saveplace_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Remove unreadable files from `save_place_table'."//LF// &
                         "For each entry in the table, if `is_file_readable' returns false for"//LF// &
                         "the filename, remove the entry."
         case ("save_place_local_mode")
             entry%file = "saveplace_fm.f90"
             entry%fortran = "call save_place_local_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle whether to save your place in this file between sessions."//LF// &
                         "If this mode is enabled, point is recorded when you kill the buffer"//LF// &
                         "or exit Fortmacs.  Visiting this file again will go to that"//LF// &
@@ -11735,13 +11735,13 @@ contains
         case ("save_place_mode")
             entry%file = "saveplace_fm.f90"
             entry%fortran = "call save_place_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "True means automatically save place in each file."//LF// &
                         "This means when you visit a file, point goes to the last place"//LF// &
                         "where it was when you previously visited the same file."
         case ("save_some_buffers")
             entry%file = "files_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Save some modified file-visiting buffers.  Asks user about each one."//LF// &
                         "You can answer \`y' or \`SPC' to save, \`n' or \`DEL' not to save,"//LF// &
                         "\`!' to save the buffer and all remaining"//LF// &
@@ -11753,7 +11753,7 @@ contains
         case ("savehist_mode")
             entry%file = "savehist_fm.f90"
             entry%fortran = "call savehist_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle saving of minibuffer history (Savehist mode)."//LF// &
                         ""//LF// &
                         "When Savehist mode is enabled, minibuffer history is saved to"//LF// &
@@ -11781,7 +11781,7 @@ contains
         case ("savehist_save")
             entry%file = "savehist_fm.f90"
             entry%fortran = "call savehist_save(status, auto_save, interactive)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Save the values of minibuffer history variables."//LF// &
                         "Unbound variables named in `savehist_additional_variables' are"//LF// &
                         "ignored.  If AUTO_SAVE is true, compare the saved contents to the"//LF// &
@@ -11822,7 +11822,7 @@ contains
                         "that point is zero, and signal an error if the depth is nonzero."
         case ("scroll_down")
             entry%file = "window_scroll_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Scroll text of selected window down ARG lines."//LF// &
                         "If ARG is .false. (no prefix argument), scroll down by a near full screen."//LF// &
                         "A near full screen is `next_screen_context_lines' less than a"//LF// &
@@ -11831,7 +11831,7 @@ contains
                         "from a program, supply as argument an integer, .false., or `-'."
         case ("scroll_down_command")
             entry%file = "window_scroll_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Scroll text of selected window down ARG lines; or near full"//LF// &
                         "screen if no ARG.  Interactively, giving this command a numerical"//LF// &
                         "prefix will scroll down by that many lines (and up by that many"//LF// &
@@ -11851,17 +11851,17 @@ contains
                         "semipermanent goal column for this command."
         case ("scroll_other_window")
             entry%file = "window_scroll_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Scroll next window upward LINES lines; or near full screen if no"//LF// &
                         "ARG.  See `scroll_up_command' for details."
         case ("scroll_other_window_down")
             entry%file = "window_scroll_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Scroll next window downward LINES lines; or near full screen if no"//LF// &
                         "ARG.  See `scroll_down_command' for details."
         case ("scroll_up")
             entry%file = "window_scroll_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Scroll text of selected window upward ARG lines."//LF// &
                         "If ARG is .false. (no prefix argument), scroll upward by a near full screen."//LF// &
                         "A near full screen is `next_screen_context_lines' less than a"//LF// &
@@ -11870,7 +11870,7 @@ contains
                         "from a program, supply as argument an integer, .false., or `-'."
         case ("scroll_up_command")
             entry%file = "window_scroll_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Scroll text of selected window upward ARG lines; or near full"//LF// &
                         "screen if no ARG.  Interactively, giving this command a numerical"//LF// &
                         "prefix will scroll up by that many lines (and down by that many"//LF// &
@@ -11891,7 +11891,7 @@ contains
         case ("search_backward")
             entry%file = "search_fm.f90"
             entry%fortran = "call search_backward(string, found, status, bound, noerror, count)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Search backward from point for STRING."//LF// &
                         "This function is almost identical to `search_forward', except that"//LF// &
                         "by default it searches backward instead of forward, and the sign of"//LF// &
@@ -11900,7 +11900,7 @@ contains
         case ("search_forward")
             entry%file = "search_fm.f90"
             entry%fortran = "call search_forward(string, found, status, bound, noerror, count)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Search forward from point for STRING."//LF// &
                         "Set point to the end of the occurrence found, and return point"//LF// &
                         "in `found' (0 for none)."//LF// &
@@ -11940,7 +11940,7 @@ contains
                         "which many commands apply."
         case ("self_insert_command")
             entry%file = "cmds_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert the character you type."//LF// &
                         "Whichever character C you type to run this command is inserted."//LF// &
                         "The numeric prefix argument N says how many times to repeat the insertion."//LF// &
@@ -11983,7 +11983,7 @@ contains
         case ("set_buffer_file_coding_system")
             entry%file = "mule_fm.f90"
             entry%fortran = "call set_buffer_file_coding_system(coding_system, force, nomodify, interactive, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set the file coding-system of the current buffer to CODING-SYSTEM."//LF// &
                         "This means that when you save the buffer, it will be converted"//LF// &
                         "according to CODING-SYSTEM.  For a list of possible values of"//LF// &
@@ -12002,7 +12002,7 @@ contains
                         "just set the variable `buffer_file_coding_system' directly."
         case ("set_buffer_process_coding_system")
             entry%file = "mule_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set coding systems for the process associated with the current"//LF// &
                         "buffer.  DECODING is the coding system to be used to decode input"//LF// &
                         "from the process, ENCODING is the coding system to be used to"//LF// &
@@ -12088,21 +12088,21 @@ contains
                         "absent."
         case ("set_fill_column")
             entry%file = "simple_fill_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set `fill_column' to specified argument."//LF// &
                         "Use C-u followed by a number to specify a column."//LF// &
                         "Just C-u as argument means to use the current column."
         case ("set_fill_prefix")
             entry%file = "fill_fm.f90"
             entry%fortran = "call set_fill_prefix(arg)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set the fill prefix to the current line up to point."//LF// &
                         "Filling expects lines to start with the fill prefix and"//LF// &
                         "reinserts the fill prefix in each resulting line."//LF// &
                         "With a prefix argument, cancel the fill prefix."
         case ("set_keyboard_coding_system")
             entry%file = "mule_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set coding system for keyboard input on the terminal to"//LF// &
                         "CODING_SYSTEM."//LF// &
                         ""//LF// &
@@ -12127,7 +12127,7 @@ contains
                         "This is why most applications should use `push_mark', not `set_mark'."
         case ("set_mark_command")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set the mark where point is, and activate it; or jump to the mark."//LF// &
                         "Setting the mark also alters the region, which is the text"//LF// &
                         "between point and mark; this is the closest equivalent in"//LF// &
@@ -12209,7 +12209,7 @@ contains
                         "One argument, a syntax table."
         case ("set_terminal_coding_system")
             entry%file = "mule_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set coding system of terminal output to CODING_SYSTEM."//LF// &
                         "All text output to the terminal will be encoded with the specified"//LF// &
                         "coding system."//LF// &
@@ -12222,19 +12222,19 @@ contains
                         "argument INHIBIT_REFRESH, if true, prevents that."
         case ("set_variable")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set VARIABLE to VALUE, read in the minibuffer."
         case ("sh_add")
             entry%file = "sh_script_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert an addition of VAR and prefix DELTA for Bourne (type) shell."
         case ("sh_assignment")
             entry%file = "sh_script_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Remember preceding identifier for future completion and do self-insert."
         case ("sh_backslash_region")
             entry%file = "sh_script_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert, align, or delete end-of-line backslashes on the lines in the region."//LF// &
                         "With no argument, inserts backslashes and aligns existing backslashes."//LF// &
                         "With an argument, deletes the backslashes."//LF// &
@@ -12245,7 +12245,7 @@ contains
                         "shell command and conveniently use this command."
         case ("sh_base_mode")
             entry%file = "sh_script_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Generic major mode for editing shell scripts."//LF// &
                         ""//LF// &
                         "This is a generic major mode intended to be inherited by concrete"//LF// &
@@ -12253,29 +12253,29 @@ contains
                         "`bash_ts_mode'."
         case ("sh_basic_indent_line")
             entry%file = "sh_script_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Indent a line for Sh mode (shell script mode)."//LF// &
                         "Indent as far as preceding non-empty line, then by steps of `sh_basic_offset'."//LF// &
                         "Lines containing only comments are considered empty."
         case ("sh_beginning_of_command")
             entry%file = "sh_script_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point to successive beginnings of commands."
         case ("sh_cd_here")
             entry%file = "sh_script_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Change directory in the current interaction shell to the current one."
         case ("sh_electric_here_document_mode")
             entry%file = "sh_script_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Make << insert a here document skeleton."
         case ("sh_end_of_command")
             entry%file = "sh_script_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move point to successive ends of commands."
         case ("sh_execute_region")
             entry%file = "sh_script_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Pass optional header and region to a subshell for noninteractive execution."//LF// &
                         "The working directory is that of the buffer, and only environment variables"//LF// &
                         "are already set which is why you can mark a header within the script."//LF// &
@@ -12287,12 +12287,12 @@ contains
                         "region, clear header."
         case ("sh_load_style")
             entry%file = "sh_script_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set shell indentation values for this buffer from those in a style"//LF// &
                         "(the command)."
         case ("sh_make_vars_local")
             entry%file = "sh_script_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Make the indentation variables local to this buffer."//LF// &
                         "Normally they already are local.  This command is provided in case"//LF// &
                         "variable `sh_make_vars_local' has been set to false."//LF// &
@@ -12301,7 +12301,7 @@ contains
                         "command `sh_reset_indent_vars_to_global_values'."
         case ("sh_mode")
             entry%file = "sh_script_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode for editing shell scripts."//LF// &
                         "This mode works for many shells, since they all have roughly the same syntax,"//LF// &
                         "as far as commands, arguments, variables, pipes, comments etc. are concerned."//LF// &
@@ -12354,25 +12354,25 @@ contains
                         "with your script for an edit-interpret-debug cycle."
         case ("sh_name_style")
             entry%file = "sh_script_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Name the current indentation settings as a style (the command)."
         case ("sh_reset_indent_vars_to_global_values")
             entry%file = "sh_script_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Reset local indentation variables to the global values."//LF// &
                         "Then, if variable `sh_make_vars_local' is true, make them local."
         case ("sh_save_styles_to_buffer")
             entry%file = "sh_script_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Save all current styles to a buffer (the command)."
         case ("sh_send_line_or_region_and_step")
             entry%file = "sh_script_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Send the current line to the inferior shell and step to the next line."//LF// &
                         "When the region is active, send the region instead."
         case ("sh_set_shell")
             entry%file = "sh_script_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Set this buffer's shell to SHELL (a string)."//LF// &
                         "When used interactively, insert the proper starting #!-line,"//LF// &
                         "and make the visited file executable via `executable_set_magic',"//LF// &
@@ -12392,12 +12392,12 @@ contains
                         "whose value is the shell name (don't quote it)."
         case ("sh_show_shell")
             entry%file = "sh_script_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Pop the shell interaction buffer."
         case ("shell")
             entry%file = "shell_fm.f90"
             entry%fortran = "call shell(result, status, buffer_name, file_name)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: with a prefix argument, read the buffer name.  The"//LF// &
                         "interactive form of shell.el:shell."//LF// &
                         ""//LF// &
@@ -12405,13 +12405,13 @@ contains
                         "`*shell*')."
         case ("shell_backward_command")
             entry%file = "shell_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move backward across ARG shell command(s)."
         case ("shell_command")
             entry%file = "simple_fm.f90"
             entry%fortran = "call shell_command(command, status, output_buffer, output_buffer_name, insert_here, error_"// &
                             "buffer)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: read COMMAND (with the visited file as default), and"//LF// &
                         "insert the output at point with a prefix argument.  The interactive"//LF// &
                         "form of simple.el:shell-command."//LF// &
@@ -12420,14 +12420,14 @@ contains
                         "With prefix argument, insert the COMMAND's output at point."
         case ("shell_command_mode")
             entry%file = "shell_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode for the output of asynchronous `shell_command'."
         case ("shell_command_on_region")
             entry%file = "simple_fm.f90"
             entry%fortran = "call shell_command_on_region(start, end, command, status, output_buffer, output_buffer_nam"// &
                             "e, insert_here, replace, no_mark, error_buffer, display_error_buffer, exit_status, signal_"// &
                             "description)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: the region, then COMMAND read in the minibuffer; with"//LF// &
                         "a prefix argument the output replaces the region.  The interactive"//LF// &
                         "form of simple.el:shell-command-on-region."//LF// &
@@ -12439,12 +12439,12 @@ contains
         case ("shell_dirtrack_mode")
             entry%file = "shell_fm.f90"
             entry%fortran = "call shell_dirtrack_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle directory tracking in this shell buffer (Shell Dirtrack mode)."//LF// &
                         "This assigns a buffer-local true value to `shell_dirtrack_mode'."
         case ("shell_dynamic_complete_command")
             entry%file = "shell_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Dynamically complete the command at point."//LF// &
                         "This function is similar to `comint_dynamic_complete_filename',"//LF// &
                         "except that it searches `exec_path' (minus trailing"//LF// &
@@ -12458,7 +12458,7 @@ contains
                         "Returns true if successful."
         case ("shell_dynamic_complete_environment_variable")
             entry%file = "shell_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Dynamically complete the environment variable at point."//LF// &
                         "Completes if after a variable, i.e., if it starts with a ""$""."//LF// &
                         ""//LF// &
@@ -12475,7 +12475,7 @@ contains
                         "Returns true if successful."
         case ("shell_forward_command")
             entry%file = "shell_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move forward across ARG shell command(s)."
         case ("shell_mode")
             entry%file = "shell_fm.f90"
@@ -12524,12 +12524,12 @@ contains
                         "it receives the bell character in output from a command."
         case ("shell_narrow_to_prompt")
             entry%file = "shell_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Narrow buffer to the command line (and any following command output)"//LF// &
                         "at point."
         case ("shell_replace_by_expanded_directory")
             entry%file = "shell_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Expand directory stack reference before point."//LF// &
                         "Directory stack references are of the form ""=digit"" or ""=-""."//LF// &
                         "See `default_directory' and `shell_dirstack'."//LF// &
@@ -12537,7 +12537,7 @@ contains
                         "Returns true if successful."
         case ("shell_script_mode")
             entry%file = "sh_script_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode for editing shell scripts."//LF// &
                         "This mode works for many shells, since they all have roughly the same syntax,"//LF// &
                         "as far as commands, arguments, variables, pipes, comments etc. are concerned."//LF// &
@@ -12603,12 +12603,12 @@ contains
         case ("show_paren_local_mode")
             entry%file = "paren_fm.f90"
             entry%fortran = "call show_paren_local_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle `show_paren_mode' only in this buffer."
         case ("show_paren_mode")
             entry%file = "paren_fm.f90"
             entry%fortran = "call show_paren_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle visualization of matching parens (Show Paren mode)."//LF// &
                         ""//LF// &
                         "When enabled, any matching parenthesis is highlighted in `show_paren_style'"//LF// &
@@ -12656,26 +12656,26 @@ contains
                         "This function returns the distance traveled, either zero or positive."
         case ("smie__next_indent_change")
             entry%file = "smie_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the next line that needs to be reindented (and reindent it)."
         case ("smie_backward_expression_command")
             entry%file = "smie_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move backward through N logical elements."
         case ("smie_close_block")
             entry%file = "smie_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Close the closest surrounding block."
         case ("smie_down_group")
             entry%file = "smie_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move forward down one level paren-like blocks.  Like `down_group'."//LF// &
                         "With argument ARG, do this that many times."//LF// &
                         "A negative argument means move backward but still go down a level."//LF// &
                         "This command assumes point is not in a string or comment."
         case ("smie_forward_expression_command")
             entry%file = "smie_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move forward through N logical elements (the `forward_expression_function'"//LF// &
                         "of SMIE modes)."
         case ("spaces_string")
@@ -12685,7 +12685,7 @@ contains
         case ("special_mode")
             entry%file = "simple_fm.f90"
             entry%fortran = "call special_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Parent major mode from which special major modes should inherit."//LF// &
                         ""//LF// &
                         "A special major mode is intended to view specially formatted data"//LF// &
@@ -12703,7 +12703,7 @@ contains
                         "left."
         case ("split_window_below")
             entry%file = "window_cmds_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Split WINDOW_TO_SPLIT into two windows, one above the other."//LF// &
                         "WINDOW_TO_SPLIT defaults to the selected window if omitted."//LF// &
                         "The newly created window will be below WINDOW_TO_SPLIT and will show"//LF// &
@@ -12718,7 +12718,7 @@ contains
                         "Both windows get the same value of point as the WINDOW_TO_SPLIT."
         case ("split_window_right")
             entry%file = "window_cmds_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Split WINDOW_TO_SPLIT into two side-by-side windows."//LF// &
                         "WINDOW_TO_SPLIT defaults to the selected window if omitted."//LF// &
                         "The newly created window will be to the right of WINDOW_TO_SPLIT and"//LF// &
@@ -12747,7 +12747,7 @@ contains
                         "This is the one used for new buffers."
         case ("start_kbd_macro")
             entry%file = "macros_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Record subsequent keyboard input, defining a keyboard macro."//LF// &
                         "The commands are recorded even as they are executed."//LF// &
                         "Use \[end_kbd_macro] to finish recording and make the macro available."//LF// &
@@ -12776,7 +12776,7 @@ contains
         case ("string_insert_rectangle")
             entry%file = "rect_fm.f90"
             entry%fortran = "call string_insert_rectangle(start, end, string, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert STRING on each line of region-rectangle, shifting text right."//LF// &
                         ""//LF// &
                         "When called from a program, the rectangle's corners are START and END."//LF// &
@@ -12808,7 +12808,7 @@ contains
         case ("string_rectangle")
             entry%file = "rect_fm.f90"
             entry%fortran = "call string_rectangle(start, end, string, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Replace rectangle contents with STRING on each line."//LF// &
                         "The length of STRING need not be the same as the rectangle width."//LF// &
                         ""//LF// &
@@ -12847,7 +12847,7 @@ contains
         case ("switch_to_buffer")
             entry%file = "window_fm.f90"
             entry%fortran = "call switch_to_buffer(name, status, norecord, force_same_window)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display buffer BUFFER_OR_NAME in the selected window."//LF// &
                         ""//LF// &
                         "If called interactively, read the buffer name using `read_buffer'."//LF// &
@@ -12869,13 +12869,13 @@ contains
         case ("tab_to_tab_stop")
             entry%file = "indent_fm.f90"
             entry%fortran = "call tab_to_tab_stop(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert spaces or tabs to next defined tab-stop column."//LF// &
                         "The variable `tab_stop_list' is an array of columns at which there are tab stops."//LF// &
                         "Whether this inserts tabs or spaces depends on `indent_tabs_mode'."
         case ("tabulated_list_mode")
             entry%file = "tabulated_list_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Generic major mode for browsing a list of items."//LF// &
                         "This mode is usually not used directly; instead, other major modes"//LF// &
                         "are derived from it."//LF// &
@@ -12908,28 +12908,28 @@ contains
                         "is `tabulated_list_print_entry'."
         case ("tabulated_list_narrow_current_column")
             entry%file = "tabulated_list_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Narrow the current tabulated list column by N chars."//LF// &
                         "Interactively, N is the prefix numeric argument, and defaults to 1."
         case ("tabulated_list_next_column")
             entry%file = "tabulated_list_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the start of the next column after point on the current line."//LF// &
                         "If ARG is provided, move that many columns."
         case ("tabulated_list_previous_column")
             entry%file = "tabulated_list_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the start of the column point is in on the current line."//LF// &
                         "If ARG is provided, move that many columns."
         case ("tabulated_list_revert")
             entry%file = "tabulated_list_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The `revert_buffer_function' for `tabulated_list_mode'."//LF// &
                         "It runs `tabulated_list_revert_hook', then calls"//LF// &
                         "`tabulated_list_print'."
         case ("tabulated_list_sort")
             entry%file = "tabulated_list_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Sort Tabulated List entries by the column at point."//LF// &
                         "With a numeric prefix argument N, sort the Nth column."//LF// &
                         ""//LF// &
@@ -12937,13 +12937,13 @@ contains
                         "displayed in."
         case ("tabulated_list_widen_current_column")
             entry%file = "tabulated_list_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Widen the current tabulated-list column by N chars."//LF// &
                         "Interactively, N is the prefix numeric argument, and defaults to 1."
         case ("text_mode")
             entry%file = "text_mode_fm.f90"
             entry%fortran = "call text_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode for editing text written for humans to read."//LF// &
                         "In this mode, paragraphs are delimited only by blank or white lines."//LF// &
                         "You can thus get the full benefit of adaptive filling"//LF// &
@@ -12976,12 +12976,12 @@ contains
         case ("top_level")
             entry%file = "keyboard_fm.f90"
             entry%fortran = "call top_level(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Exit all recursive editing levels."//LF// &
                         "This also exits all active minibuffers."
         case ("transient_mark_mode")
             entry%file = "simple_modes_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle Transient Mark mode."//LF// &
                         ""//LF// &
                         "Transient Mark mode is a global minor mode.  When enabled, the"//LF// &
@@ -12997,7 +12997,7 @@ contains
         case ("transpose_chars")
             entry%file = "simple_fm.f90"
             entry%fortran = "call transpose_chars(arg, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Interchange characters around point, moving forward one character."//LF// &
                         "With prefix arg ARG, effect is to take character before point"//LF// &
                         "and drag it forward past ARG other characters (backward if ARG negative)."//LF// &
@@ -13005,14 +13005,14 @@ contains
         case ("transpose_lines")
             entry%file = "simple_fm.f90"
             entry%fortran = "call transpose_lines(arg, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Exchange current line and previous line, leaving point after both."//LF// &
                         "With argument ARG, takes previous line and moves it past ARG lines."//LF// &
                         "With argument 0, interchanges line point is in with line mark is in."
         case ("transpose_paragraphs")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call transpose_paragraphs(arg, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Interchange the current paragraph with the next one."//LF// &
                         "With prefix argument ARG a non-zero integer, moves the current"//LF// &
                         "paragraph past ARG paragraphs, leaving point after the current paragraph."//LF// &
@@ -13022,7 +13022,7 @@ contains
         case ("transpose_sentences")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call transpose_sentences(arg, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Interchange the current sentence with the next one."//LF// &
                         "With prefix argument ARG a non-zero integer, moves the current"//LF// &
                         "sentence past ARG sentences, leaving point after the current sentence."//LF// &
@@ -13032,7 +13032,7 @@ contains
         case ("transpose_words")
             entry%file = "simple_fm.f90"
             entry%fortran = "call transpose_words(arg, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Interchange words around point, leaving point at end of them."//LF// &
                         "With prefix arg ARG, effect is to take word before or around point"//LF// &
                         "and drag it forward past ARG other words (backward if ARG negative)."//LF// &
@@ -13070,17 +13070,17 @@ contains
                         "`font_lock_global_modes'."
         case ("uncomment_region")
             entry%file = "newcomment_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Uncomment each line in the BEG .. END region."//LF// &
                         "The numeric prefix ARG can specify a number of chars to remove from the"//LF// &
                         "comment delimiters."
         case ("undefined")
             entry%file = "subr_read_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Beep to tell the user this binding is undefined."
         case ("undo")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Undo some previous changes."//LF// &
                         "Repeat this command to undo more changes."//LF// &
                         "A numeric ARG serves as a repeat count (ARG is the raw prefix"//LF// &
@@ -13094,7 +13094,7 @@ contains
         case ("undo_only")
             entry%file = "simple_fm.f90"
             entry%fortran = "call undo_only(n, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Undo some previous changes."//LF// &
                         "Repeat this command to undo more changes."//LF// &
                         "A numeric ARG serves as a repeat count."//LF// &
@@ -13102,19 +13102,19 @@ contains
         case ("undo_redo")
             entry%file = "simple_fm.f90"
             entry%fortran = "call undo_redo(arg, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Undo the last ARG undos, i.e., redo the last ARG changes."
         case ("unexpand_abbrev")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "call unexpand_abbrev(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Undo the expansion of the last abbrev that expanded."//LF// &
                         "This differs from ordinary undo in that other editing done since then"//LF// &
                         "is not undone."
         case ("unfill_paragraph")
             entry%file = "fill_fm.f90"
             entry%fortran = "call unfill_paragraph(arg, status, beg, end)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Join lines of this paragraph and fix up whitespace at joins."//LF// &
                         "Interactively, if the region is active, join lines of each paragraph in"//LF// &
                         "the region.  A numeric prefix argument means join the lines of the"//LF// &
@@ -13131,7 +13131,7 @@ contains
                         "and END."
         case ("universal_argument")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Begin a numeric argument for the following command."//LF// &
                         "Digits or minus sign following \[universal_argument] make up the numeric argument."//LF// &
                         "\[universal_argument] following the digits or minus sign ends the argument."//LF// &
@@ -13143,22 +13143,22 @@ contains
                         "These commands include \[set_mark_command]."
         case ("universal_argument_minus")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "`-' in universal-argument-map: negative-argument, unless digits"//LF// &
                         "were typed already (upstream's menu-item filter), in which case it"//LF// &
                         "inserts itself as the global binding would."
         case ("universal_argument_more")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("universal_coding_system_argument")
             entry%file = "mule_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Execute an I/O command using the specified CODING_SYSTEM."
         case ("up_group")
             entry%file = "expression_motion_fm.f90"
             entry%fortran = "call up_group(arg, status, escape_strings, no_syntax_crossing)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move forward out of one level of parentheses."//LF// &
                         "This command will also work on other parentheses-like expressions"//LF// &
                         "defined by the current language mode.  With ARG, do this that"//LF// &
@@ -13186,7 +13186,7 @@ contains
         case ("upcase_initials_region")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "call upcase_initials_region(beg, end, status, region_noncontiguous)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Upcase the initial of each word in the region."//LF// &
                         "This means that each word's first character is converted to either"//LF// &
                         "title case or upper case, and the rest are left unchanged."//LF// &
@@ -13195,7 +13195,7 @@ contains
         case ("upcase_region")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "call upcase_region(beg, end, status, region_noncontiguous)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Convert the region to upper case.  In programs, wants two arguments."//LF// &
                         "These arguments specify the starting and ending character numbers"//LF// &
                         "of the region to operate on.  When used as a command, the text"//LF// &
@@ -13204,7 +13204,7 @@ contains
         case ("upcase_word")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "call upcase_word(arg, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Convert to upper case from point to end of word, moving over."//LF// &
                         ""//LF// &
                         "If point is in the middle of a word, the part of that word before"//LF// &
@@ -13214,15 +13214,15 @@ contains
                         "See also `capitalize_word'."
         case ("vc_clear_context")
             entry%file = "vc_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Clear all cached file properties."
         case ("vc_create_repo")
             entry%file = "vc_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Create an empty repository in the current directory, with backend B."
         case ("vc_delete_file")
             entry%file = "vc_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Delete file and mark it as such in the version control system."//LF// &
                         "If called interactively, read FILES, defaulting to the current"//LF// &
                         "buffer's file name if it's under version control."//LF// &
@@ -13232,7 +13232,7 @@ contains
                         "These are recursively deleted."
         case ("vc_diff")
             entry%file = "vc_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display diffs between file revisions."//LF// &
                         "Normally this compares the currently selected fileset with their"//LF// &
                         "working revisions.  With a prefix argument HISTORIC, it reads two revision"//LF// &
@@ -13243,7 +13243,7 @@ contains
                         "Optional argument FILESET, if present, overrides the fileset."
         case ("vc_dir")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Show the VC status for ""interesting"" files in and below DIR."//LF// &
                         "This allows you to mark files and perform VC operations on them."//LF// &
                         "The list omits files which are up to date, with no changes in your copy"//LF// &
@@ -13261,52 +13261,52 @@ contains
                         "\{vc_dir_mode_map}"
         case ("vc_dir_delete_file")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Delete the marked files, or the current file if no marks."//LF// &
                         "The files will also be marked as deleted in the version control"//LF// &
                         "system."
         case ("vc_dir_display_file")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display the file on the current line, in another window."
         case ("vc_dir_find_file")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Find the file on the current line."
         case ("vc_dir_find_file_other_window")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Find the file on the current line, in another window."//LF// &
                         "If this command needs to split the current window, it by default obeys"//LF// &
                         "the user options `split_height_threshold' and `split_width_threshold',"//LF// &
                         "when it decides whether to split the window horizontally or vertically."
         case ("vc_dir_hide_up_to_date")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = ""
         case ("vc_dir_ignore")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Ignore the current file."//LF// &
                         "If a prefix argument is given, ignore all marked files."
         case ("vc_dir_kill_dir_status_process")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Kill the temporary buffer and associated process."
         case ("vc_dir_kill_line")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Remove the current line from display."
         case ("vc_dir_mark")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark the current file or all files in the region."//LF// &
                         "If the region is active, mark all the files in the region."//LF// &
                         "Otherwise mark the file on the current line and move to the next"//LF// &
                         "line."
         case ("vc_dir_mark_all_files")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark all files with the same state as the current one."//LF// &
                         "With prefix argument ARG, mark all files (not directories)."//LF// &
                         "If the current entry is a directory, mark all child files."//LF// &
@@ -13316,21 +13316,21 @@ contains
                         "share the same state."
         case ("vc_dir_mark_by_regexp")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark all files that match REGEXP."//LF// &
                         "If UNMARK (interactively, the prefix), unmark instead."
         case ("vc_dir_mark_registered_files")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark files that are in one of registered states: edited, added or"//LF// &
                         "removed."
         case ("vc_dir_mark_unregistered_files")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Mark files that are in unregistered state."
         case ("vc_dir_mode")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode for VC directory buffers."//LF// &
                         "Marking/Unmarking key bindings and actions: \<vc_dir_mode_map>"//LF// &
                         "\[vc_dir_mark] - mark a file/directory"//LF// &
@@ -13359,56 +13359,56 @@ contains
                         "\{vc_dir_mode_map}"
         case ("vc_dir_next_directory")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the next directory."
         case ("vc_dir_next_line")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the next line."//LF// &
                         "With prefix argument ARG, move that many lines."
         case ("vc_dir_previous_directory")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the previous directory."
         case ("vc_dir_previous_line")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Go to the previous line."//LF// &
                         "With prefix argument ARG, move that many lines."
         case ("vc_dir_refresh")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Refresh the contents of the *VC-Dir* buffer."//LF// &
                         "Throw an error if another update process is in progress."
         case ("vc_dir_root")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Run `vc_dir' in the repository root directory without prompt."//LF// &
                         "If the default directory of the current buffer is"//LF// &
                         "not under version control, prompt for a directory."
         case ("vc_dir_root_next_action")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Like `vc_next_action' but for all files shown in the VC-Dir buffer."//LF// &
                         "This command ignores VC-Dir marks and the position of point."//LF// &
                         "When the VC-Dir's root directory is the repository root (as it usually"//LF// &
                         "is), this command is useful to check in all local changes at once."
         case ("vc_dir_show_fileentry")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Insert an entry for a specific file into the current *VC-Dir* listing."//LF// &
                         "This is typically used if the file is up-to-date (or has been added"//LF// &
                         "outside of VC) and one wants to do some operation on it."
         case ("vc_dir_unmark")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Unmark the current file or all files in the region."//LF// &
                         "If the region is active, unmark all the files in the region."//LF// &
                         "Otherwise unmark the file on the current line and move to the next"//LF// &
                         "line."
         case ("vc_dir_unmark_all_files")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Unmark all files with the same state as the current one."//LF// &
                         "With prefix argument ARG, unmark all files."//LF// &
                         "If the current entry is a directory, unmark all the child files."//LF// &
@@ -13418,32 +13418,32 @@ contains
                         "that share the same state."
         case ("vc_dir_unmark_file_up")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move to the previous line and unmark the file."
         case ("vc_dir_view_file")
             entry%file = "vc_dir_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Examine a file on the current line in view mode."
         case ("vc_git_log_edit_mode")
             entry%file = "vc_git_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode for editing Git log messages."//LF// &
                         "It is based on `log_edit_mode', and has Git-specific extensions."
         case ("vc_git_log_edit_toggle_no_verify")
             entry%file = "vc_git_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle whether to bypass the pre-commit and commit-msg hooks."
         case ("vc_git_log_edit_toggle_signoff")
             entry%file = "vc_git_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle whether to add the ""Signed-off-by"" line at the end of commit message."
         case ("vc_git_log_view_mode")
             entry%file = "vc_git_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Major mode for Git logs."
         case ("vc_ignore")
             entry%file = "vc_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Ignore FILE under the VCS of DIRECTORY."//LF// &
                         ""//LF// &
                         "Normally, FILE is a wildcard specification that matches the files"//LF// &
@@ -13458,7 +13458,7 @@ contains
                         "remove from the list of ignored files."
         case ("vc_next_action")
             entry%file = "vc_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Do the next logical version control operation on the current fileset."//LF// &
                         "This requires that all files in the current VC fileset be in the"//LF// &
                         "sufficiently similar states.  If they are not, signal an error."//LF// &
@@ -13503,12 +13503,12 @@ contains
                         "from which to check out the file(s)."
         case ("vc_print_log")
             entry%file = "vc_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The commands C-x v l and C-x v L, reading their arguments.  (In"//LF// &
                         "vc_log_fm.)"
         case ("vc_print_root_log")
             entry%file = "vc_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Show in another window VC change history of the current VC controlled tree."//LF// &
                         "If LIMIT is given, it should be a number specifying the maximum"//LF// &
                         "number of revisions to show; the default is `vc_log_show_limit'."//LF// &
@@ -13519,7 +13519,7 @@ contains
                         "with its diffs (if the underlying VCS backend supports that)."
         case ("vc_refresh_state")
             entry%file = "vc_hooks_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Refresh the VC state of the current buffer's file."//LF// &
                         ""//LF// &
                         "This command is more thorough than `vc_state_refresh', in that it"//LF// &
@@ -13527,7 +13527,7 @@ contains
                         "In the latter case, VC mode is deactivated for this buffer."
         case ("vc_register")
             entry%file = "vc_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Register into a version control system."//LF// &
                         "If FILESET is given, register the files in that fileset."//LF// &
                         "Otherwise register the current file."//LF// &
@@ -13541,7 +13541,7 @@ contains
                         "first backend that could register the file is used."
         case ("vc_rename_file")
             entry%file = "vc_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Rename file OLD to NEW in both working tree and repository."//LF// &
                         "When called interactively, read OLD and NEW, defaulting OLD to the"//LF// &
                         "current buffer's file name if it's under version control."//LF// &
@@ -13551,19 +13551,19 @@ contains
                         "OK_IF_ALREADY_EXISTS is true."
         case ("vc_restore")
             entry%file = "vc_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Revert working copies of the selected fileset to their repository contents."//LF// &
                         "This asks for confirmation if the buffer contents are not identical"//LF// &
                         "to the working revision (except for keyword expansion)."
         case ("vc_revert")
             entry%file = "vc_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Revert working copies of the selected fileset to their repository contents."//LF// &
                         "This asks for confirmation if the buffer contents are not identical"//LF// &
                         "to the working revision (except for keyword expansion)."
         case ("vc_revision_other_window")
             entry%file = "vc_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Visit revision REV of the current file in another window."//LF// &
                         "If the current file is named `F', the revision is named `F.~REV~'."//LF// &
                         "If `F.~REV~' already exists, use it instead of checking it out again."//LF// &
@@ -13573,7 +13573,7 @@ contains
                         "when it decides whether to split the window horizontally or vertically."
         case ("vc_root_diff")
             entry%file = "vc_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display diffs between VC-controlled whole tree revisions."//LF// &
                         "Normally, this compares the tree corresponding to the current"//LF// &
                         "fileset with the working revision."//LF// &
@@ -13584,11 +13584,11 @@ contains
                         "saving the buffer."
         case ("vc_root_version_diff")
             entry%file = "vc_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Report diffs between REV1 and REV2 revisions of the whole tree."
         case ("vc_version_diff")
             entry%file = "vc_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Report diffs between revisions REV1 and REV2 in the repository history."//LF// &
                         "This compares two revisions of the current fileset."//LF// &
                         "If REV1 is """", it defaults to the previous revision, i.e. revision"//LF// &
@@ -13597,7 +13597,7 @@ contains
                         "state of each file in the fileset."
         case ("view_back_to_mark")
             entry%file = "view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Return to last mark set in View mode, else beginning of file."//LF// &
                         "Display that line at the center of the window."//LF// &
                         "This command pops the mark ring, so that successive"//LF// &
@@ -13605,7 +13605,7 @@ contains
         case ("view_buffer")
             entry%file = "view_fm.f90"
             entry%fortran = "call view_buffer(buffer, status, exit_action)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "View BUFFER in View mode, returning to previous buffer when done."//LF// &
                         "Emacs commands editing the buffer contents are not available; instead, a"//LF// &
                         "special set of commands (mostly letters and punctuation) are defined for"//LF// &
@@ -13621,7 +13621,7 @@ contains
         case ("view_buffer_other_window")
             entry%file = "view_fm.f90"
             entry%fortran = "call view_buffer_other_window(buffer, status, exit_action)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "View BUFFER in View mode in another window."//LF// &
                         "Emacs commands editing the buffer contents are not available;"//LF// &
                         "instead, a special set of commands (mostly letters and"//LF// &
@@ -13641,22 +13641,22 @@ contains
         case ("view_echo_area_messages")
             entry%file = "help_fm.f90"
             entry%fortran = "call view_echo_area_messages(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "View the log of recent echo-area messages: the `*Messages*' buffer."//LF// &
                         "The number of messages retained in that buffer is specified by"//LF// &
                         "the variable `message_log_max'."
         case ("view_exit")
             entry%file = "view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Exit View mode but stay in current buffer."
         case ("view_exit_and_edit")
             entry%file = "view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Exit View mode and make the current buffer editable."
         case ("view_file")
             entry%file = "view_fm.f90"
             entry%fortran = "call view_file(file, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "View FILE in View mode, returning to previous buffer when done."//LF// &
                         "Emacs commands editing the buffer contents are not available; instead, a"//LF// &
                         "special set of commands (mostly letters and punctuation) are defined for"//LF// &
@@ -13668,7 +13668,7 @@ contains
         case ("view_file_other_window")
             entry%file = "view_fm.f90"
             entry%fortran = "call view_file_other_window(file, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "View FILE in View mode in another window."//LF// &
                         "When done, return that window to its previous buffer, and kill the"//LF// &
                         "buffer visiting FILE if unmodified and if it wasn't visited before."//LF// &
@@ -13686,28 +13686,28 @@ contains
                         "when it decides whether to split the window horizontally or vertically."
         case ("view_goto_line")
             entry%file = "view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move to first (or prefix LINE) line in View mode."//LF// &
                         "Display is centered at LINE."//LF// &
                         "Also set the mark at the position where point was."
         case ("view_goto_percent")
             entry%file = "view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Move to end (or prefix PERCENT) of buffer in View mode."//LF// &
                         "Display is centered at point."//LF// &
                         "Also set the mark at the position where point was."
         case ("view_kill_and_leave")
             entry%file = "view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Quit View mode, kill current buffer and return to previous buffer."
         case ("view_leave")
             entry%file = "view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Quit View mode and maybe switch buffers, but don't kill this buffer."
         case ("view_lossage")
             entry%file = "help_fm.f90"
             entry%fortran = "call view_lossage(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display last few input keystrokes and the commands run."//LF// &
                         "For convenience this uses the same format as"//LF// &
                         "`edit_last_kbd_macro'."//LF// &
@@ -13717,7 +13717,7 @@ contains
         case ("view_mode")
             entry%file = "view_fm.f90"
             entry%fortran = "call view_mode(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Toggle View mode, a minor mode for viewing text but not editing it."//LF// &
                         ""//LF// &
                         "When View mode is enabled, commands that do not change the buffer"//LF// &
@@ -13800,60 +13800,60 @@ contains
                         "Entry to view_mode runs the normal hook `view_mode_hook'."
         case ("view_quit")
             entry%file = "view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Quit View mode, trying to restore window and buffer to previous state."//LF// &
                         "Maybe kill this buffer.  Try to restore selected window to previous state"//LF// &
                         "and go to previous buffer or window."
         case ("view_quit_all")
             entry%file = "view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Quit View mode, trying to restore windows and buffers to previous state."//LF// &
                         "Maybe kill current buffer.  Try to restore all windows viewing buffer to"//LF// &
                         "previous state and go to previous buffer or window."
         case ("view_register")
             entry%file = "register_fm.f90"
             entry%fortran = "call view_register(register, status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display the description of the contents of REGISTER."//LF// &
                         "REGISTER is a character, the name of the register."//LF// &
                         ""//LF// &
                         "Interactively, prompt for REGISTER using `register_read_with_preview'."
         case ("view_scroll_half_page_backward")
             entry%file = "view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Scroll backward a ""half page"" (or prefix LINES) lines in View mode."//LF// &
                         "See also `view_scroll_half_page_forward'."
         case ("view_scroll_half_page_forward")
             entry%file = "view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Scroll forward a ""half page"" (or prefix LINES) lines in View mode."//LF// &
                         "If LINES is not omitted, the ""half page size"" is set to the minimum of"//LF// &
                         "window height and the absolute value of LINES."//LF// &
                         "LINES=0 resets ""half page size"" to half window height."
         case ("view_scroll_line_backward")
             entry%file = "view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Scroll backward one line (or prefix LINES lines) in View mode."//LF// &
                         "See also `view_scroll_line_forward'."
         case ("view_scroll_line_forward")
             entry%file = "view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Scroll forward one line (or prefix LINES lines) in View mode."//LF// &
                         "See also `view_scroll_page_forward', but note that scrolling is limited"//LF// &
                         "to minimum of LINES and one window-full."
         case ("view_scroll_page_backward")
             entry%file = "view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Scroll ""page size"" or prefix LINES lines backward in View mode."//LF// &
                         "See also `view_scroll_page_forward'."
         case ("view_scroll_page_backward_set_page_size")
             entry%file = "view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Scroll backward prefix LINES lines in View mode, setting the ""page size""."//LF// &
                         "See also `view_scroll_page_forward_set_page_size'."
         case ("view_scroll_page_forward")
             entry%file = "view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Scroll ""page size"" or prefix LINES lines forward in View mode."//LF// &
                         "Exit if end of text is visible and `view_scroll_auto_exit' is true."//LF// &
                         """page size"" is whole window full, or number of lines set by"//LF// &
@@ -13862,7 +13862,7 @@ contains
                         "If LINES is more than a window-full, only the last window-full is shown."
         case ("view_scroll_page_forward_set_page_size")
             entry%file = "view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Scroll forward LINES lines in View mode, setting the ""page size""."//LF// &
                         "This is the number of lines which \[view_scroll_page_forward] and"//LF// &
                         "\[view_scroll_page_backward] scroll by default."//LF// &
@@ -13872,24 +13872,24 @@ contains
                         "See also `view_scroll_page_forward'."
         case ("view_scroll_to_buffer_end")
             entry%file = "view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Scroll backward or forward so that buffer end is at last line of"//LF// &
                         "window."
         case ("view_search_last_regexp_backward")
             entry%file = "view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Search backward for first (or prefix Nth) instance of last regexp in View mode."//LF// &
                         "Displays line found at center of window.  Sets mark at starting position and"//LF// &
                         "pushes mark ring."
         case ("view_search_last_regexp_forward")
             entry%file = "view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Search forward for first (or prefix Nth) instance of last regexp in View mode."//LF// &
                         "Displays line found at center of window.  Sets mark at starting position and"//LF// &
                         "pushes mark ring."
         case ("view_search_regexp_backward")
             entry%file = "view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Search backward for first (or prefix Nth) occurrence of REGEXP in View mode."//LF// &
                         ""//LF// &
                         "Displays line found at center of window.  Sets mark at starting position and"//LF// &
@@ -13904,7 +13904,7 @@ contains
                         "for use by later search commands."
         case ("view_search_regexp_forward")
             entry%file = "view_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Search forward for first (or prefix Nth) occurrence of REGEXP in View mode."//LF// &
                         ""//LF// &
                         "Displays line found at center of window.  Sets mark at starting position and"//LF// &
@@ -13920,26 +13920,26 @@ contains
         case ("what_line")
             entry%file = "simple_fm.f90"
             entry%fortran = "call what_line(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Print the current buffer line number and narrowed line number of point."
         case ("what_page")
             entry%file = "page_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Display the page number, and the line number within that page."
         case ("where_is")
             entry%file = "help_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Print message listing key sequences that invoke the command DEFINITION."
         case ("widen")
             entry%file = "simple_goto_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Remove restrictions (narrowing) from current buffer."//LF// &
                         ""//LF// &
                         "This allows the buffer's full text to be seen and edited."
         case ("window_configuration_to_register")
             entry%file = "register_fm.f90"
             entry%fortran = "call window_configuration_to_register(register)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Store the window configuration of the selected frame in REGISTER."//LF// &
                         "Use \[jump_to_register] to restore the configuration."//LF// &
                         "Argument is a character, the name of the register."//LF// &
@@ -13948,7 +13948,7 @@ contains
         case ("write_abbrev_file")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "call write_abbrev_file(status, file, verbose)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Write all user-level abbrev definitions to the init file, as"//LF// &
                         "Fortran."//LF// &
                         "This does not include system abbrevs; it includes only the abbrev tables"//LF// &
@@ -13962,7 +13962,7 @@ contains
                         "abbrevs have been saved."
         case ("write_file")
             entry%file = "files_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Write current buffer into file FILENAME."//LF// &
                         "This makes the buffer visit that file, and marks it as not modified."//LF// &
                         ""//LF// &
@@ -13980,7 +13980,7 @@ contains
                         "you supply a prefix argument."
         case ("yank")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Reinsert (""paste"") the last stretch of killed text."//LF// &
                         "More precisely, reinsert the most recent kill, which is the stretch of"//LF// &
                         "text most recently killed OR yanked, as returned by `current_kill'."//LF// &
@@ -13990,7 +13990,7 @@ contains
                         "ARG is the raw prefix argument."
         case ("yank_pop")
             entry%file = "simple_fm.f90"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Replace just-yanked stretch of killed text with a different stretch."//LF// &
                         "This command is allowed only immediately after a `yank' or a"//LF// &
                         "`yank_pop'.  At such a time, the region contains a stretch of"//LF// &
@@ -14006,12 +14006,12 @@ contains
         case ("yank_rectangle")
             entry%file = "rect_fm.f90"
             entry%fortran = "call yank_rectangle(status)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "Yank the last killed rectangle with upper left corner at point."
         case ("zrgrep")
             entry%file = "grep_fm.f90"
             entry%fortran = "call zrgrep(regexp, status, files, dir, confirm, template)"
-            entry%interactive = .true.
+            entry%command = .true.
             entry%doc = "The command: compute the zgrep defaults, read the arguments, then"//LF// &
                         "`zrgrep'.  The interactive form of grep.el:zrgrep."//LF// &
                         ""//LF// &
@@ -14218,12 +14218,12 @@ contains
             entry%file = "ansi_color_fm.f90"
             entry%fortran = "ansi_color_apply_face_function"
             entry%doc = "See the type."
-        case ("ansi_color_basic_faces_vector")
+        case ("ansi_color_basic_faces")
             entry%file = "ansi_color_fm.f90"
-            entry%fortran = "ansi_color_basic_faces_vector"
-            entry%value = repr(ansi_color_basic_faces_vector)
+            entry%fortran = "ansi_color_basic_faces"
+            entry%value = repr(ansi_color_basic_faces)
             entry%doc = "Faces used for SGR control sequences determining a face."//LF// &
-                        "This vector holds the faces used for SGR control sequence"//LF// &
+                        "This array holds the faces used for SGR control sequence"//LF// &
                         "parameters 0 to 7 ("""" is nil)."//LF// &
                         ""//LF// &
                         "Parameter  Description"//LF// &
@@ -14243,12 +14243,12 @@ contains
             entry%value = repr(ansi_color_bold_is_bright%value)
             entry%doc = "If set to true, combining ANSI bold and a color produces the bright"//LF// &
                         "version of that color."
-        case ("ansi_color_bright_colors_vector")
+        case ("ansi_color_bright_colors")
             entry%file = "ansi_color_fm.f90"
-            entry%fortran = "ansi_color_bright_colors_vector"
-            entry%value = repr(ansi_color_bright_colors_vector)
+            entry%fortran = "ansi_color_bright_colors"
+            entry%value = repr(ansi_color_bright_colors)
             entry%doc = "Faces used for SGR control sequences determining a ""bright"""//LF// &
-                        "color.  This vector holds the faces used for SGR control sequence"//LF// &
+                        "color.  This array holds the faces used for SGR control sequence"//LF// &
                         "parameters 90 to 97 (bright foreground colors) and 100 to 107"//LF// &
                         "(bright background colors)."//LF// &
                         ""//LF// &
@@ -14321,12 +14321,12 @@ contains
                         "In order for this to have any effect,"//LF// &
                         "`ansi_color_compilation_filter' must be in"//LF// &
                         "`compilation_filter_hook'."
-        case ("ansi_color_normal_colors_vector")
+        case ("ansi_color_normal_colors")
             entry%file = "ansi_color_fm.f90"
-            entry%fortran = "ansi_color_normal_colors_vector"
-            entry%value = repr(ansi_color_normal_colors_vector)
+            entry%fortran = "ansi_color_normal_colors"
+            entry%value = repr(ansi_color_normal_colors)
             entry%doc = "Faces used for SGR control sequences determining a color."//LF// &
-                        "This vector holds the faces used for SGR control sequence"//LF// &
+                        "This array holds the faces used for SGR control sequence"//LF// &
                         "parameters 30 to 37 (foreground colors) and 40 to 47 (background"//LF// &
                         "colors)."//LF// &
                         ""//LF// &
@@ -15281,18 +15281,11 @@ contains
             entry%original = ".true."
             entry%value = repr(case_fold_search%value)
             entry%doc = "True if searches and matches should ignore case."
-        case ("case_replace")
-            entry%file = "replace_fm.f90"
-            entry%fortran = "case_replace"
-            entry%user_option = .true.
-            entry%original = ".true."
-            entry%value = repr(case_replace)
-            entry%doc = "True means `query_replace' should preserve case in replacements."
-        case ("case_symbols_as_words")
+        case ("case_identifiers_as_words")
             entry%file = "casefiddle_fm.f90"
-            entry%fortran = "case_symbols_as_words"
+            entry%fortran = "case_identifiers_as_words"
             entry%original = ".false."
-            entry%value = repr(case_symbols_as_words%value)
+            entry%value = repr(case_identifiers_as_words%value)
             entry%doc = "If true, case functions treat symbol syntax as part of words."//LF// &
                         ""//LF// &
                         "Functions such as `upcase_initials' and `replace_match' check or"//LF// &
@@ -15304,6 +15297,13 @@ contains
                         ""//LF// &
                         "This is useful for programming languages and styles where only the"//LF// &
                         "first letter of a symbol's name is ever capitalized."
+        case ("case_replace")
+            entry%file = "replace_fm.f90"
+            entry%fortran = "case_replace"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(case_replace)
+            entry%doc = "True means `query_replace' should preserve case in replacements."
         case ("change_log_date")
             entry%file = "add_log_fm.f90"
             entry%fortran = "change_log_date"
@@ -20163,7 +20163,7 @@ contains
             entry%value = repr(help_char)
             entry%doc = "Character to recognize as meaning Help."//LF// &
                         "When it is read, do `(eval help-form)', and display result if it's a string."//LF// &
-                        "If the value of `help_form' is nil, this char can be read normally."
+                        "If the value of `help_procedure' is nil, this char can be read normally."
         case ("help_event_list")
             entry%file = "keyboard_fm.f90"
             entry%fortran = "help_event_list"
@@ -21562,7 +21562,7 @@ contains
         case ("last_abbrev")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "last_abbrev"
-            entry%doc = "The abbrev of the last abbrev expanded.  See `abbrev_symbol'."
+            entry%doc = "The abbrev of the last abbrev expanded.  See `abbrev_name'."
         case ("last_abbrev_location")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "last_abbrev_location"
@@ -22363,11 +22363,11 @@ contains
             entry%file = "mule_fm.f90"
             entry%fortran = "mule_keymap"
             entry%doc = "Keymap for Mule (Multilingual environment) specific commands."
-        case ("multibyte_syntax_as_symbol")
+        case ("multibyte_syntax_as_identifier")
             entry%file = "syntax_fm.f90"
-            entry%fortran = "multibyte_syntax_as_symbol"
+            entry%fortran = "multibyte_syntax_as_identifier"
             entry%original = ".false."
-            entry%value = repr(multibyte_syntax_as_symbol)
+            entry%value = repr(multibyte_syntax_as_identifier)
             entry%doc = "True means `scan_expressions' treats all multibyte characters as symbol."
         case ("narrow_to_subprogram_include_comments")
             entry%file = "expression_motion_fm.f90"
@@ -23200,9 +23200,9 @@ contains
                         ""//LF// &
                         "You can also set the component `repeat_check_key' of the command."//LF// &
                         "This component can override the value of this variable."//LF// &
-                        "When the variable value is true, but the component is `PROPERTY_NO',"//LF// &
+                        "When the variable value is true, but the component is `REPEAT_CHECK_KEY_NO',"//LF// &
                         "then don't check the last key.  Also when the variable value is false,"//LF// &
-                        "but the component is `PROPERTY_TRUE', then check the last key."
+                        "but the component is `REPEAT_CHECK_KEY_YES', then check the last key."
         case ("repeat_exit_key")
             entry%file = "repeat_fm.f90"
             entry%fortran = "repeat_exit_key"

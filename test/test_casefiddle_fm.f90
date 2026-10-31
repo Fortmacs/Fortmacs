@@ -42,7 +42,7 @@ module test_casefiddle_fm
     use casefiddle_fm, only: upcase_string, downcase_string, capitalize_string, upcase_initials_string, &
                              upcase_char, downcase_char, capitalize_char, upcase_initials_char, upcase_region, &
                              downcase_region, capitalize_region, upcase_initials_region, upcase_word, &
-                             downcase_word, capitalize_word, case_symbols_as_words, &
+                             downcase_word, capitalize_word, case_identifiers_as_words, &
                              casefiddle_region_bounds => region_bounds
     implicit none(type, external)
     private
@@ -61,7 +61,7 @@ contains
                     new_unittest("casefiddle-tests-casing", test_casing), &
                     new_unittest("casefiddle-tests-casing-byte8", test_casing_byte8), &
                     new_unittest("casefiddle-tests-char-casing", test_char_casing), &
-                    new_unittest("casefiddle-case-symbols-as-words", test_symbols_as_words), &
+                    new_unittest("casefiddle-case-symbols-as-words", test_identifiers_as_words), &
                     new_unittest("casefiddle-noncontiguous-region", test_noncontiguous), &
                     new_unittest("casefiddle-unibyte-buffer", test_unibyte) &
                     ]
@@ -283,14 +283,14 @@ contains
         end do
     end subroutine test_char_casing
 
-    subroutine test_symbols_as_words(error)
+    subroutine test_identifiers_as_words(error)
         type(error_type), allocatable, intent(out) :: error
 
         call syms("Aa_bb Cc_dd", "Aa_Bb Cc_Dd", "Aa_bb Cc_dd")
         call syms("Aa_bb cc_DD", "Aa_Bb Cc_DD", "Aa_bb Cc_DD")
         call syms("aa_bb cc_dd", "Aa_Bb Cc_Dd", "Aa_bb Cc_dd")
         call syms("Aa_Bb Cc_Dd", "Aa_Bb Cc_Dd", "Aa_Bb Cc_Dd")
-        case_symbols_as_words = .false.
+        case_identifiers_as_words = .false.
 
     contains
 
@@ -298,13 +298,13 @@ contains
             character(len=*), intent(in) :: init, with_words, with_symbols
 
             if (allocated(error)) return
-            case_symbols_as_words = .false.
+            case_identifiers_as_words = .false.
             call check(error, upcase_initials_string(init) == with_words, init//" words")
             if (allocated(error)) return
-            case_symbols_as_words = .true.
+            case_identifiers_as_words = .true.
             call check(error, upcase_initials_string(init) == with_symbols, init//" symbols")
         end subroutine syms
-    end subroutine test_symbols_as_words
+    end subroutine test_identifiers_as_words
 
     !> A region of two pieces, "abc" and "def" of "abc def ghi".
     recursive subroutine two_pieces(method, string, starts, ends, status)

@@ -48,8 +48,8 @@ trap 'rm -f "$tmp".*' EXIT
 
 # Pass 1: one record per entry, fields separated by \037 and docstring
 # lines by \036:
-#   F  lisp-name  file  fortran-call  interactive(0/1)  doc
-#   V  lisp-name  file  fortran-name  type  array(0/1)  init  enum  doc
+#   F  help-name  file  fortran-call  command(0/1)  doc
+#   V  help-name  file  fortran-name  type  array(0/1)  init  enum  doc
 # (The program is in a file, to be run with tools/fortran-names-lib.awk,
 # which gives the cited upstream names their Fortran names.)
 cat >"$tmp.pass1" <<'EOF'
@@ -199,7 +199,7 @@ ingeneric == "" && /^[ \t]*module procedure[ \t]+[a-zA-Z0-9_]+[ \t]*$/ {
 }
 
 # Built-in commands (not in comments): `commands%NAME%run => PROC`, and
-# `commands%NAME%interactive = .false.` for a function that is not a
+# `commands%NAME%is_command = .false.` for a function that is not a
 # command.
 /^[ \t]*commands%[a-z0-9_]+%run[ \t]*=>/ {
     line = $0
@@ -208,11 +208,11 @@ ingeneric == "" && /^[ \t]*module procedure[ \t]+[a-zA-Z0-9_]+[ \t]*$/ {
     proc = line; sub(/^[^>]*>[ \t]*/, "", proc); sub(/[^a-z0-9_].*/, "", proc)
     if (!(name in cmd)) { cmd[name] = proc; cmdfile[name] = base }
 }
-/^[ \t]*commands%[a-z0-9_]+%interactive[ \t]*=[ \t]*\.false\./ {
+/^[ \t]*commands%[a-z0-9_]+%is_command[ \t]*=[ \t]*\.false\./ {
     line = $0
     sub(/^[ \t]*commands%/, "", line)
     name = line; sub(/%.*/, "", name)
-    noninteractive[help_name(name)] = 1
+    noncommand[help_name(name)] = 1
 }
 
 {
@@ -322,19 +322,19 @@ END {
     for (nm in api) {
         key = nm SUBSEP api[nm]
         if (key in pdoc) {
-            lisp = pcite[key]
-            if (lisp == "") lisp = help_name(nm)
+            hname = pcite[key]
+            if (hname == "") hname = help_name(nm)
             # Several API procedures can port one function (capitalize_char
             # and capitalize_string): the first by name, whatever order
             # this awk visits the array in.
-            if ((lisp in fowner) && fowner[lisp] < nm) continue
-            fowner[lisp] = nm
-            fdoc[lisp] = pdoc[key]; ffile[lisp] = api[nm]; fcall[lisp] = pcall[key]
-            finter[lisp] = 0
+            if ((hname in fowner) && fowner[hname] < nm) continue
+            fowner[hname] = nm
+            fdoc[hname] = pdoc[key]; ffile[hname] = api[nm]; fcall[hname] = pcall[key]
+            fcommand[hname] = 0
         } else if (key in vdoc) {
-            lisp = vcite[key]
-            if (lisp == "") lisp = help_name(nm)
-            printf "V\037%s\037%s\037%s\037%s\037%d\037%s\037%s\n", lisp, api[nm], nm, vtype[key], \
+            hname = vcite[key]
+            if (hname == "") hname = help_name(nm)
+            printf "V\037%s\037%s\037%s\037%s\037%d\037%s\037%s\n", hname, api[nm], nm, vtype[key], \
                 varr[key], vinit[key], vdoc[key]
         }
     }
@@ -359,7 +359,7 @@ END {
         if (d == "" && (name in cited)) d = pdoc[cited[name]]
         fdoc[name] = d
         if (!(name in ffile)) { ffile[name] = cmdfile[name]; fcall[name] = "" }
-        finter[name] = (name in noninteractive) ? 0 : 1
+        fcommand[name] = (name in noncommand) ? 0 : 1
     }
     # A command without a docstring of its own that runs the procedure of
     # another command is an alias of it (join_line of delete_indentation):
@@ -374,8 +374,8 @@ END {
         if (best != "") alias_doc[name] = fdoc[best]
     }
     for (name in alias_doc) fdoc[name] = alias_doc[name]
-    for (lisp in fdoc)
-        printf "F\037%s\037%s\037%s\037%d\037%s\n", lisp, ffile[lisp], fcall[lisp], finter[lisp], fdoc[lisp]
+    for (hname in fdoc)
+        printf "F\037%s\037%s\037%s\037%d\037%s\n", hname, ffile[hname], fcall[hname], fcommand[hname], fdoc[hname]
 }
 EOF
 find src -name '*.f90' ! -name docstrings_fm.f90 | sort |
@@ -473,7 +473,7 @@ BEGIN {
     }
 }
 
-$1 == "F" { nf++; fname[nf] = $2; ffile[nf] = $3; fcall[nf] = $4; finter[nf] = $5; fdoc[nf] = $6 }
+$1 == "F" { nf++; fname[nf] = $2; ffile[nf] = $3; fcall[nf] = $4; fcommand[nf] = $5; fdoc[nf] = $6 }
 $1 == "V" {
     nv++; vname[nv] = $2; vfile[nv] = $3; vfort[nv] = $4; vtype[nv] = $5; varr[nv] = $6
     vinit[nv] = $7; vdoc[nv] = $8
@@ -571,7 +571,7 @@ END {
     print "        !> A variable: its Fortran name."
     print "        character(len=:), allocatable :: fortran"
     print "        !> A function that is a command."
-    print "        logical :: interactive = .false."
+    print "        logical :: command = .false."
     print "        !> A variable: its value and its value at startup (\"\" when"
     print "        !> unknown), as Fortran."
     print "        character(len=:), allocatable :: value, original"
@@ -635,7 +635,7 @@ END {
         print "        case (" q(fname[i]) ")"
         print "            entry%file = " q(ffile[i])
         if (fcall[i] != "") print "            entry%fortran = " lit(fcall[i], "                ")
-        if (finter[i]) print "            entry%interactive = .true."
+        if (fcommand[i]) print "            entry%command = .true."
         print "            entry%doc = " docexpr(fdoc[i], "                        ")
     }
     print "        case default"

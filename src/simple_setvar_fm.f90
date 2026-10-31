@@ -49,7 +49,7 @@
 !> derived types (they are not offered), an unallocated (nil) string
 !> value, the default from the variable at point, `variable_interactive'
 !> properties, obsolescence messages, C-h in the minibuffer
-!> (`minibuffer_help_form'), the `custom_set' functions of options
+!> (`minibuffer_help_procedure'), the `custom_set' functions of options
 !> (upstream ignores them too) and buffer-local values of options that
 !> are not setting objects.
 submodule(simple_fm) simple_setvar_fm

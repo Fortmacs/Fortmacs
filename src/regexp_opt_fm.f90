@@ -41,7 +41,7 @@ module regexp_opt_fm
     !> PAREN of `regexp_opt': nil (a shy group if a postfix operator
     !> needs one), t (a group), `words' (\<\( ... \)\>) and `symbols'
     !> (\_<\( ... \)\_>).
-    integer, parameter, public :: REGEXP_OPT_SHY = 0, REGEXP_OPT_GROUP = 1, REGEXP_OPT_WORDS = 2, REGEXP_OPT_SYMBOLS = 3
+    integer, parameter, public :: REGEXP_OPT_SHY = 0, REGEXP_OPT_GROUP = 1, REGEXP_OPT_WORDS = 2, REGEXP_OPT_IDENTIFIERS = 3
 
     !> A regexp that never matches anything.  Port of subr.el
     !> regexp-unmatchable.
@@ -124,7 +124,7 @@ contains
     !> REGEXP_OPT_WORDS
     !>     the resulting regexp is surrounded by \<\( and \)\>.
     !>
-    !> REGEXP_OPT_SYMBOLS
+    !> REGEXP_OPT_IDENTIFIERS
     !>     the resulting regexp is surrounded by \_<\( and \)\_>.
     !>
     !> REGEXP_OPT_GROUP
@@ -181,7 +181,7 @@ contains
 
         if (p == REGEXP_OPT_WORDS) then
             re = "\<"//re//"\>"
-        else if (p == REGEXP_OPT_SYMBOLS) then
+        else if (p == REGEXP_OPT_IDENTIFIERS) then
             re = "\_<"//re//"\_>"
         end if
     end function regexp_opt

@@ -36,7 +36,7 @@ module repeat_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type, set_error, format_message, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, command_type, defined_command, PROPERTY_TRUE, PROPERTY_NO, V_INT, V_SYMBOL, &
+    use lisp_fm, only: value_type, command_type, defined_command, REPEAT_CHECK_KEY_YES, REPEAT_CHECK_KEY_NO, V_INT, V_SYMBOL, &
                        nil, nilp, vtag, symbols, xsymbol, xfixnum, make_fixnum, make_keymap_ref
     use lread_fm, only: sym
     use data_fm, only: value_eq
@@ -110,9 +110,9 @@ module repeat_fm
     !>
     !> You can also set the component `repeat_check_key' of the command.
     !> This component can override the value of this variable.
-    !> When the variable value is true, but the component is `PROPERTY_NO',
+    !> When the variable value is true, but the component is `REPEAT_CHECK_KEY_NO',
     !> then don't check the last key.  Also when the variable value is false,
-    !> but the component is `PROPERTY_TRUE', then check the last key.
+    !> but the component is `REPEAT_CHECK_KEY_YES', then check the last key.
     !> Port of repeat.el repeat-check-key.
     logical, public :: repeat_check_key = .true.
 
@@ -373,7 +373,7 @@ contains
         do i = 1, size(BUILTIN_COMMAND_NAMES)
             p => builtin_command(trim(BUILTIN_COMMAND_NAMES(i)))
             if (.not. associated(p)) cycle
-            if (.not. associated(p%run) .or. .not. p%interactive) cycle
+            if (.not. associated(p%run) .or. .not. p%is_command) cycle
             if (.not. is_keymap_live(p%repeat_map)) cycle
             ncommands = ncommands + 1
             seen = .false.
@@ -487,9 +487,9 @@ contains
         p => this_command_object()
         if (associated(p)) prop = p%repeat_check_key
 
-        if (prop == PROPERTY_NO) then
+        if (prop == REPEAT_CHECK_KEY_NO) then
             check = .false.
-        else if (prop == PROPERTY_TRUE) then
+        else if (prop == REPEAT_CHECK_KEY_YES) then
             check = .true.
         else
             check = repeat_check_key

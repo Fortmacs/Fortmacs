@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `describe_function', `describe_variable', `describe_symbol' (C-h o),
+!> `describe_function', `describe_variable', `describe_name' (C-h o),
 !> `describe_command' (C-h x) and `describe_mode' (C-h m), from the
 !> documentation docstrings_fm collects.  The functions are the commands
 !> and the procedures of the config API (module `fortmacs'), the
@@ -37,7 +37,7 @@
 !> (safe and risky local variables, file-local values, watchpoints), the
 !> values of hooks, keymaps, syntax tables and other derived-type
 !> variables (the value line is left out), faces and types in
-!> `describe_symbol', `describe_mode''s BUFFER and Outline minor mode
+!> `describe_name', `describe_mode''s BUFFER and Outline minor mode
 !> (`describe_mode_outline': the layout is that of its default, true),
 !> and the Customize interface the customize line refers to.
 module help_fns_fm
@@ -70,7 +70,7 @@ module help_fns_fm
     private
 
     public :: describe_function, describe_function_1, describe_variable, describe_variable_text, &
-              syms_of_help_fns, describe_mode, describe_mode_text, describe_symbol, describe_symbol_text, &
+              syms_of_help_fns, describe_mode, describe_mode_text, describe_name, describe_name_text, &
               is_function_known, is_variable_known
 
     character(len=*), parameter :: LF = achar(10)
@@ -268,7 +268,7 @@ contains
 
         call function_doc(name, entry, found)
         interactive = is_command_defined(sym(name))
-        if (found) interactive = interactive .or. entry%interactive
+        if (found) interactive = interactive .or. entry%command
         subroutine_p = .true.
         if (found) subroutine_p = len(entry%fortran) == 0 .or. index(entry%fortran, "call ") == 1
         text = ""
@@ -605,11 +605,11 @@ contains
         pretty = capitalize_string(pretty)
     end function pretty_minor_mode
 
-    !> The text `describe_symbol' shows about `name': its documentation as
+    !> The text `describe_name' shows about `name': its documentation as
     !> a function, then as a variable; `found' false if it is neither.
     !> Port of the text help-fns.el:describe-symbol makes (the function
     !> and variable backends).
-    subroutine describe_symbol_text(name, text, found)
+    subroutine describe_name_text(name, text, found)
         character(len=*), intent(in) :: name
         character(len=:), allocatable, intent(out) :: text
         logical, intent(out) :: found
@@ -636,19 +636,19 @@ contains
         else if (is_variable) then
             text = vtext
         end if
-    end subroutine describe_symbol_text
+    end subroutine describe_name_text
 
     !> Display the full documentation of SYMBOL (a name).
     !> Will show the info of SYMBOL as a function, variable, and/or face.
     !> Port of help-fns.el:describe-symbol (no faces or types; no BUFFER or
     !> FRAME).
-    subroutine describe_symbol(name, status)
+    subroutine describe_name(name, status)
         character(len=*), intent(in) :: name
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
         logical :: found
 
-        call describe_symbol_text(name, text, found)
+        call describe_name_text(name, text, found)
 
         if (.not. found) then
             call set_error(status, FM_USER_ERROR, "Unknown symbol: "//name)
@@ -656,9 +656,9 @@ contains
         end if
 
         call with_help_window(text, status)
-    end subroutine describe_symbol
+    end subroutine describe_name
 
-    !> Completion predicate for `describe_symbol': a function or a
+    !> Completion predicate for `describe_name': a function or a
     !> variable.  Not a port.
     logical function is_name_known(elt)
         type(value_type), intent(in) :: elt
@@ -674,7 +674,7 @@ contains
     !> Will show the info of SYMBOL as a function, variable, and/or face.
     !> Port of help-fns.el:describe-symbol (the command; no default from
     !> point).
-    recursive subroutine cmd_describe_symbol(status)
+    recursive subroutine cmd_describe_name(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
 
@@ -687,8 +687,8 @@ contains
             return
         end if
 
-        call describe_symbol(name, status)
-    end subroutine cmd_describe_symbol
+        call describe_name(name, status)
+    end subroutine cmd_describe_name
 
     !> Display the full documentation of COMMAND (a name).  Port of
     !> help-fns.el:describe-command (with
@@ -747,7 +747,7 @@ contains
         commands%describe_function%run => cmd_describe_function
         commands%describe_variable%run => cmd_describe_variable
         commands%describe_mode%run => cmd_describe_mode
-        commands%describe_symbol%run => cmd_describe_symbol
+        commands%describe_name%run => cmd_describe_name
         commands%describe_command%run => cmd_describe_command
     end subroutine syms_of_help_fns
 

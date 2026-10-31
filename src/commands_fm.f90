@@ -48,8 +48,8 @@ module commands_fm
         type(command_type) :: apropos_follow
         type(command_type) :: apropos_function
         type(command_type) :: apropos_mode
-        type(command_type) :: apropos_next_symbol
-        type(command_type) :: apropos_previous_symbol
+        type(command_type) :: apropos_next_name
+        type(command_type) :: apropos_previous_name
         type(command_type) :: apropos_user_option
         type(command_type) :: apropos_variable
         type(command_type) :: async_shell_command
@@ -227,7 +227,7 @@ module commands_fm
         type(command_type) :: compilation_shell_minor_mode
         type(command_type) :: compile
         type(command_type) :: compile_goto_error
-        type(command_type) :: complete_symbol
+        type(command_type) :: complete_name
         type(command_type) :: completion_at_point
         type(command_type) :: completion_help_at_point
         type(command_type) :: completion_in_region_mode
@@ -288,7 +288,7 @@ module commands_fm
         type(command_type) :: describe_key
         type(command_type) :: describe_key_briefly
         type(command_type) :: describe_mode
-        type(command_type) :: describe_symbol
+        type(command_type) :: describe_name
         type(command_type) :: describe_variable
         type(command_type) :: diff
         type(command_type) :: diff_apply_buffer
@@ -490,8 +490,8 @@ module commands_fm
         type(command_type) :: grep_find_toggle_abbreviation
         type(command_type) :: grep_mode
         type(command_type) :: help_for_help
-        type(command_type) :: help_form_show
         type(command_type) :: help_mode
+        type(command_type) :: help_procedure_show
         type(command_type) :: help_quit
         type(command_type) :: how_many
         type(command_type) :: ibuffer
@@ -654,8 +654,8 @@ module commands_fm
         type(command_type) :: info_last_menu_item
         type(command_type) :: info_last_preorder
         type(command_type) :: info_lookup_file
+        type(command_type) :: info_lookup_name
         type(command_type) :: info_lookup_reset
-        type(command_type) :: info_lookup_symbol
         type(command_type) :: info_menu
         type(command_type) :: info_mode
         type(command_type) :: info_next
@@ -1166,8 +1166,8 @@ module commands_fm
                                                                   "apropos_follow", &
                                                                   "apropos_function", &
                                                                   "apropos_mode", &
-                                                                  "apropos_next_symbol", &
-                                                                  "apropos_previous_symbol", &
+                                                                  "apropos_next_name", &
+                                                                  "apropos_previous_name", &
                                                                   "apropos_user_option", &
                                                                   "apropos_variable", &
                                                                   "async_shell_command", &
@@ -1345,7 +1345,7 @@ module commands_fm
                                                                   "compilation_shell_minor_mode", &
                                                                   "compile", &
                                                                   "compile_goto_error", &
-                                                                  "complete_symbol", &
+                                                                  "complete_name", &
                                                                   "completion_at_point", &
                                                                   "completion_help_at_point", &
                                                                   "completion_in_region_mode", &
@@ -1406,7 +1406,7 @@ module commands_fm
                                                                   "describe_key", &
                                                                   "describe_key_briefly", &
                                                                   "describe_mode", &
-                                                                  "describe_symbol", &
+                                                                  "describe_name", &
                                                                   "describe_variable", &
                                                                   "diff", &
                                                                   "diff_apply_buffer", &
@@ -1608,8 +1608,8 @@ module commands_fm
                                                                   "grep_find_toggle_abbreviation", &
                                                                   "grep_mode", &
                                                                   "help_for_help", &
-                                                                  "help_form_show", &
                                                                   "help_mode", &
+                                                                  "help_procedure_show", &
                                                                   "help_quit", &
                                                                   "how_many", &
                                                                   "ibuffer", &
@@ -1772,8 +1772,8 @@ module commands_fm
                                                                   "info_last_menu_item", &
                                                                   "info_last_preorder", &
                                                                   "info_lookup_file", &
+                                                                  "info_lookup_name", &
                                                                   "info_lookup_reset", &
-                                                                  "info_lookup_symbol", &
                                                                   "info_menu", &
                                                                   "info_mode", &
                                                                   "info_next", &
@@ -2304,10 +2304,10 @@ contains
             p => commands%apropos_function
         case ("apropos_mode")
             p => commands%apropos_mode
-        case ("apropos_next_symbol")
-            p => commands%apropos_next_symbol
-        case ("apropos_previous_symbol")
-            p => commands%apropos_previous_symbol
+        case ("apropos_next_name")
+            p => commands%apropos_next_name
+        case ("apropos_previous_name")
+            p => commands%apropos_previous_name
         case ("apropos_user_option")
             p => commands%apropos_user_option
         case ("apropos_variable")
@@ -2662,8 +2662,8 @@ contains
             p => commands%compile
         case ("compile_goto_error")
             p => commands%compile_goto_error
-        case ("complete_symbol")
-            p => commands%complete_symbol
+        case ("complete_name")
+            p => commands%complete_name
         case ("completion_at_point")
             p => commands%completion_at_point
         case ("completion_help_at_point")
@@ -2784,8 +2784,8 @@ contains
             p => commands%describe_key_briefly
         case ("describe_mode")
             p => commands%describe_mode
-        case ("describe_symbol")
-            p => commands%describe_symbol
+        case ("describe_name")
+            p => commands%describe_name
         case ("describe_variable")
             p => commands%describe_variable
         case ("diff")
@@ -3188,10 +3188,10 @@ contains
             p => commands%grep_mode
         case ("help_for_help")
             p => commands%help_for_help
-        case ("help_form_show")
-            p => commands%help_form_show
         case ("help_mode")
             p => commands%help_mode
+        case ("help_procedure_show")
+            p => commands%help_procedure_show
         case ("help_quit")
             p => commands%help_quit
         case ("how_many")
@@ -3516,10 +3516,10 @@ contains
             p => commands%info_last_preorder
         case ("info_lookup_file")
             p => commands%info_lookup_file
+        case ("info_lookup_name")
+            p => commands%info_lookup_name
         case ("info_lookup_reset")
             p => commands%info_lookup_reset
-        case ("info_lookup_symbol")
-            p => commands%info_lookup_symbol
         case ("info_menu")
             p => commands%info_menu
         case ("info_mode")

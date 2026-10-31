@@ -40,7 +40,7 @@ module print_fm
     implicit none(type, external)
     private
 
-    public :: prin1_to_string, prin1_string, marker_repr, fortran_repr, fortran_string
+    public :: readable_repr, quoted_repr, marker_repr, fortran_repr, fortran_string
 
 contains
 
@@ -48,7 +48,7 @@ contains
     !> OBJECT can be any Lisp object.  Strings are quoted, a backslash
     !> escaping each double quote and backslash in them.  Port of
     !> print.c:Fprin1_to_string (NOESCAPE nil).
-    recursive function prin1_to_string(object) result(s)
+    recursive function readable_repr(object) result(s)
         type(value_type), intent(in) :: object
         character(len=:), allocatable :: s
         type(value_type), allocatable :: elems(:)
@@ -68,14 +68,14 @@ contains
             if (.not. status%ok()) s = "#<symbol>"
         case (V_STRING)
             text = xstring(object)
-            s = prin1_string(text)
+            s = quoted_repr(text)
         case (V_LIST)
             call list_elements(object, elems)
             s = "("
 
             do k = 1, size(elems)
                 if (k > 1) s = s//" "
-                s = s//prin1_to_string(elems(k))
+                s = s//readable_repr(elems(k))
             end do
 
             s = s//")"
@@ -98,13 +98,13 @@ contains
         case default
             s = "#<unknown>"
         end select
-    end function prin1_to_string
+    end function readable_repr
 
     !> OBJECT written as Fortran, as help shows a value: .false. for nil,
     !> .true. for t, integers, strings as Fortran literals (doubling each
     !> double quote), other symbols by name (as named constants are
     !> written), lists as array constructors; buffers, markers and keymaps,
-    !> which have no Fortran notation, as `prin1_to_string' gives them.
+    !> which have no Fortran notation, as `readable_repr' gives them.
     !> (Ours: Fortmacs shows values as Fortran, not as Lisp.)  Not a port.
     recursive function fortran_repr(object) result(s)
         type(value_type), intent(in) :: object
@@ -137,7 +137,7 @@ contains
 
             s = s//"]"
         case default
-            s = prin1_to_string(object)
+            s = readable_repr(object)
         end select
     end function fortran_repr
 
@@ -162,7 +162,7 @@ contains
     !> The printed representation of the string TEXT, as `prin1' writes
     !> it: in double quotes, a backslash escaping each double quote and
     !> backslash.  Port of the string case of print.c:print_object.
-    pure function prin1_string(text) result(s)
+    pure function quoted_repr(text) result(s)
         character(len=*), intent(in) :: text
         character(len=:), allocatable :: s
         integer :: k
@@ -175,7 +175,7 @@ contains
         end do
 
         s = s//""""
-    end function prin1_string
+    end function quoted_repr
 
     !> "#<marker at N in BUFFER>", "#<marker in no buffer>", after
     !> "(moves after insertion) " for that insertion type.  Port of
@@ -241,11 +241,11 @@ contains
         end do
 
         do k = 1, size(events)
-            s = s//" "//cons_repr(prin1_to_string(events(k)), bindings(k))
+            s = s//" "//cons_repr(readable_repr(events(k)), bindings(k))
         end do
 
         prompt = keymap_own_prompt(km)
-        if (vtag(prompt) /= V_NIL) s = s//" "//prin1_to_string(prompt)
+        if (vtag(prompt) /= V_NIL) s = s//" "//readable_repr(prompt)
         parent = keymap_parent(km)
 
         if (is_keymap_live(parent)) then
@@ -269,7 +269,7 @@ contains
         case (V_NIL)
             s = "("//car//")"
         case (V_LIST)
-            inner = prin1_to_string(cdr)
+            inner = readable_repr(cdr)
             s = "("//car//" "//inner(2:)
         case (V_KEYMAP)
             if (is_keymap_live(xhandle(cdr)) .and. .not. is_keymap_full(xhandle(cdr))) then
@@ -278,7 +278,7 @@ contains
                 s = "("//car//" . #<keymap>)"
             end if
         case default
-            s = "("//car//" . "//prin1_to_string(cdr)//")"
+            s = "("//car//" . "//readable_repr(cdr)//")"
         end select
     end function cons_repr
 end module print_fm

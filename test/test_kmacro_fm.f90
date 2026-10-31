@@ -38,7 +38,7 @@ module test_kmacro_fm
                            this_command_keys, last_input_event, store_kbd_macro_event, finalize_kbd_macro_chars, &
                            kbd_macro_termination_hook, last_command, store_event
     use bindings_fm, only: init_bindings
-    use register_fm, only: set_register, get_register, register_value_type, REGISTER_NUMBER
+    use register_fm, only: set_register, get_register, register_contents_type, REGISTER_NUMBER
     use rect_fm, only: rectangle_line_type
     use xdisp_fm, only: mode_line_modes_faces, face_span_type
     use edmacro_fm, only: format_kbd_macro

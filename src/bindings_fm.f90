@@ -161,18 +161,18 @@ contains
     !>
     !> With a prefix argument, this command does completion within
     !> the collection of symbols listed in the index of the manual for the
-    !> language you are using (info_complete_symbol, not ported yet).
+    !> language you are using (info_complete_name, not ported yet).
     !> Port of bindings.el:complete-symbol.
-    subroutine cmd_complete_symbol(status)
+    subroutine cmd_complete_name(status)
         type(status_type), intent(out) :: status
 
         if (.not. nilp(current_prefix_arg)) then
-            call set_error(status, FM_GENERIC_ERROR, "info_complete_symbol is not ported yet")
+            call set_error(status, FM_GENERIC_ERROR, "info_complete_name is not ported yet")
             return
         end if
 
         call completion_at_point(status)
-    end subroutine cmd_complete_symbol
+    end subroutine cmd_complete_name
 
     !> Move point N characters to the right (to the left if N is negative).
     !> On reaching beginning or end of buffer, stop and signal error.
@@ -308,7 +308,7 @@ contains
         call syms_of_window()
         call syms_of_buffer()
         commands%right_char%run => cmd_right_char
-        commands%complete_symbol%run => cmd_complete_symbol
+        commands%complete_name%run => cmd_complete_name
         commands%left_char%run => cmd_left_char
         commands%right_word%run => cmd_right_word
         commands%left_word%run => cmd_left_word
@@ -438,7 +438,7 @@ contains
         call bind(global_map, "<deleteline>", "kill_line")
         call bind(global_map, "S-<delete>", "kill_region")
         call bind(esc_map, "x", "execute_extended_command")
-        call bind(esc_map, "TAB", "complete_symbol")
+        call bind(esc_map, "TAB", "complete_name")
         call bind(global_map, "<next>", "scroll_up_command")
         call bind(global_map, "<prior>", "scroll_down_command")
         call bind(global_map, "C-v", "scroll_up_command")

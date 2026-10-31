@@ -30,7 +30,7 @@
 !> \[COMMAND], \<MAP>, \{MAP}, \`KEY', \= and quotes into what the reader
 !> sees; and `with_help_window', which shows text in *Help*.
 !>
-!> `describe_function', `describe_variable', `describe_symbol',
+!> `describe_function', `describe_variable', `describe_name',
 !> `describe_command' and `describe_mode' are in help_fns_fm, which
 !> installs the text `describe_key' shows through
 !> `describe_function_1_hook' (help-fns.el is loaded after help.el); the
@@ -1239,7 +1239,7 @@ contains
                      [character(len=40) :: "describe_mode", "describe_bindings", "describe_key", &
                       "describe_key_briefly", "where_is", "", "apropos_command", "apropos_documentation", &
                       "describe_command", "describe_function", "help_find_source", "describe_variable", &
-                      "describe_symbol"], &
+                      "describe_name"], &
                      [character(len=4) :: "m", "b", "k", "c", "w", "", "a", "d", "x", "f", "4 s", "v", "o"], &
                      [character(len=72) :: "Show help for current major and minor modes and their commands", &
                       "Show all key bindings", "Show help for key", "Show help for key briefly", &
@@ -1251,7 +1251,7 @@ contains
                       "Show help for function or variable"])
         call section("Manuals", &
                      [character(len=40) :: "info_emacs_manual", "info_goto_emacs_command_node", &
-                      "info_goto_emacs_key_command_node", "info", "info_display_manual", "info_lookup_symbol"], &
+                      "info_goto_emacs_key_command_node", "info", "info_display_manual", "info_lookup_name"], &
                      [character(len=4) :: "r", "F", "K", "i", "R", "S"], &
                      [character(len=72) :: "Show Emacs manual", "Show Emacs manual section for command", &
                       "Show Emacs manual section for a key sequence", "Show all installed manuals", &
@@ -2312,14 +2312,14 @@ contains
         call keymap_set(help_map, "k", "describe_key", status)
         call keymap_set(help_map, "l", "view_lossage", status)
         call keymap_set(help_map, "m", "describe_mode", status)
-        call keymap_set(help_map, "o", "describe_symbol", status)
+        call keymap_set(help_map, "o", "describe_name", status)
         call keymap_set(help_map, "v", "describe_variable", status)
         call keymap_set(help_map, "w", "where_is", status)
         call keymap_set(help_map, "x", "describe_command", status)
         call keymap_set(help_map, "q", "help_quit", status)
         call keymap_set(help_map, "r", "info_emacs_manual", status)
         call keymap_set(help_map, "R", "info_display_manual", status)
-        call keymap_set(help_map, "S", "info_lookup_symbol", status)
+        call keymap_set(help_map, "S", "info_lookup_name", status)
         call key_parse("C-h", key, status)
         call define_key(global_map, key, make_keymap_ref(help_map), status)
         call key_parse("<help>", key, status)

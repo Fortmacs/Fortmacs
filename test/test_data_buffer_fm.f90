@@ -36,7 +36,7 @@ module test_data_buffer_fm
                          auto_fill_function
     use search_fm, only: case_fold_search
     use indent_fm, only: indent_tabs_mode
-    use casefiddle_fm, only: case_symbols_as_words
+    use casefiddle_fm, only: case_identifiers_as_words
     use data_fm, only: symbol_value, set, boundp, makunbound, value_eq, make_local_variable, &
                        make_variable_buffer_local, kill_local_variable, kill_all_local_variables, &
                        is_local_variable, is_local_variable_if_set, default_value, set_default, &
@@ -244,20 +244,20 @@ contains
 
         call setup(error, a, b)
         if (allocated(error)) return
-        call set(sym("case_symbols_as_words"), t_value(), st)
-        call check(error, st%ok() .and. case_symbols_as_words%value, "set in A")
+        call set(sym("case_identifiers_as_words"), t_value(), st)
+        call check(error, st%ok() .and. case_identifiers_as_words%value, "set in A")
         if (allocated(error)) return
-        call check(error, is_local_variable(sym("case_symbols_as_words")), "local after set")
+        call check(error, is_local_variable(sym("case_identifiers_as_words")), "local after set")
         if (allocated(error)) return
         call set_buffer(b, st)
-        call check(error,.not. case_symbols_as_words%value, "default in B")
+        call check(error,.not. case_identifiers_as_words%value, "default in B")
         if (allocated(error)) return
-        call buffer_local_value(sym("case_symbols_as_words"), a%index, v, st)
+        call buffer_local_value(sym("case_identifiers_as_words"), a%index, v, st)
         call check(error, value_eq(v, t_value()), "buffer-local-value of A")
         if (allocated(error)) return
         call set_buffer(a, st)
-        call kill_local_variable(sym("case_symbols_as_words"), st)
-        call check(error,.not. case_symbols_as_words%value, "default after kill-local-variable")
+        call kill_local_variable(sym("case_identifiers_as_words"), st)
+        call check(error,.not. case_identifiers_as_words%value, "default after kill-local-variable")
         call teardown(a, b)
     end subroutine test_case_symbols_local
 

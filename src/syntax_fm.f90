@@ -106,7 +106,7 @@ module syntax_fm
 
     !> True means `scan_expressions' treats all multibyte characters as symbol.
     !> Port of syntax.c multibyte-syntax-as-symbol.
-    logical, public :: multibyte_syntax_as_symbol = .false.
+    logical, public :: multibyte_syntax_as_identifier = .false.
 
     !> True means an open paren in column 0 denotes the start of a subprogram.
     !> Port of syntax.c open-paren-in-column-0-is-defun-start.

@@ -8,9 +8,6 @@
 # Copyright (C) 2026 The Fortmacs authors
 #
 # This file is part of Fortmacs, under the GNU GPL version 3 or later.
-src/ansi_color_fm.f90:ansi_color_basic_faces_vector:vector
-src/ansi_color_fm.f90:ansi_color_bright_colors_vector:vector
-src/ansi_color_fm.f90:ansi_color_normal_colors_vector:vector
 src/apropos_fm.f90:member:lisp-helper
 src/autorevert_fm.f90:memq:lisp-helper
 src/bookmark_fm.f90:member:lisp-helper
@@ -47,9 +44,6 @@ src/fns_fm.f90:plist_get:lisp-helper
 src/fns_fm.f90:plist_member:lisp-helper
 src/fns_fm.f90:plist_put:lisp-helper
 src/fns_fm.f90:put:lisp-helper
-src/fortmacs.f90:ansi_color_basic_faces_vector:vector
-src/fortmacs.f90:ansi_color_bright_colors_vector:vector
-src/fortmacs.f90:ansi_color_normal_colors_vector:vector
 src/fortmacs.f90:this_command_keys_vector:vector
 src/grep_fm.f90:apply:lisp-helper
 src/help_fm.f90:describe_vector:vector
@@ -59,13 +53,11 @@ src/isearch_fm.f90:arg_p:predicate
 src/keyboard_fm.f90:this_command_keys_vector:vector
 src/keymap_fm.f90:is_vector:vector
 src/keymap_fm.f90:preferred_sequence_p:predicate
-src/lisp_fm.f90:PROPERTY_TRUE:constant
 src/lisp_fm.f90:SYM_NIL:constant
 src/lisp_fm.f90:SYM_T:constant
 src/lisp_fm.f90:V_NIL:constant
 src/lisp_fm.f90:bufferp:predicate
 src/lisp_fm.f90:bufferp:wrapper
-src/lisp_fm.f90:command_type%interactive:interactive
 src/lisp_fm.f90:cons:lisp-helper
 src/lisp_fm.f90:consp:lisp-helper
 src/lisp_fm.f90:consp:predicate
@@ -101,8 +93,6 @@ src/lread_fm.f90:sym:lisp-helper
 src/macros_fm.f90:execute_kbd_macro_vector:vector
 src/mule_fm.f90:member:lisp-helper
 src/print_fm.f90:cons_repr:lisp-helper
-src/print_fm.f90:prin1_string:lisp-helper
-src/print_fm.f90:prin1_to_string:lisp-helper
 src/regex_emacs_fm.f90:charset_bitmap_size:wrapper
 src/regexp_opt_fm.f90:all_differ:wrapper
 src/savehist_fm.f90:member:lisp-helper

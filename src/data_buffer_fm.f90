@@ -58,7 +58,7 @@ submodule(data_fm) data_buffer_fm
     use easy_mmode_fm, only: minor_mode_type, minor_mode_index, minor_mode_at
     use text_mode_fm, only: text_mode_variant
     use syntax_fm, only: parse_expression_ignore_comments, comment_end_can_be_escaped
-    use casefiddle_fm, only: case_symbols_as_words
+    use casefiddle_fm, only: case_identifiers_as_words
     use insdel_fm, only: inhibit_modification_hooks
     use electric_fm, only: electric_indent_inhibit
     use files_fm, only: require_final_newline, mode_require_final_newline, FINAL_NEWLINE_NEVER, &
@@ -83,7 +83,7 @@ submodule(data_fm) data_buffer_fm
                                            "standard_indent", "auto_fill_function", "indent_line_function", "transient_mark_mode", &
                                                       "major_mode", "mode_name", "buffer_read_only", "text_mode_variant", &
                                                       "parse_expression_ignore_comments", "require_final_newline", &
-                                                      "mode_require_final_newline", "case_symbols_as_words", &
+                                                      "mode_require_final_newline", "case_identifiers_as_words", &
                                                       "completion_ignore_case", "comment_end_can_be_escaped", &
                                                       "inhibit_modification_hooks", &
                                                       "electric_indent_inhibit"]
@@ -441,9 +441,9 @@ contains
         case ("parse_expression_ignore_comments")
             ! A DEFVAR_BOOL: always t or nil.
             v = bool_value(parse_expression_ignore_comments%value)
-        case ("case_symbols_as_words")
+        case ("case_identifiers_as_words")
             ! A DEFVAR_BOOL: always t or nil.
-            v = bool_value(case_symbols_as_words%value)
+            v = bool_value(case_identifiers_as_words%value)
         case ("comment_end_can_be_escaped")
             ! A DEFVAR_BOOL: always t or nil.
             v = bool_value(comment_end_can_be_escaped%value)
@@ -565,8 +565,8 @@ contains
             call set_logical(text_mode_variant, v)
         case ("parse_expression_ignore_comments")
             parse_expression_ignore_comments = .not. nilp(v)
-        case ("case_symbols_as_words")
-            case_symbols_as_words = .not. nilp(v)
+        case ("case_identifiers_as_words")
+            case_identifiers_as_words = .not. nilp(v)
         case ("comment_end_can_be_escaped")
             comment_end_can_be_escaped = .not. nilp(v)
         case ("inhibit_modification_hooks")
@@ -736,9 +736,9 @@ contains
         case ("parse_expression_ignore_comments")
             ! A DEFVAR_BOOL stores !NILP (Qunbound): t.
             parse_expression_ignore_comments = .true.
-        case ("case_symbols_as_words")
+        case ("case_identifiers_as_words")
             ! A DEFVAR_BOOL stores !NILP (Qunbound): t.
-            case_symbols_as_words = .true.
+            case_identifiers_as_words = .true.
         case ("comment_end_can_be_escaped")
             ! A DEFVAR_BOOL stores !NILP (Qunbound): t.
             comment_end_can_be_escaped = .true.

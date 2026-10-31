@@ -53,8 +53,8 @@ module subr_fm
     private
 
     public :: read_key, read_y_or_n, query_replace_answer, add_to_history
-    public :: global_set_key, read_number, undefined, syms_of_subr, defvar_nil, forward_symbol, find_tag_default, &
-              find_tag_default_as_regexp, find_tag_default_as_symbol_regexp
+    public :: global_set_key, read_number, undefined, syms_of_subr, defvar_nil, forward_identifier, find_tag_default, &
+              find_tag_default_as_regexp, find_tag_default_as_identifier_regexp
     public :: make_progress_reporter, progress_reporter_update, progress_reporter_done
     public :: replace_string_in_region, replace_regexp_in_region
     public :: add_to_invisibility_spec, remove_from_invisibility_spec
@@ -230,20 +230,20 @@ module subr_fm
         !> HISTORY, if present, names the history list variable to use for
         !> navigating in input history using \`M-p' and \`M-n', with \`RET' to
         !> select a character from history.
-        !> If HELP_FORM is present (upstream's `help_form' bound around the
+        !> If HELP_PROCEDURE is present (upstream's `help_form' bound around the
         !> call), then pressing `help_char' displays it.  There is no need to
         !> explicitly add `help_char' to CHARS; `help_char' is bound
-        !> automatically to `help_form_show'.  Port of
+        !> automatically to `help_procedure_show'.  Port of
         !> subr.el:read-char-from-minibuffer (exiting after other
         !> insertions, its `post_command_hook', is deferred).  (In
         !> subr_read_fm.)
-        recursive module subroutine read_char_from_minibuffer(prompt, c, status, chars, history, help_form)
+        recursive module subroutine read_char_from_minibuffer(prompt, c, status, chars, history, help_procedure)
             implicit none(type, external)
             character(len=*), intent(in) :: prompt
             integer, intent(out) :: c
             type(status_type), intent(out) :: status
             integer, intent(in), optional :: chars(:)
-            character(len=*), intent(in), optional :: history, help_form
+            character(len=*), intent(in), optional :: history, help_procedure
         end subroutine read_char_from_minibuffer
 
         !> Read and return one of the characters in CHARS, prompting with PROMPT.
@@ -257,17 +257,17 @@ module subr_fm
         !> argument INHIBIT_KEYBOARD_QUIT is ignored.  However, if
         !> `read_char_choice_use_read_key' is true, the modal `read_key'
         !> function is used instead (see read_char_choice_with_read_key),
-        !> and INHIBIT_KEYBOARD_QUIT is passed to it.  HELP_FORM is the text
+        !> and INHIBIT_KEYBOARD_QUIT is passed to it.  HELP_PROCEDURE is the text
         !> `help_char' shows (upstream's `help_form').  Port of
         !> subr.el:read-char-choice.  (In subr_read_fm.)
-        recursive module subroutine read_char_choice(prompt, chars, c, status, inhibit_keyboard_quit, help_form)
+        recursive module subroutine read_char_choice(prompt, chars, c, status, inhibit_keyboard_quit, help_procedure)
             implicit none(type, external)
             character(len=*), intent(in) :: prompt
             integer, intent(in) :: chars(:)
             integer, intent(out) :: c
             type(status_type), intent(out) :: status
             logical, intent(in), optional :: inhibit_keyboard_quit
-            character(len=*), intent(in), optional :: help_form
+            character(len=*), intent(in), optional :: help_procedure
         end subroutine read_char_choice
 
         !> Set up subr.el's commands.  Not a port: upstream defines them where
@@ -1200,7 +1200,7 @@ contains
     !> word constituent or symbol constituent syntax class.
     !> With prefix argument ARG, do it ARG times if positive, or move
     !> backwards ARG times if negative.  Port of subr.el:forward-symbol.
-    subroutine forward_symbol(arg)
+    subroutine forward_identifier(arg)
         integer(int64), intent(in) :: arg
         integer(int64) :: found, moved, n
         type(status_type) :: st
@@ -1216,13 +1216,13 @@ contains
                 n = n + 1
             end do
         end if
-    end subroutine forward_symbol
+    end subroutine forward_identifier
 
     !> The bounds of the symbol at point (`found' false if none).
     !> Port of thingatpt.el:bounds-of-thing-at-point for `symbol' (end-op
     !> forward-symbol, beginning-op thing-at-point--beginning-of-symbol,
     !> whose search failing is an error ignored).
-    subroutine bounds_of_symbol_at_point(beg, end, found)
+    subroutine bounds_of_identifier_at_point(beg, end, found)
         integer(int64), intent(out) :: beg, end
         logical, intent(out) :: found
         integer(int64) :: orig, at, real_end, real_beg
@@ -1244,8 +1244,8 @@ contains
 
         call goto_char(orig)
         ! Try moving forward, then back.
-        call forward_symbol(1_int64)
-        call beginning_of_symbol(ok)
+        call forward_identifier(1_int64)
+        call beginning_of_identifier(ok)
 
         if (.not. ok) then
             call goto_char(orig)
@@ -1258,7 +1258,7 @@ contains
             ! If that brings us all the way back to ORIG, it worked.  But
             ! END may not be the real end.  So find the real end that
             ! corresponds to BEG.
-            call forward_symbol(1_int64)
+            call forward_identifier(1_int64)
             real_end = point()
 
             if (orig <= real_end .and. beg < real_end) then
@@ -1269,12 +1269,12 @@ contains
             call goto_char(orig)
             ! Try a second time, moving backward first and then forward,
             ! so that we can find a thing that ends at ORIG.
-            call beginning_of_symbol(ok)
+            call beginning_of_identifier(ok)
 
             if (ok) then
-                call forward_symbol(1_int64)
+                call forward_identifier(1_int64)
                 end = point()
-                call beginning_of_symbol(ok)
+                call beginning_of_identifier(ok)
 
                 if (ok) then
                     real_beg = point()
@@ -1293,7 +1293,7 @@ contains
 
         ! thing-at-point--beginning-of-symbol: `ok' false when the search
         ! signals.
-        subroutine beginning_of_symbol(ok)
+        subroutine beginning_of_identifier(ok)
             logical, intent(out) :: ok
             integer(int64) :: found, moved
             type(status_type) :: st
@@ -1301,8 +1301,8 @@ contains
             call re_search_backward("\(\sw\|\s_\)+", found, st)
             ok = st%ok() .and. found > 0
             if (ok) moved = skip_syntax_backward("w_")
-        end subroutine beginning_of_symbol
-    end subroutine bounds_of_symbol_at_point
+        end subroutine beginning_of_identifier
+    end subroutine bounds_of_identifier_at_point
 
     !> Determine default tag to search for, based on text at point.
     !> If there is no plausible default, `found' is false.  Port of
@@ -1314,7 +1314,7 @@ contains
         type(status_type) :: st
 
         tag = ""
-        call bounds_of_symbol_at_point(beg, end, found)
+        call bounds_of_identifier_at_point(beg, end, found)
         if (found) call buffer_substring(beg, end, tag, st)
     end subroutine find_tag_default
 
@@ -1335,11 +1335,11 @@ contains
     !> Return regexp that matches the default tag at point as symbol.
     !> If there is no tag at point, `found' is false.  Port of
     !> subr.el:find-tag-default-as-symbol-regexp.
-    subroutine find_tag_default_as_symbol_regexp(regexp, found)
+    subroutine find_tag_default_as_identifier_regexp(regexp, found)
         character(len=:), allocatable, intent(out) :: regexp
         logical, intent(out) :: found
 
         call find_tag_default_as_regexp(regexp, found)
         if (found) regexp = "\_<"//regexp//"\_>"
-    end subroutine find_tag_default_as_symbol_regexp
+    end subroutine find_tag_default_as_identifier_regexp
 end module subr_fm

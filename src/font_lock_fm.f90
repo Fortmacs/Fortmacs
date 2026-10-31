@@ -1985,8 +1985,8 @@ contains
         commands%font_lock_fontify_block%run => font_lock_fontify_block
         commands%font_lock_debug_fontify%run => font_lock_debug_fontify
         commands%font_lock_refresh_defaults%run => font_lock_refresh_defaults
-        commands%font_lock_refresh_defaults%interactive = .false.
-        commands%font_lock_change_mode%interactive = .false.
+        commands%font_lock_refresh_defaults%is_command = .false.
+        commands%font_lock_change_mode%is_command = .false.
     end subroutine syms_of_font_lock
 
     !> Fontify some lines the way `font_lock_fontify_buffer' would.

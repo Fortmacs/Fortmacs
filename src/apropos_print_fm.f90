@@ -76,7 +76,7 @@ contains
         if (.not. apropos_true_hit(name, apropos_words)) cycle
         n = n + 1
         items(n)%name = name
-        items(n)%score = apropos_score_symbol(name, 3)
+        items(n)%score = apropos_score_name(name, 3)
 
         if (var_kind == VAR_NONE) then
             if (is_function_known(name)) then
@@ -145,7 +145,7 @@ contains
         if (.not. (has_f .or. has_v)) cycle
         n = n + 1
         items(n)%name = name
-        items(n)%score = apropos_score_symbol(name, 2)
+        items(n)%score = apropos_score_name(name, 2)
 
         if (has_f) then
             items(n)%fn_doc = fdoc

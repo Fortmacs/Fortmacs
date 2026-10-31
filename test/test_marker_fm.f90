@@ -36,7 +36,7 @@ module test_marker_fm
                          set_marker_insertion_type, set_marker_to
     use insdel_fm, only: insert, insert_before_markers, del_range
     use lisp_fm, only: make_marker_ref
-    use print_fm, only: prin1_to_string
+    use print_fm, only: readable_repr
     implicit none(type, external)
     private
 
@@ -250,13 +250,13 @@ contains
         call enter("tm-print", h, old)
         call insert("hello", st)
         call copy_marker_at(4_int64, m, .false., st)
-        call check(error, prin1_to_string(make_marker_ref(m)), "#<marker at 4 in tm-print>")
+        call check(error, readable_repr(make_marker_ref(m)), "#<marker at 4 in tm-print>")
         if (allocated(error)) return
         call set_marker_insertion_type(m, .true., st)
-        call check(error, prin1_to_string(make_marker_ref(m)), "#<marker (moves after insertion) at 4 in tm-print>")
+        call check(error, readable_repr(make_marker_ref(m)), "#<marker (moves after insertion) at 4 in tm-print>")
         if (allocated(error)) return
         call make_marker(nowhere)
-        call check(error, prin1_to_string(make_marker_ref(nowhere)), "#<marker in no buffer>")
+        call check(error, readable_repr(make_marker_ref(nowhere)), "#<marker in no buffer>")
         call free_marker(m, st)
         call free_marker(nowhere, st)
         call leave(h, old)

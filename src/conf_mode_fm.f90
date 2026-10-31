@@ -284,7 +284,7 @@ contains
         commands%conf_align_assignments%run => cmd_conf_align_assignments
         commands%conf_quote_normal%run => cmd_conf_quote_normal
         commands%conf_mode_maybe%run => conf_mode_maybe
-        commands%conf_mode_maybe%interactive = .false.
+        commands%conf_mode_maybe%is_command = .false.
     end subroutine syms_of_conf_mode
 
     ! Make the syntax tables of the Conf modes.  Port of the values of

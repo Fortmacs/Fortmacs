@@ -55,9 +55,9 @@ submodule(subr_fm) subr_read_fm
     !> `init_read_char_from_minibuffer_map'.
     type(handle_type) :: read_char_from_minibuffer_map
 
-    !> The `help_form' of the `read_char_from_minibuffer' in progress
+    !> The `help_procedure' of the `read_char_from_minibuffer' in progress
     !> (unallocated for none).
-    character(len=:), allocatable :: rcfm_help_form
+    character(len=:), allocatable :: rcfm_help_procedure
 
     !> The character that shows the help form: `help_char''s standard value,
     !> C-h (the variable itself is not ported).
@@ -651,7 +651,7 @@ contains
     if (is_keymap_live(read_y_or_n_map)) call free_keymap(read_y_or_n_map, st)
     commands%read_char_from_minibuffer_insert_char%run => read_char_from_minibuffer_insert_char
     commands%read_char_from_minibuffer_insert_other%run => read_char_from_minibuffer_insert_other
-    commands%help_form_show%run => help_form_show
+    commands%help_procedure_show%run => help_procedure_show
     if (is_keymap_live(read_char_from_minibuffer_map)) call free_keymap(read_char_from_minibuffer_map, st)
     end procedure syms_of_subr
 
@@ -695,20 +695,20 @@ contains
 
     c = 13
     call init_read_char_from_minibuffer_map()
-    had_help = allocated(rcfm_help_form)
-    if (had_help) saved_help = rcfm_help_form
-    if (present(help_form)) rcfm_help_form = help_form
+    had_help = allocated(rcfm_help_procedure)
+    if (had_help) saved_help = rcfm_help_procedure
+    if (present(help_procedure)) rcfm_help_procedure = help_procedure
 
     if (present(chars)) then
         call make_sparse_keymap(map)
         call set_keymap_parent(map, read_char_from_minibuffer_map, st)
 
-        ! If we have a `help_form' here, then the `C-h' (i.e.,
+        ! If we have a `help_procedure' here, then the `C-h' (i.e.,
         ! `help_char') character should output that instead of being a
         ! command char.
-        if (present(help_form)) then
+        if (present(help_procedure)) then
             key1(1) = make_fixnum(int(HELP_CHAR, int64))
-            call define_key(map, key1, sym("help_form_show"), st)
+            call define_key(map, key1, sym("help_procedure_show"), st)
         end if
 
         do k = 1, size(chars)
@@ -734,9 +734,9 @@ contains
     if (present(chars)) call free_keymap(map, st)
 
     if (had_help) then
-        rcfm_help_form = saved_help
-    else if (allocated(rcfm_help_form)) then
-        deallocate (rcfm_help_form)
+        rcfm_help_procedure = saved_help
+    else if (allocated(rcfm_help_procedure)) then
+        deallocate (rcfm_help_procedure)
     end if
 
     if (.not. status%ok()) return
@@ -798,15 +798,15 @@ contains
         call sit_for(2000)
     end subroutine read_char_from_minibuffer_insert_other
 
-    !> Display the output of a `help_form' (the text bound by the
+    !> Display the output of a `help_procedure' (the text bound by the
     !> caller).  Port of help.el:help-form-show.
-    subroutine help_form_show(status)
+    subroutine help_procedure_show(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (.not. allocated(rcfm_help_form)) return
-        call with_output_to_temp_buffer(" *Char Help*", rcfm_help_form, status)
-    end subroutine help_form_show
+        if (.not. allocated(rcfm_help_procedure)) return
+        call with_output_to_temp_buffer(" *Char Help*", rcfm_help_procedure, status)
+    end subroutine help_procedure_show
 
     module procedure read_char_choice
     type(value_type) :: saved_last
@@ -818,10 +818,10 @@ contains
         ! that could interfere with their logic.  So we let-bind
         ! `last_command' here to prevent that.
         saved_last = last_command
-        call read_char_from_minibuffer(prompt, c, status, chars=chars, help_form=help_form)
+        call read_char_from_minibuffer(prompt, c, status, chars=chars, help_procedure=help_procedure)
         last_command = saved_last
     else
-        call read_char_choice_with_read_key(prompt, chars, c, status, inhibit_keyboard_quit, help_form)
+        call read_char_choice_with_read_key(prompt, chars, c, status, inhibit_keyboard_quit, help_procedure)
     end if
     end procedure read_char_choice
 
@@ -832,17 +832,17 @@ contains
     !> If optional argument INHIBIT_KEYBOARD_QUIT is true, ignore
     !> `keyboard_quit' events while waiting for valid input.
     !>
-    !> If HELP_FORM is present, then pressing `help_char' displays it.
+    !> If HELP_PROCEDURE is present, then pressing `help_char' displays it.
     !> Port of subr.el:read-char-choice-with-read-key (the prompt is not
     !> given the `minibuffer_prompt' face; C-g is read as a character, not
     !> as a quit).
-    recursive subroutine read_char_choice_with_read_key(prompt, chars, c, status, inhibit_keyboard_quit, help_form)
+    recursive subroutine read_char_choice_with_read_key(prompt, chars, c, status, inhibit_keyboard_quit, help_procedure)
         character(len=*), intent(in) :: prompt
         integer, intent(in) :: chars(:)
         integer, intent(out) :: c
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: inhibit_keyboard_quit
-        character(len=*), intent(in), optional :: help_form
+        character(len=*), intent(in), optional :: help_procedure
         type(window_configuration_type) :: config
         type(value_type) :: key
         type(handle_type) :: helpbuf
@@ -885,9 +885,9 @@ contains
 
             ! If caller has set help-form, that's enough.
             ! They don't explicitly have to add help-char to chars.
-            if (present(help_form) .and. c == HELP_CHAR) then
+            if (present(help_procedure) .and. c == HELP_CHAR) then
                 show_help = .true.
-                call with_output_to_temp_buffer(" *Char Help*", help_form, st)
+                call with_output_to_temp_buffer(" *Char Help*", help_procedure, st)
                 cycle
             end if
 

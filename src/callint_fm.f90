@@ -153,7 +153,7 @@ contains
 
         p => symbol_command(v)
         is_command_defined = associated(p)
-        if (is_command_defined) is_command_defined = p%interactive
+        if (is_command_defined) is_command_defined = p%is_command
     end function is_command_defined
 
     !> Whether `v' can be run as a command: a defined command, or a
@@ -206,7 +206,7 @@ contains
         p => symbol_command(cmd)
 
         if (associated(p)) then
-            if (.not. p%interactive) p => null()
+            if (.not. p%is_command) p => null()
         end if
 
         if (.not. associated(p)) then

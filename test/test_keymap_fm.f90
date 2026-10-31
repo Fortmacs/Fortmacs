@@ -42,7 +42,7 @@ module test_keymap_fm
     use keymap_fm, only: text_char_description, minor_mode_key_binding, current_minor_mode_maps, add_minor_mode_map
     use error_fm, only: format_error
     use data_fm, only: set
-    use print_fm, only: prin1_to_string
+    use print_fm, only: readable_repr
     implicit none(type, external)
     private
 
@@ -477,14 +477,14 @@ contains
         type(status_type) :: st
 
         call make_sparse_keymap(map)
-        call check(error, prin1_to_string(ref(map)), "(keymap)")
+        call check(error, readable_repr(ref(map)), "(keymap)")
         if (allocated(error)) return
         call make_sparse_keymap(parent, make_string("Menu"))
         call define_key(parent, kbd("<f5>"), sym("undo"), st)
         call set_keymap_parent(map, parent, st)
         call define_key(map, kbd("a"), sym("undo"), st)
         call define_key(map, kbd("C-x b"), nil(), st)
-        call check(error, prin1_to_string(ref(map)), "(keymap (24 keymap (98)) (97 . undo) keymap (f5 . undo) ""Menu"")")
+        call check(error, readable_repr(ref(map)), "(keymap (24 keymap (98)) (97 . undo) keymap (f5 . undo) ""Menu"")")
         call free(map)
         call free(parent)
     end subroutine test_print_keymap

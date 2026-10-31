@@ -73,9 +73,9 @@ module abbrev_fm
     public :: kill_all_abbrevs, copy_abbrev_table, insert_abbrevs, list_abbrevs, abbrev_table_name, &
               prepare_abbrev_list_buffer, edit_abbrevs, write_abbrev_file, add_mode_abbrev, add_global_abbrev, &
               add_abbrev, inverse_add_mode_abbrev, inverse_add_global_abbrev, inverse_add_abbrev, abbrev_prefix_mark, &
-              expand_region_abbrevs, define_global_abbrev, define_mode_abbrev, abbrev_symbol, abbrev_expansion, &
+              expand_region_abbrevs, define_global_abbrev, define_mode_abbrev, abbrev_name, abbrev_expansion, &
               abbrev_insert, expand_abbrev, abbrev_default_expand, unexpand_abbrev, insert_abbrev_table_description, &
-              abbrev_table_symbols, abbrev_possibly_save, local_abbrev_table, set_local_abbrev_table, &
+              abbrev_table_names, abbrev_possibly_save, local_abbrev_table, set_local_abbrev_table, &
               edit_abbrevs_mode, is_abbrev_mode, abbrev_no_self_insert, syms_of_abbrev
 
     !> The values of `save_abbrevs': never save, ask (t upstream) or save
@@ -246,7 +246,7 @@ module abbrev_fm
     !> abbrev-start-location-buffer.
     type(handle_type), public :: abbrev_start_location_buffer
 
-    !> The abbrev of the last abbrev expanded.  See `abbrev_symbol'.
+    !> The abbrev of the last abbrev expanded.  See `abbrev_name'.
     !> Port of abbrev.el last-abbrev.
     type(abbrev_ref_type), public :: last_abbrev
 
@@ -637,12 +637,12 @@ module abbrev_fm
         !> Optional second arg TABLE is the abbrev table to look it up in.
         !> The default is to try buffer's mode-specific abbrev table, then global table.
         !> Port of abbrev.el:abbrev-symbol.
-        module subroutine abbrev_symbol(abbrev, result, table)
+        module subroutine abbrev_name(abbrev, result, table)
             implicit none(type, external)
             character(len=*), intent(in) :: abbrev
             type(abbrev_ref_type), intent(out) :: result
             type(abbrev_table_type), intent(in), target, optional :: table
-        end subroutine abbrev_symbol
+        end subroutine abbrev_name
 
         !> Return the string that ABBREV expands into in the current buffer,
         !> in EXPANSION (unallocated if none).
@@ -722,12 +722,12 @@ module abbrev_fm
         !> Return the user abbrevs in the abbrev table TABLE, in NAMES.
         !> System abbrevs are omitted unless SYSTEM is true.  Port of
         !> abbrev.el:abbrev--table-symbols.
-        module subroutine abbrev_table_symbols(table, names, system)
+        module subroutine abbrev_table_names(table, names, system)
             implicit none(type, external)
             type(abbrev_table_type), intent(in) :: table
             character(len=:), allocatable, intent(out) :: names(:)
             logical, intent(in), optional :: system
-        end subroutine abbrev_table_symbols
+        end subroutine abbrev_table_names
 
         !> Hook function for use by `save_some_buffers_functions'.
         !>
