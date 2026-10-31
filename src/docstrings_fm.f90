@@ -51,6 +51,7 @@ module docstrings_fm
                              global_auto_revert_ignore_buffer, global_auto_revert_ignore_modes, &
                              global_auto_revert_mode_hook, global_auto_revert_mode_text, &
                              global_auto_revert_non_file_buffers
+    use bidi_fm, only: bidi_inhibit_bpa
     use bookmark_fm, only: bookmark_after_jump_hook, bookmark_after_load_file_hook, bookmark_alist, &
                            bookmark_alist_modification_count, bookmark_automatically_show_annotations, &
                            bookmark_bmenu_buffer, bookmark_bmenu_file_column, bookmark_bmenu_mode_hook, &
@@ -551,7 +552,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1415) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1416) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -895,7 +896,7 @@ module docstrings_fm
                                                          "rectangle_forward_char", "rectangle_intersect_p", "rectangle_left_char", &
                                                            "rectangle_mark_mode", "rectangle_next_line", "rectangle_number_lines", &
                                            "rectangle_position_as_coordinates", "rectangle_previous_line", "rectangle_right_char", &
-                                                           "recursion_depth", "recursive_edit", "regexp_quote", "region_active_p", &
+                                         "recursion_depth", "recursive_edit", "redraw_display", "regexp_quote", "region_active_p", &
                                                       "region_beginning", "region_bounds", "region_end", "region_noncontiguous_p", &
                                                   "register_read_with_preview", "reindent_then_newline_and_indent", "rename_file", &
                                                    "repeat", "repeat_echo_message", "repeat_exit", "repeat_mode", "replace_match", &
@@ -976,7 +977,7 @@ module docstrings_fm
                                                  "y_or_n_p_insert_y", "yank", "yank_pop", "yank_rectangle", "yes_or_no_p", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1161) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1162) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -999,21 +1000,22 @@ module docstrings_fm
                                              "auto_revert_tail_mode_hook", "auto_revert_tail_mode_text", "auto_revert_use_notify", &
                                          "auto_revert_verbose", "backward_delete_char_untabify_method", "before_change_functions", &
                                                           "before_revert_hook", "before_save_hook", "beginning_of_defun_function", &
-                                                  "blink_matching_delay", "blink_matching_paren", "blink_matching_paren_distance", &
-                                                    "blink_matching_paren_dont_ignore_comments", "blink_matching_paren_on_screen", &
-                                                    "bookmark_after_jump_hook", "bookmark_after_load_file_hook", "bookmark_alist", &
-                                                   "bookmark_alist_modification_count", "bookmark_automatically_show_annotations", &
-                                                "bookmark_bmenu_buffer", "bookmark_bmenu_file_column", "bookmark_bmenu_mode_hook", &
-                                                                    "bookmark_bmenu_mode_map", "bookmark_bmenu_toggle_filenames", &
-                                                               "bookmark_bmenu_type_column_width", "bookmark_bookmarks_timestamp", &
-                                            "bookmark_completion_ignore_case", "bookmark_current_buffer", "bookmark_default_file", &
-                                                        "bookmark_edit_annotation_mode_hook", "bookmark_edit_annotation_mode_map", &
-                                                             "bookmark_exit_hook", "bookmark_face", "bookmark_file_coding_system", &
-                                                     "bookmark_fringe_mark", "bookmark_inhibit_context_functions", "bookmark_map", &
-                                                                    "bookmark_menu_bookmark", "bookmark_menu_confirm_deletion", &
-                                               "bookmark_minibuffer_read_name_map", "bookmark_save_flag", "bookmark_search_delay", &
-                                                         "bookmark_search_size", "bookmark_sort_flag", "bookmark_use_annotations", &
-                                                "bookmark_version_control", "bookmark_watch_bookmark_file", "bookmark_yank_point", &
+                                                               "bidi_inhibit_bpa", "blink_matching_delay", "blink_matching_paren", &
+                                                     "blink_matching_paren_distance", "blink_matching_paren_dont_ignore_comments", &
+                                                                    "blink_matching_paren_on_screen", "bookmark_after_jump_hook", &
+                                           "bookmark_after_load_file_hook", "bookmark_alist", "bookmark_alist_modification_count", &
+                                                               "bookmark_automatically_show_annotations", "bookmark_bmenu_buffer", &
+                                              "bookmark_bmenu_file_column", "bookmark_bmenu_mode_hook", "bookmark_bmenu_mode_map", &
+                                                            "bookmark_bmenu_toggle_filenames", "bookmark_bmenu_type_column_width", &
+                                                                "bookmark_bookmarks_timestamp", "bookmark_completion_ignore_case", &
+                                         "bookmark_current_buffer", "bookmark_default_file", "bookmark_edit_annotation_mode_hook", &
+                                                       "bookmark_edit_annotation_mode_map", "bookmark_exit_hook", "bookmark_face", &
+                                                                    "bookmark_file_coding_system", "bookmark_fringe_mark", &
+                                                   "bookmark_inhibit_context_functions", "bookmark_map", "bookmark_menu_bookmark", &
+                                                            "bookmark_menu_confirm_deletion", "bookmark_minibuffer_read_name_map", &
+                                                            "bookmark_save_flag", "bookmark_search_delay", "bookmark_search_size", &
+                                                     "bookmark_sort_flag", "bookmark_use_annotations", "bookmark_version_control", &
+                                                                    "bookmark_watch_bookmark_file", "bookmark_yank_point", &
                                                                 "buffer_auto_revert_by_notification", "buffer_file_coding_system", &
                                                           "buffer_list_update_hook", "buffer_menu_buffer", "buffer_menu_del_char", &
                                            "buffer_menu_human_readable_sizes", "buffer_menu_marker_char", "buffer_menu_mode_hook", &
@@ -11253,6 +11255,10 @@ contains
             entry%doc = "Invoke the editor command loop recursively."//LF// &
                         "To get out of the recursive edit, a command can throw to `exit' --"//LF// &
                         "for instance \[exit_recursive_edit] or \[abort_recursive_edit]."
+        case ("redraw_display")
+            entry%file = "dispnew_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Clear and redisplay all visible frames."
         case ("regexp_quote")
             entry%file = "search_fm.f90"
             entry%fortran = "regexp_quote(string)"
@@ -14724,6 +14730,13 @@ contains
                         "behave similarly, returning true if it found the beginning of a defun."//LF// &
                         "Ideally it should move to a point right before an open-paren which encloses"//LF// &
                         "the body of the defun."
+        case ("bidi_inhibit_bpa")
+            entry%file = "bidi_fm.f90"
+            entry%fortran = "bidi_inhibit_bpa"
+            entry%original = ".false."
+            entry%value = repr(bidi_inhibit_bpa)
+            entry%doc = "Inhibit the bidi bracket pair algorithm (BPA).  If true, the paired"//LF// &
+                        "brackets are resolved as other neutral characters."
         case ("blink_matching_delay")
             entry%file = "simple_fm.f90"
             entry%fortran = "blink_matching_delay"

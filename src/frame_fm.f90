@@ -56,8 +56,6 @@ module frame_fm
         !> Where to leave the cursor after an update (set by redisplay from
         !> the selected window's cursor), 0-based; -1 for none.
         integer :: cursor_vpos = -1, cursor_hpos = -1
-        !> Hide the cursor after the update (cursor_off_p).
-        logical :: cursor_off_p = .false.
         !> The minibuffer window is the selected window (while a minibuffer
         !> is active; `selected_window' is the window it was entered from).
         logical :: minibuffer_selected = .false.
@@ -174,7 +172,8 @@ contains
 
     !> Make `selected_frame''s windows if they don't exist yet: one window
     !> (the root, selected) and the minibuffer window, sized later by
-    !> xdisp_fm:init_frame_windows.  Not a port.
+    !> xdisp_fm:init_frame_windows.  Port of window.c:init_window_once
+    !> (the initial frame's windows).
     subroutine ensure_frame_windows()
         if (.not. window_valid_p(selected_frame%root_window)) then
             call make_window(selected_frame%root_window)

@@ -138,6 +138,14 @@ module buffer_fm
         integer(int64) :: zv = BEG, zv_byte = BEG_BYTE
         !> BVAR enable_multibyte_characters.
         logical :: multibyte = .true.
+        !> BVAR bidi_display_reordering (`bidi_display_reordering'): true
+        !> means reorder bidirectional text for display in the visual order.
+        logical :: bidi_display_reordering = .true.
+        !> BVAR bidi_paragraph_direction (`bidi_paragraph_direction'): 0
+        !> (nil) to determine each paragraph's direction dynamically, 1
+        !> (`left-to-right') or 2 (`right-to-left') to force it (bidi_fm
+        !> L2R and R2L).
+        integer :: bidi_paragraph_direction = 0
         !> BVAR read_only.
         logical :: read_only = .false.
         !> Upstream sets undo_list to t (disabled) for names starting with SPC.
