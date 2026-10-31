@@ -7572,7 +7572,7 @@ contains
             entry%file = "ibuf_macs_fm.f90"
             entry%fortran = "ibuffer_predicate(predicate)"
             entry%doc = "Buffers for which PREDICATE, called with the buffer current, returns"//LF// &
-                        "true (predicate . FORM)."
+                        ".true.."
         case ("ibuffer_process")
             entry%file = "ibuf_macs_fm.f90"
             entry%fortran = "ibuffer_process()"
@@ -20428,9 +20428,9 @@ contains
             entry%fortran = "ibuffer_fontification_table"
             entry%user_option = .true.
             entry%doc = "An array describing how to fontify buffers."//LF// &
-                        "Each element has a PRIORITY, a FORM (a function evaluated in the"//LF// &
-                        "buffer), and the FACE to use for fontification.  If the FORM"//LF// &
-                        "returns true, then FACE will be put on the buffer name.  The"//LF// &
+                        "Each element has a PRIORITY, a PREDICATE (a logical function called in the"//LF// &
+                        "buffer), and the FACE to use for fontification.  If the PREDICATE"//LF// &
+                        "returns .true., then FACE will be put on the buffer name.  The"//LF// &
                         "element with the highest PRIORITY takes precedence."//LF// &
                         ""//LF// &
                         "If you change this variable, you must kill the Ibuffer buffer and"//LF// &

@@ -1784,7 +1784,7 @@ contains
     end subroutine rectangle_region_end
 
     !> The region's beginning and end as the primitives give them
-    !> (`(let (rectangle-mark-mode) (region-beginning))').  Not a port.
+    !> (with `rectangle_mark_mode' off meanwhile, saved and restored).  Not a port.
     recursive subroutine plain_region(beg, end, status)
         integer(int64), intent(out) :: beg, end
         type(status_type), intent(out) :: status

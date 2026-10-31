@@ -775,7 +775,7 @@ contains
         end if
     end function local_text
 
-    !> Turn the mode on (upstream's (MODE 1), or (MODE) from Lisp).
+    !> Turn the mode on (upstream's MODE called with 1, or with no argument from code).
     !> Not a port.
     recursive subroutine minor_mode_enable(self, status)
         class(minor_mode_type), intent(inout) :: self

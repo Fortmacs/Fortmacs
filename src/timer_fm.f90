@@ -217,7 +217,7 @@ contains
     !> If optional third argument DELTA is a positive number, make the timer
     !> fire repeatedly that many seconds apart.  Port of
     !> timer.el:timer-set-time (TIME is relative, in seconds; upstream it
-    !> is a Lisp time value).
+    !> is a time value of several forms).
     subroutine timer_set_time(timer, time, status, delta)
         type(handle_type), intent(in) :: timer
         real(real64), intent(in) :: time

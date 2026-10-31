@@ -152,7 +152,7 @@ module ibuf_macs_fm
             type(handle_type), intent(in) :: buffer
         end function ibuffer_buffer_predicate_proc
 
-        !> The FORM of an `ibuffer_fontification_table' entry, evaluated in
+        !> The PREDICATE of an `ibuffer_fontification_table' entry (a logical function), called in
         !> the buffer.  Not a port.
         recursive logical function ibuffer_form_proc()
             implicit none(type, external)
@@ -255,9 +255,9 @@ module ibuf_macs_fm
         procedure(ibuffer_buffer_predicate_proc), pointer, nopass :: predicate => null()
     end type ibuffer_show_predicate_type
 
-    !> An element of `ibuffer_fontification_table': PRIORITY, a FORM
-    !> evaluated in the buffer, and the FACE to put on the buffer name if
-    !> FORM returns true.
+    !> An element of `ibuffer_fontification_table': PRIORITY, a PREDICATE
+    !> (a logical function) called in the buffer, and the FACE to put on the buffer name if
+    !> PREDICATE returns .true..
     type, public :: ibuffer_fontification_type
         integer :: priority = 0
         procedure(ibuffer_form_proc), pointer, nopass :: form => null()
@@ -858,7 +858,7 @@ contains
     end function ibuffer_content
 
     !> Buffers for which PREDICATE, called with the buffer current, returns
-    !> true (predicate . FORM).  Not a port.
+    !> .true..  Not a port.
     function ibuffer_predicate(predicate) result(f)
         procedure(ibuffer_buffer_predicate_proc) :: predicate
         type(ibuffer_filter_type) :: f

@@ -72,7 +72,7 @@ module syntax_propertize_fm
     integer, parameter, public :: SYNTAX_PPSS_NONE = 0, SYNTAX_PPSS_STRING = 1, SYNTAX_PPSS_COMMENT = 2
 
     !> most-positive-fixnum, the value of `syntax_propertize__done' while
-    !> `syntax_propertize' runs (upstream's let-binding against recursion).
+    !> `syntax_propertize' runs (saved and restored against recursion, as upstream binds it).
     integer(int64), parameter :: MOST_POSITIVE_FIXNUM = 2_int64**61 - 1
 
     !> A value of the `syntax_table' property: a raw syntax descriptor,
@@ -951,7 +951,7 @@ contains
         call set_syntax_table(ppss_syntax_table(), st)
         ! Just in case!
         call syntax_propertize__done%make_local()
-        ! Make sure we let-bind it only buffer-locally.
+        ! Make sure we save and restore it only buffer-locally.
         k = data_index()
         saved_updated = data(k)%updated_cache
         data(k)%updated_cache = .false.
@@ -1244,7 +1244,7 @@ contains
     !>
     !> It is necessary to call `syntax_ppss_flush_cache' explicitly if
     !> this function is called while `before_change_functions' is
-    !> temporarily let-bound, or if the buffer is modified without
+    !> temporarily saved and changed, or if the buffer is modified without
     !> running the hook.  Port of syntax.el:syntax-ppss.
     recursive subroutine syntax_ppss_cached(state, pos)
         type(parse_state_type), intent(out) :: state

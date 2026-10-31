@@ -256,7 +256,7 @@ module diff_mode_fm
             implicit none(type, external)
         end function entry_index
 
-        !> (let ((inhibit-read-only t)) ...): bind it, keeping the old value
+        !> Set `inhibit_read_only' to .true., keeping the old value
         !> in SAVED.  Not a port.
         module subroutine bind_inhibit_read_only(saved)
             implicit none(type, external)

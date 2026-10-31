@@ -319,13 +319,13 @@ module log_edit_fm
     type(local_type), allocatable :: locals(:)
 
     ! log-edit-author: the author found by `log_edit_changelog_ours_p'
-    ! (dynamically bound by `log_edit_insert_changelog_entries').
+    ! (saved and restored by `log_edit_insert_changelog_entries').
     logical :: author_bound = .false.
     logical :: has_author = .false.
     character(len=:), allocatable :: author_name
     logical :: author_tiny = .false.
 
-    ! log-edit-changelog-use-first (dynamically bound).
+    ! log-edit-changelog-use-first (saved and restored around its use).
     logical :: changelog_use_first = .false.
 
     ! The ChangeLog entries for a file (see `log_edit_changelog_entries'):

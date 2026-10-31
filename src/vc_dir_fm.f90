@@ -179,7 +179,7 @@ module vc_dir_fm
     type(local_type), allocatable :: locals(:)
 
     ! The backend `vc_dir_mode' gives the buffer (use-vc-backend,
-    ! dynamically bound by `vc_dir').
+    ! saved and restored by `vc_dir').
     integer :: use_vc_backend = 0
 
     ! `vc_dir_allow_mass_mark_changes' as bound by `vc_dir_mark_unmark'.

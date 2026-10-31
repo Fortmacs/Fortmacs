@@ -4943,7 +4943,7 @@ contains
     end function region_end_line_position
 
     !> Mark files for PREDICATE, according to `dired_marker_char'.
-    !> PREDICATE is evaluated on each line, with point at beginning of line.
+    !> PREDICATE is called on each line, with point at beginning of line.
     !> MSG is a noun phrase for the type of files being marked.
     !> It should end with a noun that can be pluralized by adding `s'.
     !>

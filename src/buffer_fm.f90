@@ -152,7 +152,7 @@ module buffer_fm
         logical :: undo_enabled = .true.
         !> BVAR undo_list (`buffer_undo_list'): entries 1 to `undo_count',
         !> the newest last.  A list position k (entries 1 to k, the head
-        !> being entry k) stands for a tail of the Lisp list.
+        !> being entry k) stands for a tail of upstream's list.
         type(undo_entry_type), allocatable :: undo_list(:)
         integer(int64) :: undo_count = 0
         !> simple.el undo-equiv-table, keyed by list position (0 to

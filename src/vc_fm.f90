@@ -2146,7 +2146,7 @@ contains
         if (action%flag .and. .not. emptyp) call message(action%s1//"done")
     end subroutine vc_diff_finish
 
-    !> Insert TEXT ignoring read-only (let ((inhibit-read-only t)) ...).
+    !> Insert TEXT ignoring read-only (`inhibit_read_only' .true., saved and restored).
     !> Not a port.
     subroutine bind_read_only_insert(text)
         use lisp_fm, only: t_value

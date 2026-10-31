@@ -174,7 +174,7 @@ module compile_fm
             logical, intent(out) :: found
         end subroutine compilation_file_function
 
-        !> A HIGHLIGHT's FACE given as a function evaluated after each
+        !> A HIGHLIGHT's FACE given as a function called after each
         !> match: the face's name (FACE unallocated for none).  Not a port.
         recursive subroutine compilation_face_function(face, status)
             import :: status_type
@@ -4317,7 +4317,7 @@ contains
         subroutine restore_dir()
             type(status_type) :: st
 
-            ! The let binding ends in the buffer that was current.
+            ! Restore the saved value in the buffer that was current.
             if (.not. buffer_live_p(old)) return
             call set_buffer(old, st)
 

@@ -1780,7 +1780,7 @@ contains
 
     !> `completion_at_point' giving in RES whether there was a valid
     !> completion; with FUNCTIONS, those instead of
-    !> `completion_at_point_functions' (upstream let-binds the hook).
+    !> `completion_at_point_functions' (saved and restored around the call; upstream binds the hook).
     !> Port of minibuffer.el:completion-at-point.
     recursive subroutine completion_at_point_run(res, status, functions)
         logical, intent(out) :: res

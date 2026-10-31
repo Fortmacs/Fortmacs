@@ -211,9 +211,9 @@ module ibuffer_fm
     logical, public :: ibuffer_always_compile_formats = .false.
 
     !> An array describing how to fontify buffers.
-    !> Each element has a PRIORITY, a FORM (a function evaluated in the
-    !> buffer), and the FACE to use for fontification.  If the FORM
-    !> returns true, then FACE will be put on the buffer name.  The
+    !> Each element has a PRIORITY, a PREDICATE (a logical function called in the
+    !> buffer), and the FACE to use for fontification.  If the PREDICATE
+    !> returns .true., then FACE will be put on the buffer name.  The
     !> element with the highest PRIORITY takes precedence.
     !>
     !> If you change this variable, you must kill the Ibuffer buffer and
@@ -556,7 +556,7 @@ module ibuffer_fm
     ! The operation `ibuffer_operate' runs, and its arguments.
     type(ibuffer_op_type) :: current_op
 
-    ! State of the mapping functions (upstream's dynamically bound
+    ! State of the mapping functions (upstream's temporarily bound
     ! variables and closures).
     character :: map_mark = " ", map_new = " "
     character(len=256), allocatable :: map_names(:)

@@ -504,7 +504,7 @@ module simple_fm
         !> a variable meant to be customized by users.  You should enter
         !> VALUE in Fortran syntax, so if you want VALUE to be a string, you
         !> must surround it with doublequotes.  VALUE is used literally, not
-        !> evaluated.
+        !> computed.
         !>
         !> The type of VARIABLE is used to check that VALUE is valid.
         !>

@@ -154,7 +154,7 @@ contains
     end function itoa
     end procedure read_number
 
-    !> The integer the Lisp reader reads first from STR, `ok' false if it
+    !> The integer upstream's reader reads first from STR, `ok' false if it
     !> reads something else (or nothing, or an error condition occurs).  The syntax of
     !> lread.c:read0 for integers: decimal with an optional sign and
     !> trailing dot, #x, #o, #b and #RADIXr prefixes, and ?C characters.
@@ -815,7 +815,7 @@ contains
         ! We are about to enter recursive-edit, which sets
         ! `last_command'.  If the callers of this function have some
         ! logic based on `last_command''s value (example: `kill_region'),
-        ! that could interfere with their logic.  So we let-bind
+        ! that could interfere with their logic.  So we save, set and restore
         ! `last_command' here to prevent that.
         saved_last = last_command
         call read_char_from_minibuffer(prompt, c, status, chars=chars, help_form=help_form)

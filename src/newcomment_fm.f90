@@ -536,7 +536,7 @@ contains
 
     ! ------------------------------------------------------------------
     ! Small helpers.
-    !> Lisp's (string-match RE S): the 0-based index of the match, -1 for
+    !> `string_match' of RE on S: the 0-based index of the match, -1 for
     !> none.  Not a port.
     integer(int64) function smatch(re, s) result(idx)
         character(len=*), intent(in) :: re, s
@@ -582,7 +582,7 @@ contains
         me = match_end(n, st)
     end function me
 
-    !> Lisp's (looking-at RE).  Not a port.
+    !> `looking_at' of RE.  Not a port.
     logical function looking(re)
         character(len=*), intent(in) :: re
         type(status_type) :: st
@@ -591,7 +591,7 @@ contains
         if (.not. st%ok()) looking = .false.
     end function looking
 
-    !> Lisp's (re-search-forward RE BOUND NOERROR); true when found.
+    !> `re_search_forward' of RE with BOUND and NOERROR; .true. when found.
     !> Not a port.
     logical function re_forward(re, bound, noerror)
         character(len=*), intent(in) :: re
@@ -604,7 +604,7 @@ contains
         re_forward = st%ok() .and. found > 0
     end function re_forward
 
-    !> Lisp's (re-search-backward RE BOUND NOERROR); true when found.
+    !> `re_search_backward' of RE with BOUND and NOERROR; .true. when found.
     !> Not a port.
     logical function re_backward(re, bound, noerror)
         character(len=*), intent(in) :: re

@@ -2512,7 +2512,7 @@ contains
         same_buffer = a%index == b%index .and. a%generation == b%generation
     end function same_buffer
 
-    !> Give OLD its directory back (the end of a let binding of
+    !> Give OLD its directory back (restoring the saved
     !> `default_directory').  Not a port.
     subroutine restore_directory(old, had_dir, saved_dir)
         type(handle_type), intent(in) :: old
@@ -2907,7 +2907,7 @@ contains
         ! Use for `grep_read_files'.
         grep_files_aliases = [grep_files_alias_type(name="all", files="* .*"), &
                               grep_files_alias_type(name="gz", files="*.gz")]
-        ! Recompute defaults using let-bound values above.
+        ! Recompute defaults using the values set above (saved and restored).
         call grep_compute_defaults(status)
         have_template = allocated(grep_find_template)
         if (have_template) template = grep_find_template
@@ -2922,7 +2922,7 @@ contains
             end if
         end if
 
-        ! The let bindings end.
+        ! Restore the saved values.
         grep_program = saved_program
         call move_alloc(saved_aliases, grep_files_aliases)
         grep_host_defaults_table = saved_table
