@@ -24,6 +24,7 @@
 !> mark-paragraph.bin resource inlined); the rest are own tests.
 module test_paragraphs_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use commands_fm, only: commands
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support, only: show_alone
     use error_fm, only: status_type
@@ -322,8 +323,8 @@ contains
         ! Repeating the command marks the next sentence.
         call temp_buffer("Example sentence.  Followed by another one.")
         call mark_end_of_sentence(1_int64)
-        last_command = value_type(name="mark_end_of_sentence")
-        this_command = value_type(name="mark_end_of_sentence")
+        last_command => commands%mark_end_of_sentence
+        this_command => commands%mark_end_of_sentence
         call mark_end_of_sentence(1_int64)
         call check(error, buffers(cur)%mark_active .and. mark_position() == 44, "repeated")
     end subroutine test_mark_end_of_sentence

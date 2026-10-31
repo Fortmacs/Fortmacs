@@ -27,7 +27,7 @@
 !> from their forms).
 module test_python_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use lisp_fm, only: value_type
+    use callint_fm, only: prefix_arg_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
@@ -3872,7 +3872,7 @@ contains
         call python_info_current_definition(name)
         call check(error,.not. (allocated(name)), "(not (python-info-current-defun))")
         if (allocated(error)) return
-        call indent_for_tab_command(value_type(), st)
+        call indent_for_tab_command(prefix_arg_type(), st)
         call python_info_current_definition(name)
         call check(error, name_is(name, "foo"), "(string= 'foo' (python-info-current-defun))")
         if (allocated(error)) return

@@ -51,12 +51,13 @@
 !> properties), and the `register__name' text property of the preview.
 module register_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: PREFIX_NONE
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR, &
                         FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xfixnum, xsymbol, symbols, xstring, vtag, V_NULL, V_INTEGER, V_NAME
-    use data_fm, only: value_eq, kill_all_local_variables
+    use data_fm, only: kill_all_local_variables
     use character_fm, only: MAX_CHAR, string_char_and_length
     use keymap_fm, only: single_key_description
     use print_fm, only: fortran_string, marker_repr
@@ -801,7 +802,7 @@ contains
             call switch_to_buffer(buffers(b%index)%name, status)
             if (.not. status%ok()) return
             call marker_position(val%marker, pos, st)
-            if (point() /= pos .and. .not. value_eq(last_command, value_type(name="jump_to_register"))) call push_mark()
+            if (point() /= pos .and. .not. associated(last_command, commands%jump_to_register)) call push_mark()
             call goto_char_marker(val%marker, status)
         case (REGISTER_WINDOW_CONFIGURATION)
             call set_window_configuration(val%configuration)
@@ -1328,7 +1329,7 @@ contains
     !> Whether the prefix argument is given (a raw prefix argument that is not empty).
     !> Not a port.
     logical function prefix_given()
-        prefix_given = allocated(current_prefix_arg%a)
+        prefix_given = current_prefix_arg%kind /= PREFIX_NONE
     end function prefix_given
 
     recursive subroutine cmd_point_to_register(status)

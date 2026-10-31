@@ -45,6 +45,7 @@
 !> sibling can give.
 submodule(window_fm) window_display_fm
     use handle_fm, only: has_handle
+    use callint_fm, only: PREFIX_NONE
     use commands_fm, only: commands
     use error_fm, only: set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
     use buffer_fm, only: cur, current_buffer, set_buffer, is_buffer_live, record_buffer, bury_buffer_internal, &
@@ -1080,7 +1081,7 @@ contains
     subroutine cmd_quit_window(status)
         type(status_type), intent(out) :: status
 
-        call quit_window(allocated(current_prefix_arg%a), status)
+        call quit_window(current_prefix_arg%kind /= PREFIX_NONE, status)
     end subroutine cmd_quit_window
 
     !> Replace BUFFER_OR_NAME with some other buffer in all windows

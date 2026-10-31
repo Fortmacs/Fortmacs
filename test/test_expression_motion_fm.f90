@@ -29,7 +29,6 @@
 !> `check_parens'.
 module test_expression_motion_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use lisp_fm, only: value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, FM_USER_ERROR
     use handle_fm, only: handle_type
@@ -97,7 +96,7 @@ contains
         call erase_buffer(st)
         call insert(text, st)
         call goto_char(point_min())
-        last_command = value_type()
+        last_command => null()
     end subroutine temp_buffer
 
     !> elisp-tests-with-temp-buffer: TEXT without its =!NAME= words, whose
@@ -246,7 +245,7 @@ contains
             type(status_type) :: st
 
             call deactivate_mark()
-            last_command = value_type()
+            last_command => null()
             call goto_char(at(from))
             call mark_subprogram(1_int64, st)
             call check(error, point() == at(before) .and. mark_position() == at(after), "mark-defun from "//from)

@@ -25,6 +25,7 @@
 !> lines whose beginning matches `page_delimiter'.
 module page_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: PREFIX_NONE
     use error_fm, only: status_type
     use buffer_fm, only: buffers, cur
     use editfns_fm, only: point, goto_char, point_min, point_max, is_bol, is_bob, is_eob, is_eol, widen, narrow_to_region
@@ -322,7 +323,7 @@ contains
         integer(int64) :: n
 
         n = 0
-        if (allocated(current_prefix_arg%a)) n = prefix_numeric_value(current_prefix_arg)
+        if (current_prefix_arg%kind /= PREFIX_NONE) n = prefix_numeric_value(current_prefix_arg)
         call mark_page(n, status)
     end subroutine cmd_mark_page
 
@@ -331,7 +332,7 @@ contains
         integer(int64) :: n
 
         n = 0
-        if (allocated(current_prefix_arg%a)) n = prefix_numeric_value(current_prefix_arg)
+        if (current_prefix_arg%kind /= PREFIX_NONE) n = prefix_numeric_value(current_prefix_arg)
         call narrow_to_page(n, status)
     end subroutine cmd_narrow_to_page
 

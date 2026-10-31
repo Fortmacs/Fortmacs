@@ -43,6 +43,7 @@
 !> are no line numbers), bidi.
 module tabulated_list_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: PREFIX_NONE
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_list, xstring, xfixnum, string_intervals, vtag, V_INTEGER, V_STRING
@@ -1467,7 +1468,7 @@ contains
     recursive subroutine cmd_tabulated_list_sort(status)
         type(status_type), intent(out) :: status
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call tabulated_list_sort(status)
         else
             call tabulated_list_sort(status, int(prefix_numeric_value(current_prefix_arg)))

@@ -4,13 +4,15 @@ sample.f90:14: intrinsics: constant: CHECK_TRUE
 sample.f90:14: intrinsics: constant: CHECK_FALSE
 sample.f90:18: intrinsics: vector: colors_vector
 sample.f90:22: intrinsics: interactive: command_type%interactive
-sample.f90:34: intrinsics: wrapper: is_null (only `allocated')
-sample.f90:41: intrinsics: wrapper: count_of (only `size')
-sample.f90:69: intrinsics: lisp-helper: is_integer
-sample.f90:69: intrinsics: wrapper: is_integer (only a value's tag or component)
-sample.f90:76: intrinsics: wrapper: value_integer (only a value's tag or component)
-sample.f90:83: intrinsics: wrapper: memq (only `any')
-sample.f90:90: intrinsics: lisp-helper: car
-sample.f90:98: intrinsics: predicate: region_active_p
-sample.f90:104: intrinsics: predicate: processp
+sample.f90:27: intrinsics: command-state: this_command
+sample.f90:27: intrinsics: command-state: current_prefix_arg
+sample.f90:38: intrinsics: wrapper: is_null (only `allocated')
+sample.f90:45: intrinsics: wrapper: count_of (only `size')
+sample.f90:73: intrinsics: lisp-helper: is_integer
+sample.f90:73: intrinsics: wrapper: is_integer (only a value's tag or component)
+sample.f90:80: intrinsics: wrapper: value_integer (only a value's tag or component)
+sample.f90:87: intrinsics: wrapper: memq (only `any')
+sample.f90:94: intrinsics: lisp-helper: car
+sample.f90:102: intrinsics: predicate: region_active_p
+sample.f90:108: intrinsics: predicate: processp
 baseline: intrinsics: baseline entry no longer occurs: sample.f90:gone:wrapper (remove it)

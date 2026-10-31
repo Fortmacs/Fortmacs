@@ -28,6 +28,7 @@
 !> Not ported: dialog boxes, touch-screen events.
 module rmc_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: prefix_arg_type
     use error_fm, only: status_type, set_error, FM_QUIT
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
@@ -246,11 +247,11 @@ contains
 
             select case (query_replace_answer(key))
             case (ANSWER_RECENTER)
-                call recenter(value_type(), .false., st)
+                call recenter(prefix_arg_type(), .false., st)
             case (ANSWER_SCROLL_UP)
-                call scroll_up_command(value_type(), st)
+                call scroll_up_command(prefix_arg_type(), st)
             case (ANSWER_SCROLL_DOWN)
-                call scroll_down_command(value_type(), st)
+                call scroll_down_command(prefix_arg_type(), st)
             case (ANSWER_SCROLL_OTHER_WINDOW, ANSWER_SCROLL_OTHER_WINDOW_DOWN)
                 ! scroll-other-window and scroll-other-window-down are not
                 ! ported (Deferred).
@@ -290,7 +291,8 @@ contains
         integer, intent(out) :: answer
         type(status_type), intent(out) :: status
         type(handle_type) :: map
-        type(value_type) :: b, saved_this, saved_real_this
+        type(value_type) :: b
+        type(command_type), pointer :: saved_this, saved_real_this
         type(status_type) :: st
         character(len=:), allocatable :: str
         integer :: k
@@ -330,14 +332,14 @@ contains
         key1(1) = value_type(int(iachar("?"), int64))
         if (.not. rmc_have_show_help) call define_key(map, key1, &
                                                       value_type(name="rmc__help"), st)
-        saved_this = this_command
-        saved_real_this = real_this_command
+        saved_this => this_command
+        saved_real_this => real_this_command
         saved_enable = enable_recursive_minibuffers
         enable_recursive_minibuffers = .true.
         call read_from_minibuffer(full_prompt(), str, status, keymap=map)
         enable_recursive_minibuffers = saved_enable
-        this_command = saved_this
-        real_this_command = saved_real_this
+        this_command => saved_this
+        real_this_command => saved_real_this
         call free_keymap(map, st)
         if (.not. status%ok()) return
 

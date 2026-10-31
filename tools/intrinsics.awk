@@ -51,6 +51,12 @@
 #                procedure) ending in `_vector'.  Use a plural.
 #   interactive  a component `interactive' of command_type (it is
 #                `is_command').
+#   command-state  the command loop's state declared as a `value_type'
+#                (A7): this_command, last_command, real_this_command,
+#                real_last_command, last_repeatable_command and
+#                current_minibuffer_command are `type(command_type),
+#                pointer'; prefix_arg, current_prefix_arg and
+#                last_prefix_arg are `type(prefix_arg_type)'.
 #
 # Logical user options named *_p upstream keep their names: they are
 # variables, which the predicate rule does not look at.
@@ -160,6 +166,7 @@ function check_decl(line, l, names, n, i, nm) {
         }
         if (nm ~ /_vector$/) finding(line, "vector", nm, "")
         if (intype == "command_type" && nm == "interactive") finding(line, "interactive", "command_type%interactive", "")
+        if (l ~ /^type[ \t]*\([ \t]*value_type[ \t]*\)/ && nm in cmdstate) finding(line, "command-state", nm, "")
     }
 }
 
@@ -223,6 +230,9 @@ BEGIN {
               "graphic alphabetic alphanumeric uppercase lowercase printable syntax_table case_table " \
               "hash_table record subr", w, " ")
     for (i = 1; i <= n; i++) typeword[w[i]] = 1
+    n = split("this_command last_command real_this_command real_last_command last_repeatable_command " \
+              "current_minibuffer_command prefix_arg current_prefix_arg last_prefix_arg", w, " ")
+    for (i = 1; i <= n; i++) cmdstate[w[i]] = 1
     n = split("int8 int16 int32 int64 real32 real64 real128 c_int c_long c_char", w, " ")
     for (i = 1; i <= n; i++) kinds[w[i]] = 1
     if (baseline != "") {

@@ -29,6 +29,7 @@
 !> `minibuffer_visible_completions', INHERIT_INPUT_METHOD.
 module crm_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: PREFIX_NONE
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur
@@ -212,7 +213,7 @@ contains
         logical :: more
 
         status = status_type()
-        doexit = .not. allocated(current_prefix_arg%a)
+        doexit = current_prefix_arg%kind == PREFIX_NONE
         call goto_char(minibuffer_prompt_end())
 
         do

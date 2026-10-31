@@ -50,10 +50,11 @@
 !> `python_indent_current_level' and `python_indent_levels'.
 module python_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: PREFIX_NONE
     use error_fm, only: status_type, set_error, FM_USER_ERROR, FM_SCAN_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xfixnum, list, list_elements, vtag, V_INTEGER
-    use data_fm, only: integer_setting, logical_setting, string_setting, forward_setting, value_eq, &
+    use data_fm, only: integer_setting, logical_setting, string_setting, forward_setting, &
                        add_local_variables_killer
     use commands_fm, only: commands
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
@@ -86,9 +87,9 @@ module python_fm
     use font_core_fm, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, font_lock_keywords_type, &
                             font_lock_keywords_level, FONT_LOCK_OVERRIDE_YES, FONT_LOCK_OVERRIDE_PREPEND
     use font_lock_fm, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
-    use expression_motion_fm, only: forward_expression, forward_expression_function, forward_expression_default_function, &
-                                    up_group, mark_subprogram, &
-                                    beginning_of_subprogram_function, end_of_subprogram_function
+    use expression_motion_fm, only: forward_expression_function, forward_expression_default_function, &
+                                    up_group, mark_subprogram, beginning_of_subprogram_function, &
+                                    end_of_subprogram_function
     use newcomment_fm, only: comment_start, comment_start_skip
     use paragraphs_fm, only: paragraph_start, paragraph_separate
     use fill_fm, only: fill_paragraph, fill_paragraph_function, fill_comment_paragraph, fill_indent_according_to_mode
@@ -2270,11 +2271,11 @@ contains
         ! when working interactively while called functions expecting
         ! paren-based expression motion work just fine.
         if (.not. skip) then
-            skip = value_eq(real_this_command, value_type(name="forward_expression")) .or. value_eq(real_this_command, &
-                                                                                           value_type(name="backward_expression")) &
-                   .or. value_eq(real_this_command, value_type(name="python_nav_forward_expression")) &
-                   .or. value_eq(real_this_command, value_type(name="python_nav_backward_expression")) &
-                   .or. value_eq(real_this_command, value_type(name="python_nav_forward_expression_safe"))
+            skip = associated(real_this_command, commands%forward_expression) &
+                   .or. associated(real_this_command, commands%backward_expression) &
+                   .or. associated(real_this_command, commands%python_nav_forward_expression) &
+                   .or. associated(real_this_command, commands%python_nav_backward_expression) &
+                   .or. associated(real_this_command, commands%python_nav_forward_expression_safe)
         end if
 
         do while (arg > 0)
@@ -3994,16 +3995,11 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(out) :: noindent
         logical :: previous
-        integer :: k
 
         noindent = .false.
         previous = .false.
-
-        do k = 1, size(python_indent_trigger_commands)
-            if (value_eq(this_command, value_type(name=trim(python_indent_trigger_commands(k))))) previous = .true.
-        end do
-
-        if (previous) previous = value_eq(last_command, this_command)
+        if (associated(this_command)) previous = any(python_indent_trigger_commands == this_command%name)
+        if (previous) previous = associated(last_command, this_command)
         call python_indent_line(status, previous)
     end subroutine python_indent_line_function
 
@@ -4213,7 +4209,7 @@ contains
         ! Electric colon
         if (ev /= iachar(":")) return
         if (.not. any(electric_indent_chars_value() == iachar(":"))) return
-        if (allocated(current_prefix_arg%a)) return
+        if (current_prefix_arg%kind /= PREFIX_NONE) return
         ! Trigger electric colon only at end of line
         if (.not. is_eol()) return
         ! Avoid re-indenting on extra colon
@@ -4754,7 +4750,7 @@ contains
         call shift_args(start, end, status)
         if (.not. status%ok()) return
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call python_indent_shift_left(start, end, status)
         else
             call python_indent_shift_left(start, end, status, prefix_numeric_value(current_prefix_arg))
@@ -4770,7 +4766,7 @@ contains
         call shift_args(start, end, status)
         if (.not. status%ok()) return
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call python_indent_shift_right(start, end, status)
         else
             call python_indent_shift_right(start, end, status, prefix_numeric_value(current_prefix_arg))
@@ -4958,7 +4954,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: done
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call python_fill_paragraph(status, done)
         else
             call python_fill_paragraph(status, done, JUSTIFY_FULL)

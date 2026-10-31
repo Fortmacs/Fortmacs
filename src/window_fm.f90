@@ -26,11 +26,11 @@
 !> markers, so they follow insertions and deletions in its buffer.
 module window_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: prefix_arg_type
     use error_fm, only: status_type
     use handle_fm, only: handle_type, null_handle, slot_table_type
     use buffer_fm, only: buffers, resolve_buffer
     use marker_fm, only: make_marker, free_marker, set_marker, marker_position
-    use lisp_fm, only: value_type
     implicit none(type, external)
     private
 
@@ -350,28 +350,30 @@ module window_fm
     ! move by screen lines (indent_fm), which depends on this module.
     interface
         !> Scroll text of selected window upward ARG lines.
-        !> If ARG is .false. (no prefix argument), scroll upward by a near full screen.
+        !> If ARG is PREFIX_NONE (no prefix argument), scroll upward by a near full screen.
         !> A near full screen is `next_screen_context_lines' less than a
         !> full screen.  Negative ARG means scroll downward.  If ARG is
-        !> `-', scroll downward by nearly full screen.  When calling
-        !> from a program, supply as argument an integer, .false., or `-'.
+        !> PREFIX_MINUS, scroll downward by nearly full screen.  When calling
+        !> from a program, supply as argument a number (PREFIX_NUMBER),
+        !> PREFIX_NONE or PREFIX_MINUS.
         !> Port of window.c:Fscroll_up.
         module subroutine scroll_up(arg, status)
             implicit none(type, external)
-            type(value_type), intent(in) :: arg
+            type(prefix_arg_type), intent(in) :: arg
             type(status_type), intent(out) :: status
         end subroutine scroll_up
 
         !> Scroll text of selected window down ARG lines.
-        !> If ARG is .false. (no prefix argument), scroll down by a near full screen.
+        !> If ARG is PREFIX_NONE (no prefix argument), scroll down by a near full screen.
         !> A near full screen is `next_screen_context_lines' less than a
         !> full screen.  Negative ARG means scroll upward.  If ARG is
-        !> `-', scroll upward by nearly full screen.  When calling
-        !> from a program, supply as argument an integer, .false., or `-'.
+        !> PREFIX_MINUS, scroll upward by nearly full screen.  When calling
+        !> from a program, supply as argument a number (PREFIX_NUMBER),
+        !> PREFIX_NONE or PREFIX_MINUS.
         !> Port of window.c:Fscroll_down.
         module subroutine scroll_down(arg, status)
             implicit none(type, external)
-            type(value_type), intent(in) :: arg
+            type(prefix_arg_type), intent(in) :: arg
             type(status_type), intent(out) :: status
         end subroutine scroll_down
 
@@ -381,7 +383,7 @@ module window_fm
         !> negative, it counts up from the bottom of the window.  (ARG
         !> should be less than the height of the window.)
         !>
-        !> If ARG is .false., then recenter with point on the middle
+        !> If ARG is PREFIX_NONE, then recenter with point on the middle
         !> line of the selected window; if REDISPLAY is true, also erase the
         !> entire frame and redraw it.  Interactively, REDISPLAY is always
         !> true.
@@ -391,13 +393,13 @@ module window_fm
         !> Port of window.c:Frecenter (`recenter_redisplay' is `tty').
         module subroutine recenter(arg, redisplay, status)
             implicit none(type, external)
-            type(value_type), intent(in) :: arg
+            type(prefix_arg_type), intent(in) :: arg
             logical, intent(in) :: redisplay
             type(status_type), intent(out) :: status
         end subroutine recenter
 
         !> Position point relative to window.
-        !> ARG .false. means position point at center of window.
+        !> ARG PREFIX_NONE means position point at center of window.
         !> Else, ARG specifies vertical position within the window;
         !> zero means top of window, negative means relative to bottom
         !> of window, -1 meaning the last fully visible display line
@@ -408,7 +410,7 @@ module window_fm
         !> window.c:displayed_window_lines, on a terminal the body height).
         module subroutine move_to_window_line(arg, line, status)
             implicit none(type, external)
-            type(value_type), intent(in) :: arg
+            type(prefix_arg_type), intent(in) :: arg
             integer(int64), intent(out) :: line
             type(status_type), intent(out) :: status
         end subroutine move_to_window_line
@@ -426,14 +428,14 @@ module window_fm
         !> A near full screen is `next_screen_context_lines' less than a
         !> full screen.  Negative ARG means scroll downward.
         !>
-        !> If ARG is `-', scroll downward by nearly full screen.
+        !> If ARG is PREFIX_MINUS, scroll downward by nearly full screen.
         !>
         !> The command \[set_goal_column] can be used to create a
         !> semipermanent goal column for this command.  Port of
         !> window.el:scroll-up-command.
         recursive module subroutine scroll_up_command(arg, status)
             implicit none(type, external)
-            type(value_type), intent(in) :: arg
+            type(prefix_arg_type), intent(in) :: arg
             type(status_type), intent(out) :: status
         end subroutine scroll_up_command
 
@@ -450,14 +452,14 @@ module window_fm
         !> A near full screen is `next_screen_context_lines' less than a
         !> full screen.  Negative ARG means scroll upward.
         !>
-        !> If ARG is `-', scroll upward by nearly full screen.
+        !> If ARG is PREFIX_MINUS, scroll upward by nearly full screen.
         !>
         !> The command \[set_goal_column] can be used to create a
         !> semipermanent goal column for this command.  Port of
         !> window.el:scroll-down-command.
         recursive module subroutine scroll_down_command(arg, status)
             implicit none(type, external)
-            type(value_type), intent(in) :: arg
+            type(prefix_arg_type), intent(in) :: arg
             type(status_type), intent(out) :: status
         end subroutine scroll_down_command
 
@@ -487,7 +489,7 @@ module window_fm
         !> window.el:scroll-other-window.
         recursive module subroutine scroll_other_window(lines, status)
             implicit none(type, external)
-            type(value_type), intent(in) :: lines
+            type(prefix_arg_type), intent(in) :: lines
             type(status_type), intent(out) :: status
         end subroutine scroll_other_window
 
@@ -496,7 +498,7 @@ module window_fm
         !> window.el:scroll-other-window-down.
         recursive module subroutine scroll_other_window_down(lines, status)
             implicit none(type, external)
-            type(value_type), intent(in) :: lines
+            type(prefix_arg_type), intent(in) :: lines
             type(status_type), intent(out) :: status
         end subroutine scroll_other_window_down
 
@@ -513,7 +515,7 @@ module window_fm
         !> to window center.  Port of window.el:recenter-top-bottom.
         module subroutine recenter_top_bottom(arg, status)
             implicit none(type, external)
-            type(value_type), intent(in) :: arg
+            type(prefix_arg_type), intent(in) :: arg
             type(status_type), intent(out) :: status
         end subroutine recenter_top_bottom
 
@@ -527,7 +529,7 @@ module window_fm
         !> window.el:move-to-window-line-top-bottom.
         module subroutine move_to_window_line_top_bottom(arg, status)
             implicit none(type, external)
-            type(value_type), intent(in) :: arg
+            type(prefix_arg_type), intent(in) :: arg
             type(status_type), intent(out) :: status
         end subroutine move_to_window_line_top_bottom
 

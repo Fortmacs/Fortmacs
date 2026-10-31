@@ -26,6 +26,7 @@
 !> `translation_table_for_input', and intangible/invisible text.
 module cmds_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: PREFIX_NONE
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, &
                         FM_BEGINNING_OF_BUFFER, &
@@ -42,7 +43,6 @@ module cmds_fm
     use keyboard_fm, only: last_command_event, this_command, last_command
     use lisp_fm, only: value_type
     use eval_fm, only: hook_type
-    use data_fm, only: value_eq
     use undo_fm, only: undo_auto_amalgamate, this_command_amalgamating
     use dispnew_fm, only: ding
     use syntax_fm, only: char_syntax_class, SWORD
@@ -219,7 +219,7 @@ contains
         integer(int64) :: pos
         logical :: kill
 
-        if (abs(n) < 2) call undo_auto_amalgamate(value_eq(this_command, last_command))
+        if (abs(n) < 2) call undo_auto_amalgamate(associated(this_command, last_command))
         pos = buffers(cur)%pt + n
         kill = .false.
         if (present(killflag)) kill = killflag
@@ -264,7 +264,7 @@ contains
             return
         end if
 
-        if (n < 2) call undo_auto_amalgamate(value_eq(this_command, last_command))
+        if (n < 2) call undo_auto_amalgamate(associated(this_command, last_command))
 
         ! Barf if the key that invoked this was not a character.
         if (c < 0 .or. c > MAX_CHAR) then
@@ -462,7 +462,7 @@ contains
     subroutine cmd_delete_char(status)
         type(status_type), intent(out) :: status
 
-        call delete_char(numeric_prefix_arg(), status, allocated(current_prefix_arg%a))
+        call delete_char(numeric_prefix_arg(), status, current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_delete_char
 
     !> Insert the character you type.

@@ -24,6 +24,7 @@
 !> submodule because minibuf_fm uses subr_fm.
 submodule(subr_fm) subr_read_fm
     use commands_fm, only: commands
+    use callint_fm, only: command_type
     use minibuf_fm, only: minibuffer_string_type
     use character_fm, only: string_char_and_length
     use, intrinsic :: iso_fortran_env, only: int32
@@ -355,7 +356,8 @@ contains
 
     module procedure read_y_or_n
     character(len=:), allocatable :: padded, str
-    type(value_type) :: key, saved_this, saved_real_this
+    type(value_type) :: key
+    type(command_type), pointer :: saved_this, saved_real_this
     type(status_type) :: st
     integer :: def
     logical :: saved_enable, again
@@ -389,11 +391,11 @@ contains
             case (ANSWER_SKIP, ANSWER_ACT)
                 again = .false.
             case (ANSWER_RECENTER)
-                call recenter(value_type(), .false., st)
+                call recenter(prefix_arg_type(), .false., st)
             case (ANSWER_SCROLL_UP)
-                call scroll_up_command(value_type(), st)
+                call scroll_up_command(prefix_arg_type(), st)
             case (ANSWER_SCROLL_DOWN)
-                call scroll_down_command(value_type(), st)
+                call scroll_down_command(prefix_arg_type(), st)
             case (ANSWER_SCROLL_OTHER_WINDOW, ANSWER_SCROLL_OTHER_WINDOW_DOWN)
                 ! scroll-other-window and scroll-other-window-down are not
                 ! ported (Deferred).
@@ -422,8 +424,8 @@ contains
         enable_recursive_minibuffers = .true.
         ! Protect this-command, and preserve the actual command that
         ! eventually called `read_y_or_n'.
-        saved_this = this_command
-        saved_real_this = real_this_command
+        saved_this => this_command
+        saved_real_this => real_this_command
 
         if (allocated(read_y_or_n_history_variable)) then
             call read_from_minibuffer(padded, str, status, keymap=read_y_or_n_map, history=read_y_or_n_history_variable)
@@ -432,8 +434,8 @@ contains
         end if
 
         enable_recursive_minibuffers = saved_enable
-        this_command = saved_this
-        real_this_command = saved_real_this
+        this_command => saved_this
+        real_this_command => saved_real_this
         if (.not. status%ok()) return
         answer = str == "y" .or. str == "Y"
     end if
@@ -686,7 +688,8 @@ contains
 
     module procedure read_char_from_minibuffer
     type(handle_type) :: map
-    type(value_type) :: key1(1), saved_this
+    type(value_type) :: key1(1)
+    type(command_type), pointer :: saved_this
     type(status_type) :: st
     character(len=:), allocatable :: result, saved_help
     character(len=MAX_MULTIBYTE_LENGTH) :: buf
@@ -723,7 +726,7 @@ contains
     end if
 
     ! Protect this-command when called from pre-command-hook (bug#45029)
-    saved_this = this_command
+    saved_this => this_command
 
     if (present(history)) then
         call read_from_minibuffer(prompt, result, status, keymap=map, history=history)
@@ -731,7 +734,7 @@ contains
         call read_from_minibuffer(prompt, result, status, keymap=map, history="t")
     end if
 
-    this_command = saved_this
+    this_command => saved_this
     if (present(chars)) call free_keymap(map, st)
 
     if (had_help) then
@@ -810,7 +813,7 @@ contains
     end subroutine help_procedure_show
 
     module procedure read_char_choice
-    type(value_type) :: saved_last
+    type(command_type), pointer :: saved_last
 
     if (.not. read_char_choice_use_read_key) then
         ! We are about to enter recursive-edit, which sets
@@ -818,9 +821,9 @@ contains
         ! logic based on `last_command''s value (example: `kill_region'),
         ! that could interfere with their logic.  So we save, set and restore
         ! `last_command' here to prevent that.
-        saved_last = last_command
+        saved_last => last_command
         call read_char_from_minibuffer(prompt, c, status, chars=chars, help_procedure=help_procedure)
-        last_command = saved_last
+        last_command => saved_last
     else
         call read_char_choice_with_read_key(prompt, chars, c, status, inhibit_keyboard_quit, help_procedure)
     end if

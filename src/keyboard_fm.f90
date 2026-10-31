@@ -71,7 +71,8 @@ module keyboard_fm
                          overriding_terminal_local_map, pushed_terminal_local_map, keymap_events, lookup_key, command_remapping, &
                          push_key_description, key_parse, M_UP, M_DOWN, M_DRAG, M_CLICK, M_DOUBLE, M_TRIPLE
     use callint_fm, only: call_interactively, current_prefix_arg, prefix_arg, &
-                          prefix_numeric_value, this_command, command_name_of
+                          prefix_numeric_value, this_command, command_name_of, command_of, command_type, &
+                          prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
     use buffer_fm, only: buffers, cur, deactivate_mark_variable, transient_mark_mode, current_buffer, set_buffer
     use casetab_fm, only: downcase, is_uppercase
     use undo_fm, only: undo_auto_add_boundary, point_before_last_command_or_undo, &
@@ -124,18 +125,23 @@ module keyboard_fm
     !> keyboard.c:Vkey_translation_map.
     type(handle_type), public :: key_translation_map
 
-    !> keyboard.c:last_command_event, KVAR last_command and friends
-    !> (Vthis_command is callint_fm's `this_command').
-    type(value_type), public :: last_command_event, &
-                                real_this_command, last_command, &
-                                real_last_command, last_prefix_arg
+    !> keyboard.c:last_command_event.
+    type(value_type), public :: last_command_event
+    !> KVAR last_command, real_last_command and keyboard.c:real_this_command
+    !> (Vthis_command is callint_fm's `this_command'): null for none, or
+    !> for a key bound to a keyboard macro (Deferred: upstream keeps the
+    !> macro there).
+    type(command_type), pointer, public :: real_this_command => null(), last_command => null(), &
+                                           real_last_command => null()
+    !> The prefix argument of the previous command (KVAR last_prefix_arg).
+    type(prefix_arg_type), public :: last_prefix_arg
     public :: this_command
     !> Last command that may be repeated.
     !> The last command executed that was not bound to an input event.
     !> This is the command `repeat' will try to repeat.
     !> Taken from a previous value of `real_this_command'.  Port of
     !> keyboard.c last-repeatable-command.
-    type(value_type), public :: last_repeatable_command
+    type(command_type), pointer, public :: last_repeatable_command => null()
     !> Number of complete key sequences read as input so far.
     !> This includes key sequences read from keyboard macros.
     !> The number is effectively the number of interactive command
@@ -542,7 +548,8 @@ module keyboard_fm
         ! Port of macros.c:Fexecute_kbd_macro.
         recursive module subroutine execute_kbd_macro_value(macro, count, status, loopfunc)
             implicit none(type, external)
-            type(value_type), intent(in) :: macro, count
+            type(value_type), intent(in) :: macro
+            type(prefix_arg_type), intent(in) :: count
             type(status_type), intent(out) :: status
             procedure(kbd_macro_loop_proc), optional :: loopfunc
         end subroutine execute_kbd_macro_value
@@ -550,7 +557,8 @@ module keyboard_fm
         ! Port of macros.c:Fexecute_kbd_macro.
         recursive module subroutine execute_kbd_macro_events(macro, count, status, loopfunc)
             implicit none(type, external)
-            type(value_type), intent(in) :: macro(:), count
+            type(value_type), intent(in) :: macro(:)
+            type(prefix_arg_type), intent(in) :: count
             type(status_type), intent(out) :: status
             procedure(kbd_macro_loop_proc), optional :: loopfunc
         end subroutine execute_kbd_macro_events
@@ -584,7 +592,7 @@ module keyboard_fm
         !> integer).
         recursive module subroutine end_kbd_macro(repeat, status, loopfunc)
             implicit none(type, external)
-            type(value_type), intent(in) :: repeat
+            type(prefix_arg_type), intent(in) :: repeat
             type(status_type), intent(out) :: status
             procedure(kbd_macro_loop_proc), optional :: loopfunc
         end subroutine end_kbd_macro
@@ -598,7 +606,7 @@ module keyboard_fm
         !> false.  Port of macros.c:Fcall_last_kbd_macro.
         recursive module subroutine call_last_kbd_macro(prefix, status, loopfunc)
             implicit none(type, external)
-            type(value_type), intent(in) :: prefix
+            type(prefix_arg_type), intent(in) :: prefix
             type(status_type), intent(out) :: status
             procedure(kbd_macro_loop_proc), optional :: loopfunc
         end subroutine call_last_kbd_macro
@@ -1766,7 +1774,7 @@ contains
         if (transient_keep) then
             call lookup_key(map_value(overriding_terminal_local_map), keys, mc, st)
 
-            if (st%ok() .and. allocated(mc%a) .and. value_eq(this_command, mc)) then
+            if (st%ok() .and. allocated(mc%a) .and. associated(this_command, command_of(mc))) then
                 ! Repeat the message for the next command.
                 if (allocated(transient_message)) last_message = transient_message
                 return
@@ -2070,8 +2078,8 @@ contains
             macro_active = .false.
             macro_started = .false.
             if (allocated(macro_events)) deallocate (macro_events)
-            prefix_arg = value_type()
-            last_prefix_arg = value_type()
+            prefix_arg = prefix_arg_type()
+            last_prefix_arg = prefix_arg_type()
             return
         end if
 
@@ -2089,8 +2097,8 @@ contains
         macro_active = .false.
         macro_started = .false.
         if (allocated(macro_events)) deallocate (macro_events)
-        prefix_arg = value_type()
-        last_prefix_arg = value_type()
+        prefix_arg = prefix_arg_type()
+        last_prefix_arg = prefix_arg_type()
         ! command-error-default-function
         call discard_input()
         call bitch_at_user(st)
@@ -2109,7 +2117,8 @@ contains
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
         type(value_type) :: cmd, remapped
-        logical :: eof, handled, have_prefix
+        type(command_type), pointer :: key_command
+        logical :: eof, handled, have_prefix, changed
         procedure(command_wrapper_proc), pointer :: wrapper
         character(len=:), allocatable :: prefix
         integer(int64) :: last_point_position, prev_serial, prev_modiff
@@ -2117,8 +2126,8 @@ contains
         done = .false.
         ! Make sure the current window's buffer is selected.
         call select_window_buffer()
-        this_command = value_type()
-        real_this_command = value_type()
+        this_command => null()
+        real_this_command => null()
         this_command_keys_shift_translated = .false.
         ! Read next key sequence.
         raw_keybuf_count = 0
@@ -2148,15 +2157,30 @@ contains
         last_command_event = keys(size(keys))
         ! Execute the command: recorded in recent_keys as (nil . cmd).
         call record_recent(cmd, .true.)
-        this_command = cmd
-        real_this_command = cmd
+        ! The command the binding names (null for a keyboard macro).
+        key_command => command_of(cmd)
+        this_command => key_command
+        real_this_command => key_command
         ! pre-command-hook: a transient map lasts for one key sequence,
         ! unless KEEP-PRED keeps it.
         if (transient_active) call clear_transient_map(keys)
         call safe_run_hooks_maybe_narrowed(pre_command_hook)
         ! The hook may have changed the command (command-execute runs
         ! this-command).
-        cmd = this_command
+        changed = associated(this_command) .neqv. associated(key_command)
+
+        if (associated(this_command) .and. .not. changed) then
+            changed = .not. associated(this_command, key_command)
+        end if
+
+        if (changed) then
+            if (associated(this_command)) then
+                cmd = value_type(name=this_command%name)
+            else
+                cmd = value_type()
+            end if
+        end if
+
         wrapper => this_command_wrapper
         this_command_wrapper => null()
         ! By default, we adjust point to a boundary of a region that has
@@ -2190,7 +2214,7 @@ contains
         else
             ! simple.el:command-execute
             current_prefix_arg = prefix_arg
-            prefix_arg = value_type()
+            prefix_arg = prefix_arg_type()
 
             if (associated(wrapper)) then
                 call wrapper(cmd, status)
@@ -2214,18 +2238,18 @@ contains
             call set_command_key_count(0)
             this_single_command_key_start = 0
             call safe_run_hooks_maybe_narrowed(post_command_hook)
-            last_command = this_command
-            real_last_command = real_this_command
-            if (vtag(last_command_event) /= V_ARRAY) last_repeatable_command = real_this_command
+            last_command => this_command
+            real_last_command => real_this_command
+            if (vtag(last_command_event) /= V_ARRAY) last_repeatable_command => real_this_command
             done = eof
             return
         end if
 
         last_prefix_arg = current_prefix_arg
         call safe_run_hooks_maybe_narrowed(post_command_hook)
-        last_command = this_command
-        real_last_command = real_this_command
-        if (vtag(last_command_event) /= V_ARRAY) last_repeatable_command = real_this_command
+        last_command => this_command
+        real_last_command => real_this_command
+        if (vtag(last_command_event) /= V_ARRAY) last_repeatable_command => real_this_command
         call set_command_key_count(0)
         this_single_command_key_start = 0
         call internal_echo_keystrokes_prefix(prefix, have_prefix)
@@ -2261,7 +2285,7 @@ contains
         end if
 
         ! Install chars successfully executed in kbd macro.
-        if (defining_kbd_macro /= DEFINING_KBD_MACRO_NO .and. .not. allocated(prefix_arg%a)) call finalize_kbd_macro_chars()
+        if (defining_kbd_macro /= DEFINING_KBD_MACRO_NO .and. prefix_arg%kind == PREFIX_NONE) call finalize_kbd_macro_chars()
         done = eof
     end subroutine command_loop_step
 
@@ -2935,40 +2959,37 @@ contains
     subroutine universal_argument_description(s, have)
         character(len=:), allocatable, intent(out) :: s
         logical, intent(out) :: have
-        type(value_type) :: head
         character(len=:), allocatable :: str
         character(len=24) :: buf
         integer(int64) :: n
 
-        have = allocated(prefix_arg%a)
+        have = prefix_arg%kind /= PREFIX_NONE
         if (.not. have) return
         s = "C-u"
 
-        if (value_eq(prefix_arg, value_type(name="-"))) then
+        select case (prefix_arg%kind)
+        case (PREFIX_MINUS)
             s = s//" -"
-        else if (vtag(prefix_arg) == V_ARRAY) then
-            head = list_elt(prefix_arg, 1_int64)
+        case (PREFIX_RAW)
+            n = prefix_arg%value
+            str = ""
 
-            if (vtag(head) == V_INTEGER) then
-                n = xfixnum(head)
-                str = ""
+            do while (n > 4 .and. modulo(n, 4_int64) == 0)
+                str = str//" C-u"
+                n = n/4
+            end do
 
-                do while (n > 4 .and. modulo(n, 4_int64) == 0)
-                    str = str//" C-u"
-                    n = n/4
-                end do
-
-                if (n == 4) then
-                    s = s//str
-                else
-                    write (buf, "(i0)") xfixnum(head)
-                    s = s//" ("//trim(buf)//")"
-                end if
+            if (n == 4) then
+                s = s//str
+            else
+                write (buf, "(i0)") prefix_arg%value
+                s = s//" ("//trim(buf)//")"
             end if
-        else if (vtag(prefix_arg) == V_INTEGER) then
-            write (buf, "(i0)") xfixnum(prefix_arg)
+        case (PREFIX_NUMBER)
+            write (buf, "(i0)") prefix_arg%value
             s = s//" "//trim(buf)
-        end if
+        case default
+        end select
     end subroutine universal_argument_description
 
     ! ------------------------------------------------------------------
@@ -3731,8 +3752,8 @@ contains
     !> and `last_command' set.  Port of keyboard.c:command_loop_1 (its
     !> start).
     recursive subroutine command_loop_1_start()
-        prefix_arg = value_type()
-        last_prefix_arg = value_type()
+        prefix_arg = prefix_arg_type()
+        last_prefix_arg = prefix_arg_type()
         deactivate_mark_variable = .false.
         call cancel_echoing()
         call set_command_key_count(0)
@@ -3741,8 +3762,8 @@ contains
         ! to top level.
         call safe_run_hooks_maybe_narrowed(post_command_hook)
         ! Do this after running Vpost_command_hook, for consistency.
-        last_command = this_command
-        real_last_command = real_this_command
-        if (vtag(last_command_event) /= V_ARRAY) last_repeatable_command = real_this_command
+        last_command => this_command
+        real_last_command => real_this_command
+        if (vtag(last_command_event) /= V_ARRAY) last_repeatable_command => real_this_command
     end subroutine command_loop_1_start
 end module keyboard_fm

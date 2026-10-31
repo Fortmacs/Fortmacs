@@ -22,6 +22,7 @@
 
 module test_kmacro_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: prefix_arg_type, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error, FM_QUIT
@@ -111,8 +112,8 @@ contains
         call show_alone()
         defining_kbd_macro = DEFINING_KBD_MACRO_NO
         call discard_input()
-        prefix_arg = value_type()
-        current_prefix_arg = value_type()
+        prefix_arg = prefix_arg_type()
+        current_prefix_arg = prefix_arg_type()
         call init_bindings()
         kmacro_execute_before_append = .true.
         kmacro_ring_max = 8
@@ -202,38 +203,38 @@ contains
         type(status_type) :: st
         integer :: k
 
-        current_prefix_arg = value_type()
-        call kmacro_start_macro(value_type(), st)
+        current_prefix_arg = prefix_arg_type()
+        call kmacro_start_macro(prefix_arg_type(), st)
 
         do k = 1, size(evs)
             call store_kbd_macro_event(evs(k))
         end do
 
         call finalize_kbd_macro_chars()
-        call kmacro_end_macro(value_type(), st)
+        call kmacro_end_macro(prefix_arg_type(), st)
     end subroutine define_macro
 
     !> Insert the counter as kmacro-tests-simulate-command does, with
     !> current-prefix-arg ARG.
     subroutine insert_counter(arg)
-        type(value_type), intent(in) :: arg
+        type(prefix_arg_type), intent(in) :: arg
         type(status_type) :: st
 
         current_prefix_arg = arg
         call kmacro_insert_counter(arg, st)
-        current_prefix_arg = value_type()
+        current_prefix_arg = prefix_arg_type()
     end subroutine insert_counter
 
     !> Set the counter as kmacro-tests-simulate-command does.
     subroutine set_counter(n, arg)
         integer(int64), intent(in) :: n
-        type(value_type), intent(in), optional :: arg
+        type(prefix_arg_type), intent(in), optional :: arg
         type(status_type) :: st
 
-        current_prefix_arg = value_type(n)
+        current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, n)
         if (present(arg)) current_prefix_arg = arg
         call kmacro_set_counter(n, st)
-        current_prefix_arg = value_type()
+        current_prefix_arg = prefix_arg_type()
     end subroutine set_counter
 
     !> The text of the current buffer.
@@ -254,8 +255,8 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        call insert_counter(value_type())
-        call insert_counter(value_type())
+        call insert_counter(prefix_arg_type())
+        call insert_counter(prefix_arg_type())
         call check(error, text(), "01")
         call kill_buffer(h, st)
     end subroutine test_insert_counter_01
@@ -267,9 +268,9 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        call insert_counter(value_type(2_int64))
-        call insert_counter(value_type(3_int64))
-        call insert_counter(value_type())
+        call insert_counter(prefix_arg_type(PREFIX_NUMBER, 2_int64))
+        call insert_counter(prefix_arg_type(PREFIX_NUMBER, 3_int64))
+        call insert_counter(prefix_arg_type())
         call check(error, text(), "025")
         call kill_buffer(h, st)
     end subroutine test_insert_counter_02
@@ -281,8 +282,8 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        call insert_counter(list(value_type(16_int64)))
-        call insert_counter(list(value_type(4_int64)))
+        call insert_counter(prefix_arg_type(PREFIX_RAW, 16_int64))
+        call insert_counter(prefix_arg_type(PREFIX_RAW, 4_int64))
         call check(error, text(), "00")
         call kill_buffer(h, st)
     end subroutine test_insert_counter_03
@@ -294,8 +295,8 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        call insert_counter(value_type(name="-"))
-        call insert_counter(value_type())
+        call insert_counter(prefix_arg_type(PREFIX_MINUS))
+        call insert_counter(prefix_arg_type())
         call check(error, text(), "0-1")
         call kill_buffer(h, st)
     end subroutine test_insert_counter_04
@@ -308,11 +309,11 @@ contains
 
         call fresh(h)
         call set_counter(10_int64)
-        call insert_counter(value_type())
-        call insert_counter(value_type())
+        call insert_counter(prefix_arg_type())
+        call insert_counter(prefix_arg_type())
         call kmacro_set_format("c=%s")
         call set_counter(50_int64)
-        call insert_counter(value_type())
+        call insert_counter(prefix_arg_type())
         call check(error, text(), "1011c=50")
         call kill_buffer(h, st)
     end subroutine test_start_format_counter
@@ -324,11 +325,11 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        call kmacro_start_macro(value_type(), st)
+        call kmacro_start_macro(prefix_arg_type(), st)
         call check(error, defining_kbd_macro /= DEFINING_KBD_MACRO_NO .and. .not. allocated(last_kbd_macro), &
                    "recording")
         if (allocated(error)) return
-        call kmacro_start_macro(value_type(), st)
+        call kmacro_start_macro(prefix_arg_type(), st)
         call check(error, defining_kbd_macro /= DEFINING_KBD_MACRO_NO .and. .not. allocated(last_kbd_macro), &
                    "still recording")
         if (allocated(error)) return
@@ -344,15 +345,15 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        current_prefix_arg = value_type(5_int64)
-        call kmacro_start_macro(value_type(5_int64), st)
-        current_prefix_arg = value_type()
-        call insert_counter(value_type())
+        current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, 5_int64)
+        call kmacro_start_macro(prefix_arg_type(PREFIX_NUMBER, 5_int64), st)
+        current_prefix_arg = prefix_arg_type()
+        call insert_counter(prefix_arg_type())
         call set_counter(1_int64)
-        call insert_counter(value_type())
+        call insert_counter(prefix_arg_type())
         ! Using universal arg to set counter should reset to starting value.
-        call set_counter(4_int64, list(value_type(4_int64)))
-        call insert_counter(value_type())
+        call set_counter(4_int64, prefix_arg_type(PREFIX_RAW, 4_int64))
+        call insert_counter(prefix_arg_type())
         call check(error, text(), "515")
         call discard_input()
         call kill_buffer(h, st)
@@ -365,18 +366,18 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        call kmacro_start_macro_or_insert_counter(value_type(), st)
+        call kmacro_start_macro_or_insert_counter(prefix_arg_type(), st)
         call check(error, defining_kbd_macro /= DEFINING_KBD_MACRO_NO, "recording")
         if (allocated(error)) return
         ! Call it again and it should insert the counter.
-        call kmacro_start_macro_or_insert_counter(value_type(), st)
+        call kmacro_start_macro_or_insert_counter(prefix_arg_type(), st)
         call check(error, text(), "0")
         if (allocated(error)) return
         ! The macro recorded is "hello" (kmacro-tests-end-macro-advice).
         call record(chars("hello"))
-        current_prefix_arg = value_type(3_int64)
-        call kmacro_end_or_call_macro(value_type(3_int64), st)
-        current_prefix_arg = value_type()
+        current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, 3_int64)
+        call kmacro_end_or_call_macro(prefix_arg_type(PREFIX_NUMBER, 3_int64), st)
+        current_prefix_arg = prefix_arg_type()
         call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NO, "finished")
         if (allocated(error)) return
         call check(error, text(), "0hellohello", "the definition repeated")
@@ -384,9 +385,9 @@ contains
         call erase_buffer(st)
         ! Now use prefix arg to append to the previous macro.
         ! This should run the previous macro first.
-        current_prefix_arg = list(value_type(4_int64))
+        current_prefix_arg = prefix_arg_type(PREFIX_RAW, 4_int64)
         call kmacro_start_macro_or_insert_counter(current_prefix_arg, st)
-        current_prefix_arg = value_type()
+        current_prefix_arg = prefix_arg_type()
         call check(error, text(), "hello")
         if (allocated(error)) return
         call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_APPEND, "append")
@@ -473,9 +474,9 @@ contains
 
         if (set) call set_counter(start)
         call define_macro(kbd(mac))
-        current_prefix_arg = value_type(count)
-        call kmacro_end_or_call_macro(value_type(count), st)
-        current_prefix_arg = value_type()
+        current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, count)
+        call kmacro_end_or_call_macro(prefix_arg_type(PREFIX_NUMBER, count), st)
+        current_prefix_arg = prefix_arg_type()
         call check(error, st%ok(), name//": "//format_error(st))
         if (allocated(error)) return
         call check(error, text(), expected, name)
@@ -497,8 +498,8 @@ contains
         call fresh(h)
         if (set) call set_counter(start)
         call define_macro(kbd(mac))
-        current_prefix_arg = value_type(4_int64)
-        call kmacro_end_or_call_macro(value_type(4_int64), st)
+        current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, 4_int64)
+        call kmacro_end_or_call_macro(prefix_arg_type(PREFIX_NUMBER, 4_int64), st)
         call check(error, text(), expected, name)
         if (allocated(error)) return
 
@@ -507,9 +508,9 @@ contains
             if (allocated(error)) return
         end if
 
-        current_prefix_arg = value_type(1_int64)
-        call kmacro_end_or_call_macro(value_type(1_int64), st)
-        current_prefix_arg = value_type()
+        current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, 1_int64)
+        call kmacro_end_or_call_macro(prefix_arg_type(PREFIX_NUMBER, 1_int64), st)
+        current_prefix_arg = prefix_arg_type()
         call check(error, (st%code == FM_QUIT) .eqv. quits, name//": quit")
         if (allocated(error)) return
         if (.not. quits) call check(error, kmacro_counter == after, name//": counter")
@@ -526,11 +527,11 @@ contains
         call define_macro(chars("macro #1"))
         call define_macro(chars("macro #2"))
         ! With no prefix arg, it should call the second macro.
-        call kmacro_end_or_call_macro(value_type(), st)
+        call kmacro_end_or_call_macro(prefix_arg_type(), st)
         call check(error, text(), "macro #2")
         if (allocated(error)) return
         ! With universal arg, it should call the first one.
-        call kmacro_end_or_call_macro(list(value_type(4_int64)), st)
+        call kmacro_end_or_call_macro(prefix_arg_type(PREFIX_RAW, 4_int64), st)
         call check(error, text(), "macro #2macro #1")
         call kill_buffer(h, st)
     end subroutine test_end_call_prefix_args
@@ -543,8 +544,8 @@ contains
 
         call fresh(h)
         ! First, try it with no macro to record.
-        call kmacro_start_macro(value_type(), st)
-        call kmacro_end_and_call_macro(value_type(2_int64), st)
+        call kmacro_start_macro(prefix_arg_type(), st)
+        call kmacro_end_and_call_macro(prefix_arg_type(PREFIX_NUMBER, 2_int64), st)
         call check(error, format_error(st), "No kbd macro has been defined")
         if (allocated(error)) return
         ! Check that it stopped defining and that no macro was recorded.
@@ -553,7 +554,7 @@ contains
         if (allocated(error)) return
         ! Now try it while not recording, but first record a macro.
         call define_macro(chars("macro"))
-        call kmacro_end_and_call_macro(value_type(), st)
+        call kmacro_end_and_call_macro(prefix_arg_type(), st)
         call check(error, text(), "macro")
         call kill_buffer(h, st)
     end subroutine test_end_and_call_macro
@@ -572,7 +573,7 @@ contains
         last_input_event = value_type(int(iachar("e"), int64))
         this_command_keys = kbd("C-x e")
         last_message = ""
-        call kmacro_call_macro(value_type(3_int64), st)
+        call kmacro_call_macro(prefix_arg_type(PREFIX_NUMBER, 3_int64), st)
         call check(error, last_message, "(Type e to repeat macro 3 times)")
         if (allocated(error)) return
         ! Check that it set up for repeat, and run the repeat.
@@ -589,13 +590,13 @@ contains
 
         call fresh(h)
         ! Record one macro, with count.
-        current_prefix_arg = value_type(1_int64)
-        call kmacro_start_macro(value_type(1_int64), st)
-        current_prefix_arg = value_type()
+        current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, 1_int64)
+        call kmacro_start_macro(prefix_arg_type(PREFIX_NUMBER, 1_int64), st)
+        current_prefix_arg = prefix_arg_type()
         call record(kbd("C-x C-k C-i C-u C-x C-k C-i"))
-        call kmacro_end_macro(value_type(), st)
+        call kmacro_end_macro(prefix_arg_type(), st)
         ! Check that execute and display do nothing with no 2nd macro.
-        call kmacro_call_ring_2nd(value_type(), st)
+        call kmacro_call_ring_2nd(prefix_arg_type(), st)
         call check(error, text(), "")
         if (allocated(error)) return
         call kmacro_view_ring_2nd(st)
@@ -605,7 +606,7 @@ contains
         call kmacro_set_format("=%d=")
         call define_macro(chars("bar"))
         ! Execute the first one; should get default format.
-        call kmacro_call_ring_2nd(value_type(), st)
+        call kmacro_call_ring_2nd(prefix_arg_type(), st)
         call check(error, text(), "11")
         if (allocated(error)) return
         ! Now display the 2nd ring macro and check result.
@@ -633,7 +634,7 @@ contains
         call check(error, last_message, "Macro: bb")
         if (allocated(error)) return
         ! Execute the current macro and check arguments.
-        call kmacro_call_macro(value_type(2_int64), st, KMACRO_REPEAT_NO)
+        call kmacro_call_macro(prefix_arg_type(PREFIX_NUMBER, 2_int64), st, KMACRO_REPEAT_NO)
         call check(error, text(), "bbbb")
         if (allocated(error)) return
         ! Cycle the ring the other way; #5 expected.
@@ -674,7 +675,7 @@ contains
             case (5)
                 call kmacro_view_ring_2nd(st)
             case (6)
-                call kmacro_call_ring_2nd(value_type(), st)
+                call kmacro_call_ring_2nd(prefix_arg_type(), st)
             case default
                 ! kmacro-view-macro says so, then that there are none.
                 call kmacro_view_macro(st)
@@ -701,7 +702,7 @@ contains
         call define_macro(chars("b"))
         call define_macro(chars("c"))
         call define_macro(chars("d"))
-        last_command = value_type()
+        last_command => null()
         ! 6 views (the first plus 5 repeats) should cycle through the ring
         ! and get to the second-to-last macro defined; C-k runs it.
         call type_events(kbd("C-x C-k C-v C-v C-v C-v C-v C-v C-k"))
@@ -865,9 +866,9 @@ contains
         terminations = 0
         call kbd_macro_termination_hook%add(count_termination)
         call define_macro(chars("a"))
-        call kmacro_call_macro(value_type(2_int64), st)
+        call kmacro_call_macro(prefix_arg_type(PREFIX_NUMBER, 2_int64), st)
         call define_macro(kbd("C-a C-b"))
-        call kmacro_call_macro(value_type(), st)
+        call kmacro_call_macro(prefix_arg_type(), st)
         call kbd_macro_termination_hook%remove(count_termination)
         call check(error, terminations, 2)
         if (allocated(error)) return
@@ -889,7 +890,7 @@ contains
         call mode_line_modes_faces(h%index, modes, spans, faces)
         call check(error, modes, "Fundamental")
         if (allocated(error)) return
-        call kmacro_start_macro(value_type(), st)
+        call kmacro_start_macro(prefix_arg_type(), st)
         call mode_line_modes_faces(h%index, modes, spans, faces)
         call check(error, modes, "Fundamental Def")
         if (allocated(error)) return

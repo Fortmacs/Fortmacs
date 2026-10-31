@@ -21,6 +21,7 @@
 
 module test_register_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: prefix_arg_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error, FM_QUIT, FM_WRONG_TYPE_ARGUMENT, FM_USER_ERROR
@@ -104,7 +105,7 @@ contains
 
         register_separator = -1
         call discard_input()
-        prefix_arg = value_type()
+        prefix_arg = prefix_arg_type()
         call init_bindings()
     end subroutine fresh
 

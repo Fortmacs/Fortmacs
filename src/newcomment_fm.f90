@@ -52,9 +52,10 @@
 !> (they are the same commands under their upstream names).
 module newcomment_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS, command_type
     use error_fm, only: status_type, set_error, format_message, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER, V_ARRAY
+    use lisp_fm, only: value_type
     use data_fm, only: value_eq, add_local_variables_killer
     use data_fm, only: integer_setting, logical_setting, string_setting, function_setting, forward_setting
     use commands_fm, only: commands
@@ -392,11 +393,18 @@ module newcomment_fm
         type(handle_type) :: beg, end
     end type restriction_type
 
+    !> Upstream's name comment-line-backward, which is not a command: what
+    !> `this_command' becomes when `comment_line' goes backward, so that
+    !> repeating it goes on backward (named in `syms_of_newcomment').
+    type(command_type), target :: comment_line_backward
+
 contains
 
     !> Define the commenting commands and variables (bindings_fm binds
     !> M-;, C-x ; and C-x C-;, as bindings.el does).  Not a port.
     subroutine syms_of_newcomment()
+        comment_line_backward%name = "comment_line_backward"
+        comment_line_backward%is_command = .false.
         call forward_setting(comment_use_syntax)
         call forward_setting(comment_column, local_if_set=.true.)
         call forward_setting(comment_start)
@@ -1731,9 +1739,9 @@ contains
     recursive subroutine cmd_comment_set_column(status)
         type(status_type), intent(out) :: status
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call comment_set_column(status)
-        else if (value_eq(current_prefix_arg, value_type(name="-"))) then
+        else if (current_prefix_arg%kind == PREFIX_MINUS) then
             call comment_set_column(status, minus=.true.)
         else
             call comment_set_column(status, arg=.true.)
@@ -1785,7 +1793,7 @@ contains
     recursive subroutine cmd_comment_kill(status)
         type(status_type), intent(out) :: status
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call comment_kill(status)
         else
             call comment_kill(status, prefix_numeric_value(current_prefix_arg))
@@ -2006,9 +2014,9 @@ contains
         type(status_type), intent(out) :: status
         procedure(comment_region_proc) :: region_fn
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call region_fn(beg, end, status)
-        else if (vtag(current_prefix_arg) == V_ARRAY) then
+        else if (current_prefix_arg%kind == PREFIX_RAW) then
             call region_fn(beg, end, status, prefix_numeric_value(current_prefix_arg), .true.)
         else
             call region_fn(beg, end, status, prefix_numeric_value(current_prefix_arg))
@@ -2906,9 +2914,9 @@ contains
         if (.not. blank) then
             ! FIXME: If there's no comment to kill on this line and ARG is
             ! specified, calling comment-kill is not very clever.
-            if (allocated(current_prefix_arg%a)) then
-                if (vtag(current_prefix_arg) == V_INTEGER) then
-                    call comment_kill(status, xfixnum(current_prefix_arg))
+            if (current_prefix_arg%kind /= PREFIX_NONE) then
+                if (current_prefix_arg%kind == PREFIX_NUMBER) then
+                    call comment_kill(status, current_prefix_arg%value)
                 else
                     call comment_kill(status)
                 end if
@@ -2959,7 +2967,7 @@ contains
     !> Otherwise obey `comment_add'.  Port of newcomment.el:comment-add
     !> (ARG is the current prefix argument).
     integer(int64) function comment_add_count() result(n)
-        if (.not. allocated(current_prefix_arg%a) .and. smatch("[ "//TAB//"]*\'", cstart()) == 1) then
+        if (current_prefix_arg%kind == PREFIX_NONE .and. smatch("[ "//TAB//"]*\'", cstart()) == 1) then
             n = comment_add%value
         else
             n = prefix_numeric_value(current_prefix_arg) - 1
@@ -3276,7 +3284,7 @@ contains
             return
         end if
 
-        if (value_eq(last_command, value_type(name="comment_line_backward")) .and. n >= 0) n = -n
+        if (associated(last_command, comment_line_backward) .and. n >= 0) n = -n
         a = line_beginning_position()
         z = line_end_position(n)
         call goto_char(z)
@@ -3284,7 +3292,7 @@ contains
         if (.not. status%ok()) return
         sh = forward_line(1_int64)
         call back_to_indentation()
-        if (n < 0) this_command = value_type(name="comment_line_backward")
+        if (n < 0) this_command => comment_line_backward
     end subroutine comment_line
 
     !> Comment or uncomment current line and leave point after it.

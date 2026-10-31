@@ -52,7 +52,7 @@
 !> not the condition's data list), file name handlers.  Loading Lisp
 !> files (`L', `B') is not applicable.
 submodule(dired_mode_fm) dired_aux_fm
-    use lisp_fm, only: make_list, xfixnum, value_type, vtag, V_INTEGER, V_ARRAY
+    use lisp_fm, only: make_list, xfixnum, value_type, vtag, V_INTEGER
     use error_fm, only: FM_FILE_ERROR, FM_FILE_DATE_ERROR
     use sysdep_fm, only: emacs_localtime, S_IFMT, S_IFDIR, S_IFLNK
     use buffer_fm, only: buffer_list, rename_buffer
@@ -1493,7 +1493,7 @@ contains
     recursive subroutine cmd_dired_do_kill_lines(status)
         type(status_type), intent(out) :: status
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             call dired_do_kill_lines(DIRED_ARG_NONE, 0_int64, status)
         else
             call dired_do_kill_lines(DIRED_ARG_INTEGER, prefix_numeric_value(current_prefix_arg), status)
@@ -3086,7 +3086,7 @@ contains
 
         call aux_prefix_kind(kind, n)
         invert = .false.
-        if (vtag(current_prefix_arg) == V_ARRAY) invert = prefix_numeric_value(current_prefix_arg) == 4
+        if (current_prefix_arg%kind == PREFIX_RAW) invert = prefix_numeric_value(current_prefix_arg) == 4
         call dired_do_copy(kind, n, status, invert)
     end subroutine cmd_dired_do_copy
 
@@ -3328,7 +3328,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: abs
 
-        whole_name = prefix_numeric_value(current_prefix_arg) == 0 .and. allocated(current_prefix_arg%a)
+        whole_name = prefix_numeric_value(current_prefix_arg) == 0 .and. current_prefix_arg%kind /= PREFIX_NONE
 
         if (whole_name) then
             arg_kind = DIRED_ARG_NONE
@@ -3686,7 +3686,7 @@ contains
             return
         end if
 
-        call dired_show_file_type(file, allocated(current_prefix_arg%a), status)
+        call dired_show_file_type(file, current_prefix_arg%kind /= PREFIX_NONE, status)
     end subroutine cmd_dired_show_file_type
 
     !> Compare file at point with FILE using `diff'.
@@ -3792,7 +3792,7 @@ contains
         end if
 
         if (.not. status%ok()) return
-        have_default = allocated(current_prefix_arg%a)
+        have_default = current_prefix_arg%kind /= PREFIX_NONE
 
         if (have_default) then
             call read_string("Options for diff: ", sw, status, initial=diff_switches)
@@ -3831,7 +3831,7 @@ contains
         character(len=:), allocatable :: sw, file
         logical :: given, found
 
-        given = allocated(current_prefix_arg%a)
+        given = current_prefix_arg%kind /= PREFIX_NONE
 
         if (given) then
             call read_string("Options for diff: ", sw, status, initial=diff_switches)
@@ -4159,9 +4159,9 @@ contains
 
         arg_n = 0
 
-        if (.not. allocated(current_prefix_arg%a)) then
+        if (current_prefix_arg%kind == PREFIX_NONE) then
             arg_kind = DIRED_ARG_NONE
-        else if (vtag(current_prefix_arg) == V_ARRAY) then
+        else if (current_prefix_arg%kind == PREFIX_RAW) then
             arg_kind = DIRED_ARG_OTHER
         else
             arg_kind = DIRED_ARG_INTEGER

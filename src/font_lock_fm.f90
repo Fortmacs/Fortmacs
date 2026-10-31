@@ -46,6 +46,7 @@
 !> face variables (font-lock-comment-face as a variable: not applicable).
 module font_lock_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: PREFIX_NONE
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, list, symbols, xsymbol, list_elements, make_list, vtag, V_NULL, V_NAME, V_ARRAY
@@ -1211,7 +1212,7 @@ contains
 
         pt = point()
 
-        if (.not. allocated(current_prefix_arg%a) .and. font_lock_mode_enabled()) then
+        if (current_prefix_arg%kind == PREFIX_NONE .and. font_lock_mode_enabled()) then
             call font_lock_fontify_region(point_min(), point_max(), status)
         else
             call font_lock_unfontify_region(point_min(), point_max(), status)
@@ -2117,7 +2118,7 @@ contains
         end if
 
         lines = 16
-        if (allocated(current_prefix_arg%a)) lines = prefix_numeric_value(current_prefix_arg)
+        if (current_prefix_arg%kind /= PREFIX_NONE) lines = prefix_numeric_value(current_prefix_arg)
         pt = point()
         saved_match = match_data()
         shortage = forward_line(-lines)

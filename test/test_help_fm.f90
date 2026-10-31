@@ -26,6 +26,7 @@
 !> tests, through the command loop.
 module test_help_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use callint_fm, only: prefix_arg_type, PREFIX_NONE, PREFIX_RAW
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
@@ -374,7 +375,7 @@ contains
         call check(error, index(text, "Its value is"//LF//"["".o"", ""~"", ") > 0, text)
         if (allocated(error)) return
         call describe_variable_text("current_prefix_arg", text, found)
-        call check(error, index(text, "Its value is .false."//LF) > 0, text)
+        call check(error, index(text, "Its value is prefix_arg_type(kind=PREFIX_NONE)"//LF) > 0, text)
         if (allocated(error)) return
         call describe_variable_text("no-such-variable", text, found)
         call check(error,.not. found)
@@ -408,7 +409,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: text
         logical :: found
-        type(value_type) :: elems(1)
 
         call fresh_scratch()
         call describe_variable_text("case_fold_search", text, found)
@@ -441,11 +441,10 @@ contains
         call check(error, index(text, "Its value is indent_relative"//LF) > 0, text)
         if (allocated(error)) return
         ! A C-u prefix argument.
-        elems(1) = value_type(4_int64)
-        current_prefix_arg = make_list(elems)
+        current_prefix_arg = prefix_arg_type(PREFIX_RAW, 4_int64)
         call describe_variable_text("current_prefix_arg", text, found)
-        current_prefix_arg = value_type()
-        call check(error, index(text, "Its value is [4]"//LF) > 0, text)
+        current_prefix_arg = prefix_arg_type()
+        call check(error, index(text, "Its value is prefix_arg_type(kind=PREFIX_RAW, value=4)"//LF) > 0, text)
         if (allocated(error)) return
         ! A hook has no printed form yet: the documentation follows the
         ! Fortran name.

@@ -32,6 +32,7 @@
 !> strings (a string of switches, separated by spaces, is the same).
 module diff_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: PREFIX_NONE
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle
@@ -127,7 +128,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        given = allocated(current_prefix_arg%a)
+        given = current_prefix_arg%kind /= PREFIX_NONE
         if (given) call read_string("Diff switches: ", switches, status, initial=diff_switches)
     end subroutine read_diff_switches
 

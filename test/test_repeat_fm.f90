@@ -25,6 +25,7 @@
 !> components, as defvar-keymap :repeat does; own test of C-x z.
 module test_repeat_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
+    use callint_fm, only: prefix_arg_type
     use error_fm, only: status_type
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, command_type, REPEAT_CHECK_KEY_DEFAULT, REPEAT_CHECK_KEY_YES, REPEAT_CHECK_KEY_NO
@@ -255,7 +256,7 @@ contains
         calls = ""
         call erase_buffer(st)
         call key_parse(keys, events, st)
-        call execute_kbd_macro(events, value_type(), st)
+        call execute_kbd_macro(events, prefix_arg_type(), st)
         call check(error, calls, expected_calls, keys//": "//calls)
         if (allocated(error)) return
         ! Check for self-inserting keys
@@ -408,7 +409,7 @@ contains
         call begin(global_map)
         repeat_check_key = .false.
         call key_parse("C-M-s", events, st)
-        call execute_kbd_macro(events, value_type(), st)
+        call execute_kbd_macro(events, prefix_arg_type(), st)
         call check(error, repeat_echo_message_string(repeat_in_progress), &
                    "Repeat with s, [T]est, C-M-o (an[O]ther test), C-M-u")
         call finish()

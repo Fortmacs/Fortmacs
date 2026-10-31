@@ -53,6 +53,7 @@
 !> help-fns-function-name; here the key "runs a keyboard macro").
 module help_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: prefix_arg_type, PREFIX_NUMBER
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
@@ -1378,15 +1379,15 @@ contains
 
             if (event_is(ch, 22_int64) .or. event_is(ch, 32_int64) .or. event_named(ch, "next") .or. &
                 event_named(ch, "end")) then
-                call scroll_up(value_type(), st)
+                call scroll_up(prefix_arg_type(), st)
             else if (event_is(ch, 127_int64) .or. event_is(ch, M_V) .or. event_is(ch, S_SPC) .or. &
                      event_named(ch, "deletechar") .or. event_named(ch, "backspace") .or. &
                      event_named(ch, "prior") .or. event_named(ch, "home")) then
-                call scroll_down(value_type(), st)
+                call scroll_down(prefix_arg_type(), st)
             else if (event_named(ch, "down")) then
-                call scroll_up(value_type(1_int64), st)
+                call scroll_up(prefix_arg_type(PREFIX_NUMBER, 1_int64), st)
             else if (event_named(ch, "up")) then
-                call scroll_down(value_type(1_int64), st)
+                call scroll_down(prefix_arg_type(PREFIX_NUMBER, 1_int64), st)
             end if
 
             if (is_pos_visible_in_window(buffers(cur)%zv, selected_window())) then

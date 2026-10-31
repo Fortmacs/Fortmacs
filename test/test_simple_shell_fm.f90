@@ -22,7 +22,7 @@
 
 module test_simple_shell_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use lisp_fm, only: value_type
+    use callint_fm, only: prefix_arg_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error
@@ -447,7 +447,7 @@ contains
         call init_bindings()
         call fresh("*shell-test*", h)
         call discard_input()
-        prefix_arg = value_type()
+        prefix_arg = prefix_arg_type()
         last_message = ""
         call kbd_store_bytes(achar(27)//"!echo hi"//achar(13))
         call command_loop(st)

@@ -43,6 +43,7 @@
 !> Log View and VC-Dir buffers.
 module vc_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use callint_fm, only: PREFIX_NONE
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_error, condition_matches, FM_GENERIC_ERROR, FM_USER_ERROR, &
                         FM_VC_NOT_SUPPORTED, FM_FILE_ALREADY_EXISTS
@@ -3509,7 +3510,7 @@ contains
     recursive subroutine cmd_vc_next_action(status)
         type(status_type), intent(out) :: status
 
-        call vc_next_action(allocated(current_prefix_arg%a), status)
+        call vc_next_action(current_prefix_arg%kind /= PREFIX_NONE, status)
     end subroutine cmd_vc_next_action
 
     recursive subroutine cmd_vc_register(status)
@@ -3540,13 +3541,13 @@ contains
             if (is_file_in_directory(file, rel_dir)) file = file_relative_name(file, rel_dir)
         end if
 
-        call vc_ignore(file, status, rel_dir, allocated(current_prefix_arg%a))
+        call vc_ignore(file, status, rel_dir, current_prefix_arg%kind /= PREFIX_NONE)
     end subroutine cmd_vc_ignore
 
     recursive subroutine cmd_vc_diff(status)
         type(status_type), intent(out) :: status
 
-        call vc_diff(status, allocated(current_prefix_arg%a), .true., interactive=.true.)
+        call vc_diff(status, current_prefix_arg%kind /= PREFIX_NONE, .true., interactive=.true.)
     end subroutine cmd_vc_diff
 
     recursive subroutine cmd_vc_version_diff(status)
@@ -3585,7 +3586,7 @@ contains
     recursive subroutine cmd_vc_root_diff(status)
         type(status_type), intent(out) :: status
 
-        call vc_root_diff(allocated(current_prefix_arg%a), status, .true., .true.)
+        call vc_root_diff(current_prefix_arg%kind /= PREFIX_NONE, status, .true., .true.)
     end subroutine cmd_vc_root_diff
 
     recursive subroutine cmd_vc_revision_other_window(status)

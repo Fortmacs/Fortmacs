@@ -579,6 +579,9 @@ $1 == "V" {
     # The procedures naming the value of a procedure setting.
     if ($5 ~ /function_setting\)/ && !named_cmd++)
         mods["callint_fm.f90"] = mods["callint_fm.f90"] (mods["callint_fm.f90"] == "" ? "" : ", ") "command_name_of"
+    # A prefix argument is shown as its structure constructor.
+    if ($5 ~ /prefix_arg_type\)/ && !named_prefix++)
+        mods["callint_fm.f90"] = mods["callint_fm.f90"] (mods["callint_fm.f90"] == "" ? "" : ", ") "prefix_arg_repr"
     if ($5 ~ /indent_line_setting\)/ && !named_indent++)
         mods["indent_fm.f90"] = mods["indent_fm.f90"] (mods["indent_fm.f90"] == "" ? "" : ", ") "indent_line_function_name"
     if ($7 ~ /^[A-Z][A-Z0-9_]*$/ && ($7 in group)) {
@@ -784,8 +787,10 @@ END {
         } else {
             # Values as Fortran: a string or array that is not allocated
             # is "unallocated", a procedure pointer the name of its procedure or
-            # null().  Other derived types (hooks, keymaps, syntax tables)
-            # have no printed representation yet: help leaves the value out.
+            # null(), a command pointer the name of its command or null(), a
+            # prefix argument its structure constructor.  Other derived types
+            # (hooks, keymaps, syntax tables) have no printed representation
+            # yet: help leaves the value out.
             if (vtype[i] ~ /(integer|logical)_setting\)/) print "            entry%value = repr(" vfort[i] "%value)"
             else if (vtype[i] ~ /string_setting\)/) {
                 print "            if (allocated(" vfort[i] "%value)) then"
@@ -799,7 +804,15 @@ END {
                 print "            else"
                 print "                entry%value = \"null()\""
                 print "            end if"
-            } else if (vtype[i] ~ /indent_line_setting\)/)
+            } else if (vtype[i] ~ /^type\(command_type\), pointer/) {
+                print "            if (associated(" vfort[i] ")) then"
+                print "                entry%value = " vfort[i] "%name"
+                print "            else"
+                print "                entry%value = \"null()\""
+                print "            end if"
+            } else if (vtype[i] ~ /^type\(prefix_arg_type\)/)
+                print "            entry%value = prefix_arg_repr(" vfort[i] ")"
+            else if (vtype[i] ~ /indent_line_setting\)/)
                 print "            entry%value = indent_line_function_name(" vfort[i] "%value)"
             else if (vtype[i] ~ /value_type/ && !varr[i]) print "            entry%value = fortran_repr(" vfort[i] ")"
             else if (vtype[i] ~ /allocatable/ && vtype[i] !~ /^type/) {
