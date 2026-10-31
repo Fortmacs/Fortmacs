@@ -87,7 +87,7 @@ module font_lock_fm
     use syntax_propertize_fm, only: syntax_propertize, syntax_ppss_table, syntax_propertize_wholelines, syntax_ppss_flush_cache
     implicit none(type, external)
     private
-    public :: font_lock_forget_defaults, font_lock_fontify_region_proc, set_local_font_lock_fontify_region_function
+    public :: font_lock_forget_defaults, font_lock_fontify_region_proc, font_lock_fontify_region_function_set_local
     public :: cpp_font_lock_keywords, font_lock_apply_highlight
 
     !> Regular expression used in `cpp_font_lock_keywords'.  Port of
@@ -180,12 +180,12 @@ module font_lock_fm
         !> `font_lock_syntactic_face_function': FACE gets the name of the
         !> face to give the string or comment whose parse state (at its
         !> start) is STATE ("" for none).  Not a port.
-        subroutine syntactic_face_iface(state, face)
+        subroutine syntactic_face_proc(state, face)
             import :: parse_state_type
             implicit none(type, external)
             type(parse_state_type), intent(in) :: state
             character(len=:), allocatable, intent(out) :: face
-        end subroutine syntactic_face_iface
+        end subroutine syntactic_face_proc
 
         !> A `font_lock_fontify_region_function': fontify the text between
         !> BEG and END (messages if LOUDLY); DONE_BEG and DONE_END give the
@@ -227,7 +227,7 @@ module font_lock_fm
         !> The buffer's own `font_lock_syntactic_face_function' (from the
         !> OTHER-VARS of `font_lock_defaults').
         logical :: has_syntactic_face = .false.
-        procedure(syntactic_face_iface), pointer, nopass :: syntactic_face => null()
+        procedure(syntactic_face_proc), pointer, nopass :: syntactic_face => null()
         !> The buffer's own `font_lock_fontify_region_function' (null for
         !> `font_lock_default_fontify_region').
         procedure(font_lock_fontify_region_proc), pointer, nopass :: fontify_region => null()
@@ -241,7 +241,7 @@ module font_lock_fm
     !> region to highlight) and should give the name of a face.  This is
     !> normally set via `font_lock_defaults'.  Port of
     !> font-lock.el:font-lock-syntactic-face-function.
-    procedure(syntactic_face_iface), pointer, public :: font_lock_syntactic_face_function => null()
+    procedure(syntactic_face_proc), pointer, public :: font_lock_syntactic_face_function => null()
 
     !> If set, Font Lock mode uses this instead of `comment_start_skip'.
     !> Port of font-lock.el font-lock-comment-start-skip.
@@ -500,13 +500,13 @@ contains
     !> FN (set_local).  Port of font-lock.el
     !> font-lock-fontify-region-function (buffer-local; its default is
     !> `font_lock_default_fontify_region').
-    subroutine set_local_font_lock_fontify_region_function(fn)
+    subroutine font_lock_fontify_region_function_set_local(fn)
         procedure(font_lock_fontify_region_proc) :: fn
         integer :: k
 
         k = local_index(.true.)
         if (k > 0) locals(k)%fontify_region => fn
-    end subroutine set_local_font_lock_fontify_region_function
+    end subroutine font_lock_fontify_region_function_set_local
 
     !> kill-all-local-variables: forget the current buffer's font-lock.el
     !> variables.  Not a port.
@@ -855,7 +855,7 @@ contains
         allocate (keywords(0))
 
         if (font_lock_defaults%present_p()) then
-            defaults = font_lock_defaults%get()
+            defaults = font_lock_defaults%current()
 
             ! font-lock-choose-keywords.
             if (allocated(defaults%levels)) then
@@ -1947,7 +1947,7 @@ contains
         call syntax_propertize(end, status)
         if (.not. status%ok()) return
         old_table = syntax_table()
-        call syntax_ppss_table%get(table, has_ppss_table)
+        call syntax_ppss_table%current(table, has_ppss_table)
 
         if (has_ppss_table) then
             call set_syntax_table(table, st)

@@ -92,7 +92,7 @@ contains
         call set_error(status, FM_GENERIC_ERROR, "Something is wrong")
     end subroutine failing_configure
 
-    !> Run the editor on a pty with `keys` typed (they must end with
+    !> Execute the editor on a pty with `keys` typed (they must end with
     !> C-x C-c), *scratch* emptied first; the terminal has `lines` lines
     !> (8 if absent).
     subroutine execute_on_pty(keys, st, args, configure, lines)

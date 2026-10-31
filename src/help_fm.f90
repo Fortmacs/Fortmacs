@@ -1535,7 +1535,7 @@ contains
         if (is_keymap_live(overriding_terminal_local_map)) then
             call describe_map_tree(overriding_terminal_local_map, .true., shadow, FF//LF//"Overriding Bindings", &
                                    .false., text)
-            call push_shadow(shadow, overriding_terminal_local_map)
+            call add_shadow_front(shadow, overriding_terminal_local_map)
         else
             ! Print the minor mode and major mode keymaps.
             call current_minor_maps(modes, maps)
@@ -1543,7 +1543,7 @@ contains
             do i = 1, size(maps)
                 call describe_map_tree(maps(i), .true., shadow, FF//LF//LQUOTE//trim(modes(i))//RQUOTE// &
                                        " Minor Mode Bindings", .false., text)
-                call push_shadow(shadow, maps(i))
+                call add_shadow_front(shadow, maps(i))
             end do
 
             local = current_local_map()
@@ -1553,7 +1553,7 @@ contains
                 if (allocated(buffers(cur)%major_mode)) major = buffers(cur)%major_mode
                 call describe_map_tree(local, .true., shadow, FF//LF//LQUOTE//major//RQUOTE//" Major Mode Bindings", &
                                        .false., text)
-                call push_shadow(shadow, local)
+                call add_shadow_front(shadow, local)
             end if
         end if
 
@@ -1574,7 +1574,7 @@ contains
     end subroutine describe_buffer_bindings
 
     !> Add keymap `map' to the front of the shadowing maps.  Not a port.
-    subroutine push_shadow(shadow, map)
+    subroutine add_shadow_front(shadow, map)
         type(value_type), allocatable, intent(inout) :: shadow(:)
         type(handle_type), intent(in) :: map
         type(value_type), allocatable :: grown(:)
@@ -1585,7 +1585,7 @@ contains
         grown(1) = make_keymap_ref(map)
         if (n > 0) grown(2:) = shadow
         call move_alloc(grown, shadow)
-    end subroutine push_shadow
+    end subroutine add_shadow_front
 
     !> Append to `text' a description of the key bindings in STARTMAP,
     !> followed by the key bindings of all maps reachable through
@@ -1632,7 +1632,7 @@ contains
                         ! A number: the prefix is too long; no shadows.
                         continue
                     else if (vtag(tem) == V_KEYMAP) then
-                        call append_shadow(sub_shadows, tem)
+                        call add_shadow(sub_shadows, tem)
                     else if (allocated(tem%a)) then
                         ! Describe this map iff the prefix is bound to a
                         ! keymap, since otherwise it completely shadows it.
@@ -1644,7 +1644,7 @@ contains
             if (describe) then
                 ! Maps we have already listed in this loop shadow this map.
                 do j = 1, k - 1
-                    if (same_keys(maps(j)%keys, maps(k)%keys)) call append_shadow(sub_shadows, make_keymap_ref(maps(j)%map))
+                    if (same_keys(maps(j)%keys, maps(k)%keys)) call add_shadow(sub_shadows, make_keymap_ref(maps(j)%map))
                 end do
 
                 call describe_map(maps(k)%map, maps(k)%keys, transl, partial, sub_shadows, mention, body)
@@ -1662,7 +1662,7 @@ contains
     end subroutine describe_map_tree
 
     ! Not a port.
-    subroutine append_shadow(list, v)
+    subroutine add_shadow(list, v)
         type(value_type), allocatable, intent(inout) :: list(:)
         type(value_type), intent(in) :: v
         type(value_type), allocatable :: grown(:)
@@ -1673,7 +1673,7 @@ contains
         if (n > 0) grown(1:n) = list
         grown(n + 1) = v
         call move_alloc(grown, list)
-    end subroutine append_shadow
+    end subroutine add_shadow
 
     ! Not a port.
     logical function same_keys(a, b)

@@ -405,7 +405,7 @@ contains
 
     !> Whether FILENAME matches CHECK (a regexp, or a predicate).
     !> Not a port.
-    logical function check_matches(check, filename) result(matches)
+    logical function is_matching(check, filename) result(matches)
         type(recentf_check_type), intent(in) :: check
         character(len=*), intent(in) :: filename
         type(status_type) :: st
@@ -418,7 +418,7 @@ contains
         else
             matches = .false.
         end if
-    end function check_matches
+    end function is_matching
 
     !> Return true if FILENAME should be included in the recent list.
     !> That is, if it doesn't match any of the `recentf_exclude' checks.
@@ -431,7 +431,7 @@ contains
         if (.not. allocated(recentf_exclude)) return
 
         do k = 1, size(recentf_exclude)
-            if (check_matches(recentf_exclude(k), filename)) then
+            if (is_matching(recentf_exclude(k), filename)) then
                 keepit = .false.
                 return
             end if
@@ -451,7 +451,7 @@ contains
         keepit = .false.
 
         do k = 1, size(recentf_keep)
-            if (check_matches(recentf_keep(k), filename)) then
+            if (is_matching(recentf_keep(k), filename)) then
                 keepit = .true.
                 return
             end if

@@ -663,7 +663,7 @@ contains
         call set_buffer(old, st)
     end subroutine in_buffer_busy
 
-    !> Run ACTION if its OKSTATUS allows the exit of process P (null for
+    !> Execute ACTION if its OKSTATUS allows the exit of process P (null for
     !> none).  Not a port.
     recursive subroutine execute_action(action, p, status)
         type(vc_action_type), intent(in) :: action
@@ -1173,7 +1173,7 @@ contains
         call set_mark(pos)
     end subroutine set_mark_at
 
-    !> Run `vc_mode_line_hook' with FILE.  Not a port.
+    !> Execute `vc_mode_line_hook' with FILE.  Not a port.
     subroutine vc_mode_line_hook_execute(file)
         character(len=*), intent(in) :: file
 

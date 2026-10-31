@@ -258,7 +258,7 @@ contains
                 allocate (save_place_table(0))
 
                 do k = 1, n
-                    if (allocated(places(k)%file)) call append_place(places(k))
+                    if (allocated(places(k)%file)) call add_place(places(k))
                 end do
 
                 if (save_place_limit /= SAVE_PLACE_NO_LIMIT) then
@@ -295,7 +295,7 @@ contains
     end subroutine file_text
 
     !> Append PLACE to `save_place_table'.  Not a port.
-    subroutine append_place(place)
+    subroutine add_place(place)
         type(save_place_type), intent(in) :: place
         type(save_place_type), allocatable :: grown(:)
         integer :: k, n
@@ -310,7 +310,7 @@ contains
 
         grown(n + 1) = place
         call move_alloc(grown, save_place_table)
-    end subroutine append_place
+    end subroutine add_place
 
     ! Move place FROM to TO.  Not a port.
     subroutine move_place(from, to)

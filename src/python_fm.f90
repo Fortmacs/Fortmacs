@@ -93,7 +93,7 @@ module python_fm
     use paragraphs_fm, only: paragraph_start, paragraph_separate
     use fill_fm, only: fill_paragraph, fill_paragraph_function, fill_comment_paragraph, fill_indent_according_to_mode
     use simple_fm, only: normal_auto_fill_function, do_auto_fill
-    use electric_fm, only: electric_indent_inhibit, electric_indent_chars_value, set_local_electric_indent_chars
+    use electric_fm, only: electric_indent_inhibit, electric_indent_chars_value, electric_indent_chars_set_local
     use prog_mode_fm, only: prog_first_column
     use syntax_propertize_fm, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type
     use grep_fm, only: grep_files_aliases, grep_files_alias_type, grep_find_ignored_directories, grep_ignore_type
@@ -743,15 +743,15 @@ contains
         python_font_lock_keywords_level_2 = kw(1:4)
         n = 0
         if (allocated(python_font_lock_keywords_maximum_decoration)) deallocate (python_font_lock_keywords_maximum_decoration)
-        call push(font_lock_keyword(matcher=python_font_lock_f_strings))
-        call push_level_2()
+        call add(font_lock_keyword(matcher=python_font_lock_f_strings))
+        call add_level_2()
         ! Constants
-        call push(font_lock_keyword(CONSTANTS_RE, face=CO))
+        call add(font_lock_keyword(CONSTANTS_RE, face=CO))
         ! Decorators.
         h1(1) = h(1, TY)
-        call push(font_lock_keyword(DECORATOR_RE, highlights=h1))
+        call add(font_lock_keyword(DECORATOR_RE, highlights=h1))
         ! Builtin Exceptions
-        call push(font_lock_keyword(EXCEPTIONS_RE, face=TY))
+        call add(font_lock_keyword(EXCEPTIONS_RE, face=TY))
         ! single assignment with/without type hints, e.g.
         !   a: int = 5
         !   b: Tuple[Optional[int], Union[Sequence[str], str]] = (None, 'foo')
@@ -762,7 +762,7 @@ contains
         h3(1) = h(1, VA)
         h3(2) = h(3, OP)
         h3(3) = a(1)
-        call push(font_lock_keyword(matcher=assignment_matcher_1, highlights=h3))
+        call add(font_lock_keyword(matcher=assignment_matcher_1, highlights=h3))
         ! multiple assignment
         ! (note that type hints are not allowed for multiple assignments)
         !   a, b, c = 1, 2, 3
@@ -784,32 +784,32 @@ contains
         h3(1) = h(1, VA)
         h3(2) = h(2, OP)
         h3(3) = a(1)
-        call push(font_lock_keyword(matcher=assignment_matcher_2, highlights=h3))
+        call add(font_lock_keyword(matcher=assignment_matcher_2, highlights=h3))
         ! special cases
         !   (a) = 5
         !   [a] = 5,
         !   [*a] = 5, 6
         h2(1) = h(1, VA)
         h2(2) = h(2, OP)
-        call push(font_lock_keyword(matcher=assignment_matcher_3, highlights=h2))
+        call add(font_lock_keyword(matcher=assignment_matcher_3, highlights=h2))
         ! Operators.
-        call push(font_lock_keyword(OPERATOR_RE, face=OP))
+        call add(font_lock_keyword(OPERATOR_RE, face=OP))
         ! escape sequences within bytes literals
         !   "\\" "\'" "\a" "\b" "\f" "\n" "\r" "\t" "\v"
         !   "\ooo" character with octal value ooo
         !   "\xhh" character with hex value hh
         h1(1) = h(1, CO, FONT_LOCK_OVERRIDE_YES)
-        call push(font_lock_keyword(matcher=bytes_escape_matcher, highlights=h1))
+        call add(font_lock_keyword(matcher=bytes_escape_matcher, highlights=h1))
         ! escape sequences within string literals, the same as appear in bytes
         ! literals in addition to:
         !   "\uxxxx" Character with 16-bit hex value xxxx
         !   "\Uxxxxxxxx" Character with 32-bit hex value xxxxxxxx
         !   "\N{name}" Character named name in the Unicode database
-        call push(font_lock_keyword(matcher=string_escape_matcher, highlights=h1))
+        call add(font_lock_keyword(matcher=string_escape_matcher, highlights=h1))
 
     contains
 
-        subroutine push(k)
+        subroutine add(k)
             type(font_lock_keyword_type), intent(in) :: k
             type(font_lock_keyword_type), allocatable :: grown(:)
 
@@ -825,15 +825,15 @@ contains
             grown(1:size(python_font_lock_keywords_maximum_decoration)) = python_font_lock_keywords_maximum_decoration
             grown(size(grown)) = k
             call move_alloc(grown, python_font_lock_keywords_maximum_decoration)
-        end subroutine push
+        end subroutine add
 
-        subroutine push_level_2()
+        subroutine add_level_2()
             integer :: k
 
             do k = 1, size(python_font_lock_keywords_level_2)
-                call push(python_font_lock_keywords_level_2(k))
+                call add(python_font_lock_keywords_level_2(k))
             end do
-        end subroutine push_level_2
+        end subroutine add_level_2
     end subroutine init_keywords
 
     ! The rules of python-syntax-propertize-function.
@@ -2570,12 +2570,12 @@ contains
                 has_last = .true.
 
                 if (.not. incl .or. allocated(type)) then
-                    call push_name(match_string_no_properties(1))
+                    call add_name(match_string_no_properties(1))
                 else
                     matched = match_string_no_properties(0)
                     call split2(matched, first, second)
                     type = first
-                    call push_name(second)
+                    call add_name(second)
                 end if
             end if
 
@@ -2598,7 +2598,7 @@ contains
 
     contains
 
-        subroutine push_name(n)
+        subroutine add_name(n)
             character(len=*), intent(in) :: n
             type(string_list_type), allocatable :: grown(:)
             integer :: j
@@ -2611,7 +2611,7 @@ contains
             end do
 
             call move_alloc(grown, names)
-        end subroutine push_name
+        end subroutine add_name
 
         ! The first two words of S (split-string at whitespace).
         subroutine split2(s, w1, w2)
@@ -4598,7 +4598,7 @@ contains
         ! Because indentation is not redundant, we cannot safely reindent code.
         call electric_indent_inhibit%set_local(.true.)
         chars = [iachar(":"), electric_indent_chars_value()]
-        call set_local_electric_indent_chars(chars)
+        call electric_indent_chars_set_local(chars)
         ! Add """ ... """ pairing to electric-pair-mode.
         call post_self_insert_hook%add(python_electric_pair_string_delimiter, depth=90, local=.true.)
         call paragraph_start%set_local("\s-*$")

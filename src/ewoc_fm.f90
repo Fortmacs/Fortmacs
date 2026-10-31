@@ -125,7 +125,7 @@ contains
 
     ! A new node of E for DATA (and a header or footer string HF),
     ! starting at POS.  Not a port.
-    integer function new_node(e, data, pos, hf) result(node)
+    integer function make_node(e, data, pos, hf) result(node)
         type(ewoc_data_type), intent(inout) :: e
         integer(int64), intent(in) :: data, pos
         character(len=*), intent(in), optional :: hf
@@ -161,7 +161,7 @@ contains
             e%nodes(node)%hf(1)%text = hf
             e%nodes(node)%hf(1)%face = ""
         end if
-    end function new_node
+    end function make_node
 
     ! The position of NODE's start marker.  Not a port.
     integer(int64) function mpos(e, node)
@@ -304,7 +304,7 @@ contains
         type(status_type) :: st
 
         call copy_marker_at(point(), pm, .false., st)
-        elemnode = new_node(ewocs(i), data, mpos(ewocs(i), node), hf)
+        elemnode = make_node(ewocs(i), data, mpos(ewocs(i), node), hf)
         left = ewocs(i)%nodes(node)%left
         ewocs(i)%nodes(elemnode)%left = left
         ewocs(i)%nodes(elemnode)%right = node
@@ -442,7 +442,7 @@ contains
         if (present(nosep)) ewocs(i)%nosep = nosep
         pos = point()
         ! The dummy node.
-        foot = new_node(ewocs(i), 0_int64, pos)
+        foot = make_node(ewocs(i), 0_int64, pos)
         ewocs(i)%nodes(DLL)%left = DLL
         ewocs(i)%nodes(DLL)%right = DLL
 

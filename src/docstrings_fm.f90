@@ -590,21 +590,21 @@ module docstrings_fm
     character(len=48), parameter, public :: function_names(1453) = [character(len=48) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                          "abbrev_insert", "abbrev_mode", "abbrev_name", "abbrev_prefix_mark", "abbrev_table_name", &
-                                                      "abbreviate_file_name_handler", "abort_minibuffers", "abort_recursive_edit", &
-                                                 "accept_process_output", "add_auto_mode", "add_global_abbrev", "add_mode_abbrev", &
-                                            "add_name_to_file", "add_save_some_buffers_function", "ansi_color_compilation_filter", &
-                                                            "ansi_color_for_comint_mode_filter", "ansi_color_for_comint_mode_off", &
-                                               "ansi_color_for_comint_mode_on", "ansi_color_process_output", "append_to_register", &
-                                               "apply_on_rectangle", "apropos_command", "apropos_documentation", "apropos_follow", &
-                                                 "apropos_function", "apropos_mode", "apropos_next_name", "apropos_previous_name", &
-                                               "apropos_user_option", "apropos_variable", "async_shell_command", "auto_fill_mode", &
-                                                             "auto_revert_mode", "auto_revert_set_timer", "auto_revert_tail_mode", &
-                                                          "back_to_indentation", "backward_char", "backward_delete_char_untabify", &
-                                                              "backward_expression", "backward_group", "backward_kill_expression", &
-                                                        "backward_kill_paragraph", "backward_kill_sentence", "backward_kill_word", &
-                                                  "backward_page", "backward_paragraph", "backward_sentence", "backward_up_group", &
-                                            "backward_word", "beginning_of_buffer", "beginning_of_line", "beginning_of_line_text", &
-                                                                    "beginning_of_subprogram", "beginning_of_subprogram_comments", &
+                                                    "abbrev_table_set_local", "abbreviate_file_name_handler", "abort_minibuffers", &
+                                            "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
+                                                          "add_mode_abbrev", "add_name_to_file", "add_save_some_buffers_function", &
+                                                             "ansi_color_compilation_filter", "ansi_color_for_comint_mode_filter", &
+                                                                "ansi_color_for_comint_mode_off", "ansi_color_for_comint_mode_on", &
+                                                          "ansi_color_process_output", "append_to_register", "apply_on_rectangle", &
+                                                 "apropos_command", "apropos_documentation", "apropos_follow", "apropos_function", &
+                                              "apropos_mode", "apropos_next_name", "apropos_previous_name", "apropos_user_option", &
+                                                  "apropos_variable", "async_shell_command", "auto_fill_mode", "auto_revert_mode", &
+                                         "auto_revert_set_timer", "auto_revert_tail_mode", "back_to_indentation", "backward_char", &
+                                                         "backward_delete_char_untabify", "backward_expression", "backward_group", &
+                                                  "backward_kill_expression", "backward_kill_paragraph", "backward_kill_sentence", &
+                                                 "backward_kill_word", "backward_page", "backward_paragraph", "backward_sentence", &
+                                                 "backward_up_group", "backward_word", "beginning_of_buffer", "beginning_of_line", &
+                                          "beginning_of_line_text", "beginning_of_subprogram", "beginning_of_subprogram_comments", &
                                             "beginning_of_subprogram_raw", "blink_matching_check_mismatch", "blink_matching_open", &
                                              "bookmark_bmenu_1_window", "bookmark_bmenu_2_window", "bookmark_bmenu_backup_unmark", &
                                           "bookmark_bmenu_delete", "bookmark_bmenu_delete_all", "bookmark_bmenu_delete_backwards", &
@@ -964,11 +964,10 @@ module docstrings_fm
                                                        "set_category_table", "set_char_table_extra_slot", "set_char_table_parent", &
                                                      "set_char_table_range", "set_coding_system_priority", "set_command_disabled", &
                                                     "set_default_coding_systems", "set_error", "set_file_modes", "set_file_times", &
-                                                               "set_fill_column", "set_fill_prefix", "set_keyboard_coding_system", &
-                                                       "set_local_abbrev_table", "set_mark", "set_mark_command", "set_match_data", &
-                                                          "set_process_buffer", "set_process_coding_system", "set_process_filter", &
-                                                         "set_process_query_on_exit_flag", "set_process_sentinel", "set_register", &
-                                                                  "set_repeat_map", "set_standard_case_table", "set_syntax_table", &
+                                                   "set_fill_column", "set_fill_prefix", "set_keyboard_coding_system", "set_mark", &
+                                          "set_mark_command", "set_match_data", "set_process_buffer", "set_process_coding_system", &
+                                                   "set_process_filter", "set_process_query_on_exit_flag", "set_process_sentinel", &
+                                                  "set_register", "set_repeat_map", "set_standard_case_table", "set_syntax_table", &
                                                           "set_terminal_coding_system", "set_variable", "sh_add", "sh_assignment", &
                                          "sh_backslash_region", "sh_base_mode", "sh_basic_indent_line", "sh_beginning_of_command", &
                                          "sh_cd_here", "sh_electric_here_document_mode", "sh_end_of_command", "sh_execute_region", &
@@ -2156,6 +2155,12 @@ contains
                                  "module :: name"
             entry%doc = "Return the name of the specified abbrev TABLE ("""" if it has"//LF// &
                         "none)."
+        case ("abbrev_table_set_local")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "call abbrev_table_set_local(table)"
+            entry%declarations = "type(abbrev_table_type), intent(in), target :: table"
+            entry%doc = "Make TABLE the local abbrev table of the current buffer, as"//LF// &
+                        "assigning TABLE to `local_abbrev_table' does."
         case ("abbreviate_file_name_handler")
             entry%file = "recentf_fm.f90"
             entry%fortran = "call abbreviate_file_name_handler(name, result, status)"
@@ -13729,12 +13734,6 @@ contains
                         "`raw-text', the decoding of keyboard input is disabled."//LF// &
                         ""//LF// &
                         "The setting has no effect on graphical terminals."
-        case ("set_local_abbrev_table")
-            entry%file = "abbrev_fm.f90"
-            entry%fortran = "call set_local_abbrev_table(table)"
-            entry%declarations = "type(abbrev_table_type), intent(in), target :: table"
-            entry%doc = "Make TABLE the local abbrev table of the current buffer, as"//LF// &
-                        "assigning TABLE to `local_abbrev_table' does."
         case ("set_mark")
             entry%file = "simple_fm.f90"
             entry%fortran = "call set_mark(pos)"

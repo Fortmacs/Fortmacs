@@ -189,7 +189,7 @@ module fill_fm
         !> Make FN the current buffer's function (set_local).
         procedure :: set_local => fill_paragraph_set_local
         !> The current buffer's function (null when unset).
-        procedure :: get => fill_paragraph_get
+        procedure :: current => current_fill_paragraph
         !> Make the current buffer use the default again.
         procedure :: kill_local => fill_paragraph_kill_local
     end type fill_paragraph_function_type
@@ -228,7 +228,7 @@ module fill_fm
         !> Make FN the current buffer's function (set_local).
         procedure :: set_local => adaptive_fill_set_local
         !> The current buffer's function (null for `ignore').
-        procedure :: get => adaptive_fill_get
+        procedure :: current => current_adaptive_fill
         !> Make the current buffer use the default again.
         procedure :: kill_local => adaptive_fill_kill_local
     end type adaptive_fill_function_type
@@ -507,7 +507,7 @@ contains
 
         str = ""
         found = .false.
-        fn => adaptive_fill_function%get()
+        fn => adaptive_fill_function%current()
         if (associated(fn)) call fn(str, found)
 
         if (.not. found) then
@@ -1415,7 +1415,7 @@ contains
 
         ! 2. Try fill-paragraph-function.
         if (.not. in_fill_paragraph_function) then
-            fn => fill_paragraph_function%get()
+            fn => fill_paragraph_function%current()
             in_minibuffer = .false.
             if (.not. associated(fn) .and. is_minibuffer()) in_minibuffer = point_min() == 1
 
@@ -2076,7 +2076,7 @@ contains
     end subroutine fill_paragraph_set_local
 
     ! Not a port.
-    function fill_paragraph_get(self) result(fn)
+    function current_fill_paragraph(self) result(fn)
         class(fill_paragraph_function_type), intent(in) :: self
         procedure(fill_paragraph_proc), pointer :: fn
         integer :: i
@@ -2090,7 +2090,7 @@ contains
                 if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
             end if
         end do
-    end function fill_paragraph_get
+    end function current_fill_paragraph
 
     ! Not a port.
     subroutine fill_paragraph_kill_local(self)
@@ -2148,7 +2148,7 @@ contains
     end subroutine adaptive_fill_set_local
 
     ! Not a port.
-    function adaptive_fill_get(self) result(fn)
+    function current_adaptive_fill(self) result(fn)
         class(adaptive_fill_function_type), intent(in) :: self
         procedure(adaptive_fill_proc), pointer :: fn
         integer :: i
@@ -2162,7 +2162,7 @@ contains
                 if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
             end if
         end do
-    end function adaptive_fill_get
+    end function current_adaptive_fill
 
     ! Not a port.
     subroutine adaptive_fill_kill_local(self)

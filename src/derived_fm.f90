@@ -47,7 +47,7 @@ module derived_fm
     use buffer_fm, only: buffers, cur
     use keymap_fm, only: make_sparse_keymap, is_keymap_live, keymap_parent, set_keymap_parent, use_local_map
     use subr_fm, only: delay_mode_hooks_begin, delay_mode_hooks_end, execute_mode_hooks
-    use abbrev_fm, only: abbrev_table_type, local_abbrev_table, set_local_abbrev_table
+    use abbrev_fm, only: abbrev_table_type, local_abbrev_table, abbrev_table_set_local
     implicit none(type, external)
     private
 
@@ -100,7 +100,7 @@ module derived_fm
         !> variables), then set the mode's name, keymap and syntax table.
         procedure :: begin => major_mode_begin
         !> End the mode's body: run its hooks.
-        procedure :: finish => major_mode_finish
+        procedure :: finish => major_mode_end
         !> Whether the mode is derived from MODE (or is MODE).
         procedure :: derived_from => major_mode_derived_from
     end type major_mode_type
@@ -242,12 +242,12 @@ contains
 
         call use_local_map(self%map, status)
         if (self%syntax_table%index /= 0) buffers(cur)%syntax_table = self%syntax_table
-        if (associated(self%abbrev_table)) call set_local_abbrev_table(self%abbrev_table)
+        if (associated(self%abbrev_table)) call abbrev_table_set_local(self%abbrev_table)
     end subroutine major_mode_begin
 
     !> End the body of the mode: end the delay and run its mode hooks.
     !> Port of the end of define-derived-mode's expansion.
-    recursive subroutine major_mode_finish(self, saved, status)
+    recursive subroutine major_mode_end(self, saved, status)
         class(major_mode_type), intent(in), target :: self
         logical, intent(in) :: saved
         type(status_type), intent(out) :: status
@@ -262,7 +262,7 @@ contains
                 call execute_mode_hooks(status)
             end if
         end select
-    end subroutine major_mode_finish
+    end subroutine major_mode_end
 
     !> Whether SELF is MODE or derived from it.  Port of
     !> subr.el:provided-mode-derived-p (one mode, no extra parents).

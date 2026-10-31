@@ -317,7 +317,7 @@ contains
 
         checks: block
             call sh_set_shell("bash", st)
-            call sh_builtins%get(b)
+            call sh_builtins%current(b)
             call check(error, b(1)%s, ".")
             if (allocated(error)) exit checks
             call check(error, b(size(b))%s, "wait")
@@ -326,7 +326,7 @@ contains
             if (allocated(error)) exit checks
             ! dash has no entry: ash, then sh.
             call sh_set_shell("dash", st)
-            call sh_builtins%get(b)
+            call sh_builtins%current(b)
             call check(error, b(1)%s, "hash")
             if (allocated(error)) exit checks
             call check(error,.not. any_is(b, "command"), "no command in dash")

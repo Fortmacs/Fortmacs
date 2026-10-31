@@ -448,19 +448,19 @@ contains
 
         ! Keep the first element first.
         do while (i <= size(o) .and. j <= size(n))
-            call push(o(i))
-            call push(n(j))
+            call add(o(i))
+            call add(n(j))
             i = i + 1
             j = j + 1
         end do
 
         do while (i <= size(o))
-            call push(o(i))
+            call add(o(i))
             i = i + 1
         end do
 
         do while (j <= size(n))
-            call push(n(j))
+            call add(n(j))
             j = j + 1
         end do
 
@@ -469,7 +469,7 @@ contains
     contains
 
         !> Append E unless an equal element is there already (delete-dups).
-        subroutine push(e)
+        subroutine add(e)
             type(value_type), intent(in) :: e
 
             dup = .false.
@@ -484,7 +484,7 @@ contains
             if (dup) return
             m = m + 1
             res(m) = e
-        end subroutine push
+        end subroutine add
     end function savehist_merge
 
     !> Hook Savehist into Fortmacs.

@@ -48,7 +48,7 @@ module undo_fm
     private
 
     public :: record_insert, record_delete, record_first_change, record_point, undo_boundary
-    public :: push_undo_entry, undo_last_kind
+    public :: add_undo_entry, undo_last_kind
     public :: undo_auto_add_boundary, undo_auto_amalgamate, undo_auto_undoable_change
 
     !> Where point was before the last command or `undo_boundary', and in
@@ -91,7 +91,7 @@ contains
     end function undo_last_kind
 
     !> Push `entry' onto the current buffer's undo list.  Not a port.
-    subroutine push_undo_entry(entry)
+    subroutine add_undo_entry(entry)
         type(undo_entry_type), intent(in) :: entry
         type(undo_entry_type), allocatable :: grown(:)
         integer(int64), allocatable :: equiv(:)
@@ -123,7 +123,7 @@ contains
 
             b%undo_equiv(n) = -2
         end associate
-    end subroutine push_undo_entry
+    end subroutine add_undo_entry
 
     !> Record point, if necessary, as it was at beginning of this command.
     !> BEG is the position of point that will naturally occur as a result
@@ -144,7 +144,7 @@ contains
             buffer_before_last_command_or_undo == buffers(cur)%serial) then
             entry%kind = UE_POINT
             entry%beg = point_before_last_command_or_undo
-            call push_undo_entry(entry)
+            call add_undo_entry(entry)
         end if
     end subroutine record_point
 
@@ -171,7 +171,7 @@ contains
         entry%kind = UE_INSERTION
         entry%beg = beg
         entry%end = beg + length
-        call push_undo_entry(entry)
+        call add_undo_entry(entry)
     end subroutine record_insert
 
     !> Record that a deletion is about to take place, of the NCHARS
@@ -193,7 +193,7 @@ contains
             entry%beg = beg
         end if
 
-        call push_undo_entry(entry)
+        call add_undo_entry(entry)
     end subroutine record_delete
 
     !> Record that an unmodified buffer is about to be changed.
@@ -212,7 +212,7 @@ contains
             entry%end = buffers(cur)%modtime_nsec
         end if
 
-        call push_undo_entry(entry)
+        call add_undo_entry(entry)
     end subroutine record_first_change
 
     !> Mark a boundary between units of undo.
@@ -223,7 +223,7 @@ contains
         type(undo_entry_type) :: entry
 
         if (.not. buffers(cur)%undo_enabled) return
-        if (undo_last_kind() /= UE_BOUNDARY) call push_undo_entry(entry)
+        if (undo_last_kind() /= UE_BOUNDARY) call add_undo_entry(entry)
         last_boundary_cause = CAUSE_EXPLICIT
         point_before_last_command_or_undo = buffers(cur)%pt
         buffer_before_last_command_or_undo = buffers(cur)%serial

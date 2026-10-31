@@ -479,13 +479,13 @@ contains
             end if
 
             if (use_left) then
-                call push_prop(sym, lval)
-                if (tmem(sym, lfront)) call push_front(sym)
-                if (tmem(sym, lrear)) call push_rear(sym)
+                call add_prop(sym, lval)
+                if (tmem(sym, lfront)) call add_front(sym)
+                if (tmem(sym, lrear)) call add_rear(sym)
             else if (use_right) then
-                call push_prop(sym, rval)
-                if (tmem(sym, rfront)) call push_front(sym)
-                if (tmem(sym, rrear)) call push_rear(sym)
+                call add_prop(sym, rval)
+                if (tmem(sym, rfront)) call add_front(sym)
+                if (tmem(sym, rrear)) call add_rear(sym)
             end if
         end do
 
@@ -502,13 +502,13 @@ contains
             ! Since rval is known to be nil in this loop, the test
             ! simplifies.
             if (.not. (tmem(sym, lrear) .or. nonsticky)) then
-                call push_prop(sym, lval)
-                if (tmem(sym, lfront)) call push_front(sym)
+                call add_prop(sym, lval)
+                if (tmem(sym, lfront)) call add_front(sym)
             else if (tmem(sym, rfront)) then
                 ! The value is nil, but we still inherit the stickiness
                 ! from the right.
-                call push_front(sym)
-                if (tmem(sym, rrear)) call push_rear(sym)
+                call add_front(sym)
+                if (tmem(sym, rrear)) call add_rear(sym)
             end if
         end do
 
@@ -557,27 +557,27 @@ contains
 
     contains
 
-        subroutine push_prop(s, v)
+        subroutine add_prop(s, v)
             type(value_type), intent(in) :: s, v
 
             out(n + 1) = s
             out(n + 2) = v
             n = n + 2
-        end subroutine push_prop
+        end subroutine add_prop
 
-        subroutine push_front(s)
+        subroutine add_front(s)
             type(value_type), intent(in) :: s
 
             nf = nf + 1
             front(nf) = s
-        end subroutine push_front
+        end subroutine add_front
 
-        subroutine push_rear(s)
+        subroutine add_rear(s)
             type(value_type), intent(in) :: s
 
             nr = nr + 1
             rear(nr) = s
-        end subroutine push_rear
+        end subroutine add_rear
     end function merge_properties_sticky
 
     !> The properties that text inserted at POSITION of the text with

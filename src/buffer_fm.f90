@@ -377,7 +377,7 @@ module buffer_fm
             type(status_type), intent(out) :: status
         end subroutine erase_buffer
 
-        !> Run `buffer_list_update_hook' unless buffer slot I inhibits
+        !> Execute `buffer_list_update_hook' unless buffer slot I inhibits
         !> buffer hooks.  Port of buffer.c:run_buffer_list_update_hook.
         !> (In buffer_ops_fm.)
         recursive module subroutine execute_buffer_list_update_hook(i, status)
@@ -604,7 +604,7 @@ contains
         if (present(inhibit_buffer_hooks)) buffers(i)%inhibit_buffer_hooks = inhibit_buffer_hooks
         ! Put this in `buffer_order', the live buffers (at its end, the least
         ! recently selected one).
-        call buffer_order_append(h)
+        call buffer_order_add(h)
         buffer_order(2:buffer_order_count) = buffer_order(1:buffer_order_count - 1)
         buffer_order(1) = h
         if (cur == 0) call set_buffer_internal(i)
@@ -869,7 +869,7 @@ contains
     end subroutine list_delq
 
     !> Move H to the front of LIST (removing it elsewhere).  Not a port.
-    subroutine list_push(list, h)
+    subroutine move_to_front(list, h)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: h
         type(handle_type), allocatable :: grown(:)
@@ -879,7 +879,7 @@ contains
         grown(1) = h
         grown(2:) = list
         call move_alloc(grown, list)
-    end subroutine list_push
+    end subroutine move_to_front
 
     !> Move BUFFER to the end of the buffer list.  Port of
     !> buffer.c:Fbury_buffer_internal.
@@ -898,7 +898,7 @@ contains
 
         ! Update buffer lists of selected frame.
         call list_delq(frame_buffers, h)
-        call list_push(frame_buried, h)
+        call move_to_front(frame_buried, h)
         call execute_buffer_list_update_hook(h%index, status)
     end subroutine bury_buffer_internal
 
@@ -959,13 +959,13 @@ contains
         end do
 
         ! Update buffer list of selected frame.
-        call list_push(frame_buffers, h)
+        call move_to_front(frame_buffers, h)
         call list_delq(frame_buried, h)
         call execute_buffer_list_update_hook(h%index, status)
     end subroutine record_buffer
 
     ! Not a port.
-    subroutine buffer_order_append(h)
+    subroutine buffer_order_add(h)
         type(handle_type), intent(in) :: h
         type(handle_type), allocatable :: grown(:)
 
@@ -979,7 +979,7 @@ contains
 
         buffer_order_count = buffer_order_count + 1
         buffer_order(buffer_order_count) = h
-    end subroutine buffer_order_append
+    end subroutine buffer_order_add
 
     ! ------------------------------------------------------------------
     ! Modification state

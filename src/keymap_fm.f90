@@ -193,7 +193,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! Not a port.
-    subroutine new_keymap(km, full, prompt)
+    subroutine make_keymap_slot(km, full, prompt)
         type(handle_type), intent(out) :: km
         logical, intent(in) :: full
         type(value_type), intent(in), optional :: prompt
@@ -212,14 +212,14 @@ contains
         keymaps(km%index) = keymap_type()
         keymaps(km%index)%full = full
         if (present(prompt)) keymaps(km%index)%prompt = prompt
-    end subroutine new_keymap
+    end subroutine make_keymap_slot
 
     !> A new full keymap.  Port of keymap.c:Fmake_keymap.
     subroutine make_keymap(km, prompt)
         type(handle_type), intent(out) :: km
         type(value_type), intent(in), optional :: prompt
 
-        call new_keymap(km, .true., prompt)
+        call make_keymap_slot(km, .true., prompt)
     end subroutine make_keymap
 
     !> A new sparse keymap.  Port of keymap.c:Fmake_sparse_keymap.
@@ -227,7 +227,7 @@ contains
         type(handle_type), intent(out) :: km
         type(value_type), intent(in), optional :: prompt
 
-        call new_keymap(km, .false., prompt)
+        call make_keymap_slot(km, .false., prompt)
     end subroutine make_sparse_keymap
 
     !> Slot of keymap `km', or a `wrong_type_argument' error.  Port of
@@ -992,7 +992,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Append entry (ev, def) to keymap slot `i'.  Not a port.
-    subroutine append_entry(i, ev, def)
+    subroutine add_entry(i, ev, def)
         integer(int64), intent(in) :: i
         type(value_type), intent(in) :: ev, def
         type(value_type), allocatable :: grown(:)
@@ -1013,7 +1013,7 @@ contains
         keymaps(i)%n = keymaps(i)%n + 1
         keymaps(i)%events(keymaps(i)%n) = ev
         keymaps(i)%bindings(keymaps(i)%n) = def
-    end subroutine append_entry
+    end subroutine add_entry
 
     !> Bind event `c' to `def' in keymap slot `i', or with `remove' delete
     !> its entry.  Port of keymap.c:store_in_keymap.
@@ -1060,7 +1060,7 @@ contains
             return
         end do
 
-        if (.not. remove) call append_entry(i, idx, def)
+        if (.not. remove) call add_entry(i, idx, def)
     end subroutine store_in_keymap
 
     !> Bind characters `from'..`to' (without modifiers) to `def' in `km',
@@ -1314,10 +1314,10 @@ contains
 
         call resolve_keymap(km, i, status)
         if (.not. status%ok()) return
-        ! Copy fields first: new_keymap may reallocate the registry.
+        ! Copy fields first: make_keymap_slot may reallocate the registry.
         prompt = keymaps(i)%prompt
         full = keymaps(i)%full
-        call new_keymap(copy, full, prompt)
+        call make_keymap_slot(copy, full, prompt)
         keymaps(copy%index)%parent = keymaps(i)%parent
 
         do k = 1, keymaps(i)%n
@@ -1339,7 +1339,7 @@ contains
                 end if
             end if
 
-            call append_entry(copy%index, ev, b)
+            call add_entry(copy%index, ev, b)
         end do
 
         if (keymaps(i)%nranges > 0) then
@@ -1604,8 +1604,8 @@ contains
                             ev = list(value_type(run_from(m)), value_type(run_to(m)))
                         end if
 
-                        call append_value(events, ev)
-                        call append_value(bindings, run_val(m))
+                        call add_value(events, ev)
+                        call add_value(bindings, run_val(m))
                     end do
                 end if
 
@@ -1613,8 +1613,8 @@ contains
 
                 do m = 1, size(order)
                     n = order(m)
-                    call append_value(events, mp%events(n))
-                    call append_value(bindings, mp%bindings(n))
+                    call add_value(events, mp%events(n))
+                    call add_value(bindings, mp%bindings(n))
                 end do
 
                 map = mp%parent
@@ -1658,10 +1658,10 @@ contains
                 return
             end if
 
-            call push(maps, n, prefix, xhandle(tem))
+            call add(maps, n, prefix, xhandle(tem))
         else
             allocate (seq(0))
-            call push(maps, n, seq, keymap)
+            call add(maps, n, seq, keymap)
         end if
 
         k = 0
@@ -1692,7 +1692,7 @@ contains
                     call insert_after(k, seq, cmd)
                 else
                     seq = [thisseq, events(j)]
-                    call push(maps, n, seq, cmd)
+                    call add(maps, n, seq, cmd)
                 end if
             end do
         end do
@@ -1734,7 +1734,7 @@ contains
             type(handle_type), intent(in) :: map
             integer :: i
 
-            call push(maps, n, keys, map)
+            call add(maps, n, keys, map)
 
             do i = n, at + 2, -1
                 maps(i) = maps(i - 1)
@@ -1829,14 +1829,14 @@ contains
             elems(n) = make_keymap_ref(pushed_terminal_local_map)
         end if
 
-        call push_map(keymap)
+        call add_map(keymap)
 
         do i = 1, size(minor)
             n = n + 1
             elems(n) = make_keymap_ref(minor(i))
         end do
 
-        call push_map(local_map)
+        call add_map(local_map)
         n = n + 1
         elems(n) = make_keymap_ref(current_global_map())
 
@@ -1849,7 +1849,7 @@ contains
     contains
 
         !> Add the keymap or composite MAP (nothing for none).
-        subroutine push_map(map)
+        subroutine add_map(map)
             type(value_type), intent(in) :: map
             type(value_type), allocatable :: parts(:)
             integer :: j
@@ -1867,7 +1867,7 @@ contains
                     elems(n) = parts(j)
                 end do
             end if
-        end subroutine push_map
+        end subroutine add_map
     end function current_active_maps
 
     !> Binding of `key' in the active maps (local, then global); unallocated if
@@ -2218,7 +2218,7 @@ contains
     end function ends_in_name
 
     !> Append `n' copies of `key' to `events(1:nev)'.  Not a port.
-    subroutine push_events(events, nev, key, n)
+    subroutine add_events(events, nev, key, n)
         type(value_type), allocatable, intent(inout) :: events(:)
         integer(int64), intent(inout) :: nev
         type(value_type), intent(in) :: key(:)
@@ -2238,7 +2238,7 @@ contains
             events(nev + 1:nev + size(key)) = key
             nev = nev + size(key)
         end do
-    end subroutine push_events
+    end subroutine add_events
 
     !> Fixnum events for `codes'.  Not a port.
     subroutine char_events(codes, key)
@@ -2314,7 +2314,7 @@ contains
                     call decode(word(3:len(word) - 2), codes)
                     codes = [M_META + iachar("x"), codes, 13_int64]
                     call char_events(codes, key)
-                    call push_events(events, nev, key, times)
+                    call add_events(events, nev, key, times)
                     cycle words
                 end if
             end if
@@ -2335,7 +2335,7 @@ contains
                     if (.not. ends_in_name(word)) then
                         allocate (key(1))
                         key(1) = make_symbol_ref(intern(word))
-                        call push_events(events, nev, key, times)
+                        call add_events(events, nev, key, times)
                         cycle words
                     end if
                 end if
@@ -2428,7 +2428,7 @@ contains
                 key(1) = value_type(bits + codes(1))
             end if
 
-            call push_events(events, nev, key, times)
+            call add_events(events, nev, key, times)
         end do words
 
         allocate (trimmed(nev))
@@ -2723,7 +2723,7 @@ contains
         do k = 1, size(maps)
             if (vtag(maps(k)) /= V_KEYMAP) cycle
             allocate (seq(0))
-            call push(queue, qtail, seq, xhandle(maps(k)))
+            call add(queue, qtail, seq, xhandle(maps(k)))
             deallocate (seq)
         end do
 
@@ -2758,7 +2758,7 @@ contains
             else
                 ! (Not [elems, make_list(...)]: that leaks in gfortran.)
                 one = make_list(found(k)%keys)
-                call append_value(elems, one)
+                call add_value(elems, one)
             end if
         end do
 
@@ -2826,7 +2826,7 @@ contains
                 key = [prefix, event]
 
                 if (.not. is_cycle(xhandle(def), key) .and. size(prefix) < 10) then
-                    call push(queue, qtail, key, xhandle(def))
+                    call add(queue, qtail, key, xhandle(def))
                 end if
             end if
 
@@ -2848,7 +2848,7 @@ contains
                 if (same_keys(found(j)%keys, key)) exit
             end do
 
-            if (j > nfound) call push(found, nfound, key, null_handle())
+            if (j > nfound) call add(found, nfound, key, null_handle())
         end subroutine scan_binding
 
         !> Whether `map' was reached already through a prefix of `key' (a
@@ -3104,7 +3104,7 @@ contains
     end function same_keys
 
     !> Append `v' to the array `list'.  Not a port.
-    subroutine append_value(list, v)
+    subroutine add_value(list, v)
         type(value_type), allocatable, intent(inout) :: list(:)
         type(value_type), intent(in) :: v
         type(value_type), allocatable :: grown(:)
@@ -3115,11 +3115,11 @@ contains
         grown(1:n) = list
         grown(n + 1) = v
         call move_alloc(grown, list)
-    end subroutine append_value
+    end subroutine add_value
 
     !> Append (`keys', `map') to `list', which holds `n' entries.
     !> Not a port.
-    subroutine push(list, n, keys, map)
+    subroutine add(list, n, keys, map)
         type(key_list_type), allocatable, intent(inout) :: list(:)
         integer, intent(inout) :: n
         type(value_type), intent(in) :: keys(:)
@@ -3140,7 +3140,7 @@ contains
         n = n + 1
         list(n)%keys = keys
         list(n)%map = map
-    end subroutine push
+    end subroutine add
 
     ! ------------------------------------------------------------------
     ! Key sequences as strings, character descriptions, minor mode maps

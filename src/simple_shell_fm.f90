@@ -505,7 +505,7 @@ contains
 
         if (async_shell_command_width%value >= 0) then
             write (cols, "(i0)") async_shell_command_width%value
-            call append_arg(env, "COLUMNS="//trim(cols))
+            call add_arg(env, "COLUMNS="//trim(cols))
         end if
 
         block
@@ -1203,7 +1203,7 @@ contains
     end procedure syms_of_simple_shell
 
     !> Add S at the end of LIST.  Not a port.
-    subroutine append_arg(list, s)
+    subroutine add_arg(list, s)
         type(process_arg_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
         type(process_arg_type), allocatable :: grown(:)
@@ -1219,7 +1219,7 @@ contains
 
         grown(n + 1)%s = s
         call move_alloc(grown, list)
-    end subroutine append_arg
+    end subroutine add_arg
 
     !> Add S at the start of LIST.  Not a port.
     subroutine prepend_arg(list, s)

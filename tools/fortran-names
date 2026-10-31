@@ -821,3 +821,168 @@ name	call_t	execute_t	test/test_repeat_fm.f90
 name	call_u	execute_u	test/test_repeat_fm.f90
 # It tests whether a character is in a set; it runs nothing.
 name	execute_charset	match_charset
+
+# V2: one word per meaning for internal helpers (PORTING.md, "One word per
+# meaning"); upstream names keep their words.
+# fetch -> get.
+name	fetch_char_before	get_char_before	src/syntax_fm.f90
+# new_ -> make_ (new_process and new_marker_at are upstream's make_process
+# and build_marker; new_size is a noun).
+name	new_category_char_table	make_category_char_table
+name	new_dir_info	make_dir_info	src/vc_dir_fm.f90
+name	new_info	make_info	src/vc_dir_fm.f90 src/category_fm.f90
+name	new_keymap	make_keymap_slot	src/keymap_fm.f90
+name	new_dir	make_dir	src/compile_fm.f90
+name	new_file	make_file	src/compile_fm.f90
+name	new_loc	make_loc	src/compile_fm.f90
+name	new_message	make_message	src/compile_fm.f90
+name	new_node	make_node	src/ewoc_fm.f90
+name	new_table	make_table	src/chartab_fm.f90 src/syntax_fm.f90
+name	new_token	make_token	src/smie_fm.f90
+name	new_buffer	make_test_buffer	test/test_fileio_fm.f90
+# release -> free.
+name	release_dead_window	free_dead_window
+name	release_sub	free_sub	src/chartab_fm.f90
+name	table_release	table_free	src/handle_fm.f90
+name	double_release	double_free	test/test_handle_fm.f90
+name	release_marker	free_marker_if_live	src/dired_mode_fm.f90
+name	aux_release_marker	aux_free_marker_if_live	src/dired_aux_fm.f90
+name	release	free_marker_position	src/log_edit_fm.f90
+# Forgetting buffer-local values: kill_local (Emacs's kill-local-variable).
+name	search_fun_clear_local	search_fun_kill_local	src/isearch_fm.f90
+name	wrap_clear_local	wrap_kill_local	src/isearch_fm.f90
+name	push_state_clear_local	push_state_kill_local	src/isearch_fm.f90
+name	filter_clear_local	filter_kill_local	src/isearch_fm.f90
+name	message_clear_local	message_kill_local	src/isearch_fm.f90
+name	drop_local	kill_local	src/data_buffer_fm.f90
+name	free_local	kill_local	src/sh_script_fm.f90
+name	free_locals	kill_local	src/comint_fm.f90
+name	reset_local	kill_local	src/js_fm.f90 src/grep_fm.f90
+# The local value of a setting: X_set_local and X_kill_local.
+name	set_local_abbrev_table	abbrev_table_set_local
+name	kill_local_abbrev_table	abbrev_table_kill_local
+name	set_local_blink_matching_check_function	blink_matching_check_function_set_local
+name	kill_local_blink_matching_check_function	blink_matching_check_function_kill_local
+name	set_local_show_paren_data_function	show_paren_data_function_set_local
+name	kill_local_show_paren_data_function	show_paren_data_function_kill_local
+name	set_local_electric_indent_chars	electric_indent_chars_set_local
+name	set_local_font_lock_fontify_region_function	font_lock_fontify_region_function_set_local
+# Its current value: current_X (the binding %current).
+name	list_function_get	current_list_function	src/css_mode_fm.f90
+name	fill_paragraph_get	current_fill_paragraph	src/fill_fm.f90
+name	adaptive_fill_get	current_adaptive_fill	src/fill_fm.f90
+name	indent_region_get	current_indent_region	src/indent_fm.f90
+name	function_get	current_function	src/syntax_propertize_fm.f90 src/pcomplete_fm.f90
+name	ppss_table_get	current_ppss_table	src/syntax_propertize_fm.f90
+name	defaults_get	current_defaults	src/font_core_fm.f90
+name	forward_expression_get	current_forward_expression	src/expression_motion_fm.f90
+name	bod_get	current_bod	src/expression_motion_fm.f90
+name	face_function_get	current_face_function	src/ansi_color_fm.f90
+name	strings_feature_get	current_strings_feature	src/sh_script_fm.f90
+name	keywords_feature_get	current_keywords_feature	src/sh_script_fm.f90
+name	string_feature_get	current_string_feature	src/sh_script_fm.f90
+name	parse_get	current_parse	src/pcomplete_fm.f90
+name	search_fun_get	current_search_fun	src/isearch_fm.f90
+name	wrap_get	current_wrap	src/isearch_fm.f90
+name	push_state_get	current_push_state	src/isearch_fm.f90
+name	filter_get	current_filter	src/isearch_fm.f90
+name	message_get	current_message_function	src/isearch_fm.f90
+name	revert_get	current_revert	src/files_fm.f90
+name	stale_get	current_stale	src/files_fm.f90
+name	indent_function_get	current_indent_function	src/newcomment_fm.f90
+# put -> set (put-text-property's helpers keep Emacs's word).
+name	put_current	set_current	src/data_buffer_fm.f90
+name	prec2_put	prec2_set	src/smie_fm.f90
+# Pairs: X_begin and X_end.
+name	major_mode_finish	major_mode_end
+name	fn_save	fn_begin	src/data_buffer_fm.f90
+name	fn_restore	fn_end	src/data_buffer_fm.f90
+# prev -> previous (upstream's prev names, such as window-prev-buffers,
+# stay).
+name	prev_char	previous_char	src/js_fm.f90
+name	prev_entry	previous_entry	src/window_display_fm.f90
+name	prev_newline_byte	previous_newline_byte	src/search_fm.f90
+# Conversions: X_to_Y.
+name	box_from_color	color_to_box
+name	box_from_logical	logical_to_box
+name	flag_from_logical	logical_to_flag
+name	height_from_integer	integer_to_height
+name	height_from_real	real_to_height
+name	inherit_from_names	names_to_inherit
+name	inherit_from_name	name_to_inherit
+name	line_from_color	color_to_line
+name	line_from_logical	logical_to_line
+name	subject_from_buffer	buffer_to_subject
+name	subject_from_string	string_to_subject
+name	register_as_number	register_to_number	src/kmacro_fm.f90
+# Interfaces: _proc, or _predicate for a logical function.
+name	syntactic_face_iface	syntactic_face_proc
+name	save_some_buffers_pred	save_some_buffers_predicate
+# Procedures are not suffixed _fn or _fun.
+name	end_of_file_fun	end_of_file	src/diff_mode_fm.f90
+name	end_of_hunk_fun	end_of_hunk	src/diff_mode_fm.f90
+name	restrict_view_fun	restrict_view	src/diff_mode_fm.f90
+name	ignore_marked_fn	ignore_marked	src/vc_dir_fm.f90
+name	mark_by_regexp_fn	mark_by_regexp	src/vc_dir_fm.f90
+name	mark_files_fn	mark_listed_file	src/vc_dir_fm.f90
+name	mark_state_fn	mark_state	src/vc_dir_fm.f90
+name	marked_fn	is_marked	src/vc_dir_fm.f90
+name	needs_update_fn	needs_update	src/vc_dir_fm.f90
+name	unmark_fn	unmark_entry	src/vc_dir_fm.f90
+name	unmark_state_fn	unmark_state	src/vc_dir_fm.f90
+# Logical functions are is_* (B1).
+name	check_matches	is_matching	src/recentf_fm.f90
+name	test_completion	is_exact_completion	src/minibuf_fm.f90 src/minibuffer_fm.f90 src/minibuf_table_fm.f90 src/css_mode_fm.f90 src/info_fm.f90 src/grep_fm.f90 src/dabbrev_fm.f90 test/test_minibuf_fm.f90 PORTING.md
+name	test_undefined	is_undefined_binding	src/keyboard_fm.f90 PORTING.md
+name	verify_visited_file_modtime	is_visited_file_modtime_current
+# Growing an array by one: add_ (and add_X_front for the front; a stack's
+# push, such as terminfo's and Info's history, stays, as do upstream's
+# push_mark, append_to_register and prepend_to_register, and helpers
+# that append many, such as append_keywords).
+name	append_arg	add_arg	src/shell_fm.f90 src/simple_shell_fm.f90 src/comint_fm.f90
+name	append_auto_mode	add_auto_mode_last	src/files_mode_fm.f90
+name	append_buffer	add_buffer	src/dabbrev_fm.f90
+name	append_entry	add_entry	src/keymap_fm.f90
+name	append_value	add_value	src/keymap_fm.f90
+name	push_events	add_events	src/keymap_fm.f90
+name	push_map	add_map	src/keymap_fm.f90
+name	append_line	add_line	src/rect_fm.f90
+name	append_match	add_match	src/info_fm.f90
+name	append_name	add_name	src/bookmark_fm.f90
+name	append_record	add_record	src/bookmark_fm.f90
+name	push_record	add_record_front	src/bookmark_fm.f90
+name	append_place	add_place	src/saveplace_fm.f90
+name	append_prev	add_prev	src/window_display_fm.f90
+name	push_front	move_to_front	src/window_display_fm.f90
+name	list_push	move_to_front	src/buffer_fm.f90
+name	append_shadow	add_shadow	src/help_fm.f90
+name	push_shadow	add_shadow_front	src/help_fm.f90
+name	append_file	add_file	src/log_edit_fm.f90
+name	buffer_order_append	buffer_order_add
+name	process_order_push	process_order_add
+name	push_arg	add_arg	src/pcomplete_fm.f90
+name	push_seen	add_seen	src/pcomplete_fm.f90
+name	push_box	add_box	src/minibuffer_styles_fm.f90
+name	push_elt	add_elt	src/minibuffer_styles_fm.f90
+name	push_check_result	add_check_result	src/dired_aux_fm.f90
+name	push_create_files_failure	add_create_files_failure	src/dired_aux_fm.f90
+name	push_string	add_string	src/dired_aux_fm.f90 src/replace_fm.f90
+name	push_defaults	add_defaults	src/replace_fm.f90
+name	push_file	add_file	src/vc_dir_fm.f90
+name	push_pair	add_file_state	src/vc_dir_fm.f90
+name	push_item	add_item	src/xdisp_fm.f90
+name	push_text	add_text	src/xdisp_fm.f90
+name	push_overlay_string	add_overlay_string	src/xdisp_fm.f90
+name	push_result	add_result	src/dired_mode_fm.f90
+name	push_undo_entry	add_undo_entry
+name	push_undo_point	add_undo_point	src/dabbrev_fm.f90
+name	push_buffer	add_buffer	src/ibuf_ext_fm.f90
+name	push_levels	add_levels	src/smie_fm.f90
+name	push_table	add_table	src/smie_fm.f90
+name	push_front	add_front	src/smie_fm.f90 src/make_mode_fm.f90 src/shell_fm.f90 src/ibuf_ext_fm.f90 src/intervals_fm.f90
+name	push_rear	add_rear	src/intervals_fm.f90
+name	push_prop	add_prop	src/intervals_fm.f90
+name	push_level_2	add_level_2	src/python_fm.f90
+name	push_name	add_name	src/python_fm.f90
+name	push_in_progress	add_in_progress	src/compile_fm.f90
+name	push_nil	add_empty	src/vc_git_fm.f90

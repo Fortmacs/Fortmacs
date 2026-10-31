@@ -263,7 +263,7 @@ contains
         call file_notify_handle_event(event%descriptor, actions(1:n), event%name, event%cookie, status)
     end subroutine file_notify_callback_inotify
 
-    !> Call the handler of watch K with DESC, ACTION, FILE and FILE1 (if
+    !> Execute the handler of watch K with DESC, ACTION, FILE and FILE1 (if
     !> present).  Port of filenotify.el:file-notify--call-handler.
     recursive subroutine execute_handler(k, desc, action, file, status, file1)
         integer, intent(in) :: k
@@ -289,7 +289,7 @@ contains
         call callback(ev, status)
     end subroutine execute_handler
 
-    !> Call the callback of the watch with descriptor DESC, if it is
+    !> Execute the callback of the watch with descriptor DESC, if it is
     !> still registered, with ACTION, FILE and FILE1 (if present).
     !> Not a port.
     recursive subroutine execute_callback(desc, action, file, status, file1)

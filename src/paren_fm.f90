@@ -58,8 +58,8 @@ module paren_fm
     implicit none(type, external)
     private
 
-    public :: set_local_show_paren_data_function, current_show_paren_data_function, is_show_paren_data_function_local, &
-              kill_local_show_paren_data_function
+    public :: show_paren_data_function_set_local, current_show_paren_data_function, is_show_paren_data_function_local, &
+              show_paren_data_function_kill_local
     public :: syms_of_paren, show_paren_mode, show_paren_local_mode, show_paren_function, show_paren_default, &
               is_show_paren_unescaped, show_paren_categorize_paren, show_paren_locate_near_paren, &
               is_show_paren_enabled, show_paren_default_predicate, show_paren_data_proc, show_paren_predicate_proc
@@ -211,7 +211,7 @@ contains
 
     !> Give the current buffer its own `show_paren_data_function'
     !> FN (set_local); absent clears it.  Not a port.
-    subroutine set_local_show_paren_data_function(fn)
+    subroutine show_paren_data_function_set_local(fn)
         procedure(show_paren_data_proc), optional :: fn
         type(data_entry_type), allocatable :: grown(:)
         integer :: i, n
@@ -246,7 +246,7 @@ contains
         else
             data_locals(i)%fn => null()
         end if
-    end subroutine set_local_show_paren_data_function
+    end subroutine show_paren_data_function_set_local
 
     !> The value of `show_paren_data_function' in the current buffer
     !> (null when unset).  Not a port.
@@ -271,14 +271,14 @@ contains
 
     !> Make the current buffer use the default `show_paren_data_function'
     !> (also what `kill_all_local_variables' does to it).  Not a port.
-    subroutine kill_local_show_paren_data_function()
+    subroutine show_paren_data_function_kill_local()
         integer :: i
 
         i = data_local_index()
         if (i == 0) return
         data_locals(i)%serial = 0
         data_locals(i)%fn => null()
-    end subroutine kill_local_show_paren_data_function
+    end subroutine show_paren_data_function_kill_local
 
     !> Define Show Paren mode and Show Paren Local mode (as loading
     !> paren.el does).  Not a port.
@@ -290,7 +290,7 @@ contains
                                                       hook=show_paren_local_mode_hook, getter=is_show_paren_enabled)
         commands%show_paren_local_mode%execute => show_paren_local_mode
         if (.not. associated(show_paren_data_function)) show_paren_data_function => show_paren_default
-        call add_local_variables_killer(kill_local_show_paren_data_function)
+        call add_local_variables_killer(show_paren_data_function_kill_local)
         if (.not. associated(show_paren_predicate)) show_paren_predicate => show_paren_default_predicate
     end subroutine syms_of_paren
 

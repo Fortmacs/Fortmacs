@@ -753,23 +753,23 @@ contains
         h3(2) = h(2, "makefile_shell", FONT_LOCK_OVERRIDE_PREPEND, .true.)
         ! This is for after normal assignment
         h3(3) = h(3, "font_lock_string_face", FONT_LOCK_OVERRIDE_PREPEND, .true.)
-        call push(font_lock_keyword(makefile_macroassign_regex, highlights=h3))
+        call add(font_lock_keyword(makefile_macroassign_regex, highlights=h3))
         ! Rule actions.
         ! FIXME: When this spans multiple lines we need font-lock-multiline.
         h3(1) = h(1, "font_lock_type_face", lax=.true.)
         h3(2) = h(2, "makefile_shell", FONT_LOCK_OVERRIDE_PREPEND)
         ! Only makepp has builtin commands.
         h3(3) = h(3, "font_lock_builtin_face", FONT_LOCK_OVERRIDE_PREPEND, .true.)
-        call push(font_lock_keyword(matcher=makefile_match_action, highlights=h3))
+        call add(font_lock_keyword(matcher=makefile_match_action, highlights=h3))
         ! Variable references even in targets/strings/comments.
         h1(1) = h(2, VA, FONT_LOCK_OVERRIDE_PREPEND)
-        call push(font_lock_keyword(var, highlights=h1))
+        call add(font_lock_keyword(var, highlights=h1))
         ! Automatic variable references and single character variable references,
         ! but not shell variables references.
         h1(1) = h(1, "font_lock_constant_face", FONT_LOCK_OVERRIDE_PREPEND)
-        call push(font_lock_keyword("[^$]\$\([@%<?^+*_]\|[a-zA-Z0-9]\>\)", highlights=h1))
+        call add(font_lock_keyword("[^$]\$\([@%<?^+*_]\|[a-zA-Z0-9]\>\)", highlights=h1))
         h1(1) = h(1, "makefile_targets", FONT_LOCK_OVERRIDE_APPEND)
-        call push(font_lock_keyword("[^$]\(\$[@%*]\)", highlights=h1))
+        call add(font_lock_keyword("[^$]\(\$[@%*]\)", highlights=h1))
 
         if (present(keywords)) then
             ! Fontify conditionals and includes.
@@ -784,51 +784,51 @@ contains
 
             h2(1) = h(1, "font_lock_keyword_face")
             h2(2) = h(2, VA)
-            call push(font_lock_keyword("^\(?: [ "//TAB//"]*\)?"//string_replace(" ", "[ "//TAB//"]+", re)//"\>[ "//TAB// &
+            call add(font_lock_keyword("^\(?: [ "//TAB//"]*\)?"//string_replace(" ", "[ "//TAB//"]+", re)//"\>[ "//TAB// &
                                         "]*\([^: "//TAB//LF//"#]*\)", highlights=h2))
         end if
 
         if (present(negation)) then
             h2(1) = h(1, NEG, FONT_LOCK_OVERRIDE_PREPEND)
             h2(2) = h(2, NEG, FONT_LOCK_OVERRIDE_PREPEND, .true.)
-            call push(font_lock_keyword(negation, highlights=h2))
+            call add(font_lock_keyword(negation, highlights=h2))
         end if
 
         if (space) then
             ! Highlight lines that contain just whitespace.
             ! They can cause trouble, especially if they start with a tab.
-            call push(font_lock_keyword("^[ "//TAB//"]+$", face="makefile_space"))
+            call add(font_lock_keyword("^[ "//TAB//"]+$", face="makefile_space"))
             ! Highlight shell comments that Make treats as commands,
             ! since these can fool people.
             h1(1) = h(0, "makefile_space", FONT_LOCK_OVERRIDE_YES)
-            call push(font_lock_keyword("^"//TAB//"+#", highlights=h1))
+            call add(font_lock_keyword("^"//TAB//"+#", highlights=h1))
             ! Highlight spaces that precede tabs.
             ! They can make a tab fail to be effective.
             h1(1) = h(1, "makefile_space")
-            call push(font_lock_keyword("^\( +\)"//TAB, highlights=h1))
+            call add(font_lock_keyword("^\( +\)"//TAB, highlights=h1))
         end if
 
         if (present(fl_keywords)) then
             do k = 1, size(fl_keywords)
-                call push(fl_keywords(k))
+                call add(fl_keywords(k))
             end do
         end if
 
         ! Do dependencies.
         h2(1) = h(1, "makefile_targets", FONT_LOCK_OVERRIDE_PREPEND)
         h2(2) = h(3, "makefile_shell", FONT_LOCK_OVERRIDE_PREPEND, .true.)
-        call push(font_lock_keyword(matcher=makefile_match_dependency, highlights=h2))
+        call add(font_lock_keyword(matcher=makefile_match_dependency, highlights=h2))
         allocate (kw(n))
         kw(:) = all(1:n)
 
     contains
 
-        subroutine push(k)
+        subroutine add(k)
             type(font_lock_keyword_type), intent(in) :: k
 
             n = n + 1
             all(n) = k
-        end subroutine push
+        end subroutine add
     end function makefile_make_font_lock_keywords
 
     ! Not a port.
@@ -1029,7 +1029,7 @@ contains
 
     ! NAMES with NAME added in front (cons).
     ! Not a port.
-    subroutine push_front(names, name)
+    subroutine add_front(names, name)
         type(makefile_name_type), allocatable, intent(inout) :: names(:)
         character(len=*), intent(in) :: name
         type(makefile_name_type), allocatable :: grown(:)
@@ -1045,7 +1045,7 @@ contains
         end do
 
         call move_alloc(grown, names)
-    end subroutine push_front
+    end subroutine add_front
 
     ! Whether NAME is one of NAMES (assoc).
     ! Not a port.
@@ -2668,11 +2668,11 @@ contains
         value = .false.
         if (len(target_name) == 0) return
         s => state()
-        if (.not. member_name(s%targets, target_name)) call push_front(s%targets, target_name)
+        if (.not. member_name(s%targets, target_name)) call add_front(s%targets, target_name)
 
         if (present(has_prereqs)) then
             if (has_prereqs) then
-                call push_front(s%prereqs, target_name)
+                call add_front(s%prereqs, target_name)
                 value = .true.
             end if
         end if
@@ -2690,7 +2690,7 @@ contains
         s => state()
 
         if (.not. member_name(s%macros, macro_name)) then
-            call push_front(s%macros, macro_name)
+            call add_front(s%macros, macro_name)
             value = .true.
         end if
     end function makefile_remember_macro

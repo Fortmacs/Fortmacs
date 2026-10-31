@@ -52,7 +52,7 @@
 !> value).  Commands are subroutines taking a `status_type', defined as
 !> `command_type' objects: built-in ones are the components of
 !> `commands', so that `commands%upcase_region%disabled = .false.'
-!> enables C-x C-u, and `call commands%yank%execute(status)' runs one.  Keys
+!> enables C-x C-u, and `call commands%yank%execute(status)' executes one.  Keys
 !> are bound with `keymap_global_set'.  Modes are customized from
 !> their hooks and keymaps, named after their Emacs variables: `call text_mode_hook%add(turn_on_auto_fill)'.  New modes
 !> are `major_mode_type' and `minor_mode_type' objects made known with
@@ -416,7 +416,7 @@ module fortmacs
                          inverse_add_global_abbrev, inverse_add_abbrev, abbrev_prefix_mark, expand_region_abbrevs, &
                          define_global_abbrev, define_mode_abbrev, abbrev_name, abbrev_expansion, abbrev_insert, &
                          expand_abbrev, abbrev_default_expand, unexpand_abbrev, insert_abbrev_table_description, &
-                         local_abbrev_table, set_local_abbrev_table
+                         local_abbrev_table, abbrev_table_set_local
     use text_mode_fm, only: text_mode_abbrev_table
     use prog_mode_fm, only: prog_mode_abbrev_table
     use simple_fm, only: special_mode_abbrev_table
@@ -882,7 +882,7 @@ module fortmacs
               abbrev_table_name, edit_abbrevs, write_abbrev_file, inverse_add_mode_abbrev, inverse_add_global_abbrev, &
               inverse_add_abbrev, abbrev_prefix_mark, expand_region_abbrevs, define_global_abbrev, define_mode_abbrev, &
               abbrev_name, abbrev_expansion, abbrev_insert, expand_abbrev, abbrev_default_expand, unexpand_abbrev, &
-              insert_abbrev_table_description, local_abbrev_table, set_local_abbrev_table, text_mode_abbrev_table, &
+              insert_abbrev_table_description, local_abbrev_table, abbrev_table_set_local, text_mode_abbrev_table, &
               prog_mode_abbrev_table, special_mode_abbrev_table, help_mode_abbrev_table, save_some_buffers_proc, &
               save_some_buffers_function_type, save_some_buffers_functions, add_save_some_buffers_function, &
               dabbrev_expand, is_dabbrev_same_major_mode, dabbrev_select_buffers, dabbrev_friend_buffer_proc, &

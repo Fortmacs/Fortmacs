@@ -836,7 +836,7 @@ contains
     end subroutine move_record
 
     ! Put RECORD at the front of `bookmark_table'.  Not a port.
-    subroutine push_record(record)
+    subroutine add_record_front(record)
         type(bookmark_type), intent(in) :: record
         type(bookmark_type), allocatable :: grown(:)
         integer :: k, n
@@ -851,10 +851,10 @@ contains
         end do
 
         call move_alloc(grown, bookmark_table)
-    end subroutine push_record
+    end subroutine add_record_front
 
     ! Put RECORD at the end of `bookmark_table'.  Not a port.
-    subroutine append_record(record)
+    subroutine add_record(record)
         type(bookmark_type), intent(in) :: record
         type(bookmark_type), allocatable :: grown(:)
         integer :: k, n
@@ -869,7 +869,7 @@ contains
 
         grown(n + 1) = record
         call move_alloc(grown, bookmark_table)
-    end subroutine append_record
+    end subroutine add_record
 
     ! Remove element K of `bookmark_table'.  Not a port.
     subroutine delete_record(k)
@@ -1173,7 +1173,7 @@ contains
             ! bookmark doesn't exist already, or there is no prefix arg.  In
             ! either case, we want the new bookmark on the front of the
             ! list, since the list is kept in reverse order of creation.
-            call push_record(bm)
+            call add_record_front(bm)
         end if
 
         call set_bookmark_current_bookmark(name)
@@ -2674,7 +2674,7 @@ contains
 
         do k = 1, size(new_list)
             call bookmark_maybe_rename(new_list(k), names)
-            call append_record(new_list(k))
+            call add_record(new_list(k))
             n = size(names)
             allocate (grown(n + 1))
             grown(1)%s = bookmark_name_from_full_record(new_list(k))
@@ -2790,7 +2790,7 @@ contains
                 call clear_table()
 
                 do k = 1, size(blist)
-                    call append_record(blist(k))
+                    call add_record(blist(k))
                 end do
 
                 bookmark_table_modification_count = 0
@@ -3361,7 +3361,7 @@ contains
                 if (same(others(k)%s, tem)) dup = .true.
             end do
 
-            if (.not. dup) call append_name(others, tem)
+            if (.not. dup) call add_name(others, tem)
         end do
 
         tem_size = (frame_lines(selected_frame) - 1)/(1 + size(others))
@@ -3386,7 +3386,7 @@ contains
     end subroutine bookmark_bmenu_select
 
     ! Not a port.
-    subroutine append_name(names, name)
+    subroutine add_name(names, name)
         type(minibuffer_string_type), allocatable, intent(inout) :: names(:)
         character(len=*), intent(in) :: name
         type(minibuffer_string_type), allocatable :: grown(:)
@@ -3401,7 +3401,7 @@ contains
 
         grown(n + 1)%s = name
         call move_alloc(grown, names)
-    end subroutine append_name
+    end subroutine add_name
 
     !> Return true if any bookmarks are marked in the marks column.
     !> Port of bookmark.el:bookmark-bmenu-any-marks.
@@ -3798,7 +3798,7 @@ contains
         allocate (bookmark_table(0))
 
         do k = 1, size(saved)
-            if (string_match(regexp, bookmark_name_from_full_record(saved(k)), st) > 0) call append_record(saved(k))
+            if (string_match(regexp, bookmark_name_from_full_record(saved(k)), st) > 0) call add_record(saved(k))
         end do
 
         call bookmark_bmenu_list(status)

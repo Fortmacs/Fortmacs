@@ -75,7 +75,7 @@ module abbrev_fm
               add_abbrev, inverse_add_mode_abbrev, inverse_add_global_abbrev, inverse_add_abbrev, abbrev_prefix_mark, &
               expand_region_abbrevs, define_global_abbrev, define_mode_abbrev, abbrev_name, abbrev_expansion, &
               abbrev_insert, expand_abbrev, abbrev_default_expand, unexpand_abbrev, insert_abbrev_table_description, &
-              abbrev_table_names, abbrev_possibly_save, local_abbrev_table, set_local_abbrev_table, &
+              abbrev_table_names, abbrev_possibly_save, local_abbrev_table, abbrev_table_set_local, &
               edit_abbrevs_mode, is_abbrev_mode, abbrev_no_self_insert, syms_of_abbrev
 
     !> The values of `save_abbrevs': never save, ask or save
@@ -751,10 +751,10 @@ module abbrev_fm
 
         !> Make TABLE the local abbrev table of the current buffer, as
         !> assigning TABLE to `local_abbrev_table' does.  Not a port.
-        module subroutine set_local_abbrev_table(table)
+        module subroutine abbrev_table_set_local(table)
             implicit none(type, external)
             type(abbrev_table_type), intent(in), target :: table
-        end subroutine set_local_abbrev_table
+        end subroutine abbrev_table_set_local
 
         !> Major mode for editing the list of abbrev definitions.
         !> This mode is for editing abbrevs in a buffer prepared by `edit_abbrevs',

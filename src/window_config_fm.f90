@@ -419,7 +419,7 @@ contains
         do k = 1, n
             if (windows(old(k)%index)%dead) then
                 if (windows(old(k)%index)%config_refs == 0) then
-                    call release_dead_window(old(k))
+                    call free_dead_window(old(k))
                 end if
             end if
         end do
@@ -449,7 +449,7 @@ contains
 
     !> Free dead window `h' for good once no window configuration refers
     !> to it.  Not a port.
-    subroutine release_dead_window(h)
+    subroutine free_dead_window(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: status
 
@@ -458,7 +458,7 @@ contains
         call free_window(windows(h%index))
         windows(h%index) = window_type()
         call wtable%release(h, status)
-    end subroutine release_dead_window
+    end subroutine free_dead_window
 
     !> Whether window `h' (valid) shows buffer `b'.  Not a port.
     logical function window_cur_shows(h, b)
@@ -484,7 +484,7 @@ contains
 
                 if (wtable%is_live(p%window)) then
                     windows(p%window%index)%config_refs = max(0, windows(p%window%index)%config_refs - 1)
-                    call release_dead_window(p%window)
+                    call free_dead_window(p%window)
                 end if
             end associate
         end do

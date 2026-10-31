@@ -892,7 +892,7 @@ contains
 
     !> Set the current value of symbol ID (not procedure variables).
     !> Not a port.
-    subroutine put_current(id, v, bound)
+    subroutine set_current(id, v, bound)
         integer(int64), intent(in) :: id
         type(value_type), intent(in) :: v
         logical, intent(in) :: bound
@@ -912,7 +912,7 @@ contains
             symbols(id)%val = v
             symbols(id)%bound = bound
         end if
-    end subroutine put_current
+    end subroutine set_current
 
     !> The index of symbol ID in buffer B's local variables, or 0.
     !> Not a port.
@@ -986,7 +986,7 @@ contains
 
     !> Save the current value of the forwarded function setting of symbol
     !> ID as (B, its index).  Not a port.
-    subroutine fn_save(id, b)
+    subroutine fn_begin(id, b)
         integer(int64), intent(in) :: id, b
         integer :: k, i
 
@@ -997,11 +997,11 @@ contains
         type is (function_setting)
             fn_store(i)%s = p
         end select
-    end subroutine fn_save
+    end subroutine fn_begin
 
     !> Make the value saved as (B, the index of symbol ID) current, if any.
     !> Not a port.
-    subroutine fn_restore(id, b)
+    subroutine fn_end(id, b)
         integer(int64), intent(in) :: id, b
         integer :: k, i
 
@@ -1013,7 +1013,7 @@ contains
         type is (function_setting)
             p = fn_store(i)%s
         end select
-    end subroutine fn_restore
+    end subroutine fn_end
 
     !> The value saved as (B, the index of symbol ID).  Not a port.
     subroutine fn_saved_value(id, b, v, bound)
@@ -1049,11 +1049,11 @@ contains
                     saved_procs(old)%indent_line = indent_line_function
                     indent_line_function = default_procs%indent_line
                 case (K_FUNCTION)
-                    call fn_save(id, old)
-                    call fn_restore(id, 0_int64)
+                    call fn_begin(id, old)
+                    call fn_end(id, 0_int64)
                 case default
                     call get_current(id, buffers(old)%local_values(i), buffers(old)%local_bound(i))
-                    call put_current(id, symbols(id)%default_val, symbols(id)%default_bound)
+                    call set_current(id, symbols(id)%default_val, symbols(id)%default_bound)
                 end select
             end do
         end if
@@ -1070,11 +1070,11 @@ contains
                     default_procs%indent_line = indent_line_function
                     indent_line_function = saved_procs(new)%indent_line
                 case (K_FUNCTION)
-                    call fn_save(id, 0_int64)
-                    call fn_restore(id, new)
+                    call fn_begin(id, 0_int64)
+                    call fn_end(id, new)
                 case default
                     call get_current(id, symbols(id)%default_val, symbols(id)%default_bound)
-                    call put_current(id, buffers(new)%local_values(i), buffers(new)%local_bound(i))
+                    call set_current(id, buffers(new)%local_values(i), buffers(new)%local_bound(i))
                 end select
             end do
         end if
@@ -1082,7 +1082,7 @@ contains
 
     !> Restore the default value of symbol ID, local in the current
     !> buffer at index I, and forget the local value.  Not a port.
-    subroutine drop_local(i)
+    subroutine kill_local(i)
         integer, intent(in) :: i
         integer(int64) :: id
         integer :: n
@@ -1095,9 +1095,9 @@ contains
         case (K_INDENT_LINE)
             indent_line_function = default_procs%indent_line
         case (K_FUNCTION)
-            call fn_restore(id, 0_int64)
+            call fn_end(id, 0_int64)
         case default
-            call put_current(id, symbols(id)%default_val, symbols(id)%default_bound)
+            call set_current(id, symbols(id)%default_val, symbols(id)%default_bound)
         end select
 
         n = buffers(cur)%nlocal
@@ -1105,7 +1105,7 @@ contains
         buffers(cur)%local_values(i:n - 1) = buffers(cur)%local_values(i + 1:n)
         buffers(cur)%local_bound(i:n - 1) = buffers(cur)%local_bound(i + 1:n)
         buffers(cur)%nlocal = n - 1
-    end subroutine drop_local
+    end subroutine kill_local
 
     !> Check that VARIABLE is a symbol that can be made local.  Not a port.
     subroutine check_localizable(variable, id, status)
@@ -1173,7 +1173,7 @@ contains
         call ensure_saved_procs(cur)
         default_procs%indent_line = indent_line_function
     case (K_FUNCTION)
-        call fn_save(id, 0_int64)
+        call fn_begin(id, 0_int64)
     case default
         call get_current(id, symbols(id)%default_val, symbols(id)%default_bound)
     end select
@@ -1202,7 +1202,7 @@ contains
     call check_localizable(variable, id, status)
     if (.not. status%ok()) return
     i = local_index(cur, id)
-    if (i > 0) call drop_local(i)
+    if (i > 0) call kill_local(i)
     end procedure kill_local_variable
 
     module procedure kill_all_local_variables
@@ -1240,7 +1240,7 @@ contains
             if (allocated(prop%a)) cycle
         end if
 
-        call drop_local(i)
+        call kill_local(i)
     end do
 
     ! The buffer-local variables kept in Fortran objects (none of them
@@ -1408,7 +1408,7 @@ contains
                 symbols(id)%default_bound = .true.
             end if
 
-            call put_current(id, here, bound)
+            call set_current(id, here, bound)
         end block
     end select
     end procedure set_default

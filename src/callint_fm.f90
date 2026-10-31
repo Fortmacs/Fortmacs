@@ -185,7 +185,7 @@ contains
         if (allocated(p%disabled_message)) deallocate (p%disabled_message)
     end subroutine set_command_disabled
 
-    !> Run command `cmd'.  Port of callint.c:Fcall_interactively (how the
+    !> Execute command `cmd'.  Port of callint.c:Fcall_interactively (how the
     !> command reads its arguments is the command's own business here).  Recursive:
     !> a command may read the minibuffer, running commands in turn.
     recursive subroutine execute_interactively(cmd, status)

@@ -71,7 +71,7 @@ module minibuffer_fm
                           is_minibuffer_innermost_command_loop, is_innermost_minibuffer, &
                           minibuffer_local_map, read_from_minibuffer, completion_table_type, &
                           completion_predicate, completion_function_table, try_completion, all_completions, &
-                          test_completion, completion_ignore_case, TABLE_FUNCTION, COMPLETE_TRY, COMPLETE_ALL, &
+                          is_exact_completion, completion_ignore_case, TABLE_FUNCTION, COMPLETE_TRY, COMPLETE_ALL, &
                           COMPLETE_TEST, COMPLETE_BOUNDARIES, minibuffer_calling_buffer, completion_list_table, &
                           minibuffer_setup_function, minibuffer_setup_proc, history_added, minibuffer_default, &
                           minibuffer_string_type, quoting_table_call
@@ -1095,9 +1095,9 @@ contains
         character(len=*), intent(in) :: string
 
         if (associated(minibuffer_completion_predicate)) then
-            mb_test = test_completion(string, minibuffer_completion_table, minibuffer_completion_predicate)
+            mb_test = is_exact_completion(string, minibuffer_completion_table, minibuffer_completion_predicate)
         else
-            mb_test = test_completion(string, minibuffer_completion_table)
+            mb_test = is_exact_completion(string, minibuffer_completion_table)
         end if
     end function mb_test
 
@@ -2490,11 +2490,11 @@ contains
 
     !> Perform completion on buffer names.
     !> STRING and PREDICATE have the same meanings as in `try_completion',
-    !> `all_completions', and `test_completion'.
+    !> `all_completions', and `is_exact_completion'.
     !>
     !> If FLAG is COMPLETE_TRY, invoke `try_completion'; if it is
     !> COMPLETE_ALL, invoke `all_completions'; otherwise invoke
-    !> `test_completion'.  Port of minibuf.c:Finternal_complete_buffer.
+    !> `is_exact_completion'.  Port of minibuf.c:Finternal_complete_buffer.
     recursive subroutine internal_complete_buffer(string, action, result, status, pred, suffix)
         character(len=*), intent(in) :: string
         integer, intent(in) :: action
@@ -2536,7 +2536,7 @@ contains
 
             result = make_list(bufs(1:n))
         case (COMPLETE_TEST)
-            if (test_completion(string, table, pred)) result = value_type(.true.)
+            if (is_exact_completion(string, table, pred)) result = value_type(.true.)
         case default
             continue
         end select
@@ -2998,9 +2998,9 @@ contains
             result = value_type()
 
             if (present(pred)) then
-                if (test_completion(string, table, context_predicate)) result = value_type(.true.)
+                if (is_exact_completion(string, table, context_predicate)) result = value_type(.true.)
             else
-                if (test_completion(string, table)) result = value_type(.true.)
+                if (is_exact_completion(string, table)) result = value_type(.true.)
             end if
         end select
 

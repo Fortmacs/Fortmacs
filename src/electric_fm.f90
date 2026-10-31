@@ -56,7 +56,7 @@ module electric_fm
     implicit none(type, external)
     private
 
-    public :: electric_indent_chars_value, set_local_electric_indent_chars
+    public :: electric_indent_chars_value, electric_indent_chars_set_local
     public :: syms_of_electric, electric_indent_mode, electric_indent_local_mode, electric_after_char_pos, &
               is_electric_indent_can_reindent, electric_indent_post_self_insert_function, &
               electric_indent_just_newline, electric_newline_and_maybe_indent
@@ -64,7 +64,7 @@ module electric_fm
     !> Characters that should cause automatic reindentation.  Port of
     !> electric.el electric-indent-chars (the default value; `syms_of_electric'
     !> gives it the newline unless the configuration set it; a buffer's own
-    !> value is set with `set_local_electric_indent_chars').
+    !> value is set with `electric_indent_chars_set_local').
     integer, allocatable, public :: electric_indent_chars(:)
 
     ! One buffer's own `electric_indent_chars'.
@@ -191,13 +191,13 @@ contains
     !> Give the current buffer its own value CHARS of `electric_indent_chars'
     !> (set_local).
     !> Not a port.
-    subroutine set_local_electric_indent_chars(chars)
+    subroutine electric_indent_chars_set_local(chars)
         integer, intent(in) :: chars(:)
         integer :: k
 
         k = indent_chars_index(.true.)
         if (k > 0) local_indent_chars(k)%chars = chars
-    end subroutine set_local_electric_indent_chars
+    end subroutine electric_indent_chars_set_local
 
     ! kill-all-local-variables: forget the current buffer's own
     ! `electric_indent_chars'.

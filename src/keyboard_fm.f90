@@ -1249,22 +1249,22 @@ contains
 
     !> Whether BINDING is undefined: empty, `undefined', or a command
     !> remapped to `undefined'.  Port of keyboard.c:test_undefined.
-    logical function test_undefined(binding)
+    logical function is_undefined_binding(binding)
         type(value_type), intent(in) :: binding
         type(value_type) :: remapped
 
-        test_undefined = .not. allocated(binding%a)
+        is_undefined_binding = .not. allocated(binding%a)
 
-        if (.not. test_undefined .and. (vtag(binding) == V_NAME .or. vtag(binding) == V_NULL)) then
-            test_undefined = xsymbol(binding) == intern("undefined")
+        if (.not. is_undefined_binding .and. (vtag(binding) == V_NAME .or. vtag(binding) == V_NULL)) then
+            is_undefined_binding = xsymbol(binding) == intern("undefined")
 
-            if (.not. test_undefined) then
+            if (.not. is_undefined_binding) then
                 call command_remapping(binding, remapped)
-                if ((vtag(remapped) == V_NAME .or. vtag(remapped) == V_NULL)) test_undefined = xsymbol(remapped) &
+                if ((vtag(remapped) == V_NAME .or. vtag(remapped) == V_NULL)) is_undefined_binding = xsymbol(remapped) &
                                                                                                == intern("undefined")
             end if
         end if
-    end function test_undefined
+    end function is_undefined_binding
 
     !> Events of translation `next' (a list of events or a string).
     !> Not a port.
@@ -1525,13 +1525,13 @@ contains
 
                 ! local-function-key-map: only for undefined sequences.
                 if (.not. is_keymap(current_binding) .and. &
-                    .not. test_undefined(current_binding) .and. indec%start >= t) then
+                    .not. is_undefined_binding(current_binding) .and. indec%start >= t) then
                     if (fkey%start < t) call reset_remap(fkey, t)
                 else
                     do while (fkey%end < indec%start)
                         call keyremap_step(keybuf, fkey, max(t, mock_input), &
                                            fkey%end + 1 == t .and. &
-                                           test_undefined(current_binding), &
+                                           is_undefined_binding(current_binding), &
                                            diff, done, status)
                         if (.not. status%ok()) return
 
@@ -1788,7 +1788,7 @@ contains
         if (associated(on_exit)) call on_exit()
     end subroutine clear_transient_map
 
-    !> Run the ripe timers (keyboard.c:timer_check), show the error a
+    !> Execute the ripe timers (keyboard.c:timer_check), show the error a
     !> timer function returned with, and redisplay if any timer ran, as
     !> process.c:wait_reading_process_output does.  The result is the
     !> number of milliseconds to wait for the next timer, or -1 for none.
@@ -3565,7 +3565,7 @@ contains
     ! Hooks and the top level
     ! ------------------------------------------------------------------
 
-    !> Run HOOK's functions, catching their errors: an error is shown as
+    !> Execute HOOK's functions, catching their errors: an error is shown as
     !> "Error in HOOK (FUNCTION): ERROR" and the function where it occurred
     !> is removed from the hook (from the current buffer's own functions
     !> if it is one of them, else from the default ones), the other
@@ -3579,7 +3579,7 @@ contains
         call hook%execute_safe(report_hook_error)
     end subroutine safe_execute_hooks
 
-    !> Run HOOK as `safe_execute_hooks' does, for pre-command-hook and
+    !> Execute HOOK as `safe_execute_hooks' does, for pre-command-hook and
     !> post-command-hook.  Port of keyboard.c:safe_run_hooks_maybe_narrowed
     !> (no long-line optimizations: their narrowing is Deferred with
     !> xdisp.c).

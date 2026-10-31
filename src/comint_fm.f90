@@ -770,7 +770,7 @@ contains
                 n = n + 1
                 call move_entry(comint_buffers(i), kept(n))
             else
-                call free_locals(comint_buffers(i))
+                call kill_local(comint_buffers(i))
             end if
         end do
 
@@ -791,7 +791,7 @@ contains
     end subroutine move_entry
 
     !> Free the markers of entry E and forget its local variables.  Not a port.
-    subroutine free_locals(e)
+    subroutine kill_local(e)
         type(comint_buffer_type), intent(inout) :: e
         type(status_type) :: st
 
@@ -819,7 +819,7 @@ contains
         e%requote => null()
         e%password_function => null()
         e%local = .false.
-    end subroutine free_locals
+    end subroutine kill_local
 
     ! Not a port.
     subroutine forget_last_prompt(e)
@@ -838,7 +838,7 @@ contains
         integer :: k
 
         k = entry_of(cur)
-        if (k /= 0) call free_locals(comint_buffers(k))
+        if (k /= 0) call kill_local(comint_buffers(k))
     end subroutine kill_comint_locals
 
     !> The current buffer's entry with its local variables (made as
@@ -1411,12 +1411,12 @@ contains
         integer :: k
 
         call comint_term_environment(env)
-        call append_arg(env, "INSIDE_EMACS="//upstream_version//",comint")
-        if (allocated(comint_pager%value)) call append_arg(env, "PAGER="//comint_pager%value)
+        call add_arg(env, "INSIDE_EMACS="//upstream_version//",comint")
+        if (allocated(comint_pager%value)) call add_arg(env, "PAGER="//comint_pager%value)
 
         if (present(environment)) then
             do k = 1, size(environment)
-                call append_arg(env, environment(k)%s)
+                call add_arg(env, environment(k)%s)
             end do
         end if
 
@@ -1953,7 +1953,7 @@ contains
         if (k /= 0) call comint_buffers(k)%input_ring%ref(pos, item, st)
     end subroutine comint_input_ring_ref
 
-    !> Run the current buffer's `comint_get_old_input'.  Not a port.
+    !> Execute the current buffer's `comint_get_old_input'.  Not a port.
     subroutine execute_get_old_input(input, status)
         character(len=:), allocatable, intent(out) :: input
         type(status_type), intent(out) :: status
@@ -4712,10 +4712,10 @@ contains
         end if
 
         if (allocated(isearch_message_prefix_add)) deallocate (isearch_message_prefix_add)
-        call isearch_search_fun_function%clear_local()
-        call isearch_message_function%clear_local()
-        call isearch_wrap_function%clear_local()
-        call isearch_push_state_function%clear_local()
+        call isearch_search_fun_function%kill_local()
+        call isearch_message_function%kill_local()
+        call isearch_wrap_function%kill_local()
+        call isearch_push_state_function%kill_local()
         ! Force isearch to not change mark.
         call set_isearch_opoint(point())
         call isearch_mode_end_hook%remove(comint_history_isearch_end, local=.true.)
@@ -6039,7 +6039,7 @@ contains
     end subroutine define_faces
 
     !> Add S at the end of LIST.  Not a port.
-    subroutine append_arg(list, s)
+    subroutine add_arg(list, s)
         type(process_arg_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
         type(process_arg_type), allocatable :: grown(:)
@@ -6055,7 +6055,7 @@ contains
 
         grown(n + 1)%s = s
         call move_alloc(grown, list)
-    end subroutine append_arg
+    end subroutine add_arg
 
     !> Add S at the start of LIST.  Not a port.
     subroutine prepend_arg(list, s)

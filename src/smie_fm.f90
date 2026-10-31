@@ -75,13 +75,13 @@ module smie_fm
     use fill_fm, only: current_fill_column
     use simple_fm, only: newline, newline_and_indent, reindent_then_newline_and_indent, blink_matching_open, &
                          blink_matching_check_mismatch, blink_matching_check_proc, &
-                         set_local_blink_matching_check_function, current_blink_matching_check_function, &
-                         is_blink_matching_check_function_local, kill_local_blink_matching_check_function, &
+                         blink_matching_check_function_set_local, current_blink_matching_check_function, &
+                         is_blink_matching_check_function_local, blink_matching_check_function_kill_local, &
                          blink_matching_paren, BLINK_MATCHING_PAREN_NO, normal_auto_fill_function, do_auto_fill, &
                          blink_matching_delay
     use newcomment_fm, only: comment_normalize_vars, comment_start_skip, comment_end_skip, comment_continue, &
                              comment_string_strip
-    use paren_fm, only: show_paren_data_type, show_paren_data_proc, set_local_show_paren_data_function, &
+    use paren_fm, only: show_paren_data_type, show_paren_data_proc, show_paren_data_function_set_local, &
                         current_show_paren_data_function, is_show_paren_data_function_local, show_paren_data_function
     use prog_mode_fm, only: prog_first_column
     use marker_fm, only: copy_marker_at, marker_position, free_marker
@@ -570,7 +570,7 @@ contains
     end function prec2_index
 
     ! (puthash (X . Y) REL TABLE).  Not a port.
-    subroutine prec2_put(table, x, y, rel)
+    subroutine prec2_set(table, x, y, rel)
         type(smie_prec2_type), intent(inout) :: table
         character(len=*), intent(in) :: x, y
         integer, intent(in) :: rel
@@ -606,7 +606,7 @@ contains
         table%x(table%n)%s = x
         table%y(table%n)%s = y
         table%rel(table%n) = rel
-    end subroutine prec2_put
+    end subroutine prec2_set
 
     !> Set the relation of X and Y in TABLE to VAL, unless it already has
     !> another one; then the relation in OVERRIDE, if it has one, wins and
@@ -639,7 +639,7 @@ contains
             end if
         end if
 
-        call prec2_put(table, x, y, val)
+        call prec2_set(table, x, y, val)
     end subroutine smie_set_prec2tab
 
     !> Compute a 2D precedence table from a list of precedences.
@@ -802,11 +802,11 @@ contains
         type(smie_string_type), allocatable, intent(inout) :: list(:)
 
         if (has_string(s, list)) return
-        call push_front(s, list)
+        call add_front(s, list)
     end subroutine pushnew
 
     ! Push S onto the front of LIST.  Not a port.
-    subroutine push_front(s, list)
+    subroutine add_front(s, list)
         character(len=*), intent(in) :: s
         type(smie_string_type), allocatable, intent(inout) :: list(:)
         type(smie_string_type), allocatable :: grown(:)
@@ -820,7 +820,7 @@ contains
         end do
 
         call move_alloc(grown, list)
-    end subroutine push_front
+    end subroutine add_front
 
     !> Convert the BNF grammar into a prec2 table.
     !> BNF is a list of nonterminal definitions of the form:
@@ -953,10 +953,10 @@ contains
                 end associate
             end do
 
-            call push_table(first_ops_table, bnf%rules(r)%nt, first_ops)
-            call push_table(last_ops_table, bnf%rules(r)%nt, last_ops)
-            call push_table(first_nts_table, bnf%rules(r)%nt, first_nts)
-            call push_table(last_nts_table, bnf%rules(r)%nt, last_nts)
+            call add_table(first_ops_table, bnf%rules(r)%nt, first_ops)
+            call add_table(last_ops_table, bnf%rules(r)%nt, last_ops)
+            call add_table(first_nts_table, bnf%rules(r)%nt, first_nts)
+            call add_table(last_nts_table, bnf%rules(r)%nt, last_nts)
         end do
 
         ! Compute all first-ops by propagating the initial ones we have
@@ -1009,7 +1009,7 @@ contains
 
     contains
 
-        subroutine push_table(table, nt, list)
+        subroutine add_table(table, nt, list)
             type(nt_ops_type), allocatable, intent(inout) :: table(:)
             character(len=*), intent(in) :: nt
             type(smie_string_type), allocatable, intent(inout) :: list(:)
@@ -1026,7 +1026,7 @@ contains
             end do
 
             call move_alloc(grown, table)
-        end subroutine push_table
+        end subroutine add_table
     end subroutine smie_bnf_to_prec2
 
     ! (assoc NT TABLE): the first entry for NT.  Not a port.
@@ -1071,7 +1071,7 @@ contains
 
                         if (.not. has_string(snapshot(j)%s, cell)) then
                             again = .true.
-                            call push_front(snapshot(j)%s, ops_table(k)%ops)
+                            call add_front(snapshot(j)%s, ops_table(k)%ops)
                         end if
 
                         deallocate (cell)
@@ -1191,7 +1191,7 @@ contains
 
         do i = 1, size(table)
             if (values(i) == SMIE_CLOSER .or. values(i) == SMIE_OPENER) then
-                call push_front(table(i)%s, tokens)
+                call add_front(table(i)%s, tokens)
                 classes = [values(i), classes]
             end if
         end do
@@ -1271,10 +1271,10 @@ contains
         ! equality constraints (in `eqs') or `<' constraints (in `csts').
         do k = 1, prec2%n
             a = token_index(prec2%x(k)%s)
-            if (a == 0) a = new_token(prec2%x(k)%s)
+            if (a == 0) a = make_token(prec2%x(k)%s)
             x = rcell(a)
             b = token_index(prec2%y(k)%s)
-            if (b == 0) b = new_token(prec2%y(k)%s)
+            if (b == 0) b = make_token(prec2%y(k)%s)
             y = lcell(b)
 
             select case (prec2%rel(k))
@@ -1450,7 +1450,7 @@ contains
             t = 0
         end function token_index
 
-        integer function new_token(token) result(t)
+        integer function make_token(token) result(t)
             character(len=*), intent(in) :: token
             type(smie_string_type), allocatable :: grown(:)
             integer :: q
@@ -1470,7 +1470,7 @@ contains
             ncell = ncell + 2
             val = [val, 0, 0]
             has = [has, .false., .false.]
-        end function new_token
+        end function make_token
 
         ! smie-debug--describe-cycle of smie-debug--prec2-cycle: the
         ! tokens of each variable of the cycle (".TOKEN" for a left level,
@@ -1488,8 +1488,8 @@ contains
                 allocate (res(0))
 
                 do s = ntok, 1, -1
-                    if (lcell(s) == found(q)) call push_front("."//tokens(s)%s, res)
-                    if (rcell(s) == found(q)) call push_front(tokens(s)%s//".", res)
+                    if (lcell(s) == found(q)) call add_front("."//tokens(s)%s, res)
+                    if (rcell(s) == found(q)) call add_front(tokens(s)%s//".", res)
                 end do
 
                 names(q)%s = ""
@@ -1967,16 +1967,16 @@ contains
             toklevels = smie_grammar_token(token)
 
             if (.not. toklevels%null) then
-                call push_levels(toklevels%left, toklevels%right)
+                call add_levels(toklevels%left, toklevels%right)
             else
                 idx = string_match("\`\s(\|\s)\(\)\'", token, status, inhibit_modify=.false.) > 0
                 if (.not. status%ok()) return
 
                 if (idx) then
                     if (match_end(1, status) > 0) then
-                        call push_levels(smie_level_type(kind=SMIE_LEVEL_NUMBER, value=0), smie_level_type())
+                        call add_levels(smie_level_type(kind=SMIE_LEVEL_NUMBER, value=0), smie_level_type())
                     else
-                        call push_levels(smie_level_type(), smie_level_type(kind=SMIE_LEVEL_NUMBER, value=0))
+                        call add_levels(smie_level_type(), smie_level_type(kind=SMIE_LEVEL_NUMBER, value=0))
                     end if
                 else
                     call set_error(status, FM_GENERIC_ERROR, "Unknown token: "//quoted_repr(token))
@@ -2046,7 +2046,7 @@ contains
 
                 if (back%kind /= SMIE_LEVEL_NUMBER) then
                     ! A token like a paren-close.
-                    call push_levels(toklevels%left, toklevels%right)
+                    call add_levels(toklevels%left, toklevels%right)
                 else
                     do while (size(lfw) > 0)
                         if (.not. top_forw_number()) exit
@@ -2056,7 +2056,7 @@ contains
 
                     if (size(lfw) == 0) then
                         if (half .and. forw%kind == SMIE_LEVEL_NUMBER) then
-                            call push_levels(toklevels%left, toklevels%right)
+                            call add_levels(toklevels%left, toklevels%right)
                         else
                             call bump(forw, tok, pos)
                             return
@@ -2074,7 +2074,7 @@ contains
                         if (size(lfw) > 0) then
                             ! Keep looking as long as we haven't matched the
                             ! topmost operator.
-                            if (forw%kind == SMIE_LEVEL_NUMBER) call push_levels(toklevels%left, toklevels%right)
+                            if (forw%kind == SMIE_LEVEL_NUMBER) call add_levels(toklevels%left, toklevels%right)
                         else if (forw%kind /= SMIE_LEVEL_NUMBER) then
                             ! We matched the topmost operator.  If the new operator
                             ! is the last in the corresponding BNF rule, we're done.
@@ -2088,7 +2088,7 @@ contains
                             ! If the new operator is not the last in the BNF rule,
                             ! and is not associative, it's one of the inner operators
                             ! (like the "in" in "let .. in .. end"), so keep looking.
-                            call push_levels(toklevels%left, toklevels%right)
+                            call add_levels(toklevels%left, toklevels%right)
                         else if (associative_last()) then
                             ! The new operator is associative.  Two cases:
                             ! - it's really just an associative operator (like + or ;)
@@ -2127,7 +2127,7 @@ contains
         end subroutine forw_back
 
         ! (push (LEFT RIGHT) levels).
-        recursive subroutine push_levels(left, right)
+        recursive subroutine add_levels(left, right)
             type(smie_level_type), intent(in) :: left, right
 
             if (forward) then
@@ -2137,7 +2137,7 @@ contains
                 lfw = [lfw, left]
                 lbk = [lbk, right]
             end if
-        end subroutine push_levels
+        end subroutine add_levels
 
         recursive subroutine pop_levels()
             n = size(lfw)
@@ -2272,7 +2272,7 @@ contains
         left = n
         ! (let ((forward-sexp-function nil)) ...)
         was_local = forward_expression_function%local_p()
-        saved => forward_expression_function%get()
+        saved => forward_expression_function%current()
         call forward_expression_function%set_local()
 
         do while (left /= 0)
@@ -2486,7 +2486,7 @@ contains
                     if (g%right(k)%kind == SMIE_LEVEL_NUMBER) then
                         levels = [levels, k]
                     else
-                        call push_front(g%tokens(k)%s, found)
+                        call add_front(g%tokens(k)%s, found)
                     end if
                 end do
             end do
@@ -2783,13 +2783,13 @@ contains
             ! that's the case.
             was_local = is_blink_matching_check_function_local()
             saved => current_blink_matching_check_function()
-            call set_local_blink_matching_check_function(smie_blink_matching_check)
+            call blink_matching_check_function_set_local(smie_blink_matching_check)
             call blink_matching_open(status)
 
             if (was_local) then
-                call set_local_blink_matching_check_function(saved)
+                call blink_matching_check_function_set_local(saved)
             else
-                call kill_local_blink_matching_check_function()
+                call blink_matching_check_function_kill_local()
             end if
         end block body
 
@@ -4783,7 +4783,7 @@ contains
         if (.not. grammar_in%has_closer_table) return
         locals(k)%has_closer_table = .true.
         ! Only needed for interactive calls to blink-matching-open.
-        call set_local_blink_matching_check_function(smie_blink_matching_check)
+        call blink_matching_check_function_set_local(smie_blink_matching_check)
         call post_self_insert_hook%add(smie_blink_matching_open, depth=90, local=.true.)
 
         ! (add-function :around (local 'show-paren-data-function) #'smie--matching-block-data)
@@ -4791,7 +4791,7 @@ contains
             locals(k)%has_paren_data = .true.
             locals(k)%paren_data_local = is_show_paren_data_function_local()
             locals(k)%paren_data => current_show_paren_data_function()
-            call set_local_show_paren_data_function(smie_paren_data_function)
+            call show_paren_data_function_set_local(smie_paren_data_function)
         end if
 
         ! Setup smie-blink-matching-triggers.  Rather than wait for SPC to

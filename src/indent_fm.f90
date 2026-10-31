@@ -147,7 +147,7 @@ module indent_fm
         !> Make FN the current buffer's function (set_local).
         procedure :: set_local => indent_region_set_local
         !> The current buffer's function (null for the default).
-        procedure :: get => indent_region_get
+        procedure :: current => current_indent_region
         !> Make the current buffer use the default again.
         procedure :: kill_local => indent_region_kill_local
     end type indent_region_function_type
@@ -497,7 +497,7 @@ contains
     end subroutine indent_region_set_local
 
     ! Not a port.
-    function indent_region_get(self) result(fn)
+    function current_indent_region(self) result(fn)
         class(indent_region_function_type), intent(in) :: self
         procedure(indent_region_proc), pointer :: fn
         integer :: i
@@ -511,7 +511,7 @@ contains
                 if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
             end if
         end do
-    end function indent_region_get
+    end function current_indent_region
 
     ! Not a port.
     subroutine indent_region_kill_local(self)

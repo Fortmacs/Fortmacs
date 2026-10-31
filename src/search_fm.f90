@@ -261,7 +261,7 @@ contains
 
     !> Byte position of the last newline in [from_byte, to_byte), or 0.
     !> Not a port.
-    integer(int64) function prev_newline_byte(from_byte, to_byte) result(found)
+    integer(int64) function previous_newline_byte(from_byte, to_byte) result(found)
         integer(int64), intent(in) :: from_byte, to_byte
         integer(int64) :: a, b, k
 
@@ -288,7 +288,7 @@ contains
                 if (k > 0) found = a + k - 1
             end if
         end associate
-    end function prev_newline_byte
+    end function previous_newline_byte
 
     !> Search for `count' newlines from `start' toward `end' (forward if
     !> count > 0, backward if count < 0; `end' defaults to ZV or BEGV).
@@ -345,7 +345,7 @@ contains
             end do
         else if (count < 0) then
             do while (pos_byte > lim_byte)
-                nl = prev_newline_byte(lim_byte, pos_byte)
+                nl = previous_newline_byte(lim_byte, pos_byte)
                 if (nl == 0) exit
                 left = left + 1
 

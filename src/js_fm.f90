@@ -68,7 +68,7 @@ module js_fm
     use expression_motion_fm, only: forward_expression, backward_expression, forward_group, backward_group, up_group, &
                                     beginning_of_subprogram_function, end_of_subprogram_function
     use newcomment_fm, only: comment_start, comment_start_skip, comment_end
-    use electric_fm, only: electric_indent_chars_value, set_local_electric_indent_chars
+    use electric_fm, only: electric_indent_chars_value, electric_indent_chars_set_local
     use prog_mode_fm, only: prog_first_column
     use syntax_propertize_fm, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type, &
                                     syntax_property_type, &
@@ -462,7 +462,7 @@ contains
             k = n + 1
         end if
 
-        call reset_local(locals(k))
+        call kill_local(locals(k))
         locals(k)%serial = buffers(cur)%serial
     end function local_index
 
@@ -484,7 +484,7 @@ contains
 
     ! Give L its initial state: an empty cache holding js--initial-pitem.
     ! Not a port.
-    subroutine reset_local(l)
+    subroutine kill_local(l)
         type(js_local_type), intent(inout) :: l
 
         l%serial = 0
@@ -499,7 +499,7 @@ contains
         if (allocated(l%frameworks)) deallocate (l%frameworks)
         if (allocated(l%quick_match_re)) deallocate (l%quick_match_re)
         if (allocated(l%quick_match_re_func)) deallocate (l%quick_match_re_func)
-    end subroutine reset_local
+    end subroutine kill_local
 
     ! kill-all-local-variables: forget the current buffer's js.el
     ! variables.
@@ -508,7 +508,7 @@ contains
         integer :: k
 
         k = local_index(.false.)
-        if (k > 0) call reset_local(locals(k))
+        if (k > 0) call kill_local(locals(k))
     end subroutine kill_js_locals
 
     ! The current buffer's local state (made if needed).
@@ -889,9 +889,9 @@ contains
 
     ! The character before point, -1 at the beginning.
     ! Not a port.
-    recursive integer function prev_char()
-        prev_char = before_char_at(point())
-    end function prev_char
+    recursive integer function previous_char()
+        previous_char = before_char_at(point())
+    end function previous_char
 
     ! The start of subexpression N of the last match, 0 if it didn't match.
     ! Not a port.
@@ -986,7 +986,7 @@ contains
             else if (parse%comment_style /= 0 .and. parse%incomment /= 0) then
                 ! (nth 7 parse): a comment of style b (a line comment).
                 shortage = forward_line(1_int64)
-            else if (parse%incomment /= 0 .or. (prev_char() == iachar("/") .and. next_char() == iachar("*"))) then
+            else if (parse%incomment /= 0 .or. (previous_char() == iachar("/") .and. next_char() == iachar("*"))) then
                 call search("\*/")
                 if (failed) return
             else if (in_new_macro()) then
@@ -1059,7 +1059,7 @@ contains
 
             if (parse%comstr_start > 0) then
                 call goto_char(parse%comstr_start)
-            else if (parse%incomment /= 0 .or. (prev_char() == iachar("/") .and. next_char() == iachar("*"))) then
+            else if (parse%incomment /= 0 .or. (previous_char() == iachar("/") .and. next_char() == iachar("*"))) then
                 call search("/\*")
                 if (failed) return
             else if (in_new_macro()) then
@@ -1168,7 +1168,7 @@ contains
         do
             do
                 call end_of_line()
-                if (.not. (prev_char() == iachar("\") .and. .not. is_eob())) exit
+                if (.not. (previous_char() == iachar("\") .and. .not. is_eob())) exit
                 call forward_char(st, 1_int64)
             end do
 
@@ -1538,7 +1538,7 @@ contains
             n = n - 1
             ! If we're just past the end of a function, the user probably
             ! wants to go to the beginning of *that* function
-            if (prev_char() == iachar("}")) call forward_char(st, -1_int64)
+            if (previous_char() == iachar("}")) call forward_char(st, -1_int64)
             prologue_begin = function_prologue_beginning()
 
             if (prologue_begin > 0 .and. prologue_begin < point()) then
@@ -2659,7 +2659,7 @@ contains
             opoint = point()
             call goto_char(mb(0))
             moved = forward_comment(-point())
-            c = prev_char()
+            c = previous_char()
 
             if (c == -1) then
                 regexp = .true.
@@ -2717,7 +2717,7 @@ contains
 
         if (c == iachar(":")) then
             call backward_syntactic_ws()
-            if (prev_char() == iachar(")")) call backward_group(1_int64, st)
+            if (previous_char() == iachar(")")) call backward_group(1_int64, st)
             question = .false.
             if (js_re_search_backward("[?:{]\|\_<case\_>")) question = next_char() == iachar("?")
             call goto_char(opoint)
@@ -2746,7 +2746,7 @@ contains
                 call backward_syntactic_ws()
                 ! We might misindent some expressions that would return NaN
                 ! anyway.  Shouldn't be a problem.
-                c = prev_char()
+                c = previous_char()
                 generator = c == iachar(",") .or. c == iachar("}") .or. c == iachar("{")
                 call goto_char(opoint)
             end if
@@ -2838,7 +2838,7 @@ contains
 
                 if (.not. continued) then
                     moved = forward_comment(-point())
-                    c = prev_char()
+                    c = previous_char()
                     continued = .not. (c == iachar(",") .or. c == iachar("[") .or. c == iachar("("))
                 end if
             end if
@@ -2884,7 +2884,7 @@ contains
             ! This doesn't strictly follow JS syntax, in that we might skip
             ! something nonsensical like "()[]{}", but it is enough if it
             ! works ok for valid input.
-            c = prev_char()
+            c = previous_char()
 
             if (c == iachar("]") .or. c == iachar(")") .or. c == iachar("}")) then
                 progress = .true.
@@ -3032,14 +3032,14 @@ contains
 
         if (ok) then
             if (.not. is_eob()) call forward_char(st, 1_int64)
-            if (prev_char() == iachar(")")) call backward_group(1_int64, st)
+            if (previous_char() == iachar(")")) call backward_group(1_int64, st)
             moved = skip_syntax_backward(" ")
             moved = skip_syntax_backward("w_")
             ok = at(POSSIBLY_BRACELESS_KEYWORD_RE)
         end if
 
         if (ok) then
-            c = prev_char()
+            c = previous_char()
             ok = c == iachar(" ") .or. c == 9 .or. c == 10 .or. c == iachar("}")
         end if
 
@@ -3096,18 +3096,18 @@ contains
                 backward_check: block
                     call backward_syntactic_ws()
 
-                    if (prev_char() == iachar(",")) then
+                    if (previous_char() == iachar(",")) then
                         more = .true.
                         exit backward_check
                     end if
 
                     more = .false.
 
-                    if (prev_char() /= iachar(";")) then
+                    if (previous_char() /= iachar(";")) then
                         moved = skip_syntax_backward(".")
                         more = at(INDENT_OPERATOR_RE)
                         call backward_syntactic_ws()
-                        if (more) more = prev_char() /= iachar(";")
+                        if (more) more = previous_char() /= iachar(";")
                     end if
 
                     if (.not. more) more = same_line(pos)
@@ -3361,7 +3361,7 @@ contains
             if (nothing_after) then
                 ! nothing following the opening paren/bracket
                 moved = skip_syntax_backward(" ")
-                if (prev_char() == iachar(")")) call backward_group(1_int64, st)
+                if (previous_char() == iachar(")")) call backward_group(1_int64, st)
                 call back_to_indentation()
                 call maybe_goto_declaration_keyword_end(parse_status)
                 in_switch_p = .false.
@@ -3511,7 +3511,7 @@ contains
         call before_change_functions%add(flush_caches_hook, depth=90, local=.true.)
         ! Frameworks
         call update_quick_match_re()
-        call set_local_electric_indent_chars([iachar("{"), iachar("}"), iachar("("), iachar(")"), iachar(":"), &
+        call electric_indent_chars_set_local([iachar("{"), iachar("}"), iachar("("), iachar(")"), iachar(":"), &
                                               iachar(";"), iachar(","), electric_indent_chars_value()])
     end subroutine mode_setup
 

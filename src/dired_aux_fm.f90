@@ -314,7 +314,7 @@ contains
         end function len_chars
     end subroutine dired_add_entry
 
-    !> Run `dired_after_readin_hook' with the buffer narrowed to the
+    !> Execute `dired_after_readin_hook' with the buffer narrowed to the
     !> current line.  Port of part of dired-aux.el:dired-do-redisplay.
     subroutine execute_after_readin_on_line()
         integer(int64) :: opoint, begv, zv
@@ -518,7 +518,7 @@ contains
 
             do i = 1, size(locals(k)%subdir_table)
                 if (locals(k)%subdir_table(i)%dir == cur_dir) then
-                    call aux_release_marker(locals(k)%subdir_table(i)%marker)
+                    call aux_free_marker_if_live(locals(k)%subdir_table(i)%marker)
                     cur_dir = char(0)
                 else
                     n = n + 1
@@ -1829,13 +1829,13 @@ contains
 
         call dired_compress(failure, status)
         if (.not. status%ok()) return
-        call push_check_result(failure)
+        call add_check_result(failure)
         call sit_for(0)
     end subroutine compress_body
 
     !> Record one result of a `dired_map_over_marks_check' body.
     !> Not a port.
-    subroutine push_check_result(failure)
+    subroutine add_check_result(failure)
         character(len=*), intent(in) :: failure
         type(dired_string_type), allocatable :: grown(:)
         integer :: n
@@ -1845,10 +1845,10 @@ contains
         grown(1:n) = check_results
         grown(n + 1)%s = failure
         call move_alloc(grown, check_results)
-    end subroutine push_check_result
+    end subroutine add_check_result
 
     !> Map FUN over marked files (with ARG like in `dired_map_over_marks')
-    !> and display failures.  FUN records, with `push_check_result', the
+    !> and display failures.  FUN records, with `add_check_result', the
     !> offending object (e.g. the short form of the filename) for a
     !> failure, or "", and probably logs a detailed error explanation
     !> using `dired_log'.  OP_SYMBOL is a name describing the operation
@@ -2333,14 +2333,14 @@ contains
     end if
 
     if (status%code == FM_FILE_DATE_ERROR) then
-        call push_create_files_failure(dired_make_relative(from))
+        call add_create_files_failure(dired_make_relative(from))
         call dired_log(format_message("Can't set date on ")//from//":"//LF//format_error(status)//LF)
         status = status_type()
     end if
     end procedure dired_copy_file_recursive
 
     !> Push NAME on `dired_create_files_failures'.  Not a port.
-    subroutine push_create_files_failure(name)
+    subroutine add_create_files_failure(name)
         character(len=*), intent(in) :: name
         type(dired_string_type), allocatable :: grown(:)
         integer :: n
@@ -2351,7 +2351,7 @@ contains
         grown(1)%s = name
         grown(2:) = create_files_failures
         call move_alloc(grown, create_files_failures)
-    end subroutine push_create_files_failure
+    end subroutine add_create_files_failure
 
     module procedure dired_rename_file
     type(handle_type) :: b, old
@@ -2871,7 +2871,7 @@ contains
             if (.not. allocated(buffers(b)%major_mode)) cycle
             if (buffers(b)%major_mode /= "dired_mode") cycle
             call set_buffer(windows(order(k)%index)%buffer, st)
-            call push_string(dirs, dired_current_directory(st))
+            call add_string(dirs, dired_current_directory(st))
             times = [times, windows(order(k)%index)%use_time]
         end do
 
@@ -4018,7 +4018,7 @@ contains
     end procedure dired_aux_keys
 
     !> Append S to the strings LIST.  Not a port.
-    subroutine push_string(list, s)
+    subroutine add_string(list, s)
         type(dired_string_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
         type(dired_string_type), allocatable :: grown(:)
@@ -4029,7 +4029,7 @@ contains
         grown(1:n) = list
         grown(n + 1)%s = s
         call move_alloc(grown, list)
-    end subroutine push_string
+    end subroutine add_string
 
     !> `re_search_forward' of REGEXP (NOERROR .true.) as a logical.  Not a port.
     logical function aux_re_search_forward(regexp) result(found)
@@ -4089,12 +4089,12 @@ contains
     end function aux_mpos
 
     !> Free marker M, ignoring a stale handle.  Not a port.
-    subroutine aux_release_marker(m)
+    subroutine aux_free_marker_if_live(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
 
         call free_marker(m, st)
-    end subroutine aux_release_marker
+    end subroutine aux_free_marker_if_live
 
     !> Bind `inhibit_read_only' to true (SAVED keeps the old value).
     !> Not a port.

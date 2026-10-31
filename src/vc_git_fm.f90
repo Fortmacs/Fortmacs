@@ -229,7 +229,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Append S to LIST.  Not a port.
-    subroutine push(list, s)
+    subroutine add(list, s)
         type(vc_string_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
         type(vc_string_type), allocatable :: grown(:)
@@ -241,10 +241,10 @@ contains
         grown(1:n) = list
         grown(n + 1)%s = s
         call move_alloc(grown, list)
-    end subroutine push
+    end subroutine add
 
     !> Append an unallocated entry to LIST (a flag passing nothing).  Not a port.
-    subroutine push_nil(list)
+    subroutine add_empty(list)
         type(vc_string_type), allocatable, intent(inout) :: list(:)
         type(vc_string_type), allocatable :: grown(:)
         integer :: n
@@ -254,7 +254,7 @@ contains
         allocate (grown(n + 1))
         grown(1:n) = list
         call move_alloc(grown, list)
-    end subroutine push_nil
+    end subroutine add_empty
 
     !> The strings of A then B.  Not a port.
     subroutine append(list, more)
@@ -278,12 +278,12 @@ contains
         type(vc_string_type), allocatable, intent(out) :: env(:)
 
         allocate (env(0))
-        call push(env, "GIT_DIR")
-        if (vc_git_use_literal_pathspecs) call push(env, "GIT_LITERAL_PATHSPECS=1")
+        call add(env, "GIT_DIR")
+        if (vc_git_use_literal_pathspecs) call add(env, "GIT_LITERAL_PATHSPECS=1")
         ! Avoid optional repository locking during background operations
         ! (bug#21559, bug#80903).  Skipping these locks is always safe and
         ! can only lead to subsequent commands running more slowly.
-        if (revert_buffer_in_progress .or. subcommand == "status") call push(env, "GIT_OPTIONAL_LOCKS=0")
+        if (revert_buffer_in_progress .or. subcommand == "status") call add(env, "GIT_OPTIONAL_LOCKS=0")
     end subroutine env_vars
 
     !> The flags of `git' before SUBCOMMAND: --no-pager, and for older Git
@@ -294,8 +294,8 @@ contains
         type(vc_string_type), allocatable, intent(out) :: flags(:)
 
         allocate (flags(0))
-        call push(flags, "--no-pager")
-        if (revert_buffer_in_progress .or. subcommand == "status") call push(flags, "--no-optional-locks")
+        call add(flags, "--no-pager")
+        if (revert_buffer_in_progress .or. subcommand == "status") call add(flags, "--no-optional-locks")
     end subroutine leading_flags
 
     !> A wrapper around `vc_do_command' for use in vc_git_fm.
@@ -395,7 +395,7 @@ contains
         buffers(cur)%directory = dir
     end subroutine set_buffer_directory
 
-    !> Run `git COMMAND ARGS...' with the output (without standard error)
+    !> Execute `git COMMAND ARGS...' with the output (without standard error)
     !> in the current buffer when TO_BUFFER, else discarded; CODE is the
     !> exit status (-1 if killed by a signal).  Port of
     !> vc-git.el:vc-git--call.
@@ -413,7 +413,7 @@ contains
         code = -1
         call env_vars(command, env)
         call leading_flags(command, all)
-        call push(all, command)
+        call add(all, command)
         call append(all, args)
         allocate (argv(size(all)), envv(size(env)))
 
@@ -472,7 +472,7 @@ contains
         call set_buffer(old, st)
     end subroutine temp_end
 
-    !> Run a git command on FILE and return its output as string (OK false
+    !> Execute a git command on FILE and return its output as string (OK false
     !> on failure).  FILE can be absent.  Port of
     !> vc-git.el:vc-git--run-command-string.
     subroutine vc_git_execute_command_string(args, str, ok, file)
@@ -487,10 +487,10 @@ contains
         allocate (rest(0))
 
         do k = 2, size(args)
-            call push(rest, args(k)%s)
+            call add(rest, args(k)%s)
         end do
 
-        if (present(file)) call push(rest, file_relative_name(file))
+        if (present(file)) call add(rest, file_relative_name(file))
         call temp_begin(old, tmp)
         ok = vc_git_out_ok(args(1)%s, rest)
         str = buffer_string()
@@ -506,13 +506,13 @@ contains
         type(vc_string_type), allocatable :: list(:)
 
         allocate (list(0))
-        call push(list, a1)
-        if (present(a2)) call push(list, a2)
-        if (present(a3)) call push(list, a3)
-        if (present(a4)) call push(list, a4)
-        if (present(a5)) call push(list, a5)
-        if (present(a6)) call push(list, a6)
-        if (present(a7)) call push(list, a7)
+        call add(list, a1)
+        if (present(a2)) call add(list, a2)
+        if (present(a3)) call add(list, a3)
+        if (present(a4)) call add(list, a4)
+        if (present(a5)) call add(list, a5)
+        if (present(a6)) call add(list, a6)
+        if (present(a7)) call add(list, a7)
     end function strings
 
     !> Check if the git db is empty (no commit done yet).  Port of
@@ -714,8 +714,8 @@ contains
         ! branch for that (an extra process call or two).
         args = strings("status", "--porcelain", "-z", "--untracked-files")
         ! Just to be explicit, it's the default anyway.
-        if (version_le("1.7.6.3", vc_git_program_version())) call push(args, "--ignored")
-        call push(args, "--")
+        if (version_le("1.7.6.3", vc_git_program_version())) call add(args, "--ignored")
+        call add(args, "--")
         call vc_git_execute_command_string(args, status, ok, file)
 
         if (.not. ok) then
@@ -740,7 +740,7 @@ contains
                 e = b + e - 1
             end if
 
-            if (e > b) call push(codes, status(b:min(b + 1, e - 1)))
+            if (e > b) call add(codes, status(b:min(b + 1, e - 1)))
             b = e + 1
         end do
 
@@ -872,9 +872,9 @@ contains
 
         do k = size(files), 1, -1
             if (is_file_directory(files(k)%s)) then
-                call push(dlist, files(k)%s)
+                call add(dlist, files(k)%s)
             else
-                call push(flist, files(k)%s)
+                call add(flist, files(k)%s)
             end if
         end do
 
@@ -1053,16 +1053,16 @@ contains
         flags = strings(command, "--exit-code")
         call vc_switches(git_backend_index(), "diff", sw)
         call append(flags, sw)
-        call push(flags, "-p")
-        call push(flags, r1)
+        call add(flags, "-p")
+        call add(flags, r1)
 
         if (present(rev2)) then
-            call push(flags, rev2)
+            call add(flags, rev2)
         else
-            call push_nil(flags)
+            call add_empty(flags)
         end if
 
-        call push(flags, "--")
+        call add(flags, "--")
         okstatus = 1
         if (async) okstatus = VC_OKSTATUS_ASYNC
         call vc_git_command(okstatus, files, flags, status, buffer=buffer)
@@ -1084,7 +1084,7 @@ contains
         ! What about `files'?!?  --Stef
         if (size(files) < 0) return
         allocate (table(0))
-        call push(table, "HEAD")
+        call add(table, "HEAD")
         call temp_begin(old, tmp)
         call vc_git_command(VC_OKSTATUS_UNLESS_SIGNAL, none, strings("for-each-ref", "--format=%(refname)"), st, current=.true.)
         call goto_char(point_min())
@@ -1098,7 +1098,7 @@ contains
         do
             call re_search_forward(regexp, found, st, noerror=SEARCH_NOERROR)
             if (found == 0) exit
-            call push(table, match_in_buffer(2))
+            call add(table, match_in_buffer(2))
         end do
 
         call temp_end(old, tmp)
@@ -1197,8 +1197,8 @@ contains
 
         out = ""
         allocate (args(0))
-        if (vc_use_short_revision) call push(args, "--short")
-        call push(args, rev)
+        if (vc_use_short_revision) call add(args, "--short")
+        call add(args, rev)
         call temp_begin(old, tmp)
         found = vc_git_out_ok("rev-parse", args)
 
@@ -1473,23 +1473,23 @@ contains
 
         if (status%ok()) then
             allocate (flags(0))
-            call push(flags, "commit")
-            call push(flags, "-m")
-            call push(flags, msg)
+            call add(flags, "commit")
+            call add(flags, "-m")
+            call add(flags, msg)
 
             do k = 1, size(extracted)
-                call push(flags, extracted(k)%s)
+                call add(flags, extracted(k)%s)
             end do
 
             ! When operating on the whole tree, better pass
             ! "-a" than ".", since "."  fails when we're
             ! committing a merge.
             if (only) then
-                call push(flags, "--only")
-                call push(flags, "--")
+                call add(flags, "--only")
+                call add(flags, "--")
                 fl = files
             else
-                call push(flags, "-a")
+                call add(flags, "-a")
                 allocate (fl(0))
             end if
 
@@ -1563,7 +1563,7 @@ contains
             ! "--follow" on directories or multiple files is broken
             ! https://debbugs.gnu.org/cgi/bugreport.cgi?bug=8756
             ! https://debbugs.gnu.org/cgi/bugreport.cgi?bug=16422
-            if (.not. is_file_directory(files(1)%s)) call push(flags, "--follow")
+            if (.not. is_file_directory(files(1)%s)) call add(flags, "--follow")
         end if
 
         if (shortlog) then
@@ -1579,7 +1579,7 @@ contains
             call append(flags, strings("-n", trim(buf)))
         end if
 
-        if (vc_log_view_type() == VC_LOG_VIEW_WITH_DIFF) call push(flags, "-p")
+        if (vc_log_view_type() == VC_LOG_VIEW_WITH_DIFF) call add(flags, "-p")
         ! An empty string LIMIT doesn't make sense given the
         ! specification of this VC backend function, and is tricky to
         ! deal with in combination with Git's double-dot notation for
@@ -1590,8 +1590,8 @@ contains
             if (len(limit%revision) > 0) range = limit%revision//".."//start
         end if
 
-        call push(flags, range)
-        call push(flags, "--")
+        call add(flags, range)
+        call add(flags, "--")
         call vc_git_command(VC_OKSTATUS_ASYNC, files, flags, status, buffer=buffer)
         call set_buffer(old, st)
         call set(value_type(name="inhibit_read_only"), saved, st)
@@ -1739,7 +1739,7 @@ contains
         call temp_begin(old, tmp)
         flags = strings("log", revision, "-1", "--no-color")
         call append_switches(flags, vc_git_log_switches)
-        call push(flags, "--")
+        call add(flags, "--")
         call vc_git_command(VC_OKSTATUS_UNLESS_SIGNAL, none, flags, st, current=.true.)
         call goto_char(point_min())
 
@@ -2328,7 +2328,7 @@ contains
                                 status, current=.true.)
         case (STAGE_LS_FILES_IGNORED)
             flags = strings("ls-files", "-z", "-o", "-i", "--directory", "--no-empty-directory", "--exclude-standard")
-            call push(flags, "--")
+            call add(flags, "--")
             call vc_git_command(VC_OKSTATUS_ASYNC, files, flags, status, current=.true.)
         case (STAGE_DIFF_INDEX)
             ! --relative added in Git 1.5.5.
@@ -2424,7 +2424,7 @@ contains
         allocate (rest(0))
 
         do k = 2, size(args)
-            call push(rest, args(k)%s)
+            call add(rest, args(k)%s)
         end do
 
         call temp_begin(old, tmp)

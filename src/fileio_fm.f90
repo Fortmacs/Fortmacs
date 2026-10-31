@@ -181,7 +181,7 @@ module fileio_fm
               rename_file, copy_file, report_file_errno, is_file_regular, is_file_symlink, &
               user_uid, user_real_uid, group_gid, make_directory_internal, delete_directory_internal, &
               delete_file_internal, file_system_info, make_temp_name
-    public :: insert_file_contents, write_region, verify_visited_file_modtime, &
+    public :: insert_file_contents, write_region, is_visited_file_modtime_current, &
               set_visited_file_modtime
 
     !> emacs.c:emacs_wd, the directory Emacs started in ("" if unknown).
@@ -1980,12 +1980,12 @@ contains
     !> Whether the current buffer's visited file is unchanged since it was
     !> last read or written (true if the buffer visits no file or the time
     !> is unknown).  Port of fileio.c:Fverify_visited_file_modtime.
-    logical function verify_visited_file_modtime()
+    logical function is_visited_file_modtime_current()
         type(file_stat_type) :: st
         integer(int64) :: sec
         integer(int32) :: nsec
 
-        verify_visited_file_modtime = .true.
+        is_visited_file_modtime_current = .true.
         if (.not. allocated(buffers(cur)%filename)) return
         if (.not. buffers(cur)%modtime_known) return
 
@@ -1997,12 +1997,12 @@ contains
             nsec = NONEXISTENT_MODTIME_NSECS
         end if
 
-        verify_visited_file_modtime = sec == buffers(cur)%modtime_sec .and. &
+        is_visited_file_modtime_current = sec == buffers(cur)%modtime_sec .and. &
                                       nsec == buffers(cur)%modtime_nsec .and. &
                                       (buffers(cur)%modtime_size < 0 .or. &
                                        nsec == NONEXISTENT_MODTIME_NSECS .or. &
                                        st%size == buffers(cur)%modtime_size)
-    end function verify_visited_file_modtime
+    end function is_visited_file_modtime_current
 
     !> Record the visited file's current modification time as the
     !> buffer's.  Port of fileio.c:Fset_visited_file_modtime (no argument).

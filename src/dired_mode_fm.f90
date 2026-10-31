@@ -1420,7 +1420,7 @@ contains
         if (.not. allocated(table)) return
 
         do k = 1, size(table)
-            if (table(k)%marker%index /= 0) call release_marker(table(k)%marker)
+            if (table(k)%marker%index /= 0) call free_marker_if_live(table(k)%marker)
         end do
 
         deallocate (table)
@@ -1630,12 +1630,12 @@ contains
     end function mpos
 
     !> Free marker M, ignoring a stale handle.  Not a port.
-    subroutine release_marker(m)
+    subroutine free_marker_if_live(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
 
         call free_marker(m, st)
-    end subroutine release_marker
+    end subroutine free_marker_if_live
 
     !> Match data position (0 if the group did not match).  Not a port.
     integer(int64) function mbeg(n)
@@ -1769,7 +1769,7 @@ contains
         if (count == 1) s = ""
     end function dired_plural_s
 
-    !> Run hook HOOK, ignoring its status.  Not a port.
+    !> Execute hook HOOK, ignoring its status.  Not a port.
     subroutine execute_hook_quietly(hook)
         type(hook_type), intent(inout) :: hook
         type(status_type) :: st
@@ -1960,7 +1960,7 @@ contains
             end do
 
             call goto_char(mpos(end_marker))
-            call release_marker(end_marker)
+            call free_marker_if_live(end_marker)
         else
             ! Replace any newlines in DIR with literal "\n"s, for the sake
             ! of the header line.  To disambiguate a literal "\n" in the
@@ -2025,7 +2025,7 @@ contains
         content_point = dired_insert_disk_space(opoint, dir, status)
         if (.not. status%ok()) return
         call goto_char(mpos(end_marker))
-        call release_marker(end_marker)
+        call free_marker_if_live(end_marker)
         call dired_insert_set_properties(content_point, point())
 
     contains
@@ -2169,7 +2169,7 @@ contains
             call fwd_line(1_int64)
         end do
 
-        call release_marker(end_marker)
+        call free_marker_if_live(end_marker)
         call goto_char(opoint)
     end subroutine dired_insert_set_properties
 
@@ -2315,8 +2315,8 @@ contains
             moved = skip_chars_forward(" ", st)
         end do
 
-        call release_marker(file_marker)
-        call release_marker(other_marker)
+        call free_marker_if_live(file_marker)
+        call free_marker_if_live(other_marker)
         call goto_char(opoint)
     end subroutine dired_align_file
 
@@ -2449,8 +2449,8 @@ contains
         end if
 
         call narrow_to_region(mpos(begv_m), mpos(zv_m), st)
-        call release_marker(begv_m)
-        call release_marker(zv_m)
+        call free_marker_if_live(begv_m)
+        call free_marker_if_live(zv_m)
         call goto_char(opoint)
         call set_buffer(old, st)
 
@@ -4637,7 +4637,7 @@ contains
             call goto_char(opoint)
         end do
 
-        call release_marker(pos)
+        call free_marker_if_live(pos)
         p = dired_move_to_filename(st)
     end subroutine dired_repeat_over_lines
 
@@ -4703,12 +4703,12 @@ contains
                     if (is_re_search_forward(dired_marker_regexp())) then
                         call set_marker(next_position, point(), st)
                     else
-                        call release_marker(next_position)
+                        call free_marker_if_live(next_position)
                         next_position = null_handle()
                     end if
                 end do
 
-                if (next_position%index /= 0) call release_marker(next_position)
+                if (next_position%index /= 0) call free_marker_if_live(next_position)
             end if
 
             call goto_char(opoint)
@@ -4730,7 +4730,7 @@ contains
 
         call dired_get_filename(file, found, status, map_localp, map_no_error)
         if (.not. status%ok()) return
-        call push_result(file, found)
+        call add_result(file, found)
     end subroutine collect_filename
 
     !> Collect the file name and a marker at point (dired-do-delete's
@@ -4745,7 +4745,7 @@ contains
 
         call dired_get_filename(file, found, status)
         if (.not. status%ok()) return
-        call push_result(file, found)
+        call add_result(file, found)
         n = map_n
         allocate (grown(n))
         if (n > 1) grown(1:n - 1) = map_markers(1:n - 1)
@@ -4756,7 +4756,7 @@ contains
 
     !> Append FILE (FOUND .false. for none) to the `map_files' results.
     !> Not a port.
-    subroutine push_result(file, found)
+    subroutine add_result(file, found)
         character(len=*), intent(in) :: file
         logical, intent(in) :: found
         type(dired_string_type), allocatable :: gf(:)
@@ -4774,7 +4774,7 @@ contains
         call move_alloc(gf, map_files)
         call move_alloc(gl, map_found)
         map_n = map_n + 1
-    end subroutine push_result
+    end subroutine add_result
 
     !> Start collecting results.  Not a port.
     subroutine reset_results()
@@ -5028,7 +5028,7 @@ contains
             call message(itoa(count)//" "//msg//dired_plural_s(count)//" "//action//region)
         end if
 
-        call release_marker(end_marker)
+        call free_marker_if_live(end_marker)
         call goto_char(opoint)
         call inhibit_read_only_end(saved_ro)
     end function dired_mark_if
@@ -5076,7 +5076,7 @@ contains
             call fwd_line(1_int64)
         end do
 
-        call release_marker(end_marker)
+        call free_marker_if_live(end_marker)
         call inhibit_read_only_end(saved_ro)
     end subroutine dired_mark_files_in_region
 
@@ -5279,7 +5279,7 @@ contains
             call fwd_line(1_int64)
         end do
 
-        call release_marker(end_marker)
+        call free_marker_if_live(end_marker)
         call inhibit_read_only_end(saved_ro)
         call goto_char(opoint)
     end subroutine dired_toggle_marks
@@ -6120,7 +6120,7 @@ contains
         if (.not. allocated(map_markers)) return
 
         do k = 1, size(map_markers)
-            if (map_markers(k)%index /= 0) call release_marker(map_markers(k))
+            if (map_markers(k)%index /= 0) call free_marker_if_live(map_markers(k))
         end do
 
         deallocate (map_markers)

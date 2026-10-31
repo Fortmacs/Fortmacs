@@ -49,7 +49,7 @@ module font_core_fm
                          restore_buffer_modified, current_buffer
     use handle_fm, only: handle_type
     use eval_fm, only: hook_type, change_major_mode_hook
-    use subr_fm, only: after_change_major_mode_hook
+    use subr_fm, only: after_change_major_mode_hook, after_hook_proc
     use derived_fm, only: is_derived_mode
     use easy_mmode_fm, only: minor_mode_type
     use modes_fm, only: minor_modes
@@ -280,7 +280,7 @@ module font_core_fm
         !> set).
         procedure :: present_p => has_defaults
         !> The current buffer's defaults (call only when present_p).
-        procedure :: get => defaults_get
+        procedure :: current => current_defaults
         !> Forget the current buffer's defaults.
         procedure :: kill_local => defaults_kill_local
     end type font_lock_defaults_setting
@@ -305,7 +305,7 @@ module font_core_fm
     !> The first fontification after Font Lock mode is turned on (its
     !> :after-hook, font-lock-initial-fontify of font_lock_fm, installed by
     !> it).
-    procedure(after_hook_iface), pointer, public :: font_lock_initial_fontify_proc => null()
+    procedure(after_hook_proc), pointer, public :: font_lock_initial_fontify_proc => null()
 
     abstract interface
         ! Not a port.
@@ -313,13 +313,6 @@ module font_core_fm
             implicit none(type, external)
             logical, intent(in) :: mode
         end function specified_proc
-
-        ! Not a port.
-        subroutine after_hook_iface(status)
-            import :: status_type
-            implicit none(type, external)
-            type(status_type), intent(out) :: status
-        end subroutine after_hook_iface
     end interface
 
     !> Modes for which Font Lock mode is automagically turned on.
@@ -494,7 +487,7 @@ contains
     end function has_defaults
 
     ! Not a port.
-    function defaults_get(self) result(v)
+    function current_defaults(self) result(v)
         class(font_lock_defaults_setting), intent(inout) :: self
         type(font_lock_defaults_type) :: v
         integer :: k
@@ -502,7 +495,7 @@ contains
         k = defaults_index(self, .false.)
         if (k == 0) return
         if (self%entries(k)%set) v = self%entries(k)%value
-    end function defaults_get
+    end function current_defaults
 
     ! Not a port.
     subroutine defaults_kill_local(self)

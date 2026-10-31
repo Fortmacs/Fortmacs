@@ -573,7 +573,7 @@ contains
                 arg = arg//part
             end do
 
-            call append_arg(args, arg)
+            call add_arg(args, arg)
         end do
 
         call goto_char(opoint)
@@ -838,11 +838,11 @@ contains
             colon = index(path, ":")
 
             if (colon == 0) then
-                call push_front(path_dirs, path)
+                call add_front(path_dirs, path)
                 exit
             end if
 
-            call push_front(path_dirs, path(1:colon - 1))
+            call add_front(path_dirs, path(1:colon - 1))
             path = path(colon + 1:)
             found = .true.
         end do
@@ -936,7 +936,7 @@ contains
     end subroutine grow
 
     ! Add S at the start of LIST.  Not a port.
-    subroutine push_front(list, s)
+    subroutine add_front(list, s)
         type(process_arg_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
         type(process_arg_type), allocatable :: grown(:)
@@ -951,7 +951,7 @@ contains
         end do
 
         call move_alloc(grown, list)
-    end subroutine push_front
+    end subroutine add_front
 
     ! The table of shell--command-completion-data: file names for a
     ! string with a slash, else the commands found.  Port of
@@ -2471,7 +2471,7 @@ contains
     end subroutine syms_of_shell
 
     !> Add S at the end of LIST.  Not a port.
-    subroutine append_arg(list, s)
+    subroutine add_arg(list, s)
         type(process_arg_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
         type(process_arg_type), allocatable :: grown(:)
@@ -2487,7 +2487,7 @@ contains
 
         grown(n + 1)%s = s
         call move_alloc(grown, list)
-    end subroutine append_arg
+    end subroutine add_arg
 
     !> Add S at the start of LIST.  Not a port.
     subroutine prepend_arg(list, s)

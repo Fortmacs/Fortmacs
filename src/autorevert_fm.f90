@@ -57,7 +57,7 @@ module autorevert_fm
     use timer_fm, only: execute_with_timer, free_timer, is_timer, is_timer_active
     use xdisp_fm, only: message
     use fileio_fm, only: expand_file_name, is_file_readable, is_file_symlink, file_attributes, file_stat_type, &
-                         file_name_nondirectory, insert_file_contents, set_visited_file_modtime, verify_visited_file_modtime
+                         file_name_nondirectory, insert_file_contents, set_visited_file_modtime, is_visited_file_modtime_current
     use files_fm, only: revert_buffer, find_file_hook, kill_buffer_hook, after_set_visited_file_name_hook, &
                         before_revert_hook, after_revert_hook, revert_buffer_in_progress, buffer_stale_function, &
                         buffer_stale_proc, buffer_stale_default_function, buffer_auto_revert_by_notification, &
@@ -469,7 +469,7 @@ contains
     end subroutine delq
 
     !> (push BUFFER LIST)  Not a port.
-    subroutine push(buffer, list)
+    subroutine add_front(buffer, list)
         type(handle_type), intent(in) :: buffer
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), allocatable :: grown(:)
@@ -479,7 +479,7 @@ contains
         grown(1) = buffer
         grown(2:) = list
         call move_alloc(grown, list)
-    end subroutine push
+    end subroutine add_front
 
     !> (with-current-buffer BUFFER ...): make BUFFER current, keeping the
     !> current buffer in SAVED.  Not a port.
@@ -572,7 +572,7 @@ contains
 
         if (enable) then
             if (.not. has_handle(auto_revert_buffer_list, current_buffer())) then
-                call push(current_buffer(), auto_revert_buffer_list)
+                call add_front(current_buffer(), auto_revert_buffer_list)
                 call kill_buffer_hook%add(remove_current_buffer_hook, local=.true.)
             end if
         else
@@ -655,7 +655,7 @@ contains
             return
         end if
 
-        if (auto_revert_tail_pos() == 0 .and. .not. verify_visited_file_modtime()) then
+        if (auto_revert_tail_pos() == 0 .and. .not. is_visited_file_modtime_current()) then
             call read_y_or_n("File changed on disk, content may be missing.  Perform a full revert? ", full, status)
             if (.not. status%ok()) return
             if (full) call auto_revert_buffer(current_buffer())
@@ -796,7 +796,7 @@ contains
         eligible = allocated(buffers(cur)%filename)
 
         if (.not. eligible .and. global_auto_revert_non_file_buffers) then
-            fn => buffer_stale_function%get()
+            fn => buffer_stale_function%current()
             eligible = buffers(cur)%name(1:min(1, len(buffers(cur)%name))) /= " " .and. associated(fn)
             if (eligible) eligible = .not. associated(fn, buffer_stale_default_function)
         end if
@@ -1218,7 +1218,7 @@ contains
 
         buf = current_buffer()
         added = .not. has_handle(inhibit_auto_revert_buffers, buf)
-        if (added) call push(buf, inhibit_auto_revert_buffers)
+        if (added) call add_front(buf, inhibit_auto_revert_buffers)
         call body(status)
         if (added) call delq(buf, inhibit_auto_revert_buffers)
     end subroutine inhibit_auto_revert
@@ -1264,7 +1264,7 @@ contains
                         if (locals(k)%tail_pos /= fsize) revert = BUFFER_STALE_YES
                     end if
                 else if (minor_modes%auto_revert_mode%enabled() .or. locals(k)%global_mode) then
-                    fn => buffer_stale_function%get()
+                    fn => buffer_stale_function%current()
                     if (.not. associated(fn)) fn => buffer_stale_default_function
                     revert = fn(.true.)
                     k = local_index(.true.)
@@ -1426,12 +1426,12 @@ contains
 
         if (allocated(auto_revert_remaining_buffers)) then
             do i = 1, size(auto_revert_remaining_buffers)
-                if (has_handle(bufs, auto_revert_remaining_buffers(i))) call push(auto_revert_remaining_buffers(i), remaining)
+                if (has_handle(bufs, auto_revert_remaining_buffers(i))) call add_front(auto_revert_remaining_buffers(i), remaining)
             end do
         end if
 
         do i = 1, size(bufs)
-            if (.not. has_handle(remaining, bufs(i))) call push(bufs(i), new)
+            if (.not. has_handle(remaining, bufs(i))) call add_front(bufs(i), new)
         end do
 
         ! (nreverse (nconc new remaining))

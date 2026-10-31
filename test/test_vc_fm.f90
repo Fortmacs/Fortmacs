@@ -224,11 +224,11 @@ contains
         args(4) = value_type(text="user.email=t@t")
         args(5) = value_type(text=a1)
         n = 5
-        if (present(a2)) call push(a2)
-        if (present(a3)) call push(a3)
-        if (present(a4)) call push(a4)
-        if (present(a5)) call push(a5)
-        if (present(a6)) call push(a6)
+        if (present(a2)) call add(a2)
+        if (present(a3)) call add(a3)
+        if (present(a4)) call add(a4)
+        if (present(a5)) call add(a5)
+        if (present(a6)) call add(a6)
         old = current_buffer()
         call temp_buffer(h)
         buffers(cur)%directory = tdir()
@@ -238,12 +238,12 @@ contains
 
     contains
 
-        subroutine push(a)
+        subroutine add(a)
             character(len=*), intent(in) :: a
 
             n = n + 1
             args(n) = value_type(text=a)
-        end subroutine push
+        end subroutine add
     end subroutine git
 
     !> The Git backend's index.

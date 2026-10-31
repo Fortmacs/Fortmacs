@@ -364,7 +364,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! Not a port.
-    subroutine new_table(h, parent)
+    subroutine make_table(h, parent)
         type(handle_type), intent(out) :: h
         type(handle_type), intent(in) :: parent
         type(syntax_table_type), allocatable :: grown(:)
@@ -382,7 +382,7 @@ contains
         tables(h%index) = syntax_table_type()
         allocate (tables(h%index)%starts(0), tables(h%index)%ends(0), tables(h%index)%entries(0))
         tables(h%index)%parent = parent
-    end subroutine new_table
+    end subroutine make_table
 
     !> Slot of table `h', or a `wrong_type_argument' error.  Port of
     !> syntax.c:check_syntax_table.
@@ -439,7 +439,7 @@ contains
     subroutine init_syntax_once()
         integer :: i
 
-        call new_table(standard, null_handle())
+        call make_table(standard, null_handle())
 
         associate (t => tables(standard%index))
             ! Control characters should not be whitespace.
@@ -526,7 +526,7 @@ contains
         ! standard syntax table as the copy's parent.
         parent = tables(i)%parent
         if (parent%index == 0) parent = standard
-        call new_table(copy, parent)
+        call make_table(copy, parent)
         call resolve_table(source, i, status)
         tables(copy%index)%ascii = tables(i)%ascii
         tables(copy%index)%starts = tables(i)%starts
@@ -555,7 +555,7 @@ contains
         end if
 
         status = status_type()
-        call new_table(h, parent)
+        call make_table(h, parent)
     end subroutine make_syntax_table
 
     !> Return the current syntax table.
@@ -1488,7 +1488,7 @@ contains
         pos = opoint
 
         do while (pos > buffers(cur)%begv)
-            c = fetch_char_before(pos)
+            c = get_char_before(pos)
             if (char_quoted(pos - 1)) exit
             d = syntax_entry_at(c, pos - 1)
             if (iand(d%code, 255) /= SQUOTE .and. .not. btest(d%code, 20)) exit
@@ -1528,7 +1528,7 @@ contains
     end subroutine scan_error_data
 
     ! The character before POS.  Not a port.
-    integer function fetch_char_before(pos) result(c)
+    integer function get_char_before(pos) result(c)
         integer(int64), intent(in) :: pos
         integer(int64) :: pos_byte
 
@@ -1543,7 +1543,7 @@ contains
 
             c = int(buf_fetch_char(b, pos_byte))
         end associate
-    end function fetch_char_before
+    end function get_char_before
 
     !> Whether the character at POS is quoted by an odd number of escape
     !> or character-quote characters before it.  Port of
@@ -1557,7 +1557,7 @@ contains
         p = pos
 
         do while (p > buffers(cur)%begv)
-            k = syntax_class_at(fetch_char_before(p), p - 1)
+            k = syntax_class_at(get_char_before(p), p - 1)
             if (k /= SESCAPE .and. k /= SCHARQUOTE) exit
             char_quoted = .not. char_quoted
             p = p - 1

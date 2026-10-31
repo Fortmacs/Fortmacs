@@ -975,7 +975,7 @@ contains
         ! revert-buffer-restore-functions: revert-buffer-restore-read-only.
         restore_read_only = buffers(cur)%read_only_mode_state_set
         read_only_state = buffers(cur)%read_only_mode_state
-        fn => revert_buffer_function%get()
+        fn => revert_buffer_function%current()
 
         if (associated(fn)) then
             call fn(ia, nc, status)
@@ -1059,7 +1059,7 @@ contains
         call before_revert_hook%execute(st)
         ! If file was backed up but has changed since,
         ! we should make another backup.
-        if (.not. auto_save_p .and. .not. verify_visited_file_modtime()) buffers(cur)%backed_up = .false.
+        if (.not. auto_save_p .and. .not. is_visited_file_modtime_current()) buffers(cur)%backed_up = .false.
         ! Effectively copy the after_revert_hook status,
         ! since after_find_file will clobber it.
         run_hook = after_revert_hook

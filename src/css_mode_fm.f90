@@ -64,13 +64,13 @@ module css_mode_fm
     use font_core_fm, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                             FONT_LOCK_OVERRIDE_YES, FONT_LOCK_OVERRIDE_KEEP
     use font_lock_fm, only: font_lock_keyword, font_lock_highlight, font_lock_default_fontify_region, &
-                            set_local_font_lock_fontify_region_function
+                            font_lock_fontify_region_function_set_local
     use expression_motion_fm, only: forward_expression, backward_expression, down_group, kill_expression
     use newcomment_fm, only: comment_start, comment_start_skip, comment_end, comment_end_skip, comment_continue, &
                              comment_normalize_vars, comment_search_forward, comment_beginning
     use paragraphs_fm, only: paragraph_start, paragraph_separate
     use fill_fm, only: fill_paragraph, fill_paragraph_function, adaptive_fill_function
-    use electric_fm, only: electric_indent_chars_value, set_local_electric_indent_chars
+    use electric_fm, only: electric_indent_chars_value, electric_indent_chars_set_local
     use syntax_propertize_fm, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type
     use smie_fm, only: smie_prec_type, smie_precs_type, smie_prec2_type, smie_grammar_type, smie_rule_result_type, &
                        smie_indent_type, smie_expression_type, smie_precs_to_prec2, smie_prec2_to_grammar, smie_setup, &
@@ -80,7 +80,7 @@ module css_mode_fm
                        SMIE_RULE_YES, SMIE_INDENT_COLUMN
     use minibuf_table_fm, only: capf_data_type, completion_table_type, completion_predicate, TABLE_FUNCTION, &
                                 COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST, COMPLETION_FINISHED
-    use minibuf_fm, only: try_completion, all_completions, test_completion
+    use minibuf_fm, only: try_completion, all_completions, is_exact_completion
     use minibuffer_fm, only: completion_at_point_functions
     use regexp_opt_fm, only: regexp_opt
     implicit none(type, external)
@@ -123,7 +123,7 @@ module css_mode_fm
         !> Make FN the current buffer's function (set_local).
         procedure :: set_local => list_function_set_local
         !> The current buffer's function (null for `ignore').
-        procedure :: get => list_function_get
+        procedure :: current => current_list_function
         !> Make the current buffer use the default again.
         procedure :: kill_local => list_function_kill_local
     end type css_list_function_type
@@ -1113,7 +1113,7 @@ contains
     end subroutine list_function_set_local
 
     ! Not a port.
-    function list_function_get(self) result(fn)
+    function current_list_function(self) result(fn)
         class(css_list_function_type), intent(in) :: self
         procedure(css_list_proc), pointer :: fn
         integer :: i
@@ -1127,7 +1127,7 @@ contains
                 if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
             end if
         end do
-    end function list_function_get
+    end function current_list_function
 
     ! Not a port.
     subroutine list_function_kill_local(self)
@@ -1389,7 +1389,7 @@ contains
 
     ! Append V to ELTS.
     ! Not a port.
-    subroutine push(elts, v)
+    subroutine add(elts, v)
         type(value_type), allocatable, intent(inout) :: elts(:)
         type(value_type), intent(in) :: v
         type(value_type), allocatable :: grown(:)
@@ -1404,7 +1404,7 @@ contains
 
         grown(n + 1) = v
         call move_alloc(grown, elts)
-    end subroutine push
+    end subroutine add
 
     ! Append the elements of MORE to ELTS.
     ! Not a port.
@@ -1414,7 +1414,7 @@ contains
         integer :: i
 
         do i = 1, size(more)
-            call push(elts, more(i))
+            call add(elts, more(i))
         end do
     end subroutine push_all
 
@@ -1578,13 +1578,13 @@ contains
         do i = 1, size(bufs)
             if (.not. is_buffer_live(bufs(i))) cycle
             call set_buffer(bufs(i), st)
-            fn => extractor%get()
+            fn => extractor%current()
 
             if (associated(fn)) then
                 call fn(names)
 
                 do j = 1, size(names)
-                    call push(found, value_type(text=trim(names(j))))
+                    call add(found, value_type(text=trim(names(j))))
                 end do
             end if
         end do
@@ -1669,14 +1669,14 @@ contains
                 if (.not. status%ok()) return
 
                 if (is_t(v)) then
-                    call push(elts, value_type(text=string))
+                    call add(elts, value_type(text=string))
                 else if (allocated(v%a)) then
                     if (string_of(v) == string) then
                         result = value_type(text=string)
                         return
                     end if
 
-                    call push(elts, v)
+                    call add(elts, v)
                 end if
             end do
 
@@ -1698,7 +1698,7 @@ contains
             do i = 1, 2
                 if (.not. have(i)) cycle
 
-                if (test_completion(string, tables(i), pred)) then
+                if (is_exact_completion(string, tables(i), pred)) then
                     result = value_type(name="t")
                     return
                 end if
@@ -1741,11 +1741,11 @@ contains
         if (.not. is_eol()) return
         if (.not. merge_prop) return
         prop_table%list = string_list(css_property_ids)
-        if (.not. test_completion(string, prop_table)) return
+        if (.not. is_exact_completion(string, prop_table)) return
 
         if (merge_sel) then
             sel_table%list = selector_candidates()
-            if (test_completion(string, sel_table)) return
+            if (is_exact_completion(string, sel_table)) return
         end if
 
         call insert(": ;", st)
@@ -3436,7 +3436,7 @@ contains
         call comment_start_skip%set_local("/\*+[ "//TAB//"]*")
         call comment_end%set_local("*/")
         call comment_end_skip%set_local("[ "//TAB//"]*\*+/")
-        call set_local_electric_indent_chars([css_electric_keys, electric_indent_chars_value()])
+        call electric_indent_chars_set_local([css_electric_keys, electric_indent_chars_value()])
         call major_modes%css_base_mode%finish(saved, status)
     end subroutine css_base_mode
 
@@ -3463,7 +3463,7 @@ contains
         call fill_paragraph_function%set_local(css_fill_paragraph)
         call adaptive_fill_function%set_local(css_adaptive_fill)
         call smie_setup(css_smie_grammar, css_smie_rules, css_smie_forward_token, css_smie_backward_token)
-        call set_local_font_lock_fontify_region_function(css_fontify_region)
+        call font_lock_fontify_region_function_set_local(css_fontify_region)
         call completion_at_point_functions%add(css_completion_at_point, local=.true.)
         call major_modes%css_mode%finish(saved, status)
     end subroutine css_mode

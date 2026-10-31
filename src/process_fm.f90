@@ -299,12 +299,12 @@ contains
         procs(i)%decode_coding_system = trim(default_process_coding_system(1))
         procs(i)%encode_coding_system = trim(default_process_coding_system(2))
         allocate (procs(i)%command(0))
-        call process_order_push(h)
+        call process_order_add(h)
         procs(i)%listed = .true.
     end subroutine new_process
 
     ! Not a port.
-    subroutine process_order_push(h)
+    subroutine process_order_add(h)
         type(handle_type), intent(in) :: h
         type(handle_type), allocatable :: bigger(:)
 
@@ -319,7 +319,7 @@ contains
         process_order(2:process_order_count + 1) = process_order(1:process_order_count)
         process_order(1) = h
         process_order_count = process_order_count + 1
-    end subroutine process_order_push
+    end subroutine process_order_add
 
     !> Take process `proc' off the process list and deactivate it.  Port of
     !> process.c:remove_process.

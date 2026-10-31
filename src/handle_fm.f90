@@ -63,7 +63,7 @@ module handle_fm
     contains
 
         procedure :: acquire => table_acquire
-        procedure :: release => table_release
+        procedure :: release => table_free
         procedure :: resolve => table_resolve
         procedure :: is_live => table_is_live
         procedure :: issued => table_issued
@@ -119,7 +119,7 @@ contains
 
     !> Free the slot `h' refers to.  Fails on a null or stale handle,
     !> including a second release of the same handle.
-    subroutine table_release(self, h, status)
+    subroutine table_free(self, h, status)
         class(slot_table_type), intent(inout) :: self
         type(handle_type), intent(in) :: h
         type(status_type), intent(out) :: status
@@ -132,7 +132,7 @@ contains
         self%live_count = self%live_count - 1
         self%free_count = self%free_count + 1
         self%free_list(self%free_count) = i
-    end subroutine table_release
+    end subroutine table_free
 
     !> Translate `h' into its payload index, or fail with invalid-handle.
     pure subroutine table_resolve(self, h, i, status)

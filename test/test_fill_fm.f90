@@ -246,7 +246,7 @@ contains
         call execute_erts_file(error, "test/fill-resources/fill-paragraph.erts")
     end subroutine test_erts_paragraph
 
-    !> Run the tests of an erts file (ert-test-erts-file): each has a
+    !> Execute the tests of an erts file (ert-test-erts-file): each has a
     !> Name, inherits the last Code and Point-Char, and has the text
     !> before and after between =-= lines.
     subroutine execute_erts_file(error, file)
@@ -338,7 +338,7 @@ contains
         call check(error, ran > 0, "no tests in "//file)
     end subroutine execute_erts_file
 
-    ! Run one erts test: recognize the forms of CODE (setq-local of
+    ! Execute one erts test: recognize the forms of CODE (setq-local of
     ! fill-column, sentence-end-double-space and
     ! fill-separate-heterogeneous-words-with-space; the fill call) and
     ! compare the result with AFTER.

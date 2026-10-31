@@ -58,7 +58,7 @@ module regex_emacs_fm
     private
 
     public :: re_pattern_buffer_type, re_registers_type, re_subject_type
-    public :: re_compile_pattern, re_search, re_match, subject_from_string, subject_from_buffer
+    public :: re_compile_pattern, re_search, re_match, string_to_subject, buffer_to_subject
     public :: re_wctype_parse, re_iswctype
 
     !> The opcodes of compiled patterns (regex-emacs.c re_opcode_t).
@@ -170,17 +170,17 @@ module regex_emacs_fm
 contains
 
     !> The string `str' as a subject.  Not a port.
-    function subject_from_string(str) result(s)
+    function string_to_subject(str) result(s)
         character(len=*), intent(in) :: str
         type(re_subject_type) :: s
 
         s%is_buffer = .false.
         s%str = str
         s%size = len(str, kind=int64)
-    end function subject_from_string
+    end function string_to_subject
 
     !> The accessible part of the current buffer as a subject.  Not a port.
-    function subject_from_buffer() result(s)
+    function buffer_to_subject() result(s)
         type(re_subject_type) :: s
 
         s%is_buffer = .true.
@@ -191,7 +191,7 @@ contains
             s%gap_size = b%text%gap_size
             s%size = b%zv_byte - b%begv_byte
         end associate
-    end function subject_from_buffer
+    end function buffer_to_subject
 
     !> The byte at offset `d' of the subject.  Not a port.
     integer function sbyte(s, d)

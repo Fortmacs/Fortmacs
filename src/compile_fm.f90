@@ -1349,7 +1349,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> A new message in entry K.  Not a port.
-    integer function new_message(k, loc, type, end_loc, rule) result(id)
+    integer function make_message(k, loc, type, end_loc, rule) result(id)
         integer, intent(in) :: k, loc, type, end_loc
         character(len=*), intent(in), optional :: rule
         type(message_type), allocatable :: grown(:)
@@ -1381,11 +1381,11 @@ contains
         compilation_buffers(k)%messages(id)%end_loc = end_loc
         if (allocated(compilation_buffers(k)%messages(id)%rule)) deallocate (compilation_buffers(k)%messages(id)%rule)
         if (present(rule)) compilation_buffers(k)%messages(id)%rule = rule
-    end function new_message
+    end function make_message
 
     !> A new location of column COL (none unless HAS_COL) in entry K.
     !> Not a port.
-    integer function new_loc(k, has_col, col) result(id)
+    integer function make_loc(k, has_col, col) result(id)
         integer, intent(in) :: k
         logical, intent(in) :: has_col
         integer(int64), intent(in) :: col
@@ -1406,11 +1406,11 @@ contains
         compilation_buffers(k)%locs(id) = loc_type()
         compilation_buffers(k)%locs(id)%has_col = has_col
         compilation_buffers(k)%locs(id)%col = col
-    end function new_loc
+    end function make_loc
 
     !> A new directory stack node in entry K: DIR (if present) on PARENT.
     !> Not a port.
-    integer function new_dir(k, parent, dir) result(id)
+    integer function make_dir(k, parent, dir) result(id)
         integer, intent(in) :: k, parent
         character(len=*), intent(in), optional :: dir
         type(dir_node_type), allocatable :: grown(:)
@@ -1438,7 +1438,7 @@ contains
         compilation_buffers(k)%dirs(id)%parent = parent
         if (allocated(compilation_buffers(k)%dirs(id)%dir)) deallocate (compilation_buffers(k)%dirs(id)%dir)
         if (present(dir)) compilation_buffers(k)%dirs(id)%dir = dir
-    end function new_dir
+    end function make_dir
 
     !> The message whose index the `compilation_message' property at POS
     !> holds (0 for none).  Not a port.
@@ -1536,7 +1536,7 @@ contains
         end if
 
         if (fs == 0) then
-            fs = new_file(k, name, has_spec, spec)
+            fs = make_file(k, name, has_spec, spec)
 
             if (has_spec) then
                 call add_key(k, name, fs, spec)
@@ -1628,7 +1628,7 @@ contains
     end subroutine add_key
 
     ! Not a port.
-    integer function new_file(k, filename, has_dir, directory) result(fs)
+    integer function make_file(k, filename, has_dir, directory) result(fs)
         integer, intent(in) :: k
         character(len=*), intent(in) :: filename
         logical, intent(in) :: has_dir
@@ -1662,7 +1662,7 @@ contains
         if (has_dir) compilation_buffers(k)%files(fs)%directory = directory
         if (allocated(compilation_buffers(k)%files(fs)%lines)) deallocate (compilation_buffers(k)%files(fs)%lines)
         allocate (compilation_buffers(k)%files(fs)%lines(0))
-    end function new_file
+    end function make_file
 
     !> Forget the file structure of FILE (a name), so that later messages
     !> about it get new locations.  Port of
@@ -1806,7 +1806,7 @@ contains
             end do
         end if
 
-        loc = new_loc(k, has_col, col)
+        loc = make_loc(k, has_col, col)
         compilation_buffers(k)%files(fs)%lines(node)%locs = [locs(1:j - 1), loc, locs(j:n)]
     end function col_assq
 
@@ -2626,9 +2626,9 @@ contains
         if (end_marker%index /= 0) call free_marker(end_marker, st)
 
         if (allocated(spec%rule)) then
-            msg = new_message(k, loc, spec%type, end_loc, spec%rule)
+            msg = make_message(k, loc, spec%type, end_loc, spec%rule)
         else
-            msg = new_message(k, loc, spec%type, end_loc)
+            msg = make_message(k, loc, spec%type, end_loc)
         end if
 
         if (spec%has_col) then
@@ -2789,18 +2789,18 @@ contains
 
             if (value == 0) then
                 ! '(nil): nil only isn't a property change.
-                if (compilation_buffers(k)%nil_dir == 0) compilation_buffers(k)%nil_dir = new_dir(k, 0)
+                if (compilation_buffers(k)%nil_dir == 0) compilation_buffers(k)%nil_dir = make_dir(k, 0)
                 value = compilation_buffers(k)%nil_dir
             end if
         else
             face = setting_string(compilation_enter_directory_face)
-            value = new_dir(k, dir, md_string(md, idx))
+            value = make_dir(k, dir, md_string(md, idx))
         end if
 
         ! Place a `compilation_message' everywhere we change
         ! text-properties so compilation--remove-properties can know what
         ! to remove.
-        msg = new_message(k, 0, 0, 0)
+        msg = make_message(k, 0, 0, 0)
         props = list(value_type(name="font_lock_face"), value_type(name=face), value_type(name="compilation_directory"), &
                      value_type(int(value, int64)), &
                      value_type(name="compilation_message"), value_type(int(msg, int64)), value_type(name="mouse_face"), &
@@ -4617,7 +4617,7 @@ contains
         ! text, regardless of where the user sees point.
         call set_marker(process_mark(proc), point_max(), st, outbuf)
         if (compilation_disable_input%value) call process_send_eof(st, proc)
-        call push_in_progress(proc)
+        call add_in_progress(proc)
         ! Now finally cd to where the shell started make/grep/...
         buffers(cur)%directory = origdir
         if (scroll) call goto_char(point_max())
@@ -4640,7 +4640,7 @@ contains
     end subroutine set_process_sentinel_and_filter
 
     ! Not a port.
-    subroutine push_in_progress(proc)
+    subroutine add_in_progress(proc)
         type(handle_type), intent(in) :: proc
         type(handle_type), allocatable :: grown(:)
         integer :: n
@@ -4651,7 +4651,7 @@ contains
         grown(1) = proc
         grown(2:) = compilation_in_progress
         call move_alloc(grown, compilation_in_progress)
-    end subroutine push_in_progress
+    end subroutine add_in_progress
 
     !> Whether compilations are in progress (`compilation_in_progress' is
     !> true), for the "[Compiling] " of the mode line.  Not a port.

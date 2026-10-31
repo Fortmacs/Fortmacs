@@ -544,7 +544,7 @@ contains
 
     !> The index of BUFFER in the previous buffers of `h', or 0.
     !> Not a port.
-    integer function prev_entry(h, buffer) result(k)
+    integer function previous_entry(h, buffer) result(k)
         type(handle_type), intent(in) :: h, buffer
         integer :: i
 
@@ -557,7 +557,7 @@ contains
                 return
             end if
         end do
-    end function prev_entry
+    end function previous_entry
 
     !> In WINDOW switch to previous buffer.
     !> Return the buffer switched to, the null handle if no suitable buffer could be
@@ -654,7 +654,7 @@ contains
             do k = size(next_buffers), 1, -1
                 b = next_buffers(k)
                 if (.not. is_buffer_live(b) .or. same_handle(b, old_buffer)) cycle
-                e = prev_entry(h, b)
+                e = previous_entry(h, b)
                 if (e == 0) cycle
                 entry = windows(h%index)%prev_buffers(e)
                 new_buffer = b
@@ -667,7 +667,7 @@ contains
 
         if (bury_or_kill /= BK_NONE) then
             e = 0
-            if (bury_or_kill == BK_APPEND) e = prev_entry(h, old_buffer)
+            if (bury_or_kill == BK_APPEND) e = previous_entry(h, old_buffer)
 
             if (e > 0) then
                 ! Keep old-buffer's entry to append it below.
@@ -684,18 +684,18 @@ contains
             if (e > 0) then
                 ! Append old-buffer's entry to list of WINDOW's previous
                 ! buffers.
-                call append_prev(h, entry)
+                call add_prev(h, entry)
             end if
         else
             ! Move `old_buffer' to head of WINDOW's restored list of next
             ! buffers.
-            call push_front(next_buffers, old_buffer)
+            call move_to_front(next_buffers, old_buffer)
             windows(h%index)%next_buffers = next_buffers
         end if
     end function switch_to_prev_buffer
 
     !> Append ENTRY to the previous buffers of window `h'.  Not a port.
-    subroutine append_prev(h, entry)
+    subroutine add_prev(h, entry)
         type(handle_type), intent(in) :: h
         type(prev_buffer_type), intent(in) :: entry
         type(prev_buffer_type), allocatable :: grown(:)
@@ -707,10 +707,10 @@ contains
         grown(1:n) = windows(h%index)%prev_buffers
         grown(n + 1) = entry
         call move_alloc(grown, windows(h%index)%prev_buffers)
-    end subroutine append_prev
+    end subroutine add_prev
 
     !> Move B to the front of LIST (removing it elsewhere).  Not a port.
-    subroutine push_front(list, b)
+    subroutine move_to_front(list, b)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: b
         type(handle_type), allocatable :: grown(:)
@@ -728,7 +728,7 @@ contains
         end do
 
         list = grown(1:n)
-    end subroutine push_front
+    end subroutine move_to_front
 
     !> In WINDOW switch to next buffer.
     !> Return the buffer switched to, the null handle if no suitable buffer could be
@@ -778,7 +778,7 @@ contains
         do k = 1, size(next_buffers)
             b = next_buffers(k)
             if (.not. is_buffer_live(b) .or. same_handle(b, old_buffer)) cycle
-            e = prev_entry(h, b)
+            e = previous_entry(h, b)
             if (e == 0) cycle
             entry = windows(h%index)%prev_buffers(e)
             new_buffer = b
@@ -796,7 +796,7 @@ contains
                 b = list(k)
                 if (.not. is_buffer_live(b) .or. same_handle(b, old_buffer)) cycle
                 if (index(buffer_name_of(b), " ") == 1) cycle
-                if (prev_entry(h, b) > 0) cycle
+                if (previous_entry(h, b) > 0) cycle
                 new_buffer = b
                 call set_window_buffer_start_and_point(h, b, status)
                 found = .true.
@@ -987,7 +987,7 @@ contains
                 if (.not. status%ok()) return
                 ! Deal with the buffer we just removed from WINDOW.
                 e = 0
-                if (bury_or_kill == BK_APPEND) e = prev_entry(h, buffer)
+                if (bury_or_kill == BK_APPEND) e = previous_entry(h, buffer)
 
                 if (any(bury_or_kill == [BK_BURY, BK_BURYING, BK_KILL, BK_KILLING])) then
                     ! Remove buffer from WINDOW's previous and next buffers.
@@ -1004,7 +1004,7 @@ contains
                     call copy_marker(windows(h%index)%prev_buffers(e)%start, entry%start, .false., status)
                     call copy_marker(windows(h%index)%prev_buffers(e)%point, entry%point, .false., status)
                     status = status_type()
-                    call append_prev(h, entry)
+                    call add_prev(h, entry)
                 end if
 
                 ! Reset the quit-restore(-prev) parameter.
@@ -1398,7 +1398,7 @@ contains
         window = h
     end function window_display_buffer
 
-    !> Call the `body_function' of TABLE with window H, with
+    !> Execute the `body_function' of TABLE with window H, with
     !> `inhibit_read_only' and `inhibit_modification_hooks' true.
     !> Not a port.
     subroutine execute_body_function(table, h)
@@ -1527,7 +1527,7 @@ contains
         list = window_list_from(frame_first_window())
 
         do k = 1, size(list)
-            if (prev_entry(list(k), buffer) == 0) cycle
+            if (previous_entry(list(k), buffer) == 0) cycle
             if (windows(list(k)%index)%dedicated /= DEDICATED_NONE) cycle
 
             if (same_handle(list(k), sw)) then

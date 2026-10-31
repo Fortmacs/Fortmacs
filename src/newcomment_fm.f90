@@ -166,7 +166,7 @@ module newcomment_fm
         !> Make FN the current buffer's function (set_local).
         procedure :: set_local => indent_function_set_local
         !> The current buffer's function.
-        procedure :: get => indent_function_get
+        procedure :: current => current_indent_function
         !> Whether the current buffer has its own function.
         procedure :: local_p => is_indent_function_local
         !> Make the current buffer use the default function again.
@@ -478,7 +478,7 @@ contains
 
     ! The function in effect in the current buffer: its local one, else
     ! the default.  Not a port.
-    function indent_function_get(self) result(fn)
+    function current_indent_function(self) result(fn)
         class(comment_indent_function_type), intent(in) :: self
         procedure(comment_indent_proc), pointer :: fn
         integer :: i
@@ -492,7 +492,7 @@ contains
                 if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
             end if
         end do
-    end function indent_function_get
+    end function current_indent_function
 
     ! Whether the current buffer has a local function.  Not a port.
     logical function is_indent_function_local(self) result(local)
@@ -1612,7 +1612,7 @@ contains
         call goto_char(begpos)
         ! Compute desired indent.
         opoint = point()
-        fn => comment_indent_function%get()
+        fn => comment_indent_function%current()
         call fn(indent, st)
         call goto_char(opoint)
         ! If `indent' is nil and there's code before the comment, we can't
@@ -3165,7 +3165,7 @@ contains
         own_line = is_bol()
         call goto_char(opoint)
         saved_column = comment_column%value
-        saved_fn => comment_indent_function%get()
+        saved_fn => comment_indent_function%current()
         had_local = comment_indent_function%local_p()
         saved_start = cstart()
         saved_end = cend()

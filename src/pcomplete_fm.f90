@@ -234,7 +234,7 @@ module pcomplete_fm
         !> Make FN the current buffer's value (set_local).
         procedure :: set_local => function_set_local
         !> The current buffer's value.
-        procedure :: get => function_get
+        procedure :: current => current_function
     end type pcomplete_function_variable_type
 
     !> The `pcomplete_parse_arguments_function' variable: a default
@@ -246,7 +246,7 @@ module pcomplete_fm
         !> Make FN the current buffer's value (set_local).
         procedure, nopass :: set_local => parse_set_local
         !> The current buffer's value.
-        procedure :: get => parse_get
+        procedure :: current => current_parse
     end type pcomplete_parse_variable_type
 
     !> A function to call to parse the current line's arguments.
@@ -453,7 +453,7 @@ contains
     end subroutine function_set_local
 
     ! The current buffer's value of SELF.  Not a port.
-    subroutine function_get(self, fn)
+    subroutine current_function(self, fn)
         class(pcomplete_function_variable_type), intent(in) :: self
         procedure(pcomplete_function_proc), pointer, intent(out) :: fn
         integer :: k
@@ -467,7 +467,7 @@ contains
         else
             if (local_functions(k)%has_default) fn => local_functions(k)%default
         end if
-    end subroutine function_get
+    end subroutine current_function
 
     ! Set `pcomplete_parse_arguments_function' to FN in the current
     ! buffer (setq-local).  Not a port.
@@ -482,7 +482,7 @@ contains
     end subroutine parse_set_local
 
     ! The current buffer's value of SELF.  Not a port.
-    subroutine parse_get(self, fn)
+    subroutine current_parse(self, fn)
         class(pcomplete_parse_variable_type), intent(in) :: self
         procedure(pcomplete_parse_proc), pointer, intent(out) :: fn
         integer :: k
@@ -491,7 +491,7 @@ contains
         k = local_slot(.false.)
         if (k == 0) return
         if (local_functions(k)%has_parse) fn => local_functions(k)%parse
-    end subroutine parse_get
+    end subroutine current_parse
 
     ! Add the completion function FN for COMMAND (in major mode MODE).
     ! Not a port.
@@ -769,7 +769,7 @@ contains
             start = point()
             moved = skip_chars_forward("^ "//achar(9)//achar(10), st)
             call buffer_substring(start, point(), text, st)
-            call push_arg(args, begins, text, start)
+            call add_arg(args, begins, text, start)
         end do
 
         call goto_char(opoint)
@@ -807,14 +807,14 @@ contains
             end do
 
             call buffer_substring(start, point(), text, st)
-            call push_arg(args, begins, text, start)
+            call add_arg(args, begins, text, start)
         end do
 
         call goto_char(opoint)
     end subroutine pcomplete_parse_comint_arguments
 
     ! Add TEXT beginning at START to ARGS and BEGINS.  Not a port.
-    subroutine push_arg(args, begins, text, start)
+    subroutine add_arg(args, begins, text, start)
         type(process_arg_type), allocatable, intent(inout) :: args(:)
         integer(int64), allocatable, intent(inout) :: begins(:)
         character(len=*), intent(in) :: text
@@ -832,7 +832,7 @@ contains
         grown(n + 1)%s = text
         call move_alloc(grown, args)
         begins = [begins, start]
-    end subroutine push_arg
+    end subroutine add_arg
 
     !> Parse the command line arguments.  Most completions need this
     !> info.  Returns false when there are none.  Port of
@@ -847,7 +847,7 @@ contains
         integer(int64) :: begin
 
         ok = .false.
-        call pcomplete_parse_arguments_function%get(fn)
+        call pcomplete_parse_arguments_function%current(fn)
         if (.not. associated(fn)) return
         call fn(parsed, parsed_begins)
         if (.not. allocated(parsed)) return
@@ -1198,7 +1198,7 @@ contains
 
         if (pcomplete_parse_arguments(pcomplete_expand_before_complete%value)) then
             if (pcomplete_index == pcomplete_last) then
-                call pcomplete_command_completion_function%get(fn)
+                call pcomplete_command_completion_function%current(fn)
                 if (associated(fn)) call fn(status)
             else
                 name_fn => pcomplete_command_name_function
@@ -1210,7 +1210,7 @@ contains
                 end if
 
                 call pcomplete_find_completion_function(name, fn)
-                if (.not. associated(fn)) call pcomplete_default_completion_function%get(fn)
+                if (.not. associated(fn)) call pcomplete_default_completion_function%current(fn)
                 call pcomplete_next_arg()
                 if (thrown == THROWN_NONE .and. associated(fn)) call fn(status)
             end if
@@ -1283,7 +1283,7 @@ contains
                     if (.not. st%ok()) norm = arg
                 end if
 
-                call push_seen(seen, norm)
+                call add_seen(seen, norm)
             end if
 
             call pcomplete_next_arg()
@@ -1334,7 +1334,7 @@ contains
     end subroutine truename_norm
 
     ! Add S to the list LIST.  Not a port.
-    subroutine push_seen(list, s)
+    subroutine add_seen(list, s)
         type(process_arg_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
         type(process_arg_type), allocatable :: grown(:)
@@ -1350,7 +1350,7 @@ contains
         end do
 
         call move_alloc(grown, list)
-    end subroutine push_seen
+    end subroutine add_seen
 
     ! ------------------------------------------------------------------
     ! The standard completion UI

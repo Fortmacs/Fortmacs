@@ -107,7 +107,7 @@ module sh_script_fm
     use files_fm, only: locate_file_completion_table
     use expression_motion_fm, only: subprogram_prompt_regexp
     use subr_fm, only: read_y_or_n
-    use abbrev_fm, only: abbrev_table_type, set_local_abbrev_table
+    use abbrev_fm, only: abbrev_table_type, abbrev_table_set_local
     use faces_fm, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
                         FACE_BACKGROUND_DARK
     use fileio_fm, only: file_name_nondirectory
@@ -191,7 +191,7 @@ module sh_script_fm
         !> Set SHELL's entry to STRINGS (after them APPEND's value, if given).
         procedure :: add => strings_feature_add
         !> The value for the current shell.
-        procedure :: get => strings_feature_get
+        procedure :: current => current_strings_feature
     end type sh_strings_feature_type
 
     !> One shell's entry of a feature table of font-lock keywords.
@@ -207,7 +207,7 @@ module sh_script_fm
         !> Set SHELL's entry to KEYWORDS (after them APPEND's value).
         procedure :: add => keywords_feature_add
         !> The value for the current shell.
-        procedure :: get => keywords_feature_get
+        procedure :: current => current_keywords_feature
     end type sh_keywords_feature_type
 
     !> One shell's entry of a feature table of strings: `value'
@@ -224,7 +224,7 @@ module sh_script_fm
         !> Set SHELL's entry to VALUE (absent for none).
         procedure :: add => string_feature_add
         !> The value for the current shell (unallocated for none).
-        procedure :: get => string_feature_get
+        procedure :: current => current_string_feature
     end type sh_string_feature_type
 
     !> A syntax modification: CHAR gets SYNTAX.
@@ -1151,8 +1151,8 @@ contains
         type(font_lock_keyword_type) :: assignment(1)
         character(len=:), allocatable :: re
 
-        call sh_font_lock_keywords_var%get(list)
-        re = sh_assignment_regexp%get()
+        call sh_font_lock_keywords_var%current(list)
+        re = sh_assignment_regexp%current()
 
         if (.not. allocated(re)) then
             call move_alloc(list, result)
@@ -1189,13 +1189,13 @@ contains
             one(1) = font_lock_keyword(re//"[ "//TAB//"]+\)?"//regexp_opt(strings_of(sh_builtins), REGEXP_OPT_GROUP)//"\>", &
                                        highlights=h2)
             call append_keywords(keywords, one)
-            call sh_font_lock_keywords_var_2%get(more)
+            call sh_font_lock_keywords_var_2%current(more)
             call append_keywords(keywords, more)
         end if
 
         one(1) = font_lock_keyword(re//"\)\>", face="font_lock_keyword_face", subexp=2)
         call append_keywords(keywords, one)
-        call sh_font_lock_keywords_var_1%get(more)
+        call sh_font_lock_keywords_var_1%current(more)
         call append_keywords(keywords, more)
         call sh_font_lock_keywords(result, keywords)
     end subroutine sh_font_lock_keywords_1
@@ -1229,7 +1229,7 @@ contains
         character(len=:), allocatable :: a(:)
         type(sh_string_type), allocatable :: s(:)
 
-        call feature%get(s)
+        call feature%current(s)
         a = to_chars(s)
     end function strings_of
 
@@ -1240,8 +1240,8 @@ contains
         type(sh_string_type), allocatable :: s1(:), s2(:), s(:)
         integer :: i
 
-        call sh_leading_keywords%get(s1)
-        call sh_other_keywords%get(s2)
+        call sh_leading_keywords%current(s1)
+        call sh_other_keywords%current(s2)
         allocate (s(size(s1) + size(s2)))
 
         do i = 1, size(s1)
@@ -1385,7 +1385,7 @@ contains
     !> Index the table by the current shell (see `sh_feature_shell'); an
     !> entry with sh-append is followed by the value for the shell it
     !> names.  Port of sh-script.el:sh-feature.
-    recursive subroutine strings_feature_get(self, strings, shell)
+    recursive subroutine current_strings_feature(self, strings, shell)
         class(sh_strings_feature_type), intent(in) :: self
         type(sh_string_type), allocatable, intent(out) :: strings(:)
         character(len=*), intent(in), optional :: shell
@@ -1405,7 +1405,7 @@ contains
         n = size(self%entries(k)%strings)
 
         if (allocated(self%entries(k)%append)) then
-            call strings_feature_get(self, rest, self%entries(k)%append)
+            call current_strings_feature(self, rest, self%entries(k)%append)
         else
             allocate (rest(0))
         end if
@@ -1420,7 +1420,7 @@ contains
         do i = 1, size(rest)
             strings(n + i)%s = rest(i)%s
         end do
-    end subroutine strings_feature_get
+    end subroutine current_strings_feature
 
     ! Not a port.
     subroutine keywords_feature_add(self, shell, keywords, append)
@@ -1445,9 +1445,9 @@ contains
         call move_alloc(grown, self%entries)
     end subroutine keywords_feature_add
 
-    !> Index the table by the current shell, as `strings_feature_get'.
+    !> Index the table by the current shell, as `current_strings_feature'.
     !> Port of sh-script.el:sh-feature.
-    recursive subroutine keywords_feature_get(self, keywords, shell)
+    recursive subroutine current_keywords_feature(self, keywords, shell)
         class(sh_keywords_feature_type), intent(in) :: self
         type(font_lock_keyword_type), allocatable, intent(out) :: keywords(:)
         character(len=*), intent(in), optional :: shell
@@ -1473,10 +1473,10 @@ contains
         call append_keywords(keywords, self%entries(k)%keywords)
 
         if (allocated(self%entries(k)%append)) then
-            call keywords_feature_get(self, rest, self%entries(k)%append)
+            call current_keywords_feature(self, rest, self%entries(k)%append)
             call append_keywords(keywords, rest)
         end if
-    end subroutine keywords_feature_get
+    end subroutine current_keywords_feature
 
     ! Not a port.
     subroutine string_feature_add(self, shell, value)
@@ -1501,7 +1501,7 @@ contains
 
     !> Index the table by the current shell.  Port of
     !> sh-script.el:sh-feature.
-    function string_feature_get(self) result(value)
+    function current_string_feature(self) result(value)
         class(sh_string_feature_type), intent(in) :: self
         character(len=:), allocatable :: value
         character(len=16), allocatable :: shells(:)
@@ -1517,7 +1517,7 @@ contains
         k = sh_feature_shell(shells, current_shell())
         if (k == 0) return
         if (allocated(self%entries(k)%value)) value = self%entries(k)%value
-    end function string_feature_get
+    end function current_string_feature
 
     ! The entry of `sh_mode_syntax_table_input' for the current shell (0
     ! for none).  Not a port.
@@ -1559,7 +1559,7 @@ contains
 
         do k = 1, size(locals)
             if (.not. buffer_serial_live(locals(k)%serial)) then
-                call free_local(k)
+                call kill_local(k)
                 locals(k) = sh_local_type(serial=buffers(cur)%serial)
                 return
             end if
@@ -1578,7 +1578,7 @@ contains
     end function local_index
 
     ! Free the objects of locals(K).  Not a port.
-    subroutine free_local(k)
+    subroutine kill_local(k)
         integer, intent(in) :: k
         type(status_type) :: st
 
@@ -1586,7 +1586,7 @@ contains
         if (locals(k)%has_table) call free_syntax_table(locals(k)%table, st)
         locals(k)%has_header = .false.
         locals(k)%has_table = .false.
-    end subroutine free_local
+    end subroutine kill_local
 
     ! kill-all-local-variables: forget the current buffer's values.
     ! Not a port.
@@ -1595,7 +1595,7 @@ contains
 
         k = local_index(.false.)
         if (k == 0) return
-        call free_local(k)
+        call kill_local(k)
         locals(k) = sh_local_type()
     end subroutine kill_sh_locals
 
@@ -3295,7 +3295,7 @@ contains
         call paragraph_separate%set_local(paragraph_start%value//"\|#!/")
         call comment_start%set_local("# ")
         call comment_start_skip%set_local("#+["//TAB//" ]*")
-        call set_local_abbrev_table(sh_mode_abbrev_table)
+        call abbrev_table_set_local(sh_mode_abbrev_table)
         ! (setq-local comint-dynamic-complete-functions
         ! sh-dynamic-complete-functions)
         fns = sh_dynamic_complete_functions%functions()
@@ -3433,7 +3433,7 @@ contains
         if (present(insert_flag)) insert_it = insert_flag
 
         if (insert_it) then
-            arg = sh_shell_arg%get()
+            arg = sh_shell_arg%current()
 
             if (allocated(arg)) then
                 call executable_set_magic(shell, file, status, arg, no_query_flag, insert_flag)
@@ -3473,13 +3473,13 @@ contains
             end if
         end if
 
-        call sh_variables%get(vars)
+        call sh_variables%current(vars)
 
         do i = 1, size(vars)
             call sh_remember_variable(vars(i)%s)
         end do
 
-        supported = sh_indent_supported%get()
+        supported = sh_indent_supported%current()
         k = local_index(.true.)
         locals(k)%has_indent_supported = allocated(supported)
 
@@ -3962,7 +3962,7 @@ contains
         end if
 
         write (digits, "(i0)") abs(delta)
-        call insert(before%get()//var//op//trim(digits)//after%get(), status)
+        call insert(before%current()//var//op//trim(digits)//after%current(), status)
     end subroutine sh_add
 
     ! `sh_add' as a command.
@@ -4032,7 +4032,7 @@ contains
         status = status_type()
         if (cb(point()) /= iachar("=")) return
         here = point()
-        re = sh_assignment_regexp%get()
+        re = sh_assignment_regexp%current()
         call beginning_of_line(1_int64)
         call re_search_forward(re, found, status, bound=here, noerror=SEARCH_NOERROR)
         if (found /= 0) call sh_remember_variable(match_string(1))

@@ -724,17 +724,17 @@ contains
     end function diff_end_of_file
 
     !> diff-end-of-hunk as the ENDFUN of the hunk navigation.  Not a port.
-    recursive integer(int64) function end_of_hunk_fun() result(pos)
+    recursive integer(int64) function end_of_hunk() result(pos)
         pos = diff_end_of_hunk()
-    end function end_of_hunk_fun
+    end function end_of_hunk
 
     !> diff-restrict-view as the NARROWFUN of the hunk navigation.
     !> Not a port.
-    recursive subroutine restrict_view_fun(status)
+    recursive subroutine restrict_view(status)
         type(status_type), intent(out) :: status
 
         call diff_restrict_view(status)
-    end subroutine restrict_view_fun
+    end subroutine restrict_view
 
     !> Go to the next COUNT'th hunk.
     !> Interactively, COUNT is the prefix numeric argument, and defaults
@@ -748,7 +748,7 @@ contains
 
         n = 1
         if (present(count)) n = count
-        call easy_mmode_next(diff_hunk_header_re, "hunk", n, status, end_of_hunk_fun, restrict_view_fun, &
+        call easy_mmode_next(diff_hunk_header_re, "hunk", n, status, end_of_hunk, restrict_view, &
                              interactive)
     end subroutine diff_hunk_next
 
@@ -763,13 +763,13 @@ contains
 
         n = 1
         if (present(count)) n = count
-        call easy_mmode_prev(diff_hunk_header_re, "hunk", n, status, end_of_hunk_fun, restrict_view_fun)
+        call easy_mmode_prev(diff_hunk_header_re, "hunk", n, status, end_of_hunk, restrict_view)
     end subroutine diff_hunk_prev
 
     !> diff-end-of-file as the ENDFUN of the file navigation.  Not a port.
-    recursive integer(int64) function end_of_file_fun() result(pos)
+    recursive integer(int64) function end_of_file() result(pos)
         pos = diff_end_of_file()
-    end function end_of_file_fun
+    end function end_of_file
 
     !> Go to the next COUNT'th file.
     !> Interactively, COUNT is the prefix numeric argument, and defaults
@@ -783,7 +783,7 @@ contains
 
         n = 1
         if (present(count)) n = count
-        call easy_mmode_next(diff_file_header_re, "file", n, status, end_of_file_fun, interactive=interactive)
+        call easy_mmode_next(diff_file_header_re, "file", n, status, end_of_file, interactive=interactive)
     end subroutine diff_file_next
 
     !> Go to the previous COUNT'th file.
@@ -797,7 +797,7 @@ contains
 
         n = 1
         if (present(count)) n = count
-        call easy_mmode_prev(diff_file_header_re, "file", n, status, end_of_file_fun)
+        call easy_mmode_prev(diff_file_header_re, "file", n, status, end_of_file)
     end subroutine diff_file_prev
 
     !> Return the bounds of the diff hunk at point.
@@ -1510,11 +1510,11 @@ contains
 
         if (at("[-*][-*][-*] \([^"//TAB//LF//"]+\).*"//LF//"[-+][-+][-+] \([^"//TAB//LF//"]+\)")) then
             if (o) then
-                call push(header_files, match_string(1))
-                call push(header_files, match_string(2))
+                call add(header_files, match_string(1))
+                call add(header_files, match_string(2))
             else
-                call push(header_files, match_string(2))
-                call push(header_files, match_string(1))
+                call add(header_files, match_string(2))
+                call add(header_files, match_string(1))
             end if
         else
             shortage = forward_line(1_int64)
@@ -1522,22 +1522,22 @@ contains
 
         if (.not. o) then
             saved = point()
-            if (search_bwd("^Index: \(.+\)", bound=limit) /= 0) call push(names, match_string(1))
+            if (search_bwd("^Index: \(.+\)", bound=limit) /= 0) call add(names, match_string(1))
             call goto_char(saved)
         end if
 
         do k = 1, size(header_files)
-            call push(names, header_files(k)%s)
+            call add(names, header_files(k)%s)
         end do
 
         if (search_bwd("^diff ") /= 0) then
             if (at("^diff \(-[^ "//TAB//LF//"L]+ +\)*\(-L +\S-+ +\)*\(\S-+\)\( +\(\S-+\)\)?")) then
                 if (o) then
-                    if (mb(3) > 0) call push(names, match_string(3))
-                    if (mb(4) > 0) call push(names, match_string(4))
+                    if (mb(3) > 0) call add(names, match_string(3))
+                    if (mb(4) > 0) call add(names, match_string(4))
                 else
-                    if (mb(5) > 0) call push(names, match_string(5))
-                    if (mb(3) > 0) call push(names, match_string(3))
+                    if (mb(5) > 0) call add(names, match_string(5))
+                    if (mb(3) > 0) call add(names, match_string(3))
                 end if
             end if
         end if
@@ -1546,7 +1546,7 @@ contains
 
     contains
 
-        subroutine push(list, s)
+        subroutine add(list, s)
             type(diff_name_type), allocatable, intent(inout) :: list(:)
             character(len=*), intent(in) :: s
             type(diff_name_type), allocatable :: grown(:)
@@ -1557,7 +1557,7 @@ contains
             grown(1:n) = list
             grown(n + 1)%s = s
             call move_alloc(grown, list)
-        end subroutine push
+        end subroutine add
     end subroutine diff_hunk_file_names
 
     !> Whether the lists of names A and B are `equal'.  Not a port.

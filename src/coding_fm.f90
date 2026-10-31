@@ -1468,7 +1468,7 @@ contains
         ok = .true.
     end function detect_coding_charset
 
-    !> Run the detector of CATEGORY.  Not a port.
+    !> Execute the detector of CATEGORY.  Not a port.
     logical function execute_detector(category, units, head_ascii, info) result(ok)
         integer, intent(in) :: category
         integer, intent(in) :: units(:)
@@ -1958,7 +1958,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Append character C to CHARS(1:N).  Not a port.
-    subroutine push(chars, n, c)
+    subroutine add(chars, n, c)
         integer, allocatable, intent(inout) :: chars(:)
         integer(int64), intent(inout) :: n
         integer, intent(in) :: c
@@ -1972,7 +1972,7 @@ contains
 
         n = n + 1
         chars(n) = c
-    end subroutine push
+    end subroutine add
 
     !> A byte that could not be decoded, as a character: ASCII as is,
     !> others as raw bytes; a character of multibyte source stays.
@@ -2012,12 +2012,12 @@ contains
             src = src + 1
 
             if (c1 < 0) then
-                call push(chars, n, -c1)
+                call add(chars, n, -c1)
                 cycle
             end if
 
             if (c1 < 128) then
-                call push(chars, n, c1)
+                call add(chars, n, c1)
                 cycle
             end if
 
@@ -2071,9 +2071,9 @@ contains
             if (bad) then
                 ! invalid_code: the first byte alone, as a raw byte.
                 src = base + 1
-                call push(chars, n, invalid_char(c1))
+                call add(chars, n, invalid_char(c1))
             else
-                call push(chars, n, c)
+                call add(chars, n, c)
             end if
         end do
     end subroutine decode_utf_8
@@ -2105,12 +2105,12 @@ contains
             src = src + 1
 
             if (c1 < 0) then
-                call push(chars, n, -c1)
+                call add(chars, n, -c1)
                 cycle
             end if
 
             if (src > nu) then
-                call push(chars, n, invalid_char(c1))
+                call add(chars, n, invalid_char(c1))
                 exit
             end if
 
@@ -2118,8 +2118,8 @@ contains
             src = src + 1
 
             if (c2 < 0) then
-                call push(chars, n, invalid_char(c1))
-                call push(chars, n, -c2)
+                call add(chars, n, invalid_char(c1))
+                call add(chars, n, -c2)
                 cycle
             end if
 
@@ -2132,28 +2132,28 @@ contains
             if (surrogate /= 0) then
                 if (.not. (c >= int(z'DC00') .and. c <= int(z'DFFF'))) then
                     if (big) then
-                        call push(chars, n, ishft(surrogate, -8))
-                        call push(chars, n, iand(surrogate, 255))
+                        call add(chars, n, ishft(surrogate, -8))
+                        call add(chars, n, iand(surrogate, 255))
                     else
-                        call push(chars, n, iand(surrogate, 255))
-                        call push(chars, n, ishft(surrogate, -8))
+                        call add(chars, n, iand(surrogate, 255))
+                        call add(chars, n, ishft(surrogate, -8))
                     end if
 
                     if (c >= int(z'D800') .and. c <= int(z'DBFF')) then
                         surrogate = c
                     else
                         surrogate = 0
-                        call push(chars, n, c)
+                        call add(chars, n, c)
                     end if
                 else
                     c = ior(ishft(surrogate - int(z'D800'), 10), c - int(z'DC00'))
                     surrogate = 0
-                    call push(chars, n, int(z'10000') + c)
+                    call add(chars, n, int(z'10000') + c)
                 end if
             else if (c >= int(z'D800') .and. c <= int(z'DBFF')) then
                 surrogate = c
             else
-                call push(chars, n, c)
+                call add(chars, n, c)
             end if
         end do
 
@@ -2161,11 +2161,11 @@ contains
         ! unprocessed data.
         if (surrogate /= 0) then
             if (big) then
-                call push(chars, n, invalid_char(ishft(surrogate, -8)))
-                call push(chars, n, invalid_char(iand(surrogate, 255)))
+                call add(chars, n, invalid_char(ishft(surrogate, -8)))
+                call add(chars, n, invalid_char(iand(surrogate, 255)))
             else
-                call push(chars, n, invalid_char(iand(surrogate, 255)))
-                call push(chars, n, invalid_char(ishft(surrogate, -8)))
+                call add(chars, n, invalid_char(iand(surrogate, 255)))
+                call add(chars, n, invalid_char(ishft(surrogate, -8)))
             end if
         end if
     end subroutine decode_utf_16
@@ -2186,9 +2186,9 @@ contains
             c = units(src)
 
             if (c >= 0 .and. c <= limit) then
-                call push(chars, n, c)
+                call add(chars, n, c)
             else
-                call push(chars, n, invalid_char(c))
+                call add(chars, n, invalid_char(c))
             end if
         end do
     end subroutine decode_charset
@@ -2202,7 +2202,7 @@ contains
         integer(int64) :: src
 
         do src = 1, size(units, kind=int64)
-            call push(chars, n, invalid_char(units(src)))
+            call add(chars, n, invalid_char(units(src)))
         end do
     end subroutine decode_raw_text
 
@@ -2435,12 +2435,12 @@ contains
             p = p + length
 
             if (c == LF .and. eol == EOL_DOS) then
-                call push(chars, n, CR)
-                call push(chars, n, LF)
+                call add(chars, n, CR)
+                call add(chars, n, LF)
             else if (c == LF .and. eol == EOL_MAC) then
-                call push(chars, n, CR)
+                call add(chars, n, CR)
             else
-                call push(chars, n, c)
+                call add(chars, n, c)
             end if
         end do
     end subroutine consume_chars

@@ -80,7 +80,7 @@ module rect_fm
     use character_fm, only: string_char_and_length, char_string, MAX_MULTIBYTE_LENGTH, MAX_CHAR
     use buffer_fm, only: buffers, cur, barf_if_buffer_read_only, deactivate_mark_variable, undo_entry_type, UE_POINT
     use marker_fm, only: copy_marker_at, free_marker, marker_position, char_to_byte
-    use undo_fm, only: push_undo_entry
+    use undo_fm, only: add_undo_entry
     use insdel_fm, only: insert
     use editfns_fm, only: point, goto_char, line_beginning_position, line_end_position, is_bol, buffer_substring, &
                           delete_region, delete_and_extract_region, region_beginning, region_end, char_after, &
@@ -351,7 +351,7 @@ contains
     end subroutine rectangle_dimensions
 
     !> Append TEXT to LINES.  Not a port.
-    subroutine append_line(lines, text)
+    subroutine add_line(lines, text)
         type(rectangle_line_type), allocatable, intent(inout) :: lines(:)
         character(len=*), intent(in) :: text
         type(rectangle_line_type), allocatable :: grown(:)
@@ -363,7 +363,7 @@ contains
         grown(1:n) = lines
         grown(n + 1)%text = text
         call move_alloc(grown, lines)
-    end subroutine append_line
+    end subroutine add_line
 
     !> (move-to-column COLUMN (if FILL t 'coerce)): the column reached.
     !> Not a port.
@@ -414,7 +414,7 @@ contains
 
         if (move_to_column_fill(startcol, self%fill, status) < startcol) then
             if (.not. status%ok()) return
-            call append_line(self%lines, spaces_string(endcol - startcol))
+            call add_line(self%lines, spaces_string(endcol - startcol))
         else
             if (.not. status%ok()) return
             pt = point()
@@ -423,7 +423,7 @@ contains
             ! (filter-buffer-substring pt (point) t)
             call delete_and_extract_region(pt, point(), text, status)
             if (.not. status%ok()) return
-            call append_line(self%lines, text)
+            call add_line(self%lines, text)
         end if
     end subroutine delete_extract_line
 
@@ -474,7 +474,7 @@ contains
         end do
 
         if (begextra > 0 .or. endextra > 0) line = spaces_string(begextra)//line//spaces_string(endextra)
-        call append_line(self%lines, line)
+        call add_line(self%lines, line)
     end subroutine extract_line
 
     !> The function of rect.el:extract-rectangle-bounds.  Port of the procedure
@@ -804,7 +804,7 @@ contains
         if (buffers(cur)%undo_enabled) then
             entry%kind = UE_POINT
             entry%beg = point()
-            call push_undo_entry(entry)
+            call add_undo_entry(entry)
         end if
 
         action%string = string
@@ -1904,7 +1904,7 @@ contains
         if (buffers(cur)%undo_enabled) then
             entry%kind = UE_POINT
             entry%beg = point()
-            call push_undo_entry(entry)
+            call add_undo_entry(entry)
             undo_at_start = buffers(cur)%undo_count
         end if
 

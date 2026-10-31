@@ -57,7 +57,7 @@ module test_minibuf_fm
     use bindings_fm, only: init_bindings
     use minibuf_fm, only: minibuf_level, read_from_minibuffer, read_string, minibuffer_local_map, &
                           completion_table_type, completion_list_table, completion_obarray_table, &
-                          try_completion, all_completions, test_completion, completion_ignore_case, &
+                          try_completion, all_completions, is_exact_completion, completion_ignore_case, &
                           completion_function_table, minibuffer_contents
     use minibuffer_fm, only: read_file_name
     use fns_fm, only: read_yes_or_no, use_short_answers
@@ -172,9 +172,9 @@ contains
                     new_unittest("assoc-string", test_assoc_string), &
                     new_unittest("read-variable", test_read_variable), &
                     new_unittest("test-try-completion-ignore-case", test_try_completion_ignore_case), &
-                    new_unittest("completion-auto-help-test", test_completion_auto_help), &
-                    new_unittest("completions-list-buffer", test_completion_list_buffer), &
-                    new_unittest("completions-annotations", test_completion_annotations), &
+                    new_unittest("completion-auto-help-test", is_exact_completion_auto_help), &
+                    new_unittest("completions-list-buffer", is_exact_completion_list_buffer), &
+                    new_unittest("completions-annotations", is_exact_completion_annotations), &
                     new_unittest("minibuffer-complete-and-exit", test_complete_and_exit), &
                     new_unittest("minibuffer-complete-word", test_complete_word), &
                     new_unittest("execute-extended-command", test_execute_extended_command), &
@@ -1012,29 +1012,29 @@ contains
         abcdef = collection(kind, [character(len=4) :: "abc", "def"])
 
         if (pred) then
-            abc = test_completion("abc", abcdef, memq_of_collection)
+            abc = is_exact_completion("abc", abcdef, memq_of_collection)
         else
-            abc = test_completion("abc", abcdef)
+            abc = is_exact_completion("abc", abcdef)
         end if
 
         abba = collection(kind, [character(len=4) :: "abc", "abba", "def"])
 
         if (pred) then
-            def = test_completion("def", abba, memq_of_collection)
-            ab = test_completion("abba", abba, memq_of_collection)
-            abcd = test_completion("abcd", abba, memq_of_collection)
+            def = is_exact_completion("def", abba, memq_of_collection)
+            ab = is_exact_completion("abba", abba, memq_of_collection)
+            abcd = is_exact_completion("abcd", abba, memq_of_collection)
         else
-            def = test_completion("def", abba)
-            ab = test_completion("abba", abba)
-            abcd = test_completion("abcd", abba)
+            def = is_exact_completion("def", abba)
+            ab = is_exact_completion("abba", abba)
+            abcd = is_exact_completion("abcd", abba)
         end if
 
         call check(error, abc .and. def .and. ab .and. .not. abcd)
         if (allocated(error)) return
 
         if (pred) then
-            call check(error,.not. test_completion("abc", abcdef, ignore) .and. &
-                       .not. test_completion("def", abba, ignore), "ignore")
+            call check(error,.not. is_exact_completion("abc", abcdef, ignore) .and. &
+                       .not. is_exact_completion("def", abba, ignore), "ignore")
         end if
     end subroutine check_test
 
@@ -1197,8 +1197,8 @@ contains
         call all_completions("zqx-ab", completion_obarray_table(), r, st)
         call check(error, list_length(r) == 2, "all")
         if (allocated(error)) return
-        call check(error, test_completion("zqx-abba", completion_obarray_table()) .and. &
-                   .not. test_completion("zqx-ab", completion_obarray_table()), "test")
+        call check(error, is_exact_completion("zqx-abba", completion_obarray_table()) .and. &
+                   .not. is_exact_completion("zqx-ab", completion_obarray_table()), "test")
     end subroutine test_obarray
 
     subroutine test_try_completion_ignore_case(error)
@@ -1288,7 +1288,7 @@ contains
         v = make_list(elts)
     end function strings
 
-    subroutine test_completion_auto_help(error)
+    subroutine is_exact_completion_auto_help(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: answer
         type(status_type) :: st
@@ -1316,9 +1316,9 @@ contains
         if (allocated(error)) return
         ! The window shows the buffer again after the minibuffer.
         call check(error,.not. (showing_completions()), "restored")
-    end subroutine test_completion_auto_help
+    end subroutine is_exact_completion_auto_help
 
-    subroutine test_completion_list_buffer(error)
+    subroutine is_exact_completion_list_buffer(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: answer
         type(status_type) :: st
@@ -1332,12 +1332,12 @@ contains
         call set_buffer(buf, st)
         call check(error, buffer_string() == "3 possible completions:"//achar(10)//"bar"//achar(10)//"baz"//achar(10)//"beta", &
                    buffer_string())
-    end subroutine test_completion_list_buffer
+    end subroutine is_exact_completion_list_buffer
 
     !> The annotation function of completion-extra-properties: each
     !> candidate in *Completions* is followed by its annotation, in the
     !> face `completions_annotations'.
-    subroutine test_completion_annotations(error)
+    subroutine is_exact_completion_annotations(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: answer
         type(status_type) :: st
@@ -1356,7 +1356,7 @@ contains
         if (allocated(error)) return
         call get_text_property(29_int64, value_type(name="face"), face, st)
         call check(error, value_equal(face, value_type(name="completions_annotations")), "annotation face")
-    end subroutine test_completion_annotations
+    end subroutine is_exact_completion_annotations
 
     !> " (N)" for a candidate of N characters.
     subroutine length_annotation(candidate, annotation)
@@ -1480,7 +1480,7 @@ contains
         call try_completion(dir//"alpi", completion_function_table(read_file_name_internal), r, st)
         call check(error, vtag(r) == V_STRING .and. xstring(r) == dir//"alpine/", "read_file_name_internal")
         if (allocated(error)) return
-        call check(error, test_completion(dir//"alpha.txt", completion_function_table(read_file_name_internal)), &
+        call check(error, is_exact_completion(dir//"alpha.txt", completion_function_table(read_file_name_internal)), &
                    "exists")
         if (allocated(error)) return
         ! C-x C-f with TAB.
@@ -1546,9 +1546,9 @@ contains
             call all_completions("abcd", abba, r, st)
             call check(error,.not. allocated(r%a), "abcd")
         case default
-            call check(error, test_completion("abc", abcdef) .and. test_completion("abba", abba), "valid")
+            call check(error, is_exact_completion("abc", abcdef) .and. is_exact_completion("abba", abba), "valid")
             if (allocated(error)) return
-            call check(error,.not. test_completion("abcd", abba), "abcd")
+            call check(error,.not. is_exact_completion("abcd", abba), "abcd")
         end select
 
         if (allocated(error)) then
@@ -1574,7 +1574,7 @@ contains
             call all_completions("a", abba, r, st)
             call check(error,.not. allocated(r%a), "a in +abba")
         case default
-            call check(error,.not. test_completion("abc", abcdef) .and. .not. test_completion("def", abba), &
+            call check(error,.not. is_exact_completion("abc", abcdef) .and. .not. is_exact_completion("def", abba), &
                        "nothing matches X")
         end select
 

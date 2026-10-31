@@ -39,7 +39,7 @@ module test_fileio_fm
                          expand_file_name, get_homedir, init_fileio, emacs_wd, file_exists, &
                          is_file_readable, is_file_writable, is_file_directory, file_modes, &
                          set_file_modes, insert_file_contents, write_region, &
-                         verify_visited_file_modtime, make_directory_internal, &
+                         is_visited_file_modtime_current, make_directory_internal, &
                          delete_directory_internal, delete_file_internal, rename_file, copy_file, &
                          substitute_in_file_name
     implicit none(type, external)
@@ -88,7 +88,7 @@ contains
         type(status_type) :: st
         integer :: i
 
-        call new_buffer(buf)
+        call make_test_buffer(buf)
 
         do i = 1, 6
             call delete_file_internal(testdir//"/f"//achar(iachar("0") + i), st)
@@ -100,7 +100,7 @@ contains
     end subroutine setup
 
     !> A fresh current buffer in the working directory.
-    subroutine new_buffer(buf)
+    subroutine make_test_buffer(buf)
         type(handle_type), intent(out) :: buf
         type(status_type) :: st
 
@@ -108,7 +108,7 @@ contains
         call get_buffer_create("fileio-test", buf, st)
         call set_buffer(buf, st)
         buffers(cur)%directory = file_name_as_directory(emacs_wd)
-    end subroutine new_buffer
+    end subroutine make_test_buffer
 
     subroutine teardown(buf)
         type(handle_type), intent(in) :: buf
@@ -264,7 +264,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
 
-        call new_buffer(buf)
+        call make_test_buffer(buf)
         buffers(cur)%directory = "/b/"
         call check_expand(error, "foo", "rel", "/b/rel/foo")
         call teardown(buf)
@@ -413,7 +413,7 @@ contains
         if (allocated(error)) return
         ! Insert it twice into another buffer: point stays before the text.
         call teardown(buf)
-        call new_buffer(buf)
+        call make_test_buffer(buf)
         call insert("<>", st)
         call goto_char(2_int64)
         call insert_file_contents(testdir//"/f1", .false., inserted, st)
@@ -428,7 +428,7 @@ contains
         ! A region.
         call write_region(testdir//"/f2", .false., st, 2_int64, 7_int64)
         call teardown(buf)
-        call new_buffer(buf)
+        call make_test_buffer(buf)
         call insert_file_contents(testdir//"/f2", .true., inserted, st)
         call check(error, buffer_string() == "héllo")
         call teardown(buf)
@@ -483,11 +483,11 @@ contains
         if (allocated(error)) return
         call check(error, allocated(buffers(cur)%filename), "visit records the file anyway")
         if (allocated(error)) return
-        call check(error, verify_visited_file_modtime(), "nonexistent and unchanged")
+        call check(error, is_visited_file_modtime_current(), "nonexistent and unchanged")
         if (allocated(error)) return
         ! Without visit, nothing is recorded.
         call teardown(buf)
-        call new_buffer(buf)
+        call make_test_buffer(buf)
         call insert_file_contents(testdir//"/missing", .false., inserted, st)
         call check(error, st%code == FM_FILE_MISSING .and. .not. allocated(buffers(cur)%filename), format_error(st))
         call teardown(buf)
@@ -529,7 +529,7 @@ contains
         call setup(buf)
         call insert("one", st)
         call write_region(testdir//"/f5", .true., st)
-        call check(error, verify_visited_file_modtime(), "just written")
+        call check(error, is_visited_file_modtime_current(), "just written")
         if (allocated(error)) return
         ! Change the file behind the buffer's back (its size differs).
         open (newunit=u, file=testdir//"/f5", status="replace", action="write", iostat=ios)
@@ -537,7 +537,7 @@ contains
         if (allocated(error)) return
         write (u, "(a)") "changed elsewhere"
         close (u)
-        call check(error,.not. verify_visited_file_modtime(), "changed on disk")
+        call check(error,.not. is_visited_file_modtime_current(), "changed on disk")
         call teardown(buf)
     end subroutine test_modtime
 
@@ -617,7 +617,7 @@ contains
         call check(error, st%ok() .and. .not. file_exists(testdir//"/f2") .and. file_exists(testdir//"/f3"))
         if (allocated(error)) return
         call teardown(buf)
-        call new_buffer(buf)
+        call make_test_buffer(buf)
         call insert_file_contents(testdir//"/f3", .false., inserted, st)
         call check(error, buffer_string() == "data")
         if (allocated(error)) return
@@ -687,13 +687,13 @@ contains
         call write_region(testdir//"/f5", .false., st)
         call teardown(buf)
         call after_change_functions%add(rec_after)
-        call new_buffer(buf)
+        call make_test_buffer(buf)
         trace = ""
         call insert_file_contents(testdir//"/f5", .true., inserted, st)
         call check(error, st%ok() .and. trace == "", "visiting: no change hooks")
         if (allocated(error)) return
         call teardown(buf)
-        call new_buffer(buf)
+        call make_test_buffer(buf)
         call insert("<>", st)
         call goto_char(2_int64)
         trace = ""

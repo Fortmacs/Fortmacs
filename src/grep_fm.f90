@@ -79,7 +79,7 @@ module grep_fm
     use minibuf_fm, only: read_from_minibuffer, read_string, minibuffer_string_type
     use minibuf_table_fm, only: completion_table_type, completion_function_table, completion_list_table, &
                                 completion_predicate, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
-    use minibuf_fm, only: try_completion, all_completions, test_completion
+    use minibuf_fm, only: try_completion, all_completions, is_exact_completion
     use minibuffer_fm, only: completing_read, read_directory_name, completion_file_name_table, &
                              read_file_name_completion_ignore_case
     use replace_fm, only: read_regexp, format_prompt
@@ -573,7 +573,7 @@ contains
 
         do k = 1, size(locals)
             if (.not. is_buffer_live(locals(k)%buffer)) then
-                call reset_local(k)
+                call kill_local(k)
                 locals(k)%buffer = h
                 return
             end if
@@ -592,14 +592,14 @@ contains
     end function local_entry
 
     !> Free what entry K holds and make it unused.  Not a port.
-    subroutine reset_local(k)
+    subroutine kill_local(k)
         integer, intent(in) :: k
         type(grep_local_type) :: empty
         type(status_type) :: st
 
         if (locals(k)%heading_limit%index /= 0) call free_marker(locals(k)%heading_limit, st)
         locals(k) = empty
-    end subroutine reset_local
+    end subroutine kill_local
 
     !> Forget the current buffer's grep variables, when
     !> `kill_all_local_variables' runs.  Not a port.
@@ -612,7 +612,7 @@ contains
 
         do k = 1, size(locals)
             if (locals(k)%buffer%index == h%index .and. locals(k)%buffer%generation == h%generation) then
-                call reset_local(k)
+                call kill_local(k)
                 return
             end if
         end do
@@ -2038,12 +2038,12 @@ contains
             end do
         end if
 
-        if (case_fold_search%value .and. is_isearch_no_upper_case(re, .true.)) call push("-i")
+        if (case_fold_search%value .and. is_isearch_no_upper_case(re, .true.)) call add_front("-i")
 
         if (grep_highlight_matches == GREP_HIGHLIGHT_MATCHES_ALWAYS) then
-            call push("--color=always")
+            call add_front("--color=always")
         else if (grep_highlight_matches == GREP_HIGHLIGHT_MATCHES_AUTO) then
-            call push("--color=auto")
+            call add_front("--color=auto")
         end if
 
         command = template
@@ -2073,7 +2073,7 @@ contains
 
     contains
 
-        subroutine push(opt)
+        subroutine add_front(opt)
             character(len=*), intent(in) :: opt
 
             if (len(opts) > 0) then
@@ -2081,7 +2081,7 @@ contains
             else
                 opts = opt
             end if
-        end subroutine push
+        end subroutine add_front
 
         subroutine substitute(keyword, value)
             character(len=*), intent(in) :: keyword, value
@@ -2337,7 +2337,7 @@ contains
             result = value_type()
 
             if (action == COMPLETE_TEST) then
-                if (test_completion(string, list_table, pred)) result = value_type(.true.)
+                if (is_exact_completion(string, list_table, pred)) result = value_type(.true.)
             end if
 
             if (.not. status%ok()) return

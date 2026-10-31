@@ -76,7 +76,7 @@ submodule(ibuffer_fm) ibuf_ext_fm
     use keymap_fm, only: where_is_internal, current_local_map
     use minibuf_table_fm, only: TABLE_OBARRAY
     use ibuf_macs_fm, only: ibuffer_filter_node_type, ibuffer_filter, ibuffer_saved, ibuffer_predicate, &
-                            ibuffer_filter_extent, ibuffer_filter_part, ibuffer_filter_equal
+                            ibuffer_filter_extent, ibuffer_filter_part, ibuffer_filter_equal, ibuffer_buffer_predicate_proc
     implicit none(type, external)
 
     ! frame-or-buffer-changed-p's state for `ibuffer_auto_mode'
@@ -90,18 +90,9 @@ submodule(ibuffer_fm) ibuf_ext_fm
     logical :: op_regexp = .false.
 
     ! The predicate and regexp of `ibuffer_mark_on_buffer'.
-    procedure(ibuffer_buffer_predicate_proc_x), pointer :: mark_on_fn => null()
+    procedure(ibuffer_buffer_predicate_proc), pointer :: mark_on_fn => null()
     character(len=:), allocatable :: mark_on_regexp
     logical :: mark_on_all = .false.
-
-    abstract interface
-        ! Not a port.
-        recursive logical function ibuffer_buffer_predicate_proc_x(buf)
-            import :: handle_type
-            implicit none(type, external)
-            type(handle_type), intent(in) :: buf
-        end function ibuffer_buffer_predicate_proc_x
-    end interface
 
 contains
 
@@ -387,7 +378,7 @@ contains
     end function compound
 
     ! Add F before the filters of LIST.  Not a port.
-    subroutine push_front(list, f)
+    subroutine add_front(list, f)
         type(ibuffer_filter_type), allocatable, intent(inout) :: list(:)
         type(ibuffer_filter_type), intent(in) :: f
         type(ibuffer_filter_type), allocatable :: grown(:)
@@ -401,7 +392,7 @@ contains
         end do
 
         call move_alloc(grown, list)
-    end subroutine push_front
+    end subroutine add_front
 
     ! The filters A followed by B.  Not a port.
     function joined(a, b) result(ab)
@@ -502,7 +493,7 @@ contains
     end do
 
     filters = locals(k)%qualifiers
-    call push_front(filters, filter_specification)
+    call add_front(filters, filter_specification)
     call ibuffer_set_filtering_qualifiers(filters)
     pushed = .true.
     end procedure ibuffer_push_filter
@@ -1882,11 +1873,11 @@ contains
     ! Port of ibuf-ext.el:ibuffer-mark-on-buffer: mark the buffers for
     ! which FUNC is true with MARK (`ibuffer_marked_char' by default).
     recursive subroutine ibuffer_mark_on_buffer(func, status, mark, group)
-        procedure(ibuffer_buffer_predicate_proc_x) :: func
+        procedure(ibuffer_buffer_predicate_proc) :: func
         type(status_type), intent(out) :: status
         character, intent(in), optional :: mark
         character(len=*), intent(in), optional :: group
-        procedure(ibuffer_buffer_predicate_proc_x), pointer :: saved_fn
+        procedure(ibuffer_buffer_predicate_proc), pointer :: saved_fn
         character :: m, saved_mark
         integer :: count
         character(len=24) :: c
@@ -2326,7 +2317,7 @@ contains
         map_nstates = 0
         if (allocated(map_states)) deallocate (map_states)
         allocate (map_states(16))
-        count = map_marked_lines(push_buffer, status)
+        count = map_marked_lines(add_buffer, status)
         if (.not. status%ok()) return
         ! (Pushed: the last marked buffer first.)
         allocate (sources(map_nstates))
@@ -2339,7 +2330,7 @@ contains
     end subroutine ibuffer_do_occur
 
     ! Port of part of ibuf-ext.el:ibuffer-do-occur.
-    recursive integer function push_buffer(buf, mark) result(r)
+    recursive integer function add_buffer(buf, mark) result(r)
         type(handle_type), intent(in) :: buf
         character, intent(in) :: mark
         type(ibuffer_state_type), allocatable :: grown(:)
@@ -2355,7 +2346,7 @@ contains
         map_nstates = map_nstates + 1
         map_states(map_nstates)%buffer = buf
         r = IBUFFER_OP_DONE
-    end function push_buffer
+    end function add_buffer
 
     recursive subroutine cmd_ibuffer_do_occur(status)
         type(status_type), intent(out) :: status
@@ -2755,7 +2746,7 @@ contains
         saved = ibuffer_saved_filters%entries(i)%filters
         call ibuffer_set_filtering_qualifiers(joined(saved, tail))
     case (IBUFFER_FILTER_NOT)
-        call push_front(tail, ibuffer_unary_operand(filters(1)))
+        call add_front(tail, ibuffer_unary_operand(filters(1)))
         call ibuffer_set_filtering_qualifiers(tail)
     case default
         call set_error(status, FM_GENERIC_ERROR, "Filter type "//trim(filters(1)%nodes(1)%name)//" is not compound")
@@ -2999,7 +2990,7 @@ contains
     type(ibuffer_filter_type), allocatable :: filters(:)
 
     filters = ibuffer_filtering_qualifiers()
-    call push_front(filters, ibuffer_saved(name))
+    call add_front(filters, ibuffer_saved(name))
     call ibuffer_set_filtering_qualifiers(filters)
     call ibuffer_update(status, .false., .true.)
     end procedure ibuffer_add_saved_filters

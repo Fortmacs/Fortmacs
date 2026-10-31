@@ -95,7 +95,7 @@ contains
     end function from_boxes
 
     !> Append S to BOXES.  Not a port.
-    subroutine push_box(boxes, s)
+    subroutine add_box(boxes, s)
         type(string_box), allocatable, intent(inout) :: boxes(:)
         character(len=*), intent(in) :: s
         type(string_box), allocatable :: grown(:)
@@ -107,10 +107,10 @@ contains
         grown(1:n) = boxes
         grown(n + 1)%s = s
         call move_alloc(grown, boxes)
-    end subroutine push_box
+    end subroutine add_box
 
     !> Append an element to the pattern P.  Not a port.
-    subroutine push_elt(p, kind, s)
+    subroutine add_elt(p, kind, s)
         type(pat_elt), allocatable, intent(inout) :: p(:)
         integer, intent(in) :: kind
         character(len=*), intent(in), optional :: s
@@ -130,7 +130,7 @@ contains
         end if
 
         call move_alloc(grown, p)
-    end subroutine push_elt
+    end subroutine add_elt
 
     !> Whether regexp RE matches STRING (from 1-based index START), with
     !> case folded when `completion_ignore_case'; keeps the match data.
@@ -480,9 +480,9 @@ contains
         type(pat_elt), allocatable, intent(out) :: p(:)
 
         allocate (p(0))
-        call push_elt(p, P_STRING, substring(beforepoint, bstart))
-        call push_elt(p, P_POINT)
-        call push_elt(p, P_STRING, substring(afterpoint, 0_int64, bend))
+        call add_elt(p, P_STRING, substring(beforepoint, bstart))
+        call add_elt(p, P_POINT)
+        call add_elt(p, P_STRING, substring(afterpoint, 0_int64, bend))
     end subroutine basic_pattern
 
     !> Port of minibuffer.el:completion-basic-try-completion.
@@ -564,7 +564,7 @@ contains
 
         do k = 1, size(p)
             if (p(k)%kind == P_STRING .and. len(p(k)%s) == 0) cycle
-            call push_elt(q, p(k)%kind, p(k)%s)
+            call add_elt(q, p(k)%kind, p(k)%s)
         end do
 
         call move_alloc(q, p)
@@ -591,7 +591,7 @@ contains
                 end if
             end if
 
-            call push_elt(n, p(k)%kind, p(k)%s)
+            call add_elt(n, p(k)%kind, p(k)%s)
             k = k + 1
         end do
 
@@ -644,11 +644,11 @@ contains
 
         if (point >= 0 .and. point <= n) then
             call string_to_pattern(substring(string, 0_int64, point), -1_int64, pattern)
-            call push_elt(pattern, P_POINT)
+            call add_elt(pattern, P_POINT)
             call string_to_pattern(substring(string, point), -1_int64, tail)
 
             do k = 1, size(tail)
-                call push_elt(pattern, tail(k)%kind, tail(k)%s)
+                call add_elt(pattern, tail(k)%kind, tail(k)%s)
             end do
 
             return
@@ -671,22 +671,22 @@ contains
             if (mb1 >= 0) p = mb1
 
             if (p0 /= p) then
-                if (pending >= 0) call push_elt(pattern, pending)
-                call push_elt(pattern, P_STRING, substring(string, p0, p))
+                if (pending >= 0) call add_elt(pattern, pending)
+                call add_elt(pattern, P_STRING, substring(string, p0, p))
             end if
 
             pending = -1
 
             if (substring(string, p, p + 1) == "*") then
-                call push_elt(pattern, P_STAR)
+                call add_elt(pattern, P_STAR)
                 p0 = p + 1
             else
-                call push_elt(pattern, P_ANY)
+                call add_elt(pattern, P_ANY)
 
                 if (mb1 >= 0) then
                     p0 = p
                 else
-                    call push_elt(pattern, P_STRING, substring(string, p, me0))
+                    call add_elt(pattern, P_STRING, substring(string, p, me0))
 
                     ! `any-delim' is used so that "a-b" also finds
                     ! "array->beginning".
@@ -705,17 +705,17 @@ contains
         end do
 
         if (n > p0) then
-            if (pending >= 0) call push_elt(pattern, pending)
-            call push_elt(pattern, P_STRING, substring(string, p0))
+            if (pending >= 0) call add_elt(pattern, pending)
+            call add_elt(pattern, P_STRING, substring(string, p0))
         end if
 
         if (completion_pcm_leading_wildcard .and. size(pattern) > 0) then
             if (pattern(1)%kind == P_STRING) then
                 allocate (tail(0))
-                call push_elt(tail, P_PREFIX)
+                call add_elt(tail, P_PREFIX)
 
                 do k = 1, size(pattern)
-                    call push_elt(tail, pattern(k)%kind, pattern(k)%s)
+                    call add_elt(tail, pattern(k)%kind, pattern(k)%s)
                 end do
 
                 call move_alloc(tail, pattern)
@@ -857,7 +857,7 @@ contains
         call to_boxes(compl, cands)
 
         do k = 1, size(cands)
-            if (re_match(re, cands(k)%s) > 0) call push_box(all, cands(k)%s)
+            if (re_match(re, cands(k)%s) > 0) call add_box(all, cands(k)%s)
         end do
     end subroutine pcm_all
 
@@ -914,7 +914,7 @@ contains
         allocate (kept(0))
 
         do k = 1, size(suball)
-            if (substring(suball(k)%s, schars(suball(k)%s) - 1) == sep) call push_box(kept, suball(k)%s)
+            if (substring(suball(k)%s, schars(suball(k)%s) - 1) == sep) call add_box(kept, suball(k)%s)
         end do
 
         if (size(kept) > 0) then
@@ -938,7 +938,7 @@ contains
                 if (filter) call filename_try_filter(more)
 
                 do j = 1, size(more)
-                    call push_box(all, kept(k)%s//between//more(j)%s)
+                    call add_box(all, kept(k)%s//between//more(j)%s)
                 end do
             end do
         end if
@@ -946,15 +946,15 @@ contains
         allocate (newpat(0))
 
         do k = 1, size(subpat)
-            call push_elt(newpat, subpat(k)%kind, subpat(k)%s)
+            call add_elt(newpat, subpat(k)%kind, subpat(k)%s)
         end do
 
-        call push_elt(newpat, P_ANY)
-        call push_elt(newpat, P_STRING, sep)
-        if (len(between) > 0) call push_elt(newpat, P_STRING, between)
+        call add_elt(newpat, P_ANY)
+        call add_elt(newpat, P_STRING, sep)
+        if (len(between) > 0) call add_elt(newpat, P_STRING, between)
 
         do k = 1, size(pattern)
-            call push_elt(newpat, pattern(k)%kind, pattern(k)%s)
+            call add_elt(newpat, pattern(k)%kind, pattern(k)%s)
         end do
 
         call move_alloc(newpat, pattern)
@@ -987,7 +987,7 @@ contains
                 ignored = all(k)%s(n - len(ext) + 1:) == ext
             end do
 
-            if (.not. ignored) call push_box(try, all(k)%s)
+            if (.not. ignored) call add_box(try, all(k)%s)
         end do
 
         if (size(try) > 0) call move_alloc(try, all)
@@ -1049,12 +1049,12 @@ contains
         allocate (res(0))
 
         if (size(strs) <= 1) then
-            if (size(strs) == 1) call push_elt(res, P_STRING, strs(1)%s)
+            if (size(strs) == 1) call add_elt(res, P_STRING, strs(1)%s)
             return
         end if
 
         pat = pattern
-        call push_elt(pat, P_ANY)
+        call add_elt(pat, P_ANY)
         call pattern_to_segments(pat, segs)
         ! First chop each string into the parts corresponding to each
         ! non-constant element of `pattern', using regexp-matching.
@@ -1118,13 +1118,13 @@ contains
             if (unique) then
                 ! If the common prefix is unique, it also is a common
                 ! suffix, so we should add it for `prefix' elements.
-                call push_elt(res, P_STRING, prefix)
+                call add_elt(res, P_STRING, prefix)
             else
                 has_prefix_wc = any(segs(i)%wildcards == P_PREFIX)
                 ! `prefix' only wants to include the fixed part before the
                 ! wildcard, not the result of growing that fixed part.
                 if (has_prefix_wc) prefix = substring(prefix, 0_int64, schars(segs(i)%fixed))
-                call push_elt(res, P_STRING, prefix)
+                call add_elt(res, P_STRING, prefix)
                 ! Push all the wildcards in this stretch, to preserve
                 ! `point' and `star' wildcards before ELEM, collapsing
                 ! multiple `star's to one on each side of point.
@@ -1132,11 +1132,11 @@ contains
 
                 do j = 1, size(segs(i)%wildcards)
                     if (segs(i)%wildcards(j) == P_STAR) then
-                        if (.not. star_seen) call push_elt(res, P_STAR)
+                        if (.not. star_seen) call add_elt(res, P_STAR)
                         star_seen = .true.
                     else
                         if (segs(i)%wildcards(j) == P_POINT) star_seen = .false.
-                        call push_elt(res, segs(i)%wildcards(j))
+                        call add_elt(res, segs(i)%wildcards(j))
                     end if
                 end do
 
@@ -1156,7 +1156,7 @@ contains
                     end do
 
                     suf = common_suffix(rest)
-                    if (len(suf) > 0) call push_elt(res, P_STRING, suf)
+                    if (len(suf) > 0) call add_elt(res, P_STRING, suf)
                     deallocate (rest)
                 end if
             end if
@@ -1312,10 +1312,10 @@ contains
         call basic_pattern(beforepoint, afterpoint, bstart, bend, basic)
         allocate (pattern(0))
         ! basic's pattern always starts with a string.
-        call push_elt(pattern, P_PREFIX)
+        call add_elt(pattern, P_PREFIX)
 
         do k = 1, size(basic)
-            call push_elt(pattern, basic(k)%kind, basic(k)%s)
+            call add_elt(pattern, basic(k)%kind, basic(k)%s)
         end do
 
         call optimize_pattern(pattern)
@@ -1526,7 +1526,7 @@ contains
         do k = 1, size(cands)
             call flex_cost_gotoh(pat2, cands(k)%s, found, cost, matches)
             if (.not. found) cycle
-            call push_box(all, cands(k)%s)
+            call add_box(all, cands(k)%s)
             ! completion--flex-cost: (1+ cost) times the extra length.
             costs = [costs, (1 + cost)*int(schars(cands(k)%s) - schars(pat2))]
         end do
@@ -1549,16 +1549,16 @@ contains
         if (completion_flex_nospace .and. index(string, " ") > 0) return
         call flex_all_1(string, table, point, all, costs, pat2, prefix, suffix, pred)
         allocate (pattern(0))
-        call push_elt(pattern, P_PREFIX)
+        call add_elt(pattern, P_PREFIX)
         point_idx = point - schars(prefix) - 1
 
         do i = 0, schars(pat2) - 1
-            call push_elt(pattern, P_STRING, substring(pat2, i, i + 1))
+            call add_elt(pattern, P_STRING, substring(pat2, i, i + 1))
 
             if (i == point_idx) then
-                call push_elt(pattern, P_POINT)
+                call add_elt(pattern, P_POINT)
             else
-                call push_elt(pattern, P_ANY)
+                call add_elt(pattern, P_ANY)
             end if
         end do
 

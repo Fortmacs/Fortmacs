@@ -375,7 +375,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: n
 
-        call register_as_number(register, n, status)
+        call register_to_number(register, n, status)
         if (.not. status%ok()) return
 
         if (compare(pred, kmacro_counter, n)) then
@@ -387,7 +387,7 @@ contains
     !> The contents of REGISTER as a number or marker position, as the
     !> arithmetic comparisons take them (else a `wrong_type_argument' error condition occurs).
     !> Not a port.
-    subroutine register_as_number(register, n, status)
+    subroutine register_to_number(register, n, status)
         integer(int64), intent(in) :: register
         integer(int64), intent(out) :: n
         type(status_type), intent(out) :: status
@@ -406,7 +406,7 @@ contains
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, &
                            "expected integer, real or type(marker_type), got "//register_value_repr(v))
         end select
-    end subroutine register_as_number
+    end subroutine register_to_number
 
     !> The printed representation of register contents V.  Not a port.
     function register_value_repr(v) result(s)
@@ -521,7 +521,7 @@ contains
         m%id = last_kmacro_id
     end function kmacro
 
-    !> Run the keyboard macro M with ARG (a repeat count), with its own
+    !> Execute the keyboard macro M with ARG (a repeat count), with its own
     !> counter and format, and keep the counter it ends with in M (and
     !> in the ring element that is M).  Port of kmacro.el:kmacro (the
     !> function of its oclosure).
@@ -557,7 +557,7 @@ contains
         kmacro_counter_format_start = saved_format
     end subroutine kmacro_execute
 
-    !> Run element K of the ring (call it).  Not a port.
+    !> Execute element K of the ring.  Not a port.
     recursive subroutine execute_ring_element(k, arg, status)
         integer, intent(in) :: k
         type(value_type), intent(in) :: arg
@@ -793,7 +793,7 @@ contains
         if (value_eq(cmd, value_type(name="kmacro_view_macro_repeat"))) repeat_property = REPEAT_RING
     end function repeat_property
 
-    !> Call command CMD with no prefix argument and `kmacro_repeat_no_prefix'
+    !> Execute command CMD with no prefix argument and `kmacro_repeat_no_prefix'
     !> .false., both saved and restored around the call.  Not a port.
     recursive subroutine execute_without_prefix(cmd, status)
         type(value_type), intent(in) :: cmd

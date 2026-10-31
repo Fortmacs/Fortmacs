@@ -106,11 +106,11 @@ contains
             file = xstring(list_elt(files, k))
 
             if (string_match(sufre, file, st) <= 0) then
-                call push(names, file)
+                call add_front(names, file)
             else
-                call push(fullnames, file)
+                call add_front(fullnames, file)
                 mb = match_beginning(0, st)
-                call push(names, file(1:mb - 1))
+                call add_front(names, file(1:mb - 1))
             end if
         end do
     end do
@@ -140,7 +140,7 @@ contains
 
         do i = 2, nn
             if (xstring(names(i)) == first .and. len(xstring(names(i))) == len(first)) cycle
-            call append(items, names(i))
+            call add(items, names(i))
         end do
 
         call move_alloc(items, names)
@@ -152,7 +152,7 @@ contains
         nf = size(fullnames)
 
         do i = 1, nf
-            call append(names, fullnames(i))
+            call add(names, fullnames(i))
         end do
     end if
 
@@ -162,7 +162,7 @@ contains
 contains
 
     ! (push NAME LIST)
-    subroutine push(values, name)
+    subroutine add_front(values, name)
         type(value_type), allocatable, intent(inout) :: values(:)
         character(len=*), intent(in) :: name
         type(value_type), allocatable :: grown(:)
@@ -176,10 +176,10 @@ contains
         end do
 
         call move_alloc(grown, values)
-    end subroutine push
+    end subroutine add_front
 
     ! VALUES with V added at the end.
-    subroutine append(values, v)
+    subroutine add(values, v)
         type(value_type), allocatable, intent(inout) :: values(:)
         type(value_type), intent(in) :: v
         type(value_type), allocatable :: grown(:)
@@ -193,7 +193,7 @@ contains
 
         grown(size(values) + 1) = v
         call move_alloc(grown, values)
-    end subroutine append
+    end subroutine add
     end procedure locate_file_completion_table
 
     !> Convert FILENAME to be relative to DIRECTORY (default:

@@ -1160,7 +1160,7 @@ contains
         end associate
     end subroutine modify_text
 
-    !> Run `undo_auto__undoable_change' unless the current buffer keeps no
+    !> Execute `undo_auto__undoable_change' unless the current buffer keeps no
     !> undo information.  Port of insdel.c:run_undoable_change.
     subroutine execute_undoable_change()
         if (.not. buffers(cur)%undo_enabled) return

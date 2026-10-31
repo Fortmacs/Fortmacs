@@ -126,8 +126,8 @@ module simple_fm
     public :: blink_matching_open, blink_matching_check_mismatch, blink_paren_open_paren_line_string, &
               blink_paren_post_self_insert_function, newline_and_indent, syms_of_simple_electric, &
               backward_delete_char_untabify, blink_matching_check_proc, reindent_then_newline_and_indent
-    public :: set_local_blink_matching_check_function, current_blink_matching_check_function, &
-              is_blink_matching_check_function_local, kill_local_blink_matching_check_function
+    public :: blink_matching_check_function_set_local, current_blink_matching_check_function, &
+              is_blink_matching_check_function_local, blink_matching_check_function_kill_local
 
     !> True means show the equivalent keybinding when M-x has one.
     !> (A length of time is not supported, nor the timer: the suggestion
@@ -1335,7 +1335,7 @@ module simple_fm
     !> START can be 0, if it was not found.
     !> The function should return true if the two tokens do not match.
     !> Port of simple.el blink-matching-check-function (the default
-    !> value; `set_local_blink_matching_check_function' gives a buffer
+    !> value; `blink_matching_check_function_set_local' gives a buffer
     !> its own).
     procedure(blink_matching_check_proc), pointer, public :: blink_matching_check_function => null()
 
@@ -1573,7 +1573,7 @@ contains
 
     !> Give the current buffer its own `blink_matching_check_function'
     !> FN (set_local); absent clears it.  Not a port.
-    subroutine set_local_blink_matching_check_function(fn)
+    subroutine blink_matching_check_function_set_local(fn)
         procedure(blink_matching_check_proc), optional :: fn
         type(check_entry_type), allocatable :: grown(:)
         integer :: i, n
@@ -1608,7 +1608,7 @@ contains
         else
             check_locals(i)%fn => null()
         end if
-    end subroutine set_local_blink_matching_check_function
+    end subroutine blink_matching_check_function_set_local
 
     !> The value of `blink_matching_check_function' in the current buffer
     !> (null when unset).  Not a port.
@@ -1633,14 +1633,14 @@ contains
 
     !> Make the current buffer use the default `blink_matching_check_function'
     !> (also what `kill_all_local_variables' does to it).  Not a port.
-    subroutine kill_local_blink_matching_check_function()
+    subroutine blink_matching_check_function_kill_local()
         integer :: i
 
         i = check_local_index()
         if (i == 0) return
         check_locals(i)%serial = 0
         check_locals(i)%fn => null()
-    end subroutine kill_local_blink_matching_check_function
+    end subroutine blink_matching_check_function_kill_local
 
     ! Not a port.
     integer(int64) function numeric_prefix_arg()
@@ -3089,7 +3089,7 @@ contains
         call defvar_nil("kill_ring")
         deactivate_mark_function => deactivate_mark_command_loop
         call forward_setting(normal_auto_fill_function)
-        call add_local_variables_killer(kill_local_blink_matching_check_function)
+        call add_local_variables_killer(blink_matching_check_function_kill_local)
         ! (<up> and <down> run previous/next-line-or-history-element
         ! upstream, which in a one-line minibuffer are these.)
         commands%execute_extended_command%execute => cmd_execute_extended_command

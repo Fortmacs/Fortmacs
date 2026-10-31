@@ -183,7 +183,7 @@ module syntax_propertize_fm
         !> Make FN the current buffer's function (set_local).
         procedure :: set_local => function_set_local
         !> The current buffer's function (null when unset).
-        procedure :: get => function_get
+        procedure :: current => current_function
         !> Make the current buffer use the default again.
         procedure :: kill_local => function_kill_local
     end type syntax_propertize_function_type
@@ -219,7 +219,7 @@ module syntax_propertize_fm
         !> Make H the current buffer's table (set_local).
         procedure, nopass :: set_local => ppss_table_set_local
         !> Whether the current buffer has a table, and which (FOUND).
-        procedure, nopass :: get => ppss_table_get
+        procedure, nopass :: current => current_ppss_table
         !> Make the current buffer's value unset again.
         procedure, nopass :: kill_local => ppss_table_kill_local
     end type syntax_ppss_table_type
@@ -396,7 +396,7 @@ contains
     end subroutine function_set_local
 
     ! Not a port.
-    function function_get(self) result(fn)
+    function current_function(self) result(fn)
         class(syntax_propertize_function_type), intent(in) :: self
         procedure(syntax_propertize_proc), pointer :: fn
         integer :: i
@@ -410,7 +410,7 @@ contains
                 if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
             end if
         end do
-    end function function_get
+    end function current_function
 
     ! Not a port.
     subroutine function_kill_local(self)
@@ -440,7 +440,7 @@ contains
     end subroutine ppss_table_set_local
 
     ! Not a port.
-    subroutine ppss_table_get(h, found)
+    subroutine current_ppss_table(h, found)
         type(handle_type), intent(out) :: h
         logical, intent(out) :: found
         integer :: k
@@ -450,7 +450,7 @@ contains
         k = data_index()
         found = data(k)%has_table
         if (found) h = data(k)%table
-    end subroutine ppss_table_get
+    end subroutine current_ppss_table
 
     ! Not a port.
     subroutine ppss_table_kill_local()
@@ -478,7 +478,7 @@ contains
         type(handle_type) :: h
         logical :: found
 
-        call ppss_table_get(h, found)
+        call current_ppss_table(h, found)
 
         if (found) then
             if (is_syntax_table_live(h)) return
@@ -849,7 +849,7 @@ contains
         call set_match_data(shifted)
     end subroutine shift_match_data
 
-    ! Run one highlight of a matched rule.
+    ! Execute one highlight of a matched rule.
     ! Port of part of syntax.el:syntax-propertize-rules.
     recursive subroutine execute_step(step, status)
         type(rule_step_type), intent(in) :: step
@@ -920,7 +920,7 @@ contains
 
         status = status_type()
         if (.not. (syntax_propertize__done%value < pos)) return
-        fn => syntax_propertize_function%get()
+        fn => syntax_propertize_function%current()
 
         if (.not. associated(fn)) then
             call syntax_propertize__done%set_local(max(point_max(), pos))

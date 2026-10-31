@@ -121,7 +121,7 @@ module info_fm
                          free_window_configuration, delete_other_windows, switch_to_buffer, bury_buffer, pop_to_buffer
     use frame_fm, only: selected_window, selected_frame
     use dispnew_fm, only: ding
-    use minibuf_fm, only: completion_ignore_case, try_completion, all_completions, test_completion, &
+    use minibuf_fm, only: completion_ignore_case, try_completion, all_completions, is_exact_completion, &
                           completion_table_type, completion_list_table, completion_function_table, &
                           completion_predicate, completion_obarray_table, read_string, COMPLETE_TRY, COMPLETE_ALL, &
                           COMPLETE_TEST, COMPLETE_BOUNDARIES
@@ -4055,7 +4055,7 @@ contains
             call all_completions(string, table, result, status, pred)
         case (COMPLETE_TEST)
             result = value_type()
-            if (test_completion(string, table, pred)) result = value_type(.true.)
+            if (is_exact_completion(string, table, pred)) result = value_type(.true.)
         case default
             result = value_type()
         end select
@@ -7342,11 +7342,11 @@ contains
         allocate (locals(k)%index_alternatives(0))
 
         do i = 1, size(exact)
-            call append_match(locals(k)%index_alternatives, exact(i))
+            call add_match(locals(k)%index_alternatives, exact(i))
         end do
 
         do i = size(matches), 1, -1
-            call append_match(locals(k)%index_alternatives, matches(i))
+            call add_match(locals(k)%index_alternatives, matches(i))
         end do
 
         locals(k)%current_index_alternative = 0
@@ -7373,7 +7373,7 @@ contains
     end subroutine prepend_match
 
     ! Append M to LIST.  Not a port.
-    subroutine append_match(list, m)
+    subroutine add_match(list, m)
         type(index_match_type), allocatable, intent(inout) :: list(:)
         type(index_match_type), intent(in) :: m
         type(index_match_type), allocatable :: grown(:)
@@ -7387,7 +7387,7 @@ contains
 
         grown(size(list) + 1) = m
         call move_alloc(grown, list)
-    end subroutine append_match
+    end subroutine add_match
 
     recursive subroutine cmd_info_index(status)
         type(status_type), intent(out) :: status

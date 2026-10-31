@@ -291,7 +291,7 @@ contains
 
     ! A new file information (vc-dir-create-fileinfo) from ENTRY, for a
     ! directory DIRECTORY if given: its data for the ewoc.  Not a port.
-    integer(int64) function new_info(entry, directory) result(id)
+    integer(int64) function make_info(entry, directory) result(id)
         type(vc_dir_entry_type), intent(in) :: entry
         character(len=*), intent(in), optional :: directory
         type(vc_dir_fileinfo_type), allocatable :: grown(:)
@@ -333,17 +333,17 @@ contains
         infos(id)%entry = entry
         if (present(directory)) infos(id)%directory = directory
         info_live(id) = .true.
-    end function new_info
+    end function make_info
 
     ! A directory entry for NAME (vc-dir-create-fileinfo NAME nil nil nil
     ! DIRECTORY).  Not a port.
-    integer(int64) function new_dir_info(name, directory) result(id)
+    integer(int64) function make_dir_info(name, directory) result(id)
         character(len=*), intent(in) :: name, directory
         type(vc_dir_entry_type) :: entry
 
         entry%name = name
-        id = new_info(entry, directory)
-    end function new_dir_info
+        id = make_info(entry, directory)
+    end function make_dir_info
 
     !> The file information of the ewoc's node NODE in the current buffer.
     !> Not a port.
@@ -637,7 +637,7 @@ contains
 
         ! Insert . if it is not present.
         if (node == 0) then
-            node = ewoc_enter_last(e, new_dir_info(dotname, buffers(cur)%directory))
+            node = ewoc_enter_last(e, make_dir_info(dotname, buffers(cur)%directory))
             node = ewoc_nth(e, 0)
         end if
 
@@ -682,7 +682,7 @@ contains
                     k = k + 1
                     node = ewoc_next(e, node)
                 else
-                    if (.not. noins) node = enter_before_keep(node, new_info(entries(k)))
+                    if (.not. noins) node = enter_before_keep(node, make_info(entries(k)))
                     k = k + 1
                 end if
             else
@@ -693,9 +693,9 @@ contains
                     prev_node = ewoc_prev(e, node)
                     prev_dir = ""
                     if (prev_node /= 0) prev_dir = vc_dir_node_directory(prev_node)
-                    if (entrydir /= prev_dir) node = enter_before_keep(node, new_dir_info(rd, entrydir))
+                    if (entrydir /= prev_dir) node = enter_before_keep(node, make_dir_info(rd, entrydir))
                     ! Now insert the node itself.
-                    node = enter_before_keep(node, new_info(entries(k)))
+                    node = enter_before_keep(node, make_info(entries(k)))
                 end if
 
                 k = k + 1
@@ -713,11 +713,11 @@ contains
                 if (lastdir /= entrydir) then
                     lastdir = entrydir
                     rd = file_relative_name(entrydir, buffers(cur)%directory)
-                    i = ewoc_enter_last(e, new_dir_info(rd, entrydir))
+                    i = ewoc_enter_last(e, make_dir_info(rd, entrydir))
                 end if
 
                 ! Now insert the node itself.
-                i = ewoc_enter_last(e, new_info(entries(j)))
+                i = ewoc_enter_last(e, make_info(entries(j)))
             end do
         end if
 
@@ -1172,11 +1172,11 @@ contains
     end subroutine vc_dir_mark_all_files
 
     ! Not a port.
-    recursive logical function mark_by_regexp_fn(data)
+    recursive logical function mark_by_regexp(data)
         integer(int64), intent(in) :: data
         type(status_type) :: st
 
-        mark_by_regexp_fn = .false.
+        mark_by_regexp = .false.
         if (allocated(infos(data)%directory)) return
         if ((.not. map_unmark) .neqv. (.not. infos(data)%marked)) return
 
@@ -1187,8 +1187,8 @@ contains
         end if
 
         infos(data)%marked = .not. map_unmark
-        mark_by_regexp_fn = .true.
-    end function mark_by_regexp_fn
+        mark_by_regexp = .true.
+    end function mark_by_regexp
 
     !> Mark all files that match REGEXP.
     !> If UNMARK (interactively, the prefix), unmark instead.  Port of
@@ -1200,26 +1200,26 @@ contains
         map_regexp = regexp
         map_unmark = .false.
         if (present(unmark)) map_unmark = unmark
-        call ewoc_map(mark_by_regexp_fn, ew())
+        call ewoc_map(mark_by_regexp, ew())
     end subroutine vc_dir_mark_by_regexp
 
     ! Not a port.
-    recursive logical function mark_files_fn(data)
+    recursive logical function mark_listed_file(data)
         integer(int64), intent(in) :: data
         character(len=:), allocatable :: name
         integer :: k
 
-        mark_files_fn = .false.
+        mark_listed_file = .false.
         name = expand(infos(data)%entry%name)
 
         do k = 1, size(map_files)
             if (map_files(k)%s == name) then
                 infos(data)%marked = .true.
-                mark_files_fn = .true.
+                mark_listed_file = .true.
                 return
             end if
         end do
-    end function mark_files_fn
+    end function mark_listed_file
 
     !> Mark files specified by file names in the argument MARK_FILES.
     !> MARK_FILES should be a list of absolute filenames.
@@ -1270,18 +1270,18 @@ contains
         end do
 
         map_files = map_files(1:n)
-        call ewoc_map(mark_files_fn, ew())
+        call ewoc_map(mark_listed_file, ew())
     end subroutine vc_dir_mark_files
 
     ! Not a port.
-    recursive logical function mark_state_fn(data)
+    recursive logical function mark_state(data)
         integer(int64), intent(in) :: data
 
-        mark_state_fn = .false.
+        mark_state = .false.
         if (.not. any(map_states == infos(data)%entry%state)) return
         infos(data)%marked = .true.
-        mark_state_fn = .true.
-    end function mark_state_fn
+        mark_state = .true.
+    end function mark_state
 
     !> Mark files that are in the state specified by the list in STATES.
     !> Port of vc-dir.el:vc-dir-mark-state-files.
@@ -1289,7 +1289,7 @@ contains
         integer, intent(in) :: states(:)
 
         map_states = states
-        call ewoc_map(mark_state_fn, ew())
+        call ewoc_map(mark_state, ew())
     end subroutine vc_dir_mark_state_files
 
     !> Mark files that are in one of registered states: edited, added or
@@ -1417,24 +1417,24 @@ contains
     end subroutine vc_dir_unmark_file_up
 
     ! Not a port.
-    recursive logical function unmark_fn(data)
+    recursive logical function unmark_entry(data)
         integer(int64), intent(in) :: data
 
-        unmark_fn = .false.
+        unmark_entry = .false.
         if (.not. infos(data)%marked) return
         infos(data)%marked = .false.
-        unmark_fn = .true.
-    end function unmark_fn
+        unmark_entry = .true.
+    end function unmark_entry
 
     ! Not a port.
-    recursive logical function unmark_state_fn(data)
+    recursive logical function unmark_state(data)
         integer(int64), intent(in) :: data
 
-        unmark_state_fn = .false.
+        unmark_state = .false.
         if (.not. infos(data)%marked .or. infos(data)%entry%state /= map_state) return
         infos(data)%marked = .false.
-        unmark_state_fn = .true.
-    end function unmark_state_fn
+        unmark_state = .true.
+    end function unmark_state
 
     !> Unmark all files with the same state as the current one.
     !> With prefix argument ARG, unmark all files.
@@ -1448,7 +1448,7 @@ contains
         integer :: crt
 
         if (arg) then
-            call ewoc_map(unmark_fn, ew())
+            call ewoc_map(unmark_entry, ew())
         else
             crt = ewoc_locate(ew())
             if (crt == 0) return
@@ -1467,7 +1467,7 @@ contains
             else
                 ! It's a file
                 map_state = infos(did(crt))%entry%state
-                call ewoc_map(unmark_state_fn, ew())
+                call ewoc_map(unmark_state, ew())
             end if
         end if
     end subroutine vc_dir_unmark_all_files
@@ -1514,7 +1514,7 @@ contains
             id = did(crt)
 
             if (.not. allocated(infos(id)%directory)) then
-                call push_file(expand(infos(id)%entry%name), infos(id)%entry%state)
+                call add_file(expand(infos(id)%entry%name), infos(id)%entry%state)
             end if
 
             crt = ewoc_next(ew(), crt)
@@ -1531,7 +1531,7 @@ contains
 
     contains
 
-        subroutine push_file(name, state)
+        subroutine add_file(name, state)
             character(len=*), intent(in) :: name
             integer, intent(in) :: state
             type(vc_string_type), allocatable :: grown(:)
@@ -1547,7 +1547,7 @@ contains
             grown(n + 1)%s = name
             call move_alloc(grown, files)
             states = [states, state]
-        end subroutine push_file
+        end subroutine add_file
     end subroutine vc_dir_root_next_action
 
     !> Delete the marked files, or the current file if no marks.
@@ -1625,15 +1625,15 @@ contains
     end subroutine vc_dir_view_file
 
     ! Not a port.
-    recursive logical function ignore_marked_fn(data)
+    recursive logical function ignore_marked(data)
         integer(int64), intent(in) :: data
         type(status_type) :: st
 
-        ignore_marked_fn = .false.
+        ignore_marked = .false.
         if (.not. infos(data)%marked) return
         call vc_ignore(infos(data)%entry%name, st)
-        ignore_marked_fn = .true.
-    end function ignore_marked_fn
+        ignore_marked = .true.
+    end function ignore_marked
 
     !> Ignore the current file.
     !> If a prefix argument is given, ignore all marked files.  Port of
@@ -1646,7 +1646,7 @@ contains
         status = status_type()
 
         if (arg) then
-            call ewoc_map(ignore_marked_fn, ew())
+            call ewoc_map(ignore_marked, ew())
         else
             rel_dir = vc_ignore_base_dir(status)
             if (.not. status%ok()) return
@@ -1676,18 +1676,18 @@ contains
     end subroutine vc_dir_current_file
 
     ! Not a port.
-    recursive logical function marked_fn(data)
+    recursive logical function is_marked(data)
         integer(int64), intent(in) :: data
 
-        marked_fn = infos(data)%marked
-    end function marked_fn
+        is_marked = infos(data)%marked
+    end function is_marked
 
     ! Not a port.
-    recursive logical function needs_update_fn(data)
+    recursive logical function needs_update(data)
         integer(int64), intent(in) :: data
 
-        needs_update_fn = infos(data)%needs_update
-    end function needs_update_fn
+        needs_update = infos(data)%needs_update
+    end function needs_update
 
     !> Return the list of marked files.  Port of vc-dir.el:vc-dir-marked-files.
     subroutine vc_dir_marked_files(files)
@@ -1695,7 +1695,7 @@ contains
         integer(int64), allocatable :: ids(:)
         integer :: k
 
-        call ewoc_collect(ew(), marked_fn, ids)
+        call ewoc_collect(ew(), is_marked, ids)
         allocate (files(size(ids)))
 
         do k = 1, size(ids)
@@ -1731,11 +1731,11 @@ contains
                         if (.not. is_string_prefix(dir, vc_dir_node_directory(crt))) exit
 
                         if (.not. allocated(infos(data)%directory)) then
-                            call push_pair(files, states, expand(infos(data)%entry%name), infos(data)%entry%state)
+                            call add_file_state(files, states, expand(infos(data)%entry%name), infos(data)%entry%state)
                         end if
                     end do
                 else
-                    call push_pair(files, states, expand(infos(id)%entry%name), infos(id)%entry%state)
+                    call add_file_state(files, states, expand(infos(id)%entry%name), infos(id)%entry%state)
                     crt = ewoc_next(ew(), crt)
                 end if
             else
@@ -1745,7 +1745,7 @@ contains
     end subroutine vc_dir_marked_only_files_and_states
 
     ! Append (FILE . STATE).  Not a port.
-    subroutine push_pair(files, states, file, state)
+    subroutine add_file_state(files, states, file, state)
         type(vc_string_type), allocatable, intent(inout) :: files(:)
         integer, allocatable, intent(inout) :: states(:)
         character(len=*), intent(in) :: file
@@ -1763,7 +1763,7 @@ contains
         grown(n + 1)%s = file
         call move_alloc(grown, files)
         states = [states, state]
-    end subroutine push_pair
+    end subroutine add_file_state
 
     !> Return the state of one or more files for the current entry.
     !> If the entry is a directory, return the list of states of its child
@@ -1792,11 +1792,11 @@ contains
                 if (.not. is_string_prefix(dir, vc_dir_node_directory(crt))) exit
 
                 if (.not. allocated(infos(data)%directory)) then
-                    call push_pair(files, states, expand(infos(data)%entry%name), infos(data)%entry%state)
+                    call add_file_state(files, states, expand(infos(data)%entry%name), infos(data)%entry%state)
                 end if
             end do
         else
-            call push_pair(files, states, expand(infos(id)%entry%name), infos(id)%entry%state)
+            call add_file_state(files, states, expand(infos(id)%entry%name), infos(id)%entry%state)
         end if
     end subroutine vc_dir_child_files_and_states
 
@@ -1852,7 +1852,7 @@ contains
 
             if (.not. allocated(infos(did(crt))%directory)) then
                 ! (push ...)
-                call push_pair(children, states, expand(infos(did(crt))%entry%name), 0)
+                call add_file_state(children, states, expand(infos(did(crt))%entry%name), 0)
             end if
 
             crt = ewoc_next(ew(), crt)
@@ -2191,7 +2191,7 @@ contains
         call vc_dir_update(entries, buffer)
 
         if (.not. more_to_come) then
-            call ewoc_collect(ew(), needs_update_fn, remaining)
+            call ewoc_collect(ew(), needs_update, remaining)
 
             if (size(remaining) > 0) then
                 allocate (names(size(remaining)))
@@ -2410,7 +2410,7 @@ contains
             if (up_to_date_state(states(k))) then
                 n_up = n_up + 1
             else
-                call push_pair(other, other_states, files(k)%s, states(k))
+                call add_file_state(other, other_states, files(k)%s, states(k))
             end if
         end do
 

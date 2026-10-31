@@ -947,33 +947,33 @@ contains
 
         allocate (filters(16))
         n = 0
-        call put(f1)
-        call put(f2)
-        call put(f3)
-        call put(f4)
-        call put(f5)
-        call put(f6)
-        call put(f7)
-        call put(f8)
-        call put(f9)
-        call put(f10)
-        call put(f11)
-        call put(f12)
-        call put(f13)
-        call put(f14)
-        call put(f15)
-        call put(f16)
+        call add(f1)
+        call add(f2)
+        call add(f3)
+        call add(f4)
+        call add(f5)
+        call add(f6)
+        call add(f7)
+        call add(f8)
+        call add(f9)
+        call add(f10)
+        call add(f11)
+        call add(f12)
+        call add(f13)
+        call add(f14)
+        call add(f15)
+        call add(f16)
         filters = filters(1:n)
 
     contains
 
-        subroutine put(f)
+        subroutine add(f)
             type(ibuffer_filter_type), intent(in), optional :: f
 
             if (.not. present(f)) return
             n = n + 1
             filters(n) = f
-        end subroutine put
+        end subroutine add
     end subroutine add_filters
 
     ! The %add of ibuffer_saved_filters_type.  Not a port.

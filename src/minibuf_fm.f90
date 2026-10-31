@@ -25,7 +25,7 @@
 !> runs; a command returns to `exit' with a status to finish.
 !>
 !> The completion primitives (`try_completion', `all_completions',
-!> `test_completion') are here too; the completion UI is minibuffer_fm's.
+!> `is_exact_completion') are here too; the completion UI is minibuffer_fm's.
 !>
 !> Not yet: hash-table collections, minibuffer-only frames and other
 !> frames, input methods, minibuffer-mode, text properties in the
@@ -68,7 +68,7 @@ module minibuf_fm
               is_minibuffer, abort_minibuffers, init_minibuf, is_minibuffer_innermost_command_loop, &
               is_innermost_minibuffer, minibuffer_depth_of, minibuffer_setup_proc
     public :: quoting_table_call, complete_with_action, completion_table_subvert, completion_table_with_predicate
-    public :: try_completion, all_completions, test_completion, completion_list_table, &
+    public :: try_completion, all_completions, is_exact_completion, completion_list_table, &
               completion_obarray_table, completion_function_table, completion_predicate, &
               completion_function, completion_table_type, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST, &
               COMPLETE_BOUNDARIES, TABLE_LIST, TABLE_OBARRAY, TABLE_FUNCTION
@@ -654,7 +654,7 @@ contains
         buf = minibuffers(depth + 1)
     end function nth_minibuffer
 
-    !> Run `minibuffer_exit_hook' with MINIBUF current, if it is live, as
+    !> Execute `minibuffer_exit_hook' with MINIBUF current, if it is live, as
     !> `safe_execute_hooks' does.  Port of minibuf.c:run_exit_minibuf_hook.
     recursive subroutine execute_exit_minibuf_hook(minibuf)
         type(handle_type), intent(in) :: minibuf
@@ -1109,7 +1109,7 @@ contains
     !>
     !> If COLLECTION is a function, it is called with STRING, PREDICATE and
     !> COMPLETE_TEST.  Port of minibuf.c:Ftest_completion.
-    recursive logical function test_completion(string, collection, predicate) result(valid)
+    recursive logical function is_exact_completion(string, collection, predicate) result(valid)
         character(len=*), intent(in) :: string
         type(completion_table_type), intent(in) :: collection
         procedure(completion_predicate), optional :: predicate
@@ -1170,7 +1170,7 @@ contains
         ! Finally, check the predicate.
         valid = .true.
         if (present(predicate)) valid = predicate(tem)
-    end function test_completion
+    end function is_exact_completion
 
     ! ------------------------------------------------------------------
     ! Completion tables operating on quoted text
@@ -1212,7 +1212,7 @@ contains
         select case (action)
         case (COMPLETE_TEST)
             ! test-completion
-            if (test_completion(ustring, inner, predicate)) result = value_type(.true.)
+            if (is_exact_completion(ustring, inner, predicate)) result = value_type(.true.)
         case (COMPLETE_BOUNDARIES)
             qsuffix = ""
             if (present(suffix)) qsuffix = suffix
@@ -1446,7 +1446,7 @@ contains
     !> boundaries) for other tables.  If ACTION is COMPLETE_TRY, this
     !> works like `try_completion'; if it is COMPLETE_ALL, like
     !> `all_completions'; and COMPLETE_TEST makes it work like
-    !> `test_completion'.  Port of minibuffer.el:complete-with-action.
+    !> `is_exact_completion'.  Port of minibuffer.el:complete-with-action.
     recursive subroutine complete_with_action(action, table, string, result, status, predicate, suffix)
         integer, intent(in) :: action
         type(completion_table_type), intent(in) :: table
@@ -1475,7 +1475,7 @@ contains
         case (COMPLETE_ALL)
             call all_completions(string, table, result, status, predicate)
         case (COMPLETE_TEST)
-            if (test_completion(string, table, predicate)) result = value_type(.true.)
+            if (is_exact_completion(string, table, predicate)) result = value_type(.true.)
         case default
             continue
         end select
@@ -1588,7 +1588,7 @@ contains
 
         if (.not. strict .and. action == COMPLETE_TEST) then
             ! Ignore pred1 since it doesn't really have to apply anyway.
-            if (test_completion(string, table, predicate)) result = value_type(.true.)
+            if (is_exact_completion(string, table, predicate)) result = value_type(.true.)
             return
         end if
 

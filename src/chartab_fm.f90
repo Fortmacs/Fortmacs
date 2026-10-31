@@ -128,7 +128,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> A new slot for a char-table.  Not a port.
-    subroutine new_table(h)
+    subroutine make_table(h)
         type(handle_type), intent(out) :: h
         type(char_table_type), allocatable :: grown(:)
 
@@ -143,7 +143,7 @@ contains
         end if
 
         tables(h%index) = char_table_type()
-    end subroutine new_table
+    end subroutine make_table
 
     !> The slot of char-table H, or a `wrong_type_argument' error
     !> (char-table-p).  Port of chartab.c:CHECK_CHAR_TABLE.
@@ -234,14 +234,14 @@ contains
     !> Give sub char-table K of table I, and the deeper ones it holds,
     !> back to the pool's free list.  Not a port: upstream leaves them to
     !> GC.
-    recursive subroutine release_sub(i, k)
+    recursive subroutine free_sub(i, k)
         integer(int64), intent(in) :: i
         integer, intent(in) :: k
         integer, allocatable :: grown(:)
         integer :: j
 
         do j = 1, size(tables(i)%pool(k)%sub)
-            if (tables(i)%pool(k)%sub(j) > 0) call release_sub(i, tables(i)%pool(k)%sub(j))
+            if (tables(i)%pool(k)%sub(j) > 0) call free_sub(i, tables(i)%pool(k)%sub(j))
         end do
 
         tables(i)%pool(k)%sub = 0
@@ -256,7 +256,7 @@ contains
 
         tables(i)%nfree = tables(i)%nfree + 1
         tables(i)%free(tables(i)%nfree) = k
-    end subroutine release_sub
+    end subroutine free_sub
 
     !> Set element IDX (0-based) of sub char-table K of table I (the top
     !> level when K is 0) to the value VAL, releasing a sub char-table it
@@ -278,7 +278,7 @@ contains
             tables(i)%pool(k)%contents(idx + 1) = val
         end if
 
-        if (s > 0) call release_sub(i, s)
+        if (s > 0) call free_sub(i, s)
     end subroutine set_element
 
     !> Element IDX (0-based) of sub char-table K of table I (the top level
@@ -367,7 +367,7 @@ contains
             return
         end if
 
-        call new_table(h)
+        call make_table(h)
 
         associate (t => tables(h%index))
             t%purpose = purpose
@@ -398,7 +398,7 @@ contains
         end if
 
         tmp = tables(i)
-        call new_table(copy)
+        call make_table(copy)
         call move_alloc_table(tmp, tables(copy%index))
     end subroutine copy_char_table
 

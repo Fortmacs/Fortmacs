@@ -306,7 +306,7 @@ module ansi_color_fm
         !> Make FN the current buffer's value (set_local).
         procedure :: set_local => face_function_set_local
         !> The current buffer's value.
-        procedure :: get => face_function_get
+        procedure :: current => current_face_function
     end type ansi_color_apply_face_function_type
 
     !> See the type.  Port of ansi-color.el ansi-color-apply-face-function.
@@ -417,7 +417,7 @@ contains
     end subroutine face_function_set_local
 
     ! The current buffer's value of the face function.  Not a port.
-    function face_function_get(self) result(fn)
+    function current_face_function(self) result(fn)
         class(ansi_color_apply_face_function_type), intent(in) :: self
         procedure(ansi_color_face_proc), pointer :: fn
         integer :: i
@@ -428,7 +428,7 @@ contains
         do i = 1, size(self%entries)
             if (self%entries(i)%serial == buffers(cur)%serial) fn => self%entries(i)%fn
         end do
-    end function face_function_get
+    end function current_face_function
 
     ! Forget the current buffer's values (kill-all-local-variables).
     ! Not a port.
@@ -1042,7 +1042,7 @@ contains
 
         preserve = .false.
         if (present(preserve_sequences)) preserve = preserve_sequences
-        apply => ansi_color_apply_face_function%get()
+        apply => ansi_color_apply_face_function%current()
         k = ensure_region_context(begin)
         face_vec = contexts(k)%region_face_vec
         start_marker = contexts(k)%region_marker

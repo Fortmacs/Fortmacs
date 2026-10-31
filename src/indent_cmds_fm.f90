@@ -639,7 +639,7 @@ contains
         savedb = buffers(cur)%begv
         savedz = buffers(cur)%text%z - buffers(cur)%zv
         call widen()
-        region_fn => indent_region_function%get()
+        region_fn => indent_region_function%current()
 
         if (associated(region_fn)) then
             call region_fn(start, end, status)

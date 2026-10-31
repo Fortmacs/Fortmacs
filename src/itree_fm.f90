@@ -1234,7 +1234,7 @@ contains
         end do
     end subroutine report_overlay_modification
 
-    !> Call each function of LIST with OVERLAY, AFTER, ARG1, ARG2 and, if
+    !> Execute each function of LIST with OVERLAY, AFTER, ARG1, ARG2 and, if
     !> present, ARG3.  Port of buffer.c:call_overlay_mod_hooks.
     recursive subroutine execute_overlay_mod_hooks(list, overlay, after, arg1, arg2, status, arg3)
         type(value_type), intent(in) :: list

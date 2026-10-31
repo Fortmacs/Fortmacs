@@ -566,7 +566,7 @@ contains
 
     !> Add FROM and TO to `query_replace_defaults'.  Port of the
     !> `add_to_history' calls on `query_replace_defaults' (KEEP-ALL .true.).
-    subroutine push_defaults(from, to)
+    subroutine add_defaults(from, to)
         character(len=*), intent(in) :: from, to
         type(replace_pair_type), allocatable :: longer(:)
         integer :: n, k
@@ -588,11 +588,11 @@ contains
         end do
 
         call move_alloc(longer, query_replace_defaults)
-    end subroutine push_defaults
+    end subroutine add_defaults
 
     !> Append `s' to the list `list' (allocated, `n' used) unless absent.
     !> Not a port.
-    subroutine push_string(list, n, s)
+    subroutine add_string(list, n, s)
         type(minibuffer_string_type), allocatable, intent(inout) :: list(:)
         integer, intent(inout) :: n
         character(len=*), intent(in) :: s
@@ -611,7 +611,7 @@ contains
 
         n = n + 1
         list(n)%s = s
-    end subroutine push_string
+    end subroutine add_string
 
     !> The region's text, if `is_use_region'.  Not a port.
     subroutine region_text(text, found)
@@ -643,13 +643,13 @@ contains
         allocate (list(4))
         n = 0
         call region_text(s, found)
-        if (found) call push_string(list, n, s)
+        if (found) call add_string(list, n, s)
         call find_tag_default(s, found)
-        if (found) call push_string(list, n, s)
+        if (found) call add_string(list, n, s)
         call history_head("search_ring", s, found)
-        if (found) call push_string(list, n, s)
+        if (found) call add_string(list, n, s)
         call history_head(query_replace_from_history_variable, s, found)
-        if (found) call push_string(list, n, s)
+        if (found) call add_string(list, n, s)
     end subroutine query_replace_read_from_suggestions
 
     !> Return a list of standard suggestions for `read_regexp'.
@@ -668,17 +668,17 @@ contains
         allocate (list(6))
         n = 0
         call region_text(s, found)
-        if (found) call push_string(list, n, s)
+        if (found) call add_string(list, n, s)
         call find_tag_default_as_regexp(s, found)
-        if (found) call push_string(list, n, s)
+        if (found) call add_string(list, n, s)
         call find_tag_default_as_identifier_regexp(s, found)
-        if (found) call push_string(list, n, s)
+        if (found) call add_string(list, n, s)
         call history_head("regexp_search_ring", s, found)
-        if (found) call push_string(list, n, s)
+        if (found) call add_string(list, n, s)
         call history_head("search_ring", s, found)
-        call push_string(list, n, regexp_quote(s))
+        call add_string(list, n, regexp_quote(s))
         call history_head(query_replace_from_history_variable, s, found)
-        if (found) call push_string(list, n, s)
+        if (found) call add_string(list, n, s)
     end subroutine read_regexp_suggestions
 
     !> Read and return a regular expression as a string.
@@ -766,7 +766,7 @@ contains
                 if (suggestions(j)%s == s .and. len(suggestions(j)%s) == len(s)) dup = .true.
             end do
 
-            if (.not. dup) call push_string(suggestions, n, s)
+            if (.not. dup) call add_string(suggestions, n, s)
         end subroutine add_suggestion
 
         ! (string-match-p ":[ \t]*\\'" prompt)
@@ -900,7 +900,7 @@ contains
 
         if (.not. have_to) return
         call add_to_history(query_replace_to_history_variable, to, keep_all=.true.)
-        call push_defaults(from, to)
+        call add_defaults(from, to)
         call query_replace_compile_replacement(to, regexp_flag, counted, status)
     end subroutine query_replace_read_from
 
@@ -924,7 +924,7 @@ contains
         history_add_new_input = saved_add
         if (.not. status%ok()) return
         call add_to_history(query_replace_to_history_variable, to, keep_all=.true.)
-        call push_defaults(from, to)
+        call add_defaults(from, to)
         call query_replace_compile_replacement(to, regexp_flag, counted, status)
     end subroutine query_replace_read_to
 

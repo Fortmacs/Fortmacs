@@ -417,7 +417,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Append S to LIST.  Not a port.
-    subroutine push(list, s)
+    subroutine add(list, s)
         type(vc_string_type), allocatable, intent(inout) :: list(:)
         character(len=*), intent(in) :: s
         type(vc_string_type), allocatable :: grown(:)
@@ -429,7 +429,7 @@ contains
         grown(1:n) = list
         grown(n + 1)%s = s
         call move_alloc(grown, list)
-    end subroutine push
+    end subroutine add
 
     !> A list of the one string S.  Not a port.
     subroutine one(list, s)
@@ -1137,7 +1137,7 @@ contains
             if (is_eob()) exit
             call diff_find_file_name(name, found, status, noprompt=.true.)
             if (.not. status%ok()) exit
-            if (found) call push(fs%files, name)
+            if (found) call add(fs%files, name)
         end do
 
         call goto_char(saved)
@@ -1497,7 +1497,7 @@ contains
 
             if (allocated(fs%only_files)) then
                 do i = 1, size(fs%only_files)
-                    if (.not. vc_registered(fs%only_files(i)%s)) call push(register, fs%only_files(i)%s)
+                    if (.not. vc_registered(fs%only_files(i)%s)) call add(register, fs%only_files(i)%s)
                 end do
             end if
 
@@ -2060,11 +2060,11 @@ contains
                     if (.not. allocated(buffers(all(j)%index)%filename)) cycle
 
                     if (index(buffers(all(j)%index)%filename, files(k)%s) == 1) then
-                        call push(flist, buffers(all(j)%index)%filename)
+                        call add(flist, buffers(all(j)%index)%filename)
                     end if
                 end do
             else
-                call push(flist, files(k)%s)
+                call add(flist, files(k)%s)
             end if
         end do
     end subroutine with_properties_begin
@@ -2227,7 +2227,7 @@ contains
                 call vc_working_revision(files(k)%s, wrev, found)
 
                 if (is_file_directory(files(k)%s) .or. .not. (found .and. wrev == "0")) then
-                    call push(filtered, files(k)%s)
+                    call add(filtered, files(k)%s)
                 else if (present(rev1) .or. present(rev2)) then
                     ! This file is added but not yet committed; there is
                     ! no repository version to diff against.
@@ -2237,7 +2237,7 @@ contains
                     ! We regard this as "changed".  Diff it against
                     ! /dev/null.
                     call vc_switches(0, "diff", sw)
-                    call push(sw, "/dev/null")
+                    call add(sw, "/dev/null")
 
                     if (async) then
                         call vc_do_command(VC_DEST_CURRENT, VC_OKSTATUS_ASYNC, "diff", one_string(files(k)%s), &
@@ -2634,7 +2634,7 @@ contains
 
         do k = 1, size(fs%files)
             if (is_file_directory(fs%files(k)%s)) then
-                call push(dirs, file_name_as_directory(fs%files(k)%s))
+                call add(dirs, file_name_as_directory(fs%files(k)%s))
             else
                 buf = get_file_buffer(fs%files(k)%s)
                 if (buf%index /= 0) bufs = [bufs, buf]
@@ -3250,7 +3250,7 @@ contains
 
             do j = k, size(files)
                 if (backends(j) == b) then
-                    call push(group, files(j)%s)
+                    call add(group, files(j)%s)
                     backends(j) = -1
                 end if
             end do
@@ -3475,7 +3475,7 @@ contains
             if (opt(first_only) .and. size(files) > 0) return
 
             if (.not. is_file_directory(file)) then
-                if (vc_registered(file)) call push(files, file)
+                if (vc_registered(file)) call add(files, file)
                 return
             end if
 

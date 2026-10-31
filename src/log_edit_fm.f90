@@ -522,13 +522,13 @@ contains
     end function format_prompt
 
     ! The position of marker M, which is then freed.  Not a port.
-    integer(int64) function release(m)
+    integer(int64) function free_marker_position(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
 
-        call marker_position(m, release, st)
+        call marker_position(m, free_marker_position, st)
         call free_marker(m, st)
-    end function release
+    end function free_marker_position
 
     ! The searches, telling whether they found a match (FOUND).  Not a port.
     recursive subroutine re_search_forward(regexp, found, status, bound, noerror)
@@ -2091,7 +2091,7 @@ contains
             end do
         end if
 
-        call goto_char(release(bound))
+        call goto_char(free_marker_position(bound))
         case_fold_search = saved_case
     end subroutine log_edit_changelog_insert_entries
 
@@ -2137,7 +2137,7 @@ contains
 
                 if (k > 0) then
                     n = size(log_entries(k)%files)
-                    call append_file(log_entries(k)%files, files(i)%s)
+                    call add_file(log_entries(k)%files, files(i)%s)
                 else
                     ! (push ...): the newest first, as reversed below.
                     n = size(log_entries)
@@ -2146,7 +2146,7 @@ contains
                     grown(1)%beg = entries%beg(j)
                     grown(1)%end = entries%end(j)
                     allocate (grown(1)%files(0))
-                    call append_file(grown(1)%files, files(i)%s)
+                    call add_file(grown(1)%files, files(i)%s)
 
                     do m = 1, n
                         grown(m + 1) = log_entries(m)
@@ -2174,7 +2174,7 @@ contains
 
     contains
 
-        subroutine append_file(list, f)
+        subroutine add_file(list, f)
             type(log_edit_string_type), allocatable, intent(inout) :: list(:)
             character(len=*), intent(in) :: f
             type(log_edit_string_type), allocatable :: more(:)
@@ -2188,7 +2188,7 @@ contains
 
             more(size(list) + 1)%s = f
             call move_alloc(more, list)
-        end subroutine append_file
+        end subroutine add_file
     end subroutine log_edit_insert_changelog_entries
 
     ! ------------------------------------------------------------------
@@ -2253,7 +2253,7 @@ contains
         call widen()
 
         if (narrowed) then
-            call narrow_to_region(release(rbeg), release(rend), st)
+            call narrow_to_region(free_marker_position(rbeg), free_marker_position(rend), st)
         else
             call free_marker(rbeg, st)
             call free_marker(rend, st)
@@ -2266,7 +2266,7 @@ contains
             if (.not. looking_at(achar(10), status)) call insert(achar(10), status)
         end if
 
-        call goto_char(release(here))
+        call goto_char(free_marker_position(here))
     end function log_edit_set_header
 
     !> Extract headers from VC commit COMMENT to form command line arguments.
@@ -2440,7 +2440,7 @@ contains
             on = log_edit_set_header("Summary", summary, status)
         end block body
 
-        call goto_char(release(here))
+        call goto_char(free_marker_position(here))
     end subroutine log_edit_toggle_amend
 
     ! ------------------------------------------------------------------
@@ -2715,7 +2715,7 @@ contains
 
         if (beg == end) then
             ! Not a ChangeLog entry, fill as normal.
-            call goto_char(release(opoint))
+            call goto_char(free_marker_position(opoint))
             return
         end if
 
@@ -2785,8 +2785,8 @@ contains
                     call replace_string_in_region(NBSP, " ", n, status, mpos(space_beg), mpos(space_end))
                 end if
 
-                n = release(space_beg)
-                n = release(space_end)
+                n = free_marker_position(space_beg)
+                n = free_marker_position(space_end)
             end if
 
             if (.not. status%ok() .or. .not. have_subprograms) exit
@@ -2794,13 +2794,13 @@ contains
             call change_log_read_subprograms(subprograms, status, mpos(end_marker))
             if (status%ok()) call delete_region(mpos(subprograms_beg), point(), status)
             if (status%ok()) call log_edit_insert_filled_subprograms(subprograms, status)
-            n = release(subprograms_beg)
+            n = free_marker_position(subprograms_beg)
             if (.not. status%ok()) exit
             beg = point()
         end do
 
-        n = release(end_marker)
-        call goto_char(release(opoint))
+        n = free_marker_position(end_marker)
+        call goto_char(free_marker_position(opoint))
         if (status%ok()) done = .true.
     end subroutine log_edit_fill_entry
 

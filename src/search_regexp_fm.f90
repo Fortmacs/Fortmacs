@@ -27,7 +27,7 @@
 submodule(search_fm) search_regexp_fm
     use commands_fm, only: commands
     use regex_emacs_fm, only: re_pattern_buffer_type, re_registers_type, re_subject_type, re_compile_pattern, &
-                              re_search, re_match, subject_from_string, subject_from_buffer
+                              re_search, re_match, string_to_subject, buffer_to_subject
     use syntax_fm, only: syntax_table, syntax_modiff
     use minibuf_fm, only: read_string
     use casefiddle_fm, only: upcase_string, upcase_initials_string, upcase_region, upcase_initials_region, &
@@ -211,7 +211,7 @@ contains
     if (running_asynch_code) call save_search_regs()
     call compile_pattern(regexp, case_fold_search%value, posix, k, status)
     if (.not. status%ok()) return
-    subj = subject_from_buffer()
+    subj = buffer_to_subject()
 
     associate (b => buffers(cur))
         call freeze_pattern(k)
@@ -237,7 +237,7 @@ contains
     idx = 0
     call compile_pattern(regexp, fold, .false., k, status)
     if (.not. status%ok()) return
-    subj = subject_from_string(string)
+    subj = string_to_subject(string)
     call freeze_pattern(k)
     val = re_search(searchbufs(k)%buf, subj, 0_int64, len(string, kind=int64), stop=len(string, kind=int64))
     call unfreeze_pattern(k)
@@ -263,11 +263,11 @@ contains
     if (present(string)) then
         pos_byte = string_index_to_offset(string, pos)
         limit_byte = string_index_to_offset(string, limit)
-        subj = subject_from_string(string)
+        subj = string_to_subject(string)
     else
         pos_byte = char_to_byte(pos) - buffers(cur)%begv_byte
         limit_byte = char_to_byte(limit) - buffers(cur)%begv_byte
-        subj = subject_from_buffer()
+        subj = buffer_to_subject()
     end if
 
     call freeze_pattern(k)
@@ -306,7 +306,7 @@ contains
     pos_byte = string_index_to_offset(string, pos)
     call compile_pattern(regexp, case_fold_search%value, posix, k, status)
     if (.not. status%ok()) return
-    subj = subject_from_string(string)
+    subj = string_to_subject(string)
     call freeze_pattern(k)
     val = re_search(searchbufs(k)%buf, subj, pos_byte, len(string, kind=int64) - pos_byte, regs, &
                     len(string, kind=int64))
@@ -333,7 +333,7 @@ contains
     np = 0
     call compile_pattern(string, fold, posix, k, status)
     if (.not. status%ok()) return
-    subj = subject_from_buffer()
+    subj = buffer_to_subject()
     begv_byte = buffers(cur)%begv_byte
     n = n_in
     pos = pos_in

@@ -411,7 +411,7 @@ contains
     if (associated(local_tables(cur)%table)) table => local_tables(cur)%table
     end procedure local_abbrev_table
 
-    module procedure set_local_abbrev_table
+    module procedure abbrev_table_set_local
     type(local_table_type), allocatable :: grown(:)
 
     if (cur == 0) return
@@ -425,18 +425,18 @@ contains
 
     local_tables(cur)%serial = buffers(cur)%serial
     local_tables(cur)%table => table
-    end procedure set_local_abbrev_table
+    end procedure abbrev_table_set_local
 
     !> Forget the current buffer's local abbrev table, as
     !> kill-all-local-variables resets BVAR abbrev_table to its default.
     !> Not a port.
-    subroutine kill_local_abbrev_table()
+    subroutine abbrev_table_kill_local()
         if (cur == 0) return
         if (.not. allocated(local_tables)) return
         if (cur > size(local_tables, kind=int64)) return
         local_tables(cur)%serial = 0
         local_tables(cur)%table => null()
-    end subroutine kill_local_abbrev_table
+    end subroutine abbrev_table_kill_local
 
     module procedure abbrev_no_self_insert
     integer :: k
@@ -1728,7 +1728,7 @@ contains
     commands%define_mode_abbrev%execute => cmd_define_mode_abbrev
     commands%expand_abbrev%execute => cmd_expand_abbrev
     commands%unexpand_abbrev%execute => cmd_unexpand_abbrev
-    call add_local_variables_killer(kill_local_abbrev_table)
+    call add_local_variables_killer(abbrev_table_kill_local)
     call add_save_some_buffers_function(abbrev_possibly_save)
     end procedure syms_of_abbrev
 end submodule abbrev_cmds_fm

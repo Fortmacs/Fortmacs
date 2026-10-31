@@ -36,7 +36,7 @@ module minibuf_table_fm
               completion_requote_proc, completion_exit_function_proc, capf_perform_proc
 
     !> Actions passed to a completion function (programmed completion): as
-    !> `try_completion' (COMPLETE_TRY), `all_completions' (COMPLETE_ALL), `test_completion'
+    !> `try_completion' (COMPLETE_TRY), `all_completions' (COMPLETE_ALL), `is_exact_completion'
     !> (COMPLETE_TEST), and the boundaries of SUFFIX (COMPLETE_BOUNDARIES).
     integer, parameter, public :: COMPLETE_TRY = 0, COMPLETE_ALL = 1, COMPLETE_TEST = 2, &
                                   COMPLETE_BOUNDARIES = 3

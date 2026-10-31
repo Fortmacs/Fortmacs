@@ -104,7 +104,7 @@ module expression_motion_fm
         !> clears it.
         procedure :: set_local => forward_expression_set_local
         !> The value in the current buffer (null when unset).
-        procedure :: get => forward_expression_get
+        procedure :: current => current_forward_expression
         !> Whether the current buffer has its own value.
         procedure :: local_p => is_forward_expression_local
         !> Make the current buffer use the default again.
@@ -146,7 +146,7 @@ module expression_motion_fm
         !> clears it.
         procedure :: set_local => bod_set_local
         !> The value in the current buffer (null when unset).
-        procedure :: get => bod_get
+        procedure :: current => current_bod
         !> Make the current buffer use the default again.
         procedure :: kill_local => bod_kill_local
     end type beginning_of_subprogram_function_type
@@ -282,7 +282,7 @@ contains
     end function local_entry
 
     ! Not a port.
-    function forward_expression_get(self) result(fn)
+    function current_forward_expression(self) result(fn)
         class(forward_expression_function_type), intent(in) :: self
         procedure(forward_expression_proc), pointer :: fn
         integer :: i
@@ -294,7 +294,7 @@ contains
         else
             fn => self%value
         end if
-    end function forward_expression_get
+    end function current_forward_expression
 
     ! Not a port.
     logical function is_forward_expression_local(self)
@@ -378,7 +378,7 @@ contains
     end function bod_entry
 
     ! Not a port.
-    function bod_get(self) result(fn)
+    function current_bod(self) result(fn)
         class(beginning_of_subprogram_function_type), intent(in) :: self
         procedure(beginning_of_subprogram_proc), pointer :: fn
         integer :: i
@@ -390,7 +390,7 @@ contains
         else
             fn => self%value
         end if
-    end function bod_get
+    end function current_bod
 
     ! Not a port.
     subroutine bod_kill_local(self)
@@ -446,7 +446,7 @@ contains
         logical, intent(in), optional :: interactive
         procedure(forward_expression_proc), pointer :: fn
 
-        fn => forward_expression_function%get()
+        fn => forward_expression_function%current()
 
         if (associated(fn)) then
             call fn(arg, status)
@@ -667,7 +667,7 @@ contains
                 end if
             end if
 
-            fn => forward_expression_function%get()
+            fn => forward_expression_function%current()
             default_fn = .not. associated(fn)
             if (.not. default_fn) default_fn = associated(fn, forward_expression_default_function)
 
@@ -969,7 +969,7 @@ contains
 
         status = status_type()
         found = .false.
-        fn => beginning_of_subprogram_function%get()
+        fn => beginning_of_subprogram_function%current()
 
         if (associated(fn)) then
             call fn(arg, found, status)
@@ -1148,7 +1148,7 @@ contains
         call forward_expression(1_int64, status)
     end subroutine end_of_subprogram_default
 
-    ! Call `end_of_subprogram_function'.
+    ! Execute `end_of_subprogram_function'.
     ! Not a port.
     recursive subroutine execute_end_of_subprogram_function(status)
         type(status_type), intent(out) :: status

@@ -871,7 +871,7 @@ contains
         if (.not. found .and. allocated(self%entries)) found = find_entry(self%entries, e) > 0
     end function hook_member_entry
 
-    !> Run each function of the hook in the current buffer, in order,
+    !> Execute each function of the hook in the current buffer, in order,
     !> stopping at the first error.  In a buffer with its own functions,
     !> those run, with the default functions in the place of `t'.  BEG,
     !> END and OLD_LEN are the arguments for the functions of the kinds
@@ -924,7 +924,7 @@ contains
         end do
     end subroutine hook_execute_entries
 
-    !> Call the function of E with the arguments its kind takes.  A
+    !> Execute the function of E with the arguments its kind takes.  A
     !> normal hook's functions are commands: they run without a prefix
     !> argument.  Not a port.
     recursive subroutine execute_entry(e, beg, end, old_len, status)
@@ -1060,7 +1060,7 @@ contains
         call self%remove_entry(e, local)
     end subroutine hook_remove
 
-    !> Run each function of the hook, in order, stopping at the first
+    !> Execute each function of the hook, in order, stopping at the first
     !> error.  In a buffer with its own functions, those run, with the
     !> default functions in the place of `t'.  Port of eval.c:run_hook
     !> (via run_hook_with_args).
@@ -1071,7 +1071,7 @@ contains
         call self%execute_entries(0_int64, 0_int64, 0_int64, status)
     end subroutine hook_execute
 
-    !> Run each function of the hook as `hook_execute' does, but an error in
+    !> Execute each function of the hook as `hook_execute' does, but an error in
     !> one doesn't stop the others: REPORT is told of it, and the function
     !> is removed from the hook, from the current buffer's own functions
     !> if it is one of them, else from the default ones.  Port of
@@ -1179,7 +1179,7 @@ contains
         call self%remove_entry(e, local)
     end subroutine change_hook_remove
 
-    !> Call each function of the hook with BEG and END, in order, stopping
+    !> Execute each function of the hook with BEG and END, in order, stopping
     !> at the first error; buffers' own functions as `hook_execute'.
     !> Port of eval.c:Frun_hook_with_args.
     recursive subroutine change_hook_execute(self, beg, end, status)
@@ -1224,7 +1224,7 @@ contains
         call self%remove_entry(e, local)
     end subroutine after_change_hook_remove
 
-    !> Call each function of the hook with BEG, END and OLD_LEN, in order,
+    !> Execute each function of the hook with BEG, END and OLD_LEN, in order,
     !> stopping at the first error; buffers' own functions as
     !> `hook_execute'.  Port of eval.c:Frun_hook_with_args.
     recursive subroutine after_change_hook_execute(self, beg, end, old_len, status)
@@ -1273,7 +1273,7 @@ contains
         call self%remove_entry(e, local)
     end subroutine position_hook_remove
 
-    !> Call each function of the hook with POS, in order, stopping at the
+    !> Execute each function of the hook with POS, in order, stopping at the
     !> first error; buffers' own functions as `hook_execute'.  Port of
     !> eval.c:Frun_hook_with_args.
     recursive subroutine position_hook_execute(self, pos, status, safe)
@@ -1357,16 +1357,16 @@ contains
 
                 do j = 1, size(self%entries)
                     if (self%entries(j)%is_t) cycle
-                    call push(self%entries(j))
+                    call add(self%entries(j))
                 end do
             else
-                call push(entries(i))
+                call add(entries(i))
             end if
         end do
 
     contains
 
-        subroutine push(e)
+        subroutine add(e)
             type(hook_entry_type), intent(in) :: e
             type(region_entry_type), allocatable :: grown(:)
 
@@ -1375,7 +1375,7 @@ contains
             grown(size(fns) + 1)%fn => e%region_fn
             call move_alloc(grown, fns)
             n = n + 1
-        end subroutine push
+        end subroutine add
     end function region_hook_functions
 
     !> Add FN to the hook, as `hook_add' does.  Port of subr.el:add-hook.
@@ -1439,16 +1439,16 @@ contains
 
                 do j = 1, size(self%entries)
                     if (self%entries(j)%is_t) cycle
-                    call push(self%entries(j))
+                    call add(self%entries(j))
                 end do
             else
-                call push(entries(i))
+                call add(entries(i))
             end if
         end do
 
     contains
 
-        subroutine push(e)
+        subroutine add(e)
             type(hook_entry_type), intent(in) :: e
             type(capf_entry_type), allocatable :: grown(:)
 
@@ -1457,7 +1457,7 @@ contains
             grown(size(fns) + 1)%fn => e%capf_fn
             call move_alloc(grown, fns)
             n = n + 1
-        end subroutine push
+        end subroutine add
     end function capf_hook_functions
 
     !> Add FN to the hook, as `hook_add' does.  Port of subr.el:add-hook.
@@ -1494,7 +1494,7 @@ contains
         found = self%member_entry(e)
     end function until_success_hook_member
 
-    !> Run the hook's functions in the current buffer, in order, until one
+    !> Execute the hook's functions in the current buffer, in order, until one
     !> of them succeeds (DONE); an error stops the hook.  Port of
     !> eval.c:Frun_hook_with_args_until_success.
     recursive subroutine until_success_hook_execute(self, done, status)
@@ -1575,7 +1575,7 @@ contains
         call self%remove_entry(e, local)
     end subroutine string_hook_remove
 
-    !> Call each function of the hook with STRING, in order, stopping at
+    !> Execute each function of the hook with STRING, in order, stopping at
     !> the first error; buffers' own functions as `hook_execute'.  Port of
     !> eval.c:Frun_hook_with_args.
     recursive subroutine string_hook_execute(self, string, status)
@@ -1724,7 +1724,7 @@ contains
         call set_error(status, FM_VOID_FUNCTION, name)
     end function property_function
 
-    !> Call the property function FN (a name) with the positions A and B.
+    !> Execute the property function FN (a name) with the positions A and B.
     !> Port of eval.c:Ffuncall (for a property function of two positions).
     recursive subroutine execute_property_function(fn, a, b, status)
         type(value_type), intent(in) :: fn
@@ -1743,7 +1743,7 @@ contains
         call p%positions(a, b, status)
     end subroutine execute_property_function
 
-    !> Call the property function FN (a name) with OVERLAY, AFTER, BEG,
+    !> Execute the property function FN (a name) with OVERLAY, AFTER, BEG,
     !> END and, if present, OLD_LEN.  Port of eval.c:Ffuncall (for the
     !> functions of overlay properties).
     recursive subroutine execute_overlay_change_function(fn, overlay, after, beg, end, status, old_len)

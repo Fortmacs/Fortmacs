@@ -772,7 +772,7 @@ contains
                 ! a text property are shown, because 20.x did it that way
                 ! (an invisible overlay's strings come at its end).
                 if (ov%index == 0) call load_overlay_strings(p, s%items)
-                if (ellipsis) call push_item(s%items, ITEM_ELLIPSIS, "...")
+                if (ellipsis) call add_item(s%items, ITEM_ELLIPSIS, "...")
                 call hide(newpos)
             else
                 disp = get_char_property(p, value_type(name="display"))
@@ -782,7 +782,7 @@ contains
                     call load_overlay_strings(p, s%items)
 
                     if (len(xstring(disp)) > 0) then
-                        call push_item(s%items, ITEM_DISPLAY_STRING, xstring(disp))
+                        call add_item(s%items, ITEM_DISPLAY_STRING, xstring(disp))
                         call string_display_props(disp, s%items(size(s%items)))
                         call hide(endpos, p + 1)
                     else
@@ -796,7 +796,7 @@ contains
                 else if (space_spec(disp, width, align_to)) then
                     endpos = next_single_char_property_change(p, value_type(name="display"), zv)
                     call load_overlay_strings(p, s%items)
-                    call push_item(s%items, ITEM_STRETCH, "", width, align_to)
+                    call add_item(s%items, ITEM_STRETCH, "", width, align_to)
                     call hide(endpos, p + 1)
                 else
                     call load_overlay_strings(p, s%items)
@@ -903,7 +903,7 @@ contains
         end do
 
         do k = 1, n
-            call push_overlay_string(items, strings(k))
+            call add_overlay_string(items, strings(k))
         end do
 
     contains
@@ -984,7 +984,7 @@ contains
     !> for each run of characters whose `display' property is a `(space
     !> ...)' spec (handle_display_prop on an overlay string; other
     !> display specs in overlay strings are Deferred).  Not a port.
-    subroutine push_overlay_string(items, string)
+    subroutine add_overlay_string(items, string)
         type(display_item_type), allocatable, intent(inout) :: items(:)
         type(value_type), intent(in) :: string
         integer(int64), allocatable :: starts(:), ends(:)
@@ -1000,14 +1000,14 @@ contains
         do k = 1, size(starts)
             if (fringe_spec(textget(plists(k), value_type(name="display")))) then
                 ! Not shown on a terminal, which has no fringes.
-                call push_text(pos, starts(k))
+                call add_text(pos, starts(k))
                 pos = ends(k)
                 cycle
             end if
 
             if (.not. space_spec(textget(plists(k), value_type(name="display")), width, align_to)) cycle
-            call push_text(pos, starts(k))
-            call push_item(items, ITEM_STRETCH, "", width, align_to)
+            call add_text(pos, starts(k))
+            call add_item(items, ITEM_STRETCH, "", width, align_to)
 
             associate (it => items(size(items)))
                 it%from_overlay = .true.
@@ -1021,21 +1021,21 @@ contains
             pos = ends(k)
         end do
 
-        call push_text(pos, nchars)
+        call add_text(pos, nchars)
 
     contains
 
         !> The characters FROM to TO of STRING as an overlay string item.
-        subroutine push_text(from, to)
+        subroutine add_text(from, to)
             integer(int64), intent(in) :: from, to
             type(value_type) :: part
 
             if (to <= from) return
             part = propertized_substring(string, from, to)
-            call push_item(items, ITEM_OVERLAY_STRING, xstring(part))
+            call add_item(items, ITEM_OVERLAY_STRING, xstring(part))
             call string_display_props(part, items(size(items)))
-        end subroutine push_text
-    end subroutine push_overlay_string
+        end subroutine add_text
+    end subroutine add_overlay_string
 
     !> Record in ITEM the runs of overlay string STRING's `face' and
     !> `cursor' properties, as byte ranges of its text.  Not a port.
@@ -1080,7 +1080,7 @@ contains
 
     !> Append an item of KIND with string STR (and for a stretch, WIDTH
     !> and ALIGN_TO) to ITEMS.  Not a port.
-    subroutine push_item(items, kind, str, width, align_to)
+    subroutine add_item(items, kind, str, width, align_to)
         type(display_item_type), allocatable, intent(inout) :: items(:)
         integer, intent(in) :: kind
         character(len=*), intent(in) :: str
@@ -1097,7 +1097,7 @@ contains
         if (present(width)) grown(n + 1)%width = width
         if (present(align_to)) grown(n + 1)%align_to = align_to
         call move_alloc(grown, items)
-    end subroutine push_item
+    end subroutine add_item
 
     !> Whether display property value V is a `(space . PROPS)' spec,
     !> with its width in columns, or the column to align to: `:width' N

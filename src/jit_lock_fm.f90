@@ -262,7 +262,7 @@ contains
         call jit_lock_fontify_now(status, start, vend)
     end subroutine jit_lock_function
 
-    !> Run `jit_lock_functions' on BEG..END: TIGHT_BEG and TIGHT_END give
+    !> Execute `jit_lock_functions' on BEG..END: TIGHT_BEG and TIGHT_END give
     !> the part all of them fontified, LOOSE_BEG and LOOSE_END the part some
     !> of them did.  Port of jit-lock.el:jit-lock--run-functions.
     subroutine jit_lock_execute_functions(beg, end, tight_beg, tight_end, loose_beg, loose_end, status)

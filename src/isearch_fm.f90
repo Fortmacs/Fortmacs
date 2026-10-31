@@ -301,11 +301,11 @@ module isearch_fm
         character(len=32) :: name = "isearch_search_fun_function"
     contains
         !> Set the current buffer's value to null (unset).
-        procedure, nopass :: clear_local => search_fun_clear_local
+        procedure, nopass :: kill_local => search_fun_kill_local
         !> Make FN the current buffer's value (set_local).
         procedure, nopass :: set_local => search_fun_set_local
         !> Set FN to the current buffer's value (null for the default).
-        procedure, nopass :: get => search_fun_get
+        procedure, nopass :: current => current_search_fun
     end type isearch_search_fun_function_type
 
     !> Function to call to wrap the search when search is failed.
@@ -319,11 +319,11 @@ module isearch_fm
         character(len=32) :: name = "isearch_wrap_function"
     contains
         !> Set the current buffer's value to null (unset).
-        procedure, nopass :: clear_local => wrap_clear_local
+        procedure, nopass :: kill_local => wrap_kill_local
         !> Make FN the current buffer's value (set_local).
         procedure, nopass :: set_local => wrap_set_local
         !> The current buffer's value (null when unset).
-        procedure, nopass :: get => wrap_get
+        procedure, nopass :: current => current_wrap
     end type isearch_wrap_function_type
 
     !> Function to save a function restoring the mode-specific Isearch
@@ -333,11 +333,11 @@ module isearch_fm
         character(len=32) :: name = "isearch_push_state_function"
     contains
         !> Set the current buffer's value to null (unset).
-        procedure, nopass :: clear_local => push_state_clear_local
+        procedure, nopass :: kill_local => push_state_kill_local
         !> Make FN the current buffer's value (set_local).
         procedure, nopass :: set_local => push_state_set_local
         !> The current buffer's value (null when unset).
-        procedure, nopass :: get => push_state_get
+        procedure, nopass :: current => current_push_state
     end type isearch_push_state_function_type
 
     !> Predicate to filter hits of Isearch and replace commands.
@@ -354,11 +354,11 @@ module isearch_fm
         character(len=32) :: name = "isearch_filter_predicate"
     contains
         !> Set the current buffer's value to null (unset).
-        procedure, nopass :: clear_local => filter_clear_local
+        procedure, nopass :: kill_local => filter_kill_local
         !> Make FN the current buffer's value (set_local).
         procedure, nopass :: set_local => filter_set_local
         !> The current buffer's value (null for the default).
-        procedure, nopass :: get => filter_get
+        procedure, nopass :: current => current_filter
     end type isearch_filter_predicate_type
 
     !> Function to call to display the search prompt.
@@ -368,11 +368,11 @@ module isearch_fm
         character(len=32) :: name = "isearch_message_function"
     contains
         !> Set the current buffer's value to null (unset).
-        procedure, nopass :: clear_local => message_clear_local
+        procedure, nopass :: kill_local => message_kill_local
         !> Make FN the current buffer's value (set_local).
         procedure, nopass :: set_local => message_set_local
         !> The current buffer's value (null when unset).
-        procedure, nopass :: get => message_get
+        procedure, nopass :: current => current_message_function
     end type isearch_message_function_type
 
     !> See the type.  Port of isearch.el isearch-message-function.
@@ -738,7 +738,7 @@ contains
 
         block
             procedure(isearch_push_state_proc), pointer :: push
-            push => isearch_push_state_function%get()
+            push => isearch_push_state_function%current()
             if (associated(push)) call push(s%pop_data, s%pop_fun)
         end block
     end function get_state
@@ -1089,7 +1089,7 @@ contains
         logical, intent(in), optional :: c_q_hack, ellipsis
         procedure(isearch_message_proc), pointer :: f
 
-        f => message_get()
+        f => current_message_function()
 
         if (associated(f)) then
             call f(flag(c_q_hack), flag(ellipsis))
@@ -1257,7 +1257,7 @@ contains
         procedure(isearch_search_proc), pointer :: fn
         procedure(isearch_search_fun_proc), pointer :: f
 
-        call isearch_search_fun_function%get(f)
+        call isearch_search_fun_function%current(f)
 
         if (associated(f)) then
             call f(fn)
@@ -1348,7 +1348,7 @@ contains
         integer(int64), intent(in) :: beg, end
         procedure(isearch_filter_proc), pointer :: f
 
-        f => isearch_filter_predicate%get()
+        f => isearch_filter_predicate%current()
         accepts = .true.
         if (associated(f)) accepts = f(beg, end)
     end function filter_accepts
@@ -1600,7 +1600,7 @@ contains
                 ! If already have what to search for, repeat it.
                 ! Set isearch-wrapped before calling isearch-wrap-function
                 isearch_wrapped = .true.
-                wrap => isearch_wrap_function%get()
+                wrap => isearch_wrap_function%current()
 
                 if (associated(wrap)) then
                     call wrap()
@@ -2554,14 +2554,14 @@ contains
     end subroutine search_fun_set_local
 
     ! Not a port.
-    subroutine search_fun_get(fn)
+    subroutine current_search_fun(fn)
         procedure(isearch_search_fun_proc), pointer, intent(out) :: fn
         integer :: k
 
         fn => null()
         k = local_slot(.false.)
         if (k > 0) fn => local_functions(k)%search_fun
-    end subroutine search_fun_get
+    end subroutine current_search_fun
 
     ! Not a port.
     subroutine wrap_set_local(fn)
@@ -2573,14 +2573,14 @@ contains
     end subroutine wrap_set_local
 
     ! Not a port.
-    function wrap_get() result(fn)
+    function current_wrap() result(fn)
         procedure(isearch_wrap_proc), pointer :: fn
         integer :: k
 
         fn => null()
         k = local_slot(.false.)
         if (k > 0) fn => local_functions(k)%wrap
-    end function wrap_get
+    end function current_wrap
 
     ! Not a port.
     subroutine push_state_set_local(fn)
@@ -2592,14 +2592,14 @@ contains
     end subroutine push_state_set_local
 
     ! Not a port.
-    function push_state_get() result(fn)
+    function current_push_state() result(fn)
         procedure(isearch_push_state_proc), pointer :: fn
         integer :: k
 
         fn => null()
         k = local_slot(.false.)
         if (k > 0) fn => local_functions(k)%push_state
-    end function push_state_get
+    end function current_push_state
 
     ! Not a port.
     subroutine message_set_local(fn)
@@ -2611,54 +2611,54 @@ contains
     end subroutine message_set_local
 
     ! Not a port.
-    function message_get() result(fn)
+    function current_message_function() result(fn)
         procedure(isearch_message_proc), pointer :: fn
         integer :: k
 
         fn => null()
         k = local_slot(.false.)
         if (k > 0) fn => local_functions(k)%message
-    end function message_get
+    end function current_message_function
 
     ! Not a port.
-    subroutine search_fun_clear_local()
+    subroutine search_fun_kill_local()
         integer :: k
 
         k = local_slot(.false.)
         if (k > 0) local_functions(k)%search_fun => null()
-    end subroutine search_fun_clear_local
+    end subroutine search_fun_kill_local
 
     ! Not a port.
-    subroutine wrap_clear_local()
+    subroutine wrap_kill_local()
         integer :: k
 
         k = local_slot(.false.)
         if (k > 0) local_functions(k)%wrap => null()
-    end subroutine wrap_clear_local
+    end subroutine wrap_kill_local
 
     ! Not a port.
-    subroutine push_state_clear_local()
+    subroutine push_state_kill_local()
         integer :: k
 
         k = local_slot(.false.)
         if (k > 0) local_functions(k)%push_state => null()
-    end subroutine push_state_clear_local
+    end subroutine push_state_kill_local
 
     ! Not a port.
-    subroutine filter_clear_local()
+    subroutine filter_kill_local()
         integer :: k
 
         k = local_slot(.false.)
         if (k > 0) local_functions(k)%filter => null()
-    end subroutine filter_clear_local
+    end subroutine filter_kill_local
 
     ! Not a port.
-    subroutine message_clear_local()
+    subroutine message_kill_local()
         integer :: k
 
         k = local_slot(.false.)
         if (k > 0) local_functions(k)%message => null()
-    end subroutine message_clear_local
+    end subroutine message_kill_local
 
     ! Not a port.
     subroutine filter_set_local(fn)
@@ -2670,14 +2670,14 @@ contains
     end subroutine filter_set_local
 
     ! Not a port.
-    function filter_get() result(fn)
+    function current_filter() result(fn)
         procedure(isearch_filter_proc), pointer :: fn
         integer :: k
 
         fn => null()
         k = local_slot(.false.)
         if (k > 0) fn => local_functions(k)%filter
-    end function filter_get
+    end function current_filter
 
     !> isearch-mode-map and global bindings.  Not a port.
     subroutine syms_of_isearch(global_map)

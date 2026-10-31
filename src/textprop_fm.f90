@@ -1379,7 +1379,7 @@ contains
     ! Read-only text
     ! ------------------------------------------------------------------
 
-    !> Run each function of LIST with START and END.  Port of
+    !> Execute each function of LIST with START and END.  Port of
     !> textprop.c:call_mod_hooks.
     recursive subroutine execute_mod_hooks(list, start, end, status)
         type(value_type), intent(in) :: list

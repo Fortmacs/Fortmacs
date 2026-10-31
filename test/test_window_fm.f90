@@ -434,7 +434,7 @@ contains
         selected_frame%root_window = null_handle()
     end subroutine leave_frame
 
-    !> Run `keys` (an is_key_valid string) through the command loop.
+    !> Execute `keys` (an is_key_valid string) through the command loop.
     subroutine execute_keys(keys)
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)

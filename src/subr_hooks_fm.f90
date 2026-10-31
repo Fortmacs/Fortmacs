@@ -160,7 +160,7 @@ contains
     ! in order for the expression primitives to automatically call
     ! `syntax_propertize' we need `parse_expression_lookup_properties' to be
     ! set first.
-    if (associated(syntax_propertize_function%get()) .and. .not. parse_expression_lookup_properties%local_p()) then
+    if (associated(syntax_propertize_function%current()) .and. .not. parse_expression_lookup_properties%local_p()) then
         call parse_expression_lookup_properties%set_local(.true.)
     end if
 

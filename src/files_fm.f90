@@ -50,7 +50,7 @@ module files_fm
                          get_homedir, file_exists, is_file_readable, is_file_writable, &
                          is_file_directory, is_file_accessible_directory, file_attributes, &
                          file_modes, set_file_modes, rename_file, copy_file, &
-                         insert_file_contents, write_region, verify_visited_file_modtime, &
+                         insert_file_contents, write_region, is_visited_file_modtime_current, &
                          is_file_regular, is_file_symlink, user_uid, group_gid, &
                          make_directory_internal
     use keymap_fm, only: define_key
@@ -117,7 +117,7 @@ module files_fm
     public :: buffer_stale_proc, buffer_stale_default_function
     public :: make_directory
     public :: normal_mode, set_auto_mode, add_auto_mode, file_name_sans_versions, auto_mode_spec
-    public :: save_some_buffers_proc, add_save_some_buffers_function, save_some_buffers_pred
+    public :: save_some_buffers_proc, add_save_some_buffers_function, save_some_buffers_predicate
     public :: find_file_other_window, is_backup_file_name, revert_buffer, revert_function_proc, find_directory_proc
     public :: insert_directory, insert_directory_clean, is_insert_directory_wildcard_in_dir, file_truename, &
               delete_file, delete_directory, file_name_extension, file_name_sans_extension, wildcard_to_regexp, &
@@ -771,9 +771,9 @@ module files_fm
 
         !> A PRED of `save_some_buffers': whether to offer to save the
         !> current buffer.  Not a port.
-        logical function save_some_buffers_pred()
+        logical function save_some_buffers_predicate()
             implicit none(type, external)
-        end function save_some_buffers_pred
+        end function save_some_buffers_predicate
     end interface
 
     !> A function of `save_some_buffers_functions'.
@@ -846,7 +846,7 @@ module files_fm
         !> Make FN the current buffer's revert function (set_local).
         procedure :: set_local => revert_set_local
         !> The current buffer's revert function (null for the default).
-        procedure :: get => revert_get
+        procedure :: current => current_revert
     end type revert_buffer_function_type
 
     !> Function to use to revert this buffer (see the type).  Port of
@@ -898,7 +898,7 @@ module files_fm
         !> Make FN the current buffer's function (set_local).
         procedure :: set_local => stale_set_local
         !> The current buffer's function (null for the default).
-        procedure :: get => stale_get
+        procedure :: current => current_stale
     end type buffer_stale_function_type
 
     !> Function to check whether a buffer needs reverting (see the type).
@@ -1585,7 +1585,7 @@ contains
         if (allocated(buffers(cur)%filename)) then
             file = buffers(cur)%filename
 
-            if (.not. verify_visited_file_modtime() .and. file_exists(file)) then
+            if (.not. is_visited_file_modtime_current() .and. file_exists(file)) then
                 call read_yes_or_no(file_name_nondirectory(file)//" has changed since visited or saved.  Save anyway? ", &
                                     ok, status)
                 if (.not. status%ok()) return
@@ -1842,7 +1842,7 @@ contains
     recursive subroutine save_some_buffers(arg, called_interactively, status, pred)
         logical, intent(in) :: arg, called_interactively
         type(status_type), intent(out) :: status
-        procedure(save_some_buffers_pred), optional :: pred
+        procedure(save_some_buffers_predicate), optional :: pred
         type(handle_type), allocatable :: all(:)
         type(handle_type) :: old
         type(status_type) :: st
@@ -2238,7 +2238,7 @@ contains
     end subroutine revert_set_local
 
     ! The current buffer's `revert_buffer_function'.  Not a port.
-    function revert_get(self) result(fn)
+    function current_revert(self) result(fn)
         class(revert_buffer_function_type), intent(in) :: self
         procedure(revert_function_proc), pointer :: fn
         integer :: i
@@ -2250,7 +2250,7 @@ contains
         do i = 1, size(self%entries)
             if (self%entries(i)%serial == buffers(cur)%serial) fn => self%entries(i)%fn
         end do
-    end function revert_get
+    end function current_revert
 
     ! Set the current buffer's `buffer_stale_function' to FN.  Not a port.
     subroutine stale_set_local(self, fn)
@@ -2287,7 +2287,7 @@ contains
     end subroutine stale_set_local
 
     ! The current buffer's `buffer_stale_function'.  Not a port.
-    function stale_get(self) result(fn)
+    function current_stale(self) result(fn)
         class(buffer_stale_function_type), intent(in) :: self
         procedure(buffer_stale_proc), pointer :: fn
         integer :: i
@@ -2299,7 +2299,7 @@ contains
         do i = 1, size(self%entries)
             if (self%entries(i)%serial == buffers(cur)%serial) fn => self%entries(i)%fn
         end do
-    end function stale_get
+    end function current_stale
 
     !> Default function to use for `buffer_stale_function'.
     !> This function ignores its argument.
@@ -2318,7 +2318,7 @@ contains
         if (.not. allocated(buffers(cur)%filename)) return
         if (.not. is_file_readable(buffers(cur)%filename)) return
         if (buffers(cur)%text%save_modiff < buffers(cur)%text%modiff) return
-        if (.not. verify_visited_file_modtime()) stale = BUFFER_STALE_YES
+        if (.not. is_visited_file_modtime_current()) stale = BUFFER_STALE_YES
     end function buffer_stale_default_function
 
     !> Write current buffer into file FILENAME.
@@ -2422,7 +2422,7 @@ contains
         call save_buffers_kill_emacs(allocated(current_prefix_arg%a), status)
     end subroutine cmd_save_buffers_kill_terminal
 
-    !> Run `kill_buffer_hook' in the buffer H being killed (current).
+    !> Execute `kill_buffer_hook' in the buffer H being killed (current).
     !> Port of part of buffer.c:Fkill_buffer.
     recursive subroutine execute_kill_hook(h)
         type(handle_type), intent(in) :: h

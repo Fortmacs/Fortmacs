@@ -1404,7 +1404,7 @@ contains
         no_other_defaults = only_default
         allocate (defaults(0))
         nd = 0
-        if (len(default_coding_system) > 0) call append(defaults, nd, default_coding_system)
+        if (len(default_coding_system) > 0) call add(defaults, nd, default_coding_system)
         ! Find an auto-coding that is specified for the current buffer and
         ! file from the region FROM and TO.
         text = region_text(from, to)
@@ -1451,7 +1451,7 @@ contains
                 deallocate (defaults)
                 allocate (defaults(0))
                 nd = 0
-                call append(defaults, nd, auto_cs)
+                call add(defaults, nd, auto_cs)
                 no_other_defaults = .true.
             end if
         end if
@@ -1464,7 +1464,7 @@ contains
                     base = coding_system_base(buffer_file_coding_system%value)
 
                     if (base /= "undecided" .and. .not. has_base(defaults(1:nd), base)) then
-                        call append(defaults, nd, buffer_file_coding_system%value)
+                        call add(defaults, nd, buffer_file_coding_system%value)
                     end if
                 end if
             end if
@@ -1480,7 +1480,7 @@ contains
 
                 if (len(dflt) > 0) then
                     base = coding_system_base(dflt)
-                    if (base /= "undecided" .and. .not. has_base(defaults(1:nd), base)) call append(defaults, nd, dflt)
+                    if (base /= "undecided" .and. .not. has_base(defaults(1:nd), base)) call add(defaults, nd, dflt)
                 end if
 
                 ! If the most preferred coding system has the property
@@ -1492,7 +1492,7 @@ contains
                     base = coding_system_base(preferred)
 
                     if (len(coding_system_mime_charset(preferred)) > 0 .and. .not. has_base(defaults(1:nd), base)) then
-                        call append(defaults, nd, preferred)
+                        call add(defaults, nd, preferred)
                     end if
                 end if
             end if
@@ -1532,14 +1532,14 @@ contains
 
             do k = 1, nd
                 if (has_coding_system(coding_system_base(defaults(k)%name), codings)) then
-                    call append(safe, n, defaults(k)%name)
+                    call add(safe, n, defaults(k)%name)
                 end if
             end do
 
             n = 0
 
             do k = 1, nd
-                if (.not. has_coding_system(coding_system_base(defaults(k)%name), codings)) call append(unsafe, n, defaults(k)%name)
+                if (.not. has_coding_system(coding_system_base(defaults(k)%name), codings)) call add(unsafe, n, defaults(k)%name)
             end do
 
             ! If there are safe ones, the first one is what we want.
@@ -1648,7 +1648,7 @@ contains
     end function region_text
 
     ! Append the coding system NAME to LIST (N used).  Not a port.
-    subroutine append(list, n, name)
+    subroutine add(list, n, name)
         type(coding_system_list_entry_type), allocatable, intent(inout) :: list(:)
         integer, intent(inout) :: n
         character(len=*), intent(in) :: name
@@ -1659,7 +1659,7 @@ contains
         grown(n + 1)%name = name
         call move_alloc(grown, list)
         n = n + 1
-    end subroutine append
+    end subroutine add
 
     !> Whether a coding system in LIST has base BASE (rassq).  Not a port.
     logical function has_base(list, base)

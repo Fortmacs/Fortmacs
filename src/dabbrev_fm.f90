@@ -52,7 +52,7 @@ module dabbrev_fm
                          SEARCH_NOERROR
     use casefiddle_fm, only: upcase_string, downcase_string, capitalize_string
     use replace_fm, only: case_replace
-    use undo_fm, only: push_undo_entry
+    use undo_fm, only: add_undo_entry
     use subr_fm, only: read_y_or_n, progress_reporter_type, make_progress_reporter, progress_reporter_update, &
                        progress_reporter_done
     use minibuf_fm, only: minibuffer_prompt_end, minibuf_level
@@ -65,7 +65,7 @@ module dabbrev_fm
     use lisp_fm, only: value_type, make_list, xstring
     use minibuf_table_fm, only: capf_data_type, completion_predicate, completion_table_type, completion_list_table, &
                                 completion_function_table, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
-    use minibuf_fm, only: try_completion, all_completions, test_completion
+    use minibuf_fm, only: try_completion, all_completions, is_exact_completion
     use eval_fm, only: capf_entry_type
     use minibuffer_fm, only: execute_completion_at_point
     implicit none(type, external)
@@ -450,15 +450,15 @@ contains
 
     !> Record point POS in the current buffer's undo list
     !> (POS added to the front of `buffer_undo_list').  Not a port.
-    subroutine push_undo_point(pos)
+    subroutine add_undo_point(pos)
         integer(int64), intent(in) :: pos
         type(undo_entry_type) :: entry
 
         if (.not. buffers(cur)%undo_enabled) return
         entry%kind = UE_POINT
         entry%beg = pos
-        call push_undo_entry(entry)
-    end subroutine push_undo_point
+        call add_undo_entry(entry)
+    end subroutine add_undo_point
 
     !> The user error "No possible abbreviation preceding point".
     !> Not a port.
@@ -679,7 +679,7 @@ contains
 
             if (have_old) then
                 call save_excursion(ex3)
-                call push_undo_point(orig_point)
+                call add_undo_point(orig_point)
                 ! Put back the original abbrev with its original case pattern.
                 call search_backward(old, found, status)
                 if (status%ok()) call insert(abbrev, status)
@@ -740,7 +740,7 @@ contains
 
         call restore_excursion(ex3)
         ! Success: stick it in and return.
-        call push_undo_point(orig_point)
+        call add_undo_point(orig_point)
         if (.not. have_old) old = ""
         call substitute_expansion(old, have_old, abbrev, expansion, record_case_pattern, status)
         if (.not. status%ok()) return
@@ -1138,7 +1138,7 @@ contains
                     end do
 
                     call set_buffer(old, st)
-                    if (status%ok()) call append_buffer(friend_buffer_list, file_name_buffer)
+                    if (status%ok()) call add_buffer(friend_buffer_list, file_name_buffer)
                 end if
 
                 ! Walk through the buffers till we find a match.
@@ -1180,7 +1180,7 @@ contains
     end subroutine find_expansion
 
     !> Append B to LIST.  Not a port.
-    subroutine append_buffer(list, b)
+    subroutine add_buffer(list, b)
         type(handle_type), allocatable, intent(inout) :: list(:)
         type(handle_type), intent(in) :: b
         type(handle_type), allocatable :: grown(:)
@@ -1192,7 +1192,7 @@ contains
         if (n > 0) grown(1:n) = list
         grown(n + 1) = b
         call move_alloc(grown, list)
-    end subroutine append_buffer
+    end subroutine add_buffer
 
     !> LIST with B moved to the front (or put there).  Not a port.
     subroutine move_to_front(list, b)
@@ -1235,7 +1235,7 @@ contains
 
         if (these_only) then
             do k = 1, size(dabbrev_search_these_buffers_only)
-                call append_buffer(list, get_buffer(trim(dabbrev_search_these_buffers_only(k))))
+                call add_buffer(list, get_buffer(trim(dabbrev_search_these_buffers_only(k))))
             end do
         end if
 
@@ -1264,7 +1264,7 @@ contains
                     do k = 1, size(all)
                         if (any(list%index == all(k)%index .and. list%generation == all(k)%generation)) cycle
                         if (is_ignore_buffer(all(k))) cycle
-                        call append_buffer(list, all(k))
+                        call add_buffer(list, all(k))
                     end do
                 end if
 
@@ -1719,7 +1719,7 @@ contains
         case (COMPLETE_ALL)
             call all_completions(string, table, result, status, pred)
         case (COMPLETE_TEST)
-            if (test_completion(string, table, pred)) result = value_type(.true.)
+            if (is_exact_completion(string, table, pred)) result = value_type(.true.)
         case default
             if (present(suffix)) continue
         end select
