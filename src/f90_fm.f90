@@ -34,7 +34,7 @@
 !> Deferred: the F90 menu, Imenu (`f90_imenu_generic_expression',
 !> `f90_add_imenu_menu', `f90_imenu_type_matcher'), Hideshow
 !> (`hs_block_start_regexp' with `f90_start_block_re' and
-!> `f90_end_block_re'), Add Log (`f90_current_defun'), `f90_backslash_not_special'
+!> `f90_end_block_re'), Add Log (`f90_current_subprogram'), `f90_backslash_not_special'
 !> (obsolete), the `delete_selection' property of
 !> `f90_electric_insert', and `f90_cache_position' as a buffer-local
 !> variable (it is set only while a region command runs).
@@ -53,8 +53,8 @@ module f90_fm
     use modes_fm, only: major_modes
     use keymap_fm, only: keymap_set, make_sparse_keymap, define_key
     use lread_fm, only: sym
-    use syntax_fm, only: make_syntax_table, modify_syntax_entry, syntax_table_live_p, parse_partial_sexp, &
-                         parse_state_type, scan_lists, skip_chars_forward, skip_chars_backward, forward_word
+    use syntax_fm, only: make_syntax_table, modify_syntax_entry, syntax_table_live_p, parse_partial_expression, &
+                         parse_state_type, scan_groups, skip_chars_forward, skip_chars_backward, forward_word
     use editfns_fm, only: interactive_region, point, point_min, point_max, goto_char, bolp, eolp, bobp, eobp, &
                           char_after, char_before, delete_region, buffer_substring, line_beginning_position, &
                           line_end_position
@@ -78,7 +78,7 @@ module f90_fm
                             FONT_LOCK_OVERRIDE_KEEP, FONT_LOCK_OVERRIDE_APPEND
     use font_lock_fm, only: font_lock_keyword, font_lock_highlight, font_lock_anchored, font_lock_flush
     use fill_fm, only: fill_paragraph_function, fill_comment_paragraph
-    use lisp_cmds_fm, only: forward_sexp, beginning_of_defun_function, end_of_defun_function
+    use expression_motion_fm, only: forward_expression, beginning_of_subprogram_function, end_of_subprogram_function
     use regexp_opt_fm, only: regexp_opt, REGEXP_OPT_T
     use newcomment_fm, only: comment_start, comment_start_skip, comment_indent_function, comment_indent_type, &
                              comment_column, comment_auto_fill_only_comments, COMMENT_INDENT_COLUMN
@@ -1076,7 +1076,7 @@ contains
         type(status_type) :: st
 
         pt = point()
-        call parse_partial_sexp(parse_start(), pt, state, st)
+        call parse_partial_expression(parse_start(), pt, state, st)
         call goto_char(pt)
         f90_in_string = state%instring /= -1
     end function f90_in_string
@@ -1090,7 +1090,7 @@ contains
         type(status_type) :: st
 
         pt = point()
-        call parse_partial_sexp(parse_start(), pt, state, st)
+        call parse_partial_expression(parse_start(), pt, state, st)
         call goto_char(pt)
         f90_in_comment = state%incomment /= 0
     end function f90_in_comment
@@ -1253,7 +1253,7 @@ contains
 
         if (looking("\(\("//SYMRE//"+\)[ "//TAB//"]*:\)?[ "//TAB//"]*\(if\)\_>")) then
             s = blk(3, 2)
-            pos = scan_lists(point(), 1_int64, 0_int64, status)
+            pos = scan_groups(point(), 1_int64, 0_int64, status)
 
             if (.not. status%ok()) then
                 call goto_char(opoint)
@@ -1342,7 +1342,7 @@ contains
 
         if (looking("\(\("//SYMRE//"+\)[ "//TAB//"]*:\)?[ "//TAB//"]*\(where\|forall\)\_>")) then
             s = blk(3, 2)
-            pos = scan_lists(point(), 1_int64, 0_int64, status)
+            pos = scan_groups(point(), 1_int64, 0_int64, status)
 
             if (.not. status%ok()) then
                 call goto_char(opoint)
@@ -1981,10 +1981,10 @@ contains
         b = f90_beginning_of_subprogram(.true.)
     end subroutine cmd_f90_beginning_of_subprogram
 
-    ! `f90_beginning_of_subprogram' as `beginning_of_defun_function'
+    ! `f90_beginning_of_subprogram' as `beginning_of_subprogram_function'
     ! (called with ARG, so INTERACTIVE is true).
     ! Not a port.
-    recursive subroutine f90_beginning_of_defun(arg, found, status)
+    recursive subroutine f90_subprogram_start(arg, found, status)
         integer(int64), intent(in) :: arg
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
@@ -1994,17 +1994,17 @@ contains
         ! ARG is the INTERACTIVE argument: true, as any number is.
         b = f90_beginning_of_subprogram(arg == arg)
         found = b%found
-    end subroutine f90_beginning_of_defun
+    end subroutine f90_subprogram_start
 
-    ! `f90_end_of_subprogram' as `end_of_defun_function'.
+    ! `f90_end_of_subprogram' as `end_of_subprogram_function'.
     ! Not a port.
-    recursive subroutine f90_end_of_defun(status)
+    recursive subroutine f90_subprogram_end(status)
         type(status_type), intent(out) :: status
         type(f90_block_type) :: b
 
         status = status_type()
         b = f90_end_of_subprogram()
-    end subroutine f90_end_of_defun
+    end subroutine f90_subprogram_end
 
     !> Move point to the end of the current subprogram.
     !> Return (TYPE NAME), or nil if not found.  Port of
@@ -3558,7 +3558,7 @@ contains
             call re_search_forward(keyword_re, found, st, bound=mpos(endm), noerror=SEARCH_NOERROR)
             if (.not. st%ok() .or. found <= 0) exit
             pt = point()
-            call parse_partial_sexp(ref_point, pt, state, st)
+            call parse_partial_expression(ref_point, pt, state, st)
             call goto_char(pt)
             skip = state%instring /= -1 .or. state%incomment /= 0
 
@@ -3666,7 +3666,7 @@ contains
             ! Set l after this to just highlight the "type" part.
             call forward_char(st, -1_int64)
             ! Needed for: type( foo(...) ) :: bar
-            call forward_sexp(1_int64, st)
+            call forward_expression(1_int64, st)
             if (.not. st%ok()) cycle
             l = [m0, point()]
             call skip_forward(" "//TAB)
@@ -3827,8 +3827,8 @@ contains
         call normal_auto_fill_function%set_local(f90_do_auto_fill)
         call indent_tabs_mode%set_local(.false.) ! auto buffer local
         call fill_paragraph_function%set_local(f90_fill_paragraph)
-        call beginning_of_defun_function%set_local(f90_beginning_of_defun)
-        call end_of_defun_function%set_local(f90_end_of_defun)
+        call beginning_of_subprogram_function%set_local(f90_subprogram_start)
+        call end_of_subprogram_function%set_local(f90_subprogram_end)
         levels(1) = font_lock_keywords_level(f90_font_lock_keywords)
         levels(2) = font_lock_keywords_level(f90_font_lock_keywords_1)
         levels(3) = font_lock_keywords_level(f90_font_lock_keywords_2)

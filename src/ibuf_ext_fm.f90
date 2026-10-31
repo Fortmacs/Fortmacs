@@ -31,7 +31,7 @@
 !> with `ibuffer_set_filtering_qualifiers', its filter groups likewise
 !> (`ibuffer_filter_groups').  The commands `ibuffer_filter_by_NAME' that
 !> define-ibuffer-filter makes are procedures of their own; the filters
-!> themselves are entries of `ibuffer_filtering_alist'.
+!> themselves are entries of `ibuffer_filtering_table'.
 !>
 !> Deferred: saving `ibuffer_saved_filters' and
 !> `ibuffer_saved_filter_groups' with `ibuffer_save_with_custom' (Customize,
@@ -314,7 +314,7 @@ contains
                 return
             end if
 
-            included = ibuffer_filtering_alist(i)%test(buf, filter%nodes(1), st)
+            included = ibuffer_filtering_table(i)%test(buf, filter%nodes(1), st)
 
             if (.not. st%ok()) then
                 ! (condition-case: an error pops the filter.)
@@ -324,14 +324,14 @@ contains
         end select
     end function included_in_filter_p_1
 
-    ! The index in `ibuffer_filtering_alist' of the filter NAME (0 for
+    ! The index in `ibuffer_filtering_table' of the filter NAME (0 for
     ! none).  Not a port.
     integer function filter_index(name) result(i)
         character(len=*), intent(in) :: name
 
-        if (allocated(ibuffer_filtering_alist)) then
-            do i = 1, size(ibuffer_filtering_alist)
-                if (ibuffer_filtering_alist(i)%name == name) return
+        if (allocated(ibuffer_filtering_table)) then
+            do i = 1, size(ibuffer_filtering_table)
+                if (ibuffer_filtering_table(i)%name == name) return
             end do
         end if
 
@@ -473,7 +473,7 @@ contains
         case default
             i = filter_index(qualifier%nodes(1)%name)
             s = " ["
-            if (i > 0) s = s//trim(ibuffer_filtering_alist(i)%description)
+            if (i > 0) s = s//trim(ibuffer_filtering_table(i)%description)
 
             associate (node => qualifier%nodes(1))
                 ! (A predicate, a procedure, has no printed form.)
@@ -3425,7 +3425,7 @@ contains
 
         desc = ""
         i = filter_index(name)
-        if (i > 0) desc = trim(ibuffer_filtering_alist(i)%description)
+        if (i > 0) desc = trim(ibuffer_filtering_table(i)%description)
     end function filter_description
 
     ! Push FILTER, a filter by NAME, and tell (with the qualifier text QSTR
@@ -3834,7 +3834,7 @@ contains
     !> filtering.
     !>
     !> The completion matches against the filter description text of
-    !> each filter in `ibuffer_filtering_alist'.  Port of
+    !> each filter in `ibuffer_filtering_table'.  Port of
     !> ibuf-ext.el:ibuffer-filter-chosen-by-completion.
     recursive subroutine ibuffer_filter_chosen_by_completion(status)
         type(status_type), intent(out) :: status
@@ -3845,10 +3845,10 @@ contains
         character(len=32) :: buf
         integer :: j, i
 
-        allocate (names(size(ibuffer_filtering_alist)))
+        allocate (names(size(ibuffer_filtering_table)))
 
         do j = 1, size(names)
-            names(j)%s = trim(ibuffer_filtering_alist(j)%description)
+            names(j)%s = trim(ibuffer_filtering_table(j)%description)
         end do
 
         call completing_read("Filter by: ", names_table(names), match, status, require_match=REQUIRE_MATCH_T)
@@ -3865,7 +3865,7 @@ contains
         if (i == 0) then
             command = "ibuffer_filter_by_"
         else
-            command = "ibuffer_filter_by_"//trim(ibuffer_filtering_alist(i)%name)
+            command = "ibuffer_filter_by_"//trim(ibuffer_filtering_table(i)%name)
         end if
 
         call call_interactively(sym(command), status)

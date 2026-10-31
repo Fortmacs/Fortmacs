@@ -21,23 +21,23 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Moving over comments (`forward_comment', with forw_comment and
-!> back_comment), lists and sexps (`scan_lists', `scan_sexps') and
-!> parsing (`parse_partial_sexp', scan_sexps_forward): comment styles a,
+!> back_comment), groups and expressions (`scan_groups', `scan_expressions') and
+!> parsing (`parse_partial_expression', scan_expressions_forward): comment styles a,
 !> b and c, nested comments, two-character delimiters (syntax flags 1, 2,
 !> 3 and 4), generic comment and string fences, `comment_end_can_be_escaped'
-!> and `parse_sexp_ignore_comments'.  The start of a defun that
+!> and `parse_expression_ignore_comments'.  The start of a subprogram that
 !> back_comment falls back on comes from `syntax_ppss' while
 !> `comment_use_syntax_ppss' is true (as by default), else from an open
-!> paren in column 0 (`open_paren_in_column_0_is_defun_start').
+!> paren in column 0 (`open_paren_in_column_0_is_subprogram_start').
 !>
-!> Upstream's gotos become a loop over labelled steps in
-!> scan_sexps_forward and exits of named loops elsewhere.  A parse state is
+!> Upstream's gotos become a loop over labeled steps in
+!> scan_expressions_forward and exits of named loops elsewhere.  A parse state is
 !> a `parse_state_type' outside and the internal `lisp_parse_state' here,
 !> as upstream converts between the list and struct lisp_parse_state.
 !>
 !> Deferred: `syntax_table' text properties (UPDATE_SYNTAX_TABLE is a
 !> no-op), `forward_comment_function', quitting (rarely_quit), the
-!> redisplay ticks of scan_sexps_forward, unibyte buffers' raw bytes
+!> redisplay ticks of scan_expressions_forward, unibyte buffers' raw bytes
 !> (FETCH_CHAR_AS_MULTIBYTE).
 submodule(syntax_fm) syntax_scan_fm
     use buffer_fm, only: temp_set_point_both
@@ -77,16 +77,16 @@ submodule(syntax_fm) syntax_scan_fm
         integer :: prev_syntax = SMAX
     end type lisp_parse_state
 
-    !> A cache for finding the start of a defun: find_start_pos is the
-    !> place for which the defun start was found, find_start_value the
-    !> defun start position found for it (find_start_value_byte its byte
+    !> A cache for finding the start of a subprogram: find_start_pos is the
+    !> place for which the subprogram start was found, find_start_value the
+    !> subprogram start position found for it (find_start_value_byte its byte
     !> position), in the buffer in slot find_start_buffer (with serial
     !> find_start_serial) when BEGV was find_start_begv and MODIFF
     !> find_start_modiff.
     integer(int64) :: find_start_pos = 0, find_start_value = 0, find_start_value_byte = 0
     integer(int64) :: find_start_buffer = 0, find_start_serial = -1, find_start_begv = 0, find_start_modiff = 0
 
-    !> The labelled steps of scan_sexps_forward.
+    !> The labeled steps of scan_expressions_forward.
     integer, parameter :: L_LOOP = 1, L_STARTQUOTED = 2, L_SYMSTARTED = 3, L_ATCOMMENT = 4, &
                           L_STARTINCOMMENT = 5, L_STARTINSTRING = 6, L_STARTQUOTEDINSTRING = 7, &
                           L_STOP = 8, L_ENDQUOTED = 9, L_DONE = 10
@@ -303,19 +303,19 @@ contains
     end subroutine scan_error
 
     ! ------------------------------------------------------------------
-    ! The start of a defun
+    ! The start of a subprogram
     ! ------------------------------------------------------------------
 
     !> Return a defun-start position before POS and not too far before.
     !> It should be the last one before POS, or nearly the last.
     !>
-    !> When open_paren_in_column_0_is_defun_start is false, only the
+    !> When open_paren_in_column_0_is_subprogram_start is false, only the
     !> beginning of the buffer is treated as a defun-start.
     !>
     !> We record the information about where the scan started and what its
     !> result was, so that another call in the same area can return the
     !> same value very quickly.  Port of syntax.c:find_defun_start.
-    recursive integer(int64) function find_defun_start(pos, pos_byte) result(start)
+    recursive integer(int64) function find_subprogram_start(pos, pos_byte) result(start)
         integer(int64), intent(in) :: pos, pos_byte
         type(parse_state_type) :: ppss
         integer(int64) :: opoint, opoint_byte, pt, pt_byte
@@ -329,7 +329,7 @@ contains
             ! inquiry.
             if (find_start_buffer == cur .and. find_start_serial == b%serial) then
                 ! Reuse the defun-start even if POS is a little farther on.
-                ! POS might be in the next defun, but that's ok.  Our value
+                ! POS might be in the next subprogram, but that's ok.  Our value
                 ! may not be the best possible, but will still be usable.
                 if (pos <= find_start_pos + 1000 .and. pos >= find_start_value .and. &
                     b%begv == find_start_begv .and. b%text%modiff == find_start_modiff) then
@@ -349,7 +349,7 @@ contains
                     find_start_value = pos
                     find_start_value_byte = pos_byte
                 end if
-            else if (.not. open_paren_in_column_0_is_defun_start) then
+            else if (.not. open_paren_in_column_0_is_subprogram_start) then
                 find_start_value = b%begv
                 find_start_value_byte = b%begv_byte
             else
@@ -387,7 +387,7 @@ contains
         end associate
 
         start = find_start_value
-    end function find_defun_start
+    end function find_subprogram_start
 
     ! ------------------------------------------------------------------
     ! Comments
@@ -422,7 +422,7 @@ contains
         integer, parameter :: ENDED = 0, LOSSAGE = 1, DONE = 2
         type(lisp_parse_state) :: state
         integer(int64) :: from, from_byte, comment_end, comment_end_byte, comstart_pos, comstart_byte, &
-                          defun_start, defun_start_byte, nesting, next, next_byte, temp_byte
+                          subprogram_start, subprogram_start_byte, nesting, next, next_byte, temp_byte
         integer :: string_style, code, c, syntax, prev_syntax, next_syntax, outcome
         logical :: string_lossage, comment_lossage, com2start, com2end, comstart, lose, adjusted, at_bol
 
@@ -446,10 +446,10 @@ contains
         comment_end_byte = from_byte
         comstart_pos = 0
         comstart_byte = 0
-        ! Place where the containing defun starts, or 0 if we didn't come
+        ! Place where the containing subprogram starts, or 0 if we didn't come
         ! across it yet.
-        defun_start = 0
-        defun_start_byte = 0
+        subprogram_start = 0
+        subprogram_start_byte = 0
         ! Current comment nesting.
         nesting = 1
         syntax = 0
@@ -573,7 +573,7 @@ contains
                 end if
             case (SOPEN)
                 ! Assume a defun-start point is outside of strings.
-                if (open_paren_in_column_0_is_defun_start .and. .not. comment_use_syntax_ppss) then
+                if (open_paren_in_column_0_is_subprogram_start .and. .not. comment_use_syntax_ppss) then
                     at_bol = from == stop
 
                     if (.not. at_bol) then
@@ -582,8 +582,8 @@ contains
                     end if
 
                     if (at_bol) then
-                        defun_start = from
-                        defun_start_byte = from_byte
+                        subprogram_start = from
+                        subprogram_start_byte = from_byte
                         from = stop
                     end if
                 end if
@@ -609,18 +609,18 @@ contains
             ! where we last passed a comment starter.
             adjusted = .true.
 
-            ! If we did not already find the defun start, find it now.
-            if (defun_start == 0) then
-                defun_start = find_defun_start(comment_end, comment_end_byte)
-                defun_start_byte = find_start_value_byte
-                adjusted = defun_start > buffers(cur)%begv
+            ! If we did not already find the subprogram start, find it now.
+            if (subprogram_start == 0) then
+                subprogram_start = find_subprogram_start(comment_end, comment_end_byte)
+                subprogram_start_byte = find_start_value_byte
+                adjusted = subprogram_start > buffers(cur)%begv
             end if
 
             do
                 call internalize_parse_state(state)
-                call scan_sexps_forward(state, defun_start, defun_start_byte, comment_end, -huge(0_int64) - 1, &
-                                        .false., COMMENTSTOP_NIL)
-                defun_start = comment_end
+                call scan_expressions_forward(state, subprogram_start, subprogram_start_byte, comment_end, -huge(0_int64) - 1, &
+                                              .false., COMMENTSTOP_NIL)
+                subprogram_start = comment_end
 
                 if (.not. adjusted) then
                     adjusted = .true.
@@ -643,12 +643,12 @@ contains
                         ! If comment_end is inside some other comment, maybe
                         ! ours is nested, so we need to try again from within
                         ! the surrounding comment.  Example: { a (* " *)
-                        defun_start = state%comstr_start + 2
-                        defun_start_byte = char_to_byte(defun_start)
+                        subprogram_start = state%comstr_start + 2
+                        subprogram_start_byte = char_to_byte(subprogram_start)
                     end if
                 end if
 
-                if (defun_start >= comment_end) exit
+                if (subprogram_start >= comment_end) exit
             end do
 
             from_byte = char_to_byte(from)
@@ -1019,13 +1019,13 @@ contains
     end procedure forward_comment
 
     ! ------------------------------------------------------------------
-    ! Lists and sexps
+    ! Groups and expressions
     ! ------------------------------------------------------------------
 
     !> Port of syntax.c:scan_lists (0 is nil).
-    recursive integer(int64) function scan_lists_1(from0, count_in, depth_in, sexpflag, status) result(pos)
+    recursive integer(int64) function scan_groups_1(from0, count_in, depth_in, expression_flag, status) result(pos)
         integer(int64), intent(in) :: from0, count_in, depth_in
-        logical, intent(in) :: sexpflag
+        logical, intent(in) :: expression_flag
         type(status_type), intent(out) :: status
         integer, parameter :: A_NONE = 0, A_WORD = 1, A_COMMENT = 2, A_OPEN = 3, A_CLOSE = 4, A_STRING = 5
         integer(int64) :: stop, count, depth, min_depth, last_good, from, from_byte, temp_pos, out_charpos, &
@@ -1052,7 +1052,7 @@ contains
         ! Err out if depth gets less than this.
         min_depth = depth
         last_good = from0
-        multibyte_symbol_p = sexpflag .and. multibyte_syntax_as_symbol
+        multibyte_symbol_p = expression_flag .and. multibyte_syntax_as_symbol
         if (depth > 0) min_depth = 0
         from_byte = char_to_byte(from)
 
@@ -1074,7 +1074,7 @@ contains
                     c = fetch(from_byte)
                     other_syntax = swf_at(c, from)
 
-                    if (comstart_second(other_syntax) .and. parse_sexp_ignore_comments%value) then
+                    if (comstart_second(other_syntax) .and. parse_expression_ignore_comments%value) then
                         ! We have encountered a comment start sequence and
                         ! we are ignoring all text inside comments.  We must
                         ! record the comment style this sequence begins so
@@ -1108,7 +1108,7 @@ contains
                 case (SCOMMENT)
                     action = A_COMMENT
                 case (SMATH)
-                    if (sexpflag) then
+                    if (expression_flag) then
                         if (from /= stop) then
                             if (c == fetch(from_byte)) call inc_both(from, from_byte)
                         end if
@@ -1134,9 +1134,9 @@ contains
 
                 select case (action)
                 case (A_WORD)
-                    if (depth /= 0 .or. .not. sexpflag) cycle forward
+                    if (depth /= 0 .or. .not. expression_flag) cycle forward
 
-                    ! This word counts as a sexp; return at end of it.
+                    ! This word counts as an expression; return at end of it.
                     do while (from < stop)
                         c = fetch(from_byte)
 
@@ -1160,7 +1160,7 @@ contains
                     done = .true.
                     exit forward
                 case (A_COMMENT)
-                    if (.not. parse_sexp_ignore_comments%value) cycle forward
+                    if (.not. parse_expression_ignore_comments%value) cycle forward
                     found = forw_comment(from, from_byte, stop, merge(1_int64, 0_int64, comnested), comstyle, 0, &
                                          out_charpos, out_bytepos, dummy, dummy2)
                     from = out_charpos
@@ -1222,7 +1222,7 @@ contains
 
                     call inc_both(from, from_byte)
 
-                    if (depth == 0 .and. sexpflag) then
+                    if (depth == 0 .and. expression_flag) then
                         done = .true.
                         exit forward
                     end if
@@ -1256,7 +1256,7 @@ contains
                 if (code == SENDCOMMENT) comstyle = comment_style(syntax, 0)
 
                 if (from > stop .and. comend_second(syntax)) then
-                    if (prev_char_comend_first(from, from_byte) .and. parse_sexp_ignore_comments%value) then
+                    if (prev_char_comend_first(from, from_byte) .and. parse_expression_ignore_comments%value) then
                         ! We must record the comment style encountered so
                         ! that later, we can match only the proper comment
                         ! begin sequence of the same style.
@@ -1284,9 +1284,9 @@ contains
 
                 select case (code)
                 case (SWORD, SSYMBOL, SESCAPE, SCHARQUOTE)
-                    if (depth /= 0 .or. .not. sexpflag) cycle backward
+                    if (depth /= 0 .or. .not. expression_flag) cycle backward
 
-                    ! This word counts as a sexp; count object finished
+                    ! This word counts as an expression; count object finished
                     ! after passing it.
                     do while (from > stop)
                         temp_pos = dec_bytepos(from_byte)
@@ -1320,7 +1320,7 @@ contains
                     action = A_NONE
 
                     if (code == SMATH) then
-                        if (.not. sexpflag) cycle backward
+                        if (.not. expression_flag) cycle backward
 
                         if (from > buffers(cur)%begv) then
                             temp_pos = dec_bytepos(from_byte)
@@ -1364,7 +1364,7 @@ contains
                         end if
                     end if
                 case (SENDCOMMENT)
-                    if (.not. parse_sexp_ignore_comments%value) cycle backward
+                    if (.not. parse_expression_ignore_comments%value) cycle backward
                     found = back_comment(from, from_byte, stop, comnested, comstyle, out_charpos, out_bytepos)
 
                     ! If not found, it really wasn't a comment-end.  For
@@ -1389,7 +1389,7 @@ contains
                         end if
                     end do
 
-                    if (code == SSTRING_FENCE .and. depth == 0 .and. sexpflag) then
+                    if (code == SSTRING_FENCE .and. depth == 0 .and. expression_flag) then
                         done = .true.
                         exit backward
                     end if
@@ -1410,7 +1410,7 @@ contains
                         end if
                     end do
 
-                    if (depth == 0 .and. sexpflag) then
+                    if (depth == 0 .and. expression_flag) then
                         done = .true.
                         exit backward
                     end if
@@ -1438,15 +1438,15 @@ contains
             pos = 0
             call scan_error(status, "Unbalanced parentheses", last_good, from)
         end subroutine lose
-    end function scan_lists_1
+    end function scan_groups_1
 
-    module procedure scan_lists
-    pos = scan_lists_1(from, count, depth, .false., status)
-    end procedure scan_lists
+    module procedure scan_groups
+    pos = scan_groups_1(from, count, depth, .false., status)
+    end procedure scan_groups
 
-    module procedure scan_sexps
-    pos = scan_lists_1(from, count, 0_int64, .true., status)
-    end procedure scan_sexps
+    module procedure scan_expressions
+    pos = scan_groups_1(from, count, 0_int64, .true., status)
+    end procedure scan_expressions
 
     ! ------------------------------------------------------------------
     ! Parsing
@@ -1486,12 +1486,12 @@ contains
     !> is 1, stop at the start of a comment.  If COMMENTSTOP is -1, stop
     !> at the start or end of a comment, after the beginning of a string,
     !> or after the end of a string.  Port of syntax.c:scan_sexps_forward.
-    recursive subroutine scan_sexps_forward(state, from_in, from_byte_in, end, targetdepth, stopbefore, commentstop)
+    recursive subroutine scan_expressions_forward(state, from_in, from_byte_in, end, targetdepth, stopbefore, commentstop)
         type(lisp_parse_state), intent(inout) :: state
         integer(int64), intent(in) :: from_in, from_byte_in, end, targetdepth
         logical, intent(in) :: stopbefore
         integer, intent(in) :: commentstop
-        !> The levels: the start of the last sexp seen at each (last) and
+        !> The levels: the start of the last expression seen at each (last) and
         !> of the one before (prev).
         integer(int64) :: level_last(100), level_prev(100)
         integer :: curlevel, code, prev_from_syntax, prev_prev_from_syntax, step, c, c_code, symchar, k, &
@@ -1516,7 +1516,7 @@ contains
         level_prev = -1
         curlevel = 1
 
-        ! >= second enclosing sexps.
+        ! >= second enclosing expressions.
         if (allocated(state%levelstarts)) then
             do k = 1, size(state%levelstarts)
                 level_last(curlevel) = state%levelstarts(k)
@@ -1581,7 +1581,7 @@ contains
 
                 select case (code)
                 case (SESCAPE, SCHARQUOTE)
-                    ! This arg means stop at sexp start.
+                    ! This arg means stop at expression start.
                     if (stopbefore) then
                         step = L_STOP
                     else
@@ -1796,7 +1796,7 @@ contains
                     if (boundary_stop) step = L_DONE
                 end if
             case (L_STOP)
-                ! Here if stopping before start of sexp.  We have just
+                ! Here if stopping before start of expression.  We have just
                 ! fetched the char that starts it; but return the position
                 ! before it.
                 from = prev_from
@@ -1840,10 +1840,10 @@ contains
             prev_from_syntax = swf_at(temp, prev_from)
             call inc_both(from, from_byte)
         end subroutine inc_from
-    end subroutine scan_sexps_forward
+    end subroutine scan_expressions_forward
 
     !> Convert a parse state to the internal form used in
-    !> scan_sexps_forward; an absent EXTERNAL is nil.  Port of
+    !> scan_expressions_forward; an absent EXTERNAL is nil.  Port of
     !> syntax.c:internalize_parse_state.
     recursive subroutine internalize_parse_state(state, external)
         type(lisp_parse_state), intent(out) :: state
@@ -1893,7 +1893,7 @@ contains
         if (external%prev_syntax /= -1) state%prev_syntax = external%prev_syntax
     end subroutine internalize_parse_state
 
-    module procedure parse_partial_sexp
+    module procedure parse_partial_expression
     type(lisp_parse_state) :: st
     integer(int64) :: f, t, target
     integer :: stop_at_comments
@@ -1918,15 +1918,15 @@ contains
     call internalize_parse_state(st, oldstate)
 
     if (present(stopbefore)) then
-        call scan_sexps_forward(st, f, char_to_byte(f), t, target, stopbefore, stop_at_comments)
+        call scan_expressions_forward(st, f, char_to_byte(f), t, target, stopbefore, stop_at_comments)
     else
-        call scan_sexps_forward(st, f, char_to_byte(f), t, target, .false., stop_at_comments)
+        call scan_expressions_forward(st, f, char_to_byte(f), t, target, .false., stop_at_comments)
     end if
 
     call set_pt_both(st%location, st%location_byte)
     state%depth = st%depth
     state%innermost_start = max(0_int64, st%prevlevelstart)
-    state%last_sexp_start = max(0_int64, st%thislevelstart)
+    state%last_expression_start = max(0_int64, st%thislevelstart)
     state%instring = st%instring
     state%incomment = st%incomment
     state%quoted = st%quoted
@@ -1937,7 +1937,7 @@ contains
     state%open_parens = st%levelstarts
     state%prev_syntax = -1
     if (st%prev_syntax /= SMAX) state%prev_syntax = st%prev_syntax
-    end procedure parse_partial_sexp
+    end procedure parse_partial_expression
 
     module procedure syntax_ppss
     type(status_type) :: status
@@ -1948,9 +1948,9 @@ contains
     end if
 
     if (present(pos)) then
-        call parse_partial_sexp(buffers(cur)%begv, pos, state, status)
+        call parse_partial_expression(buffers(cur)%begv, pos, state, status)
     else
-        call parse_partial_sexp(buffers(cur)%begv, buffers(cur)%pt, state, status)
+        call parse_partial_expression(buffers(cur)%begv, buffers(cur)%pt, state, status)
     end if
     end procedure syntax_ppss
 end submodule syntax_scan_fm

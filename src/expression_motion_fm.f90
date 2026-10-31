@@ -1,4 +1,4 @@
-! lisp_cmds_fm.f90 -- moving over and killing balanced expressions.
+! expression_motion_fm.f90 -- moving over and killing balanced expressions.
 ! Ported from GNU Emacs 31.1 lisp/emacs-lisp/lisp.el.
 !
 ! Copyright (C) 1985-1986, 1994, 2000-2026 Free Software Foundation,
@@ -20,28 +20,28 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The sexp and list commands of lisp.el ("Lisp editing commands ...
-!> More-or-less applicable in other modes too"), named lisp_cmds_fm
-!> because lisp_fm is lisp.h.  They move with `scan_sexps' and
-!> `scan_lists' (syntax_fm), as forward-sexp-default-function,
+!> The expression and group commands of lisp.el ("Lisp editing commands ...
+!> More-or-less applicable in other modes too"), named expression_motion_fm
+!> because lisp_fm is lisp.h.  They move with `scan_expressions' and
+!> `scan_groups' (syntax_fm), as forward-sexp-default-function,
 !> forward-list-default-function, down-list-default-function and
 !> up-list-default-function do.  A `scan_error' becomes a `user_error'
-!> when a command is run interactively (INTERACTIVE).  `forward_sexp'
-!> delegates to `forward_sexp_function' (which SMIE modes set).
+!> when a command is run interactively (INTERACTIVE).  `forward_expression'
+!> delegates to `forward_expression_function' (which SMIE modes set).
 !>
-!> The defun commands find defuns with `beginning_of_defun_function'
-!> (a `beginning_of_defun_function_type': buffers' own procedures),
-!> `defun_prompt_regexp' and `open_paren_in_column_0_is_defun_start',
-!> and their ends with `end_of_defun_function' (a `function_setting').
-!> `insert_pair_alist' is an array of `insert_pair_type'.
+!> The subprogram commands find subprograms with `beginning_of_subprogram_function'
+!> (a `beginning_of_subprogram_function_type': buffers' own procedures),
+!> `subprogram_prompt_regexp' and `open_paren_in_column_0_is_subprogram_start',
+!> and their ends with `end_of_subprogram_function' (a `function_setting').
+!> `insert_pair_table' is an array of `insert_pair_type'.
 !>
-!> Deferred: `forward_list_function', `down_list_function' and
-!> `up_list_function' (the defaults are always used), shift selection
-!> (the `^' of the interactive specs), `kill_backward_up_list' (needs
+!> Deferred: `forward_group_function', `down_group_function' and
+!> `up_group_function' (the defaults are always used), shift selection
+!> (the `^' of the interactive specs), `kill_backward_up_group' (needs
 !> thingatpt.el), `move_past_close_and_reindent' (M-); needs lisp-mode.el's
 !> `calculate_lisp_indent'); not applicable: `field_complete' and
 !> `lisp_complete_symbol' (obsolete; Emacs Lisp completion).
-module lisp_cmds_fm
+module expression_motion_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_USER_ERROR, FM_SCAN_ERROR, FM_GENERIC_ERROR
@@ -49,8 +49,8 @@ module lisp_cmds_fm
     use editfns_fm, only: point, goto_char, point_min, point_max, narrow_to_region, widen, mark_position, bobp, eobp, &
                           bolp, eolp, line_beginning_position, line_end_position, region_beginning, region_end, &
                           preceding_char, following_char, buffer_substring, delete_region
-    use syntax_fm, only: scan_sexps, scan_lists, forward_comment, backward_prefix_chars, syntax_ppss, &
-                         parse_state_type, scan_error_data, open_paren_in_column_0_is_defun_start, &
+    use syntax_fm, only: scan_expressions, scan_groups, forward_comment, backward_prefix_chars, syntax_ppss, &
+                         parse_state_type, scan_error_data, open_paren_in_column_0_is_subprogram_start, &
                          skip_chars_forward, skip_chars_backward, skip_syntax_backward, char_syntax
     use syntax_propertize_fm, only: syntax_ppss_toplevel_pos
     use simple_fm, only: kill_region, set_mark, push_mark, use_region_p, blink_matching_delay
@@ -69,77 +69,79 @@ module lisp_cmds_fm
     implicit none(type, external)
     private
 
-    public :: forward_sexp, backward_sexp, forward_list, backward_list, down_list, backward_up_list, up_list, &
-              kill_sexp, backward_kill_sexp, mark_sexp, syms_of_lisp_cmds, forward_sexp_default_function, &
-              forward_sexp_proc, beginning_of_defun_proc, beginning_of_defun, beginning_of_defun_raw, &
-              beginning_of_defun_comments, end_of_defun, mark_defun, narrow_to_defun, insert_pair, insert_parentheses, &
-              delete_pair, raise_sexp, check_parens, buffer_end
+    public :: forward_expression, backward_expression, forward_group, backward_group, down_group, backward_up_group, up_group, &
+              kill_expression, backward_kill_expression, mark_expression, syms_of_expression_motion, &
+              forward_expression_default_function, &
+              forward_expression_proc, beginning_of_subprogram_proc, beginning_of_subprogram, beginning_of_subprogram_raw, &
+              beginning_of_subprogram_comments, end_of_subprogram, mark_subprogram, narrow_to_subprogram, insert_pair, &
+              insert_parentheses, &
+              delete_pair, raise_expression, check_parens, buffer_end
 
     abstract interface
-        !> A `forward_sexp_function': move across ARG sexps, as
-        !> `forward_sexp' does.  Not a port.
-        subroutine forward_sexp_proc(arg, status)
+        !> A `forward_expression_function': move across ARG expressions, as
+        !> `forward_expression' does.  Not a port.
+        subroutine forward_expression_proc(arg, status)
             import :: int64, status_type
             implicit none(type, external)
             integer(int64), intent(in) :: arg
             type(status_type), intent(out) :: status
-        end subroutine forward_sexp_proc
+        end subroutine forward_expression_proc
     end interface
 
-    ! One buffer's own `forward_sexp_function' (FN null is nil).
-    type :: forward_sexp_entry_type
+    ! One buffer's own `forward_expression_function' (FN null is nil).
+    type :: forward_expression_entry_type
         integer(int64) :: serial = 0
-        procedure(forward_sexp_proc), pointer, nopass :: fn => null()
-    end type forward_sexp_entry_type
+        procedure(forward_expression_proc), pointer, nopass :: fn => null()
+    end type forward_expression_entry_type
 
-    !> The type of `forward_sexp_function': the default `value' (assign
+    !> The type of `forward_expression_function': the default `value' (assign
     !> with `=>'; null is nil) and buffers' own values (`set_local',
     !> where null is nil too).
-    type, public :: forward_sexp_function_type
-        procedure(forward_sexp_proc), pointer, nopass :: value => null()
-        type(forward_sexp_entry_type), allocatable :: entries(:)
+    type, public :: forward_expression_function_type
+        procedure(forward_expression_proc), pointer, nopass :: value => null()
+        type(forward_expression_entry_type), allocatable :: entries(:)
     contains
         !> Give the current buffer its own value FN (setq-local); absent is
         !> nil.
-        procedure :: set_local => forward_sexp_set_local
+        procedure :: set_local => forward_expression_set_local
         !> The value in the current buffer (null for nil).
-        procedure :: get => forward_sexp_get
+        procedure :: get => forward_expression_get
         !> Whether the current buffer has its own value.
-        procedure :: local_p => forward_sexp_local_p
+        procedure :: local_p => forward_expression_local_p
         !> Make the current buffer use the default again.
-        procedure :: kill_local => forward_sexp_kill_local
-    end type forward_sexp_function_type
+        procedure :: kill_local => forward_expression_kill_local
+    end type forward_expression_function_type
 
-    !> If true, `forward_sexp' delegates to this function.
-    !> Should take the same arguments and behave similarly to `forward_sexp'.
+    !> If true, `forward_expression' delegates to this function.
+    !> Should take the same arguments and behave similarly to `forward_expression'.
     !> Port of lisp.el forward-sexp-function (its default,
-    !> `forward_sexp_default_function', is set by `syms_of_lisp_cmds').
-    type(forward_sexp_function_type), public :: forward_sexp_function
+    !> `forward_expression_default_function', is set by `syms_of_expression_motion').
+    type(forward_expression_function_type), public :: forward_expression_function
 
     abstract interface
-        !> A `beginning_of_defun_function': move to the beginning of the
-        !> ARGth defun as `beginning_of_defun' does, FOUND if it found one.
-        recursive subroutine beginning_of_defun_proc(arg, found, status)
+        !> A `beginning_of_subprogram_function': move to the beginning of the
+        !> ARGth subprogram as `beginning_of_subprogram' does, FOUND if it found one.
+        recursive subroutine beginning_of_subprogram_proc(arg, found, status)
             import :: int64, status_type
             implicit none(type, external)
             integer(int64), intent(in) :: arg
             logical, intent(out) :: found
             type(status_type), intent(out) :: status
-        end subroutine beginning_of_defun_proc
+        end subroutine beginning_of_subprogram_proc
     end interface
 
-    ! One buffer's own `beginning_of_defun_function' (FN null is nil).
-    type :: beginning_of_defun_entry_type
+    ! One buffer's own `beginning_of_subprogram_function' (FN null is nil).
+    type :: beginning_of_subprogram_entry_type
         integer(int64) :: serial = 0
-        procedure(beginning_of_defun_proc), pointer, nopass :: fn => null()
-    end type beginning_of_defun_entry_type
+        procedure(beginning_of_subprogram_proc), pointer, nopass :: fn => null()
+    end type beginning_of_subprogram_entry_type
 
-    !> The type of `beginning_of_defun_function': the default `value'
+    !> The type of `beginning_of_subprogram_function': the default `value'
     !> (assign with `=>'; null is nil) and buffers' own values
     !> (`set_local').
-    type, public :: beginning_of_defun_function_type
-        procedure(beginning_of_defun_proc), pointer, nopass :: value => null()
-        type(beginning_of_defun_entry_type), allocatable :: entries(:)
+    type, public :: beginning_of_subprogram_function_type
+        procedure(beginning_of_subprogram_proc), pointer, nopass :: value => null()
+        type(beginning_of_subprogram_entry_type), allocatable :: entries(:)
     contains
         !> Give the current buffer its own value FN (setq-local); absent is
         !> nil.
@@ -148,25 +150,25 @@ module lisp_cmds_fm
         procedure :: get => bod_get
         !> Make the current buffer use the default again.
         procedure :: kill_local => bod_kill_local
-    end type beginning_of_defun_function_type
+    end type beginning_of_subprogram_function_type
 
-    !> If true, function for `beginning_of_defun_raw' to call.
-    !> This is used to find the beginning of the defun instead of using the
-    !> normal recipe (see `beginning_of_defun').  Major modes can define this
-    !> if defining `defun_prompt_regexp' is not sufficient to handle the mode's
+    !> If true, function for `beginning_of_subprogram_raw' to call.
+    !> This is used to find the beginning of the subprogram instead of using the
+    !> normal recipe (see `beginning_of_subprogram').  Major modes can define this
+    !> if defining `subprogram_prompt_regexp' is not sufficient to handle the mode's
     !> needs.
     !>
-    !> The function takes the same argument as `beginning_of_defun' and should
-    !> behave similarly, returning true if it found the beginning of a defun.
+    !> The function takes the same argument as `beginning_of_subprogram' and should
+    !> behave similarly, returning true if it found the beginning of a subprogram.
     !> Ideally it should move to a point right before an open-paren which encloses
-    !> the body of the defun.  Port of lisp.el beginning-of-defun-function.
-    type(beginning_of_defun_function_type), public :: beginning_of_defun_function
+    !> the body of the subprogram.  Port of lisp.el beginning-of-defun-function.
+    type(beginning_of_subprogram_function_type), public :: beginning_of_subprogram_function
 
-    !> If true, a regexp to ignore before a defun.
+    !> If true, a regexp to ignore before a subprogram.
     !> This is only necessary if the opening paren or brace is not in column 0.
-    !> See function `beginning_of_defun'.  Port of lisp.el defun-prompt-regexp
+    !> See function `beginning_of_subprogram'.  Port of lisp.el defun-prompt-regexp
     !> (buffer-local when set).
-    type(string_setting), target, public :: defun_prompt_regexp = string_setting(name="defun_prompt_regexp")
+    type(string_setting), target, public :: subprogram_prompt_regexp = string_setting(name="subprogram_prompt_regexp")
 
     !> If true, add whitespace as needed when inserting parentheses.
     !> This affects `insert_parentheses' and `insert_pair'.  Port of lisp.el
@@ -174,27 +176,27 @@ module lisp_cmds_fm
     type(logical_setting), target, public :: parens_require_spaces = &
                                              logical_setting(name="parens_require_spaces", value=.true.)
 
-    !> Function for `end_of_defun' to call.
-    !> This is used to find the end of the defun at point.
-    !> It is called with no argument, right after calling `beginning_of_defun_raw'.
-    !> So the function can assume that point is at the beginning of the defun body.
-    !> It should move point to the first position after the defun.  Port of
+    !> Function for `end_of_subprogram' to call.
+    !> This is used to find the end of the subprogram at point.
+    !> It is called with no argument, right after calling `beginning_of_subprogram_raw'.
+    !> So the function can assume that point is at the beginning of the subprogram body.
+    !> It should move point to the first position after the subprogram.  Port of
     !> lisp.el end-of-defun-function.
-    type(function_setting), target, public :: end_of_defun_function = function_setting(name="end_of_defun_function")
+    type(function_setting), target, public :: end_of_subprogram_function = function_setting(name="end_of_subprogram_function")
 
-    !> Whether `end_of_defun' moves to eol before doing anything else.
+    !> Whether `end_of_subprogram' moves to eol before doing anything else.
     !> Set this to .false. if this movement adversely affects the buffer's
     !> major mode's decisions about context.  Port of lisp.el
     !> end-of-defun-moves-to-eol.
-    type(logical_setting), target, public :: end_of_defun_moves_to_eol = &
-                                             logical_setting(name="end_of_defun_moves_to_eol", value=.true.)
+    type(logical_setting), target, public :: end_of_subprogram_moves_to_eol = &
+                                             logical_setting(name="end_of_subprogram_moves_to_eol", value=.true.)
 
-    !> If true, `narrow_to_defun' will also show comments preceding the defun.
+    !> If true, `narrow_to_subprogram' will also show comments preceding the subprogram.
     !> Port of lisp.el narrow-to-defun-include-comments.
-    type(logical_setting), target, public :: narrow_to_defun_include_comments = &
-                                             logical_setting(name="narrow_to_defun_include_comments", value=.false.)
+    type(logical_setting), target, public :: narrow_to_subprogram_include_comments = &
+                                             logical_setting(name="narrow_to_subprogram_include_comments", value=.false.)
 
-    !> An entry of `insert_pair_alist': the characters OPEN and CLOSE, and
+    !> An entry of `insert_pair_table': the characters OPEN and CLOSE, and
     !> the COMMAND character that triggers them (0 if the key is OPEN).
     type, public :: insert_pair_type
         integer(int32) :: command = 0
@@ -202,7 +204,7 @@ module lisp_cmds_fm
         integer(int32) :: close = 0
     end type insert_pair_type
 
-    !> Alist of paired characters inserted by `insert_pair'.
+    !> Table of paired characters inserted by `insert_pair'.
     !> Each element looks like (OPEN-CHAR CLOSE-CHAR) or (COMMAND-CHAR
     !> OPEN-CHAR CLOSE-CHAR).  The characters OPEN-CHAR and CLOSE-CHAR
     !> of the pair whose key is equal to the last input character with
@@ -211,7 +213,7 @@ module lisp_cmds_fm
     !> If COMMAND-CHAR is specified, it is a character that triggers the
     !> insertion of the open/close pair, and COMMAND-CHAR itself isn't
     !> inserted.  Port of lisp.el insert-pair-alist.
-    type(insert_pair_type), allocatable, public :: insert_pair_alist(:)
+    type(insert_pair_type), allocatable, public :: insert_pair_table(:)
 
     !> Time in seconds to delay after showing a paired character to delete.
     !> It's used by the command `delete_pair'.  The value 0 disables blinking.
@@ -226,10 +228,10 @@ module lisp_cmds_fm
 contains
 
     ! Not a port.
-    subroutine forward_sexp_set_local(self, fn)
-        class(forward_sexp_function_type), intent(inout) :: self
-        procedure(forward_sexp_proc), optional :: fn
-        type(forward_sexp_entry_type), allocatable :: grown(:)
+    subroutine forward_expression_set_local(self, fn)
+        class(forward_expression_function_type), intent(inout) :: self
+        procedure(forward_expression_proc), optional :: fn
+        type(forward_expression_entry_type), allocatable :: grown(:)
         integer :: i, n
 
         if (cur == 0) return
@@ -262,11 +264,11 @@ contains
         else
             self%entries(i)%fn => null()
         end if
-    end subroutine forward_sexp_set_local
+    end subroutine forward_expression_set_local
 
     ! The index of the current buffer's entry, 0 if none.  Not a port.
     integer function local_entry(self) result(i)
-        class(forward_sexp_function_type), intent(in) :: self
+        class(forward_expression_function_type), intent(in) :: self
 
         if (cur == 0 .or. .not. allocated(self%entries)) then
             i = 0
@@ -281,9 +283,9 @@ contains
     end function local_entry
 
     ! Not a port.
-    function forward_sexp_get(self) result(fn)
-        class(forward_sexp_function_type), intent(in) :: self
-        procedure(forward_sexp_proc), pointer :: fn
+    function forward_expression_get(self) result(fn)
+        class(forward_expression_function_type), intent(in) :: self
+        procedure(forward_expression_proc), pointer :: fn
         integer :: i
 
         i = local_entry(self)
@@ -293,38 +295,38 @@ contains
         else
             fn => self%value
         end if
-    end function forward_sexp_get
+    end function forward_expression_get
 
     ! Not a port.
-    logical function forward_sexp_local_p(self)
-        class(forward_sexp_function_type), intent(in) :: self
+    logical function forward_expression_local_p(self)
+        class(forward_expression_function_type), intent(in) :: self
 
-        forward_sexp_local_p = local_entry(self) > 0
-    end function forward_sexp_local_p
+        forward_expression_local_p = local_entry(self) > 0
+    end function forward_expression_local_p
 
     ! Not a port.
-    subroutine forward_sexp_kill_local(self)
-        class(forward_sexp_function_type), intent(inout) :: self
+    subroutine forward_expression_kill_local(self)
+        class(forward_expression_function_type), intent(inout) :: self
         integer :: i
 
         i = local_entry(self)
         if (i == 0) return
         self%entries(i)%serial = 0
         self%entries(i)%fn => null()
-    end subroutine forward_sexp_kill_local
+    end subroutine forward_expression_kill_local
 
     ! kill-all-local-variables: forget the current buffer's
-    ! `forward_sexp_function'.  Not a port.
-    subroutine kill_lisp_cmds_locals()
-        call forward_sexp_function%kill_local()
-        call beginning_of_defun_function%kill_local()
-    end subroutine kill_lisp_cmds_locals
+    ! `forward_expression_function'.  Not a port.
+    subroutine kill_expression_motion_locals()
+        call forward_expression_function%kill_local()
+        call beginning_of_subprogram_function%kill_local()
+    end subroutine kill_expression_motion_locals
 
     ! Not a port.
     subroutine bod_set_local(self, fn)
-        class(beginning_of_defun_function_type), intent(inout) :: self
-        procedure(beginning_of_defun_proc), optional :: fn
-        type(beginning_of_defun_entry_type), allocatable :: grown(:)
+        class(beginning_of_subprogram_function_type), intent(inout) :: self
+        procedure(beginning_of_subprogram_proc), optional :: fn
+        type(beginning_of_subprogram_entry_type), allocatable :: grown(:)
         integer :: i, n
 
         if (cur == 0) return
@@ -362,7 +364,7 @@ contains
     ! The index of the current buffer's entry, 0 if none.
     ! Not a port.
     integer function bod_entry(self) result(i)
-        class(beginning_of_defun_function_type), intent(in) :: self
+        class(beginning_of_subprogram_function_type), intent(in) :: self
 
         if (cur == 0 .or. .not. allocated(self%entries)) then
             i = 0
@@ -378,8 +380,8 @@ contains
 
     ! Not a port.
     function bod_get(self) result(fn)
-        class(beginning_of_defun_function_type), intent(in) :: self
-        procedure(beginning_of_defun_proc), pointer :: fn
+        class(beginning_of_subprogram_function_type), intent(in) :: self
+        procedure(beginning_of_subprogram_proc), pointer :: fn
         integer :: i
 
         i = bod_entry(self)
@@ -393,7 +395,7 @@ contains
 
     ! Not a port.
     subroutine bod_kill_local(self)
-        class(beginning_of_defun_function_type), intent(inout) :: self
+        class(beginning_of_subprogram_function_type), intent(inout) :: self
         integer :: i
 
         i = bod_entry(self)
@@ -414,71 +416,71 @@ contains
         end if
     end function buffer_end
 
-    !> Default function for `forward_sexp_function'.  Port of
+    !> Default function for `forward_expression_function'.  Port of
     !> lisp.el:forward-sexp-default-function.
-    recursive subroutine forward_sexp_default_function(arg, status)
+    recursive subroutine forward_expression_default_function(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         integer(int64) :: pos
 
-        pos = scan_sexps(point(), arg, status)
+        pos = scan_expressions(point(), arg, status)
         if (.not. status%ok()) return
         if (pos == 0) pos = buffer_end(arg)
         call goto_char(pos)
         if (arg < 0) call backward_prefix_chars()
-    end subroutine forward_sexp_default_function
+    end subroutine forward_expression_default_function
 
-    !> Move forward across one balanced expression (sexp).
+    !> Move forward across one balanced expression.
     !> With ARG, do it that many times.  Negative arg -N means move
     !> backward across N balanced expressions.  This command assumes
     !> point is not in a string or comment.  Calls
-    !> `forward_sexp_function' to do the work, if that is set.
-    !> If unable to move over a sexp, signal `scan_error' with three
+    !> `forward_expression_function' to do the work, if that is set.
+    !> If unable to move over an expression, signal `scan_error' with three
     !> arguments: a message, the start of the obstacle (usually a
-    !> parenthesis or list marker of some kind), and end of the
+    !> parenthesis or group marker of some kind), and end of the
     !> obstacle.  If INTERACTIVE is true, as it is interactively,
     !> report errors as appropriate for this kind of usage.
     !> Port of lisp.el:forward-sexp.
-    recursive subroutine forward_sexp(arg, status, interactive)
+    recursive subroutine forward_expression(arg, status, interactive)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
-        procedure(forward_sexp_proc), pointer :: fn
+        procedure(forward_expression_proc), pointer :: fn
 
-        fn => forward_sexp_function%get()
+        fn => forward_expression_function%get()
 
         if (associated(fn)) then
             call fn(arg, status)
         else
-            call forward_sexp_default_function(arg, status)
+            call forward_expression_default_function(arg, status)
         end if
 
         if (.not. present(interactive)) return
 
         if (interactive .and. status%code == FM_SCAN_ERROR) then
             if (arg > 0) then
-                call set_error(status, FM_USER_ERROR, "No next sexp")
+                call set_error(status, FM_USER_ERROR, "No next expression")
             else
-                call set_error(status, FM_USER_ERROR, "No previous sexp")
+                call set_error(status, FM_USER_ERROR, "No previous expression")
             end if
         end if
-    end subroutine forward_sexp
+    end subroutine forward_expression
 
-    !> Move backward across one balanced expression (sexp).
+    !> Move backward across one balanced expression.
     !> With ARG, do it that many times.  Negative arg -N means
     !> move forward across N balanced expressions.
     !> This command assumes point is not in a string or comment.
-    !> Uses `forward_sexp' to do the work.
+    !> Uses `forward_expression' to do the work.
     !> If INTERACTIVE is true, as it is interactively,
     !> report errors as appropriate for this kind of usage.
     !> Port of lisp.el:backward-sexp.
-    recursive subroutine backward_sexp(arg, status, interactive)
+    recursive subroutine backward_expression(arg, status, interactive)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
 
-        call forward_sexp(-arg, status, interactive)
-    end subroutine backward_sexp
+        call forward_expression(-arg, status, interactive)
+    end subroutine backward_expression
 
     !> Move forward across one balanced group of parentheses.
     !> This command will also work on other parentheses-like expressions
@@ -489,13 +491,13 @@ contains
     !> If INTERACTIVE is true, as it is interactively,
     !> report errors as appropriate for this kind of usage.
     !> Port of lisp.el:forward-list (with forward-list-default-function).
-    subroutine forward_list(arg, status, interactive)
+    subroutine forward_group(arg, status, interactive)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
         integer(int64) :: pos
 
-        pos = scan_lists(point(), arg, 0_int64, status)
+        pos = scan_groups(point(), arg, 0_int64, status)
 
         if (status%ok()) then
             if (pos == 0) pos = buffer_end(arg)
@@ -512,7 +514,7 @@ contains
                 call set_error(status, FM_USER_ERROR, "No previous group")
             end if
         end if
-    end subroutine forward_list
+    end subroutine forward_group
 
     !> Move backward across one balanced group of parentheses.
     !> This command will also work on other parentheses-like expressions
@@ -520,17 +522,17 @@ contains
     !> With ARG, do it that many times.
     !> Negative arg -N means move forward across N groups of parentheses.
     !> This command assumes point is not in a string or comment.
-    !> Uses `forward_list' to do the work.
+    !> Uses `forward_group' to do the work.
     !> If INTERACTIVE is true, as it is interactively,
     !> report errors as appropriate for this kind of usage.
     !> Port of lisp.el:backward-list.
-    subroutine backward_list(arg, status, interactive)
+    subroutine backward_group(arg, status, interactive)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
 
-        call forward_list(-arg, status, interactive)
-    end subroutine backward_list
+        call forward_group(-arg, status, interactive)
+    end subroutine backward_group
 
     !> Move forward down one level of parentheses.
     !> This command will also work on other parentheses-like expressions
@@ -541,7 +543,7 @@ contains
     !> If INTERACTIVE is true, as it is interactively,
     !> report errors as appropriate for this kind of usage.
     !> Port of lisp.el:down-list (with down-list-default-function).
-    subroutine down_list(arg, status, interactive)
+    subroutine down_group(arg, status, interactive)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
@@ -561,7 +563,7 @@ contains
         if (n > 0) inc = 1
 
         do while (n /= 0)
-            pos = scan_lists(point(), inc, -1_int64, status)
+            pos = scan_groups(point(), inc, -1_int64, status)
             if (.not. status%ok()) exit
             if (pos == 0) pos = buffer_end(n)
             call goto_char(pos)
@@ -570,7 +572,7 @@ contains
 
         if (.not. present(interactive)) return
         if (interactive .and. status%code == FM_SCAN_ERROR) call set_error(status, FM_USER_ERROR, "At bottom level")
-    end subroutine down_list
+    end subroutine down_group
 
     !> Move backward out of one level of parentheses.
     !> This command will also work on other parentheses-like expressions
@@ -583,17 +585,17 @@ contains
     !>
     !> If NO_SYNTAX_CROSSING is true (as it is interactively), prefer
     !> to break out of any enclosing string instead of moving to the
-    !> start of a list broken across multiple strings.
+    !> start of a group broken across multiple strings.
     !>
     !> On error, location of point is unspecified.
     !> Port of lisp.el:backward-up-list.
-    recursive subroutine backward_up_list(arg, status, escape_strings, no_syntax_crossing)
+    recursive subroutine backward_up_group(arg, status, escape_strings, no_syntax_crossing)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: escape_strings, no_syntax_crossing
 
-        call up_list(-arg, status, escape_strings, no_syntax_crossing)
-    end subroutine backward_up_list
+        call up_group(-arg, status, escape_strings, no_syntax_crossing)
+    end subroutine backward_up_group
 
     !> Move forward out of one level of parentheses.
     !> This command will also work on other parentheses-like expressions
@@ -606,11 +608,11 @@ contains
     !>
     !> If NO_SYNTAX_CROSSING is true (as it is interactively), prefer
     !> to break out of any enclosing string instead of moving to the
-    !> end of a list broken across multiple strings.
+    !> end of a group broken across multiple strings.
     !>
     !> On error, location of point is unspecified.
     !> Port of lisp.el:up-list (with up-list-default-function).
-    recursive subroutine up_list(arg, status, escape_strings, no_syntax_crossing)
+    recursive subroutine up_group(arg, status, escape_strings, no_syntax_crossing)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: escape_strings, no_syntax_crossing
@@ -618,7 +620,7 @@ contains
         type(status_type) :: st
         integer(int64) :: n, inc, pos, savedb, savedz, opoint, limit
         logical :: escape, crossing, handled, have_syntax, ok, default_fn
-        procedure(forward_sexp_proc), pointer :: fn
+        procedure(forward_expression_proc), pointer :: fn
         character(len=:), allocatable :: message
         integer(int64) :: beg, end
         character(len=24) :: buf
@@ -649,7 +651,7 @@ contains
 
                     if (syntax%instring /= -1) then
                         ! In string.
-                        call forward_sexp(1_int64, st)
+                        call forward_expression(1_int64, st)
 
                         if (st%code == FM_SCAN_ERROR) then
                             limit = point_max()
@@ -666,12 +668,12 @@ contains
                 end if
             end if
 
-            fn => forward_sexp_function%get()
+            fn => forward_expression_function%get()
             default_fn = .not. associated(fn)
-            if (.not. default_fn) default_fn = associated(fn, forward_sexp_default_function)
+            if (.not. default_fn) default_fn = associated(fn, forward_expression_default_function)
 
             if (default_fn) then
-                pos = scan_lists(point(), inc, 1_int64, status)
+                pos = scan_groups(point(), inc, 1_int64, status)
 
                 if (status%ok()) then
                     if (pos == 0) pos = buffer_end(n)
@@ -680,7 +682,7 @@ contains
             else
                 do
                     pos = point()
-                    call forward_sexp(inc, status)
+                    call forward_expression(inc, status)
                     if (.not. status%ok()) exit
                     if (point() == pos) exit
                 end do
@@ -720,7 +722,7 @@ contains
                         call goto_char(syntax%comstr_start)
 
                         if (inc > 0) then
-                            call forward_sexp(1_int64, status)
+                            call forward_expression(1_int64, status)
                             if (.not. status%ok()) return
                         end if
 
@@ -762,23 +764,23 @@ contains
 
             n = n - inc
         end do
-    end subroutine up_list
+    end subroutine up_group
 
-    !> Kill the sexp (balanced expression) following point.
-    !> With ARG, kill that many sexps after point.
-    !> Negative arg -N means kill N sexps before point.
+    !> Kill the balanced expression following point.
+    !> With ARG, kill that many expressions after point.
+    !> Negative arg -N means kill N expressions before point.
     !> This command assumes point is not in a string or comment.
     !> If INTERACTIVE is true, as it is interactively,
     !> report errors as appropriate for this kind of usage.
     !> Port of lisp.el:kill-sexp.
-    subroutine kill_sexp(arg, status, interactive)
+    subroutine kill_expression(arg, status, interactive)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
         integer(int64) :: opoint
 
         opoint = point()
-        call forward_sexp(arg, status)
+        call forward_expression(arg, status)
 
         if (status%ok()) then
             call kill_region(opoint, point(), status)
@@ -789,46 +791,46 @@ contains
 
         if (interactive .and. status%code == FM_SCAN_ERROR) then
             if (arg > 0) then
-                call set_error(status, FM_USER_ERROR, "No next sexp")
+                call set_error(status, FM_USER_ERROR, "No next expression")
             else
-                call set_error(status, FM_USER_ERROR, "No previous sexp")
+                call set_error(status, FM_USER_ERROR, "No previous expression")
             end if
         end if
-    end subroutine kill_sexp
+    end subroutine kill_expression
 
-    !> Kill the sexp (balanced expression) preceding point.
-    !> With ARG, kill that many sexps before point.
-    !> Negative arg -N means kill N sexps after point.
+    !> Kill the balanced expression preceding point.
+    !> With ARG, kill that many expressions before point.
+    !> Negative arg -N means kill N expressions after point.
     !> This command assumes point is not in a string or comment.
     !> If INTERACTIVE is true, as it is interactively,
     !> report errors as appropriate for this kind of usage.
     !> Port of lisp.el:backward-kill-sexp.
-    subroutine backward_kill_sexp(arg, status, interactive)
+    subroutine backward_kill_expression(arg, status, interactive)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
 
-        call kill_sexp(-arg, status, interactive)
-    end subroutine backward_kill_sexp
+        call kill_expression(-arg, status, interactive)
+    end subroutine backward_kill_expression
 
-    !> Set mark ARG sexps from point or move mark one sexp.
-    !> With ALLOW_EXTEND false, mark is set ARG sexps from point.
+    !> Set mark ARG expressions from point or move mark one expression.
+    !> With ALLOW_EXTEND false, mark is set ARG expressions from point.
     !> With ARG given (HAVE_ARG) and ALLOW_EXTEND both true (interactively,
     !> with prefix argument), the place to which mark goes is the same
-    !> place \[forward_sexp] would move to with the same argument; if the
-    !> mark is active, it moves ARG sexps from its current position,
-    !> otherwise it is set ARG sexps from point.
+    !> place \[forward_expression] would move to with the same argument; if the
+    !> mark is active, it moves ARG expressions from its current position,
+    !> otherwise it is set ARG expressions from point.
     !> When invoked interactively without a prefix argument and no active
-    !> region, mark moves one sexp forward.
+    !> region, mark moves one expression forward.
     !> When invoked interactively without a prefix argument, and region
-    !> is active, mark moves one sexp away of point (i.e., forward
+    !> is active, mark moves one expression away of point (i.e., forward
     !> if mark is at or after point, back if mark is before point), thus
-    !> extending the region by one sexp.  Since the direction of region
+    !> extending the region by one expression.  Since the direction of region
     !> extension depends on the relative position of mark and point, you
     !> can change the direction by \[exchange_point_and_mark].
     !> This command assumes point is not in a string or comment.
     !> Port of lisp.el:mark-sexp.
-    subroutine mark_sexp(arg, have_arg, allow_extend, status)
+    subroutine mark_expression(arg, have_arg, allow_extend, status)
         integer(int64), intent(in) :: arg
         logical, intent(in) :: have_arg, allow_extend
         type(status_type), intent(out) :: status
@@ -856,23 +858,23 @@ contains
             end if
 
             call goto_char(mark_position())
-            call forward_sexp(n, status)
+            call forward_expression(n, status)
             target = point()
             call goto_char(opoint)
 
             if (.not. status%ok()) then
-                call to_user_error("No more sexp to select")
+                call to_user_error("No more expression to select")
                 return
             end if
 
             call set_mark(target)
         else
-            call forward_sexp(arg, status)
+            call forward_expression(arg, status)
             target = point()
             call goto_char(opoint)
 
             if (.not. status%ok()) then
-                call to_user_error("No sexp to select")
+                call to_user_error("No expression to select")
                 return
             end if
 
@@ -898,67 +900,67 @@ contains
                 call set_error(status, FM_USER_ERROR, message)
             end if
         end subroutine to_user_error
-    end subroutine mark_sexp
+    end subroutine mark_expression
 
     ! ------------------------------------------------------------------
-    ! Defuns
+    ! Subprograms
     ! ------------------------------------------------------------------
 
-    !> Move backward to the beginning of a defun.
+    !> Move backward to the beginning of a subprogram.
     !> With ARG, do it that many times.  Negative ARG means move forward
-    !> to the ARGth following beginning of defun.
+    !> to the ARGth following beginning of subprogram.
     !>
     !> If search is successful, return true (FOUND); point ends up at the
     !> beginning of the line where the search succeeded.  Otherwise, return
     !> .false..
     !>
-    !> When `open_paren_in_column_0_is_defun_start' is true, a defun
+    !> When `open_paren_in_column_0_is_subprogram_start' is true, a subprogram
     !> is assumed to start where there is a char with open-parenthesis
-    !> syntax at the beginning of a line.  If `defun_prompt_regexp' is
+    !> syntax at the beginning of a line.  If `subprogram_prompt_regexp' is
     !> true, then a string which matches that regexp may also precede
-    !> the open-parenthesis.  If `defun_prompt_regexp' and
-    !> `open_paren_in_column_0_is_defun_start' are both unset, this
+    !> the open-parenthesis.  If `subprogram_prompt_regexp' and
+    !> `open_paren_in_column_0_is_subprogram_start' are both unset, this
     !> function instead finds an open-paren at the outermost level.
     !>
-    !> If the variable `beginning_of_defun_function' is true, its
+    !> If the variable `beginning_of_subprogram_function' is true, its
     !> value is called as a function, with argument ARG, to find the
-    !> defun's beginning.
+    !> subprogram's beginning.
     !>
-    !> Regardless of the values of `defun_prompt_regexp' and
-    !> `beginning_of_defun_function', point always moves to the
+    !> Regardless of the values of `subprogram_prompt_regexp' and
+    !> `beginning_of_subprogram_function', point always moves to the
     !> beginning of the line whenever the search is successful.
     !> Port of lisp.el:beginning-of-defun.
-    recursive subroutine beginning_of_defun(arg, found, status)
+    recursive subroutine beginning_of_subprogram(arg, found, status)
         integer(int64), intent(in) :: arg
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
 
-        if (value_eq(this_command, sym("beginning_of_defun"))) then
-            if (.not. value_eq(last_command, sym("beginning_of_defun"))) then
+        if (value_eq(this_command, sym("beginning_of_subprogram"))) then
+            if (.not. value_eq(last_command, sym("beginning_of_subprogram"))) then
                 if (.not. (transient_mark_mode%value .and. buffers(cur)%mark_active)) call push_mark()
             end if
         end if
 
-        call beginning_of_defun_raw(arg, found, status)
+        call beginning_of_subprogram_raw(arg, found, status)
         if (found) call beginning_of_line()
-    end subroutine beginning_of_defun
+    end subroutine beginning_of_subprogram
 
-    !> Move point to the character that starts a defun.
-    !> This is identical to function `beginning_of_defun', except that point
-    !> does not move to the beginning of the line when `defun_prompt_regexp'
+    !> Move point to the character that starts a subprogram.
+    !> This is identical to function `beginning_of_subprogram', except that point
+    !> does not move to the beginning of the line when `subprogram_prompt_regexp'
     !> is true.
     !>
-    !> If variable `beginning_of_defun_function' is true, its value
-    !> is called as a function to find the defun's beginning.
+    !> If variable `beginning_of_subprogram_function' is true, its value
+    !> is called as a function to find the subprogram's beginning.
     !>
     !> Return true (FOUND) if this function successfully found the beginning
-    !> of a defun, .false. if it failed to find one.  Port of
+    !> of a subprogram, .false. if it failed to find one.  Port of
     !> lisp.el:beginning-of-defun-raw.
-    recursive subroutine beginning_of_defun_raw(arg, found, status)
+    recursive subroutine beginning_of_subprogram_raw(arg, found, status)
         integer(int64), intent(in) :: arg
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
-        procedure(beginning_of_defun_proc), pointer :: fn
+        procedure(beginning_of_subprogram_proc), pointer :: fn
         type(parse_state_type) :: ppss
         integer(int64), allocatable :: md(:)
         integer(int64) :: n, pos, floor, ceiling, encl_pos, begv, zv_from_end
@@ -968,7 +970,7 @@ contains
 
         status = status_type()
         found = .false.
-        fn => beginning_of_defun_function%get()
+        fn => beginning_of_subprogram_function%get()
 
         if (associated(fn)) then
             call fn(arg, found, status)
@@ -977,12 +979,12 @@ contains
 
         n = arg
 
-        if (allocated(defun_prompt_regexp%value) .or. open_paren_in_column_0_is_defun_start) then
+        if (allocated(subprogram_prompt_regexp%value) .or. open_paren_in_column_0_is_subprogram_start) then
             if (n < 0 .and. .not. eobp()) call goto_char(point() + 1)
 
-            if (allocated(defun_prompt_regexp%value)) then
-                re = "\(?:"//defun_prompt_regexp%value//"\)\s("
-                if (open_paren_in_column_0_is_defun_start) re = "^\s(\|"//re
+            if (allocated(subprogram_prompt_regexp%value)) then
+                re = "\(?:"//subprogram_prompt_regexp%value//"\)\s("
+                if (open_paren_in_column_0_is_subprogram_start) re = "^\s(\|"//re
             else
                 re = "^\s("
             end if
@@ -1035,7 +1037,7 @@ contains
         end if
 
         ! (to catch crazy parens.)
-        pos = scan_lists(point(), -n, 0_int64, st)
+        pos = scan_groups(point(), -n, 0_int64, st)
 
         if (st%ok() .and. pos > 0) then
             call goto_char(pos)
@@ -1048,7 +1050,7 @@ contains
                 end if
             else
                 ! forward to next (, or trigger the c-c
-                pos = scan_lists(point(), 1_int64, -1_int64, st)
+                pos = scan_groups(point(), 1_int64, -1_int64, st)
 
                 if (st%ok() .and. pos > 0) then
                     call goto_char(pos - 1)
@@ -1069,7 +1071,7 @@ contains
         end if
 
         call narrow_to_region(begv, buffers(cur)%text%z - zv_from_end, st)
-    end subroutine beginning_of_defun_raw
+    end subroutine beginning_of_subprogram_raw
 
     !> Return true if the point is in an "emptyish" line.
     !> This means a line that consists entirely of comments and/or
@@ -1094,16 +1096,16 @@ contains
         call goto_char(opoint)
     end function in_emptyish_line_p
 
-    !> Move to the beginning of ARGth defun, including comments.  Port of
+    !> Move to the beginning of ARGth subprogram, including comments.  Port of
     !> lisp.el:beginning-of-defun-comments.
-    recursive subroutine beginning_of_defun_comments(arg, status)
+    recursive subroutine beginning_of_subprogram_comments(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         type(parse_state_type) :: ppss
         integer(int64) :: shortage, moved
         logical :: found, first_line_p, more
 
-        call beginning_of_defun(arg, found, status)
+        call beginning_of_subprogram(arg, found, status)
         if (.not. status%ok()) return
 
         do
@@ -1137,56 +1139,56 @@ contains
         else
             shortage = forward_line(1_int64)
         end if
-    end subroutine beginning_of_defun_comments
+    end subroutine beginning_of_subprogram_comments
 
-    !> The default `end_of_defun_function': (forward-sexp 1).
+    !> The default `end_of_subprogram_function': (forward-sexp 1).
     !> Port of lisp.el:end-of-defun-function (its default value).
-    recursive subroutine end_of_defun_default(status)
+    recursive subroutine end_of_subprogram_default(status)
         type(status_type), intent(out) :: status
 
-        call forward_sexp(1_int64, status)
-    end subroutine end_of_defun_default
+        call forward_expression(1_int64, status)
+    end subroutine end_of_subprogram_default
 
-    ! Call `end_of_defun_function'.
+    ! Call `end_of_subprogram_function'.
     ! Not a port.
-    recursive subroutine call_end_of_defun_function(status)
+    recursive subroutine call_end_of_subprogram_function(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
 
-        if (associated(end_of_defun_function%value)) then
-            call end_of_defun_function%value(status)
+        if (associated(end_of_subprogram_function%value)) then
+            call end_of_subprogram_function%value(status)
         end if
-    end subroutine call_end_of_defun_function
+    end subroutine call_end_of_subprogram_function
 
     ! (unless (bolp) (skip-chars-forward " \t") (if (looking-at "\\s<\\|\n")
     ! (forward-line 1))): a position right after the end of a function
     ! still counts as in it.
     ! Port of lisp.el:end-of-defun (in part).
-    subroutine skip_after_defun()
+    subroutine skip_after_subprogram()
         type(status_type) :: st
         integer(int64) :: moved, shortage
 
         if (bolp()) return
         moved = skip_chars_forward(" "//achar(9), st)
         if (looking_at("\s<\|"//achar(10), st)) shortage = forward_line(1_int64)
-    end subroutine skip_after_defun
+    end subroutine skip_after_subprogram
 
-    !> Move forward to next end of defun.
+    !> Move forward to next end of subprogram.
     !> With argument, do it that many times.
-    !> Negative argument -N means move back to Nth preceding end of defun.
+    !> Negative argument -N means move back to Nth preceding end of subprogram.
     !>
-    !> An end of a defun occurs right after the close-parenthesis that
-    !> matches the open-parenthesis that starts a defun; see function
-    !> `beginning_of_defun'.
+    !> An end of a subprogram occurs right after the close-parenthesis that
+    !> matches the open-parenthesis that starts a subprogram; see function
+    !> `beginning_of_subprogram'.
     !>
-    !> If variable `end_of_defun_function' is true, its value
-    !> is called as a function to find the defun's end.
+    !> If variable `end_of_subprogram_function' is true, its value
+    !> is called as a function to find the subprogram's end.
     !>
     !> If INTERACTIVE is true, as it is interactively,
     !> report errors as appropriate for this kind of usage.
     !> Port of lisp.el:end-of-defun.
-    recursive subroutine end_of_defun(arg, status, interactive)
+    recursive subroutine end_of_subprogram(arg, status, interactive)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
@@ -1195,14 +1197,14 @@ contains
 
         if (present(interactive)) then
             if (interactive) then
-                call end_of_defun(arg, status)
+                call end_of_subprogram(arg, status)
                 call scan_to_user_error(status)
                 return
             end if
         end if
 
-        if (value_eq(this_command, sym("end_of_defun"))) then
-            if (.not. value_eq(last_command, sym("end_of_defun"))) then
+        if (value_eq(this_command, sym("end_of_subprogram"))) then
+            if (.not. value_eq(last_command, sym("end_of_subprogram"))) then
                 if (.not. (transient_mark_mode%value .and. buffers(cur)%mark_active)) call push_mark()
             end if
         end if
@@ -1211,13 +1213,13 @@ contains
         if (n == 0) n = 1
         pos = point()
         success = .false.
-        if (end_of_defun_moves_to_eol%value) call end_of_line(1_int64)
-        call beginning_of_defun_raw(1_int64, found, status)
+        if (end_of_subprogram_moves_to_eol%value) call end_of_line(1_int64)
+        call beginning_of_subprogram_raw(1_int64, found, status)
         if (.not. status%ok()) return
         beg = point()
-        call call_end_of_defun_function(status)
+        call call_end_of_subprogram_function(status)
         if (.not. status%ok()) return
-        if (n <= 1) call skip_after_defun()
+        if (n <= 1) call skip_after_subprogram()
 
         if (n > 0) then
             ! Moving forward.
@@ -1231,12 +1233,12 @@ contains
             end if
 
             ! At this point, point either didn't move (because we started
-            ! in between two defun's), or is at the end of a defun
-            ! (because we started in the middle of a defun).
+            ! in between two subprogram's), or is at the end of a subprogram
+            ! (because we started in the middle of a subprogram).
             if (n /= 0) then
-                call beginning_of_defun_raw(-n, success, status)
+                call beginning_of_subprogram_raw(-n, success, status)
                 if (.not. status%ok()) return
-                if (success) call call_end_of_defun_function(status)
+                if (success) call call_end_of_subprogram_function(status)
                 if (.not. status%ok()) return
             end if
         else if (n < 0) then
@@ -1251,38 +1253,38 @@ contains
             end if
 
             if (n /= 0) then
-                call beginning_of_defun_raw(-n, success, status)
+                call beginning_of_subprogram_raw(-n, success, status)
                 if (.not. status%ok()) return
 
                 if (success) then
                     beg = point()
-                    call call_end_of_defun_function(status)
+                    call call_end_of_subprogram_function(status)
                     if (.not. status%ok()) return
                 end if
             end if
         end if
 
-        call skip_after_defun()
+        call skip_after_subprogram()
 
         do while (n < 0 .and. point() >= pos .and. success)
             ! We intended to move backward, but this ended up not doing so:
             ! Try harder!
             call goto_char(beg)
-            call beginning_of_defun_raw(-n, success, status)
+            call beginning_of_subprogram_raw(-n, success, status)
             if (.not. status%ok()) return
 
             ! If we successfully moved pass point, or there is no further
-            ! defun beginnings anymore, stop.
+            ! subprogram beginnings anymore, stop.
             if (point() >= beg .or. .not. success) then
                 n = 0
             else
                 beg = point()
-                call call_end_of_defun_function(status)
+                call call_end_of_subprogram_function(status)
                 if (.not. status%ok()) return
-                call skip_after_defun()
+                call skip_after_subprogram()
             end if
         end do
-    end subroutine end_of_defun
+    end subroutine end_of_subprogram
 
     ! A `scan_error' in STATUS as a `user_error' with its message.
     ! Not a port.
@@ -1296,18 +1298,18 @@ contains
         call set_error(status, FM_USER_ERROR, message)
     end subroutine scan_to_user_error
 
-    !> Put mark at end of this defun, point at beginning.
-    !> The defun marked is the one that contains point or follows point.
-    !> With positive ARG, mark this and that many next defuns; with negative
+    !> Put mark at end of this subprogram, point at beginning.
+    !> The subprogram marked is the one that contains point or follows point.
+    !> With positive ARG, mark this and that many next subprograms; with negative
     !> ARG, change the direction of marking.
     !>
-    !> If the mark is active, it marks the next or previous defun(s) after
+    !> If the mark is active, it marks the next or previous subprogram(s) after
     !> the one(s) already marked.
     !>
     !> If INTERACTIVE is true, as it is interactively,
     !> report errors as appropriate for this kind of usage.
     !> Port of lisp.el:mark-defun.
-    recursive subroutine mark_defun(arg, status, interactive)
+    recursive subroutine mark_subprogram(arg, status, interactive)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
@@ -1316,7 +1318,7 @@ contains
 
         if (present(interactive)) then
             if (interactive) then
-                call mark_defun(arg, status)
+                call mark_subprogram(arg, status)
                 call scan_to_user_error(status)
                 return
             end if
@@ -1327,8 +1329,8 @@ contains
         ! There is no `mark-defun-back' function - see
         ! https://lists.gnu.org/r/bug-gnu-emacs/2016-11/msg00079.html
         ! for explanation
-        if (value_eq(last_command, sym("mark_defun_back"))) n = -n
-        if (n < 0) this_command = sym("mark_defun_back")
+        if (value_eq(last_command, sym("mark_subprogram_back"))) n = -n
+        if (n < 0) this_command = sym("mark_subprogram_back")
 
         if (use_region_p()) then
             if (n >= 0) then
@@ -1338,7 +1340,7 @@ contains
                 ! change the dotimes below to (end-of-defun arg)
                 ! once bug #24427 is fixed
                 do k = 1, n
-                    call end_of_defun(1_int64, status)
+                    call end_of_subprogram(1_int64, status)
                     if (.not. status%ok()) return
                 end do
 
@@ -1346,7 +1348,7 @@ contains
                 call goto_char(opoint)
                 call set_mark(target)
             else
-                call beginning_of_defun_comments(-n, status)
+                call beginning_of_subprogram_comments(-n, status)
                 if (.not. status%ok()) return
             end if
         else
@@ -1355,22 +1357,22 @@ contains
             ! Try first in this order for the sake of languages with nested
             ! functions where several can end at the same place as with the
             ! offside rule, e.g. Python.
-            call beginning_of_defun_comments(1_int64, status)
+            call beginning_of_subprogram_comments(1_int64, status)
             if (.not. status%ok()) return
             beg = point()
-            call end_of_defun(1_int64, status)
+            call end_of_subprogram(1_int64, status)
             if (.not. status%ok()) return
             end = point()
 
-            ! we were before the first defun!
+            ! we were before the first subprogram!
             if ((point() <= opoint .and. n > 0) .or. beg == point_min()) then
-                ! beginning-of-defun moved back one defun so we got the wrong
+                ! beginning-of-defun moved back one subprogram so we got the wrong
                 ! one.  If ARG < 0, however, we actually want to go back.
                 call goto_char(opoint)
-                call end_of_defun(1_int64, status)
+                call end_of_subprogram(1_int64, status)
                 if (.not. status%ok()) return
                 end = point()
-                call beginning_of_defun_comments(1_int64, status)
+                call beginning_of_subprogram_comments(1_int64, status)
                 if (.not. status%ok()) return
                 beg = point()
             end if
@@ -1381,7 +1383,7 @@ contains
                 ! change the dotimes below to (end-of-defun arg)
                 ! once bug #24427 is fixed
                 do k = 1, n
-                    call end_of_defun(1_int64, status)
+                    call end_of_subprogram(1_int64, status)
                     if (.not. status%ok()) return
                 end do
 
@@ -1394,7 +1396,7 @@ contains
                 ! beginning-of-defun behaves strange with zero arg - see
                 ! lists.gnu.org/r/bug-gnu-emacs/2017-02/msg00196.html
                 if (n /= -1) then
-                    call beginning_of_defun(-n - 1, found, status)
+                    call beginning_of_subprogram(-n - 1, found, status)
                     if (.not. status%ok()) return
                 end if
 
@@ -1404,14 +1406,14 @@ contains
 
         moved = skip_chars_backward("[:space:]"//achar(10), status)
         if (.not. bobp()) shortage = forward_line(1_int64)
-    end subroutine mark_defun
+    end subroutine mark_subprogram
 
-    !> Make text outside current defun invisible.
-    !> The current defun is the one that contains point or follows point.
+    !> Make text outside current subprogram invisible.
+    !> The current subprogram is the one that contains point or follows point.
     !> Preceding comments are included if INCLUDE_COMMENTS is true.
-    !> Interactively, the behavior depends on `narrow_to_defun_include_comments'.
+    !> Interactively, the behavior depends on `narrow_to_subprogram_include_comments'.
     !> Port of lisp.el:narrow-to-defun.
-    recursive subroutine narrow_to_defun(include_comments, status)
+    recursive subroutine narrow_to_subprogram(include_comments, status)
         logical, intent(in) :: include_comments
         type(status_type), intent(out) :: status
         integer(int64) :: saved, opoint, here, beg, end, pos, shortage, moved
@@ -1431,17 +1433,17 @@ contains
         ! not move into the next function.
         here = point()
         if (.not. eolp()) call goto_char(point() + 1)
-        call beginning_of_defun(1_int64, found, status)
+        call beginning_of_subprogram(1_int64, found, status)
         if (.not. status%ok()) return
 
         if (point() < here) then
             call goto_char(here)
-            call beginning_of_defun(1_int64, found, status)
+            call beginning_of_subprogram(1_int64, found, status)
             if (.not. status%ok()) return
         end if
 
         beg = point()
-        call end_of_defun(1_int64, status)
+        call end_of_subprogram(1_int64, status)
         if (.not. status%ok()) return
         end = point()
 
@@ -1450,13 +1452,13 @@ contains
         end do
 
         if (.not. point() > opoint) then
-            ! beginning-of-defun moved back one defun
+            ! beginning-of-defun moved back one subprogram
             ! so we got the wrong one.
             call goto_char(opoint)
-            call end_of_defun(1_int64, status)
+            call end_of_subprogram(1_int64, status)
             if (.not. status%ok()) return
             end = point()
-            call beginning_of_defun(1_int64, found, status)
+            call beginning_of_subprogram(1_int64, found, status)
             if (.not. status%ok()) return
             beg = point()
         end if
@@ -1493,7 +1495,7 @@ contains
         call re_search_backward("^"//achar(10), pos, st, bound=point() - 1, noerror=SEARCH_NOERROR)
         call narrow_to_region(beg, end, status)
         call goto_char(min(max(saved, point_min()), point_max()))
-    end subroutine narrow_to_defun
+    end subroutine narrow_to_subprogram
 
     ! ------------------------------------------------------------------
     ! Pairs
@@ -1514,9 +1516,9 @@ contains
         end if
     end function event_basic_char
 
-    !> Enclose following ARG sexps in a pair of OPEN and CLOSE characters.
+    !> Enclose following ARG expressions in a pair of OPEN and CLOSE characters.
     !> Leave point after the first character.
-    !> A negative ARG encloses the preceding ARG sexps instead.
+    !> A negative ARG encloses the preceding ARG expressions instead.
     !> No argument is equivalent to zero: just insert characters
     !> and leave point between.
     !> If `parens_require_spaces' is true, this command also inserts a space
@@ -1524,9 +1526,9 @@ contains
     !> If region is active, insert enclosing characters at region boundaries.
     !>
     !> If arguments OPEN and CLOSE are absent, the character pair is found
-    !> from the variable `insert_pair_alist' according to the last input
+    !> from the variable `insert_pair_table' according to the last input
     !> character with or without modifiers.  If no character pair is
-    !> found in the variable `insert_pair_alist', then the last input
+    !> found in the variable `insert_pair_table', then the last input
     !> character is inserted ARG times.
     !>
     !> This command assumes point is not in a string or comment.
@@ -1554,8 +1556,8 @@ contains
             if (k == 0) k = pair_index(basic)
 
             if (k > 0) then
-                o = insert_pair_alist(k)%open
-                c = insert_pair_alist(k)%close
+                o = insert_pair_table(k)%open
+                c = insert_pair_table(k)%close
             end if
         end if
 
@@ -1592,7 +1594,7 @@ contains
         if (n > 0) then
             moved = skip_chars_forward(" "//achar(9), status)
         else if (n < 0) then
-            call forward_sexp(n, status)
+            call forward_expression(n, status)
             if (.not. status%ok()) return
             n = -n
         end if
@@ -1612,7 +1614,7 @@ contains
         opoint = point()
 
         if (n /= 0) then
-            call forward_sexp(n, status)
+            call forward_expression(n, status)
             if (.not. status%ok()) return
         end if
 
@@ -1628,18 +1630,18 @@ contains
 
     contains
 
-        ! The entry of `insert_pair_alist' whose key is the character KEY.
+        ! The entry of `insert_pair_table' whose key is the character KEY.
         integer function pair_index(key) result(found)
             integer(int64), intent(in) :: key
             integer :: i
 
             found = 0
-            if (.not. allocated(insert_pair_alist)) return
+            if (.not. allocated(insert_pair_table)) return
 
-            do i = 1, size(insert_pair_alist)
-                if (insert_pair_alist(i)%command /= 0) then
-                    if (insert_pair_alist(i)%command == key) found = i
-                else if (insert_pair_alist(i)%open == key) then
+            do i = 1, size(insert_pair_table)
+                if (insert_pair_table(i)%command /= 0) then
+                    if (insert_pair_table(i)%command == key) found = i
+                else if (insert_pair_table(i)%open == key) then
                     found = i
                 end if
 
@@ -1648,9 +1650,9 @@ contains
         end function pair_index
     end subroutine insert_pair
 
-    !> Enclose following ARG sexps in parentheses.
+    !> Enclose following ARG expressions in parentheses.
     !> Leave point after open-paren.
-    !> A negative ARG encloses the preceding ARG sexps instead.
+    !> A negative ARG encloses the preceding ARG expressions instead.
     !> No argument is equivalent to zero: just insert `()' and leave point between.
     !> If `parens_require_spaces' is true, this command also inserts a space
     !> before and after, depending on the surrounding characters.
@@ -1665,8 +1667,8 @@ contains
         call insert_pair(status, arg, int(iachar("("), int32), int(iachar(")"), int32))
     end subroutine insert_parentheses
 
-    !> Delete a pair of characters enclosing ARG sexps that follow point.
-    !> A negative ARG deletes a pair around the preceding ARG sexps instead.
+    !> Delete a pair of characters enclosing ARG expressions that follow point.
+    !> A negative ARG deletes a pair around the preceding ARG expressions instead.
     !> The option `delete_pair_blink_delay' can disable blinking.  With
     !> `delete_pair_push_mark' enabled, pushes a mark at the end of the
     !> enclosed region.  Port of lisp.el:delete-pair.
@@ -1686,7 +1688,7 @@ contains
             moved = skip_chars_backward(" "//achar(9), status)
             inner = point()
             close_char = preceding_char()
-            call forward_sexp(arg, status)
+            call forward_expression(arg, status)
             if (.not. status%ok()) return
 
             if (.not. matching_pair(following_char(), close_char)) then
@@ -1706,7 +1708,7 @@ contains
             moved = skip_chars_forward(" "//achar(9), status)
             inner = point()
             open_char = following_char()
-            call forward_sexp(arg, status)
+            call forward_expression(arg, status)
             if (.not. status%ok()) return
 
             if (.not. matching_pair(open_char, preceding_char())) then
@@ -1727,25 +1729,25 @@ contains
 
     contains
 
-        ! Whether (OPEN CLOSE) is one of the pairs of `insert_pair_alist'.
+        ! Whether (OPEN CLOSE) is one of the pairs of `insert_pair_table'.
         logical function matching_pair(open, close)
             integer(int32), intent(in) :: open, close
             integer :: i
 
             matching_pair = .false.
-            if (.not. allocated(insert_pair_alist)) return
+            if (.not. allocated(insert_pair_table)) return
 
-            do i = 1, size(insert_pair_alist)
-                if (insert_pair_alist(i)%open == open .and. insert_pair_alist(i)%close == close) matching_pair = .true.
+            do i = 1, size(insert_pair_table)
+                if (insert_pair_table(i)%open == open .and. insert_pair_table(i)%close == close) matching_pair = .true.
             end do
         end function matching_pair
     end subroutine delete_pair
 
-    !> Raise N sexps one level higher up the tree.
+    !> Raise N expressions one level higher up the tree.
     !>
-    !> This function removes the sexp enclosing the form which follows
-    !> point, and then re-inserts N sexps that originally followed point,
-    !> thus raising those N sexps one level up.
+    !> This function removes the expression enclosing the form which follows
+    !> point, and then re-inserts N expressions that originally followed point,
+    !> thus raising those N expressions one level up.
     !>
     !> Interactively, N is the numeric prefix argument, and defaults to 1.
     !>
@@ -1757,13 +1759,13 @@ contains
     !>       (zot)
     !>       (+ foo 2)))
     !>
-    !> and point is before (zot), \[raise_sexp] will give you
+    !> and point is before (zot), \[raise_expression] will give you
     !>
     !>   (let ((foo 2))
     !>     (zot))
     !>
     !> Port of lisp.el:raise-sexp.
-    recursive subroutine raise_sexp(n, status)
+    recursive subroutine raise_expression(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: s
@@ -1775,7 +1777,7 @@ contains
             if (.not. status%ok()) return
         else
             b = point()
-            call forward_sexp(n, status)
+            call forward_expression(n, status)
             e = point()
             call goto_char(b)
             if (.not. status%ok()) return
@@ -1783,10 +1785,10 @@ contains
 
         call buffer_substring(b, e, s, status)
         if (.not. status%ok()) return
-        call backward_up_list(1_int64, status)
+        call backward_up_group(1_int64, status)
         if (.not. status%ok()) return
         opoint = point()
-        call forward_sexp(1_int64, status)
+        call forward_expression(1_int64, status)
         e = point()
         call goto_char(opoint)
         if (.not. status%ok()) return
@@ -1794,11 +1796,11 @@ contains
         if (.not. status%ok()) return
         call insert(s, status)
         call goto_char(opoint)
-    end subroutine raise_sexp
+    end subroutine raise_expression
 
     !> Check for unbalanced parentheses in the current buffer.
     !> More accurately, check the narrowed part of the buffer for unbalanced
-    !> expressions ("sexps") in general.  This is done according to the
+    !> expressions in general.  This is done according to the
     !> current syntax table and will find unbalanced brackets or quotes as
     !> appropriate.  (See Info node `(emacs)Parentheses'.)  If imbalance is
     !> found, an error is signaled and point is left at the first unbalanced
@@ -1808,8 +1810,8 @@ contains
         character(len=:), allocatable :: message
         integer(int64) :: pos, beg, end
 
-        ! Buffer can't have more than (point-max) sexps.
-        pos = scan_sexps(point_min(), point_max(), status)
+        ! Buffer can't have more than (point-max) expressions.
+        pos = scan_expressions(point_min(), point_max(), status)
         if (status%code /= FM_SCAN_ERROR) return
         call scan_error_data(status, message, beg, end)
         call push_mark()
@@ -1822,43 +1824,43 @@ contains
         call set_error(status, FM_USER_ERROR, "Unmatched bracket or quote")
     end subroutine check_parens
 
-    subroutine cmd_beginning_of_defun(status)
+    subroutine cmd_beginning_of_subprogram(status)
         type(status_type), intent(out) :: status
         logical :: found
 
-        call beginning_of_defun(prefix_numeric_value(current_prefix_arg), found, status)
-    end subroutine cmd_beginning_of_defun
+        call beginning_of_subprogram(prefix_numeric_value(current_prefix_arg), found, status)
+    end subroutine cmd_beginning_of_subprogram
 
-    subroutine cmd_beginning_of_defun_raw(status)
+    subroutine cmd_beginning_of_subprogram_raw(status)
         type(status_type), intent(out) :: status
         logical :: found
 
-        call beginning_of_defun_raw(prefix_numeric_value(current_prefix_arg), found, status)
-    end subroutine cmd_beginning_of_defun_raw
+        call beginning_of_subprogram_raw(prefix_numeric_value(current_prefix_arg), found, status)
+    end subroutine cmd_beginning_of_subprogram_raw
 
-    subroutine cmd_beginning_of_defun_comments(status)
+    subroutine cmd_beginning_of_subprogram_comments(status)
         type(status_type), intent(out) :: status
 
-        call beginning_of_defun_comments(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_beginning_of_defun_comments
+        call beginning_of_subprogram_comments(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_beginning_of_subprogram_comments
 
-    subroutine cmd_end_of_defun(status)
+    subroutine cmd_end_of_subprogram(status)
         type(status_type), intent(out) :: status
 
-        call end_of_defun(prefix_numeric_value(current_prefix_arg), status, .true.)
-    end subroutine cmd_end_of_defun
+        call end_of_subprogram(prefix_numeric_value(current_prefix_arg), status, .true.)
+    end subroutine cmd_end_of_subprogram
 
-    subroutine cmd_mark_defun(status)
+    subroutine cmd_mark_subprogram(status)
         type(status_type), intent(out) :: status
 
-        call mark_defun(prefix_numeric_value(current_prefix_arg), status, .true.)
-    end subroutine cmd_mark_defun
+        call mark_subprogram(prefix_numeric_value(current_prefix_arg), status, .true.)
+    end subroutine cmd_mark_subprogram
 
-    subroutine cmd_narrow_to_defun(status)
+    subroutine cmd_narrow_to_subprogram(status)
         type(status_type), intent(out) :: status
 
-        call narrow_to_defun(narrow_to_defun_include_comments%value, status)
-    end subroutine cmd_narrow_to_defun
+        call narrow_to_subprogram(narrow_to_subprogram_include_comments%value, status)
+    end subroutine cmd_narrow_to_subprogram
 
     subroutine cmd_insert_pair(status)
         type(status_type), intent(out) :: status
@@ -1886,115 +1888,115 @@ contains
         call delete_pair(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_delete_pair
 
-    subroutine cmd_raise_sexp(status)
+    subroutine cmd_raise_expression(status)
         type(status_type), intent(out) :: status
 
-        call raise_sexp(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_raise_sexp
+        call raise_expression(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_raise_expression
 
-    subroutine cmd_forward_sexp(status)
+    subroutine cmd_forward_expression(status)
         type(status_type), intent(out) :: status
 
-        call forward_sexp(prefix_numeric_value(current_prefix_arg), status, .true.)
-    end subroutine cmd_forward_sexp
+        call forward_expression(prefix_numeric_value(current_prefix_arg), status, .true.)
+    end subroutine cmd_forward_expression
 
-    subroutine cmd_backward_sexp(status)
+    subroutine cmd_backward_expression(status)
         type(status_type), intent(out) :: status
 
-        call backward_sexp(prefix_numeric_value(current_prefix_arg), status, .true.)
-    end subroutine cmd_backward_sexp
+        call backward_expression(prefix_numeric_value(current_prefix_arg), status, .true.)
+    end subroutine cmd_backward_expression
 
-    subroutine cmd_forward_list(status)
+    subroutine cmd_forward_group(status)
         type(status_type), intent(out) :: status
 
-        call forward_list(prefix_numeric_value(current_prefix_arg), status, .true.)
-    end subroutine cmd_forward_list
+        call forward_group(prefix_numeric_value(current_prefix_arg), status, .true.)
+    end subroutine cmd_forward_group
 
-    subroutine cmd_backward_list(status)
+    subroutine cmd_backward_group(status)
         type(status_type), intent(out) :: status
 
-        call backward_list(prefix_numeric_value(current_prefix_arg), status, .true.)
-    end subroutine cmd_backward_list
+        call backward_group(prefix_numeric_value(current_prefix_arg), status, .true.)
+    end subroutine cmd_backward_group
 
-    subroutine cmd_down_list(status)
+    subroutine cmd_down_group(status)
         type(status_type), intent(out) :: status
 
-        call down_list(prefix_numeric_value(current_prefix_arg), status, .true.)
-    end subroutine cmd_down_list
+        call down_group(prefix_numeric_value(current_prefix_arg), status, .true.)
+    end subroutine cmd_down_group
 
-    subroutine cmd_up_list(status)
+    subroutine cmd_up_group(status)
         type(status_type), intent(out) :: status
 
-        call up_list(prefix_numeric_value(current_prefix_arg), status, .true., .true.)
-    end subroutine cmd_up_list
+        call up_group(prefix_numeric_value(current_prefix_arg), status, .true., .true.)
+    end subroutine cmd_up_group
 
-    subroutine cmd_backward_up_list(status)
+    subroutine cmd_backward_up_group(status)
         type(status_type), intent(out) :: status
 
-        call backward_up_list(prefix_numeric_value(current_prefix_arg), status, .true., .true.)
-    end subroutine cmd_backward_up_list
+        call backward_up_group(prefix_numeric_value(current_prefix_arg), status, .true., .true.)
+    end subroutine cmd_backward_up_group
 
-    subroutine cmd_kill_sexp(status)
+    subroutine cmd_kill_expression(status)
         type(status_type), intent(out) :: status
 
-        call kill_sexp(prefix_numeric_value(current_prefix_arg), status, .true.)
-    end subroutine cmd_kill_sexp
+        call kill_expression(prefix_numeric_value(current_prefix_arg), status, .true.)
+    end subroutine cmd_kill_expression
 
-    subroutine cmd_backward_kill_sexp(status)
+    subroutine cmd_backward_kill_expression(status)
         type(status_type), intent(out) :: status
 
-        call backward_kill_sexp(prefix_numeric_value(current_prefix_arg), status, .true.)
-    end subroutine cmd_backward_kill_sexp
+        call backward_kill_expression(prefix_numeric_value(current_prefix_arg), status, .true.)
+    end subroutine cmd_backward_kill_expression
 
-    subroutine cmd_mark_sexp(status)
+    subroutine cmd_mark_expression(status)
         type(status_type), intent(out) :: status
 
-        call mark_sexp(prefix_numeric_value(current_prefix_arg),.not. nilp(current_prefix_arg), .true., status)
-    end subroutine cmd_mark_sexp
+        call mark_expression(prefix_numeric_value(current_prefix_arg),.not. nilp(current_prefix_arg), .true., status)
+    end subroutine cmd_mark_expression
 
     !> Register the commands.  Not a port.
-    subroutine syms_of_lisp_cmds()
-        forward_sexp_function%value => forward_sexp_default_function
-        call add_local_variables_killer(kill_lisp_cmds_locals)
-        commands%forward_sexp%run => cmd_forward_sexp
-        commands%backward_sexp%run => cmd_backward_sexp
-        commands%forward_list%run => cmd_forward_list
-        commands%backward_list%run => cmd_backward_list
-        commands%down_list%run => cmd_down_list
-        commands%up_list%run => cmd_up_list
-        commands%backward_up_list%run => cmd_backward_up_list
-        commands%kill_sexp%run => cmd_kill_sexp
-        commands%backward_kill_sexp%run => cmd_backward_kill_sexp
-        commands%mark_sexp%run => cmd_mark_sexp
-        call forward_setting(defun_prompt_regexp, local_if_set=.true.)
+    subroutine syms_of_expression_motion()
+        forward_expression_function%value => forward_expression_default_function
+        call add_local_variables_killer(kill_expression_motion_locals)
+        commands%forward_expression%run => cmd_forward_expression
+        commands%backward_expression%run => cmd_backward_expression
+        commands%forward_group%run => cmd_forward_group
+        commands%backward_group%run => cmd_backward_group
+        commands%down_group%run => cmd_down_group
+        commands%up_group%run => cmd_up_group
+        commands%backward_up_group%run => cmd_backward_up_group
+        commands%kill_expression%run => cmd_kill_expression
+        commands%backward_kill_expression%run => cmd_backward_kill_expression
+        commands%mark_expression%run => cmd_mark_expression
+        call forward_setting(subprogram_prompt_regexp, local_if_set=.true.)
         call forward_setting(parens_require_spaces)
-        call forward_setting(end_of_defun_function)
-        call forward_setting(end_of_defun_moves_to_eol)
-        call forward_setting(narrow_to_defun_include_comments)
+        call forward_setting(end_of_subprogram_function)
+        call forward_setting(end_of_subprogram_moves_to_eol)
+        call forward_setting(narrow_to_subprogram_include_comments)
         call forward_setting(delete_pair_push_mark)
-        if (.not. associated(end_of_defun_function%value)) end_of_defun_function%value => end_of_defun_default
+        if (.not. associated(end_of_subprogram_function%value)) end_of_subprogram_function%value => end_of_subprogram_default
 
-        if (.not. allocated(insert_pair_alist)) then
-            allocate (insert_pair_alist(7))
-            insert_pair_alist(1) = insert_pair_type(open=iachar("("), close=iachar(")"))
-            insert_pair_alist(2) = insert_pair_type(open=iachar("["), close=iachar("]"))
-            insert_pair_alist(3) = insert_pair_type(open=iachar("{"), close=iachar("}"))
-            insert_pair_alist(4) = insert_pair_type(open=iachar("<"), close=iachar(">"))
-            insert_pair_alist(5) = insert_pair_type(open=iachar('"'), close=iachar('"'))
-            insert_pair_alist(6) = insert_pair_type(open=iachar("'"), close=iachar("'"))
-            insert_pair_alist(7) = insert_pair_type(open=iachar("`"), close=iachar("'"))
+        if (.not. allocated(insert_pair_table)) then
+            allocate (insert_pair_table(7))
+            insert_pair_table(1) = insert_pair_type(open=iachar("("), close=iachar(")"))
+            insert_pair_table(2) = insert_pair_type(open=iachar("["), close=iachar("]"))
+            insert_pair_table(3) = insert_pair_type(open=iachar("{"), close=iachar("}"))
+            insert_pair_table(4) = insert_pair_type(open=iachar("<"), close=iachar(">"))
+            insert_pair_table(5) = insert_pair_type(open=iachar('"'), close=iachar('"'))
+            insert_pair_table(6) = insert_pair_type(open=iachar("'"), close=iachar("'"))
+            insert_pair_table(7) = insert_pair_type(open=iachar("`"), close=iachar("'"))
         end if
 
-        commands%beginning_of_defun%run => cmd_beginning_of_defun
-        commands%beginning_of_defun_raw%run => cmd_beginning_of_defun_raw
-        commands%beginning_of_defun_comments%run => cmd_beginning_of_defun_comments
-        commands%end_of_defun%run => cmd_end_of_defun
-        commands%mark_defun%run => cmd_mark_defun
-        commands%narrow_to_defun%run => cmd_narrow_to_defun
+        commands%beginning_of_subprogram%run => cmd_beginning_of_subprogram
+        commands%beginning_of_subprogram_raw%run => cmd_beginning_of_subprogram_raw
+        commands%beginning_of_subprogram_comments%run => cmd_beginning_of_subprogram_comments
+        commands%end_of_subprogram%run => cmd_end_of_subprogram
+        commands%mark_subprogram%run => cmd_mark_subprogram
+        commands%narrow_to_subprogram%run => cmd_narrow_to_subprogram
         commands%insert_pair%run => cmd_insert_pair
         commands%insert_parentheses%run => cmd_insert_parentheses
         commands%delete_pair%run => cmd_delete_pair
-        commands%raise_sexp%run => cmd_raise_sexp
+        commands%raise_expression%run => cmd_raise_expression
         commands%check_parens%run => check_parens
-    end subroutine syms_of_lisp_cmds
-end module lisp_cmds_fm
+    end subroutine syms_of_expression_motion
+end module expression_motion_fm

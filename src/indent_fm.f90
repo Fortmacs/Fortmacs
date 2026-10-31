@@ -186,7 +186,7 @@ module indent_fm
         !> If `transient_mark_mode' is turned on and the region is active,
         !> this function instead calls `indent_region'.  In this case, any
         !> prefix argument is ignored.  Port of
-        !> indent.el:indent-for-tab-command (no prefix-argument sexp
+        !> indent.el:indent-for-tab-command (no prefix-argument expression
         !> reindentation, no completion).
         module subroutine indent_for_tab_command(arg, status)
             implicit none(type, external)

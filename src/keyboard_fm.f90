@@ -3115,7 +3115,7 @@ contains
     end subroutine barf_if_interaction_inhibited
 
     !> Show PROMPT for reading an event (read-char and friends): echoing
-    !> is cancelled and PROMPT shown in the echo area.  Not a port.
+    !> is canceled and PROMPT shown in the echo area.  Not a port.
     subroutine show_read_prompt(prompt)
         character(len=*), intent(in), optional :: prompt
 

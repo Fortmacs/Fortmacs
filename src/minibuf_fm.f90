@@ -851,7 +851,7 @@ contains
         allocate (names(size(elts)), ok(size(elts)))
 
         do k = 1, size(elts, kind=int64)
-            ! An alist element: its car is the completion.
+            ! A table element: its car is the completion.
             eltstring = elts(k)
 
             if (vtag(elts(k)) == V_LIST) then
@@ -897,20 +897,21 @@ contains
     !> the longest initial substring common to all possible completions
     !> that begin with STRING.
     !>
-    !> If COLLECTION is an alist, the keys (cars of elements) are the
-    !> possible completions.  If an element is not a cons cell, then the
-    !> element itself is a possible completion.  If COLLECTION is the
-    !> obarray, the names of all symbols in the obarray are the possible
-    !> completions.
+    !> COLLECTION, the completion table, is an array of strings, a table
+    !> of (string, value) entries, or a completion function.  In a table,
+    !> the strings of the entries are the possible completions; an entry
+    !> that is only a string is itself a possible completion.  If
+    !> COLLECTION is the obarray, the names of all symbols in the obarray
+    !> are the possible completions.
     !>
-    !> COLLECTION can also be a function to do the completion itself.  It
-    !> receives STRING, PREDICATE and COMPLETE_TRY.  Whatever it returns
-    !> becomes the value of `try_completion'.
+    !> A completion function does the completion itself.  It receives
+    !> STRING, PREDICATE and COMPLETE_TRY.  Whatever it returns becomes
+    !> the value of `try_completion'.
     !>
     !> If optional argument PREDICATE is present, it is used to test each
     !> possible completion.  A possible completion is accepted only if
     !> PREDICATE returns true.  The argument given to PREDICATE is either a
-    !> string or a list (whose first element is a string) from the alist,
+    !> string or an entry (whose first element is a string) of COLLECTION,
     !> or a symbol from the obarray.
     !>
     !> If `completion_ignore_case' is non-nil, possible completions are
@@ -1040,13 +1041,15 @@ contains
     !> The value is a list of all the possible completions that match
     !> STRING.
     !>
-    !> If COLLECTION is an alist, the keys (cars of elements) are the
-    !> possible completions.  If COLLECTION is the obarray, the names of
-    !> all symbols in the obarray are the possible completions.
+    !> COLLECTION, the completion table, is an array of strings, a table
+    !> of (string, value) entries, or a completion function.  In a table,
+    !> the strings of the entries are the possible completions.  If
+    !> COLLECTION is the obarray, the names of all symbols in the obarray
+    !> are the possible completions.
     !>
-    !> COLLECTION can also be a function to do the completion itself.  It
-    !> receives STRING, PREDICATE and COMPLETE_ALL.  Whatever it returns
-    !> becomes the value of `all_completions'.
+    !> A completion function does the completion itself.  It receives
+    !> STRING, PREDICATE and COMPLETE_ALL.  Whatever it returns becomes
+    !> the value of `all_completions'.
     !>
     !> If optional argument PREDICATE is present, it is used to test each
     !> possible completion.  A possible completion is accepted only if

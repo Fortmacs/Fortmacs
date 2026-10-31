@@ -108,7 +108,7 @@ module grep_fm
     use xdisp_fm, only: message, mode_line_part_type
     use compile_fm, only: compilation_start, compilation_set_mode_locals, compilation_update_mode_line, &
                           compilation_rule_type, compilation_highlight_type, compilation_directory_matcher_type, &
-                          compilation_transform_type, compilation_transform_file_match_alist, &
+                          compilation_transform_type, compilation_transform_file_match_table, &
                           compilation_error_face, compilation_scroll_output, compilation_first_column, &
                           compilation_error_screen_columns, compilation_disable_input, compilation_filter_hook, &
                           compilation_filter_start, compilation_info_face, compilation_warning_face, &
@@ -326,7 +326,7 @@ module grep_fm
     !> grep-quoting-style.
     logical, public :: grep_quoting_style = .false.
 
-    !> Alist of aliases for the FILES argument to `lgrep' and `rgrep'.
+    !> Table of aliases for the FILES argument to `lgrep' and `rgrep'.
     !> Port of grep.el grep-files-aliases.
     type(grep_files_alias_type), allocatable, public :: grep_files_aliases(:)
 
@@ -384,9 +384,9 @@ module grep_fm
     character(len=:), allocatable, public :: grep_match_face
 
     !> Regexp used to match grep hits.
-    !> See `compilation_error_regexp_alist' for format details.  Port of
+    !> See `compilation_error_regexp_names' for format details.  Port of
     !> grep.el grep-regexp-alist.
-    type(compilation_rule_type), allocatable, public :: grep_regexp_alist(:)
+    type(compilation_rule_type), allocatable, public :: grep_regexp_table(:)
 
     !> Value to use for `compilation_first_column' in grep buffers.  Port
     !> of grep.el grep-first-column.
@@ -437,7 +437,7 @@ module grep_fm
     !> grep.el grep-mode-font-lock-keywords.
     type(font_lock_keyword_type), allocatable, public :: grep_mode_font_lock_keywords(:)
 
-    !> Rules added to `compilation_transform_file_match_alist' in
+    !> Rules added to `compilation_transform_file_match_table' in
     !> `grep_mode'.  These prevent the "Grep finished" lines from being
     !> misinterpreted as matches (bug#77732).  Port of grep.el
     !> grep-compilation-transform-finished-rules.
@@ -507,7 +507,7 @@ module grep_fm
         type(grep_defaults_type) :: defaults, localhost
     end type grep_host_defaults_type
 
-    type(grep_host_defaults_type) :: grep_host_defaults_alist
+    type(grep_host_defaults_type) :: grep_host_defaults_table
 
     ! The buffer-local variables of grep buffers: grep-num-matches-found
     ! and grep--heading-state (LIMIT, a marker, and the last HEADING).
@@ -601,7 +601,7 @@ contains
     ! Settings
     ! ------------------------------------------------------------------
 
-    !> Set the given settings, and update `grep_host_defaults_alist'.
+    !> Set the given settings, and update `grep_host_defaults_table'.
     !> The settings are `grep_command', `grep_template',
     !> `grep_use_null_device', `grep_find_command', `grep_find_template',
     !> `grep_find_use_xargs', `grep_use_null_filename_separator',
@@ -615,9 +615,9 @@ contains
                                          use_null_filename_separator, highlight_matches
         logical, intent(in), optional :: quoting_style
 
-        if (grep_host_defaults_alist%has_defaults) then
-            call apply(grep_host_defaults_alist%defaults)
-            if (grep_host_defaults_alist%has_localhost) call apply(grep_host_defaults_alist%localhost)
+        if (grep_host_defaults_table%has_defaults) then
+            call apply(grep_host_defaults_table%defaults)
+            if (grep_host_defaults_table%has_localhost) call apply(grep_host_defaults_table%localhost)
         end if
 
         if (present(command)) grep_command = command
@@ -721,7 +721,7 @@ contains
 
     !> The column (relative to the end of the match) of the first grep
     !> match on a line, from the faces `grep_filter' put there: COL of the
-    !> `grep_regexp_alist' rule.  Not a port.
+    !> `grep_regexp_table' rule.  Not a port.
     subroutine first_match_column(number, found)
         integer(int64), intent(out) :: number
         logical, intent(out) :: found
@@ -738,7 +738,7 @@ contains
     end subroutine first_match_column
 
     !> The end column of the first grep match on a line: END-COL of the
-    !> `grep_regexp_alist' rule.  Not a port.
+    !> `grep_regexp_table' rule.  Not a port.
     subroutine first_match_end_column(number, found)
         integer(int64), intent(out) :: number
         logical, intent(out) :: found
@@ -768,11 +768,11 @@ contains
         call goto_char(opoint)
     end function line_end_at
 
-    !> The value of `grep_regexp_alist'.  Not a port.
-    subroutine init_grep_regexp_alist()
-        if (allocated(grep_regexp_alist)) deallocate (grep_regexp_alist)
-        allocate (grep_regexp_alist(2))
-        grep_regexp_alist(1)%regexp = "^\(?:" &
+    !> The value of `grep_regexp_table'.  Not a port.
+    subroutine init_grep_regexp_table()
+        if (allocated(grep_regexp_table)) deallocate (grep_regexp_table)
+        allocate (grep_regexp_table(2))
+        grep_regexp_table(1)%regexp = "^\(?:" &
                                       ! Parse using NUL characters when `--null' is used.  Note
                                       ! that we must still assume no newlines in filenames due to
                                       ! "foo: Is a directory." type messages.
@@ -786,22 +786,22 @@ contains
                                       //"\(?:[a-zA-Z]:\)?" & ! Allow "C:..." for w32.
                                       //"[^"//NL//":]+?[^"//NL//"/:]\):["//TB//" ]*\(?2:[1-9][0-9]*\)["//TB//" ]*:" &
                                       //"\)"
-        grep_regexp_alist(1)%file = 1
-        grep_regexp_alist(1)%line = 2
+        grep_regexp_table(1)%file = 1
+        grep_regexp_table(1)%line = 2
         ! Calculate column positions (col . end-col) of first grep match on
         ! a line.
-        grep_regexp_alist(1)%column_function => first_match_column
-        grep_regexp_alist(1)%end_column_function => first_match_end_column
-        allocate (grep_regexp_alist(1)%highlights(1))
-        grep_regexp_alist(1)%highlights(1)%submatch = 3
-        grep_regexp_alist(1)%highlights(1)%face = ""
-        grep_regexp_alist(1)%highlights(1)%display = ":"
-        grep_regexp_alist(2)%regexp = "^Binary file \(.+\) matches"
-        grep_regexp_alist(2)%file = 1
-        grep_regexp_alist(2)%type = 0
-        grep_regexp_alist(2)%hyperlink = 1
-        allocate (grep_regexp_alist(2)%highlights(0))
-    end subroutine init_grep_regexp_alist
+        grep_regexp_table(1)%column_function => first_match_column
+        grep_regexp_table(1)%end_column_function => first_match_end_column
+        allocate (grep_regexp_table(1)%highlights(1))
+        grep_regexp_table(1)%highlights(1)%submatch = 3
+        grep_regexp_table(1)%highlights(1)%face = ""
+        grep_regexp_table(1)%highlights(1)%display = ":"
+        grep_regexp_table(2)%regexp = "^Binary file \(.+\) matches"
+        grep_regexp_table(2)%file = 1
+        grep_regexp_table(2)%type = 0
+        grep_regexp_table(2)%hyperlink = 1
+        allocate (grep_regexp_table(2)%highlights(0))
+    end subroutine init_grep_regexp_table
 
     !> The value of `grep_mode_font_lock_keywords' (the faces of the face
     !> variables are read when the keywords are made).  Not a port.
@@ -950,11 +950,11 @@ contains
         call compilation_error_face%set_local(grep_hit_face)
         n = size(grep_compilation_transform_finished_rules)
 
-        if (allocated(compilation_transform_file_match_alist)) then
-            allocate (transforms(n + size(compilation_transform_file_match_alist)))
+        if (allocated(compilation_transform_file_match_table)) then
+            allocate (transforms(n + size(compilation_transform_file_match_table)))
 
-            do i = 1, size(compilation_transform_file_match_alist)
-                transforms(n + i) = compilation_transform_file_match_alist(i)
+            do i = 1, size(compilation_transform_file_match_table)
+                transforms(n + i) = compilation_transform_file_match_table(i)
             end do
         else
             allocate (transforms(n))
@@ -968,8 +968,8 @@ contains
         ! regexp that can never match.
         matcher%regexp = "\`a\`"
         allocate (matcher%dir(0), matcher%leave(0))
-        call compilation_set_mode_locals(error_regexp_alist=grep_regexp_alist, directory_matcher=matcher, &
-                                         transform_file_match_alist=transforms, error=grep_error, &
+        call compilation_set_mode_locals(error_regexp_table=grep_regexp_table, directory_matcher=matcher, &
+                                         transform_file_match_table=transforms, error=grep_error, &
                                          mode_font_lock_keywords=grep_mode_font_lock_keywords, &
                                          mode_line_errors=grep_mode_line_matches, &
                                          process_setup_function=grep_process_setup)
@@ -1334,17 +1334,17 @@ contains
         status = status_type()
 
         ! Keep default values.
-        if (.not. grep_host_defaults_alist%has_defaults) then
-            grep_host_defaults_alist%defaults = current_defaults()
-            grep_host_defaults_alist%has_defaults = .true.
+        if (.not. grep_host_defaults_table%has_defaults) then
+            grep_host_defaults_table%defaults = current_defaults()
+            grep_host_defaults_table%has_defaults = .true.
         end if
 
         ! There are different defaults on different hosts.  They must be
         ! computed for every host once.
-        if (grep_host_defaults_alist%has_localhost) then
-            d = grep_host_defaults_alist%localhost
+        if (grep_host_defaults_table%has_localhost) then
+            d = grep_host_defaults_table%localhost
         else
-            d = grep_host_defaults_alist%defaults
+            d = grep_host_defaults_table%defaults
         end if
 
         d%quoting_style = grep_quoting_style
@@ -1523,8 +1523,8 @@ contains
         end if
 
         ! Save defaults for this host.
-        grep_host_defaults_alist%localhost = current_defaults()
-        grep_host_defaults_alist%has_localhost = .true.
+        grep_host_defaults_table%localhost = current_defaults()
+        grep_host_defaults_table%has_localhost = .true.
 
     contains
 
@@ -2883,7 +2883,7 @@ contains
     recursive subroutine cmd_zrgrep(status)
         type(status_type), intent(out) :: status
         type(grep_defaults_type) :: saved
-        type(grep_host_defaults_type) :: saved_alist
+        type(grep_host_defaults_type) :: saved_table
         type(grep_files_alias_type), allocatable :: saved_aliases(:)
         character(len=:), allocatable :: saved_program, regexp, files, dir, template
         logical :: run, confirm, have_template
@@ -2895,13 +2895,13 @@ contains
         ! `grep_compute_defaults' for grep program "zgrep", but not
         ! changing global values.
         saved = current_defaults()
-        saved_alist = grep_host_defaults_alist
+        saved_table = grep_host_defaults_table
         saved_program = grep_program
         call move_alloc(grep_files_aliases, saved_aliases)
         grep_program = "zgrep"
         if (allocated(grep_find_template)) deallocate (grep_find_template)
         if (allocated(grep_find_command)) deallocate (grep_find_command)
-        grep_host_defaults_alist = grep_host_defaults_type()
+        grep_host_defaults_table = grep_host_defaults_type()
         ! `zgrep' doesn't support the `--null' option.
         grep_use_null_filename_separator = GREP_NIL
         ! Use for `grep_read_files'.
@@ -2925,7 +2925,7 @@ contains
         ! The let bindings end.
         grep_program = saved_program
         call move_alloc(saved_aliases, grep_files_aliases)
-        grep_host_defaults_alist = saved_alist
+        grep_host_defaults_table = saved_table
         call set_defaults(saved)
         if (.not. status%ok()) return
 
@@ -3039,7 +3039,7 @@ contains
                                                               //"match\(?:es\)? found\)\|\(no matches found\)\).*"
         grep_compilation_transform_finished_rules(2)%regexp = "^Grep[/a-zA-Z]* \(exited abnormally\|interrupt\|" &
                                                               //"killed\|terminated\)\(?:.*with code \([0-9]+\)\)?.*"
-        call init_grep_regexp_alist()
+        call init_grep_regexp_table()
         call init_grep_mode_font_lock_keywords()
         call grep_heading%define("grep_heading", "Face of headings when `grep_use_headings' is true.")
         call grep_heading%spec_entry(display_when(), face_attrs(inherit=grep_hit_face))

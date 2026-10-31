@@ -26,7 +26,7 @@
 !> these use simple_fm and fill_fm, which use indent_fm.
 !>
 !> Not ported: `tab_always_indent' `complete' and `tab_first_completion',
-!> `indent_for_tab_command' with a prefix argument (needs sexps),
+!> `indent_for_tab_command' with a prefix argument (needs expressions),
 !> `edit_tab_stops', right-to-left paragraphs, the margin text-property
 !> commands (`set_left_margin' and friends).
 submodule(indent_fm) indent_cmds_fm

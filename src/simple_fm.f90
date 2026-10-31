@@ -875,7 +875,7 @@ module simple_fm
             implicit none(type, external)
         end subroutine syms_of_simple_process
 
-        !> Momentarily highlight the beginning of the sexp before point.
+        !> Momentarily highlight the beginning of the expression before point.
         !> Port of simple.el:blink-matching-open.  (In simple_electric_fm,
         !> for paren_fm.)
         recursive module subroutine blink_matching_open(status)
@@ -1212,7 +1212,7 @@ module simple_fm
         !> Compilation mode or Compilation Minor mode.
         !>
         !> To control which errors are matched, customize the variable
-        !> `compilation_error_regexp_alist'.  The rules there determine the
+        !> `compilation_error_regexp_names'.  The rules there determine the
         !> boundaries between error messages.  In general, messages that
         !> share the same line and column numbers are considered parts of a
         !> single error message.  Port of simple.el:next-error.  (In

@@ -144,6 +144,31 @@ if $style; then
         exit 1
     fi
 
+    # Fortran names for Lisp terms (PORTING.md, "Fortran names for Lisp
+    # terms"): tools/fortran-names.awk, and its rename script's own test.
+    if ! awk -v mode=check -v table=tools/fortran-names -f tools/fortran-names-lib.awk -f tools/fortran-names.awk \
+        $(find $DIRS -name '*.f90' | sort); then
+        echo "old names for Lisp terms: run tools/fortran-names.sh (PORTING.md, \"Fortran names for Lisp terms\")" >&2
+        exit 1
+    fi
+    tools/test-fortran-names.sh
+
+    # Intrinsics first (PORTING.md, "Intrinsics first"): tools/intrinsics.awk
+    # with its shrinking baseline, and its own test.
+    if ! awk -v baseline=tools/intrinsics-baseline -f tools/intrinsics.awk $(find $DIRS -name '*.f90' | sort); then
+        echo "thin wrappers of intrinsics or Lisp helpers: use the intrinsic (PORTING.md, \"Intrinsics first\")" >&2
+        exit 1
+    fi
+    tools/test-intrinsics.sh
+
+    # American spelling (CLAUDE.md): tools/spelling.awk.  The session logs
+    # (docs/log) are dated records and are not checked.
+    if ! awk -f tools/spelling.awk tools/american-spelling README.md CLAUDE.md PORTING.md \
+        $(find $DIRS -name '*.f90' ! -name docstrings_fm.f90 | sort) tools/*.sh tools/*.awk; then
+        echo "British spellings: use the American ones (or keep the text in tools/american-spelling)" >&2
+        exit 1
+    fi
+
     fortitude check $DIRS
 fi
 

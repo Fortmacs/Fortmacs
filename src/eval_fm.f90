@@ -214,7 +214,7 @@ module eval_fm
         logical :: is_t = .false.
     end type hook_entry_type
 
-    !> One buffer's own depths (the depth alist made buffer-local).
+    !> One buffer's own depths (the depth table made buffer-local).
     type :: local_depths_type
         integer(int64) :: serial = 0
         type(hook_entry_type), allocatable :: depths(:)
@@ -750,7 +750,7 @@ contains
         if (.not. allocated(local_hooks)) return
 
         do i = 1, size(local_hooks)
-            ! The depth alist is not permanent.
+            ! The depth table is not permanent.
             call kill_local_depths(local_hooks(i)%p)
             if (local_hooks(i)%p%permanent_local .and. .not. kill_permanent) cycle
             call local_hooks(i)%p%kill_local()

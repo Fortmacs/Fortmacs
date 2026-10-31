@@ -79,7 +79,7 @@ contains
         ! Its local variables go with it: make it not current first.
         if (was_current) call set_buffer_internal(0_int64)
         buffers(i)%last_name = buffers(i)%name
-        call alist_remove(h)
+        call buffer_order_remove(h)
         call frames_discard_buffer(h)
         call delete_all_overlays(h)
         ! Unchain all markers of this buffer and leave them pointing nowhere.
@@ -108,9 +108,9 @@ contains
 
         !> Make the most recent live, non-hidden buffer current.
         recursive subroutine other_buffer_current()
-            do k = alist_count, 1, -1
-                if (buffers(alist(k)%index)%name(1:1) /= " ") then
-                    call set_buffer_internal(alist(k)%index)
+            do k = buffer_order_count, 1, -1
+                if (buffers(buffer_order(k)%index)%name(1:1) /= " ") then
+                    call set_buffer_internal(buffer_order(k)%index)
                     return
                 end if
             end do
@@ -139,18 +139,18 @@ contains
     !> Drop `h' from the live-buffer list.  Lives here, its only user:
     !> gfortran drops private parent procedures that only a submodule uses.
     !> Not a port.
-    subroutine alist_remove(h)
+    subroutine buffer_order_remove(h)
         type(handle_type), intent(in) :: h
         integer(int64) :: k
 
-        do k = 1, alist_count
-            if (alist(k)%index == h%index .and. alist(k)%generation == h%generation) then
-                alist(k:alist_count - 1) = alist(k + 1:alist_count)
-                alist_count = alist_count - 1
+        do k = 1, buffer_order_count
+            if (buffer_order(k)%index == h%index .and. buffer_order(k)%generation == h%generation) then
+                buffer_order(k:buffer_order_count - 1) = buffer_order(k + 1:buffer_order_count)
+                buffer_order_count = buffer_order_count - 1
                 return
             end if
         end do
-    end subroutine alist_remove
+    end subroutine buffer_order_remove
 
     recursive module subroutine run_buffer_list_update_hook(i, status)
         integer(int64), intent(in) :: i
@@ -171,13 +171,13 @@ contains
 
         h = null_handle()
 
-        do k = alist_count, 1, -1
-            i = alist(k)%index
+        do k = buffer_order_count, 1, -1
+            i = buffer_order(k)%index
             call buffer_local_value(variable, i, v, st)
 
             if (st%ok()) then
                 if (value_equal(value, v)) then
-                    h = alist(k)
+                    h = buffer_order(k)
                     return
                 end if
             end if

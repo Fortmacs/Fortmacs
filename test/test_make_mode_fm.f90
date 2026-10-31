@@ -47,7 +47,7 @@ module test_make_mode_fm
                             makefile_has_prereqs, makefile_name_type, makefile_insert_target, makefile_insert_macro, &
                             makefile_format_macro_ref, makefile_do_macro_insertion, makefile_backslash_region, &
                             makefile_completions_at_point, makefile_cleanup_continuations_function, &
-                            makefile_cleanup_continuations, makefile_add_log_defun, makefile_use_curly_braces_for_macros_p, &
+                            makefile_cleanup_continuations, makefile_add_log_subprogram, makefile_use_curly_braces_for_macros_p, &
                             makefile_tab_after_target_colon
     implicit none(type, external)
     private
@@ -467,19 +467,19 @@ contains
         checks: block
             call goto_char(point_min())
             call search_forward("-g", found, st)
-            call makefile_add_log_defun(name)
+            call makefile_add_log_subprogram(name)
             call check(error, allocated(name), "variable not found")
             if (allocated(error)) exit checks
             call check(error, name, "CFLAGS")
             if (allocated(error)) exit checks
             call search_forward("cc -o", found, st)
-            call makefile_add_log_defun(name)
+            call makefile_add_log_subprogram(name)
             call check(error, allocated(name), "target not found")
             if (allocated(error)) exit checks
             call check(error, name, "all")
             if (allocated(error)) exit checks
             call goto_char(point_max())
-            call makefile_add_log_defun(name)
+            call makefile_add_log_subprogram(name)
             call check(error,.not. allocated(name), "found in a comment")
         end block checks
 

@@ -38,7 +38,7 @@ module test_register_fm
     use frame_fm, only: selected_frame, selected_window
     use window_fm, only: split_window, delete_other_windows, window_leaves, windows, get_buffer_window, window_live_p
     use rect_fm, only: rectangle_line_type
-    use register_fm, only: register_alist, register_value_type, get_register, set_register, point_to_register, &
+    use register_fm, only: register_table, register_value_type, get_register, set_register, point_to_register, &
                            jump_to_register, window_configuration_to_register, copy_to_register, insert_register, &
                            append_to_register, prepend_to_register, copy_rectangle_to_register, number_to_register, &
                            increment_register, file_to_register, buffer_to_register, register_jumpable_p, &
@@ -97,9 +97,9 @@ contains
         call show_alone()
 
         ! Empty every register (an empty rectangle is nil).
-        if (allocated(register_alist)) then
-            do k = 1, size(register_alist)
-                call set_register(register_alist(k)%name, none)
+        if (allocated(register_table)) then
+            do k = 1, size(register_table)
+                call set_register(register_table(k)%name, none)
             end do
         end if
 
@@ -151,10 +151,10 @@ contains
         integer :: k
 
         all_empty = .true.
-        if (.not. allocated(register_alist)) return
+        if (.not. allocated(register_table)) return
 
-        do k = 1, size(register_alist)
-            if (register_alist(k)%value%kind /= REGISTER_EMPTY) all_empty = .false.
+        do k = 1, size(register_table)
+            if (register_table(k)%value%kind /= REGISTER_EMPTY) all_empty = .false.
         end do
     end function all_empty
 

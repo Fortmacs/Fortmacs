@@ -2,7 +2,7 @@
 ! commands.
 ! Ports GNU Emacs 31.1 test/src/syntax-tests.el in part; only
 ! syntax-class-character-test; the rest need unibyte buffers, comments
-! or sexps.
+! or expressions.
 !
 ! Copyright (C) 2017-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -23,7 +23,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Ports syntax-tests.el syntax-class-character-test (syntax-char-syntax
-!> needs unibyte buffers; the rest need comments and sexps); own tests
+!> needs unibyte buffers; the rest need comments and expressions); own tests
 !> for the standard table, characters.el's entries, word boundaries and
 !> the word commands.
 module test_syntax_fm

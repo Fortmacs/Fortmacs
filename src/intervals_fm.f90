@@ -197,7 +197,7 @@ contains
 
     !> Value of text property `prop' in `plist', falling back to the
     !> `category' symbol's property, then to the first of the properties
-    !> `char_property_alias_alist' gives as alternatives for `prop'.
+    !> `char_property_alias_table' gives as alternatives for `prop'.
     !> Port of intervals.c:textget and intervals.c:lookup_char_property
     !> (default-text-properties is not consulted yet).
     function textget(plist, prop) result(val)
@@ -231,7 +231,7 @@ contains
         if (.not. nilp(fallback)) return
         ! Check for alternative properties.
         call ensure_obarray()
-        id = intern("char_property_alias_alist")
+        id = intern("char_property_alias_table")
         if (.not. symbols(id)%bound) return
         if (.not. consp(symbols(id)%val)) return
         call list_elements(symbols(id)%val, aliases)
@@ -300,7 +300,7 @@ contains
     !> (length < 0) at `start'.  Inserted text gets its own interval: with no
     !> properties, or with INHERIT true those `insertion_plist' gives it
     !> from its surroundings (upstream's adjust_intervals_for_insertion
-    !> puts it in a neighbouring interval by stickiness).  Port of
+    !> puts it in a neighboring interval by stickiness).  Port of
     !> intervals.c:offset_intervals, intervals.c:adjust_intervals_for_insertion
     !> and intervals.c:adjust_intervals_for_deletion.
     subroutine offset_intervals(iv, start, length, inherit)
@@ -371,7 +371,7 @@ contains
     !> Whether `text_property_default_nonsticky' makes PROP nonsticky: its
     !> standard value makes `syntax_table' and `display' (textprop.c),
     !> `composition' (composite.c) and `fill_space' (fill.el)
-    !> rear-nonsticky.  Not a port: the value is built in (its alist needs
+    !> rear-nonsticky.  Not a port: the value is built in (its table needs
     !> dotted pairs).
     logical function default_nonsticky(prop)
         type(value_type), intent(in) :: prop

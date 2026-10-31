@@ -21,7 +21,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Paragraph and sentence motion, by the regexps `paragraph_start',
-!> `paragraph_separate' and `sentence_end', honouring `fill_prefix' and
+!> `paragraph_separate' and `sentence_end', honoring `fill_prefix' and
 !> the left margin.
 !>
 !> Deferred: `use_hard_newlines', `repunctuate_sentences' (query-replace),

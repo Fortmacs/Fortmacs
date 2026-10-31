@@ -27,7 +27,7 @@
 !>
 !> Not yet: wildcards in `find_file', auto-save, file locks, local
 !> variables, uniquify (buffer names get "<2>"), version-control backups
-!> and `backup_directory_alist', `file_precious_flag', reverting a
+!> and `backup_directory_table', `file_precious_flag', reverting a
 !> file-visiting buffer (`revert_buffer__default'), `ls_lisp', file name
 !> handlers, trash (`delete_by_moving_to_trash').
 module files_fm
@@ -321,7 +321,7 @@ module files_fm
         !>
         !> To find the right major mode, this function checks for a -*- mode tag,
         !> checks if it uses an interpreter listed in interpreter-mode-alist,
-        !> then compares the file name against the entries in `auto_mode_alist'
+        !> then compares the file name against the entries in `auto_mode_table'
         !> (case-sensitively first, then ignoring case, as `auto_mode_case_fold').
         !>
         !> If the optional argument KEEP_MODE_IF_SAME is true, then we
@@ -335,7 +335,7 @@ module files_fm
             logical, intent(in), optional :: keep_mode_if_same
         end subroutine set_auto_mode
 
-        !> Add REGEXP and MODE to the front of `auto_mode_alist', so files
+        !> Add REGEXP and MODE to the front of `auto_mode_table', so files
         !> whose names match REGEXP get major mode MODE.  (In
         !> files_mode_fm.) Not a port.
         module subroutine add_auto_mode(regexp, mode)

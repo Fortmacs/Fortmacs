@@ -360,7 +360,7 @@ module data_fm
             type(status_type), intent(out) :: status
         end subroutine buffer_local_value
 
-        !> Return an alist of variables that are buffer-local in BUFFER.
+        !> Return a table of variables that are buffer-local in BUFFER.
         !> Most elements look like (SYMBOL VALUE), describing one variable.
         !> For a symbol that is locally unbound, just the symbol appears in the value.
         !> Note that storing new VALUEs in these elements doesn't change the variables.
@@ -370,10 +370,10 @@ module data_fm
         !> elements are two-element
         !> lists, since values hold proper lists only).
         !> (In data_buffer_fm.)
-        module function buffer_local_variables(buffer) result(alist)
+        module function buffer_local_variables(buffer) result(table)
             implicit none(type, external)
             integer(int64), intent(in), optional :: buffer
-            type(value_type) :: alist
+            type(value_type) :: table
         end function buffer_local_variables
 
         !> Make VARIABLE buffer-local in the current buffer and set it to
