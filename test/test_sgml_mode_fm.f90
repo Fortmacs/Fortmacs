@@ -28,9 +28,8 @@ module test_sgml_mode_fm
     use handle_fm, only: handle_type
     use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer, kill_buffer
     use insdel_fm, only: insert
-    use lisp_fm, only: value_type, nilp, symbolp, xsymbol, symbols
-    use lread_fm, only: sym
-    use editfns_fm, only: point, point_min, point_max, goto_char, widen, eobp, buffer_substring
+    use lisp_fm, only: value_type, vtag, V_NAME, xsymbol, symbols
+    use editfns_fm, only: point, point_min, point_max, goto_char, widen, is_eob, buffer_substring
     use indent_fm, only: indent_region
     use syntax_fm, only: parse_state_type, syntax_ppss
     use syntax_propertize_fm, only: syntax_propertize_chunk_size
@@ -358,11 +357,11 @@ contains
         call font_lock_ensure(st)
         call goto_char(point_min())
 
-        do while (.not. eobp())
-            call goto_char(next_single_char_property_change(point(), sym("face")))
-            call get_text_property(point(), sym("face"), v, st)
+        do while (.not. is_eob())
+            call goto_char(next_single_char_property_change(point(), value_type(name="face")))
+            call get_text_property(point(), value_type(name="face"), v, st)
 
-            if (.not. nilp(v) .and. symbolp(v)) then
+            if (vtag(v) == V_NAME) then
                 call check(error, symbols(xsymbol(v))%name /= "font_lock_string_face", "string face at a bracket")
                 if (allocated(error)) return
             end if

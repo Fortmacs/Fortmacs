@@ -674,7 +674,7 @@ module fortmacs
     use fill_fm, only: fill_paragraph_function, fill_paragraph_handle_comment, adaptive_fill_function
     use sgml_mode_fm, only: sgml_basic_offset, sgml_attribute_offset, sgml_xml_mode, sgml_specials, &
                             sgml_validate_command, sgml_slash_distance, sgml_char_names, sgml_empty_tags, &
-                            sgml_unclosed_tags, sgml_whitespace_sensitive_tags, html_tag_face_alist, sgml_tag_face_type, &
+                            sgml_unclosed_tags, sgml_whitespace_sensitive_tags, html_tag_face_table, sgml_tag_face_type, &
                             sgml_mode_hook, html_mode_hook, sgml_mode_map, html_mode_map, sgml_mode_syntax_table, &
                             sgml_tag_syntax_table
     use js_fm, only: js_indent_level, js_expr_indent_offset, js_paren_indent_offset, js_square_indent_offset, &
@@ -1135,7 +1135,7 @@ module fortmacs
     public :: fill_paragraph_function, fill_paragraph_handle_comment, adaptive_fill_function
     public :: sgml_basic_offset, sgml_attribute_offset, sgml_xml_mode, sgml_specials, sgml_validate_command, &
               sgml_slash_distance, sgml_char_names, sgml_empty_tags, sgml_unclosed_tags, sgml_whitespace_sensitive_tags, &
-              html_tag_face_alist, sgml_tag_face_type, sgml_mode_hook, html_mode_hook, sgml_mode_map, html_mode_map, &
+              html_tag_face_table, sgml_tag_face_type, sgml_mode_hook, html_mode_hook, sgml_mode_map, html_mode_map, &
               sgml_mode_syntax_table, sgml_tag_syntax_table
     public :: js_indent_level, js_expr_indent_offset, js_paren_indent_offset, js_square_indent_offset, &
               js_curly_indent_offset, js_switch_indent_offset, js_flat_functions, js_indent_align_list_continuation, &

@@ -689,6 +689,15 @@ name	end_of_do_while_loop_p	is_end_of_do_while_loop
 name	broken_arrow_terminates_line_p	is_broken_arrow_line_end
 name	R_JS_INDENT_ALIGN_LIST_CONTINUATION_NIL	R_JS_INDENT_NO_ALIGN_LIST_CONTINUATION
 
+# B1 and A1 in sgml_mode_fm (step 40h, merged after the first pass);
+# sgml-get-context without UNTIL (parse to a start tag first on a line)
+# is UNTIL_DEFAULT, as in REPEAT_CHECK_KEY_DEFAULT.
+name	at_indentation_p	is_at_indentation	src/sgml_mode_fm.f90
+name	tag_text_p	is_tag_text	src/sgml_mode_fm.f90
+name	empty_tag_p	is_empty_tag	src/sgml_mode_fm.f90
+name	unclosed_tag_p	is_unclosed_tag	src/sgml_mode_fm.f90
+name	UNTIL_NIL	UNTIL_DEFAULT	src/sgml_mode_fm.f90
+
 # Q3: functions upstream names *-p that return more than a logical take
 # the name of what they return.
 name	window_dedicated_p	window_dedication
