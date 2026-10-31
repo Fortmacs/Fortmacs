@@ -727,7 +727,7 @@ written: not `is_null(v)` for `.not. allocated(v%a)`, `length(x)` for
 `size(x)`, `memq` for `any(x == y)` or `car` for `x(1)`.  Flat data is a
 plain array, used with the intrinsics directly.
 
-tools/intrinsics.awk, run by tools/check.sh, reports two patterns:
+tools/intrinsics.awk, run by tools/check.sh, reports these patterns:
 
 - **wrapper**: a function or subroutine whose executable part is one
   statement assigning one intrinsic (or `.not.` of one) applied to its
@@ -735,15 +735,31 @@ tools/intrinsics.awk, run by tools/check.sh, reports two patterns:
   `n = size(x, kind=int64)`, or that only tests a value's tag or reads
   its component (`is_integer = v%a(1)%tag == V_INTEGER`,
   `integer_of = v%a(1)%i`);
-- **lisp-helper**: a procedure named after a Lisp helper: `nilp`,
-  `consp`, `car`, `cdr`, `car_safe`, `cdr_safe`, `nth`, `nthcdr`, `memq`,
-  `member`, `length`, `fixnump`, `make_fixnum`, `xfixnum`, `nil`,
-  `t_value`, `is_integer`, `integer_of`.
+- **lisp-helper**: a procedure named after a Lisp helper: `nil`, `nilp`,
+  `t_value`, `sym`, `consp`, `cons`, `car`, `cdr`, `car_safe`,
+  `cdr_safe`, `nth`, `nthcdr`, `memq`, `member`, `length`, `fixnump`,
+  `make_fixnum`, `xfixnum`, `xstring`, `xsymbol`, `xhandle`,
+  `is_integer`, `integer_of`, `funcall`, `funcall_noargs`, `apply`,
+  `put`, `get`, `plist_get`, `plist_put`, `plist_member`, `intern`,
+  `intern_soft`, `setq_local`, `boundp`, `fboundp`, `makunbound`,
+  `keywordp`, `defvar_nil`, `prin1_to_string`, `prin1_string`,
+  `cons_repr`, `cons_arg`;
+- **predicate**: a procedure named like a Lisp predicate, ending in `_p`
+  or in `p` after a type or position word (`charsetp`, `processp`,
+  `bobp`); logical user options named `*_p` upstream are variables and
+  keep their names;
+- **constant**: a named constant ending in `_NIL`, `_T`, `_TRUE` or
+  `_FALSE`;
+- **vector**: a name ending in `_vector`;
+- **interactive**: a component `interactive` of `command_type` (it is
+  `is_command`).
 
-The code of 2026-10-31 has 51 such findings (24 wrappers, 27 Lisp helper
-names), listed as FILE:NAME:RULE in tools/intrinsics-baseline; PR 2
-removes them.  The check fails on a finding the baseline does not list and
-on a baseline line that no longer occurs, so the baseline only shrinks.
+The code of 2026-10-31, after B1 and A1, has 131 such findings, listed
+as FILE:NAME:RULE in tools/intrinsics-baseline; PR 2 removes them.  The
+check fails on a finding the baseline does not list and on a baseline
+line that no longer occurs, so the baseline only shrinks; once it is
+empty the check stays, with the empty baseline.
+
 tools/test-intrinsics.sh tests the check on the fixture in
 tools/intrinsics-test.
 

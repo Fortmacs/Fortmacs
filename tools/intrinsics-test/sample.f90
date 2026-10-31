@@ -9,6 +9,25 @@ module sample
         end function nilp
     end interface
 
+    !> Named constants for nil and t, and meaningful ones.
+    integer, parameter, public :: SCROLL_NIL = 0, SCROLL_T = 1, SCROLL_FIRST_ERROR = 2
+    integer, parameter :: CHECK_TRUE = 1, CHECK_FALSE = 0, CHECK_NO = 2
+    integer, parameter :: COMPILATION_SCROLL_NO = 0, COMPILATION_SCROLL_YES = 1
+
+    !> An array named with `_vector', and a plural one.
+    integer :: colors_vector(8) = [(0, k = 1, 8)], colors(8)
+
+    !> A command type with the component `interactive'.
+    type :: command_type
+        logical :: interactive = .false.
+        logical :: is_command = .false.
+    end type command_type
+
+    !> Another type may have a component `interactive'.
+    type :: other_type
+        logical :: interactive = .false.
+    end type other_type
+
 contains
 
     !> A thin wrapper: `.not. allocated(v%a)'.
@@ -74,4 +93,30 @@ contains
 
         v = list(1)
     end subroutine car
+
+    !> Lisp predicate names: one ending in _p, one in p after a type word.
+    logical function region_active_p(n)
+        integer, intent(in) :: n
+
+        region_active_p = n > 0
+    end function region_active_p
+
+    logical function processp(n)
+        integer, intent(in) :: n
+
+        processp = n > 1
+    end function processp
+
+    !> Not predicates: an is_* name, and a word that only ends in p.
+    logical function is_region_active(n)
+        integer, intent(in) :: n
+
+        is_region_active = n > 0
+    end function is_region_active
+
+    integer function keep_group(n)
+        integer, intent(in) :: n
+
+        keep_group = n + 1
+    end function keep_group
 end module sample

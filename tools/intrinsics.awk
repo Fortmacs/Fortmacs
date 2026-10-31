@@ -32,10 +32,28 @@
 #                value's tag or reads its component: `is_integer =
 #                v%a(1)%tag == V_INTEGER', `integer_of = v%a(1)%i'.  Write
 #                the intrinsic, or the test or read itself.
-#   lisp-helper  a procedure named after a Lisp helper (nilp, consp, car,
-#                cdr, car_safe, cdr_safe, nth, nthcdr, memq, member,
-#                length, fixnump, make_fixnum, xfixnum, nil, t_value,
-#                is_integer, integer_of).
+#   lisp-helper  a procedure named after a Lisp helper (nil, nilp,
+#                t_value, sym, consp, cons, car, cdr, car_safe, cdr_safe,
+#                nth, nthcdr, memq, member, length, fixnump, make_fixnum,
+#                xfixnum, xstring, xsymbol, xhandle, is_integer,
+#                integer_of, funcall, funcall_noargs, apply, put, get,
+#                plist_get, plist_put, plist_member, intern, intern_soft,
+#                setq_local, boundp, fboundp, makunbound, keywordp,
+#                defvar_nil, prin1_to_string, prin1_string, cons_repr,
+#                cons_arg).
+#   predicate    a procedure named like a Lisp predicate: ending in `_p'
+#                (region_active_p), or in `p' after a type word
+#                (charsetp, processp, bobp).  Name it is_* or has_*.
+#   constant     a named constant ending in _NIL, _T, _TRUE or _FALSE.
+#                Name the states for their meaning (_NO, _YES, _ALWAYS,
+#                ...); two states make a logical.
+#   vector       a name (variable, component, named constant, type or
+#                procedure) ending in `_vector'.  Use a plural.
+#   interactive  a component `interactive' of command_type (it is
+#                `is_command').
+#
+# Logical user options named *_p upstream keep their names: they are
+# variables, which the predicate rule does not look at.
 #
 # The baseline file lists the findings of today's code as FILE:NAME:RULE
 # lines (they go in a later PR); one listed is not reported, and a listed
@@ -91,6 +109,58 @@ function start_proc(name, args, res, line, n, i, a) {
     n = split(args, a, ",")
     for (i = 1; i <= n; i++) dummy[depth, tolower(trim(a[i]))] = 1
     if (tolower(name) in lisp) finding(line, "lisp-helper", name, "")
+    check_predicate(line, name)
+    if (tolower(name) ~ /_vector$/) finding(line, "vector", name, "")
+}
+
+# Whether NAME reads as a Lisp predicate (region_active_p, charsetp).
+function check_predicate(line, name, n, stem) {
+    n = tolower(name)
+    if (n ~ /_p$/) {
+        finding(line, "predicate", name, "")
+        return
+    }
+    if (n !~ /p$/) return
+    stem = substr(n, 1, length(n) - 1)
+    sub(/^.*_/, "", stem)
+    if (stem in typeword) finding(line, "predicate", name, "")
+}
+
+# The names a declaration statement L (lower case, without strings)
+# declares: what follows `::', at parenthesis and bracket depth 0, up to
+# each `=' or `=>'.
+function decl_names(l, names, i, c, d, out, n, a, k, nm) {
+    sub(/^[^:]*::/, "", l)
+    out = ""
+    d = 0
+    for (i = 1; i <= length(l); i++) {
+        c = substr(l, i, 1)
+        if (c == "(" || c == "[") d++
+        else if (c == ")" || c == "]") d--
+        else if (d == 0) out = out c
+    }
+    n = split(out, a, ",")
+    k = 0
+    for (i = 1; i <= n; i++) {
+        nm = trim(a[i])
+        sub(/[ \t]*=.*/, "", nm)
+        if (nm ~ /^[a-z_][a-z0-9_]*$/) names[++k] = nm
+    }
+    return k
+}
+
+# Checks the declaration L at line LINE.
+function check_decl(line, l, names, n, i, nm) {
+    if (l !~ /::/) return
+    n = decl_names(l, names)
+    for (i = 1; i <= n; i++) {
+        nm = names[i]
+        if (l ~ /(^|,)[ \t]*parameter([ \t]*(,|::))/ && nm ~ /_(nil|t|true|false)$/) {
+            finding(line, "constant", toupper(nm), "")
+        }
+        if (nm ~ /_vector$/) finding(line, "vector", nm, "")
+        if (intype == "command_type" && nm == "interactive") finding(line, "interactive", "command_type%interactive", "")
+    }
 }
 
 # Judges the body of the innermost procedure, once.
@@ -141,9 +211,18 @@ BEGIN {
               "repeat ior iand ieor btest ibset ibclr ishft popcnt maxloc minloc reshape spread " \
               "is_iostat_end is_iostat_eor huge tiny kind bit_size new_line lge lgt lle llt", w, " ")
     for (i = 1; i <= n; i++) intrinsic[w[i]] = 1
-    n = split("nilp consp car cdr car_safe cdr_safe nth nthcdr memq member length fixnump " \
-              "make_fixnum xfixnum nil t_value is_integer integer_of", w, " ")
+    n = split("nil nilp t_value sym consp cons car cdr car_safe cdr_safe nth nthcdr memq member length " \
+              "fixnump make_fixnum xfixnum xstring xsymbol xhandle is_integer integer_of funcall " \
+              "funcall_noargs apply put get plist_get plist_put plist_member intern intern_soft setq_local " \
+              "boundp fboundp makunbound keywordp defvar_nil prin1_to_string prin1_string cons_repr cons_arg", w, " ")
     for (i = 1; i <= n; i++) lisp[w[i]] = 1
+    # Words that, with `p' added, name a Lisp type or position predicate.
+    n = split("buffer marker string window frame process timer charset symbol keymap list cons fixnum " \
+              "number integer natnum float overlay category char keyword command minibuffer function " \
+              "sequence vector array atom boolean bound fbound bob eob bol eol less greater blank " \
+              "graphic alphabetic alphanumeric uppercase lowercase printable syntax_table case_table " \
+              "hash_table record subr", w, " ")
+    for (i = 1; i <= n; i++) typeword[w[i]] = 1
     n = split("int8 int16 int32 int64 real32 real64 real128 c_int c_long c_char", w, " ")
     for (i = 1; i <= n; i++) kinds[w[i]] = 1
     if (baseline != "") {
@@ -159,6 +238,7 @@ FNR == 1 {
     file = FILENAME
     depth = 0
     ininterface = 0
+    intype = ""
     cont = ""
 }
 
@@ -183,6 +263,17 @@ FNR == 1 {
     l = tolower(trim(c))
     if (l == "") next
 }
+
+# Derived-type definitions (for the component rule) and declarations
+# anywhere (for the constant and vector rules).
+l ~ /^type([ \t]*,[^:]*)?[ \t]*::[ \t]*[a-z_][a-z0-9_]*[ \t]*$/ || l ~ /^type[ \t]+[a-z_][a-z0-9_]*[ \t]*$/ {
+    intype = l
+    sub(/^.*[: \t]/, "", intype)
+    if (intype ~ /_vector$/) finding(startline, "vector", intype, "")
+    next
+}
+l ~ /^end[ \t]*type/ { intype = ""; next }
+l ~ /::/ && l !~ /^(use|procedure[ \t]*\(|generic)/ { check_decl(startline, l) }
 
 l ~ /^(abstract[ \t]+)?interface([ \t]|$)/ { ininterface++; next }
 l ~ /^end[ \t]*interface/ { ininterface--; next }
