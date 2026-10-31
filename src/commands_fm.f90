@@ -120,6 +120,7 @@ module commands_fm
         type(command_type) :: bookmark_set_no_overwrite
         type(command_type) :: bookmark_write
         type(command_type) :: bookmark_yank_word
+        type(command_type) :: buffer_enable_undo
         type(command_type) :: buffer_menu
         type(command_type) :: buffer_menu_1_window
         type(command_type) :: buffer_menu_2_window
@@ -1114,7 +1115,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1075) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1076) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1202,6 +1203,7 @@ module commands_fm
                                                                   "bookmark_set_no_overwrite", &
                                                                   "bookmark_write", &
                                                                   "bookmark_yank_word", &
+                                                                  "buffer_enable_undo", &
                                                                   "buffer_menu", &
                                                                   "buffer_menu_1_window", &
                                                                   "buffer_menu_2_window", &
@@ -2376,6 +2378,8 @@ contains
             p => commands%bookmark_write
         case ("bookmark_yank_word")
             p => commands%bookmark_yank_word
+        case ("buffer_enable_undo")
+            p => commands%buffer_enable_undo
         case ("buffer_menu")
             p => commands%buffer_menu
         case ("buffer_menu_1_window")

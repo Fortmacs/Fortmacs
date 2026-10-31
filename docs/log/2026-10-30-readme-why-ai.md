@@ -1,0 +1,1 @@
+2026-10-30 — README "Why AI assistance?" (`readme-why-ai`, based on main; asked by the user): among AI's breakthroughs, the 2026 rescue of an airman downed in Iran, whom press reports say the CIA located with a sensor called "Ghost Murmur" that uses AI to single out his heartbeat from background noise; worded as reported, since the CIA has not confirmed the technology.

@@ -53,12 +53,14 @@ module syntax_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_ARGS_OUT_OF_RANGE, &
                         FM_SCAN_ERROR
     use handle_fm, only: handle_type, slot_table_type, null_handle
-    use character_fm, only: MAX_CHAR, string_char_and_length
+    use character_fm, only: MAX_CHAR, string_char_and_length, char_string, MAX_MULTIBYTE_LENGTH, unibyte_to_char
+    use error_fm, only: format_message
     use buffer_fm, only: buffers, cur, buf_fetch_char, buf_next_char_len, buf_prev_char_len
     use marker_fm, only: char_to_byte
     use editfns_fm, only: point, goto_char, constrain_to_field
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use characters_fm, only: characters_syntax, char_has_category
+    use characters_fm, only: characters_syntax
+    use category_fm, only: char_has_category
     use charscript_fm, only: char_script
     use data_fm, only: logical_setting, integer_setting, forward_setting
     use lisp_fm, only: value_type, consp, fixnump, xfixnum, syntax_table_ref_p, xhandle, make_fixnum, list_elt, list
@@ -76,6 +78,7 @@ module syntax_fm
     public :: parse_state_type, forward_comment, scan_lists, scan_sexps, parse_partial_sexp, syntax_ppss, &
               scan_error_data
     public :: syntax_entry_at, syntax_class_at, syntax_descriptor_value, descriptor_of_value, parse_sexp_propertize
+    public :: syntax_flags_comment_styleb, syntax_flags_comment_stylec, internal_describe_syntax_value
 
     !> Syntax classes (syntax.h enum syntaxcode).
     integer, parameter, public :: SWHITESPACE = 0, SPUNCT = 1, SWORD = 2, SSYMBOL = 3, SOPEN = 4, &
@@ -375,7 +378,8 @@ contains
         tables(h%index)%parent = parent
     end subroutine new_table
 
-    !> Slot of table `h', or a wrong-type-argument error.  Not a port.
+    !> Slot of table `h', or a wrong-type-argument error.  Port of
+    !> syntax.c:check_syntax_table.
     subroutine resolve_table(h, i, status)
         type(handle_type), intent(in) :: h
         integer(int64), intent(out) :: i
@@ -385,7 +389,9 @@ contains
         if (.not. status%ok()) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "syntax_table_p")
     end subroutine resolve_table
 
-    !> Whether `h' is a live syntax table.  Not a port.
+    !> Return true if OBJECT is a syntax table.  Port of
+    !> syntax.c:Fsyntax_table_p (syntax tables are their own objects here,
+    !> so no other char-table counts as one).
     logical function syntax_table_live_p(h)
         type(handle_type), intent(in) :: h
 
@@ -558,7 +564,8 @@ contains
     end function syntax_table
 
     !> Select a new syntax table for the current buffer.
-    !> One argument, a syntax table.  Port of syntax.c:Fset_syntax_table.
+    !> One argument, a syntax table.  Port of syntax.c:Fset_syntax_table
+    !> and syntax.c:bset_syntax_table.
     subroutine set_syntax_table(h, status)
         type(handle_type), intent(in) :: h
         type(status_type), intent(out) :: status
@@ -573,8 +580,8 @@ contains
     ! Entries
     ! ------------------------------------------------------------------
 
-    !> Give characters `from' to `to' entry `d' in table slot `t'.
-    !> Not a port.
+    !> Give characters `from' to `to' entry `d' in table slot `t'.  Port of
+    !> syntax.c:SET_RAW_SYNTAX_ENTRY and syntax.c:SET_RAW_SYNTAX_ENTRY_RANGE.
     subroutine set_range(t, from, to, d)
         integer(int64), intent(in) :: t
         integer, intent(in) :: from, to
@@ -789,7 +796,12 @@ contains
     !> yet; else (or without the property) from the buffer's syntax table.
     !> What syntax.c's SYNTAX_ENTRY gives after UPDATE_SYNTAX_TABLE (POS)
     !> (gl_state's property intervals are looked up afresh).
-    !> Port of syntax.h:SYNTAX_ENTRY and syntax.h:UPDATE_SYNTAX_TABLE in part.
+    !> Port of syntax.h:SYNTAX_ENTRY and syntax.h:UPDATE_SYNTAX_TABLE in part,
+    !> with what syntax.c:update_syntax_table,
+    !> syntax.c:update_syntax_table_forward, syntax.c:SETUP_SYNTAX_TABLE and
+    !> syntax.c:RE_SETUP_SYNTAX_TABLE_FOR_OBJECT find in gl_state (in part:
+    !> the property is looked up at each position, objects other than the
+    !> current buffer have none).
     recursive function syntax_entry_at(c, pos) result(d)
         integer, intent(in) :: c
         integer(int64), intent(in) :: pos
@@ -855,11 +867,20 @@ contains
     !> character `w' (119) is returned.
     !> The characters that correspond to various syntax codes
     !> are listed in the documentation of `modify_syntax_entry'.
-    !> Port of syntax.c:Fchar_syntax.
+    !> Port of syntax.c:Fchar_syntax (in a unibyte buffer, 128 to 255 are
+    !> raw bytes).
     character function char_syntax(c)
         integer, intent(in) :: c
+        integer :: char_int, class
 
-        char_syntax = syntax_code_spec(char_syntax_class(c) + 1:char_syntax_class(c) + 1)
+        char_int = c
+
+        if (cur /= 0 .and. c < 256) then
+            if (.not. buffers(cur)%multibyte) char_int = unibyte_to_char(int(c, int32))
+        end if
+
+        class = char_syntax_class(char_int)
+        char_syntax = syntax_code_spec(class + 1:class + 1)
     end function char_syntax
 
     !> Return the syntax char of CLASS, described by an integer.
@@ -882,8 +903,141 @@ contains
         ch = syntax_code_spec(class + 1:class + 1)
     end subroutine syntax_class_to_char
 
+    !> Whether the syntax FLAGS (class and flags) have comment style b.
+    !> Port of syntax.c:SYNTAX_FLAGS_COMMENT_STYLEB.
+    pure logical function syntax_flags_comment_styleb(flags)
+        integer, intent(in) :: flags
+
+        syntax_flags_comment_styleb = btest(flags, 21)
+    end function syntax_flags_comment_styleb
+
+    !> Whether the syntax FLAGS have comment style c.  Port of
+    !> syntax.c:SYNTAX_FLAGS_COMMENT_STYLEC.
+    pure logical function syntax_flags_comment_stylec(flags)
+        integer, intent(in) :: flags
+
+        syntax_flags_comment_stylec = btest(flags, 23)
+    end function syntax_flags_comment_stylec
+
+    !> Insert a description of the internal syntax description SYNTAX at point.
+    !> Port of syntax.c:Finternal_describe_syntax_value, returning the
+    !> text it inserts (a descriptor with `code' -1, nil, is "default").
+    function internal_describe_syntax_value(syntax) result(text)
+        type(syntax_descriptor_type), intent(in) :: syntax
+        character(len=:), allocatable :: text
+        integer :: syntax_code, code
+        logical :: start1, start2, end1, end2, prefix, comstyleb, comstylec, comnested
+
+        if (syntax%code == -1) then
+            text = "default"
+            return
+        end if
+
+        syntax_code = iand(syntax%code, huge(1))
+        code = iand(syntax_code, 255)
+        start1 = btest(syntax_code, 16)
+        start2 = btest(syntax_code, 17)
+        end1 = btest(syntax_code, 18)
+        end2 = btest(syntax_code, 19)
+        prefix = btest(syntax_code, 20)
+        comstyleb = syntax_flags_comment_styleb(syntax_code)
+        comstylec = syntax_flags_comment_stylec(syntax_code)
+        comnested = btest(syntax_code, 22)
+
+        if (SMAX <= code .or. syntax%match < -1 .or. syntax%match > MAX_CHAR) then
+            text = "invalid"
+            return
+        end if
+
+        text = syntax_code_spec(code + 1:code + 1)
+
+        if (syntax%match == -1) then
+            text = text//" "
+        else
+            text = text//char_utf8(syntax%match)
+        end if
+
+        if (start1) text = text//"1"
+        if (start2) text = text//"2"
+        if (end1) text = text//"3"
+        if (end2) text = text//"4"
+        if (prefix) text = text//"p"
+        if (comstyleb) text = text//"b"
+        if (comstylec) text = text//"c"
+        if (comnested) text = text//"n"
+        text = text//achar(9)//"which means: "//class_name(code)
+        if (syntax%match /= -1) text = text//", matches "//char_utf8(syntax%match)
+        if (start1) text = text//","//achar(10)//achar(9)//"  is the first character of a comment-start sequence"
+        if (start2) text = text//","//achar(10)//achar(9)//"  is the second character of a comment-start sequence"
+        if (end1) text = text//","//achar(10)//achar(9)//"  is the first character of a comment-end sequence"
+        if (end2) text = text//","//achar(10)//achar(9)//"  is the second character of a comment-end sequence"
+        if (comstyleb) text = text//" (comment style b)"
+        if (comstylec) text = text//" (comment style c)"
+        if (comnested) text = text//" (nestable)"
+
+        if (prefix) then
+            text = text//format_message(","//achar(10)//achar(9)// &
+                                        "  is a prefix character for `backward_prefix_chars'")
+        end if
+    end function internal_describe_syntax_value
+
+    !> The description of syntax class CODE (part of
+    !> syntax.c:Finternal_describe_syntax_value).  Not a port.
+    pure function class_name(code) result(name)
+        integer, intent(in) :: code
+        character(len=:), allocatable :: name
+
+        select case (code)
+        case (SWHITESPACE)
+            name = "whitespace"
+        case (SPUNCT)
+            name = "punctuation"
+        case (SWORD)
+            name = "word"
+        case (SSYMBOL)
+            name = "symbol"
+        case (SOPEN)
+            name = "open"
+        case (SCLOSE)
+            name = "close"
+        case (SQUOTE)
+            name = "prefix"
+        case (SSTRING)
+            name = "string"
+        case (SMATH)
+            name = "math"
+        case (SESCAPE)
+            name = "escape"
+        case (SCHARQUOTE)
+            name = "charquote"
+        case (SCOMMENT)
+            name = "comment"
+        case (SENDCOMMENT)
+            name = "endcomment"
+        case (SINHERIT)
+            name = "inherit"
+        case (SCOMMENT_FENCE)
+            name = "comment fence"
+        case default
+            name = "string fence"
+        end select
+    end function class_name
+
+    !> The UTF-8 form of character C.  Not a port.
+    function char_utf8(c) result(s)
+        integer, intent(in) :: c
+        character(len=:), allocatable :: s
+        character(len=MAX_MULTIBYTE_LENGTH) :: tmp
+        integer(int32) :: n
+        type(status_type) :: st
+
+        call char_string(int(c, int32), tmp, n, st)
+        s = tmp(1:n)
+    end function char_utf8
+
     !> Return the matching parenthesis of CHARACTER, or nil if none.
-    !> (-1 is nil.)  Port of syntax.c:Fmatching_paren.
+    !> (-1 is nil.)  Port of syntax.c:Fmatching_paren (with
+    !> syntax.c:SYNTAX_MATCH, the descriptor's `match').
     integer function matching_paren(c)
         integer, intent(in) :: c
         type(syntax_descriptor_type) :: d

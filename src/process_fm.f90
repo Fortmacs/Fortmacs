@@ -201,6 +201,22 @@ module process_fm
     !> and the value status_notify last saw (update_tick).
     integer(int64) :: process_tick = 0, update_tick = 0
 
+    abstract interface
+        !> What keeps a process filter or sentinel from changing the match
+        !> data (search_fm): one runs before it (OUTER becomes the earlier
+        !> state of running_asynch_code, SAVED what to reinstate), one
+        !> after it.  Not a port.
+        subroutine asynch_code_proc(outer, saved)
+            import :: int64
+            implicit none(type, external)
+            logical, intent(inout) :: outer
+            integer(int64), allocatable, intent(inout) :: saved(:)
+        end subroutine asynch_code_proc
+    end interface
+
+    !> Set by search_fm (search.c's side of process.c's running_asynch_code).
+    procedure(asynch_code_proc), pointer, public :: begin_asynch_code => null(), end_asynch_code => null()
+
 contains
 
     ! ------------------------------------------------------------------
@@ -1080,8 +1096,9 @@ contains
         character(len=:), allocatable :: chars, text, used
         type(handle_type) :: old, proc
         type(status_type) :: st
-        logical :: odeactivate
+        logical :: odeactivate, outer
         integer(int64) :: n
+        integer(int64), allocatable :: saved(:)
 
         chars = procs(i)%carryover//bytes
         procs(i)%carryover = ""
@@ -1118,6 +1135,7 @@ contains
         odeactivate = deactivate_mark_variable
         old = current_buffer()
         proc = table%handle_of(i)
+        if (associated(begin_asynch_code)) call begin_asynch_code(outer, saved)
 
         if (associated(procs(i)%filter)) then
             call procs(i)%filter(proc, text, st)
@@ -1129,6 +1147,7 @@ contains
             call message("error in process filter: "//format_error(st))
         end if
 
+        if (associated(end_asynch_code)) call end_asynch_code(outer, saved)
         ! There's no good reason to let process filters change the current
         ! buffer.
         if (buffer_live_p(old)) call set_buffer(old, st)
@@ -1278,11 +1297,13 @@ contains
         character(len=*), intent(in) :: reason
         type(handle_type) :: old, proc
         type(status_type) :: st
-        logical :: odeactivate
+        logical :: odeactivate, outer
+        integer(int64), allocatable :: saved(:)
 
         odeactivate = deactivate_mark_variable
         old = current_buffer()
         proc = table%handle_of(i)
+        if (associated(begin_asynch_code)) call begin_asynch_code(outer, saved)
 
         if (associated(procs(i)%sentinel)) then
             call procs(i)%sentinel(proc, reason, st)
@@ -1291,6 +1312,7 @@ contains
         end if
 
         if (.not. st%ok()) call message("error in process sentinel: "//format_error(st))
+        if (associated(end_asynch_code)) call end_asynch_code(outer, saved)
         if (buffer_live_p(old)) call set_buffer(old, st)
         deactivate_mark_variable = odeactivate
     end subroutine exec_sentinel

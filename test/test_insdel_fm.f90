@@ -28,7 +28,7 @@ module test_insdel_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, set_error, FM_BUFFER_READ_ONLY, FM_GENERIC_ERROR
-    use lisp_fm, only: value_type, nilp
+    use lisp_fm, only: value_type, nilp, list, make_string, t_value
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use handle_fm, only: handle_type
@@ -38,11 +38,13 @@ module test_insdel_fm
     use marker_fm, only: char_to_byte, byte_to_char, buf_charpos_to_bytepos
     use insdel_fm, only: del_range, del_range_1, del_range_byte, insert, insert_char, make_gap, &
                          move_gap_both, replace_range, before_change_functions, after_change_functions, &
-                         first_change_hook, inhibit_modification_hooks
+                         first_change_hook, inhibit_modification_hooks, combine_after_change_calls, &
+                         combine_after_change_execute, insert_and_inherit, insert_before_markers_and_inherit, &
+                         insert_from_string, copy_text, safe_del_range
     use editfns_fm, only: delete_region, delete_and_extract_region, subst_char_in_region, point_min, point_max, &
-                          buffer_size, insert_char_n
+                          buffer_size, insert_char_n, insert_buffer_substring
     use casefiddle_fm, only: upcase_region, capitalize_region
-    use textprop_fm, only: put_text_property, get_text_property
+    use textprop_fm, only: put_text_property, get_text_property, propertize
     use search_fm, only: search_forward, match_end, replace_match
     implicit none(type, external)
     private
@@ -92,7 +94,11 @@ contains
                     new_unittest("change-hooks-property-retry", test_hooks_property_retry), &
                     new_unittest("change-hooks-replace-match", test_hooks_replace_match), &
                     new_unittest("editfns-tests--before/after-change-functions", &
-                                 test_before_after_change_functions) &
+                                 test_before_after_change_functions), &
+                    new_unittest("combine-after-change-calls", test_combine_after_change), &
+                    new_unittest("insert-and-inherit", test_insert_and_inherit), &
+                    new_unittest("insert-with-properties", test_insert_with_properties), &
+                    new_unittest("copy-text-and-safe-del-range", test_copy_text_safe_del) &
                     ]
     end subroutine collect_insdel_fm
 
@@ -871,4 +877,134 @@ contains
         call forget_changes()
         call leave(h, old)
     end subroutine test_before_after_change_functions
+
+    ! ------------------------------------------------------------------
+    ! Combining after-change calls, inheriting, inserting with properties
+    ! ------------------------------------------------------------------
+
+    !> While `combine_after_change_calls' is true (and no before-change
+    !> function or overlay needs the changes at once), changes are only
+    !> recorded; `combine_after_change_execute' reports them as one change
+    !> covering them all.  Own test.
+    subroutine test_combine_after_change(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+        character(len=:), allocatable :: during
+
+        call enter("*combine*", h, old)
+        call insert("xyz", st)
+        trace = ""
+        call after_change_functions%add(rec_after, local=.true.)
+        combine_after_change_calls = .true.
+        call goto(1_int64)
+        call insert("a", st)
+        call goto(5_int64)
+        call insert("b", st)
+        during = trace
+        combine_after_change_calls = .false.
+        call combine_after_change_execute(st)
+        call after_change_functions%kill_local()
+        call check(error, during == "" .and. trace == " A1,6,3", "deferred, then one call: '"//trace//"'")
+        call leave(h, old)
+    end subroutine test_combine_after_change
+
+    !> `insert_and_inherit' gives the text the properties of the text
+    !> before it (rear-sticky by default) unless they are rear-nonsticky,
+    !> and those of the text after it that are front-sticky; `insert' gives
+    !> it none.  Own test.
+    subroutine test_insert_and_inherit(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+        type(value_type) :: v
+
+        call enter("*inherit*", h, old)
+        call insert("ab", st)
+        call put_text_property(1_int64, 2_int64, sym("face"), sym("bold"), st)
+        call goto(2_int64)
+        call insert_and_inherit("X", st)
+        call get_text_property(2_int64, sym("face"), v, st)
+        call check(error, value_eq(v, sym("bold")), "X inherits face from a")
+        if (allocated(error)) return
+        call insert("Y", st)
+        call get_text_property(3_int64, sym("face"), v, st)
+        call check(error, nilp(v), "Y inserted plainly")
+        if (allocated(error)) return
+        ! rear-nonsticky: nothing from before.
+        call put_text_property(1_int64, 2_int64, sym("rear_nonsticky"), t_value(), st)
+        call goto(2_int64)
+        call insert_and_inherit("Z", st)
+        call get_text_property(2_int64, sym("face"), v, st)
+        call check(error, nilp(v), "rear-nonsticky face not inherited")
+        if (allocated(error)) return
+        ! front-sticky text after point.
+        call put_text_property(point_max() - 1, point_max(), sym("mouse_face"), sym("highlight"), st)
+        call put_text_property(point_max() - 1, point_max(), sym("front_sticky"), list(sym("mouse_face")), st)
+        call goto(point_max() - 1)
+        call insert_before_markers_and_inherit("W", st)
+        call get_text_property(point_max() - 2, sym("mouse_face"), v, st)
+        call check(error, value_eq(v, sym("highlight")), "front-sticky property inherited from after")
+        call leave(h, old)
+    end subroutine test_insert_and_inherit
+
+    !> `insert_from_string' copies the string's text properties into the
+    !> buffer (with INHERIT, adds them to the inherited ones), and
+    !> `insert_buffer_substring' copies those of the other buffer.
+    !> Own test.
+    subroutine test_insert_with_properties(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old, h2
+        type(status_type) :: st
+        type(value_type) :: s, v
+
+        call enter("*props-1*", h, old)
+        s = propertize(make_string("hi"), list(sym("face"), sym("bold")))
+        call insert_from_string(s, 1_int64, 1_int64, .false., st)
+        call check(error, contents() == "i", "one character of the string")
+        if (allocated(error)) return
+        call get_text_property(1_int64, sym("face"), v, st)
+        call check(error, value_eq(v, sym("bold")), "with its face")
+        if (allocated(error)) return
+        call put_text_property(1_int64, 2_int64, sym("face"), sym("italic"), st)
+        call goto(2_int64)
+        call insert_from_string(s, 0_int64, 2_int64, .true., st)
+        call get_text_property(2_int64, sym("face"), v, st)
+        call check(error, value_eq(v, sym("italic")), "the inherited face wins")
+        if (allocated(error)) return
+        call get_buffer_create("*props-2*", h2, st)
+        call set_buffer(h2, st)
+        call insert_buffer_substring(h, st)
+        call check(error, contents() == "ihi", "the other buffer's text")
+        if (allocated(error)) return
+        call get_text_property(1_int64, sym("face"), v, st)
+        call check(error, value_eq(v, sym("italic")), "and its properties")
+        call kill_buffer(h2, st)
+        call leave(h, old)
+    end subroutine test_insert_with_properties
+
+    !> `copy_text' converts between unibyte and multibyte text; and
+    !> `safe_del_range' fails quietly in a read-only buffer.  Own test.
+    subroutine test_copy_text_safe_del(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+
+        call check(error, copy_text(char(200), .false., .true.) == char(193)//char(136), "byte to raw-byte char")
+        if (allocated(error)) return
+        call check(error, copy_text(e_acute//"a", .true., .false.) == char(233)//"a", "é to its low byte")
+        if (allocated(error)) return
+        call check(error, copy_text("abc", .true., .true.) == "abc", "same representation")
+        if (allocated(error)) return
+        call enter("*safe-del*", h, old)
+        call insert("abc", st)
+        call set_buffer_read_only(h, .true., st)
+        call check(error, safe_del_range(1_int64, 2_int64), "fails")
+        call set_buffer_read_only(h, .false., st)
+        if (allocated(error)) return
+        call check(error,.not. safe_del_range(1_int64, 2_int64), "deletes")
+        if (allocated(error)) return
+        call check(error, contents() == "bc", "the text deleted")
+        call leave(h, old)
+    end subroutine test_copy_text_safe_del
 end module test_insdel_fm
