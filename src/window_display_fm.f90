@@ -44,6 +44,7 @@
 !> thresholds, and windows resized by more than their next or previous
 !> sibling can give.
 submodule(window_fm) window_display_fm
+    use handle_fm, only: has_handle
     use commands_fm, only: commands
     use error_fm, only: set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
     use buffer_fm, only: cur, current_buffer, set_buffer, is_buffer_live, record_buffer, bury_buffer_internal, &
@@ -542,23 +543,6 @@ contains
     ! Switching to previous and next buffers
     ! ------------------------------------------------------------------
 
-    !> Whether `b' is in the list `list'.  Not a port.
-    logical function member(list, b)
-        type(handle_type), allocatable, intent(in) :: list(:)
-        type(handle_type), intent(in) :: b
-        integer :: k
-
-        member = .false.
-        if (.not. allocated(list)) return
-
-        do k = 1, size(list)
-            if (same_handle(list(k), b)) then
-                member = .true.
-                return
-            end if
-        end do
-    end function member
-
     !> The index of BUFFER in the previous buffers of `h', or 0.
     !> Not a port.
     integer function prev_entry(h, buffer) result(k)
@@ -639,7 +623,7 @@ contains
                 b = entry%buffer
                 if (same_handle(b, old_buffer)) cycle
                 if (.not. is_buffer_live(b)) cycle
-                if (bury_or_kill == BK_NONE .and. member(next_buffers, b)) cycle
+                if (bury_or_kill == BK_NONE .and. has_handle(next_buffers, b)) cycle
                 new_buffer = b
                 call set_window_buffer_start_and_point(h, b, status, marker_pos(entry%start), marker_pos(entry%point))
                 found = .true.
@@ -658,7 +642,7 @@ contains
                 if (.not. is_buffer_live(b) .or. same_handle(b, old_buffer)) cycle
                 ! Skip buffers whose names start with a space.
                 if (index(buffer_name_of(b), " ") == 1) cycle
-                if (bury_or_kill == BK_NONE .and. member(next_buffers, b)) cycle
+                if (bury_or_kill == BK_NONE .and. has_handle(next_buffers, b)) cycle
                 new_buffer = b
                 call set_window_buffer_start_and_point(h, b, status)
                 found = .true.

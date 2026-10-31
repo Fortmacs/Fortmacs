@@ -78,7 +78,7 @@ module syntax_fm
     public :: parse_state_type, forward_comment, scan_groups, scan_expressions, parse_partial_expression, syntax_ppss, &
               scan_error_data
     public :: syntax_entry_at, syntax_class_at, syntax_descriptor_value, descriptor_of_value, parse_expression_propertize
-    public :: syntax_flags_comment_styleb, syntax_flags_comment_stylec, internal_describe_syntax_value
+    public :: internal_describe_syntax_value
 
     !> Syntax classes (syntax.h enum syntaxcode).
     integer, parameter, public :: SWHITESPACE = 0, SPUNCT = 1, SWORD = 2, SSYMBOL = 3, SOPEN = 4, &
@@ -154,6 +154,12 @@ module syntax_fm
     !> start of a comment) and COMMENTSTOP_SYNTAX_TABLE (stop after the
     !> start or end of a comment or a string).
     integer, parameter, public :: COMMENTSTOP_NO = 0, COMMENTSTOP_COMMENT = 1, COMMENTSTOP_SYNTAX_TABLE = -1
+
+    ! The bits of a syntax descriptor's flags (syntax.c:SYNTAX_FLAGS_*),
+    ! tested with btest.
+    integer, parameter :: SYNTAX_FLAG_COMSTART_FIRST = 16, SYNTAX_FLAG_COMSTART_SECOND = 17, &
+                          SYNTAX_FLAG_COMEND_FIRST = 18, SYNTAX_FLAG_COMEND_SECOND = 19, SYNTAX_FLAG_PREFIX = 20, &
+                          SYNTAX_FLAG_COMMENT_STYLEB = 21, SYNTAX_FLAG_COMMENT_NESTED = 22, SYNTAX_FLAG_COMMENT_STYLEC = 23
 
     !> The state of a parse by `parse_partial_expression', the list upstream
     !> returns.  Its components are the list's elements:
@@ -904,22 +910,6 @@ contains
         ch = syntax_code_spec(class + 1:class + 1)
     end subroutine syntax_class_to_char
 
-    !> Whether the syntax FLAGS (class and flags) have comment style b.
-    !> Port of syntax.c:SYNTAX_FLAGS_COMMENT_STYLEB.
-    pure logical function syntax_flags_comment_styleb(flags)
-        integer, intent(in) :: flags
-
-        syntax_flags_comment_styleb = btest(flags, 21)
-    end function syntax_flags_comment_styleb
-
-    !> Whether the syntax FLAGS have comment style c.  Port of
-    !> syntax.c:SYNTAX_FLAGS_COMMENT_STYLEC.
-    pure logical function syntax_flags_comment_stylec(flags)
-        integer, intent(in) :: flags
-
-        syntax_flags_comment_stylec = btest(flags, 23)
-    end function syntax_flags_comment_stylec
-
     !> Insert a description of the internal syntax description SYNTAX at point.
     !> Port of syntax.c:Finternal_describe_syntax_value, returning the
     !> text it inserts (a descriptor with `code' -1 is "default").
@@ -941,8 +931,8 @@ contains
         end1 = btest(syntax_code, 18)
         end2 = btest(syntax_code, 19)
         prefix = btest(syntax_code, 20)
-        comstyleb = syntax_flags_comment_styleb(syntax_code)
-        comstylec = syntax_flags_comment_stylec(syntax_code)
+        comstyleb = btest(syntax_code, SYNTAX_FLAG_COMMENT_STYLEB)
+        comstylec = btest(syntax_code, SYNTAX_FLAG_COMMENT_STYLEC)
         comnested = btest(syntax_code, 22)
 
         if (SMAX <= code .or. syntax%match < -1 .or. syntax%match > MAX_CHAR) then

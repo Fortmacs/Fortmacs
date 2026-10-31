@@ -877,7 +877,7 @@ contains
             ! used.
             do j = 1, size(comps)
                 file = xstring(comps(j))
-                dup = member_string(kept(1:n), file)
+                dup = has_string_value(kept(1:n), file)
 
                 if (.not. dup .and. len(ignored) > 0) then
                     dup = string_match(ignored, file, st) > 0
@@ -906,20 +906,20 @@ contains
     end subroutine command_completion_data
 
     ! Whether STRING is one of LIST.  Not a port.
-    logical function member_string(list, string)
+    logical function has_string_value(list, string)
         type(value_type), intent(in) :: list(:)
         character(len=*), intent(in) :: string
         integer :: k
 
-        member_string = .false.
+        has_string_value = .false.
 
         do k = 1, size(list)
             if (xstring(list(k)) == string .and. len(xstring(list(k))) == len(string)) then
-                member_string = .true.
+                has_string_value = .true.
                 return
             end if
         end do
-    end function member_string
+    end function has_string_value
 
     ! Double the size of LIST.  Not a port.
     subroutine grow(list)
@@ -2181,7 +2181,7 @@ contains
             if (.not. status%ok()) return
             k = current_entry()
 
-            if (.not. shell_pushd_dunique%value .or. .not. member(old, shell_buffers(k)%dirstack)) then
+            if (.not. shell_pushd_dunique%value .or. .not. has_dir(old, shell_buffers(k)%dirstack)) then
                 call prepend_arg(shell_buffers(k)%dirstack, old)
             end if
 
@@ -2190,17 +2190,17 @@ contains
     end subroutine shell_process_pushd
 
     ! Not a port.
-    logical function member(s, list)
+    logical function has_dir(s, list)
         character(len=*), intent(in) :: s
         type(process_arg_type), intent(in) :: list(:)
         integer :: i
 
-        member = .false.
+        has_dir = .false.
 
         do i = 1, size(list)
-            if (list(i)%s == s .and. len(list(i)%s) == len(s)) member = .true.
+            if (list(i)%s == s .and. len(list(i)%s) == len(s)) has_dir = .true.
         end do
-    end function member
+    end function has_dir
 
     !> If STR is of the form +n, for n>0, return n.  Otherwise, -1.
     !> Port of shell.el:shell-extract-num.

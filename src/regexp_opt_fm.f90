@@ -522,7 +522,7 @@ contains
         character(len=:), allocatable :: re
         integer(int32), allocatable :: set(:)
         integer(int32) :: start, end, c, tmp
-        character(len=:), allocatable :: charset, bracket, dash, caret, all
+        character(len=:), allocatable :: charset, bracket, dash, caret, whole
         integer :: i, j
 
         bracket = ""
@@ -539,7 +539,7 @@ contains
                 caret = "^"
             else if (c == iachar("-")) then
                 dash = "-"
-            else if (all_differ(set, c)) then
+            else if (all(set /= c)) then
                 set = [set, c]
             end if
         end do
@@ -575,16 +575,16 @@ contains
         end do
 
         call flush ()
-        all = bracket//charset//caret//dash
+        whole = bracket//charset//caret//dash
 
-        if (len(all) == 0) then
+        if (len(whole) == 0) then
             re = regexp_unmatchable
-        else if (nchars(all) == 1) then
-            re = regexp_quote(all)
-        else if (all == "^-") then
+        else if (nchars(whole) == 1) then
+            re = regexp_quote(whole)
+        else if (whole == "^-") then
             re = "[-^]"
         else
-            re = "["//all//"]"
+            re = "["//whole//"]"
         end if
 
     contains
@@ -600,11 +600,4 @@ contains
             end if
         end subroutine flush
     end function regexp_opt_charset
-
-    !> Whether C is not in SET.  Not a port.
-    pure logical function all_differ(set, c)
-        integer(int32), intent(in) :: set(:), c
-
-        all_differ = all(set /= c)
-    end function all_differ
 end module regexp_opt_fm

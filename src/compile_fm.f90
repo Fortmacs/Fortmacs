@@ -4148,8 +4148,7 @@ contains
     !> Read the compilation command, COMMAND as initial input.  Port of
     !> compile.el:compilation-read-command.
     subroutine compilation_read_command_from_user(command, result, status)
-        use lisp_fm, only: xstring
-        use data_fm, only: car
+        use lisp_fm, only: xstring, list_elt
         character(len=*), intent(in) :: command
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
@@ -4158,7 +4157,7 @@ contains
 
         same_first = .false.
         call symbol_value(sym("compile_history"), history, status)
-        if (status%ok()) call car(history, first, status)
+        if (status%ok()) first = list_elt(history, 1_int64)
 
         if (status%ok()) then
             if (vtag(first) == V_STRING) same_first = xstring(first) == command .and. len(xstring(first)) == len(command)

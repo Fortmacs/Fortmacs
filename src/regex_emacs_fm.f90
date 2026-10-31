@@ -335,15 +335,6 @@ contains
         extract_character = ior(ior(buf(at), ishft(buf(at + 1), 8)), ishft(buf(at + 2), 16))
     end function extract_character
 
-    !> Size of the bitmap of the charset at `p' (CHARSET_BITMAP_SIZE).
-    !> Port of regex-emacs.c:CHARSET_BITMAP_SIZE.
-    pure integer function charset_bitmap_size(buf, p)
-        integer, intent(in) :: buf(0:)
-        integer, intent(in) :: p
-
-        charset_bitmap_size = iand(buf(p + 1), 127)
-    end function charset_bitmap_size
-
     !> The charset at `p' has a range table (CHARSET_RANGE_TABLE_EXISTS_P).
     !> Port of regex-emacs.c:CHARSET_RANGE_TABLE_EXISTS_P.
     pure logical function charset_range_table_exists(buf, p)
@@ -359,7 +350,7 @@ contains
         integer, intent(in) :: buf(0:)
         integer, intent(in) :: p
 
-        charset_range_table = p + 4 + charset_bitmap_size(buf, p)
+        charset_range_table = p + 4 + iand(buf(p + 1), 127)
     end function charset_range_table
 
     !> The class bits that start the range table (CHARSET_RANGE_TABLE_BITS).
@@ -369,7 +360,7 @@ contains
         integer, intent(in) :: p
         integer :: n
 
-        n = charset_bitmap_size(buf, p)
+        n = iand(buf(p + 1), 127)
         charset_range_table_bits = buf(p + 2 + n) + buf(p + 3 + n)*256
     end function charset_range_table_bits
 
@@ -1810,7 +1801,7 @@ contains
                 mcnt = extract_number(buf, q)
                 q = q + 2 + mcnt*2*3
             else
-                q = q + 1 + charset_bitmap_size(buf, p)
+                q = q + 1 + iand(buf(p + 1), 127)
             end if
         case (SYNTAXSPEC, NOTSYNTAXSPEC, CATEGORYSPEC, NOTCATEGORYSPEC)
             q = q + 1
@@ -2058,12 +2049,12 @@ contains
 
                 if (inverted) then
                     ! Chars beyond end of bitmap are possible matches.
-                    do j = charset_bitmap_size(buf, p)*8, 255
+                    do j = iand(buf(p + 1), 127)*8, 255
                         fastmap(j) = .true.
                     end do
                 end if
 
-                nbits = charset_bitmap_size(buf, p)*8
+                nbits = iand(buf(p + 1), 127)*8
 
                 do j = 0, nbits - 1
                     if (btest(buf(p + 2 + j/8), mod(j, 8)) .neqv. inverted) fastmap(j) = .true.
@@ -2198,12 +2189,12 @@ contains
             rtp = rtp + 2
             p = rtp + count*2*3
         else
-            p = p + 2 + charset_bitmap_size(buf, p0)
+            p = p + 2 + iand(buf(p0 + 1), 127)
         end if
 
         if (unibyte .and. c < 256) then
             ! Lookup bitmap.
-            if (c < charset_bitmap_size(buf, p0)*8) then
+            if (c < iand(buf(p0 + 1), 127)*8) then
                 if (btest(buf(p0 + 2 + c/8), mod(c, 8))) then
                     matched = .not. inverted
                     return
@@ -2322,12 +2313,12 @@ contains
             ! the one after the loop.
             idx = 0
 
-            do while (idx < buf(p2 + 1) .and. idx < charset_bitmap_size(buf, p1))
+            do while (idx < buf(p2 + 1) .and. idx < iand(buf(p1 + 1), 127))
                 if (iand(buf(p2 + 2 + idx), buf(p1 + 2 + idx)) /= 0) exit
                 idx = idx + 1
             end do
 
-            if (idx == buf(p2 + 1) .or. idx == charset_bitmap_size(buf, p1)) excl = .true.
+            if (idx == buf(p2 + 1) .or. idx == iand(buf(p1 + 1), 127)) excl = .true.
         else if (buf(p1) == CHARSET_NOT) then
             ! We win if the charset_not inside the loop lists every
             ! character listed in the charset after.
@@ -2335,7 +2326,7 @@ contains
 
             do while (idx < buf(p2 + 1))
                 if (buf(p2 + 2 + idx) /= 0) then
-                    if (idx >= charset_bitmap_size(buf, p1)) exit
+                    if (idx >= iand(buf(p1 + 1), 127)) exit
                     if (iand(buf(p2 + 2 + idx), not(buf(p1 + 2 + idx))) /= 0) exit
                 end if
 

@@ -325,9 +325,9 @@ contains
 
                 do k = 1, size(SYNONYMS)
                     call split_words(trim(SYNONYMS(k)), syn)
-                    if (.not. member(words(i)%s, syn, 1)) cycle
+                    if (.not. has_word(words(i)%s, syn, 1)) cycle
                     a = joined(syn)
-                    if (member(words(i)%s, syn, 2)) s = a
+                    if (has_word(words(i)%s, syn, 2)) s = a
                     exit
                 end do
 
@@ -352,18 +352,18 @@ contains
 
     contains
 
-        logical function member(w, list, from)
+        logical function has_word(w, list, from)
             character(len=*), intent(in) :: w
             type(apropos_word_type), intent(in) :: list(:)
             integer, intent(in) :: from
             integer :: m
 
-            member = .false.
+            has_word = .false.
 
             do m = from, size(list)
-                if (list(m)%s == w) member = .true.
+                if (list(m)%s == w) has_word = .true.
             end do
-        end function member
+        end function has_word
 
         function joined(list) result(r)
             type(apropos_word_type), intent(in) :: list(:)

@@ -5919,7 +5919,7 @@ contains
         type(dired_string_type), allocatable :: files(:)
         type(file_stat_type) :: st
         integer(int64) :: nmarked
-        real(real64) :: size
+        real(real64) :: total_size
         logical :: one_marked, found
         integer :: k
 
@@ -5928,34 +5928,28 @@ contains
 
         if (one_marked) then
             nmarked = 1
-        else if (size_of(files) <= 1) then
+        else if (size(files) <= 1) then
             nmarked = 0
         else
-            nmarked = size_of(files)
+            nmarked = size(files)
         end if
 
-        size = 0
+        total_size = 0
 
-        do k = 1, size_of(files)
+        do k = 1, size(files)
             call file_attributes(files(k)%s, st, found, nofollow=.true.)
-            if (found) size = size + real(st%size, real64)
+            if (found) total_size = total_size + real(st%size, real64)
         end do
 
         if (nmarked == 0) then
             call message("No marked files")
         else if (nmarked == 1) then
-            call message(itoa(nmarked)//" marked file ("//byte_count_to_string(size)//" total size)")
+            call message(itoa(nmarked)//" marked file ("//byte_count_to_string(total_size)//" total size)")
         else
-            call message(itoa(nmarked)//" marked files ("//byte_count_to_string(size)//" total size)")
+            call message(itoa(nmarked)//" marked files ("//byte_count_to_string(total_size)//" total size)")
         end if
 
     contains
-
-        integer function size_of(a)
-            type(dired_string_type), intent(in) :: a(:)
-
-            size_of = ubound(a, 1)
-        end function size_of
     end subroutine dired_number_of_marked_files
 
     ! ------------------------------------------------------------------

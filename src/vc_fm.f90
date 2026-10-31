@@ -442,20 +442,20 @@ contains
     end subroutine one
 
     !> Whether S is one of LIST.  Not a port.
-    logical function member(s, list)
+    logical function has_file(s, list)
         character(len=*), intent(in) :: s
         type(vc_string_type), intent(in) :: list(:)
         integer :: k
 
-        member = .false.
+        has_file = .false.
 
         do k = 1, size(list)
             if (list(k)%s == s .and. len(list(k)%s) == len(s)) then
-                member = .true.
+                has_file = .true.
                 return
             end if
         end do
-    end function member
+    end function has_file
 
     !> FILE expanded.  Not a port.
     function expand(file, dir) result(full)
@@ -2876,7 +2876,7 @@ contains
         ! buffer is saved.  If the user says `no', abort since we cannot
         ! show the changes and ask for confirmation to discard them.
         if (len(buffer_file_name()) > 0) then
-            if (size(fs%files) == 0 .or. member(buffer_file_name(), fs%files)) then
+            if (size(fs%files) == 0 .or. has_file(buffer_file_name(), fs%files)) then
                 call vc_buffer_sync(status)
                 if (.not. status%ok()) return
             end if
@@ -2953,7 +2953,7 @@ contains
         !> save-some-buffers's PRED: the buffer visits one of the files.
         logical function in_fileset()
             in_fileset = .false.
-            if (len(buffer_file_name()) > 0) in_fileset = member(buffer_file_name(), fs%files)
+            if (len(buffer_file_name()) > 0) in_fileset = has_file(buffer_file_name(), fs%files)
         end function in_fileset
     end subroutine vc_revert
 

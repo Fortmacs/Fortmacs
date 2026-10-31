@@ -1194,21 +1194,6 @@ contains
         call move_alloc(grown, list)
     end subroutine append_buffer
 
-    !> Whether LIST contains B.  Not a port.
-    logical function member(b, list)
-        type(handle_type), intent(in) :: b, list(:)
-        integer :: k
-
-        member = .false.
-
-        do k = 1, size(list)
-            if (same_handle(list(k), b)) then
-                member = .true.
-                return
-            end if
-        end do
-    end function member
-
     !> LIST with B moved to the front (or put there).  Not a port.
     subroutine move_to_front(list, b)
         type(handle_type), allocatable, intent(inout) :: list(:)
@@ -1277,7 +1262,7 @@ contains
                     call filter_buffer_modes(all)
 
                     do k = 1, size(all)
-                        if (member(all(k), list)) cycle
+                        if (any(list%index == all(k)%index .and. list%generation == all(k)%generation)) cycle
                         if (is_ignore_buffer(all(k))) cycle
                         call append_buffer(list, all(k))
                     end do
@@ -1311,7 +1296,7 @@ contains
                 k = modulo(sel + j - 1, size(leaves)) + 1
                 if (k == sel) cycle
                 wb = windows(leaves(k)%index)%buffer
-                if (member(wb, list)) call move_to_front(list, wb)
+                if (any(list%index == wb%index .and. list%generation == wb%generation)) call move_to_front(list, wb)
             end do
         end if
 

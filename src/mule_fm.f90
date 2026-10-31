@@ -811,20 +811,20 @@ contains
     end function buffer_text
 
     !> Whether NAME is in NAMES.  Not a port.
-    logical function member(name, names)
+    logical function has_coding_system(name, names)
         character(len=*), intent(in) :: name
         type(coding_system_list_entry_type), intent(in) :: names(:)
         integer :: k
 
-        member = .false.
+        has_coding_system = .false.
 
         do k = 1, size(names)
             if (names(k)%name == name) then
-                member = .true.
+                has_coding_system = .true.
                 return
             end if
         end do
-    end function member
+    end function has_coding_system
 
     !> Read the coding system for saving the current buffer, offering as
     !> the default the coding system the buffer's text asks for, or the
@@ -856,7 +856,7 @@ contains
         default = auto_cs
 
         if (len(default) == 0) then
-            any_safe = all .or. member(coding_system_base(bfcs_default), bcss)
+            any_safe = all .or. has_coding_system(coding_system_base(bfcs_default), bcss)
 
             if (len(bfcs_default) > 0 .and. any_safe .and. coding_system_base(bfcs_default) /= current) then
                 default = bfcs_default
@@ -866,7 +866,7 @@ contains
                 do k = 1, size(prio)
                     cs = prio(k)%name
                     if (len(coding_system_mime_charset(cs)) == 0) cycle
-                    if (.not. (all .or. member(coding_system_base(cs), bcss))) cycle
+                    if (.not. (all .or. has_coding_system(coding_system_base(cs), bcss))) cycle
                     if (coding_system_base(cs) == current) cycle
                     default = cs
                     exit
@@ -924,7 +924,7 @@ contains
             ! char(s) if not.
             call find_coding_systems_text(buffer_text(), css, all)
 
-            if (.not. all .and. .not. member(coding_system_base(cs), css)) then
+            if (.not. all .and. .not. has_coding_system(coding_system_base(cs), css)) then
                 allocate (unsafe(1))
                 unsafe(1)%name = cs
                 call select_safe_coding_system_interactively(1_int64, buffers(cur)%text%z, css, unsafe, "", chosen, &
@@ -1532,7 +1532,7 @@ contains
             n = 0
 
             do k = 1, nd
-                if (member(coding_system_base(defaults(k)%name), codings)) then
+                if (has_coding_system(coding_system_base(defaults(k)%name), codings)) then
                     call append(safe, n, defaults(k)%name)
                 end if
             end do
@@ -1540,7 +1540,7 @@ contains
             n = 0
 
             do k = 1, nd
-                if (.not. member(coding_system_base(defaults(k)%name), codings)) call append(unsafe, n, defaults(k)%name)
+                if (.not. has_coding_system(coding_system_base(defaults(k)%name), codings)) call append(unsafe, n, defaults(k)%name)
             end do
 
             ! If there are safe ones, the first one is what we want.
@@ -1550,7 +1550,7 @@ contains
             if (len(coding) == 0) then
                 ! If UTF-8 is in CODINGS, but is not its first member, make
                 ! it the first one, so it is offered as the default.
-                if (member("utf-8", codings)) call to_front(codings, "utf-8")
+                if (has_coding_system("utf-8", codings)) call to_front(codings, "utf-8")
                 cs = ""
                 if (size(codings) > 0) cs = codings(1)%name
                 call select_safe_coding_system_interactively(from, to, codings, unsafe, cs, coding, status)
@@ -1913,7 +1913,7 @@ contains
 
                     s = s//" (alias:"//alias_list//")"
                 end if
-            else if (member(coding_system, aliases)) then
+            else if (has_coding_system(coding_system, aliases)) then
                 s = s//" (alias of "//aliases(1)%name//")"
             else
                 eol = coding_system_eol_type(coding_system)

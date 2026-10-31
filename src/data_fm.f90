@@ -151,7 +151,7 @@ module data_fm
     public :: forward_setting
 
     public :: check_fixnum, check_symbol, check_string, check_list
-    public :: value_eq, car, cdr, car_safe, cdr_safe
+    public :: value_eq
     public :: symbol_name, boundp, symbol_value, set, makunbound
     public :: make_local_variable, make_variable_buffer_local, kill_local_variable, kill_all_local_variables, &
               is_local_variable, is_local_variable_if_set, is_automatically_local, is_forwarded_variable, default_value, &
@@ -655,55 +655,6 @@ contains
             ! Nothing to do for other values.
         end select
     end function value_eq
-
-    !> First element of a list; nil for nil.  Port of data.c:Fcar.
-    subroutine car(list, v, status)
-        type(value_type), intent(in) :: list
-        type(value_type), intent(out) :: v
-        type(status_type), intent(out) :: status
-
-        select case (vtag(list))
-        case (V_ARRAY)
-            v = list_elt(list, 1_int64)
-        case (V_NULL)
-            v = value_type()
-        case default
-            call wrong_type(status, "expected array")
-        end select
-    end subroutine car
-
-    !> The list without its first element; nil for nil.
-    !> Port of data.c:Fcdr.
-    subroutine cdr(list, v, status)
-        type(value_type), intent(in) :: list
-        type(value_type), intent(out) :: v
-        type(status_type), intent(out) :: status
-
-        select case (vtag(list))
-        case (V_ARRAY)
-            v = list_tail(list, 1_int64)
-        case (V_NULL)
-            v = value_type()
-        case default
-            call wrong_type(status, "expected array")
-        end select
-    end subroutine cdr
-
-    !> Like `car', but nil for a non-list.  Port of data.c:Fcar_safe.
-    pure function car_safe(list) result(v)
-        type(value_type), intent(in) :: list
-        type(value_type) :: v
-
-        if (vtag(list) == V_ARRAY) v = list_elt(list, 1_int64)
-    end function car_safe
-
-    !> Like `cdr', but nil for a non-list.  Port of data.c:Fcdr_safe.
-    pure function cdr_safe(list) result(v)
-        type(value_type), intent(in) :: list
-        type(value_type) :: v
-
-        if (vtag(list) == V_ARRAY) v = list_tail(list, 1_int64)
-    end function cdr_safe
 
     ! ------------------------------------------------------------------
     ! Symbols

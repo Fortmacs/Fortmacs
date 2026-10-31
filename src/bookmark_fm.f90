@@ -2695,12 +2695,12 @@ contains
         integer :: count
 
         found_name = bookmark_name_from_full_record(full_record)
-        if (.not. member(found_name)) return
+        if (.not. is_name_taken(found_name)) return
         ! We've got a conflict, so generate a new name
         count = 2
         new_name = found_name
 
-        do while (member(new_name))
+        do while (is_name_taken(new_name))
             write (buf, "(i0)") count
             new_name = found_name//"<"//trim(buf)//">"
             count = count + 1
@@ -2710,19 +2710,19 @@ contains
 
     contains
 
-        logical function member(s)
+        logical function is_name_taken(s)
             character(len=*), intent(in) :: s
             integer :: k
 
-            member = .false.
+            is_name_taken = .false.
 
             do k = 1, size(names)
                 if (same(names(k)%s, s)) then
-                    member = .true.
+                    is_name_taken = .true.
                     return
                 end if
             end do
-        end function member
+        end function is_name_taken
     end subroutine bookmark_maybe_rename
 
     !> Load bookmarks from FILE (which must be in bookmark format).

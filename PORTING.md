@@ -576,6 +576,8 @@ no rename is added without that.  The confirmed renames:
 | cons (printing a keymap entry), a cons argument | `keymap_entry_repr(event, binding)`; newcomment's `universal_arg` | named for what they hold |
 | the exact Lisp value of a setting (`setting_type%exact`) | removed (A8) | a logical setting holds `.true.` or `.false.` (any allocated value is `.true.`); an integer or string setting given another value is a `wrong-type-argument` error condition except where upstream's nil means something: fill-column's nil is `FILL_COLUMN_NONE` (`current_fill_column` then gives the largest fixnum, as upstream; its obsolescence warning is Deferred with lwarn; set_fill_column shows and refuses it as upstream does), tab-width's nil is `TAB_WIDTH_NONE` (tabs are 8 columns, buffer.h:sanitize_tab_width); both names are provisional, for the owner to confirm; a function setting resolves the name when it is set (an undefined name is `void-function`, "Function is not defined") and keeps the resolved command (`%command`) for the name it reads back as; an unknown require-final-newline value is `FINAL_NEWLINE_ASK` |
 | the face an ansi-color face function receives | `type(ansi_color_face_type)` (A5): `faces(:)` of `ansi_color_face_ref_type` (a pointer to a named face; null for an entry of `ansi_color_basic_faces` that is ""), `foreground` and `background` ("" for a color face without the color); empty (`%is_empty()`) means none | no `value_type` in the face function's interface; `ansi_color_face_value` builds the text property value upstream's ansi-color--face-vec-face gives |
+| car, cdr, nth, nthcdr, memq, member, length (C2c) | removed: plain arrays with the intrinsics | membership in an array is `any(...)` (`has_handle(list, h)` in handle_fm for an allocatable handle array; `has_name` with `any(names == name)`), a loop named for what it tests where the elements have deferred-length components (`has_word`, `has_string`, `has_file`, `has_coding_system`, `is_name_taken`); a value array's first element is `list_elt(v, 1_int64)`; the fns-tests-length port and the car/cdr tests go with the helpers |
+| thin wrappers of an intrinsic | the intrinsic | `ichar(str(i:i), kind=int32)` for byte_at, `btest(flags, SYNTAX_FLAG_COMMENT_NESTED)` (named bits of syntax.c's SYNTAX_FLAGS_*), `btest(mask, cat)`, `iand(buf(p + 1), 127)`, `all(set /= c)`, `size(a)` (a local named `size` became `total_size`); test_tabulated_list_fm's `sort_car` stays: sort needs a procedure |
 | symbol (an object: a name of a function, variable, ...) | name | `describe_name` (C-h o), `complete_name`, `apropos_next_name`, `apropos_previous_name`, `info_lookup_name`, `abbrev_name`, `abbrev_table_names` |
 | symbol (the syntax class: word and symbol constituents) | identifier | `forward_identifier`, `beginning_of_identifier`, `bounds_of_identifier_at_point`, `case_identifiers_as_words`, `word_or_identifier`, `occur_identifier_at_mouse`, `REGEXP_OPT_IDENTIFIERS` |
 | vector (an array) | a plural name, "array" in help | `ansi_color_basic_faces`, `ansi_color_normal_colors`, `ansi_color_bright_colors` |
@@ -721,9 +723,8 @@ named with it.
   `V_STRING` and `V_ARRAY` are applied); no
   `is_integer`, `xfixnum` or `integer_of` helpers.  Why not `select type`:
   see the design decision "Values stay a flat array of tagged nodes".
-- C2c: flat lists become plain Fortran arrays used with the intrinsics
-  (`size`, `findloc`, `any`, `pack`, array sections); `value_type` lists
-  remain only for truly nested data.
+- C2c, the rest: `cons` (building nested value lists) waits for C3/C4,
+  with `memq_p` in textprop_fm (text properties, C4).
 - C3: the name table holds only names that exist at run time;
   compile-time things are reached only through their typed objects;
   `intern` becomes `add_name`, `intern_soft` `find_name`, and

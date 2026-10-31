@@ -508,21 +508,13 @@ contains
     end subroutine savehist_uninstall
 
     !> Whether NAME is in the list NAMES.  Not a port.
-    pure logical function member(name, names)
+    pure logical function has_name(name, names)
         character(len=*), intent(in) :: name
         character(len=64), allocatable, intent(in) :: names(:)
-        integer :: k
 
-        member = .false.
-        if (.not. allocated(names)) return
-
-        do k = 1, size(names)
-            if (trim(names(k)) == trim(name)) then
-                member = .true.
-                return
-            end if
-        end do
-    end function member
+        has_name = .false.
+        if (allocated(names)) has_name = any(names == name)
+    end function has_name
 
     !> Save the values of minibuffer history variables.
     !> Unbound variables named in `savehist_additional_variables' are
@@ -586,7 +578,7 @@ contains
                 ! its temporary twice.)
                 name = trim(savehist_minibuffer_history_variables(k))
                 call boundp(sym(name), bound, st)
-                if (.not. bound .or. member(name, savehist_ignored_variables)) cycle
+                if (.not. bound .or. has_name(name, savehist_ignored_variables)) cycle
                 call symbol_value(sym(name), value, st)
                 ! Don't save empty histories.
                 if (.not. allocated(value%a)) cycle
@@ -608,7 +600,7 @@ contains
         ! Save the additional variables.
         do k = 1, n
             associate (var => savehist_additional_variables(k))
-                if (member(var%name, savehist_minibuffer_history_variables)) cycle
+                if (has_name(var%name, savehist_minibuffer_history_variables)) cycle
                 call boundp(sym(trim(var%name)), bound, st)
                 if (.not. bound) cycle
                 call symbol_value(sym(trim(var%name)), value, st)
@@ -765,10 +757,10 @@ contains
 
         if (.not. allocated(minibuffer_history_variable)) return
         if (minibuffer_history_variable == "t") return
-        if (member(minibuffer_history_variable, savehist_ignored_variables)) return
+        if (has_name(minibuffer_history_variable, savehist_ignored_variables)) return
         if (intern_soft(minibuffer_history_variable) == 0) return
         if (.not. allocated(savehist_minibuffer_history_variables)) allocate (savehist_minibuffer_history_variables(0))
-        if (member(minibuffer_history_variable, savehist_minibuffer_history_variables)) return
+        if (has_name(minibuffer_history_variable, savehist_minibuffer_history_variables)) return
         ! (add-to-list ...): at the front.
         n = size(savehist_minibuffer_history_variables)
         allocate (grown(n + 1))

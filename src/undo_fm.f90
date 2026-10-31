@@ -39,7 +39,7 @@
 !> (undo-limit and friends): undo information grows without bound.
 module undo_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use handle_fm, only: handle_type
+    use handle_fm, only: handle_type, has_handle
     use buffer_fm, only: buffers, cur, buffer_handle, is_buffer_live, resolve_buffer, set_buffer, &
                          undo_entry_type, UE_BOUNDARY, UE_INSERTION, UE_DELETION, UE_POINT, &
                          UE_FIRST_CHANGE
@@ -239,22 +239,8 @@ contains
         type(handle_type) :: h
 
         h = buffer_handle(cur)
-        if (.not. member(changed_buffers, h)) call add_handle(changed_buffers, h)
+        if (.not. has_handle(changed_buffers, h)) call add_handle(changed_buffers, h)
     end subroutine undo_auto_undoable_change
-
-    !> Whether `h' is in `list'.  Not a port.
-    logical function member(list, h)
-        type(handle_type), allocatable, intent(in) :: list(:)
-        type(handle_type), intent(in) :: h
-        integer :: k
-
-        member = .false.
-        if (.not. allocated(list)) return
-
-        do k = 1, size(list)
-            if (list(k)%index == h%index .and. list(k)%generation == h%generation) member = .true.
-        end do
-    end function member
 
     ! Not a port.
     subroutine add_handle(list, h)
@@ -307,7 +293,7 @@ contains
         ! All commands should ensure that there is an undo boundary whether
         ! they have changed the current buffer or not (bug#23785).
         if (cause == CAUSE_COMMAND) then
-            if (.not. member(changed_buffers, buffer_handle(cur))) call add_handle(changed_buffers, buffer_handle(cur))
+            if (.not. has_handle(changed_buffers, buffer_handle(cur))) call add_handle(changed_buffers, buffer_handle(cur))
         end if
 
         if (.not. allocated(changed_buffers)) return

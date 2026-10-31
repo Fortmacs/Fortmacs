@@ -26,13 +26,13 @@ module test_values_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, FM_WRONG_TYPE_ARGUMENT, FM_VOID_VARIABLE, &
                         FM_SETTING_CONSTANT
-    use lisp_fm, only: cons, list, list_elt, list_length, make_fixnum, make_list, &
+    use lisp_fm, only: cons, list, list_elt, list_length, list_tail, make_fixnum, make_list, &
                        make_string, sym_nil, sym_t, t_value, value_type, xfixnum, &
                        xstring
     use lread_fm, only: intern, intern_soft, sym
-    use data_fm, only: boundp, car, car_safe, cdr, makunbound, set, symbol_name, &
+    use data_fm, only: boundp, makunbound, set, symbol_name, &
                        symbol_value, value_eq
-    use fns_fm, only: get, length, member, memq, nth, nthcdr, plist_get, plist_member, plist_put, &
+    use fns_fm, only: get, plist_get, plist_member, plist_put, &
                       put, is_string_greater, is_string_less, value_equal
     implicit none(type, external)
     private
@@ -50,8 +50,7 @@ contains
                     new_unittest("intern", test_intern), &
                     new_unittest("intern-many", test_intern_many), &
                     new_unittest("eq-and-equal", test_eq_equal), &
-                    new_unittest("car-cdr-cons-nth", test_lists), &
-                    new_unittest("fns-tests-length", test_length), &
+                    new_unittest("value-arrays", test_lists), &
                     new_unittest("symbol-values", test_symbol_values), &
                     new_unittest("binding-test-set-constant", test_set_constant), &
                     new_unittest("plist-get/odd-number-of-elements", test_plist_get_odd), &
@@ -140,71 +139,32 @@ contains
         call check(error,.not. value_equal(make_fixnum(1_int64), make_string("1")), "types differ")
     end subroutine test_eq_equal
 
+    !> Value arrays: elements by position, tails, building (C2c: no
+    !> car, cdr, nth, nthcdr, memq, member or length helpers).
     subroutine test_lists(error)
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: l, v
-        type(status_type) :: st
         logical :: ok
 
         l = list(sym("a"), sym("b"), sym("c"))
-        call car(l, v, st)
-        call check(error, value_eq(v, sym("a")), "car")
+        call check(error, value_eq(list_elt(l, 1_int64), sym("a")), "first element")
         if (allocated(error)) return
-        call cdr(l, v, st)
-        call check(error, value_equal(v, list(sym("b"), sym("c"))), "cdr")
+        call check(error, value_equal(list_tail(l, 1_int64), list(sym("b"), sym("c"))), "tail")
         if (allocated(error)) return
-        call cdr(list(sym("a")), v, st)
-        call check(error,.not. allocated(v%a), "cdr of one-element list")
-        if (allocated(error)) return
-        call car(make_fixnum(1_int64), v, st)
-        call check(error, st%code, FM_WRONG_TYPE_ARGUMENT)
-        if (allocated(error)) return
-        call check(error, vtag(car_safe(make_fixnum(1_int64))) == V_NULL, "car-safe")
+        v = list_tail(list(sym("a")), 1_int64)
+        call check(error,.not. allocated(v%a), "tail of one element")
         if (allocated(error)) return
         call cons(sym("z"), l, v, ok)
         call check(error, ok .and. list_length(v) == 4, "cons")
         if (allocated(error)) return
         call cons(sym("z"), sym("y"), v, ok)
-        call check(error,.not. ok, "dotted pair accepted")
+        call check(error,.not. ok, "only onto an array")
         if (allocated(error)) return
-        call nth(2_int64, l, v, st)
-        call check(error, value_eq(v, sym("c")), "nth 2")
+        call check(error, value_eq(list_elt(l, 3_int64), sym("c")), "third element")
         if (allocated(error)) return
-        call nth(9_int64, l, v, st)
-        call check(error,.not. allocated(v%a), "nth past end")
-        if (allocated(error)) return
-        call nthcdr(1_int64, l, v, st)
-        call check(error, list_length(v), 2_int64)
-        if (allocated(error)) return
-        call check(error, list_length(memq(sym("b"), l)), 2_int64)
-        if (allocated(error)) return
-        call check(error, vtag(memq(make_string("b"), list(make_string("b")))) == V_NULL, "memq string")
-        if (allocated(error)) return
-        call check(error, list_length(member(make_string("b"), list(make_string("b")))), 1_int64)
+        v = list_elt(l, 10_int64)
+        call check(error,.not. allocated(v%a), "past the end")
     end subroutine test_lists
-
-    !> fns-tests.el: fns-tests-length (lists, strings, error on t).
-    subroutine test_length(error)
-        type(error_type), allocatable, intent(out) :: error
-        type(status_type) :: st
-        integer(int64) :: n
-
-        call length(value_type(), n, st)
-        call check(error, n, 0_int64)
-        if (allocated(error)) return
-        call length(list(make_fixnum(1_int64), make_fixnum(2_int64), make_fixnum(3_int64)), n, st)
-        call check(error, n, 3_int64)
-        if (allocated(error)) return
-        call length(make_string("foo"), n, st)
-        call check(error, n, 3_int64)
-        if (allocated(error)) return
-        ! Characters, not bytes.
-        call length(make_string("a"//char(226)//char(130)//char(172)), n, st)
-        call check(error, n, 2_int64)
-        if (allocated(error)) return
-        call length(t_value(), n, st)
-        call check(error, st%code, FM_WRONG_TYPE_ARGUMENT)
-    end subroutine test_length
 
     subroutine test_symbol_values(error)
         type(error_type), allocatable, intent(out) :: error
