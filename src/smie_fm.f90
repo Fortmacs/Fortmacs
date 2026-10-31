@@ -780,20 +780,20 @@ contains
     end function str_eq
 
     ! Whether S is one of LIST.  Not a port.
-    pure logical function member(s, list)
+    pure logical function has_string(s, list)
         character(len=*), intent(in) :: s
         type(smie_string_type), intent(in) :: list(:)
         integer :: i
 
-        member = .false.
+        has_string = .false.
 
         do i = 1, size(list)
             if (str_eq(s, list(i)%s)) then
-                member = .true.
+                has_string = .true.
                 return
             end if
         end do
-    end function member
+    end function has_string
 
     ! cl-pushnew S onto LIST (at the front, if it is not there).
     ! Not a port.
@@ -801,7 +801,7 @@ contains
         character(len=*), intent(in) :: s
         type(smie_string_type), allocatable, intent(inout) :: list(:)
 
-        if (member(s, list)) return
+        if (has_string(s, list)) return
         call push_front(s, list)
     end subroutine pushnew
 
@@ -909,7 +909,7 @@ contains
                         return
                     end if
 
-                    if (.not. member(rhs(1)%s, nts)) then
+                    if (.not. has_string(rhs(1)%s, nts)) then
                         call pushnew(rhs(1)%s, first_ops)
                     else
                         call pushnew(rhs(1)%s, first_nts)
@@ -923,7 +923,7 @@ contains
                             ! the trouble, and it lets the writer of the BNF
                             ! be a bit more sloppy by skipping uninteresting base
                             ! cases which are terminals but not OPs.
-                            if (member(rhs(2)%s, nts)) then
+                            if (has_string(rhs(2)%s, nts)) then
                                 call set_error(status, FM_GENERIC_ERROR, "Adjacent non-terminals: "//rhs(1)%s//" "// &
                                                rhs(2)%s)
                                 warning_count = saved_count
@@ -934,13 +934,13 @@ contains
                         end if
                     end if
 
-                    if (.not. member(rhs(n)%s, nts)) then
+                    if (.not. has_string(rhs(n)%s, nts)) then
                         call pushnew(rhs(n)%s, last_ops)
                     else
                         call pushnew(rhs(n)%s, last_nts)
 
                         if (n > 1) then
-                            if (member(rhs(n - 1)%s, nts)) then
+                            if (has_string(rhs(n - 1)%s, nts)) then
                                 call set_error(status, FM_GENERIC_ERROR, "Adjacent non-terminals: "//rhs(n - 1)%s//" "// &
                                                rhs(n)%s)
                                 warning_count = saved_count
@@ -970,13 +970,13 @@ contains
             do h = 1, size(bnf%rules(r)%rhs)
                 associate (rhs => bnf%rules(r)%rhs(h)%items)
                     do i = 1, size(rhs) - 1
-                        if (member(rhs(i)%s, nts)) then
+                        if (has_string(rhs(i)%s, nts)) then
                             k = table_index(last_ops_table, rhs(i)%s)
 
                             do j = 1, size(last_ops_table(k)%ops)
                                 call smie_set_prec2tab(prec2, last_ops_table(k)%ops(j)%s, rhs(i + 1)%s, SMIE_GT, override)
                             end do
-                        else if (member(rhs(i + 1)%s, nts)) then
+                        else if (has_string(rhs(i + 1)%s, nts)) then
                             k = table_index(first_ops_table, rhs(i + 1)%s)
 
                             do j = 1, size(first_ops_table(k)%ops)
@@ -984,7 +984,7 @@ contains
                             end do
 
                             if (i + 2 <= size(rhs)) then
-                                if (.not. member(rhs(i + 2)%s, nts)) then
+                                if (.not. has_string(rhs(i + 2)%s, nts)) then
                                     call smie_set_prec2tab(prec2, rhs(i)%s, rhs(i + 2)%s, SMIE_EQ, override)
                                 end if
                             end if
@@ -1069,7 +1069,7 @@ contains
                         cell(1)%s = ops_table(k)%nt
                         cell(2:) = ops_table(k)%ops
 
-                        if (.not. member(snapshot(j)%s, cell)) then
+                        if (.not. has_string(snapshot(j)%s, cell)) then
                             again = .true.
                             call push_front(snapshot(j)%s, ops_table(k)%ops)
                         end if
@@ -1107,15 +1107,15 @@ contains
                 associate (rhs => bnf%rules(r)%rhs(h)%items)
                     n = size(rhs)
                     if (n < 2) cycle
-                    if (member(rhs(1)%s, nts)) cycle
+                    if (has_string(rhs(1)%s, nts)) cycle
 
                     if (.not. inners) then
-                        if (.not. member(rhs(n)%s, nts)) call add_pair(rhs(1)%s, rhs(n)%s)
+                        if (.not. has_string(rhs(n)%s, nts)) call add_pair(rhs(1)%s, rhs(n)%s)
                     else
                         ! Reverse so that the "real" closer gets there first,
                         ! which is important for smie-close-block.
                         do i = n, 2, -1
-                            if (.not. member(rhs(i)%s, nts)) call add_pair(rhs(1)%s, rhs(i)%s)
+                            if (.not. has_string(rhs(i)%s, nts)) call add_pair(rhs(1)%s, rhs(i)%s)
                         end do
                     end if
                 end associate
@@ -1722,7 +1722,7 @@ contains
         is_smie_closer = .false.
         if (.not. is_closer_table()) return
         g => grammar()
-        is_smie_closer = member(token, g%closers)
+        is_smie_closer = has_string(token, g%closers)
     end function is_smie_closer
 
     !> Whether TOKEN is an opener of `smie_closer_table' (assoc).
@@ -1734,7 +1734,7 @@ contains
         is_smie_opener = .false.
         if (.not. is_closer_table()) return
         g => grammar()
-        is_smie_opener = member(token, g%openers)
+        is_smie_opener = has_string(token, g%openers)
     end function is_smie_opener
 
     ! Whether (OPENER . CLOSER) is in `smie_closer_table'.  Not a port.

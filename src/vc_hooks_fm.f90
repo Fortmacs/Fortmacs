@@ -41,7 +41,7 @@ module vc_hooks_fm
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_VC_NOT_SUPPORTED
     use handle_fm, only: handle_type
     use ewoc_fm, only: ewoc_part_type
-    use lisp_fm, only: make_keymap_ref
+    use lisp_fm, only: make_keymap_ref, value_type
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, kill_buffer, get_file_buffer, is_buffer_live
     use fileio_fm, only: expand_file_name, file_name_directory, file_name_nondirectory, file_name_as_directory, &
                          file_exists, is_file_directory, file_modes, copy_file, file_attributes, file_stat_type, &
@@ -66,7 +66,7 @@ module vc_hooks_fm
               is_vc_up_to_date, vc_working_revision, vc_symbolic_working_revision, vc_short_revision, &
               vc_version_backup_file_name, vc_delete_automatic_version_backups, vc_make_version_backup, &
               vc_before_save, vc_after_save, vc_mode_line, vc_mode_line_state, vc_default_mode_line_string, &
-              vc_refresh_state, vc_state_name, vc_call_root, vc_call_responsible_p, is_vc_call_make_version_backups, &
+              vc_refresh_state, vc_state_name, vc_call_root, vc_call_responsible, is_vc_call_make_version_backups, &
               vc_not_supported
     public :: vc_string_type, vc_backend_type, vc_backends, vc_dir_update_proc
 
@@ -666,7 +666,7 @@ contains
     !> Backend B's `responsible_p' of FILE: the directory it is
     !> responsible for FILE from (vc-default-responsible-p: none).
     !> Not a port.
-    subroutine vc_call_responsible_p(b, file, dir, found)
+    subroutine vc_call_responsible(b, file, dir, found)
         integer, intent(in) :: b
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: dir
@@ -675,7 +675,7 @@ contains
         dir = ""
         found = .false.
         if (associated(vc_backends(b)%responsible_p)) call vc_backends(b)%responsible_p(file, dir, found)
-    end subroutine vc_call_responsible_p
+    end subroutine vc_call_responsible
 
     !> Backend B's `make_version_backups_p' of FILE.  Port of
     !> vc-hooks.el:vc-default-make-version-backups-p as the default:
@@ -1781,7 +1781,7 @@ contains
     !> Set up VC's resident part: the options, faces, hooks and
     !> `vc_prefix_map' on C-x v in CTL_X_MAP.  Not a port.
     subroutine syms_of_vc_hooks(ctl_x_map)
-        use lisp_fm, only: value_type, make_fixnum
+        use lisp_fm, only: value_type
         type(handle_type), intent(in) :: ctl_x_map
         type(value_type) :: key(1)
         type(status_type) :: st
@@ -1819,7 +1819,7 @@ contains
         call keymap_set(vc_prefix_map, "~", "vc_revision_other_window", st)
         call keymap_set(vc_prefix_map, "R", "vc_rename_file", st)
         call keymap_set(vc_prefix_map, "x", "vc_delete_file", st)
-        key(1) = make_fixnum(int(iachar("v"), int64))
+        key(1) = value_type(int(iachar("v"), int64))
         call define_key(ctl_x_map, key, make_keymap_ref(vc_prefix_map), st)
     end subroutine syms_of_vc_hooks
 end module vc_hooks_fm

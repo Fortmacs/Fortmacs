@@ -27,8 +27,8 @@ module test_make_mode_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, symbols, xsymbol, xstring, list_elements, list_length, list_elt, vtag, V_NULL, V_NAME, V_ARRAY
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, symbols, xsymbol, xstring, list_elements, list_length, list_elt, vtag, V_NULL, &
+                       V_NAME, V_ARRAY
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_string
@@ -47,7 +47,7 @@ module test_make_mode_fm
                             makefile_has_prereqs, makefile_name_type, makefile_insert_target, makefile_insert_macro, &
                             makefile_format_macro_ref, makefile_do_macro_insertion, makefile_backslash_region, &
                             makefile_completions_at_point, makefile_cleanup_continuations_function, &
-                            makefile_cleanup_continuations, makefile_add_log_target, makefile_use_curly_braces_for_macros_p, &
+                            makefile_cleanup_continuations, makefile_add_log_target, makefile_use_curly_braces_for_macros, &
                             makefile_tab_after_target_colon
     implicit none(type, external)
     private
@@ -122,7 +122,7 @@ contains
         type(status_type) :: st
 
         name = ""
-        call get_text_property(pos, sym("face"), v, st)
+        call get_text_property(pos, value_type(name="face"), v, st)
 
         if (vtag(v) == V_ARRAY) then
             call list_elements(v, elts)
@@ -323,9 +323,9 @@ contains
             if (allocated(error)) exit checks
             call check(error, makefile_format_macro_ref("(CC)"), "$(CC)")
             if (allocated(error)) exit checks
-            makefile_use_curly_braces_for_macros_p = .true.
+            makefile_use_curly_braces_for_macros = .true.
             call check(error, makefile_format_macro_ref("CC"), "${CC}")
-            makefile_use_curly_braces_for_macros_p = .false.
+            makefile_use_curly_braces_for_macros = .false.
             if (allocated(error)) exit checks
             call erase_buffer(st)
             call makefile_do_macro_insertion("@", st)

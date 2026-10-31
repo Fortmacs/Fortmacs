@@ -49,8 +49,7 @@ module recentf_fm
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_string, make_list
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, make_list
     use data_fm, only: set, symbol_value
     use eval_fm, only: hook_type
     use modes_fm, only: minor_modes
@@ -542,7 +541,7 @@ contains
         allocate (names(size(recentf_list)))
 
         do k = 1, size(recentf_list)
-            names(k) = make_string(recentf_list(k)%name)
+            names(k) = value_type(text=recentf_list(k)%name)
         end do
 
         table%kind = TABLE_LIST
@@ -739,15 +738,15 @@ contains
         end do
 
         if (.not. recentf_initialize_file_name_history) return
-        call symbol_value(sym("file_name_history"), history, st)
+        call symbol_value(value_type(name="file_name_history"), history, st)
         if (allocated(history%a)) return
         allocate (names(size(recentf_list)))
 
         do k = 1, size(recentf_list)
-            names(k) = make_string(abbreviate_file_name(recentf_list(k)%name))
+            names(k) = value_type(text=abbreviate_file_name(recentf_list(k)%name))
         end do
 
-        call set(sym("file_name_history"), make_list(names), st)
+        call set(value_type(name="file_name_history"), make_list(names), st)
     end subroutine recentf_load_list
 
     recursive subroutine cmd_recentf_load_list(status)

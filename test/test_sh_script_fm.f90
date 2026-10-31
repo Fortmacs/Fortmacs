@@ -28,7 +28,6 @@ module test_sh_script_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, symbols, xsymbol, list_elements, vtag, V_NULL, V_NAME, V_ARRAY
-    use lread_fm, only: sym
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_string
@@ -47,7 +46,7 @@ module test_sh_script_fm
                             sh_completion_at_point_function, sh_name_style, sh_load_style, sh_save_styles_to_buffer, &
                             sh_styles_table, sh_basic_offset, sh_indent_for_do, SH_PLUS
     use minibuf_table_fm, only: capf_data_type, TABLE_FUNCTION, COMPLETE_ALL
-    use lisp_fm, only: list_length, list_elt, xstring
+    use lisp_fm, only: list_length, list_elt, xstring, value_type
     use expression_motion_fm, only: beginning_of_subprogram, end_of_subprogram
     use window_fm, only: display_buffer_overriding_action, display_action_type, pop_to_buffer_same_window, &
                          get_buffer_window, delete_other_windows
@@ -277,7 +276,7 @@ contains
         type(status_type) :: st
 
         name = ""
-        call get_text_property(point(), sym("face"), v, st)
+        call get_text_property(point(), value_type(name="face"), v, st)
 
         if (vtag(v) == V_ARRAY) then
             call list_elements(v, elts)

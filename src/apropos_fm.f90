@@ -43,8 +43,7 @@ module apropos_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_message, FM_USER_ERROR, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, symbols, nsymbols, list_elements, make_string, xstring, vtag, V_STRING
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, symbols, nsymbols, list_elements, xstring, vtag, V_STRING
     use buffer_fm, only: buffers, cur, current_buffer, get_buffer, set_buffer, is_buffer_live, get_buffer_create, &
                          kill_buffer, generate_new_buffer_name
     use editfns_fm, only: point_min, point_max, buffer_string, goto_char, line_beginning_position
@@ -52,7 +51,7 @@ module apropos_fm
     use textprop_fm, only: put_text_property, get_text_property, next_single_property_change
     use search_fm, only: string_match, regexp_quote, match_end
     use keymap_fm, only: key_description, where_is_internal, keymap_set, make_sparse_keymap
-    use callint_fm, only: is_command, current_prefix_arg, fboundp
+    use callint_fm, only: is_command, current_prefix_arg
     use minibuf_fm, only: read_string
     use xdisp_fm, only: message
     use fill_fm, only: fill_region
@@ -179,9 +178,9 @@ module apropos_fm
     end interface
 
     !> Text properties marking the entries: `apropos_button' is
-    !> `apropos_symbol' on a name and the label's type on a label, whose
-    !> `apropos_symbol_name' is the entry's name (upstream's buttons).
-    character(len=*), parameter :: P_BUTTON = "apropos_button", P_NAME = "apropos_symbol_name"
+    !> `apropos_name' on a name and the label's type on a label, whose
+    !> `apropos_entry_name' is the entry's name (upstream's buttons).
+    character(len=*), parameter :: P_BUTTON = "apropos_button", P_NAME = "apropos_entry_name"
 
 contains
 
@@ -325,9 +324,9 @@ contains
 
                 do k = 1, size(SYNONYMS)
                     call split_words(trim(SYNONYMS(k)), syn)
-                    if (.not. member(words(i)%s, syn, 1)) cycle
+                    if (.not. has_word(words(i)%s, syn, 1)) cycle
                     a = joined(syn)
-                    if (member(words(i)%s, syn, 2)) s = a
+                    if (has_word(words(i)%s, syn, 2)) s = a
                     exit
                 end do
 
@@ -352,18 +351,18 @@ contains
 
     contains
 
-        logical function member(w, list, from)
+        logical function has_word(w, list, from)
             character(len=*), intent(in) :: w
             type(apropos_word_type), intent(in) :: list(:)
             integer, intent(in) :: from
             integer :: m
 
-            member = .false.
+            has_word = .false.
 
             do m = from, size(list)
-                if (list(m)%s == w) member = .true.
+                if (list(m)%s == w) has_word = .true.
             end do
-        end function member
+        end function has_word
 
         function joined(list) result(r)
             type(apropos_word_type), intent(in) :: list(:)
@@ -476,7 +475,7 @@ contains
         call major_modes%apropos_mode%finish(saved, status)
     end subroutine apropos_mode
 
-    !> The apropos button at `pos': its type (`apropos_symbol' or a
+    !> The apropos button at `pos': its type (`apropos_name' or a
     !> label's type, "" for none) and the entry's name.  Not a port.
     subroutine button_at(pos, type, name)
         integer(int64), intent(in) :: pos
@@ -486,10 +485,10 @@ contains
 
         type = ""
         name = ""
-        call get_text_property(pos, sym(P_BUTTON), v, st)
+        call get_text_property(pos, value_type(name=P_BUTTON), v, st)
         if (.not. allocated(v%a)) return
         type = symbols_name(v)
-        call get_text_property(pos, sym(P_NAME), v, st)
+        call get_text_property(pos, value_type(name=P_NAME), v, st)
         if (vtag(v) == V_STRING) name = xstring(v)
     end subroutine button_at
 
@@ -509,7 +508,7 @@ contains
         character(len=:), allocatable :: type, name
 
         call button_at(buffers(cur)%pt, type, name)
-        is_at_name = type == "apropos_symbol"
+        is_at_name = type == "apropos_name"
     end function is_at_name
 
     !> Move cursor down to the next name in an `apropos_mode' buffer.

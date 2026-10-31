@@ -41,7 +41,7 @@ contains
                     new_unittest("ring-tests-insert-at-beginning", test_insert_at_beginning), &
                     new_unittest("ring-tests-length", test_length), &
                     new_unittest("ring-tests-index", test_index), &
-                    new_unittest("ring-tests-empty-p", test_empty_p), &
+                    new_unittest("ring-tests-empty-p", test_empty), &
                     new_unittest("ring-tests-size", test_size), &
                     new_unittest("ring-tests-insert", test_insert), &
                     new_unittest("ring-tests-remove", test_remove), &
@@ -108,7 +108,7 @@ contains
         if (.not. allocated(error)) call check(error, ring_index(2, 2, 3, 3), 2)
     end subroutine test_index
 
-    subroutine test_empty_p(error)
+    subroutine test_empty(error)
         type(error_type), allocatable, intent(out) :: error
         type(ring_type) :: ring
         type(status_type) :: st
@@ -121,7 +121,7 @@ contains
         if (allocated(error)) return
         call ring%remove(st)
         call check(error, ring%empty_p())
-    end subroutine test_empty_p
+    end subroutine test_empty
 
     subroutine test_size(error)
         type(error_type), allocatable, intent(out) :: error

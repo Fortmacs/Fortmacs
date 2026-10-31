@@ -31,7 +31,6 @@ module test_css_mode_fm
     use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer, kill_buffer
     use insdel_fm, only: insert
     use lisp_fm, only: value_type, vtag, V_ARRAY, V_NAME, xsymbol, list_elements, xstring, symbols
-    use lread_fm, only: sym
     use editfns_fm, only: point, point_min, point_max, goto_char, widen, buffer_substring, line_end_position
     use simple_fm, only: backward_word
     use indent_fm, only: indent_region
@@ -405,7 +404,7 @@ contains
         type(status_type) :: st
 
         name = ""
-        call get_text_property(point(), sym("face"), v, st)
+        call get_text_property(point(), value_type(name="face"), v, st)
 
         if (vtag(v) == V_ARRAY) then
             call list_elements(v, elts)
@@ -1130,7 +1129,7 @@ contains
         call ins("p { color: #ff0000; }")
         call fontify()
         call goto_char(13_int64)
-        call get_text_property(point(), sym("face"), v, st)
+        call get_text_property(point(), value_type(name="face"), v, st)
         call check(error, vtag(v) == V_ARRAY, "no anonymous face on the color")
         if (allocated(error)) return
         call list_elements(v, elts)

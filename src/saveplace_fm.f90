@@ -43,9 +43,8 @@ module saveplace_fm
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lread_fm, only: sym
     use data_fm, only: symbol_value, set, make_variable_buffer_local
-    use lisp_fm, only: value_type, t_value
+    use lisp_fm, only: value_type
     use eval_fm, only: hook_type
     use modes_fm, only: minor_modes
     use commands_fm, only: commands
@@ -474,7 +473,7 @@ contains
         type(value_type) :: v
         type(status_type) :: st
 
-        call symbol_value(sym("save_place_mode"), v, st)
+        call symbol_value(value_type(name="save_place_mode"), v, st)
         on = st%ok() .and. allocated(v%a)
     end function save_place_mode_on
 
@@ -535,9 +534,9 @@ contains
 
         ! (:variable save-place-mode: the body sets it.)
         if (enable) then
-            call set(sym("save_place_mode"), t_value(), st)
+            call set(value_type(name="save_place_mode"), value_type(.true.), st)
         else
-            call set(sym("save_place_mode"), value_type(), st)
+            call set(value_type(name="save_place_mode"), value_type(), st)
         end if
 
         if (.not. (allocated(buffers(cur)%filename) .or. len(dired_directory()) > 0)) then
@@ -768,7 +767,7 @@ contains
                 call goto_char(save_place_table(k)%position)
             end if
 
-            call set(sym("save_place_mode"), t_value(), st)
+            call set(value_type(name="save_place_mode"), value_type(.true.), st)
         end if
 
         call save_place_after_find_file_hook%run(status)
@@ -806,7 +805,7 @@ contains
             end if
         end if
 
-        call set(sym("save_place_mode"), t_value(), st)
+        call set(value_type(name="save_place_mode"), value_type(.true.), st)
     end subroutine save_place_dired_hook
 
     ! `save_place_dired_hook' as a hook function.  Not a port.
@@ -849,7 +848,7 @@ contains
         if (.not. allocated(save_place_table)) allocate (save_place_table(0))
         call minor_modes%save_place_mode%define("save_place_mode", global=.true., hook=save_place_mode_hook, &
                                                 body=save_place_mode_body)
-        call make_variable_buffer_local(sym("save_place_mode"), st)
+        call make_variable_buffer_local(value_type(name="save_place_mode"), st)
         call minor_modes%save_place_local_mode%define("save_place_local_mode", variable="save_place_mode", &
                                                       hook=save_place_local_mode_hook, &
                                                       body=save_place_local_mode_body)

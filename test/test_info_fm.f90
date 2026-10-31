@@ -29,8 +29,7 @@ module test_info_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, list, make_string, xstring, symbols, xsymbol, vtag, V_NULL, V_NAME, V_STRING
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list, xstring, symbols, xsymbol, vtag, V_NULL, V_NAME, V_STRING
     use textprop_fm, only: get_text_property, get_char_property
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, kill_buffer, get_buffer, header_line_format_type
     use editfns_fm, only: buffer_string, point, point_min, point_max, goto_char, line_beginning_position
@@ -627,7 +626,7 @@ contains
         zipped = temp//".info.gz"
         command = resource_dir()
         command = "gzip -c "//command//"test.info > "//zipped
-        call call_process("sh", result, st, args=list(make_string("-c"), make_string(command)))
+        call call_process("sh", result, st, args=list(value_type(text="-c"), value_type(text=command)))
 
         if (.not. file_exists(zipped)) then
             ! (No gzip: nothing to test.)
@@ -661,7 +660,7 @@ contains
         call search_forward(text, pos, st, noerror=SEARCH_NOERROR)
         found = pos > 0
         if (.not. found) return
-        call get_text_property(pos - len(text), sym(prop), val, st)
+        call get_text_property(pos - len(text), value_type(name=prop), val, st)
     end subroutine property_at
 
     !> The name of the symbol V, "" if V is not a symbol.
@@ -746,7 +745,7 @@ contains
 
         ! The first line is replaced by the breadcrumbs.
         if (.not. allocated(error)) then
-            val = get_char_property(point_min(), sym("display"))
+            val = get_char_property(point_min(), value_type(name="display"))
             call check(error, vtag(val) == V_STRING, "breadcrumbs on the first line")
         end if
 

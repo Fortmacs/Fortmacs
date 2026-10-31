@@ -29,8 +29,8 @@
 !> (`completion_table_with_quoting', in minibuf_fm).
 !>
 !> Not ported yet: cycling, completion metadata other than the category
-!> and identity sorting (annotations, groups, other sorting functions,
-!> the rest of `completion_extra_properties'), moving through and
+!> and identity sorting (groups, other sorting functions, the rest of
+!> `completion_extra_properties' but its `:annotation_function'), moving through and
 !> choosing from *Completions* (M-<up>, M-<down>, M-RET, mouse),
 !> `completion_show_help', and completion of environment variables and
 !> ~USER in file names.
@@ -44,11 +44,13 @@ module minibuffer_fm
     use insdel_fm, only: del_range, insert
     use keymap_fm, only: define_key, key_parse, make_sparse_keymap, set_keymap_parent, is_keymap_live, &
                          free_keymap
-    use lisp_fm, only: value_type, t_value, make_string, make_fixnum, list, list_elements, list_length, &
-                       list_elt, xfixnum, xstring, make_list, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
+    use lisp_fm, only: value_type, list, list_elements, list_length, list_elt, xfixnum, xstring, make_list, vtag, &
+                       V_NULL, V_INTEGER, V_NAME, V_STRING
     use data_fm, only: value_eq, symbol_value, set
     use character_fm, only: string_char_and_length
     use editfns_fm, only: point, point_max, goto_char, buffer_substring
+    use faces_fm, only: named_face_type, face_attrs, display_when
+    use textprop_fm, only: add_face_text_property
     use frame_fm, only: selected_frame, frame_selected_window_ref
     use window_fm, only: window_type, windows, set_window_start, is_window_live, same_window, get_buffer_window, &
                          temp_buffer_window_show, fit_window_to_buffer, display_action_table_type, delete_window, &
@@ -62,7 +64,6 @@ module minibuffer_fm
     use dispnew_fm, only: ding
     use fns_fm, only: compare_strings, COMPARE_EQUAL, schars, substring, is_string_less, read_yes_or_no
     use dired_fm, only: file_name_completion, file_name_all_completions
-    use lread_fm, only: sym
     use keyboard_fm, only: throw_exit, command_loop_level, this_command, last_command, minibuffer_message_text, &
                            minibuffer_message_timeout, last_message
     use timer_fm, only: run_at_time, free_timer, is_timer
@@ -295,6 +296,15 @@ module minibuffer_fm
             type(completion_table_type), intent(in) :: collection
             procedure(completion_predicate), optional :: predicate
         end function completion_in_region_proc
+
+        !> An `:annotation_function' of completion-extra-properties: the
+        !> annotation shown after CANDIDATE in *Completions* ("" for none).
+        !> Not a port.
+        subroutine completion_annotation_proc(candidate, annotation)
+            implicit none(type, external)
+            character(len=*), intent(in) :: candidate
+            character(len=:), allocatable, intent(out) :: annotation
+        end subroutine completion_annotation_proc
     end interface
 
     !> Special hook to find the completion table for the entity at point.
@@ -348,6 +358,20 @@ module minibuffer_fm
     !> run after completion is performed (null for none).  Port of
     !> minibuffer.el completion-extra-properties (its `:exit-function').
     procedure(completion_exit_function_proc), pointer, public :: completion_exit_function => null()
+
+    public :: completion_annotation_proc
+
+    !> The `:annotation_function' of completion-extra-properties: function
+    !> giving the annotation *Completions* shows after a candidate (null for
+    !> none).  Port of minibuffer.el completion-extra-properties (its
+    !> `:annotation-function').
+    procedure(completion_annotation_proc), pointer, public :: completion_annotation_function => null()
+
+    !> Face to use for annotations in the *Completions* buffer.
+    !> This face is only used if the strings used for completions
+    !> doesn't already specify a face.  Port of minibuffer.el
+    !> completions-annotations.
+    type(named_face_type), target, public :: completions_annotations
 
     !> completion-in-region--data: the start and end markers, the table
     !> and the predicate (`cir_data' .false. for none).
@@ -619,7 +643,7 @@ contains
             ! same as the second item in file-name-history, it's really a
             ! repeat (Bug#4657).
             val1 = minibuffer_maybe_quote_filename(val)
-            call symbol_value(sym("file_name_history"), history, st)
+            call symbol_value(value_type(name="file_name_history"), history, st)
 
             if (st%ok()) then
                 call list_elements(history, elems)
@@ -637,14 +661,14 @@ contains
 
                     if (n >= 2) then
                         if (string_equal(kept(2), val1)) then
-                            call set(sym("file_name_history"), make_list(kept(2:n)), st)
+                            call set(value_type(name="file_name_history"), make_list(kept(2:n)), st)
                         else
-                            kept(1) = make_string(val1)
-                            call set(sym("file_name_history"), make_list(kept(1:n)), st)
+                            kept(1) = value_type(text=val1)
+                            call set(value_type(name="file_name_history"), make_list(kept(1:n)), st)
                         end if
                     else
-                        kept(1) = make_string(val1)
-                        call set(sym("file_name_history"), make_list(kept(1:n)), st)
+                        kept(1) = value_type(text=val1)
+                        call set(value_type(name="file_name_history"), make_list(kept(1:n)), st)
                     end if
                 end if
             end if
@@ -898,6 +922,7 @@ contains
     !> the completion keymaps.  Not a port.
     subroutine syms_of_minibuffer()
         type(status_type) :: status
+        type(named_face_type), pointer :: f
 
         commands%exit_minibuffer%run => cmd_exit_minibuffer
         commands%abort_minibuffers%run => cmd_abort_minibuffers
@@ -910,6 +935,11 @@ contains
         commands%minibuffer_scroll_up_command%run => cmd_minibuffer_scroll_up_command
         commands%minibuffer_scroll_down_command%run => cmd_minibuffer_scroll_down_command
         call completion_settings_defaults()
+        f => completions_annotations
+        call f%define("completions_annotations", "Face to use for annotations in the *Completions* buffer."//achar(10)// &
+                      "This face is only used if the strings used for completions"//achar(10)// &
+                      "doesn't already specify a face.")
+        call f%spec_entry(display_when(), face_attrs(inherits=[character(len=12) :: "italic", "shadow"]))
         commands%completion_at_point%run => completion_at_point
         commands%completion_help_at_point%run => completion_help_at_point
         commands%completion_in_region_mode%run => cmd_completion_in_region_mode
@@ -963,7 +993,7 @@ contains
             type(status_type) :: st
 
             call key_parse(keys, seq, st)
-            if (st%ok()) call define_key(map, seq, sym(command), st)
+            if (st%ok()) call define_key(map, seq, value_type(name=command), st)
         end subroutine bind
 
         subroutine bind_nil(map, keys)
@@ -1556,8 +1586,8 @@ contains
         res = .false.
         ! If the previous command was not this, mark the completion buffer
         ! obsolete.
-        this_command = sym("completion_at_point")
-        if (.not. value_eq(last_command, sym("completion_at_point"))) minibuffer_scroll_window = null_handle()
+        this_command = value_type(name="completion_at_point")
+        if (.not. value_eq(last_command, value_type(name="completion_at_point"))) minibuffer_scroll_window = null_handle()
 
         ! If there's a fresh completion window with a live buffer, and this
         ! command is repeated, scroll that window.
@@ -1584,7 +1614,7 @@ contains
             is_backtab = .false.
             if (.not. allocated(this_command_keys)) return
             if (size(this_command_keys) /= 1) return
-            is_backtab = value_eq(this_command_keys(1), sym("backtab"))
+            is_backtab = value_eq(this_command_keys(1), value_type(name="backtab"))
         end function is_backtab
     end function completion_in_region_1
 
@@ -1990,9 +2020,9 @@ contains
     logical function confirm_exit_command(cmd)
         type(value_type), intent(in) :: cmd
 
-        confirm_exit_command = value_eq(cmd, sym("completion_at_point")) .or. &
-                               value_eq(cmd, sym("minibuffer_complete")) .or. &
-                               value_eq(cmd, sym("minibuffer_complete_word"))
+        confirm_exit_command = value_eq(cmd, value_type(name="completion_at_point")) .or. &
+                               value_eq(cmd, value_type(name="minibuffer_complete")) .or. &
+                               value_eq(cmd, value_type(name="minibuffer_complete_word"))
     end function confirm_exit_command
 
     ! ------------------------------------------------------------------
@@ -2046,6 +2076,7 @@ contains
         type(value_type) :: completions
         type(value_type), allocatable :: elts(:)
         type(string_box), allocatable :: strings(:)
+        type(string_box), allocatable :: annotations(:)
         type(handle_type) :: mini, buf, window
         type(status_type) :: status
         type(display_action_table_type) :: table
@@ -2105,7 +2136,20 @@ contains
         call set_buffer(buf, status)
         call set_buffer_read_only(buf, .false., status)
         call erase_buffer(status)
-        call display_completion_list(strings)
+
+        ! The `:annotation_function' of completion-extra-properties.
+        if (associated(completion_annotation_function)) then
+            allocate (annotations(size(strings)))
+
+            do k = 1, size(strings)
+                call completion_annotation_function(strings(k)%s, annotations(k)%s)
+            end do
+
+            call display_completion_list(strings, annotations)
+        else
+            call display_completion_list(strings)
+        end if
+
         call set_buffer(mini, status)
         ! If the *Completions* buffer is shown in a new window, mark it
         ! as softly-dedicated, so bury-buffer in
@@ -2153,7 +2197,7 @@ contains
             j = i - 1
 
             do while (j >= 1)
-                if (.not. is_string_less(make_string(tmp), make_string(strings(j)%s))) exit
+                if (.not. is_string_less(value_type(text=tmp), value_type(text=strings(j)%s))) exit
                 strings(j + 1)%s = strings(j)%s
                 j = j - 1
             end do
@@ -2204,9 +2248,11 @@ contains
     !> the heading line, then the candidates in columns.  Port of
     !> minibuffer.el:display-completion-list with completion--insert-strings
     !> and completion--insert-horizontal (completions-format horizontal;
-    !> spaces in place of the `display' alignment, no truncation).
-    subroutine display_completion_list(strings)
+    !> spaces in place of the `display' alignment, no truncation); ANNOTATIONS
+    !> are the candidates' suffix annotations, if any.
+    subroutine display_completion_list(strings, annotations)
         type(string_box), intent(in) :: strings(:)
+        type(string_box), intent(in), optional :: annotations(:)
         type(status_type) :: status
         character(len=20) :: count
         integer(int64) :: wwidth
@@ -2220,7 +2266,7 @@ contains
         wwidth = 79
         sw => frame_selected_window_ref()
         if (sw%total_cols > 0) wwidth = sw%total_cols - 1
-        call insert_strings_horizontal(strings, wwidth)
+        call insert_strings_horizontal(strings, wwidth, annotations)
     end subroutine display_completion_list
 
     !> Insert STRINGS into the current buffer in columns: the window
@@ -2248,24 +2294,31 @@ contains
         call insert_strings_horizontal(boxes, wwidth)
     end subroutine completion_insert_strings
 
-    !> The candidates STRINGS in columns of a window WWIDTH columns wide.
-    !> Port of minibuffer.el:completion--insert-strings and
-    !> completion--insert-horizontal (see above).
-    subroutine insert_strings_horizontal(strings, wwidth)
+    !> The candidates STRINGS in columns of a window WWIDTH columns wide,
+    !> each followed by its annotation in ANNOTATIONS (in the face
+    !> `completions_annotations'), if present.  Port of
+    !> minibuffer.el:completion--insert-strings, completion--insert-horizontal
+    !> and completion--insert (see above).
+    subroutine insert_strings_horizontal(strings, wwidth, annotations)
         type(string_box), intent(in) :: strings(:)
         integer(int64), intent(in) :: wwidth
+        type(string_box), intent(in), optional :: annotations(:)
         type(status_type) :: status
         character(len=:), allocatable :: last_string
-        integer(int64) :: length, columns, colwidth, column, cur_col, width
+        integer(int64), allocatable :: widths(:)
+        integer(int64) :: length, columns, colwidth, column, cur_col, width, start
         integer :: k
         logical :: first
 
-        length = 0
+        allocate (widths(size(strings)))
 
         do k = 1, size(strings)
-            length = max(length, schars(strings(k)%s))
+            widths(k) = schars(strings(k)%s)
+            if (present(annotations)) widths(k) = widths(k) + schars(annotations(k)%s)
         end do
 
+        length = 0
+        if (size(widths) > 0) length = maxval(widths)
         ! At least 2 spaces between columns; don't allocate more columns
         ! than we can fill.
         columns = min(max(1_int64, wwidth/(2 + length)), max(1_int64, int(size(strings), int64)/2))
@@ -2281,7 +2334,7 @@ contains
             end if
 
             last_string = strings(k)%s
-            width = schars(strings(k)%s)
+            width = widths(k)
 
             if (.not. first) then
                 if (wwidth < column + max(colwidth, width)) then
@@ -2298,6 +2351,17 @@ contains
 
             first = .false.
             call insert(strings(k)%s, status)
+
+            ! The suffix annotation, in the predefined face.
+            if (present(annotations)) then
+                start = point()
+                call insert(annotations(k)%s, status)
+
+                if (point() > start) then
+                    call add_face_text_property(start, point(), value_type(name="completions_annotations"), status)
+                end if
+            end if
+
             cur_col = cur_col + width
             ! Next column to align to.
             column = column + colwidth*((length + colwidth - 1)/colwidth)
@@ -2418,7 +2482,7 @@ contains
 
         ! Most recently selected first.
         do k = 1, size(all)
-            elts(k) = make_string(buffers(all(size(all) + 1 - k)%index)%name)
+            elts(k) = value_type(text=buffers(all(size(all) + 1 - k)%index)%name)
         end do
 
         names = make_list(elts)
@@ -2472,7 +2536,7 @@ contains
 
             result = make_list(bufs(1:n))
         case (COMPLETE_TEST)
-            if (test_completion(string, table, pred)) result = t_value()
+            if (test_completion(string, table, pred)) result = value_type(.true.)
         case default
             continue
         end select
@@ -2675,18 +2739,18 @@ contains
             if (present(suffix)) slash = index(suffix, "/")
 
             if (slash > 0) then
-                result = list(make_fixnum(min(schars(file_name_directory(string)), schars(string))), &
-                              make_fixnum(schars(suffix(1:slash - 1))))
+                result = list(value_type(min(schars(file_name_directory(string)), schars(string))), &
+                              value_type(schars(suffix(1:slash - 1))))
             else
-                result = list(make_fixnum(min(schars(file_name_directory(string)), schars(string))), value_type())
+                result = list(value_type(min(schars(file_name_directory(string)), schars(string))), value_type())
             end if
         case (COMPLETE_TEST)
             if (len(string) == 0) return
 
             if (present(pred)) then
-                if (pred(make_string(string))) result = t_value()
+                if (pred(value_type(text=string))) result = value_type(.true.)
             else
-                if (file_exists(string)) result = t_value()
+                if (file_exists(string)) result = value_type(.true.)
             end if
         case default
             name = file_name_nondirectory(string)
@@ -2701,7 +2765,7 @@ contains
             if (action == COMPLETE_TRY) then
                 call file_name_completion(name, realdir, result, st, pred)
                 if (.not. st%ok()) result = value_type()
-                if (vtag(result) == V_STRING) result = make_string(specdir//xstring(result))
+                if (vtag(result) == V_STRING) result = value_type(text=specdir//xstring(result))
             else
                 call file_name_all_completions(name, realdir, result, st)
                 if (.not. st%ok()) result = value_type()
@@ -2822,9 +2886,9 @@ contains
             end if
 
             if (bend >= 0) then
-                result = list(make_fixnum(orig_start), make_fixnum(bend))
+                result = list(value_type(orig_start), value_type(bend))
             else
-                result = list(make_fixnum(orig_start), value_type())
+                result = list(value_type(orig_start), value_type())
             end if
 
             return
@@ -2855,10 +2919,10 @@ contains
                 if (only_need_double_dollars) then
                     ! Extract the newly added text, quote any dollar signs,
                     ! and append it to ORIG.
-                    result = make_string(substring(string, 0_int64, orig_start)// &
-                                         double_dollars(substring(xstring(result), sifned_start)))
+                    result = value_type(text=substring(string, 0_int64, orig_start)// &
+                                        double_dollars(substring(xstring(result), sifned_start)))
                 else
-                    result = make_string(string//double_dollars(substring(xstring(result), schars(sifned))))
+                    result = value_type(text=string//double_dollars(substring(xstring(result), schars(sifned))))
                 end if
             end if
         case (COMPLETE_ALL)
@@ -2866,13 +2930,13 @@ contains
 
             do k = 1, size(elts)
                 if (only_need_double_dollars) then
-                    elts(k) = make_string(double_dollars(xstring(elts(k))))
+                    elts(k) = value_type(text=double_dollars(xstring(elts(k))))
                 else
                     ! Extract the newly added text, quote any dollar signs,
                     ! and append it to the part of ORIG inside the
                     ! completion boundaries.
                     compl = xstring(elts(k))
-                    elts(k) = make_string(orig_in_bounds//double_dollars(substring(compl, schars(sifned_in_bounds))))
+                    elts(k) = value_type(text=orig_in_bounds//double_dollars(substring(compl, schars(sifned_in_bounds))))
                 end if
             end do
 
@@ -2914,7 +2978,7 @@ contains
                 call completion_boundaries(string, table, suffix_of(), bstart, bend)
             end if
 
-            result = list(make_fixnum(bstart + schars(prefix)), make_fixnum(bend))
+            result = list(value_type(bstart + schars(prefix)), value_type(bend))
         case (COMPLETE_TRY)
             if (present(pred)) then
                 call try_completion(string, table, result, status, context_predicate)
@@ -2923,7 +2987,7 @@ contains
             end if
 
             ! In case of try-completion, add the prefix.
-            if (status%ok() .and. vtag(result) == V_STRING) result = make_string(prefix//xstring(result))
+            if (status%ok() .and. vtag(result) == V_STRING) result = value_type(text=prefix//xstring(result))
         case (COMPLETE_ALL)
             if (present(pred)) then
                 call all_completions(string, table, result, status, context_predicate)
@@ -2934,9 +2998,9 @@ contains
             result = value_type()
 
             if (present(pred)) then
-                if (test_completion(string, table, context_predicate)) result = t_value()
+                if (test_completion(string, table, context_predicate)) result = value_type(.true.)
             else
-                if (test_completion(string, table)) result = t_value()
+                if (test_completion(string, table)) result = value_type(.true.)
             end if
         end select
 
@@ -2962,7 +3026,7 @@ contains
         if (.not. associated(context_pred)) return
 
         if (vtag(elt) == V_STRING) then
-            context_predicate = context_pred(make_string(context_prefix//xstring(elt)))
+            context_predicate = context_pred(value_type(text=context_prefix//xstring(elt)))
         else
             context_predicate = context_pred(elt)
         end if

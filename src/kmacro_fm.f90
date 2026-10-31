@@ -55,11 +55,10 @@ module kmacro_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, xfixnum, make_fixnum, make_list, list_elt, vtag, V_INTEGER, V_ARRAY
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, xfixnum, make_list, list_elt, vtag, V_INTEGER, V_ARRAY, command_type
     use data_fm, only: value_eq
     use keymap_fm, only: make_sparse_keymap, define_key, key_binding, is_keymap_live, key_parse, free_keymap
-    use callint_fm, only: current_prefix_arg, prefix_numeric_value, funcall
+    use callint_fm, only: current_prefix_arg, prefix_numeric_value, find_function
     use buffer_fm, only: is_buffer_live, buffers
     use marker_fm, only: marker_position
     use insdel_fm, only: insert
@@ -786,12 +785,12 @@ contains
         type(value_type), intent(in) :: cmd
 
         repeat_property = REPEAT_NONE
-        if (value_eq(cmd, sym("kmacro_end_or_call_macro_repeat"))) repeat_property = REPEAT_HEAD
-        if (value_eq(cmd, sym("kmacro_call_ring_2nd_repeat"))) repeat_property = REPEAT_HEAD
-        if (value_eq(cmd, sym("kmacro_delete_ring_head"))) repeat_property = REPEAT_HEAD
-        if (value_eq(cmd, sym("kmacro_cycle_ring_next"))) repeat_property = REPEAT_RING
-        if (value_eq(cmd, sym("kmacro_cycle_ring_previous"))) repeat_property = REPEAT_RING
-        if (value_eq(cmd, sym("kmacro_view_macro_repeat"))) repeat_property = REPEAT_RING
+        if (value_eq(cmd, value_type(name="kmacro_end_or_call_macro_repeat"))) repeat_property = REPEAT_HEAD
+        if (value_eq(cmd, value_type(name="kmacro_call_ring_2nd_repeat"))) repeat_property = REPEAT_HEAD
+        if (value_eq(cmd, value_type(name="kmacro_delete_ring_head"))) repeat_property = REPEAT_HEAD
+        if (value_eq(cmd, value_type(name="kmacro_cycle_ring_next"))) repeat_property = REPEAT_RING
+        if (value_eq(cmd, value_type(name="kmacro_cycle_ring_previous"))) repeat_property = REPEAT_RING
+        if (value_eq(cmd, value_type(name="kmacro_view_macro_repeat"))) repeat_property = REPEAT_RING
     end function repeat_property
 
     !> Call command CMD with no prefix argument and `kmacro_repeat_no_prefix'
@@ -801,12 +800,14 @@ contains
         type(status_type), intent(out) :: status
         type(value_type) :: saved_arg
         logical :: saved_no_prefix
+        type(command_type), pointer :: fn
 
         saved_arg = current_prefix_arg
         saved_no_prefix = kmacro_repeat_no_prefix
         current_prefix_arg = value_type()
         kmacro_repeat_no_prefix = .false.
-        call funcall(cmd, status)
+        call find_function(cmd, fn, status)
+        if (status%ok()) call fn%run(status)
         kmacro_repeat_no_prefix = saved_no_prefix
         current_prefix_arg = saved_arg
     end subroutine call_without_prefix
@@ -1211,7 +1212,7 @@ contains
         case (KMACRO_CALL_REPEAT_DISABLED)
             repeat_key = value_type()
         case default
-            repeat_key = make_fixnum(int(kmacro_call_repeat_key, int64))
+            repeat_key = value_type(int(kmacro_call_repeat_key, int64))
         end select
 
         if (.not. allocated(repeat_key%a)) return
@@ -1259,7 +1260,7 @@ contains
         end if
 
         key(1) = repeat_key
-        call define_key(repeat_map, key, sym("kmacro_call_macro_repeat"), st)
+        call define_key(repeat_map, key, value_type(name="kmacro_call_macro_repeat"), st)
         repeat_key_bound = repeat_key
         call set_transient_map(repeat_map)
     end subroutine kmacro_call_macro
@@ -1325,11 +1326,11 @@ contains
             else
                 call kmacro_end_macro(arg, status)
             end if
-        else if (value_eq(this_command, sym("kmacro_view_macro")) .and. kmacro_view_last_item > 0) then
+        else if (value_eq(this_command, value_type(name="kmacro_view_macro")) .and. kmacro_view_last_item > 0) then
             ! We are in repeat mode!
             if (kmacro_view_last_item <= ring_size()) call call_ring_element(kmacro_view_last_item, arg, status)
         else if (vtag(arg) == V_ARRAY) then
-            call kmacro_call_ring_2nd(make_fixnum(1_int64), status)
+            call kmacro_call_ring_2nd(value_type(1_int64), status)
         else
             call kmacro_call_macro(arg, status, nr)
         end if
@@ -1384,7 +1385,7 @@ contains
 
         if (is_kmacro_ring_empty()) then
             kmacro_view_last_item = 0
-        else if (.not. value_eq(last_command, sym("kmacro_view_macro"))) then
+        else if (.not. value_eq(last_command, value_type(name="kmacro_view_macro"))) then
             kmacro_view_last_item = 0
         else if (kmacro_view_last_item == 0) then
             kmacro_view_last_item = 1
@@ -1395,7 +1396,7 @@ contains
             kmacro_view_item_no = kmacro_view_item_no + 1
         end if
 
-        this_command = sym("kmacro_view_macro")
+        this_command = value_type(name="kmacro_view_macro")
         ! In case we repeat.
         last_command = this_command
 
@@ -1516,7 +1517,7 @@ contains
     recursive subroutine cmd_kmacro_end_macro(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_end_macro(make_fixnum(prefix_numeric_value(current_prefix_arg)), status)
+        call kmacro_end_macro(value_type(prefix_numeric_value(current_prefix_arg)), status)
     end subroutine cmd_kmacro_end_macro
 
     !> Call the keyboard MACRO that you defined with \[kmacro_start_macro].
@@ -1531,7 +1532,7 @@ contains
     recursive subroutine cmd_kmacro_call_macro(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_call_macro(make_fixnum(prefix_numeric_value(current_prefix_arg)), status)
+        call kmacro_call_macro(value_type(prefix_numeric_value(current_prefix_arg)), status)
     end subroutine cmd_kmacro_call_macro
 
     !> Call the keyboard macro again, with the argument and macro of the
@@ -1774,7 +1775,7 @@ contains
     recursive subroutine cmd_kmacro_call_ring_2nd(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_call_ring_2nd(make_fixnum(prefix_numeric_value(current_prefix_arg)), status)
+        call kmacro_call_ring_2nd(value_type(prefix_numeric_value(current_prefix_arg)), status)
     end subroutine cmd_kmacro_call_ring_2nd
 
     !> Execute second keyboard macro in macro ring.
@@ -1784,7 +1785,7 @@ contains
     recursive subroutine cmd_kmacro_call_ring_2nd_repeat(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_call_ring_2nd_repeat(make_fixnum(prefix_numeric_value(current_prefix_arg)), status)
+        call kmacro_call_ring_2nd_repeat(value_type(prefix_numeric_value(current_prefix_arg)), status)
     end subroutine cmd_kmacro_call_ring_2nd_repeat
 
     !> Display the second macro in the keyboard macro ring.  Port of
@@ -1869,7 +1870,7 @@ contains
         type(status_type) :: st
 
         call key_parse(keys, key, st)
-        call define_key(kmacro_keymap, key, sym(cmd), st)
+        call define_key(kmacro_keymap, key, value_type(name=cmd), st)
     end subroutine bind
 
     !> Register the commands, build `kmacro_keymap' (bindings_fm makes

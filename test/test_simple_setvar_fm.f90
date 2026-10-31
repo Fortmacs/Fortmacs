@@ -27,7 +27,6 @@ module test_simple_setvar_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
-    use lread_fm, only: sym
     use data_fm, only: is_local_variable
     use buffer_fm, only: get_buffer_create, set_buffer, fill_column
     use frame_fm, only: selected_frame, ensure_frame_windows
@@ -132,7 +131,7 @@ contains
         call fresh()
         call switch_to_buffer("*setvar*", st)
         call set_var("fill_column", "72")
-        call check(error, fill_column%value == 72_int64 .and. is_local_variable(sym("fill_column")), last_message)
+        call check(error, fill_column%value == 72_int64 .and. is_local_variable(value_type(name="fill_column")), last_message)
         if (allocated(error)) return
         call switch_to_buffer("*scratch*", st)
         call check(error, fill_column%value == 70_int64, "the default is unchanged")
@@ -161,7 +160,8 @@ contains
         call check(error, compile_command%value, "make -k")
     end subroutine test_string
 
-    !> An enumerated setting takes its named constants.
+    !> An enumerated setting takes its named constants only: anything else,
+    !> such as upstream's symbol, is a type error naming them.
     subroutine test_choice(error)
         type(error_type), allocatable, intent(out) :: error
 
@@ -170,7 +170,12 @@ contains
         call check(error, require_final_newline%value == FINAL_NEWLINE_VISIT, last_message)
         if (allocated(error)) return
         call set_var("require_final_newline", "7")
-        call check(error, last_message, "Value "//LQ//"7"//RQ//" does not match type choice of require_final_newline")
+        call check(error, last_message, "Wrong type argument: expected FINAL_NEWLINE_NEVER, FINAL_NEWLINE_SAVE, "// &
+                   "FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE or FINAL_NEWLINE_ASK, got 7")
+        if (allocated(error)) return
+        call set_var("require_final_newline", "visit")
+        call check(error, index(last_message, "Wrong type argument: expected FINAL_NEWLINE_NEVER") == 1 .and. &
+                   index(last_message, ", got visit") > 0, last_message)
         if (allocated(error)) return
         call set_var("require_final_newline", "FINAL_NEWLINE_NEVER")
         call check(error, require_final_newline%value == FINAL_NEWLINE_NEVER, last_message)
@@ -246,7 +251,7 @@ contains
         call fresh()
         call switch_to_buffer("*setvar-prefix*", st)
         call set_var("case_fold_search", ".false.", "C-u")
-        call check(error, is_local_variable(sym("case_fold_search")), last_message)
+        call check(error, is_local_variable(value_type(name="case_fold_search")), last_message)
         if (allocated(error)) return
         call set_var("case_replace", ".false.", "C-u")
         call check(error, last_message, "Symbol case_replace may not be buffer-local")

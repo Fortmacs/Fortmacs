@@ -35,8 +35,7 @@ module diff_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, t_value, xfixnum, make_string, list, vtag, V_INTEGER
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, xfixnum, list, vtag, V_INTEGER
     use data_fm, only: symbol_value, set
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer, get_buffer_create, is_buffer_live, &
                          resolve_buffer, erase_buffer
@@ -156,8 +155,8 @@ contains
         call goto_char(point_min())
         opoint = point()
         call goto_char(point_max())
-        call symbol_value(sym("inhibit_read_only"), saved, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
 
         select case (code)
         case (0)
@@ -169,7 +168,7 @@ contains
         end select
 
         call insert(achar(10)//"Diff finished"//what//".  "//current_time_string()//achar(10), st)
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
         call goto_char(opoint)
     end subroutine diff_sentinel
 
@@ -251,7 +250,7 @@ contains
         call get_buffer_create(" *diff-check-labels*", tmp, st)
         call set_buffer(tmp, st)
         call erase_buffer(st)
-        call call_process(diff_command, result, st, destination=t_value(), args=list(make_string("--help")))
+        call call_process(diff_command, result, st, destination=value_type(.true.), args=list(value_type(text="--help")))
 
         if (st%ok()) then
             call search_backward("--label", found, st, noerror=SEARCH_NOERROR)
@@ -370,10 +369,10 @@ contains
         obuf = current_buffer()
         call set_buffer(result, st)
         buffers(cur)%read_only = .true.
-        call symbol_value(sym("inhibit_read_only"), saved, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         call erase_buffer(st)
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
         call diff_mode(status)
 
         if (.not. status%ok()) then
@@ -385,9 +384,9 @@ contains
         call revert_buffer_function%set_local(diff_revert)
         buffers(cur)%directory = thisdir
         call set_diff_default_directory(thisdir)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         call insert(command//achar(10), st)
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
         if (.not. allocated(shell_file_name%value)) call init_callproc()
         ! (let ((default-directory temporary-file-directory)) ...)
         olddir = buffers(cur)%directory
@@ -407,9 +406,9 @@ contains
             end if
         else
             ! Async processes aren't available.
-            call set(sym("inhibit_read_only"), t_value(), st)
-            call call_process(shell_file_name%value, code, status, destination=t_value(), &
-                              args=list(make_string(shell_command_switch%value), make_string(command)))
+            call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
+            call call_process(shell_file_name%value, code, status, destination=value_type(.true.), &
+                              args=list(value_type(text=shell_command_switch%value), value_type(text=command)))
             buffers(cur)%directory = olddir
             k = 2
             if (vtag(code) == V_INTEGER) k = int(xfixnum(code))
@@ -424,7 +423,7 @@ contains
                 call diff_sentinel(k)
             end if
 
-            call set(sym("inhibit_read_only"), saved, st)
+            call set(value_type(name="inhibit_read_only"), saved, st)
         end if
 
         call set_buffer(obuf, st)
@@ -525,10 +524,10 @@ contains
         opoint = point()
         ! Insert the text, advancing the process marker.
         call goto_char(mpos)
-        call symbol_value(sym("inhibit_read_only"), saved, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         call insert(string, status)
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
         call set_marker(mark, point(), st)
 
         if (moving) then

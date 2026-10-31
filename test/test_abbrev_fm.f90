@@ -34,7 +34,7 @@ module test_abbrev_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum
+    use lisp_fm, only: value_type
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, buffers, cur, buffer_name, &
                          current_buffer, buffer_list, resolve_buffer, restore_buffer_modified
     use insdel_fm, only: insert
@@ -86,7 +86,7 @@ contains
         testsuite = [ &
                     new_unittest("abbrev--table-symbols-test", test_table_symbols), &
                     new_unittest("copy-abbrev-table-test", test_copy_abbrev_table), &
-                    new_unittest("abbrev-table-empty-p-test", test_empty_p), &
+                    new_unittest("abbrev-table-empty-p-test", test_empty), &
                     new_unittest("kill-all-abbrevs-test", test_kill_all_abbrevs), &
                     new_unittest("abbrev-table-name-test", test_table_name), &
                     new_unittest("clear-abbrev-table-test", test_clear), &
@@ -174,7 +174,7 @@ contains
         allocate (evs(len(text)))
 
         do i = 1, len(text)
-            evs(i) = make_fixnum(int(iachar(text(i:i)), int64))
+            evs(i) = value_type(int(iachar(text(i:i)), int64))
         end do
 
         call unread_command_events(evs)
@@ -273,7 +273,7 @@ contains
         call kill_buffer(h, st)
     end subroutine test_copy_abbrev_table
 
-    subroutine test_empty_p(error)
+    subroutine test_empty(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -287,7 +287,7 @@ contains
         if (allocated(error)) return
         call check(error, table%empty(ignore_system=.true.))
         call kill_buffer(h, st)
-    end subroutine test_empty_p
+    end subroutine test_empty
 
     !> Test undefining all defined abbrevs.
     subroutine test_kill_all_abbrevs(error)

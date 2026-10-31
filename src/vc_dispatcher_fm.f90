@@ -40,9 +40,7 @@ module vc_dispatcher_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, t_value, make_string, make_list, make_buffer_ref, xfixnum, &
-                       xstring, vtag, V_INTEGER
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, make_list, make_buffer_ref, xfixnum, xstring, vtag, V_INTEGER
     use data_fm, only: symbol_value, set, kill_all_local_variables
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, get_buffer, is_buffer_live, &
                          erase_buffer, kill_buffer, get_file_buffer, buffer_list, resolve_buffer
@@ -61,7 +59,7 @@ module vc_dispatcher_fm
                         add_minor_mode_lighter
     use subr_fm, only: read_y_or_n
     use vc_hooks_fm, only: vc_string_type, vc_file_clearprops, vc_dir_buffers, vc_dir_resynch_file
-    use lisp_fm, only: command_proc
+    use lisp_fm, only: command_proc, value_type
     use eval_fm, only: hook_type
     use buffer_fm, only: buffer_serial_live
     implicit none(type, external)
@@ -539,12 +537,12 @@ contains
         opoint = point()
         mark = process_mark(proc)
         call marker_position(mark, mpos, st)
-        call symbol_value(sym("inhibit_read_only"), saved, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         call goto_char(mpos)
         call insert(s, status)
         call set_marker(mark, point(), st)
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
         ! (save-excursion): point stays, after the text if it was at the mark.
         if (opoint > mpos) opoint = opoint + len(s, int64)
         call goto_char(min(opoint, point_max()))
@@ -584,10 +582,10 @@ contains
         end if
 
         buffers(cur)%directory = olddir
-        call symbol_value(sym("inhibit_read_only"), saved, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         call erase_buffer(st)
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
     end subroutine vc_setup_buffer
 
     !> " [waiting...]" in the mode line.  Port of
@@ -917,11 +915,11 @@ contains
         do k = 1, size(flags)
             if (.not. allocated(flags(k)%s)) cycle
             n = n + 1
-            argv(n) = make_string(flags(k)%s)
+            argv(n) = value_type(text=flags(k)%s)
         end do
 
         do k = 1, size(rel)
-            argv(n + k) = make_string(rel(k)%s)
+            argv(n + k) = value_type(text=rel(k)%s)
         end do
 
         ! Since some functions need to parse the output from external
@@ -929,16 +927,16 @@ contains
         ne = 1
         if (present(environment)) ne = ne + size(environment)
         allocate (envv(ne))
-        envv(1) = make_string("LC_MESSAGES=C")
+        envv(1) = value_type(text="LC_MESSAGES=C")
 
         if (present(environment)) then
             do k = 1, size(environment)
-                envv(k + 1) = make_string(environment(k)%s)
+                envv(k + 1) = value_type(text=environment(k)%s)
             end do
         end if
 
-        call symbol_value(sym("inhibit_read_only"), saved, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
 
         if (okstatus == VC_OKSTATUS_ASYNC) then
             ! Run asynchronously.
@@ -970,7 +968,7 @@ contains
         else
             ! Run synchronously
             call vc_command_message("Running in foreground: "//full_command)
-            dest = t_value()
+            dest = value_type(.true.)
 
             if (.not. to_buffer) then
                 call call_process(cmd, result, status, args=make_list(argv), environment=make_list(envv))
@@ -1008,7 +1006,7 @@ contains
             end if
         end if
 
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
         if (present(buffer) .or. destination /= VC_DEST_CURRENT) call set_buffer(old, st)
 
     contains

@@ -26,7 +26,6 @@ module test_register_fm
     use error_fm, only: status_type, format_error, FM_QUIT, FM_WRONG_TYPE_ARGUMENT, FM_USER_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
-    use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, set_buffer_read_only, &
                          current_buffer, get_buffer, is_buffer_live
     use insdel_fm, only: insert
@@ -63,7 +62,7 @@ contains
 
         testsuite = [ &
                     new_unittest("register-test-bug27634", test_bug27634), &
-                    new_unittest("register--jumpable-p", test_jumpable_p), &
+                    new_unittest("register--jumpable-p", test_jumpable), &
                     new_unittest("point-and-jump", test_point_and_jump), &
                     new_unittest("text-registers", test_text), &
                     new_unittest("append-and-prepend", test_append_prepend), &
@@ -174,7 +173,7 @@ contains
             case (1)
                 call kbd_store_bytes(achar(7))
             case (2)
-                escape(1) = sym("escape")
+                escape(1) = value_type(name="escape")
                 call unread_command_events(escape)
             case default
                 call kbd_store_bytes(achar(27))
@@ -202,7 +201,7 @@ contains
     !> configuration, a file, a buffer and a file-query reference can be
     !> jumped to; a string cannot.  (Keyboard macros, framesets, frame
     !> configurations, senator tags and doc-view are not ported.)
-    subroutine test_jumpable_p(error)
+    subroutine test_jumpable(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -232,7 +231,7 @@ contains
         call check(error, is_register_insertable(value_of(rc)) .and. is_register_insertable(value_of(ra)) .and. &
                    .not. is_register_insertable(value_of(rb)), "insertable")
         call kill_buffer(h, st)
-    end subroutine test_jumpable_p
+    end subroutine test_jumpable
 
     subroutine test_point_and_jump(error)
         type(error_type), allocatable, intent(out) :: error

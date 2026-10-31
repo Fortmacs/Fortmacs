@@ -6,10 +6,12 @@
 # (and then a line of tools/fortran-names), or why it is not a Lisp-ism
 # here (a keyboard macro, a POSIX signal, a Lisp mode).
 #
+# fortran-names: off
 # One word per line, matched as a whole word in prose and as an
 # underscore-delimited part of an identifier, ignoring case.  Words the
-# owner has already decided (subprogram, expression, table, nil, ...) are enforced by
+# owner has already decided (defun, sexp, alist, nil, ...) are enforced by
 # tools/fortran-names and the prose check, and are not repeated here.
+# fortran-names: on
 #
 # Copyright (C) 2026 The Fortmacs authors
 #

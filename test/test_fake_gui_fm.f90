@@ -28,8 +28,7 @@ module test_fake_gui_fm
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, resolve_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char
-    use lisp_fm, only: list, make_fixnum
-    use lread_fm, only: sym
+    use lisp_fm, only: list, value_type
     use textprop_fm, only: put_text_property
     use dispextern_fm, only: FILLED_BOX_CURSOR, MODE_LINE_ACTIVE_FACE_ID, MODE_LINE_INACTIVE_FACE_ID, &
                              VERTICAL_BORDER_FACE_ID
@@ -239,7 +238,8 @@ contains
         end do
 
         call buffer_with("*fake-gui-tall*", text, h)
-        call put_text_property(4_int64, 6_int64, sym("face"), list(sym(":height"), make_fixnum(200_int64)), st)
+        call put_text_property(4_int64, 6_int64, value_type(name="face"), list(value_type(name=":height"), value_type(200_int64)), &
+                               st)
         call goto_char(5_int64)
         call fake_frame(f, device, driver, 20, 10, h)
         call redisplay_internal(f, st)

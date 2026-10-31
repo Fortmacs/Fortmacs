@@ -58,9 +58,8 @@ module dired_mode_fm
     use error_fm, only: status_type, set_error, format_error, format_message, condition_matches, error_name, &
                         FM_GENERIC_ERROR, FM_USER_ERROR, FM_QUIT
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, t_value, make_fixnum, make_string, list, list_elements, &
-                       xfixnum, xstring, command_proc, vtag, V_INTEGER, V_ARRAY
-    use lread_fm, only: sym, read_string_literal
+    use lisp_fm, only: value_type, list, list_elements, xfixnum, xstring, command_proc, vtag, V_INTEGER, V_ARRAY
+    use lread_fm, only: read_string_literal
     use data_fm, only: set, add_local_variables_killer, value_eq, kill_all_local_variables
     use commands_fm, only: commands
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, is_buffer_live, resolve_buffer, get_buffer, &
@@ -1709,7 +1708,7 @@ contains
         type(status_type) :: st
 
         saved = inhibit_read_only()
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
     end subroutine inhibit_read_only_begin
 
     ! Not a port.
@@ -1717,7 +1716,7 @@ contains
         type(value_type), intent(in) :: saved
         type(status_type) :: st
 
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
     end subroutine inhibit_read_only_end
 
     !> Replace the character after point with C (delete-char 1, insert).
@@ -1820,7 +1819,7 @@ contains
         type(value_type) :: result
         type(status_type) :: st
 
-        call call_process(insert_directory_program, result, st, args=list(make_string("--dired"), make_string("-N")))
+        call call_process(insert_directory_program, result, st, args=list(value_type(text="--dired"), value_type(text="-N")))
         dired_check_use_ls_dired = .false.
         if (st%ok() .and. vtag(result) == V_INTEGER) dired_check_use_ls_dired = xfixnum(result) == 0
     end function dired_check_use_ls_dired
@@ -1888,8 +1887,8 @@ contains
             had_dir = allocated(buffers(cur)%directory)
             if (had_dir) saved_dir = buffers(cur)%directory
             buffers(cur)%directory = dw_dir
-            call call_process(shell_name(), result, status, destination=t_value(), &
-                              args=list(make_string("-c"), make_string(script)))
+            call call_process(shell_name(), result, status, destination=value_type(.true.), &
+                              args=list(value_type(text="-c"), value_type(text=script)))
 
             if (had_dir) then
                 buffers(cur)%directory = saved_dir
@@ -2104,8 +2103,8 @@ contains
                     call end_of_line()
 
                     if (char_before_point() == ":") then
-                        call put_text_property(point() - 1, point(), sym("display"), &
-                                               make_string(": ("//available//" available)"), status)
+                        call put_text_property(point() - 1, point(), value_type(name="display"), &
+                                               value_type(text=": ("//available//" available)"), status)
                     end if
                 end if
 
@@ -2142,24 +2141,27 @@ contains
 
             if (pos == 0) then
                 if (.not. (is_looking_at("^$") .or. is_looking_at(dired_subdir_regexp))) then
-                    call put_text_property(bol(), eol() + 1, sym("invisible"), sym("dired_hide_details_information"), st)
+                    call put_text_property(bol(), eol() + 1, value_type(name="invisible"), &
+                                           value_type(name="dired_hide_details_information"), st)
                 end if
             else
                 fend = point() - 1
                 b = bol() + 1
-                call put_text_property(b, fend, sym("invisible"), sym("dired_hide_details_detail"), st)
+                call put_text_property(b, fend, value_type(name="invisible"), value_type(name="dired_hide_details_detail"), st)
                 fbeg = point()
                 pos = dired_move_to_end_of_filename(st)
 
                 if (st%ok()) then
                     fend = pos - 1
                     call goto_char(fbeg)
-                    props = list(sym("mouse_face"), sym("highlight"), sym("dired_filename"), t_value(), &
-                                 sym("help_echo"), make_string("mouse-2: visit this file in other window"))
+                    props = list(value_type(name="mouse_face"), value_type(name="highlight"), value_type(name="dired_filename"), &
+                                 value_type(.true.), &
+                                 value_type(name="help_echo"), value_type(text="mouse-2: visit this file in other window"))
                     call add_text_properties(fbeg, fend + 1, props, changed, st)
 
                     if (fend + 5 < eol()) then
-                        call put_text_property(fend + 5, eol(), sym("invisible"), sym("dired_hide_details_link"), st)
+                        call put_text_property(fend + 5, eol(), value_type(name="invisible"), &
+                                               value_type(name="dired_hide_details_link"), st)
                     end if
                 end if
             end if
@@ -2788,7 +2790,7 @@ contains
         pos = 0
         call beginning_of_line()
         ! First try assuming `ls --dired' was used.
-        call next_single_property_change(point(), sym("dired_filename"), change, found, status, limit=e)
+        call next_single_property_change(point(), value_type(name="dired_filename"), change, found, status, limit=e)
         if (.not. status%ok()) return
 
         if (found .and. change < e) then
@@ -2836,11 +2838,11 @@ contains
         noerr = .false.
         if (present(no_error)) noerr = no_error
         pos = 0
-        call get_text_property(point(), sym("dired_filename"), v, status)
+        call get_text_property(point(), value_type(name="dired_filename"), v, status)
         if (.not. status%ok()) return
 
         if (allocated(v%a)) then
-            call next_single_property_change(point(), sym("dired_filename"), change, found, status)
+            call next_single_property_change(point(), value_type(name="dired_filename"), change, found, status)
             ! No property change can happen on or before the last file name
             ! in the Dired listing when there is at least one prior file
             ! name containing a newline (bug#79528).
@@ -2932,8 +2934,8 @@ contains
         if (present(pos)) p = pos
         is_dired_hidden = .false.
         if (p >= point_max()) return
-        call get_text_property(p, sym("invisible"), v, st)
-        if (st%ok()) is_dired_hidden = value_eq(v, sym("dired"))
+        call get_text_property(p, value_type(name="invisible"), v, st)
+        if (st%ok()) is_dired_hidden = value_eq(v, value_type(name="dired"))
     end function is_dired_hidden
 
     !> In Dired, return name of file mentioned on this line.
@@ -4930,7 +4932,7 @@ contains
             whole = .false.
 
             if (point() > point_min()) then
-                call get_text_property(point() - 1, sym("dired_filename"), v, st)
+                call get_text_property(point() - 1, value_type(name="dired_filename"), v, st)
                 whole = allocated(v%a)
             end if
         end if
@@ -5919,7 +5921,7 @@ contains
         type(dired_string_type), allocatable :: files(:)
         type(file_stat_type) :: st
         integer(int64) :: nmarked
-        real(real64) :: size
+        real(real64) :: total_size
         logical :: one_marked, found
         integer :: k
 
@@ -5928,34 +5930,28 @@ contains
 
         if (one_marked) then
             nmarked = 1
-        else if (size_of(files) <= 1) then
+        else if (size(files) <= 1) then
             nmarked = 0
         else
-            nmarked = size_of(files)
+            nmarked = size(files)
         end if
 
-        size = 0
+        total_size = 0
 
-        do k = 1, size_of(files)
+        do k = 1, size(files)
             call file_attributes(files(k)%s, st, found, nofollow=.true.)
-            if (found) size = size + real(st%size, real64)
+            if (found) total_size = total_size + real(st%size, real64)
         end do
 
         if (nmarked == 0) then
             call message("No marked files")
         else if (nmarked == 1) then
-            call message(itoa(nmarked)//" marked file ("//byte_count_to_string(size)//" total size)")
+            call message(itoa(nmarked)//" marked file ("//byte_count_to_string(total_size)//" total size)")
         else
-            call message(itoa(nmarked)//" marked files ("//byte_count_to_string(size)//" total size)")
+            call message(itoa(nmarked)//" marked files ("//byte_count_to_string(total_size)//" total size)")
         end if
 
     contains
-
-        integer function size_of(a)
-            type(dired_string_type), intent(in) :: a(:)
-
-            size_of = ubound(a, 1)
-        end function size_of
     end subroutine dired_number_of_marked_files
 
     ! ------------------------------------------------------------------
@@ -6407,7 +6403,8 @@ contains
 
         beg = point()
         call completion_insert_strings(strings)
-       call remove_text_properties(beg, point(), list(sym("mouse_face"), value_type(), sym("help_echo"), value_type()), changed, st)
+        call remove_text_properties(beg, point(), list(value_type(name="mouse_face"), value_type(), value_type(name="help_echo"), &
+                                                       value_type()), changed, st)
     end subroutine insert_marked_files
 
     !> Set up temporary buffer BUFFER_NAME: no local variables, writable,
@@ -6574,7 +6571,7 @@ contains
         call goto_char(point_max())
         call fwd_line(-1_int64)
         call backward_page()
-        call recenter(make_fixnum(0_int64), .false., st)
+        call recenter(value_type(0_int64), .false., st)
         call select_window(owindow, st)
     end subroutine dired_why
 
@@ -6660,7 +6657,7 @@ contains
                 if (k > 1) string = string//" "
 
                 if (scan(files(k)%s, " ""'") > 0) then
-                    string = string//readable_repr(make_string(files(k)%s))
+                    string = string//readable_repr(value_type(text=files(k)%s))
                 else
                     string = string//files(k)%s
                 end if
@@ -6683,7 +6680,7 @@ contains
             type(value_type), intent(in) :: v
             character(len=*), intent(in) :: name
 
-            symbol_is = value_eq(v, sym(name))
+            symbol_is = value_eq(v, value_type(name=name))
         end function symbol_is
     end subroutine cmd_dired_copy_filename_as_kill
 
@@ -6956,7 +6953,7 @@ contains
 
         call end_of_line()
         limit = 0
-        call get_text_property(point() - 1, sym("mouse_face"), v, st)
+        call get_text_property(point() - 1, value_type(name="mouse_face"), v, st)
         if (.not. allocated(v%a)) limit = dired_move_to_filename(st)
     end subroutine pre_ignored_f
 
@@ -7291,8 +7288,8 @@ contains
         type(value_type), allocatable :: events(:)
         type(status_type) :: st
 
-        call list_elements(list(sym("remap"), sym(from)), events)
-        call define_key(dired_mode_map, events, sym(command), st)
+        call list_elements(list(value_type(name="remap"), value_type(name=from)), events)
+        call define_key(dired_mode_map, events, value_type(name=command), st)
     end subroutine bind_remap
 
     !> Define Dired: its options, faces, commands, Dired mode and

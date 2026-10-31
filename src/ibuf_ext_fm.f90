@@ -624,13 +624,13 @@ contains
 
         do while (n > 0)
             if (has_prop(point(), "ibuffer_filter_group_name")) then
-                call next_single_property_change(point(), sym("ibuffer_filter_group_name"), next, found, st, &
+                call next_single_property_change(point(), value_type(name="ibuffer_filter_group_name"), next, found, st, &
                                                  point_max())
                 if (.not. found) next = point_max()
                 call goto_char(next)
             end if
 
-            call next_single_property_change(point(), sym("ibuffer_filter_group_name"), next, found, st, point_max())
+            call next_single_property_change(point(), value_type(name="ibuffer_filter_group_name"), next, found, st, point_max())
             if (.not. found) next = point_max()
             call goto_char(next)
             n = n - 1
@@ -664,13 +664,13 @@ contains
 
         do while (n > 0)
             if (has_prop(point(), "ibuffer_filter_group_name")) then
-                call previous_single_property_change(point(), sym("ibuffer_filter_group_name"), prev, found, st, &
+                call previous_single_property_change(point(), value_type(name="ibuffer_filter_group_name"), prev, found, st, &
                                                      point_min())
                 if (.not. found) prev = point_min()
                 call goto_char(prev)
             end if
 
-            call previous_single_property_change(point(), sym("ibuffer_filter_group_name"), prev, found, st, &
+            call previous_single_property_change(point(), value_type(name="ibuffer_filter_group_name"), prev, found, st, &
                                                  point_min())
             if (.not. found) prev = point_min()
             call goto_char(prev)
@@ -716,7 +716,7 @@ contains
         call goto_char(point_min())
 
         do while (.not. is_eob())
-            call next_single_property_change(point(), sym("ibuffer_filter_group_name"), pos, found, st)
+            call next_single_property_change(point(), value_type(name="ibuffer_filter_group_name"), pos, found, st)
             if (.not. found) exit
             call goto_char(pos)
 
@@ -731,7 +731,7 @@ contains
             n = n + 1
             names(n) = string_prop(point(), "ibuffer_filter_group_name")
             positions(n) = pos
-            call next_single_property_change(pos, sym("ibuffer_filter_group_name"), next, found, st)
+            call next_single_property_change(pos, value_type(name="ibuffer_filter_group_name"), next, found, st)
             if (.not. found) exit
             call goto_char(next)
         end do
@@ -1591,7 +1591,7 @@ contains
             allocate (names(size(states)))
 
             do k = 1, size(states)
-                names(k) = make_string(buffers(states(k)%buffer%index)%name)
+                names(k) = value_type(text=buffers(states(k)%buffer%index)%name)
             end do
 
             table%kind = TABLE_LIST
@@ -1795,7 +1795,7 @@ contains
 
         if (len(string) == 0) return
 
-        if (value_eq(last_command, sym("kill_region"))) then
+        if (value_eq(last_command, value_type(name="kill_region"))) then
             call kill_append(string, .false.)
         else
             call kill_new(string)
@@ -2131,7 +2131,7 @@ contains
         allocate (names(n))
 
         do k = 1, n
-            names(k) = make_string(trim(modes(k)))
+            names(k) = value_type(text=trim(modes(k)))
         end do
 
         table%kind = TABLE_LIST
@@ -2924,7 +2924,7 @@ contains
         allocate (values(size(names)))
 
         do j = 1, size(names)
-            values(j) = make_string(names(j)%s)
+            values(j) = value_type(text=names(j)%s)
         end do
 
         table%kind = TABLE_LIST
@@ -3867,12 +3867,12 @@ contains
             command = "ibuffer_filter_by_"//trim(ibuffer_filtering_table(i)%name)
         end if
 
-        call call_interactively(sym(command), status)
+        call call_interactively(value_type(name=command), status)
         if (.not. status%ok()) return
         ! (mapconcat #'key-description KEY "or "): the first key sequence
         ! is a list of events, each given to key-description, which wants
         ! a sequence.
-        call where_is_internal(sym(command), keys, .true., ibuffer_mode_map)
+        call where_is_internal(value_type(name=command), keys, .true., ibuffer_mode_map)
 
         if (allocated(keys%a)) then
             call list_elements(keys, events)

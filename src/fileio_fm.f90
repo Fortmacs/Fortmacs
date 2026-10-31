@@ -48,7 +48,6 @@ module fileio_fm
     use editfns_fm, only: point, goto_char, validate_region, point_marker
     use data_fm, only: default_value
     use lisp_fm, only: value_type, xstring, vtag, V_STRING
-    use lread_fm, only: sym
     use search_fm, only: string_match, case_fold_search
     use coding_fm, only: coding_system_for_read, coding_system_for_write, last_coding_system_used, &
                          buffer_file_coding_system, coding_system_require_warning, check_coding_system, &
@@ -1937,7 +1936,7 @@ contains
             ! If the decided coding-system doesn't specify end-of-line
             ! format, we use that of `buffer_file_coding_system'.
             if (.not. using_default_coding) then
-                call default_value(sym("buffer_file_coding_system"), v, vst)
+                call default_value(value_type(name="buffer_file_coding_system"), v, vst)
                 dflt = ""
                 if (vtag(v) == V_STRING) dflt = xstring(v)
                 if (len(dflt) > 0) val = coding_inherit_eol_type(val, dflt)

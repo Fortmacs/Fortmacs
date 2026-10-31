@@ -36,12 +36,11 @@
 module data_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT, &
-                        FM_VOID_VARIABLE, FM_SETTING_CONSTANT
-    use lisp_fm, only: list, list_elt, list_tail, symbols, &
-                       v_buffer, V_INTEGER, v_keymap, V_ARRAY, v_marker, V_NULL, V_NAME, v_syntax_table, v_window, value_type, &
-                       vtag, xsymbol, V_STRING
-    use lread_fm, only: ensure_obarray, sym
-    use lisp_fm, only: command_proc
+                        FM_VOID_VARIABLE, FM_SETTING_CONSTANT, FM_VOID_FUNCTION
+    use lisp_fm, only: list, list_elt, list_tail, symbols, v_buffer, V_INTEGER, v_keymap, V_ARRAY, v_marker, V_NULL, &
+                       V_NAME, v_syntax_table, v_window, value_type, vtag, xsymbol, V_STRING
+    use lread_fm, only: ensure_obarray
+    use lisp_fm, only: command_proc, command_type, value_type
     implicit none(type, external)
     private
 
@@ -58,11 +57,6 @@ module data_fm
     type, abstract, public :: setting_type
         !> The variable's name, as the help commands show it.
         character(len=48) :: name = ""
-        !> The exact value last given through the variable's name (as
-        !> `set_variable' does) when the Fortran value can't hold it, such
-        !> as a symbol in a logical setting; cleared by any assignment.
-        type(value_type) :: exact
-        logical :: has_exact = .false.
         !> Void (`makunbound'); cleared by any assignment.
         logical :: void = .false.
     contains
@@ -114,10 +108,61 @@ module data_fm
     !> `value'.
     type, extends(setting_type), public :: function_setting
         procedure(command_proc), pointer, nopass :: value => null()
+        !> The command a name given at run time resolved to (the value
+        !> then reads back as its name); null otherwise.
+        type(command_type), pointer :: command => null()
     contains
         generic :: set_local => set_local_function
         procedure, private :: set_local_function => function_set_local
     end type function_setting
+
+    !> The `%length' of a history that uses `history_length'.  Not a port.
+    integer, parameter, public :: HISTORY_LENGTH_DEFAULT = -huge(0)
+    !> The `%length' of a history that is never truncated (upstream's
+    !> `history-length' property t).  Not a port.
+    integer, parameter, public :: HISTORY_LENGTH_UNLIMITED = huge(0)
+
+    !> Maximum length of history lists before truncation takes place.
+    !> A number means truncate to that length; truncation deletes old
+    !> elements, and is done just after inserting a new element.
+    !>
+    !> This variable only affects history lists that don't specify their own
+    !> maximum lengths.  Setting the `%length' component of a history
+    !> overrides this default.  Port of minibuf.c history-length
+    !> (a value meaning no truncation is not ported: Deferred).
+    integer, public :: history_length = 100
+    !> True means to delete duplicates in history.
+    !> If set to true when adding a new history element, all previous identical
+    !> elements are deleted from the history list.  Port of minibuf.c
+    !> history-delete-duplicates.
+    logical, public :: history_delete_duplicates = .false.
+
+    !> One entry of a history.
+    type, public :: history_item_type
+        character(len=:), allocatable :: text
+    end type history_item_type
+
+    !> A history list: the strings a prompt offers with M-p and M-n, newest
+    !> first.  A prompt names its history (read_from_minibuffer's HISTORY),
+    !> which `find_history' finds through the settings registry:
+    !>
+    !>     type(history_setting), target, public :: grep_history = &
+    !>         history_setting(name="grep_history")
+    !>     call forward_setting(grep_history)  ! in the module's init
+    !>     grep_history%length = 50
+    !>     call grep_history%add("make -k")
+    !>
+    !> Port of minibuf.c's history variables (the value and its
+    !> `history-length' property).
+    type, extends(setting_type), public :: history_setting
+        !> The entries, newest first.
+        type(history_item_type), allocatable :: items(:)
+        !> The maximum length: HISTORY_LENGTH_DEFAULT uses `history_length',
+        !> HISTORY_LENGTH_UNLIMITED never truncates.
+        integer :: length = HISTORY_LENGTH_DEFAULT
+    contains
+        procedure :: add => history_add
+    end type history_setting
 
     public :: kill_locals_proc, add_local_variables_killer
 
@@ -150,11 +195,11 @@ module data_fm
     !> The settings forwarded with `forward_setting'.
     type(forwarded_ref_type), allocatable :: forwarded(:)
 
-    public :: forward_setting
+    public :: forward_setting, find_history
 
     public :: check_fixnum, check_symbol, check_string, check_list
-    public :: value_eq, car, cdr, car_safe, cdr_safe
-    public :: symbol_name, keywordp, boundp, symbol_value, set, makunbound
+    public :: value_eq
+    public :: symbol_name, boundp, symbol_value, set, makunbound
     public :: make_local_variable, make_variable_buffer_local, kill_local_variable, kill_all_local_variables, &
               is_local_variable, is_local_variable_if_set, is_automatically_local, is_forwarded_variable, default_value, &
               function_setting_default, &
@@ -422,7 +467,7 @@ contains
         call move_alloc(grown, forwarded)
         ! Resolve the symbol again.
         call ensure_obarray()
-        id = xsymbol(sym(trim(s%name)))
+        id = xsymbol(value_type(name=trim(s%name)))
         symbols(id)%fwd = 0
     end subroutine forward_setting
 
@@ -457,7 +502,7 @@ contains
         class(setting_type), intent(inout) :: self
         type(status_type) :: st
 
-        call make_local_variable(sym(trim(self%name)), st)
+        call make_local_variable(value_type(name=trim(self%name)), st)
     end subroutine setting_make_local
 
     ! Not a port.
@@ -465,24 +510,21 @@ contains
         class(setting_type), intent(inout) :: self
         type(status_type) :: st
 
-        call kill_local_variable(sym(trim(self%name)), st)
+        call kill_local_variable(value_type(name=trim(self%name)), st)
     end subroutine setting_kill_local
 
     ! Not a port.
     logical function is_setting_local(self)
         class(setting_type), intent(in) :: self
 
-        is_setting_local = is_local_variable(sym(trim(self%name)))
+        is_setting_local = is_local_variable(value_type(name=trim(self%name)))
     end function is_setting_local
 
-    !> Forget an exact Lisp value and voidness: the Fortran value is the
-    !> value now.  Not a port.
+    !> Forget voidness: the Fortran value is the value now.  Not a port.
     subroutine settled(self)
         class(setting_type), intent(inout) :: self
 
-        self%has_exact = .false.
         self%void = .false.
-        self%exact = value_type()
     end subroutine settled
 
     ! Not a port.
@@ -531,8 +573,6 @@ contains
 
         call self%make_local()
         self%value = v%value
-        self%exact = v%exact
-        self%has_exact = v%has_exact
         self%void = .false.
     end subroutine integer_set_local_setting
 
@@ -589,6 +629,7 @@ contains
 
         call self%make_local()
         self%value => v
+        self%command => null()
         call settled(self)
     end subroutine function_set_local
 
@@ -662,55 +703,6 @@ contains
         end select
     end function value_eq
 
-    !> First element of a list; nil for nil.  Port of data.c:Fcar.
-    subroutine car(list, v, status)
-        type(value_type), intent(in) :: list
-        type(value_type), intent(out) :: v
-        type(status_type), intent(out) :: status
-
-        select case (vtag(list))
-        case (V_ARRAY)
-            v = list_elt(list, 1_int64)
-        case (V_NULL)
-            v = value_type()
-        case default
-            call wrong_type(status, "expected array")
-        end select
-    end subroutine car
-
-    !> The list without its first element; nil for nil.
-    !> Port of data.c:Fcdr.
-    subroutine cdr(list, v, status)
-        type(value_type), intent(in) :: list
-        type(value_type), intent(out) :: v
-        type(status_type), intent(out) :: status
-
-        select case (vtag(list))
-        case (V_ARRAY)
-            v = list_tail(list, 1_int64)
-        case (V_NULL)
-            v = value_type()
-        case default
-            call wrong_type(status, "expected array")
-        end select
-    end subroutine cdr
-
-    !> Like `car', but nil for a non-list.  Port of data.c:Fcar_safe.
-    pure function car_safe(list) result(v)
-        type(value_type), intent(in) :: list
-        type(value_type) :: v
-
-        if (vtag(list) == V_ARRAY) v = list_elt(list, 1_int64)
-    end function car_safe
-
-    !> Like `cdr', but nil for a non-list.  Port of data.c:Fcdr_safe.
-    pure function cdr_safe(list) result(v)
-        type(value_type), intent(in) :: list
-        type(value_type) :: v
-
-        if (vtag(list) == V_ARRAY) v = list_tail(list, 1_int64)
-    end function cdr_safe
-
     ! ------------------------------------------------------------------
     ! Symbols
     ! ------------------------------------------------------------------
@@ -726,19 +718,6 @@ contains
         call ensure_obarray()
         name = symbols(xsymbol(symbol))%name
     end subroutine symbol_name
-
-    !> True for symbols whose name starts with ':'.  Port of data.c:Fkeywordp.
-    logical function keywordp(v)
-        type(value_type), intent(in) :: v
-
-        keywordp = .false.
-        if (vtag(v) /= V_NAME) return
-        call ensure_obarray()
-
-        associate (name => symbols(xsymbol(v))%name)
-            if (len(name) > 0) keywordp = name(1:1) == ":"
-        end associate
-    end function keywordp
 
     !> Port of data.c:Fboundp (global value only).
     subroutine boundp(symbol, bound, status)
@@ -799,7 +778,7 @@ contains
         id = xsymbol(symbol)
 
         if (symbols(id)%constant) then
-            if (.not. (keywordp(symbol) .and. value_eq(newval, symbols(id)%val))) then
+            if (.not. (index(symbols(id)%name, ":") == 1 .and. value_eq(newval, symbols(id)%val))) then
                 call set_error(status, FM_SETTING_CONSTANT, symbols(id)%name)
             end if
 
@@ -851,4 +830,102 @@ contains
         symbols(id)%val = value_type()
         symbols(id)%bound = .false.
     end subroutine makunbound
+
+    ! ------------------------------------------------------------------
+    ! Histories
+    ! ------------------------------------------------------------------
+
+    !> The history called NAME in the settings registry (null if there
+    !> is none).  With CREATE, a history not registered yet is made
+    !> (taking the value a variable of that name had), as read_minibuf
+    !> makes an unbound history variable.  Not a port.
+    function find_history(name, create) result(h)
+        character(len=*), intent(in) :: name
+        logical, intent(in), optional :: create
+        type(history_setting), pointer :: h
+        type(value_type) :: old
+        type(status_type) :: st
+        integer :: k
+
+        h => null()
+
+        if (allocated(forwarded)) then
+            do k = 1, size(forwarded)
+                select type (p => forwarded(k)%p)
+                type is (history_setting)
+                    if (trim(p%name) == name) then
+                        h => p
+                        return
+                    end if
+                end select
+            end do
+        end if
+
+        if (.not. present(create)) return
+        if (.not. create) return
+        call symbol_value(value_type(name=name), old, st)
+        allocate (h)
+        h%name = name
+        call forward_setting(h)
+        if (st%ok()) call set(value_type(name=name), old, st)
+    end function find_history
+
+    !> Add NEWELT to the history list SELF.
+    !> If MAXELT is present, it specifies the maximum length of the history.
+    !> Otherwise, the maximum history length is the history's `%length',
+    !> if set, or the value of the `history_length' variable.  The
+    !> possible values of maximum length have the same meaning as the
+    !> values of `history_length'.
+    !> Remove duplicates of NEWELT if `history_delete_duplicates' is .true..
+    !> If optional fourth arg KEEP-ALL is .true., add NEWELT to history even
+    !> if it is empty or duplicates the most recent entry in the history.
+    !> Port of subr.el:add-to-history (`added' says whether the list
+    !> changed).
+    subroutine history_add(self, newelt, maxelt, keep_all, added)
+        class(history_setting), intent(inout) :: self
+        character(len=*), intent(in) :: newelt
+        integer, intent(in), optional :: maxelt
+        logical, intent(in), optional :: keep_all
+        logical, intent(out), optional :: added
+        type(history_item_type), allocatable :: kept(:)
+        logical :: all
+        integer :: limit, k, n
+
+        if (present(added)) added = .false.
+        limit = self%length
+        if (limit == HISTORY_LENGTH_DEFAULT) limit = history_length
+        if (present(maxelt)) limit = maxelt
+        all = .false.
+        if (present(keep_all)) all = keep_all
+        if (.not. allocated(self%items)) allocate (self%items(0))
+        if (.not. all .and. len(newelt) == 0) return
+
+        if (.not. all .and. size(self%items) > 0) then
+            if (self%items(1)%text == newelt .and. len(self%items(1)%text) == len(newelt)) return
+        end if
+
+        allocate (kept(size(self%items) + 1))
+        kept(1)%text = newelt
+        n = 1
+
+        do k = 1, size(self%items)
+            ! (delete newelt history)
+            if (history_delete_duplicates) then
+                if (self%items(k)%text == newelt .and. len(self%items(k)%text) == len(newelt)) cycle
+            end if
+
+            n = n + 1
+            kept(n)%text = self%items(k)%text
+        end do
+
+        if (limit <= 0) then
+            n = 0
+        else
+            n = min(n, limit)
+        end if
+
+        self%items = kept(1:n)
+        self%void = .false.
+        if (present(added)) added = .true.
+    end subroutine history_add
 end module data_fm

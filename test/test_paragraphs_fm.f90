@@ -41,7 +41,6 @@ module test_paragraphs_fm
                              sentence_end_regexp, sentence_end, forward_sentence, backward_sentence, kill_sentence, &
                              backward_kill_sentence, mark_end_of_sentence, paragraph_start, paragraph_separate
     use keyboard_fm, only: last_command, this_command
-    use lread_fm, only: sym
     implicit none(type, external)
     private
 
@@ -323,8 +322,8 @@ contains
         ! Repeating the command marks the next sentence.
         call temp_buffer("Example sentence.  Followed by another one.")
         call mark_end_of_sentence(1_int64)
-        last_command = sym("mark_end_of_sentence")
-        this_command = sym("mark_end_of_sentence")
+        last_command = value_type(name="mark_end_of_sentence")
+        this_command = value_type(name="mark_end_of_sentence")
         call mark_end_of_sentence(1_int64)
         call check(error, buffers(cur)%mark_active .and. mark_position() == 44, "repeated")
     end subroutine test_mark_end_of_sentence

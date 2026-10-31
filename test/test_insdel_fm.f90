@@ -28,8 +28,7 @@ module test_insdel_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, set_error, FM_BUFFER_READ_ONLY, FM_GENERIC_ERROR
-    use lisp_fm, only: value_type, list, make_string, t_value
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list
     use data_fm, only: value_eq
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, get_buffer_create, kill_buffer, &
@@ -595,11 +594,11 @@ contains
         call check(error, contents()//trace, "XYZacac B5,8 A5,8,3", "subst-char-in-region")
         if (allocated(error)) return
         trace = ""
-        call put_text_property(2_int64, 4_int64, sym("face"), sym("bold"), st)
+        call put_text_property(2_int64, 4_int64, value_type(name="face"), value_type(name="bold"), st)
         call check(error, trace, " B2,4 A2,4,2", "put-text-property")
         if (allocated(error)) return
         trace = ""
-        call put_text_property(2_int64, 4_int64, sym("face"), sym("bold"), st)
+        call put_text_property(2_int64, 4_int64, value_type(name="face"), value_type(name="bold"), st)
         call check(error, trace, "", "put-text-property, nothing changed")
         if (allocated(error)) return
         trace = ""
@@ -767,13 +766,13 @@ contains
         call before_change_functions%add(insert_at_start, local=.true.)
         call after_change_functions%add(rec_after, local=.true.)
         trace = ""
-        call put_text_property(2_int64, 4_int64, sym("face"), sym("bold"), st)
+        call put_text_property(2_int64, 4_int64, value_type(name="face"), value_type(name="bold"), st)
         call check(error, contents()//trace, "Xabcd I2,4 A2,4,2")
         if (allocated(error)) return
-        call get_text_property(2_int64, sym("face"), v, st)
-        call check(error, value_eq(v, sym("bold")), "property at 2")
+        call get_text_property(2_int64, value_type(name="face"), v, st)
+        call check(error, value_eq(v, value_type(name="bold")), "property at 2")
         if (allocated(error)) return
-        call get_text_property(4_int64, sym("face"), v, st)
+        call get_text_property(4_int64, value_type(name="face"), v, st)
         call check(error,.not. allocated(v%a), "no property at 4")
         call forget_changes()
         call leave(h, old)
@@ -863,7 +862,7 @@ contains
         call upcase_region(beg, buffers(cur)%pt, st)
         call capitalize_region(1_int64, buffers(cur)%pt, st)
         call subst_char_in_region(1_int64, buffers(cur)%pt, iachar("-", int32), iachar("_", int32), st)
-        call put_text_property(2_int64, 6_int64, sym("face"), sym("bold"), st)
+        call put_text_property(2_int64, 6_int64, value_type(name="face"), value_type(name="bold"), st)
         call delete_region(3_int64, 8_int64, st)
         call goto(1_int64)
         call search_forward("x", found, st)
@@ -921,30 +920,31 @@ contains
 
         call enter("*inherit*", h, old)
         call insert("ab", st)
-        call put_text_property(1_int64, 2_int64, sym("face"), sym("bold"), st)
+        call put_text_property(1_int64, 2_int64, value_type(name="face"), value_type(name="bold"), st)
         call goto(2_int64)
         call insert_and_inherit("X", st)
-        call get_text_property(2_int64, sym("face"), v, st)
-        call check(error, value_eq(v, sym("bold")), "X inherits face from a")
+        call get_text_property(2_int64, value_type(name="face"), v, st)
+        call check(error, value_eq(v, value_type(name="bold")), "X inherits face from a")
         if (allocated(error)) return
         call insert("Y", st)
-        call get_text_property(3_int64, sym("face"), v, st)
+        call get_text_property(3_int64, value_type(name="face"), v, st)
         call check(error,.not. allocated(v%a), "Y inserted plainly")
         if (allocated(error)) return
         ! rear-nonsticky: nothing from before.
-        call put_text_property(1_int64, 2_int64, sym("rear_nonsticky"), t_value(), st)
+        call put_text_property(1_int64, 2_int64, value_type(name="rear_nonsticky"), value_type(.true.), st)
         call goto(2_int64)
         call insert_and_inherit("Z", st)
-        call get_text_property(2_int64, sym("face"), v, st)
+        call get_text_property(2_int64, value_type(name="face"), v, st)
         call check(error,.not. allocated(v%a), "rear-nonsticky face not inherited")
         if (allocated(error)) return
         ! front-sticky text after point.
-        call put_text_property(point_max() - 1, point_max(), sym("mouse_face"), sym("highlight"), st)
-        call put_text_property(point_max() - 1, point_max(), sym("front_sticky"), list(sym("mouse_face")), st)
+        call put_text_property(point_max() - 1, point_max(), value_type(name="mouse_face"), value_type(name="highlight"), st)
+        call put_text_property(point_max() - 1, point_max(), value_type(name="front_sticky"), list(value_type(name="mouse_face")), &
+                               st)
         call goto(point_max() - 1)
         call insert_before_markers_and_inherit("W", st)
-        call get_text_property(point_max() - 2, sym("mouse_face"), v, st)
-        call check(error, value_eq(v, sym("highlight")), "front-sticky property inherited from after")
+        call get_text_property(point_max() - 2, value_type(name="mouse_face"), v, st)
+        call check(error, value_eq(v, value_type(name="highlight")), "front-sticky property inherited from after")
         call leave(h, old)
     end subroutine test_insert_and_inherit
 
@@ -959,26 +959,26 @@ contains
         type(value_type) :: s, v
 
         call enter("*props-1*", h, old)
-        s = propertize(make_string("hi"), list(sym("face"), sym("bold")))
+        s = propertize(value_type(text="hi"), list(value_type(name="face"), value_type(name="bold")))
         call insert_from_string(s, 1_int64, 1_int64, .false., st)
         call check(error, contents() == "i", "one character of the string")
         if (allocated(error)) return
-        call get_text_property(1_int64, sym("face"), v, st)
-        call check(error, value_eq(v, sym("bold")), "with its face")
+        call get_text_property(1_int64, value_type(name="face"), v, st)
+        call check(error, value_eq(v, value_type(name="bold")), "with its face")
         if (allocated(error)) return
-        call put_text_property(1_int64, 2_int64, sym("face"), sym("italic"), st)
+        call put_text_property(1_int64, 2_int64, value_type(name="face"), value_type(name="italic"), st)
         call goto(2_int64)
         call insert_from_string(s, 0_int64, 2_int64, .true., st)
-        call get_text_property(2_int64, sym("face"), v, st)
-        call check(error, value_eq(v, sym("italic")), "the inherited face wins")
+        call get_text_property(2_int64, value_type(name="face"), v, st)
+        call check(error, value_eq(v, value_type(name="italic")), "the inherited face wins")
         if (allocated(error)) return
         call get_buffer_create("*props-2*", h2, st)
         call set_buffer(h2, st)
         call insert_buffer_substring(h, st)
         call check(error, contents() == "ihi", "the other buffer's text")
         if (allocated(error)) return
-        call get_text_property(1_int64, sym("face"), v, st)
-        call check(error, value_eq(v, sym("italic")), "and its properties")
+        call get_text_property(1_int64, value_type(name="face"), v, st)
+        call check(error, value_eq(v, value_type(name="italic")), "and its properties")
         call kill_buffer(h2, st)
         call leave(h, old)
     end subroutine test_insert_with_properties

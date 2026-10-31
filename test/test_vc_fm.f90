@@ -37,7 +37,7 @@ module test_vc_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error, condition_matches, FM_FILE_ALREADY_EXISTS
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_string, make_list
+    use lisp_fm, only: value_type, make_list
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, current_buffer, &
                          get_buffer, is_buffer_live, generate_new_buffer_name, get_file_buffer
     use insdel_fm, only: insert
@@ -218,11 +218,11 @@ contains
 
         ! One element at a time: function results in an array constructor
         ! of value_type leak.
-        args(1) = make_string("-c")
-        args(2) = make_string("user.name=t")
-        args(3) = make_string("-c")
-        args(4) = make_string("user.email=t@t")
-        args(5) = make_string(a1)
+        args(1) = value_type(text="-c")
+        args(2) = value_type(text="user.name=t")
+        args(3) = value_type(text="-c")
+        args(4) = value_type(text="user.email=t@t")
+        args(5) = value_type(text=a1)
         n = 5
         if (present(a2)) call push(a2)
         if (present(a3)) call push(a3)
@@ -242,7 +242,7 @@ contains
             character(len=*), intent(in) :: a
 
             n = n + 1
-            args(n) = make_string(a)
+            args(n) = value_type(text=a)
         end subroutine push
     end subroutine git
 

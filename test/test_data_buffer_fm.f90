@@ -29,19 +29,20 @@ module test_data_buffer_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, FM_WRONG_TYPE_ARGUMENT, FM_VOID_VARIABLE, FM_VOID_FUNCTION
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum, make_string, t_value, xfixnum, xstring, &
-                       list_length, list_elt
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, xfixnum, xstring, list_length, list_elt
     use buffer_fm, only: get_buffer_create, kill_buffer, set_buffer, buffers, cur, fill_column, &
-                         auto_fill_function
+                         auto_fill_function, FILL_COLUMN_NONE
+    use fill_fm, only: current_fill_column
+    use xdisp_fm, only: tab_width
     use search_fm, only: case_fold_search
-    use indent_fm, only: indent_tabs_mode
+    use indent_fm, only: indent_tabs_mode, sane_tab_width
     use casefiddle_fm, only: case_identifiers_as_words
     use data_fm, only: symbol_value, set, boundp, makunbound, value_eq, make_local_variable, &
                        make_variable_buffer_local, kill_local_variable, kill_all_local_variables, &
                        is_local_variable, is_local_variable_if_set, default_value, set_default, &
                        default_boundp, buffer_local_value, buffer_local_variables, setq_local
     use fns_fm, only: put
+    use simple_fm, only: syms_of_simple
     implicit none(type, external)
     private
 
@@ -64,7 +65,7 @@ contains
                     new_unittest("kill-all-local-variables", test_kill_all), &
                     new_unittest("buffer-local-variables", test_buffer_local_variables), &
                     new_unittest("kill-buffer-restores-defaults", test_kill_current), &
-                    new_unittest("forwarded-exact-values", test_exact), &
+                    new_unittest("forwarded-value-types", test_exact), &
                     new_unittest("makunbound-forwarded", test_makunbound_forwarded) &
                     ]
     end subroutine collect_data_buffer_fm
@@ -78,13 +79,13 @@ contains
 
         call get_buffer_create("binding-test-A", a, st)
         call get_buffer_create("binding-test-B", b, st)
-        call set(sym("binding-test-always-local"), sym("always"), st)
-        call make_variable_buffer_local(sym("binding-test-always-local"), st)
+        call set(value_type(name="binding-test-always-local"), value_type(name="always"), st)
+        call make_variable_buffer_local(value_type(name="binding-test-always-local"), st)
         call check(error, st%ok(), "make_variable_buffer_local")
         if (allocated(error)) return
-        call set(sym("binding-test-some-local"), sym("some"), st)
+        call set(value_type(name="binding-test-some-local"), value_type(name="some"), st)
         call set_buffer(a, st)
-        call setq_local("binding-test-some-local", sym("local"), st)
+        call setq_local("binding-test-some-local", value_type(name="local"), st)
         call check(error, st%ok(), "setq_local")
     end subroutine setup
 
@@ -104,10 +105,10 @@ contains
         type(status_type) :: st
 
         if (allocated(error)) return
-        call symbol_value(sym(name), v, st)
+        call symbol_value(value_type(name=name), v, st)
         call check(error, st%ok(), name//" is void")
         if (allocated(error)) return
-        call check(error, value_eq(v, sym(expected)), name//" should be "//expected)
+        call check(error, value_eq(v, value_type(name=expected)), name//" should be "//expected)
     end subroutine check_value
 
     !> data-tests.el: binding-test-manual (without the `let`).
@@ -136,13 +137,13 @@ contains
 
         call setup(error, a, b)
         if (allocated(error)) return
-        call set_default(sym("binding-test-some-local"), sym("new-default"), st)
+        call set_default(value_type(name="binding-test-some-local"), value_type(name="new-default"), st)
         call check_value(error, "binding-test-some-local", "local")
-        call default_value(sym("binding-test-some-local"), v, st)
-        if (.not. allocated(error)) call check(error, value_eq(v, sym("new-default")), "default-value")
+        call default_value(value_type(name="binding-test-some-local"), v, st)
+        if (.not. allocated(error)) call check(error, value_eq(v, value_type(name="new-default")), "default-value")
         call set_buffer(b, st)
         call check_value(error, "binding-test-some-local", "new-default")
-        call set_default(sym("binding-test-some-local"), sym("some"), st)
+        call set_default(value_type(name="binding-test-some-local"), value_type(name="some"), st)
         call teardown(a, b)
     end subroutine test_setq_default
 
@@ -156,16 +157,16 @@ contains
 
         call setup(error, a, b)
         if (allocated(error)) return
-        call makunbound(sym("binding-test-some-local"), st)
-        call boundp(sym("binding-test-some-local"), bound, st)
+        call makunbound(value_type(name="binding-test-some-local"), st)
+        call boundp(value_type(name="binding-test-some-local"), bound, st)
         call check(error,.not. bound, "void locally")
         if (allocated(error)) return
-        call check(error, default_boundp(sym("binding-test-some-local")), "default still bound")
+        call check(error, default_boundp(value_type(name="binding-test-some-local")), "default still bound")
         if (allocated(error)) return
         call set_buffer(b, st)
         call check_value(error, "binding-test-some-local", "some")
         call set_buffer(a, st)
-        call boundp(sym("binding-test-some-local"), bound, st)
+        call boundp(value_type(name="binding-test-some-local"), bound, st)
         if (.not. allocated(error)) call check(error,.not. bound, "void again in A")
         call teardown(a, b)
     end subroutine test_makunbound
@@ -179,19 +180,19 @@ contains
 
         call setup(error, a, b)
         if (allocated(error)) return
-        call check(error, is_local_variable_if_set(sym("binding-test-always-local")), "local if set")
+        call check(error, is_local_variable_if_set(value_type(name="binding-test-always-local")), "local if set")
         if (allocated(error)) return
-        call check(error,.not. is_local_variable(sym("binding-test-always-local")), "not yet local")
+        call check(error,.not. is_local_variable(value_type(name="binding-test-always-local")), "not yet local")
         if (allocated(error)) return
-        call set(sym("binding-test-always-local"), sym("in-a"), st)
-        call check(error, is_local_variable(sym("binding-test-always-local")), "local after set")
+        call set(value_type(name="binding-test-always-local"), value_type(name="in-a"), st)
+        call check(error, is_local_variable(value_type(name="binding-test-always-local")), "local after set")
         if (allocated(error)) return
         call set_buffer(b, st)
         call check_value(error, "binding-test-always-local", "always")
-        call buffer_local_value(sym("binding-test-always-local"), a%index, v, st)
-        if (.not. allocated(error)) call check(error, value_eq(v, sym("in-a")), "buffer-local-value")
+        call buffer_local_value(value_type(name="binding-test-always-local"), a%index, v, st)
+        if (.not. allocated(error)) call check(error, value_eq(v, value_type(name="in-a")), "buffer-local-value")
         call set_buffer(a, st)
-        call kill_local_variable(sym("binding-test-always-local"), st)
+        call kill_local_variable(value_type(name="binding-test-always-local"), st)
         call check_value(error, "binding-test-always-local", "always")
         call teardown(a, b)
     end subroutine test_always_local
@@ -208,27 +209,27 @@ contains
         call setup(error, a, b)
         if (allocated(error)) return
         saved = fill_column%value
-        call set(sym("fill_column"), make_fixnum(50_int64), st)
+        call set(value_type(name="fill_column"), value_type(50_int64), st)
         call check(error, fill_column%value == 50, "fill_column set")
         if (allocated(error)) return
-        call check(error, is_local_variable(sym("fill_column")), "fill-column local after set")
+        call check(error, is_local_variable(value_type(name="fill_column")), "fill-column local after set")
         if (allocated(error)) return
         call set_buffer(b, st)
         call check(error, fill_column%value == saved, "default in B")
         if (allocated(error)) return
-        call buffer_local_value(sym("fill_column"), a%index, v, st)
+        call buffer_local_value(value_type(name="fill_column"), a%index, v, st)
         call check(error, xfixnum(v) == 50, "buffer-local-value of A")
         if (allocated(error)) return
-        call set(sym("fill_column"), make_string("x"), st)
+        call set(value_type(name="fill_column"), value_type(text="x"), st)
         call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "wrong_type_argument")
         if (allocated(error)) return
         call set_buffer(a, st)
         call check(error, fill_column%value == 50, "local again in A")
         if (allocated(error)) return
-        call set_default(sym("fill_column"), make_fixnum(60_int64), st)
+        call set_default(value_type(name="fill_column"), value_type(60_int64), st)
         call check(error, fill_column%value == 50, "set-default keeps the local value")
         if (allocated(error)) return
-        call kill_local_variable(sym("fill_column"), st)
+        call kill_local_variable(value_type(name="fill_column"), st)
         call check(error, fill_column%value == 60, "default after kill-local-variable")
         fill_column = saved
         call teardown(a, b)
@@ -244,19 +245,19 @@ contains
 
         call setup(error, a, b)
         if (allocated(error)) return
-        call set(sym("case_identifiers_as_words"), t_value(), st)
+        call set(value_type(name="case_identifiers_as_words"), value_type(.true.), st)
         call check(error, st%ok() .and. case_identifiers_as_words%value, "set in A")
         if (allocated(error)) return
-        call check(error, is_local_variable(sym("case_identifiers_as_words")), "local after set")
+        call check(error, is_local_variable(value_type(name="case_identifiers_as_words")), "local after set")
         if (allocated(error)) return
         call set_buffer(b, st)
         call check(error,.not. case_identifiers_as_words%value, "default in B")
         if (allocated(error)) return
-        call buffer_local_value(sym("case_identifiers_as_words"), a%index, v, st)
-        call check(error, value_eq(v, t_value()), "buffer-local-value of A")
+        call buffer_local_value(value_type(name="case_identifiers_as_words"), a%index, v, st)
+        call check(error, value_eq(v, value_type(.true.)), "buffer-local-value of A")
         if (allocated(error)) return
         call set_buffer(a, st)
-        call kill_local_variable(sym("case_identifiers_as_words"), st)
+        call kill_local_variable(value_type(name="case_identifiers_as_words"), st)
         call check(error,.not. case_identifiers_as_words%value, "default after kill-local-variable")
         call teardown(a, b)
     end subroutine test_case_symbols_local
@@ -268,27 +269,31 @@ contains
         type(status_type) :: st
         type(value_type) :: v
 
+        call syms_of_simple()
         call setup(error, a, b)
         if (allocated(error)) return
-        call set(sym("auto_fill_function"), sym("do_auto_fill"), st)
+        call set(value_type(name="auto_fill_function"), value_type(name="do_auto_fill"), st)
         call check(error, associated(auto_fill_function%value), "auto-fill on in A")
         if (allocated(error)) return
         call set_buffer(b, st)
         call check(error,.not. associated(auto_fill_function%value), "off in B")
         if (allocated(error)) return
-        call buffer_local_value(sym("auto_fill_function"), a%index, v, st)
-        call check(error, value_eq(v, sym("do_auto_fill")), "named in A")
+        call buffer_local_value(value_type(name="auto_fill_function"), a%index, v, st)
+        call check(error, value_eq(v, value_type(name="do_auto_fill")), "named in A")
         if (allocated(error)) return
         call set_buffer(a, st)
         call check(error, associated(auto_fill_function%value), "on again in A")
         if (allocated(error)) return
-        ! Any value is kept; calling it then fails as upstream.
-        call set(sym("auto_fill_function"), sym("no-such-function"), st)
-        call symbol_value(sym("auto_fill_function"), v, st)
-        call check(error, value_eq(v, sym("no-such-function")), "kept exactly")
+        ! A name is resolved when it is set: an undefined one is a
+        ! void-function error condition, and the value stays.
+        call set(value_type(name="auto_fill_function"), value_type(name="no-such-function"), st)
+        call check(error, st%code == FM_VOID_FUNCTION, "void-function when set")
         if (allocated(error)) return
-        call auto_fill_function%value(st)
-        call check(error, st%code == FM_VOID_FUNCTION, "void-function when called")
+        call symbol_value(value_type(name="auto_fill_function"), v, st)
+        call check(error, value_eq(v, value_type(name="do_auto_fill")), "value unchanged")
+        if (allocated(error)) return
+        call set(value_type(name="auto_fill_function"), value_type(1_int64), st)
+        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "a number is the wrong type")
         call teardown(a, b)
         if (allocated(error)) return
         call check(error,.not. associated(auto_fill_function%value), "off after killing A")
@@ -304,21 +309,21 @@ contains
 
         call setup(error, a, b)
         if (allocated(error)) return
-        call setq_local("binding-test-permanent", sym("kept"), st)
-        call put(sym("binding-test-permanent"), sym("permanent_local"), t_value(), st)
-        call set(sym("major_mode"), sym("text_mode"), st)
+        call setq_local("binding-test-permanent", value_type(name="kept"), st)
+        call put(value_type(name="binding-test-permanent"), value_type(name="permanent_local"), value_type(.true.), st)
+        call set(value_type(name="major_mode"), value_type(name="text_mode"), st)
         call check(error, buffers(cur)%major_mode == "text_mode", "major-mode slot")
         if (allocated(error)) return
         call kill_all_local_variables()
         call check_value(error, "binding-test-some-local", "some")
         call check_value(error, "binding-test-permanent", "kept")
         call check_value(error, "major_mode", "fundamental_mode")
-        call symbol_value(sym("mode_name"), v, st)
+        call symbol_value(value_type(name="mode_name"), v, st)
         if (.not. allocated(error)) call check(error, xstring(v) == "Fundamental", "mode_name")
         if (allocated(error)) return
         call kill_all_local_variables(.true.)
-        call check(error,.not. is_local_variable(sym("binding-test-permanent")), "permanent killed too")
-        call put(sym("binding-test-permanent"), sym("permanent_local"), value_type(), st)
+        call check(error,.not. is_local_variable(value_type(name="binding-test-permanent")), "permanent killed too")
+        call put(value_type(name="binding-test-permanent"), value_type(name="permanent_local"), value_type(), st)
         call teardown(a, b)
     end subroutine test_kill_all
 
@@ -335,8 +340,8 @@ contains
         call check(error, list_length(table) == 4, "four entries")
         if (allocated(error)) return
         elt = list_elt(table, 1_int64)
-        call check(error, value_eq(list_elt(elt, 1_int64), sym("binding-test-some-local")) .and. &
-                   value_eq(list_elt(elt, 2_int64), sym("local")), "first entry")
+        call check(error, value_eq(list_elt(elt, 1_int64), value_type(name="binding-test-some-local")) .and. &
+                   value_eq(list_elt(elt, 2_int64), value_type(name="local")), "first entry")
         if (allocated(error)) return
         table = buffer_local_variables(b%index)
         call check(error, list_length(table) == 3, "only the slots in B")
@@ -354,7 +359,7 @@ contains
         if (allocated(error)) return
         call kill_buffer(a, st)
         call check_value(error, "binding-test-some-local", "some")
-        call symbol_value(sym("binding-test-nothing"), v, st)
+        call symbol_value(value_type(name="binding-test-nothing"), v, st)
         if (.not. allocated(error)) call check(error, st%code == FM_VOID_VARIABLE, "void")
         call teardown(a, b)
     end subroutine test_kill_current
@@ -367,23 +372,45 @@ contains
         type(value_type) :: v
         logical :: saved
 
+        ! A logical setting holds .true. or .false.: any allocated value is
+        ! .true. (A8: no exact value is kept).
         saved = case_fold_search%value
-        call set_default(sym("case_fold_search"), sym("data-test"), st)
-        call symbol_value(sym("case_fold_search"), v, st)
-        call check(error, value_eq(v, sym("data-test")) .and. case_fold_search%value, "symbol kept, true in Fortran")
+        call set_default(value_type(name="case_fold_search"), value_type(name="data-test"), st)
+        call symbol_value(value_type(name="case_fold_search"), v, st)
+        call check(error, value_eq(v, value_type(.true.)) .and. case_fold_search%value, "true")
         if (allocated(error)) return
         case_fold_search = saved
-        call symbol_value(sym("case_fold_search"), v, st)
-        call check(error, value_eq(v, t_value()) .eqv. saved, "Fortran assignment wins")
+        call symbol_value(value_type(name="case_fold_search"), v, st)
+        call check(error, value_eq(v, value_type(.true.)) .eqv. saved, "Fortran assignment wins")
         if (allocated(error)) return
-        call set_default(sym("fill_column"), value_type(), st)
-        call check(error, st%ok(), "fill-column may be nil")
+        ! fill-column and tab-width may be nil upstream: FILL_COLUMN_NONE
+        ! (current_fill_column then gives the largest fixnum) and
+        ! TAB_WIDTH_DEFAULT (tabs are 8 columns wide).
+        call set_default(value_type(name="fill_column"), value_type(), st)
+        call check(error, st%ok() .and. fill_column%value == FILL_COLUMN_NONE, "fill-column may be nil")
         if (allocated(error)) return
-        call symbol_value(sym("fill_column"), v, st)
-        call check(error,.not. allocated(v%a), "nil kept")
+        call symbol_value(value_type(name="fill_column"), v, st)
+        call check(error,.not. allocated(v%a), "fill-column reads back as nil")
         if (allocated(error)) return
-        call set_default(sym("fill_column"), make_string("x"), st)
+        call check(error, current_fill_column() == 2_int64**61 - 1, "no fill column: the largest fixnum")
+        if (allocated(error)) return
+        call set_default(value_type(name="tab_width"), value_type(), st)
+        call check(error, st%ok() .and. sane_tab_width() == 8, "tab-width may be nil: 8 columns")
+        if (allocated(error)) return
+        call symbol_value(value_type(name="tab_width"), v, st)
+        call check(error,.not. allocated(v%a), "tab-width reads back as nil")
+        tab_width = 8
+        if (allocated(error)) return
+        ! Another integer setting holds integers only.
+        call set_default(value_type(name="standard_indent"), value_type(), st)
+        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "standard-indent: unallocated is the wrong type")
+        if (allocated(error)) return
+        call set_default(value_type(name="fill_column"), value_type(text="x"), st)
         call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "expected integer")
+        if (allocated(error)) return
+        ! A string setting holds a string or no string.
+        call set_default(value_type(name="fill_prefix"), value_type(name="data-test"), st)
+        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "fill-prefix: a name is the wrong type")
         fill_column = 70
     end subroutine test_exact
 
@@ -397,22 +424,22 @@ contains
 
         call setup(error, a, b)
         if (allocated(error)) return
-        call makunbound(sym("fill_column"), st)
+        call makunbound(value_type(name="fill_column"), st)
         call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "fill-column: expected integer")
         if (allocated(error)) return
         indent_tabs_mode = .false.
-        call makunbound(sym("indent_tabs_mode"), st)
+        call makunbound(value_type(name="indent_tabs_mode"), st)
         call check(error, indent_tabs_mode%value, "a DEFVAR_BOOL becomes t")
         if (allocated(error)) return
-        call makunbound(sym("fill_prefix"), st)
-        call boundp(sym("fill_prefix"), bound, st)
+        call makunbound(value_type(name="fill_prefix"), st)
+        call boundp(value_type(name="fill_prefix"), bound, st)
         call check(error,.not. bound, "fill-prefix void here")
         if (allocated(error)) return
-        call symbol_value(sym("fill_prefix"), v, st)
+        call symbol_value(value_type(name="fill_prefix"), v, st)
         call check(error, st%code == FM_VOID_VARIABLE, "void_variable")
         if (allocated(error)) return
         call set_buffer(b, st)
-        call boundp(sym("fill_prefix"), bound, st)
+        call boundp(value_type(name="fill_prefix"), bound, st)
         call check(error, bound, "still bound in B (local void binding in A)")
         call teardown(a, b)
     end subroutine test_makunbound_forwarded

@@ -29,7 +29,6 @@ module test_undo_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, &
                          is_buffer_modified, restore_buffer_modified, current_buffer
     use insdel_fm, only: insert
@@ -86,9 +85,9 @@ contains
 
         do k = 1, size(cmds)
             last_command = this_command
-            this_command = sym(trim(cmds(k)))
+            this_command = value_type(name=trim(cmds(k)))
             prefix_arg = value_type()
-            call call_interactively(sym(trim(cmds(k))), st)
+            call call_interactively(value_type(name=trim(cmds(k))), st)
             call undo_boundary()
         end do
     end subroutine exec

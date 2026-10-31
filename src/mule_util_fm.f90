@@ -33,8 +33,7 @@
 !> `filepos_to_bufferpos' and `bufferpos_to_filepos'.
 module mule_util_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use lisp_fm, only: value_type, make_string, make_list
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, make_list
     use character_fm, only: string_char_and_length
     use xdisp_fm, only: glyph_columns
     use textprop_fm, only: propertize, propertized_concat
@@ -281,17 +280,17 @@ contains
                             ellipsis_of(ellipsis, default_ellipsis), head, from_idx, idx, tail, ell, done, result)
 
         if (done) then
-            v = make_string(result)
+            v = value_type(text=result)
         else if (len(ell) > 0) then
             ! Use text properties for the ellipsis.
             call decode(str, widths, starts)
             n = size(widths)
-            props(1) = sym("display")
-            props(2) = make_string(ell)
-            rest = propertize(make_string(chars(str, idx, n)), make_list(props))
-            v = propertized_concat(make_string(head//chars(str, from_idx, idx)), rest)
+            props(1) = value_type(name="display")
+            props(2) = value_type(text=ell)
+            rest = propertize(value_type(text=chars(str, idx, n)), make_list(props))
+            v = propertized_concat(value_type(text=head//chars(str, from_idx, idx)), rest)
         else
-            v = make_string(head//chars(str, from_idx, idx)//tail//ell)
+            v = value_type(text=head//chars(str, from_idx, idx)//tail//ell)
         end if
     end function truncate_string_to_width_propertized
 

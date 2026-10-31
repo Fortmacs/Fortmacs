@@ -24,8 +24,7 @@ module test_keyboard_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, set_error, format_error, FM_USER_ERROR, FM_INHIBITED_INTERACTION, FM_TOP_LEVEL
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: list, make_fixnum, make_string, value_type, xfixnum, vtag, V_INTEGER
-    use lread_fm, only: sym
+    use lisp_fm, only: list, value_type, xfixnum, vtag, V_INTEGER
     use data_fm, only: value_eq
     use keymap_fm, only: define_key, free_keymap, key_description, key_parse, make_keymap, &
                          make_sparse_keymap, use_global_map, overriding_terminal_local_map, key_binding
@@ -37,9 +36,9 @@ module test_keyboard_fm
                            this_command_keys, this_command_keys_shift_translated, &
                            unread_command_events, ring_bell_hook, read_key_sequence_vs, clear_this_command_keys, &
                            read_char, read_char_exclusive, lossage_size, inhibit_interaction, &
-                           translate_upper_case_key_bindings, this_command_keys_vector, this_single_command_keys, &
+                           translate_upper_case_key_bindings, this_command_key_events, this_single_command_keys, &
                            this_single_command_raw_keys, set__this_command_keys, echo_keystrokes, echo_keystrokes_help, &
-                           cancel_echoing, event_convert_list, event_symbol_parse_modifiers, make_ctrl_char, &
+                           cancel_echoing, event_convert_list, event_name_parse_modifiers, make_ctrl_char, &
                            recursion_depth, top_level, recursive_edit, post_command_hook, safe_run_hooks, echo_now
     use fns_fm, only: value_equal
     use subr_fm, only: syms_of_subr
@@ -132,7 +131,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        seen_keys = key_description(this_command_keys_vector())
+        seen_keys = key_description(this_command_key_events())
         seen_single_keys = key_description(this_single_command_keys())
         seen_raw_keys = key_description(this_single_command_raw_keys())
     end subroutine cmd_keys
@@ -142,7 +141,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        prefix_arg = make_fixnum(0_int64)
+        prefix_arg = value_type(0_int64)
     end subroutine cmd_zero
 
     !> Record recursion-depth.
@@ -180,7 +179,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        prefix_arg = list(make_fixnum(4_int64))
+        prefix_arg = list(value_type(4_int64))
     end subroutine cmd_universal
 
     ! Helpers.
@@ -242,14 +241,14 @@ contains
     subroutine test_adjust_invisible(error)
         use textprop_fm, only: put_text_property
         use buffer_fm, only: kill_buffer
-        use lisp_fm, only: t_value
+        use lisp_fm, only: value_type
         use subr_fm, only: add_to_invisibility_spec
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
 
         call adjust_buffer(h)
-        call put_text_property(2_int64, 5_int64, sym("invisible"), t_value(), st)
+        call put_text_property(2_int64, 5_int64, value_type(name="invisible"), value_type(.true.), st)
         call check(error, point_after(1_int64, "C-f") == 2, "C-f")
         if (allocated(error)) return
         call check(error, point_after(1_int64, "C-f C-f") == 6, "C-f C-f")
@@ -259,7 +258,7 @@ contains
         call check(error, point_after(7_int64, "C-b C-b") == 2, "C-b C-b")
         if (allocated(error)) return
         call add_to_invisibility_spec("foo", ellipsis=.true.)
-        call put_text_property(2_int64, 5_int64, sym("invisible"), sym("foo"), st)
+        call put_text_property(2_int64, 5_int64, value_type(name="invisible"), value_type(name="foo"), st)
         call check(error, point_after(1_int64, "C-f C-f") == 5, "ellipsis C-f C-f")
         if (allocated(error)) return
         call check(error, point_after(7_int64, "C-b C-b") == 5, "ellipsis C-b C-b")
@@ -276,7 +275,7 @@ contains
         type(status_type) :: st
 
         call adjust_buffer(h)
-        call put_text_property(3_int64, 5_int64, sym("display"), make_string("XY"), st)
+        call put_text_property(3_int64, 5_int64, value_type(name="display"), value_type(text="XY"), st)
         call check(error, point_after(1_int64, "C-f C-f") == 3, "to its start")
         if (allocated(error)) return
         call check(error, point_after(1_int64, "C-f C-f C-f") == 5, "past it")
@@ -365,8 +364,8 @@ contains
 
         call discard_input()
         call kbd_store_bytes("z")
-        evs(1) = make_fixnum(120_int64)
-        evs(2) = make_fixnum(121_int64)
+        evs(1) = value_type(120_int64)
+        evs(2) = value_type(121_int64)
         call unread_command_events(evs)
         call check(error, is_input_pending(), "pending")
         if (allocated(error)) return
@@ -384,13 +383,13 @@ contains
 
         call check(error, prefix_numeric_value(value_type()), 1_int64)
         if (allocated(error)) return
-        call check(error, prefix_numeric_value(sym("-")), -1_int64)
+        call check(error, prefix_numeric_value(value_type(name="-")), -1_int64)
         if (allocated(error)) return
-        call check(error, prefix_numeric_value(list(make_fixnum(16_int64))), 16_int64)
+        call check(error, prefix_numeric_value(list(value_type(16_int64))), 16_int64)
         if (allocated(error)) return
-        call check(error, prefix_numeric_value(make_fixnum(-3_int64)), -3_int64)
+        call check(error, prefix_numeric_value(value_type(-3_int64)), -3_int64)
         if (allocated(error)) return
-        call check(error, prefix_numeric_value(sym("foo")), 1_int64)
+        call check(error, prefix_numeric_value(value_type(name="foo")), 1_int64)
     end subroutine test_prefix_numeric_value
 
     subroutine test_read_key_sequence(error)
@@ -402,18 +401,18 @@ contains
         logical :: eof
 
         call fresh_global(global)
-        call define_key(global, kbd("C-x C-f"), sym("find_file"), st)
-        call define_key(global, kbd("M-x"), sym("execute_extended_command"), st)
+        call define_key(global, kbd("C-x C-f"), value_type(name="find_file"), st)
+        call define_key(global, kbd("M-x"), value_type(name="execute_extended_command"), st)
         call kbd_store_bytes(char(24)//char(6)//char(27)//"x")
         call read_key_sequence(keys, binding, eof, st)
         call check(error, st%ok() .and. .not. eof .and. size(keys) == 2, "C-x C-f keys")
         if (allocated(error)) return
-        call check(error, value_eq(binding, sym("find_file")), "C-x C-f")
+        call check(error, value_eq(binding, value_type(name="find_file")), "C-x C-f")
         if (allocated(error)) return
         call read_key_sequence(keys, binding, eof, st)
         call check(error, key_description(keys), "M-x")
         if (allocated(error)) return
-        call check(error, value_eq(binding, sym("execute_extended_command")), "ESC x")
+        call check(error, value_eq(binding, value_type(name="execute_extended_command")), "ESC x")
         if (allocated(error)) return
         ! Input ending in the middle of a prefix.
         call kbd_store_bytes(char(24))
@@ -454,21 +453,21 @@ contains
         logical :: eof
 
         call fresh_global(global)
-        up(1) = sym("up")
-        call define_key(global, up, sym("previous_line"), st)
-        call define_key(global, kbd("M-x"), sym("execute_extended_command"), st)
+        up(1) = value_type(name="up")
+        call define_key(global, up, value_type(name="previous_line"), st)
+        call define_key(global, kbd("M-x"), value_type(name="execute_extended_command"), st)
         call make_sparse_keymap(decode)
-        call define_key(decode, kbd("ESC [ A"), list(sym("up")), st)
+        call define_key(decode, kbd("ESC [ A"), list(value_type(name="up")), st)
         input_decode_map = decode
         call kbd_store_bytes(char(27)//"[A"//char(27)//"x")
         call read_key_sequence(keys, binding, eof, st)
         call check(error, st%ok() .and. size(keys) == 1, "one key")
         if (allocated(error)) return
-        call check(error, value_eq(keys(1), sym("up")) .and. &
-                   value_eq(binding, sym("previous_line")), "up")
+        call check(error, value_eq(keys(1), value_type(name="up")) .and. &
+                   value_eq(binding, value_type(name="previous_line")), "up")
         if (allocated(error)) return
         call read_key_sequence(keys, binding, eof, st)
-        call check(error, value_eq(binding, sym("execute_extended_command")), "M-x")
+        call check(error, value_eq(binding, value_type(name="execute_extended_command")), "M-x")
         call free(decode)
         call free(global)
     end subroutine test_input_decode_map
@@ -483,18 +482,18 @@ contains
         logical :: eof
 
         call fresh_global(global)
-        call define_key(global, kbd("<f1>"), sym("help-command"), st)
+        call define_key(global, kbd("<f1>"), value_type(name="help-command"), st)
         call make_sparse_keymap(fkeys)
-        call define_key(fkeys, kbd("ESC O P"), list(sym("f1")), st)
+        call define_key(fkeys, kbd("ESC O P"), list(value_type(name="f1")), st)
         local_function_key_map = fkeys
         call kbd_store_bytes(char(27)//"OP")
         call read_key_sequence(keys, binding, eof, st)
-        call check(error, size(keys) == 1 .and. value_eq(binding, sym("help-command")), "translated")
+        call check(error, size(keys) == 1 .and. value_eq(binding, value_type(name="help-command")), "translated")
         if (allocated(error)) return
-        call define_key(global, kbd("M-O P"), sym("foo"), st)
+        call define_key(global, kbd("M-O P"), value_type(name="foo"), st)
         call kbd_store_bytes(char(27)//"OP")
         call read_key_sequence(keys, binding, eof, st)
-        call check(error, size(keys) == 3 .and. value_eq(binding, sym("foo")), "defined wins")
+        call check(error, size(keys) == 3 .and. value_eq(binding, value_type(name="foo")), "defined wins")
         call free(fkeys)
         call free(global)
     end subroutine test_function_key_map
@@ -508,20 +507,20 @@ contains
         logical :: eof
 
         call fresh_global(global)
-        call define_key(global, kbd("a"), sym("cmd-a"), st)
-        call define_key(global, kbd("<f2>"), sym("cmd-f2"), st)
+        call define_key(global, kbd("a"), value_type(name="cmd-a"), st)
+        call define_key(global, kbd("<f2>"), value_type(name="cmd-f2"), st)
         call kbd_store_bytes("AB")
         call read_key_sequence(keys, binding, eof, st)
-        call check(error, value_eq(binding, sym("cmd-a")) .and. xfixnum(keys(1)) == 97 &
+        call check(error, value_eq(binding, value_type(name="cmd-a")) .and. xfixnum(keys(1)) == 97 &
                    .and. this_command_keys_shift_translated, "A -> a")
         if (allocated(error)) return
         call read_key_sequence(keys, binding, eof, st)
         call check(error,.not. allocated(binding%a) .and. xfixnum(keys(1)) == 66, "B stays")
         if (allocated(error)) return
-        key(1) = sym("S-f2")
+        key(1) = value_type(name="S-f2")
         call unread_command_events(key)
         call read_key_sequence(keys, binding, eof, st)
-        call check(error, value_eq(binding, sym("cmd-f2")) .and. value_eq(keys(1), sym("f2")), "S-<f2>")
+        call check(error, value_eq(binding, value_type(name="cmd-f2")) .and. value_eq(keys(1), value_type(name="f2")), "S-<f2>")
         call free(global)
     end subroutine test_shift_translation
 
@@ -540,12 +539,13 @@ contains
         call cmd_cmd_fail%define()
         cmd_cmd_exit = command_type("cmd-exit", cmd_exit)
         call cmd_cmd_exit%define()
-        call define_key(global, kbd("a"), sym("cmd-a"), st)
-        call define_key(global, kbd("C-c b"), sym("cmd-b"), st)
-        call define_key(global, kbd("f"), sym("cmd-fail"), st)
-        call define_key(global, kbd("q"), sym("cmd-exit"), st)
-        call define_key(global, kbd("v"), sym("void-command"), st)
-        call check(error, is_command(sym("cmd-a")) .and. .not. is_command(sym("void-command")), "is_command")
+        call define_key(global, kbd("a"), value_type(name="cmd-a"), st)
+        call define_key(global, kbd("C-c b"), value_type(name="cmd-b"), st)
+        call define_key(global, kbd("f"), value_type(name="cmd-fail"), st)
+        call define_key(global, kbd("q"), value_type(name="cmd-exit"), st)
+        call define_key(global, kbd("v"), value_type(name="void-command"), st)
+        call check(error, is_command(value_type(name="cmd-a")) .and. .not. is_command(value_type(name="void-command")), &
+                   "is_command")
         if (allocated(error)) return
         count_a = 0
         count_b = 0
@@ -553,7 +553,7 @@ contains
         call command_loop(st)
         call check(error, count_a == 2 .and. count_b == 1, "counts")
         if (allocated(error)) return
-        call check(error, value_eq(last_command, sym("cmd-b")), "last-command")
+        call check(error, value_eq(last_command, value_type(name="cmd-b")), "last-command")
         if (allocated(error)) return
         call check(error, size(this_command_keys) == 0, "keys cleared after the command")
         if (allocated(error)) return
@@ -596,10 +596,10 @@ contains
         call cmd_cmd_b%define()
         cmd_universal_argument = command_type("test-universal-argument", cmd_universal)
         call cmd_universal_argument%define()
-        call define_key(global, kbd("a"), sym("cmd-a"), st)
-        call define_key(global, kbd("b"), sym("cmd-b"), st)
-        call define_key(global, kbd("C-u"), sym("test-universal-argument"), st)
-        call define_key(global, kbd("C-c m"), make_string("ab"), st)
+        call define_key(global, kbd("a"), value_type(name="cmd-a"), st)
+        call define_key(global, kbd("b"), value_type(name="cmd-b"), st)
+        call define_key(global, kbd("C-u"), value_type(name="test-universal-argument"), st)
+        call define_key(global, kbd("C-c m"), value_type(text="ab"), st)
         count_a = 0
         count_b = 0
         call kbd_store_bytes(char(21)//"a")
@@ -634,12 +634,12 @@ contains
         cmd_universal_argument = command_type("test-universal-argument", cmd_universal)
         call cmd_universal_argument%define()
         call syms_of_subr()
-        call define_key(global, kbd("a"), sym("cmd-a"), st)
-        call define_key(global, kbd("g"), sym("cmd-check"), st)
-        call define_key(global, kbd("C-c m"), make_string("ag"), st)
-        call define_key(global, kbd("C-c u"), make_string("za"), st)
-        call define_key(global, kbd("C-c 0"), list(make_fixnum(3_int64), make_fixnum(109_int64)), st)
-        call define_key(global, kbd("C-c z"), sym("test-zero-argument"), st)
+        call define_key(global, kbd("a"), value_type(name="cmd-a"), st)
+        call define_key(global, kbd("g"), value_type(name="cmd-check"), st)
+        call define_key(global, kbd("C-c m"), value_type(text="ag"), st)
+        call define_key(global, kbd("C-c u"), value_type(text="za"), st)
+        call define_key(global, kbd("C-c 0"), list(value_type(3_int64), value_type(109_int64)), st)
+        call define_key(global, kbd("C-c z"), value_type(name="test-zero-argument"), st)
         cmd_zero_argument = command_type("test-zero-argument", cmd_zero)
         call cmd_zero_argument%define()
         count_a = 0
@@ -677,7 +677,7 @@ contains
         logical :: eof
 
         call fresh_global(global)
-        call define_key(global, kbd("C-x C-s"), sym("save_buffer"), st)
+        call define_key(global, kbd("C-x C-s"), value_type(name="save_buffer"), st)
         call open_pty(master, slave, st)
         call check(error, st%ok(), "open_pty")
         if (allocated(error)) return
@@ -689,7 +689,7 @@ contains
             call set_input_fd(slave)
             call emacs_write(master, char(24)//char(19), st)
             call read_key_sequence(keys, binding, eof, st)
-            call check(error, st%ok() .and. value_eq(binding, sym("save_buffer")), "C-x C-s")
+            call check(error, st%ok() .and. value_eq(binding, value_type(name="save_buffer")), "C-x C-s")
             call reset_sys_modes(slave, old, st)
         end block run
 
@@ -751,14 +751,14 @@ contains
         call fresh_global(global)
         ! keyboard-tests-rks-prefix-then-key
         call make_sparse_keymap(map)
-        call define_key(map, kbd("C-c a"), sym("ignore"), st)
+        call define_key(map, kbd("C-c a"), value_type(name="ignore"), st)
         call rks_observe(evs("C-c a"), map, seq, binding, shifted)
-        call check(error, key_description(seq) == "C-c a" .and. value_eq(binding, sym("ignore")), "prefix-then-key")
+        call check(error, key_description(seq) == "C-c a" .and. value_eq(binding, value_type(name="ignore")), "prefix-then-key")
         if (allocated(error)) return
         call free(map)
         ! keyboard-tests-rks-unbound-returns-sequence
         call make_sparse_keymap(map)
-        ev(1) = sym("symbol-not-bound")
+        ev(1) = value_type(name="symbol-not-bound")
         call rks_observe(ev, map, seq, binding, shifted)
         call check(error, key_description(seq), "<symbol-not-bound>")
         if (allocated(error)) return
@@ -767,11 +767,11 @@ contains
         call make_sparse_keymap(map)
         call make_sparse_keymap(decode)
         input_decode_map = decode
-        call define_key(decode, kbd("C-c a b"), list(sym("f99")), st)
-        call define_key(map, kbd("C-c C-c C-c"), sym("ignore"), st)
-        call define_key(map, kbd("<f99>"), sym("undo"), st)
+        call define_key(decode, kbd("C-c a b"), list(value_type(name="f99")), st)
+        call define_key(map, kbd("C-c C-c C-c"), value_type(name="ignore"), st)
+        call define_key(map, kbd("<f99>"), value_type(name="undo"), st)
         call rks_observe(evs("C-c C-c C-c a b"), map, seq, binding, shifted)
-        call check(error, key_description(seq) == "C-c C-c C-c" .and. value_eq(binding, sym("ignore")), &
+        call check(error, key_description(seq) == "C-c C-c C-c" .and. value_eq(binding, value_type(name="ignore")), &
                    "bound-sequence-ends-read")
         if (allocated(error)) return
         call discard_input()
@@ -781,10 +781,10 @@ contains
         call make_sparse_keymap(map)
         call make_sparse_keymap(decode)
         input_decode_map = decode
-        call define_key(decode, kbd("C-c a b"), list(sym("f99")), st)
-        call define_key(map, kbd("C-c C-c <f99>"), sym("ignore"), st)
+        call define_key(decode, kbd("C-c a b"), list(value_type(name="f99")), st)
+        call define_key(map, kbd("C-c C-c <f99>"), value_type(name="ignore"), st)
         call rks_observe(evs("C-c C-c C-c a b"), map, seq, binding, shifted)
-        call check(error, key_description(seq) == "C-c C-c <f99>" .and. value_eq(binding, sym("ignore")), &
+        call check(error, key_description(seq) == "C-c C-c <f99>" .and. value_eq(binding, value_type(name="ignore")), &
                    "decode-fires-without-binding")
         if (allocated(error)) return
         call free(map)
@@ -793,18 +793,18 @@ contains
         call make_sparse_keymap(map)
         call make_sparse_keymap(decode)
         input_decode_map = decode
-        call define_key(map, kbd("C-c b"), sym("ignore"), st)
-        call define_key(decode, kbd("C-c a"), list(make_fixnum(3_int64), make_fixnum(98_int64)), st)
+        call define_key(map, kbd("C-c b"), value_type(name="ignore"), st)
+        call define_key(decode, kbd("C-c a"), list(value_type(3_int64), value_type(98_int64)), st)
         call rks_observe(evs("C-c a"), map, seq, binding, shifted)
-        call check(error, key_description(seq) == "C-c b" .and. value_eq(binding, sym("ignore")), "input-decode-map")
+        call check(error, key_description(seq) == "C-c b" .and. value_eq(binding, value_type(name="ignore")), "input-decode-map")
         if (allocated(error)) return
         call free(map)
         ! keyboard-tests-rks-input-decode-before-function-key
         call make_sparse_keymap(map)
         call make_sparse_keymap(fkeys)
         local_function_key_map = fkeys
-        call define_key(map, kbd("C-c c"), sym("ignore"), st)
-        call define_key(fkeys, kbd("C-c b"), list(make_fixnum(3_int64), make_fixnum(99_int64)), st)
+        call define_key(map, kbd("C-c c"), value_type(name="ignore"), st)
+        call define_key(fkeys, kbd("C-c b"), list(value_type(3_int64), value_type(99_int64)), st)
         call rks_observe(evs("C-c a"), map, seq, binding, shifted)
         call check(error, key_description(seq), "C-c b")
         if (allocated(error)) return
@@ -816,22 +816,22 @@ contains
         call make_sparse_keymap(map)
         call make_sparse_keymap(fkeys)
         local_function_key_map = fkeys
-        call define_key(map, kbd("C-c b"), sym("ignore"), st)
-        call define_key(fkeys, kbd("C-c a"), list(make_fixnum(3_int64), make_fixnum(98_int64)), st)
+        call define_key(map, kbd("C-c b"), value_type(name="ignore"), st)
+        call define_key(fkeys, kbd("C-c a"), list(value_type(3_int64), value_type(98_int64)), st)
         call rks_observe(evs("C-c a"), map, seq, binding, shifted)
-        call check(error, key_description(seq) == "C-c b" .and. value_eq(binding, sym("ignore")), "function-key-map")
+        call check(error, key_description(seq) == "C-c b" .and. value_eq(binding, value_type(name="ignore")), "function-key-map")
         if (allocated(error)) return
         ! keyboard-tests-rks-function-key-map-on-undefined
-        call define_key(map, kbd("C-c a"), sym("undefined"), st)
+        call define_key(map, kbd("C-c a"), value_type(name="undefined"), st)
         call rks_observe(evs("C-c a"), map, seq, binding, shifted)
-        call check(error, key_description(seq) == "C-c b" .and. value_eq(binding, sym("ignore")), &
+        call check(error, key_description(seq) == "C-c b" .and. value_eq(binding, value_type(name="ignore")), &
                    "function-key-map-on-undefined")
         if (allocated(error)) return
         ! keyboard-tests-rks-function-key-skipped-when-bound
-        call define_key(map, kbd("C-c a"), sym("ignore"), st)
-        call define_key(map, kbd("C-c b"), sym("undo"), st)
+        call define_key(map, kbd("C-c a"), value_type(name="ignore"), st)
+        call define_key(map, kbd("C-c b"), value_type(name="undo"), st)
         call rks_observe(evs("C-c a"), map, seq, binding, shifted)
-        call check(error, key_description(seq) == "C-c a" .and. value_eq(binding, sym("ignore")), &
+        call check(error, key_description(seq) == "C-c a" .and. value_eq(binding, value_type(name="ignore")), &
                    "function-key-skipped-when-bound")
         if (allocated(error)) return
         call free(map)
@@ -839,10 +839,10 @@ contains
         call make_sparse_keymap(map)
         call make_sparse_keymap(trans)
         key_translation_map = trans
-        call define_key(map, kbd("C-c c"), sym("ignore"), st)
-        call define_key(trans, kbd("C-c b"), list(make_fixnum(3_int64), make_fixnum(99_int64)), st)
+        call define_key(map, kbd("C-c c"), value_type(name="ignore"), st)
+        call define_key(trans, kbd("C-c b"), list(value_type(3_int64), value_type(99_int64)), st)
         call rks_observe(evs("C-c a"), map, seq, binding, shifted)
-        call check(error, key_description(seq) == "C-c c" .and. value_eq(binding, sym("ignore")), &
+        call check(error, key_description(seq) == "C-c c" .and. value_eq(binding, value_type(name="ignore")), &
                    "key-translation-after-function-key")
         if (allocated(error)) return
         local_function_key_map = null_handle()
@@ -853,11 +853,11 @@ contains
         call make_sparse_keymap(map)
         call make_sparse_keymap(trans)
         key_translation_map = trans
-        call define_key(map, kbd("C-c a"), sym("ignore"), st)
-        call define_key(map, kbd("C-c b"), sym("undo"), st)
-        call define_key(trans, kbd("C-c a"), list(make_fixnum(3_int64), make_fixnum(98_int64)), st)
+        call define_key(map, kbd("C-c a"), value_type(name="ignore"), st)
+        call define_key(map, kbd("C-c b"), value_type(name="undo"), st)
+        call define_key(trans, kbd("C-c a"), list(value_type(3_int64), value_type(98_int64)), st)
         call rks_observe(evs("C-c a"), map, seq, binding, shifted)
-        call check(error, key_description(seq) == "C-c b" .and. value_eq(binding, sym("undo")), &
+        call check(error, key_description(seq) == "C-c b" .and. value_eq(binding, value_type(name="undo")), &
                    "key-translation-overrides-bound-sequence")
         if (allocated(error)) return
         key_translation_map = null_handle()
@@ -865,9 +865,9 @@ contains
         call free(trans)
         ! keyboard-tests-rks-upcase-fallback
         call make_sparse_keymap(map)
-        call define_key(map, kbd("C-c a"), sym("ignore"), st)
+        call define_key(map, kbd("C-c a"), value_type(name="ignore"), st)
         call rks_observe(evs("C-c A"), map, seq, binding, shifted)
-        call check(error, key_description(seq) == "C-c a" .and. value_eq(binding, sym("ignore")) .and. shifted, &
+        call check(error, key_description(seq) == "C-c a" .and. value_eq(binding, value_type(name="ignore")) .and. shifted, &
                    "upcase-fallback")
         if (allocated(error)) return
         ! keyboard-tests-rks-no-upcase-fallback
@@ -883,10 +883,10 @@ contains
         call free(map)
         ! keyboard-tests-rks-shifted-function-key-fallback
         call make_sparse_keymap(map)
-        call define_key(map, kbd("<f2>"), sym("ignore"), st)
-        ev(1) = sym("S-f2")
+        call define_key(map, kbd("<f2>"), value_type(name="ignore"), st)
+        ev(1) = value_type(name="S-f2")
         call rks_observe(ev, map, seq, binding, shifted)
-        call check(error, key_description(seq) == "<f2>" .and. value_eq(binding, sym("ignore")) .and. shifted, &
+        call check(error, key_description(seq) == "<f2>" .and. value_eq(binding, value_type(name="ignore")) .and. shifted, &
                    "shifted-function-key-fallback")
         call free(map)
         call free(global)
@@ -958,9 +958,9 @@ contains
         logical :: have
 
         call discard_input()
-        e(1) = make_fixnum(ior(CTL, 97_int64))
-        e(2) = sym("kp-5")
-        e(3) = sym("f1")
+        e(1) = value_type(ior(CTL, 97_int64))
+        e(2) = value_type(name="kp-5")
+        e(3) = value_type(name="f1")
         call unread_command_events(e)
         call read_char(c, have, st, prompt="Char: ")
         call check(error, have .and. c == 1 .and. last_message == "Char: ", "C-a")
@@ -992,9 +992,9 @@ contains
         call fresh_global(global)
         cmd_cmd_keys = command_type("cmd-keys", cmd_keys)
         call cmd_cmd_keys%define()
-        call define_key(global, kbd("C-c <up>"), sym("cmd-keys"), st)
+        call define_key(global, kbd("C-c <up>"), value_type(name="cmd-keys"), st)
         call make_sparse_keymap(decode)
-        call define_key(decode, kbd("ESC [ A"), list(sym("up")), st)
+        call define_key(decode, kbd("ESC [ A"), list(value_type(name="up")), st)
         input_decode_map = decode
         call kbd_store_bytes(char(3)//char(27)//"[A")
         call command_loop(st)
@@ -1005,19 +1005,19 @@ contains
         call check(error, seen_raw_keys, "C-c M-[ A")
         if (allocated(error)) return
         ! After the command, the keys are cleared.
-        call check(error, size(this_command_keys_vector()) == 0, "cleared")
+        call check(error, size(this_command_key_events()) == 0, "cleared")
         if (allocated(error)) return
         ! read-key-sequence: the last key sequence read.
         call kbd_store_bytes(char(3)//char(27)//"[A")
         call read_key_sequence_vs(keys, binding, eof, st)
         call check(error, key_description(this_single_command_keys()) == "C-c <up>" .and. &
-                   value_eq(binding, sym("cmd-keys")), "read-key-sequence")
+                   value_eq(binding, value_type(name="cmd-keys")), "read-key-sequence")
         if (allocated(error)) return
         call clear_this_command_keys(keep_record=.true.)
-        call check(error, size(this_command_keys_vector()) == 0, "clear")
+        call check(error, size(this_command_key_events()) == 0, "clear")
         if (allocated(error)) return
         call set__this_command_keys(char(195)//char(184)//"y")
-        call check(error, key_description(this_command_keys_vector()), "M-x y")
+        call check(error, key_description(this_command_key_events()), "M-x y")
         input_decode_map = null_handle()
         call free(decode)
         call free(global)
@@ -1037,7 +1037,7 @@ contains
         real :: saved
 
         call fresh_global(global)
-        call define_key(global, kbd("C-x a"), sym("ignore"), st)
+        call define_key(global, kbd("C-x a"), value_type(name="ignore"), st)
         saved = echo_keystrokes
         echo_keystrokes = 0.01
         call cancel_echoing()
@@ -1082,51 +1082,52 @@ contains
         type(status_type) :: st
         type(value_type) :: ev, parsed, d2(2), d3(3)
 
-        d2(1) = sym("control")
-        d2(2) = make_fixnum(97_int64)
+        d2(1) = value_type(name="control")
+        d2(2) = value_type(97_int64)
         call event_convert_list(d2, ev, st)
         call check(error, xfixnum(ev), 1_int64)
         if (allocated(error)) return
-        d3(1) = sym("control")
-        d3(2) = sym("meta")
-        d3(3) = sym("a")
+        d3(1) = value_type(name="control")
+        d3(2) = value_type(name="meta")
+        d3(3) = value_type(name="a")
         call event_convert_list(d3, ev, st)
         call check(error, xfixnum(ev), META + 1)
         if (allocated(error)) return
-        d2(1) = sym("shift")
-        d2(2) = make_fixnum(97_int64)
+        d2(1) = value_type(name="shift")
+        d2(2) = value_type(97_int64)
         call event_convert_list(d2, ev, st)
         call check(error, xfixnum(ev), 65_int64)
         if (allocated(error)) return
-        d2(1) = sym("control")
-        d2(2) = make_fixnum(65_int64)
+        d2(1) = value_type(name="control")
+        d2(2) = value_type(65_int64)
         call event_convert_list(d2, ev, st)
         call check(error, xfixnum(ev), SHIFT + 1)
         if (allocated(error)) return
-        d2(1) = sym("control")
-        d2(2) = make_fixnum(37_int64)
+        d2(1) = value_type(name="control")
+        d2(2) = value_type(37_int64)
         call event_convert_list(d2, ev, st)
         call check(error, xfixnum(ev), CTL + 37)
         if (allocated(error)) return
-        d3(1) = sym("meta")
-        d3(2) = sym("control")
-        d3(3) = sym("f1")
+        d3(1) = value_type(name="meta")
+        d3(2) = value_type(name="control")
+        d3(3) = value_type(name="f1")
         call event_convert_list(d3, ev, st)
-        call check(error, value_eq(ev, sym("C-M-f1")), "C-M-<f1>")
+        call check(error, value_eq(ev, value_type(name="C-M-f1")), "C-M-<f1>")
         if (allocated(error)) return
-        d2(1) = make_fixnum(97_int64)
-        d2(2) = make_fixnum(98_int64)
+        d2(1) = value_type(97_int64)
+        d2(2) = value_type(98_int64)
         call event_convert_list(d2, ev, st)
         call check(error, format_error(st), "Two bases given in one event")
         if (allocated(error)) return
-        parsed = event_symbol_parse_modifiers(sym("C-M-f1"))
-        call check(error, value_equal(parsed, list(sym("f1"), sym("meta"), sym("control"))), "C-M-f1")
+        parsed = event_name_parse_modifiers(value_type(name="C-M-f1"))
+        call check(error, value_equal(parsed, list(value_type(name="f1"), value_type(name="meta"), value_type(name="control"))), &
+                   "C-M-f1")
         if (allocated(error)) return
-        parsed = event_symbol_parse_modifiers(sym("down-mouse-1"))
-        call check(error, value_equal(parsed, list(sym("mouse-1"), sym("down"))), "down-mouse-1")
+        parsed = event_name_parse_modifiers(value_type(name="down-mouse-1"))
+        call check(error, value_equal(parsed, list(value_type(name="mouse-1"), value_type(name="down"))), "down-mouse-1")
         if (allocated(error)) return
-        parsed = event_symbol_parse_modifiers(sym("mouse-2"))
-        call check(error, value_equal(parsed, list(sym("mouse-2"), sym("click"))), "mouse-2")
+        parsed = event_name_parse_modifiers(value_type(name="mouse-2"))
+        call check(error, value_equal(parsed, list(value_type(name="mouse-2"), value_type(name="click"))), "mouse-2")
         if (allocated(error)) return
         call check(error, make_ctrl_char(iachar("@", int64)), 0_int64)
     end subroutine test_event_symbols
@@ -1146,8 +1147,8 @@ contains
         call cmd_cmd_top%define()
         cmd_cmd_fail = command_type("cmd-fail", cmd_fail)
         call cmd_cmd_fail%define()
-        call define_key(global, kbd("d"), sym("cmd-depth"), st)
-        call define_key(global, kbd("t"), sym("cmd-top"), st)
+        call define_key(global, kbd("d"), value_type(name="cmd-depth"), st)
+        call define_key(global, kbd("t"), value_type(name="cmd-top"), st)
         seen_depth = -1
         last_message = ""
         call kbd_store_bytes("dt")

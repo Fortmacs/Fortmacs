@@ -90,8 +90,7 @@ module compile_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, t_value, make_string, list, make_fixnum, xfixnum, vtag, V_INTEGER, V_STRING, V_ARRAY
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list, xfixnum, vtag, V_INTEGER, V_STRING, V_ARRAY
     use data_fm, only: string_setting, logical_setting, integer_setting, symbol_value, set, &
                        add_local_variables_killer, forward_setting
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, is_buffer_live, &
@@ -1476,7 +1475,7 @@ contains
         id = 0
         if (entry_of(current_buffer()) == 0) return
         if (pos < 1) return
-        call get_text_property(pos, sym(prop), v, st)
+        call get_text_property(pos, value_type(name=prop), v, st)
         if (.not. st%ok()) return
         if (vtag(v) /= V_INTEGER) return
         if (xfixnum(v) < 1 .or. xfixnum(v) > huge(0)) return
@@ -1493,7 +1492,7 @@ contains
         type(status_type) :: st
 
         id = 0
-        call previous_single_property_change(pos, sym("compilation_directory"), prev, found, st)
+        call previous_single_property_change(pos, value_type(name="compilation_directory"), prev, found, st)
         if (.not. found) return
         id = dir_at(prev - 1)
         if (id == 0) id = dir_at(prev)
@@ -1993,7 +1992,8 @@ contains
 
         if (matchnum == 0) return
         if (md_pos(md, matchnum, .false.) == 0) return
-        call put_text_property(md_pos(md, matchnum, .false.), md_pos(md, matchnum, .true.), sym(prop), sym(val), st)
+        call put_text_property(md_pos(md, matchnum, .false.), md_pos(md, matchnum, .true.), value_type(name=prop), &
+                               value_type(name=val), st)
     end subroutine compilation_put_prop
 
     !> Like `beginning_of_line'.  Port of
@@ -2188,21 +2188,21 @@ contains
 
                         if (len(face) == 0) then
                             call put_text_property(md_pos(md, mn, .false.), md_pos(md, mn, .true.), &
-                                                   sym("font_lock_face"), value_type(), st)
+                                                   value_type(name="font_lock_face"), value_type(), st)
                         else
                             call put_text_property(md_pos(md, mn, .false.), md_pos(md, mn, .true.), &
-                                                   sym("font_lock_face"), sym(face), st)
+                                                   value_type(name="font_lock_face"), value_type(name=face), st)
                         end if
 
-                        call put_text_property(md_pos(md, mn, .false.), md_pos(md, mn, .true.), sym("display"), &
-                                               make_string(rule%highlights(h)%display), st)
+                        call put_text_property(md_pos(md, mn, .false.), md_pos(md, mn, .true.), value_type(name="display"), &
+                                               value_type(text=rule%highlights(h)%display), st)
                         cycle
                     end if
 
                     if (.not. allocated(face)) cycle
                     if (len(face) == 0) cycle
-                    call put_text_property(md_pos(md, mn, .false.), md_pos(md, mn, .true.), sym("font_lock_face"), &
-                                           sym(face), st)
+                    call put_text_property(md_pos(md, mn, .false.), md_pos(md, mn, .true.), value_type(name="font_lock_face"), &
+                                           value_type(name=face), st)
                 end do
             end if
 
@@ -2210,11 +2210,12 @@ contains
             b = md_pos(md, mn, .false.)
             e = md_pos(md, mn, .true.)
             if (b == 0) cycle
-            props = list(sym("compilation_message"), make_fixnum(int(msg, int64)), sym("help_echo"), make_string(help), &
-                         sym("mouse_face"), sym("highlight"))
+            props = list(value_type(name="compilation_message"), value_type(int(msg, int64)), value_type(name="help_echo"), &
+                         value_type(text=help), &
+                         value_type(name="mouse_face"), value_type(name="highlight"))
             call add_text_properties(b, e, props, changed, st)
-            call font_lock_append_text_property(b, e, sym("font_lock_face"), &
-                                                sym(setting_string(compilation_message_face)), st)
+            call font_lock_append_text_property(b, e, value_type(name="font_lock_face"), &
+                                                value_type(name=setting_string(compilation_message_face)), st)
         end do
     end subroutine parse_rule
 
@@ -2314,7 +2315,8 @@ contains
         status = status_type()
         has_props = .false.
         msg = 0
-        call text_property_not_all(md_pos(md, 0, .false.), point(), sym("compilation_message"), value_type(), pos, found, st)
+        call text_property_not_all(md_pos(md, 0, .false.), point(), value_type(name="compilation_message"), value_type(), pos, &
+                                   found, st)
         if (found) return
         k = current_entry()
         has_file = .false.
@@ -2342,7 +2344,7 @@ contains
             end if
         else
             ! This message didn't mention one, get it from previous.
-            call previous_single_property_change(point(), sym("compilation_message"), pos, found, st)
+            call previous_single_property_change(point(), value_type(name="compilation_message"), pos, found, st)
 
             if (found) then
                 prev = message_at(pos - 1)
@@ -2668,13 +2670,14 @@ contains
         end = point_max()
         if (present(end_in)) end = end_in
         call silent_modifications_begin(silent)
-        props = list(sym("compilation_debug"), sym("compilation_directory"), sym("compilation_message"), &
-                     sym("font_lock_face"), sym("help_echo"), sym("mouse_face"))
+        props = list(value_type(name="compilation_debug"), value_type(name="compilation_directory"), &
+                     value_type(name="compilation_message"), &
+                     value_type(name="font_lock_face"), value_type(name="help_echo"), value_type(name="mouse_face"))
 
         do
-            call next_single_property_change(start, sym("compilation_message"), next, found, st, end)
+            call next_single_property_change(start, value_type(name="compilation_message"), next, found, st, end)
             if (.not. found) next = end
-            call get_text_property(start, sym("compilation_message"), v, st)
+            call get_text_property(start, value_type(name="compilation_message"), v, st)
             if (st%ok() .and. allocated(v%a)) call remove_list_of_text_properties(start, next, props, changed, st)
             if (next >= end) exit
             start = next
@@ -2798,9 +2801,11 @@ contains
         ! text-properties so compilation--remove-properties can know what
         ! to remove.
         msg = new_message(k, 0, 0, 0)
-        props = list(sym("font_lock_face"), sym(face), sym("compilation_directory"), make_fixnum(int(value, int64)), &
-                     sym("compilation_message"), make_fixnum(int(msg, int64)), sym("mouse_face"), sym("highlight"))
-        more = list(sym("help_echo"), make_string("mouse-2: visit destination directory"))
+        props = list(value_type(name="font_lock_face"), value_type(name=face), value_type(name="compilation_directory"), &
+                     value_type(int(value, int64)), &
+                     value_type(name="compilation_message"), value_type(int(msg, int64)), value_type(name="mouse_face"), &
+                     value_type(name="highlight"))
+        more = list(value_type(name="help_echo"), value_type(text="mouse-2: visit destination directory"))
     end subroutine compilation_directory_properties
 
     !> Make sure the text has been parsed up to LIMIT.  Port of
@@ -2836,7 +2841,7 @@ contains
             moved = forward_line(0_int64)
 
             do while (.not. is_bob())
-                call get_text_property(point() - 1, sym("compilation_multiline"), v, st)
+                call get_text_property(point() - 1, value_type(name="compilation_multiline"), v, st)
                 if (.not. allocated(v%a)) exit
                 moved = forward_line(-1_int64)
             end do
@@ -2863,16 +2868,16 @@ contains
         if (pos >= point_max()) return
 
         do
-            call get_text_property(pos, sym("compilation_annotation"), v, st)
+            call get_text_property(pos, value_type(name="compilation_annotation"), v, st)
 
             if (allocated(v%a)) then
-                call next_single_property_change(pos, sym("compilation_annotation"), next, found, st)
+                call next_single_property_change(pos, value_type(name="compilation_annotation"), next, found, st)
                 if (.not. found) next = point_max()
                 pos = next
                 return
             end if
 
-            call next_single_property_change(pos, sym("compilation_annotation"), next, found, st)
+            call next_single_property_change(pos, value_type(name="compilation_annotation"), next, found, st)
 
             if (.not. found) then
                 pos = point_min()
@@ -3033,9 +3038,9 @@ contains
             call compilation_ensure_parse(parsed)
 
             if (present(limit)) then
-                call next_single_property_change(position, sym(prop), res, found, st, limit)
+                call next_single_property_change(position, value_type(name=prop), res, found, st, limit)
             else
-                call next_single_property_change(position, sym(prop), res, found, st)
+                call next_single_property_change(position, value_type(name=prop), res, found, st)
             end if
 
             again = .not. found
@@ -3111,7 +3116,7 @@ contains
                 msg = message_at(max(pt - 1, point_min()))
 
                 if (msg == 0) then
-                    call previous_single_property_change(pt, sym("compilation_message"), res, found, st, &
+                    call previous_single_property_change(pt, value_type(name="compilation_message"), res, found, st, &
                                                          line_beginning_position())
                     pt = res
                     msg = message_at(max(pt - 1, point_min()))
@@ -3134,7 +3139,7 @@ contains
             else
                 ! Don't move "back" to message at or before point.  Pass an
                 ! explicit (point-min) to make sure pt has a value.
-                call previous_single_property_change(pt, sym("compilation_message"), res, found, st, point_min())
+                call previous_single_property_change(pt, value_type(name="compilation_message"), res, found, st, point_min())
                 pt = res
                 limit = point_min()
             end if
@@ -3217,9 +3222,9 @@ contains
             if (forward) then
                 call compilation_next_single_property_change(from, "compilation_message", res, found, lim)
             else if (present(lim)) then
-                call previous_single_property_change(from, sym("compilation_message"), res, found, st, lim)
+                call previous_single_property_change(from, value_type(name="compilation_message"), res, found, st, lim)
             else
-                call previous_single_property_change(from, sym("compilation_message"), res, found, st)
+                call previous_single_property_change(from, value_type(name="compilation_message"), res, found, st)
             end if
         end subroutine property_change
 
@@ -3840,7 +3845,7 @@ contains
         opoint = point()
         call marker_position(marker, pos, st)
         call goto_char(pos)
-        call previous_single_property_change(point(), sym("compilation_directory"), pos, found, st)
+        call previous_single_property_change(point(), value_type(name="compilation_directory"), pos, found, st)
         if (found) call goto_char(pos)
         d = dir_at(point() - 1)
         if (d == 0) d = dir_at(point())
@@ -4148,8 +4153,7 @@ contains
     !> Read the compilation command, COMMAND as initial input.  Port of
     !> compile.el:compilation-read-command.
     subroutine compilation_read_command_from_user(command, result, status)
-        use lisp_fm, only: xstring
-        use data_fm, only: car
+        use lisp_fm, only: xstring, list_elt, value_type
         character(len=*), intent(in) :: command
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
@@ -4157,8 +4161,8 @@ contains
         logical :: same_first
 
         same_first = .false.
-        call symbol_value(sym("compile_history"), history, status)
-        if (status%ok()) call car(history, first, status)
+        call symbol_value(value_type(name="compile_history"), history, status)
+        if (status%ok()) first = list_elt(history, 1_int64)
 
         if (status%ok()) then
             if (vtag(first) == V_STRING) same_first = xstring(first) == command .and. len(xstring(first)) == len(command)
@@ -4368,7 +4372,7 @@ contains
 
         start = point()
         call insert(text, st)
-        call put_text_property(start, point(), sym("compilation_annotation"), t_value(), st)
+        call put_text_property(start, point(), value_type(name="compilation_annotation"), value_type(.true.), st)
     end subroutine compilation_insert_annotation
 
     !> The first 19 characters of `current_time_string': "Sun Sep 16
@@ -4481,8 +4485,8 @@ contains
         buffers(cur)%directory = thisdir
         ! Make compilation buffer read-only.  The filter can still write it.
         ! Clear out the compilation buffer.
-        call symbol_value(sym("inhibit_read_only"), inhibit, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), inhibit, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         ! Then evaluate a cd command if any, but don't perform it yet, else
         ! start-command would do it again through the shell: (cd "..") AND
         ! sh -c "cd ..; make"
@@ -4490,7 +4494,7 @@ contains
         call cd(cd_dir, status)
 
         if (.not. status%ok()) then
-            call set(sym("inhibit_read_only"), inhibit, st)
+            call set(value_type(name="inhibit_read_only"), inhibit, st)
             buffers(cur)%directory = thisdir
             return
         end if
@@ -4515,7 +4519,7 @@ contains
         end if
 
         if (.not. status%ok()) then
-            call set(sym("inhibit_read_only"), inhibit, st)
+            call set(value_type(name="inhibit_read_only"), inhibit, st)
             return
         end if
 
@@ -4527,7 +4531,7 @@ contains
             ! Output a mode setter, for saving and later reloading this
             ! buffer.
             call compilation_insert_annotation("-*- mode: "//name_of_mode//"; default-directory: "// &
-                                               readable_repr(make_string(abbreviate_file_name(origdir)))// &
+                                               readable_repr(value_type(text=abbreviate_file_name(origdir)))// &
                                                " -*-"//NL)
         end if
 
@@ -4535,7 +4539,7 @@ contains
                                            command//NL)
         k = current_entry()
         call system_clock(compilation_buffers(k)%start_count)
-        call set(sym("inhibit_read_only"), inhibit, st)
+        call set(value_type(name="inhibit_read_only"), inhibit, st)
         ! The let binding of default-directory ends here.
         buffers(cur)%directory = thisdir
         call restore_buffer_modified(.false.)
@@ -4880,8 +4884,8 @@ contains
         if (.not. is_buffer_live(buf)) return
         call set_buffer(buf, status)
         if (.not. status%ok()) return
-        call symbol_value(sym("inhibit_read_only"), inhibit, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), inhibit, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         ! `save-excursion' doesn't use the right insertion-type for us.
         call copy_marker_at(point(), pos, .true., st)
         call copy_marker_at(point_min(), min, .false., st)
@@ -4914,7 +4918,7 @@ contains
         call free_marker(pos, st)
         call free_marker(min, st)
         call free_marker(max, st)
-        call set(sym("inhibit_read_only"), inhibit, st)
+        call set(value_type(name="inhibit_read_only"), inhibit, st)
     end subroutine compilation_filter
 
     !> Sentinel for compilation buffers.  Port of
@@ -4983,8 +4987,8 @@ contains
             code = trim(code_string())
         end if
 
-        call symbol_value(sym("inhibit_read_only"), inhibit, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), inhibit, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         omax = point_max()
         opoint = point()
         ! Record where we put the message, so we can ignore it later on.
@@ -5008,7 +5012,7 @@ contains
         call compilation_insert_annotation(" at "//current_time_19()//", duration "//trim(duration))
         call goto_char(point_max())
         ! Prevent that message from being recognized as a compilation error.
-        call put_text_property(omax, point(), sym("compilation_handle_exit"), t_value(), st)
+        call put_text_property(omax, point(), value_type(name="compilation_handle_exit"), value_type(.true.), st)
         line = text
 
         if (len(line) > 0) then
@@ -5032,7 +5036,7 @@ contains
 
         call message(buffers(cur)%mode_name//" "//line)
         if (opoint < omax) call goto_char(opoint)
-        call set(sym("inhibit_read_only"), inhibit, st)
+        call set(value_type(name="inhibit_read_only"), inhibit, st)
 
     contains
 

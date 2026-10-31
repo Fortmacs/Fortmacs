@@ -51,14 +51,13 @@ module shell_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, xstring, vtag, V_NULL, V_NAME
-    use lread_fm, only: sym
     use data_fm, only: string_setting, logical_setting, forward_setting, add_local_variables_killer
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, is_buffer_live, kill_buffer, &
                          generate_new_buffer_name
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_substring, line_end_position, &
                           line_beginning_position, narrow_to_region, widen, field_beginning, field_end, field_string, is_eob
     use textprop_fm, only: get_text_property, put_text_property, next_single_property_change
-    use ansi_color_fm, only: ansi_color_apply_face_function
+    use ansi_color_fm, only: ansi_color_apply_face_function, ansi_color_face_type, ansi_color_face_value
     use insdel_fm, only: insert
     use search_fm, only: string_match, re_search_forward, re_search_backward, match_beginning, match_end, &
                          looking_at, SEARCH_NOERROR, SEARCH_MOVE
@@ -92,7 +91,7 @@ module shell_fm
     use compile_fm, only: cd
     use data_fm, only: integer_setting
     use error_fm, only: FM_WRONG_TYPE_ARGUMENT
-    use lisp_fm, only: make_string, make_list, list_elements
+    use lisp_fm, only: make_list, list_elements, value_type
     use eval_fm, only: capf_hook_type, capf_entry_type
     use minibuf_table_fm, only: completion_table_type, completion_predicate, completion_quote_proc, capf_data_type, &
                                 completion_function_table, completion_list_table, COMPLETION_SOLE, COMPLETION_FINISHED
@@ -469,7 +468,7 @@ contains
         if (.not. comint_use_prompt_regexp%value) then
             ! Make sure we're in an input rather than output field.
             bof = field_beginning(point(), .false.)
-            call get_text_property(bof, sym("field"), field_prop, status)
+            call get_text_property(bof, value_type(name="field"), field_prop, status)
 
             if (.not. allocated(field_prop%a)) then
                 input = field_string(bof)
@@ -513,7 +512,7 @@ contains
 
     ! Not a port.
     logical function symbol_is(v, name)
-        use lisp_fm, only: symbols, xsymbol
+        use lisp_fm, only: symbols, xsymbol, value_type
         type(value_type), intent(in) :: v
         character(len=*), intent(in) :: name
 
@@ -877,7 +876,7 @@ contains
             ! used.
             do j = 1, size(comps)
                 file = xstring(comps(j))
-                dup = member_string(kept(1:n), file)
+                dup = has_string_value(kept(1:n), file)
 
                 if (.not. dup .and. len(ignored) > 0) then
                     dup = string_match(ignored, file, st) > 0
@@ -888,7 +887,7 @@ contains
                 if (dup) cycle
                 n = n + 1
                 if (n > size(kept)) call grow(kept)
-                kept(n) = make_string(file)
+                kept(n) = value_type(text=file)
             end do
         end do
 
@@ -906,20 +905,20 @@ contains
     end subroutine command_completion_data
 
     ! Whether STRING is one of LIST.  Not a port.
-    logical function member_string(list, string)
+    logical function has_string_value(list, string)
         type(value_type), intent(in) :: list(:)
         character(len=*), intent(in) :: string
         integer :: k
 
-        member_string = .false.
+        has_string_value = .false.
 
         do k = 1, size(list)
             if (xstring(list(k)) == string .and. len(xstring(list(k))) == len(string)) then
-                member_string = .true.
+                has_string_value = .true.
                 return
             end if
         end do
-    end function member_string
+    end function has_string_value
 
     ! Double the size of LIST.  Not a port.
     subroutine grow(list)
@@ -1140,9 +1139,9 @@ contains
             eq = index(env(k)%s, "=")
 
             if (eq > 0) then
-                variables(k) = make_string(env(k)%s(1:eq - 1))
+                variables(k) = value_type(text=env(k)%s(1:eq - 1))
             else
-                variables(k) = make_string(env(k)%s)
+                variables(k) = value_type(text=env(k)%s)
             end if
         end do
 
@@ -1534,12 +1533,14 @@ contains
     !> Port of shell.el:shell-apply-ansi-color.
     recursive subroutine shell_apply_ansi_color(beg, end, face)
         integer(int64), intent(in) :: beg, end
-        type(value_type), intent(in) :: face
+        type(ansi_color_face_type), intent(in) :: face
         type(status_type) :: st
+        type(value_type) :: v
 
-        if (.not. allocated(face%a)) return
-        call put_text_property(beg, end, sym("ansi_color_face"), face, st)
-        call put_text_property(beg, end, sym("font_lock_face"), face, st)
+        if (face%is_empty()) return
+        v = ansi_color_face_value(face)
+        call put_text_property(beg, end, value_type(name="ansi_color_face"), v, st)
+        call put_text_property(beg, end, value_type(name="font_lock_face"), v, st)
     end subroutine shell_apply_ansi_color
 
     !> Reapply ansi-color faces to the existing contents of the buffer.
@@ -1554,14 +1555,14 @@ contains
         saved_zv = buffers(cur)%zv
         call widen()
         pos = point_min()
-        call next_single_property_change(pos, sym("ansi_color_face"), end, found, st)
+        call next_single_property_change(pos, value_type(name="ansi_color_face"), end, found, st)
         if (.not. found) end = point_max()
 
         do
-            call get_text_property(pos, sym("ansi_color_face"), face, st)
-            if (allocated(face%a)) call put_text_property(pos, end, sym("font_lock_face"), face, st)
+            call get_text_property(pos, value_type(name="ansi_color_face"), face, st)
+            if (allocated(face%a)) call put_text_property(pos, end, value_type(name="font_lock_face"), face, st)
             pos = end
-            call next_single_property_change(pos, sym("ansi_color_face"), end, found, st)
+            call next_single_property_change(pos, value_type(name="ansi_color_face"), end, found, st)
             if (.not. found) exit
         end do
 
@@ -2179,7 +2180,7 @@ contains
             if (.not. status%ok()) return
             k = current_entry()
 
-            if (.not. shell_pushd_dunique%value .or. .not. member(old, shell_buffers(k)%dirstack)) then
+            if (.not. shell_pushd_dunique%value .or. .not. has_dir(old, shell_buffers(k)%dirstack)) then
                 call prepend_arg(shell_buffers(k)%dirstack, old)
             end if
 
@@ -2188,17 +2189,17 @@ contains
     end subroutine shell_process_pushd
 
     ! Not a port.
-    logical function member(s, list)
+    logical function has_dir(s, list)
         character(len=*), intent(in) :: s
         type(process_arg_type), intent(in) :: list(:)
         integer :: i
 
-        member = .false.
+        has_dir = .false.
 
         do i = 1, size(list)
-            if (list(i)%s == s .and. len(list(i)%s) == len(s)) member = .true.
+            if (list(i)%s == s .and. len(list(i)%s) == len(s)) has_dir = .true.
         end do
-    end function member
+    end function has_dir
 
     !> If STR is of the form +n, for n>0, return n.  Otherwise, -1.
     !> Port of shell.el:shell-extract-num.

@@ -57,7 +57,6 @@ module expression_motion_fm
     use data_fm, only: value_eq, add_local_variables_killer, string_setting, logical_setting, function_setting, &
                        forward_setting
     use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
-    use lread_fm, only: sym
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: this_command, last_command, last_command_event, sit_for
     use character_fm, only: CHAR_MODIFIER_MASK
@@ -935,8 +934,8 @@ contains
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
 
-        if (value_eq(this_command, sym("beginning_of_subprogram"))) then
-            if (.not. value_eq(last_command, sym("beginning_of_subprogram"))) then
+        if (value_eq(this_command, value_type(name="beginning_of_subprogram"))) then
+            if (.not. value_eq(last_command, value_type(name="beginning_of_subprogram"))) then
                 if (.not. (transient_mark_mode%value .and. buffers(cur)%mark_active)) call push_mark()
             end if
         end if
@@ -1203,8 +1202,8 @@ contains
             end if
         end if
 
-        if (value_eq(this_command, sym("end_of_subprogram"))) then
-            if (.not. value_eq(last_command, sym("end_of_subprogram"))) then
+        if (value_eq(this_command, value_type(name="end_of_subprogram"))) then
+            if (.not. value_eq(last_command, value_type(name="end_of_subprogram"))) then
                 if (.not. (transient_mark_mode%value .and. buffers(cur)%mark_active)) call push_mark()
             end if
         end if
@@ -1329,8 +1328,8 @@ contains
         ! There is no `mark-defun-back' function - see
         ! https://lists.gnu.org/r/bug-gnu-emacs/2016-11/msg00079.html
         ! for explanation
-        if (value_eq(last_command, sym("mark_subprogram_back"))) n = -n
-        if (n < 0) this_command = sym("mark_subprogram_back")
+        if (value_eq(last_command, value_type(name="mark_subprogram_back"))) n = -n
+        if (n < 0) this_command = value_type(name="mark_subprogram_back")
 
         if (is_use_region()) then
             if (n >= 0) then

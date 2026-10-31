@@ -48,9 +48,7 @@ module ibuffer_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_QUIT, format_message
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, xfixnum, make_fixnum, xstring, make_string, t_value, &
-                       list, vtag, V_INTEGER, V_STRING, V_ARRAY
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, xfixnum, xstring, list, vtag, V_INTEGER, V_STRING, V_ARRAY
     use eval_fm, only: hook_type, change_major_mode_hook
     use data_fm, only: add_local_variables_killer
     use modes_fm, only: major_modes, minor_modes
@@ -1119,7 +1117,7 @@ contains
 
         has_prop = .false.
         if (pos < point_min() .or. pos >= point_max()) return
-        call get_text_property(pos, sym(name), v, st)
+        call get_text_property(pos, value_type(name=name), v, st)
         has_prop = st%ok() .and. allocated(v%a)
     end function has_prop
 
@@ -1133,7 +1131,7 @@ contains
 
         s = ""
         if (pos < point_min() .or. pos >= point_max()) return
-        call get_text_property(pos, sym(name), v, st)
+        call get_text_property(pos, value_type(name=name), v, st)
         if (st%ok() .and. vtag(v) == V_STRING) s = xstring(v)
     end function string_prop
 
@@ -1146,7 +1144,7 @@ contains
 
         has_string_prop = .false.
         if (pos < point_min() .or. pos >= point_max()) return
-        call get_text_property(pos, sym(name), v, st)
+        call get_text_property(pos, value_type(name=name), v, st)
         has_string_prop = st%ok() .and. vtag(v) == V_STRING
     end function has_string_prop
 
@@ -1159,7 +1157,7 @@ contains
 
         serial = 0
         if (pos < point_min() .or. pos >= point_max()) return
-        call get_text_property(pos, sym("ibuffer_properties"), v, st)
+        call get_text_property(pos, value_type(name="ibuffer_properties"), v, st)
         if (st%ok() .and. vtag(v) == V_INTEGER) serial = xfixnum(v)
     end function line_serial
 
@@ -1190,7 +1188,7 @@ contains
         mark = " "
         pos = pos_bol()
         if (pos < point_min() .or. pos >= point_max()) return
-        call get_text_property(pos, sym("ibuffer_mark"), v, st)
+        call get_text_property(pos, value_type(name="ibuffer_mark"), v, st)
         if (st%ok() .and. vtag(v) == V_INTEGER) mark = achar(xfixnum(v))
     end function ibuffer_current_mark
 
@@ -2603,8 +2601,8 @@ contains
         serial = line_serial(beg)
         ro = buffers(cur)%read_only
         buffers(cur)%read_only = .false.
-        call put_text_property(beg, end, sym("ibuffer_properties"), make_fixnum(serial), st)
-        call put_text_property(beg, end, sym("ibuffer_mark"), make_fixnum(int(iachar(mark), int64)), st)
+        call put_text_property(beg, end, value_type(name="ibuffer_properties"), value_type(serial), st)
+        call put_text_property(beg, end, value_type(name="ibuffer_mark"), value_type(int(iachar(mark), int64)), st)
         buffers(cur)%read_only = ro
     end subroutine ibuffer_set_mark_1
 
@@ -2832,15 +2830,16 @@ contains
         ! padding has none).
         if (str_len > 0) then
             if (len(cell%face) > 0) call put_text_property(beg + offset, beg + offset + str_len, &
-                                                           sym("font_lock_face"), sym(cell%face), st)
+                                                           value_type(name="font_lock_face"), value_type(name=cell%face), st)
             if (allocated(cell%mouse_face)) call put_text_property(beg + offset, beg + offset + str_len, &
-                                                                   sym("mouse_face"), sym(cell%mouse_face), st)
+                                                                   value_type(name="mouse_face"), &
+                                                                   value_type(name=cell%mouse_face), st)
             if (cell%name_column) call put_text_property(beg + offset, beg + offset + str_len, &
-                                                         sym("ibuffer_name_column"), t_value(), st)
+                                                         value_type(name="ibuffer_name_column"), value_type(.true.), st)
         end if
 
-        if (ell_at > 0) call put_text_property(beg + ell_at - 1, beg + ell_at - 1 + ell_len, sym("font_lock_face"), &
-                                               sym("bold"), st)
+        if (ell_at > 0) call put_text_property(beg + ell_at - 1, beg + ell_at - 1 + ell_len, value_type(name="font_lock_face"), &
+                                               value_type(name="bold"), st)
 
         if (associated(ibuffer_columns(column)%summarizer)) then
             cell%text = str
@@ -2940,8 +2939,9 @@ contains
         end do
 
         if (point() > beg) then
-            call put_text_property(beg, point(), sym("ibuffer_properties"), make_fixnum(buffers(buffer%index)%serial), st)
-            call put_text_property(beg, point(), sym("ibuffer_mark"), make_fixnum(int(iachar(mark), int64)), st)
+            call put_text_property(beg, point(), value_type(name="ibuffer_properties"), value_type(buffers(buffer%index)%serial), &
+                                   st)
+            call put_text_property(beg, point(), value_type(name="ibuffer_mark"), value_type(int(iachar(mark), int64)), st)
         end if
 
         call insert(achar(10), status)
@@ -4087,7 +4087,7 @@ contains
             end do
         else
             if (has_prop(point_min(), "ibuffer_title")) then
-                call next_single_property_change(point_min(), sym("ibuffer_title"), next, found, st)
+                call next_single_property_change(point_min(), value_type(name="ibuffer_title"), next, found, st)
                 if (.not. found) next = point_max()
                 call delete_region(point_min(), next, st)
             end if
@@ -4105,7 +4105,7 @@ contains
 
             call insert(line, status)
             if (.not. status%ok()) return
-            call put_text_property(opos, point(), sym("ibuffer_title_header"), t_value(), st)
+            call put_text_property(opos, point(), value_type(name="ibuffer_title_header"), value_type(.true.), st)
             call insert(achar(10), status)
             ! Add the underlines
             underline = line
@@ -4119,8 +4119,8 @@ contains
             end do
 
             call insert(underline//achar(10), status)
-            call put_text_property(start, point(), sym("ibuffer_title"), t_value(), st)
-            call put_text_property(start, point(), sym("font_lock_face"), sym(ibuffer_title_face), st)
+            call put_text_property(start, point(), value_type(name="ibuffer_title"), value_type(.true.), st)
+            call put_text_property(start, point(), value_type(name="font_lock_face"), value_type(name=ibuffer_title_face), st)
         end if
 
         ! Now, insert the summary columns.
@@ -4128,7 +4128,7 @@ contains
 
         if (point_max() > point_min()) then
             if (has_prop(point_max() - 1, "ibuffer_summary")) then
-                call previous_single_property_change(point_max(), sym("ibuffer_summary"), prev, found, st)
+                call previous_single_property_change(point_max(), value_type(name="ibuffer_summary"), prev, found, st)
                 if (.not. found) prev = point_min()
                 call delete_region(prev, point_max(), st)
             end if
@@ -4145,7 +4145,7 @@ contains
             end do
 
             call insert(line, status)
-            call put_text_property(start, point(), sym("ibuffer_summary"), t_value(), st)
+            call put_text_property(start, point(), value_type(name="ibuffer_summary"), value_type(.true.), st)
         end if
     end subroutine update_title_and_summary
 
@@ -4419,10 +4419,11 @@ contains
         start = point()
         call insert("[ "//display_name//" ]", status)
         if (.not. status%ok()) return
-        call put_text_property(start, point(), sym("ibuffer_filter_group_name"), make_string(name), st)
-        call put_text_property(start, point(), sym("font_lock_face"), sym(ibuffer_filter_group_name_face), st)
-        call put_text_property(start, point(), sym("keymap"), keymap_value(ibuffer_mode_filter_group_map), st)
-        call put_text_property(start, point(), sym("mouse_face"), sym("highlight"), st)
+        call put_text_property(start, point(), value_type(name="ibuffer_filter_group_name"), value_type(text=name), st)
+        call put_text_property(start, point(), value_type(name="font_lock_face"), value_type(name=ibuffer_filter_group_name_face), &
+                               st)
+        call put_text_property(start, point(), value_type(name="keymap"), keymap_value(ibuffer_mode_filter_group_map), st)
+        call put_text_property(start, point(), value_type(name="mouse_face"), value_type(name="highlight"), st)
         call insert(achar(10), status)
 
         if (size(bmarklist) > 0) then
@@ -4433,13 +4434,13 @@ contains
                 if (.not. status%ok()) return
             end do
 
-            call put_text_property(start, point(), sym("ibuffer_filter_group"), make_string(name), st)
+            call put_text_property(start, point(), value_type(name="ibuffer_filter_group"), value_type(text=name), st)
         end if
     end subroutine insert_filter_group
 
     ! Not a port.
     function keymap_value(map) result(v)
-        use lisp_fm, only: make_keymap_ref
+        use lisp_fm, only: make_keymap_ref, value_type
         type(handle_type), intent(in) :: map
         type(value_type) :: v
 

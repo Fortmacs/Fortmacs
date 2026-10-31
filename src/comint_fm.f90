@@ -65,12 +65,10 @@
 !> after C-u (an error says so); coding systems.
 module comint_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
-    use lisp_fm, only: vtag, V_NULL, V_NAME, V_STRING, V_ARRAY
+    use lisp_fm, only: vtag, V_NULL, V_NAME, V_STRING, V_ARRAY, value_type
     use error_fm, only: status_type, set_error, format_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, t_value, list, symbols, xsymbol, list_elements, &
-                       command_proc
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list, symbols, xsymbol, list_elements, command_proc
     use data_fm, only: string_setting, logical_setting, integer_setting, symbol_value, set, value_eq, &
                        add_local_variables_killer, forward_setting
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, is_buffer_live, &
@@ -130,7 +128,7 @@ module comint_fm
     use regexp_opt_fm, only: regexp_opt, REGEXP_OPT_GROUP
     use character_fm, only: char_string, MAX_MULTIBYTE_LENGTH
     use timer_fm, only: run_at_time
-    use lisp_fm, only: make_string, make_list, xstring
+    use lisp_fm, only: make_list, xstring, value_type
     use minibuf_table_fm, only: completion_table_type, completion_predicate, completion_unquote_proc, &
                                 completion_requote_proc, completion_quote_proc, completion_table_with_quoting, &
                                 capf_data_type, COMPLETION_FINISHED, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST, &
@@ -1042,8 +1040,8 @@ contains
         type(value_type), intent(out) :: saved
         type(status_type) :: st
 
-        call symbol_value(sym("inhibit_read_only"), saved, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
     end subroutine inhibit_read_only_begin
 
     !> End the binding of `inhibit_read_only_begin'.  Not a port.
@@ -1051,7 +1049,7 @@ contains
         type(value_type), intent(in) :: saved
         type(status_type) :: st
 
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
     end subroutine inhibit_read_only_end
 
     !> The current buffer's process, or an error: "Current buffer has no
@@ -1078,11 +1076,11 @@ contains
     function rear_nonsticky_plist() result(v)
         type(value_type) :: v
 
-        v = list(sym("rear_nonsticky"), list(sym(trim(PROMPT_REAR_NONSTICKY(1))), &
-                                             sym(trim(PROMPT_REAR_NONSTICKY(2))), &
-                                             sym(trim(PROMPT_REAR_NONSTICKY(3))), &
-                                             sym(trim(PROMPT_REAR_NONSTICKY(4))), &
-                                             sym(trim(PROMPT_REAR_NONSTICKY(5)))))
+        v = list(value_type(name="rear_nonsticky"), list(value_type(name=trim(PROMPT_REAR_NONSTICKY(1))), &
+                                                         value_type(name=trim(PROMPT_REAR_NONSTICKY(2))), &
+                                                         value_type(name=trim(PROMPT_REAR_NONSTICKY(3))), &
+                                                         value_type(name=trim(PROMPT_REAR_NONSTICKY(4))), &
+                                                         value_type(name=trim(PROMPT_REAR_NONSTICKY(5)))))
     end function rear_nonsticky_plist
 
     !> Whether the name V is named NAME.  Not a port.
@@ -1103,7 +1101,7 @@ contains
         type(value_type) :: v
         type(status_type) :: st
 
-        call get_text_property(pos, sym("field"), v, st)
+        call get_text_property(pos, value_type(name="field"), v, st)
     end function field_at
 
     ! ------------------------------------------------------------------
@@ -1655,14 +1653,14 @@ contains
         ! If the user didn't enter anything, nothing is added to m-h-s-h.
         ! Use the previous search regexp, if there is one.
         if (len(regexp) == 0) then
-            call symbol_value(sym("minibuffer_history_search_history"), history, st)
+            call symbol_value(value_type(name="minibuffer_history_search_history"), history, st)
 
             if (st%ok() .and. vtag(history) == V_ARRAY) then
                 call list_elements(history, elts)
 
                 if (size(elts) > 0) then
                     block
-                        use lisp_fm, only: xstring
+                        use lisp_fm, only: xstring, value_type
                         if (vtag(elts(1)) == V_STRING) regexp = xstring(elts(1))
                     end block
                 end if
@@ -2374,9 +2372,9 @@ contains
 
         if (end > beg) then
             if (comint_highlight_input%value) then
-                props = list(sym("font_lock_face"), sym("comint_highlight_input"), &
-                             sym("comint__fontify_input_inhibit_fontification"), t_value(), &
-                             sym("front_sticky"), t_value())
+                props = list(value_type(name="font_lock_face"), value_type(name="comint_highlight_input"), &
+                             value_type(name="comint__fontify_input_inhibit_fontification"), value_type(.true.), &
+                             value_type(name="front_sticky"), value_type(.true.))
                 call add_text_properties(beg, end, props, changed, st)
             end if
 
@@ -2386,7 +2384,7 @@ contains
                 ! The terminating newline is put into a special `boundary'
                 ! field to make cursor movement between input and output
                 ! fields smoother.
-                props = list(sym("mouse_face"), sym("highlight"), sym("help_echo"), &
+                props = list(value_type(name="mouse_face"), value_type(name="highlight"), value_type(name="help_echo"), &
                              make_str("mouse-2: insert after prompt as new input"))
                 call add_text_properties(beg, end, props, changed, st)
             end if
@@ -2396,7 +2394,8 @@ contains
             ! Cover the terminating newline.
             props = rear_nonsticky_plist()
             call add_text_properties(end, end + 1, props, changed, st)
-            props = list(sym("field"), sym("boundary"), sym("inhibit_line_move_field_capture"), t_value())
+            props = list(value_type(name="field"), value_type(name="boundary"), &
+                         value_type(name="inhibit_line_move_field_capture"), value_type(.true.))
             call add_text_properties(end, end + 1, props, changed, st)
         end if
 
@@ -2483,11 +2482,11 @@ contains
 
     ! Not a port.
     function make_str(s) result(v)
-        use lisp_fm, only: make_string
+        use lisp_fm, only: value_type
         character(len=*), intent(in) :: s
         type(value_type) :: v
 
-        v = make_string(s)
+        v = value_type(text=s)
     end function make_str
 
     !> The command: send input to process.  The interactive form of
@@ -2514,7 +2513,7 @@ contains
         call silent_modifications_begin(silent)
         call font_lock_append_text_property(marker_pos(comint_buffers(k)%last_prompt_start), &
                                             marker_pos(comint_buffers(k)%last_prompt_end), &
-                                            sym("font_lock_face"), sym("comint_highlight_prompt"), st)
+                                            value_type(name="font_lock_face"), value_type(name="comint_highlight_prompt"), st)
         call silent_modifications_end(silent)
         ! Reset comint-last-prompt so later on comint-output-filter does
         ! not remove the font-lock-face text property of the previous
@@ -2618,12 +2617,12 @@ contains
         ! If the preceding text is marked as "must-overwrite", record it in
         ! delete-end.
         if (start > point_min()) then
-            call get_text_property(start - 1, sym("comint_must_overwrite"), v, st)
+            call get_text_property(start - 1, value_type(name="comint_must_overwrite"), v, st)
 
             if (allocated(v%a)) then
                 call copy_marker_at(point(), delete_end, .false., st)
                 have_delete_end = .true.
-                call remove_text_properties(lbeg, start, list(sym("comint_must_overwrite"), value_type()), changed, st)
+                call remove_text_properties(lbeg, start, list(value_type(name="comint_must_overwrite"), value_type()), changed, st)
             end if
         end if
 
@@ -2677,7 +2676,7 @@ contains
             else
                 ! Remember that the process output ends with CR, and thus
                 ! the next output should overwrite the current line.
-                call put_text_property(lbeg, de, sym("comint_must_overwrite"), t_value(), st)
+                call put_text_property(lbeg, de, value_type(name="comint_must_overwrite"), value_type(.true.), st)
             end if
 
             call free_marker(delete_end, st)
@@ -2741,7 +2740,7 @@ contains
         call insert(text, status)
 
         if (status%ok()) then
-            call put_text_property(start, point(), sym("field"), sym("output"), st)
+            call put_text_property(start, point(), value_type(name="field"), value_type(name="output"), st)
             ! Advance process-mark.
             call set_marker(pmark, point(), st)
 
@@ -2774,13 +2773,14 @@ contains
                 call silent_modifications_begin(silent)
 
                 if (point_min() /= prompt_start) then
-                    call get_text_property(prompt_start - 1, sym("read_only"), v, st)
-                    if (.not. allocated(v%a)) call put_text_property(prompt_start - 1, prompt_start, sym("read_only"), &
-                                                                     sym("fence"), st)
+                    call get_text_property(prompt_start - 1, value_type(name="read_only"), v, st)
+                    if (.not. allocated(v%a)) call put_text_property(prompt_start - 1, prompt_start, value_type(name="read_only"), &
+                                                                     value_type(name="fence"), st)
                 end if
 
-                call add_text_properties(prompt_start, point(), list(sym("read_only"), t_value(), sym("front_sticky"), &
-                                                                     list(sym("read_only"))), changed, st)
+                call add_text_properties(prompt_start, point(), list(value_type(name="read_only"), value_type(.true.), &
+                                                                     value_type(name="front_sticky"), &
+                                                                     list(value_type(name="read_only"))), changed, st)
                 call silent_modifications_end(silent)
             end if
 
@@ -2791,7 +2791,8 @@ contains
                 ! fontification, so no `with-silent-modifications'.
                 call font_lock_remove_face_from_text_property(marker_pos(comint_buffers(k)%last_prompt_start), &
                                                               marker_pos(comint_buffers(k)%last_prompt_end), &
-                                                              sym("font_lock_face"), sym("comint_highlight_prompt"), st)
+                                                              value_type(name="font_lock_face"), &
+                                                              value_type(name="comint_highlight_prompt"), st)
                 call forget_last_prompt(comint_buffers(k))
             end if
 
@@ -2799,7 +2800,8 @@ contains
             call copy_marker_at(point(), comint_buffers(k)%last_prompt_end, .false., st)
             comint_buffers(k)%has_last_prompt = .true.
             e = point()
-            call font_lock_append_text_property(prompt_start, e, sym("font_lock_face"), sym("comint_highlight_prompt"), st)
+            call font_lock_append_text_property(prompt_start, e, value_type(name="font_lock_face"), &
+                                                value_type(name="comint_highlight_prompt"), st)
             call add_text_properties(prompt_start, e, rear_nonsticky_plist(), changed, st)
         end if
 
@@ -2825,16 +2827,18 @@ contains
 
         call silent_modifications_begin(silent)
         call add_text_properties(beg, end, rear_nonsticky_plist(), changed, st)
-        call add_text_properties(beg, end, list(sym("front_sticky"), &
-                                                list(sym("field"), sym("inhibit_line_move_field_capture")), &
-                                                sym("field"), sym("output"), &
-                                                sym("inhibit_line_move_field_capture"), t_value()), changed, st)
+        call add_text_properties(beg, end, list(value_type(name="front_sticky"), &
+                                                list(value_type(name="field"), &
+                                                     value_type(name="inhibit_line_move_field_capture")), &
+                                                value_type(name="field"), value_type(name="output"), &
+                                                value_type(name="inhibit_line_move_field_capture"), value_type(.true.)), changed, &
+                                 st)
         ! Text inserted by a user in the middle of process output should be
         ! marked as output.  (Text property hooks are not ported: the
         ! property is set as upstream sets it.)
-        call add_text_properties(beg, end, list(sym("insert_in_front_hooks"), &
-                                                list(sym("comint__mark_as_output"), &
-                                                     sym("comint__mark_yanked_as_output"))), changed, st)
+        call add_text_properties(beg, end, list(value_type(name="insert_in_front_hooks"), &
+                                                list(value_type(name="comint__mark_as_output"), &
+                                                     value_type(name="comint__mark_yanked_as_output"))), changed, st)
         call silent_modifications_end(silent)
     end subroutine comint_mark_as_output
 
@@ -2881,11 +2885,11 @@ contains
 
     ! Not a port.
     function make_int(n) result(v)
-        use lisp_fm, only: make_fixnum
+        use lisp_fm, only: value_type
         integer(int64), intent(in) :: n
         type(value_type) :: v
 
-        v = make_fixnum(n)
+        v = value_type(n)
     end function make_int
 
     !> The point of window W: point, for the selected window showing the
@@ -3185,7 +3189,7 @@ contains
         integer(int64), intent(in) :: pos
         type(value_type) :: v
 
-        v = get_pos_property(pos, sym("field"))
+        v = get_pos_property(pos, value_type(name="field"))
     end function field_at_pos
 
     !> Go to the beginning of line, then skip past the prompt, if any.
@@ -3444,7 +3448,7 @@ contains
     !> no input.  Port of comint.el:comint-delchar-or-maybe-eof.
     recursive subroutine comint_delchar_or_maybe_eof(status)
         use keymap_fm, only: is_keymap
-        use lisp_fm, only: make_keymap_ref
+        use lisp_fm, only: make_keymap_ref, value_type
         type(status_type), intent(out) :: status
         type(handle_type) :: proc
         type(value_type) :: cmd, remap
@@ -3595,9 +3599,9 @@ contains
                 prev_pos = pos
 
                 if (n > 0) then
-                    pos = next_single_char_property_change(pos, sym("field"))
+                    pos = next_single_char_property_change(pos, value_type(name="field"))
                 else
-                    pos = previous_single_char_property_change(pos, sym("field"))
+                    pos = previous_single_char_property_change(pos, value_type(name="field"))
                 end if
 
                 if (pos == prev_pos) then
@@ -3663,17 +3667,18 @@ contains
 
         pt = point()
         if (.not. is_bol() .or. is_bob()) return
-        call get_text_property(pt, sym("front_sticky"), lst, st)
-        call get_text_property(pt, sym("read_only"), ro, st)
+        call get_text_property(pt, value_type(name="front_sticky"), lst, st)
+        call get_text_property(pt, value_type(name="read_only"), ro, st)
         call silent_modifications_begin(silent)
         sticky = .false.
         if (allocated(ro%a)) sticky = front_sticky_read_only(lst)
-        call get_text_property(pt - 1, sym("read_only"), prev_ro, st)
+        call get_text_property(pt - 1, value_type(name="read_only"), prev_ro, st)
 
         if (sticky) then
-            if (.not. allocated(prev_ro%a)) call put_text_property(pt - 1, pt, sym("read_only"), sym("fence"), st)
+            if (.not. allocated(prev_ro%a)) call put_text_property(pt - 1, pt, value_type(name="read_only"), &
+                                                                   value_type(name="fence"), st)
         else if (symbol_is(prev_ro, "fence")) then
-            call remove_list_of_text_properties(pt - 1, pt, list(sym("read_only")), changed, st)
+            call remove_list_of_text_properties(pt - 1, pt, list(value_type(name="read_only")), changed, st)
         end if
 
         call silent_modifications_end(silent)
@@ -3749,14 +3754,14 @@ contains
         true_end = max(beg, end)
         call goto_char(true_beg)
         beg_is_bol = is_bol()
-        call get_text_property(true_beg, sym("front_sticky"), lst, st)
-        call get_text_property(true_beg, sym("read_only"), ro, st)
+        call get_text_property(true_beg, value_type(name="front_sticky"), lst, st)
+        call get_text_property(true_beg, value_type(name="read_only"), ro, st)
         beg_bad = .false.
         if (allocated(ro%a)) beg_bad = front_sticky_read_only(lst)
         call goto_char(true_end)
         end_is_bol = is_bol()
-        call get_text_property(true_end, sym("front_sticky"), lst, st)
-        call get_text_property(true_end, sym("read_only"), ro, st)
+        call get_text_property(true_end, value_type(name="front_sticky"), lst, st)
+        call get_text_property(true_end, value_type(name="read_only"), ro, st)
         end_bad = .false.
         if (allocated(ro%a)) end_bad = front_sticky_read_only(lst)
         call goto_char(opoint)
@@ -4297,7 +4302,7 @@ contains
         else
             ! Use input fields.  User input that hasn't been entered yet,
             ! at the end of the buffer, has a nil `field' property.
-            field = get_char_property(point(), sym("field"))
+            field = get_char_property(point(), value_type(name="field"))
             if (.not. allocated(field%a)) applies = smatch("!\|^\^", field_string(point()))
         end if
 
@@ -4871,7 +4876,7 @@ contains
         else
             call make_overlay(comint_buffers(k)%history_isearch_message_overlay, prompt_line_start(), &
                               comint_line_beginning_position(), st)
-            call overlay_put(comint_buffers(k)%history_isearch_message_overlay, "evaporate", t_value(), st)
+            call overlay_put(comint_buffers(k)%history_isearch_message_overlay, "evaporate", value_type(.true.), st)
         end if
 
         call overlay_put(comint_buffers(k)%history_isearch_message_overlay, "display", &
@@ -5304,7 +5309,7 @@ contains
 
         do i = 1, n
             call comint_buffers(k)%input_ring%ref(i - 1, item, st)
-            elems(i) = make_string(item)
+            elems(i) = value_type(text=item)
         end do
 
         table = completion_list_table(make_list(elems), "comint_input")
@@ -5572,7 +5577,7 @@ contains
 
             if (vtag(result) == V_STRING) then
                 if (string_match("\`"//regexp_quote(comint_file_name_prefix%value), xstring(result), st) > 0) then
-                    result = make_string(substring(xstring(result), match_end(0, st) - 1))
+                    result = value_type(text=substring(xstring(result), match_end(0, st) - 1))
                 end if
             end if
         case default
@@ -5859,7 +5864,7 @@ contains
         call make_overlay(ol, data%start, data%end, status, rear_advance=.true.)
 
         if (status%ok()) then
-            call overlay_put(ol, "field", sym("completion"), status)
+            call overlay_put(ol, "field", value_type(name="completion"), status)
             call minibuffer_completion_help()
             call free_overlay(ol)
         end if

@@ -271,6 +271,11 @@ module buffer_fm
     !> `deactivate_mark').
     logical, public :: deactivate_mark_variable = .false.
 
+    !> The value of `fill_column' that is upstream's unset fill column
+    !> (obsolete upstream): no fill column; `current_fill_column' then gives the
+    !> largest fixnum.  Not a port.
+    integer(int64), parameter, public :: FILL_COLUMN_NONE = -huge(0_int64)
+
     !> Column beyond which automatic line-wrapping should happen.
     !> It is used by filling commands, such as `fill_region' and `fill_paragraph',
     !> and by `auto_fill_mode', which see.

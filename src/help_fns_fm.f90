@@ -44,8 +44,7 @@ module help_fns_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_message, FM_USER_ERROR
-    use lisp_fm, only: value_type, make_string, make_list, list_elements, V_ARRAY, vtag, list_elt, &
-                       xfixnum, V_NULL, V_INTEGER, V_NAME
+    use lisp_fm, only: value_type, make_list, list_elements, V_ARRAY, vtag, list_elt, xfixnum, V_NULL, V_INTEGER, V_NAME
     use handle_fm, only: handle_type
     use character_fm, only: CHAR_ALT, CHAR_SUPER, CHAR_HYPER, CHAR_SHIFT, CHAR_CTL, CHAR_META
     use buffer_fm, only: buffers, cur, current_buffer, get_buffer_create, set_buffer, kill_buffer, &
@@ -53,9 +52,8 @@ module help_fns_fm
     use editfns_fm, only: point_min, point_max, buffer_string
     use insdel_fm, only: insert
     use fill_fm, only: fill_region_as_paragraph
-    use lread_fm, only: sym
     use data_fm, only: symbol_name
-    use callint_fm, only: is_command_defined, fboundp
+    use callint_fm, only: is_command_defined, find_command
     use keymap_fm, only: key_description, where_is_internal, parse_modifiers
     use minibuf_fm, only: completion_obarray_table, completion_list_table
     use minibuffer_fm, only: completing_read, REQUIRE_MATCH_YES
@@ -98,7 +96,7 @@ contains
             if (trim(function_names(k)) == name) return
         end do
 
-        is_function_known = fboundp(sym(name))
+        is_function_known = associated(find_command(name))
     end function is_function_known
 
     !> Completion predicate for `describe_function'.  Not a port.
@@ -175,7 +173,7 @@ contains
         integer :: k, n, nunmod
 
         s = ""
-        call where_is_internal(sym(name), all)
+        call where_is_internal(value_type(name=name), all)
         call list_elements(all, keys)
 
         if (name == "self_insert_command" .and. size(keys) > 0) then
@@ -267,7 +265,7 @@ contains
         logical :: found, interactive, subroutine_p
 
         call function_doc(name, entry, found)
-        interactive = is_command_defined(sym(name))
+        interactive = is_command_defined(value_type(name=name))
         if (found) interactive = interactive .or. entry%command
         subroutine_p = .true.
         if (found) subroutine_p = len(entry%fortran) == 0 .or. index(entry%fortran, "call ") == 1
@@ -375,7 +373,7 @@ contains
         ! (help-fns-describe-variable-functions), after an empty line.
         extra = ""
         ! help-fns--var-bufferlocal
-        if (is_automatically_local(sym(name))) extra = extra//"  Automatically becomes buffer-local when set."//LF
+        if (is_automatically_local(value_type(name=name))) extra = extra//"  Automatically becomes buffer-local when set."//LF
         ! help-fns--customize-variable
         if (entry%user_option) extra = extra//"  You can customize this variable."//LF
         if (len(extra) > 0) text = text//LF//extra
@@ -425,7 +423,7 @@ contains
         allocate (names(size(variable_names)))
 
         do k = 1, size(variable_names)
-            names(k) = make_string(trim(variable_names(k)))
+            names(k) = value_type(text=trim(variable_names(k)))
         end do
 
         call completing_read("Describe variable: ", completion_list_table(make_list(names), "symbol-help"), name, status, &
@@ -740,12 +738,12 @@ contains
         integer :: k
 
         do k = 1, size(function_names)
-            s = sym(trim(function_names(k)))
+            s = value_type(name=trim(function_names(k)))
         end do
 
         ! The documented variables too (upstream interns every defvar).
         do k = 1, size(variable_names)
-            s = sym(trim(variable_names(k)))
+            s = value_type(name=trim(variable_names(k)))
         end do
 
         describe_function_1_hook => describe_function_1

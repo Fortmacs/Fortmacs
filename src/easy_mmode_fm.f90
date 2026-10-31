@@ -32,8 +32,8 @@ module easy_mmode_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, t_value, make_keymap_ref, symbols
-    use lread_fm, only: sym, intern
+    use lisp_fm, only: value_type, make_keymap_ref, symbols
+    use lread_fm, only: intern
     use data_fm, only: set, set_default, symbol_value, make_variable_buffer_local, buffer_local_value, logical_setting, &
                        default_value
     use eval_fm, only: hook_type
@@ -44,7 +44,7 @@ module easy_mmode_fm
     use xdisp_fm, only: message, add_minor_mode_lighter
     use subr_fm, only: after_hook_proc, add_delayed_after_hook, delaying_mode_hooks
     use error_fm, only: set_error, FM_USER_ERROR
-    use lisp_fm, only: make_list, make_fixnum, list
+    use lisp_fm, only: make_list, list, value_type
     use buffer_fm, only: current_buffer
     use editfns_fm, only: point, goto_char, widen, is_buffer_narrowed
     use search_fm, only: looking_at, re_search_forward, re_search_backward, match_beginning, match_end, SEARCH_NOERROR
@@ -229,7 +229,7 @@ contains
 
                 if (.not. is_pos_visible_in_window(endpt, selected_window())) then
                     ws = window_start(w)
-                    call recenter(list(make_fixnum(0_int64)), .false., st)
+                    call recenter(list(value_type(0_int64)), .false., st)
                     ! recenter scrolled in the wrong direction!
                     if (window_start(w) < ws) call set_window_start(w, ws, st)
                 end if
@@ -564,7 +564,7 @@ contains
         ! A mode with another variable makes that variable local when set
         ! (a buffer-local mode).
         if (len_trim(self%variable) > 0 .and. .not. self%global) then
-            call make_variable_buffer_local(sym(trim(self%variable)), st)
+            call make_variable_buffer_local(value_type(name=trim(self%variable)), st)
         end if
 
         ! The mode's variable is now known by its name (data_fm forwards it
@@ -607,7 +607,7 @@ contains
         else if (len_trim(self%variable) == 0 .and. self%global) then
             on = self%state%value
         else if (b > 0) then
-            call buffer_local_value(sym(state_name(self)), b, v, st)
+            call buffer_local_value(value_type(name=state_name(self)), b, v, st)
             on = st%ok() .and. allocated(v%a)
         end if
     end function minor_mode_enabled_in
@@ -621,11 +621,11 @@ contains
         if (associated(self%getter)) then
             on = self%getter()
         else if (len_trim(self%variable) > 0) then
-            call symbol_value(sym(trim(self%variable)), v, st)
+            call symbol_value(value_type(name=trim(self%variable)), v, st)
             on = st%ok() .and. allocated(v%a)
         else if (self%global .and. self%state%local_p()) then
             ! A global mode's state is its default value.
-            call default_value(sym(trim(self%name)), v, st)
+            call default_value(value_type(name=trim(self%name)), v, st)
             on = st%ok() .and. allocated(v%a)
         else
             on = self%state%value
@@ -656,7 +656,7 @@ contains
         if (self%global) then
             ! (setq-default MODE ON)
             if (self%state%local_p()) then
-                call set_default(sym(trim(self%name)), bool(on), st)
+                call set_default(value_type(name=trim(self%name)), bool(on), st)
             else
                 self%state = on
             end if
@@ -688,9 +688,9 @@ contains
             ! it there (:variable with a setter).
             if (.not. associated(self%body)) then
                 if (self%global) then
-                    call set_default(sym(trim(self%variable)), bool(enable), status)
+                    call set_default(value_type(name=trim(self%variable)), bool(enable), status)
                 else
-                    call set(sym(trim(self%variable)), bool(enable), status)
+                    call set(value_type(name=trim(self%variable)), bool(enable), status)
                 end if
 
                 if (.not. status%ok()) return
@@ -757,7 +757,7 @@ contains
         type(value_type) :: v
 
         if (b) then
-            v = t_value()
+            v = value_type(.true.)
         else
             v = value_type()
         end if

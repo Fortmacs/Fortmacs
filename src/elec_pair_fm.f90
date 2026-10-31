@@ -43,8 +43,7 @@ module elec_pair_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, FM_SCAN_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, xfixnum, make_fixnum, vtag, V_INTEGER
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
     use data_fm, only: default_value, set_default, kill_local_variable
     use commands_fm, only: commands
     use eval_fm, only: hook_type, hook_current_prefix_arg
@@ -582,7 +581,7 @@ contains
         saved_event = last_command_event
         saved_blink = blink_matching_paren
         saved_mode = minor_modes%electric_pair_mode%state%value
-        last_command_event = make_fixnum(int(char, int64))
+        last_command_event = value_type(int(char, int64))
         blink_matching_paren = BLINK_MATCHING_PAREN_NO
         minor_modes%electric_pair_mode%state%value = .false.
         call self_insert_command(times, int(char, int64), status)
@@ -1007,7 +1006,7 @@ contains
 
         if (modulo(moved, 2_int64) /= 0) then
             saved_arg = hook_current_prefix_arg
-            hook_current_prefix_arg = make_fixnum(num - 1)
+            hook_current_prefix_arg = value_type(num - 1)
             call electric_pair_post_self_insert_function(status)
             hook_current_prefix_arg = saved_arg
             return
@@ -1233,16 +1232,16 @@ contains
 
         status = status_type()
         call minor_modes%electric_pair_mode%state%set_local(val)
-        call default_value(sym("electric_pair_mode"), default, st)
+        call default_value(value_type(name="electric_pair_mode"), default, st)
 
         if (minor_modes%electric_pair_mode%state%value .eqv. allocated(default%a)) then
-            call kill_local_variable(sym("electric_pair_mode"), st)
+            call kill_local_variable(value_type(name="electric_pair_mode"), st)
         else if (.not. allocated(default%a)) then
             ! Locally enabled, but globally disabled.
             ! Setup the hooks.
             call minor_modes%electric_pair_mode%enable(status)
             ! But keep it globally disabled.
-            call set_default(sym("electric_pair_mode"), value_type(), st)
+            call set_default(value_type(name="electric_pair_mode"), value_type(), st)
         end if
     end subroutine electric_pair_local_mode_body
 end module elec_pair_fm

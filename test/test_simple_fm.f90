@@ -28,8 +28,7 @@ module test_simple_fm
     use error_fm, only: status_type, format_error, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER, &
                         FM_BUFFER_READ_ONLY
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, list_elt, list_length, xstring, make_fixnum, list, list_elements
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list_elt, list_length, xstring, list, list_elements
     use data_fm, only: set, value_eq
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, &
                          set_buffer_read_only
@@ -127,7 +126,7 @@ contains
         call set_buffer_read_only(h, .false., st)
         call erase_buffer(st)
         call deactivate_mark(.true.)
-        call set(sym("kill_ring"), value_type(), st)
+        call set(value_type(name="kill_ring"), value_type(), st)
         call show_alone()
     end subroutine fresh
 
@@ -202,7 +201,7 @@ contains
 
         if (allocated(error)) return
         call set_text_point_mark(before)
-        last_command = sym("ignore")
+        last_command = value_type(name="ignore")
         call kill_whole_line(arg, st)
         call check(error, st%ok(), label//": "//format_error(st))
         if (allocated(error)) return
@@ -232,10 +231,10 @@ contains
 
         call fresh(h)
         call set_text_point_mark("A"//point_tag//"X"//mark_tag//"B")
-        last_command = sym("ignore")
+        last_command = value_type(name="ignore")
         call kill_region(point(), mark_position(), st)
         call deactivate_mark(.true.)
-        last_command = sym("kill_region")
+        last_command = value_type(name="kill_region")
         call kill_whole_line(1_int64, st)
         call check(error, latest_kill(), "AXB")
         if (.not. allocated(error)) call check(error, get_text_point_mark(), point_tag)
@@ -322,14 +321,14 @@ contains
 
         call fresh(h)
         call insert("abcdef", st)
-        last_command = sym("ignore")
+        last_command = value_type(name="ignore")
         call kill_region(3_int64, 5_int64, st)
         call check(error, buffer_string() == "abef" .and. latest_kill() == "cd", "kill")
         if (allocated(error)) return
-        call check(error, value_eq(this_command, sym("kill_region")), "this-command")
+        call check(error, value_eq(this_command, value_type(name="kill_region")), "this-command")
         if (allocated(error)) return
         ! A kill after a kill appends (forward) or prepends (backward).
-        last_command = sym("kill_region")
+        last_command = value_type(name="kill_region")
         call kill_region(3_int64, 4_int64, st)
         call check(error, buffer_string() == "abf" .and. latest_kill() == "cde", "append")
         if (allocated(error)) return
@@ -338,7 +337,7 @@ contains
         if (allocated(error)) return
         call check(error, list_length(kill_ring()), 1_int64)
         if (allocated(error)) return
-        last_command = sym("ignore")
+        last_command = value_type(name="ignore")
         call copy_region_as_kill(1_int64, 2_int64, st)
         call check(error, buffer_string() == "f" .and. latest_kill() == "f", "copy")
         if (allocated(error)) return
@@ -355,7 +354,7 @@ contains
         call fresh(h)
         call insert("locked", st)
         call set_buffer_read_only(h, .true., st)
-        last_command = sym("ignore")
+        last_command = value_type(name="ignore")
         call kill_region(1_int64, 4_int64, st)
         call check(error, st%code == FM_BUFFER_READ_ONLY, format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string() == "locked" .and. latest_kill() == "loc", "copied")
@@ -370,13 +369,13 @@ contains
 
         call fresh(h)
         call set_text_point_mark(point_tag//"one"//nl//"  "//nl//"three")
-        last_command = sym("ignore")
+        last_command = value_type(name="ignore")
         call kill_line(0_int64, .false., st)
         call check(error, get_text_point_mark() == point_tag//nl//"  "//nl//"three" .and. latest_kill() == "one", &
                    "rest of the line")
         if (allocated(error)) return
         ! At the end of a line: the newline; then blanks and the newline.
-        last_command = sym("kill_region")
+        last_command = value_type(name="kill_region")
         call kill_line(0_int64, .false., st)
         call kill_line(0_int64, .false., st)
         call check(error, get_text_point_mark() == point_tag//"three" .and. latest_kill() == "one"//nl//"  "//nl, &
@@ -388,7 +387,7 @@ contains
         if (allocated(error)) return
         ! With an argument: that many lines; 0 kills back to the start.
         call set_text_point_mark("a"//nl//"b"//point_tag//"c"//nl//"d"//nl)
-        last_command = sym("ignore")
+        last_command = value_type(name="ignore")
         call kill_line(2_int64, .true., st)
         call check(error, get_text_point_mark() == "a"//nl//"b"//point_tag .and. latest_kill() == "c"//nl//"d"//nl, &
                    get_text_point_mark())
@@ -413,25 +412,25 @@ contains
         if (allocated(error)) return
         call check(error,.not. is_region_active(), "the mark is not activated")
         if (allocated(error)) return
-        last_command = sym("yank")
+        last_command = value_type(name="yank")
         call yank_pop(1_int64, st)
         call check(error, buffer_string() == "<first>" .and. point() == 7, buffer_string())
         if (allocated(error)) return
         call yank_pop(1_int64, st)
         call check(error, buffer_string(), "<second>")
         if (allocated(error)) return
-        last_command = sym("ignore")
+        last_command = value_type(name="ignore")
         call yank_pop(1_int64, st)
         call check(error, format_error(st), "Previous command was not a yank")
         if (allocated(error)) return
         ! C-u C-y: point before the text, mark after it.
         call goto_char(1_int64)
-        call yank(list(make_fixnum(4_int64)), st)
+        call yank(list(value_type(4_int64)), st)
         call check(error, buffer_string() == "second<second>" .and. point() == 1 .and. mark_position() == 7, &
                    "C-u C-y")
         if (allocated(error)) return
         ! M-2 C-y: the second most recent kill.
-        call yank(make_fixnum(2_int64), st)
+        call yank(value_type(2_int64), st)
         call check(error, buffer_string(), "firstsecond<second>")
         call kill_buffer(h, st)
     end subroutine test_yank
@@ -818,7 +817,7 @@ contains
         if (allocated(error)) return
         ! cycle-spacing: one space, no space, the original spacing.
         call set_text_point_mark("a  "//point_tag//" b")
-        this_command = sym("cycle_spacing")
+        this_command = value_type(name="cycle_spacing")
         last_command = value_type()
         call cycle_spacing(value_type(), st)
         call check(error, get_text_point_mark(), "a "//point_tag//"b")
@@ -1106,7 +1105,7 @@ contains
         if (allocated(error)) return
         ! C-q M-a inserts a with the 0200 bit: 225.
         call erase_buffer(st)
-        call list_elements(list(make_fixnum(17_int64), make_fixnum(ior(97_int64, int(CHAR_META, int64)))), events)
+        call list_elements(list(value_type(17_int64), value_type(ior(97_int64, int(CHAR_META, int64)))), events)
         call unread_command_events(events)
         call command_loop(st)
         call check(error, buffer_string(), achar(195)//achar(161))
@@ -1144,7 +1143,8 @@ contains
         call init_bindings()
         call discard_input()
         prefix_arg = value_type()
-        call list_elements(list(make_fixnum(21_int64), sym("kp-1"), sym("kp-2"), make_fixnum(97_int64)), events)
+        call list_elements(list(value_type(21_int64), value_type(name="kp-1"), value_type(name="kp-2"), value_type(97_int64)), &
+                           events)
         call unread_command_events(events)
         call command_loop(st)
         call check(error, buffer_string(), repeat("a", 12))
@@ -1184,7 +1184,7 @@ contains
         call kill_new("one")
         call kill_new("two")
         call yank(value_type(), st)
-        last_command = sym("yank")
+        last_command = value_type(name="yank")
         call set_buffer_read_only(h, .true., st)
         call yank_pop(1_int64, st)
         call set_buffer_read_only(h, .false., st)
@@ -1295,10 +1295,10 @@ contains
         call special_mode(st)
         call key_parse("x", key, st)
         call key_binding(key, binding, st)
-        call check(error, value_eq(binding, sym("undefined")), "key-binding remaps")
+        call check(error, value_eq(binding, value_type(name="undefined")), "key-binding remaps")
         if (allocated(error)) return
         call key_binding(key, binding, st, no_remap=.true.)
-        call check(error, value_eq(binding, sym("self_insert_command")), "no remap")
+        call check(error, value_eq(binding, value_type(name="self_insert_command")), "no remap")
         if (allocated(error)) return
         call kbd_store_bytes("x")
         call command_loop(st)
@@ -1312,7 +1312,7 @@ contains
     !> newline as absent.
     subroutine test_line_motion_invisible(error)
         use textprop_fm, only: put_text_property
-        use lisp_fm, only: t_value
+        use lisp_fm, only: value_type
         use simple_fm, only: line_move_visual
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
@@ -1324,7 +1324,7 @@ contains
         call set_buffer(h, st)
         call show_alone()
         call insert("one"//achar(10)//"two"//achar(10)//"three", st)
-        call put_text_property(5_int64, 9_int64, sym("invisible"), t_value(), st)
+        call put_text_property(5_int64, 9_int64, value_type(name="invisible"), value_type(.true.), st)
         line_move_visual = .false.
         call check(error, after_keys(2_int64, "C-n") == 10, "C-n by buffer lines")
         if (allocated(error)) return
@@ -1333,7 +1333,7 @@ contains
         if (allocated(error)) return
         call erase_buffer(st)
         call insert("ab"//achar(10)//"cd"//achar(10)//"ef", st)
-        call put_text_property(3_int64, 4_int64, sym("invisible"), t_value(), st)
+        call put_text_property(3_int64, 4_int64, value_type(name="invisible"), value_type(.true.), st)
         call check(error, after_keys(1_int64, "C-e") == 6, "C-e")
         if (allocated(error)) return
         call check(error, after_keys(1_int64, "C-e C-a") == 1, "C-a")

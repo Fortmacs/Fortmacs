@@ -54,10 +54,8 @@ module grep_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, make_string, make_list, list, t_value, xstring, &
-                       xfixnum, list_elements, make_fixnum, vtag, V_INTEGER, V_STRING, V_ARRAY
-    use lread_fm, only: sym
-    use data_fm, only: symbol_value, add_local_variables_killer
+    use lisp_fm, only: value_type, make_list, list, xstring, xfixnum, list_elements, vtag, V_INTEGER, V_STRING, V_ARRAY
+    use data_fm, only: symbol_value, add_local_variables_killer, history_setting, forward_setting
     use eval_fm, only: hook_type
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, generate_new_buffer_name, &
                          kill_buffer, is_buffer_modified, is_buffer_live, transient_mark_mode
@@ -70,7 +68,7 @@ module grep_fm
                            next_single_property_change, remove_list_of_text_properties
     use search_fm, only: re_search_forward, match_beginning, match_end, match_data, set_match_data, replace_match, &
                          string_match, looking_at, case_fold_search, string_index_to_offset, SEARCH_NOERROR, SEARCH_MOVE
-    use subr_fm, only: match_string, shell_quote_argument, add_to_history, defvar_nil, find_tag_default, &
+    use subr_fm, only: match_string, shell_quote_argument, add_to_history, find_tag_default, &
                        silent_modifications_type, silent_modifications_begin, silent_modifications_end
     use fileio_fm, only: expand_file_name, file_name_as_directory, file_name_nondirectory, is_file_directory, &
                          is_file_accessible_directory
@@ -542,6 +540,17 @@ module grep_fm
     character(len=*), parameter :: NL = achar(10), TB = achar(9), NUL = achar(0), ESC = achar(27)
     character(len=*), parameter :: NULL_DEVICE = "/dev/null"
 
+    !> History list for grep.  Port of grep.el grep-history.
+    type(history_setting), target, public :: grep_history = history_setting(name="grep_history")
+    !> History list for `grep_find'.  Port of grep.el grep-find-history.
+    type(history_setting), target, public :: grep_find_history = history_setting(name="grep_find_history")
+    !> History of `lgrep' and `rgrep' regexp args.  Port of grep.el
+    !> grep-regexp-history.
+    type(history_setting), target, public :: grep_regexp_history = history_setting(name="grep_regexp_history")
+    !> History of `lgrep' and `rgrep' files args.  Port of grep.el
+    !> grep-files-history.
+    type(history_setting), target, public :: grep_files_history = history_setting(name="grep_files_history")
+
 contains
 
     ! ------------------------------------------------------------------
@@ -628,8 +637,8 @@ contains
         logical, intent(in), optional :: quoting_style
 
         if (grep_host_defaults_table%has_defaults) then
-            call apply(grep_host_defaults_table%defaults)
-            if (grep_host_defaults_table%has_localhost) call apply(grep_host_defaults_table%localhost)
+            call set_defaults(grep_host_defaults_table%defaults)
+            if (grep_host_defaults_table%has_localhost) call set_defaults(grep_host_defaults_table%localhost)
         end if
 
         if (present(command)) grep_command = command
@@ -650,7 +659,7 @@ contains
 
     contains
 
-        subroutine apply(d)
+        subroutine set_defaults(d)
             type(grep_defaults_type), intent(inout) :: d
 
             if (present(command)) d%command = command
@@ -668,7 +677,7 @@ contains
             if (present(use_null_filename_separator)) d%use_null_filename_separator = use_null_filename_separator
             if (present(highlight_matches)) d%highlight_matches = highlight_matches
             if (present(quoting_style)) d%quoting_style = quoting_style
-        end subroutine apply
+        end subroutine set_defaults
     end subroutine grep_apply_setting
 
     !> The current values of the settings `grep_compute_defaults' computes.
@@ -745,7 +754,7 @@ contains
         if (grep_highlight_matches == GREP_HIGHLIGHT_MATCHES_NO) return
         beg = match_end(0, st)
         end = line_end_at(beg)
-        call text_property_any(beg, end, sym("font_lock_face"), sym(grep_match_face), mbeg, found, st)
+        call text_property_any(beg, end, value_type(name="font_lock_face"), value_type(name=grep_match_face), mbeg, found, st)
         if (found) number = mbeg - beg
     end subroutine first_match_column
 
@@ -762,9 +771,9 @@ contains
         if (grep_highlight_matches == GREP_HIGHLIGHT_MATCHES_NO) return
         beg = match_end(0, st)
         end = line_end_at(beg)
-        call text_property_any(beg, end, sym("font_lock_face"), sym(grep_match_face), mbeg, found, st)
+        call text_property_any(beg, end, value_type(name="font_lock_face"), value_type(name=grep_match_face), mbeg, found, st)
         if (.not. found) return
-        call next_single_property_change(mbeg, sym("font_lock_face"), mend, found, st, end)
+        call next_single_property_change(mbeg, value_type(name="font_lock_face"), mend, found, st, end)
         if (found) number = mend - beg - 1
     end subroutine first_match_end_column
 
@@ -882,8 +891,8 @@ contains
         status = status_type()
         call char_after(c, found, start)
         if (.not. found .or. c /= 0) return
-        call put_text_property(start, end, sym("face"), value_type(), status)
-        if (status%ok()) call put_text_property(start, end, sym("display"), make_string(match_string(2)), status)
+        call put_text_property(start, end, value_type(name="face"), value_type(), status)
+        if (status%ok()) call put_text_property(start, end, value_type(name="display"), value_type(text=match_string(2)), status)
     end subroutine context_separator_properties
 
     !> The text properties of an abbreviated command: when `grep_find_abbreviate'
@@ -896,7 +905,8 @@ contains
         if (grep_find_abbreviate) then
             call add_text_properties(start, end, grep_find_abbreviate_properties(), changed, status)
         else
-            call add_text_properties(start, end, list(sym("face"), value_type(), sym("abbreviated_command"), t_value()), &
+            call add_text_properties(start, end, list(value_type(name="face"), value_type(), &
+                                                      value_type(name="abbreviated_command"), value_type(.true.)), &
                                      changed, status)
         end if
     end subroutine abbreviate_properties
@@ -908,17 +918,17 @@ contains
         type(value_type) :: props
         type(value_type) :: parts(10)
 
-        parts(1) = sym("face")
+        parts(1) = value_type(name="face")
         parts(2) = value_type()
-        parts(3) = sym("display")
+        parts(3) = value_type(name="display")
         ! (char-displayable-p ?…): the terminal's coding system is UTF-8.
-        parts(4) = make_string("[…]")
-        parts(5) = sym("mouse_face")
-        parts(6) = sym("highlight")
-        parts(7) = sym("help_echo")
-        parts(8) = make_string("RET, mouse-2: show unabbreviated command")
-        parts(9) = sym("abbreviated_command")
-        parts(10) = t_value()
+        parts(4) = value_type(text="[…]")
+        parts(5) = value_type(name="mouse_face")
+        parts(6) = value_type(name="highlight")
+        parts(7) = value_type(name="help_echo")
+        parts(8) = value_type(text="RET, mouse-2: show unabbreviated command")
+        parts(9) = value_type(name="abbreviated_command")
+        parts(10) = value_type(.true.)
         props = make_list(parts)
     end function grep_find_abbreviate_properties
 
@@ -1141,8 +1151,8 @@ contains
                 call replace_match(text, st, fixedcase=.true., literal=.true.)
                 mb = match_beginning(0, st)
                 me = point()
-                call put_text_property(mb, me, sym("face"), value_type(), st)
-                call put_text_property(mb, me, sym("font_lock_face"), sym(grep_match_face), st)
+                call put_text_property(mb, me, value_type(name="face"), value_type(), st)
+                call put_text_property(mb, me, value_type(name="font_lock_face"), value_type(name=grep_match_face), st)
                 k = local_entry()
                 locals(k)%num_matches_found = locals(k)%num_matches_found + 1
             end do
@@ -1203,12 +1213,12 @@ contains
             call re_search_forward(grep_heading_regexp, found, status, bound=bol, noerror=SEARCH_NOERROR)
             if (.not. status%ok()) exit
             if (found == 0) exit
-            call get_text_property(point(), sym("compilation_annotation"), annotation, st)
+            call get_text_property(point(), value_type(name="compilation_annotation"), annotation, st)
             if (allocated(annotation%a)) cycle
             heading = match_string(1, matched=matched)
             start = match_beginning(2, st)
             end = match_end(2, st)
-            if (start > 0) call put_text_property(start, end, sym("invisible"), t_value(), st)
+            if (start > 0) call put_text_property(start, end, value_type(name="invisible"), value_type(.true.), st)
             if (.not. matched) cycle
             k = local_entry()
 
@@ -1221,9 +1231,10 @@ contains
             hb = point()
             ! grep--heading-format.
             call insert_before_markers(heading//NL, st)
-            call put_text_property(hb, hb + len_chars(heading), sym("font_lock_face"), sym("grep_heading"), st)
-            call put_text_property(hb, hb + len_chars(heading), sym("outline_level"), make_fixnum(1_int64), st)
-            call put_text_property(hb, point(), sym("compilation_annotation"), t_value(), st)
+            call put_text_property(hb, hb + len_chars(heading), value_type(name="font_lock_face"), &
+                                   value_type(name="grep_heading"), st)
+            call put_text_property(hb, hb + len_chars(heading), value_type(name="outline_level"), value_type(1_int64), st)
+            call put_text_property(hb, point(), value_type(name="compilation_annotation"), value_type(.true.), st)
             call goto_char(here + (point() - hb))
             locals(k)%heading = heading
             ! The limit marker is a marker; the bound of the search moves
@@ -1293,11 +1304,11 @@ contains
         allocate (argv(size(args)))
 
         do i = 1, size(args)
-            argv(i) = make_string(args(i)%s)
+            argv(i) = value_type(text=args(i)%s)
         end do
 
         dest = value_type()
-        if (insert) dest = t_value()
+        if (insert) dest = value_type(.true.)
         call call_process(program, res, st, destination=dest, args=make_list(argv))
         ok = .false.
         if (.not. st%ok()) return
@@ -1372,10 +1383,10 @@ contains
                     ! `grep_command' is already set, so use that for testing.
                     ! process-file-shell-command.
                     if (.not. allocated(shell_file_name%value)) call init_callproc()
-                    call call_process(shell_file_name%value, res, st, destination=t_value(), &
-                                      args=list(make_string(shell_command_switch%value), &
-                                                make_string(grep_command//" "//shell_quote_argument("^Copyright")// &
-                                                            " "//shell_quote_argument(hello))))
+                    call call_process(shell_file_name%value, res, st, destination=value_type(.true.), &
+                                      args=list(value_type(text=shell_command_switch%value), &
+                                                value_type(text=grep_command//" "//shell_quote_argument("^Copyright")// &
+                                                           " "//shell_quote_argument(hello))))
                     if (st%ok() .and. vtag(res) == V_INTEGER) ok = xfixnum(res) == 0
                 else
                     ! Otherwise use `grep_program'.
@@ -1634,7 +1645,7 @@ contains
         type(status_type) :: st
 
         found = .false.
-        call symbol_value(sym(history), v, st)
+        call symbol_value(value_type(name=history), v, st)
         if (.not. st%ok()) return
         if (vtag(v) /= V_ARRAY) return
         call list_elements(v, elems)
@@ -1810,14 +1821,15 @@ contains
 
         status = status_type()
         opoint = point()
-        call symbol_value(sym("inhibit_read_only"), inhibit, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), inhibit, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         pos = point_min()
 
         do
             call next_region("compilation_annotation", pos, beg, end, found)
             if (.not. found) exit
-            call add_text_properties(beg, end, list(sym("read_only"), t_value(), sym("front_sticky"), t_value()), &
+            call add_text_properties(beg, end, list(value_type(name="read_only"), value_type(.true.), &
+                                                    value_type(name="front_sticky"), value_type(.true.)), &
                                      changed, st)
             pos = end
         end do
@@ -1828,8 +1840,10 @@ contains
             call next_region("compilation_message", pos, beg, end, found)
             if (.not. found) exit
             ! (Allow insertion of text right after prefix, but not before.)
-            call add_text_properties(beg, end, list(sym("read_only"), t_value(), sym("occur_prefix"), t_value(), &
-                                                    sym("front_sticky"), t_value(), sym("rear_nonsticky"), t_value()), &
+            call add_text_properties(beg, end, list(value_type(name="read_only"), value_type(.true.), &
+                                                    value_type(name="occur_prefix"), value_type(.true.), &
+                                                    value_type(name="front_sticky"), value_type(.true.), &
+                                                    value_type(name="rear_nonsticky"), value_type(.true.)), &
                                      changed, st)
             ! Update the markers if necessary.
             call compilation_message_location(beg, target_buffer, location, found, status)
@@ -1842,20 +1856,21 @@ contains
                 call copy_marker_at(location, e(1), .false., st)
                 call set_buffer(old, st)
                 idx = occur_add_target(m, e)
-                call next_single_property_change(end, sym("compilation_message"), next, found, st)
+                call next_single_property_change(end, value_type(name="compilation_message"), next, found, st)
 
                 if (.not. found) then
                     call goto_char(end)
                     next = line_end_position() + 1
                 end if
 
-                call put_text_property(beg, min(next, point_max()), sym("occur_target"), make_fixnum(int(idx, int64)), st)
+                call put_text_property(beg, min(next, point_max()), value_type(name="occur_target"), value_type(int(idx, int64)), &
+                                       st)
             end if
 
             pos = end
         end do
 
-        call set(sym("inhibit_read_only"), inhibit, st)
+        call set(value_type(name="inhibit_read_only"), inhibit, st)
         call goto_char(opoint)
 
     contains
@@ -1869,9 +1884,9 @@ contains
             logical, intent(out) :: ok
             type(status_type) :: s
 
-            call text_property_not_all(from, point_max(), sym(prop), value_type(), b, ok, s)
+            call text_property_not_all(from, point_max(), value_type(name=prop), value_type(), b, ok, s)
             if (.not. ok) return
-            call next_single_property_change(b, sym(prop), e2, ok, s)
+            call next_single_property_change(b, value_type(name=prop), e2, ok, s)
             if (.not. ok) e2 = point_max()
             ok = .true.
         end subroutine next_region
@@ -2281,7 +2296,7 @@ contains
         allocate (vals(size(read_files_defaults)))
 
         do i = 1, size(read_files_defaults)
-            vals(i) = make_string(read_files_defaults(i)%s)
+            vals(i) = value_type(text=read_files_defaults(i)%s)
         end do
 
         list_table = completion_list_table(make_list(vals))
@@ -2294,7 +2309,7 @@ contains
             if (.not. status%ok()) return
 
             if (is_string(r1) .or. is_string(r2)) then
-                result = make_string(string)
+                result = value_type(text=string)
                 return
             end if
 
@@ -2322,7 +2337,7 @@ contains
             result = value_type()
 
             if (action == COMPLETE_TEST) then
-                if (test_completion(string, list_table, pred)) result = t_value()
+                if (test_completion(string, list_table, pred)) result = value_type(.true.)
             end if
 
             if (.not. status%ok()) return
@@ -2349,7 +2364,7 @@ contains
             if (vtag(v) == V_STRING) then
                 grown(size(grown)) = v
             else
-                grown(size(grown)) = make_string(string)
+                grown(size(grown)) = value_type(text=string)
             end if
 
             call move_alloc(grown, all)
@@ -2829,16 +2844,18 @@ contains
 
         status = status_type()
         call silent_modifications_begin(silent)
-        call next_single_property_change(point_min(), sym("abbreviated_command"), beg, found, st)
+        call next_single_property_change(point_min(), value_type(name="abbreviated_command"), beg, found, st)
         end = 0
-        if (found) call next_single_property_change(beg, sym("abbreviated_command"), end, found, st)
+        if (found) call next_single_property_change(beg, value_type(name="abbreviated_command"), end, found, st)
 
         if (found .and. end > 0) then
-            call get_text_property(beg, sym("display"), display, st)
+            call get_text_property(beg, value_type(name="display"), display, st)
 
             if (allocated(display%a)) then
-                call remove_list_of_text_properties(beg, end, list(sym("display"), sym("help_echo"), sym("mouse_face"), &
-                                                                   sym("help_echo"), sym("keymap")), changed, st)
+                call remove_list_of_text_properties(beg, end, list(value_type(name="display"), value_type(name="help_echo"), &
+                                                                   value_type(name="mouse_face"), &
+                                                                   value_type(name="help_echo"), value_type(name="keymap")), &
+                                                    changed, st)
             else
                 call add_text_properties(beg, end, grep_find_abbreviate_properties(), changed, st)
             end if
@@ -3071,10 +3088,10 @@ contains
         call make_sparse_keymap(grep_edit_mode_map)
         call set_keymap_parent(grep_edit_mode_map, text_mode_map, st)
         call keymap_set(grep_edit_mode_map, "C-c C-c", "grep_edit_save_changes", st)
-        call defvar_nil("grep_history")
-        call defvar_nil("grep_find_history")
-        call defvar_nil("grep_regexp_history")
-        call defvar_nil("grep_files_history")
+        call forward_setting(grep_history)
+        call forward_setting(grep_find_history)
+        call forward_setting(grep_regexp_history)
+        call forward_setting(grep_files_history)
         commands%grep_mode%run => grep_mode
         commands%grep%run => cmd_grep
         commands%grep_find%run => cmd_grep_find

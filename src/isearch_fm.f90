@@ -43,10 +43,9 @@ module isearch_fm
     use error_fm, only: status_type, set_error, FM_QUIT, FM_USER_ERROR, FM_INVALID_REGEXP, FM_SEARCH_FAILED, &
                         FM_USER_SEARCH_FAILED, error_message
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, make_fixnum, xfixnum, xstring, make_keymap_ref, &
-                       list_length, list_elt, list_elements, make_list, vtag, V_INTEGER, V_STRING
-    use lread_fm, only: sym
-    use data_fm, only: value_eq, symbol_value, set, add_local_variables_killer
+    use lisp_fm, only: value_type, xfixnum, xstring, make_keymap_ref, list_length, list_elt, list_elements, make_list, &
+                       vtag, V_INTEGER, V_STRING
+    use data_fm, only: value_eq, symbol_value, set, add_local_variables_killer, history_setting, forward_setting
     use eval_fm, only: hook_type
     use character_fm, only: string_char_and_length, char_string, MAX_CHAR, MAX_MULTIBYTE_LENGTH, &
                             CHAR_SHIFT
@@ -65,7 +64,7 @@ module isearch_fm
                            pre_command_hook, discard_input, is_input_pending, &
                            read_event, sit_for
     use callint_fm, only: is_command, current_prefix_arg, prefix_numeric_value
-    use subr_fm, only: add_to_history, history_delete_duplicates, defvar_nil
+    use subr_fm, only: add_to_history, history_delete_duplicates
     use minibuf_fm, only: read_from_minibuffer, history_add_new_input, minibuf_level
     use xdisp_fm, only: message, message_nolog
     use dispnew_fm, only: ding
@@ -422,6 +421,12 @@ module isearch_fm
     !> lazy-highlight.
     type(named_face_type), target, public :: lazy_highlight
 
+    !> List of search string sequences.  Port of isearch.el search-ring.
+    type(history_setting), target, public :: search_ring = history_setting(name="search_ring")
+    !> List of regular expression search string sequences.  Port of
+    !> isearch.el regexp-search-ring.
+    type(history_setting), target, public :: regexp_search_ring = history_setting(name="regexp_search_ring")
+
 contains
 
     ! ------------------------------------------------------------------
@@ -629,15 +634,15 @@ contains
 
     !> The search ring (isearch.el search-ring or regexp-search-ring, as
     !> for the current search), most recent first.  Not a port.
-    subroutine search_ring(elems)
+    subroutine search_ring_entries(elems)
         type(value_type), allocatable, intent(out) :: elems(:)
         type(value_type) :: ring
         type(status_type) :: status
 
-        call symbol_value(sym(ring_name(isearch_regexp)), ring, status)
+        call symbol_value(value_type(name=ring_name(isearch_regexp)), ring, status)
         if (.not. status%ok()) ring = value_type()
         call list_elements(ring, elems)
-    end subroutine search_ring
+    end subroutine search_ring_entries
 
     !> Add STRING to the beginning of the search ring.
     !> REGEXP if .true. says use the regexp search ring.  Port of
@@ -660,7 +665,7 @@ contains
         type(value_type), allocatable :: ring(:)
         integer :: length, yank_pointer
 
-        call search_ring(ring)
+        call search_ring_entries(ring)
         length = size(ring)
         if (length == 0) return
 
@@ -1063,10 +1068,10 @@ contains
         end if
 
         ! Handle a prefix argument.
-        if (value_eq(this_command, sym("universal_argument")) .or. &
-            value_eq(this_command, sym("universal_argument_more")) .or. &
-            value_eq(this_command, sym("digit_argument")) .or. &
-            value_eq(this_command, sym("negative_argument"))) return
+        if (value_eq(this_command, value_type(name="universal_argument")) .or. &
+            value_eq(this_command, value_type(name="universal_argument_more")) .or. &
+            value_eq(this_command, value_type(name="digit_argument")) .or. &
+            value_eq(this_command, value_type(name="negative_argument"))) return
         ! Other characters terminate the search and are then executed
         ! normally.
         if (search_exit_option) call isearch_done()
@@ -1579,7 +1584,7 @@ contains
             ! C-s in forward or C-r in reverse.
             if (len(isearch_string) == 0) then
                 ! If search string is empty, use last one.
-                call search_ring(ring)
+                call search_ring_entries(ring)
 
                 if (size(ring) == 0) then
                     isearch_error = "No previous search string"
@@ -1714,7 +1719,7 @@ contains
         integer(int64), intent(in) :: n
         type(value_type) :: v
 
-        v = make_fixnum(n)
+        v = value_type(n)
     end function make_count
 
     !> Go to the first occurrence of the current search string.
@@ -2069,9 +2074,9 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
 
-        if (.not. (value_eq(last_command, sym("isearch_yank_kill")) .or. &
-                   value_eq(last_command, sym("isearch_yank_pop")) .or. &
-                   value_eq(last_command, sym("isearch_yank_pop_only")))) then
+        if (.not. (value_eq(last_command, value_type(name="isearch_yank_kill")) .or. &
+                   value_eq(last_command, value_type(name="isearch_yank_pop")) .or. &
+                   value_eq(last_command, value_type(name="isearch_yank_pop_only")))) then
             call isearch_yank_kill(status)
         else
             call isearch_pop_state()
@@ -2231,7 +2236,7 @@ contains
         if (status%ok()) then
             ! Empty isearch-string means use default.
             if (len(isearch_string) == 0) then
-                call search_ring(ring)
+                call search_ring_entries(ring)
                 isearch_string = ""
                 if (size(ring) > 0) isearch_string = xstring(ring(1))
                 isearch_message = isearch_string
@@ -2306,9 +2311,9 @@ contains
     ! ------------------------------------------------------------------
 
     ! Not a port.
-    integer(int64) function arg_p()
-        arg_p = prefix_numeric_value(current_prefix_arg)
-    end function arg_p
+    integer(int64) function numeric_prefix_arg()
+        numeric_prefix_arg = prefix_numeric_value(current_prefix_arg)
+    end function numeric_prefix_arg
 
     subroutine cmd_isearch_exit(status)
         type(status_type), intent(out) :: status
@@ -2353,7 +2358,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_del_char(arg_p())
+        call isearch_del_char(numeric_prefix_arg())
     end subroutine cmd_isearch_del_char
 
     subroutine cmd_isearch_printing_char(status)
@@ -2361,48 +2366,48 @@ contains
 
         status = status_type()
         if (vtag(last_command_event) /= V_INTEGER) return
-        call isearch_printing_char(xfixnum(last_command_event), arg_p())
+        call isearch_printing_char(xfixnum(last_command_event), numeric_prefix_arg())
     end subroutine cmd_isearch_printing_char
 
     subroutine cmd_isearch_quote_char(status)
         type(status_type), intent(out) :: status
 
-        call isearch_quote_char(arg_p(), status)
+        call isearch_quote_char(numeric_prefix_arg(), status)
     end subroutine cmd_isearch_quote_char
 
     subroutine cmd_isearch_yank_char(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_yank_char(arg_p())
+        call isearch_yank_char(numeric_prefix_arg())
     end subroutine cmd_isearch_yank_char
 
     subroutine cmd_isearch_yank_word_or_char(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_yank_word_or_char(arg_p())
+        call isearch_yank_word_or_char(numeric_prefix_arg())
     end subroutine cmd_isearch_yank_word_or_char
 
     subroutine cmd_isearch_yank_line(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_yank_line(arg_p())
+        call isearch_yank_line(numeric_prefix_arg())
     end subroutine cmd_isearch_yank_line
 
     subroutine cmd_isearch_beginning_of_buffer(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_beginning_of_buffer(arg_p())
+        call isearch_beginning_of_buffer(numeric_prefix_arg())
     end subroutine cmd_isearch_beginning_of_buffer
 
     subroutine cmd_isearch_end_of_buffer(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_end_of_buffer(arg_p())
+        call isearch_end_of_buffer(numeric_prefix_arg())
     end subroutine cmd_isearch_end_of_buffer
 
     subroutine cmd_isearch_yank_kill(status)
@@ -2464,7 +2469,7 @@ contains
         type(status_type) :: status
 
         call key_parse(keys, key, status)
-        call define_key(map, key, sym(cmd), status)
+        call define_key(map, key, value_type(name=cmd), status)
     end subroutine bind
 
     !> Register the isearch commands, build `isearch_mode_map', and bind
@@ -2696,8 +2701,8 @@ contains
         call lazy_highlight%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=8), &
                                        face_attrs(background="turquoise3", distant_foreground="white"))
         call lazy_highlight%spec_entry(display_when(), face_attrs(underline=.true.))
-        call defvar_nil("search_ring")
-        call defvar_nil("regexp_search_ring")
+        call forward_setting(search_ring)
+        call forward_setting(regexp_search_ring)
         commands%isearch_forward%run => isearch_forward_command
         commands%isearch_backward%run => isearch_backward_command
         commands%isearch_forward_regexp%run => isearch_forward_regexp_command
@@ -2729,9 +2734,9 @@ contains
         call make_keymap(isearch_mode_map)
         ! Make all multibyte characters search for themselves.
         call define_key_range(isearch_mode_map, 256_int64, int(MAX_CHAR, int64), &
-                              sym("isearch_printing_char"), status)
+                              value_type(name="isearch_printing_char"), status)
         ! Single-byte printing chars extend the search string by default.
-        call define_key_range(isearch_mode_map, 32_int64, 255_int64, sym("isearch_printing_char"), status)
+        call define_key_range(isearch_mode_map, 32_int64, 255_int64, value_type(name="isearch_printing_char"), status)
         ! To handle local bindings with meta char prefix keys, define
         ! another full keymap.
         call make_sparse_keymap(meta_map)

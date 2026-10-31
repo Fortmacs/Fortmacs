@@ -36,8 +36,7 @@ module css_mode_fm
     use, intrinsic :: ieee_arithmetic, only: ieee_rint
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, list, make_string, make_list, make_fixnum
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list, make_list
     use data_fm, only: integer_setting, logical_setting, string_setting, forward_setting, add_local_variables_killer
     use commands_fm, only: commands
     use buffer_fm, only: buffers, cur, buffer_serial_live, current_buffer, buffer_list, set_buffer, is_buffer_live
@@ -1379,9 +1378,9 @@ contains
 
         do i = 1, size(strs)
             if (present(prefix)) then
-                elts(i) = make_string(prefix//trim(strs(i)))
+                elts(i) = value_type(text=prefix//trim(strs(i)))
             else
-                elts(i) = make_string(trim(strs(i)))
+                elts(i) = value_type(text=trim(strs(i)))
             end if
         end do
 
@@ -1490,7 +1489,7 @@ contains
                 allocate (more(size(css_pseudo_class_ids)))
 
                 do i = 1, size(css_pseudo_class_ids)
-                    more(i) = make_string(":"//trim(css_pseudo_class_ids(i)))
+                    more(i) = value_type(text=":"//trim(css_pseudo_class_ids(i)))
                 end do
 
                 call push_all(elts, more)
@@ -1500,7 +1499,7 @@ contains
             allocate (more(size(css_pseudo_element_ids)))
 
             do i = 1, size(css_pseudo_element_ids)
-                more(i) = make_string("::"//trim(css_pseudo_element_ids(i)))
+                more(i) = value_type(text="::"//trim(css_pseudo_element_ids(i)))
             end do
 
             call push_all(elts, more)
@@ -1585,7 +1584,7 @@ contains
                 call fn(names)
 
                 do j = 1, size(names)
-                    call push(found, make_string(trim(names(j))))
+                    call push(found, value_type(text=trim(names(j))))
                 end do
             end if
         end do
@@ -1612,7 +1611,7 @@ contains
     ! The string V holds.
     ! Not a port.
     function string_of(v) result(s)
-        use lisp_fm, only: xstring
+        use lisp_fm, only: xstring, value_type
         type(value_type), intent(in) :: v
         character(len=:), allocatable :: s
 
@@ -1670,10 +1669,10 @@ contains
                 if (.not. status%ok()) return
 
                 if (is_t(v)) then
-                    call push(elts, make_string(string))
+                    call push(elts, value_type(text=string))
                 else if (allocated(v%a)) then
                     if (string_of(v) == string) then
-                        result = make_string(string)
+                        result = value_type(text=string)
                         return
                     end if
 
@@ -1700,7 +1699,7 @@ contains
                 if (.not. have(i)) cycle
 
                 if (test_completion(string, tables(i), pred)) then
-                    result = sym("t")
+                    result = value_type(name="t")
                     return
                 end if
             end do
@@ -1712,7 +1711,7 @@ contains
     ! Whether V is t.
     ! Not a port.
     logical function is_t(v)
-        use lisp_fm, only: vtag, V_NAME, xsymbol, symbols
+        use lisp_fm, only: vtag, V_NAME, xsymbol, symbols, value_type
         type(value_type), intent(in) :: v
 
         is_t = .false.
@@ -1722,7 +1721,7 @@ contains
     ! The elements of the list V.
     ! Not a port.
     subroutine list_to_array(v, elts)
-        use lisp_fm, only: list_elements
+        use lisp_fm, only: list_elements, value_type
         type(value_type), intent(in) :: v
         type(value_type), allocatable, intent(out) :: elts(:)
 
@@ -2226,10 +2225,11 @@ contains
                     ! existing foreground color, to make sure it stands out
                     ! a bit from any other text; in particular this is nice
                     ! when the color matches the buffer's background color.
-                    call put_text_property(start, point(), sym("face"), &
-                                           list(sym(":background"), make_string(color), sym(":foreground"), &
-                                                make_string(readable_foreground_color(color)), sym(":box"), &
-                                                list(sym(":line-width"), make_fixnum(-1_int64))), st)
+                    call put_text_property(start, point(), value_type(name="face"), &
+                                           list(value_type(name=":background"), value_type(text=color), &
+                                                value_type(name=":foreground"), &
+                                                value_type(text=readable_foreground_color(color)), value_type(name=":box"), &
+                                                list(value_type(name=":line-width"), value_type(-1_int64))), st)
                     call silent_modifications_end(silent)
                 end if
             end if
@@ -2798,7 +2798,7 @@ contains
         opoint = point()
         call goto_char(mb(0))
         moved = skip_chars_backward(" "//LF//TAB, st)
-        call put_text_property(point(), me(0), sym("font_lock_multiline"), sym("t"), st)
+        call put_text_property(point(), me(0), value_type(name="font_lock_multiline"), value_type(name="t"), st)
         call goto_char(opoint)
     end subroutine brace_multiline
 
@@ -3499,13 +3499,13 @@ contains
     ! Bind [remap FROM] to COMMAND in `css_mode_map'.
     ! Not a port.
     subroutine bind_remap(from, command)
-        use lisp_fm, only: list_elements
+        use lisp_fm, only: list_elements, value_type
         character(len=*), intent(in) :: from, command
         type(value_type), allocatable :: events(:)
         type(status_type) :: st
 
-        call list_elements(list(sym("remap"), sym(from)), events)
-        call define_key(css_mode_map, events, sym(command), st)
+        call list_elements(list(value_type(name="remap"), value_type(name=from)), events)
+        call define_key(css_mode_map, events, value_type(name=command), st)
     end subroutine bind_remap
 
     !> Define CSS mode and SCSS mode: their variables, tables, keymaps and

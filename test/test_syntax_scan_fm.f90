@@ -37,8 +37,7 @@ module test_syntax_scan_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error, FM_SCAN_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, t_value
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type
     use data_fm, only: set
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, erase_buffer
     use insdel_fm, only: insert
@@ -902,7 +901,7 @@ contains
         type(status_type) :: st
 
         call temp_buffer("", table)
-        call set(sym("comment_end_can_be_escaped"), t_value(), st)
+        call set(value_type(name="comment_end_can_be_escaped"), value_type(.true.), st)
         call check(error, st%ok() .and. comment_end_can_be_escaped%value .and. comment_end_can_be_escaped%local_p())
         call comment_end_can_be_escaped%kill_local()
         call done_buffer(table)

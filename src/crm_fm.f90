@@ -31,7 +31,6 @@ module crm_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lread_fm, only: sym
     use buffer_fm, only: buffers, cur
     use editfns_fm, only: point, goto_char, point_max, is_eob, buffer_string
     use search_fm, only: re_search_forward, re_search_backward, looking_at, match_beginning, match_end, string_match, &
@@ -429,8 +428,8 @@ contains
         type(value_type), allocatable :: events(:)
         type(status_type) :: st
 
-        call list_elements(list(sym("remap"), sym(command)), events)
-        call define_key(map, events, sym(new), st)
+        call list_elements(list(value_type(name="remap"), value_type(name=command)), events)
+        call define_key(map, events, value_type(name=new), st)
     end subroutine remap
 
     !> Define crm.el's variables, keymaps and commands.  Not a port.

@@ -36,12 +36,11 @@
 !> for its table.
 module textprop_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use lisp_fm, only: vtag, V_NULL, V_NAME, V_STRING, V_ARRAY
+    use lisp_fm, only: vtag, V_NULL, V_NAME, V_STRING, V_ARRAY, value_type
     use error_fm, only: status_type, set_error, FM_ARGS_OUT_OF_RANGE, &
                         FM_GENERIC_ERROR, FM_TEXT_READ_ONLY, FM_BUFFER_READ_ONLY, FM_WRONG_TYPE_ARGUMENT
-    use lisp_fm, only: list, list_elements, list_length, make_list, make_symbol_ref, &
-                       value_type, xstring, string_intervals, set_string_intervals, &
-                       make_string, symbols, xsymbol
+    use lisp_fm, only: list, list_elements, list_length, make_list, make_symbol_ref, value_type, xstring, &
+                       string_intervals, set_string_intervals, symbols, xsymbol
     use character_fm, only: multibyte_chars_in_text
     use lread_fm, only: intern
     use data_fm, only: value_eq, logical_setting
@@ -1903,7 +1902,7 @@ contains
         text = xstring(string)
         first = char_byte(text, from)
         last = char_byte(text, to)
-        v = make_string(text(first:last - 1))
+        v = value_type(text=text(first:last - 1))
         call string_intervals(string, starts, ends, plists)
         starts = min(max(starts, from), to) - from
         ends = min(max(ends, from), to) - from
@@ -1921,7 +1920,7 @@ contains
         integer(int64) :: n1
         integer :: k
 
-        v = make_string(xstring(string1)//xstring(string2))
+        v = value_type(text=xstring(string1)//xstring(string2))
         call string_chars(string1, n1, st)
         call string_intervals(string1, s1, e1, p1)
         call string_intervals(string2, s2, e2, p2)

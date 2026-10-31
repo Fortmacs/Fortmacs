@@ -55,8 +55,7 @@ module register_fm
     use error_fm, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR, &
                         FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum, xfixnum, xsymbol, symbols, xstring, vtag, V_NULL, V_INTEGER, V_NAME
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, xfixnum, xsymbol, symbols, xstring, vtag, V_NULL, V_INTEGER, V_NAME
     use data_fm, only: value_eq, kill_all_local_variables
     use character_fm, only: MAX_CHAR, string_char_and_length
     use keymap_fm, only: single_key_description
@@ -319,7 +318,7 @@ contains
         integer(int64), intent(in) :: register
         character(len=:), allocatable :: s
 
-        s = single_key_description(make_fixnum(register))
+        s = single_key_description(value_type(register))
     end function register_name_text
 
     !> The buffer names of the windows of window configuration CONFIG, in
@@ -802,7 +801,7 @@ contains
             call switch_to_buffer(buffers(b%index)%name, status)
             if (.not. status%ok()) return
             call marker_position(val%marker, pos, st)
-            if (point() /= pos .and. .not. value_eq(last_command, sym("jump_to_register"))) call push_mark()
+            if (point() /= pos .and. .not. value_eq(last_command, value_type(name="jump_to_register"))) call push_mark()
             call goto_char_marker(val%marker, status)
         case (REGISTER_WINDOW_CONFIGURATION)
             call set_window_configuration(val%configuration)

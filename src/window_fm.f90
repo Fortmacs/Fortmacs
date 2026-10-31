@@ -57,9 +57,9 @@ module window_fm
               window_prev_sibling, frame_root_window, frame_selected_window, minibuffer_window, is_window_minibuffer, &
               minibuffer_selected_window, window_total_height, window_total_width, window_left_column, window_top_line, &
               window_body_height, window_body_width, window_wants_mode_line, window_mode_line_height, &
-              window_header_line_height, window_tab_line_height, window_hscroll, window_dedicated_p, &
-              set_window_dedicated_p, window_use_time, window_bump_use_time, window_prev_buffers, window_next_buffers, &
-              next_window, previous_window, window_list_1, window_list, coordinates_in_window_p, window_at, &
+              window_header_line_height, window_tab_line_height, window_hscroll, window_dedication, &
+              set_window_dedication, window_use_time, window_bump_use_time, window_prev_buffers, window_next_buffers, &
+              next_window, previous_window, window_list_1, window_list, window_part_at, window_at, &
               force_window_update
     public :: select_window, split_window, delete_window, delete_other_windows, other_window, other_buffer, &
               replace_buffer_in_windows, switch_to_buffer, syms_of_window_cmds
@@ -175,7 +175,7 @@ module window_fm
 
     !> If not DEDICATED_NONE, `display_buffer' marks the windows it creates as
     !> dedicated.  The actual value of this variable will be copied
-    !> to the `window_dedicated_p' flag.  Port of window.el
+    !> to the `window_dedication' flag.  Port of window.el
     !> display-buffer-mark-dedicated (DEDICATED_NONE, DEDICATED_WEAK or
     !> DEDICATED_STRONG).
     integer, public :: display_buffer_mark_dedicated = DEDICATED_NONE
@@ -185,7 +185,7 @@ module window_fm
     !> minibuffer is active (MINIBUF_ACTIVE), always (MINIBUF_ALWAYS), or never (MINIBUF_NEVER).
     integer, parameter, public :: MINIBUF_ACTIVE = 0, MINIBUF_ALWAYS = 1, MINIBUF_NEVER = 2
 
-    !> The parts of a window `coordinates_in_window_p' tells (window.h
+    !> The parts of a window `window_part_at' tells (window.h
     !> enum window_part, the ones a terminal frame has).
     integer, parameter, public :: ON_NOTHING = 0, ON_TEXT = 1, ON_MODE_LINE = 2, ON_VERTICAL_BORDER = 3, &
                                   ON_HEADER_LINE = 4
@@ -1252,17 +1252,17 @@ module window_fm
 
         !> Return true when WINDOW is dedicated to its buffer.
         !> More precisely, return the value assigned by the last call of
-        !> `set_window_dedicated_p' for WINDOW.  Return DEDICATED_NONE if that
+        !> `set_window_dedication' for WINDOW.  Return DEDICATED_NONE if that
         !> function was never called with WINDOW as its argument, or the value
         !> set by that function was internally reset since its last call.
         !> WINDOW must be a live window and defaults to the selected one.
         !> Port of window.c:Fwindow_dedicated_p.
-        module function window_dedicated_p(window, status) result(d)
+        module function window_dedication(window, status) result(d)
             implicit none(type, external)
             type(handle_type), intent(in), optional :: window
             type(status_type), intent(out) :: status
             integer :: d
-        end function window_dedicated_p
+        end function window_dedication
 
         !> Mark WINDOW as dedicated according to FLAG.
         !> WINDOW must be a live window and defaults to the selected one.  FLAG
@@ -1271,12 +1271,12 @@ module window_fm
         !> As a special case, if FLAG is DEDICATED_STRONG, mark WINDOW as
         !> "strongly" dedicated to its buffer.  Port of
         !> window.c:Fset_window_dedicated_p.
-        module subroutine set_window_dedicated_p(window, flag, status)
+        module subroutine set_window_dedication(window, flag, status)
             implicit none(type, external)
             type(handle_type), intent(in), optional :: window
             integer, intent(in) :: flag
             type(status_type), intent(out) :: status
-        end subroutine set_window_dedicated_p
+        end subroutine set_window_dedication
 
         !> Return the use time of window WINDOW.
         !> WINDOW must specify a live window and defaults to the selected one.
@@ -1401,14 +1401,14 @@ module window_fm
         !> between WINDOW and its right sibling, ON_VERTICAL_BORDER (Emacs's
         !> `vertical-line'); elsewhere, ON_NOTHING.  Port of
         !> window.c:Fcoordinates_in_window_p (a terminal frame).
-        module function coordinates_in_window_p(x, y, window, rel_x, rel_y, status) result(part)
+        module function window_part_at(x, y, window, rel_x, rel_y, status) result(part)
             implicit none(type, external)
             integer, intent(in) :: x, y
             type(handle_type), intent(in), optional :: window
             integer, intent(out) :: rel_x, rel_y
             type(status_type), intent(out) :: status
             integer :: part
-        end function coordinates_in_window_p
+        end function window_part_at
 
         !> Force all windows to be updated on next redisplay.
         !> If optional arg WINDOW is given, force redisplay of that window only.
