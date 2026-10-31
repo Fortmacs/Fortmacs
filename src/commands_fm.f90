@@ -888,6 +888,7 @@ module commands_fm
         type(command_type) :: rectangle_previous_line
         type(command_type) :: rectangle_right_char
         type(command_type) :: recursive_edit
+        type(command_type) :: redraw_display
         type(command_type) :: reindent_then_newline_and_indent
         type(command_type) :: repeat
         type(command_type) :: repeat_exit
@@ -1097,7 +1098,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1058) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1059) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1953,6 +1954,7 @@ module commands_fm
                                                                   "rectangle_previous_line", &
                                                                   "rectangle_right_char", &
                                                                   "recursive_edit", &
+                                                                  "redraw_display", &
                                                                   "reindent_then_newline_and_indent", &
                                                                   "repeat", &
                                                                   "repeat_exit", &
@@ -3878,6 +3880,8 @@ contains
             p => commands%rectangle_right_char
         case ("recursive_edit")
             p => commands%recursive_edit
+        case ("redraw_display")
+            p => commands%redraw_display
         case ("reindent_then_newline_and_indent")
             p => commands%reindent_then_newline_and_indent
         case ("repeat")

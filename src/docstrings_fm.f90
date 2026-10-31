@@ -533,7 +533,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1364) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1365) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -864,7 +864,7 @@ module docstrings_fm
                                                          "rectangle_forward_char", "rectangle_intersect_p", "rectangle_left_char", &
                                                            "rectangle_mark_mode", "rectangle_next_line", "rectangle_number_lines", &
                                            "rectangle_position_as_coordinates", "rectangle_previous_line", "rectangle_right_char", &
-                                                           "recursion_depth", "recursive_edit", "regexp_quote", "region_active_p", &
+                                         "recursion_depth", "recursive_edit", "redraw_display", "regexp_quote", "region_active_p", &
                                                       "region_beginning", "region_bounds", "region_end", "region_noncontiguous_p", &
                                                   "register_read_with_preview", "reindent_then_newline_and_indent", "rename_file", &
                                                    "repeat", "repeat_echo_message", "repeat_exit", "repeat_mode", "replace_match", &
@@ -10785,6 +10785,10 @@ contains
             entry%doc = "Invoke the editor command loop recursively."//LF// &
                         "To get out of the recursive edit, a command can throw to `exit' --"//LF// &
                         "for instance \[exit_recursive_edit] or \[abort_recursive_edit]."
+        case ("redraw_display")
+            entry%file = "dispnew_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Clear and redisplay all visible frames."
         case ("regexp_quote")
             entry%file = "search_fm.f90"
             entry%fortran = "regexp_quote(string)"

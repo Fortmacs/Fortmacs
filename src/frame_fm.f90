@@ -56,8 +56,6 @@ module frame_fm
         !> Where to leave the cursor after an update (set by redisplay from
         !> the selected window's cursor), 0-based; -1 for none.
         integer :: cursor_vpos = -1, cursor_hpos = -1
-        !> Hide the cursor after the update (cursor_off_p).
-        logical :: cursor_off_p = .false.
         !> The minibuffer window is the selected window (while a minibuffer
         !> is active; `selected_window' is the window it was entered from).
         logical :: minibuffer_selected = .false.

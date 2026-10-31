@@ -41,6 +41,7 @@ module bindings_fm
     use keyboard_fm, only: local_function_key_map, syms_of_macros, help_event_list
     use kmacro_fm, only: syms_of_kmacro, kmacro_keymap
     use cmds_fm, only: syms_of_cmds, forward_char, backward_char
+    use dispnew_fm, only: syms_of_display
     use simple_fm, only: syms_of_simple, backward_word, region_bounds, region_noncontiguous_p
     use syntax_fm, only: syms_of_syntax, forward_word
     use syntax_propertize_fm, only: syms_of_syntax_propertize
@@ -298,6 +299,7 @@ contains
         ! First: bindings.el's minor-mode-alist starts with abbrev-mode.
         call syms_of_abbrev()
         call syms_of_cmds()
+        call syms_of_display()
         call syms_of_simple()
         call syms_of_window()
         call syms_of_buffer()

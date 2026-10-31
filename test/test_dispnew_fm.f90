@@ -28,7 +28,9 @@ module test_dispnew_fm
     use term_fm, only: init_tty_entry
     use dispextern_fm, only: glyph_type
     use frame_fm, only: frame_type
-    use dispnew_fm, only: adjust_frame_glyphs, set_desired_row, update_frame
+    use dispnew_fm, only: adjust_frame_glyphs, set_desired_row, update_frame, internal_show_cursor, &
+                          internal_show_cursor_p, send_string_to_terminal, redraw_frame
+    use frame_fm, only: selected_frame
     implicit none(type, external)
     private
 
@@ -55,7 +57,10 @@ contains
                     new_unittest("shorter-line", test_shorter), &
                     new_unittest("no-char-ins-del", test_no_ins_del), &
                     new_unittest("last-row-first-and-cursor", test_order_cursor), &
-                    new_unittest("bottom-right-cell", test_bottom_right) &
+                    new_unittest("bottom-right-cell", test_bottom_right), &
+                    new_unittest("internal-show-cursor", test_show_cursor), &
+                    new_unittest("send-string-to-terminal", test_send_string), &
+                    new_unittest("redraw-frame", test_redraw_frame) &
                     ]
     end subroutine collect_dispnew_fm
 
@@ -218,4 +223,52 @@ contains
         call check(error, tty_take_output(f%tty), ESC//"[24d"//HIDE//line(2:80)//achar(13)// &
                    ESC//"[1@"//line(1:1)//achar(8)//SHOW)
     end subroutine test_bottom_right
+
+    !> internal-show-cursor: the update leaves the cursor hidden while the
+    !> selected window's flag is off.
+    subroutine test_show_cursor(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(frame_type) :: f
+        type(status_type) :: st
+        character(len=:), allocatable :: out
+
+        call frame_showing(f, "abc")
+        call internal_show_cursor(.false., st)
+        call check(error,.not. internal_show_cursor_p(st) .and. st%ok(), "flag off")
+        if (allocated(error)) return
+        out = update_row0(f, "abd")
+        call check(error, index(out, SHOW) == 0, "cursor not shown")
+        if (allocated(error)) return
+        call internal_show_cursor(.true., st)
+        out = update_row0(f, "abe")
+        call check(error, index(out, SHOW) > 0 .and. internal_show_cursor_p(st), "cursor shown again")
+    end subroutine test_show_cursor
+
+    !> send-string-to-terminal writes the string as it is.
+    subroutine test_send_string(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        character(len=:), allocatable :: out
+
+        out = tty_take_output(selected_frame%tty)
+        call send_string_to_terminal(ESC//"]0;title"//achar(7), st)
+        out = tty_take_output(selected_frame%tty)
+        call check(error, st%ok() .and. out == ESC//"]0;title"//achar(7), out)
+    end subroutine test_send_string
+
+    !> redraw-frame clears the screen, and the next update writes every
+    !> row again.
+    subroutine test_redraw_frame(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(frame_type) :: f
+        character(len=:), allocatable :: out
+
+        call frame_showing(f, "abc")
+        call redraw_frame(f)
+        out = tty_take_output(f%tty)
+        call check(error, index(out, ESC//"[H"//ESC//"[2J") > 0 .or. index(out, ESC//"[2J") > 0, "cleared")
+        if (allocated(error)) return
+        out = update_row0(f, "abc")
+        call check(error, index(out, "abc") > 0, "row written again")
+    end subroutine test_redraw_frame
 end module test_dispnew_fm

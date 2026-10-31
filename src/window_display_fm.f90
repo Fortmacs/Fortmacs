@@ -79,7 +79,7 @@ contains
     end function selected_p
 
     !> WINDOW's point: its buffer's point for the selected window, else
-    !> its own.  Port of window.c:Fwindow_point.
+    !> its own.  Port of window.c:Fwindow_point and window.c:window_point.
     integer(int64) function point_of(h) result(pos)
         type(handle_type), intent(in) :: h
         integer(int64) :: bi

@@ -134,7 +134,7 @@ module xdisp_fm
     public :: add_minor_mode_lighter, mode_line_modes, mode_line_modes_faces
     public :: set_mode_line_process, clear_mode_line_process, mode_line_process_text, add_mode_line_modes_entry, &
               mode_line_modes_prefix
-    public :: redisplay, init_frame_windows, glyph_width, &
+    public :: redisplay_internal, init_frame_windows, glyph_width, &
               mode_line_text, mode_line_mule_info, layout_window, message, glyph_columns, display_line_rows, display_row_of, &
               mode_line_row, recenter_start, mode_line_percent, display_row, line_beginning, invisible_p
     public :: message_nolog, message_dolog, message_log_echo, message_log_maybe_newline
@@ -489,7 +489,8 @@ contains
     !> gui_produce_glyph; ^X and \ooo are display vectors, one glyph an
     !> element, as on a terminal.
     !> Port of xdisp.c:get_next_display_element and term.c:produce_glyphs,
-    !> in part.
+    !> in part, with term.c:append_glyph (a wide character's padding
+    !> glyph).
     subroutine produce_char(c, x, cells, n, gui)
         integer(int32), intent(in) :: c
         integer, intent(in) :: x
@@ -636,7 +637,8 @@ contains
 
     !> The continuation glyph: \ in the default face, sized for frame `f'.
     !> The IT_CONTINUATION part of xdisp.c:produce_special_glyphs (no
-    !> display table).  Port of xdisp.c:produce_special_glyphs, in part.
+    !> display table).  Port of xdisp.c:produce_special_glyphs, in part, and on
+    !> a terminal of term.c:tty_append_glyph.
     function continuation_glyph(f) result(g)
         type(frame_type), intent(in) :: f
         type(glyph_type) :: g
@@ -2170,7 +2172,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Make row `vpos' of the desired matrix a full-width blank row, to be
-    !> filled by the windows on it.  Not a port.
+    !> filled by the windows on it.  Port of dispnew.c:blank_row.
     subroutine blank_row(f, vpos)
         type(frame_type), intent(inout) :: f
         integer, intent(in) :: vpos
@@ -2192,7 +2194,10 @@ contains
 
     !> Copy window rows into the frame's desired matrix, from column
     !> `left' (0-based), with the vertical border after them if `divider'.
-    !> Not a port.
+    !> Redisplay lays out windows straight into the frame matrix (there are
+    !> no window matrices): the job of dispnew.c:build_frame_matrix,
+    !> dispnew.c:build_frame_matrix_from_window_tree and
+    !> dispnew.c:update_tty_frame.  Port of those, in part.
     subroutine put_rows(f, top, left, rows, divider)
         type(frame_type), intent(inout) :: f
         integer, intent(in) :: top, left
@@ -4072,7 +4077,7 @@ contains
     !> one showing the current buffer unless the minibuffer is selected),
     !> and the echo area or active minibuffer, then update the terminal.
     !> Port of the core of xdisp.c:redisplay_internal.
-    subroutine redisplay(f, status)
+    subroutine redisplay_internal(f, status)
         type(frame_type), intent(inout) :: f
         type(status_type), intent(out) :: status
         type(handle_type) :: cb
@@ -4157,5 +4162,5 @@ contains
         end associate
 
         call update_frame(f, status)
-    end subroutine redisplay
+    end subroutine redisplay_internal
 end module xdisp_fm

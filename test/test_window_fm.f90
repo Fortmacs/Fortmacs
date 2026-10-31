@@ -45,7 +45,16 @@ module test_window_fm
                          move_to_window_line_top_bottom, scroll_error_top_bottom, display_buffer, quit_window, &
                          select_window, switch_to_buffer, DEDICATED_STRONG, QR_WINDOW, &
                          window_configuration_type, current_window_configuration, set_window_configuration, &
-                         free_window_configuration, fit_window_to_buffer, bury_buffer, window_live_p
+                         free_window_configuration, fit_window_to_buffer, bury_buffer, window_live_p, &
+                         windowp, window_buffer, window_parent, window_top_child, window_left_child, &
+                         window_next_sibling, window_prev_sibling, frame_root_window, frame_selected_window, &
+                         minibuffer_window, window_minibuffer_p, minibuffer_selected_window, window_total_height, &
+                         window_total_width, window_left_column, window_top_line, window_body_height, &
+                         window_body_width, window_mode_line_height, window_header_line_height, &
+                         window_tab_line_height, window_hscroll, window_dedicated_p, set_window_dedicated_p, &
+                         window_use_time, window_bump_use_time, next_window, previous_window, window_list, &
+                         window_list_1, coordinates_in_window_p, window_at, force_window_update, MINIBUF_ALWAYS, MINIBUF_NEVER, &
+                         ON_TEXT, ON_VERTICAL_BORDER, ON_MODE_LINE, ON_NOTHING, DEDICATED_NONE
     use simple_fm, only: goal_column
     use keyboard_fm, only: this_command, last_command, kbd_store_bytes, command_loop, &
                            discard_input
@@ -82,7 +91,10 @@ contains
                     new_unittest("scroll-other-window", test_scroll_other_window), &
                     new_unittest("window-configuration", test_window_configuration), &
                     new_unittest("fit-window-to-buffer", test_fit_window), &
-                    new_unittest("bury-buffer-dedicated", test_bury_dedicated) &
+                    new_unittest("bury-buffer-dedicated", test_bury_dedicated), &
+                    new_unittest("window-accessors", test_window_accessors), &
+                    new_unittest("next-window", test_next_window), &
+                    new_unittest("coordinates-in-window-p", test_coordinates_in_window) &
                     ]
     end subroutine collect_window_fm
 
@@ -433,6 +445,13 @@ contains
         call unread_command_events(evs)
         call command_loop(st)
     end subroutine run_keys
+
+    !> Whether `h` is the null handle (nil).
+    pure logical function is_null(h)
+        type(handle_type), intent(in) :: h
+
+        is_null = h%index == 0
+    end function is_null
 
     !> The live windows, top to bottom and left to right.
     function leaves() result(list)
@@ -803,4 +822,140 @@ contains
                    windows(selected_frame%selected_window%index)%dedicated == 0, buffers(cur)%name)
         call leave_frame()
     end subroutine test_bury_dedicated
+
+    !> The window tree and sizes as window.c's accessors tell them, after
+    !> C-x 2 C-x 3: a top row of two windows above a bottom window.
+    subroutine test_window_accessors(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, root, top, mini
+        type(handle_type), allocatable :: ws(:)
+        type(status_type) :: st
+
+        call enter_frame("abc", h)
+        call run_keys("C-x 2 C-x 3")
+        ws = leaves()
+        root = frame_root_window(status=st)
+        top = window_top_child(root, st)
+        call check(error, same_window(window_parent(ws(1), st), top) .and. &
+                   same_window(window_left_child(top, st), ws(1)) .and. is_null(window_left_child(root, st)) .and. &
+                   is_null(window_top_child(top, st)), "children")
+        if (allocated(error)) return
+        call check(error, same_window(window_next_sibling(ws(1), st), ws(2)) .and. &
+                   same_window(window_prev_sibling(ws(2), st), ws(1)) .and. &
+                   same_window(window_next_sibling(top, st), ws(3)) .and. is_null(window_parent(root, st)), &
+                   "siblings")
+        if (allocated(error)) return
+        call check(error, same_window(window_buffer(ws(1), st), h) .and. is_null(window_buffer(root, st)) .and. &
+                   same_window(window_buffer(status=st), h) .and. windowp(root) .and. windowp(ws(3)), "buffers")
+        if (allocated(error)) return
+        call check(error, window_total_height(ws(1), st) == 12 .and. window_total_width(ws(1), st) == 40 .and. &
+                   window_body_height(ws(1), st) == 11 .and. window_body_width(ws(1), st) == 39 .and. &
+                   window_body_width(ws(2), st) == 40 .and. window_left_column(ws(2), st) == 40 .and. &
+                   window_top_line(ws(3), st) == 12 .and. window_total_width(top, st) == 80 .and. &
+                   window_mode_line_height(ws(3), st) == 1 .and. window_header_line_height(ws(3), st) == 0 .and. &
+                   window_tab_line_height(ws(3), st) == 0 .and. window_hscroll(ws(3), st) == 0, "sizes")
+        if (allocated(error)) return
+        mini = minibuffer_window()
+        call check(error, window_minibuffer_p(mini, st) .and. .not. window_minibuffer_p(ws(1), st) .and. &
+                   window_mode_line_height(mini, st) == 0 .and. &
+                   is_null(minibuffer_selected_window()) .and. &
+                   same_window(frame_selected_window(status=st), ws(1)), "minibuffer window")
+        if (allocated(error)) return
+        ! A window that is not live.
+        call check(error, window_body_height(top, st) == 0 .and. .not. st%ok(), "window_live_p error")
+        if (allocated(error)) return
+        call set_window_dedicated_p(ws(2), DEDICATED_STRONG, st)
+        call check(error, window_dedicated_p(ws(2), st) == DEDICATED_STRONG .and. &
+                   window_dedicated_p(ws(1), st) == DEDICATED_NONE, "dedicated")
+        if (allocated(error)) return
+        ! window-bump-use-time: the selected window was selected last.
+        call select_window(ws(1), st)
+        call check(error, window_bump_use_time(ws(3), st) == window_use_time(ws(1), st) - 1 .and. &
+                   window_bump_use_time(ws(1), st) == -1, "bump use time")
+        if (allocated(error)) return
+        ! A deleted window is still a window, with no buffer.
+        call run_keys("C-x o C-x o C-x 0")
+        call check(error, windowp(ws(3)) .and. .not. window_live_p(ws(3)) .and. &
+                   is_null(window_buffer(ws(3), st)) .and. st%ok(), "deleted window")
+        if (allocated(error)) return
+        call check(error, is_null(window_parent(ws(3), st)) .and. .not. st%ok(), "window_valid_p error")
+        call set_window_dedicated_p(ws(2), DEDICATED_NONE, st)
+        call leave_frame()
+    end subroutine test_window_accessors
+
+    !> next-window, previous-window, window-list and window-list-1 go
+    !> through the windows in cyclic order, the minibuffer window last.
+    subroutine test_next_window(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, mini
+        type(handle_type), allocatable :: ws(:), list(:)
+        type(status_type) :: st
+
+        call enter_frame("abc", h)
+        call run_keys("C-x 2 C-x 3")
+        ws = leaves()
+        mini = minibuffer_window()
+        call check(error, same_window(next_window(ws(3), status=st), ws(1)) .and. &
+                   same_window(next_window(ws(3), MINIBUF_ALWAYS, st), mini) .and. &
+                   same_window(next_window(mini, MINIBUF_ALWAYS, st), ws(1)) .and. &
+                   same_window(next_window(status=st), ws(2)), "next-window")
+        if (allocated(error)) return
+        call check(error, same_window(previous_window(ws(1), status=st), ws(3)) .and. &
+                   same_window(previous_window(ws(1), MINIBUF_ALWAYS, st), mini) .and. &
+                   same_window(previous_window(ws(3), MINIBUF_NEVER, st), ws(2)), "previous-window")
+        if (allocated(error)) return
+        list = window_list(status=st)
+        call check(error, size(list) == 3, "window-list")
+        if (allocated(error)) return
+        call check(error, same_window(list(1), ws(1)) .and. same_window(list(3), ws(3)), "window-list order")
+        if (allocated(error)) return
+        list = window_list_1(ws(2), MINIBUF_ALWAYS, st)
+        call check(error, size(list) == 4, "window-list-1")
+        if (allocated(error)) return
+        call check(error, same_window(list(1), ws(2)) .and. same_window(list(3), mini) .and. &
+                   same_window(list(4), ws(1)), "window-list-1 rotated")
+        if (allocated(error)) return
+        ! From the inactive minibuffer window, which is not listed.
+        list = window_list(window=mini, status=st)
+        call check(error, size(list) == 3, "window-list from the minibuffer window")
+        if (allocated(error)) return
+        call check(error, same_window(list(1), ws(1)), "window-list from the minibuffer window: order")
+        call leave_frame()
+    end subroutine test_next_window
+
+    !> coordinates-in-window-p and window-at on a terminal frame.
+    subroutine test_coordinates_in_window(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(handle_type), allocatable :: ws(:)
+        type(status_type) :: st
+        integer :: x, y
+
+        call enter_frame("abc", h)
+        call run_keys("C-x 2 C-x 3")
+        ws = leaves()
+        call check(error, coordinates_in_window_p(38, 0, ws(1), x, y, st) == ON_TEXT .and. x == 38 .and. y == 0, &
+                   "text")
+        if (allocated(error)) return
+        call check(error, coordinates_in_window_p(39, 0, ws(1), x, y, st) == ON_VERTICAL_BORDER .and. &
+                   coordinates_in_window_p(39, 11, ws(1), x, y, st) == ON_MODE_LINE .and. &
+                   coordinates_in_window_p(40, 0, ws(1), x, y, st) == ON_NOTHING, "border, mode line, outside")
+        if (allocated(error)) return
+        call check(error, coordinates_in_window_p(45, 3, ws(2), x, y, st) == ON_TEXT .and. x == 5 .and. y == 3, &
+                   "relative to the window")
+        if (allocated(error)) return
+
+        ! The minibuffer window on the last line, as redisplay lays it out.
+        associate (m => windows(selected_frame%minibuffer_window%index))
+            m%top_line = 23
+            m%total_lines = 1
+            m%left_col = 0
+            m%total_cols = 80
+        end associate
+
+        call check(error, same_window(window_at(45, 3), ws(2)) .and. same_window(window_at(0, 12), ws(3)) .and. &
+                   same_window(window_at(0, 23), minibuffer_window()) .and. is_null(window_at(0, 24)) .and. &
+                   is_null(window_at(-1, 0)), "window-at")
+        call leave_frame()
+    end subroutine test_coordinates_in_window
 end module test_window_fm
