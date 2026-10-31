@@ -407,6 +407,7 @@ module commands_fm
         type(command_type) :: executable_set_magic
         type(command_type) :: execute_extended_command
         type(command_type) :: exit_minibuffer
+        type(command_type) :: exit_recursive_edit
         type(command_type) :: expand_abbrev
         type(command_type) :: expand_region_abbrevs
         type(command_type) :: f90_abbrev_help
@@ -804,6 +805,7 @@ module commands_fm
         type(command_type) :: log_view_toggle_mark_entry
         type(command_type) :: log_view_unmark_all_entries
         type(command_type) :: log_view_unmark_entry
+        type(command_type) :: lossage_size
         type(command_type) :: makefile_automake_mode
         type(command_type) :: makefile_backslash_region
         type(command_type) :: makefile_bsdmake_mode
@@ -878,6 +880,7 @@ module commands_fm
         type(command_type) :: occur_next
         type(command_type) :: occur_prev
         type(command_type) :: occur_rename_buffer
+        type(command_type) :: open_dribble_file
         type(command_type) :: open_line
         type(command_type) :: open_rectangle
         type(command_type) :: other_window
@@ -928,6 +931,7 @@ module commands_fm
         type(command_type) :: rectangle_number_lines
         type(command_type) :: rectangle_previous_line
         type(command_type) :: rectangle_right_char
+        type(command_type) :: recursive_edit
         type(command_type) :: reindent_then_newline_and_indent
         type(command_type) :: repeat
         type(command_type) :: repeat_exit
@@ -1015,6 +1019,7 @@ module commands_fm
         type(command_type) :: tabulated_list_sort
         type(command_type) :: tabulated_list_widen_current_column
         type(command_type) :: text_mode
+        type(command_type) :: top_level
         type(command_type) :: transient_mark_mode
         type(command_type) :: transpose_chars
         type(command_type) :: transpose_lines
@@ -1138,7 +1143,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1099) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1104) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1513,6 +1518,7 @@ module commands_fm
                                                                   "executable_set_magic", &
                                                                   "execute_extended_command", &
                                                                   "exit_minibuffer", &
+                                                                  "exit_recursive_edit", &
                                                                   "expand_abbrev", &
                                                                   "expand_region_abbrevs", &
                                                                   "f90_abbrev_help", &
@@ -1910,6 +1916,7 @@ module commands_fm
                                                                   "log_view_toggle_mark_entry", &
                                                                   "log_view_unmark_all_entries", &
                                                                   "log_view_unmark_entry", &
+                                                                  "lossage_size", &
                                                                   "makefile_automake_mode", &
                                                                   "makefile_backslash_region", &
                                                                   "makefile_bsdmake_mode", &
@@ -1984,6 +1991,7 @@ module commands_fm
                                                                   "occur_next", &
                                                                   "occur_prev", &
                                                                   "occur_rename_buffer", &
+                                                                  "open_dribble_file", &
                                                                   "open_line", &
                                                                   "open_rectangle", &
                                                                   "other_window", &
@@ -2034,6 +2042,7 @@ module commands_fm
                                                                   "rectangle_number_lines", &
                                                                   "rectangle_previous_line", &
                                                                   "rectangle_right_char", &
+                                                                  "recursive_edit", &
                                                                   "reindent_then_newline_and_indent", &
                                                                   "repeat", &
                                                                   "repeat_exit", &
@@ -2121,6 +2130,7 @@ module commands_fm
                                                                   "tabulated_list_sort", &
                                                                   "tabulated_list_widen_current_column", &
                                                                   "text_mode", &
+                                                                  "top_level", &
                                                                   "transient_mark_mode", &
                                                                   "transpose_chars", &
                                                                   "transpose_lines", &
@@ -2998,6 +3008,8 @@ contains
             p => commands%execute_extended_command
         case ("exit_minibuffer")
             p => commands%exit_minibuffer
+        case ("exit_recursive_edit")
+            p => commands%exit_recursive_edit
         case ("expand_abbrev")
             p => commands%expand_abbrev
         case ("expand_region_abbrevs")
@@ -3792,6 +3804,8 @@ contains
             p => commands%log_view_unmark_all_entries
         case ("log_view_unmark_entry")
             p => commands%log_view_unmark_entry
+        case ("lossage_size")
+            p => commands%lossage_size
         case ("makefile_automake_mode")
             p => commands%makefile_automake_mode
         case ("makefile_backslash_region")
@@ -3940,6 +3954,8 @@ contains
             p => commands%occur_prev
         case ("occur_rename_buffer")
             p => commands%occur_rename_buffer
+        case ("open_dribble_file")
+            p => commands%open_dribble_file
         case ("open_line")
             p => commands%open_line
         case ("open_rectangle")
@@ -4040,6 +4056,8 @@ contains
             p => commands%rectangle_previous_line
         case ("rectangle_right_char")
             p => commands%rectangle_right_char
+        case ("recursive_edit")
+            p => commands%recursive_edit
         case ("reindent_then_newline_and_indent")
             p => commands%reindent_then_newline_and_indent
         case ("repeat")
@@ -4214,6 +4232,8 @@ contains
             p => commands%tabulated_list_widen_current_column
         case ("text_mode")
             p => commands%text_mode
+        case ("top_level")
+            p => commands%top_level
         case ("transient_mark_mode")
             p => commands%transient_mark_mode
         case ("transpose_chars")

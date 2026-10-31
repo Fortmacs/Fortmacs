@@ -22,20 +22,26 @@
 module test_keyboard_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_fm, only: status_type, set_error, FM_USER_ERROR
+    use error_fm, only: status_type, set_error, format_error, FM_USER_ERROR, FM_INHIBITED_INTERACTION, FM_TOP_LEVEL
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: fixnump, list, make_fixnum, make_string, nil, nilp, value_type, xfixnum
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use keymap_fm, only: define_key, free_keymap, key_description, key_parse, make_keymap, &
-                         make_sparse_keymap, use_global_map
+                         make_sparse_keymap, use_global_map, overriding_terminal_local_map, key_binding
     use callint_fm, only: commandp, current_prefix_arg, command_type, prefix_arg, prefix_numeric_value
     use keyboard_fm, only: command_loop, command_loop_step, discard_input, input_decode_map, &
                            input_pending_p, kbd_store_bytes, key_translation_map, last_command, &
                            last_command_event, last_message, local_function_key_map, read_event, &
                            read_key_sequence, request_exit, set_input_fd, set_input_meta_mode, &
                            this_command_keys, this_command_keys_shift_translated, &
-                           unread_command_events, ring_bell_hook
+                           unread_command_events, ring_bell_hook, read_key_sequence_vs, clear_this_command_keys, &
+                           read_char, read_char_exclusive, lossage_size, inhibit_interaction, &
+                           translate_upper_case_key_bindings, this_command_keys_vector, this_single_command_keys, &
+                           this_single_command_raw_keys, set__this_command_keys, echo_keystrokes, echo_keystrokes_help, &
+                           cancel_echoing, event_convert_list, event_symbol_parse_modifiers, make_ctrl_char, &
+                           recursion_depth, top_level, recursive_edit, post_command_hook, safe_run_hooks, echo_now
+    use fns_fm, only: value_equal
     use subr_fm, only: syms_of_subr
     use sysdep_fm, only: emacs_tty_type, open_pty, close_fd, init_sys_modes, &
                          reset_sys_modes, emacs_write
@@ -50,12 +56,21 @@ module test_keyboard_fm
     type(command_type), target :: cmd_cmd_exit
     type(command_type), target :: cmd_universal_argument
     type(command_type), target :: cmd_cmd_check
+    type(command_type), target :: cmd_cmd_keys
+    type(command_type), target :: cmd_zero_argument
+    type(command_type), target :: cmd_cmd_depth
+    type(command_type), target :: cmd_cmd_top
 
-    integer(int64), parameter :: META = int(z'8000000', int64)
+    integer(int64), parameter :: META = int(z'8000000', int64), CTL = int(z'4000000', int64), &
+                                 SHIFT = int(z'2000000', int64)
 
     !> Calls of the test commands, and the last prefix value seen.
     integer :: count_a = 0, count_b = 0
     integer(int64) :: seen_prefix = 0
+    !> What cmd-keys saw of this-command-keys, and cmd-depth of
+    !> recursion-depth.
+    character(len=:), allocatable :: seen_keys, seen_single_keys, seen_raw_keys
+    integer :: seen_depth = -1
 
 contains
 
@@ -77,7 +92,15 @@ contains
                     new_unittest("execute-kbd-macro/until-error", test_macro_until_error), &
                     new_unittest("adjust-point-invisible", test_adjust_invisible), &
                     new_unittest("adjust-point-display", test_adjust_display), &
-                    new_unittest("command-loop/tty", test_tty) &
+                    new_unittest("command-loop/tty", test_tty), &
+                    new_unittest("read-key-sequence/keyboard-tests", test_rks), &
+                    new_unittest("keyboard-lossage-size", test_lossage_size), &
+                    new_unittest("keyboard-inhibit-interaction", test_inhibit_interaction), &
+                    new_unittest("read-char", test_read_char), &
+                    new_unittest("this-command-keys", test_this_command_keys), &
+                    new_unittest("echo-keystrokes", test_echo), &
+                    new_unittest("event-symbols", test_event_symbols), &
+                    new_unittest("recursive-edit/top-level", test_recursive_edit) &
                     ]
     end subroutine collect_keyboard_fm
 
@@ -102,6 +125,40 @@ contains
 
         call set_error(status, FM_USER_ERROR, "Boom")
     end subroutine cmd_fail
+
+    !> Record this-command-keys, this-single-command-keys and
+    !> this-single-command-raw-keys.
+    subroutine cmd_keys(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        seen_keys = key_description(this_command_keys_vector())
+        seen_single_keys = key_description(this_single_command_keys())
+        seen_raw_keys = key_description(this_single_command_raw_keys())
+    end subroutine cmd_keys
+
+    !> A prefix argument of 0 for the next command.
+    subroutine cmd_zero(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        prefix_arg = make_fixnum(0_int64)
+    end subroutine cmd_zero
+
+    !> Record recursion-depth.
+    subroutine cmd_depth(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        seen_depth = recursion_depth()
+    end subroutine cmd_depth
+
+    !> top-level.
+    subroutine cmd_top(status)
+        type(status_type), intent(out) :: status
+
+        call top_level(status)
+    end subroutine cmd_top
 
     !> Fail once cmd-a has run three times.
     subroutine cmd_check(status)
@@ -459,8 +516,7 @@ contains
                    .and. this_command_keys_shift_translated, "A -> a")
         if (allocated(error)) return
         call read_key_sequence(keys, binding, eof, st)
-        call check(error, nilp(binding) .and. xfixnum(keys(1)) == 66 .and. &
-                   .not. this_command_keys_shift_translated, "B stays")
+        call check(error, nilp(binding) .and. xfixnum(keys(1)) == 66, "B stays")
         if (allocated(error)) return
         key(1) = sym("S-f2")
         call unread_command_events(key)
@@ -499,7 +555,7 @@ contains
         if (allocated(error)) return
         call check(error, value_eq(last_command, sym("cmd-b")), "last-command")
         if (allocated(error)) return
-        call check(error, key_description(this_command_keys), "C-c b")
+        call check(error, size(this_command_keys) == 0, "keys cleared after the command")
         if (allocated(error)) return
         call check(error, xfixnum(last_command_event), 98_int64)
         if (allocated(error)) return
@@ -583,10 +639,12 @@ contains
         call define_key(global, kbd("C-c m"), make_string("ag"), st)
         call define_key(global, kbd("C-c u"), make_string("za"), st)
         call define_key(global, kbd("C-c 0"), list(make_fixnum(3_int64), make_fixnum(109_int64)), st)
+        call define_key(global, kbd("C-c z"), sym("test-zero-argument"), st)
+        cmd_zero_argument = command_type("test-zero-argument", cmd_zero)
+        call cmd_zero_argument%define()
         count_a = 0
-        ! C-c 0 is the macro C-c m with a count of 0 from the prefix.
-        prefix_arg = make_fixnum(0_int64)
-        call kbd_store_bytes(char(3)//"m")
+        ! C-c m with a count of 0 from the prefix.
+        call kbd_store_bytes(char(3)//"z"//char(3)//"m")
         call command_loop(st)
         call check(error, count_a, 3)
         if (allocated(error)) return
@@ -640,4 +698,469 @@ contains
         call close_fd(master)
         call free(global)
     end subroutine test_tty
+
+    ! ------------------------------------------------------------------
+    ! Step 42c: keyboard.c
+    ! ------------------------------------------------------------------
+
+    !> As keyboard-tests.el's keyboard-tests--rks-observe: read a key
+    !> sequence from EVENTS with LOCAL_MAP as overriding-terminal-local-map,
+    !> giving the sequence, its binding and whether it was shift-translated.
+    subroutine rks_observe(events, local_map, sequence, binding, shift_translated, dont_downcase_last)
+        type(value_type), intent(in) :: events(:)
+        type(handle_type), intent(in) :: local_map
+        type(value_type), allocatable, intent(out) :: sequence(:)
+        type(value_type), intent(out) :: binding
+        logical, intent(out) :: shift_translated
+        logical, intent(in), optional :: dont_downcase_last
+        type(handle_type) :: saved
+        type(value_type) :: b
+        type(status_type) :: st
+        logical :: eof
+
+        call clear_this_command_keys()
+        this_command_keys_shift_translated = .false.
+        saved = overriding_terminal_local_map
+        overriding_terminal_local_map = local_map
+        call unread_command_events(events)
+        call read_key_sequence_vs(sequence, b, eof, st, dont_downcase_last=dont_downcase_last)
+        call key_binding(sequence, binding, st)
+        shift_translated = this_command_keys_shift_translated
+        overriding_terminal_local_map = saved
+    end subroutine rks_observe
+
+    !> The events of key description TEXT followed by symbol events NAMES.
+    function evs(text) result(e)
+        character(len=*), intent(in) :: text
+        type(value_type), allocatable :: e(:)
+
+        e = kbd(text)
+    end function evs
+
+    !> Ports keyboard-tests.el's read-key-sequence tests: keymap
+    !> interaction, the translation pipeline and the fallbacks (those on
+    !> frames, mouse events and help-char excepted).
+    subroutine test_rks(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: global, map, decode, fkeys, trans
+        type(status_type) :: st
+        type(value_type), allocatable :: seq(:)
+        type(value_type) :: binding, ev(1)
+        logical :: shifted
+
+        call fresh_global(global)
+        ! keyboard-tests-rks-prefix-then-key
+        call make_sparse_keymap(map)
+        call define_key(map, kbd("C-c a"), sym("ignore"), st)
+        call rks_observe(evs("C-c a"), map, seq, binding, shifted)
+        call check(error, key_description(seq) == "C-c a" .and. value_eq(binding, sym("ignore")), "prefix-then-key")
+        if (allocated(error)) return
+        call free(map)
+        ! keyboard-tests-rks-unbound-returns-sequence
+        call make_sparse_keymap(map)
+        ev(1) = sym("symbol-not-bound")
+        call rks_observe(ev, map, seq, binding, shifted)
+        call check(error, key_description(seq), "<symbol-not-bound>")
+        if (allocated(error)) return
+        call free(map)
+        ! keyboard-tests-rks-bound-sequence-ends-read
+        call make_sparse_keymap(map)
+        call make_sparse_keymap(decode)
+        input_decode_map = decode
+        call define_key(decode, kbd("C-c a b"), list(sym("f99")), st)
+        call define_key(map, kbd("C-c C-c C-c"), sym("ignore"), st)
+        call define_key(map, kbd("<f99>"), sym("undo"), st)
+        call rks_observe(evs("C-c C-c C-c a b"), map, seq, binding, shifted)
+        call check(error, key_description(seq) == "C-c C-c C-c" .and. value_eq(binding, sym("ignore")), &
+                   "bound-sequence-ends-read")
+        if (allocated(error)) return
+        call discard_input()
+        call free(map)
+        call free(decode)
+        ! keyboard-tests-rks-decode-fires-without-binding
+        call make_sparse_keymap(map)
+        call make_sparse_keymap(decode)
+        input_decode_map = decode
+        call define_key(decode, kbd("C-c a b"), list(sym("f99")), st)
+        call define_key(map, kbd("C-c C-c <f99>"), sym("ignore"), st)
+        call rks_observe(evs("C-c C-c C-c a b"), map, seq, binding, shifted)
+        call check(error, key_description(seq) == "C-c C-c <f99>" .and. value_eq(binding, sym("ignore")), &
+                   "decode-fires-without-binding")
+        if (allocated(error)) return
+        call free(map)
+        call free(decode)
+        ! keyboard-tests-rks-input-decode-map
+        call make_sparse_keymap(map)
+        call make_sparse_keymap(decode)
+        input_decode_map = decode
+        call define_key(map, kbd("C-c b"), sym("ignore"), st)
+        call define_key(decode, kbd("C-c a"), list(make_fixnum(3_int64), make_fixnum(98_int64)), st)
+        call rks_observe(evs("C-c a"), map, seq, binding, shifted)
+        call check(error, key_description(seq) == "C-c b" .and. value_eq(binding, sym("ignore")), "input-decode-map")
+        if (allocated(error)) return
+        call free(map)
+        ! keyboard-tests-rks-input-decode-before-function-key
+        call make_sparse_keymap(map)
+        call make_sparse_keymap(fkeys)
+        local_function_key_map = fkeys
+        call define_key(map, kbd("C-c c"), sym("ignore"), st)
+        call define_key(fkeys, kbd("C-c b"), list(make_fixnum(3_int64), make_fixnum(99_int64)), st)
+        call rks_observe(evs("C-c a"), map, seq, binding, shifted)
+        call check(error, key_description(seq), "C-c b")
+        if (allocated(error)) return
+        input_decode_map = null_handle()
+        call free(decode)
+        call free(map)
+        call free(fkeys)
+        ! keyboard-tests-rks-function-key-map
+        call make_sparse_keymap(map)
+        call make_sparse_keymap(fkeys)
+        local_function_key_map = fkeys
+        call define_key(map, kbd("C-c b"), sym("ignore"), st)
+        call define_key(fkeys, kbd("C-c a"), list(make_fixnum(3_int64), make_fixnum(98_int64)), st)
+        call rks_observe(evs("C-c a"), map, seq, binding, shifted)
+        call check(error, key_description(seq) == "C-c b" .and. value_eq(binding, sym("ignore")), "function-key-map")
+        if (allocated(error)) return
+        ! keyboard-tests-rks-function-key-map-on-undefined
+        call define_key(map, kbd("C-c a"), sym("undefined"), st)
+        call rks_observe(evs("C-c a"), map, seq, binding, shifted)
+        call check(error, key_description(seq) == "C-c b" .and. value_eq(binding, sym("ignore")), &
+                   "function-key-map-on-undefined")
+        if (allocated(error)) return
+        ! keyboard-tests-rks-function-key-skipped-when-bound
+        call define_key(map, kbd("C-c a"), sym("ignore"), st)
+        call define_key(map, kbd("C-c b"), sym("undo"), st)
+        call rks_observe(evs("C-c a"), map, seq, binding, shifted)
+        call check(error, key_description(seq) == "C-c a" .and. value_eq(binding, sym("ignore")), &
+                   "function-key-skipped-when-bound")
+        if (allocated(error)) return
+        call free(map)
+        ! keyboard-tests-rks-key-translation-after-function-key
+        call make_sparse_keymap(map)
+        call make_sparse_keymap(trans)
+        key_translation_map = trans
+        call define_key(map, kbd("C-c c"), sym("ignore"), st)
+        call define_key(trans, kbd("C-c b"), list(make_fixnum(3_int64), make_fixnum(99_int64)), st)
+        call rks_observe(evs("C-c a"), map, seq, binding, shifted)
+        call check(error, key_description(seq) == "C-c c" .and. value_eq(binding, sym("ignore")), &
+                   "key-translation-after-function-key")
+        if (allocated(error)) return
+        local_function_key_map = null_handle()
+        call free(fkeys)
+        call free(map)
+        call free(trans)
+        ! keyboard-tests-rks-key-translation-overrides-bound-sequence
+        call make_sparse_keymap(map)
+        call make_sparse_keymap(trans)
+        key_translation_map = trans
+        call define_key(map, kbd("C-c a"), sym("ignore"), st)
+        call define_key(map, kbd("C-c b"), sym("undo"), st)
+        call define_key(trans, kbd("C-c a"), list(make_fixnum(3_int64), make_fixnum(98_int64)), st)
+        call rks_observe(evs("C-c a"), map, seq, binding, shifted)
+        call check(error, key_description(seq) == "C-c b" .and. value_eq(binding, sym("undo")), &
+                   "key-translation-overrides-bound-sequence")
+        if (allocated(error)) return
+        key_translation_map = null_handle()
+        call free(map)
+        call free(trans)
+        ! keyboard-tests-rks-upcase-fallback
+        call make_sparse_keymap(map)
+        call define_key(map, kbd("C-c a"), sym("ignore"), st)
+        call rks_observe(evs("C-c A"), map, seq, binding, shifted)
+        call check(error, key_description(seq) == "C-c a" .and. value_eq(binding, sym("ignore")) .and. shifted, &
+                   "upcase-fallback")
+        if (allocated(error)) return
+        ! keyboard-tests-rks-no-upcase-fallback
+        translate_upper_case_key_bindings = .false.
+        call rks_observe(evs("C-c A"), map, seq, binding, shifted)
+        translate_upper_case_key_bindings = .true.
+        call check(error, key_description(seq) == "C-c A" .and. .not. shifted, "no-upcase-fallback")
+        if (allocated(error)) return
+        ! keyboard-tests-rks-dont-downcase-last
+        call rks_observe(evs("C-c A"), map, seq, binding, shifted, dont_downcase_last=.true.)
+        call check(error, key_description(seq) == "C-c A" .and. .not. shifted, "dont-downcase-last")
+        if (allocated(error)) return
+        call free(map)
+        ! keyboard-tests-rks-shifted-function-key-fallback
+        call make_sparse_keymap(map)
+        call define_key(map, kbd("<f2>"), sym("ignore"), st)
+        ev(1) = sym("S-f2")
+        call rks_observe(ev, map, seq, binding, shifted)
+        call check(error, key_description(seq) == "<f2>" .and. value_eq(binding, sym("ignore")) .and. shifted, &
+                   "shifted-function-key-fallback")
+        call free(map)
+        call free(global)
+    end subroutine test_rks
+
+    !> Ports keyboard-tests.el's keyboard-lossage-size.
+    subroutine test_lossage_size(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        integer :: orig, factor, n
+        integer, parameter :: factors(7) = [1, 3, 4, 5, 10, 7, 3]
+
+        orig = lossage_size()
+
+        do factor = 1, size(factors)
+            n = factors(factor)*100
+            call check(error, lossage_size(n, st) == n .and. st%ok(), "set")
+            if (allocated(error)) return
+        end do
+
+        ! Wrong type.
+        n = lossage_size(-5, st)
+        call check(error, st%code == FM_USER_ERROR, "negative")
+        if (allocated(error)) return
+        ! Less that minimum value.
+        n = lossage_size(99, st)
+        call check(error, format_error(st), "Value must be >= 100")
+        if (allocated(error)) return
+        call check(error, lossage_size(orig, st) == orig, "restore")
+    end subroutine test_lossage_size
+
+    !> Ports keyboard-tests.el's keyboard-inhibit-interaction.
+    subroutine test_inhibit_interaction(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        type(value_type) :: ev
+        integer(int64) :: c
+        logical :: have
+
+        inhibit_interaction = .true.
+        call read_char(c, have, st, prompt="foo: ")
+        call check(error, st%code == FM_INHIBITED_INTERACTION, "read-char")
+
+        if (allocated(error)) then
+            inhibit_interaction = .false.
+            return
+        end if
+
+        call read_event(ev, have, st, prompt="foo: ")
+        call check(error, st%code == FM_INHIBITED_INTERACTION, "read-event")
+
+        if (allocated(error)) then
+            inhibit_interaction = .false.
+            return
+        end if
+
+        call read_char_exclusive(c, have, st, prompt="foo: ")
+        inhibit_interaction = .false.
+        call check(error, format_error(st), "User interaction while inhibited")
+    end subroutine test_inhibit_interaction
+
+    !> read-char resolves modifiers and takes keypad keys as characters;
+    !> read-char-exclusive skips function keys, read-char signals an error.
+    subroutine test_read_char(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        type(value_type) :: e(3)
+        integer(int64) :: c
+        logical :: have
+
+        call discard_input()
+        e(1) = make_fixnum(ior(CTL, 97_int64))
+        e(2) = sym("kp-5")
+        e(3) = sym("f1")
+        call unread_command_events(e)
+        call read_char(c, have, st, prompt="Char: ")
+        call check(error, have .and. c == 1 .and. last_message == "Char: ", "C-a")
+        if (allocated(error)) return
+        call read_char(c, have, st)
+        call check(error, have .and. c == 53, "kp-5")
+        if (allocated(error)) return
+        call read_char(c, have, st)
+        call check(error, format_error(st) == "Non-character input-event" .and. input_pending_p(), "f1")
+        if (allocated(error)) return
+        call kbd_store_bytes("x")
+        call read_char_exclusive(c, have, st)
+        call check(error, have .and. c == 120, "exclusive")
+        if (allocated(error)) return
+        call read_char(c, have, st, seconds=0.01)
+        call check(error, st%ok() .and. .not. have, "timeout")
+    end subroutine test_read_char
+
+    !> this-command-keys and friends, inside a command and after a
+    !> translation; clear-this-command-keys and set--this-command-keys.
+    subroutine test_this_command_keys(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: global, decode
+        type(status_type) :: st
+        type(value_type), allocatable :: keys(:)
+        type(value_type) :: binding
+        logical :: eof
+
+        call fresh_global(global)
+        cmd_cmd_keys = command_type("cmd-keys", cmd_keys)
+        call cmd_cmd_keys%define()
+        call define_key(global, kbd("C-c <up>"), sym("cmd-keys"), st)
+        call make_sparse_keymap(decode)
+        call define_key(decode, kbd("ESC [ A"), list(sym("up")), st)
+        input_decode_map = decode
+        call kbd_store_bytes(char(3)//char(27)//"[A")
+        call command_loop(st)
+        call check(error, seen_keys, "C-c <up>")
+        if (allocated(error)) return
+        call check(error, seen_single_keys, "C-c <up>")
+        if (allocated(error)) return
+        call check(error, seen_raw_keys, "C-c M-[ A")
+        if (allocated(error)) return
+        ! After the command, the keys are cleared.
+        call check(error, size(this_command_keys_vector()) == 0, "cleared")
+        if (allocated(error)) return
+        ! read-key-sequence: the last key sequence read.
+        call kbd_store_bytes(char(3)//char(27)//"[A")
+        call read_key_sequence_vs(keys, binding, eof, st)
+        call check(error, key_description(this_single_command_keys()) == "C-c <up>" .and. &
+                   value_eq(binding, sym("cmd-keys")), "read-key-sequence")
+        if (allocated(error)) return
+        call clear_this_command_keys(keep_record=.true.)
+        call check(error, size(this_command_keys_vector()) == 0, "clear")
+        if (allocated(error)) return
+        call set__this_command_keys(char(195)//char(184)//"y")
+        call check(error, key_description(this_command_keys_vector()), "M-x y")
+        input_decode_map = null_handle()
+        call free(decode)
+        call free(global)
+    end subroutine test_this_command_keys
+
+    !> Keystrokes are echoed when input pauses in the middle of a key
+    !> sequence (here, as input ends there, the keys are then shown as
+    !> read-key-sequence finishes); echo_now shows "C-x-" with the help
+    !> hint, or without it.
+    subroutine test_echo(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: global
+        type(status_type) :: st
+        type(value_type), allocatable :: keys(:)
+        type(value_type) :: binding
+        logical :: eof
+        real :: saved
+
+        call fresh_global(global)
+        call define_key(global, kbd("C-x a"), sym("ignore"), st)
+        saved = echo_keystrokes
+        echo_keystrokes = 0.01
+        call cancel_echoing()
+        last_message = ""
+        call kbd_store_bytes(char(24))
+        call read_key_sequence_vs(keys, binding, eof, st)
+        call check(error, last_message, "C-x")
+
+        if (allocated(error)) then
+            echo_keystrokes = saved
+            return
+        end if
+
+        ! No echo when echo-keystrokes is 0.
+        echo_keystrokes = 0.0
+        call cancel_echoing()
+        last_message = ""
+        call kbd_store_bytes(char(24))
+        call read_key_sequence_vs(keys, binding, eof, st)
+        echo_keystrokes = saved
+        call check(error, last_message, "")
+        if (allocated(error)) return
+        call cancel_echoing()
+        call set__this_command_keys(char(24))
+        call echo_now()
+        call check(error, last_message, "C-x- (C-h for help)")
+        if (allocated(error)) return
+        echo_keystrokes_help = .false.
+        call cancel_echoing()
+        call echo_now()
+        echo_keystrokes_help = .true.
+        call cancel_echoing()
+        call check(error, last_message, "C-x-")
+        call clear_this_command_keys(keep_record=.true.)
+        call free(global)
+    end subroutine test_echo
+
+    !> event-convert-list, internal-event-symbol-parse-modifiers and
+    !> make_ctrl_char.
+    subroutine test_event_symbols(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        type(value_type) :: ev, parsed, d2(2), d3(3)
+
+        d2(1) = sym("control")
+        d2(2) = make_fixnum(97_int64)
+        call event_convert_list(d2, ev, st)
+        call check(error, xfixnum(ev), 1_int64)
+        if (allocated(error)) return
+        d3(1) = sym("control")
+        d3(2) = sym("meta")
+        d3(3) = sym("a")
+        call event_convert_list(d3, ev, st)
+        call check(error, xfixnum(ev), META + 1)
+        if (allocated(error)) return
+        d2(1) = sym("shift")
+        d2(2) = make_fixnum(97_int64)
+        call event_convert_list(d2, ev, st)
+        call check(error, xfixnum(ev), 65_int64)
+        if (allocated(error)) return
+        d2(1) = sym("control")
+        d2(2) = make_fixnum(65_int64)
+        call event_convert_list(d2, ev, st)
+        call check(error, xfixnum(ev), SHIFT + 1)
+        if (allocated(error)) return
+        d2(1) = sym("control")
+        d2(2) = make_fixnum(37_int64)
+        call event_convert_list(d2, ev, st)
+        call check(error, xfixnum(ev), CTL + 37)
+        if (allocated(error)) return
+        d3(1) = sym("meta")
+        d3(2) = sym("control")
+        d3(3) = sym("f1")
+        call event_convert_list(d3, ev, st)
+        call check(error, value_eq(ev, sym("C-M-f1")), "C-M-<f1>")
+        if (allocated(error)) return
+        d2(1) = make_fixnum(97_int64)
+        d2(2) = make_fixnum(98_int64)
+        call event_convert_list(d2, ev, st)
+        call check(error, format_error(st), "Two bases given in one event")
+        if (allocated(error)) return
+        parsed = event_symbol_parse_modifiers(sym("C-M-f1"))
+        call check(error, value_equal(parsed, list(sym("f1"), sym("meta"), sym("control"))), "C-M-f1")
+        if (allocated(error)) return
+        parsed = event_symbol_parse_modifiers(sym("down-mouse-1"))
+        call check(error, value_equal(parsed, list(sym("mouse-1"), sym("down"))), "down-mouse-1")
+        if (allocated(error)) return
+        parsed = event_symbol_parse_modifiers(sym("mouse-2"))
+        call check(error, value_equal(parsed, list(sym("mouse-2"), sym("click"))), "mouse-2")
+        if (allocated(error)) return
+        call check(error, make_ctrl_char(iachar("@", int64)), 0_int64)
+    end subroutine test_event_symbols
+
+    !> recursion-depth in a recursive edit, top-level leaving it without
+    !> a message, and an error in post-command-hook shown and its function
+    !> removed (safe_run_hooks).
+    subroutine test_recursive_edit(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: global
+        type(status_type) :: st
+
+        call fresh_global(global)
+        cmd_cmd_depth = command_type("cmd-depth", cmd_depth)
+        call cmd_cmd_depth%define()
+        cmd_cmd_top = command_type("cmd-top", cmd_top)
+        call cmd_cmd_top%define()
+        cmd_cmd_fail = command_type("cmd-fail", cmd_fail)
+        call cmd_cmd_fail%define()
+        call define_key(global, kbd("d"), sym("cmd-depth"), st)
+        call define_key(global, kbd("t"), sym("cmd-top"), st)
+        seen_depth = -1
+        last_message = ""
+        call kbd_store_bytes("dt")
+        call recursive_edit(st)
+        call check(error, seen_depth == 1 .and. st%code == FM_TOP_LEVEL .and. recursion_depth() == 0, "top-level")
+        if (allocated(error)) return
+        call check(error, last_message, "")
+        if (allocated(error)) return
+        call post_command_hook%add(cmd_fail)
+        call safe_run_hooks(post_command_hook)
+        call check(error, last_message, "Error in post_command_hook (cmd-fail): (user_error ""Boom"")")
+        if (allocated(error)) return
+        call check(error,.not. post_command_hook%member(cmd_fail), "removed")
+        call free(global)
+    end subroutine test_recursive_edit
 end module test_keyboard_fm

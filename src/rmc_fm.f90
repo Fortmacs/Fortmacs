@@ -46,7 +46,7 @@ module rmc_fm
     use character_fm, only: MAX_CHAR
     use keymap_fm, only: make_sparse_keymap, set_keymap_parent, define_key, define_key_range, lookup_key, &
                          current_global_map, free_keymap
-    use keyboard_fm, only: recursive_edit_1, this_command, real_this_command, last_command_event, sit_for
+    use keyboard_fm, only: recursive_edit, this_command, real_this_command, last_command_event, sit_for
     use minibuf_fm, only: read_from_minibuffer, minibuffer_local_map, enable_recursive_minibuffers, &
                           completion_list_table
     use minibuffer_fm, only: exit_minibuffer, minibuffer_message, completing_read, REQUIRE_MATCH_T
@@ -258,7 +258,7 @@ contains
                 continue
             case (ANSWER_EDIT)
                 call message("Recursive edit; type C-M-c to return to help screen")
-                call recursive_edit_1(st)
+                call recursive_edit(st)
             case default
                 again = .false.
             end select

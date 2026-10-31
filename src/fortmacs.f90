@@ -179,6 +179,13 @@ module fortmacs
     use fns_fm, only: use_short_answers
     use rmc_fm, only: read_char_choice_use_read_key
     use keyboard_fm, only: minibuffer_message_timeout
+    use keyboard_fm, only: echo_keystrokes, echo_keystrokes_help, translate_upper_case_key_bindings, help_char, &
+                           help_event_list, inhibit_interaction, num_nonmacro_input_events, read_char, &
+                           read_char_exclusive, read_event, read_key_sequence_vs, this_command_keys_vector, &
+                           this_single_command_keys, this_single_command_raw_keys, clear_this_command_keys, &
+                           recursion_depth, top_level, recursive_edit, lossage_size, event_convert_list, &
+                           event_symbol_parse_modifiers, pre_command_hook, post_command_hook
+    use fileio_fm, only: open_dribble_file
     use minibuffer_fm, only: read_file_name_completion_ignore_case, read_buffer_completion_ignore_case
     use minibuf_fm, only: enable_recursive_minibuffers, history_add_new_input
     use minibuffer_fm, only: insert_default_directory
@@ -1080,4 +1087,9 @@ module fortmacs
               EXECUTABLE_QUERY_NIL, EXECUTABLE_QUERY_FUNCTION, EXECUTABLE_QUERY_T, EXECUTABLE_CHMOD_NIL
     public :: before_save_hook, after_save_hook
     public :: fill_paragraph_function, fill_paragraph_handle_comment
+    public :: echo_keystrokes, echo_keystrokes_help, translate_upper_case_key_bindings, help_char, help_event_list, &
+              inhibit_interaction, num_nonmacro_input_events, read_char, read_char_exclusive, read_event, &
+              read_key_sequence_vs, this_command_keys_vector, this_single_command_keys, this_single_command_raw_keys, &
+              clear_this_command_keys, recursion_depth, top_level, recursive_edit, lossage_size, event_convert_list, &
+              event_symbol_parse_modifiers, open_dribble_file, pre_command_hook, post_command_hook
 end module fortmacs
