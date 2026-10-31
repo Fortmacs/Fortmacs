@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="520" height="206" viewBox="0 0 520 206" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13">
-<path d="M90 90 L90.00 10.00 A80 80 0 0 1 101.20 10.79 Z" fill="#96B6B0" stroke="#1A1A1A" stroke-width="1"/>
-<path d="M90 90 L101.20 10.79 A80 80 0 0 1 115.86 14.30 Z" fill="#578D97" stroke="#1A1A1A" stroke-width="1"/>
-<path d="M90 90 L115.86 14.30 A80 80 0 1 1 90.00 10.00 Z" fill="#1A1A1A" stroke="#1A1A1A" stroke-width="1"/>
+<path d="M90 90 L90.00 10.00 A80 80 0 0 1 101.08 10.77 Z" fill="#96B6B0" stroke="#1A1A1A" stroke-width="1"/>
+<path d="M90 90 L101.08 10.77 A80 80 0 0 1 115.74 14.25 Z" fill="#578D97" stroke="#1A1A1A" stroke-width="1"/>
+<path d="M90 90 L115.74 14.25 A80 80 0 1 1 90.00 10.00 Z" fill="#1A1A1A" stroke="#1A1A1A" stroke-width="1"/>
 <text x="292" y="26" fill="#1A1A1A" text-anchor="end">C</text>
 <rect x="302" y="15" width="14" height="14" rx="2" fill="#96B6B0" stroke="#1A1A1A" stroke-width="1"/>
-<text x="324" y="26" fill="#1A1A1A">≈16.74%</text>
-<text x="516" y="26" fill="#1A1A1A" text-anchor="end">1,431 of 8,547</text>
+<text x="324" y="26" fill="#1A1A1A">≈16.56%</text>
+<text x="516" y="26" fill="#1A1A1A" text-anchor="end">1,415 of 8,547</text>
 <text x="292" y="52" fill="#1A1A1A" text-anchor="end">Elisp</text>
 <rect x="302" y="41" width="14" height="14" rx="2" fill="#578D97" stroke="#1A1A1A" stroke-width="1"/>
 <text x="324" y="52" fill="#1A1A1A">≈3.98%</text>
@@ -24,10 +24,10 @@
 <text x="516" y="130" fill="#1A1A1A" text-anchor="end">0 of 6,333</text>
 <text x="292" y="156" fill="#1A1A1A" text-anchor="end">Not yet ported</text>
 <rect x="302" y="145" width="14" height="14" rx="2" fill="#1A1A1A" stroke="#1A1A1A" stroke-width="1"/>
-<text x="324" y="156" fill="#1A1A1A">≈94.76%</text>
-<text x="516" y="156" fill="#1A1A1A" text-anchor="end">60,646 of 63,999</text>
+<text x="324" y="156" fill="#1A1A1A">≈94.79%</text>
+<text x="516" y="156" fill="#1A1A1A" text-anchor="end">60,662 of 63,999</text>
 <line x1="200" y1="170" x2="516" y2="170" stroke="#1A1A1A" stroke-width="1"/>
 <text x="292" y="192" fill="#1A1A1A" text-anchor="end">Complete</text>
-<text x="324" y="192" fill="#1A1A1A">≈5.24%</text>
-<text x="516" y="192" fill="#1A1A1A" text-anchor="end">3,353 of 63,999</text>
+<text x="324" y="192" fill="#1A1A1A">≈5.21%</text>
+<text x="516" y="192" fill="#1A1A1A" text-anchor="end">3,337 of 63,999</text>
 </svg>
