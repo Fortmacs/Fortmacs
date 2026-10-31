@@ -134,6 +134,10 @@ module docstrings_fm
                             conf_toml_mode_syntax_table, conf_unix_mode_hook, conf_unix_mode_syntax_table, &
                             conf_windows_mode_hook, conf_xdefaults_mode_hook, conf_xdefaults_mode_syntax_table
     use crm_fm, only: crm_local_completion_map, crm_local_must_match_map, crm_prompt, crm_separator
+    use css_mode_fm, only: css_base_mode_hook, css_base_mode_map, css_class_list_function, &
+                           css_electric_keys, css_font_lock_keywords, css_fontify_colors, css_id_list_function, &
+                           css_indent_offset, css_lookup_url_format, css_mode_hook, css_mode_map, css_mode_syntax_table, &
+                           css_smie_grammar, scss_mode_hook, scss_mode_map, scss_mode_syntax_table
     use dabbrev_fm, only: dabbrev_abbrev_char_regexp, dabbrev_abbrev_skip_leading_regexp, &
                           dabbrev_backward_only, dabbrev_case_distinction, DABBREV_OFF, DABBREV_ON, &
                           DABBREV_LIKE_CASE_FOLD_SEARCH, DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK, &
@@ -224,9 +228,9 @@ module docstrings_fm
                         FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, revert_buffer_function, &
                         revert_buffer_in_progress, revert_buffer_preserve_modes, revert_without_query, &
                         save_some_buffers_functions, view_read_only, write_file_functions
-    use fill_fm, only: adaptive_fill_first_line_regexp, adaptive_fill_mode, adaptive_fill_regexp, &
-                       colon_double_space, default_justification, JUSTIFY_NONE, JUSTIFY_LEFT, JUSTIFY_RIGHT, &
-                       JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_T, fill_indent_according_to_mode, &
+    use fill_fm, only: adaptive_fill_first_line_regexp, adaptive_fill_function, adaptive_fill_mode, &
+                       adaptive_fill_regexp, colon_double_space, default_justification, JUSTIFY_NONE, JUSTIFY_LEFT, &
+                       JUSTIFY_RIGHT, JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_T, fill_indent_according_to_mode, &
                        fill_nobreak_predicate, fill_paragraph_function, fill_paragraph_handle_comment, &
                        fill_separate_heterogeneous_words_with_space
     use fns_fm, only: use_short_answers, yes_or_no_prompt
@@ -563,7 +567,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1443) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1447) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -652,19 +656,20 @@ module docstrings_fm
                                                          "copy_rectangle_to_register", "copy_region_as_kill", "copy_syntax_table", &
                                             "copy_to_register", "count_lines", "count_lines_page", "count_matches", "count_words", &
                                                "count_words_region", "crm_complete", "crm_complete_and_exit", "crm_complete_word", &
-                                             "crm_completion_help", "current_buffer", "current_case_table", "current_fill_column", &
-                                             "current_global_map", "current_indentation", "current_justification", "current_kill", &
-                                                             "current_left_margin", "cycle_spacing", "dabbrev__same_major_mode_p", &
-                                             "dabbrev__select_buffers", "dabbrev_completion", "dabbrev_expand", "deactivate_mark", &
-                                                        "decode_coding_region", "decode_coding_string", "default_indent_new_line", &
-                                                          "define_category", "define_coding_system_alias", "define_global_abbrev", &
-                                                        "define_ibuffer_column", "define_ibuffer_filter", "define_ibuffer_sorter", &
-                                           "define_mode_abbrev", "delete_all_space", "delete_backward_char", "delete_blank_lines", &
-                                                                 "delete_char", "delete_extract_rectangle", "delete_forward_char", &
-                                                         "delete_horizontal_space", "delete_indentation", "delete_matching_lines", &
-                                             "delete_non_matching_lines", "delete_other_windows", "delete_pair", "delete_process", &
-                                              "delete_rectangle", "delete_region", "delete_whitespace_rectangle", "delete_window", &
-                                              "derived_mode_p", "describe_bindings", "describe_coding_system", "describe_command", &
+                                                     "crm_completion_help", "css_base_mode", "css_cycle_color_format", "css_mode", &
+                                              "current_buffer", "current_case_table", "current_fill_column", "current_global_map", &
+                                            "current_indentation", "current_justification", "current_kill", "current_left_margin", &
+                                                         "cycle_spacing", "dabbrev__same_major_mode_p", "dabbrev__select_buffers", &
+                                                "dabbrev_completion", "dabbrev_expand", "deactivate_mark", "decode_coding_region", &
+                                                             "decode_coding_string", "default_indent_new_line", "define_category", &
+                                                    "define_coding_system_alias", "define_global_abbrev", "define_ibuffer_column", &
+                                                           "define_ibuffer_filter", "define_ibuffer_sorter", "define_mode_abbrev", &
+                                                  "delete_all_space", "delete_backward_char", "delete_blank_lines", "delete_char", &
+                                                     "delete_extract_rectangle", "delete_forward_char", "delete_horizontal_space", &
+                                                       "delete_indentation", "delete_matching_lines", "delete_non_matching_lines", &
+                                                      "delete_other_windows", "delete_pair", "delete_process", "delete_rectangle", &
+                                                "delete_region", "delete_whitespace_rectangle", "delete_window", "derived_mode_p", &
+                                                                "describe_bindings", "describe_coding_system", "describe_command", &
                                                             "describe_current_coding_system", "describe_function", "describe_key", &
                                                   "describe_key_briefly", "describe_mode", "describe_symbol", "describe_variable", &
                                                       "detect_coding_region", "detect_coding_string", "diff", "diff_apply_buffer", &
@@ -931,7 +936,7 @@ module docstrings_fm
                                                  "save_place_local_mode", "save_place_mode", "save_some_buffers", "savehist_mode", &
                                          "savehist_save", "scan_expressions", "scan_groups", "scroll_down", "scroll_down_command", &
                                               "scroll_other_window", "scroll_other_window_down", "scroll_up", "scroll_up_command", &
-                                                          "search_backward", "search_forward", "select_window", "selected_window", &
+                                             "scss_mode", "search_backward", "search_forward", "select_window", "selected_window", &
                                                              "self_insert_command", "sentence_end", "set_auto_mode", "set_buffer", &
                                             "set_buffer_file_coding_system", "set_buffer_process_coding_system", "set_case_table", &
                                                        "set_category_table", "set_char_table_extra_slot", "set_char_table_parent", &
@@ -1001,21 +1006,21 @@ module docstrings_fm
                                                  "y_or_n_p_insert_y", "yank", "yank_pop", "yank_rectangle", "yes_or_no_p", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1182) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1199) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
-                                                  "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
-                                             "add_log_dont_create_changelog_file", "add_log_full_name", "add_log_mailing_address", &
-                                                    "after_change_functions", "after_change_major_mode_hook", "after_revert_hook", &
-                                                 "after_save_hook", "after_set_visited_file_name_hook", "amalgamating_undo_limit", &
-                                                                "ansi_color_apply_face_function", "ansi_color_basic_faces_vector", &
-                                                                   "ansi_color_bold_is_bright", "ansi_color_bright_colors_vector", &
-                                                                  "ansi_color_for_comint_mode", "ansi_color_for_compilation_mode", &
-                                               "ansi_color_normal_colors_vector", "apropos_all_words_regexp", "apropos_mode_hook", &
-                                            "apropos_mode_map", "apropos_pattern", "apropos_regexp", "async_shell_command_buffer", &
-                                                                 "async_shell_command_display_buffer", "async_shell_command_mode", &
-                                                     "async_shell_command_width", "auto_coding_regexp_table", "auto_coding_table", &
-                                                              "auto_fill_chars", "auto_fill_function", "auto_fill_inhibit_regexp", &
+                                                "adaptive_fill_first_line_regexp", "adaptive_fill_function", "adaptive_fill_mode", &
+                                                "adaptive_fill_regexp", "add_log_dont_create_changelog_file", "add_log_full_name", &
+                                              "add_log_mailing_address", "after_change_functions", "after_change_major_mode_hook", &
+                                                       "after_revert_hook", "after_save_hook", "after_set_visited_file_name_hook", &
+                                                                    "amalgamating_undo_limit", "ansi_color_apply_face_function", &
+                                                                    "ansi_color_basic_faces_vector", "ansi_color_bold_is_bright", &
+                                                                  "ansi_color_bright_colors_vector", "ansi_color_for_comint_mode", &
+                                                             "ansi_color_for_compilation_mode", "ansi_color_normal_colors_vector", &
+                                           "apropos_all_words_regexp", "apropos_mode_hook", "apropos_mode_map", "apropos_pattern", &
+                                             "apropos_regexp", "async_shell_command_buffer", "async_shell_command_display_buffer", &
+                                              "async_shell_command_mode", "async_shell_command_width", "auto_coding_regexp_table", &
+                                         "auto_coding_table", "auto_fill_chars", "auto_fill_function", "auto_fill_inhibit_regexp", &
                                            "auto_fill_mode_hook", "auto_mode_interpreter_regexp", "auto_revert__lockout_interval", &
                                                                     "auto_revert_avoid_polling", "auto_revert_buffer_in_progress", &
                                                      "auto_revert_check_vc_info", "auto_revert_interval", "auto_revert_mode_hook", &
@@ -1108,7 +1113,11 @@ module docstrings_fm
                                               "conf_toml_mode_syntax_table", "conf_unix_mode_hook", "conf_unix_mode_syntax_table", &
                                          "conf_windows_mode_hook", "conf_xdefaults_mode_hook", "conf_xdefaults_mode_syntax_table", &
                                            "copy_directory_create_symlink", "copy_region_blink_delay", "crm_local_completion_map", &
-                                          "crm_local_must_match_map", "crm_prompt", "crm_separator", "current_minibuffer_command", &
+                                                  "crm_local_must_match_map", "crm_prompt", "crm_separator", "css_base_mode_hook", &
+                                                              "css_base_mode_map", "css_class_list_function", "css_electric_keys", &
+                                                           "css_font_lock_keywords", "css_fontify_colors", "css_id_list_function", &
+                                                    "css_indent_offset", "css_lookup_url_format", "css_mode_hook", "css_mode_map", &
+                                                        "css_mode_syntax_table", "css_smie_grammar", "current_minibuffer_command", &
                                                       "current_prefix_arg", "cycle_spacing_actions", "dabbrev_abbrev_char_regexp", &
                                                                     "dabbrev_abbrev_skip_leading_regexp", "dabbrev_backward_only", &
                                                    "dabbrev_case_distinction", "dabbrev_case_fold_search", "dabbrev_case_replace", &
@@ -1338,7 +1347,8 @@ module docstrings_fm
                                                           "savehist_autosave_interval", "savehist_coding_system", "savehist_file", &
                                                            "savehist_file_modes", "savehist_ignored_variables", "savehist_loaded", &
                                               "savehist_minibuffer_history_variables", "savehist_mode_hook", "savehist_save_hook", &
-                                              "savehist_save_minibuffer_history", "scroll_error_top_bottom", "search_exit_option", &
+                                                  "savehist_save_minibuffer_history", "scroll_error_top_bottom", "scss_mode_hook", &
+                                                                  "scss_mode_map", "scss_mode_syntax_table", "search_exit_option", &
                                                        "search_nonincremental_instead", "search_ring_max", "search_spaces_regexp", &
                                                                     "search_upper_case", "search_whitespace_regexp", &
                                                 "select_safe_coding_system_accept_default_p", "sentence_end", "sentence_end_base", &
@@ -1418,7 +1428,7 @@ module docstrings_fm
                                                            "y_or_n_p_history_variable", "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(578) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(582) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1544,6 +1554,10 @@ module docstrings_fm
                                                                       "copy_directory_create_symlink", &
                                                                       "copy_region_blink_delay", &
                                                                       "crm_prompt", &
+                                                                      "css_electric_keys", &
+                                                                      "css_fontify_colors", &
+                                                                      "css_indent_offset", &
+                                                                      "css_lookup_url_format", &
                                                                       "cycle_spacing_actions", &
                                                                       "dabbrev_abbrev_char_regexp", &
                                                                       "dabbrev_abbrev_skip_leading_regexp", &
@@ -4349,6 +4363,34 @@ contains
             entry%interactive = .true.
             entry%doc = "Display a list of possible completions of the current minibuffer"//LF// &
                         "element."
+        case ("css_base_mode")
+            entry%file = "css_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Generic mode to edit Cascading Style Sheets (CSS)."//LF// &
+                        ""//LF// &
+                        "This is a generic major mode intended to be inherited by a concrete"//LF// &
+                        "implementation.  Currently there is one concrete implementation:"//LF// &
+                        "`css_mode'."
+        case ("css_cycle_color_format")
+            entry%file = "css_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Cycle the color at point between different CSS color formats."//LF// &
+                        "Supported formats are by name (if possible), hexadecimal, and"//LF// &
+                        "rgb()/rgba()."
+        case ("css_mode")
+            entry%file = "css_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Major mode to edit Cascading Style Sheets (CSS)."//LF// &
+                        "This mode provides syntax highlighting, indentation, completion, and"//LF// &
+                        "documentation lookup for CSS."//LF// &
+                        ""//LF// &
+                        "Use `\[completion_at_point]' to complete CSS properties, property"//LF// &
+                        "values, pseudo-elements, pseudo-classes, at-rules, bang-rules, and"//LF// &
+                        "HTML tags, classes and IDs.  Completion candidates for HTML class"//LF// &
+                        "names and IDs are found by looking through open HTML mode buffers."//LF// &
+                        ""//LF// &
+                        "Use `\[fill_paragraph]' to reformat CSS declaration blocks.  It can"//LF// &
+                        "also be used to fill comments."
         case ("current_buffer")
             entry%file = "buffer_fm.f90"
             entry%fortran = "current_buffer()"
@@ -11973,6 +12015,10 @@ contains
                         ""//LF// &
                         "The command \[set_goal_column] can be used to create a"//LF// &
                         "semipermanent goal column for this command."
+        case ("scss_mode")
+            entry%file = "css_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Major mode to edit ""Sassy CSS"" files."
         case ("search_backward")
             entry%file = "search_fm.f90"
             entry%fortran = "call search_backward(string, found, status, bound, noerror, count)"
@@ -14257,6 +14303,12 @@ contains
                         ""//LF// &
                         "However, we never use a prefix from a one-line paragraph"//LF// &
                         "if it would act as a paragraph-starter on the second line."
+        case ("adaptive_fill_function")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "adaptive_fill_function"
+            entry%doc = "Function to call to choose a fill prefix for a paragraph."//LF// &
+                        "A null value (`ignore') means the function has not determined the"//LF// &
+                        "fill prefix."
         case ("adaptive_fill_mode")
             entry%file = "fill_fm.f90"
             entry%fortran = "adaptive_fill_mode"
@@ -17304,6 +17356,90 @@ contains
                         "`description' (`crm_separator_string' and"//LF// &
                         "`crm_separator_description') are shown as part of the prompt.  See"//LF// &
                         "the user option `crm_prompt'."
+        case ("css_base_mode_hook")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_base_mode_hook"
+            entry%doc = "Hook run after entering `css_base_mode'."
+        case ("css_base_mode_map")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_base_mode_map"
+            entry%doc = "Keymap for `css_base_mode'."
+        case ("css_class_list_function")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_class_list_function"
+            entry%doc = "Called to provide completions of class names."//LF// &
+                        "This can be bound by buffers that are able to suggest class name"//LF// &
+                        "completions, such as HTML mode buffers."
+        case ("css_electric_keys")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_electric_keys"
+            entry%user_option = .true.
+
+            if (allocated(css_electric_keys)) then
+                entry%value = repr(css_electric_keys)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Self inserting keys which should trigger re-indentation."
+        case ("css_font_lock_keywords")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_font_lock_keywords"
+            entry%doc = "The Font Lock keywords of `css_mode'."
+        case ("css_fontify_colors")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_fontify_colors"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(css_fontify_colors%value)
+            entry%doc = "Whether CSS colors should be fontified using the color as the"//LF// &
+                        "background.  When true, a text representing CSS color will be"//LF// &
+                        "fontified such that its background is the color itself.  E.g.,"//LF// &
+                        "#ff0000 will be fontified with a red background."
+        case ("css_id_list_function")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_id_list_function"
+            entry%doc = "Called to provide completions of IDs."//LF// &
+                        "This can be bound by buffers that are able to suggest ID"//LF// &
+                        "completions, such as HTML mode buffers."
+        case ("css_indent_offset")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_indent_offset"
+            entry%user_option = .true.
+            entry%original = "4"
+            entry%value = repr(css_indent_offset%value)
+            entry%doc = "Basic size of one indentation step."
+        case ("css_lookup_url_format")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_lookup_url_format"
+            entry%user_option = .true.
+
+            if (allocated(css_lookup_url_format%value)) then
+                entry%value = repr(css_lookup_url_format%value)
+            else
+                entry%value = "unallocated"
+            end if
+
+            entry%doc = "Format for a URL where CSS documentation can be found."//LF// &
+                        "The format should include a single ""%s"" substitution."//LF// &
+                        "The name of the CSS property, @-id, pseudo-class, or pseudo-element"//LF// &
+                        "to look up will be substituted there."
+        case ("css_mode_hook")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_mode_hook"
+            entry%doc = "Hook run after entering `css_mode'."
+        case ("css_mode_map")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_mode_map"
+            entry%doc = "Keymap used in `css_mode'."
+        case ("css_mode_syntax_table")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_mode_syntax_table"
+            entry%doc = "Syntax table used in `css_mode'."
+        case ("css_smie_grammar")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "css_smie_grammar"
+            entry%doc = "The SMIE grammar of CSS mode."
         case ("current_minibuffer_command")
             entry%file = "callint_fm.f90"
             entry%fortran = "current_minibuffer_command"
@@ -24105,6 +24241,18 @@ contains
                         "If false, scroll commands signal an error when no more scrolling is"//LF// &
                         "possible.  If true, they move point to the beginning or end of"//LF// &
                         "the buffer instead (and then signal at the edge)."
+        case ("scss_mode_hook")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "scss_mode_hook"
+            entry%doc = "Hook run after entering `scss_mode'."
+        case ("scss_mode_map")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "scss_mode_map"
+            entry%doc = "Keymap for `scss_mode'."
+        case ("scss_mode_syntax_table")
+            entry%file = "css_mode_fm.f90"
+            entry%fortran = "scss_mode_syntax_table"
+            entry%doc = "Syntax table used in `scss_mode'."
         case ("search_exit_option")
             entry%file = "isearch_fm.f90"
             entry%fortran = "search_exit_option"
@@ -26918,6 +27066,15 @@ contains
             kind = OPTION_REAL
         case ("crm_prompt")
             kind = OPTION_STRING
+        case ("css_fontify_colors")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("css_indent_offset")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("css_lookup_url_format")
+            kind = OPTION_STRING
+            setting = .true.
         case ("dabbrev_abbrev_char_regexp")
             kind = OPTION_STRING
         case ("dabbrev_abbrev_skip_leading_regexp")
@@ -27976,6 +28133,12 @@ contains
             end if
         case ("copy_directory_create_symlink")
             copy_directory_create_symlink = v
+        case ("css_fontify_colors")
+            if (local) then
+                call css_fontify_colors%set_local(v)
+            else
+                css_fontify_colors = v
+            end if
         case ("dabbrev_backward_only")
             dabbrev_backward_only = v
         case ("dabbrev_check_all_buffers")
@@ -28572,6 +28735,12 @@ contains
             else
                 conf_javaprop_assignment_column = v
             end if
+        case ("css_indent_offset")
+            if (local) then
+                call css_indent_offset%set_local(v)
+            else
+                css_indent_offset = v
+            end if
         case ("dabbrev_limit")
             dabbrev_limit = v
         case ("executable_chmod")
@@ -28969,6 +29138,12 @@ contains
             completion_pcm_word_delimiters = v
         case ("crm_prompt")
             crm_prompt = v
+        case ("css_lookup_url_format")
+            if (local) then
+                call css_lookup_url_format%set_local(v)
+            else
+                css_lookup_url_format = v
+            end if
         case ("dabbrev_abbrev_char_regexp")
             dabbrev_abbrev_char_regexp = v
         case ("dabbrev_abbrev_skip_leading_regexp")
