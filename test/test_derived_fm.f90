@@ -28,7 +28,6 @@ module test_derived_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type
-    use lread_fm, only: sym
     use buffer_fm, only: get_buffer_create, kill_buffer, set_buffer, buffers, cur, fill_column
     use data_fm, only: value_eq
     use eval_fm, only: hook_type
@@ -69,7 +68,7 @@ contains
                     new_unittest("remove-hook", test_remove_hook), &
                     new_unittest("text-mode", test_text_mode), &
                     new_unittest("derived-mode-hooks-order", test_hooks_order), &
-                    new_unittest("provided-mode-derived-p", test_provided_mode_derived_p), &
+                    new_unittest("provided-mode-derived-p", test_provided_mode_derived), &
                     new_unittest("special-mode", test_special_mode), &
                     new_unittest("fundamental-mode-kills-locals", test_fundamental), &
                     new_unittest("auto-mode-spec", test_auto_mode_spec), &
@@ -368,7 +367,7 @@ contains
         call keymap_set(major_modes%text_mode%map, "C-c t", "forward_char", st)
         call key_parse("C-c t", key, st)
         call key_binding(key, binding, st)
-        call check(error, value_eq(binding, sym("forward_char")), "inherited binding")
+        call check(error, value_eq(binding, value_type(name="forward_char")), "inherited binding")
         call keymap_set(major_modes%text_mode%map, "C-c t", value_type(), st)
         call text_mode_hook%remove(hook_text)
         call child_mode_hook%remove(hook_child)
@@ -377,7 +376,7 @@ contains
     end subroutine test_hooks_order
 
     !> subr-tests.el: provided-mode-derived-p (without aliases).
-    subroutine test_provided_mode_derived_p(error)
+    subroutine test_provided_mode_derived(error)
         type(error_type), allocatable, intent(out) :: error
 
         call syms_of_prog_mode()
@@ -405,7 +404,7 @@ contains
         call check(error, provided_mode_derived_p("subr-tests--derived-mode-2", "prog_mode"), "single mode")
         if (allocated(error)) return
         call check(error,.not. provided_mode_derived_p("prog_mode", "text_mode"), "single mode, not derived")
-    end subroutine test_provided_mode_derived_p
+    end subroutine test_provided_mode_derived
 
     !> special-mode makes the buffer read-only with special-mode-map.
     subroutine test_special_mode(error)
@@ -425,7 +424,7 @@ contains
         if (allocated(error)) return
         call key_parse("q", key, st)
         call key_binding(key, binding, st)
-        call check(error, value_eq(binding, sym("quit_window")), "q quits")
+        call check(error, value_eq(binding, value_type(name="quit_window")), "q quits")
         call kill_buffer(a, st)
     end subroutine test_special_mode
 

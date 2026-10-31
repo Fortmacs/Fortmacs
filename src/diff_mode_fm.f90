@@ -49,12 +49,11 @@ module diff_mode_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lread_fm, only: sym
     use data_fm, only: logical_setting, forward_setting, add_local_variables_killer
     use eval_fm, only: hook_type
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer
     use data_fm, only: symbol_value, set
-    use lisp_fm, only: t_value, make_keymap_ref, value_type, xfixnum
+    use lisp_fm, only: make_keymap_ref, value_type, xfixnum
     use editfns_fm, only: point, goto_char, point_min, point_max, is_bob, is_eob, is_bol, buffer_substring, &
                           line_beginning_position, line_end_position, narrow_to_region, widen, is_buffer_narrowed, &
                           char_after, delete_region
@@ -589,7 +588,7 @@ contains
 
     !> Return true if point is inside a diff header: the position of its
     !> start, else 0.  Port of diff-mode.el:diff--at-diff-header-p.
-    integer(int64) function diff_at_diff_header_p() result(pos)
+    integer(int64) function diff_header_position() result(pos)
         integer(int64) :: orig, shortage, found
 
         pos = 0
@@ -625,7 +624,7 @@ contains
         end if
 
         call goto_char(orig)
-    end function diff_at_diff_header_p
+    end function diff_header_position
 
     !> Move back to the previous hunk beginning, and return its position.
     !> If point is in a file header rather than a hunk, advance to the
@@ -644,7 +643,7 @@ contains
         pos = point()
         ! At hunk header.
         if (at(diff_hunk_header_re)) return
-        header = diff_at_diff_header_p()
+        header = diff_header_position()
 
         if (header /= 0) then
             ! At junk diff header.
@@ -1340,7 +1339,7 @@ contains
         end if
 
         call goto_char(e)
-        pos = diff_at_diff_header_p()
+        pos = diff_header_position()
         if (pos /= 0) call goto_char(pos)
         e = point()
         call bind_inhibit_read_only(saved)

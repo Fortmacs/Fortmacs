@@ -116,10 +116,9 @@ module xdisp_fm
                          set_window_point
     use dispnew_fm, only: adjust_frame_glyphs, update_frame, update_window_line, redraw_frame
     use keyboard_fm, only: last_message, minibuffer_message_text, set_minibuffer_message_text
-    use lisp_fm, only: value_type, xstring, list_elements, xfixnum, xhandle, &
-                       string_intervals, vtag, V_INTEGER, V_STRING, V_ARRAY, V_WINDOW
+    use lisp_fm, only: value_type, xstring, list_elements, xfixnum, xhandle, string_intervals, vtag, V_INTEGER, &
+                       V_STRING, V_ARRAY, V_WINDOW
     use intervals_fm, only: textget
-    use lread_fm, only: sym
     use data_fm, only: buffer_local_value, integer_setting, add_local_variables_killer, value_eq
     use coding_fm, only: is_coding_system, coding_system_mnemonic, coding_system_eol_type_mnemonic, syms_of_coding, &
                          buffer_file_coding_system
@@ -127,7 +126,7 @@ module xdisp_fm
     use marker_fm, only: make_marker, set_marker, marker_position, free_marker
     use insdel_fm, only: insert_1_both, del_range_both, inhibit_modification_hooks
     use search_fm, only: scan_newline
-    use lisp_fm, only: command_proc
+    use lisp_fm, only: command_proc, value_type
     use bidi_fm, only: bidi_it_type, bidi_init_it, bidi_paragraph_init, bidi_find_first_overridden, bidi_set_string, &
                        bidi_shelved_type, bidi_shelve_cache, bidi_unshelve_cache, NEUTRAL_DIR, L2R, R2L
     use editfns_fm, only: validate_region
@@ -141,7 +140,7 @@ module xdisp_fm
               mode_line_modes_prefix
     public :: redisplay_internal, init_frame_windows, glyph_width, &
               mode_line_text, mode_line_mule_info, layout_window, message, glyph_columns, display_line_rows, display_row_of, &
-              mode_line_row, recenter_start, mode_line_percent, display_row, line_beginning, invisible_p
+              mode_line_row, recenter_start, mode_line_percent, display_row, line_beginning, invisibility
     public :: message_nolog, message_dolog, message_log_echo, message_log_maybe_newline
     public :: highlight_region_proc, unhighlight_region_proc
     public :: bidi_find_overridden_directionality, current_bidi_paragraph_direction
@@ -186,7 +185,7 @@ module xdisp_fm
     procedure(unhighlight_region_proc), pointer, public :: redisplay_unhighlight_region_function => &
         redisplay_unhighlight_overlay_function
 
-    !> Values of `invisible_p': hidden, and replaced by an ellipsis.
+    !> Values of `invisibility': hidden, and replaced by an ellipsis.
     integer, parameter, public :: INVISIBLE_HIDDEN = 1, INVISIBLE_ELLIPSIS = 2
 
     !> Values of `message_log_max' other than a number of lines.
@@ -228,6 +227,11 @@ module xdisp_fm
     !> xdisp.c cursor-in-echo-area: put the cursor after the echo area
     !> text (while a prompt there waits for an answer).
     logical, public :: cursor_in_echo_area = .false.
+
+    !> The value of `tab_width' that is upstream's unset one: the display uses
+    !> the default width, 8 (buffer.h:sanitize_tab_width), as for any value
+    !> out of range.  Not a port.
+    integer(int64), parameter, public :: TAB_WIDTH_DEFAULT = -huge(0_int64)
 
     !> Distance between tab stops (for display of tab characters), in columns.
     !> This controls the width of a TAB character on display.
@@ -703,11 +707,11 @@ contains
     !> Note that whether text with `invisible' property is actually hidden
     !> on display may depend on `buffer_invisibility_spec', which see.
     !> Port of xdisp.c:Finvisible_p (a position).
-    integer function invisible_p(pos) result(invis)
+    integer function invisibility(pos) result(invis)
         integer(int64), intent(in) :: pos
 
-        invis = text_prop_means_invisible(get_char_property(pos, sym("invisible")))
-    end function invisible_p
+        invis = text_prop_means_invisible(get_char_property(pos, value_type(name="invisible")))
+    end function invisibility
 
     !> Look at the properties of the text at `s%pos' in buffer slot `bi'
     !> and its overlay strings, and set up `s' to show what goes there:
@@ -746,7 +750,7 @@ contains
             call load_overlay_strings(p, s%items)
         else
             s%stop = next_char_property_change(p, zv)
-            call get_char_property_and_overlay(p, sym("invisible"), prop, ov)
+            call get_char_property_and_overlay(p, value_type(name="invisible"), prop, ov)
             invis = text_prop_means_invisible(prop)
 
             if (invis /= 0) then
@@ -755,9 +759,9 @@ contains
                 newpos = p
 
                 do
-                    newpos = next_single_char_property_change(newpos, sym("invisible"), zv)
+                    newpos = next_single_char_property_change(newpos, value_type(name="invisible"), zv)
                     if (newpos >= zv) exit
-                    invis = text_prop_means_invisible(get_char_property(newpos, sym("invisible")))
+                    invis = text_prop_means_invisible(get_char_property(newpos, value_type(name="invisible")))
                     ! If there are adjacent invisible texts, don't lose the
                     ! second one's ellipsis.
                     if (invis == 2) ellipsis = .true.
@@ -771,10 +775,10 @@ contains
                 if (ellipsis) call push_item(s%items, ITEM_ELLIPSIS, "...")
                 call hide(newpos)
             else
-                disp = get_char_property(p, sym("display"))
+                disp = get_char_property(p, value_type(name="display"))
 
                 if (vtag(disp) == V_STRING) then
-                    endpos = next_single_char_property_change(p, sym("display"), zv)
+                    endpos = next_single_char_property_change(p, value_type(name="display"), zv)
                     call load_overlay_strings(p, s%items)
 
                     if (len(xstring(disp)) > 0) then
@@ -786,11 +790,11 @@ contains
                     end if
                 else if (fringe_spec(disp)) then
                     ! A terminal has no fringes: the text is not shown.
-                    endpos = next_single_char_property_change(p, sym("display"), zv)
+                    endpos = next_single_char_property_change(p, value_type(name="display"), zv)
                     call load_overlay_strings(p, s%items)
                     call hide(endpos)
                 else if (space_spec(disp, width, align_to)) then
-                    endpos = next_single_char_property_change(p, sym("display"), zv)
+                    endpos = next_single_char_property_change(p, value_type(name="display"), zv)
                     call load_overlay_strings(p, s%items)
                     call push_item(s%items, ITEM_STRETCH, "", width, align_to)
                     call hide(endpos, p + 1)
@@ -994,14 +998,14 @@ contains
         pos = 0
 
         do k = 1, size(starts)
-            if (fringe_spec(textget(plists(k), sym("display")))) then
+            if (fringe_spec(textget(plists(k), value_type(name="display")))) then
                 ! Not shown on a terminal, which has no fringes.
                 call push_text(pos, starts(k))
                 pos = ends(k)
                 cycle
             end if
 
-            if (.not. space_spec(textget(plists(k), sym("display")), width, align_to)) cycle
+            if (.not. space_spec(textget(plists(k), value_type(name="display")), width, align_to)) cycle
             call push_text(pos, starts(k))
             call push_item(items, ITEM_STRETCH, "", width, align_to)
 
@@ -1010,8 +1014,8 @@ contains
                 it%prop_beg = [1_int64]
                 it%prop_end = [2_int64]
                 allocate (it%prop_face(1), it%prop_cursor(1))
-                it%prop_face(1) = textget(plists(k), sym("face"))
-                it%prop_cursor(1) = textget(plists(k), sym("cursor"))
+                it%prop_face(1) = textget(plists(k), value_type(name="face"))
+                it%prop_cursor(1) = textget(plists(k), value_type(name="cursor"))
             end associate
 
             pos = ends(k)
@@ -1069,8 +1073,8 @@ contains
             end do
 
             item%prop_end(n) = byte
-            item%prop_face(n) = textget(plists(k), sym("face"))
-            item%prop_cursor(n) = textget(plists(k), sym("cursor"))
+            item%prop_face(n) = textget(plists(k), value_type(name="face"))
+            item%prop_cursor(n) = textget(plists(k), value_type(name="cursor"))
         end do
     end subroutine string_display_props
 
@@ -1114,16 +1118,16 @@ contains
         if (vtag(v) /= V_ARRAY) return
         call list_elements(v, elts)
         if (size(elts) < 1) return
-        if (.not. value_eq(elts(1), sym("space"))) return
+        if (.not. value_eq(elts(1), value_type(name="space"))) return
         is_space = .true.
 
         do k = 2, size(elts) - 1, 2
             if (.not. number_of(elts(k + 1), n)) cycle
 
-            if (value_eq(elts(k), sym(":width"))) then
+            if (value_eq(elts(k), value_type(name=":width"))) then
                 width = max(0, n)
                 return
-            else if (value_eq(elts(k), sym(":align-to"))) then
+            else if (value_eq(elts(k), value_type(name=":align-to"))) then
                 align_to = max(0, n)
                 return
             end if
@@ -1168,7 +1172,7 @@ contains
         if (vtag(v) /= V_ARRAY) return
         call list_elements(v, elts)
         if (size(elts) < 2) return
-        is_fringe = value_eq(elts(1), sym("left_fringe")) .or. value_eq(elts(1), sym("right_fringe"))
+        is_fringe = value_eq(elts(1), value_type(name="left_fringe")) .or. value_eq(elts(1), value_type(name="right_fringe"))
     end function fringe_spec
 
     !> What comes next from `s' in buffer slot `bi' (without moving
@@ -1835,7 +1839,7 @@ contains
             ! (The nil value always present at the end of the buffer is
             ! ignored: no amount of fontifying will change it.)
             if (pos < buffers(bi)%text%z) then
-                call get_text_property(pos, sym("fontified"), prop, st)
+                call get_text_property(pos, value_type(name="fontified"), prop, st)
 
                 if (.not. allocated(prop%a)) then
                     fontifying = .true.
@@ -1846,7 +1850,7 @@ contains
                 end if
             end if
 
-            call next_single_property_change(pos, sym("fontified"), next, found, st, limit)
+            call next_single_property_change(pos, value_type(name="fontified"), next, found, st, limit)
             if (.not. found) next = limit
         end if
 
@@ -1970,7 +1974,7 @@ contains
 
         do while (bol > buffers(bi)%begv)
             ! Check the newline before for invisibility.
-            if (text_prop_means_invisible(get_char_property(bol - 1, sym("invisible"))) == 0) exit
+            if (text_prop_means_invisible(get_char_property(bol - 1, value_type(name="invisible"))) == 0) exit
             bol = raw_line_beginning(bi, bol - 1)
         end do
 
@@ -2483,7 +2487,7 @@ contains
         if (.not. graphic) s = "UU"
         call syms_of_coding()
         cs = ""
-        call buffer_local_value(sym("buffer_file_coding_system"), bi, v, st)
+        call buffer_local_value(value_type(name="buffer_file_coding_system"), bi, v, st)
 
         if (st%ok() .and. vtag(v) == V_STRING) then
             cs = xstring(v)
@@ -3179,7 +3183,7 @@ contains
             if (associated(lighters(i)%active)) then
                 on = lighters(i)%active()
             else
-                call buffer_local_value(sym(lighters(i)%variable), bi, v, st)
+                call buffer_local_value(value_type(name=lighters(i)%variable), bi, v, st)
                 if (.not. st%ok()) cycle
                 on = allocated(v%a)
             end if

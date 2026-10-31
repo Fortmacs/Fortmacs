@@ -40,7 +40,7 @@ module handle_fm
     implicit none(type, external)
     private
 
-    public :: handle_type, slot_table_type, null_handle
+    public :: handle_type, slot_table_type, null_handle, has_handle
 
     !> Reference to a slot.  Index 0 is the null handle.
     type :: handle_type
@@ -61,6 +61,7 @@ module handle_fm
         integer(int64) :: used = 0
         integer(int64) :: live_count = 0
     contains
+
         procedure :: acquire => table_acquire
         procedure :: release => table_release
         procedure :: resolve => table_resolve
@@ -74,6 +75,15 @@ module handle_fm
     integer(int64), parameter :: initial_capacity = 16
 
 contains
+
+    !> Whether LIST (unallocated: empty) holds the handle H.  Not a port.
+    pure logical function has_handle(list, h)
+        type(handle_type), allocatable, intent(in) :: list(:)
+        type(handle_type), intent(in) :: h
+
+        has_handle = .false.
+        if (allocated(list)) has_handle = any(list%index == h%index .and. list%generation == h%generation)
+    end function has_handle
 
     !> The null handle, which never resolves.
     pure function null_handle() result(h)

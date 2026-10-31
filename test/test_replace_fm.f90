@@ -35,7 +35,6 @@ module test_replace_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
-    use lread_fm, only: sym
     use data_fm, only: set
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, get_buffer, is_buffer_live, buffers, cur
     use error_fm, only: format_error
@@ -59,7 +58,7 @@ module test_replace_fm
                        ANSWER_HELP, ANSWER_SCROLL_OTHER_WINDOW, ANSWER_SCROLL_OTHER_WINDOW_DOWN, ANSWER_ACT, &
                        ANSWER_NONE
     use data_fm, only: symbol_value
-    use lisp_fm, only: list_length, list_elt, xstring
+    use lisp_fm, only: list_length, list_elt, xstring, value_type
     implicit none(type, external)
     private
 
@@ -125,9 +124,9 @@ contains
         call goto_char(1_int64)
         last_message = ""
         if (allocated(query_replace_defaults)) deallocate (query_replace_defaults)
-        call set(sym("query_replace_history"), value_type(), st)
-        call set(sym("search_ring"), value_type(), st)
-        call set(sym("regexp_search_ring"), value_type(), st)
+        call set(value_type(name="query_replace_history"), value_type(), st)
+        call set(value_type(name="search_ring"), value_type(), st)
+        call set(value_type(name="regexp_search_ring"), value_type(), st)
         call show_alone()
     end subroutine enter
 
@@ -468,11 +467,11 @@ contains
         type(value_type) :: v
 
         call enter("aa", h)
-        call set(sym("query_replace_history"), value_type(), st)
+        call set(value_type(name="query_replace_history"), value_type(), st)
         call type_keys("M-x map_query_replace_regexp RET a RET x SPC y RET !")
         call check(error, buffer_string() == "xy", buffer_string())
         if (allocated(error)) return
-        call symbol_value(sym("query_replace_history"), v, st)
+        call symbol_value(value_type(name="query_replace_history"), v, st)
         call check(error, list_length(v) == 2, "from and to in query_replace_history")
         if (allocated(error)) return
         call check(error, xstring(list_elt(v, 1_int64)) == "x y" .and. xstring(list_elt(v, 2_int64)) == "a", &

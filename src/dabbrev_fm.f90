@@ -62,7 +62,7 @@ module dabbrev_fm
     use window_fm, only: windows, window_leaves, get_mru_window, same_handle, window_type
     use derived_fm, only: provided_mode_derived_p
     use xdisp_fm, only: message
-    use lisp_fm, only: value_type, t_value, make_string, make_list, xstring
+    use lisp_fm, only: value_type, make_list, xstring
     use minibuf_table_fm, only: capf_data_type, completion_predicate, completion_table_type, completion_list_table, &
                                 completion_function_table, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
     use minibuf_fm, only: try_completion, all_completions, test_completion
@@ -1194,21 +1194,6 @@ contains
         call move_alloc(grown, list)
     end subroutine append_buffer
 
-    !> Whether LIST contains B.  Not a port.
-    logical function member(b, list)
-        type(handle_type), intent(in) :: b, list(:)
-        integer :: k
-
-        member = .false.
-
-        do k = 1, size(list)
-            if (same_handle(list(k), b)) then
-                member = .true.
-                return
-            end if
-        end do
-    end function member
-
     !> LIST with B moved to the front (or put there).  Not a port.
     subroutine move_to_front(list, b)
         type(handle_type), allocatable, intent(inout) :: list(:)
@@ -1277,7 +1262,7 @@ contains
                     call filter_buffer_modes(all)
 
                     do k = 1, size(all)
-                        if (member(all(k), list)) cycle
+                        if (any(list%index == all(k)%index .and. list%generation == all(k)%generation)) cycle
                         if (is_ignore_buffer(all(k))) cycle
                         call append_buffer(list, all(k))
                     end do
@@ -1311,7 +1296,7 @@ contains
                 k = modulo(sel + j - 1, size(leaves)) + 1
                 if (k == sel) cycle
                 wb = windows(leaves(k)%index)%buffer
-                if (member(wb, list)) call move_to_front(list, wb)
+                if (any(list%index == wb%index .and. list%generation == wb%generation)) call move_to_front(list, wb)
             end do
         end if
 
@@ -1734,7 +1719,7 @@ contains
         case (COMPLETE_ALL)
             call all_completions(string, table, result, status, pred)
         case (COMPLETE_TEST)
-            if (test_completion(string, table, pred)) result = t_value()
+            if (test_completion(string, table, pred)) result = value_type(.true.)
         case default
             if (present(suffix)) continue
         end select
@@ -1761,7 +1746,7 @@ contains
             if (.not. allocated(expansion)) exit
             n = size(all)
             allocate (grown(n + 1))
-            grown(1) = make_string(expansion)
+            grown(1) = value_type(text=expansion)
             grown(2:) = all
             call move_alloc(grown, all)
         end do
@@ -1771,11 +1756,11 @@ contains
         if (ignore_case .and. dabbrev_case_replace /= DABBREV_OFF) then
             do n = 1, size(all)
                 if (same_string(abbrev, upcase_string(abbrev))) then
-                    all(n) = make_string(upcase_string(xstring(all(n))))
+                    all(n) = value_type(text=upcase_string(xstring(all(n))))
                 else if (same_string(first, upcase_string(first))) then
-                    all(n) = make_string(capitalize_string(xstring(all(n))))
+                    all(n) = value_type(text=capitalize_string(xstring(all(n))))
                 else
-                    all(n) = make_string(downcase_string(xstring(all(n))))
+                    all(n) = value_type(text=downcase_string(xstring(all(n))))
                 end if
             end do
         end if

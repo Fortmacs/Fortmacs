@@ -47,8 +47,7 @@ module vc_fm
     use error_fm, only: status_type, set_error, format_error, condition_matches, FM_GENERIC_ERROR, FM_USER_ERROR, &
                         FM_VC_NOT_SUPPORTED, FM_FILE_ALREADY_EXISTS
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, make_string, make_list
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, make_list
     use data_fm, only: symbol_value, set, add_local_variables_killer
     use eval_fm, only: hook_type
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, get_buffer, is_buffer_live, &
@@ -83,7 +82,7 @@ module vc_fm
                            vc_symbolic_working_revision, vc_file_set_backend, vc_file_set_state, vc_file_get_state, &
                            vc_file_set_checkout_time, vc_file_get_backend, vc_file_clearprops, vc_mode_line, &
                            vc_version_backup_file_name, vc_delete_automatic_version_backups, vc_make_version_backup, &
-                           vc_call_root, vc_call_responsible_p, is_vc_call_make_version_backups, vc_not_supported, &
+                           vc_call_root, vc_call_responsible, is_vc_call_make_version_backups, vc_not_supported, &
                            vc_clear_context, vc_touch_reset, vc_touched, vc_state_name, &
                           VC_SWITCHES_UNSPECIFIED, VC_SWITCHES_NONE, VC_SWITCHES_LIST, VC_STATE_UNKNOWN, VC_UP_TO_DATE, VC_EDITED, &
                            VC_LOCKED, VC_NEEDS_UPDATE, VC_NEEDS_MERGE, VC_UNLOCKED_CHANGES, VC_ADDED, VC_REMOVED, &
@@ -442,20 +441,20 @@ contains
     end subroutine one
 
     !> Whether S is one of LIST.  Not a port.
-    logical function member(s, list)
+    logical function has_file(s, list)
         character(len=*), intent(in) :: s
         type(vc_string_type), intent(in) :: list(:)
         integer :: k
 
-        member = .false.
+        has_file = .false.
 
         do k = 1, size(list)
             if (list(k)%s == s .and. len(list(k)%s) == len(s)) then
-                member = .true.
+                has_file = .true.
                 return
             end if
         end do
-    end function member
+    end function has_file
 
     !> FILE expanded.  Not a port.
     function expand(file, dir) result(full)
@@ -763,7 +762,7 @@ contains
                 if (vc_backends(b)%registered(file)) cycle
             end if
 
-            call vc_call_responsible_p(b, file, dir, found)
+            call vc_call_responsible(b, file, dir, found)
             if (.not. found) cycle
             n = count_components(expand(dir))
 
@@ -781,7 +780,7 @@ contains
             b = vc_backend_named(vc_handled_backends(k))
             if (b == 0) cycle
             if (.not. associated(vc_backends(b)%create_repo)) cycle
-            item = make_string(vc_backends(b)%name)
+            item = value_type(text=vc_backends(b)%name)
             names = [names, item]
         end do
 
@@ -856,7 +855,7 @@ contains
         do k = 1, size(vc_handled_backends)
             b = vc_backend_named(vc_handled_backends(k))
             if (b == 0) cycle
-            call vc_call_responsible_p(b, full, dir, found)
+            call vc_call_responsible(b, full, dir, found)
             if (.not. found) cycle
             ! We run DIR through `expand-file-name' so that abbreviated
             ! directories, such as "~/", wouldn't look "less specific" due
@@ -1330,14 +1329,14 @@ contains
         allocate (names(size(vc_handled_backends)))
 
         do k = 1, size(vc_handled_backends)
-            names(k) = make_string(trim(vc_handled_backends(k)))
+            names(k) = value_type(text=trim(vc_handled_backends(k)))
         end do
 
-        call symbol_value(sym("completion_ignore_case"), saved, st)
-        call set(sym("completion_ignore_case"), value_type(), st)
+        call symbol_value(value_type(name="completion_ignore_case"), saved, st)
+        call set(value_type(name="completion_ignore_case"), value_type(), st)
         call completing_read(prompt, completion_list_table(make_list(names)), answer, status, &
                              require_match=REQUIRE_MATCH_YES)
-        call set(sym("completion_ignore_case"), saved, st)
+        call set(value_type(name="completion_ignore_case"), saved, st)
         if (.not. status%ok()) return
         b = vc_backend_named(answer)
         if (b == 0) call set_error(status, FM_GENERIC_ERROR, "VC backend "//answer//" is not ported yet")
@@ -2149,15 +2148,15 @@ contains
     !> Insert TEXT ignoring read-only (`inhibit_read_only' .true., saved and restored).
     !> Not a port.
     subroutine bind_read_only_insert(text)
-        use lisp_fm, only: t_value
+        use lisp_fm, only: value_type
         character(len=*), intent(in) :: text
         type(value_type) :: saved
         type(status_type) :: st
 
-        call symbol_value(sym("inhibit_read_only"), saved, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         call insert(text, st)
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
     end subroutine bind_read_only_insert
 
     !> Report diffs between revisions REV1 and REV2 of a fileset in FS.
@@ -2396,7 +2395,7 @@ contains
                 allocate (names(size(table)))
 
                 do k = 1, size(table)
-                    names(k) = make_string(table(k)%s)
+                    names(k) = value_type(text=table(k)%s)
                 end do
 
                 call completing_read(prompt, completion_list_table(make_list(names)), rev, status, &
@@ -2876,7 +2875,7 @@ contains
         ! buffer is saved.  If the user says `no', abort since we cannot
         ! show the changes and ask for confirmation to discard them.
         if (len(buffer_file_name()) > 0) then
-            if (size(fs%files) == 0 .or. member(buffer_file_name(), fs%files)) then
+            if (size(fs%files) == 0 .or. has_file(buffer_file_name(), fs%files)) then
                 call vc_buffer_sync(status)
                 if (.not. status%ok()) return
             end if
@@ -2953,7 +2952,7 @@ contains
         !> save-some-buffers's PRED: the buffer visits one of the files.
         logical function in_fileset()
             in_fileset = .false.
-            if (len(buffer_file_name()) > 0) in_fileset = member(buffer_file_name(), fs%files)
+            if (len(buffer_file_name()) > 0) in_fileset = has_file(buffer_file_name(), fs%files)
         end function in_fileset
     end subroutine vc_revert
 
@@ -3464,7 +3463,7 @@ contains
     contains
 
         recursive subroutine walk(file)
-            use lisp_fm, only: list_elements, xstring
+            use lisp_fm, only: list_elements, xstring, value_type
             character(len=*), intent(in) :: file
             type(value_type) :: names
             type(value_type), allocatable :: elts(:)

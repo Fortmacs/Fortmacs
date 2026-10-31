@@ -26,7 +26,7 @@ module test_pcomplete_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: make_string, list
+    use lisp_fm, only: list, value_type
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string
@@ -111,7 +111,7 @@ contains
         type(completion_table_type), intent(out) :: table
         logical, intent(out) :: found
 
-        table = completion_list_table(list(make_string("apple"), make_string("banana")))
+        table = completion_list_table(list(value_type(text="apple"), value_type(text="banana")))
         found = .true.
     end subroutine fruits
 

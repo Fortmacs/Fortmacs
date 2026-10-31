@@ -25,7 +25,6 @@ module test_rect_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error, condition_matches, FM_BUFFER_READ_ONLY
     use handle_fm, only: handle_type
-    use lread_fm, only: sym
     use data_fm, only: set
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, set_buffer_read_only
     use insdel_fm, only: insert
@@ -472,7 +471,7 @@ contains
         call discard_input()
         prefix_arg = value_type()
         call init_bindings()
-        call set(sym("string_rectangle_history"), value_type(), st)
+        call set(value_type(name="string_rectangle_history"), value_type(), st)
         ! C-SPC at b, to q: C-x r k, then C-x r y at the start.
         call kbd_store_bytes(achar(6)//achar(0)//achar(14)//achar(14)//achar(6)//achar(6)//achar(6)//cxr//"k")
         call command_loop(st)

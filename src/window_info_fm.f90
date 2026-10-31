@@ -359,7 +359,7 @@ contains
         if (status%ok()) n = windows(i)%hscroll
     end function window_hscroll
 
-    module function window_dedicated_p(window, status) result(d)
+    module function window_dedication(window, status) result(d)
         type(handle_type), intent(in), optional :: window
         type(status_type), intent(out) :: status
         integer :: d
@@ -368,9 +368,9 @@ contains
         d = DEDICATED_NONE
         call decode_live_window(window, i, status)
         if (status%ok()) d = windows(i)%dedicated
-    end function window_dedicated_p
+    end function window_dedication
 
-    module subroutine set_window_dedicated_p(window, flag, status)
+    module subroutine set_window_dedication(window, flag, status)
         type(handle_type), intent(in), optional :: window
         integer, intent(in) :: flag
         type(status_type), intent(out) :: status
@@ -378,7 +378,7 @@ contains
 
         call decode_live_window(window, i, status)
         if (status%ok()) windows(i)%dedicated = flag
-    end subroutine set_window_dedicated_p
+    end subroutine set_window_dedication
 
     module function window_use_time(window, status) result(t)
         type(handle_type), intent(in), optional :: window
@@ -654,7 +654,7 @@ contains
         part = ON_TEXT
     end function coordinates_in_window
 
-    module function coordinates_in_window_p(x, y, window, rel_x, rel_y, status) result(part)
+    module function window_part_at(x, y, window, rel_x, rel_y, status) result(part)
         integer, intent(in) :: x, y
         type(handle_type), intent(in), optional :: window
         integer, intent(out) :: rel_x, rel_y
@@ -673,7 +673,7 @@ contains
             rel_x = x - windows(i)%left_col
             rel_y = y - windows(i)%top_line
         end if
-    end function coordinates_in_window_p
+    end function window_part_at
 
     !> The window at column X and line Y of the frame, and in PART which
     !> part of it; the null handle for none.  Port of

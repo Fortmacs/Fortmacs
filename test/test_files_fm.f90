@@ -31,7 +31,7 @@ module test_files_fm
     use error_fm, only: status_type, format_error, condition_matches, FM_QUIT, FM_USER_ERROR, &
                         FM_FILE_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum
+    use lisp_fm, only: value_type
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, &
                          current_buffer, resolve_buffer
     use insdel_fm, only: insert
@@ -189,7 +189,7 @@ contains
         allocate (evs(len(keys)))
 
         do i = 1, len(keys)
-            evs(i) = make_fixnum(int(iachar(keys(i:i)), int64))
+            evs(i) = value_type(int(iachar(keys(i:i)), int64))
         end do
 
         call unread_command_events(evs)

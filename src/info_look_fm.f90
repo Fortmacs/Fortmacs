@@ -34,9 +34,8 @@ module info_look_fm
     use, intrinsic :: iso_fortran_env, only: int64, int32
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: xsymbol, symbols, value_type, make_string, make_list, vtag, V_NULL, V_NAME
+    use lisp_fm, only: xsymbol, symbols, value_type, make_list, vtag, V_NULL, V_NAME
     use casefiddle_fm, only: downcase_string
-    use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer, get_buffer_create, is_buffer_live
     use editfns_fm, only: point, point_min, goto_char, line_beginning_position, line_end_position
     use search_fm, only: looking_at, string_match, search_forward, re_search_forward, re_search_backward, &
@@ -802,7 +801,7 @@ contains
         allocate (elems(size(completions)))
 
         do i = 1, size(completions)
-            elems(i) = make_string(completions(i)%item)
+            elems(i) = value_type(text=completions(i)%item)
         end do
 
         v = make_list(elems)
@@ -885,7 +884,7 @@ contains
             allocate (elems(size(info_lookup_table(ti)%modes)))
 
             do i = 1, size(elems)
-                elems(i) = make_string(info_lookup_table(ti)%modes(i)%mode%mode)
+                elems(i) = value_type(text=info_lookup_table(ti)%modes(i)%mode%mode)
             end do
         else
             allocate (elems(0))
@@ -1143,7 +1142,7 @@ contains
                             call make_overlay(highlight_overlay, start, match_end(0, st), st)
                         end if
 
-                        call overlay_put(highlight_overlay, "face", sym(info_lookup_highlight_face), st)
+                        call overlay_put(highlight_overlay, "face", value_type(name=info_lookup_highlight_face), st)
                     end if
                 end if
             end do
@@ -1629,7 +1628,7 @@ contains
         type(value_type) :: v
         type(status_type) :: st
 
-        call get_text_property(point(), sym("custom_data"), v, st)
+        call get_text_property(point(), value_type(name="custom_data"), v, st)
         found = (vtag(v) == V_NAME .or. vtag(v) == V_NULL) .and. allocated(v%a)
         if (found) item = trim(symbols(xsymbol(v))%name)
     end subroutine parse_custom

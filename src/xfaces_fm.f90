@@ -47,9 +47,8 @@
 module xfaces_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, symbols, xsymbol, xstring, &
-                       xfixnum, list_elements, xhandle, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY, V_WINDOW
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, symbols, xsymbol, xstring, xfixnum, list_elements, xhandle, vtag, V_NULL, V_INTEGER, &
+                       V_NAME, V_STRING, V_ARRAY, V_WINDOW
     use dispextern_fm, only: face_type, FACE_TTY_DEFAULT_COLOR, FACE_TTY_DEFAULT_FG_COLOR, &
                              FACE_TTY_DEFAULT_BG_COLOR, FACE_NO_UNDERLINE, FACE_UNDERLINE_SINGLE, &
                              FACE_UNDERLINE_DOUBLE_LINE, FACE_UNDERLINE_WAVE, FACE_UNDERLINE_DOTS, &
@@ -85,7 +84,7 @@ module xfaces_fm
     !> default foreground color ignore their boldness.  Port of
     !> xfaces.c:tty_suppress_bold_inverse_default_colors_p (set by
     !> tty-suppress-bold-inverse-default-colors).
-    logical, public :: tty_suppress_bold_inverse_default_colors_p = .false.
+    logical, public :: tty_suppress_bold_inverse_default_colors = .false.
 
     !> TEXT_PROP_DISTANCE_LIMIT: how far redisplay looks ahead for the
     !> next face change.
@@ -360,7 +359,7 @@ contains
             face%background = tem
         end if
 
-        if (tty_suppress_bold_inverse_default_colors_p .and. face%tty_bold_p .and. &
+        if (tty_suppress_bold_inverse_default_colors .and. face%tty_bold_p .and. &
             face%background == FACE_TTY_DEFAULT_FG_COLOR .and. face%foreground == FACE_TTY_DEFAULT_BG_COLOR) then
             face%tty_bold_p = .false.
         end if
@@ -651,7 +650,7 @@ contains
         if (vtag(face_ref) == V_ARRAY) then
             call list_elements(face_ref, elts)
 
-            if (keywordp(elts(1))) then
+            if (vtag(elts(1)) == V_NAME .and. index(symbols(xsymbol(elts(1)))%name, ":") == 1) then
                 ! Assume this is the property list form.
                 call merge_plist(elts, to, ok, filter, d)
                 return
@@ -676,19 +675,6 @@ contains
 
         ok = .false.
     end subroutine merge_face_ref
-
-    !> Whether V is a keyword (a name that starts with `:').
-    !> Not a port.
-    logical function keywordp(v)
-        type(value_type), intent(in) :: v
-
-        keywordp = .false.
-        if ((vtag(v) /= V_NAME .and. vtag(v) /= V_NULL)) return
-
-        associate (name => symbols(xsymbol(v))%name)
-            if (len(name) > 0) keywordp = name(1:1) == ":"
-        end associate
-    end function keywordp
 
     !> Whether V is the name NAME.  Not a port.
     logical function is_symbol(v, name)
@@ -1133,8 +1119,8 @@ contains
         ! position at which the property changes.
         saved = cur
         call set_buffer_internal(bi)
-        call get_text_property(pos, sym("face"), prop, status)
-        call next_single_property_change(pos, sym("face"), end, found, status, min(limit, endpos))
+        call get_text_property(pos, value_type(name="face"), prop, status)
+        call next_single_property_change(pos, value_type(name="face"), end, found, status, min(limit, endpos))
         if (found) endpos = end
         ! Look at properties from overlays.
         call overlays_at(pos, overlay_vec, next=next_overlay)

@@ -135,54 +135,12 @@ contains
         syn_at = iand(swf_at(c, pos), 255)
     end function syn_at
 
-    ! Port of syntax.c:SYNTAX_FLAGS_COMSTART_FIRST.
-    logical function comstart_first(flags)
-        integer, intent(in) :: flags
-
-        comstart_first = btest(flags, 16)
-    end function comstart_first
-
-    ! Port of syntax.c:SYNTAX_FLAGS_COMSTART_SECOND.
-    logical function comstart_second(flags)
-        integer, intent(in) :: flags
-
-        comstart_second = btest(flags, 17)
-    end function comstart_second
-
-    ! Port of syntax.c:SYNTAX_FLAGS_COMEND_FIRST.
-    logical function comend_first(flags)
-        integer, intent(in) :: flags
-
-        comend_first = btest(flags, 18)
-    end function comend_first
-
-    ! Port of syntax.c:SYNTAX_FLAGS_COMEND_SECOND.
-    logical function comend_second(flags)
-        integer, intent(in) :: flags
-
-        comend_second = btest(flags, 19)
-    end function comend_second
-
     ! Port of syntax.c:SYNTAX_FLAGS_COMSTARTEND_FIRST.
     logical function comstartend_first(flags)
         integer, intent(in) :: flags
 
         comstartend_first = iand(flags, int(z'50000')) /= 0
     end function comstartend_first
-
-    ! Port of syntax.c:SYNTAX_FLAGS_PREFIX.
-    logical function prefix_flag(flags)
-        integer, intent(in) :: flags
-
-        prefix_flag = btest(flags, 20)
-    end function prefix_flag
-
-    ! Port of syntax.c:SYNTAX_FLAGS_COMMENT_NESTED.
-    logical function comment_nested(flags)
-        integer, intent(in) :: flags
-
-        comment_nested = btest(flags, 22)
-    end function comment_nested
 
     !> SYNTAX_FLAGS_COMMENT_STYLEC2: 2 if FLAGS have the style c flag.
     !> Port of syntax.c:SYNTAX_FLAGS_COMMENT_STYLEC2.
@@ -198,7 +156,7 @@ contains
     integer function comment_style(flags, other_flags)
         integer, intent(in) :: flags, other_flags
 
-        comment_style = ior(ior(merge(1, 0, syntax_flags_comment_styleb(flags)), stylec2(flags)), stylec2(other_flags))
+        comment_style = ior(ior(merge(1, 0, btest(flags, SYNTAX_FLAG_COMMENT_STYLEB)), stylec2(flags)), stylec2(other_flags))
     end function comment_style
 
     !> Return syntax code of character C if C is an ASCII character or if
@@ -403,7 +361,7 @@ contains
         pos = pos_in
         pos_byte = pos_byte_in
         call dec_both(pos, pos_byte)
-        prev_char_comend_first = comend_first(swf_at(fetch(pos_byte), pos))
+        prev_char_comend_first = btest(swf_at(fetch(pos_byte), pos), SYNTAX_FLAG_COMEND_FIRST)
     end function prev_char_comend_first
 
     !> Check whether charpos FROM is at the end of a comment.  FROM_BYTE
@@ -465,10 +423,10 @@ contains
             syntax = swf_at(c, from)
             code = iand(syntax, 255)
             ! Check for 2-char comment markers.
-            com2start = comstart_first(syntax) .and. comstart_second(prev_syntax) .and. &
+            com2start = btest(syntax, SYNTAX_FLAG_COMSTART_FIRST) .and. btest(prev_syntax, SYNTAX_FLAG_COMSTART_SECOND) .and. &
                         comstyle == comment_style(prev_syntax, syntax) .and. &
-                        ((comment_nested(prev_syntax) .or. comment_nested(syntax)) .eqv. comnested)
-            com2end = comend_first(syntax) .and. comend_second(prev_syntax)
+                   ((btest(prev_syntax, SYNTAX_FLAG_COMMENT_NESTED) .or. btest(syntax, SYNTAX_FLAG_COMMENT_NESTED)) .eqv. comnested)
+            com2end = btest(syntax, SYNTAX_FLAG_COMEND_FIRST) .and. btest(prev_syntax, SYNTAX_FLAG_COMEND_SECOND)
             comstart = com2start .or. code == SCOMMENT
 
             ! If a 2-char comment sequence partly overlaps with another, we
@@ -479,11 +437,11 @@ contains
                 next_byte = from_byte
                 call dec_both(next, next_byte)
                 next_syntax = swf_at(fetch(next_byte), next)
-                lose = (comstart .or. comnested) .and. comend_second(syntax) .and. comend_first(next_syntax)
+  lose = (comstart .or. comnested) .and. btest(syntax, SYNTAX_FLAG_COMEND_SECOND) .and. btest(next_syntax, SYNTAX_FLAG_COMEND_FIRST)
 
                 if (.not. lose) then
-                    lose = (com2end .or. comnested) .and. comstart_second(syntax) .and. &
-                           comstyle == comment_style(syntax, prev_syntax) .and. comstart_first(next_syntax)
+                    lose = (com2end .or. comnested) .and. btest(syntax, SYNTAX_FLAG_COMSTART_SECOND) .and. &
+                           comstyle == comment_style(syntax, prev_syntax) .and. btest(next_syntax, SYNTAX_FLAG_COMSTART_FIRST)
                 end if
 
                 if (lose) then
@@ -505,7 +463,7 @@ contains
                 code = SCOMMENT
             else if (code == SCOMMENT) then
                 ! Ignore comment starters of a different style.
-                if (comstyle /= comment_style(syntax, 0) .or. (comment_nested(syntax) .neqv. comnested)) cycle scan
+              if (comstyle /= comment_style(syntax, 0) .or. (btest(syntax, SYNTAX_FLAG_COMMENT_NESTED) .neqv. comnested)) cycle scan
             end if
 
             ! Ignore escaped characters, except comment-enders which cannot
@@ -556,7 +514,8 @@ contains
                 end if
             case (SENDCOMMENT)
                 if (comment_style(syntax, 0) == comstyle .and. &
-                    (((com2end .and. comment_nested(prev_syntax)) .or. comment_nested(syntax)) .eqv. comnested)) then
+                    (((com2end .and. btest(prev_syntax, SYNTAX_FLAG_COMMENT_NESTED)) &
+                      .or. btest(syntax, SYNTAX_FLAG_COMMENT_NESTED)) .eqv. comnested)) then
                     ! This is the same style of comment ender as ours.
                     if (comnested) then
                         nesting = nesting + 1
@@ -712,9 +671,9 @@ contains
                     bytepos = from_byte
                     last_syntax = SMAX
 
-                    if (code == SESCAPE .or. code == SCHARQUOTE .or. comend_first(syntax)) then
+                    if (code == SESCAPE .or. code == SCHARQUOTE .or. btest(syntax, SYNTAX_FLAG_COMEND_FIRST)) then
                         last_syntax = syntax
-                    else if (nesting > 0 .and. comstart_first(syntax)) then
+                    else if (nesting > 0 .and. btest(syntax, SYNTAX_FLAG_COMSTART_FIRST)) then
                         last_syntax = syntax
                     end if
 
@@ -729,7 +688,7 @@ contains
 
                 if (code == SENDCOMMENT) then
                     if (comment_style(syntax, 0) == style) then
-                        if (comment_nested(syntax)) then
+                        if (btest(syntax, SYNTAX_FLAG_COMMENT_NESTED)) then
                             hit = .false.
 
                             if (nesting > 0) then
@@ -758,7 +717,7 @@ contains
                 ! We have encountered a nested comment of the same style as
                 ! the comment sequence which began this comment section.
                 if (nesting > 0 .and. code == SCOMMENT) then
-                    if (comment_nested(syntax) .and. comment_style(syntax, 0) == style) nesting = nesting + 1
+                    if (btest(syntax, SYNTAX_FLAG_COMMENT_NESTED) .and. comment_style(syntax, 0) == style) nesting = nesting + 1
                 end if
 
                 if (comment_end_can_be_escaped%value .and. (code == SESCAPE .or. code == SCHARQUOTE)) then
@@ -777,13 +736,13 @@ contains
             in_middle = .false.
 
             ! forw_incomment:
-            if (from < stop .and. comend_first(syntax)) then
+            if (from < stop .and. btest(syntax, SYNTAX_FLAG_COMEND_FIRST)) then
                 other_syntax = swf_at(fetch(from_byte), from)
-                hit = comend_second(other_syntax)
+                hit = btest(other_syntax, SYNTAX_FLAG_COMEND_SECOND)
                 if (hit) hit = comment_style(syntax, other_syntax) == style
 
                 if (hit) then
-                    if (comment_nested(syntax) .or. comment_nested(other_syntax)) then
+                    if (btest(syntax, SYNTAX_FLAG_COMMENT_NESTED) .or. btest(other_syntax, SYNTAX_FLAG_COMMENT_NESTED)) then
                         hit = nesting > 0
                     else
                         hit = nesting < 0
@@ -802,10 +761,10 @@ contains
                 end if
             end if
 
-            if (nesting > 0 .and. from < stop .and. comstart_first(syntax)) then
+            if (nesting > 0 .and. from < stop .and. btest(syntax, SYNTAX_FLAG_COMSTART_FIRST)) then
                 other_syntax = swf_at(fetch(from_byte), from)
-                hit = comment_style(other_syntax, syntax) == style .and. comstart_second(other_syntax)
-                if (hit) hit = comment_nested(syntax) .or. comment_nested(other_syntax)
+                hit = comment_style(other_syntax, syntax) == style .and. btest(other_syntax, SYNTAX_FLAG_COMSTART_SECOND)
+                if (hit) hit = btest(syntax, SYNTAX_FLAG_COMMENT_NESTED) .or. btest(other_syntax, SYNTAX_FLAG_COMMENT_NESTED)
 
                 if (hit) then
                     ! We have encountered a nested comment of the same style
@@ -854,8 +813,8 @@ contains
             c = fetch(from_byte)
             syntax = swf_at(c, from)
             code = iand(syntax, 255)
-            comstart_first_p = comstart_first(syntax)
-            comnested = comment_nested(syntax)
+            comstart_first_p = btest(syntax, SYNTAX_FLAG_COMSTART_FIRST)
+            comnested = btest(syntax, SYNTAX_FLAG_COMMENT_NESTED)
             comstyle = comment_style(syntax, 0)
             call inc_both(from, from_byte)
 
@@ -863,7 +822,7 @@ contains
                 c1 = fetch(from_byte)
                 other_syntax = swf_at(c1, from)
 
-                if (comstart_second(other_syntax)) then
+                if (btest(other_syntax, SYNTAX_FLAG_COMSTART_SECOND)) then
                     ! We have encountered a comment start sequence and we
                     ! are ignoring all text inside comments.  We must record
                     ! the comment style this sequence begins so that later,
@@ -871,7 +830,7 @@ contains
                     ! comment section.
                     code = SCOMMENT
                     comstyle = comment_style(other_syntax, syntax)
-                    comnested = comnested .or. comment_nested(other_syntax)
+                    comnested = comnested .or. btest(other_syntax, SYNTAX_FLAG_COMMENT_NESTED)
                     call inc_both(from, from_byte)
                 end if
             end if
@@ -923,10 +882,10 @@ contains
             syntax = swf_at(c, from)
             code = iand(syntax, 255)
             comstyle = 0
-            comnested = comment_nested(syntax)
+            comnested = btest(syntax, SYNTAX_FLAG_COMMENT_NESTED)
             if (code == SENDCOMMENT) comstyle = comment_style(syntax, 0)
 
-            if (from > stop .and. comend_second(syntax)) then
+            if (from > stop .and. btest(syntax, SYNTAX_FLAG_COMEND_SECOND)) then
                 if (prev_char_comend_first(from, from_byte)) then
                     if (.not. char_quoted_at(from - 1)) then
                         ! We must record the comment style encountered so
@@ -937,7 +896,7 @@ contains
                         c1 = fetch(from_byte)
                         other_syntax = swf_at(c1, from)
                         comstyle = comment_style(other_syntax, syntax)
-                        comnested = comnested .or. comment_nested(other_syntax)
+                        comnested = comnested .or. btest(other_syntax, SYNTAX_FLAG_COMMENT_NESTED)
                     end if
                 end if
             end if
@@ -1063,10 +1022,10 @@ contains
                 c = fetch(from_byte)
                 syntax = swf_at(c, from)
                 code = syntax_multibyte(c, multibyte_symbol_p, from)
-                comstart_first_p = comstart_first(syntax)
-                comnested = comment_nested(syntax)
+                comstart_first_p = btest(syntax, SYNTAX_FLAG_COMSTART_FIRST)
+                comnested = btest(syntax, SYNTAX_FLAG_COMMENT_NESTED)
                 comstyle = comment_style(syntax, 0)
-                prefix = prefix_flag(syntax)
+                prefix = btest(syntax, SYNTAX_FLAG_PREFIX)
                 if (depth == min_depth) last_good = from
                 call inc_both(from, from_byte)
 
@@ -1074,7 +1033,7 @@ contains
                     c = fetch(from_byte)
                     other_syntax = swf_at(c, from)
 
-                    if (comstart_second(other_syntax) .and. parse_expression_ignore_comments%value) then
+                    if (btest(other_syntax, SYNTAX_FLAG_COMSTART_SECOND) .and. parse_expression_ignore_comments%value) then
                         ! We have encountered a comment start sequence and
                         ! we are ignoring all text inside comments.  We must
                         ! record the comment style this sequence begins so
@@ -1082,7 +1041,7 @@ contains
                         ! actually ends the comment section.
                         code = SCOMMENT
                         comstyle = comment_style(other_syntax, syntax)
-                        comnested = comnested .or. comment_nested(other_syntax)
+                        comnested = comnested .or. btest(other_syntax, SYNTAX_FLAG_COMMENT_NESTED)
                         call inc_both(from, from_byte)
                     end if
                 end if
@@ -1252,10 +1211,10 @@ contains
                 code = syntax_multibyte(c, multibyte_symbol_p, from)
                 if (depth == min_depth) last_good = from
                 comstyle = 0
-                comnested = comment_nested(syntax)
+                comnested = btest(syntax, SYNTAX_FLAG_COMMENT_NESTED)
                 if (code == SENDCOMMENT) comstyle = comment_style(syntax, 0)
 
-                if (from > stop .and. comend_second(syntax)) then
+                if (from > stop .and. btest(syntax, SYNTAX_FLAG_COMEND_SECOND)) then
                     if (prev_char_comend_first(from, from_byte) .and. parse_expression_ignore_comments%value) then
                         ! We must record the comment style encountered so
                         ! that later, we can match only the proper comment
@@ -1265,7 +1224,7 @@ contains
                         c2 = fetch(from_byte)
                         other_syntax = swf_at(c2, from)
                         comstyle = comment_style(other_syntax, syntax)
-                        comnested = comnested .or. comment_nested(other_syntax)
+                        comnested = comnested .or. btest(other_syntax, SYNTAX_FLAG_COMMENT_NESTED)
                     end if
                 end if
 
@@ -1278,7 +1237,7 @@ contains
                 if (quoted) then
                     call dec_both(from, from_byte)
                     code = SWORD
-                else if (prefix_flag(syntax)) then
+                else if (btest(syntax, SYNTAX_FLAG_PREFIX)) then
                     cycle backward
                 end if
 
@@ -1462,15 +1421,15 @@ contains
         integer :: syntax
 
         in_2char_comment_start = .false.
-        if (.not. comstart_first(prev_from_syntax)) return
+        if (.not. btest(prev_from_syntax, SYNTAX_FLAG_COMSTART_FIRST)) return
         syntax = swf_at(fetch(from_byte), prev_from + 1)
-        if (.not. comstart_second(syntax)) return
+        if (.not. btest(syntax, SYNTAX_FLAG_COMSTART_SECOND)) return
         ! Record the comment style we have entered so that only the
         ! comment-end sequence of the same style actually terminates the
         ! comment section.
         state%comstyle = comment_style(syntax, prev_from_syntax)
 
-        if (comment_nested(prev_from_syntax) .or. comment_nested(syntax)) then
+        if (btest(prev_from_syntax, SYNTAX_FLAG_COMMENT_NESTED) .or. btest(syntax, SYNTAX_FLAG_COMMENT_NESTED)) then
             state%incomment = 1
         else
             state%incomment = -1
@@ -1576,7 +1535,7 @@ contains
                     end if
                 end if
 
-                if (prefix_flag(prev_from_syntax)) cycle
+                if (btest(prev_from_syntax, SYNTAX_FLAG_PREFIX)) cycle
                 code = iand(prev_from_syntax, 255)
 
                 select case (code)
@@ -1606,7 +1565,7 @@ contains
                 case (SCOMMENT)
                     state%comstyle = comment_style(prev_from_syntax, 0)
 
-                    if (comment_nested(prev_from_syntax)) then
+                    if (btest(prev_from_syntax, SYNTAX_FLAG_COMMENT_NESTED)) then
                         state%incomment = 1
                     else
                         state%incomment = -1

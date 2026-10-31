@@ -59,15 +59,15 @@ contains
     module procedure bind_inhibit_read_only
     type(status_type) :: st
 
-    call symbol_value(sym("inhibit_read_only"), saved, st)
+    call symbol_value(value_type(name="inhibit_read_only"), saved, st)
     if (.not. st%ok()) saved = value_type()
-    call set(sym("inhibit_read_only"), t_value(), st)
+    call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
     end procedure bind_inhibit_read_only
 
     module procedure restore_inhibit_read_only
     type(status_type) :: st
 
-    call set(sym("inhibit_read_only"), saved, st)
+    call set(value_type(name="inhibit_read_only"), saved, st)
     end procedure restore_inhibit_read_only
 
     module procedure at

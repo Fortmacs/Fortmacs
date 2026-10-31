@@ -30,7 +30,7 @@ module rmc_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_QUIT
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, xfixnum, make_fixnum, vtag, V_INTEGER
+    use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
     use buffer_fm, only: current_buffer, get_buffer_create, set_buffer, set_buffer_read_only, erase_buffer, &
                          kill_buffer
     use insdel_fm, only: insert
@@ -40,8 +40,7 @@ module rmc_fm
                        ANSWER_SCROLL_OTHER_WINDOW, ANSWER_SCROLL_OTHER_WINDOW_DOWN, ANSWER_EDIT
     use window_fm, only: window_ref, window_type, set_window_buffer, split_window, delete_window, is_window_live, &
                          recenter, scroll_up_command, scroll_down_command
-    use lisp_fm, only: make_keymap_ref, make_string, make_list, command_type
-    use lread_fm, only: sym
+    use lisp_fm, only: make_keymap_ref, make_list, command_type, value_type
     use data_fm, only: value_eq
     use character_fm, only: MAX_CHAR
     use keymap_fm, only: make_sparse_keymap, set_keymap_parent, define_key, define_key_range, lookup_key, &
@@ -93,7 +92,7 @@ contains
         type(value_type) :: key
         integer :: pos
 
-        key = make_fixnum(int(choice%key, int64))
+        key = value_type(int(choice%key, int64))
         desc = single_key_description(key)
         pos = 0
         if (choice%key < 128) pos = index(choice%name, achar(choice%key))
@@ -307,30 +306,30 @@ contains
 
         ! [remap self-insert-command]
         do c = 0, 127
-            key1(1) = make_fixnum(c)
+            key1(1) = value_type(c)
             call lookup_key(make_keymap_ref(minibuffer_local_map), key1, b, st)
             if (.not. allocated(b%a)) call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
 
-            if (value_eq(b, sym("self_insert_command"))) then
-                call define_key(map, key1, sym("rmc__wrong"), st)
+            if (value_eq(b, value_type(name="self_insert_command"))) then
+                call define_key(map, key1, value_type(name="rmc__wrong"), st)
             end if
         end do
 
-        key1(1) = make_fixnum(128_int64)
+        key1(1) = value_type(128_int64)
         call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
 
-        if (value_eq(b, sym("self_insert_command"))) then
-            call define_key_range(map, 128_int64, int(MAX_CHAR, int64), sym("rmc__wrong"), st)
+        if (value_eq(b, value_type(name="self_insert_command"))) then
+            call define_key_range(map, 128_int64, int(MAX_CHAR, int64), value_type(name="rmc__wrong"), st)
         end if
 
         do k = 1, size(rmc_choices)
-            key1(1) = make_fixnum(int(rmc_choices(k)%key, int64))
-            call define_key(map, key1, sym("rmc__char"), st)
+            key1(1) = value_type(int(rmc_choices(k)%key, int64))
+            call define_key(map, key1, value_type(name="rmc__char"), st)
         end do
 
-        key1(1) = make_fixnum(int(iachar("?"), int64))
+        key1(1) = value_type(int(iachar("?"), int64))
         if (.not. rmc_have_show_help) call define_key(map, key1, &
-                                                      sym("rmc__help"), st)
+                                                      value_type(name="rmc__help"), st)
         saved_this = this_command
         saved_real_this = real_this_command
         saved_enable = enable_recursive_minibuffers
@@ -404,7 +403,7 @@ contains
         full = prompt//" ("
 
         do k = 1, size(choices)
-            names(k) = make_string(choices(k)%name)
+            names(k) = value_type(text=choices(k)%name)
             if (k > 1) full = full//"/"
             full = full//choices(k)%name
         end do

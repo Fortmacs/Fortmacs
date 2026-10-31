@@ -38,8 +38,7 @@ module test_buffer_fm
                          set_buffer_modified, buffer_file_name, find_buffer, bury_buffer_internal, record_buffer
     use eval_fm, only: buffer_list_update_hook
     use data_fm, only: set_default, setq_local
-    use lisp_fm, only: make_fixnum
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type
     use insdel_fm, only: insert
     implicit none(type, external)
     private
@@ -441,12 +440,12 @@ contains
         call buffer_file_name(name, found, st, h)
         call check(error, found .and. name == "/tmp/x.txt", "the visited file")
         if (allocated(error)) return
-        call set_default(sym("find_buffer_test_var"), make_fixnum(0_int64), st)
-        call setq_local("find_buffer_test_var", make_fixnum(42_int64), st)
-        found_h = find_buffer(sym("find_buffer_test_var"), make_fixnum(42_int64))
+        call set_default(value_type(name="find_buffer_test_var"), value_type(0_int64), st)
+        call setq_local("find_buffer_test_var", value_type(42_int64), st)
+        found_h = find_buffer(value_type(name="find_buffer_test_var"), value_type(42_int64))
         call check(error, found_h%index == h%index, "found by its local value")
         if (allocated(error)) return
-        found_h = find_buffer(sym("find_buffer_test_var"), make_fixnum(7_int64))
+        found_h = find_buffer(value_type(name="find_buffer_test_var"), value_type(7_int64))
         call check(error, found_h%index == 0, "no buffer with 7")
         call discard(h)
         if (is_buffer_live(old)) call set_buffer(old, st)

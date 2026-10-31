@@ -633,7 +633,7 @@ contains
 
     !> Queue TEXT as input events (for the minibuffer).
     subroutine type_text(text)
-        use lisp_fm, only: value_type, make_fixnum
+        use lisp_fm, only: value_type
         use keyboard_fm, only: unread_command_events
         character(len=*), intent(in) :: text
         type(value_type), allocatable :: evs(:)
@@ -642,7 +642,7 @@ contains
         allocate (evs(len(text)))
 
         do i = 1, len(text)
-            evs(i) = make_fixnum(int(iachar(text(i:i)), int64))
+            evs(i) = value_type(int(iachar(text(i:i)), int64))
         end do
 
         call unread_command_events(evs)

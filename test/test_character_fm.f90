@@ -30,7 +30,7 @@ module test_character_fm
                             char_ctl, char_hexdigit, char_leading_code, char_meta, &
                             char_resolve_modifier_mask, char_shift, char_string, is_char_surrogate, &
                             char_to_byte8, char_to_byte_safe, is_char_valid, &
-                            char_variation_selector_p, count_size_as_multibyte, is_leading_code, &
+                            variation_selector_number, count_size_as_multibyte, is_leading_code, &
                             max_char, max_multibyte_length, multibyte_chars_in_text, &
                             multibyte_length, parse_str_as_multibyte, raw_prev_char_len, &
                             str_as_multibyte, str_as_unibyte, str_to_multibyte, string_char, &
@@ -278,9 +278,9 @@ contains
         if (allocated(error)) return
         call check(error, is_char_surrogate(int(z'DABC', int32)), "surrogate")
         if (allocated(error)) return
-        call check(error, char_variation_selector_p(int(z'FE0F', int32)), 16_int32)
+        call check(error, variation_selector_number(int(z'FE0F', int32)), 16_int32)
         if (allocated(error)) return
-        call check(error, char_variation_selector_p(int(z'E0100', int32)), 17_int32)
+        call check(error, variation_selector_number(int(z'E0100', int32)), 17_int32)
         if (allocated(error)) return
         call check(error, is_char_valid(MAX_CHAR) .and. .not. is_char_valid(MAX_CHAR + 1), "is_char_valid")
         if (allocated(error)) return

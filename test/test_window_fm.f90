@@ -27,8 +27,7 @@ module test_window_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, FM_END_OF_BUFFER, FM_BEGINNING_OF_BUFFER
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum, list
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, buffers, cur, buffer_list, current_buffer, &
                          get_buffer, is_buffer_live
     use keymap_fm, only: key_parse
@@ -51,9 +50,9 @@ module test_window_fm
                          minibuffer_window, is_window_minibuffer, minibuffer_selected_window, window_total_height, &
                          window_total_width, window_left_column, window_top_line, window_body_height, &
                          window_body_width, window_mode_line_height, window_header_line_height, &
-                         window_tab_line_height, window_hscroll, window_dedicated_p, set_window_dedicated_p, &
+                         window_tab_line_height, window_hscroll, window_dedication, set_window_dedication, &
                          window_use_time, window_bump_use_time, next_window, previous_window, window_list, &
-                         window_list_1, coordinates_in_window_p, window_at, force_window_update, MINIBUF_ALWAYS, MINIBUF_NEVER, &
+                         window_list_1, window_part_at, window_at, force_window_update, MINIBUF_ALWAYS, MINIBUF_NEVER, &
                          ON_TEXT, ON_VERTICAL_BORDER, ON_MODE_LINE, ON_NOTHING, DEDICATED_NONE
     use simple_fm, only: goal_column
     use keyboard_fm, only: this_command, last_command, kbd_store_bytes, command_loop, &
@@ -179,13 +178,13 @@ contains
         call check(error, st%code == FM_BEGINNING_OF_BUFFER, "beginning_of_buffer")
         if (allocated(error)) return
         ! By lines; `-` reverses a screenful.
-        call scroll_up(make_fixnum(3_int64), st)
+        call scroll_up(value_type(3_int64), st)
         call check(error, window_start(win()) == line(4) .and. point() == line(10))
         if (allocated(error)) return
-        call scroll_down(sym("-"), st)
+        call scroll_down(value_type(name="-"), st)
         call check(error, window_start(win()) == line(12) .and. point() == line(12))
         if (allocated(error)) return
-        call scroll_up(make_fixnum(-2_int64), st)
+        call scroll_up(value_type(-2_int64), st)
         call check(error, window_start(win()) == line(10) .and. point() == line(12))
         if (allocated(error)) return
         ! Near the end: nothing more to show.
@@ -204,7 +203,7 @@ contains
         call enter(h)
         ! Point below the window: scroll from point recentered.
         call goto_char(line(20))
-        call scroll_up(make_fixnum(1_int64), st)
+        call scroll_up(value_type(1_int64), st)
         call check(error, st%ok() .and. window_start(win()) == line(16) &
                    .and. point() == line(20))
         call leave(h)
@@ -236,11 +235,11 @@ contains
         ! By lines when a scroll can't be done.
         call set_window_start(win(), line(1), st)
         call goto_char(line(3))
-        call scroll_down_command(make_fixnum(2_int64), st)
+        call scroll_down_command(value_type(2_int64), st)
         call check(error, st%ok() .and. point() == line(1), "forward-line back")
         if (allocated(error)) return
         ! A negative argument scrolls the other way.
-        call scroll_down_command(make_fixnum(-2_int64), st)
+        call scroll_down_command(value_type(-2_int64), st)
         call check(error, st%ok() .and. window_start(win()) == line(3) &
                    .and. point() == line(3))
     end subroutine check_error_top_bottom
@@ -284,21 +283,21 @@ contains
                    .and. point() == line(20) + 2 .and. selected_frame%garbaged, "middle")
         if (allocated(error)) return
         selected_frame%garbaged = .false.
-        call recenter(make_fixnum(0_int64), .true., st)
+        call recenter(value_type(0_int64), .true., st)
         call check(error, window_start(win()) == line(20), "top")
         if (allocated(error)) return
-        call recenter(make_fixnum(-1_int64), .true., st)
+        call recenter(value_type(-1_int64), .true., st)
         call check(error, window_start(win()) == line(11), "bottom")
         if (allocated(error)) return
-        call recenter(make_fixnum(3_int64), .true., st)
+        call recenter(value_type(3_int64), .true., st)
         call check(error, window_start(win()) == line(17), "line 3")
         if (allocated(error)) return
         ! Too large: the last line.
-        call recenter(make_fixnum(50_int64), .true., st)
+        call recenter(value_type(50_int64), .true., st)
         call check(error, window_start(win()) == line(11), "clipped")
         if (allocated(error)) return
         ! C-u: center without redrawing.
-        call recenter(list(make_fixnum(4_int64)), .true., st)
+        call recenter(list(value_type(4_int64)), .true., st)
         call check(error, window_start(win()) == line(15) &
                    .and. .not. selected_frame%garbaged, "C-u")
         if (allocated(error)) return
@@ -319,7 +318,7 @@ contains
 
         call enter(h)
         call goto_char(line(20))
-        this_command = sym("recenter_top_bottom")
+        this_command = value_type(name="recenter_top_bottom")
 
         ! Middle, top, bottom, then middle again.
         do k = 1, 4
@@ -336,7 +335,7 @@ contains
         call check(error, window_start(win()) == line(15), "starts over")
         if (allocated(error)) return
         ! With an argument: as recenter.
-        call recenter_top_bottom(make_fixnum(2_int64), st)
+        call recenter_top_bottom(value_type(2_int64), st)
         call check(error, window_start(win()) == line(18), "argument")
         call leave(h)
     end subroutine test_recenter_top_bottom
@@ -354,13 +353,13 @@ contains
         call move_to_window_line(value_type(), vpos, st)
         call check(error, st%ok() .and. point() == line(6) .and. vpos == 5, "middle")
         if (allocated(error)) return
-        call move_to_window_line(make_fixnum(-1_int64), vpos, st)
+        call move_to_window_line(value_type(-1_int64), vpos, st)
         call check(error, point() == line(10) .and. vpos == 9, "bottom")
         if (allocated(error)) return
-        call move_to_window_line(make_fixnum(2_int64), vpos, st)
+        call move_to_window_line(value_type(2_int64), vpos, st)
         call check(error, point() == line(3) .and. vpos == 2, "line 2")
         if (allocated(error)) return
-        this_command = sym("move_to_window_line_top_bottom")
+        this_command = value_type(name="move_to_window_line_top_bottom")
 
         do k = 1, 4
             call move_to_window_line_top_bottom(value_type(), st)
@@ -864,9 +863,9 @@ contains
         ! A window that is not live.
         call check(error, window_body_height(top, st) == 0 .and. .not. st%ok(), "is_window_live error")
         if (allocated(error)) return
-        call set_window_dedicated_p(ws(2), DEDICATED_STRONG, st)
-        call check(error, window_dedicated_p(ws(2), st) == DEDICATED_STRONG .and. &
-                   window_dedicated_p(ws(1), st) == DEDICATED_NONE, "dedicated")
+        call set_window_dedication(ws(2), DEDICATED_STRONG, st)
+        call check(error, window_dedication(ws(2), st) == DEDICATED_STRONG .and. &
+                   window_dedication(ws(1), st) == DEDICATED_NONE, "dedicated")
         if (allocated(error)) return
         ! window-bump-use-time: the selected window was selected last.
         call select_window(ws(1), st)
@@ -879,7 +878,7 @@ contains
                    is_null(window_buffer(ws(3), st)) .and. st%ok(), "deleted window")
         if (allocated(error)) return
         call check(error, is_null(window_parent(ws(3), st)) .and. .not. st%ok(), "is_window_valid error")
-        call set_window_dedicated_p(ws(2), DEDICATED_NONE, st)
+        call set_window_dedication(ws(2), DEDICATED_NONE, st)
         call leave_frame()
     end subroutine test_window_accessors
 
@@ -934,14 +933,14 @@ contains
         call enter_frame("abc", h)
         call run_keys("C-x 2 C-x 3")
         ws = leaves()
-        call check(error, coordinates_in_window_p(38, 0, ws(1), x, y, st) == ON_TEXT .and. x == 38 .and. y == 0, &
+        call check(error, window_part_at(38, 0, ws(1), x, y, st) == ON_TEXT .and. x == 38 .and. y == 0, &
                    "text")
         if (allocated(error)) return
-        call check(error, coordinates_in_window_p(39, 0, ws(1), x, y, st) == ON_VERTICAL_BORDER .and. &
-                   coordinates_in_window_p(39, 11, ws(1), x, y, st) == ON_MODE_LINE .and. &
-                   coordinates_in_window_p(40, 0, ws(1), x, y, st) == ON_NOTHING, "border, mode line, outside")
+        call check(error, window_part_at(39, 0, ws(1), x, y, st) == ON_VERTICAL_BORDER .and. &
+                   window_part_at(39, 11, ws(1), x, y, st) == ON_MODE_LINE .and. &
+                   window_part_at(40, 0, ws(1), x, y, st) == ON_NOTHING, "border, mode line, outside")
         if (allocated(error)) return
-        call check(error, coordinates_in_window_p(45, 3, ws(2), x, y, st) == ON_TEXT .and. x == 5 .and. y == 3, &
+        call check(error, window_part_at(45, 3, ws(2), x, y, st) == ON_TEXT .and. x == 5 .and. y == 3, &
                    "relative to the window")
         if (allocated(error)) return
 

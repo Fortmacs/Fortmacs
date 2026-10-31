@@ -30,8 +30,7 @@ module bindings_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum, make_keymap_ref, list
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, make_keymap_ref, list
     use character_fm, only: MAX_CHAR, CHAR_CTL, CHAR_META
     use keymap_fm, only: make_keymap, make_sparse_keymap, define_key, &
                          define_key_range, use_global_map, set_keymap_parent, &
@@ -247,7 +246,7 @@ contains
         type(status_type) :: status
 
         call key_parse(keys, key, status)
-        call define_key(map, key, sym(cmd), status)
+        call define_key(map, key, value_type(name=cmd), status)
     end subroutine bind
 
     !> Bind the single event `c' to command `cmd' in `map'.  Not a port.
@@ -258,8 +257,8 @@ contains
         type(value_type) :: key(1)
         type(status_type) :: status
 
-        key(1) = make_fixnum(c)
-        call define_key(map, key, sym(cmd), status)
+        key(1) = value_type(c)
+        call define_key(map, key, value_type(name=cmd), status)
     end subroutine bind_char
 
     !> In `map', translate `from' (kbd syntax) to the event `to'.
@@ -373,16 +372,16 @@ contains
         call make_keymap(esc_map)
         call make_keymap(ctl_x_map)
         call make_keymap(global_map)
-        key(1) = make_fixnum(27_int64)
+        key(1) = value_type(27_int64)
         call define_key(global_map, key, make_keymap_ref(esc_map), status)
-        key(1) = make_fixnum(24_int64)
+        key(1) = value_type(24_int64)
         call define_key(global_map, key, make_keymap_ref(ctl_x_map), status)
         ! bindings.el: narrow-map.
         call make_sparse_keymap(narrow_map)
         call bind(narrow_map, "n", "narrow_to_region")
         call bind(narrow_map, "w", "widen")
         call bind(narrow_map, "g", "goto_line_relative")
-        key(1) = make_fixnum(int(iachar("n"), int64))
+        key(1) = value_type(int(iachar("n"), int64))
         call define_key(ctl_x_map, key, make_keymap_ref(narrow_map), status)
         call bind_char(global_map, 9_int64, "self_insert_command")
 
@@ -393,7 +392,7 @@ contains
         ! mule-conf.el: all non-ASCII characters self-insert (this covers
         ! subr.el's 0240..0377 loop too).
         call define_key_range(global_map, 128_int64, int(MAX_CHAR, int64), &
-                              sym("self_insert_command"), status)
+                              value_type(name="self_insert_command"), status)
         call bind(global_map, "C-a", "move_beginning_of_line")
         call bind(global_map, "C-b", "backward_char")
         call bind(global_map, "C-e", "move_end_of_line")
@@ -469,7 +468,7 @@ contains
         ! bindings.el: ctl-x-x-map.
         call make_sparse_keymap(ctl_x_x_map)
         call bind(ctl_x_x_map, "f", "font_lock_update")
-        key(1) = make_fixnum(int(iachar("x"), int64))
+        key(1) = value_type(int(iachar("x"), int64))
         call define_key(ctl_x_map, key, make_keymap_ref(ctl_x_x_map), status)
         ! bindings.el: ctl-x-r-map (rect.el, register.el and bookmark.el;
         ! frameset-to-register on f is not ported).
@@ -502,7 +501,7 @@ contains
         call bind(ctl_x_r_map, "m", "bookmark_set")
         call bind(ctl_x_r_map, "M", "bookmark_set_no_overwrite")
         call bind(ctl_x_r_map, "l", "bookmark_bmenu_list")
-        key(1) = make_fixnum(int(iachar("r"), int64))
+        key(1) = value_type(int(iachar("r"), int64))
         call define_key(ctl_x_map, key, make_keymap_ref(ctl_x_r_map), status)
         ! kmacro.el (autoloads): keyboard macros.
         call bind(ctl_x_map, "(", "kmacro_start_macro")
@@ -510,7 +509,7 @@ contains
         call bind(ctl_x_map, "e", "kmacro_end_and_call_macro")
         call bind(global_map, "<f3>", "kmacro_start_macro_or_insert_counter")
         call bind(global_map, "<f4>", "kmacro_end_or_call_macro")
-        key(1) = make_fixnum(11_int64)
+        key(1) = value_type(11_int64)
         call define_key(ctl_x_map, key, make_keymap_ref(kmacro_keymap), status)
         ! bindings.el: abbrev-map, and the abbrev keys.
         call make_sparse_keymap(abbrev_map)
@@ -523,7 +522,7 @@ contains
         call bind(abbrev_map, "-", "inverse_add_global_abbrev")
         call bind(abbrev_map, "e", "expand_abbrev")
         call bind(abbrev_map, "'", "expand_abbrev")
-        key(1) = make_fixnum(int(iachar("a"), int64))
+        key(1) = value_type(int(iachar("a"), int64))
         call define_key(ctl_x_map, key, make_keymap_ref(abbrev_map), status)
         call bind(esc_map, "'", "abbrev_prefix_mark")
         call bind(ctl_x_map, "'", "expand_abbrev")
@@ -658,12 +657,12 @@ contains
         call bind(goto_map, "g", "goto_line")
         call bind(goto_map, "M-g", "goto_line")
         call bind(goto_map, "TAB", "move_to_column")
-        key(1) = make_fixnum(int(iachar("g"), int64))
+        key(1) = value_type(int(iachar("g"), int64))
         call define_key(esc_map, key, make_keymap_ref(goto_map), status)
         ! bindings.el: search-map (the keys of ported commands).
         call make_sparse_keymap(search_map)
         call bind(search_map, "o", "occur")
-        key(1) = make_fixnum(int(iachar("s"), int64))
+        key(1) = value_type(int(iachar("s"), int64))
         call define_key(esc_map, key, make_keymap_ref(search_map), status)
         call bind(global_map, "C-t", "transpose_chars")
         call bind(esc_map, "t", "transpose_words")
@@ -696,7 +695,7 @@ contains
         call use_global_map(global_map, status)
         ! subr.el: (define-key ctl-x-map "4" 'ctl-x-4-prefix)
         call make_sparse_keymap(ctl_x_4_map)
-        key(1) = make_fixnum(int(iachar("4"), int64))
+        key(1) = value_type(int(iachar("4"), int64))
         call define_key(ctl_x_map, key, make_keymap_ref(ctl_x_4_map), status)
         call syms_of_files(ctl_x_map, ctl_x_4_map)
         call syms_of_vc_hooks(ctl_x_map)
@@ -764,9 +763,9 @@ contains
         ! bindings.el: function-key-map, the parent of every terminal's
         ! local-function-key-map.
         call make_sparse_keymap(function_key_map)
-        call translate(function_key_map, "<backspace>", make_fixnum(127_int64))
-        call translate(function_key_map, "<delete>", make_fixnum(127_int64))
-        call translate(function_key_map, "<kp-delete>", make_fixnum(127_int64))
+        call translate(function_key_map, "<backspace>", value_type(127_int64))
+        call translate(function_key_map, "<delete>", value_type(127_int64))
+        call translate(function_key_map, "<kp-delete>", value_type(127_int64))
 
         if (.not. is_keymap_live(local_function_key_map)) then
             call make_sparse_keymap(local_function_key_map)

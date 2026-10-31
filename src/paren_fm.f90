@@ -35,8 +35,7 @@ module paren_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, make_fixnum, xfixnum, vtag, V_INTEGER
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
     use data_fm, only: is_local_variable, kill_local_variable, default_value, set_default, make_local_variable, &
                        symbol_value, set, add_local_variables_killer
     use commands_fm, only: commands
@@ -352,18 +351,18 @@ contains
 
         status = status_type()
         call minor_modes%show_paren_mode%state%set_local(val)
-        call default_value(sym("show_paren_mode"), default, st)
+        call default_value(value_type(name="show_paren_mode"), default, st)
 
         if (minor_modes%show_paren_mode%state%value .eqv. allocated(default%a)) then
             if (.not. minor_modes%show_paren_mode%state%value) then
                 call show_paren_delete_overlays()
-                call kill_local_variable(sym("show_paren_mode"), st)
+                call kill_local_variable(value_type(name="show_paren_mode"), st)
             end if
         else if (.not. allocated(default%a)) then
             ! Locally enabled, but globally disabled.
             call minor_modes%show_paren_mode%enable(status)
             ! But keep it globally disabled.
-            call set_default(sym("show_paren_mode"), value_type(), st)
+            call set_default(value_type(name="show_paren_mode"), value_type(), st)
         else
             ! Locally disabled only.
             call show_paren_delete_overlays()
@@ -615,7 +614,7 @@ contains
         if (.not. enabled) return
         ! If we're using `show_paren_local_mode', then always heed the
         ! value.
-        if (is_local_variable(sym("show_paren_mode"))) return
+        if (is_local_variable(value_type(name="show_paren_mode"))) return
         ! If not, check that the predicate matches.
         if (associated(show_paren_predicate)) enabled = show_paren_predicate()
     end function is_show_paren_enabled
@@ -672,8 +671,8 @@ contains
         type(status_type) :: st
 
         last_pos = 0
-        if (.not. is_local_variable(sym("show_paren__last_pos"))) return
-        call symbol_value(sym("show_paren__last_pos"), v, st)
+        if (.not. is_local_variable(value_type(name="show_paren__last_pos"))) return
+        call symbol_value(value_type(name="show_paren__last_pos"), v, st)
         if (vtag(v) == V_INTEGER) last_pos = xfixnum(v)
     end function last_pos
 
@@ -682,8 +681,8 @@ contains
         integer(int64), intent(in) :: pos
         type(status_type) :: st
 
-        call make_local_variable(sym("show_paren__last_pos"), st)
-        call set(sym("show_paren__last_pos"), make_fixnum(pos), st)
+        call make_local_variable(value_type(name="show_paren__last_pos"), st)
+        call set(value_type(name="show_paren__last_pos"), value_type(pos), st)
     end subroutine set_last_pos
 
     !> Highlight the parentheses until the next input arrives.  Port of
@@ -756,8 +755,8 @@ contains
         else
             call move_overlay(overlay_1, data%here_beg, data%here_end, st)
             ! Always set the overlay face, since it varies.
-            call overlay_put(overlay_1, "priority", make_fixnum(int(show_paren_priority, int64)), st)
-            call overlay_put(overlay_1, "face", sym(face), st)
+            call overlay_put(overlay_1, "priority", value_type(int(show_paren_priority, int64)), st)
+            call overlay_put(overlay_1, "face", value_type(name=face), st)
         end if
 
         ! Turn on highlighting for the matching paren, if found.  If it's
@@ -790,7 +789,7 @@ contains
 
         call set_last_pos(point())
         ! Always set the overlay face, since it varies.
-        call overlay_put(overlay, "priority", make_fixnum(int(show_paren_priority, int64)), st)
-        call overlay_put(overlay, "face", sym(face), st)
+        call overlay_put(overlay, "priority", value_type(int(show_paren_priority, int64)), st)
+        call overlay_put(overlay, "face", value_type(name=face), st)
     end subroutine show_paren_function
 end module paren_fm

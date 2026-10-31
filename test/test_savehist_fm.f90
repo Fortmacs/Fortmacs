@@ -24,12 +24,11 @@
 !> namelist file instead of its setq forms).
 module test_savehist_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use lisp_fm, only: vtag, V_NULL
+    use lisp_fm, only: vtag, V_NULL, value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, list, make_string
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list
     use data_fm, only: set, symbol_value
     use fns_fm, only: value_equal
     use subr_fm, only: defvar_nil
@@ -86,9 +85,9 @@ contains
         call defvar_nil("savehist_tests__t1")
         call defvar_nil("savehist_tests__t2")
         call defvar_nil("t3")
-        call set(sym("savehist_tests__t1"), list(make_string("t1-value")), st)
-        call set(sym("savehist_tests__t2"), list(make_string("t2-value")), st)
-        call set(sym("t3"), list(make_string("t3-value")), st)
+        call set(value_type(name="savehist_tests__t1"), list(value_type(text="t1-value")), st)
+        call set(value_type(name="savehist_tests__t2"), list(value_type(text="t2-value")), st)
+        call set(value_type(name="t3"), list(value_type(text="t3-value")), st)
     end subroutine setup
 
     subroutine save_var(name)
@@ -127,7 +126,7 @@ contains
         type(value_type) :: v
         type(status_type) :: st
 
-        call symbol_value(sym(name), v, st)
+        call symbol_value(value_type(name=name), v, st)
     end function value_of
 
     subroutine test_saved_variables(error)
@@ -147,9 +146,9 @@ contains
         call savehist_save(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
-        call set(sym("savehist_tests__t1"), value_type(), st)
-        call set(sym("savehist_tests__t2"), value_type(), st)
-        call set(sym("t3"), value_type(), st)
+        call set(value_type(name="savehist_tests__t1"), value_type(), st)
+        call set(value_type(name="savehist_tests__t2"), value_type(), st)
+        call set(value_type(name="t3"), value_type(), st)
         call reload()
         call check(error, value_equal(value_of("savehist_tests__t1"), t1_copy), "t1")
         if (allocated(error)) return

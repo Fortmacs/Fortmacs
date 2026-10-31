@@ -37,9 +37,8 @@ module jit_lock_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use lisp_fm, only: value_type
     use error_fm, only: status_type
-    use lisp_fm, only: t_value
+    use lisp_fm, only: value_type
     use data_fm, only: add_local_variables_killer
-    use lread_fm, only: sym
     use buffer_fm, only: buffers, cur
     use eval_fm, only: region_hook_type, region_entry_type, after_change_hook_type
     use insdel_fm, only: after_change_functions
@@ -237,7 +236,7 @@ contains
         if (present(beg)) b = beg
         e = point_max()
         if (present(end)) e = end
-        call put_text_property(b, e, sym("fontified"), value_type(), status)
+        call put_text_property(b, e, value_type(name="fontified"), value_type(), status)
         call narrow_to_region(begv, zv, status)
         call silent_modifications_end(silent)
     end subroutine jit_lock_refontify
@@ -256,7 +255,7 @@ contains
         if (.not. is_jit_lock_mode()) return
         ! No deferral.
         cend = min(point_max(), start + jit_lock_chunk_size)
-        call next_single_property_change(start, sym("invisible"), vend, found, status, cend)
+        call next_single_property_change(start, value_type(name="invisible"), vend, found, status, cend)
         if (.not. found) vend = cend
         ! Presumably if we're called it means START is not at the end of
         ! the buffer (nor invisible) and hence VEND > START.
@@ -340,7 +339,7 @@ contains
 
         do while (found .and. start < end)
             ! Determine the end of this chunk.
-            call text_property_any(start, end, sym("fontified"), t_value(), next, found, status)
+            call text_property_any(start, end, value_type(name="fontified"), value_type(.true.), next, found, status)
             if (.not. found) next = end
 
             ! Avoid unnecessary work if the chunk is empty.
@@ -348,14 +347,14 @@ contains
                 ! Fontify the chunk, and mark it as fontified.  We mark it
                 ! first, to make sure that we don't indefinitely re-execute
                 ! this fontification if an error occurs.
-                call put_text_property(start, next, sym("fontified"), t_value(), status)
+                call put_text_property(start, next, value_type(name="fontified"), value_type(.true.), status)
                 call jit_lock_run_functions(start, next, tight_beg, tight_end, loose_beg, loose_end, status)
                 if (.not. status%ok()) exit
 
                 ! In case we fontified more than requested, take advantage
                 ! of the good news.
                 if (tight_beg < start .or. tight_end > next) then
-                    call put_text_property(tight_beg, tight_end, sym("fontified"), t_value(), st)
+                    call put_text_property(tight_beg, tight_end, value_type(name="fontified"), value_type(.true.), st)
                 end if
 
                 ! Skip to the end of the fully refontified part.
@@ -363,7 +362,7 @@ contains
             end if
 
             ! Find the start of the next chunk, if any.
-            call text_property_any(start, end, sym("fontified"), value_type(), pos, found, st)
+            call text_property_any(start, end, value_type(name="fontified"), value_type(), pos, found, st)
             start = pos
         end do
 
@@ -402,7 +401,7 @@ contains
             begv = buffers(cur)%begv
             zv = buffers(cur)%zv
             call widen()
-            call put_text_property(jit_lock_start, jit_lock_end, sym("fontified"), value_type(), status)
+            call put_text_property(jit_lock_start, jit_lock_end, value_type(name="fontified"), value_type(), status)
             call narrow_to_region(begv, zv, status)
         end if
 

@@ -41,11 +41,10 @@ module simple_fm
                         FM_USER_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER, FM_MARK_INACTIVE, &
                         FM_BUFFER_READ_ONLY, FM_TEXT_READ_ONLY, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum, list, &
-                       xfixnum, list_elt, t_value, make_string, make_list, list_elements, command_proc, vtag, V_NULL, &
+    use lisp_fm, only: value_type, list, xfixnum, list_elt, make_list, list_elements, command_proc, vtag, V_NULL, &
                        V_INTEGER, V_NAME, V_STRING, V_ARRAY
-    use lread_fm, only: sym
     use data_fm, only: value_eq, string_setting, logical_setting, integer_setting, function_setting, forward_setting, &
+                       history_setting, &
                        add_local_variables_killer
     use character_fm, only: MAX_CHAR, CHAR_META, char_resolve_modifier_mask, multibyte_chars_in_text
     use casetab_fm, only: downcase
@@ -56,7 +55,7 @@ module simple_fm
                          UE_POINT, UE_FIRST_CHANGE
     use undo_fm, only: undo_boundary
     use marker_fm, only: set_marker, detach_marker, copy_marker_at, free_marker, marker_position
-    use xdisp_fm, only: message, invisible_p
+    use xdisp_fm, only: message, invisibility
     use frame_fm, only: selected_frame, selected_window_ref
     use window_fm, only: window_type, window_start, window_body_lines, recenter
     use subr_fm, only: add_to_history, defvar_nil
@@ -72,7 +71,7 @@ module simple_fm
     use indent_fm, only: current_column, move_to_column, vertical_motion, screen_column, window_text_width
     use insdel_fm, only: insert, del_range
     use data_fm, only: symbol_value, set
-    use lisp_fm, only: list_length, xstring, xsymbol, symbols, make_keymap_ref
+    use lisp_fm, only: list_length, xstring, xsymbol, symbols, make_keymap_ref, value_type
     use editfns_fm, only: insert_char_n
     use minibuf_fm, only: minibuffer_history_position, minibuffer_history_variable, &
                           minibuffer_default, minibuffer_text_before_history, minibuffer_temporary_goal_position, &
@@ -1546,6 +1545,17 @@ module simple_fm
 
     type(handle_type) :: uarg_map
 
+    !> History of values entered with `set_variable'.
+    !>
+    !> Maximum length of the history list is determined by the value
+    !> of `history_length', which see.
+    !> Port of simple.el set-variable-value-history.
+    type(history_setting), target, public :: set_variable_value_history = &
+                                             history_setting(name="set_variable_value_history")
+    !> The history of the variable names `set_variable' reads.  Port of
+    !> custom.el custom-variable-history.
+    type(history_setting), target, public :: custom_variable_history = history_setting(name="custom_variable_history")
+
 contains
 
     ! The index in `check_locals' of the current buffer's entry, 0 if none.
@@ -1633,9 +1643,9 @@ contains
     end subroutine kill_local_blink_matching_check_function
 
     ! Not a port.
-    integer(int64) function arg_p()
-        arg_p = prefix_numeric_value(current_prefix_arg)
-    end function arg_p
+    integer(int64) function numeric_prefix_arg()
+        numeric_prefix_arg = prefix_numeric_value(current_prefix_arg)
+    end function numeric_prefix_arg
 
     !> Delete `n' characters before point; KILLFLAG true means kill
     !> instead.  Port of simple.el:delete-backward-char (no region or
@@ -1690,19 +1700,19 @@ contains
         end if
 
         call make_sparse_keymap(map)
-        key(1) = make_fixnum(21_int64)
-        call define_key(map, key, sym("universal_argument_more"), status)
-        key(1) = make_fixnum(int(iachar("-"), int64))
-        call define_key(map, key, sym("universal_argument_minus"), status)
-        key(1) = sym("kp-subtract")
-        call define_key(map, key, sym("universal_argument_minus"), status)
+        key(1) = value_type(21_int64)
+        call define_key(map, key, value_type(name="universal_argument_more"), status)
+        key(1) = value_type(int(iachar("-"), int64))
+        call define_key(map, key, value_type(name="universal_argument_minus"), status)
+        key(1) = value_type(name="kp-subtract")
+        call define_key(map, key, value_type(name="universal_argument_minus"), status)
 
         do d = 0, 9
-            key(1) = make_fixnum(int(iachar("0") + d, int64))
-            call define_key(map, key, sym("digit_argument"), status)
+            key(1) = value_type(int(iachar("0") + d, int64))
+            call define_key(map, key, value_type(name="digit_argument"), status)
             write (name, '("kp-",i1)') d
-            key(1) = sym(name)
-            call define_key(map, key, sym("digit_argument"), status)
+            key(1) = value_type(name=name)
+            call define_key(map, key, value_type(name="digit_argument"), status)
         end do
 
         uarg_map = map
@@ -1737,7 +1747,7 @@ contains
         if (.not. allocated(current_prefix_arg%a)) then
             call newline(status, interactive=.true.)
         else
-            call newline(status, arg_p(), interactive=.true.)
+            call newline(status, numeric_prefix_arg(), interactive=.true.)
         end if
     end subroutine cmd_newline
 
@@ -1750,7 +1760,7 @@ contains
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call open_line(arg_p(), status)
+        if (status%ok()) call open_line(numeric_prefix_arg(), status)
     end subroutine cmd_open_line
 
     !> Delete the previous N characters (following if N is negative).
@@ -1766,7 +1776,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: n
 
-        n = arg_p()
+        n = numeric_prefix_arg()
 
         if (is_use_region() .and. delete_active_region .and. n == 1) then
             call delete_the_region(status)
@@ -1798,7 +1808,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: n
 
-        n = arg_p()
+        n = numeric_prefix_arg()
 
         if (is_use_region() .and. delete_active_region .and. n == 1) then
             call delete_the_region(status)
@@ -1933,12 +1943,12 @@ contains
         ! "*p": barf first.
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
-        arg = arg_p()
+        arg = numeric_prefix_arg()
         call read_quoted_char(c, status)
         if (.not. status%ok()) return
 
         if (c < 0 .or. c > MAX_CHAR) then
-            key(1) = make_fixnum(c)
+            key(1) = value_type(c)
             call set_error(status, FM_USER_ERROR, key_description(key)// &
                            " is not a valid character")
             return
@@ -1966,7 +1976,7 @@ contains
 
         status = status_type()
         call prefix_command_preserve_state()
-        prefix_arg = list(make_fixnum(4_int64))
+        prefix_arg = list(value_type(4_int64))
         call universal_argument_mode()
     end subroutine cmd_universal_argument
 
@@ -1980,9 +1990,9 @@ contains
         call prefix_command_preserve_state()
 
         if (vtag(arg) == V_ARRAY) then
-            prefix_arg = list(make_fixnum(4*xfixnum(list_elt(arg, 1_int64))))
-        else if (value_eq(arg, sym("-"))) then
-            prefix_arg = list(make_fixnum(-4_int64))
+            prefix_arg = list(value_type(4*xfixnum(list_elt(arg, 1_int64))))
+        else if (value_eq(arg, value_type(name="-"))) then
+            prefix_arg = list(value_type(-4_int64))
         else
             prefix_arg = arg
         end if
@@ -2002,11 +2012,11 @@ contains
         call prefix_command_preserve_state()
 
         if (vtag(arg) == V_INTEGER) then
-            prefix_arg = make_fixnum(-xfixnum(arg))
-        else if (value_eq(arg, sym("-"))) then
+            prefix_arg = value_type(-xfixnum(arg))
+        else if (value_eq(arg, value_type(name="-"))) then
             prefix_arg = value_type()
         else
-            prefix_arg = sym("-")
+            prefix_arg = value_type(name="-")
         end if
 
         call universal_argument_mode()
@@ -2039,19 +2049,19 @@ contains
 
         if (vtag(arg) == V_INTEGER) then
             if (xfixnum(arg) < 0) then
-                prefix_arg = make_fixnum(xfixnum(arg)*10 - digit)
+                prefix_arg = value_type(xfixnum(arg)*10 - digit)
             else
-                prefix_arg = make_fixnum(xfixnum(arg)*10 + digit)
+                prefix_arg = value_type(xfixnum(arg)*10 + digit)
             end if
-        else if (value_eq(arg, sym("-"))) then
+        else if (value_eq(arg, value_type(name="-"))) then
             ! Treat -0 as just -, so that -01 will work.
             if (digit == 0) then
-                prefix_arg = sym("-")
+                prefix_arg = value_type(name="-")
             else
-                prefix_arg = make_fixnum(-digit)
+                prefix_arg = value_type(-digit)
             end if
         else
-            prefix_arg = make_fixnum(digit)
+            prefix_arg = value_type(digit)
         end if
 
         call universal_argument_mode()
@@ -2064,7 +2074,7 @@ contains
         type(status_type), intent(out) :: status
 
         if (vtag(current_prefix_arg) == V_INTEGER) then
-            call self_insert_command(arg_p(), int(iachar("-"), int64), status)
+            call self_insert_command(numeric_prefix_arg(), int(iachar("-"), int64), status)
         else
             call cmd_negative_argument(status)
         end if
@@ -2077,8 +2087,8 @@ contains
 
     !> Whether the last command was next-line or previous-line.  Not a port.
     logical function after_line_move()
-        after_line_move = value_eq(last_command, sym("next_line")) .or. &
-                          value_eq(last_command, sym("previous_line"))
+        after_line_move = value_eq(last_command, value_type(name="next_line")) .or. &
+                          value_eq(last_command, value_type(name="previous_line"))
     end function after_line_move
 
     !> Move `arg' lines down (up if negative), keeping the goal column; by
@@ -2187,7 +2197,7 @@ contains
             do while (n > 0 .and. .not. stop)
                 ! If the following character is currently invisible, skip
                 ! all characters with that same `invisible' property value.
-                do while (.not. is_eob() .and. invisible_p(point()) /= 0)
+                do while (.not. is_eob() .and. invisibility(point()) /= 0)
                     call goto_char(next_char_property_change(point()))
                 end do
 
@@ -2199,7 +2209,7 @@ contains
                 if (is_eob()) then
                     if (.not. noerror) call signal_end(status)
                     stop = .true.
-                else if (n > 1 .and. invisible_p(point()) == 0) then
+                else if (n > 1 .and. invisibility(point()) == 0) then
                     ! We avoid vertical-motion when possible because that
                     ! has to fontify.
                     shortage = forward_line(1_int64)
@@ -2224,7 +2234,7 @@ contains
                 if (is_bob()) then
                     if (.not. noerror) call signal_beginning(status)
                     stop = .true.
-                else if (n < -1 .and. invisible_p(point() - 1) == 0) then
+                else if (n < -1 .and. invisibility(point() - 1) == 0) then
                     shortage = forward_line(-1_int64)
                 else
                     call vertical_motion(-1_int64, moved)
@@ -2241,7 +2251,7 @@ contains
                     ! Don't move over previous invis lines if our target is
                     ! the middle of this line.
                     do while ((goal_or_temporary() == 0 .or. n < 0) .and. .not. is_bob())
-                        if (invisible_p(point() - 1) == 0) exit
+                        if (invisibility(point() - 1) == 0) exit
                         call goto_char(previous_char_property_change(point()))
                     end do
                 end if
@@ -2306,13 +2316,13 @@ contains
         end if
 
         if (.not. line_move_ignore_invisible .or. is_bol()) return
-        if (invisible_p(point() - 1) == 0) return
+        if (invisibility(point() - 1) == 0) return
         normal_location = point()
         normal_column = current_column()
 
         ! If the following character is currently invisible, skip all
         ! characters with that same `invisible' property value.
-        do while (.not. is_eob() .and. invisible_p(point()) /= 0)
+        do while (.not. is_eob() .and. invisibility(point()) /= 0)
             call goto_char(next_char_property_change(point()))
         end do
 
@@ -2331,7 +2341,7 @@ contains
             line_beg = pos_bol()
 
             do while (.not. is_bol())
-                if (invisible_p(point() - 1) == 0) exit
+                if (invisibility(point() - 1) == 0) exit
                 call goto_char(previous_char_property_change(point(), line_beg))
             end do
         end if
@@ -2388,8 +2398,8 @@ contains
             ! Ignore field boundaries if the initial and final positions
             ! have the same `field' property, even if the fields are
             ! non-contiguous.
-            new_field = get_char_property(new, sym("field"))
-            old_field = get_char_property(opoint, sym("field"))
+            new_field = get_char_property(new, value_type(name="field"))
+            old_field = get_char_property(opoint, value_type(name="field"))
 
             if (value_eq(new_field, old_field)) then
                 call goto_char(new)
@@ -2409,7 +2419,7 @@ contains
             saved = point()
             call goto_char(pos_eol())
 
-            do while (.not. is_eob() .and. invisible_p(point()) /= 0)
+            do while (.not. is_eob() .and. invisibility(point()) /= 0)
                 call goto_char(next_char_property_change(point()))
                 call goto_char(pos_eol())
             end do
@@ -2524,8 +2534,8 @@ contains
 
                 if (.not. is_bob()) then
                     do while (.not. is_bob())
-                        if (invisible_p(point() - 1) == 0) exit
-                        call goto_char(previous_single_char_property_change(point(), sym("invisible")))
+                        if (invisibility(point() - 1) == 0) exit
+                        call goto_char(previous_single_char_property_change(point(), value_type(name="invisible")))
                     end do
 
                     call goto_char(point() - 1)
@@ -2598,14 +2608,14 @@ contains
         call goto_char(pos_bol())
 
         do while (.not. is_bob())
-            if (invisible_p(point() - 1) == 0) exit
+            if (invisibility(point() - 1) == 0) exit
             call goto_char(previous_char_property_change(point()))
             call goto_char(pos_bol())
         end do
 
         ! Now find first visible char in the line.
         do while (point() < orig)
-            if (invisible_p(point()) == 0) exit
+            if (invisibility(point()) == 0) exit
             call goto_char(next_char_property_change(point(), orig))
         end do
 
@@ -2647,7 +2657,7 @@ contains
         history = value_type()
         if (.not. allocated(minibuffer_history_variable)) return
         if (len(minibuffer_history_variable) == 0) return
-        call symbol_value(sym(minibuffer_history_variable), history, status)
+        call symbol_value(value_type(name=minibuffer_history_variable), history, status)
         if (.not. status%ok()) history = value_type()
     end function history_value
 
@@ -2693,8 +2703,8 @@ contains
             return
         end if
 
-        if (.not. (value_eq(last_command, sym("next_history_element")) .or. &
-                   value_eq(last_command, sym("previous_history_element")))) then
+        if (.not. (value_eq(last_command, value_type(name="next_history_element")) .or. &
+                   value_eq(last_command, value_type(name="previous_history_element")))) then
             pend = minibuffer_prompt_end()
 
             if (point() <= pend) then
@@ -2963,7 +2973,7 @@ contains
 
         prompt = ""
 
-        if (value_eq(current_prefix_arg, sym("-"))) then
+        if (value_eq(current_prefix_arg, value_type(name="-"))) then
             prompt = "- "
         else if (vtag(current_prefix_arg) == V_ARRAY) then
             head = list_elt(current_prefix_arg, 1_int64)
@@ -3017,7 +3027,7 @@ contains
 
         id = intern_soft(name)
         function = value_type()
-        if (id /= 0) function = sym(name)
+        if (id /= 0) function = value_type(name=name)
 
         if (id == 0 .or. .not. is_command(function)) then
             call set_error(status, FM_GENERIC_ERROR, format_message("`")//name//format_message("' is not a valid command name"))
@@ -3148,11 +3158,8 @@ contains
                                  cycle_spacing_action_type(CYCLE_RESTORE)]
         commands%mark_word%run => cmd_mark_word
         commands%set_variable%run => cmd_set_variable
-        ! simple.el set-variable-value-history and custom.el
-        ! custom-variable-history: the minibuffer histories of
-        ! `set_variable'.
-        call defvar_nil("set_variable_value_history")
-        call defvar_nil("custom_variable_history")
+        call forward_setting(set_variable_value_history)
+        call forward_setting(custom_variable_history)
     end subroutine syms_of_simple
 
     ! ------------------------------------------------------------------
@@ -3228,7 +3235,7 @@ contains
         ! In a writable buffer, enable undoing read-only text that is so
         ! because of text properties.
         saved = inhibit_read_only()
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
 
         undo_records: do while (arg > 0)
             do while (rest > 0)
@@ -3277,7 +3284,7 @@ contains
             arg = arg - 1
         end do undo_records
 
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
     end subroutine primitive_undo
 
     ! Not a port.
@@ -3350,10 +3357,10 @@ contains
         if (.not. status%ok()) return
         ! If we get an error in undo-start, the next command should not be
         ! a "consecutive undo".
-        this_command = sym("undo_start")
+        this_command = value_type(name="undo_start")
 
         ! If the previous command is `undo`, don't break the undo chain.
-        if (.not. (value_eq(last_command, sym("undo")) .and. &
+        if (.not. (value_eq(last_command, value_type(name="undo")) .and. &
                    (pending_undo_list < 0 .or. last_change_was_undo(buffers(cur)%undo_count) /= EQUIV_NONE))) then
             call undo_start(status)
             if (.not. status%ok()) return
@@ -3363,7 +3370,7 @@ contains
         end if
 
         ! If we got this far, the next command should be a consecutive undo.
-        this_command = sym("undo")
+        this_command = value_type(name="undo")
         ! Check to see whether we're hitting a redo record.
         equiv = EQUIV_NONE
         if (pending_undo_list >= 0) equiv = equiv_of(pending_undo_list)
@@ -3459,7 +3466,7 @@ contains
         type(status_type), intent(out) :: status
 
         undo_no_redo = .true.
-        call undo(make_fixnum(n), status)
+        call undo(value_type(n), status)
         undo_no_redo = .false.
     end subroutine undo_only
 
@@ -3484,7 +3491,7 @@ contains
         undo_in_progress = .false.
         if (.not. status%ok()) return
         call message("Redo")
-        this_command = sym("undo")
+        this_command = value_type(name="undo")
         pending_undo_list = last_change_was_undo(new_ul)
         if (pending_undo_list == EQUIV_NONE) pending_undo_list = 0
         ! (setq buffer-undo-list new-ul): the redo's own records go too.
@@ -3500,13 +3507,13 @@ contains
     subroutine cmd_undo_only(status)
         type(status_type), intent(out) :: status
 
-        call undo_only(arg_p(), status)
+        call undo_only(numeric_prefix_arg(), status)
     end subroutine cmd_undo_only
 
     subroutine cmd_undo_redo(status)
         type(status_type), intent(out) :: status
 
-        call undo_redo(arg_p(), status)
+        call undo_redo(numeric_prefix_arg(), status)
     end subroutine cmd_undo_redo
 
     ! ------------------------------------------------------------------
@@ -3749,16 +3756,16 @@ contains
             end if
         end if
 
-        if (.not. value_eq(this_command, sym("set_mark_command"))) then
+        if (.not. value_eq(this_command, value_type(name="set_mark_command"))) then
             if (allocated(arg%a)) then
                 call pop_to_mark_command(status)
             else
                 call push_mark_command(.true.)
             end if
         else if (allocated(arg%a)) then
-            this_command = sym("pop_to_mark_command")
+            this_command = value_type(name="pop_to_mark_command")
             call pop_to_mark_command(status)
-        else if (value_eq(last_command, sym("set_mark_command"))) then
+        else if (value_eq(last_command, value_type(name="set_mark_command"))) then
             if (is_region_active()) then
                 call deactivate_mark()
                 call message("Mark deactivated")
@@ -3818,7 +3825,7 @@ contains
         type(value_type) :: ring
         type(status_type) :: st
 
-        call symbol_value(sym("kill_ring"), ring, st)
+        call symbol_value(value_type(name="kill_ring"), ring, st)
         if (.not. st%ok()) ring = value_type()
     end function kill_ring
 
@@ -3827,7 +3834,7 @@ contains
         character(len=*), intent(in) :: string
         logical, intent(in), optional :: replace
 
-        call kill_new_string(make_string(string), replace)
+        call kill_new_string(value_type(text=string), replace)
     end subroutine kill_new_text
 
     !> kill_new for a string with its text properties.  Port of
@@ -3843,7 +3850,7 @@ contains
 
         if (flag(replace) .and. size(elems) > 0) then
             elems(1) = string
-            call set(sym("kill_ring"), make_list(elems), st)
+            call set(value_type(name="kill_ring"), make_list(elems), st)
         else
             ! (add-to-history 'kill-ring string kill-ring-max t), with
             ! history-delete-duplicates nil.
@@ -3855,7 +3862,7 @@ contains
                 ring(k + 1) = elems(k)
             end do
 
-            call set(sym("kill_ring"), make_list(ring), st)
+            call set(value_type(name="kill_ring"), make_list(ring), st)
         end if
 
         kill_ring_yank_pointer = 1
@@ -3869,13 +3876,13 @@ contains
         logical, intent(in) :: before_p
         type(value_type) :: latest
 
-        latest = make_string("")
+        latest = value_type(text="")
         if (list_length(kill_ring()) > 0) latest = list_elt(kill_ring(), 1_int64)
 
         if (before_p) then
-            call kill_new_string(propertized_concat(make_string(string), latest), .true.)
+            call kill_new_string(propertized_concat(value_type(text=string), latest), .true.)
         else
-            call kill_new_string(propertized_concat(latest, make_string(string)), .true.)
+            call kill_new_string(propertized_concat(latest, value_type(text=string)), .true.)
         end if
     end subroutine kill_append
 
@@ -3900,7 +3907,7 @@ contains
         logical, intent(in), optional :: do_not_move
         integer(int64) :: length, k
 
-        string = make_string("")
+        string = value_type(text="")
         length = list_length(kill_ring())
 
         if (length == 0) then
@@ -3942,10 +3949,10 @@ contains
         case (REGION_EXTRACT_DELETE)
             ! (filter-buffer-substring beg end 'delete)
             call delete_and_extract_region(beg, end, text, status)
-            if (status%ok()) string = make_string(text)
+            if (status%ok()) string = value_type(text=text)
         case default
             call buffer_substring(beg, end, text, status)
-            if (status%ok()) string = make_string(text)
+            if (status%ok()) string = value_type(text=text)
         end select
     end subroutine default_region_extract
 
@@ -4023,20 +4030,20 @@ contains
         else
             ! (filter-buffer-substring beg end 'delete)
             call delete_and_extract_region(beg, end, text, status)
-            if (status%ok()) string = make_string(text)
+            if (status%ok()) string = value_type(text=text)
         end if
 
         if (status%ok()) then
             ! (STRING is nil if BEG = END.)
             if (vtag(string) == V_STRING) then
-                if (value_eq(last_command, sym("kill_region"))) then
+                if (value_eq(last_command, value_type(name="kill_region"))) then
                     call kill_append(xstring(string), end < beg)
                 else
                     call kill_new(string)
                 end if
             end if
 
-            this_command = sym("kill_region")
+            this_command = value_type(name="kill_region")
             deactivate_mark_variable = .true.
             return
         end if
@@ -4045,7 +4052,7 @@ contains
                    condition_matches(status%code, FM_TEXT_READ_ONLY))) return
         ! The text could not be deleted: copy it to the kill ring anyway.
         call copy_region_as_kill(beg, end, st, region)
-        this_command = sym("kill_region")
+        this_command = value_type(name="kill_region")
 
         if (kill_read_only_ok .or. flag(read_only_ok)) then
             status = status_type()
@@ -4069,12 +4076,12 @@ contains
             call region_extract_function(REGION_EXTRACT_COPY, string, starts, ends, status)
         else
             call buffer_substring(min(beg, end), max(beg, end), text, status)
-            if (status%ok()) string = make_string(text)
+            if (status%ok()) string = value_type(text=text)
         end if
 
         if (.not. status%ok()) return
 
-        if (value_eq(last_command, sym("kill_region"))) then
+        if (value_eq(last_command, value_type(name="kill_region"))) then
             call kill_append(xstring(string), end < beg)
         else
             call kill_new(string)
@@ -4101,7 +4108,7 @@ contains
                 if (forward_line(1_int64) /= 0) return
                 ! If the newline we just skipped is invisible, don't count
                 ! it.
-                if (invisible_p(point() - 1) /= 0) n = n + 1
+                if (invisibility(point() - 1) /= 0) n = n + 1
                 n = n - 1
             end do
 
@@ -4110,11 +4117,11 @@ contains
             opoint = point()
 
             do while (.not. is_eob())
-                if (invisible_p(point()) == 0) exit
-                call get_text_property(point(), sym("invisible"), prop, st)
+                if (invisibility(point()) == 0) exit
+                call get_text_property(point(), value_type(name="invisible"), prop, st)
 
                 if (allocated(prop%a)) then
-                    call next_single_property_change(point(), sym("invisible"), next, found, st)
+                    call next_single_property_change(point(), value_type(name="invisible"), next, found, st)
                     if (.not. found) next = point_max()
                     call goto_char(next)
                 else
@@ -4136,7 +4143,7 @@ contains
                 ! If the newline we just moved to is invisible, don't count
                 ! it.
                 if (.not. is_bob()) then
-                    if (invisible_p(point() - 1) == 0) n = n + 1
+                    if (invisibility(point() - 1) == 0) n = n + 1
                 end if
 
                 first = .false.
@@ -4147,11 +4154,11 @@ contains
             opoint = point()
 
             do while (.not. is_bob())
-                if (invisible_p(point() - 1) == 0) exit
-                call get_text_property(point() - 1, sym("invisible"), prop, st)
+                if (invisibility(point() - 1) == 0) exit
+                call get_text_property(point() - 1, value_type(name="invisible"), prop, st)
 
                 if (allocated(prop%a)) then
-                    call previous_single_property_change(point(), sym("invisible"), next, found, st)
+                    call previous_single_property_change(point(), value_type(name="invisible"), next, found, st)
                     if (.not. found) next = point_min()
                     call goto_char(next)
                 else
@@ -4304,9 +4311,9 @@ contains
             end if
         end if
 
-        if (.not. value_eq(last_command, sym("kill_region"))) then
+        if (.not. value_eq(last_command, value_type(name="kill_region"))) then
             call kill_new("")
-            last_command = sym("kill_region")
+            last_command = value_type(name="kill_region")
         end if
 
         call copy_marker_at(here, regions_begin, .false., st)
@@ -4355,12 +4362,12 @@ contains
         type(value_type) :: text
         integer(int64) :: n, m
 
-        this_command = t_value()
+        this_command = value_type(.true.)
         call push_mark()
 
         if (.not. allocated(arg%a) .or. vtag(arg) == V_ARRAY) then
             n = 0
-        else if (value_eq(arg, sym("-"))) then
+        else if (value_eq(arg, value_type(name="-"))) then
             n = -2
         else
             n = prefix_numeric_value(arg) - 1
@@ -4378,7 +4385,7 @@ contains
             call goto_char(m)
         end if
 
-        if (value_eq(this_command, t_value())) this_command = sym("yank")
+        if (value_eq(this_command, value_type(.true.))) this_command = value_type(name="yank")
     end subroutine yank
 
     !> Replace just-yanked stretch of killed text with a different stretch.
@@ -4404,18 +4411,18 @@ contains
         type(value_type) :: saved
         type(status_type) :: st
 
-        if (.not. value_eq(last_command, sym("yank"))) then
+        if (.not. value_eq(last_command, value_type(name="yank"))) then
             call set_error(status, FM_USER_ERROR, "Previous command was not a yank")
             return
         end if
 
-        this_command = sym("yank")
+        this_command = value_type(name="yank")
         m = mark_position()
         here = point()
         before = here < m
         ! (let ((inhibit-read-only t)) ...)
         saved = inhibit_read_only()
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
 
         if (associated(yank_undo_function)) then
             call yank_undo_function(min(here, m), max(here, m), status)
@@ -4431,7 +4438,7 @@ contains
         end if
 
         if (status%ok()) call insert_for_yank(text, status)
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
         if (.not. status%ok()) return
 
         if (before) then
@@ -4456,7 +4463,7 @@ contains
         character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
 
-        call insert_for_yank_string(make_string(string), status)
+        call insert_for_yank_string(value_type(text=string), status)
     end subroutine insert_for_yank_text
 
     !> insert_for_yank for a string with text properties: each segment
@@ -4473,7 +4480,7 @@ contains
         rest = string
 
         do
-            call string_next_single_property_change(0_int64, sym("yank_handler"), rest, to, found)
+            call string_next_single_property_change(0_int64, value_type(name="yank_handler"), rest, to, found)
             if (.not. found) exit
             call insert_for_yank_1(propertized_substring(rest, 0_int64, to), status)
             if (.not. status%ok()) return
@@ -4494,7 +4501,7 @@ contains
         integer :: k
 
         status = status_type()
-        handler = string_get_text_property(0_int64, sym("yank_handler"), string)
+        handler = string_get_text_property(0_int64, value_type(name="yank_handler"), string)
         param = list_elt(handler, 2_int64)
         if (.not. allocated(param%a)) param = string
         ! (FIXME upstream: this throws away any yank-undo-function set by
@@ -5146,27 +5153,27 @@ contains
             ! prefix arg or `-'.
             select case (action%arg_kind)
             case (CYCLE_ARG_FIXED)
-                actual_n = make_fixnum(action%arg)
+                actual_n = value_type(action%arg)
             case (CYCLE_ARG_INVERTED)
-                actual_n = make_fixnum(-prefix_numeric_value(cycle_spacing_n))
+                actual_n = value_type(-prefix_numeric_value(cycle_spacing_n))
             case (CYCLE_ARG_MINUS)
-                actual_n = sym("-")
+                actual_n = value_type(name="-")
             case default
                 actual_n = cycle_spacing_n
             end select
 
             numeric_n = prefix_numeric_value(actual_n)
-            include_newlines = value_eq(actual_n, sym("-"))
+            include_newlines = value_eq(actual_n, value_type(name="-"))
             if (vtag(actual_n) == V_INTEGER) include_newlines = xfixnum(actual_n) < 0
 
             select case (action%action)
             case (CYCLE_JUST_ONE_SPACE)
                 call just_one_space(numeric_n, status)
             case (CYCLE_DELETE_SPACE_AFTER)
-                call delete_space(merge(0_int64, abs(numeric_n), value_eq(actual_n, sym("-"))), &
+                call delete_space(merge(0_int64, abs(numeric_n), value_eq(actual_n, value_type(name="-"))), &
                                   include_newlines, .true.)
             case (CYCLE_DELETE_SPACE_BEFORE)
-                call delete_space(merge(0_int64, abs(numeric_n), value_eq(actual_n, sym("-"))), &
+                call delete_space(merge(0_int64, abs(numeric_n), value_eq(actual_n, value_type(name="-"))), &
                                   include_newlines, .false.)
             case (CYCLE_DELETE_ALL_SPACE)
                 if (include_newlines) then
@@ -5242,7 +5249,7 @@ contains
         type(status_type) :: st
 
         if (is_eol() .and. .not. is_bob()) then
-            call get_text_property(point() - 1, sym("read_only"), read_only, st)
+            call get_text_property(point() - 1, value_type(name="read_only"), read_only, st)
             if (.not. allocated(read_only%a)) call goto_char(point() - 1)
         end if
 
@@ -5601,9 +5608,9 @@ contains
             ! If the end of the buffer is not already on the screen, then
             ! scroll specially to put it near, but not at, the bottom.
             if (w%mini) then
-                call recenter(make_fixnum(-1_int64), .false., st)
+                call recenter(value_type(-1_int64), .false., st)
             else
-                call recenter(make_fixnum(-3_int64), .false., st)
+                call recenter(value_type(-3_int64), .false., st)
             end if
         end if
     end subroutine end_of_buffer

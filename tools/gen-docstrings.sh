@@ -491,6 +491,15 @@ grep -v '^#' tools/user-options | grep -v '^[ \t]*$' >"$tmp.uopts" || true
 awk -F '\037' -v params="$tmp.params" -v uopts="$tmp.uopts" '
 function q(s) { gsub(/"/, "\"\"", s); return "\"" s "\"" }
 
+# The text so far, s, with the next piece of a list: on a continuation
+# line when the last line would pass 100 columns.
+function wrapped(s, piece,    last) {
+    last = s
+    sub(/.*\n/, "", last)
+    if (length(last) + length(piece) > 100) return s "&\n                " piece
+    return s piece
+}
+
 # A string literal for s, in pieces of at most 90 characters.
 function lit(s, ind,    out) {
     out = ""
@@ -644,7 +653,7 @@ END {
     print ""
     print "    public :: function_doc, variable_doc"
     print "    public :: user_option_info, set_user_option_logical, set_user_option_integer, set_user_option_real, &"
-    print "              set_user_option_string, set_user_option_choice"
+    print "              set_user_option_string, set_user_option_choice, user_option_constants"
     print ""
     print "    !> Kinds of value of a user option, as `set_variable` reads it."
     print "    integer, parameter, public :: OPTION_NONE = 0, OPTION_LOGICAL = 1, OPTION_INTEGER = 2, OPTION_REAL = 3, &"
@@ -942,6 +951,33 @@ END {
     print "            ok = .false."
     print "        end select"
     print "    end subroutine set_user_option_choice"
+    print ""
+    print "    !> The named constants of the enumerated user option called `name`"
+    print "    !> (in upper case) and their values; empty arrays for another name."
+    print "    subroutine user_option_constants(name, constants, values)"
+    print "        character(len=*), intent(in) :: name"
+    print "        character(len=48), allocatable, intent(out) :: constants(:)"
+    print "        integer(int64), allocatable, intent(out) :: values(:)"
+    print ""
+    print "        select case (name)"
+    for (k = 1; k <= nu; k++) {
+        i = vidx[uname[k]]
+        if (okind(i) != "OPTION_CHOICE") continue
+        print "        case (" q(vname[i]) ")"
+        n = split(venum[i], defs, ",")
+        cl = "            constants = [character(len=48) :: "; vl = "            values = [integer(int64) :: "
+        for (m = 1; m <= n; m++) {
+            d = defs[m]; gsub(/[ \t]/, "", d); sub(/=.*/, "", d)
+            cl = wrapped(cl, q(toupper(d)) (m < n ? ", " : "]"))
+            vl = wrapped(vl, "int(" d ", int64)" (m < n ? ", " : "]"))
+        }
+        print cl
+        print vl
+    }
+    print "        case default"
+    print "            allocate (constants(0), values(0))"
+    print "        end select"
+    print "    end subroutine user_option_constants"
     print ""
     print "    function repr_logical(v) result(s)"
     print "        logical, intent(in) :: v"

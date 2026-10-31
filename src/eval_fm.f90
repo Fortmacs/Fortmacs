@@ -53,13 +53,13 @@ module eval_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_VOID_FUNCTION
     use lisp_fm, only: value_type, command_proc, symbols, xsymbol, vtag, V_NULL, V_NAME
     use handle_fm, only: handle_type
-    use callint_fm, only: funcall, current_prefix_arg
+    use callint_fm, only: current_prefix_arg
     use buffer_fm, only: buffers, cur
     use minibuf_table_fm, only: capf_data_type
     implicit none(type, external)
     private
 
-    public :: funcall_noargs, kill_local_hooks, hook_error_proc
+    public :: kill_local_hooks, hook_error_proc
     public :: change_function, after_change_function, position_function, region_function, region_entry_type
     public :: string_function, string_filter_function, capf_function, capf_entry_type, until_success_function
     public :: overlay_change_function, call_property_function, call_overlay_change_function
@@ -454,19 +454,6 @@ module eval_fm
     integer :: n_property_functions = 0
 
 contains
-
-    !> Call function FN with no arguments (and no prefix argument).
-    !> Port of eval.c:funcall_nil.
-    recursive subroutine funcall_noargs(fn, status)
-        type(value_type), intent(in) :: fn
-        type(status_type), intent(out) :: status
-        type(value_type) :: saved
-
-        saved = current_prefix_arg
-        current_prefix_arg = value_type()
-        call funcall(fn, status)
-        current_prefix_arg = saved
-    end subroutine funcall_noargs
 
     ! ------------------------------------------------------------------
     ! Entries

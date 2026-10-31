@@ -42,7 +42,7 @@ module vc_git_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, t_value, make_string, make_list, xfixnum, vtag, V_INTEGER
+    use lisp_fm, only: value_type, make_list, xfixnum, vtag, V_INTEGER
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, kill_buffer, &
                          generate_new_buffer_name, erase_buffer, is_buffer_live
     use editfns_fm, only: point, goto_char, point_min, point_max, buffer_string, is_bol, is_bob, pos_eol, &
@@ -418,15 +418,15 @@ contains
         allocate (argv(size(all)), envv(size(env)))
 
         do k = 1, size(all)
-            argv(k) = make_string(all(k)%s)
+            argv(k) = value_type(text=all(k)%s)
         end do
 
         do k = 1, size(env)
-            envv(k) = make_string(env(k)%s)
+            envv(k) = value_type(text=env(k)%s)
         end do
 
         if (to_buffer) then
-            call call_process(vc_git_program, result, status, destination=t_value(), args=make_list(argv), &
+            call call_process(vc_git_program, result, status, destination=value_type(.true.), args=make_list(argv), &
                               error_file="/dev/null", environment=make_list(envv))
         else
             call call_process(vc_git_program, result, status, args=make_list(argv), environment=make_list(envv))
@@ -1525,8 +1525,7 @@ contains
         use vc_fm, only: vc_log_view_type, VC_LOG_VIEW_WITH_DIFF
         use vc_hooks_fm, only: vc_log_limit_type, VC_LIMIT_NUMBER, VC_LIMIT_REVISION
         use fileio_fm, only: is_file_directory
-        use lisp_fm, only: value_type, t_value
-        use lread_fm, only: sym
+        use lisp_fm, only: value_type
         use data_fm, only: symbol_value, set
         type(vc_string_type), intent(in) :: files(:)
         type(handle_type), intent(in) :: buffer
@@ -1549,8 +1548,8 @@ contains
         if (.not. status%ok()) return
         ! If the buffer exists from a previous invocation it might be
         ! read-only.
-        call symbol_value(sym("inhibit_read_only"), saved, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         ! In some parts of Git's revision and revision range
         ! notation, an empty string is equivalent to "HEAD", but not
         ! everywhere.  For simplicity we'll always be explicit.
@@ -1595,7 +1594,7 @@ contains
         call push(flags, "--")
         call vc_git_command(VC_OKSTATUS_ASYNC, files, flags, status, buffer=buffer)
         call set_buffer(old, st)
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
     end subroutine vc_git_print_log
 
     !> Major mode for Git logs.  Port of vc-git.el:vc-git-log-view-mode.

@@ -731,11 +731,11 @@ contains
         if (present(buffer)) then
             destination = make_buffer_ref(buffer)
         else
-            destination = t_value()
+            destination = value_type(.true.)
         end if
 
         call call_process(shell_program(), result, status, destination=destination, &
-                          args=list(make_string(shell_switch()), make_string(command)), &
+                          args=list(value_type(text=shell_switch()), value_type(text=command)), &
                           error_file=error_file)
     end subroutine call_process_shell_command
 
@@ -958,11 +958,11 @@ contains
 
             if (len(error_file) > 0) then
                 call call_process_region(shell_program(), exit_value, cst, point_min(), point_max(), .true., &
-                                         t_value(), list(make_string(shell_switch()), make_string(command)), &
+                                         value_type(.true.), list(value_type(text=shell_switch()), value_type(text=command)), &
                                          error_file)
             else
                 call call_process_region(shell_program(), exit_value, cst, point_min(), point_max(), .true., &
-                                         t_value(), list(make_string(shell_switch()), make_string(command)))
+                                         value_type(.true.), list(value_type(text=shell_switch()), value_type(text=command)))
             end if
         else
             ! Clear the output buffer, then run the command with output
@@ -1070,15 +1070,15 @@ contains
         if (present(buffer)) then
             destination = make_buffer_ref(buffer)
         else
-            destination = t_value()
+            destination = value_type(.true.)
         end if
 
         if (len(error_file) > 0) then
             call call_process_region(shell_program(), result, status, start, end, delete, destination, &
-                                     list(make_string(shell_switch()), make_string(command)), error_file)
+                                     list(value_type(text=shell_switch()), value_type(text=command)), error_file)
         else
             call call_process_region(shell_program(), result, status, start, end, delete, destination, &
-                                     list(make_string(shell_switch()), make_string(command)))
+                                     list(value_type(text=shell_switch()), value_type(text=command)))
         end if
     end subroutine call_shell_region
 

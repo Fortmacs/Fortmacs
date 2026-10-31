@@ -41,8 +41,7 @@ module test_editfns_fm
     use buffer_fm, only: buffers, cur, transient_mark_mode
     use callint_fm, only: mark_even_if_inactive
     use error_fm, only: FM_MARK_INACTIVE
-    use lisp_fm, only: list, t_value
-    use lread_fm, only: sym
+    use lisp_fm, only: list, value_type
     use textprop_fm, only: add_text_properties, put_text_property, get_text_property
     use lisp_fm, only: value_type
     use data_fm, only: value_eq
@@ -315,13 +314,13 @@ contains
 
         call enter("te-subst", h, old)
         call insert("a"//char(9)//"b"//char(9)//"c", st)
-        call put_text_property(2_int64, 3_int64, sym("face"), sym("bold"), st)
+        call put_text_property(2_int64, 3_int64, value_type(name="face"), value_type(name="bold"), st)
         call goto_char(3_int64)
         call subst_char_in_region(6_int64, 1_int64, 9, 32, st)
         call check(error, st%ok() .and. buffer_string() == "a b c" .and. point() == 3, "subst: "//buffer_string())
         if (allocated(error)) return
-        call get_text_property(2_int64, sym("face"), v, st)
-        call check(error, value_eq(v, sym("bold")), "property kept")
+        call get_text_property(2_int64, value_type(name="face"), v, st)
+        call check(error, value_eq(v, value_type(name="bold")), "property kept")
         if (allocated(error)) return
         call subst_char_in_region(1_int64, 9_int64, 32, 95, st)
         call check(error, st%code == FM_ARGS_OUT_OF_RANGE .and. format_error(st) == "Args out of range: 1, 9", &
@@ -425,7 +424,7 @@ contains
 
         call enter("te-fields", h, old)
         call insert("foobarzot", st)
-        call add_text_properties(4_int64, 7_int64, list(sym("field"), sym("bar")), changed, st)
+        call add_text_properties(4_int64, 7_int64, list(value_type(name="field"), value_type(name="bar")), changed, st)
         call goto_char(point_min())
         call check(error, field_beginning(point(), .false.) == point_min() .and. &
                    field_end(point(), .false.) == 4)
@@ -455,8 +454,9 @@ contains
         call enter("te-prompt", h, old)
         call insert("Find file: ", st)
         call add_text_properties(1_int64, point(), &
-                                 list(sym("field"), t_value(), sym("front_sticky"), t_value(), &
-                                      sym("rear_nonsticky"), t_value()), changed, st)
+                                 list(value_type(name="field"), value_type(.true.), value_type(name="front_sticky"), &
+                                      value_type(.true.), &
+                                      value_type(name="rear_nonsticky"), value_type(.true.)), changed, st)
         call insert("/tmp/x", st)
         call check(error, line_beginning_position() == 12, "C-a stops after the prompt")
         if (allocated(error)) return

@@ -49,7 +49,7 @@ module fns_fm
     end interface
 
     public :: value_predicate
-    public :: value_equal, length, nth, nthcdr, memq, member
+    public :: value_equal
     public :: is_string_less, is_string_greater, compare_strings, COMPARE_EQUAL, schars, substring
 
     !> The value of `compare_strings' for strings that match (t).
@@ -168,101 +168,6 @@ contains
             ! Nothing to do for other values.
         end select
     end function atom_equal
-
-    !> Elements of a list, or characters of a string.
-    !> Port of fns.c:Flength (lists and strings).
-    subroutine length(sequence, n, status)
-        type(value_type), intent(in) :: sequence
-        integer(int64), intent(out) :: n
-        type(status_type), intent(out) :: status
-        type(status_type) :: st
-
-        n = 0
-
-        select case (vtag(sequence))
-        case (V_NULL)
-            n = 0
-        case (V_ARRAY)
-            n = list_length(sequence)
-        case (V_STRING)
-            call multibyte_chars_in_text(sequence%a(1)%s, n, st)
-            if (.not. st%ok()) n = len(sequence%a(1)%s, kind=int64)
-        case default
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array or character(len=*)")
-        end select
-    end subroutine length
-
-    !> The `n'th element (0-based) of `list', or nil.  Port of fns.c:Fnth.
-    subroutine nth(n, list, v, status)
-        integer(int64), intent(in) :: n
-        type(value_type), intent(in) :: list
-        type(value_type), intent(out) :: v
-        type(status_type), intent(out) :: status
-
-        select case (vtag(list))
-        case (V_NULL)
-        case (V_ARRAY)
-            v = list_elt(list, max(n, 0_int64) + 1)
-        case default
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array")
-        end select
-    end subroutine nth
-
-    !> `list' without its first `n' elements.  Port of fns.c:Fnthcdr.
-    subroutine nthcdr(n, list, v, status)
-        integer(int64), intent(in) :: n
-        type(value_type), intent(in) :: list
-        type(value_type), intent(out) :: v
-        type(status_type), intent(out) :: status
-
-        if (n <= 0) then
-            v = list
-            return
-        end if
-
-        select case (vtag(list))
-        case (V_NULL)
-        case (V_ARRAY)
-            v = list_tail(list, n)
-        case default
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array")
-        end select
-    end subroutine nthcdr
-
-    !> The tail of `list' starting with an element `eq' to `elt', or nil.
-    !> Port of fns.c:Fmemq.
-    function memq(elt, list) result(tail)
-        type(value_type), intent(in) :: elt, list
-        type(value_type) :: tail
-        type(value_type), allocatable :: elems(:)
-        integer(int64) :: k
-
-        call list_elements(list, elems)
-
-        do k = 1, size(elems, kind=int64)
-            if (value_eq(elems(k), elt)) then
-                tail = list_tail(list, k - 1)
-                return
-            end if
-        end do
-    end function memq
-
-    !> Like `memq', comparing with `equal'.  Port of fns.c:Fmember.
-    function member(elt, list) result(tail)
-        type(value_type), intent(in) :: elt, list
-        type(value_type) :: tail
-        type(value_type), allocatable :: elems(:)
-        integer(int64) :: k
-
-        call list_elements(list, elems)
-
-        do k = 1, size(elems, kind=int64)
-            if (value_equal(elems(k), elt)) then
-                tail = list_tail(list, k - 1)
-                return
-            end if
-        end do
-    end function member
 
     !> Text of a string, or the name of a symbol; `ok' false otherwise.
     !> Not a port.

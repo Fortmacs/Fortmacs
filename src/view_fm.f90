@@ -41,8 +41,7 @@ module view_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_ARGS_OUT_OF_RANGE, format_message
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum, make_string, list
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list
     use data_fm, only: add_local_variables_killer
     use eval_fm, only: hook_type, change_major_mode_hook
     use buffer_fm, only: buffers, cur, current_buffer, is_buffer_live, resolve_buffer, buffer_handle, &
@@ -929,7 +928,7 @@ contains
     subroutine view_recenter()
         type(status_type) :: st
 
-        call recenter(list(make_fixnum(1_int64)), .false., st)
+        call recenter(list(value_type(1_int64)), .false., st)
     end subroutine view_recenter
 
     !> If LINES (HAS_LINES .false. for none) is absent, 0, or larger than
@@ -1087,7 +1086,7 @@ contains
         if (maxdefault .and. has_lines .and. lines > view_window_size()) has_lines = .false.
 
         if (has_lines) then
-            arg = make_fixnum(lines)
+            arg = value_type(lines)
         else
             arg = value_type()
         end if
@@ -1151,7 +1150,7 @@ contains
         visible = is_pos_visible_in_window(point_max(), selected_window())
         p = point()
         call goto_char(point_max())
-        call recenter(make_fixnum(-1_int64), .false., status)
+        call recenter(value_type(-1_int64), .false., status)
         if (visible) call goto_char(p)
     end subroutine view_scroll_to_buffer_end
 

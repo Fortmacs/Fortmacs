@@ -66,9 +66,8 @@ module bookmark_fm
     use error_fm, only: status_type, set_error, condition_matches, FM_GENERIC_ERROR, FM_USER_ERROR, &
                         FM_FILE_ERROR, FM_BOOKMARK_ERROR_NO_FILENAME, format_message
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_string, make_list, t_value, vtag, V_INTEGER, V_ARRAY
-    use lread_fm, only: sym
-    use data_fm, only: add_local_variables_killer
+    use lisp_fm, only: value_type, make_list, vtag, V_INTEGER, V_ARRAY
+    use data_fm, only: add_local_variables_killer, history_setting, forward_setting
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes
     use commands_fm, only: commands
@@ -104,7 +103,7 @@ module bookmark_fm
     use minibuf_table_fm, only: completion_table_type, TABLE_LIST
     use minibuffer_fm, only: completing_read, read_file_name, REQUIRE_MATCH_OTHER, REQUIRE_MATCH_CONFIRM
     use fns_fm, only: read_yes_or_no
-    use subr_fm, only: add_to_history, defvar_nil, read_y_or_n, make_progress_reporter, progress_reporter_done, &
+    use subr_fm, only: add_to_history, read_y_or_n, make_progress_reporter, progress_reporter_done, &
                        progress_reporter_type
     use dispnew_fm, only: ding
     use help_fm, only: substitute_command_keys
@@ -487,6 +486,10 @@ module bookmark_fm
     logical :: watch_asked_known = .false., watch_asked_nil = .false.
     integer(int64) :: watch_asked_sec = 0
     integer(int32) :: watch_asked_nsec = 0
+
+    !> The history list for bookmark functions.  Port of bookmark.el
+    !> bookmark-history.
+    type(history_setting), target, public :: bookmark_history = history_setting(name="bookmark_history")
 
 contains
 
@@ -997,7 +1000,7 @@ contains
         allocate (names(size(bookmark_table)))
 
         do k = 1, size(bookmark_table)
-            names(k) = make_string(bookmark_name_from_full_record(bookmark_table(k)))
+            names(k) = value_type(text=bookmark_name_from_full_record(bookmark_table(k)))
         end do
 
         table%kind = TABLE_LIST
@@ -2569,7 +2572,7 @@ contains
 
     ! Whether prefix argument ARG is (16), as C-u C-u makes it.  Not a port.
     logical function prefix_is_16(arg)
-        use lisp_fm, only: xfixnum, list_elements
+        use lisp_fm, only: xfixnum, list_elements, value_type
         type(value_type), intent(in) :: arg
         type(value_type), allocatable :: elts(:)
 
@@ -2695,12 +2698,12 @@ contains
         integer :: count
 
         found_name = bookmark_name_from_full_record(full_record)
-        if (.not. member(found_name)) return
+        if (.not. is_name_taken(found_name)) return
         ! We've got a conflict, so generate a new name
         count = 2
         new_name = found_name
 
-        do while (member(new_name))
+        do while (is_name_taken(new_name))
             write (buf, "(i0)") count
             new_name = found_name//"<"//trim(buf)//">"
             count = count + 1
@@ -2710,19 +2713,19 @@ contains
 
     contains
 
-        logical function member(s)
+        logical function is_name_taken(s)
             character(len=*), intent(in) :: s
             integer :: k
 
-            member = .false.
+            is_name_taken = .false.
 
             do k = 1, size(names)
                 if (same(names(k)%s, s)) then
-                    member = .true.
+                    is_name_taken = .true.
                     return
                 end if
             end do
-        end function member
+        end function is_name_taken
     end subroutine bookmark_maybe_rename
 
     !> Load bookmarks from FILE (which must be in bookmark format).
@@ -3883,7 +3886,7 @@ contains
         use data_fm, only: value_eq
         type(handle_type), intent(in) :: ov
 
-        is_bookmark_overlay = value_eq(overlay_get(ov, "category"), sym("bookmark"))
+        is_bookmark_overlay = value_eq(overlay_get(ov, "category"), value_type(name="bookmark"))
     end function is_bookmark_overlay
 
     !> Apply a colorized overlay to the bookmarked location.
@@ -3897,14 +3900,14 @@ contains
 
         call make_overlay(bm, pos_bol(), pos_bol() + 1, st)
         if (.not. st%ok()) return
-        call overlay_put(bm, "category", sym("bookmark"), st)
-        call overlay_put(bm, "evaporate", t_value(), st)
-        spec(1) = sym("left_fringe")
-        spec(2) = sym("bookmark_fringe_mark")
-        spec(3) = sym("bookmark_face")
-        props(1) = sym("display")
+        call overlay_put(bm, "category", value_type(name="bookmark"), st)
+        call overlay_put(bm, "evaporate", value_type(.true.), st)
+        spec(1) = value_type(name="left_fringe")
+        spec(2) = value_type(name="bookmark_fringe_mark")
+        spec(3) = value_type(name="bookmark_face")
+        props(1) = value_type(name="display")
         props(2) = make_list(spec)
-        call overlay_put(bm, "before_string", propertize(make_string("x"), make_list(props)), st)
+        call overlay_put(bm, "before_string", propertize(value_type(text="x"), make_list(props)), st)
     end subroutine bookmark_set_fringe_mark
 
     !> Remove a bookmark's colorized overlay.
@@ -4031,7 +4034,7 @@ contains
             bookmark_edit_annotation_text_func => default_annotation_text
         end if
 
-        call defvar_nil("bookmark_history")
+        call forward_setting(bookmark_history)
         call add_local_variables_killer(kill_bookmark_locals)
         call define_faces()
         call major_modes%bookmark_edit_annotation_mode%define("bookmark_edit_annotation_mode", &

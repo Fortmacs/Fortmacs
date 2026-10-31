@@ -29,8 +29,7 @@ module test_help_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, t_value, make_fixnum, make_string, make_list
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, make_list
     use print_fm, only: fortran_repr
     use callint_fm, only: current_prefix_arg
     use files_fm, only: require_final_newline, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_NEVER
@@ -50,7 +49,7 @@ module test_help_fm
                        make_separator_line, register_keymap_name
     use xdisp_fm, only: message, message_nolog
     use keymap_fm, only: make_sparse_keymap, free_keymap
-    use lisp_fm, only: make_keymap_ref
+    use lisp_fm, only: make_keymap_ref, value_type
     use help_fns_fm, only: describe_function_1, describe_variable_text
     implicit none(type, external)
     private
@@ -442,7 +441,7 @@ contains
         call check(error, index(text, "Its value is indent_relative"//LF) > 0, text)
         if (allocated(error)) return
         ! A C-u prefix argument.
-        elems(1) = make_fixnum(4_int64)
+        elems(1) = value_type(4_int64)
         current_prefix_arg = make_list(elems)
         call describe_variable_text("current_prefix_arg", text, found)
         current_prefix_arg = value_type()
@@ -501,16 +500,16 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: elems(3)
 
-        call check(error, fortran_repr(value_type()) == ".false." .and. fortran_repr(t_value()) == ".true.")
+        call check(error, fortran_repr(value_type()) == ".false." .and. fortran_repr(value_type(.true.)) == ".true.")
         if (allocated(error)) return
-        call check(error, fortran_repr(make_fixnum(-12_int64)) == "-12", fortran_repr(make_fixnum(-12_int64)))
+        call check(error, fortran_repr(value_type(-12_int64)) == "-12", fortran_repr(value_type(-12_int64)))
         if (allocated(error)) return
-        call check(error, fortran_repr(make_string('say "hi"')) == '"say ""hi"""', fortran_repr(make_string('say "hi"')))
+        call check(error, fortran_repr(value_type(text='say "hi"')) == '"say ""hi"""', fortran_repr(value_type(text='say "hi"')))
         if (allocated(error)) return
-        call check(error, fortran_repr(sym("UPPER_CASE_YES")) == "UPPER_CASE_YES")
+        call check(error, fortran_repr(value_type(name="UPPER_CASE_YES")) == "UPPER_CASE_YES")
         if (allocated(error)) return
-        elems(1) = make_fixnum(1_int64)
-        elems(2) = make_string("a")
+        elems(1) = value_type(1_int64)
+        elems(2) = value_type(text="a")
         elems(3) = value_type()
         call check(error, fortran_repr(make_list(elems)) == '[1, "a", .false.]', fortran_repr(make_list(elems)))
     end subroutine test_fortran_repr
@@ -720,7 +719,7 @@ contains
         call make_sparse_keymap(map)
 
         do k = 1, size(keys)
-            call keymap_set(map, trim(keys(k)), sym(trim(defs(k))), st)
+            call keymap_set(map, trim(keys(k)), value_type(name=trim(defs(k))), st)
         end do
 
         call register_keymap_name("help_tests_test_keymap", map)
@@ -772,10 +771,10 @@ contains
         type(status_type) :: st
 
         call make_sparse_keymap(map)
-        call keymap_set(map, "C-a", sym("foo"), st)
-        call keymap_set(map, "C-b", sym("bar"), st)
+        call keymap_set(map, "C-a", value_type(name="foo"), st)
+        call keymap_set(map, "C-b", value_type(name="bar"), st)
         call make_sparse_keymap(s)
-        call keymap_set(s, "C-a", sym("baz"), st)
+        call keymap_set(s, "C-a", value_type(name="baz"), st)
         allocate (shadow(1))
         shadow(1) = make_keymap_ref(s)
     end subroutine shadow_maps
@@ -818,8 +817,8 @@ contains
         call fresh_scratch()
         allocate (none(0))
         call make_sparse_keymap(map)
-        call keymap_set(map, "C-a", sym("foo"), st)
-        call keymap_set(map, "C-b", sym("undefined"), st)
+        call keymap_set(map, "C-a", value_type(name="foo"), st)
+        call keymap_set(map, "C-b", value_type(name="undefined"), st)
         call check(error, map_tree_text(map, .true., none, .false.), &
                    LF//"Key             Binding"//LF//sep()//"C-a"//TAB//TAB//"foo"//LF)
         call free_keymap(map, st)
@@ -834,8 +833,8 @@ contains
         call fresh_scratch()
         allocate (none(0))
         call make_sparse_keymap(map)
-        call keymap_set(map, "C-a", sym("foo"), st)
-        call keymap_set(map, "C-b", sym("undefined"), st)
+        call keymap_set(map, "C-a", value_type(name="foo"), st)
+        call keymap_set(map, "C-b", value_type(name="undefined"), st)
         call check(error, map_tree_text(map, .false., none, .false.), &
                    LF//"Key             Binding"//LF//sep()//"C-a"//TAB//TAB//"foo"//LF//"C-b"//TAB//TAB//"undefined"//LF)
         call free_keymap(map, st)
@@ -853,13 +852,13 @@ contains
         call fresh_scratch()
         allocate (none(0))
         call make_sparse_keymap(map)
-        call keymap_set(map, "a", sym("self_insert_command"), st)
-        call keymap_set(map, "b", sym("self_insert_command"), st)
-        call keymap_set(map, "c", sym("self_insert_command"), st)
-        call keymap_set(map, "<f11>", sym("eleven"), st)
-        call keymap_set(map, "<f2>", sym("two"), st)
-        call keymap_set(map, "C-c C-x", sym("ccx"), st)
-        call keymap_set(map, "C-c <some-long-key-name>", sym("long"), st)
+        call keymap_set(map, "a", value_type(name="self_insert_command"), st)
+        call keymap_set(map, "b", value_type(name="self_insert_command"), st)
+        call keymap_set(map, "c", value_type(name="self_insert_command"), st)
+        call keymap_set(map, "<f11>", value_type(name="eleven"), st)
+        call keymap_set(map, "<f2>", value_type(name="two"), st)
+        call keymap_set(map, "C-c C-x", value_type(name="ccx"), st)
+        call keymap_set(map, "C-c <some-long-key-name>", value_type(name="long"), st)
         call check(error, map_tree_text(map, .true., none, .false.), &
                    LF//"Key             Binding"//LF//sep()//"a .. c"//TAB//TAB//"self_insert_command"//LF// &
                    "<f2>"//TAB//TAB//"two"//LF//"<f11>"//TAB//TAB//"eleven"//LF//LF// &
@@ -1076,7 +1075,7 @@ contains
 
         call fresh_scratch()
         call type_keys("C-h C-h SPC f")
-        ev(1) = sym("x")
+        ev(1) = value_type(name="x")
         call unread_command_events(ev)
         call discard_input()
         call type_keys("C-h C-h k C-f")

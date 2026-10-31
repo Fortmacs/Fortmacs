@@ -493,7 +493,7 @@ contains
 
     !> The index of the abbrev named ABBREV in TABLE, or 0 if such an
     !> abbrev is not defined.  Port of abbrev.el:abbrev--symbol.
-    integer function table_symbol(abbrev, table) result(k)
+    integer function table_name(abbrev, table) result(k)
         character(len=*), intent(in) :: abbrev
         type(abbrev_table_type), intent(in) :: table
         integer :: j
@@ -514,11 +514,11 @@ contains
         if (k > 0) then
             if (.not. allocated(table%abbrevs(k)%expansion)) k = 0
         end if
-    end function table_symbol
+    end function table_name
 
     !> abbrev-symbol over the tables TABLES.
     !> Port of abbrev.el:abbrev-symbol, in part.
-    subroutine symbol_in(abbrev, tables, result)
+    subroutine name_in(abbrev, tables, result)
         character(len=*), intent(in) :: abbrev
         type(abbrev_table_ref_type), allocatable, intent(inout) :: tables(:)
         type(abbrev_ref_type), intent(out) :: result
@@ -527,7 +527,7 @@ contains
 
         do while (size(tables) > 0)
             call pop_table(tables, table)
-            k = table_symbol(abbrev, table)
+            k = table_name(abbrev, table)
 
             if (k > 0) then
                 result%table => table
@@ -535,13 +535,13 @@ contains
                 return
             end if
         end do
-    end subroutine symbol_in
+    end subroutine name_in
 
     module procedure abbrev_name
     type(abbrev_table_ref_type), allocatable :: tables(:)
 
     call active_tables(tables, table)
-    call symbol_in(abbrev, tables, result)
+    call name_in(abbrev, tables, result)
     end procedure abbrev_name
 
     module procedure abbrev_expansion
@@ -617,7 +617,7 @@ contains
                 if (.not. status%ok()) return
                 ! Restore point.
                 call goto_char(pos)
-                call symbol_in(name, tables, sym)
+                call name_in(name, tables, sym)
                 wordstart = start
                 wordend = end
             end if
@@ -655,7 +655,7 @@ contains
             if (have) then
                 call buffer_substring(start, end, name, status)
                 if (.not. status%ok()) return
-                k = table_symbol(name, table)
+                k = table_name(name, table)
 
                 if (k > 0) then
                     enabled = .true.
@@ -1113,21 +1113,21 @@ contains
     end procedure list_abbrevs
 
     module procedure edit_abbrevs
-    character(len=:), allocatable :: table_name
+    character(len=:), allocatable :: local_name
     type(handle_type) :: buffer
     integer(int64) :: found
     type(status_type) :: st
     type(abbrev_table_type), pointer :: local_table
 
     local_table => local_abbrev_table()
-    table_name = abbrev_table_name(local_table)
+    local_name = abbrev_table_name(local_table)
     call prepare_abbrev_list_buffer(buffer, status)
     if (.not. status%ok()) return
     call switch_to_buffer("*Abbrevs*", status)
     if (.not. status%ok()) return
 
-    if (len(table_name) > 0) then
-        call search_forward("("//table_name//")"//LF//LF, found, st, noerror=SEARCH_NOERROR)
+    if (len(local_name) > 0) then
+        call search_forward("("//local_name//")"//LF//LF, found, st, noerror=SEARCH_NOERROR)
         if (found > 0) call goto_char(match_end(0, st))
     end if
     end procedure edit_abbrevs

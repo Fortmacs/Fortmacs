@@ -45,9 +45,7 @@ module tabulated_list_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_string, make_fixnum, make_list, xstring, xfixnum, &
-                       t_value, string_intervals, vtag, V_INTEGER, V_STRING
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, make_list, xstring, xfixnum, string_intervals, vtag, V_INTEGER, V_STRING
     use data_fm, only: add_local_variables_killer
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes
@@ -465,7 +463,7 @@ contains
         p = point()
         if (present(pos)) p = pos
         if (p < point_min() .or. p >= point_max()) return
-        call get_text_property(p, sym("tabulated_list_id"), v, st)
+        call get_text_property(p, value_type(name="tabulated_list_id"), v, st)
         if (st%ok() .and. vtag(v) == V_STRING) id = xstring(v)
     end function tabulated_list_get_id
 
@@ -498,7 +496,7 @@ contains
         p = point()
         if (present(pos)) p = pos
         if (p < point_min() .or. p >= point_max()) return
-        call get_text_property(p, sym("tabulated_list_entry"), v, st)
+        call get_text_property(p, value_type(name="tabulated_list_entry"), v, st)
         if (.not. st%ok() .or. vtag(v) /= V_INTEGER) return
         i = local_index(.false.)
         if (i == 0) return
@@ -1058,8 +1056,8 @@ contains
             end if
 
             ! (The entry's index for `tabulated_list_get_entry'.)
-            if (status%ok()) call put_text_property(int(before, int64), point(), sym("tabulated_list_entry"), &
-                                                    make_fixnum(int(i, int64)), status)
+            if (status%ok()) call put_text_property(int(before, int64), point(), value_type(name="tabulated_list_entry"), &
+                                                    value_type(int(i, int64)), status)
         end subroutine print_with_printer
     end subroutine tabulated_list_print
 
@@ -1103,8 +1101,8 @@ contains
         if (status%ok()) call insert(achar(10), status)
 
         if (status%ok()) then
-            props(1) = sym("tabulated_list_id")
-            props(2) = make_string(entry%id)
+            props(1) = value_type(name="tabulated_list_id")
+            props(2) = value_type(text=entry%id)
             call add_text_properties(beg, point(), make_list(props), changed, status)
         end if
 
@@ -1164,7 +1162,7 @@ contains
         width = format(n)%width
         pad_right = format(n)%pad_right
         right_align = format(n)%right_align
-        label = make_string(col_desc%text)
+        label = value_type(text=col_desc%text)
         label_width = int(string_width(col_desc%text))
         opoint = point()
         not_last_col = n < size(format)
@@ -1195,8 +1193,8 @@ contains
         end if
 
         if (len(col_desc%face) > 0) then
-            props(1) = sym("face")
-            props(2) = sym(col_desc%face)
+            props(1) = value_type(name="face")
+            props(2) = value_type(name=col_desc%face)
             label = propertize(label, make_list(props))
         end if
 
@@ -1212,7 +1210,8 @@ contains
             if (.not. status%ok()) return
         end if
 
-        call put_text_property(opoint, point(), sym("tabulated_list_column_name"), make_string(format(n)%name), status)
+        call put_text_property(opoint, point(), value_type(name="tabulated_list_column_name"), value_type(text=format(n)%name), &
+                               status)
 
     contains
 
@@ -1225,10 +1224,10 @@ contains
             beg = point()
             call insert(repeat(" ", max(0, count)), status)
             if (.not. status%ok() .or. count <= 0) return
-            spec(1) = sym("space")
-            spec(2) = sym(":align-to")
-            spec(3) = make_fixnum(int(column, int64))
-            align(1) = sym("display")
+            spec(1) = value_type(name="space")
+            spec(2) = value_type(name=":align-to")
+            spec(3) = value_type(int(column, int64))
+            align(1) = value_type(name="display")
             align(2) = make_list(spec)
             call put_text_property(beg, point(), align(1), align(2), status)
         end subroutine insert_spaces
@@ -1333,19 +1332,19 @@ contains
             return
         end if
 
-        call get_text_property(pos, sym("tabulated_list_id"), id, st)
-        call get_text_property(pos, sym("tabulated_list_entry"), entry_prop, st)
-        call get_text_property(pos, sym("tabulated_list_column_name"), v, st)
+        call get_text_property(pos, value_type(name="tabulated_list_id"), id, st)
+        call get_text_property(pos, value_type(name="tabulated_list_entry"), entry_prop, st)
+        call get_text_property(pos, value_type(name="tabulated_list_column_name"), v, st)
         found = .false.
         if (vtag(v) == V_STRING) found = same(xstring(v), name)
 
         do while (.not. found)
-            call next_single_property_change(pos, sym("tabulated_list_column_name"), next, found, st, eol)
+            call next_single_property_change(pos, value_type(name="tabulated_list_column_name"), next, found, st, eol)
             if (.not. found) next = eol
             pos = next
             found = .false.
             if (pos >= eol) exit
-            call get_text_property(pos, sym("tabulated_list_column_name"), v, st)
+            call get_text_property(pos, value_type(name="tabulated_list_column_name"), v, st)
             if (vtag(v) == V_STRING) found = same(xstring(v), name)
         end do
 
@@ -1353,7 +1352,7 @@ contains
         if (pos >= eol) return
         ro = buffers(cur)%read_only
         buffers(cur)%read_only = .false.
-        call next_single_property_change(pos, sym("tabulated_list_column_name"), next, found, st, eol)
+        call next_single_property_change(pos, value_type(name="tabulated_list_column_name"), next, found, st, eol)
         if (.not. found) next = eol
         call delete_region(pos, next, status)
 
@@ -1383,8 +1382,8 @@ contains
             change = .false.
             if (present(change_entry_data)) change = change_entry_data
             if (change) locals(k)%entries(e)%cols(c) = desc
-            if (status%ok()) call put_text_property(pos, point(), sym("tabulated_list_id"), id, status)
-            if (status%ok()) call put_text_property(pos, point(), sym("tabulated_list_entry"), entry_prop, status)
+            if (status%ok()) call put_text_property(pos, point(), value_type(name="tabulated_list_id"), id, status)
+            if (status%ok()) call put_text_property(pos, point(), value_type(name="tabulated_list_entry"), entry_prop, status)
             call goto_char(opoint)
         end if
 
@@ -1445,7 +1444,7 @@ contains
         if (present(n)) then
             name = format(n + 1)%name
         else
-            call get_text_property(point(), sym("tabulated_list_column_name"), v, st)
+            call get_text_property(point(), value_type(name="tabulated_list_column_name"), v, st)
             if (vtag(v) == V_STRING) name = xstring(v)
         end if
 
@@ -1607,7 +1606,7 @@ contains
         if (present(arg)) times = arg
 
         do i = 1, times
-            call next_single_property_change(point(), sym("tabulated_list_column_name"), next, found, st)
+            call next_single_property_change(point(), value_type(name="tabulated_list_column_name"), next, found, st)
             if (.not. found) next = point_max()
             if (next <= pos_eol()) call goto_char(next)
         end do
@@ -1634,7 +1633,7 @@ contains
         if (present(arg)) times = arg
 
         do i = 1, times
-            call previous_single_property_change(point(), sym("tabulated_list_column_name"), prev, found, st)
+            call previous_single_property_change(point(), value_type(name="tabulated_list_column_name"), prev, found, st)
             if (.not. found) prev = 1
             if (.not. (prev < pos_bol())) call goto_char(prev)
         end do

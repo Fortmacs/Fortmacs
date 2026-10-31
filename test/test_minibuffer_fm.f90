@@ -36,7 +36,7 @@ module test_minibuffer_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_string, make_list, list_length, list_elements, xstring
+    use lisp_fm, only: value_type, make_list, list_length, list_elements, xstring
     use buffer_fm, only: get_buffer_create, kill_buffer
     use minibuf_fm, only: completion_table_type, completion_list_table, completion_function_table, &
                           completion_ignore_case
@@ -99,7 +99,7 @@ contains
         allocate (elts(size(names)))
 
         do k = 1, size(names)
-            elts(k) = make_string(trim(names(k)))
+            elts(k) = value_type(text=trim(names(k)))
         end do
 
         table = completion_list_table(make_list(elts))

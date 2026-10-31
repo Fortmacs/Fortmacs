@@ -32,8 +32,7 @@ module ewoc_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle, slot_table_type
-    use lisp_fm, only: value_type, t_value
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type
     use data_fm, only: symbol_value, set
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, is_buffer_live
     use marker_fm, only: copy_marker_at, marker_position, set_marker, free_marker
@@ -279,7 +278,7 @@ contains
                 call insert(e%nodes(node)%hf(k)%text, st)
 
                 if (len(e%nodes(node)%hf(k)%face) > 0 .and. point() > beg) then
-                    call put_text_property(beg, point(), sym("face"), sym(e%nodes(node)%hf(k)%face), st)
+                    call put_text_property(beg, point(), value_type(name="face"), value_type(name=e%nodes(node)%hf(k)%face), st)
                 end if
             end do
             ! The header and footer are always separated by a newline
@@ -331,9 +330,9 @@ contains
         m = mpos(ewocs(i), node)
         r = ewocs(i)%nodes(node)%right
         end = mpos(ewocs(i), r)
-        call symbol_value(sym("inhibit_read_only"), saved, st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
         if (.not. st%ok()) saved = value_type()
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         opoint = point()
         at_end = opoint == end
         has_offset = .false.
@@ -363,7 +362,7 @@ contains
             call goto_char(min(m + offset, end - 1))
         end if
 
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
     end subroutine refresh_node
 
     ! with-current-buffer of an ewoc's buffer: make it current, keeping
@@ -710,9 +709,9 @@ contains
         i = slot(ewoc)
         if (i == 0) return
         call enter_buffer(i, old)
-        call symbol_value(sym("inhibit_read_only"), saved, st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
         if (.not. st%ok()) saved = value_type()
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         allocate (goodbye(ewocs(i)%n))
         n = 0
         node = node_nth(ewocs(i), 1)
@@ -729,7 +728,7 @@ contains
 
         call leave_buffer(old)
         call ewoc_delete(ewoc, goodbye(n:1:-1))
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
     end subroutine ewoc_filter
 
     !> Return the node that POS (a buffer position) is within.
@@ -951,9 +950,9 @@ contains
         if (i == 0) return
         call enter_buffer(i, old)
         footer = ewocs(i)%footer
-        call symbol_value(sym("inhibit_read_only"), saved, st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
         if (.not. st%ok()) saved = value_type()
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         call delete_region(mpos(ewocs(i), node_nth(ewocs(i), 1)), mpos(ewocs(i), footer), st)
         call goto_char(mpos(ewocs(i), footer))
         node = node_nth(ewocs(i), 1)
@@ -964,7 +963,7 @@ contains
             node = node_next(ewocs(i), node)
         end do
 
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
         call set_marker(ewocs(i)%nodes(footer)%start_marker, point(), st)
         call leave_buffer(old)
     end subroutine ewoc_refresh

@@ -78,7 +78,7 @@ contains
         ! behavior.
         if (.not. no_exec) then
             macro = last_kbd_macro
-            call execute_kbd_macro(macro, make_fixnum(1_int64), status)
+            call execute_kbd_macro(macro, value_type(1_int64), status)
             if (.not. status%ok()) return
         end if
 
@@ -120,9 +120,9 @@ contains
     macro = last_kbd_macro
 
     if (n == 0) then
-        call execute_kbd_macro(macro, make_fixnum(0_int64), status, loopfunc)
+        call execute_kbd_macro(macro, value_type(0_int64), status, loopfunc)
     else if (n > 1) then
-        call execute_kbd_macro(macro, make_fixnum(n - 1), status, loopfunc)
+        call execute_kbd_macro(macro, value_type(n - 1), status, loopfunc)
     end if
     end procedure end_kbd_macro
 
@@ -223,16 +223,16 @@ contains
         do while (pos <= len(s, kind=int64))
             call string_char_and_length(s, pos, ch, length)
             n = n + 1
-            evs(n) = make_fixnum(int(ch, int64))
+            evs(n) = value_type(int(ch, int64))
             pos = pos + length
         end do
 
         evs = evs(1:n)
     end subroutine macro_events_of
 
-    module procedure execute_kbd_macro_vector
+    module procedure execute_kbd_macro_events
     call execute_events(macro, .false., count, status, loopfunc)
-    end procedure execute_kbd_macro_vector
+    end procedure execute_kbd_macro_events
 
     !> Execute the events FINAL (of a string macro if IS_STRING) COUNT
     !> times.  Port of macros.c:Fexecute_kbd_macro, in part (its body), and
@@ -334,7 +334,7 @@ contains
     recursive subroutine cmd_end_kbd_macro(status)
         type(status_type), intent(out) :: status
 
-        call end_kbd_macro(make_fixnum(prefix_numeric_value(current_prefix_arg)), status)
+        call end_kbd_macro(value_type(prefix_numeric_value(current_prefix_arg)), status)
     end subroutine cmd_end_kbd_macro
 
     !> Call the last keyboard macro that you defined with \[start_kbd_macro].
@@ -344,7 +344,7 @@ contains
     recursive subroutine cmd_call_last_kbd_macro(status)
         type(status_type), intent(out) :: status
 
-        call call_last_kbd_macro(make_fixnum(prefix_numeric_value(current_prefix_arg)), status)
+        call call_last_kbd_macro(value_type(prefix_numeric_value(current_prefix_arg)), status)
     end subroutine cmd_call_last_kbd_macro
 
     module procedure syms_of_macros

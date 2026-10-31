@@ -47,7 +47,7 @@ submodule(window_fm) window_cmds_fm
     use marker_fm, only: marker_position
     use frame_fm, only: selected_frame, ensure_frame_windows
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use lisp_fm, only: make_string, list
+    use lisp_fm, only: list, value_type
     use minibuf_fm, only: completion_list_table
     use minibuffer_fm, only: read_buffer, completing_read, REQUIRE_MATCH_YES, REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION
     use files_fm, only: save_buffer
@@ -679,8 +679,8 @@ contains
         call resolve_buffer(buffer, bi, status)
         if (.not. status%ok()) return
         call completing_read("Buffer "//buffers(bi)%name//" modified; kill anyway? (yes, no, save and then kill) ", &
-                             completion_list_table(list(make_string("yes"), make_string("no"), &
-                                                        make_string("save and then kill"))), &
+                             completion_list_table(list(value_type(text="yes"), value_type(text="no"), &
+                                                        value_type(text="save and then kill"))), &
                              answer, status, require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         if (answer == "no") return

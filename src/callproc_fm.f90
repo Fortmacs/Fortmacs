@@ -25,8 +25,8 @@
 !> error together) goes into a buffer or is discarded; the result is its
 !> exit status, or a description of the signal that killed it.
 !>
-!>     call call_process("ls", result, status, destination=t_value(), &
-!>                       args=list(make_string("-l")))
+!>     call call_process("ls", result, status, destination=value_type(.true.), &
+!>                       args=list(value_type(text="-l")))
 !>
 !> Standard error can go to a file of its own (DESTINATION's
 !> (REAL-DESTINATION ERROR-FILE) form, as `error_file').  Not ported yet:
@@ -41,9 +41,8 @@ module callproc_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum, make_string, xfixnum, &
-                       xstring, xhandle, vtag, V_NAME, SYM_T, xsymbol, &
-                       list_elements, V_INTEGER, V_STRING, V_BUFFER
+    use lisp_fm, only: value_type, xfixnum, xstring, xhandle, vtag, V_NAME, SYM_T, xsymbol, list_elements, V_INTEGER, &
+                       V_STRING, V_BUFFER
     use data_fm, only: check_string, string_setting
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, BEG, &
                          is_buffer_live
@@ -291,9 +290,9 @@ contains
         end if
 
         if (sig /= 0) then
-            result = make_string(emacs_strsignal(sig))
+            result = value_type(text=emacs_strsignal(sig))
         else
-            result = make_fixnum(int(code, int64))
+            result = value_type(int(code, int64))
         end if
     end subroutine call_process
 

@@ -113,7 +113,7 @@ module character_fm
               str_as_multibyte, count_size_as_multibyte, str_to_multibyte, &
               str_as_unibyte
     public :: char_resolve_modifier_mask
-    public :: char_variation_selector_p, is_char_surrogate, char_hexdigit
+    public :: variation_selector_number, is_char_surrogate, char_hexdigit
     public :: unicode_category, is_alphabetic, is_alphanumeric, is_graphic, is_printable, is_blank
 
     !> Unicode general categories (character.h unicode_category_t).
@@ -130,14 +130,6 @@ module character_fm
                                   UNICODE_CATEGORY_CO = 29, UNICODE_CATEGORY_CN = 30
 
 contains
-
-    !> Byte value (0..255) at position `i' of `str'.  Not a port.
-    pure integer(int32) function byte_at(str, i)
-        character(len=*), intent(in) :: str
-        integer(int64), intent(in) :: i
-
-        byte_at = ichar(str(i:i), kind=int32)
-    end function byte_at
 
     !> Port of lisp.h:ASCII_CHAR_P.
     elemental logical function is_ascii_char(c)
@@ -402,7 +394,7 @@ contains
         multibyte_length = 0
         pend = len(str, kind=int64) + 1
         if (pos >= pend) return
-        c = byte_at(str, pos)
+        c = ichar(str(pos:pos), kind=int32)
 
         if (c < int(z'80', int32)) then
             multibyte_length = 1
@@ -410,7 +402,7 @@ contains
         end if
 
         if (pos + 1 >= pend) return
-        d = byte_at(str, pos + 1)
+        d = ichar(str(pos + 1:pos + 1), kind=int32)
         w = ishft(iand(d, int(z'C0', int32)), 2) + c
         lo2 = int(z'2C2', int32)
         if (allow_8bit) lo2 = int(z'2C0', int32)
@@ -421,7 +413,7 @@ contains
         end if
 
         if (pos + 2 >= pend) return
-        e = byte_at(str, pos + 2)
+        e = ichar(str(pos + 2:pos + 2), kind=int32)
         w = w + ishft(iand(e, int(z'C0', int32)), 4)
         w1 = ior(w, ishft(iand(d, int(z'20', int32)), -2))
 
@@ -431,7 +423,7 @@ contains
         end if
 
         if (pos + 3 >= pend) return
-        f = byte_at(str, pos + 3)
+        f = ichar(str(pos + 3:pos + 3), kind=int32)
         w = w + ishft(iand(f, int(z'C0', int32)), 6)
         w2 = ior(w, ishft(iand(d, int(z'30', int32)), -3))
 
@@ -441,7 +433,7 @@ contains
         end if
 
         if (pos + 4 >= pend) return
-        lw = int(w, int64) + ishft(int(iand(byte_at(str, pos + 4), int(z'C0', int32)), int64), 8)
+        lw = int(w, int64) + ishft(int(iand(ichar(str(pos + 4:pos + 4), kind=int32), int(z'C0', int32)), int64), 8)
         w3 = ishft(lw, 24) + ishft(int(d, int64), 16) + ishft(int(e, int64), 8) + int(f, int64)
 
         if (int(z'AAF8888080', int64) <= w3 .and. w3 <= int(z'AAF88FBFBD', int64)) then
@@ -464,7 +456,7 @@ contains
         do n = 1, MAX_MULTIBYTE_LENGTH
             if (pos - n < 1) exit
             raw_prev_char_len = n
-            if (is_char_head(byte_at(str, pos - n))) return
+            if (is_char_head(ichar(str(pos - n:pos - n), kind=int32))) return
         end do
     end function raw_prev_char_len
 
@@ -477,7 +469,7 @@ contains
         integer(int32), intent(out) :: ch, length
         integer(int32) :: c, d
 
-        c = byte_at(str, pos)
+        c = ichar(str(pos:pos), kind=int32)
 
         if (iand(c, int(z'80', int32)) == 0) then
             length = 1
@@ -485,7 +477,7 @@ contains
             return
         end if
 
-        d = ishft(c, 6) + byte_at(str, pos + 1) - (ishft(int(z'C0', int32), 6) + int(z'80', int32))
+        d = ishft(c, 6) + ichar(str(pos + 1:pos + 1), kind=int32) - (ishft(int(z'C0', int32), 6) + int(z'80', int32))
 
         if (iand(c, int(z'20', int32)) == 0) then
             length = 2
@@ -494,7 +486,7 @@ contains
             return
         end if
 
-        d = ishft(d, 6) + byte_at(str, pos + 2) - (ishft(int(z'20', int32), 12) + int(z'80', int32))
+        d = ishft(d, 6) + ichar(str(pos + 2:pos + 2), kind=int32) - (ishft(int(z'20', int32), 12) + int(z'80', int32))
 
         if (iand(c, int(z'10', int32)) == 0) then
             length = 3
@@ -502,7 +494,7 @@ contains
             return
         end if
 
-        d = ishft(d, 6) + byte_at(str, pos + 3) - (ishft(int(z'10', int32), 18) + int(z'80', int32))
+        d = ishft(d, 6) + ichar(str(pos + 3:pos + 3), kind=int32) - (ishft(int(z'10', int32), 18) + int(z'80', int32))
 
         if (iand(c, int(z'08', int32)) == 0) then
             length = 4
@@ -510,7 +502,7 @@ contains
             return
         end if
 
-        d = ishft(d, 6) + byte_at(str, pos + 4) - (ishft(int(z'08', int32), 24) + int(z'80', int32))
+        d = ishft(d, 6) + ichar(str(pos + 4:pos + 4), kind=int32) - (ishft(int(z'08', int32), 24) + int(z'80', int32))
         length = 5
         ch = d
     end subroutine string_char_and_length
@@ -604,7 +596,7 @@ contains
                 p = p + n
                 q = q + n
             else
-                b = byte_at(str, p)
+                b = ichar(str(p:p), kind=int32)
                 out(q:q) = char(ior(int(z'C0', int32), iand(ishft(b, -6), 1_int32)))
                 out(q + 1:q + 1) = char(ior(int(z'80', int32), iand(b, int(z'3F', int32))))
                 p = p + 1
@@ -622,7 +614,7 @@ contains
         count_size_as_multibyte = len(str, kind=int64)
 
         do i = 1, len(str, kind=int64)
-            if (byte_at(str, i) > 127) count_size_as_multibyte = count_size_as_multibyte + 1
+            if (ichar(str(i:i), kind=int32) > 127) count_size_as_multibyte = count_size_as_multibyte + 1
         end do
     end function count_size_as_multibyte
 
@@ -639,7 +631,7 @@ contains
         q = 1
 
         do i = 1, len(src, kind=int64)
-            b = byte_at(src, i)
+            b = ichar(src(i:i), kind=int32)
 
             if (b <= 127) then
                 dst(q:q) = src(i:i)
@@ -665,7 +657,7 @@ contains
         q = 0
 
         do while (p <= len(str, kind=int64))
-            c = byte_at(str, p)
+            c = ichar(str(p:p), kind=int32)
 
             if (is_char_byte8_head(c)) then
                 call string_char_and_length(str, p, c, n)
@@ -727,21 +719,21 @@ contains
 
     !> Index (1..256) of variation selector `c', or 0.
     !> Port of character.h:CHAR_VARIATION_SELECTOR_P.
-    elemental integer(int32) function char_variation_selector_p(c)
+    elemental integer(int32) function variation_selector_number(c)
         integer(int32), intent(in) :: c
 
         if (c < int(z'FE00', int32)) then
-            char_variation_selector_p = 0
+            variation_selector_number = 0
         else if (c <= int(z'FE0F', int32)) then
-            char_variation_selector_p = c - int(z'FE00', int32) + 1
+            variation_selector_number = c - int(z'FE00', int32) + 1
         else if (c < int(z'E0100', int32)) then
-            char_variation_selector_p = 0
+            variation_selector_number = 0
         else if (c <= int(z'E01EF', int32)) then
-            char_variation_selector_p = c - int(z'E0100', int32) + 17
+            variation_selector_number = c - int(z'E0100', int32) + 17
         else
-            char_variation_selector_p = 0
+            variation_selector_number = 0
         end if
-    end function char_variation_selector_p
+    end function variation_selector_number
 
     !> Port of character.h:char_surrogate_p.
     elemental logical function is_char_surrogate(c)

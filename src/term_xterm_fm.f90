@@ -36,7 +36,7 @@ module term_xterm_fm
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum, list
+    use lisp_fm, only: value_type, list
     use character_fm, only: CHAR_SHIFT, CHAR_META, CHAR_CTL
     use keymap_fm, only: make_sparse_keymap, define_key, set_keymap_parent, &
                          is_keymap_live, apply_modifiers
@@ -126,7 +126,7 @@ contains
         allocate (key(len(seq)))
 
         do k = 1, len(seq)
-            key(k) = make_fixnum(int(iachar(seq(k:k)), int64))
+            key(k) = value_type(int(iachar(seq(k:k)), int64))
         end do
 
         call define_key(map, key, list(ev), status)
@@ -287,7 +287,7 @@ contains
         integer(int64) :: bits
 
         do k = 1, size(ctl_chars)
-            call other_key(5, ctl_chars(k), make_fixnum(M_CTL + ctl_chars(k)))
+            call other_key(5, ctl_chars(k), value_type(M_CTL + ctl_chars(k)))
         end do
 
         do j = 1, 2
@@ -297,7 +297,7 @@ contains
                 ! C-M-SPC is only reported with M = 7.
                 if (ctl_meta_chars(k) == 32 .and. m == 13) cycle
                 call other_key(m, ctl_meta_chars(k), &
-                               make_fixnum(M_CTL + M_META + ctl_meta_chars(k)))
+                               value_type(M_CTL + M_META + ctl_meta_chars(k)))
             end do
         end do
 
@@ -307,11 +307,11 @@ contains
             if (m /= 6) bits = M_CTL + M_META
 
             do k = 1, size(ctl_shift_chars)
-                call other_key(m, ctl_shift_chars(k), make_fixnum(bits + ctl_shift_chars(k)))
+                call other_key(m, ctl_shift_chars(k), value_type(bits + ctl_shift_chars(k)))
             end do
         end do
 
-        call other_key(3, 32, make_fixnum(M_META + 32))
+        call other_key(3, 32, value_type(M_META + 32))
 
         ! TAB and RET with modifiers become function keys.
         do j = 1, size(tab_mods)

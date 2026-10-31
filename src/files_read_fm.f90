@@ -26,7 +26,7 @@ submodule(files_fm) files_read_fm
                              read_file_name_completion_ignore_case, read_file_name_internal, completion_table_with_context
     use minibuf_fm, only: all_completions
     use minibuf_table_fm, only: completion_table_type, COMPLETE_BOUNDARIES
-    use lisp_fm, only: list, make_list, list_length, list_elt, xstring, make_string
+    use lisp_fm, only: list, make_list, list_length, list_elt, xstring, value_type
     use dired_fm, only: file_name_all_completions
     use regexp_opt_fm, only: regexp_opt, REGEXP_OPT_GROUP
     use search_fm, only: string_match, match_beginning
@@ -61,9 +61,9 @@ contains
         x = file_name_directory(sfx)
 
         if (len(x) > 0) then
-            result = list(make_fixnum(int(len(file_name_directory(string)), int64)), make_fixnum(int(len(x) - 1, int64)))
+            result = list(value_type(int(len(file_name_directory(string)), int64)), value_type(int(len(x) - 1, int64)))
         else
-            result = list(make_fixnum(int(len(file_name_directory(string)), int64)), make_fixnum(int(len(sfx), int64)))
+            result = list(value_type(int(len(file_name_directory(string)), int64)), value_type(int(len(sfx), int64)))
         end if
 
         return
@@ -169,7 +169,7 @@ contains
         integer :: j
 
         allocate (grown(size(values) + 1))
-        grown(1) = make_string(name)
+        grown(1) = value_type(text=name)
 
         do j = 1, size(values)
             grown(j + 1) = values(j)
@@ -373,16 +373,16 @@ contains
         commands%find_file_read_only%run => cmd_find_file_read_only
         commands%find_file_read_only_other_window%run => cmd_find_file_read_only_other_window
         ! files.el: (define-key ctl-x-map "\C-r" 'find-file-read-only)
-        key(1) = make_fixnum(18_int64)
-        call define_key(ctl_x_map, key, sym("find_file_read_only"), status)
+        key(1) = value_type(18_int64)
+        call define_key(ctl_x_map, key, value_type(name="find_file_read_only"), status)
         ! files.el: (define-key ctl-x-map "\C-q" 'read-only-mode)
-        key(1) = make_fixnum(17_int64)
-        call define_key(ctl_x_map, key, sym("read_only_mode"), status)
+        key(1) = value_type(17_int64)
+        call define_key(ctl_x_map, key, value_type(name="read_only_mode"), status)
 
         if (present(ctl_x_4_map)) then
             ! files.el: (define-key ctl-x-4-map "r" 'find-file-read-only-other-window)
-            key(1) = make_fixnum(int(iachar("r"), int64))
-            call define_key(ctl_x_4_map, key, sym("find_file_read_only_other_window"), status)
+            key(1) = value_type(int(iachar("r"), int64))
+            call define_key(ctl_x_4_map, key, value_type(name="find_file_read_only_other_window"), status)
         end if
     end subroutine syms_of_files_read
 end submodule files_read_fm

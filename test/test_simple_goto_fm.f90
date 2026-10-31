@@ -31,8 +31,7 @@ module test_simple_goto_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: t_value, list
-    use lread_fm, only: sym
+    use lisp_fm, only: list, value_type
     use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, goto_char, point_min, point_max, widen, narrow_to_region, is_buffer_narrowed
@@ -95,7 +94,7 @@ contains
             start = point()
             call insert("test ", st)
             ! (propertize "test " 'field (cons nil nil)): a field of its own.
-            call put_text_property(start, point(), sym("field"), list(sym("x"), t_value()), st)
+            call put_text_property(start, point(), value_type(name="field"), list(value_type(name="x"), value_type(.true.)), st)
         end do
 
         call check(error, count_words(point_min(), point_max()) == 10, "10 words")
@@ -257,6 +256,6 @@ contains
         call temp_buffer("")
         call key_parse(keys, key, st)
         call key_binding(key, binding, st)
-        call check(error, value_eq(binding, sym(command)), keys//" is not "//command)
+        call check(error, value_eq(binding, value_type(name=command)), keys//" is not "//command)
     end subroutine expect_key
 end module test_simple_goto_fm

@@ -51,8 +51,8 @@
 module pcomplete_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, make_string, make_list, list, list_elements, list_length, list_elt, &
-                       xstring, xfixnum, make_fixnum, vtag, V_INTEGER
+    use lisp_fm, only: value_type, make_list, list, list_elements, list_length, list_elt, xstring, xfixnum, vtag, &
+                       V_INTEGER
     use data_fm, only: string_setting, logical_setting, forward_setting, add_local_variables_killer
     use buffer_fm, only: buffers, cur
     use editfns_fm, only: point, point_max, goto_char, buffer_substring, delete_region, is_eol, char_after
@@ -1117,7 +1117,7 @@ contains
             if (action == COMPLETE_ALL) then
                 call complete_with_action(action, table, newstring, result, status, pred)
             else
-                result = list(make_fixnum(bstart + orig_length - schars(newstring)), list_elt(bounds, 2_int64))
+                result = list(value_type(bstart + orig_length - schars(newstring)), list_elt(bounds, 2_int64))
             end if
         else
             ! The env-var is in the file bounds.
@@ -1129,12 +1129,12 @@ contains
                 call list_elements(comps, elts)
 
                 do k = 1, size(elts)
-                    elts(k) = make_string(substring(xstring(elts(k)), len_env))
+                    elts(k) = value_type(text=substring(xstring(elts(k)), len_env))
                 end do
 
                 result = make_list(elts)
             else
-                result = list(make_fixnum(envpos + orig_length - schars(newstring)), list_elt(bounds, 2_int64))
+                result = list(value_type(envpos + orig_length - schars(newstring)), list_elt(bounds, 2_int64))
             end if
         end if
     end subroutine entries_table

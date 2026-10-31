@@ -33,8 +33,7 @@
 module term_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
-    use lisp_fm, only: value_type, make_fixnum, list
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list
     use character_fm, only: MAX_MULTIBYTE_LENGTH, char_string, is_char_byte8, &
                             char_to_byte8
     use terminfo_fm, only: terminfo_type, tgetent, tgetstr, tgetnum, tgetflag, tigetstr, &
@@ -582,10 +581,10 @@ contains
             allocate (key(len(sequence)))
 
             do k = 1, len(sequence)
-                key(k) = make_fixnum(int(iachar(sequence(k:k)), int64))
+                key(k) = value_type(int(iachar(sequence(k:k)), int64))
             end do
 
-            call define_key(input_decode_map, key, list(sym(name)), st)
+            call define_key(input_decode_map, key, list(value_type(name=name)), st)
         end subroutine define_fkey
 
         subroutine reassign(cap1, cap2, name)

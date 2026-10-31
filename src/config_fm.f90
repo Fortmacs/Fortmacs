@@ -39,7 +39,7 @@ module config_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_string, make_list, t_value, xfixnum, xstring, list_elements, vtag, V_INTEGER
+    use lisp_fm, only: value_type, make_list, xfixnum, xstring, list_elements, vtag, V_INTEGER
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, current_buffer
     use editfns_fm, only: buffer_string
     use env_fm, only: getenv
@@ -270,20 +270,20 @@ contains
         ! gfortran -O2 -J CACHE -I PREFIX/include INIT DRIVER
         !     -L PREFIX/lib -lfortmacs -o GENERATION/fortmacs
         built = gen//"fortmacs"
-        args(1) = make_string("-O2")
-        args(2) = make_string("-J")
-        args(3) = make_string(cache)
-        args(4) = make_string("-I")
-        args(5) = make_string(prefix//"include")
-        args(6) = make_string("-o")
-        args(7) = make_string(built)
-        args(8) = make_string(init)
-        args(9) = make_string(driver)
-        args(10) = make_string("-L")
-        args(11) = make_string(prefix//"lib")
-        args(12) = make_string("-lfortmacs")
-        args(13) = make_string("-fdiagnostics-plain-output")
-        args(14) = make_string("-fno-diagnostics-color")
+        args(1) = value_type(text="-O2")
+        args(2) = value_type(text="-J")
+        args(3) = value_type(text=cache)
+        args(4) = value_type(text="-I")
+        args(5) = value_type(text=prefix//"include")
+        args(6) = value_type(text="-o")
+        args(7) = value_type(text=built)
+        args(8) = value_type(text=init)
+        args(9) = value_type(text=driver)
+        args(10) = value_type(text="-L")
+        args(11) = value_type(text=prefix//"lib")
+        args(12) = value_type(text="-lfortmacs")
+        args(13) = value_type(text="-fdiagnostics-plain-output")
+        args(14) = value_type(text="-fno-diagnostics-color")
         ! The compiler's output goes to a buffer, made in the cache
         ! directory so the compiler runs there.
         old = current_buffer()
@@ -292,7 +292,7 @@ contains
         call set_buffer(buf, status)
         if (.not. status%ok()) return
         buffers(cur)%directory = cache
-        call call_process(compiler, result, status, destination=t_value(), args=make_list(args))
+        call call_process(compiler, result, status, destination=value_type(.true.), args=make_list(args))
         log = buffer_string()
         call kill_buffer(buf, ignore)
         if (old%index /= 0) call set_buffer(old, ignore)

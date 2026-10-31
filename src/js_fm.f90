@@ -39,8 +39,7 @@ module js_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, list, make_list, make_fixnum, xfixnum, list_elements
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list, make_list, xfixnum, list_elements
     use data_fm, only: integer_setting, logical_setting, forward_setting, add_local_variables_killer
     use commands_fm, only: commands
     use buffer_fm, only: buffers, cur, buffer_serial_live
@@ -735,7 +734,7 @@ contains
         allocate (elts(size(items)))
 
         do i = 1, size(items)
-            elts(i) = make_fixnum(int(items(i), int64))
+            elts(i) = value_type(int(items(i), int64))
         end do
 
         v = make_list(elts)
@@ -768,7 +767,7 @@ contains
         type(value_type) :: v
         type(status_type) :: st
 
-        call get_text_property(pos, sym(propname), v, st)
+        call get_text_property(pos, value_type(name=propname), v, st)
     end function prop_at
 
     ! Move over the next value of PROPNAME in the buffer.
@@ -787,7 +786,7 @@ contains
         if (allocated(next_value%a)) then
             call forward_char(st, 1_int64)
         else
-            call next_single_property_change(point(), sym(propname), pos, found, st, limit=point_max())
+            call next_single_property_change(point(), value_type(name=propname), pos, found, st, limit=point_max())
             if (.not. found) pos = point_max()
             call goto_char(pos)
 
@@ -816,7 +815,7 @@ contains
         if (allocated(prev_value%a)) then
             call forward_char(st, -1_int64)
         else
-            call previous_single_property_change(point(), sym(propname), pos, found, st, limit=point_min())
+            call previous_single_property_change(point(), value_type(name=propname), pos, found, st, limit=point_min())
             if (.not. found) pos = point_min()
             call goto_char(pos)
 
@@ -1603,7 +1602,7 @@ contains
         top = open_items(1)
 
         if (paren_depth <= locals(k)%pitems(top)%paren_depth) then
-            call put_text_property(point() - 1, point(), sym("js__pend"), make_fixnum(int(top, int64)), st)
+            call put_text_property(point() - 1, point(), value_type(name="js__pend"), value_type(int(top, int64)), st)
             locals(k)%pitems(top)%b_end = point()
             ! open-items must contain at least two items for this to work,
             ! but because we push a dummy item to start with, that
@@ -1711,7 +1710,8 @@ contains
 
         call goto_char(opoint)
         ! Remove any cache properties after this point
-        call remove_text_properties(point(), point_max(), list(sym("js__pstate"), sym("t"), sym("js__pend"), sym("t")), &
+        call remove_text_properties(point(), point_max(), list(value_type(name="js__pstate"), value_type(name="t"), &
+                                                               value_type(name="js__pend"), value_type(name="t")), &
                                     changed, st)
     end subroutine clear_stale_cache
 
@@ -1751,7 +1751,7 @@ contains
             open_items = pstate_items(prop_at(point() - 1, "js__pstate"))
 
             if (size(open_items) == 0) then
-                call previous_single_property_change(point(), sym("js__pstate"), pos, found, st, limit=point_min())
+                call previous_single_property_change(point(), value_type(name="js__pstate"), pos, found, st, limit=point_min())
                 if (.not. found) pos = point_min()
                 call goto_char(pos)
                 if (.not. is_bob()) open_items = pstate_items(prop_at(point() - 1, "js__pstate"))
@@ -1856,7 +1856,7 @@ contains
                 call update_parse()
                 open_items = [item, open_items]
                 v = pstate_value(open_items)
-                call put_text_property(point() - 1, point(), sym("js__pstate"), v, st)
+                call put_text_property(point() - 1, point(), value_type(name="js__pstate"), v, st)
             else
                 call goto_char(orig_match_end)
             end if
@@ -2619,7 +2619,7 @@ contains
         if (.not. at(REGEXP_LITERAL_RE)) return
         ! Don't touch text after END.
         if (end > me(1)) end = me(1)
-        call put_text_property(mb(1), end, sym("syntax_table"), string_fence(), st)
+        call put_text_property(mb(1), end, value_type(name="syntax_table"), string_fence(), st)
         call goto_char(end)
     end subroutine syntax_propertize_regexp
 
@@ -2671,7 +2671,7 @@ contains
         end if
 
         if (regexp) then
-            call put_text_property(mb(1), me(1), sym("syntax_table"), string_fence(), st)
+            call put_text_property(mb(1), me(1), value_type(name="syntax_table"), string_fence(), st)
             call syntax_propertize_regexp(end)
         end if
     end subroutine slash_value

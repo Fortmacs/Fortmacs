@@ -88,7 +88,7 @@ contains
         allocate (elts(size(boxes)))
 
         do k = 1, size(boxes)
-            elts(k) = make_string(boxes(k)%s)
+            elts(k) = value_type(text=boxes(k)%s)
         end do
 
         v = make_list(elts)

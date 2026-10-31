@@ -52,8 +52,8 @@
 !>
 !> gfortran leaks a function result with allocatable components when it
 !> appears inside an array constructor, so build lists with `list(...)'
-!> or from variables: write `list(sym("a"), sym("b"))', never
-!> `make_list([sym("a"), sym("b")])'.
+!> or from variables: write `list(value_type(name="a"), value_type(name="b"))',
+!> never `make_list([value_type(name="a"), value_type(name="b")])'.
 !>
 !> Symbols are stored here (struct Lisp_Symbol); interning is lread_fm,
 !> values and properties are data_fm and fns_fm.  Symbols are never
@@ -202,7 +202,28 @@ module lisp_fm
     !> The number of symbols in `symbols'.
     integer(int64), public :: nsymbols = 0
 
-    public :: t_value, make_fixnum, make_string, make_symbol_ref, &
+    !> The constructors of a value: `value_type()' is the null value,
+    !> `value_type(.true.)' the name t (`value_type(.false.)' the null
+    !> value), `value_type(42_int64)' an integer, `value_type(name="x")' a
+    !> name (added to the name table) and `value_type(text="abc")' a string.
+    !> Port of lisp.h:make_fixnum, lisp.h:Qt, alloc.c:build_string and
+    !> lread.c:intern.
+    interface value_type
+        module procedure value_of_logical, value_of_integer
+
+        !> A name value for `name' (added to the name table), or a string
+        !> value holding `text' (already in the internal encoding); with
+        !> neither, the null value (value_type() calls it, and the name table
+        !> makes null values while it adds a name, so it is recursive).
+        !> Port of lread.c:intern and alloc.c:build_string.
+        recursive module function value_of_string(name, text) result(v)
+            implicit none(type, external)
+            character(len=*), intent(in), optional :: name, text
+            type(value_type) :: v
+        end function value_of_string
+    end interface value_type
+
+    public :: make_symbol_ref, &
               make_buffer_ref, make_marker_ref, make_keymap_ref, make_syntax_table_ref, make_window_ref, make_list, list, cons
     public :: vtag
     public :: xfixnum, xsymbol, xstring, xhandle, list_length, list_elt, &
@@ -223,15 +244,17 @@ contains
         v%a(1) = atom
     end function scalar
 
-    !> The symbol t.  Port of lisp.h:Qt.
-    pure function t_value() result(v)
+    !> The name t for .true., the null value for .false.  Port of
+    !> lisp.h:Qt.
+    pure function value_of_logical(flag) result(v)
+        logical, intent(in) :: flag
         type(value_type) :: v
 
-        v = make_symbol_ref(SYM_T)
-    end function t_value
+        if (flag) v = make_symbol_ref(SYM_T)
+    end function value_of_logical
 
-    !> Port of lisp.h:make_fixnum.
-    pure function make_fixnum(n) result(v)
+    !> The integer `n'.  Port of lisp.h:make_fixnum.
+    pure function value_of_integer(n) result(v)
         integer(int64), intent(in) :: n
         type(value_type) :: v
         type(atom_type) :: atom
@@ -239,19 +262,7 @@ contains
         atom%tag = V_INTEGER
         atom%i = n
         v = scalar(atom)
-    end function make_fixnum
-
-    !> A string value holding `text' (already in the internal encoding).
-    !> Port of alloc.c:build_string.
-    pure function make_string(text) result(v)
-        character(len=*), intent(in) :: text
-        type(value_type) :: v
-        type(atom_type) :: atom
-
-        atom%tag = V_STRING
-        atom%s = text
-        v = scalar(atom)
-    end function make_string
+    end function value_of_integer
 
     !> The symbol with id `id'; id SYM_NIL gives nil.
     !> Port of lisp.h:make_lisp_symbol.
@@ -608,7 +619,7 @@ contains
 
         do k = 1, size(starts)
             if (ends(k) <= starts(k) .or. .not. allocated(plists(k)%a)) cycle
-            head = list(make_fixnum(starts(k)), make_fixnum(ends(k)))
+            head = list(value_type(starts(k)), value_type(ends(k)))
             child = head
             child%a = [head%a, plists(k)%a(2:)]
             child%a(1)%i = 2 + plists(k)%a(1)%i

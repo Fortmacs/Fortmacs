@@ -37,10 +37,9 @@ module files_fm
     use error_fm, only: format_message, status_type, set_error, condition_matches, format_error, FM_GENERIC_ERROR, &
                         FM_USER_ERROR, FM_FILE_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum
+    use lisp_fm, only: value_type
     use minibuf_table_fm, only: completion_predicate
     use data_fm, only: integer_setting, logical_setting
-    use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, current_buffer, resolve_buffer, set_buffer, &
                          get_buffer_create, generate_new_buffer_name, get_file_buffer, &
                          buffer_list, kill_buffer, erase_buffer, set_buffer_read_only, &
@@ -2459,11 +2458,11 @@ contains
 
         if (present(ctl_x_4_map)) then
             ! files.el: (define-key ctl-x-4-map "f" 'find-file-other-window)
-            key(1) = make_fixnum(int(iachar("f"), int64))
-            call define_key(ctl_x_4_map, key, sym("find_file_other_window"), status)
+            key(1) = value_type(int(iachar("f"), int64))
+            call define_key(ctl_x_4_map, key, value_type(name="find_file_other_window"), status)
             ! files.el: (define-key ctl-x-4-map "\C-f" 'find-file-other-window)
-            key(1) = make_fixnum(6_int64)
-            call define_key(ctl_x_4_map, key, sym("find_file_other_window"), status)
+            key(1) = value_type(6_int64)
+            call define_key(ctl_x_4_map, key, value_type(name="find_file_other_window"), status)
         end if
 
         commands%normal_mode%run => cmd_normal_mode
@@ -2472,20 +2471,20 @@ contains
         commands%save_some_buffers%run => cmd_save_some_buffers
         commands%save_buffers_kill_terminal%run => cmd_save_buffers_kill_terminal
         ! files.el: (define-key ctl-x-map "\C-f" 'find-file)
-        key(1) = make_fixnum(6_int64)
-        call define_key(ctl_x_map, key, sym("find_file"), status)
+        key(1) = value_type(6_int64)
+        call define_key(ctl_x_map, key, value_type(name="find_file"), status)
         ! files.el: (define-key ctl-x-map "\C-w" 'write-file)
-        key(1) = make_fixnum(23_int64)
-        call define_key(ctl_x_map, key, sym("write_file"), status)
+        key(1) = value_type(23_int64)
+        call define_key(ctl_x_map, key, value_type(name="write_file"), status)
         ! files.el: (define-key ctl-x-map "\C-s" 'save-buffer)
-        key(1) = make_fixnum(19_int64)
-        call define_key(ctl_x_map, key, sym("save_buffer"), status)
+        key(1) = value_type(19_int64)
+        call define_key(ctl_x_map, key, value_type(name="save_buffer"), status)
         ! files.el: (define-key ctl-x-map "s" 'save-some-buffers)
-        key(1) = make_fixnum(int(iachar("s"), int64))
-        call define_key(ctl_x_map, key, sym("save_some_buffers"), status)
+        key(1) = value_type(int(iachar("s"), int64))
+        call define_key(ctl_x_map, key, value_type(name="save_some_buffers"), status)
         ! files.el: (define-key ctl-x-map "\C-c" 'save-buffers-kill-terminal)
-        key(1) = make_fixnum(3_int64)
-        call define_key(ctl_x_map, key, sym("save_buffers_kill_terminal"), status)
+        key(1) = value_type(3_int64)
+        call define_key(ctl_x_map, key, value_type(name="save_buffers_kill_terminal"), status)
     end subroutine syms_of_files
 
     !> Set `auto_mode_interpreter_regexp' to its standard value.  Port of

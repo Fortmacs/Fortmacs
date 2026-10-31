@@ -39,9 +39,8 @@
 module autorevert_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR
-    use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, t_value
-    use lread_fm, only: sym
+    use handle_fm, only: handle_type, null_handle, has_handle
+    use lisp_fm, only: value_type
     use data_fm, only: logical_setting, forward_setting, add_local_variables_killer, set, symbol_value
     use fns_fm, only: put
     use eval_fm, only: hook_type
@@ -422,7 +421,7 @@ contains
     logical function is_auto_revert_buffer_list(buffer)
         type(handle_type), intent(in) :: buffer
 
-        is_auto_revert_buffer_list = memq(buffer, auto_revert_buffer_list)
+        is_auto_revert_buffer_list = has_handle(auto_revert_buffer_list, buffer)
     end function is_auto_revert_buffer_list
 
     !> The size of FILE (file-attribute-size of file-attributes); 0 if
@@ -448,23 +447,6 @@ contains
     ! ------------------------------------------------------------------
     ! Lists of buffers
     ! ------------------------------------------------------------------
-
-    ! Not a port.
-    logical function memq(buffer, list)
-        type(handle_type), intent(in) :: buffer
-        type(handle_type), allocatable, intent(in) :: list(:)
-        integer :: k
-
-        memq = .false.
-        if (.not. allocated(list)) return
-
-        do k = 1, size(list)
-            if (same_handle(list(k), buffer)) then
-                memq = .true.
-                return
-            end if
-        end do
-    end function memq
 
     !> (delq BUFFER LIST)  Not a port.
     subroutine delq(buffer, list)
@@ -589,7 +571,7 @@ contains
         status = status_type()
 
         if (enable) then
-            if (.not. memq(current_buffer(), auto_revert_buffer_list)) then
+            if (.not. has_handle(auto_revert_buffer_list, current_buffer())) then
                 call push(current_buffer(), auto_revert_buffer_list)
                 call kill_buffer_hook%add(remove_current_buffer_hook, local=.true.)
             end if
@@ -1235,7 +1217,7 @@ contains
         end if
 
         buf = current_buffer()
-        added = .not. memq(buf, inhibit_auto_revert_buffers)
+        added = .not. has_handle(inhibit_auto_revert_buffers, buf)
         if (added) call push(buf, inhibit_auto_revert_buffers)
         call body(status)
         if (added) call delq(buf, inhibit_auto_revert_buffers)
@@ -1253,7 +1235,7 @@ contains
             if (k /= 0) is_auto_revert_active = locals(k)%global_mode
         end if
 
-        if (is_auto_revert_active) is_auto_revert_active = .not. memq(current_buffer(), inhibit_auto_revert_buffers)
+        if (is_auto_revert_active) is_auto_revert_active = .not. has_handle(inhibit_auto_revert_buffers, current_buffer())
     end function is_auto_revert_active
 
     !> Revert current buffer, if appropriate.
@@ -1275,7 +1257,7 @@ contains
         revert = BUFFER_STALE_NO
 
         if (.not. locals(k)%has_desc .or. locals(k)%modified_p) then
-            if (.not. memq(buffer, inhibit_auto_revert_buffers)) then
+            if (.not. has_handle(inhibit_auto_revert_buffers, buffer)) then
                 if (allocated(buffers(cur)%filename) .and. tail) then
                     if (is_file_readable(buffers(cur)%filename)) then
                         fsize = file_size(buffers(cur)%filename)
@@ -1381,8 +1363,8 @@ contains
 
         k = local_index(.true.)
         modified = buffers(cur)%text%save_modiff < buffers(cur)%text%modiff
-        call symbol_value(sym("inhibit_read_only"), saved_inhibit, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved_inhibit, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         ! Ignore that file has changed.
         call move_alloc(buffers(cur)%filename, file)
 
@@ -1414,7 +1396,7 @@ contains
         end if
 
         call move_alloc(file, buffers(cur)%filename)
-        call set(sym("inhibit_read_only"), saved_inhibit, st)
+        call set(value_type(name="inhibit_read_only"), saved_inhibit, st)
         call set_visited_file_modtime()
     end subroutine auto_revert_tail_handler
 
@@ -1444,12 +1426,12 @@ contains
 
         if (allocated(auto_revert_remaining_buffers)) then
             do i = 1, size(auto_revert_remaining_buffers)
-                if (memq(auto_revert_remaining_buffers(i), bufs)) call push(auto_revert_remaining_buffers(i), remaining)
+                if (has_handle(bufs, auto_revert_remaining_buffers(i))) call push(auto_revert_remaining_buffers(i), remaining)
             end do
         end if
 
         do i = 1, size(bufs)
-            if (.not. memq(bufs(i), remaining)) call push(bufs(i), new)
+            if (.not. has_handle(remaining, bufs(i))) call push(bufs(i), new)
         end do
 
         ! (nreverse (nconc new remaining))
@@ -1583,8 +1565,8 @@ contains
                                                         body=global_auto_revert_mode_body)
         ! (put 'auto-revert-mode 'permanent-local t), and the same for
         ! auto-revert-tail-mode.
-        call put(sym("auto_revert_mode"), sym("permanent_local"), t_value(), st)
-        call put(sym("auto_revert_tail_mode"), sym("permanent_local"), t_value(), st)
+        call put(value_type(name="auto_revert_mode"), value_type(name="permanent_local"), value_type(.true.), st)
+        call put(value_type(name="auto_revert_tail_mode"), value_type(name="permanent_local"), value_type(.true.), st)
         call add_local_variables_killer(kill_autorevert_locals)
         call find_file_hook%add(auto_revert_find_file_function)
         call after_set_visited_file_name_hook%add(auto_revert_set_visited_file_name)

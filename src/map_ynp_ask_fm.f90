@@ -25,8 +25,7 @@
 submodule(map_ynp_fm) map_ynp_ask_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: set_error, FM_QUIT
-    use lisp_fm, only: make_fixnum, make_keymap_ref, xfixnum, value_type, vtag, V_NULL, V_INTEGER, V_NAME
-    use lread_fm, only: sym
+    use lisp_fm, only: make_keymap_ref, xfixnum, value_type, vtag, V_NULL, V_INTEGER, V_NAME
     use data_fm, only: value_eq
     use keymap_fm, only: key_description, make_sparse_keymap, set_keymap_parent, define_key, define_key_range, &
                          lookup_key, key_parse, is_keymap_live, current_global_map
@@ -39,7 +38,7 @@ submodule(map_ynp_fm) map_ynp_ask_fm
     use minibuf_fm, only: read_from_minibuffer, minibuffer_local_map, enable_recursive_minibuffers
     use minibuffer_fm, only: exit_minibuffer, delete_minibuffer_contents
     use keymap_fm, only: free_keymap
-    use lisp_fm, only: list, list_elements
+    use lisp_fm, only: list, list_elements, value_type
     use casefiddle_fm, only: downcase_string
     use insdel_fm, only: insert
     use fns_fm, only: use_short_answers
@@ -231,7 +230,7 @@ contains
         logical function is_quit(ev)
             type(value_type), intent(in) :: ev
 
-            is_quit = value_eq(ev, make_fixnum(7_int64))
+            is_quit = value_eq(ev, value_type(7_int64))
         end function is_quit
     end subroutine map_read_y_or_n
 
@@ -255,25 +254,25 @@ contains
 
         ! [remap self-insert-command]
         do c = 0, 127
-            key1(1) = make_fixnum(c)
+            key1(1) = value_type(c)
             call lookup_key(make_keymap_ref(minibuffer_local_map), key1, b, st)
             if (.not. allocated(b%a)) call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
 
-            if (value_eq(b, sym("self_insert_command"))) then
-                call define_key(ynp_remap, key1, sym("map_read_y_or_n__help"), st)
+            if (value_eq(b, value_type(name="self_insert_command"))) then
+                call define_key(ynp_remap, key1, value_type(name="map_read_y_or_n__help"), st)
             end if
         end do
 
-        key1(1) = make_fixnum(128_int64)
+        key1(1) = value_type(128_int64)
         call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
 
-        if (value_eq(b, sym("self_insert_command"))) then
-            call define_key_range(ynp_remap, 128_int64, int(MAX_CHAR, int64), sym("map_read_y_or_n__help"), st)
+        if (value_eq(b, value_type(name="self_insert_command"))) then
+            call define_key_range(ynp_remap, 128_int64, int(MAX_CHAR, int64), value_type(name="map_read_y_or_n__help"), st)
         end if
 
         do k = 1, size(QRM_KEYS)
             call key_parse(trim(QRM_KEYS(k)), seq, st)
-            if (st%ok()) call define_key(ynp_remap, seq, sym("map_read_y_or_n__char"), st)
+            if (st%ok()) call define_key(ynp_remap, seq, value_type(name="map_read_y_or_n__char"), st)
         end do
     end subroutine init_remap
 
@@ -365,12 +364,12 @@ contains
             call set_keymap_parent(short_answer_map, minibuffer_local_map, st)
 
             do k = 1, size(with_help)
-                key1(1) = make_fixnum(int(with_help(k)%short, int64))
-                call define_key(short_answer_map, key1, sym("read_answer__select"), st)
+                key1(1) = value_type(int(with_help(k)%short, int64))
+                call define_key(short_answer_map, key1, value_type(name="read_answer__select"), st)
             end do
 
-            call list_elements(list(sym("remap"), sym("self_insert_command")), remap_events)
-            call define_key(short_answer_map, remap_events, sym("read_answer__reject"), st)
+            call list_elements(list(value_type(name="remap"), value_type(name="self_insert_command")), remap_events)
+            call define_key(short_answer_map, remap_events, value_type(name="read_answer__reject"), st)
             short_answers = with_help
             short_answer_message = msg
         end if

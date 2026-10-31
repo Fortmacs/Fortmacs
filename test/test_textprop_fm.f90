@@ -23,13 +23,12 @@
 
 module test_textprop_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use lisp_fm, only: vtag, V_NULL
+    use lisp_fm, only: vtag, V_NULL, value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, FM_TEXT_READ_ONLY, FM_BUFFER_READ_ONLY, &
                         FM_ARGS_OUT_OF_RANGE, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: list, make_fixnum, make_string, t_value, value_type, make_keymap_ref
-    use lread_fm, only: sym
+    use lisp_fm, only: list, value_type, make_keymap_ref
     use data_fm, only: value_eq, set
     use fns_fm, only: value_equal, put
     use buffer_fm, only: buffers, cur, get_buffer_create, kill_buffer, set_buffer, &
@@ -110,7 +109,7 @@ contains
         type(value_type) :: v
         type(status_type) :: st
 
-        call get_text_property(pos, sym(name), v, st)
+        call get_text_property(pos, value_type(name=name), v, st)
     end function prop_at
 
     subroutine test_put_get(error)
@@ -121,21 +120,22 @@ contains
 
         call enter("tt-put", h, old)
         call insert("abcdefgh", st)
-        call put_text_property(3_int64, 6_int64, sym("face"), sym("bold"), st)
+        call put_text_property(3_int64, 6_int64, value_type(name="face"), value_type(name="bold"), st)
         call check(error, st%ok(), "put failed")
         if (allocated(error)) return
         call check(error, vtag(prop_at(2_int64, "face")) == V_NULL, "before range")
         if (allocated(error)) return
-        call check(error, value_eq(prop_at(3_int64, "face"), sym("bold")), "start of range")
+        call check(error, value_eq(prop_at(3_int64, "face"), value_type(name="bold")), "start of range")
         if (allocated(error)) return
-        call check(error, value_eq(prop_at(5_int64, "face"), sym("bold")), "end of range")
+        call check(error, value_eq(prop_at(5_int64, "face"), value_type(name="bold")), "end of range")
         if (allocated(error)) return
         call check(error, vtag(prop_at(6_int64, "face")) == V_NULL, "after range")
         if (allocated(error)) return
         ! A second property goes in front, as upstream.
-        call put_text_property(4_int64, 5_int64, sym("help-echo"), make_string("hi"), st)
+        call put_text_property(4_int64, 5_int64, value_type(name="help-echo"), value_type(text="hi"), st)
         call text_properties_at(4_int64, plist, st)
-        call check(error, value_equal(plist, list(sym("help-echo"), make_string("hi"), sym("face"), sym("bold"))), &
+        call check(error, value_equal(plist, list(value_type(name="help-echo"), value_type(text="hi"), value_type(name="face"), &
+                                                  value_type(name="bold"))), &
                    "text-properties-at order")
         if (allocated(error)) return
         call text_properties_at(9_int64, plist, st)
@@ -151,16 +151,16 @@ contains
 
         call enter("tt-add", h, old)
         call insert("abcdef", st)
-        call add_text_properties(1_int64, 4_int64, list(sym("a"), make_fixnum(1_int64)), changed, st)
+        call add_text_properties(1_int64, 4_int64, list(value_type(name="a"), value_type(1_int64)), changed, st)
         call check(error, changed, "first add did not change")
         if (allocated(error)) return
-        call add_text_properties(2_int64, 3_int64, list(sym("a"), make_fixnum(1_int64)), changed, st)
+        call add_text_properties(2_int64, 3_int64, list(value_type(name="a"), value_type(1_int64)), changed, st)
         call check(error,.not. changed, "re-adding the same value changed")
         if (allocated(error)) return
-        call add_text_properties(2_int64, 6_int64, list(sym("a"), make_fixnum(1_int64)), changed, st)
-        call check(error, changed .and. value_eq(prop_at(5_int64, "a"), make_fixnum(1_int64)), "extending")
+        call add_text_properties(2_int64, 6_int64, list(value_type(name="a"), value_type(1_int64)), changed, st)
+        call check(error, changed .and. value_eq(prop_at(5_int64, "a"), value_type(1_int64)), "extending")
         if (allocated(error)) return
-        call add_text_properties(3_int64, 3_int64, list(sym("b"), make_fixnum(1_int64)), changed, st)
+        call add_text_properties(3_int64, 3_int64, list(value_type(name="b"), value_type(1_int64)), changed, st)
         call check(error,.not. changed, "empty range changed")
         call leave(h, old)
     end subroutine test_add_change
@@ -174,22 +174,22 @@ contains
 
         call enter("tt-set", h, old)
         call insert("abcdefgh", st)
-        call put_text_property(1_int64, 9_int64, sym("face"), sym("bold"), st)
-        call put_text_property(1_int64, 9_int64, sym("x"), make_fixnum(1_int64), st)
-        call remove_text_properties(3_int64, 5_int64, list(sym("face"), value_type()), changed, st)
+        call put_text_property(1_int64, 9_int64, value_type(name="face"), value_type(name="bold"), st)
+        call put_text_property(1_int64, 9_int64, value_type(name="x"), value_type(1_int64), st)
+        call remove_text_properties(3_int64, 5_int64, list(value_type(name="face"), value_type()), changed, st)
         call check(error, changed .and. vtag(prop_at(3_int64, "face")) == V_NULL .and. &
-                   value_eq(prop_at(3_int64, "x"), make_fixnum(1_int64)) .and. &
-                   value_eq(prop_at(5_int64, "face"), sym("bold")), "remove-text-properties")
+                   value_eq(prop_at(3_int64, "x"), value_type(1_int64)) .and. &
+                   value_eq(prop_at(5_int64, "face"), value_type(name="bold")), "remove-text-properties")
         if (allocated(error)) return
-        call remove_text_properties(3_int64, 5_int64, list(sym("face"), value_type()), changed, st)
+        call remove_text_properties(3_int64, 5_int64, list(value_type(name="face"), value_type()), changed, st)
         call check(error,.not. changed, "removing again changed")
         if (allocated(error)) return
-        call remove_list_of_text_properties(1_int64, 9_int64, list(sym("x")), changed, st)
+        call remove_list_of_text_properties(1_int64, 9_int64, list(value_type(name="x")), changed, st)
         call check(error, changed .and. vtag(prop_at(7_int64, "x")) == V_NULL, "remove-list-of-text-properties")
         if (allocated(error)) return
-        call set_text_properties(2_int64, 4_int64, list(sym("y"), make_fixnum(2_int64)), changed, st)
+        call set_text_properties(2_int64, 4_int64, list(value_type(name="y"), value_type(2_int64)), changed, st)
         call text_properties_at(2_int64, plist, st)
-        call check(error, value_equal(plist, list(sym("y"), make_fixnum(2_int64))), "set replaces all")
+        call check(error, value_equal(plist, list(value_type(name="y"), value_type(2_int64))), "set replaces all")
         if (allocated(error)) return
         call set_text_properties(1_int64, 9_int64, value_type(), changed, st)
         call check(error, changed .and. vtag(prop_at(2_int64, "y")) == V_NULL .and. vtag(prop_at(6_int64, "face")) == V_NULL, &
@@ -207,15 +207,15 @@ contains
         ! a b c d e f g h i j:  [3,5) face bold, [5,7) face bold + x 1
         call enter("tt-changes", h, old)
         call insert("abcdefghij", st)
-        call put_text_property(3_int64, 7_int64, sym("face"), sym("bold"), st)
-        call put_text_property(5_int64, 7_int64, sym("x"), make_fixnum(1_int64), st)
+        call put_text_property(3_int64, 7_int64, value_type(name="face"), value_type(name="bold"), st)
+        call put_text_property(5_int64, 7_int64, value_type(name="x"), value_type(1_int64), st)
         call next_property_change(1_int64, r, found, st)
         call check(error, found .and. r == 3, "next from 1")
         if (allocated(error)) return
         call next_property_change(3_int64, r, found, st)
         call check(error, found .and. r == 5, "next from 3")
         if (allocated(error)) return
-        call next_single_property_change(3_int64, sym("face"), r, found, st)
+        call next_single_property_change(3_int64, value_type(name="face"), r, found, st)
         call check(error, found .and. r == 7, "next single face from 3")
         if (allocated(error)) return
         call next_property_change(7_int64, r, found, st)
@@ -230,7 +230,7 @@ contains
         call previous_property_change(11_int64, r, found, st)
         call check(error, found .and. r == 7, "previous from end")
         if (allocated(error)) return
-        call previous_single_property_change(7_int64, sym("face"), r, found, st)
+        call previous_single_property_change(7_int64, value_type(name="face"), r, found, st)
         call check(error, found .and. r == 3, "previous single face from 7")
         if (allocated(error)) return
         call previous_property_change(3_int64, r, found, st)
@@ -247,20 +247,20 @@ contains
 
         call enter("tt-any", h, old)
         call insert("abcdefghij", st)
-        call text_property_any(1_int64, 11_int64, sym("face"), value_type(), r, found, st)
+        call text_property_any(1_int64, 11_int64, value_type(name="face"), value_type(), r, found, st)
         call check(error, found .and. r == 1, "no intervals: nil everywhere")
         if (allocated(error)) return
-        call put_text_property(4_int64, 6_int64, sym("face"), sym("bold"), st)
-        call text_property_any(1_int64, 11_int64, sym("face"), sym("bold"), r, found, st)
+        call put_text_property(4_int64, 6_int64, value_type(name="face"), value_type(name="bold"), st)
+        call text_property_any(1_int64, 11_int64, value_type(name="face"), value_type(name="bold"), r, found, st)
         call check(error, found .and. r == 4, "any bold")
         if (allocated(error)) return
-        call text_property_any(6_int64, 11_int64, sym("face"), sym("bold"), r, found, st)
+        call text_property_any(6_int64, 11_int64, value_type(name="face"), value_type(name="bold"), r, found, st)
         call check(error,.not. found, "no bold after 6")
         if (allocated(error)) return
-        call text_property_not_all(4_int64, 11_int64, sym("face"), sym("bold"), r, found, st)
+        call text_property_not_all(4_int64, 11_int64, value_type(name="face"), value_type(name="bold"), r, found, st)
         call check(error, found .and. r == 6, "not-all")
         if (allocated(error)) return
-        call text_property_not_all(4_int64, 6_int64, sym("face"), sym("bold"), r, found, st)
+        call text_property_not_all(4_int64, 6_int64, value_type(name="face"), value_type(name="bold"), r, found, st)
         call check(error,.not. found, "all bold in 4..6")
         call leave(h, old)
     end subroutine test_any_not_all
@@ -272,12 +272,12 @@ contains
 
         call enter("tt-cat", h, old)
         call insert("abc", st)
-        call put(sym("tt-my-category"), sym("face"), sym("italic"), st)
-        call put_text_property(1_int64, 3_int64, sym("category"), sym("tt-my-category"), st)
-        call check(error, value_eq(prop_at(1_int64, "face"), sym("italic")), "face via category")
+        call put(value_type(name="tt-my-category"), value_type(name="face"), value_type(name="italic"), st)
+        call put_text_property(1_int64, 3_int64, value_type(name="category"), value_type(name="tt-my-category"), st)
+        call check(error, value_eq(prop_at(1_int64, "face"), value_type(name="italic")), "face via category")
         if (allocated(error)) return
-        call put_text_property(1_int64, 2_int64, sym("face"), sym("bold"), st)
-        call check(error, value_eq(prop_at(1_int64, "face"), sym("bold")), "own property wins")
+        call put_text_property(1_int64, 2_int64, value_type(name="face"), value_type(name="bold"), st)
+        call check(error, value_eq(prop_at(1_int64, "face"), value_type(name="bold")), "own property wins")
         call leave(h, old)
     end subroutine test_category
 
@@ -291,20 +291,21 @@ contains
 
         call enter("tt-edits", h, old)
         call insert("abcdef", st)
-        call put_text_property(3_int64, 5_int64, sym("face"), sym("bold"), st)   ! "cd"
+        call put_text_property(3_int64, 5_int64, value_type(name="face"), value_type(name="bold"), st)   ! "cd"
         call goto_char(4_int64)
         call insert("XY", st)                                                     ! ab c XY d ef
-        call check(error, value_eq(prop_at(3_int64, "face"), sym("bold")) .and. &
+        call check(error, value_eq(prop_at(3_int64, "face"), value_type(name="bold")) .and. &
                    vtag(prop_at(4_int64, "face")) == V_NULL .and. vtag(prop_at(5_int64, "face")) == V_NULL .and. &
-                   value_eq(prop_at(6_int64, "face"), sym("bold")) .and. vtag(prop_at(7_int64, "face")) == V_NULL, &
+                   value_eq(prop_at(6_int64, "face"), value_type(name="bold")) .and. vtag(prop_at(7_int64, "face")) == V_NULL, &
                    "after insertion inside")
         if (allocated(error)) return
         call goto_char(1_int64)
         call insert("Z", st)                                                      ! Z ab c XY d ef
-        call check(error, value_eq(prop_at(4_int64, "face"), sym("bold")), "shifted by insertion before")
+        call check(error, value_eq(prop_at(4_int64, "face"), value_type(name="bold")), "shifted by insertion before")
         if (allocated(error)) return
         call delete_and_extract_region(1_int64, 5_int64, s, st)                  ! XY d ef
-        call check(error, vtag(prop_at(1_int64, "face")) == V_NULL .and. value_eq(prop_at(3_int64, "face"), sym("bold")) .and. &
+        call check(error, vtag(prop_at(1_int64, "face")) == V_NULL .and. value_eq(prop_at(3_int64, "face"), &
+                                                                                  value_type(name="bold")) .and. &
                    vtag(prop_at(4_int64, "face")) == V_NULL, "after deletion")
         if (allocated(error)) return
         call delete_and_extract_region(1_int64, point_max(), s, st)
@@ -322,7 +323,7 @@ contains
         call insert("abc", st)
         tick = buffers(cur)%text%modiff
         chars_tick = buffers(cur)%text%chars_modiff
-        call put_text_property(1_int64, 2_int64, sym("face"), sym("bold"), st)
+        call put_text_property(1_int64, 2_int64, value_type(name="face"), value_type(name="bold"), st)
         call check(error, buffers(cur)%text%modiff > tick, "modiff did not advance")
         if (allocated(error)) return
         call check(error, buffers(cur)%text%chars_modiff, chars_tick)
@@ -332,7 +333,7 @@ contains
         ! (prepare_to_modify_buffer_1).
         buffers(cur)%text%save_modiff = buffers(cur)%text%modiff
         deactivate_mark_variable = .false.
-        call put_text_property(2_int64, 3_int64, sym("face"), sym("bold"), st)
+        call put_text_property(2_int64, 3_int64, value_type(name="face"), value_type(name="bold"), st)
         call check(error, undo_last_kind() == UE_FIRST_CHANGE, "first change not recorded")
         if (allocated(error)) return
         call check(error, deactivate_mark_variable, "deactivate-mark not set")
@@ -348,10 +349,11 @@ contains
 
         call enter("tt-errors", h, old)
         call insert("abc", st)
-        call add_text_properties(1_int64, 2_int64, list(sym("a"), sym("b"), sym("c")), changed, st)
+        call add_text_properties(1_int64, 2_int64, list(value_type(name="a"), value_type(name="b"), value_type(name="c")), &
+                                 changed, st)
         call check(error, st%code == FM_GENERIC_ERROR .and. .not. changed, "odd plist")
         if (allocated(error)) return
-        call put_text_property(0_int64, 2_int64, sym("a"), sym("b"), st)
+        call put_text_property(0_int64, 2_int64, value_type(name="a"), value_type(name="b"), st)
         call check(error, st%code, FM_ARGS_OUT_OF_RANGE)
         call leave(h, old)
     end subroutine test_errors
@@ -365,7 +367,7 @@ contains
 
         call enter("tt-ro-ins", h, old)
         call insert("abcdef", st)
-        call put_text_property(3_int64, 5_int64, sym("read_only"), t_value(), st)
+        call put_text_property(3_int64, 5_int64, value_type(name="read_only"), value_type(.true.), st)
         call goto_char(5_int64)
         call insert("x", st)
         call check(error, st%code, FM_TEXT_READ_ONLY)
@@ -378,12 +380,12 @@ contains
         call insert("x", st)
         call check(error, st%code, FM_TEXT_READ_ONLY)
         if (allocated(error)) return
-        call put_text_property(4_int64, 6_int64, sym("rear_nonsticky"), t_value(), st)
+        call put_text_property(4_int64, 6_int64, value_type(name="rear_nonsticky"), value_type(.true.), st)
         call check(error, st%code, FM_TEXT_READ_ONLY)   ! changing read-only text
         if (allocated(error)) return
-        call set(sym("inhibit_read_only"), t_value(), st)
-        call put_text_property(4_int64, 6_int64, sym("rear_nonsticky"), t_value(), st)
-        call set(sym("inhibit_read_only"), value_type(), st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
+        call put_text_property(4_int64, 6_int64, value_type(name="rear_nonsticky"), value_type(.true.), st)
+        call set(value_type(name="inhibit_read_only"), value_type(), st)
         call goto_char(6_int64)
         call insert("y", st)
         call check(error, st%ok(), "rear-nonsticky read-only still refused insertion")
@@ -420,7 +422,7 @@ contains
             call delete_and_extract_region(4_int64, 7_int64, s, st)
             call check(error,.not. st%ok(), "delete 4-7 should fail")
             if (allocated(error)) exit run
-            call set(sym("inhibit_read_only"), list(sym("abcdefg")), st)
+            call set(value_type(name="inhibit_read_only"), list(value_type(name="abcdefg")), st)
             ! The same, with the second section's read-only suppressed.
             call delete_and_extract_region(4_int64, 7_int64, s, st)
             call check(error, st%ok() .and. s == "456", "delete 4-7 with abcdefg suppressed")
@@ -432,18 +434,18 @@ contains
             call check(error, st%ok() .and. s == "7890ABCDEF", "delete 7-17")
             if (allocated(error)) exit run
             call refill()
-            call set(sym("inhibit_read_only"), value_type(), st)
+            call set(value_type(name="inhibit_read_only"), value_type(), st)
             ! Two inhibit-read-only sections separated by immutable text.
             call delete_and_extract_region(17_int64, 27_int64, s, st)
             call check(error, st%code, FM_BUFFER_READ_ONLY)
             if (allocated(error)) exit run
-            call set(sym("inhibit_read_only"), list(sym("abcdefg")), st)
+            call set(value_type(name="inhibit_read_only"), list(value_type(name="abcdefg")), st)
             ! From an inhibit-read-only section into protected text.
             call delete_and_extract_region(26_int64, 37_int64, s, st)
             call check(error, st%code, FM_TEXT_READ_ONLY)
         end block run
 
-        call set(sym("inhibit_read_only"), value_type(), st)
+        call set(value_type(name="inhibit_read_only"), value_type(), st)
         call leave(h, old)
 
     contains
@@ -452,12 +454,12 @@ contains
             type(status_type), intent(out) :: st
 
             call insert("1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ", st)
-            call put_text_property(1_int64, 6_int64, sym("inhibit_read_only"), t_value(), st)
-            call put_text_property(6_int64, 11_int64, sym("read_only"), sym("abcdefg"), st)
-            call put_text_property(11_int64, 16_int64, sym("inhibit_read_only"), t_value(), st)
-            call put_text_property(16_int64, 21_int64, sym("inhibit_read_only"), sym("yes"), st)
-            call put_text_property(26_int64, 31_int64, sym("inhibit_read_only"), t_value(), st)
-            call put_text_property(31_int64, 37_int64, sym("read_only"), sym("not-suppressed"), st)
+            call put_text_property(1_int64, 6_int64, value_type(name="inhibit_read_only"), value_type(.true.), st)
+            call put_text_property(6_int64, 11_int64, value_type(name="read_only"), value_type(name="abcdefg"), st)
+            call put_text_property(11_int64, 16_int64, value_type(name="inhibit_read_only"), value_type(.true.), st)
+            call put_text_property(16_int64, 21_int64, value_type(name="inhibit_read_only"), value_type(name="yes"), st)
+            call put_text_property(26_int64, 31_int64, value_type(name="inhibit_read_only"), value_type(.true.), st)
+            call put_text_property(31_int64, 37_int64, value_type(name="read_only"), value_type(name="not-suppressed"), st)
         end subroutine fill
 
         !> (let ((inhibit-read-only t)) (erase-buffer) (insert template))
@@ -466,10 +468,10 @@ contains
             type(status_type) :: st2
 
             saved = inhibit_read_only()
-            call set(sym("inhibit_read_only"), t_value(), st2)
+            call set(value_type(name="inhibit_read_only"), value_type(.true.), st2)
             call erase_buffer(st2)
             call fill(st2)
-            call set(sym("inhibit_read_only"), saved, st2)
+            call set(value_type(name="inhibit_read_only"), saved, st2)
         end subroutine refill
     end subroutine test_immutability
 
@@ -483,14 +485,14 @@ contains
 
         call enter("tt-nonsticky", h, old)
         call insert("abc", st)
-        call put_text_property(1_int64, 2_int64, sym("cursor"), t_value(), st)
-        call put_text_property(1_int64, 2_int64, sym("syntax_table"), t_value(), st)
-        call put_text_property(1_int64, 2_int64, sym("fill_space"), t_value(), st)
-        call check(error, text_property_stickiness(sym("cursor"), 2_int64) == -1, "cursor is rear-sticky")
+        call put_text_property(1_int64, 2_int64, value_type(name="cursor"), value_type(.true.), st)
+        call put_text_property(1_int64, 2_int64, value_type(name="syntax_table"), value_type(.true.), st)
+        call put_text_property(1_int64, 2_int64, value_type(name="fill_space"), value_type(.true.), st)
+        call check(error, text_property_stickiness(value_type(name="cursor"), 2_int64) == -1, "cursor is rear-sticky")
         if (allocated(error)) return
-        call check(error, text_property_stickiness(sym("syntax_table"), 2_int64) == 0, "syntax_table")
+        call check(error, text_property_stickiness(value_type(name="syntax_table"), 2_int64) == 0, "syntax_table")
         if (allocated(error)) return
-        call check(error, text_property_stickiness(sym("fill_space"), 2_int64) == 0, "fill_space")
+        call check(error, text_property_stickiness(value_type(name="fill_space"), 2_int64) == 0, "fill_space")
         call leave(h, old)
     end subroutine test_default_nonsticky
 
@@ -503,39 +505,39 @@ contains
         integer(int64) :: pos
         logical :: found
 
-        s = make_string("abcdef")
-        call string_put_text_property(1_int64, 3_int64, sym("face"), sym("bold"), s, st)
+        s = value_type(text="abcdef")
+        call string_put_text_property(1_int64, 3_int64, value_type(name="face"), value_type(name="bold"), s, st)
         call check(error, st%ok(), "put")
         if (allocated(error)) return
-        call check(error, vtag(string_get_text_property(0_int64, sym("face"), s)) == V_NULL .and. &
-                   value_eq(string_get_text_property(1_int64, sym("face"), s), sym("bold")) .and. &
-                   value_eq(string_get_text_property(2_int64, sym("face"), s), sym("bold")) .and. &
-                   vtag(string_get_text_property(3_int64, sym("face"), s)) == V_NULL, "face on bc")
+        call check(error, vtag(string_get_text_property(0_int64, value_type(name="face"), s)) == V_NULL .and. &
+                   value_eq(string_get_text_property(1_int64, value_type(name="face"), s), value_type(name="bold")) .and. &
+                   value_eq(string_get_text_property(2_int64, value_type(name="face"), s), value_type(name="bold")) .and. &
+                   vtag(string_get_text_property(3_int64, value_type(name="face"), s)) == V_NULL, "face on bc")
         if (allocated(error)) return
-        call check(error, value_equal(s, make_string("abcdef")), "equal ignores properties")
+        call check(error, value_equal(s, value_type(text="abcdef")), "equal ignores properties")
         if (allocated(error)) return
-        call string_next_single_property_change(0_int64, sym("face"), s, pos, found)
+        call string_next_single_property_change(0_int64, value_type(name="face"), s, pos, found)
         call check(error, found .and. pos == 1, "next change at 1")
         if (allocated(error)) return
-        call string_next_single_property_change(1_int64, sym("face"), s, pos, found)
+        call string_next_single_property_change(1_int64, value_type(name="face"), s, pos, found)
         call check(error, found .and. pos == 3, "next change at 3")
         if (allocated(error)) return
-        call string_next_single_property_change(3_int64, sym("face"), s, pos, found)
+        call string_next_single_property_change(3_int64, value_type(name="face"), s, pos, found)
         call check(error,.not. found, "no change after 3")
         if (allocated(error)) return
-        call string_put_text_property(0_int64, 7_int64, sym("face"), sym("bold"), s, st)
+        call string_put_text_property(0_int64, 7_int64, value_type(name="face"), value_type(name="bold"), s, st)
         call check(error,.not. st%ok(), "args-out-of-range")
         if (allocated(error)) return
         part = propertized_substring(s, 2_int64, 5_int64)
-        call check(error, value_equal(part, make_string("cde")) .and. &
-                   value_eq(string_get_text_property(0_int64, sym("face"), part), sym("bold")) .and. &
-                   vtag(string_get_text_property(1_int64, sym("face"), part)) == V_NULL, "substring keeps c's face")
+        call check(error, value_equal(part, value_type(text="cde")) .and. &
+                   value_eq(string_get_text_property(0_int64, value_type(name="face"), part), value_type(name="bold")) .and. &
+                   vtag(string_get_text_property(1_int64, value_type(name="face"), part)) == V_NULL, "substring keeps c's face")
         if (allocated(error)) return
-        both = propertized_concat(part, propertize(make_string("xy"), list(sym("cursor"), make_fixnum(1_int64))))
-        call check(error, value_equal(both, make_string("cdexy")) .and. &
-                   value_eq(string_get_text_property(0_int64, sym("face"), both), sym("bold")) .and. &
-                   vtag(string_get_text_property(3_int64, sym("face"), both)) == V_NULL .and. &
-                   value_eq(string_get_text_property(4_int64, sym("cursor"), both), make_fixnum(1_int64)), &
+        both = propertized_concat(part, propertize(value_type(text="xy"), list(value_type(name="cursor"), value_type(1_int64))))
+        call check(error, value_equal(both, value_type(text="cdexy")) .and. &
+                   value_eq(string_get_text_property(0_int64, value_type(name="face"), both), value_type(name="bold")) .and. &
+                   vtag(string_get_text_property(3_int64, value_type(name="face"), both)) == V_NULL .and. &
+                   value_eq(string_get_text_property(4_int64, value_type(name="cursor"), both), value_type(1_int64)), &
                    "concat keeps both")
     end subroutine test_string_properties
 
@@ -624,9 +626,10 @@ contains
         call define_tp_functions()
         call enter("*tp-hooks*", h, old)
         call insert("abcd", st)
-        call put_text_property(2_int64, 4_int64, sym("modification_hooks"), list(sym("tp_rec_mod")), st)
-        call put_text_property(1_int64, 2_int64, sym("insert_behind_hooks"), list(sym("tp_rec_behind")), st)
-        call put_text_property(4_int64, 5_int64, sym("insert_in_front_hooks"), list(sym("tp_rec_front")), st)
+        call put_text_property(2_int64, 4_int64, value_type(name="modification_hooks"), list(value_type(name="tp_rec_mod")), st)
+        call put_text_property(1_int64, 2_int64, value_type(name="insert_behind_hooks"), list(value_type(name="tp_rec_behind")), st)
+        call put_text_property(4_int64, 5_int64, value_type(name="insert_in_front_hooks"), list(value_type(name="tp_rec_front")), &
+                               st)
         tp_trace = ""
         call delete_and_extract_region(2_int64, 3_int64, text, st)
         call check(error, tp_trace == " M2,3", "modification hook: '"//tp_trace//"'")
@@ -656,7 +659,7 @@ contains
         call define_tp_functions()
         call enter("*tp-point*", h, old)
         call insert("abcdef", st)
-        call put_text_property(3_int64, 5_int64, sym("intangible"), t_value(), st)
+        call put_text_property(3_int64, 5_int64, value_type(name="intangible"), value_type(.true.), st)
         call goto_char(1_int64)
         call goto_char(4_int64)
         call check(error, buffers(cur)%pt == 4, "intangible ignored by default")
@@ -668,9 +671,9 @@ contains
         call goto_char(6_int64)
         call goto_char(4_int64)
         call check(error, buffers(cur)%pt == 3, "backward past intangible text")
-        call remove_text_properties(1_int64, 7_int64, list(sym("intangible"), value_type()), changed, st)
-        call put_text_property(3_int64, 5_int64, sym("point_entered"), sym("tp_rec_entered"), st)
-        call put_text_property(3_int64, 5_int64, sym("point_left"), sym("tp_rec_left"), st)
+        call remove_text_properties(1_int64, 7_int64, list(value_type(name="intangible"), value_type()), changed, st)
+        call put_text_property(3_int64, 5_int64, value_type(name="point_entered"), value_type(name="tp_rec_entered"), st)
+        call put_text_property(3_int64, 5_int64, value_type(name="point_left"), value_type(name="tp_rec_left"), st)
         tp_trace = ""
         call goto_char(1_int64)
         call goto_char(4_int64)
@@ -697,30 +700,32 @@ contains
 
         call enter("*tp-lists*", h, old)
         call insert("abcdef", st)
-        call put_text_property(2_int64, 4_int64, sym("face"), sym("bold"), st)
-        call put_text_property(5_int64, 6_int64, sym("mouse_face"), sym("highlight"), st)
+        call put_text_property(2_int64, 4_int64, value_type(name="face"), value_type(name="bold"), st)
+        call put_text_property(5_int64, 6_int64, value_type(name="mouse_face"), value_type(name="highlight"), st)
         call text_property_list(cur, 1_int64, 7_int64, ranges, st)
         call check(error, size(ranges) == 2, "two ranges")
         if (allocated(error)) return
         call check(error, ranges(1)%start == 5 .and. ranges(1)%end == 6 .and. ranges(2)%start == 2 .and. &
                    ranges(2)%end == 4, "last first")
         if (allocated(error)) return
-        call text_property_list(cur, 1_int64, 7_int64, ranges, st, sym("face"))
+        call text_property_list(cur, 1_int64, 7_int64, ranges, st, value_type(name="face"))
         call check(error, size(ranges) == 1, "only face")
         if (allocated(error)) return
         call extend_property_ranges(ranges, 4_int64, 6_int64)
         call check(error, ranges(1)%end == 6, "extended to the new end")
         if (allocated(error)) return
-        s = make_string("bcd")
+        s = value_type(text="bcd")
         call copy_intervals_to_string(s, buffers(cur)%text%intervals, 2_int64, 3_int64)
-        call check(error, value_eq(string_get_text_property(1_int64, sym("face"), s), sym("bold")), "string properties")
+        call check(error, value_eq(string_get_text_property(1_int64, value_type(name="face"), s), value_type(name="bold")), &
+                   "string properties")
         if (allocated(error)) return
-        call check(error, compare_string_intervals(s, propertized_concat(propertize(make_string("bc"), &
-                                                                                    list(sym("face"), sym("bold"))), &
-                                                                         make_string("d")), 3_int64), "same properties")
+        call check(error, compare_string_intervals(s, propertized_concat(propertize(value_type(text="bc"), &
+                                                                                    list(value_type(name="face"), &
+                                                                                         value_type(name="bold"))), &
+                                                                         value_type(text="d")), 3_int64), "same properties")
         if (allocated(error)) return
         call copy_text_properties(2_int64, 4_int64, cur, 5_int64, cur, modified, st)
-        call check(error, modified .and. value_eq(prop_at(6_int64, "face"), sym("bold")), "copied")
+        call check(error, modified .and. value_eq(prop_at(6_int64, "face"), value_type(name="bold")), "copied")
         call leave(h, old)
     end subroutine test_property_lists
 
@@ -736,7 +741,7 @@ contains
         call enter("*tp-keymap*", h, old)
         call insert("abc", st)
         call make_sparse_keymap(km)
-        call put_text_property(2_int64, 3_int64, sym("keymap"), make_keymap_ref(km), st)
+        call put_text_property(2_int64, 3_int64, value_type(name="keymap"), make_keymap_ref(km), st)
         map = get_local_map(1_int64, "keymap")
         call check(error,.not. allocated(map%a), "no keymap at 1")
         if (allocated(error)) return
@@ -748,7 +753,7 @@ contains
         map = get_local_map(3_int64, "keymap")
         call check(error, value_eq(map, make_keymap_ref(km)), "inherited at 3")
         if (allocated(error)) return
-        call put_text_property(1_int64, 2_int64, sym("local_map"), make_keymap_ref(km), st)
+        call put_text_property(1_int64, 2_int64, value_type(name="local_map"), make_keymap_ref(km), st)
         map = get_local_map(1_int64, "local_map")
         call check(error, value_eq(map, make_keymap_ref(km)), "local_map property")
         call leave(h, old)

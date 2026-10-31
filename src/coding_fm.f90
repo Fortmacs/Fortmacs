@@ -1215,13 +1215,6 @@ contains
     ! Detection
     ! ------------------------------------------------------------------
 
-    ! Not a port.
-    logical function has(mask, cat)
-        integer, intent(in) :: mask, cat
-
-        has = btest(mask, cat)
-    end function has
-
     !> Whether the text is UTF-8, counting characters and checking for a
     !> BOM.  Port of coding.c:detect_coding_utf_8.
     logical function detect_coding_utf_8(units, head_ascii, info) result(ok)
@@ -1509,7 +1502,7 @@ contains
         eol_seen = EOL_SEEN_NONE
         total = 0
 
-        if (has(MASK_UTF_16, category)) then
+        if (btest(MASK_UTF_16, category)) then
             msb = 0
             if (category == CAT_UTF_16_LE .or. category == CAT_UTF_16_LE_NOSIG) msb = 1
             lsb = 1 - msb
@@ -1688,13 +1681,13 @@ contains
                     info%rejected = ior(info%rejected, 2**category)
                 else if (category >= CAT_RAW_TEXT) then
                     cycle
-                else if (has(info%checked, category)) then
-                    if (has(info%found, category)) then
+                else if (btest(info%checked, category)) then
+                    if (btest(info%found, category)) then
                         hit = .true.
                         exit
                     end if
                 else if (run_detector(category, units, head_ascii, info)) then
-                    if (has(info%found, category)) then
+                    if (btest(info%found, category)) then
                         hit = .true.
                         exit
                     end if
@@ -1713,7 +1706,7 @@ contains
                 do i = 0, CAT_RAW_TEXT - 1
                     category = priorities(i)
 
-                    if (.not. has(info%rejected, category)) then
+                    if (.not. btest(info%rejected, category)) then
                         found_id = category_id(category)
                         exit
                     end if
@@ -1731,7 +1724,7 @@ contains
             if (head_ascii == len(src, kind=int64)) then
                 found_id = coding_system_id(codings(id)%bom_without)
             else if (detect_coding_utf_8(units, 0_int64, info)) then
-                if (has(info%found, CAT_UTF_8_SIG)) then
+                if (btest(info%found, CAT_UTF_8_SIG)) then
                     found_id = coding_system_id(codings(id)%bom_with)
                 else
                     found_id = coding_system_id(codings(id)%bom_without)
@@ -1741,9 +1734,9 @@ contains
             found_id = id
 
             if (detect_coding_utf_16(units, info)) then
-                if (has(info%found, CAT_UTF_16_LE)) then
+                if (btest(info%found, CAT_UTF_16_LE)) then
                     found_id = coding_system_id(codings(id)%bom_with)
-                else if (has(info%found, CAT_UTF_16_BE)) then
+                else if (btest(info%found, CAT_UTF_16_BE)) then
                     found_id = coding_system_id(codings(id)%bom_without)
                 end if
             end if
@@ -1767,7 +1760,7 @@ contains
 
         if (category == CAT_UTF_8_AUTO) then
             if (codings(this)%bom == BOM_DETECT) then
-                if (has(info%found, CAT_UTF_8_SIG)) then
+                if (btest(info%found, CAT_UTF_8_SIG)) then
                     id = coding_system_id(codings(this)%bom_with)
                 else
                     id = coding_system_id(codings(this)%bom_without)
@@ -1775,9 +1768,9 @@ contains
             end if
         else if (category == CAT_UTF_16_AUTO) then
             if (codings(this)%bom == BOM_DETECT) then
-                if (has(info%found, CAT_UTF_16_LE)) then
+                if (btest(info%found, CAT_UTF_16_LE)) then
                     id = coding_system_id(codings(this)%bom_with)
-                else if (has(info%found, CAT_UTF_16_BE)) then
+                else if (btest(info%found, CAT_UTF_16_BE)) then
                     id = coding_system_id(codings(this)%bom_without)
                 end if
             end if
@@ -1838,15 +1831,15 @@ contains
                         info%rejected = ior(info%rejected, 2**category)
                     else if (category >= CAT_RAW_TEXT) then
                         cycle
-                    else if (has(info%checked, category)) then
-                        if (top .and. has(info%found, category)) then
+                    else if (btest(info%checked, category)) then
+                        if (top .and. btest(info%found, category)) then
                             hit = .true.
                             exit
                         end if
                     else if (run_detector(category, units, head_ascii, info)) then
-                        if (top .and. has(info%found, category)) then
+                        if (top .and. btest(info%found, category)) then
                             if (category == CAT_UTF_16_AUTO) then
-                                if (has(info%found, CAT_UTF_16_LE)) then
+                                if (btest(info%found, CAT_UTF_16_LE)) then
                                     category = CAT_UTF_16_LE
                                 else
                                     category = CAT_UTF_16_BE
@@ -1878,7 +1871,7 @@ contains
                 ids(1) = this
             else
                 do i = 0, CAT_RAW_TEXT - 1
-                    if (.not. has(info%rejected, priorities(i))) then
+                    if (.not. btest(info%rejected, priorities(i))) then
                         info%found = 2**priorities(i)
                         n = 1
                         ids(1) = category_id(priorities(i))
@@ -1895,7 +1888,7 @@ contains
             do i = 0, CAT_RAW_TEXT - 1
                 category = priorities(i)
 
-                if (has(info%found, category)) then
+                if (btest(info%found, category)) then
                     if (category_id(category) > 0) then
                         n = n + 1
                         ids(n) = category_id(category)
@@ -1910,7 +1903,7 @@ contains
             do i = CAT_RAW_TEXT - 1, 0, -1
                 category = priorities(i)
 
-                if (.not. has(mask, category)) then
+                if (.not. btest(mask, category)) then
                     found = ibset(found, category)
                     if (category_id(category) > 0) k = category_id(category)
                 end if

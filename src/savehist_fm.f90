@@ -40,9 +40,9 @@ module savehist_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, t_value, make_string, make_fixnum, make_list, list_elements, &
-                       vtag, xstring, xfixnum, xsymbol, symbols, V_NULL, V_INTEGER, V_STRING, V_ARRAY, V_NAME, SYM_T
-    use lread_fm, only: sym, intern_soft
+    use lisp_fm, only: value_type, make_list, list_elements, vtag, xstring, xfixnum, xsymbol, symbols, V_NULL, &
+                       V_INTEGER, V_STRING, V_ARRAY, V_NAME, SYM_T
+    use lread_fm, only: intern_soft
     use data_fm, only: set, symbol_value, boundp
     use fns_fm, only: value_equal
     use eval_fm, only: hook_type
@@ -298,8 +298,8 @@ contains
 
         do k = 1, n
             old_names(k) = savehist_minibuffer_history_variables(k)
-            call boundp(sym(trim(old_names(k))), bound, st)
-            if (bound) call symbol_value(sym(trim(old_names(k))), old_values(k), st)
+            call boundp(value_type(name=trim(old_names(k))), bound, st)
+            if (bound) call symbol_value(value_type(name=trim(old_names(k))), old_values(k), st)
             if (.not. bound) old_names(k) = ""
         end do
 
@@ -323,11 +323,11 @@ contains
         ! extracted from the file, so put it back in.
         do k = 1, n
             if (len_trim(old_names(k)) == 0) cycle
-            call symbol_value(sym(trim(old_names(k))), cur_value, st)
+            call symbol_value(value_type(name=trim(old_names(k))), cur_value, st)
             if (.not. st%ok()) cycle
             if (value_equal(old_values(k), cur_value)) cycle
             v = savehist_merge(old_values(k), cur_value)
-            call set(sym(trim(old_names(k))), v, st)
+            call set(value_type(name=trim(old_names(k))), v, st)
         end do
     end subroutine savehist_reload
 
@@ -388,9 +388,9 @@ contains
                 elems(k) = saved_value(item%values(k))
             end do
 
-            call set(sym(item%name), make_list(elems), status)
+            call set(value_type(name=item%name), make_list(elems), status)
         else if (size(item%values) > 0) then
-            call set(sym(item%name), saved_value(item%values(1)), status)
+            call set(value_type(name=item%name), saved_value(item%values(1)), status)
         end if
     end subroutine set_saved
 
@@ -401,11 +401,11 @@ contains
 
         select case (nv%kind)
         case (NAMELIST_INTEGER)
-            v = make_fixnum(nv%integer)
+            v = value_type(nv%integer)
         case (NAMELIST_LOGICAL)
-            if (nv%logical) v = t_value()
+            if (nv%logical) v = value_type(.true.)
         case default
-            v = make_string(nv%string)
+            v = value_type(text=nv%string)
         end select
     end function saved_value
 
@@ -508,21 +508,13 @@ contains
     end subroutine savehist_uninstall
 
     !> Whether NAME is in the list NAMES.  Not a port.
-    pure logical function member(name, names)
+    pure logical function has_name(name, names)
         character(len=*), intent(in) :: name
         character(len=64), allocatable, intent(in) :: names(:)
-        integer :: k
 
-        member = .false.
-        if (.not. allocated(names)) return
-
-        do k = 1, size(names)
-            if (trim(names(k)) == trim(name)) then
-                member = .true.
-                return
-            end if
-        end do
-    end function member
+        has_name = .false.
+        if (allocated(names)) has_name = any(names == name)
+    end function has_name
 
     !> Save the values of minibuffer history variables.
     !> Unbound variables named in `savehist_additional_variables' are
@@ -585,9 +577,9 @@ contains
                 ! of an associate block whose selector is an expression frees
                 ! its temporary twice.)
                 name = trim(savehist_minibuffer_history_variables(k))
-                call boundp(sym(name), bound, st)
-                if (.not. bound .or. member(name, savehist_ignored_variables)) cycle
-                call symbol_value(sym(name), value, st)
+                call boundp(value_type(name=name), bound, st)
+                if (.not. bound .or. has_name(name, savehist_ignored_variables)) cycle
+                call symbol_value(value_type(name=name), value, st)
                 ! Don't save empty histories.
                 if (.not. allocated(value%a)) cycle
                 ! Print elements of VALUE one by one, carefully: those
@@ -608,10 +600,10 @@ contains
         ! Save the additional variables.
         do k = 1, n
             associate (var => savehist_additional_variables(k))
-                if (member(var%name, savehist_minibuffer_history_variables)) cycle
-                call boundp(sym(trim(var%name)), bound, st)
+                if (has_name(var%name, savehist_minibuffer_history_variables)) cycle
+                call boundp(value_type(name=trim(var%name)), bound, st)
                 if (.not. bound) cycle
-                call symbol_value(sym(trim(var%name)), value, st)
+                call symbol_value(value_type(name=trim(var%name)), value, st)
                 if (.not. savehist_printable(value)) cycle
                 item = namelist_item_type(name=trim(var%name))
 
@@ -765,10 +757,10 @@ contains
 
         if (.not. allocated(minibuffer_history_variable)) return
         if (minibuffer_history_variable == "t") return
-        if (member(minibuffer_history_variable, savehist_ignored_variables)) return
+        if (has_name(minibuffer_history_variable, savehist_ignored_variables)) return
         if (intern_soft(minibuffer_history_variable) == 0) return
         if (.not. allocated(savehist_minibuffer_history_variables)) allocate (savehist_minibuffer_history_variables(0))
-        if (member(minibuffer_history_variable, savehist_minibuffer_history_variables)) return
+        if (has_name(minibuffer_history_variable, savehist_minibuffer_history_variables)) return
         ! (add-to-list ...): at the front.
         n = size(savehist_minibuffer_history_variables)
         allocate (grown(n + 1))

@@ -36,7 +36,7 @@ module test_ibuf_ext_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_string, make_list, make_fixnum
+    use lisp_fm, only: value_type, make_list
     use buffer_fm, only: buffers, current_buffer, set_buffer, kill_buffer, get_buffer_create, get_buffer, &
                          is_buffer_live, generate_new_buffer_name, restore_buffer_modified
     use insdel_fm, only: insert
@@ -1048,9 +1048,9 @@ contains
 
         call init_bindings()
         call discard_input()
-        items(1) = make_string("foo")
-        items(2) = make_string("bar")
-        items(3) = make_string("qux")
+        items(1) = value_type(text="foo")
+        items(2) = value_type(text="bar")
+        items(3) = value_type(text="qux")
         table%kind = TABLE_LIST
         table%list = make_list(items)
         call key_parse("f o TAB , b TAB RET", evs, st)

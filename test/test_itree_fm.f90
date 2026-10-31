@@ -33,8 +33,7 @@ module test_itree_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: list, make_fixnum, t_value
-    use lread_fm, only: sym
+    use lisp_fm, only: list, value_type
     use data_fm, only: value_eq
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, resolve_buffer, is_buffer_live
     use insdel_fm, only: insert, del_range, replace_range
@@ -107,14 +106,14 @@ contains
         call move_overlay(ov, 0_int64, 100_int64, st)
         call check(error, overlay_start(ov) == 1 .and. overlay_end(ov) == 11, "clipped")
         if (allocated(error)) return
-        call overlay_put(ov, "face", sym("bold"), st)
-        call check(error, value_eq(overlay_get(ov, "face"), sym("bold")), "overlay-put")
+        call overlay_put(ov, "face", value_type(name="bold"), st)
+        call check(error, value_eq(overlay_get(ov, "face"), value_type(name="bold")), "overlay-put")
         if (allocated(error)) return
         call delete_overlay(ov)
         call check(error, overlay_start(ov) == 0 .and. .not. is_buffer_live(overlay_buffer(ov)) .and. is_overlay(ov), &
                    "deleted")
         if (allocated(error)) return
-        call check(error, value_eq(overlay_get(ov, "face"), sym("bold")), "keeps its properties")
+        call check(error, value_eq(overlay_get(ov, "face"), value_type(name="bold")), "keeps its properties")
         if (allocated(error)) return
         call move_overlay(ov, 2_int64, 4_int64, st)
         call check(error, overlay_start(ov) == 2 .and. overlay_end(ov) == 4 .and. is_buffer_live(overlay_buffer(ov)), &
@@ -173,7 +172,7 @@ contains
         call fresh(h, "0123456789")
         call make_overlay(a, 3_int64, 6_int64, st)
         call make_overlay(b, 4_int64, 6_int64, st)
-        call overlay_put(b, "evaporate", t_value(), st)
+        call overlay_put(b, "evaporate", value_type(.true.), st)
         call del_range(4_int64, 8_int64, st)
         call check(error, overlay_start(a) == 3 .and. overlay_end(a) == 4, "contracted")
         if (allocated(error)) return
@@ -198,7 +197,7 @@ contains
         call make_overlay(a, 2_int64, 6_int64, st)
         call make_overlay(b, 4_int64, 8_int64, st)
         call make_overlay(e, 9_int64, 9_int64, st)
-        call overlay_put(a, "priority", make_fixnum(10_int64), st)
+        call overlay_put(a, "priority", value_type(10_int64), st)
         call overlays_at(5_int64, vec, sorted=.true.)
         call check(error, size(vec) == 2, "two overlays at 5")
         if (allocated(error)) return
@@ -256,7 +255,7 @@ contains
         call fresh(h, "abcdefgh")
         call resolve_buffer(h, bi, st)
         call make_overlay(a, 3_int64, 6_int64, st)
-        call overlay_put(a, "face", sym("bold"), st)
+        call overlay_put(a, "face", value_type(name="bold"), st)
         id = face_at_buffer_position(f, bi, 1_int64, endpos, 100_int64)
         call check(error, id == DEFAULT_FACE_ID .and. endpos == 3, "up to the overlay")
         if (allocated(error)) return
@@ -265,9 +264,9 @@ contains
         if (allocated(error)) return
         ! A higher priority overlay wins over a lower one.
         call make_overlay(b, 4_int64, 6_int64, st)
-        call overlay_put(b, "face", list(sym(":inverse_video"), sym("t")), st)
-        call overlay_put(a, "face", list(sym(":inverse_video"), value_type()), st)
-        call overlay_put(a, "priority", make_fixnum(10_int64), st)
+        call overlay_put(b, "face", list(value_type(name=":inverse_video"), value_type(name="t")), st)
+        call overlay_put(a, "face", list(value_type(name=":inverse_video"), value_type()), st)
+        call overlay_put(a, "priority", value_type(10_int64), st)
         id = face_at_buffer_position(f, bi, 4_int64, endpos, 100_int64)
         call check(error,.not. f%faces(id)%tty_reverse_p, "priority 10 over 0")
         if (allocated(error)) return
@@ -282,7 +281,7 @@ contains
         id = face_at_buffer_position(f, bi, 3_int64, endpos, 100_int64, 3_int64, 6_int64)
         call check(error, f%faces(id)%tty_reverse_p, "the region over priority 0")
         if (allocated(error)) return
-        call overlay_put(a, "priority", make_fixnum(1000_int64), st)
+        call overlay_put(a, "priority", value_type(1000_int64), st)
         id = face_at_buffer_position(f, bi, 3_int64, endpos, 100_int64, 3_int64, 6_int64)
         call check(error,.not. f%faces(id)%tty_reverse_p, "priority 1000 over the region")
         call free_overlay(a)
@@ -438,9 +437,9 @@ contains
                 advance = a == 1
                 call fresh(h, trim(texts(c)))
                 call make_overlay(ov, obeg(c), oend(c), st, front_advance=advance, rear_advance=advance)
-                call overlay_put(ov, "insert_in_front_hooks", list(sym("rec_insert_in_front")), st)
-                call overlay_put(ov, "modification_hooks", list(sym("rec_modification")), st)
-                call overlay_put(ov, "insert_behind_hooks", list(sym("rec_insert_behind")), st)
+                call overlay_put(ov, "insert_in_front_hooks", list(value_type(name="rec_insert_in_front")), st)
+                call overlay_put(ov, "modification_hooks", list(value_type(name="rec_modification")), st)
+                call overlay_put(ov, "insert_behind_hooks", list(value_type(name="rec_insert_behind")), st)
                 nrec = 0
 
                 if (insert_at(c) > 0) then
@@ -502,9 +501,9 @@ contains
         check_point = .false.
         call fresh(h, "abc")
         call make_overlay(ov_set, 1_int64, 3_int64, st)
-        call overlay_put(ov_set, "modification_hooks", list(sym("set_check_point")), st)
+        call overlay_put(ov_set, "modification_hooks", list(value_type(name="set_check_point")), st)
         call make_overlay(ov_delete, 1_int64, 3_int64, st)
-        call overlay_put(ov_delete, "modification_hooks", list(sym("delete_before")), st)
+        call overlay_put(ov_delete, "modification_hooks", list(value_type(name="delete_before")), st)
         call goto_char(2_int64)
         call insert("1", st)
         call free_overlay(ov_set)

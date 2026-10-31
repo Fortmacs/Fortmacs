@@ -31,7 +31,6 @@ module test_bindings_fm
     use editfns_fm, only: point, buffer_string, goto_char
     use lisp_fm, only: value_type, xstring, list_elt
     use simple_fm, only: kill_ring
-    use lread_fm, only: sym
     use data_fm, only: value_eq
     use keymap_fm, only: key_binding, key_parse
     use keyboard_fm, only: kbd_store_bytes, command_loop, command_loop_step, &
@@ -104,22 +103,22 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call init_bindings()
-        call check(error, value_eq(binding_of("a"), sym("self_insert_command")), "a")
+        call check(error, value_eq(binding_of("a"), value_type(name="self_insert_command")), "a")
         if (allocated(error)) return
-        call check(error, value_eq(binding_of("TAB"), sym("indent_for_tab_command")), "TAB")
+        call check(error, value_eq(binding_of("TAB"), value_type(name="indent_for_tab_command")), "TAB")
         if (allocated(error)) return
         ! mule-conf.el: every non-ASCII character self-inserts.
-        call check(error, value_eq(binding_of("é"), sym("self_insert_command")), "é")
+        call check(error, value_eq(binding_of("é"), value_type(name="self_insert_command")), "é")
         if (allocated(error)) return
-        call check(error, value_eq(binding_of("C-f"), sym("forward_char")), "C-f")
+        call check(error, value_eq(binding_of("C-f"), value_type(name="forward_char")), "C-f")
         if (allocated(error)) return
-        call check(error, value_eq(binding_of("M-5"), sym("digit_argument")), "M-5")
+        call check(error, value_eq(binding_of("M-5"), value_type(name="digit_argument")), "M-5")
         if (allocated(error)) return
-        call check(error, value_eq(binding_of("C-M-5"), sym("digit_argument")), "C-M-5")
+        call check(error, value_eq(binding_of("C-M-5"), value_type(name="digit_argument")), "C-M-5")
         if (allocated(error)) return
-        call check(error, value_eq(binding_of("<right>"), sym("right_char")), "<right>")
+        call check(error, value_eq(binding_of("<right>"), value_type(name="right_char")), "<right>")
         if (allocated(error)) return
-        call check(error, value_eq(binding_of("DEL"), sym("delete_backward_char")), "DEL")
+        call check(error, value_eq(binding_of("DEL"), value_type(name="delete_backward_char")), "DEL")
         if (allocated(error)) return
         ! A modified character is not covered by the self-insert range.
         call check(error, value_eq(binding_of("C-é"), value_type()), "C-é")
@@ -136,7 +135,7 @@ contains
         if (allocated(error)) return
         call check(error, point(), 5_int64)
         if (allocated(error)) return
-        call check(error, value_eq(last_command, sym("self_insert_command")), "last-command")
+        call check(error, value_eq(last_command, value_type(name="self_insert_command")), "last-command")
         call done_with(buf)
     end subroutine test_typing
 
@@ -163,7 +162,7 @@ contains
                    repeat("0", 12))
         if (allocated(error)) return
         ! Prefix commands keep last-command.
-        call check(error, value_eq(last_command, sym("self_insert_command")), "last-command")
+        call check(error, value_eq(last_command, value_type(name="self_insert_command")), "last-command")
         call done_with(buf)
     end subroutine test_universal_argument
 
@@ -240,11 +239,11 @@ contains
         call init_bindings()
 
         do k = 1, size(keys)
-            call check(error, value_eq(binding_of(trim(keys(k))), sym(trim(cmds(k)))), trim(keys(k)))
+            call check(error, value_eq(binding_of(trim(keys(k))), value_type(name=trim(cmds(k)))), trim(keys(k)))
             if (allocated(error)) return
         end do
 
-        call check(error, value_eq(binding_of("<help> k"), sym("describe_key")), "<help> k")
+        call check(error, value_eq(binding_of("<help> k"), value_type(name="describe_key")), "<help> k")
     end subroutine test_function_keys
 
     !> C-a and C-e with a count; simple.el move-beginning-of-line and
@@ -326,7 +325,7 @@ contains
         end do
 
         do k = 1, size(names)
-            call check(error,.not. is_command_defined(sym(trim(names(k)))), trim(names(k))//" is a command")
+            call check(error,.not. is_command_defined(value_type(name=trim(names(k)))), trim(names(k))//" is a command")
             if (allocated(error)) return
         end do
     end subroutine test_no_eval_keys
