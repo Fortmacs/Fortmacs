@@ -228,9 +228,9 @@ figure() {
 # The progress block: a status line and the pie.
 readme_block() {
     mkdir -p "$root/docs/progress"
-    parts="C|#96B6B0|$c_done|$c_total
-Elisp|#578D97|$l_done|$l_total
-GNU ELPA|#AC7E76|$gnu_done|$gnu_total
+    parts="C|#608A83|$c_done|$c_total
+Elisp|#578497|$l_done|$l_total
+GNU ELPA|#976057|$gnu_done|$gnu_total
 NonGNU ELPA|#B39574|$nongnu_done|$nongnu_total
 MELPA|#D6D6D3|$melpa_done|$melpa_total"
     pie_svg pie "#1A1A1A" "#1A1A1A" "$parts"
