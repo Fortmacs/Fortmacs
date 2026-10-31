@@ -29,7 +29,8 @@ submodule(subr_fm) subr_read_fm
     use, intrinsic :: iso_fortran_env, only: int32
     use minibuf_fm, only: read_from_minibuffer, minibuffer_local_map, enable_recursive_minibuffers, minibufferp
     use minibuffer_fm, only: delete_minibuffer_contents, exit_minibuffer, minibuffer_message
-    use keyboard_fm, only: sit_for, this_command, real_this_command, abort_recursive_edit
+    use keyboard_fm, only: sit_for, this_command, real_this_command, abort_recursive_edit, exit_recursive_edit, &
+                           recursive_edit, top_level, lossage_size
     use keymap_fm, only: set_keymap_parent, define_key_range, free_keymap
     use data_fm, only: value_eq
     use character_fm, only: MAX_CHAR
@@ -590,6 +591,48 @@ contains
         call abort_recursive_edit(status)
     end subroutine cmd_abort_recursive_edit
 
+    !> Exit from the innermost recursive edit or minibuffer.
+    !> Port of keyboard.c:Fexit_recursive_edit.
+    subroutine cmd_exit_recursive_edit(status)
+        type(status_type), intent(out) :: status
+
+        call exit_recursive_edit(status)
+    end subroutine cmd_exit_recursive_edit
+
+    !> Invoke the editor command loop recursively.
+    !> To get out of the recursive edit, a command can throw to `exit' --
+    !> for instance \[exit_recursive_edit] or \[abort_recursive_edit].
+    !> Port of keyboard.c:Frecursive_edit.
+    recursive subroutine cmd_recursive_edit(status)
+        type(status_type), intent(out) :: status
+
+        call recursive_edit(status)
+    end subroutine cmd_recursive_edit
+
+    !> Exit all recursive editing levels.
+    !> This also exits all active minibuffers.  Port of keyboard.c:Ftop_level.
+    subroutine cmd_top_level(status)
+        type(status_type), intent(out) :: status
+
+        call top_level(status)
+    end subroutine cmd_top_level
+
+    !> Return or set the maximum number of keystrokes to save.
+    !> If called with a non-nil ARG, set the limit to ARG and return it.
+    !> Otherwise, return the current limit.
+    !>
+    !> The saved keystrokes are shown by `view_lossage'.  Port of
+    !> keyboard.c:Flossage_size (its interactive spec).
+    recursive subroutine cmd_lossage_size(status)
+        type(status_type), intent(out) :: status
+        integer(int64) :: n
+        integer :: size_now
+
+        call read_number("Set maximum keystrokes to: ", n, status, default=int(lossage_size(), int64))
+        if (.not. status%ok()) return
+        size_now = lossage_size(int(n), status)
+    end subroutine cmd_lossage_size
+
     module procedure syms_of_subr
     type(status_type) :: st
 
@@ -599,6 +642,10 @@ contains
     commands%y_or_n_p_insert_n%run => y_or_n_p_insert_n
     commands%y_or_n_p_insert_other%run => y_or_n_p_insert_other
     commands%abort_recursive_edit%run => cmd_abort_recursive_edit
+    commands%exit_recursive_edit%run => cmd_exit_recursive_edit
+    commands%recursive_edit%run => cmd_recursive_edit
+    commands%top_level%run => cmd_top_level
+    commands%lossage_size%run => cmd_lossage_size
     ! The map is made again on first use (its parent and the global map
     ! may have been rebuilt).
     if (keymap_live_p(y_or_n_p_map)) call free_keymap(y_or_n_p_map, st)

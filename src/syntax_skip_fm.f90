@@ -146,6 +146,8 @@ contains
 
 contains
 
+    ! Whether CH is in the ranges or the character classes.  Port of
+    ! syntax.c:in_classes (the classes).
     logical function in_set(ch)
         integer(int32), intent(in) :: ch
         integer :: k

@@ -104,7 +104,7 @@ module info_fm
     use coding_fm, only: inhibit_null_byte_detection, buffer_file_coding_system
     use callproc_fm, only: call_process
     use callint_fm, only: current_prefix_arg, prefix_numeric_value, find_command, commandp
-    use keyboard_fm, only: this_command_keys, read_event, unread_command_events, read_key_sequence, sit_for
+    use keyboard_fm, only: this_command_keys, read_event, unread_command_events, read_key_sequence_vs, sit_for
     use isearch_fm, only: isearch_active, isearch_forward, isearch_wrapped, isearch_regexp, isearch_nonincremental, &
                           isearch_lax_whitespace, isearch_regexp_lax_whitespace, search_whitespace_regexp, &
                           isearch_search_proc, isearch_pop_proc, isearch_search_fun_default, isearch_mode_hook, &
@@ -8173,8 +8173,7 @@ contains
         type(value_type) :: binding
         logical :: eof
 
-        call message("Find documentation for key: ")
-        call read_key_sequence(keys, binding, eof, status)
+        call read_key_sequence_vs(keys, binding, eof, status, prompt="Find documentation for key: ")
         if (.not. status%ok() .or. eof) return
         call info_goto_emacs_key_command_node(keys, status, .true.)
     end subroutine cmd_info_goto_emacs_key_command_node
