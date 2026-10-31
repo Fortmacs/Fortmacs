@@ -30,7 +30,6 @@ module test_syntax_propertize_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, vtag, V_ARRAY
-    use lread_fm, only: sym
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, point_max, goto_char
@@ -199,7 +198,7 @@ contains
             if (allocated(error)) exit checks
             call check(error, syntax_propertize__done%value >= 6, "propertized that far")
             if (allocated(error)) exit checks
-            call get_text_property(3_int64, sym("syntax_table"), prop, st)
+            call get_text_property(3_int64, value_type(name="syntax_table"), prop, st)
             call check(error, vtag(prop) == V_ARRAY, "a raw descriptor on #")
             if (allocated(error)) exit checks
             call syntax_ppss(state, 7_int64)

@@ -65,7 +65,7 @@ contains
         type(status_type) :: st
 
         s = ""
-        call default_value(sym(name), v, st)
+        call default_value(value_type(name=name), v, st)
         if (st%ok() .and. vtag(v) == V_STRING) s = xstring(v)
     end function default_string
 

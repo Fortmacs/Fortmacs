@@ -63,8 +63,7 @@ module syntax_fm
     use category_fm, only: char_has_category
     use charscript_fm, only: char_script
     use data_fm, only: logical_setting, integer_setting, forward_setting
-    use lisp_fm, only: value_type, xfixnum, xhandle, make_fixnum, list_elt, list, vtag, V_INTEGER, V_ARRAY, V_SYNTAX_TABLE
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, xfixnum, xhandle, list_elt, list, vtag, V_INTEGER, V_ARRAY, V_SYNTAX_TABLE
     use textprop_fm, only: get_text_property
     implicit none(type, external)
     private
@@ -774,9 +773,9 @@ contains
         type(value_type) :: v
 
         if (d%match >= 0) then
-            v = list(make_fixnum(int(d%code, int64)), make_fixnum(int(d%match, int64)))
+            v = list(value_type(int(d%code, int64)), value_type(int(d%match, int64)))
         else
-            v = list(make_fixnum(int(d%code, int64)))
+            v = list(value_type(int(d%code, int64)))
         end if
     end function syntax_descriptor_value
 
@@ -829,7 +828,7 @@ contains
             return
         end if
 
-        call get_text_property(pos, sym("syntax_table"), prop, st)
+        call get_text_property(pos, value_type(name="syntax_table"), prop, st)
 
         if (st%ok()) then
             if (vtag(prop) == V_ARRAY) then

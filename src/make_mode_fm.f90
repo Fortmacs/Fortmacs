@@ -46,9 +46,7 @@ module make_mode_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, xfixnum, xstring, make_string, make_list, list, &
-                       list_length, list_elt, vtag, V_INTEGER
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, xfixnum, xstring, make_list, list, list_length, list_elt, vtag, V_INTEGER
     use data_fm, only: integer_setting, logical_setting, string_setting, forward_setting, add_local_variables_killer
     use commands_fm, only: commands
     use callint_fm, only: current_prefix_arg, prefix_numeric_value, call_interactively
@@ -1137,7 +1135,7 @@ contains
         allocate (items(size(names)))
 
         do k = 1, size(names)
-            items(k) = make_string(names(k)%name)
+            items(k) = value_type(text=names(k)%name)
         end do
 
         v = make_list(items)
@@ -1460,7 +1458,7 @@ contains
         allocate (items(size(makefile_special_targets_list)))
 
         do k = 1, size(items)
-            items(k) = make_string(trim(makefile_special_targets_list(k)))
+            items(k) = value_type(text=trim(makefile_special_targets_list(k)))
         end do
 
         table%list = make_list(items)
@@ -1484,7 +1482,7 @@ contains
         if (.not. status%ok()) return
 
         if (is_bol()) then
-            call call_interactively(sym("makefile_insert_macro"), status)
+            call call_interactively(value_type(name="makefile_insert_macro"), status)
         else
             call self_insert_command(arg, event_char(), status)
         end if
@@ -1625,7 +1623,7 @@ contains
         type(status_type), intent(out) :: status
 
         if (is_bol()) then
-            call call_interactively(sym("makefile_insert_target"), status)
+            call call_interactively(value_type(name="makefile_insert_target"), status)
         else
             call self_insert_command(arg, event_char(), status)
         end if
@@ -2107,7 +2105,8 @@ contains
                 ! which back-to-indentation (called via fill-newline ->
                 ! fill-indent-to-left-margin -> indent-line-to) thinks are real code
                 ! (bug#13179).
-                call remove_text_properties(point_min(), point_max(), list(sym("syntax_table"), value_type()), changed, st)
+                call remove_text_properties(point_min(), point_max(), list(value_type(name="syntax_table"), value_type()), &
+                                            changed, st)
                 ! Adjust fill-column to allow space for the backslash.
                 call fill_one_less(status)
                 if (status%ok()) call makefile_backslash_region(point_min(), point_max(), .false., status)
@@ -2372,7 +2371,8 @@ contains
         type(status_type) :: st
 
         call call_process(makefile_brave_make%value, result, st, &
-                          args=list(make_string("-f"), make_string(filename), make_string("-q"), make_string(target)))
+                          args=list(value_type(text="-f"), value_type(text=filename), value_type(text="-q"), &
+                                    value_type(text=target)))
         rebuild = .true.
         if (vtag(result) == V_INTEGER) rebuild = xfixnum(result) /= 0
     end function makefile_query_by_make_minus_q
@@ -2473,7 +2473,7 @@ contains
         allocate (items(size(makefile_gnumake_functions_table)))
 
         do k = 1, size(items)
-            items(k) = make_string(trim(makefile_gnumake_functions_table(k)%name))
+            items(k) = value_type(text=trim(makefile_gnumake_functions_table(k)%name))
         end do
 
         table%list = make_list(items)
@@ -2793,7 +2793,7 @@ contains
 
         has_face = .false.
         if (pos < point_min()) return
-        call get_text_property(pos, sym("face"), face, st)
+        call get_text_property(pos, value_type(name="face"), face, st)
         if (st%ok()) has_face = allocated(face%a)
     end function has_face
 

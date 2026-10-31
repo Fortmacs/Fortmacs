@@ -27,8 +27,8 @@ module test_make_mode_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, symbols, xsymbol, xstring, list_elements, list_length, list_elt, vtag, V_NULL, V_NAME, V_ARRAY
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, symbols, xsymbol, xstring, list_elements, list_length, list_elt, vtag, V_NULL, &
+                       V_NAME, V_ARRAY
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_string
@@ -122,7 +122,7 @@ contains
         type(status_type) :: st
 
         name = ""
-        call get_text_property(pos, sym("face"), v, st)
+        call get_text_property(pos, value_type(name="face"), v, st)
 
         if (vtag(v) == V_ARRAY) then
             call list_elements(v, elts)

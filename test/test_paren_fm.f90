@@ -26,7 +26,6 @@ module test_paren_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
-    use lread_fm, only: sym
     use data_fm, only: value_eq
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
     use insdel_fm, only: insert
@@ -274,9 +273,9 @@ contains
 
         do k = 1, size(vec)
             face = overlay_get(vec(k), "face")
-            if (value_eq(face, sym("show_paren_match"))) name = "show_paren_match"
-            if (value_eq(face, sym("show_paren_mismatch"))) name = "show_paren_mismatch"
-            if (value_eq(face, sym("show_paren_match_expression"))) name = "show_paren_match_expression"
+            if (value_eq(face, value_type(name="show_paren_match"))) name = "show_paren_match"
+            if (value_eq(face, value_type(name="show_paren_mismatch"))) name = "show_paren_mismatch"
+            if (value_eq(face, value_type(name="show_paren_match_expression"))) name = "show_paren_match_expression"
             if (len(name) > 0) return
         end do
     end function face_at

@@ -27,7 +27,6 @@ module test_simple_setvar_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
-    use lread_fm, only: sym
     use data_fm, only: is_local_variable
     use buffer_fm, only: get_buffer_create, set_buffer, fill_column
     use frame_fm, only: selected_frame, ensure_frame_windows
@@ -132,7 +131,7 @@ contains
         call fresh()
         call switch_to_buffer("*setvar*", st)
         call set_var("fill_column", "72")
-        call check(error, fill_column%value == 72_int64 .and. is_local_variable(sym("fill_column")), last_message)
+        call check(error, fill_column%value == 72_int64 .and. is_local_variable(value_type(name="fill_column")), last_message)
         if (allocated(error)) return
         call switch_to_buffer("*scratch*", st)
         call check(error, fill_column%value == 70_int64, "the default is unchanged")
@@ -246,7 +245,7 @@ contains
         call fresh()
         call switch_to_buffer("*setvar-prefix*", st)
         call set_var("case_fold_search", ".false.", "C-u")
-        call check(error, is_local_variable(sym("case_fold_search")), last_message)
+        call check(error, is_local_variable(value_type(name="case_fold_search")), last_message)
         if (allocated(error)) return
         call set_var("case_replace", ".false.", "C-u")
         call check(error, last_message, "Symbol case_replace may not be buffer-local")

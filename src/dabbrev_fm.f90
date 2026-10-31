@@ -62,7 +62,7 @@ module dabbrev_fm
     use window_fm, only: windows, window_leaves, get_mru_window, same_handle, window_type
     use derived_fm, only: provided_mode_derived_p
     use xdisp_fm, only: message
-    use lisp_fm, only: value_type, t_value, make_string, make_list, xstring
+    use lisp_fm, only: value_type, make_list, xstring
     use minibuf_table_fm, only: capf_data_type, completion_predicate, completion_table_type, completion_list_table, &
                                 completion_function_table, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
     use minibuf_fm, only: try_completion, all_completions, test_completion
@@ -1719,7 +1719,7 @@ contains
         case (COMPLETE_ALL)
             call all_completions(string, table, result, status, pred)
         case (COMPLETE_TEST)
-            if (test_completion(string, table, pred)) result = t_value()
+            if (test_completion(string, table, pred)) result = value_type(.true.)
         case default
             if (present(suffix)) continue
         end select
@@ -1746,7 +1746,7 @@ contains
             if (.not. allocated(expansion)) exit
             n = size(all)
             allocate (grown(n + 1))
-            grown(1) = make_string(expansion)
+            grown(1) = value_type(text=expansion)
             grown(2:) = all
             call move_alloc(grown, all)
         end do
@@ -1756,11 +1756,11 @@ contains
         if (ignore_case .and. dabbrev_case_replace /= DABBREV_OFF) then
             do n = 1, size(all)
                 if (same_string(abbrev, upcase_string(abbrev))) then
-                    all(n) = make_string(upcase_string(xstring(all(n))))
+                    all(n) = value_type(text=upcase_string(xstring(all(n))))
                 else if (same_string(first, upcase_string(first))) then
-                    all(n) = make_string(capitalize_string(xstring(all(n))))
+                    all(n) = value_type(text=capitalize_string(xstring(all(n))))
                 else
-                    all(n) = make_string(downcase_string(xstring(all(n))))
+                    all(n) = value_type(text=downcase_string(xstring(all(n))))
                 end if
             end do
         end if

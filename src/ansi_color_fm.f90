@@ -41,8 +41,7 @@ module ansi_color_fm
     use, intrinsic :: iso_fortran_env, only: int64, int32
     use error_fm, only: status_type
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, t_value, make_string, list, xstring, make_list
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list, xstring, make_list
     use data_fm, only: integer_setting, logical_setting, add_local_variables_killer, set, symbol_value
     use buffer_fm, only: buffers, cur, current_buffer
     use marker_fm, only: make_marker, free_marker, marker_position, set_marker, detach_marker, copy_marker_at, &
@@ -528,8 +527,8 @@ contains
         type(status_type) :: st
 
         status = status_type()
-        call symbol_value(sym("inhibit_read_only"), saved, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
 
         select case (int(ansi_color_for_compilation_mode%value))
         case (ANSI_COLOR_NO)
@@ -539,7 +538,7 @@ contains
             call ansi_color_apply_on_region(compilation_filter_start, point())
         end select
 
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
     end subroutine ansi_color_compilation_filter
 
     ! ------------------------------------------------------------------
@@ -688,11 +687,11 @@ contains
         k = ensure_string_context()
         face_vec = contexts(k)%string_face_vec
         ! If context was saved and is a string, prepend it.
-        text = propertized_concat(make_string(contexts(k)%fragment), string)
+        text = propertized_concat(value_type(text=contexts(k)%fragment), string)
         contexts(k)%fragment = ""
         raw = xstring(text)
         nchars = nchars_of(raw)
-        res = make_string("")
+        res = value_type(text="")
         start = 0
 
         ! Find the next escape sequence.
@@ -703,7 +702,7 @@ contains
             esc_end = match_end(0, st) - 1
             ! Colorize the old block from start to end using old face.
             face = ansi_color_face_value(face_vec_face(face_vec))
-            if (allocated(face%a)) call string_put_text_property(start, end, sym("font_lock_face"), face, text, st)
+            if (allocated(face%a)) call string_put_text_property(start, end, value_type(name="font_lock_face"), face, text, st)
             res = propertized_concat(res, propertized_substring(text, start, end))
             start = esc_end
             ! If this is a color escape sequence,
@@ -718,7 +717,7 @@ contains
 
         ! if the rest of the string should have a face, put it there
         face = ansi_color_face_value(face_vec_face(face_vec))
-        if (allocated(face%a)) call string_put_text_property(start, nchars, sym("font_lock_face"), face, text, st)
+        if (allocated(face%a)) call string_put_text_property(start, nchars, value_type(name="font_lock_face"), face, text, st)
         ! save context, add the remainder of the string to the result
         k = ensure_string_context()
         contexts(k)%string_face_vec = face_vec
@@ -853,18 +852,18 @@ contains
         if (allocated(face%faces)) then
             do k = 1, size(face%faces)
                 n = n + 1
-                if (associated(face%faces(k)%face)) elems(n) = sym(trim(face%faces(k)%face%name))
+                if (associated(face%faces(k)%face)) elems(n) = value_type(name=trim(face%faces(k)%face%name))
             end do
         end if
 
         if (allocated(face%background)) then
             n = n + 1
-            elems(n) = list(sym(":background"), color_string(face%background))
+            elems(n) = list(value_type(name=":background"), color_string(face%background))
         end if
 
         if (allocated(face%foreground)) then
             n = n + 1
-            elems(n) = list(sym(":foreground"), color_string(face%foreground))
+            elems(n) = list(value_type(name=":foreground"), color_string(face%foreground))
         end if
 
         if (n == 1) then
@@ -880,7 +879,7 @@ contains
             character(len=*), intent(in) :: color
             type(value_type) :: c
 
-            if (len(color) > 0) c = make_string(color)
+            if (len(color) > 0) c = value_type(text=color)
         end function color_string
     end function ansi_color_face_value
 
@@ -1074,7 +1073,7 @@ contains
             if (preserve) then
                 ! Make the escape sequence transparent.
                 call make_overlay(ov, esc_beg, esc_end, st)
-                call overlay_put(ov, "invisible", t_value(), st)
+                call overlay_put(ov, "invisible", value_type(.true.), st)
             else
                 ! Otherwise, strip.
                 call delete_region(esc_beg, esc_end, st)
@@ -1142,7 +1141,7 @@ contains
         type(status_type) :: st
 
         if (face%is_empty()) return
-        call put_text_property(beg, end, sym("font_lock_face"), ansi_color_face_value(face), st)
+        call put_text_property(beg, end, value_type(name="font_lock_face"), ansi_color_face_value(face), st)
     end subroutine ansi_color_apply_text_property_face
 
     !> Make an extent for the range [FROM, TO) in the current buffer.
@@ -1158,9 +1157,9 @@ contains
         ! avoid this, we use the `insert-behind-hooks' overlay property to
         ! make sure it works.
         call make_overlay(overlay, from, to, st)
-        call overlay_put(overlay, "evaporate", t_value(), st)
-        call overlay_put(overlay, "modification_hooks", list(sym("ansi_color_freeze_overlay")), st)
-        call overlay_put(overlay, "insert_behind_hooks", list(sym("ansi_color_freeze_overlay")), st)
+        call overlay_put(overlay, "evaporate", value_type(.true.), st)
+        call overlay_put(overlay, "modification_hooks", list(value_type(name="ansi_color_freeze_overlay")), st)
+        call overlay_put(overlay, "insert_behind_hooks", list(value_type(name="ansi_color_freeze_overlay")), st)
     end subroutine ansi_color_make_extent
 
     ! ------------------------------------------------------------------

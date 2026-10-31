@@ -28,7 +28,6 @@ module test_novice_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
-    use lread_fm, only: sym
     use callint_fm, only: find_command, command_type
     use commands_fm, only: commands
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer

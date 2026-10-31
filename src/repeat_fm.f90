@@ -36,9 +36,8 @@ module repeat_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type, set_error, format_message, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, command_type, defined_command, REPEAT_CHECK_KEY_YES, REPEAT_CHECK_KEY_NO, V_INTEGER, V_NAME, &
-                       vtag, symbols, xsymbol, xfixnum, make_fixnum, make_keymap_ref
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, command_type, defined_command, REPEAT_CHECK_KEY_YES, REPEAT_CHECK_KEY_NO, V_INTEGER, &
+                       V_NAME, vtag, symbols, xsymbol, xfixnum, make_keymap_ref
     use data_fm, only: value_eq
     use eval_fm, only: hook_type, hook_current_prefix_arg
     use commands_fm, only: commands, builtin_command, BUILTIN_COMMAND_NAMES
@@ -220,7 +219,7 @@ contains
 
         status = status_type()
         repeat_arg = current_prefix_arg
-        if (value_eq(last_repeatable_command, sym("repeat"))) last_repeatable_command = repeat_previous_repeated_command
+        if (value_eq(last_repeatable_command, value_type(name="repeat"))) last_repeatable_command = repeat_previous_repeated_command
         name = name_of(last_repeatable_command)
 
         if (.not. allocated(last_repeatable_command%a)) then
@@ -255,7 +254,7 @@ contains
             call char_before(c, found)
 
             if (found) then
-                last_command_event = make_fixnum(int(c, int64))
+                last_command_event = value_type(int(c, int64))
             else
                 last_command_event = value_type()
             end if
@@ -268,7 +267,7 @@ contains
             if (is_keymap_live(final_key_map)) call free_keymap(final_key_map, st)
             call make_sparse_keymap(final_key_map)
             key(1) = repeat_repeat_char
-            call define_key(final_key_map, key, sym("repeat"), st)
+            call define_key(final_key_map, key, value_type(name="repeat"), st)
             call set_transient_map(final_key_map)
         end if
     end subroutine repeat
@@ -463,10 +462,10 @@ contains
                 c = c + 32
             end if
 
-            basic = make_fixnum(c)
+            basic = value_type(c)
         else if (vtag(ev) == V_NAME) then
             call parse_modifiers(ev, bits, base)
-            basic = sym(base)
+            basic = value_type(name=base)
         else
             basic = ev
         end if
@@ -565,7 +564,7 @@ contains
                 if (is_keymap_live(exit_key_map)) call free_keymap(exit_key_map, st)
                 call copy_keymap(map, exit_key_map, st)
                 call key_parse(repeat_exit_key, key, st)
-                call define_key(exit_key_map, key, sym("ignore"), st)
+                call define_key(exit_key_map, key, value_type(name="ignore"), st)
                 active = exit_key_map
             end if
 
@@ -692,7 +691,7 @@ contains
 
     !> The keymap of keymap value V.  Not a port.
     function keymap_of(v) result(h)
-        use lisp_fm, only: xhandle
+        use lisp_fm, only: xhandle, value_type
         type(value_type), intent(in) :: v
         type(handle_type) :: h
 

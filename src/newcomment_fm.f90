@@ -56,7 +56,6 @@ module newcomment_fm
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER, V_ARRAY
     use data_fm, only: value_eq, add_local_variables_killer
-    use lread_fm, only: sym
     use data_fm, only: integer_setting, logical_setting, string_setting, function_setting, forward_setting
     use commands_fm, only: commands
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
@@ -1200,8 +1199,8 @@ contains
         end if
 
         ! Can't rely on the syntax table, let's guess based on font-lock.
-        call get_text_property(point(), sym("face"), face, st)
-        if (value_eq(face, sym("font_lock_string_face"))) return
+        call get_text_property(point(), value_type(name="face"), face, st)
+        if (value_eq(face, value_type(name="font_lock_string_face"))) return
         pt = point()
         cs = comment_search_backward(0_int64, .true., st)
         if (cs == 0) return
@@ -1216,14 +1215,14 @@ contains
 
         if (.not. is_cs) then
             ! Maybe font-lock knows that it's a `cs'?
-            call get_text_property(me(0), sym("face"), face, st)
-            is_cs = value_eq(face, sym("font_lock_comment_face"))
+            call get_text_property(me(0), value_type(name="face"), face, st)
+            is_cs = value_eq(face, value_type(name="font_lock_comment_face"))
         end if
 
         if (.not. is_cs) then
-            call get_text_property(point(), sym("face"), face, st)
+            call get_text_property(point(), value_type(name="face"), face, st)
 
-            if (.not. value_eq(face, sym("font_lock_comment_face"))) then
+            if (.not. value_eq(face, value_type(name="font_lock_comment_face"))) then
                 ! Let's assume it's a `cs' if we're on the same line.
                 is_cs = line_end_position() >= pt
             end if
@@ -1734,7 +1733,7 @@ contains
 
         if (.not. allocated(current_prefix_arg%a)) then
             call comment_set_column(status)
-        else if (value_eq(current_prefix_arg, sym("-"))) then
+        else if (value_eq(current_prefix_arg, value_type(name="-"))) then
             call comment_set_column(status, minus=.true.)
         else
             call comment_set_column(status, arg=.true.)
@@ -3277,7 +3276,7 @@ contains
             return
         end if
 
-        if (value_eq(last_command, sym("comment_line_backward")) .and. n >= 0) n = -n
+        if (value_eq(last_command, value_type(name="comment_line_backward")) .and. n >= 0) n = -n
         a = line_beginning_position()
         z = line_end_position(n)
         call goto_char(z)
@@ -3285,7 +3284,7 @@ contains
         if (.not. status%ok()) return
         sh = forward_line(1_int64)
         call back_to_indentation()
-        if (n < 0) this_command = sym("comment_line_backward")
+        if (n < 0) this_command = value_type(name="comment_line_backward")
     end subroutine comment_line
 
     !> Comment or uncomment current line and leave point after it.

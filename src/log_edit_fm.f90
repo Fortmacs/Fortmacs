@@ -48,9 +48,8 @@ module log_edit_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, format_error
     use handle_fm, only: handle_type, null_handle
     use commands_fm, only: commands
-    use lisp_fm, only: command_proc
-    use lisp_fm, only: value_type, t_value
-    use lread_fm, only: sym
+    use lisp_fm, only: command_proc, value_type
+    use lisp_fm, only: value_type
     use data_fm, only: value_eq, add_local_variables_killer
     use eval_fm, only: hook_type
     use ring_fm, only: ring_type
@@ -763,7 +762,7 @@ contains
         if (summary) return
         if (.not. looking_at(".+", status)) return
         call goto_char(match_end(0, status))
-        call put_text_property(point_min(), point(), sym("jit_lock_defer_multiline"), t_value(), status)
+        call put_text_property(point_min(), point(), value_type(name="jit_lock_defer_multiline"), value_type(.true.), status)
         found = .true.
     end subroutine log_edit_match_first_line
 
@@ -863,7 +862,7 @@ contains
 
         face = ""
         beg = max(point_min(), match_beginning(0, st) - 2)
-        call put_text_property(beg, match_end(0, st), sym("font_lock_multiline"), t_value(), st)
+        call put_text_property(beg, match_end(0, st), value_type(name="font_lock_multiline"), value_type(.true.), st)
         call char_after(c, found, beg)
 
         if (found) then
@@ -1422,9 +1421,9 @@ contains
         start = point()
         call insert(make_header_line(header, value), status)
         if (.not. status%ok()) return
-        call put_text_property(start, start + len(header) + 2, sym("field"), sym("header"), status)
+        call put_text_property(start, start + len(header) + 2, value_type(name="field"), value_type(name="header"), status)
         if (.not. status%ok()) return
-        call put_text_property(start, start + len(header) + 2, sym("rear_nonsticky"), t_value(), status)
+        call put_text_property(start, start + len(header) + 2, value_type(name="rear_nonsticky"), value_type(.true.), status)
     end subroutine insert_header_line
 
     !> Insert the default VC commit log template with Summary and Author.
@@ -1502,7 +1501,7 @@ contains
     !> can thus take some time.  Port of
     !> log-edit.el:log-edit-insert-cvs-rcstemplate.
     recursive subroutine log_edit_insert_cvs_rcstemplate(status, interactive)
-        use lisp_fm, only: make_string, make_list
+        use lisp_fm, only: make_list, value_type
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
         character(len=:), allocatable :: root
@@ -1520,10 +1519,10 @@ contains
         if (is_file_readable(root)) then
             call goto_char(point_max())
             ! Ignore the stderr stuff, even if it's an error.
-            args(1) = make_string("checkout")
-            args(2) = make_string("-p")
-            args(3) = make_string("CVSROOT/rcstemplate")
-            call call_process("cvs", result, st, destination=t_value(), args=make_list(args))
+            args(1) = value_type(text="checkout")
+            args(2) = value_type(text="-p")
+            args(3) = value_type(text="CVSROOT/rcstemplate")
+            call call_process("cvs", result, st, destination=value_type(.true.), args=make_list(args))
         end if
     end subroutine log_edit_insert_cvs_rcstemplate
 
@@ -1640,7 +1639,7 @@ contains
 
         use = .false.
         if (present(use_first)) use = use_first
-        if (value_eq(last_command, sym("log_edit_insert_changelog"))) use = .true.
+        if (value_eq(last_command, value_type(name="log_edit_insert_changelog"))) use = .true.
         saved_use_first = changelog_use_first
         changelog_use_first = use
         call log_edit_files(files)

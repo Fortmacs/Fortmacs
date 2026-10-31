@@ -40,8 +40,7 @@ module autorevert_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type, null_handle, has_handle
-    use lisp_fm, only: value_type, t_value
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type
     use data_fm, only: logical_setting, forward_setting, add_local_variables_killer, set, symbol_value
     use fns_fm, only: put
     use eval_fm, only: hook_type
@@ -1364,8 +1363,8 @@ contains
 
         k = local_index(.true.)
         modified = buffers(cur)%text%save_modiff < buffers(cur)%text%modiff
-        call symbol_value(sym("inhibit_read_only"), saved_inhibit, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved_inhibit, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         ! Ignore that file has changed.
         call move_alloc(buffers(cur)%filename, file)
 
@@ -1397,7 +1396,7 @@ contains
         end if
 
         call move_alloc(file, buffers(cur)%filename)
-        call set(sym("inhibit_read_only"), saved_inhibit, st)
+        call set(value_type(name="inhibit_read_only"), saved_inhibit, st)
         call set_visited_file_modtime()
     end subroutine auto_revert_tail_handler
 
@@ -1566,8 +1565,8 @@ contains
                                                         body=global_auto_revert_mode_body)
         ! (put 'auto-revert-mode 'permanent-local t), and the same for
         ! auto-revert-tail-mode.
-        call put(sym("auto_revert_mode"), sym("permanent_local"), t_value(), st)
-        call put(sym("auto_revert_tail_mode"), sym("permanent_local"), t_value(), st)
+        call put(value_type(name="auto_revert_mode"), value_type(name="permanent_local"), value_type(.true.), st)
+        call put(value_type(name="auto_revert_tail_mode"), value_type(name="permanent_local"), value_type(.true.), st)
         call add_local_variables_killer(kill_autorevert_locals)
         call find_file_hook%add(auto_revert_find_file_function)
         call after_set_visited_file_name_hook%add(auto_revert_set_visited_file_name)

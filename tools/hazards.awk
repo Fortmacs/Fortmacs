@@ -240,7 +240,7 @@ function subscripted(right, idx,    t, m, name) {
         name = m
         sub(/[ \t]*\(.*/, "", name)
         sub(/.*%/, "", name)
-        if (name ~ /^(achar|char|iachar|ichar|abs|mod|modulo|min|max|int|nint|real|dble|present|allocated|associated|len|len_trim|size|trim|adjustl|adjustr|repeat|index|scan|verify|btest|iand|ior|ieor|ishft|merge|huge|kind|sign|any|all|count|sum|product|maxval|minval|lbound|ubound|shape|transfer|itoa|make_fixnum)$/) continue
+        if (name ~ /^(achar|char|iachar|ichar|abs|mod|modulo|min|max|int|nint|real|dble|present|allocated|associated|len|len_trim|size|trim|adjustl|adjustr|repeat|index|scan|verify|btest|iand|ior|ieor|ishft|merge|huge|kind|sign|any|all|count|sum|product|maxval|minval|lbound|ubound|shape|transfer|itoa|value_type)$/) continue
         return 1
     }
     return 0

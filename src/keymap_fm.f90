@@ -53,11 +53,9 @@ module keymap_fm
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, &
                         FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type, slot_table_type, null_handle
-    use lisp_fm, only: value_type, V_INTEGER, V_NAME, V_STRING, V_ARRAY, &
-                       V_KEYMAP, SYM_T, symbols, make_fixnum, &
-                       make_symbol_ref, make_keymap_ref, make_list, list, vtag, &
-                       xfixnum, xsymbol, xstring, &
-                       xhandle, list_length, list_elements, list_tail, list_elt, V_NULL
+    use lisp_fm, only: value_type, V_INTEGER, V_NAME, V_STRING, V_ARRAY, V_KEYMAP, SYM_T, symbols, make_symbol_ref, &
+                       make_keymap_ref, make_list, list, vtag, xfixnum, xsymbol, xstring, xhandle, list_length, list_elements, &
+                       list_tail, list_elt, V_NULL
     use lread_fm, only: intern
     use data_fm, only: value_eq, symbol_value
     use character_fm, only: CHAR_ALT, CHAR_SUPER, CHAR_HYPER, CHAR_SHIFT, &
@@ -66,7 +64,7 @@ module keymap_fm
                             string_char_and_length, multibyte_length
     use buffer_fm, only: buffers, cur
     use textprop_fm, only: get_char_property, get_pos_property
-    use lisp_fm, only: command_type, defined_command
+    use lisp_fm, only: command_type, defined_command, value_type
     use commands_fm, only: builtin_command
     implicit none(type, external)
     private
@@ -694,7 +692,7 @@ contains
 
         select case (vtag(c))
         case (V_INTEGER)
-            e = make_fixnum(iand(xfixnum(c), ior(M_META, M_META - 1)))
+            e = value_type(iand(xfixnum(c), ior(M_META, M_META - 1)))
         case (V_NAME)
             e = reorder_modifiers(c)
         case default
@@ -824,12 +822,12 @@ contains
             c = xfixnum(idx)
 
             if (iand(c, M_META) /= 0) then
-                call access_1(map, make_fixnum(META_PREFIX_CHAR), t_ok, &
+                call access_1(map, value_type(META_PREFIX_CHAR), t_ok, &
                               noinherit, meta_binding, f)
 
                 if (f .and. is_keymap(meta_binding)) then
                     m = meta_binding
-                    idx = make_fixnum(iand(c, not(M_META)))
+                    idx = value_type(iand(c, not(M_META)))
                 else if (t_ok) then
                     ! Only a default binding can apply.
                     idx = make_symbol_ref(SYM_T)
@@ -981,7 +979,7 @@ contains
             end if
 
             if (.not. is_keymap(cmd)) then
-                val = make_fixnum(k)
+                val = value_type(k)
                 return
             end if
 
@@ -1234,10 +1232,10 @@ contains
 
             if (vtag(c) == V_INTEGER) then
                 if (iand(xfixnum(c), M_META) /= 0 .and. .not. metized) then
-                    c = make_fixnum(META_PREFIX_CHAR)
+                    c = value_type(META_PREFIX_CHAR)
                     metized = .true.
                 else
-                    c = make_fixnum(iand(xfixnum(c), not(M_META)))
+                    c = value_type(iand(xfixnum(c), not(M_META)))
                     metized = .false.
                     pos = pos + 1
                 end if
@@ -1601,9 +1599,9 @@ contains
 
                     do m = 1, size(run_from)
                         if (run_from(m) == run_to(m)) then
-                            ev = make_fixnum(run_from(m))
+                            ev = value_type(run_from(m))
                         else
-                            ev = list(make_fixnum(run_from(m)), make_fixnum(run_to(m)))
+                            ev = list(value_type(run_from(m)), value_type(run_to(m)))
                         end if
 
                         call append_value(events, ev)
@@ -1690,7 +1688,7 @@ contains
                     ! Turn it into a meta-ized keystroke, right after this
                     ! entry.
                     seq = thisseq
-                    seq(last) = make_fixnum(ior(xfixnum(events(j)), M_META))
+                    seq(last) = value_type(ior(xfixnum(events(j)), M_META))
                     call insert_after(k, seq, cmd)
                 else
                     seq = [thisseq, events(j)]
@@ -2110,7 +2108,7 @@ contains
                     call add_word(s, "ESC")
                     if (xfixnum(key) == META_PREFIX_CHAR) cycle
                 else
-                    key = make_fixnum(ior(xfixnum(key), M_META))
+                    key = value_type(ior(xfixnum(key), M_META))
                 end if
 
                 add_meta = .false.
@@ -2251,7 +2249,7 @@ contains
         allocate (key(size(codes)))
 
         do k = 1, size(codes)
-            key(k) = make_fixnum(codes(k))
+            key(k) = value_type(codes(k))
         end do
     end subroutine char_events
 
@@ -2424,10 +2422,10 @@ contains
                      ((codes(1) >= 64 .and. codes(1) <= 95) .or. &
                       (codes(1) >= 97 .and. codes(1) <= 122))) then
                 allocate (key(1))
-                key(1) = make_fixnum(bits - M_CTL + iand(codes(1), 31_int64))
+                key(1) = value_type(bits - M_CTL + iand(codes(1), 31_int64))
             else
                 allocate (key(1))
-                key(1) = make_fixnum(bits + codes(1))
+                key(1) = value_type(bits + codes(1))
             end if
 
             call push_events(events, nev, key, times)
@@ -2789,9 +2787,9 @@ contains
 
                     do m = 1, size(run_from)
                         if (run_from(m) == run_to(m)) then
-                            ev_value = make_fixnum(run_from(m))
+                            ev_value = value_type(run_from(m))
                         else
-                            ev_value = list(make_fixnum(run_from(m)), make_fixnum(run_to(m)))
+                            ev_value = list(value_type(run_from(m)), value_type(run_to(m)))
                         end if
 
                         call scan_binding(ev_value, run_val(m))
@@ -2839,7 +2837,7 @@ contains
             if (vtag(event) == V_INTEGER .and. last_is_meta) then
                 ev = ior(xfixnum(event), M_META)
                 key = prefix
-                key(size(key)) = make_fixnum(ev)
+                key(size(key)) = value_type(ev)
             else
                 key = [prefix, event]
             end if

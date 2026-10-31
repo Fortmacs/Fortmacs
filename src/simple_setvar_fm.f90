@@ -53,6 +53,7 @@
 !> (upstream ignores them too) and buffer-local values of options that
 !> are not setting objects.
 submodule(simple_fm) simple_setvar_fm
+    use lisp_fm, only: value_type
     use docstrings_fm, only: user_option_names, user_option_info, set_user_option_logical, set_user_option_integer, &
                              set_user_option_real, set_user_option_string, set_user_option_choice, variable_doc, &
                              doc_entry_type, OPTION_NONE, OPTION_LOGICAL, OPTION_INTEGER, OPTION_REAL, OPTION_STRING, &
@@ -94,9 +95,9 @@ contains
     end if
 
     local = make_local
-    if (.not. local) local = is_local_variable_if_set(sym(variable))
+    if (.not. local) local = is_local_variable_if_set(value_type(name=variable))
 
-    if (local .and. .not. (setting .and. is_forwarded_variable(sym(variable)))) then
+    if (local .and. .not. (setting .and. is_forwarded_variable(value_type(name=variable)))) then
         call set_error(status, FM_GENERIC_ERROR, "Symbol "//variable//" may not be buffer-local")
         return
     end if
@@ -312,7 +313,7 @@ contains
     allocate (names(size(user_option_names)))
 
     do k = 1, size(user_option_names)
-        names(k) = make_string(trim(user_option_names(k)))
+        names(k) = value_type(text=trim(user_option_names(k)))
     end do
 
     if (present(default_value)) then
@@ -341,7 +342,7 @@ contains
     do k = 1, size(user_option_names)
         if (.not. is_settable_option(trim(user_option_names(k)))) cycle
         n = n + 1
-        names(n) = make_string(trim(user_option_names(k)))
+        names(n) = value_type(text=trim(user_option_names(k)))
     end do
 
     call completing_read("Set variable: ", completion_list_table(make_list(names(1:n))), name, status, &
@@ -353,9 +354,9 @@ contains
         return
     end if
 
-    if (is_local_variable(sym(name))) then
+    if (is_local_variable(value_type(name=name))) then
         scope = "(buffer-local)"
-    else if (make_local .or. is_local_variable_if_set(sym(name))) then
+    else if (make_local .or. is_local_variable_if_set(value_type(name=name))) then
         scope = "buffer-locally"
     else
         scope = "globally"

@@ -204,7 +204,7 @@ contains
         else
             if (.not. is_overlay(blink_matching_overlay)) then
                 call make_overlay(blink_matching_overlay, point(), point(), st, front_advance=.true.)
-                call overlay_put(blink_matching_overlay, "face", sym("show_paren_match"), st)
+                call overlay_put(blink_matching_overlay, "face", value_type(name="show_paren_match"), st)
                 call delete_overlay(blink_matching_overlay)
             end if
 

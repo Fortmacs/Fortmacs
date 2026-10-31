@@ -38,7 +38,6 @@ module electric_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
-    use lread_fm, only: sym
     use data_fm, only: logical_setting, default_value, set_default, kill_local_variable, buffer_local_value, &
                        add_local_variables_killer
     use commands_fm, only: commands
@@ -130,7 +129,7 @@ contains
         end if
 
         call key_parse("C-j", key, st)
-        call define_key(global_map, key, sym("electric_newline_and_maybe_indent"), st)
+        call define_key(global_map, key, value_type(name="electric_newline_and_maybe_indent"), st)
     end subroutine syms_of_electric
 
     ! The index of the current buffer's own `electric_indent_chars', 0 if
@@ -433,7 +432,7 @@ contains
             do k = 1, size(all)
                 call resolve_buffer(all(k), b, st)
                 if (.not. st%ok()) cycle
-                call buffer_local_value(sym("electric_indent_mode"), b, v, st)
+                call buffer_local_value(value_type(name="electric_indent_mode"), b, v, st)
 
                 if (st%ok() .and. allocated(v%a)) then
                     found = .true.
@@ -472,16 +471,16 @@ contains
 
         status = status_type()
         call minor_modes%electric_indent_mode%state%set_local(val)
-        call default_value(sym("electric_indent_mode"), default, st)
+        call default_value(value_type(name="electric_indent_mode"), default, st)
 
         if (minor_modes%electric_indent_mode%state%value .eqv. allocated(default%a)) then
-            call kill_local_variable(sym("electric_indent_mode"), st)
+            call kill_local_variable(value_type(name="electric_indent_mode"), st)
         else if (.not. allocated(default%a)) then
             ! Locally enabled, but globally disabled.
             ! Setup the hooks.
             call minor_modes%electric_indent_mode%enable(status)
             ! But keep it globally disabled.
-            call set_default(sym("electric_indent_mode"), value_type(), st)
+            call set_default(value_type(name="electric_indent_mode"), value_type(), st)
         end if
     end subroutine electric_indent_local_mode_body
 end module electric_fm

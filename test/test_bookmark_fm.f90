@@ -30,7 +30,6 @@ module test_bookmark_fm
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, list_length, list_elt, xstring
-    use lread_fm, only: sym
     use data_fm, only: set, symbol_value
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, kill_buffer, get_buffer_create, &
                          generate_new_buffer_name, restore_buffer_modified, get_buffer
@@ -426,13 +425,13 @@ contains
         logical :: saved
 
         call init_bindings()
-        call set(sym("bookmark_history"), value_type(), st)
+        call set(value_type(name="bookmark_history"), value_type(), st)
         saved = history_delete_duplicates
         history_delete_duplicates = .true.
         call bookmark_maybe_historicize_string("foo")
         call bookmark_maybe_historicize_string("foo")
         history_delete_duplicates = saved
-        call symbol_value(sym("bookmark_history"), history, st)
+        call symbol_value(value_type(name="bookmark_history"), history, st)
         call check(error, list_length(history) == 1, "one element")
         if (allocated(error)) return
         call check(error, xstring(list_elt(history, 1_int64)), "foo")

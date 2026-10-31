@@ -36,7 +36,6 @@ module test_diff_mode_fm
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xsymbol, symbols, list_elements, vtag, V_NULL, V_NAME, V_ARRAY
-    use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, current_buffer, &
                          get_buffer, get_file_buffer, is_buffer_live, restore_buffer_modified
     use insdel_fm, only: insert
@@ -325,7 +324,7 @@ contains
         type(status_type) :: st
 
         name = ""
-        call get_text_property(pos, sym("face"), v, st)
+        call get_text_property(pos, value_type(name="face"), v, st)
 
         if (vtag(v) == V_ARRAY) then
             call list_elements(v, elts)

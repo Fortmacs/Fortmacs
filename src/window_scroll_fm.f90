@@ -30,8 +30,7 @@
 submodule(window_fm) window_scroll_fm
     use commands_fm, only: commands
     use error_fm, only: format_message, set_error, FM_GENERIC_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER
-    use lisp_fm, only: make_fixnum, value_type, vtag, V_ARRAY
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, vtag, V_ARRAY
     use data_fm, only: value_eq
     use buffer_fm, only: cur, current_buffer, set_buffer, is_buffer_live, buffer_list
     use editfns_fm, only: point, goto_char, is_eob, is_bob, point_min, point_max
@@ -192,7 +191,7 @@ contains
 
         if (.not. allocated(arg%a)) then
             call window_scroll(w, direction, .true., status)
-        else if (value_eq(arg, sym("-"))) then
+        else if (value_eq(arg, value_type(name="-"))) then
             call window_scroll(w, -direction, .true., status)
         else
             call window_scroll(w, prefix_numeric_value(arg)*direction, .false., status)
@@ -331,10 +330,10 @@ contains
 
         if (.not. scroll_error_top_bottom) then
             call scroll_up(arg, status)
-        else if (value_eq(arg, sym("-"))) then
+        else if (value_eq(arg, value_type(name="-"))) then
             call scroll_down_command(value_type(), status)
         else if (prefix_numeric_value(arg) < 0) then
-            call scroll_down_command(make_fixnum(-prefix_numeric_value(arg)), status)
+            call scroll_down_command(value_type(-prefix_numeric_value(arg)), status)
         else if (is_eob()) then
             ! Signal error.
             call scroll_up(arg, status)
@@ -366,10 +365,10 @@ contains
 
         if (.not. scroll_error_top_bottom) then
             call scroll_down(arg, status)
-        else if (value_eq(arg, sym("-"))) then
+        else if (value_eq(arg, value_type(name="-"))) then
             call scroll_up_command(value_type(), status)
         else if (prefix_numeric_value(arg) < 0) then
-            call scroll_up_command(make_fixnum(-prefix_numeric_value(arg)), status)
+            call scroll_up_command(value_type(-prefix_numeric_value(arg)), status)
         else if (is_bob()) then
             ! Signal error.
             call scroll_down(arg, status)
@@ -422,9 +421,9 @@ contains
         case (RECENTER_MIDDLE)
             call recenter(value_type(), .true., status)
         case (RECENTER_TOP)
-            call recenter(make_fixnum(0_int64), .true., status)
+            call recenter(value_type(0_int64), .true., status)
         case default
-            call recenter(make_fixnum(-1_int64), .true., status)
+            call recenter(value_type(-1_int64), .true., status)
         end select
     end subroutine recenter_top_bottom
 
@@ -445,9 +444,9 @@ contains
         case (RECENTER_MIDDLE)
             call move_to_window_line(value_type(), line, status)
         case (RECENTER_TOP)
-            call move_to_window_line(make_fixnum(0_int64), line, status)
+            call move_to_window_line(value_type(0_int64), line, status)
         case default
-            call move_to_window_line(make_fixnum(-1_int64), line, status)
+            call move_to_window_line(value_type(-1_int64), line, status)
         end select
     end subroutine move_to_window_line_top_bottom
 

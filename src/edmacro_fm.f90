@@ -30,9 +30,9 @@
 module edmacro_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, xfixnum, xsymbol, xstring, symbols, vtag, &
-                       V_ARRAY, list_elements, make_fixnum, make_keymap_ref, make_symbol_ref, V_NULL, V_INTEGER, V_NAME, V_STRING
-    use lread_fm, only: sym, intern_soft
+    use lisp_fm, only: value_type, xfixnum, xsymbol, xstring, symbols, vtag, V_ARRAY, list_elements, make_keymap_ref, &
+                       make_symbol_ref, V_NULL, V_INTEGER, V_NAME, V_STRING
+    use lread_fm, only: intern_soft
     use data_fm, only: value_eq
     use character_fm, only: CHAR_ALT, CHAR_CTL, CHAR_HYPER, CHAR_META, CHAR_SUPER, CHAR_SHIFT, &
                             string_char_and_length, char_string, MAX_MULTIBYTE_LENGTH
@@ -87,7 +87,7 @@ contains
         n = size(macro, kind=int64)
         allocate (rest(n + 1))
         if (n > 0) rest(1:n) = macro
-        rest(n + 1) = sym("end-macro")
+        rest(n + 1) = value_type(name="end-macro")
         call active_map_list(maps)
         res = ""
         line_len = 0
@@ -103,7 +103,7 @@ contains
                 one = [rest(pos)]
                 call key_binding(one, b, st)
 
-                if (value_eq(b, sym("digit_argument")) .or. value_eq(b, sym("negative_argument"))) then
+                if (value_eq(b, value_type(name="digit_argument")) .or. value_eq(b, value_type(name="negative_argument"))) then
                     i = 1
 
                     do while (in_mdigs(rest(pos + i), .true.))
@@ -127,7 +127,7 @@ contains
             if (.not. has_prefix .and. int_event(rest(pos)) == 21) then
                 one = [rest(pos)]
                 call key_binding(one, b, st)
-                uarg = value_eq(b, sym("universal_argument"))
+                uarg = value_eq(b, value_type(name="universal_argument"))
 
                 if (uarg) then
                     i = 1
@@ -240,7 +240,7 @@ contains
             done = .false.
             ch = int_event(first)
 
-            if (value_eq(bind, sym("self_insert_command")) .and. .not. has_prefix .and. text > 1 .and. &
+            if (value_eq(bind, value_type(name="self_insert_command")) .and. .not. has_prefix .and. text > 1 .and. &
                 ch > 32 .and. ch <= maxkey .and. ch /= 92) then
                 if (text > 30) text = 30
                 desc = event_chars(rest(pos:pos + text - 1))
@@ -273,8 +273,8 @@ contains
                 end if
             end if
 
-            if (.not. done .and. value_eq(bind, sym("execute_extended_command")) .and. text > bind_len) then
-                if (int_event(rest(pos + text)) == 13 .or. value_eq(rest(pos + text), sym("return"))) then
+            if (.not. done .and. value_eq(bind, value_type(name="execute_extended_command")) .and. text > bind_len) then
+                if (int_event(rest(pos + text)) == 13 .or. value_eq(rest(pos + text), value_type(name="return"))) then
                     desc = event_chars(rest(pos + bind_len:pos + text - 1))
                     k = intern_soft(desc)
 
@@ -407,7 +407,7 @@ contains
         do while (pos <= len(s, kind=int64))
             call string_char_and_length(s, pos, c, length)
             n = n + 1
-            evs(n) = make_fixnum(int(c, int64))
+            evs(n) = value_type(int(c, int64))
             pos = pos + length
         end do
 
@@ -445,7 +445,7 @@ contains
         type(value_type), intent(in) :: ev
         integer(int64) :: c
 
-        in_pkeys = value_eq(ev, sym("end-macro"))
+        in_pkeys = value_eq(ev, value_type(name="end-macro"))
         if (in_pkeys) return
         c = int_event(ev)
         if (c < 0) return
@@ -460,9 +460,9 @@ contains
         type(value_type) :: key(1), b
         type(status_type) :: st
 
-        key(1) = make_fixnum(ch)
+        key(1) = value_type(ch)
         call key_binding(key, b, st)
-        self_inserting = value_eq(b, sym("self_insert_command"))
+        self_inserting = value_eq(b, value_type(name="self_insert_command"))
     end function self_inserting
 
     !> The characters EVS (all ASCII) as a string.  Not a port.

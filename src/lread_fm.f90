@@ -39,7 +39,7 @@ module lread_fm
     implicit none(type, external)
     private
 
-    public :: intern, intern_soft, sym, ensure_obarray, read_string_literal
+    public :: intern, intern_soft, ensure_obarray, read_string_literal
 
     !> File name, including directory, of user's initialization file.
     !> While the init file's `configure' runs, value is the real name
@@ -171,15 +171,6 @@ contains
         if (.not. allocated(slots)) call init_obarray()
         id = slots(find_slot(name))
     end function intern_soft
-
-    !> The symbol named `name' as a value (nil for "nil"); the Fortmacs
-    !> spelling of 'name.  Interns it if needed.  Not a port.
-    function sym(name) result(v)
-        character(len=*), intent(in) :: name
-        type(value_type) :: v
-
-        v = make_symbol_ref(intern(name))
-    end function sym
 
     ! ------------------------------------------------------------------
     ! Reading string constants

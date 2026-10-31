@@ -26,7 +26,6 @@ module test_register_fm
     use error_fm, only: status_type, format_error, FM_QUIT, FM_WRONG_TYPE_ARGUMENT, FM_USER_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
-    use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, set_buffer_read_only, &
                          current_buffer, get_buffer, is_buffer_live
     use insdel_fm, only: insert
@@ -174,7 +173,7 @@ contains
             case (1)
                 call kbd_store_bytes(achar(7))
             case (2)
-                escape(1) = sym("escape")
+                escape(1) = value_type(name="escape")
                 call unread_command_events(escape)
             case default
                 call kbd_store_bytes(achar(27))

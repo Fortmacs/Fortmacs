@@ -53,16 +53,14 @@
 !> quit) and `minibuffer_error_function'.
 module keyboard_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use lisp_fm, only: V_NULL, V_INTEGER, V_NAME, V_STRING
+    use lisp_fm, only: V_NULL, V_INTEGER, V_NAME, V_STRING, value_type
     use error_fm, only: status_type, set_error, format_error, error_name, FM_GENERIC_ERROR, FM_QUIT, FM_USER_ERROR, &
                         FM_INHIBITED_INTERACTION, FM_TOP_LEVEL
     use handle_fm, only: handle_type, null_handle
     use data_fm, only: value_eq
-    use lisp_fm, only: value_type, V_ARRAY, make_fixnum, &
-                       make_keymap_ref, vtag, &
-                       xfixnum, xsymbol, xstring, list_elements, list_elt, make_list, symbols, &
-                       command_proc
-    use lread_fm, only: intern, sym
+    use lisp_fm, only: value_type, V_ARRAY, make_keymap_ref, vtag, xfixnum, xsymbol, xstring, list_elements, list_elt, &
+                       make_list, symbols, command_proc
+    use lread_fm, only: intern
     use character_fm, only: CHAR_SHIFT, CHAR_META, CHAR_MODIFIER_MASK, CHAR_CTL, CHAR_ALT, CHAR_SUPER, CHAR_HYPER, &
                             bytes_by_char_head, byte8_to_char, &
                             multibyte_length, string_char_and_length, is_char_byte8, char_to_byte8, &
@@ -711,7 +709,7 @@ contains
     subroutine store_char(c)
         integer(int64), intent(in) :: c
 
-        call store_event(make_fixnum(c))
+        call store_event(value_type(c))
     end subroutine store_char
 
     !> Flush incomplete UTF-8 bytes as raw-byte characters.  Not a port.
@@ -1131,7 +1129,7 @@ contains
 
                     if (macro_string .and. vtag(ev) == V_INTEGER) then
                         if (iand(xfixnum(ev), 128_int64) /= 0 .and. xfixnum(ev) <= 255) then
-                            ev = make_fixnum(ior(M_META, iand(xfixnum(ev), not(128_int64))))
+                            ev = value_type(ior(M_META, iand(xfixnum(ev), not(128_int64))))
                         end if
                     end if
 
@@ -1179,7 +1177,7 @@ contains
             ! (keyboard.c:quit_throw_to_read_char, as handle_interrupt
             ! calls it).
             if (interrupt_pending()) then
-                ev = make_fixnum(7_int64)
+                ev = value_type(7_int64)
                 have = .true.
                 return
             end if
@@ -1208,7 +1206,7 @@ contains
                 if (nunread > 0 .or. tail >= head) cycle reading
 
                 if (interrupt_pending()) then
-                    ev = make_fixnum(7_int64)
+                    ev = value_type(7_int64)
                     have = .true.
                     return
                 end if
@@ -1290,7 +1288,7 @@ contains
         do while (pos <= len(s, kind=int64))
             call string_char_and_length(s, pos, ch, length)
             n = n + 1
-            seq(n) = make_fixnum(int(ch, int64))
+            seq(n) = value_type(int(ch, int64))
             pos = pos + length
         end do
 
@@ -1584,7 +1582,7 @@ contains
                         ! whether the lower-case char is defined in the
                         ! keymaps, because they might get translated through
                         ! function-key-map.
-                        keybuf(t) = make_fixnum(dc)
+                        keybuf(t) = value_type(dc)
                         mock_input = max(t, mock_input)
                         shift_translated = .true.
                         cycle replay
@@ -1610,9 +1608,9 @@ contains
                         if (iand(bits, M_SHIFT) /= 0 .and. (vtag(key) == V_NAME .or. vtag(key) == V_NULL)) then
                             keybuf(t) = apply_modifiers(bits - M_SHIFT, base)
                         else if (iand(bits, M_SHIFT) /= 0) then
-                            keybuf(t) = make_fixnum(xfixnum(key) - M_SHIFT)
+                            keybuf(t) = value_type(xfixnum(key) - M_SHIFT)
                         else
-                            keybuf(t) = make_fixnum(ior(int(downcase(int(c, int32)), int64), bits))
+                            keybuf(t) = value_type(ior(int(downcase(int(c, int32)), int64), bits))
                         end if
 
                         mock_input = max(t, mock_input)
@@ -2299,7 +2297,7 @@ contains
         replaces = vtag(prop) == V_STRING
         if (replaces .or. vtag(prop) /= V_ARRAY) return
         call list_elements(prop, elts)
-        if (size(elts) > 0) replaces = value_eq(elts(1), sym("space"))
+        if (size(elts) > 0) replaces = value_eq(elts(1), value_type(name="space"))
     end function is_display_prop_intangible
 
     !> Adjust point to a boundary of a region that has such a property
@@ -2326,13 +2324,13 @@ contains
 
         do while (check_display .or. check_invisible)
             if (check_display .and. pt() > begv .and. pt() < zv) then
-                call get_char_property_and_overlay(pt(), sym("display"), val, overlay)
+                call get_char_property_and_overlay(pt(), value_type(name="display"), val, overlay)
                 ok = .false.
                 if (allocated(val%a)) ok = is_display_prop_intangible(val)
 
                 if (ok) then
                     if (overlay%index == 0) then
-                        call get_property_and_range(pt(), sym("display"), val, beg, end)
+                        call get_property_and_range(pt(), value_type(name="display"), val, beg, end)
                     else
                         beg = overlay_start(overlay)
                         end = overlay_end(overlay)
@@ -2365,21 +2363,21 @@ contains
                 ! Find boundaries `beg' and `end' of the invisible area, if
                 ! any.
                 do while (end < zv)
-                    call get_char_property_and_overlay(end, sym("invisible"), val, overlay)
+                    call get_char_property_and_overlay(end, value_type(name="invisible"), val, overlay)
                     if (.not. allocated(val%a)) exit
                     inv = text_prop_means_invisible(val)
                     if (inv == 0) exit
                     ellipsis = ellipsis .or. inv > 1 .or. has_overlay_strings(overlay)
-                    end = next_single_char_property_change(end, sym("invisible"))
+                    end = next_single_char_property_change(end, value_type(name="invisible"))
                 end do
 
                 do while (beg > begv)
-                    call get_char_property_and_overlay(beg - 1, sym("invisible"), val, overlay)
+                    call get_char_property_and_overlay(beg - 1, value_type(name="invisible"), val, overlay)
                     if (.not. allocated(val%a)) exit
                     inv = text_prop_means_invisible(val)
                     if (inv == 0) exit
                     ellipsis = ellipsis .or. inv > 1 .or. has_overlay_strings(overlay)
-                    beg = previous_single_char_property_change(beg, sym("invisible"))
+                    beg = previous_single_char_property_change(beg, value_type(name="invisible"))
                 end do
 
                 ! Move away from the inside area.
@@ -2417,7 +2415,7 @@ contains
                 ! modified, but only if the invisible text is not shown on
                 ! display.  Invisible text might be "shown on display" if
                 ! there's a replacing display property on the same text.
-                call get_char_property_and_overlay(beg, sym("display"), val, overlay)
+                call get_char_property_and_overlay(beg, value_type(name="display"), val, overlay)
                 shown = .false.
                 if (allocated(val%a)) shown = is_display_prop_intangible(val)
                 ! If the "invisible" text is shown, undo any point
@@ -2437,9 +2435,9 @@ contains
                         ! to the other end would mean moving backwards and
                         ! thus could lead to an infinite loop.
                         continue
-                    else if (text_prop_means_invisible(get_pos_property(pt(), sym("invisible"))) /= 0) then
+                    else if (text_prop_means_invisible(get_pos_property(pt(), value_type(name="invisible"))) /= 0) then
                         if (text_prop_means_invisible(get_pos_property(merge(end, beg, pt() == beg), &
-                                                                       sym("invisible"))) == 0) then
+                                                                       value_type(name="invisible"))) == 0) then
                             check_display = .true.
                             call goto_char(merge(end, beg, pt() == beg))
                         end if
@@ -2883,11 +2881,11 @@ contains
         do k = 0, n
             if (k == 0) then
                 ! (The list starts with `help', which stands for help-char.)
-                key(1) = make_fixnum(help_char)
+                key(1) = value_type(help_char)
             else
                 call key_parse(trim(help_event_list(k)), evs, st)
                 if (.not. st%ok() .or. size(evs) /= 1) cycle
-                if (value_eq(evs(1), sym("help"))) cycle
+                if (value_eq(evs(1), value_type(name="help"))) cycle
                 key(1) = evs(1)
             end if
 
@@ -2946,7 +2944,7 @@ contains
         if (.not. have) return
         s = "C-u"
 
-        if (value_eq(prefix_arg, sym("-"))) then
+        if (value_eq(prefix_arg, value_type(name="-"))) then
             s = s//" -"
         else if (vtag(prefix_arg) == V_ARRAY) then
             head = list_elt(prefix_arg, 1_int64)
@@ -3077,9 +3075,9 @@ contains
             ! Kludge alert: this makes M-x be in the form expected by
             ! novice.el.  (248 is \370, a.k.a. "Meta-x".)
             if (first .and. c == 248) then
-                call add_command_key(make_fixnum(ior(int(iachar("x"), int64), M_META)))
+                call add_command_key(value_type(ior(int(iachar("x"), int64), M_META)))
             else
-                call add_command_key(make_fixnum(int(c, int64)))
+                call add_command_key(value_type(int(c, int64)))
             end if
 
             first = .false.
@@ -3156,10 +3154,10 @@ contains
             ! Convert certain symbols to their ASCII equivalents.
             if ((vtag(ev) == V_NAME .or. vtag(ev) == V_NULL)) then
                 call parse_modifiers(ev, bits, base)
-                c = ascii_character(sym(base))
+                c = ascii_character(value_type(name=base))
                 ! Merge this symbol's modifier bits with the ASCII
                 ! equivalent of its basic code.
-                if (c >= 0) ev = make_fixnum(ior(c, bits))
+                if (c >= 0) ev = value_type(ior(c, bits))
             end if
 
             ! If we don't have a character now, deal with it appropriately.
@@ -3379,7 +3377,7 @@ contains
             if (len_trim(names(i)) == 0) cycle
             if (.not. btest(modifiers, i)) cycle
             n = n + 1
-            syms(n) = sym(trim(names(i)))
+            syms(n) = value_type(name=trim(names(i)))
         end do
 
         v = make_list(syms(1:n))
@@ -3398,7 +3396,7 @@ contains
         call parse_modifiers(symbol, bits, base)
         call list_elements(lispy_modifier_list(bits), mods)
         allocate (elts(size(mods) + 1))
-        elts(1) = sym(base)
+        elts(1) = value_type(name=base)
         if (size(mods) > 0) elts(2:) = mods
         v = make_list(elts)
     end function event_name_parse_modifiers
@@ -3484,7 +3482,7 @@ contains
         ! Let the symbol A refer to the character A.
         if ((vtag(base) == V_NAME .or. vtag(base) == V_NULL) .and. allocated(base%a)) then
             name = symbols(xsymbol(base))%name
-            if (len(name) == 1) base = make_fixnum(int(iachar(name), int64))
+            if (len(name) == 1) base = value_type(int(iachar(name), int64))
         end if
 
         if (vtag(base) == V_INTEGER) then
@@ -3498,9 +3496,9 @@ contains
 
             ! Turn (control a) into C-a.
             if (iand(modifiers, int(CHAR_CTL, int64)) /= 0) then
-                ev = make_fixnum(ior(iand(modifiers, not(int(CHAR_CTL, int64))), make_ctrl_char(c)))
+                ev = value_type(ior(iand(modifiers, not(int(CHAR_CTL, int64))), make_ctrl_char(c)))
             else
-                ev = make_fixnum(ior(modifiers, c))
+                ev = value_type(ior(modifiers, c))
             end if
         else if ((vtag(base) == V_NAME .or. vtag(base) == V_NULL) .and. allocated(base%a)) then
             name = symbols(xsymbol(base))%name

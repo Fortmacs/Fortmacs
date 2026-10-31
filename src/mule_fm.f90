@@ -55,8 +55,7 @@ module mule_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_CODING_SYSTEM_ERROR, format_message
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, xstring, make_string, make_list, t_value, vtag, V_STRING
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, xstring, make_list, vtag, V_STRING
     use character_fm, only: str_to_multibyte
     use data_fm, only: forward_setting, default_value, set_default
     use fns_fm, only: put
@@ -204,7 +203,7 @@ contains
         ! buffer.c: buffer-file-coding-system is local when set, and
         ! permanently local.
         call forward_setting(buffer_file_coding_system, local_if_set=.true.)
-        call put(sym("buffer_file_coding_system"), sym("permanent_local"), t_value(), st)
+        call put(value_type(name="buffer_file_coding_system"), value_type(name="permanent_local"), value_type(.true.), st)
         set_auto_coding_function => set_auto_coding
         after_insert_file_set_coding => after_insert_file_set_coding_1
         select_safe_coding_system_function => select_safe_coding_system
@@ -268,7 +267,7 @@ contains
 
     !> MAP as a keymap value, for binding it as a prefix.  Not a port.
     function keymap_value(map) result(v)
-        use lisp_fm, only: make_keymap_ref
+        use lisp_fm, only: make_keymap_ref, value_type
         type(handle_type), intent(in) :: map
         type(value_type) :: v
 
@@ -284,7 +283,7 @@ contains
         type(status_type) :: status
 
         call key_parse(keys, key, status)
-        call define_key(map, key, sym(cmd), status)
+        call define_key(map, key, value_type(name=cmd), status)
     end subroutine bind
 
     ! ------------------------------------------------------------------
@@ -743,7 +742,7 @@ contains
             do j = 1, size(aliases)
                 if (any_name(items(1:n), aliases(j)%name)) cycle
                 n = n + 1
-                items(n) = make_string(aliases(j)%name)
+                items(n) = value_type(text=aliases(j)%name)
             end do
 
             call coding_system_subsidiaries(names(k)%name, subs)
@@ -752,7 +751,7 @@ contains
                 if (len_trim(subs(i)) == 0) cycle
                 if (any_name(items(1:n), trim(subs(i)))) cycle
                 n = n + 1
-                items(n) = make_string(trim(subs(i)))
+                items(n) = value_type(text=trim(subs(i)))
             end do
         end do
 
@@ -845,7 +844,7 @@ contains
         filename = ""
         if (allocated(buffers(cur)%filename)) filename = buffers(cur)%filename
         call set_auto_coding(filename, buffer_text(), auto_cs)
-        call default_value(sym("buffer_file_coding_system"), v, vst)
+        call default_value(value_type(name="buffer_file_coding_system"), v, vst)
         bfcs_default = ""
         if (vtag(v) == V_STRING) bfcs_default = xstring(v)
         current = ""
@@ -1276,7 +1275,7 @@ contains
 
         call check_coding_system(coding_system, status)
         if (.not. status%ok()) return
-        call set_default(sym("buffer_file_coding_system"), make_string(coding_system), status)
+        call set_default(value_type(name="buffer_file_coding_system"), value_type(text=coding_system), status)
         if (.not. status%ok()) return
         ! Preserve eol-type from existing default-process-coding-systems.
         output = coding_system_change_text_conversion(trim(default_process_coding_system(1)), coding_system)
@@ -1475,7 +1474,7 @@ contains
             if (len(write) == 0) then
                 ! If default buffer-file-coding-system is not nil nor
                 ! undecided, append it to the defaults.
-                call default_value(sym("buffer_file_coding_system"), v, vst)
+                call default_value(value_type(name="buffer_file_coding_system"), v, vst)
                 dflt = ""
                 if (vtag(v) == V_STRING) dflt = xstring(v)
 
@@ -1509,7 +1508,7 @@ contains
             end if
 
             if (eol == EOL_UNDECIDED) then
-                call default_value(sym("buffer_file_coding_system"), v, vst)
+                call default_value(value_type(name="buffer_file_coding_system"), v, vst)
                 if (vtag(v) == V_STRING) eol = coding_system_eol_type(xstring(v))
             end if
 
@@ -2017,7 +2016,7 @@ contains
             s = s//"Not set locally, use the default."//LF
         end if
 
-        call default_value(sym("buffer_file_coding_system"), v, vst)
+        call default_value(value_type(name="buffer_file_coding_system"), v, vst)
         dflt = ""
         if (vtag(v) == V_STRING) dflt = xstring(v)
         s = s//"Default coding system (for new files):"//LF//"  "//print_coding_system_briefly(dflt, .false.)

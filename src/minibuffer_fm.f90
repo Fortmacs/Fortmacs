@@ -44,8 +44,8 @@ module minibuffer_fm
     use insdel_fm, only: del_range, insert
     use keymap_fm, only: define_key, key_parse, make_sparse_keymap, set_keymap_parent, is_keymap_live, &
                          free_keymap
-    use lisp_fm, only: value_type, t_value, make_string, make_fixnum, list, list_elements, list_length, &
-                       list_elt, xfixnum, xstring, make_list, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
+    use lisp_fm, only: value_type, list, list_elements, list_length, list_elt, xfixnum, xstring, make_list, vtag, &
+                       V_NULL, V_INTEGER, V_NAME, V_STRING
     use data_fm, only: value_eq, symbol_value, set
     use character_fm, only: string_char_and_length
     use editfns_fm, only: point, point_max, goto_char, buffer_substring
@@ -62,7 +62,6 @@ module minibuffer_fm
     use dispnew_fm, only: ding
     use fns_fm, only: compare_strings, COMPARE_EQUAL, schars, substring, is_string_less, read_yes_or_no
     use dired_fm, only: file_name_completion, file_name_all_completions
-    use lread_fm, only: sym
     use keyboard_fm, only: throw_exit, command_loop_level, this_command, last_command, minibuffer_message_text, &
                            minibuffer_message_timeout, last_message
     use timer_fm, only: run_at_time, free_timer, is_timer
@@ -619,7 +618,7 @@ contains
             ! same as the second item in file-name-history, it's really a
             ! repeat (Bug#4657).
             val1 = minibuffer_maybe_quote_filename(val)
-            call symbol_value(sym("file_name_history"), history, st)
+            call symbol_value(value_type(name="file_name_history"), history, st)
 
             if (st%ok()) then
                 call list_elements(history, elems)
@@ -637,14 +636,14 @@ contains
 
                     if (n >= 2) then
                         if (string_equal(kept(2), val1)) then
-                            call set(sym("file_name_history"), make_list(kept(2:n)), st)
+                            call set(value_type(name="file_name_history"), make_list(kept(2:n)), st)
                         else
-                            kept(1) = make_string(val1)
-                            call set(sym("file_name_history"), make_list(kept(1:n)), st)
+                            kept(1) = value_type(text=val1)
+                            call set(value_type(name="file_name_history"), make_list(kept(1:n)), st)
                         end if
                     else
-                        kept(1) = make_string(val1)
-                        call set(sym("file_name_history"), make_list(kept(1:n)), st)
+                        kept(1) = value_type(text=val1)
+                        call set(value_type(name="file_name_history"), make_list(kept(1:n)), st)
                     end if
                 end if
             end if
@@ -963,7 +962,7 @@ contains
             type(status_type) :: st
 
             call key_parse(keys, seq, st)
-            if (st%ok()) call define_key(map, seq, sym(command), st)
+            if (st%ok()) call define_key(map, seq, value_type(name=command), st)
         end subroutine bind
 
         subroutine bind_nil(map, keys)
@@ -1556,8 +1555,8 @@ contains
         res = .false.
         ! If the previous command was not this, mark the completion buffer
         ! obsolete.
-        this_command = sym("completion_at_point")
-        if (.not. value_eq(last_command, sym("completion_at_point"))) minibuffer_scroll_window = null_handle()
+        this_command = value_type(name="completion_at_point")
+        if (.not. value_eq(last_command, value_type(name="completion_at_point"))) minibuffer_scroll_window = null_handle()
 
         ! If there's a fresh completion window with a live buffer, and this
         ! command is repeated, scroll that window.
@@ -1584,7 +1583,7 @@ contains
             is_backtab = .false.
             if (.not. allocated(this_command_keys)) return
             if (size(this_command_keys) /= 1) return
-            is_backtab = value_eq(this_command_keys(1), sym("backtab"))
+            is_backtab = value_eq(this_command_keys(1), value_type(name="backtab"))
         end function is_backtab
     end function completion_in_region_1
 
@@ -1990,9 +1989,9 @@ contains
     logical function confirm_exit_command(cmd)
         type(value_type), intent(in) :: cmd
 
-        confirm_exit_command = value_eq(cmd, sym("completion_at_point")) .or. &
-                               value_eq(cmd, sym("minibuffer_complete")) .or. &
-                               value_eq(cmd, sym("minibuffer_complete_word"))
+        confirm_exit_command = value_eq(cmd, value_type(name="completion_at_point")) .or. &
+                               value_eq(cmd, value_type(name="minibuffer_complete")) .or. &
+                               value_eq(cmd, value_type(name="minibuffer_complete_word"))
     end function confirm_exit_command
 
     ! ------------------------------------------------------------------
@@ -2153,7 +2152,7 @@ contains
             j = i - 1
 
             do while (j >= 1)
-                if (.not. is_string_less(make_string(tmp), make_string(strings(j)%s))) exit
+                if (.not. is_string_less(value_type(text=tmp), value_type(text=strings(j)%s))) exit
                 strings(j + 1)%s = strings(j)%s
                 j = j - 1
             end do
@@ -2418,7 +2417,7 @@ contains
 
         ! Most recently selected first.
         do k = 1, size(all)
-            elts(k) = make_string(buffers(all(size(all) + 1 - k)%index)%name)
+            elts(k) = value_type(text=buffers(all(size(all) + 1 - k)%index)%name)
         end do
 
         names = make_list(elts)
@@ -2472,7 +2471,7 @@ contains
 
             result = make_list(bufs(1:n))
         case (COMPLETE_TEST)
-            if (test_completion(string, table, pred)) result = t_value()
+            if (test_completion(string, table, pred)) result = value_type(.true.)
         case default
             continue
         end select
@@ -2675,18 +2674,18 @@ contains
             if (present(suffix)) slash = index(suffix, "/")
 
             if (slash > 0) then
-                result = list(make_fixnum(min(schars(file_name_directory(string)), schars(string))), &
-                              make_fixnum(schars(suffix(1:slash - 1))))
+                result = list(value_type(min(schars(file_name_directory(string)), schars(string))), &
+                              value_type(schars(suffix(1:slash - 1))))
             else
-                result = list(make_fixnum(min(schars(file_name_directory(string)), schars(string))), value_type())
+                result = list(value_type(min(schars(file_name_directory(string)), schars(string))), value_type())
             end if
         case (COMPLETE_TEST)
             if (len(string) == 0) return
 
             if (present(pred)) then
-                if (pred(make_string(string))) result = t_value()
+                if (pred(value_type(text=string))) result = value_type(.true.)
             else
-                if (file_exists(string)) result = t_value()
+                if (file_exists(string)) result = value_type(.true.)
             end if
         case default
             name = file_name_nondirectory(string)
@@ -2701,7 +2700,7 @@ contains
             if (action == COMPLETE_TRY) then
                 call file_name_completion(name, realdir, result, st, pred)
                 if (.not. st%ok()) result = value_type()
-                if (vtag(result) == V_STRING) result = make_string(specdir//xstring(result))
+                if (vtag(result) == V_STRING) result = value_type(text=specdir//xstring(result))
             else
                 call file_name_all_completions(name, realdir, result, st)
                 if (.not. st%ok()) result = value_type()
@@ -2822,9 +2821,9 @@ contains
             end if
 
             if (bend >= 0) then
-                result = list(make_fixnum(orig_start), make_fixnum(bend))
+                result = list(value_type(orig_start), value_type(bend))
             else
-                result = list(make_fixnum(orig_start), value_type())
+                result = list(value_type(orig_start), value_type())
             end if
 
             return
@@ -2855,10 +2854,10 @@ contains
                 if (only_need_double_dollars) then
                     ! Extract the newly added text, quote any dollar signs,
                     ! and append it to ORIG.
-                    result = make_string(substring(string, 0_int64, orig_start)// &
-                                         double_dollars(substring(xstring(result), sifned_start)))
+                    result = value_type(text=substring(string, 0_int64, orig_start)// &
+                                        double_dollars(substring(xstring(result), sifned_start)))
                 else
-                    result = make_string(string//double_dollars(substring(xstring(result), schars(sifned))))
+                    result = value_type(text=string//double_dollars(substring(xstring(result), schars(sifned))))
                 end if
             end if
         case (COMPLETE_ALL)
@@ -2866,13 +2865,13 @@ contains
 
             do k = 1, size(elts)
                 if (only_need_double_dollars) then
-                    elts(k) = make_string(double_dollars(xstring(elts(k))))
+                    elts(k) = value_type(text=double_dollars(xstring(elts(k))))
                 else
                     ! Extract the newly added text, quote any dollar signs,
                     ! and append it to the part of ORIG inside the
                     ! completion boundaries.
                     compl = xstring(elts(k))
-                    elts(k) = make_string(orig_in_bounds//double_dollars(substring(compl, schars(sifned_in_bounds))))
+                    elts(k) = value_type(text=orig_in_bounds//double_dollars(substring(compl, schars(sifned_in_bounds))))
                 end if
             end do
 
@@ -2914,7 +2913,7 @@ contains
                 call completion_boundaries(string, table, suffix_of(), bstart, bend)
             end if
 
-            result = list(make_fixnum(bstart + schars(prefix)), make_fixnum(bend))
+            result = list(value_type(bstart + schars(prefix)), value_type(bend))
         case (COMPLETE_TRY)
             if (present(pred)) then
                 call try_completion(string, table, result, status, context_predicate)
@@ -2923,7 +2922,7 @@ contains
             end if
 
             ! In case of try-completion, add the prefix.
-            if (status%ok() .and. vtag(result) == V_STRING) result = make_string(prefix//xstring(result))
+            if (status%ok() .and. vtag(result) == V_STRING) result = value_type(text=prefix//xstring(result))
         case (COMPLETE_ALL)
             if (present(pred)) then
                 call all_completions(string, table, result, status, context_predicate)
@@ -2934,9 +2933,9 @@ contains
             result = value_type()
 
             if (present(pred)) then
-                if (test_completion(string, table, context_predicate)) result = t_value()
+                if (test_completion(string, table, context_predicate)) result = value_type(.true.)
             else
-                if (test_completion(string, table)) result = t_value()
+                if (test_completion(string, table)) result = value_type(.true.)
             end if
         end select
 
@@ -2962,7 +2961,7 @@ contains
         if (.not. associated(context_pred)) return
 
         if (vtag(elt) == V_STRING) then
-            context_predicate = context_pred(make_string(context_prefix//xstring(elt)))
+            context_predicate = context_pred(value_type(text=context_prefix//xstring(elt)))
         else
             context_predicate = context_pred(elt)
         end if

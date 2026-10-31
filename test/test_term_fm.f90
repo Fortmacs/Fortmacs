@@ -23,15 +23,14 @@ module test_term_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, list, make_fixnum
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list
     use fns_fm, only: value_equal
     use terminfo_fm, only: terminfo_type, builtin_xterm
     use termchar_fm, only: tty_display_info, tty_take_output, tty_flush
     use cm_fm, only: cmat
     use dispextern_fm, only: glyph_type, face_type, FACE_UNDERLINE_SINGLE
     use keymap_fm, only: lookup_key
-    use lisp_fm, only: make_keymap_ref
+    use lisp_fm, only: make_keymap_ref, value_type
     use keyboard_fm, only: input_decode_map
     use sysdep_fm, only: open_pty, close_fd, input_available, emacs_read, &
                          set_tty_size
@@ -299,11 +298,11 @@ contains
         type(status_type) :: st
 
         call xterm(tty)
-        key(1) = make_fixnum(27_int64)
-        key(2) = make_fixnum(int(iachar("O"), int64))
-        key(3) = make_fixnum(int(iachar("A"), int64))
+        key(1) = value_type(27_int64)
+        key(2) = value_type(int(iachar("O"), int64))
+        key(3) = value_type(int(iachar("A"), int64))
         call lookup_key(make_keymap_ref(input_decode_map), key, v, st)
-        call check(error, value_equal(v, list(sym("up"))), "ESC O A")
+        call check(error, value_equal(v, list(value_type(name="up"))), "ESC O A")
     end subroutine test_fkeys
 
     subroutine test_encode(error)

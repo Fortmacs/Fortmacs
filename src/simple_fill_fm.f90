@@ -276,7 +276,7 @@ contains
     if (is_bol()) newline_was_page_start = looking_at(page_delimiter%value, st)
     newline_beforepos = point()
     saved_event = last_command_event
-    last_command_event = make_fixnum(10_int64)
+    last_command_event = value_type(10_int64)
     ! Don't auto-fill if we have a prefix argument.
     saved_inhibit = inhibit_auto_fill
     if (present(arg)) inhibit_auto_fill = .true.

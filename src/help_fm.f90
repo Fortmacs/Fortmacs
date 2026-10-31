@@ -56,8 +56,8 @@ module help_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, xhandle, list_elements, make_keymap_ref, V_NULL, V_INTEGER, V_NAME, V_STRING, V_KEYMAP
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, xhandle, list_elements, make_keymap_ref, V_NULL, V_INTEGER, V_NAME, V_STRING, &
+                       V_KEYMAP
     use data_fm, only: value_eq, symbol_name
     use keymap_fm, only: make_sparse_keymap, is_keymap_live, free_keymap, keymap_set, define_key, key_parse, &
                          is_key_valid, key_description, where_is_internal, lookup_key, current_active_maps, &
@@ -79,7 +79,7 @@ module help_fm
                          is_pos_visible_in_window, QR_WINDOW, QR_FRAME, QR_OTHER, display_buffer, &
                          minibuffer_scroll_window
     use derived_fm, only: is_derived_mode
-    use lisp_fm, only: t_value, make_fixnum, make_list, xstring, vtag, V_ARRAY, list_elt, xfixnum
+    use lisp_fm, only: make_list, xstring, vtag, V_ARRAY, list_elt, xfixnum, value_type
     use keymap_fm, only: accessible_keymaps, map_keymap_items, current_minor_maps, key_list_type, current_local_map, &
                          set_keymap_parent, single_key_description
     use keyboard_fm, only: recent_keys, lossage_size, bitch_at_user, key_translation_map, local_function_key_map, &
@@ -241,9 +241,9 @@ contains
         type(value_type), allocatable :: events(:)
 
         if (have_map) then
-            call where_is_internal(sym(name), keys, firstonly=.true., keymap=map)
+            call where_is_internal(value_type(name=name), keys, firstonly=.true., keymap=map)
         else
-            call where_is_internal(sym(name), keys, firstonly=.true.)
+            call where_is_internal(value_type(name=name), keys, firstonly=.true.)
         end if
 
         if (.not. allocated(keys%a)) then
@@ -763,7 +763,7 @@ contains
         is_binding_undefined = .not. allocated(defn%a) .or. vtag(defn) == V_INTEGER
 
         if (.not. is_binding_undefined .and. (vtag(defn) == V_NAME .or. vtag(defn) == V_NULL)) then
-            is_binding_undefined = value_eq(defn, sym("undefined"))
+            is_binding_undefined = value_eq(defn, value_type(name="undefined"))
         end if
     end function is_binding_undefined
 
@@ -845,7 +845,7 @@ contains
             return
         end if
 
-        call where_is_internal(sym(name), all)
+        call where_is_internal(value_type(name=name), all)
 
         if (.not. allocated(all%a)) then
             call message(name//" is not on any key")
@@ -1216,12 +1216,12 @@ contains
         fill = 70
         tabw = 8
         tabs = .true.
-        call default_value(sym("fill_column"), v, st)
+        call default_value(value_type(name="fill_column"), v, st)
         if (st%ok() .and. vtag(v) == V_INTEGER) fill = int(xfixnum(v))
-        call default_value(sym("tab_width"), v, st)
+        call default_value(value_type(name="tab_width"), v, st)
         if (st%ok() .and. vtag(v) == V_INTEGER) tabw = int(xfixnum(v))
         if (tabw <= 0 .or. tabw > 1000) tabw = 8
-        call default_value(sym("indent_tabs_mode"), v, st)
+        call default_value(value_type(name="indent_tabs_mode"), v, st)
         if (st%ok()) tabs = allocated(v%a)
     end subroutine default_settings
 
@@ -1313,7 +1313,7 @@ contains
                 if (len_trim(keys(k)) == 0) then
                     ! (string-match "\`C-\w\'" name)
                     text = text//name
-                else if (is_command_defined(sym(name))) then
+                else if (is_command_defined(value_type(name=name))) then
                     text = text//"\["//name//"]"
                 else
                     text = text//trim(keys(k))
@@ -1354,8 +1354,8 @@ contains
         call make_sparse_keymap(local_map)
         call set_keymap_parent(local_map, helped_map, st)
         allocate (tkey(1))
-        tkey(1) = t_value()
-        call define_key(local_map, tkey, sym("undefined"), st)
+        tkey(1) = value_type(.true.)
+        call define_key(local_map, tkey, value_type(name="undefined"), st)
         call current_window_configuration(config)
         have_config = .true.
         call get_buffer_create(buffer_name, buf, status)
@@ -1370,7 +1370,7 @@ contains
         call insert(substitute_command_keys(help_text), st)
         call set_buffer_read_only(buf, .true., st)
         call goto_char(buffers(cur)%begv)
-        ch = make_fixnum(iachar("?", int64))
+        ch = value_type(iachar("?", int64))
         saved_override = overriding_terminal_local_map
 
         do while (is_help_screen_key(ch, keys))
@@ -1384,9 +1384,9 @@ contains
                      event_named(ch, "prior") .or. event_named(ch, "home")) then
                 call scroll_down(value_type(), st)
             else if (event_named(ch, "down")) then
-                call scroll_up(make_fixnum(1_int64), st)
+                call scroll_up(value_type(1_int64), st)
             else if (event_named(ch, "up")) then
-                call scroll_down(make_fixnum(1_int64), st)
+                call scroll_down(value_type(1_int64), st)
             end if
 
             if (is_pos_visible_in_window(buffers(cur)%zv, selected_window())) then
@@ -1480,7 +1480,7 @@ contains
         character(len=*), intent(in) :: name
 
         event_named = .false.
-        if ((vtag(ev) == V_NAME .or. vtag(ev) == V_NULL)) event_named = value_eq(ev, sym(name))
+        if ((vtag(ev) == V_NAME .or. vtag(ev) == V_NULL)) event_named = value_eq(ev, value_type(name=name))
     end function event_named
 
     !> `n' as decimal digits.  Not a port.
@@ -1727,8 +1727,8 @@ contains
                 b = xfixnum(list_elt(events(i), 2_int64))
 
                 if (b == a + 1) then
-                    call add_binding(make_fixnum(a), bindings(i))
-                    call add_binding(make_fixnum(b), bindings(i))
+                    call add_binding(value_type(a), bindings(i))
+                    call add_binding(value_type(b), bindings(i))
                 else
                     keep = .true.
 
@@ -1750,7 +1750,7 @@ contains
 
         ! The char-table: help--describe-vector.
         if (nr > 0) call describe_char_table(rfrom(1:nr), rto(1:nr), rdef(1:nr), prefix, transl, partial, shadow, &
-                                         mention_shadow, text)
+                                             mention_shadow, text)
         ! The other bindings: which to show.
         allocate (shadowed(n), seen(n))
         seen = .false.
@@ -1818,7 +1818,8 @@ contains
                 is_remap = .false.
 
                 if (size(prefix) == 1) then
-                    if (value_eq(prefix(1), sym("remap")) .and. .not. value_eq(def(i), sym("self_insert_command"))) then
+                    if (value_eq(prefix(1), value_type(name="remap")) .and. .not. value_eq(def(i), &
+                                                                                       value_type(name="self_insert_command"))) then
                         call where_is_internal(def(i), all_keys)
 
                         if (allocated(all_keys%a)) then
@@ -1896,7 +1897,7 @@ contains
     logical function is_suppressed(def)
         type(value_type), intent(in) :: def
 
-        is_suppressed = value_eq(def, sym("undefined"))
+        is_suppressed = value_eq(def, value_type(name="undefined"))
     end function is_suppressed
 
     !> The description of the definition DEFINITION, as describe-map
@@ -2119,7 +2120,7 @@ contains
             if (.not. allocated(definition%a)) cycle
             ! Don't mention suppressed commands.
             if (partial .and. is_suppressed(definition)) cycle
-            kludge(1) = make_fixnum(rf(k))
+            kludge(1) = value_type(rf(k))
             ! If this binding is shadowed by some other map, ignore it.
             this_shadowed = .false.
             shadowed_by = value_type()
@@ -2137,7 +2138,7 @@ contains
             lines(nl)%key = key_description(kludge, prefix)
 
             if (rt(k) /= rf(k)) then
-                kludge(1) = make_fixnum(rt(k))
+                kludge(1) = value_type(rt(k))
                 lines(nl)%key = lines(nl)%key//" .. "//key_description(kludge, prefix)
             end if
 

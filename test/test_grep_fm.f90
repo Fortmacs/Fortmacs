@@ -33,7 +33,6 @@ module test_grep_fm
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, xstring, vtag, V_STRING
-    use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, get_buffer, &
                          is_buffer_live, set_buffer_read_only, current_buffer, restore_buffer_modified
     use insdel_fm, only: insert
@@ -102,7 +101,7 @@ contains
         call font_lock_ensure(st)
         call goto_char(point_min())
         call re_search_forward("find ", found, st)
-        call get_text_property(point(), sym("display"), v, st)
+        call get_text_property(point(), value_type(name="display"), v, st)
         if (vtag(v) == V_STRING) display = xstring(v)
         call kill_buffer(h, st)
     end function rgrep_abbreviation

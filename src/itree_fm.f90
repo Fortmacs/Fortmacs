@@ -49,12 +49,11 @@
 !> `copy_overlay'.
 module itree_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use lisp_fm, only: vtag, V_NULL, V_INTEGER, V_ARRAY
+    use lisp_fm, only: vtag, V_NULL, V_INTEGER, V_ARRAY, value_type
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type, slot_table_type, null_handle
     use lisp_fm, only: value_type, xfixnum, make_list, list_elements
     use eval_fm, only: call_overlay_change_function
-    use lread_fm, only: sym
     use data_fm, only: value_eq
     use buffer_fm, only: buffers, cur, is_buffer_live, buffer_handle, resolve_buffer, modiff_incr, &
                          buf_compute_unchanged, BUF_BEG => BEG
@@ -523,7 +522,7 @@ contains
         type(value_type) :: val
 
         if (.not. is_overlay(overlay)) return
-        val = textget(overlays(overlay%index)%plist, sym(prop))
+        val = textget(overlays(overlay%index)%plist, value_type(name=prop))
     end function overlay_get
 
     !> Whether text inserted at OVERLAY's start goes outside it
@@ -567,7 +566,7 @@ contains
         call check_overlay(overlay, status)
         if (.not. status%ok()) return
         i = overlay%index
-        key = sym(prop)
+        key = value_type(name=prop)
         call list_elements(overlays(i)%plist, elems)
         found = .false.
         changed = .false.

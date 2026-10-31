@@ -40,8 +40,7 @@ module vc_dir_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, t_value
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type
     use data_fm, only: symbol_value, set, add_local_variables_killer
     use eval_fm, only: hook_type
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, erase_buffer, &
@@ -390,7 +389,8 @@ contains
 
         beg = point()
         call insert(text, st)
-        if (len(face) > 0 .and. point() > beg) call put_text_property(beg, point(), sym("face"), sym(face), st)
+        if (len(face) > 0 .and. point() > beg) call put_text_property(beg, point(), value_type(name="face"), &
+                                                                      value_type(name=face), st)
     end subroutine insert_with_face
 
     ! (string< A B): A sorts before B (a prefix before the longer string).
@@ -442,9 +442,9 @@ contains
         type(value_type), intent(out) :: saved
         type(status_type) :: st
 
-        call symbol_value(sym("inhibit_read_only"), saved, st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
         if (.not. st%ok()) saved = value_type()
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
     end subroutine bind_inhibit_read_only
 
     ! Not a port.
@@ -452,7 +452,7 @@ contains
         type(value_type), intent(in) :: saved
         type(status_type) :: st
 
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
     end subroutine restore_inhibit_read_only
 
     ! The value of `vc_dir_allow_mass_mark_changes' (nil while bound by
@@ -2656,7 +2656,7 @@ contains
     recursive subroutine read_backend(name, status)
         use minibuf_fm, only: completion_list_table
         use minibuffer_fm, only: completing_read, REQUIRE_MATCH_YES
-        use lisp_fm, only: make_string, make_list
+        use lisp_fm, only: make_list, value_type
         use vc_hooks_fm, only: vc_handled_backends
         character(len=:), allocatable, intent(out) :: name
         type(status_type), intent(out) :: status
@@ -2666,7 +2666,7 @@ contains
         allocate (names(size(vc_handled_backends)))
 
         do k = 1, size(vc_handled_backends)
-            names(k) = make_string(trim(vc_handled_backends(k)))
+            names(k) = value_type(text=trim(vc_handled_backends(k)))
         end do
 
         call completing_read("Use VC backend: ", completion_list_table(make_list(names)), name, status, &
@@ -2800,7 +2800,7 @@ contains
     !> Define VC-Dir mode, its keymap and faces, and register the commands.
     !> Not a port.
     subroutine syms_of_vc_dir()
-        use lisp_fm, only: make_keymap_ref
+        use lisp_fm, only: make_keymap_ref, value_type
         type(handle_type) :: regexp_map, mark_map
         type(status_type) :: st
 

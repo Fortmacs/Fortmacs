@@ -43,9 +43,8 @@ module isearch_fm
     use error_fm, only: status_type, set_error, FM_QUIT, FM_USER_ERROR, FM_INVALID_REGEXP, FM_SEARCH_FAILED, &
                         FM_USER_SEARCH_FAILED, error_message
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, make_fixnum, xfixnum, xstring, make_keymap_ref, &
-                       list_length, list_elt, list_elements, make_list, vtag, V_INTEGER, V_STRING
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, xfixnum, xstring, make_keymap_ref, list_length, list_elt, list_elements, make_list, &
+                       vtag, V_INTEGER, V_STRING
     use data_fm, only: value_eq, symbol_value, set, add_local_variables_killer
     use eval_fm, only: hook_type
     use character_fm, only: string_char_and_length, char_string, MAX_CHAR, MAX_MULTIBYTE_LENGTH, &
@@ -634,7 +633,7 @@ contains
         type(value_type) :: ring
         type(status_type) :: status
 
-        call symbol_value(sym(ring_name(isearch_regexp)), ring, status)
+        call symbol_value(value_type(name=ring_name(isearch_regexp)), ring, status)
         if (.not. status%ok()) ring = value_type()
         call list_elements(ring, elems)
     end subroutine search_ring
@@ -1063,10 +1062,10 @@ contains
         end if
 
         ! Handle a prefix argument.
-        if (value_eq(this_command, sym("universal_argument")) .or. &
-            value_eq(this_command, sym("universal_argument_more")) .or. &
-            value_eq(this_command, sym("digit_argument")) .or. &
-            value_eq(this_command, sym("negative_argument"))) return
+        if (value_eq(this_command, value_type(name="universal_argument")) .or. &
+            value_eq(this_command, value_type(name="universal_argument_more")) .or. &
+            value_eq(this_command, value_type(name="digit_argument")) .or. &
+            value_eq(this_command, value_type(name="negative_argument"))) return
         ! Other characters terminate the search and are then executed
         ! normally.
         if (search_exit_option) call isearch_done()
@@ -1714,7 +1713,7 @@ contains
         integer(int64), intent(in) :: n
         type(value_type) :: v
 
-        v = make_fixnum(n)
+        v = value_type(n)
     end function make_count
 
     !> Go to the first occurrence of the current search string.
@@ -2069,9 +2068,9 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
 
-        if (.not. (value_eq(last_command, sym("isearch_yank_kill")) .or. &
-                   value_eq(last_command, sym("isearch_yank_pop")) .or. &
-                   value_eq(last_command, sym("isearch_yank_pop_only")))) then
+        if (.not. (value_eq(last_command, value_type(name="isearch_yank_kill")) .or. &
+                   value_eq(last_command, value_type(name="isearch_yank_pop")) .or. &
+                   value_eq(last_command, value_type(name="isearch_yank_pop_only")))) then
             call isearch_yank_kill(status)
         else
             call isearch_pop_state()
@@ -2464,7 +2463,7 @@ contains
         type(status_type) :: status
 
         call key_parse(keys, key, status)
-        call define_key(map, key, sym(cmd), status)
+        call define_key(map, key, value_type(name=cmd), status)
     end subroutine bind
 
     !> Register the isearch commands, build `isearch_mode_map', and bind
@@ -2729,9 +2728,9 @@ contains
         call make_keymap(isearch_mode_map)
         ! Make all multibyte characters search for themselves.
         call define_key_range(isearch_mode_map, 256_int64, int(MAX_CHAR, int64), &
-                              sym("isearch_printing_char"), status)
+                              value_type(name="isearch_printing_char"), status)
         ! Single-byte printing chars extend the search string by default.
-        call define_key_range(isearch_mode_map, 32_int64, 255_int64, sym("isearch_printing_char"), status)
+        call define_key_range(isearch_mode_map, 32_int64, 255_int64, value_type(name="isearch_printing_char"), status)
         ! To handle local bindings with meta char prefix keys, define
         ! another full keymap.
         call make_sparse_keymap(meta_map)

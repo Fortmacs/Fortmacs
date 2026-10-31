@@ -27,8 +27,7 @@ module test_xfaces_fm
     use handle_fm, only: handle_type
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, resolve_buffer
     use insdel_fm, only: insert
-    use lisp_fm, only: list, make_string
-    use lread_fm, only: sym
+    use lisp_fm, only: list, value_type
     use textprop_fm, only: put_text_property
     use dispextern_fm, only: DEFAULT_FACE_ID, MODE_LINE_ACTIVE_FACE_ID, MODE_LINE_INACTIVE_FACE_ID, &
                              VERTICAL_BORDER_FACE_ID, FACE_TTY_DEFAULT_FG_COLOR, FACE_TTY_DEFAULT_BG_COLOR
@@ -94,24 +93,26 @@ contains
         logical :: ok
 
         call init_faces()
-        call merge_face_ref(list(sym(":foreground"), make_string("red"), sym(":inverse_video"), sym("t")), a, ok)
+        call merge_face_ref(list(value_type(name=":foreground"), value_type(text="red"), value_type(name=":inverse_video"), &
+                                 value_type(name="t")), a, ok)
         call check(error, ok .and. a%foreground == "red" .and. a%inverse_video%state /= 0, "plist")
         if (allocated(error)) return
         a = face_attributes_type()
-        call merge_face_ref(list(list(sym(":weight"), sym("light")), sym("bold")), a, ok)
+        call merge_face_ref(list(list(value_type(name=":weight"), value_type(name="light")), value_type(name="bold")), a, ok)
         call check(error, ok .and. a%weight == "light", "the first reference takes precedence")
         if (allocated(error)) return
         a = face_attributes_type()
-        call merge_face_ref(list(sym(":weight"), sym("heavyish"), sym(":slant"), sym("italic")), a, ok)
+        call merge_face_ref(list(value_type(name=":weight"), value_type(name="heavyish"), value_type(name=":slant"), &
+                                 value_type(name="italic")), a, ok)
         call check(error,.not. ok .and. .not. allocated(a%weight) .and. a%slant == "italic", &
                    "an invalid weight, a valid slant")
         if (allocated(error)) return
         a = face_attributes_type()
-        call merge_face_ref(list(sym(":underline"), list(sym(":style"), sym("wave"))), a, ok)
+        call merge_face_ref(list(value_type(name=":underline"), list(value_type(name=":style"), value_type(name="wave"))), a, ok)
         call check(error, ok .and. a%underline%state /= 0, "styled underline")
         if (allocated(error)) return
         a = face_attributes_type()
-        call merge_face_ref(sym("no_such_face"), a, ok)
+        call merge_face_ref(value_type(name="no_such_face"), a, ok)
         call check(error,.not. ok, "an unknown face")
     end subroutine test_merge_face_ref
 
@@ -161,8 +162,8 @@ contains
         call check(error, f%faces(id)%foreground == 1 .and. f%faces(id)%tty_bold_p, "error is bold red")
         if (allocated(error)) return
         a = f%faces(DEFAULT_FACE_ID)%lface
-        call merge_face_ref(list(sym(":foreground"), make_string("green"), sym(":background"), &
-                                 make_string("blue"), sym(":inverse_video"), sym("t")), a, ok)
+        call merge_face_ref(list(value_type(name=":foreground"), value_type(text="green"), value_type(name=":background"), &
+                                 value_type(text="blue"), value_type(name=":inverse_video"), value_type(name="t")), a, ok)
         call check(error, ok, "valid")
         if (allocated(error)) return
         id = lookup_face(f, a)
@@ -190,7 +191,7 @@ contains
         call get_buffer_create("*xfaces*", h, st)
         call set_buffer(h, st)
         call insert("abcdef", st)
-        call put_text_property(2_int64, 4_int64, sym("face"), sym("bold"), st)
+        call put_text_property(2_int64, 4_int64, value_type(name="face"), value_type(name="bold"), st)
         call resolve_buffer(h, bi, st)
         id = face_at_buffer_position(f, bi, 1_int64, endpos, 100_int64)
         call check(error, id == DEFAULT_FACE_ID .and. endpos == 2, "plain text up to the property")

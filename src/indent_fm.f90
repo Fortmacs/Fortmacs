@@ -35,7 +35,6 @@ module indent_fm
     use marker_fm, only: char_to_byte
     use error_fm, only: status_type
     use lisp_fm, only: value_type, xstring, xfixnum, list_elements, vtag, V_INTEGER, V_STRING, V_ARRAY, command_type
-    use lread_fm, only: sym
     use data_fm, only: value_eq
     use handle_fm, only: handle_type
     use character_fm, only: string_char_and_length
@@ -643,7 +642,7 @@ contains
             ! Don't scan terribly far, and no matter what, don't go past
             ! next overlay change.
             proplimit = min(pos + 100, to, overlay_limit)
-            call next_single_property_change(pos, sym("invisible"), next_boundary, found, st, proplimit)
+            call next_single_property_change(pos, value_type(name="invisible"), next_boundary, found, st, proplimit)
             if (.not. found) next_boundary = proplimit
         end if
 
@@ -651,7 +650,7 @@ contains
         ! property change; when counting columns, don't skip over
         ! ellipsis text.
         newpos = pos
-        if (text_prop_means_invisible(get_char_property(pos, sym("invisible"))) == 1) newpos = next_boundary
+        if (text_prop_means_invisible(get_char_property(pos, value_type(name="invisible"))) == 1) newpos = next_boundary
     end function skip_invisible
 
     !> The width in columns of text at POS (column COL) that a `display'
@@ -669,16 +668,17 @@ contains
 
         width = -1
         endpos = pos
-        call get_char_property_and_overlay(pos, sym("display"), val, overlay)
+        call get_char_property_and_overlay(pos, value_type(name="display"), val, overlay)
         if (.not. allocated(val%a)) return
 
         if (vtag(val) == V_ARRAY) then
             call list_elements(val, elts)
 
             ! Handle '(space ...)' display specs.
-            if (value_eq(elts(1), sym("space"))) then
+            if (value_eq(elts(1), value_type(name="space"))) then
                 do k = 2, size(elts) - 1, 2
-                    if (value_eq(elts(k), sym(":width")) .or. value_eq(elts(k), sym(":relative-width"))) then
+                    if (value_eq(elts(k), value_type(name=":width")) .or. value_eq(elts(k), &
+                                                                                   value_type(name=":relative-width"))) then
                         if (vtag(elts(k + 1)) == V_INTEGER) then
                             if (xfixnum(elts(k + 1)) >= 0) width = xfixnum(elts(k + 1))
                         end if
@@ -689,7 +689,7 @@ contains
 
                 if (width < 0) then
                     do k = 2, size(elts) - 1, 2
-                        if (value_eq(elts(k), sym(":align-to"))) then
+                        if (value_eq(elts(k), value_type(name=":align-to"))) then
                             if (vtag(elts(k + 1)) == V_INTEGER) then
                                 if (xfixnum(elts(k + 1)) >= col) width = xfixnum(elts(k + 1)) - col
                             end if
@@ -708,7 +708,7 @@ contains
             if (overlay%index /= 0) then
                 endpos = overlay_end(overlay)
             else
-                call get_property_and_range(pos, sym("display"), val, start, endpos)
+                call get_property_and_range(pos, value_type(name="display"), val, start, endpos)
             end if
         end if
     end function check_display_width

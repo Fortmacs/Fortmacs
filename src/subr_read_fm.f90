@@ -34,7 +34,7 @@ submodule(subr_fm) subr_read_fm
     use keymap_fm, only: set_keymap_parent, define_key_range, free_keymap
     use data_fm, only: value_eq
     use character_fm, only: MAX_CHAR
-    use lisp_fm, only: make_fixnum, value_type, vtag, V_INTEGER
+    use lisp_fm, only: value_type, vtag, V_INTEGER
     use insdel_fm, only: insert
     use dispnew_fm, only: ding
     use window_fm, only: recenter, scroll_up_command, scroll_down_command, window_configuration_type, &
@@ -472,12 +472,12 @@ contains
             if (.not. st%ok()) cycle
             call lookup_key(make_keymap_ref(minibuffer_local_map), seq, b, st)
             if (allocated(b%a)) cycle
-            call define_key(read_y_or_n_map, seq, sym(remapped(trim(QRM_ANSWERS(k)))), st)
+            call define_key(read_y_or_n_map, seq, value_type(name=remapped(trim(QRM_ANSWERS(k)))), st)
         end do
 
         ! [remap self-insert-command]
         do c = 0, 127
-            key1(1) = make_fixnum(c)
+            key1(1) = value_type(c)
             call lookup_key(make_keymap_ref(minibuffer_local_map), key1, b, st)
 
             if (.not. allocated(b%a)) then
@@ -486,16 +486,16 @@ contains
                 call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
             end if
 
-            if (value_eq(b, sym("self_insert_command"))) then
-                call define_key(read_y_or_n_map, key1, sym("read_y_or_n_insert_other"), st)
+            if (value_eq(b, value_type(name="self_insert_command"))) then
+                call define_key(read_y_or_n_map, key1, value_type(name="read_y_or_n_insert_other"), st)
             end if
         end do
 
-        key1(1) = make_fixnum(128_int64)
+        key1(1) = value_type(128_int64)
         call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
 
-        if (value_eq(b, sym("self_insert_command"))) then
-            call define_key_range(read_y_or_n_map, 128_int64, int(MAX_CHAR, int64), sym("read_y_or_n_insert_other"), st)
+        if (value_eq(b, value_type(name="self_insert_command"))) then
+            call define_key_range(read_y_or_n_map, 128_int64, int(MAX_CHAR, int64), value_type(name="read_y_or_n_insert_other"), st)
         end if
 
     contains
@@ -679,9 +679,9 @@ contains
         type(value_type) :: events(2)
         type(status_type) :: st
 
-        events(1) = sym("remap")
-        events(2) = sym(from)
-        call define_key(map, events, sym(to), st)
+        events(1) = value_type(name="remap")
+        events(2) = value_type(name=from)
+        call define_key(map, events, value_type(name=to), st)
     end subroutine define_remap
 
     module procedure read_char_from_minibuffer
@@ -708,13 +708,13 @@ contains
         ! `help_char') character should output that instead of being a
         ! command char.
         if (present(help_procedure)) then
-            key1(1) = make_fixnum(int(HELP_CHAR, int64))
-            call define_key(map, key1, sym("help_procedure_show"), st)
+            key1(1) = value_type(int(HELP_CHAR, int64))
+            call define_key(map, key1, value_type(name="help_procedure_show"), st)
         end if
 
         do k = 1, size(chars)
-            key1(1) = make_fixnum(int(chars(k), int64))
-            call define_key(map, key1, sym("read_char_from_minibuffer_insert_char"), st)
+            key1(1) = value_type(int(chars(k), int64))
+            call define_key(map, key1, value_type(name="read_char_from_minibuffer_insert_char"), st)
         end do
 
         call define_remap(map, "self_insert_command", "read_char_from_minibuffer_insert_other")
@@ -907,7 +907,7 @@ contains
 
                 do k = 1, size(chars)
                     if (k > 1) please = please//", "
-                    please = please//"\`"//single_key_description(make_fixnum(int(chars(k), int64)))//"'"
+                    please = please//"\`"//single_key_description(value_type(int(chars(k), int64)))//"'"
                 end do
 
                 call message("Please type "//substitute_command_keys(please))

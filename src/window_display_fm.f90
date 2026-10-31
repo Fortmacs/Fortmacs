@@ -58,8 +58,7 @@ submodule(window_fm) window_display_fm
     use buffer_fm, only: inhibit_read_only
     use insdel_fm, only: inhibit_modification_hooks
     use data_fm, only: set
-    use lread_fm, only: sym
-    use lisp_fm, only: value_type, t_value
+    use lisp_fm, only: value_type
     use minibuf_fm, only: minibuf_level
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use sysdep_fm, only: emacs_clock_realtime
@@ -1410,12 +1409,12 @@ contains
         logical :: saved_hooks
 
         saved = inhibit_read_only()
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         saved_hooks = inhibit_modification_hooks%value
         inhibit_modification_hooks = .true.
         call table%body_function(h)
         inhibit_modification_hooks = saved_hooks
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
     end subroutine run_body_function
 
     !> Clear the previous buffers of window H (`set_window_prev_buffers' to none).  Not a port.

@@ -978,11 +978,11 @@ contains
         allocate (elems(size(args)))
 
         do k = 1, size(args)
-            elems(k) = make_string(args(k)%s)
+            elems(k) = value_type(text=args(k)%s)
         end do
 
         arglist = make_list(elems)
-        call call_process(program, result, status, destination=t_value(), args=arglist)
+        call call_process(program, result, status, destination=value_type(.true.), args=arglist)
 
         if (.not. status%ok()) then
             call set_buffer(old, st)
@@ -1526,8 +1526,8 @@ contains
         if (.not. status%ok()) return
         call erase_buffer(st)
         buffers(cur)%directory = dir
-        args = list(make_string("-c"), make_string(cmd))
-        call call_process(aux_shell_file_name(), res, status, destination=t_value(), args=args)
+        args = list(value_type(text="-c"), value_type(text=cmd))
+        call call_process(aux_shell_file_name(), res, status, destination=value_type(.true.), args=args)
         call set_buffer(old, st)
         if (.not. status%ok()) return
         zero = .false.
@@ -3652,12 +3652,12 @@ contains
     buffers(cur)%directory = dir
 
     if (deref_symlinks) then
-        args = list(make_string("-L"), make_string("--"), make_string(file))
+        args = list(value_type(text="-L"), value_type(text="--"), value_type(text=file))
     else
-        args = list(make_string("--"), make_string(file))
+        args = list(value_type(text="--"), value_type(text=file))
     end if
 
-    call call_process("file", res, status, destination=t_value(), args=args)
+    call call_process("file", res, status, destination=value_type(.true.), args=args)
 
     if (status%ok()) then
         if (is_bol() .and. point() > point_min()) call delete_char(-1_int64, st)
@@ -4103,7 +4103,7 @@ contains
         type(status_type) :: st
 
         saved = inhibit_read_only()
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
     end subroutine aux_inhibit_read_only_begin
 
     !> Restore `inhibit_read_only' to SAVED.  Not a port.
@@ -4111,7 +4111,7 @@ contains
         type(value_type), intent(in) :: saved
         type(status_type) :: st
 
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
     end subroutine aux_inhibit_read_only_end
 
     !> The current buffer's `default_directory'.  Not a port.

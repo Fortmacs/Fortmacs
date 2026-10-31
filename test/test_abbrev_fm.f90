@@ -34,7 +34,7 @@ module test_abbrev_fm
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum
+    use lisp_fm, only: value_type
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, buffers, cur, buffer_name, &
                          current_buffer, buffer_list, resolve_buffer, restore_buffer_modified
     use insdel_fm, only: insert
@@ -174,7 +174,7 @@ contains
         allocate (evs(len(text)))
 
         do i = 1, len(text)
-            evs(i) = make_fixnum(int(iachar(text(i:i)), int64))
+            evs(i) = value_type(int(iachar(text(i:i)), int64))
         end do
 
         call unread_command_events(evs)

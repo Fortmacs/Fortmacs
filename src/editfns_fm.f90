@@ -35,7 +35,7 @@
 !> `compare_buffer_substrings' (they need case tables, intervals or undo).
 module editfns_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use lisp_fm, only: vtag, V_NULL
+    use lisp_fm, only: vtag, V_NULL, value_type
     use error_fm, only: status_type, set_error, FM_ARGS_OUT_OF_RANGE, &
                         FM_WRONG_TYPE_ARGUMENT, FM_GENERIC_ERROR, FM_MARK_INACTIVE
     use handle_fm, only: handle_type
@@ -52,7 +52,6 @@ module editfns_fm
     use undo_fm, only: record_delete, record_insert
     use search_fm, only: scan_newline_from_point, find_before_next_newline, find_newline
     use lisp_fm, only: value_type
-    use lread_fm, only: sym
     use data_fm, only: value_eq
     use textprop_fm, only: get_text_property, text_property_stickiness, &
                            next_single_char_property_change, previous_single_char_property_change, set_point_both
@@ -1026,7 +1025,7 @@ contains
     function qfield() result(v)
         type(value_type) :: v
 
-        v = sym("field")
+        v = value_type(name="field")
     end function qfield
 
     !> `prop' of the current buffer's character at `pos' (unallocated outside the
@@ -1075,7 +1074,7 @@ contains
 
         at_field_start = .false.
         at_field_end = .false.
-        boundary = sym("boundary")
+        boundary = value_type(name="boundary")
         after_field = char_property(pos, qfield())
 
         if (pos > buffers(cur)%begv) then

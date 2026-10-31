@@ -52,8 +52,7 @@ module python_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_USER_ERROR, FM_SCAN_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, xfixnum, list, make_string, list_elements, vtag, V_INTEGER
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, xfixnum, list, list_elements, vtag, V_INTEGER
     use data_fm, only: integer_setting, logical_setting, string_setting, forward_setting, value_eq, &
                        add_local_variables_killer
     use commands_fm, only: commands
@@ -677,8 +676,8 @@ contains
         type(value_type), allocatable :: events(:)
         type(status_type) :: st
 
-        call list_elements(list(sym("remap"), sym(from)), events)
-        call define_key(python_base_mode_map, events, sym(command), st)
+        call list_elements(list(value_type(name="remap"), value_type(name=from)), events)
+        call define_key(python_base_mode_map, events, value_type(name=command), st)
     end subroutine bind_remap
 
     ! Not a port.
@@ -1094,7 +1093,7 @@ contains
                     end if
 
                     call goto_char(end)
-                    call put_text_property(beg, end, sym("face"), value_type(), st)
+                    call put_text_property(beg, end, value_type(name="face"), value_type(), st)
                 end if
             end do
 
@@ -1318,11 +1317,11 @@ contains
             ! convincing `syntax-ppss-flush-cache' to flush to before
             ! that fence when any char of the 3-char delimiter
             ! is modified.
-            call put_text_property(quote_ending_pos - 1, quote_ending_pos, sym("syntax_table"), fence(), st)
+            call put_text_property(quote_ending_pos - 1, quote_ending_pos, value_type(name="syntax_table"), fence(), st)
         else
             ! This set of quotes delimit the end of a string.  Put
             ! string fence syntax on first quote. (bug#49518)
-            call put_text_property(quote_starting_pos, quote_starting_pos + 1, sym("syntax_table"), fence(), &
+            call put_text_property(quote_starting_pos, quote_starting_pos + 1, value_type(name="syntax_table"), fence(), &
                                    st)
         end if
     end subroutine python_syntax_stringify
@@ -2271,10 +2270,11 @@ contains
         ! when working interactively while called functions expecting
         ! paren-based expression motion work just fine.
         if (.not. skip) then
-        skip = value_eq(real_this_command, sym("forward_expression")) .or. value_eq(real_this_command, sym("backward_expression")) &
-                   .or. value_eq(real_this_command, sym("python_nav_forward_expression")) &
-                   .or. value_eq(real_this_command, sym("python_nav_backward_expression")) &
-                   .or. value_eq(real_this_command, sym("python_nav_forward_expression_safe"))
+            skip = value_eq(real_this_command, value_type(name="forward_expression")) .or. value_eq(real_this_command, &
+                                                                                           value_type(name="backward_expression")) &
+                   .or. value_eq(real_this_command, value_type(name="python_nav_forward_expression")) &
+                   .or. value_eq(real_this_command, value_type(name="python_nav_backward_expression")) &
+                   .or. value_eq(real_this_command, value_type(name="python_nav_forward_expression_safe"))
         end if
 
         do while (arg > 0)
@@ -4000,7 +4000,7 @@ contains
         previous = .false.
 
         do k = 1, size(python_indent_trigger_commands)
-            if (value_eq(this_command, sym(trim(python_indent_trigger_commands(k))))) previous = .true.
+            if (value_eq(this_command, value_type(name=trim(python_indent_trigger_commands(k))))) previous = .true.
         end do
 
         if (previous) previous = value_eq(last_command, this_command)

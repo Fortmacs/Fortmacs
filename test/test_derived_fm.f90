@@ -28,7 +28,6 @@ module test_derived_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type
-    use lread_fm, only: sym
     use buffer_fm, only: get_buffer_create, kill_buffer, set_buffer, buffers, cur, fill_column
     use data_fm, only: value_eq
     use eval_fm, only: hook_type
@@ -368,7 +367,7 @@ contains
         call keymap_set(major_modes%text_mode%map, "C-c t", "forward_char", st)
         call key_parse("C-c t", key, st)
         call key_binding(key, binding, st)
-        call check(error, value_eq(binding, sym("forward_char")), "inherited binding")
+        call check(error, value_eq(binding, value_type(name="forward_char")), "inherited binding")
         call keymap_set(major_modes%text_mode%map, "C-c t", value_type(), st)
         call text_mode_hook%remove(hook_text)
         call child_mode_hook%remove(hook_child)
@@ -425,7 +424,7 @@ contains
         if (allocated(error)) return
         call key_parse("q", key, st)
         call key_binding(key, binding, st)
-        call check(error, value_eq(binding, sym("quit_window")), "q quits")
+        call check(error, value_eq(binding, value_type(name="quit_window")), "q quits")
         call kill_buffer(a, st)
     end subroutine test_special_mode
 

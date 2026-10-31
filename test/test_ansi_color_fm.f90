@@ -25,8 +25,7 @@ module test_ansi_color_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_string, list, xstring
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list, xstring
     use fns_fm, only: value_equal
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, current_buffer
     use insdel_fm, only: insert
@@ -80,15 +79,15 @@ contains
         call init_bindings()
         ! The faces' attributes on the frame, as when the frame is made.
         call face_spec_recalc_all()
-        yellow = make_string("yellow3")
-        bright_yellow = make_string("yellow2")
-        custom_color = make_string("#87FFFF")
+        yellow = value_type(text="yellow3")
+        bright_yellow = value_type(text="yellow2")
+        custom_color = value_type(text="#87FFFF")
         allocate (cases(14))
         call set(1, "Hello World", "Hello World", value_type())
-        call set(2, ESC//"[33mHello World"//ESC//"[0m", "Hello World", list(sym(":foreground"), yellow))
-        call set(3, ESC//"[43mHello World"//ESC//"[0m", "Hello World", list(sym(":background"), yellow))
-        call set(4, ESC//"[93mHello World"//ESC//"[0m", "Hello World", list(sym(":foreground"), bright_yellow))
-        call set(5, ESC//"[103mHello World"//ESC//"[0m", "Hello World", list(sym(":background"), bright_yellow))
+        call set(2, ESC//"[33mHello World"//ESC//"[0m", "Hello World", list(value_type(name=":foreground"), yellow))
+        call set(3, ESC//"[43mHello World"//ESC//"[0m", "Hello World", list(value_type(name=":background"), yellow))
+        call set(4, ESC//"[93mHello World"//ESC//"[0m", "Hello World", list(value_type(name=":foreground"), bright_yellow))
+        call set(5, ESC//"[103mHello World"//ESC//"[0m", "Hello World", list(value_type(name=":background"), bright_yellow))
         call set(6, ESC//"[1;33mHello World"//ESC//"[0m", "Hello World", bold_fg(yellow), bold_fg(bright_yellow))
         call set(7, ESC//"[33;1mHello World"//ESC//"[0m", "Hello World", bold_fg(yellow), bold_fg(bright_yellow))
         call set(8, ESC//"[1m"//ESC//"[33mHello World"//ESC//"[0m", "Hello World", bold_fg(yellow), &
@@ -96,13 +95,14 @@ contains
         call set(9, ESC//"[33m"//ESC//"[1mHello World"//ESC//"[0m", "Hello World", bold_fg(yellow), &
                  bold_fg(bright_yellow))
         call set(10, ESC//"[1m"//ESC//"[3m"//ESC//"[5mbold italics blink"//ESC//"[0m", "bold italics blink", &
-                 list(sym("ansi_color_bold"), sym("ansi_color_italic"), sym("ansi_color_slow_blink")))
+                 list(value_type(name="ansi_color_bold"), value_type(name="ansi_color_italic"), &
+                      value_type(name="ansi_color_slow_blink")))
         call set(11, ESC//"[10munrecognized"//ESC//"[0m", "unrecognized", value_type())
         call set(12, ESC//"[38;5;3;1mHello World"//ESC//"[0m", "Hello World", bold_fg(yellow), bold_fg(bright_yellow))
         call set(13, ESC//"[48;5;123;1mHello World"//ESC//"[0m", "Hello World", &
-                 list(sym("ansi_color_bold"), list(sym(":background"), custom_color)))
+                 list(value_type(name="ansi_color_bold"), list(value_type(name=":background"), custom_color)))
         call set(14, ESC//"[48;2;135;255;255;1mHello World"//ESC//"[0m", "Hello World", &
-                 list(sym("ansi_color_bold"), list(sym(":background"), custom_color)))
+                 list(value_type(name="ansi_color_bold"), list(value_type(name=":background"), custom_color)))
 
     contains
 
@@ -126,7 +126,7 @@ contains
             type(value_type), intent(in) :: color
             type(value_type) :: v
 
-            v = list(sym("ansi_color_bold"), list(sym(":foreground"), color))
+            v = list(value_type(name="ansi_color_bold"), list(value_type(name=":foreground"), color))
         end function bold_fg
     end subroutine strings
 
@@ -173,7 +173,7 @@ contains
             call check(error, buffer_string(), cases(k)%text)
 
             if (.not. allocated(error)) then
-                call check(error, value_equal(get_char_property(point_min(), sym("face")), cases(k)%face), &
+                call check(error, value_equal(get_char_property(point_min(), value_type(name="face")), cases(k)%face), &
                            "face of: "//cases(k)%text)
             end if
 
@@ -208,7 +208,7 @@ contains
             call check(error, buffer_string(), cases(k)%text)
 
             if (.not. allocated(error)) then
-                call check(error, value_equal(get_char_property(point_min(), sym("face")), face), &
+                call check(error, value_equal(get_char_property(point_min(), value_type(name="face")), face), &
                            "face of: "//cases(k)%text)
             end if
 
@@ -297,7 +297,7 @@ contains
         if (allocated(error)) return
         ! Test for `ansi_color_apply'
         call temp_buffer(old, b)
-        propertized = ansi_color_apply(make_string(complete_str))
+        propertized = ansi_color_apply(value_type(text=complete_str))
         call check(error, xstring(propertized), filtered_str)
         call end_temp_buffer(old, b)
         if (allocated(error)) return

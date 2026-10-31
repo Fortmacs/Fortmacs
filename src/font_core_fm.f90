@@ -43,8 +43,7 @@
 module font_core_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, t_value, list, list_elements, make_list, vtag, V_ARRAY
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, list, list_elements, make_list, vtag, V_ARRAY
     use data_fm, only: symbol_value, setq_local, set, set_default, boundp, add_local_variables_killer, value_eq
     use buffer_fm, only: buffers, cur, buffer_list, resolve_buffer, set_buffer_internal, is_buffer_modified, &
                          restore_buffer_modified, current_buffer
@@ -391,8 +390,8 @@ contains
         commands%font_lock_mode_set_explicitly%is_command = .false.
         if (.not. associated(font_lock_function)) font_lock_function => font_lock_default_function
         ! textprop.c's char-property-alias-alist (nil by default).
-        call boundp(sym("char_property_alias_table"), bound, st)
-        if (.not. bound) call set_default(sym("char_property_alias_table"), value_type(), st)
+        call boundp(value_type(name="char_property_alias_table"), bound, st)
+        if (.not. bound) call set_default(value_type(name="char_property_alias_table"), value_type(), st)
         call add_local_variables_killer(kill_font_core_locals)
         ! (add-hook 'font-lock-mode-hook #'font-lock-mode-set-explicitly)
         call font_lock_mode_hook%add(font_lock_mode_set_explicitly)
@@ -658,14 +657,14 @@ contains
         if (cur == 0) return
         call is_buffer_modified(current_buffer(), modp, status)
         if (.not. status%ok()) return
-        call symbol_value(sym("inhibit_read_only"), inhibit, status)
-        call set(sym("inhibit_read_only"), t_value(), status)
+        call symbol_value(value_type(name="inhibit_read_only"), inhibit, status)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), status)
         begv = buffers(cur)%begv
         zv = buffers(cur)%zv
         call widen()
-        call remove_list_of_text_properties(point_min(), point_max(), list(sym("font_lock_face")), changed, status)
+        call remove_list_of_text_properties(point_min(), point_max(), list(value_type(name="font_lock_face")), changed, status)
         call narrow_to_region(begv, zv, status)
-        call set(sym("inhibit_read_only"), inhibit, status)
+        call set(value_type(name="inhibit_read_only"), inhibit, status)
         call restore_buffer_modified(modp)
     end subroutine font_lock_defontify
 
@@ -683,9 +682,9 @@ contains
         logical :: has
 
         status = status_type()
-        face = sym("face")
-        flf = sym("font_lock_face")
-        call symbol_value(sym("char_property_alias_table"), table, status)
+        face = value_type(name="face")
+        flf = value_type(name="font_lock_face")
+        call symbol_value(value_type(name="char_property_alias_table"), table, status)
         status = status_type()
         allocate (elts(0))
         if (vtag(table) == V_ARRAY) call list_elements(table, elts)
@@ -708,17 +707,17 @@ contains
                 has = .false.
 
                 do j = 2, size(members)
-                    if (value_eq(members(j), sym("font_lock_face"))) has = .true.
+                    if (value_eq(members(j), value_type(name="font_lock_face"))) has = .true.
                 end do
 
                 if (.not. has) then
-                    elt = append_symbol(members, sym("font_lock_face"))
+                    elt = append_symbol(members, value_type(name="font_lock_face"))
                     elts(found) = elt
                 end if
 
                 table = make_list(elts)
             else
-                elt = list(face, sym("font_lock_face"))
+                elt = list(face, value_type(name="font_lock_face"))
                 elts = [elt, elts]
                 table = make_list(elts)
             end if

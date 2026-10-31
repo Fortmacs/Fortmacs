@@ -58,10 +58,9 @@ module info_fm
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_SEARCH_FAILED, &
                         FM_USER_SEARCH_FAILED, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
-    use lisp_fm, only: command_type, value_type, t_value, make_string, make_list, list, make_fixnum, &
-                       xstring, xfixnum, list_length, list_elt, make_symbol_ref, symbols, xsymbol, &
-                       list_elements, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY
-    use lread_fm, only: sym, intern
+    use lisp_fm, only: command_type, value_type, make_list, list, xstring, xfixnum, list_length, list_elt, &
+                       make_symbol_ref, symbols, xsymbol, list_elements, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY
+    use lread_fm, only: intern
     use data_fm, only: logical_setting, set, add_local_variables_killer, symbol_value
     use eval_fm, only: hook_type
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, get_buffer_create, &
@@ -1540,13 +1539,13 @@ contains
                 if (len(dir) == 0) dir = buffers(cur)%directory
 
                 if (len_trim(info_suffix_list(tail)%args) > 0) then
-                    args = list(make_string(trim(info_suffix_list(tail)%args)))
+                    args = list(value_type(text=trim(info_suffix_list(tail)%args)))
                 else
                     args = value_type()
                 end if
 
                 call call_process(trim(info_suffix_list(tail)%program), result, status, infile=fullname, &
-                                  destination=t_value(), args=args)
+                                  destination=value_type(.true.), args=args)
                 inhibit_null_byte_detection%value = null_detection
                 if (.not. status%ok()) return
                 call note_file_time(fullname)
@@ -2424,7 +2423,7 @@ contains
         allocate (elems(size(list)))
 
         do i = 1, size(list)
-            elems(i) = make_string(list(i)%s)
+            elems(i) = value_type(text=list(i)%s)
         end do
 
         v = make_list(elems)
@@ -2652,7 +2651,7 @@ contains
         type(status_type) :: st
 
         saved = inhibit_read_only()
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
     end function bind_inhibit_read_only
 
     ! The end of (let ((inhibit-read-only t)) ...).  Not a port.
@@ -2660,7 +2659,7 @@ contains
         type(value_type), intent(in) :: saved
         type(status_type) :: st
 
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
     end subroutine unbind_inhibit_read_only
 
     ! Go to node NODENAME of FILENAME (absent for the current Info file)
@@ -3709,11 +3708,12 @@ contains
         do while (refwd("\("//NUL//"["//NUL//"-"//achar(31)//"][[][^"//NUL//"]*"//NUL//"["//NUL//"-"//achar(31) &
                         //"][]]"//LF//"?\)"))
             start = mbeg(1)
-            call get_text_property(start, sym("invisible"), prop, st)
+            call get_text_property(start, value_type(name="invisible"), prop, st)
 
             if (.not. allocated(prop%a)) then
-                call get_text_property(start, sym("display"), prop, st)
-                if (.not. allocated(prop%a)) call put_text_property(start, point(), sym("invisible"), t_value(), st)
+                call get_text_property(start, value_type(name="display"), prop, st)
+                if (.not. allocated(prop%a)) call put_text_property(start, point(), value_type(name="invisible"), &
+                                                                    value_type(.true.), st)
             end if
         end do
 
@@ -4055,7 +4055,7 @@ contains
             call all_completions(string, table, result, status, pred)
         case (COMPLETE_TEST)
             result = value_type()
-            if (test_completion(string, table, pred)) result = t_value()
+            if (test_completion(string, table, pred)) result = value_type(.true.)
         case default
             result = value_type()
         end select
@@ -4148,14 +4148,14 @@ contains
                 if (.not. status%ok()) return
 
                 if (is_t(comp)) then
-                    result = make_string("("//string(2:)//")")
+                    result = value_type(text="("//string(2:)//")")
                 else if (vtag(comp) == V_STRING) then
                     call complete_with_action(COMPLETE_TRY, names, xstring(comp), comp2, status, pred)
 
                     if (len(xstring(comp)) > 0 .and. is_t(comp2)) then
-                        result = make_string("("//xstring(comp)//")")
+                        result = value_type(text="("//xstring(comp)//")")
                     else
-                        result = make_string("("//xstring(comp))
+                        result = value_type(text="("//xstring(comp))
                     end if
                 else
                     result = comp
@@ -4172,7 +4172,7 @@ contains
 
             if (len(nodename) == 0 .and. action == COMPLETE_TEST) then
                 ! Empty node name is permitted that means "Top".
-                result = t_value()
+                result = value_type(.true.)
                 return
             end if
 
@@ -4180,7 +4180,7 @@ contains
             call info_find_file(file1, found, st, noerror=.true., no_pop_to_dir=.true.)
             if (allocated(found)) call build_node_completions(nodes, st, found)
             call complete_with_action(action, nodes, nodename, result, status, pred)
-            if (action == COMPLETE_TRY .and. vtag(result) == V_STRING) result = make_string(file0//xstring(result))
+            if (action == COMPLETE_TRY .and. vtag(result) == V_STRING) result = value_type(text=file0//xstring(result))
         else
             ! Otherwise use Info-read-node-completion-table.
             call complete_with_action(action, read_node_completion_table, string, result, status, pred)
@@ -4944,7 +4944,7 @@ contains
             case (COMPLETE_BOUNDARIES)
                 result = value_type()
             case (COMPLETE_TEST)
-                if (refwd(LF//"\* +"//regexp_quote(string)//":")) result = t_value()
+                if (refwd(LF//"\* +"//regexp_quote(string)//":")) result = value_type(.true.)
             case default
                 pattern = LF//"\* +\("//regexp_quote(string)//INFO_MENU_ENTRY_NAME_RE//"\):"//node_spec_re()
                 k = here()
@@ -5631,7 +5631,7 @@ contains
     subroutine recenter_last_line()
         type(status_type) :: st
 
-        call recenter(make_fixnum(-1_int64), .false., st)
+        call recenter(value_type(-1_int64), .false., st)
     end subroutine recenter_last_line
 
     !> Scroll one screenful forward in Info, considering all nodes as one
@@ -5746,11 +5746,11 @@ contains
         mb = mbeg(1)
         if (mb == 0) mb = mbeg(0)
         call goto_char(opoint)
-        plink = next_single_char_property_change(point(), sym(prop))
+        plink = next_single_char_property_change(point(), value_type(name=prop))
 
         if (plink < point_max()) then
-            v = get_char_property(plink, sym(prop))
-            if (.not. allocated(v%a)) plink = next_single_char_property_change(plink, sym(prop))
+            v = get_char_property(plink, value_type(name=prop))
+            if (.not. allocated(v%a)) plink = next_single_char_property_change(plink, value_type(name=prop))
         end if
 
         moved = .true.
@@ -5782,11 +5782,11 @@ contains
         mb = mbeg(1)
         if (mb == 0) mb = mbeg(0)
         call goto_char(opoint)
-        plink = previous_single_char_property_change(point(), sym(prop))
+        plink = previous_single_char_property_change(point(), value_type(name=prop))
 
         if (plink > point_min()) then
-            v = get_char_property(plink, sym(prop))
-            if (.not. allocated(v%a)) plink = previous_single_char_property_change(plink, sym(prop))
+            v = get_char_property(plink, value_type(name=prop))
+            if (.not. allocated(v%a)) plink = previous_single_char_property_change(plink, value_type(name=prop))
         end if
 
         moved = .true.
@@ -6590,8 +6590,8 @@ contains
         backward = found < beg_found
         a = min(beg_found, found)
         b = max(beg_found, found)
-        call text_property_not_all(a, b, sym("invisible"), value_type(), r, f1, st)
-        call text_property_not_all(a, b, sym("display"), value_type(), r, f2, st)
+        call text_property_not_all(a, b, value_type(name="invisible"), value_type(), r, f1, st)
+        call text_property_not_all(a, b, value_type(name="display"), value_type(), r, f2, st)
         invisible = f1 .or. f2
         ! Skip node header line
         opoint = point()
@@ -7041,7 +7041,7 @@ contains
 
         found = .false.
         value = ""
-        call symbol_value(sym(name), hist, st)
+        call symbol_value(value_type(name=name), hist, st)
         if (.not. st%ok()) return
         if (vtag(hist) /= V_ARRAY) return
         if (vtag(list_elt(hist, 1_int64)) /= V_STRING) return
@@ -7429,7 +7429,7 @@ contains
 
         idx = locals(k)%current_index_alternative + num
         total = size(locals(k)%index_alternatives)
-        call where_is_internal(sym("info_index_next"), keys, .true.)
+        call where_is_internal(value_type(name="info_index_next"), keys, .true.)
         next_key = ""
         if (allocated(keys%a)) next_key = key_description(vector_elements(keys))
         wrapped = .false.
@@ -7573,7 +7573,7 @@ contains
         call insert(pad_to(label, width), st)
 
         if (e%match_end > e%match_beg) then
-            call put_text_property(start + e%match_beg, start + e%match_end, sym("face"), &
+            call put_text_property(start + e%match_beg, start + e%match_end, value_type(name="face"), &
                                    symbol_value_of("info_index_match"), st)
         end if
     end subroutine insert_entry
@@ -8402,7 +8402,7 @@ contains
             dir = file_name_directory(file)
             start = point()
             call insert(dir, st)
-            if (len(dir) > 0) call put_text_property(start, point(), sym("invisible"), t_value(), st)
+            if (len(dir) > 0) call put_text_property(start, point(), value_type(name="invisible"), value_type(.true.), st)
             call insert(file_name_nondirectory(file)//")"//node//"."//LF, st)
         end do
     end subroutine history_find_node
@@ -8818,7 +8818,7 @@ contains
         ! Add bottom node.
         ! Let it disappear if crumbs is nil.
         if (info_use_header_line%value .and. size(crumbs) > 0) call add_string(crumbs, current)
-        line = make_string("")
+        line = value_type(text="")
         has_line = .false.
 
         if (info_use_header_line%value .or. size(crumbs) > 0) then
@@ -8836,33 +8836,33 @@ contains
                 end if
 
                 if (has_line) then
-                    line = propertized_concat(line, make_string(" > "))
+                    line = propertized_concat(line, value_type(text=" > "))
                 end if
 
                 if (crumbs(i)%s == achar(0)) then
-                    piece = make_string("...")
+                    piece = value_type(text="...")
                 else if (crumbs(i)%s == current) then
                     ! No point linking to ourselves.
-                    piece = make_string(txt)
-                    call string_put_text_property(0_int64, nchars_of(txt), sym("font_lock_face"), &
+                    piece = value_type(text=txt)
+                    call string_put_text_property(0_int64, nchars_of(txt), value_type(name="font_lock_face"), &
                                                   make_symbol_ref(intern("info_header_node")), piece, st)
                 else
-                    piece = make_string(txt)
-                    call string_put_text_property(0_int64, nchars_of(txt), sym("mouse_face"), &
+                    piece = value_type(text=txt)
+                    call string_put_text_property(0_int64, nchars_of(txt), value_type(name="mouse_face"), &
                                                   make_symbol_ref(intern("highlight")), piece, st)
-                    call string_put_text_property(0_int64, nchars_of(txt), sym("font_lock_face"), &
+                    call string_put_text_property(0_int64, nchars_of(txt), value_type(name="font_lock_face"), &
                                                   make_symbol_ref(intern("info_header_xref")), piece, st)
-                    call string_put_text_property(0_int64, nchars_of(txt), sym("help_echo"), &
-                                                  make_string("mouse-2: Go to node"), piece, st)
-                    call string_put_text_property(0_int64, nchars_of(txt), sym("link_args"), &
-                                                  make_string(txt), piece, st)
+                    call string_put_text_property(0_int64, nchars_of(txt), value_type(name="help_echo"), &
+                                                  value_type(text="mouse-2: Go to node"), piece, st)
+                    call string_put_text_property(0_int64, nchars_of(txt), value_type(name="link_args"), &
+                                                  value_type(text=txt), piece, st)
                 end if
 
                 line = propertized_concat(line, piece)
                 has_line = .true.
             end do
 
-            line = propertized_concat(line, make_string(LF))
+            line = propertized_concat(line, value_type(text=LF))
         end if
 
     contains
@@ -8915,7 +8915,7 @@ contains
         saved_ro = bind_inhibit_read_only()
         fold = bind_case_fold(.true.)
         ! the node hasn't already been fontified
-        call next_single_property_change(point_min(), sym("font_lock_face"), where, found, st)
+        call next_single_property_change(point_min(), value_type(name="font_lock_face"), where, found, st)
         not_fontified_p = .true.
         if (found) not_fontified_p = where == point_max()
         ! visited nodes need to be re-fontified
@@ -8950,17 +8950,17 @@ contains
                 tag = match_string_no_properties(1)
 
                 if (lower(tag) == "node") then
-                    call put_text_property(nbeg, nend, sym("font_lock_face"), symbol_value_of("info_header_node"), st)
+                    call put_text_property(nbeg, nend, value_type(name="font_lock_face"), symbol_value_of("info_header_node"), st)
                 else
-                    call put_text_property(nbeg, nend, sym("font_lock_face"), symbol_value_of("info_header_xref"), st)
-                    call put_text_property(tbeg, nend, sym("mouse_face"), symbol_value_of("header_line_highlight"), st)
-                    call put_text_property(tbeg, nend, sym("help_echo"), &
-                                           make_string("mouse-2: Go to node "//text(nbeg, nend)), st)
+                    call put_text_property(nbeg, nend, value_type(name="font_lock_face"), symbol_value_of("info_header_xref"), st)
+                    call put_text_property(tbeg, nend, value_type(name="mouse_face"), symbol_value_of("header_line_highlight"), st)
+                    call put_text_property(tbeg, nend, value_type(name="help_echo"), &
+                                           value_type(text="mouse-2: Go to node "//text(nbeg, nend)), st)
                     ! (The keymap of the link, used by the mouse, is
                     ! Deferred.)  A symbol value of the `link-args'
                     ! property is handled specially by
                     ! `Info-mouse-follow-link'.
-                    call put_text_property(tbeg, nend, sym("link_args"), symbol_value_of(lower(tag)), st)
+                    call put_text_property(tbeg, nend, value_type(name="link_args"), symbol_value_of(lower(tag)), st)
                 end if
             end do
 
@@ -8985,8 +8985,8 @@ contains
                     call note_header(point(), header_end, "")
                 end if
 
-                call put_text_property(point_min(), point_min() + 1, sym("header_line"), &
-                                       make_string(replace_all("%", "%%", header)), st)
+                call put_text_property(point_min(), point_min() + 1, value_type(name="header_line"), &
+                                       value_type(text=replace_all("%", "%%", header)), st)
 
                 ! Hide the part of the first line that is in the header, if
                 ! it is just part.
@@ -8994,16 +8994,16 @@ contains
                     crumbs = breadcrumbs()
                     call make_overlay(ov, point_min(), header_end + 1, st)
                     call overlay_put(ov, "display", crumbs, st)
-                    call overlay_put(ov, "evaporate", t_value(), st)
+                    call overlay_put(ov, "evaporate", value_type(.true.), st)
                 else if (.not. is_bob()) then
                     ! Hide the punctuation at the end, too.
                     p0 = skip_chars_backward(" "//TAB//",", st)
-                    call put_text_property(point(), header_end, sym("invisible"), t_value(), st)
+                    call put_text_property(point(), header_end, value_type(name="invisible"), value_type(.true.), st)
                     ! Hide the suffix of the Info file name.
                     call beginning_of_line(1_int64)
 
                     if (refwd("File: "//manual//"\([^,"//LF//TAB//"]+\),", header_end)) then
-                        call put_text_property(mbeg(1), mend(1), sym("invisible"), t_value(), st)
+                        call put_text_property(mbeg(1), mend(1), value_type(name="invisible"), value_type(.true.), st)
                     end if
                 end if
             end if
@@ -9032,7 +9032,7 @@ contains
                         prop = symbol_value_of("info_title_4")
                     end select
 
-                    call put_text_property(mbeg(1), mend(1), sym("font_lock_face"), prop, st)
+                    call put_text_property(mbeg(1), mend(1), value_type(name="font_lock_face"), prop, st)
 
                     ! This is a serious problem for trying to handle
                     ! multiple frame types at once.  We want this text to
@@ -9041,9 +9041,9 @@ contains
                     if (associated(selected_frame%rif)) then
                         b1 = mbeg(2) - 1
                         e1 = mend(2)
-                        call put_text_property(b1, e1, sym("invisible"), t_value(), st)
-                        call put_text_property(b1, e1, sym("front_sticky"), value_type(), st)
-                        call put_text_property(b1, e1, sym("rear_nonsticky"), t_value(), st)
+                        call put_text_property(b1, e1, value_type(name="invisible"), value_type(.true.), st)
+                        call put_text_property(b1, e1, value_type(name="front_sticky"), value_type(), st)
+                        call put_text_property(b1, e1, value_type(name="rear_nonsticky"), value_type(.true.), st)
                     end if
                 end if
             end do
@@ -9086,10 +9086,10 @@ contains
         call goto_min()
 
         if (not_fontified_p .and. refwd("^\* Menu:")) then
-            call put_text_property(mbeg(0), mend(0), sym("font_lock_face"), symbol_value_of("info_menu_header"), st)
+            call put_text_property(mbeg(0), mend(0), value_type(name="font_lock_face"), symbol_value_of("info_menu_header"), st)
 
             do while (refwd(LF//LF//"\([^*"//LF//" ].*\)"//LF//LF//"?[*]"))
-                call put_text_property(mbeg(1), mend(1), sym("font_lock_face"), symbol_value_of("info_menu_header"), st)
+                call put_text_property(mbeg(1), mend(1), value_type(name="font_lock_face"), symbol_value_of("info_menu_header"), st)
             end do
         end if
 
@@ -9099,7 +9099,7 @@ contains
         if (not_fontified_p) then
             if (info_index_node()) then
                 do while (refwd("[ "//TAB//LF//"]*(line +[0-9]+)"))
-                    call put_text_property(mbeg(0), mend(0), sym("invisible"), t_value(), st)
+                    call put_text_property(mbeg(0), mend(0), value_type(name="invisible"), value_type(.true.), st)
                 end do
             end if
         end if
@@ -9109,9 +9109,10 @@ contains
 
         if (not_fontified_p) then
             do while (refwd("\(https?\|ftp\)://[^ "//TAB//LF//"""`‘({<>})’']+"))
-                call put_text_property(mbeg(0), mend(0), sym("font_lock_face"), symbol_value_of("info_xref"), st)
-                call put_text_property(mbeg(0), mend(0), sym("mouse_face"), symbol_value_of("highlight"), st)
-                call put_text_property(mbeg(0), mend(0), sym("help_echo"), make_string("mouse-2: go to this URL"), st)
+                call put_text_property(mbeg(0), mend(0), value_type(name="font_lock_face"), symbol_value_of("info_xref"), st)
+                call put_text_property(mbeg(0), mend(0), value_type(name="mouse_face"), symbol_value_of("highlight"), st)
+                call put_text_property(mbeg(0), mend(0), value_type(name="help_echo"), value_type(text="mouse-2: go to this URL"), &
+                                       st)
             end do
         end if
 
@@ -9142,16 +9143,16 @@ contains
                 if (footnote_num > 0 .and. footnote_num <= fncount) then
                     mb = mbeg(0)
                     me = mend(0)
-                    call put_text_property(mb, me, sym("font_lock_face"), symbol_value_of("info_xref"), st)
-                    call put_text_property(mb, me, sym("link"), t_value(), st)
-                    call put_text_property(mb, me, sym("mouse_face"), symbol_value_of("highlight"), st)
+                    call put_text_property(mb, me, value_type(name="font_lock_face"), symbol_value_of("info_xref"), st)
+                    call put_text_property(mb, me, value_type(name="link"), value_type(.true.), st)
+                    call put_text_property(mb, me, value_type(name="mouse_face"), symbol_value_of("highlight"), st)
 
                     if (point() < limit) then
-                        call put_text_property(mb, me, sym("help_echo"), &
-                                               make_string("mouse-2: go to footnote definition"), st)
+                        call put_text_property(mb, me, value_type(name="help_echo"), &
+                                               value_type(text="mouse-2: go to footnote definition"), st)
                     else
-                        call put_text_property(mb, me, sym("help_echo"), &
-                                               make_string("mouse-2: go to footnote reference"), st)
+                        call put_text_property(mb, me, value_type(name="help_echo"), &
+                                               value_type(text="mouse-2: go to footnote reference"), st)
                     end if
                 end if
             end do
@@ -9160,7 +9161,8 @@ contains
         ! Hide empty lines at the end of the node.
         call goto_char(point_max())
         p0 = skip_chars_backward(LF, st)
-        if (point() < point_max() - 1) call put_text_property(point(), point_max() - 1, sym("invisible"), t_value(), st)
+        if (point() < point_max() - 1) call put_text_property(point(), point_max() - 1, value_type(name="invisible"), &
+                                                              value_type(.true.), st)
         call restore_buffer_modified(.false.)
         fold = bind_case_fold(fold)
         call unbind_inhibit_read_only(saved_ro)
@@ -9184,9 +9186,9 @@ contains
             pos = b
 
             do while (pos < e)
-                call next_single_property_change(pos, sym("font_lock_face"), nxt, has, st, e)
+                call next_single_property_change(pos, value_type(name="font_lock_face"), nxt, has, st, e)
                 if (.not. has .or. nxt > e) nxt = e
-                call get_text_property(pos, sym("font_lock_face"), f, st)
+                call get_text_property(pos, value_type(name="font_lock_face"), f, st)
 
                 if ((vtag(f) == V_NAME .or. vtag(f) == V_NULL)) then
                     call h%add(text(pos, nxt), symbol_name_of(f))
@@ -9279,13 +9281,13 @@ contains
                     if (i > 0) e1 = m(1, 1) + string_char_count(s1, i)
 
                     if (other_tag /= achar(0)) then
-                        call put_text_property(m(1, 1), e1, sym("display"), make_string(other_tag), st)
+                        call put_text_property(m(1, 1), e1, value_type(name="display"), value_type(text=other_tag), st)
                     else
-                        call put_text_property(m(1, 1), e1, sym("invisible"), t_value(), st)
+                        call put_text_property(m(1, 1), e1, value_type(name="invisible"), value_type(.true.), st)
                     end if
 
-                    call put_text_property(m(1, 1), e1, sym("front_sticky"), value_type(), st)
-                    call put_text_property(m(1, 1), e1, sym("rear_nonsticky"), t_value(), st)
+                    call put_text_property(m(1, 1), e1, value_type(name="front_sticky"), value_type(), st)
+                    call put_text_property(m(1, 1), e1, value_type(name="rear_nonsticky"), value_type(.true.), st)
                 end if
 
                 if (m(5, 2) > 0 .or. len(m4) > 0) then
@@ -9298,8 +9300,8 @@ contains
                     s1 = "mouse-2: go to this node"
                 end if
 
-                call put_text_property(m(2, 1), m(2, 2), sym("help_echo"), make_string(s1), st)
-                call put_text_property(m(2, 1), m(2, 2), sym("mouse_face"), symbol_value_of("highlight"), st)
+                call put_text_property(m(2, 1), m(2, 2), value_type(name="help_echo"), value_type(text=s1), st)
+                call put_text_property(m(2, 1), m(2, 2), value_type(name="mouse_face"), symbol_value_of("highlight"), st)
             end if
 
             rbeg = m(2, 1)
@@ -9317,9 +9319,9 @@ contains
             node = trim_leading_space(canonicalize_whitespace(node))
 
             if (info_fontify_visited_nodes%value .and. visited(node)) then
-                call put_text_property(rbeg, rend, sym("font_lock_face"), symbol_value_of("info_xref_visited"), st)
+                call put_text_property(rbeg, rend, value_type(name="font_lock_face"), symbol_value_of("info_xref_visited"), st)
             else
-                call put_text_property(rbeg, rend, sym("font_lock_face"), symbol_value_of("info_xref"), st)
+                call put_text_property(rbeg, rend, value_type(name="font_lock_face"), symbol_value_of("info_xref"), st)
             end if
 
             ! For multiline ref, unfontify newline and surrounding whitespace
@@ -9334,9 +9336,9 @@ contains
 
             if (not_fontified_p) then
                 if (hide == INFO_HIDE_NOTE_REFERENCES_SEE .or. hide == INFO_HIDE_NOTE_REFERENCES_HIDE) then
-                    call put_text_property(m(3, 1), m(3, 2), sym("invisible"), t_value(), st)
-                    call put_text_property(m(3, 1), m(3, 2), sym("front_sticky"), value_type(), st)
-                    call put_text_property(m(3, 1), m(3, 2), sym("rear_nonsticky"), t_value(), st)
+                    call put_text_property(m(3, 1), m(3, 2), value_type(name="invisible"), value_type(.true.), st)
+                    call put_text_property(m(3, 1), m(3, 2), value_type(name="front_sticky"), value_type(), st)
+                    call put_text_property(m(3, 1), m(3, 2), value_type(name="rear_nonsticky"), value_type(.true.), st)
 
                     ! Unhide the file name of the external reference in parens
                     if (m(6, 1) > 0 .and. hide /= INFO_HIDE_NOTE_REFERENCES_HIDE) then
@@ -9386,7 +9388,7 @@ contains
 
                 ! visual aids to help with 1-9 keys
                 if (n <= 9 .and. mod(n, 3_int64) == 0) then
-                    call put_text_property(m(0, 1), m(0, 1) + 1, sym("font_lock_face"), &
+                    call put_text_property(m(0, 1), m(0, 1) + 1, value_type(name="font_lock_face"), &
                                            symbol_value_of("info_menu_star"), st)
                 end if
 
@@ -9396,8 +9398,8 @@ contains
                     s1 = "mouse-2: go to this node"
                 end if
 
-                call put_text_property(m(1, 1), m(1, 2), sym("help_echo"), make_string(s1), st)
-                call put_text_property(m(1, 1), m(1, 2), sym("mouse_face"), symbol_value_of("highlight"), st)
+                call put_text_property(m(1, 1), m(1, 2), value_type(name="help_echo"), value_type(text=s1), st)
+                call put_text_property(m(1, 1), m(1, 2), value_type(name="mouse_face"), symbol_value_of("highlight"), st)
             end if
 
             ! Display visited menu items in a different face
@@ -9408,14 +9410,15 @@ contains
             end if
 
             if (info_fontify_visited_nodes%value .and. visited(node)) then
-                call put_text_property(m(1, 1), m(1, 2), sym("font_lock_face"), symbol_value_of("info_xref_visited"), st)
+                call put_text_property(m(1, 1), m(1, 2), value_type(name="font_lock_face"), symbol_value_of("info_xref_visited"), &
+                                       st)
             else
-                call put_text_property(m(1, 1), m(1, 2), sym("font_lock_face"), symbol_value_of("info_xref"), st)
+                call put_text_property(m(1, 1), m(1, 2), value_type(name="font_lock_face"), symbol_value_of("info_xref"), st)
             end if
 
             if (not_fontified_p .and. (hide == INFO_HIDE_NOTE_REFERENCES_SEE .or. hide == INFO_HIDE_NOTE_REFERENCES_HIDE)) then
                 if (.not. info_index_node()) then
-                    call put_text_property(m(2, 1), m(6, 2) - 1, sym("invisible"), t_value(), st)
+                    call put_text_property(m(2, 1), m(6, 2) - 1, value_type(name="invisible"), value_type(.true.), st)
 
                     ! Unhide the file name in parens
                     if (m(4, 2) > 0) then
@@ -9425,9 +9428,10 @@ contains
                     ! We need a stretchable space like :align-to but with a
                     ! minimum value.
                     if (m(1, 2) - m(0, 1) <= 22) then
-                        call put_text_property(m(6, 2) - 1, m(6, 2), sym("display"), space_spec_value("align_to", 24), st)
+                        call put_text_property(m(6, 2) - 1, m(6, 2), value_type(name="display"), space_spec_value("align_to", 24), &
+                                               st)
                     else
-                        call put_text_property(m(6, 2) - 1, m(6, 2), sym("display"), space_spec_value("width", 2), st)
+                        call put_text_property(m(6, 2) - 1, m(6, 2), value_type(name="display"), space_spec_value("width", 2), st)
                     end if
 
                     cont = looking(".")
@@ -9436,12 +9440,14 @@ contains
                         if (forward_line(1_int64) /= 0) exit
                         if (.not. looking("\([ "//TAB//"]+\)[^*"//LF//"]")) exit
                         ln_start = mbeg(1)
-                        call put_text_property(ln_start, mend(1) - 1, sym("invisible"), t_value(), st)
+                        call put_text_property(ln_start, mend(1) - 1, value_type(name="invisible"), value_type(.true.), st)
 
                         if (cont) then
-                            call put_text_property(mend(1) - 1, mend(1), sym("display"), space_spec_value("align_to", 26), st)
+                            call put_text_property(mend(1) - 1, mend(1), value_type(name="display"), space_spec_value("align_to", &
+                                                                                                                      26), st)
                         else
-                            call put_text_property(mend(1) - 1, mend(1), sym("display"), space_spec_value("align_to", 24), st)
+                            call put_text_property(mend(1) - 1, mend(1), value_type(name="display"), space_spec_value("align_to", &
+                                                                                                                      24), st)
                         end if
 
                         cont = .true.
@@ -9534,7 +9540,7 @@ contains
         integer, intent(in) :: n
         type(value_type) :: v
 
-        v = list(sym("space"), sym(":"//replace_all("_", "-", key)), make_fixnum(int(n, int64)))
+        v = list(value_type(name="space"), value_type(name=":"//replace_all("_", "-", key)), value_type(int(n, int64)))
     end function space_spec_value
 
     ! Remove the text property PROP from START to END.  Not a port.
@@ -9544,7 +9550,7 @@ contains
         type(status_type) :: st
         logical :: changed
 
-        call remove_text_properties(start, end, list(sym(prop), t_value()), changed, st)
+        call remove_text_properties(start, end, list(value_type(name=prop), value_type(.true.)), changed, st)
     end subroutine remove_property
 
     ! Show the header line of the current node: the `header-line' property
@@ -9558,7 +9564,7 @@ contains
 
         k = here()
         if (.not. locals(k)%header_from_property) return
-        call get_text_property(point_min(), sym("header_line"), prop, st)
+        call get_text_property(point_min(), value_type(name="header_line"), prop, st)
 
         if (.not. allocated(prop%a) .or. .not. allocated(locals(k)%header%segments)) then
             call buffers(cur)%header_line_format%clear()

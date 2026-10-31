@@ -23,15 +23,12 @@ src/intervals_fm.f90:plist_member:lisp-helper
 src/lisp_fm.f90:SYM_NIL:constant
 src/lisp_fm.f90:SYM_T:constant
 src/lisp_fm.f90:cons:lisp-helper
-src/lisp_fm.f90:make_fixnum:lisp-helper
-src/lisp_fm.f90:t_value:lisp-helper
 src/lisp_fm.f90:xfixnum:lisp-helper
 src/lisp_fm.f90:xhandle:lisp-helper
 src/lisp_fm.f90:xstring:lisp-helper
 src/lisp_fm.f90:xsymbol:lisp-helper
 src/lread_fm.f90:intern:lisp-helper
 src/lread_fm.f90:intern_soft:lisp-helper
-src/lread_fm.f90:sym:lisp-helper
 src/subr_fm.f90:defvar_nil:lisp-helper
 src/textprop_fm.f90:memq_p:predicate
 src/xdisp_fm.f90:put:lisp-helper

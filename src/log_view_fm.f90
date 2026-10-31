@@ -46,8 +46,7 @@ module log_view_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, t_value, make_string, xstring, vtag, V_NULL
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, xstring, vtag, V_NULL
     use data_fm, only: symbol_value, set, add_local_variables_killer, value_eq
     use eval_fm, only: hook_type
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, buffer_serial_live, is_buffer_live, deactivate_mark_variable
@@ -612,9 +611,9 @@ contains
         type(value_type) :: v
         type(status_type) :: st
 
-        call get_text_property(pos, sym("log_view_comment"), v, st)
+        call get_text_property(pos, value_type(name="log_view_comment"), v, st)
         is_log_view_inside_comment = .false.
-        if (st%ok()) is_log_view_inside_comment = value_eq(v, t_value())
+        if (st%ok()) is_log_view_inside_comment = value_eq(v, value_type(.true.))
     end function is_log_view_inside_comment
 
     !> Return the revision tag (a string) of the Log View entry at POS.
@@ -647,7 +646,7 @@ contains
         call log_view_current_entry(beg, tag, found)
 
         if (found) then
-            if (vtag(get_char_property(beg, sym("log_view_self"))) /= V_NULL) then
+            if (vtag(get_char_property(beg, value_type(name="log_view_self"))) /= V_NULL) then
                 call log_view_unmark_entry(1_int64, status)
             else
                 call log_view_mark_entry(1_int64, status)
@@ -784,11 +783,11 @@ contains
             opoint = point()
             call goto_char(beg)
 
-            if (vtag(get_char_property(beg, sym("log_view_self"))) == V_NULL) then
-                call get_text_property(beg, sym("log_view_entry_expanded"), expanded, st)
+            if (vtag(get_char_property(beg, value_type(name="log_view_self"))) == V_NULL) then
+                call get_text_property(beg, value_type(name="log_view_entry_expanded"), expanded, st)
 
                 if (allocated(expanded%a)) then
-                    call next_single_property_change(beg, sym("log_view_comment"), end, found, st)
+                    call next_single_property_change(beg, value_type(name="log_view_comment"), end, found, st)
                     if (.not. found) end = point_max()
                 else
                     call log_view_end_of_entry()
@@ -796,10 +795,10 @@ contains
                 end if
 
                 call make_overlay(ov, beg, end, st)
-                call overlay_put(ov, "face", sym("log_view_file"), st)
+                call overlay_put(ov, "face", value_type(name="log_view_file"), st)
                 ! This is used to check if the overlay is present.
-                call overlay_put(ov, "log_view_self", t_value(), st)
-                call overlay_put(ov, "log_view_marked", make_string(tag), st)
+                call overlay_put(ov, "log_view_self", value_type(.true.), st)
+                call overlay_put(ov, "log_view_marked", value_type(text=tag), st)
             end if
 
             call goto_char(opoint)
@@ -836,7 +835,7 @@ contains
         call log_view_current_entry(beg, tag, found)
 
         if (found) then
-            call get_char_property_and_overlay(beg, sym("log_view_self"), v, ov)
+            call get_char_property_and_overlay(beg, value_type(name="log_view_self"), v, ov)
             if (allocated(v%a) .and. ov%index /= 0) call delete_overlay(ov)
         end if
 
@@ -867,10 +866,10 @@ contains
         pos = point_min()
 
         do
-            call next_single_property_change(pos, sym("face"), next, found, st)
+            call next_single_property_change(pos, value_type(name="face"), next, found, st)
             if (.not. found) exit
             pos = next
-            call get_char_property_and_overlay(pos, sym("log_view_self"), v, ov)
+            call get_char_property_and_overlay(pos, value_type(name="log_view_self"), v, ov)
 
             if (allocated(v%a) .and. ov%index /= 0) then
                 tag = overlay_get(ov, "log_view_marked")
@@ -911,21 +910,22 @@ contains
         call log_view_current_entry(beg, tag, found, move=.true.)
         if (.not. found) return
         call bind_inhibit_read_only(saved)
-        call get_text_property(beg, sym("log_view_entry_expanded"), expanded, status)
+        call get_text_property(beg, value_type(name="log_view_entry_expanded"), expanded, status)
 
         if (allocated(expanded%a)) then
             ! If the entry is expanded, collapse it.
-            call next_single_property_change(beg, sym("log_view_comment"), pos, found, status)
+            call next_single_property_change(beg, value_type(name="log_view_comment"), pos, found, status)
             has = found
             if (has) has = is_log_view_inside_comment(pos)
 
             if (.not. has) then
                 call set_error(status, FM_GENERIC_ERROR, "Broken markup in `log_view_toggle_entry_display'")
             else
-                call next_single_property_change(pos, sym("log_view_comment"), last, found, status)
+                call next_single_property_change(pos, value_type(name="log_view_comment"), last, found, status)
                 if (.not. found) last = point_max()
                 call delete_region(pos, last, status)
-                if (status%ok()) call put_text_property(beg, beg + 1, sym("log_view_entry_expanded"), value_type(), status)
+                if (status%ok()) call put_text_property(beg, beg + 1, value_type(name="log_view_entry_expanded"), value_type(), &
+                                                        status)
                 if (opoint < pos) call goto_char(opoint)
             end if
         else
@@ -933,14 +933,14 @@ contains
             call locals(k)%expanded(tag, long_entry, has)
 
             if (has) then
-                call put_text_property(beg, beg + 1, sym("log_view_entry_expanded"), t_value(), status)
+                call put_text_property(beg, beg + 1, value_type(name="log_view_entry_expanded"), value_type(.true.), status)
                 call log_view_end_of_entry()
                 beg = point()
                 if (status%ok()) call insert(long_entry//LF, status)
-                props(1) = sym("font_lock_face")
-                props(2) = sym("log_view_commit_body")
-                props(3) = sym("log_view_comment")
-                props(4) = t_value()
+                props(1) = value_type(name="font_lock_face")
+                props(2) = value_type(name="log_view_commit_body")
+                props(3) = value_type(name="log_view_comment")
+                props(4) = value_type(.true.)
                 if (status%ok()) call add_properties(beg, point(), props, changed, status)
                 call goto_char(opoint)
             end if
@@ -952,7 +952,7 @@ contains
 
     ! (add-text-properties BEG END PROPS).  Not a port.
     recursive subroutine add_properties(beg, end, props, changed, status)
-        use lisp_fm, only: make_list
+        use lisp_fm, only: make_list, value_type
         use textprop_fm, only: add_text_properties
         integer(int64), intent(in) :: beg, end
         type(value_type), intent(in) :: props(:)
@@ -984,7 +984,7 @@ contains
         call log_view_current_entry(beg, tag, found)
 
         if (found) then
-            call get_text_property(beg, sym("log_view_entry_expanded"), expanded, st)
+            call get_text_property(beg, value_type(name="log_view_entry_expanded"), expanded, st)
             if (.not. allocated(expanded%a)) call log_view_toggle_entry_display(status)
             if (.not. status%ok()) return
         end if
@@ -1330,9 +1330,9 @@ contains
         type(value_type), intent(out) :: saved
         type(status_type) :: st
 
-        call symbol_value(sym("inhibit_read_only"), saved, st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
         if (.not. st%ok()) saved = value_type()
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
     end subroutine bind_inhibit_read_only
 
     ! The end of (let ((inhibit-read-only t)) ...): restore SAVED.
@@ -1341,7 +1341,7 @@ contains
         type(value_type), intent(in) :: saved
         type(status_type) :: st
 
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
     end subroutine restore_inhibit_read_only
 
     ! (interactive "p"): the numeric prefix argument.  Not a port.

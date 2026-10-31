@@ -30,6 +30,7 @@
 module executable_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, format_message, format_error, FM_GENERIC_ERROR
+    use lisp_fm, only: value_type
     use buffer_fm, only: buffers, cur, current_buffer
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_substring, widen, narrow_to_region
     use search_fm, only: looking_at, string_match, match_beginning, match_end, replace_match, match_data, set_match_data
@@ -45,7 +46,6 @@ module executable_fm
     use font_lock_fm, only: font_lock_keyword, font_lock_highlight
     use commands_fm, only: commands
     use keyboard_fm, only: this_command
-    use lread_fm, only: sym
     use data_fm, only: value_eq
     implicit none(type, external)
     private
@@ -277,7 +277,8 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: result
 
-        if (value_eq(this_command, sym("executable_self_display"))) this_command = sym("executable_set_magic")
+        if (value_eq(this_command, &
+                     value_type(name="executable_self_display"))) this_command = value_type(name="executable_set_magic")
         call executable_set_magic(executable_self_display, result, status, "-n+2")
     end subroutine executable_self_display_command
 

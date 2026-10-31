@@ -29,7 +29,7 @@
 module dired_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
-    use lisp_fm, only: value_type, make_string, make_list, t_value
+    use lisp_fm, only: value_type, make_list
     use fileio_fm, only: expand_file_name, directory_file_name, file_name_as_directory, report_file_errno, &
                          is_file_directory, file_attributes, file_stat_type
     use minibuf_fm, only: completion_ignore_case, completion_predicate
@@ -138,9 +138,9 @@ contains
 
         do k = 1, n
             if (absolute) then
-                elems(k) = make_string(file_name_as_directory(dirfilename)//names(order(k))%s)
+                elems(k) = value_type(text=file_name_as_directory(dirfilename)//names(order(k))%s)
             else
-                elems(k) = make_string(names(order(k))%s)
+                elems(k) = value_type(text=names(order(k))%s)
             end if
         end do
 
@@ -308,7 +308,7 @@ contains
 
             ! Test the predicate, if any.
             if (present(predicate)) then
-                if (.not. predicate(make_string(name))) cycle
+                if (.not. predicate(value_type(text=name))) cycle
             end if
 
             ! Suitably record this match.
@@ -317,7 +317,7 @@ contains
 
             if (all_flag) then
                 nall = nall + 1
-                all(nall) = make_string(name)
+                all(nall) = value_type(text=name)
             else if (.not. have_best) then
                 bestmatch = name
                 bestmatchsize = nname
@@ -361,11 +361,11 @@ contains
         ! Return t if the supplied string is an exact match (counting
         ! case); it does not require any change to be made.
         if (matchcount == 1 .and. bestmatch == file .and. len(bestmatch) == len(file)) then
-            result = t_value()
+            result = value_type(.true.)
             return
         end if
 
-        result = make_string(substring(bestmatch, 0_int64, bestmatchsize))
+        result = value_type(text=substring(bestmatch, 0_int64, bestmatchsize))
     end subroutine file_name_completion_1
 
     !> Return a list of user names currently registered in the system.
@@ -387,7 +387,7 @@ contains
             ! At least current user is always known.
             call passwd_name_of_user(me, found)
             allocate (elems(1))
-            elems(1) = make_string(me)
+            elems(1) = value_type(text=me)
             users = make_list(elems)
             return
         end if
@@ -396,7 +396,7 @@ contains
 
         ! Consed: the last entry first.
         do k = 1, n
-            elems(k) = make_string(names(n + 1 - k)%s)
+            elems(k) = value_type(text=names(n + 1 - k)%s)
         end do
 
         users = make_list(elems)
@@ -416,7 +416,7 @@ contains
         allocate (elems(n))
 
         do k = 1, n
-            elems(k) = make_string(names(n + 1 - k)%s)
+            elems(k) = value_type(text=names(n + 1 - k)%s)
         end do
 
         groups = make_list(elems)

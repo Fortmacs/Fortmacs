@@ -32,7 +32,7 @@
 submodule(vc_fm) vc_log_fm
     use log_view_fm, only: log_view_mode, set_log_view_vc_backend, set_log_view_vc_fileset
     use vc_dispatcher_fm, only: vc_exec_after, vc_action_type, vc_parent_buffer, set_vc_parent_buffer, vc_sentinel_movepoint
-    use lisp_fm, only: t_value, vtag, V_INTEGER, value_type
+    use lisp_fm, only: vtag, V_INTEGER, value_type
     use callint_fm, only: current_prefix_arg
     use fileio_fm, only: is_file_directory
     implicit none(type, external)
@@ -126,8 +126,8 @@ contains
         call set_buffer(buffer, st)
         ! log-view-mode used to be called with inhibit-read-only bound
         ! to t, so let's keep doing it, just in case.
-        call symbol_value(sym("inhibit_read_only"), saved, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
 
         if (associated(vc_backends(backend)%log_view_mode)) then
             call vc_backends(backend)%log_view_mode(status)
@@ -135,7 +135,7 @@ contains
             call log_view_mode(status)
         end if
 
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
 
         if (status%ok()) then
             call set_log_view_vc_backend(backend)
@@ -180,8 +180,8 @@ contains
         if (.not. is_buffer_live(action%buffer)) return
         old = current_buffer()
         call set_buffer(action%buffer, st)
-        call symbol_value(sym("inhibit_read_only"), saved, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
 
         ! When it's nil, point really shouldn't move (bug#15322).
         if (len(action%s1) > 0) then
@@ -194,7 +194,7 @@ contains
 
         call restore_buffer_modified(.false.)
         call vc_log_finish_functions%run(status)
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
         if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine log_finish
 
@@ -322,7 +322,7 @@ contains
     end procedure cmd_vc_print_log
 
     module procedure cmd_vc_print_root_log
-    use lisp_fm, only: xfixnum
+    use lisp_fm, only: xfixnum, value_type
     use minibuf_fm, only: read_string
     character(len=:), allocatable :: default, revision, prompt
     integer(int64) :: lim

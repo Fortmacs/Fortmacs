@@ -61,9 +61,8 @@ module replace_fm
     use commands_fm, only: commands
     use error_fm, only: format_message, status_type, set_error, FM_QUIT, FM_USER_ERROR, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_string, make_list, xstring, list_elements, &
-                       list_length, list_elt, vtag, V_INTEGER, V_STRING, V_ARRAY
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, make_list, xstring, list_elements, list_length, list_elt, vtag, V_INTEGER, V_STRING, &
+                       V_ARRAY
     use fns_fm, only: schars
     use data_fm, only: value_eq, symbol_value, set
     use buffer_fm, only: barf_if_buffer_read_only
@@ -95,7 +94,7 @@ module replace_fm
     use xdisp_fm, only: message
     use dispnew_fm, only: ding
     use handle_fm, only: null_handle
-    use lisp_fm, only: t_value, xfixnum, make_fixnum, list
+    use lisp_fm, only: xfixnum, list, value_type
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, get_buffer, kill_buffer, &
                          is_buffer_live, buffer_list, erase_buffer, rename_buffer, generate_new_buffer_name, &
                          restore_buffer_modified
@@ -541,7 +540,7 @@ contains
 
         head = ""
         found = .false.
-        call symbol_value(sym(name), list, status)
+        call symbol_value(value_type(name=name), list, status)
         if (.not. status%ok()) return
         if (list_length(list) == 0) return
         first = list_elt(list, 1_int64)
@@ -796,9 +795,9 @@ contains
         counted = .false.
         have_separator = allocated(query_replace_from_to_separator)
         ! The minibuffer history: the default pairs, then the FROM history.
-        call symbol_value(sym("minibuffer_history"), saved_history, st)
+        call symbol_value(value_type(name="minibuffer_history"), saved_history, st)
         if (.not. st%ok()) saved_history = value_type()
-        call symbol_value(sym(query_replace_from_history_variable), from_history, st)
+        call symbol_value(value_type(name=query_replace_from_history_variable), from_history, st)
         if (.not. st%ok()) from_history = value_type()
         call list_elements(from_history, older)
         n = 0
@@ -806,12 +805,12 @@ contains
         allocate (entries(n + size(older)))
 
         do k = 1, n
-            entries(k) = make_string(query_replace_defaults(k)%from//query_replace_from_to_separator// &
-                                     query_replace_defaults(k)%to)
+            entries(k) = value_type(text=query_replace_defaults(k)%from//query_replace_from_to_separator// &
+                                    query_replace_defaults(k)%to)
         end do
 
         if (size(older) > 0) entries(n + 1:) = older
-        call set(sym("minibuffer_history"), make_list(entries), st)
+        call set(value_type(name="minibuffer_history"), make_list(entries), st)
 
         if (n > 0) then
             full_prompt = format_prompt(prompt, query_replace_descr(query_replace_defaults(1)%from)// &
@@ -844,7 +843,7 @@ contains
         end if
 
         call goto_char(saved_point)
-        call set(sym("minibuffer_history"), saved_history, st)
+        call set(value_type(name="minibuffer_history"), saved_history, st)
         if (.not. status%ok()) return
 
         if (len(from) == 0 .and. allocated(query_replace_defaults)) then
@@ -941,8 +940,8 @@ contains
             if (.not. status%ok()) return
         end if
 
-        delimited = allocated(current_prefix_arg%a) .and. .not. value_eq(current_prefix_arg, sym("-"))
-        backward = value_eq(current_prefix_arg, sym("-"))
+        delimited = allocated(current_prefix_arg%a) .and. .not. value_eq(current_prefix_arg, value_type(name="-"))
+        backward = value_eq(current_prefix_arg, value_type(name="-"))
         call query_replace_read_from(prompt, regexp_flag, from, to, have_to, counted, status)
         if (.not. status%ok()) return
         if (.not. have_to) call query_replace_read_to(from, prompt, regexp_flag, to, counted, status)
@@ -1335,7 +1334,7 @@ contains
 
             ! Optionally ignore matches that have a read-only property.
             if (query_replace_skip_read_only) then
-                call text_property_not_all(real_data(1), real_data(2), sym("read_only"), value_type(), ro_pos, &
+                call text_property_not_all(real_data(1), real_data(2), value_type(name="read_only"), value_type(), ro_pos, &
                                            ro_found, st)
 
                 if (ro_found) then
@@ -1639,7 +1638,7 @@ contains
                     ! re-executed as a normal key sequence.  (The commands
                     ! scroll-other-window and scroll-other-window-down are
                     ! not ported: Deferred.)
-                    this_command = sym("mode_exited")
+                    this_command = value_type(name="mode_exited")
                     keep_going = .false.
                     call unread_command_events([key])
                     unread = .true.
@@ -1884,10 +1883,10 @@ contains
             grown(1:size(items)) = items
 
             if (at > 0) then
-                grown(size(grown)) = make_string(rest(1:at - 1))
+                grown(size(grown)) = value_type(text=rest(1:at - 1))
                 rest = rest(at + 1:)
             else
-                grown(size(grown)) = make_string(rest)
+                grown(size(grown)) = value_type(text=rest)
                 rest = ""
             end if
 
@@ -2107,7 +2106,7 @@ contains
         prompt = base
 
         if (allocated(current_prefix_arg%a)) then
-            if (value_eq(current_prefix_arg, sym("-"))) then
+            if (value_eq(current_prefix_arg, value_type(name="-"))) then
                 prompt = prompt//" backward"
             else
                 prompt = prompt//" word"
@@ -2225,8 +2224,8 @@ contains
         call defvar_nil("regexp_history")
         query_replace_to_history_variable = "query_replace_history"
         ! Default history list for `query_replace' commands.
-        call symbol_value(sym("query_replace_history"), history, st)
-        if (.not. st%ok()) call set(sym("query_replace_history"), value_type(), st)
+        call symbol_value(value_type(name="query_replace_history"), history, st)
+        if (.not. st%ok()) call set(value_type(name="query_replace_history"), value_type(), st)
         commands%query_replace%run => cmd_query_replace
         commands%query_replace_regexp%run => cmd_query_replace_regexp
         commands%map_query_replace_regexp%run => cmd_map_query_replace_regexp
@@ -2441,7 +2440,7 @@ contains
             if (point() >= limit) exit
             call re_search_forward(regexp, found, status, bound=limit, noerror=SEARCH_NOERROR)
             if (.not. status%ok() .or. found == 0) exit
-            if (count /= 0) last_command = sym("kill_region")
+            if (count /= 0) last_command = value_type(name="kill_region")
             call goto_char(match_beginning(0, st))
             shortage = forward_line(0_int64)
             beg = point()
@@ -2877,7 +2876,7 @@ contains
         integer :: k
 
         idx = 0
-        call get_text_property(pos, sym("occur_target"), v, st)
+        call get_text_property(pos, value_type(name="occur_target"), v, st)
         if (vtag(v) /= V_INTEGER) return
         k = occur_entry(current_buffer(), .false.)
         if (k == 0) return
@@ -3007,7 +3006,7 @@ contains
             call search(point(), r, found)
 
             if (found) then
-                call get_text_property(r, sym("occur_match"), v, st)
+                call get_text_property(r, value_type(name="occur_match"), v, st)
 
                 if (allocated(v%a)) then
                     r1 = r
@@ -3032,9 +3031,9 @@ contains
             type(status_type) :: s
 
             if (forward) then
-                call next_single_property_change(from, sym("occur_match"), to, ok, s)
+                call next_single_property_change(from, value_type(name="occur_match"), to, ok, s)
             else
-                call previous_single_property_change(from, sym("occur_match"), to, ok, s)
+                call previous_single_property_change(from, value_type(name="occur_match"), to, ok, s)
             end if
 
             if (.not. s%ok()) ok = .false.
@@ -3144,8 +3143,8 @@ contains
         k = occur_entry(current_buffer(), .false.)
         m = occur_buffers(k)%targets(idx)%beg(1)
         call marker_buffer(m, buf, st)
-        call get_text_property(line_beg, sym("occur_prefix"), prefix_beg, st)
-        call get_text_property(end, sym("occur_prefix"), prefix_end, st)
+        call get_text_property(line_beg, value_type(name="occur_prefix"), prefix_beg, st)
+        call get_text_property(end, value_type(name="occur_prefix"), prefix_end, st)
 
         if (.not. allocated(prefix_beg%a) .or. allocated(prefix_end%a) .or. .not. is_buffer_live(buf)) then
             call goto_char(opoint)
@@ -3154,7 +3153,7 @@ contains
 
         if (old_len == 0) then
             ! Apply occur-target property to inserted (e.g. yanked) text.
-            call put_text_property(beg, end, sym("occur_target"), make_fixnum(int(idx, int64)), st)
+            call put_text_property(beg, end, value_type(name="occur_target"), value_type(int(idx, int64)), st)
             ! Did we insert a newline?  Occur Edit mode can't create new
             ! Occur entries; just discard everything after the newline.
             pos = point()
@@ -3177,7 +3176,7 @@ contains
         ! (save-excursion: the display may have moved point.)
         call goto_char(beg)
         line_end = line_end_position()
-        call next_single_property_change(line_beg, sym("occur_prefix"), pos, ok, st, line_end)
+        call next_single_property_change(line_beg, value_type(name="occur_prefix"), pos, ok, st, line_end)
         if (.not. ok) pos = line_end
         call goto_char(pos)
         col = point() - line_beg
@@ -3188,7 +3187,7 @@ contains
         call select_window(win, st)
         call marker_position(m, pos, st)
         call goto_char(pos)
-        call recenter(make_fixnum(line), .false., st)
+        call recenter(value_type(line), .false., st)
 
         if (readonly) then
             call message("Buffer `"//buffers(buf%index)%name//"' is read only.")
@@ -3715,11 +3714,11 @@ contains
             if (iand(c, 192) == 128) cycle
 
             if (c < 32) then
-                call put_prop(p, p + 1, "display", propertize(make_string("^"//achar(c + 64)), &
-                                                              list(sym("face"), sym("escape_glyph"))))
+                call put_prop(p, p + 1, "display", propertize(value_type(text="^"//achar(c + 64)), &
+                                                              list(value_type(name="face"), value_type(name="escape_glyph"))))
             else if (c == 127) then
-                call put_prop(p, p + 1, "display", propertize(make_string("^?"), &
-                                                              list(sym("face"), sym("escape_glyph"))))
+                call put_prop(p, p + 1, "display", propertize(value_type(text="^?"), &
+                                                              list(value_type(name="face"), value_type(name="escape_glyph"))))
             end if
 
             p = p + 1
@@ -3806,8 +3805,8 @@ contains
             return
         end if
 
-        call symbol_value(sym("inhibit_read_only"), inhibit, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), inhibit, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         ! Don't generate undo entries for creation of the initial contents.
         saved_undo = buffers(cur)%undo_enabled
         buffers(cur)%undo_enabled = .false.
@@ -3923,7 +3922,7 @@ contains
 
         occur_buffers(k)%sources = sources
         buffers(cur)%undo_enabled = saved_undo
-        call set(sym("inhibit_read_only"), inhibit, st)
+        call set(value_type(name="inhibit_read_only"), inhibit, st)
 
         if (count == 0) then
             call kill_buffer(occur_buf, st)
@@ -3983,7 +3982,7 @@ contains
         type(value_type), intent(in) :: value
         type(status_type) :: st
 
-        if (end > start) call put_text_property(start, end, sym(prop), value, st)
+        if (end > start) call put_text_property(start, end, value_type(name=prop), value, st)
     end subroutine put_prop
 
     !> Insert the text from SBEG to SEND of buffer SRC in the current
@@ -4049,7 +4048,7 @@ contains
             if (.not. allocated(occur_excluded_properties)) return
 
             do j = 1, size(occur_excluded_properties)
-                if (value_eq(name, sym(trim(occur_excluded_properties(j))))) excluded = .true.
+                if (value_eq(name, value_type(name=trim(occur_excluded_properties(j))))) excluded = .true.
             end do
         end function excluded
     end subroutine insert_source_line
@@ -4067,7 +4066,7 @@ contains
         type(status_type) :: st
 
         call out_insert("       :", b, e)
-        if (len(prefix_face) > 0) call put_prop(b, e, "font_lock_face", sym(prefix_face))
+        if (len(prefix_face) > 0) call put_prop(b, e, "font_lock_face", value_type(name=prefix_face))
         call insert_source_line(src, sbeg, send, keep_props, b, e)
         if (current) call mark_current_line(b, e)
         call insert(LF, st)
@@ -4080,8 +4079,8 @@ contains
         type(status_type) :: st
 
         if (e <= b) return
-        call add_face_text_property(b, e, sym(list_matching_lines_current_line_face), st)
-        call put_prop(b, e, "current_line", t_value())
+        call add_face_text_property(b, e, value_type(name=list_matching_lines_current_line_face), st)
+        call put_prop(b, e, "current_line", value_type(.true.))
     end subroutine mark_current_line
 
     !> The lines (their start and end positions) COUNT lines forward from
@@ -4339,7 +4338,7 @@ contains
 
                         if (separator) then
                             call out_insert("-------"//LF, hb, he)
-                            if (len(prefix_face) > 0) call put_prop(hb, he, "font_lock_face", sym(prefix_face))
+                            if (len(prefix_face) > 0) call put_prop(hb, he, "font_lock_face", value_type(name=prefix_face))
                         end if
 
                         do i = 1, size(before_b)
@@ -4429,12 +4428,12 @@ contains
 
                 call out_insert(header//LF, hb, he)
                 call descr_display(hb, he - 1)
-                call put_prop(hb, he, "read_only", t_value())
-                if (len(title_face) > 0) call add_face_text_property(hb, he, sym(title_face), st)
+                call put_prop(hb, he, "read_only", value_type(.true.))
+                if (len(title_face) > 0) call add_face_text_property(hb, he, value_type(name=title_face), st)
 
                 if (list_matching_lines_jump_to_current_line .and. .not. multi_occur_p) then
                     call goto_char(point_max())
-                    call previous_single_property_change(point(), sym("current_line"), x, current_match, st)
+                    call previous_single_property_change(point(), value_type(name="current_line"), x, current_match, st)
                     if (.not. current_match) x = point_max()
                     occur_final_pos = x
                     call goto_char(x)
@@ -4460,7 +4459,7 @@ contains
             header = header//" total"//occur_regexp_descr(regexp)//":"//LF
             call out_insert(header, hb, he)
             call descr_display(hb, he - 1)
-            if (len(title_face) > 0) call add_face_text_property(hb, he, sym(title_face), st)
+            if (len(title_face) > 0) call add_face_text_property(hb, he, value_type(name=title_face), st)
             call goto_char(point_min())
         end if
 
@@ -4504,23 +4503,23 @@ contains
         character(len=16) :: buf
         integer :: nseg
 
-        target = make_fixnum(int(tidx, int64))
+        target = value_type(int(tidx, int64))
         ! Using 7 digits aligns tabs properly.
         write (buf, "(i7, ':')") curr_line
         call out_insert(trim(buf), pb, pe)
-        if (len(prefix_face) > 0) call put_prop(pb, pe, "font_lock_face", sym(prefix_face))
-        call put_prop(pb, pe, "occur_prefix", t_value())
+        if (len(prefix_face) > 0) call put_prop(pb, pe, "font_lock_face", value_type(name=prefix_face))
+        call put_prop(pb, pe, "occur_prefix", value_type(.true.))
         ! Allow insertion of text at the end of the prefix (for Occur Edit
         ! mode).
-        call put_prop(pb, pe, "front_sticky", t_value())
-        call put_prop(pb, pe, "rear_nonsticky", t_value())
-        call put_prop(pb, pe, "read_only", t_value())
+        call put_prop(pb, pe, "front_sticky", value_type(.true.))
+        call put_prop(pb, pe, "rear_nonsticky", value_type(.true.))
+        call put_prop(pb, pe, "read_only", value_type(.true.))
         call put_prop(pb, pe, "occur_target", target)
-        call put_prop(pb, pe, "follow_link", t_value())
-        call put_prop(pb, pe, "help_echo", make_string("mouse-2: go to this occurrence"))
+        call put_prop(pb, pe, "follow_link", value_type(.true.))
+        call put_prop(pb, pe, "help_echo", value_type(text="mouse-2: go to this occurrence"))
         ! Add mouse face in one section to ensure the prefix and the string
         ! get a contiguous highlight.
-        call put_prop(pb, pe, "mouse_face", sym("highlight"))
+        call put_prop(pb, pe, "mouse_face", value_type(name="highlight"))
         ! The lines of the match; each newline becomes "\n       :".
         allocate (seg_out(0), seg_cur(0), seg_len(0))
         sbeg = begpt
@@ -4537,7 +4536,7 @@ contains
 
             call segment(sbeg + chars(curstring(byte_of(cur_off) + 1:byte_of(cur_off) + nl_pos - 1)))
             call out_insert(LF//"       :", b, e)
-            if (len(prefix_face) > 0) call put_prop(b, e, "font_lock_face", sym(prefix_face))
+            if (len(prefix_face) > 0) call put_prop(b, e, "font_lock_face", value_type(name=prefix_face))
             call put_prop(b, e, "occur_target", target)
             cur_off = cur_off + seg_len(nseg) + 1
             sbeg = sbeg + seg_len(nseg) + 1
@@ -4554,12 +4553,12 @@ contains
                 a = max(match_starts(i), seg_cur(k))
                 z = min(match_ends(i), seg_cur(k) + seg_len(k))
                 if (z <= a) cycle
-                call put_prop(seg_out(k) + (a - seg_cur(k)), seg_out(k) + (z - seg_cur(k)), "occur_match", t_value())
+                call put_prop(seg_out(k) + (a - seg_cur(k)), seg_out(k) + (z - seg_cur(k)), "occur_match", value_type(.true.))
 
                 ! Add `match-face' to faces copied from the buffer.
                 if (len(match_face) > 0) then
                     call add_face_text_property(seg_out(k) + (a - seg_cur(k)), seg_out(k) + (z - seg_cur(k)), &
-                                                sym(match_face), st)
+                                                value_type(name=match_face), st)
                 end if
             end do
         end do
@@ -4577,9 +4576,9 @@ contains
 
             call insert_source_line(src, sbeg, send, keep_props, sb, se)
             call put_prop(sb, se, "occur_target", target)
-            call put_prop(sb, se, "follow_link", t_value())
-            call put_prop(sb, se, "help_echo", make_string("mouse-2: go to this occurrence"))
-            call put_prop(sb, se, "mouse_face", sym("highlight"))
+            call put_prop(sb, se, "follow_link", value_type(.true.))
+            call put_prop(sb, se, "help_echo", value_type(text="mouse-2: go to this occurrence"))
+            call put_prop(sb, se, "mouse_face", value_type(name="highlight"))
             seg_out = [seg_out, sb]
             seg_cur = [seg_cur, cur_off]
             seg_len = [seg_len, se - sb]
@@ -4639,7 +4638,7 @@ contains
         end if
 
         call defvar_nil(OCCUR_COLLECT_HISTORY)
-        call set(sym(OCCUR_COLLECT_HISTORY), list(make_string("\1")), st)
+        call set(value_type(name=OCCUR_COLLECT_HISTORY), list(value_type(text="\1")), st)
         call occur_mode_hook%add(turn_on_font_lock_hook)
         call major_modes%occur_mode%define("occur_mode", "Occur", occur_mode, occur_mode_hook, &
                                            parent=major_modes%special_mode)

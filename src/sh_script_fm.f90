@@ -54,9 +54,7 @@ module sh_script_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_ARITH_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, xstring, make_string, list, list_elements, t_value, make_list, &
-                       list_length, list_elt, vtag, V_STRING
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, xstring, list, list_elements, make_list, list_length, list_elt, vtag, V_STRING
     use data_fm, only: integer_setting, string_setting, forward_setting, add_local_variables_killer, value_eq
     use commands_fm, only: commands
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
@@ -760,8 +758,8 @@ contains
         type(value_type), allocatable :: events(:)
         type(status_type) :: st
 
-        call list_elements(list(sym("remap"), sym(from)), events)
-        call define_key(sh_mode_map, events, sym(command), st)
+        call list_elements(list(value_type(name="remap"), value_type(name=from)), events)
+        call define_key(sh_mode_map, events, value_type(name=command), st)
     end subroutine bind_remap
 
     ! Append the pair (SHELL . ANCESTOR) to `sh_ancestor_table'.
@@ -1677,7 +1675,7 @@ contains
         type(status_type) :: st
 
         call string_to_syntax(syntax, d, st)
-        call put_text_property(start, end, sym("syntax_table"), syntax_descriptor_value(d), st)
+        call put_text_property(start, end, value_type(name="syntax_table"), syntax_descriptor_value(d), st)
     end subroutine put_syntax
 
     ! Mark START..END to be refontified together (syntax-multiline).
@@ -1686,7 +1684,7 @@ contains
         integer(int64), intent(in) :: start, end
         type(status_type) :: st
 
-        call put_text_property(start, end, sym("syntax_multiline"), t_value(), st)
+        call put_text_property(start, end, value_type(name="syntax_multiline"), value_type(.true.), st)
     end subroutine put_multiline
 
     ! (nth 1 (syntax-ppss POS)) and the like.  Not a port.
@@ -1768,7 +1766,7 @@ contains
         ! that when jit-lock-context-* refontifies the rest of the
         ! buffer, it also refontifies the current line with it.
         if (state%quoted .or. count_lines(start, eol) > 1) call put_multiline(start, eol + 1)
-        call put_text_property(eol, eol + 1, sym("sh_here_doc_marker"), make_string(str), st)
+        call put_text_property(eol, eol + 1, value_type(name="sh_here_doc_marker"), value_type(text=str), st)
         prop%apply = .true.
         call string_to_syntax("|", prop%descriptor, st)
         call goto_char(start + 2)
@@ -1786,7 +1784,7 @@ contains
 
         state = ppss()
         if (state%instring /= ST_STRING_STYLE) return
-        call get_text_property(state%comstr_start, sym("sh_here_doc_marker"), key, st)
+        call get_text_property(state%comstr_start, value_type(name="sh_here_doc_marker"), key, st)
         k = ""
         if (vtag(key) == V_STRING) k = xstring(key)
         saved = case_fold_search%value
@@ -3530,12 +3528,12 @@ contains
         allocate (names(n + 3))
 
         do i = 1, n
-            names(i) = make_string(sh_ancestor_table(i)%shell)
+            names(i) = value_type(text=sh_ancestor_table(i)%shell)
         end do
 
-        names(n + 1) = make_string("csh")
-        names(n + 2) = make_string("rc")
-        names(n + 3) = make_string("sh")
+        names(n + 1) = value_type(text="csh")
+        names(n + 2) = value_type(text="rc")
+        names(n + 3) = value_type(text="sh")
         table%list = make_list(names)
         call completing_read(format_prompt("Shell", sh_shell_file%value), table, shell, status, &
                              default=sh_shell_file%value)
@@ -3632,10 +3630,10 @@ contains
         previous = current_column()
         call goto_char(here)
         call copy_marker_at(point(), mark, .false., status)
-        newline_cmd = value_eq(this_command, sym("newline_and_indent"))
+        newline_cmd = value_eq(this_command, value_type(name="newline_and_indent"))
 
         if (.not. newline_cmd .and. minor_modes%electric_indent_mode%enabled()) then
-            newline_cmd = value_eq(this_command, sym("newline"))
+            newline_cmd = value_eq(this_command, value_type(name="newline"))
         end if
 
         if (newline_cmd) then
@@ -3989,14 +3987,14 @@ contains
             eq = index(env(i)%s, "=")
 
             if (eq > 0) then
-                names(i) = make_string(env(i)%s(1:eq - 1))
+                names(i) = value_type(text=env(i)%s(1:eq - 1))
             else
-                names(i) = make_string(env(i)%s)
+                names(i) = value_type(text=env(i)%s)
             end if
         end do
 
         do i = 1, size(vars)
-            names(n + i) = make_string(vars(i)%s)
+            names(n + i) = value_type(text=vars(i)%s)
         end do
 
         table%list = make_list(names)
@@ -4113,7 +4111,7 @@ contains
 
         ! Called as a command it toggles; from Fortran (a hook) it turns
         ! the mode on, as calling it with no argument does upstream.
-        if (value_eq(this_command, sym("sh_electric_here_document_mode"))) then
+        if (value_eq(this_command, value_type(name="sh_electric_here_document_mode"))) then
             call minor_modes%sh_electric_here_document_mode%command(status)
         else
             call minor_modes%sh_electric_here_document_mode%enable(status)
@@ -4497,7 +4495,7 @@ contains
             if (.not. st%ok() .or. found <= 0) exit
             n = size(items)
             allocate (grown(n + 1))
-            grown(1) = make_string(match_string(1))
+            grown(1) = value_type(text=match_string(1))
             grown(2:) = items
             call move_alloc(grown, items)
         end do
@@ -4576,7 +4574,7 @@ contains
         allocate (items(nv + nf + size(sh_completion_keywords)))
 
         do k = 1, nv
-            items(k) = make_string(xstring(list_elt(vars, k))//"=")
+            items(k) = value_type(text=xstring(list_elt(vars, k))//"=")
         end do
 
         do k = 1, nf
@@ -4584,7 +4582,7 @@ contains
         end do
 
         do j = 1, size(sh_completion_keywords)
-            items(nv + nf + j) = make_string(trim(sh_completion_keywords(j)))
+            items(nv + nf + j) = value_type(text=trim(sh_completion_keywords(j)))
         end do
 
         candidates = make_list(items)
@@ -4786,7 +4784,7 @@ contains
         allocate (names(size(sh_styles_table)))
 
         do k = 1, size(names)
-            names(k) = make_string(trim(sh_styles_table(k)%name))
+            names(k) = value_type(text=trim(sh_styles_table(k)%name))
         end do
 
         table%list = make_list(names)

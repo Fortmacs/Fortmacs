@@ -48,10 +48,9 @@ module test_xdisp_fm
                          reset_sys_modes, emacs_write, emacs_read, input_available, &
                          emacs_tty_type
     use emacs_fm, only: emacs_main
-    use lisp_fm, only: make_string, list, t_value, value_type, make_window_ref
+    use lisp_fm, only: list, value_type, make_window_ref
     use textprop_fm, only: string_put_text_property
-    use lread_fm, only: sym
-    use lisp_fm, only: make_fixnum
+    use lisp_fm, only: value_type
     use textprop_fm, only: put_text_property
     use itree_fm, only: make_overlay, overlay_put, free_overlay
     use subr_fm, only: add_to_invisibility_spec
@@ -173,8 +172,8 @@ contains
 
         call buffer_with("*xdisp-ov*", "abcdef", h, bi)
         call make_overlay(ov, 3_int64, 5_int64, st)
-        call overlay_put(ov, "before_string", make_string("BS"), st)
-        call overlay_put(ov, "after_string", make_string("AS"), st)
+        call overlay_put(ov, "before_string", value_type(text="BS"), st)
+        call overlay_put(ov, "after_string", value_type(text="AS"), st)
         call layout1(bi, 3_int64, text, ccol)
         call check(error, text == "abBScdASef", text)
         if (allocated(error)) return
@@ -183,7 +182,7 @@ contains
         call free_overlay(ov)
         ! An after-string of an empty overlay at point.
         call make_overlay(ov2, 3_int64, 3_int64, st)
-        call overlay_put(ov2, "after_string", make_string("AS"), st)
+        call overlay_put(ov2, "after_string", value_type(text="AS"), st)
         call layout1(bi, 3_int64, text, ccol)
         call check(error, text == "abAScdef", text)
         if (allocated(error)) return
@@ -209,9 +208,9 @@ contains
         logical :: at_end
 
         call buffer_with("*xdisp-ov-props*", "ab"//achar(10)//"cd", h, bi)
-        str = make_string(" ")
-        call string_put_text_property(0_int64, 1_int64, sym("display"), &
-                                      list(sym("space"), sym(":align-to"), make_fixnum(5_int64)), str, st)
+        str = value_type(text=" ")
+        call string_put_text_property(0_int64, 1_int64, value_type(name="display"), &
+                                      list(value_type(name="space"), value_type(name=":align-to"), value_type(5_int64)), str, st)
         call make_overlay(ov, 3_int64, 3_int64, st)
         call overlay_put(ov, "after_string", str, st)
         call layout1(bi, 3_int64, text, ccol)
@@ -220,13 +219,13 @@ contains
         call check(error, ccol == 5, "cursor on the newline")
         if (allocated(error)) return
         ! A `cursor' property puts the cursor on the string.
-        call string_put_text_property(0_int64, 1_int64, sym("cursor"), make_fixnum(1_int64), str, st)
+        call string_put_text_property(0_int64, 1_int64, value_type(name="cursor"), value_type(1_int64), str, st)
         call overlay_put(ov, "after_string", str, st)
         call layout1(bi, 3_int64, text, ccol)
         call check(error, ccol == 2, "cursor on the space")
         if (allocated(error)) return
         ! Its face.
-        call string_put_text_property(0_int64, 1_int64, sym("face"), sym("region"), str, st)
+        call string_put_text_property(0_int64, 1_int64, value_type(name="face"), value_type(name="region"), str, st)
         call overlay_put(ov, "after_string", str, st)
 
         do r = 1, 2
@@ -245,7 +244,7 @@ contains
         ! An overlay for another window is not shown.
         call free_overlay(ov)
         call make_overlay(ov2, 2_int64, 2_int64, st)
-        call overlay_put(ov2, "before_string", make_string("BS"), st)
+        call overlay_put(ov2, "before_string", value_type(text="BS"), st)
         call overlay_put(ov2, "window", make_window_ref(handle_type()), st)
         call layout1(bi, 1_int64, text, ccol)
         call check(error, text == "ab", text)
@@ -265,7 +264,7 @@ contains
 
         call buffer_with("*xdisp-ellipsis*", "abcdef", h, bi)
         call add_to_invisibility_spec("foo", ellipsis=.true.)
-        call put_text_property(2_int64, 5_int64, sym("invisible"), sym("foo"), st)
+        call put_text_property(2_int64, 5_int64, value_type(name="invisible"), value_type(name="foo"), st)
         call layout1(bi, 3_int64, text, ccol)
         call check(error, text == "a...ef", text)
         if (allocated(error)) return
@@ -290,7 +289,7 @@ contains
         integer :: ccol
 
         call buffer_with("*xdisp-invisible*", "abcdef", h, bi)
-        call put_text_property(2_int64, 5_int64, sym("invisible"), t_value(), st)
+        call put_text_property(2_int64, 5_int64, value_type(name="invisible"), value_type(.true.), st)
         call layout1(bi, 3_int64, text, ccol)
         call check(error, text == "aef", text)
         if (allocated(error)) return
@@ -298,9 +297,9 @@ contains
         if (allocated(error)) return
         call erase_buffer(st)
         call insert("abcdef", st)
-        call put_text_property(3_int64, 5_int64, sym("invisible"), t_value(), st)
+        call put_text_property(3_int64, 5_int64, value_type(name="invisible"), value_type(.true.), st)
         call make_overlay(ov, 3_int64, 3_int64, st)
-        call overlay_put(ov, "before_string", make_string("BS"), st)
+        call overlay_put(ov, "before_string", value_type(text="BS"), st)
         call layout1(bi, 4_int64, text, ccol)
         call check(error, text == "abBSef", text)
         if (allocated(error)) return
@@ -319,7 +318,7 @@ contains
         integer :: ccol
 
         call buffer_with("*xdisp-newline*", "ab"//achar(10)//"cd", h, bi)
-        call put_text_property(3_int64, 4_int64, sym("invisible"), t_value(), st)
+        call put_text_property(3_int64, 4_int64, value_type(name="invisible"), value_type(.true.), st)
         call layout1(bi, 3_int64, text, ccol)
         call check(error, text == "abcd", text)
         if (allocated(error)) return
@@ -342,7 +341,7 @@ contains
         integer :: ccol
 
         call buffer_with("*xdisp-display*", "abcdef", h, bi)
-        call put_text_property(3_int64, 5_int64, sym("display"), make_string("XY"), st)
+        call put_text_property(3_int64, 5_int64, value_type(name="display"), value_type(text="XY"), st)
         call layout1(bi, 3_int64, text, ccol)
         call check(error, text == "abXYef", text)
         if (allocated(error)) return
@@ -354,7 +353,7 @@ contains
         call layout1(bi, 5_int64, text, ccol)
         call check(error, ccol == 4, "after")
         if (allocated(error)) return
-        call put_text_property(3_int64, 5_int64, sym("display"), make_string(""), st)
+        call put_text_property(3_int64, 5_int64, value_type(name="display"), value_type(text=""), st)
         call layout1(bi, 3_int64, text, ccol)
         call check(error, text == "abef", text)
         if (allocated(error)) return
@@ -372,8 +371,8 @@ contains
         integer :: ccol
 
         call buffer_with("*xdisp-space*", "ab"//achar(9)//"cd", h, bi)
-        call put_text_property(3_int64, 4_int64, sym("display"), &
-                               list(sym("space"), sym(":align-to"), make_fixnum(10_int64)), st)
+        call put_text_property(3_int64, 4_int64, value_type(name="display"), &
+                               list(value_type(name="space"), value_type(name=":align-to"), value_type(10_int64)), st)
         call layout1(bi, 4_int64, text, ccol)
         call check(error, text == "ab        cd", text)
         if (allocated(error)) return

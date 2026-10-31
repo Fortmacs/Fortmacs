@@ -43,8 +43,7 @@ module apropos_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_message, FM_USER_ERROR, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, symbols, nsymbols, list_elements, make_string, xstring, vtag, V_STRING
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, symbols, nsymbols, list_elements, xstring, vtag, V_STRING
     use buffer_fm, only: buffers, cur, current_buffer, get_buffer, set_buffer, is_buffer_live, get_buffer_create, &
                          kill_buffer, generate_new_buffer_name
     use editfns_fm, only: point_min, point_max, buffer_string, goto_char, line_beginning_position
@@ -486,10 +485,10 @@ contains
 
         type = ""
         name = ""
-        call get_text_property(pos, sym(P_BUTTON), v, st)
+        call get_text_property(pos, value_type(name=P_BUTTON), v, st)
         if (.not. allocated(v%a)) return
         type = symbols_name(v)
-        call get_text_property(pos, sym(P_NAME), v, st)
+        call get_text_property(pos, value_type(name=P_NAME), v, st)
         if (vtag(v) == V_STRING) name = xstring(v)
     end subroutine button_at
 

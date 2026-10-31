@@ -37,11 +37,10 @@ module data_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT, &
                         FM_VOID_VARIABLE, FM_SETTING_CONSTANT, FM_VOID_FUNCTION
-    use lisp_fm, only: list, list_elt, list_tail, symbols, &
-                       v_buffer, V_INTEGER, v_keymap, V_ARRAY, v_marker, V_NULL, V_NAME, v_syntax_table, v_window, value_type, &
-                       vtag, xsymbol, V_STRING
-    use lread_fm, only: ensure_obarray, sym
-    use lisp_fm, only: command_proc, command_type
+    use lisp_fm, only: list, list_elt, list_tail, symbols, v_buffer, V_INTEGER, v_keymap, V_ARRAY, v_marker, V_NULL, &
+                       V_NAME, v_syntax_table, v_window, value_type, vtag, xsymbol, V_STRING
+    use lread_fm, only: ensure_obarray
+    use lisp_fm, only: command_proc, command_type, value_type
     implicit none(type, external)
     private
 
@@ -420,7 +419,7 @@ contains
         call move_alloc(grown, forwarded)
         ! Resolve the symbol again.
         call ensure_obarray()
-        id = xsymbol(sym(trim(s%name)))
+        id = xsymbol(value_type(name=trim(s%name)))
         symbols(id)%fwd = 0
     end subroutine forward_setting
 
@@ -455,7 +454,7 @@ contains
         class(setting_type), intent(inout) :: self
         type(status_type) :: st
 
-        call make_local_variable(sym(trim(self%name)), st)
+        call make_local_variable(value_type(name=trim(self%name)), st)
     end subroutine setting_make_local
 
     ! Not a port.
@@ -463,14 +462,14 @@ contains
         class(setting_type), intent(inout) :: self
         type(status_type) :: st
 
-        call kill_local_variable(sym(trim(self%name)), st)
+        call kill_local_variable(value_type(name=trim(self%name)), st)
     end subroutine setting_kill_local
 
     ! Not a port.
     logical function is_setting_local(self)
         class(setting_type), intent(in) :: self
 
-        is_setting_local = is_local_variable(sym(trim(self%name)))
+        is_setting_local = is_local_variable(value_type(name=trim(self%name)))
     end function is_setting_local
 
     !> Forget voidness: the Fortran value is the value now.  Not a port.

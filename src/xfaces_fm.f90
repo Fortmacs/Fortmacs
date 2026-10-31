@@ -47,9 +47,8 @@
 module xfaces_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
-    use lisp_fm, only: value_type, symbols, xsymbol, xstring, &
-                       xfixnum, list_elements, xhandle, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY, V_WINDOW
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, symbols, xsymbol, xstring, xfixnum, list_elements, xhandle, vtag, V_NULL, V_INTEGER, &
+                       V_NAME, V_STRING, V_ARRAY, V_WINDOW
     use dispextern_fm, only: face_type, FACE_TTY_DEFAULT_COLOR, FACE_TTY_DEFAULT_FG_COLOR, &
                              FACE_TTY_DEFAULT_BG_COLOR, FACE_NO_UNDERLINE, FACE_UNDERLINE_SINGLE, &
                              FACE_UNDERLINE_DOUBLE_LINE, FACE_UNDERLINE_WAVE, FACE_UNDERLINE_DOTS, &
@@ -1120,8 +1119,8 @@ contains
         ! position at which the property changes.
         saved = cur
         call set_buffer_internal(bi)
-        call get_text_property(pos, sym("face"), prop, status)
-        call next_single_property_change(pos, sym("face"), end, found, status, min(limit, endpos))
+        call get_text_property(pos, value_type(name="face"), prop, status)
+        call next_single_property_change(pos, value_type(name="face"), end, found, status, min(limit, endpos))
         if (found) endpos = end
         ! Look at properties from overlays.
         call overlays_at(pos, overlay_vec, next=next_overlay)

@@ -32,8 +32,7 @@ module auth_source_fm
     use, intrinsic :: iso_fortran_env, only: int64, int32
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: make_string, list
-    use lread_fm, only: sym
+    use lisp_fm, only: list, value_type
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, is_buffer_live, erase_buffer
     use editfns_fm, only: buffer_size
     use textprop_fm, only: put_text_property, remove_list_of_text_properties
@@ -93,13 +92,13 @@ contains
 
         do i = 0, buffer_size() - beg
             if (password_hidden) then
-                call put_text_property(i + beg, i + beg + 1, sym("display"), make_string(buf(1:nbytes)), st)
+                call put_text_property(i + beg, i + beg + 1, value_type(name="display"), value_type(text=buf(1:nbytes)), st)
             else
-                call remove_list_of_text_properties(i + beg, i + beg + 1, list(sym("display")), changed, st)
+                call remove_list_of_text_properties(i + beg, i + beg + 1, list(value_type(name="display")), changed, st)
             end if
 
-            call put_text_property(i + beg, i + beg + 1, sym("help_echo"), &
-                                   make_string("C-u: Clear password"//achar(10)//"TAB: Toggle password visibility"), st)
+            call put_text_property(i + beg, i + beg + 1, value_type(name="help_echo"), &
+                                   value_type(text="C-u: Clear password"//achar(10)//"TAB: Toggle password visibility"), st)
         end do
     end subroutine read_passwd_hide_password
 

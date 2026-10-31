@@ -26,7 +26,7 @@
 !> `revert_buffer': a submodule because they use callproc_fm and dired_fm,
 !> which use files_fm.
 submodule(files_fm) files_dir_fm
-    use lisp_fm, only: make_string, make_list, list_elements, xstring, t_value, value_type
+    use lisp_fm, only: make_list, list_elements, xstring, value_type
     use lread_fm, only: read_string_literal
     use callproc_fm, only: call_process, shell_file_name, init_callproc
     use dired_fm, only: directory_files
@@ -148,10 +148,10 @@ contains
             if (had_dir) saved_dir = buffers(cur)%directory
             buffers(cur)%directory = dir
             allocate (argv(2))
-            argv(1) = make_string("-c")
-            argv(2) = make_string(command)
+            argv(1) = value_type(text="-c")
+            argv(2) = value_type(text=command)
             args = make_list(argv)
-            call call_process(shell_name(), result, status, destination=t_value(), args=args, error_file=errfile)
+            call call_process(shell_name(), result, status, destination=value_type(.true.), args=args, error_file=errfile)
 
             if (had_dir) then
                 buffers(cur)%directory = saved_dir
@@ -187,10 +187,10 @@ contains
             end do
 
             ! Avoid lossage if FILE starts with `-'.
-            argv(size(elems) + 1) = make_string("--")
-            argv(size(elems) + 2) = make_string(f)
+            argv(size(elems) + 1) = value_type(text="--")
+            argv(size(elems) + 2) = value_type(text=f)
             args = make_list(argv)
-            call call_process(insert_directory_program, result, status, destination=t_value(), args=args, &
+            call call_process(insert_directory_program, result, status, destination=value_type(.true.), args=args, &
                               error_file=errfile)
         end if
 
@@ -271,7 +271,7 @@ contains
                 if (found) then
                     ! End is followed by \n or by output of -F.
                     if (index(achar(10)//" /*@%=|", achar(min(c, 127))) > 0 .and. c < 128) then
-                        call put_text_property(start, fend, sym("dired_filename"), t_value(), status)
+                        call put_text_property(start, fend, value_type(name="dired_filename"), value_type(.true.), status)
                         if (.not. status%ok()) exit
                     end if
                 end if
@@ -450,7 +450,7 @@ contains
             n = size(acc)
             allocate (grown(n + 1))
             grown(1:n) = acc
-            grown(n + 1) = make_string(text)
+            grown(n + 1) = value_type(text=text)
             call move_alloc(grown, acc)
         end subroutine add
     end subroutine split_string_and_unquote
@@ -1067,9 +1067,9 @@ contains
         block
             type(value_type) :: saved_inhibit
             saved_inhibit = inhibit_read_only()
-            call set(sym("inhibit_read_only"), t_value(), st)
+            call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
             call revert_buffer_insert_file_contents_default(file_name, auto_save_p, status)
-            call set(sym("inhibit_read_only"), saved_inhibit, st)
+            call set(value_type(name="inhibit_read_only"), saved_inhibit, st)
         end block
 
         if (.not. status%ok()) return
@@ -1197,7 +1197,7 @@ contains
     allocate (elts(n))
 
     do k = 1, n
-        elts(k) = make_string(kept(k)%s)
+        elts(k) = value_type(text=kept(k)%s)
     end do
 
     names = make_list(elts)

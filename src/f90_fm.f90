@@ -52,7 +52,6 @@ module f90_fm
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes
     use keymap_fm, only: keymap_set, make_sparse_keymap, define_key
-    use lread_fm, only: sym
     use syntax_fm, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, parse_partial_expression, &
                          parse_state_type, scan_groups, skip_chars_forward, skip_chars_backward, forward_word
     use editfns_fm, only: interactive_region, point, point_min, point_max, goto_char, is_bol, is_eol, is_bob, is_eob, &
@@ -1615,7 +1614,7 @@ contains
     !> Port of f90.el:f90-electric-insert.
     recursive subroutine f90_electric_insert(status, arg)
         use keyboard_fm, only: last_command_event
-        use lisp_fm, only: xfixnum
+        use lisp_fm, only: xfixnum, value_type
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: arg
         integer(int64) :: n, c
@@ -3400,7 +3399,7 @@ contains
     !> Any other key combination is executed normally.  Port of
     !> f90.el:f90-abbrev-start.
     recursive subroutine cmd_f90_abbrev_start(status)
-        use lisp_fm, only: make_fixnum
+        use lisp_fm, only: value_type
         type(status_type), intent(out) :: status
         type(handle_type) :: map
         type(value_type) :: key(1)
@@ -3414,10 +3413,10 @@ contains
         if (associated(abbrev_mode)) then
             if (abbrev_mode%value) then
                 call make_sparse_keymap(map)
-                key(1) = make_fixnum(int(iachar("?"), int64))
-                call define_key(map, key, sym("f90_abbrev_help"), st)
-                key(1) = make_fixnum(HELP_CHAR)
-                call define_key(map, key, sym("f90_abbrev_help"), st)
+                key(1) = value_type(int(iachar("?"), int64))
+                call define_key(map, key, value_type(name="f90_abbrev_help"), st)
+                key(1) = value_type(HELP_CHAR)
+                call define_key(map, key, value_type(name="f90_abbrev_help"), st)
                 call set_transient_map(map)
             end if
         end if

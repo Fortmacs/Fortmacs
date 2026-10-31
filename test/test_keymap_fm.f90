@@ -22,14 +22,12 @@
 
 module test_keymap_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use lisp_fm, only: V_NULL, V_INTEGER
+    use lisp_fm, only: V_NULL, V_INTEGER, value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: format_message
     use error_fm, only: status_type, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: list, make_fixnum, make_keymap_ref, make_string, t_value, &
-                       V_ARRAY, value_type, vtag, xfixnum, xhandle, xstring, list_elements
-    use lread_fm, only: sym
+    use lisp_fm, only: list, make_keymap_ref, V_ARRAY, value_type, vtag, xfixnum, xhandle, xstring, list_elements
     use data_fm, only: value_eq
     use fns_fm, only: value_equal
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
@@ -107,7 +105,7 @@ contains
         character, intent(in) :: c
         type(value_type) :: key(1)
 
-        key(1) = make_fixnum(int(iachar(c), int64))
+        key(1) = value_type(int(iachar(c), int64))
     end function ch
 
     function lookup(map, key) result(val)
@@ -139,7 +137,7 @@ contains
 
         call make_keymap(full)
         call make_sparse_keymap(sparse)
-        call make_sparse_keymap(prompted, make_string("Prompt"))
+        call make_sparse_keymap(prompted, value_type(text="Prompt"))
         call check(error, is_keymap_full(full) .and. .not. is_keymap_full(sparse), "full")
         if (allocated(error)) return
         call check(error, vtag(keymap_prompt(full)) == V_NULL, "no prompt")
@@ -158,7 +156,7 @@ contains
         call make_sparse_keymap(b)
         call check(error, is_keymap(ref(a)) .and. is_keymap(ref(b)), "keymaps")
         if (allocated(error)) return
-        call check(error,.not. is_keymap(list(sym("foo"), sym("bar"))), "(foo bar)")
+        call check(error,.not. is_keymap(list(value_type(name="foo"), value_type(name="bar"))), "(foo bar)")
         if (allocated(error)) return
         call check(error,.not. is_keymap(value_type()), "nil")
         if (allocated(error)) return
@@ -201,13 +199,13 @@ contains
         type(value_type) :: v
 
         call make_keymap(map)
-        call define_key(map, kbd("a"), sym("foo"), st)
-        call define_key(map, kbd("C-c x"), sym("bar"), st)
+        call define_key(map, kbd("a"), value_type(name="foo"), st)
+        call define_key(map, kbd("C-c x"), value_type(name="bar"), st)
         call copy_keymap(map, copy, st)
         call check(error, st%ok() .and. copy%index /= map%index, "is-not-eq")
         if (allocated(error)) return
-        call check(error, value_eq(lookup(ref(copy), kbd("a")), sym("foo")) .and. &
-                   value_eq(lookup(ref(copy), kbd("C-c x")), sym("bar")), "is-equal")
+        call check(error, value_eq(lookup(ref(copy), kbd("a")), value_type(name="foo")) .and. &
+                   value_eq(lookup(ref(copy), kbd("C-c x")), value_type(name="bar")), "is-equal")
         if (allocated(error)) return
         ! Sub-keymaps are copied, so changing one map leaves the other alone.
         v = lookup(ref(map), kbd("C-c"))
@@ -216,8 +214,8 @@ contains
         subcopy = xhandle(v)
         call check(error, sub%index /= subcopy%index, "sub-keymap copied")
         if (allocated(error)) return
-        call define_key(copy, kbd("C-c x"), sym("baz"), st)
-        call check(error, value_eq(lookup(ref(map), kbd("C-c x")), sym("bar")), "independent")
+        call define_key(copy, kbd("C-c x"), value_type(name="baz"), st)
+        call check(error, value_eq(lookup(ref(map), kbd("C-c x")), value_type(name="bar")), "independent")
         if (allocated(error)) return
         ! The copy owns its sub-keymap copy.
         call free(copy)
@@ -242,8 +240,8 @@ contains
         type(status_type) :: st
 
         call make_keymap(map)
-        call define_key(map, ch("a"), make_string("abc"), st)
-        call check(error, value_equal(lookup(ref(map), ch("a")), make_string("abc")))
+        call define_key(map, ch("a"), value_type(text="abc"), st)
+        call check(error, value_equal(lookup(ref(map), ch("a")), value_type(text="abc")))
         call free(map)
     end subroutine test_define_macro
 
@@ -255,8 +253,8 @@ contains
         call make_keymap(map)
         call make_keymap(map2)
         call define_key(map, ch("a"), ref(map2), st)
-        call define_key(map2, ch("b"), sym("foo"), st)
-        call check(error, value_eq(lookup(ref(map), kbd("a b")), sym("foo")))
+        call define_key(map2, ch("b"), value_type(name="foo"), st)
+        call check(error, value_eq(lookup(ref(map), kbd("a b")), value_type(name="foo")))
         call free(map)
         call free(map2)
     end subroutine test_define_keymap
@@ -269,15 +267,15 @@ contains
         type(value_type), allocatable :: none(:)
 
         call make_keymap(map)
-        call define_key(map, ch("a"), sym("foo"), st)
-        call check(error, value_eq(lookup(ref(map), ch("a")), sym("foo")), "a")
+        call define_key(map, ch("a"), value_type(name="foo"), st)
+        call check(error, value_eq(lookup(ref(map), ch("a")), value_type(name="foo")), "a")
         if (allocated(error)) return
         call check(error, vtag(lookup(ref(map), ch("b"))) == V_NULL, "b")
         if (allocated(error)) return
         allocate (none(0))
         call check(error, value_eq(lookup(ref(map), none), ref(map)), "empty key")
         if (allocated(error)) return
-        call lookup_key(sym("foo"), ch("a"), v, st)
+        call lookup_key(value_type(name="foo"), ch("a"), v, st)
         call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "not a keymap")
         call free(map)
     end subroutine test_lookup_key
@@ -290,12 +288,12 @@ contains
 
         call make_keymap(map1)
         call make_keymap(map2)
-        call define_key(map1, ch("a"), sym("foo"), st)
-        call define_key(map2, ch("b"), sym("bar"), st)
+        call define_key(map1, ch("a"), value_type(name="foo"), st)
+        call define_key(map2, ch("b"), value_type(name="bar"), st)
         maps = list(ref(map1), ref(map2))
-        call check(error, value_eq(lookup(maps, ch("a")), sym("foo")), "a")
+        call check(error, value_eq(lookup(maps, ch("a")), value_type(name="foo")), "a")
         if (allocated(error)) return
-        call check(error, value_eq(lookup(maps, ch("b")), sym("bar")), "b")
+        call check(error, value_eq(lookup(maps, ch("b")), value_type(name="bar")), "b")
         if (allocated(error)) return
         call check(error, vtag(lookup(maps, ch("c"))) == V_NULL, "c")
         call free(map1)
@@ -309,7 +307,7 @@ contains
         type(value_type) :: v
 
         call make_keymap(map)
-        call define_key(map, kbd("C-c f"), sym("foo"), st)
+        call define_key(map, kbd("C-c f"), value_type(name="foo"), st)
         v = lookup(ref(map), kbd("C-c f x"))
         call check(error, vtag(v) == V_INTEGER, "fixnum")
         if (allocated(error)) return
@@ -325,20 +323,20 @@ contains
         type(value_type) :: key(1), v
 
         call make_sparse_keymap(map)
-        key(1) = t_value()
-        call define_key(map, key, sym("self_insert_command"), st)
-        call define_key(map, ch("a"), sym("foo"), st)
+        key(1) = value_type(.true.)
+        call define_key(map, key, value_type(name="self_insert_command"), st)
+        call define_key(map, ch("a"), value_type(name="foo"), st)
         call check(error, vtag(lookup(ref(map), ch("b"))) == V_NULL, "ignored")
         if (allocated(error)) return
         call lookup_key(ref(map), ch("b"), v, st, accept_default=.true.)
-        call check(error, value_eq(v, sym("self_insert_command")), "default")
+        call check(error, value_eq(v, value_type(name="self_insert_command")), "default")
         if (allocated(error)) return
         call lookup_key(ref(map), ch("a"), v, st, accept_default=.true.)
-        call check(error, value_eq(v, sym("foo")), "specific wins")
+        call check(error, value_eq(v, value_type(name="foo")), "specific wins")
         if (allocated(error)) return
         ! M-b has no ESC map here, so only the default can apply.
         call lookup_key(ref(map), kbd("M-b"), v, st, accept_default=.true.)
-        call check(error, value_eq(v, sym("self_insert_command")), "meta default")
+        call check(error, value_eq(v, value_type(name="self_insert_command")), "meta default")
         call free(map)
     end subroutine test_accept_default
 
@@ -352,9 +350,9 @@ contains
             call make_sparse_keymap(parent)
             call make_keymap(child)
             call set_keymap_parent(child, parent, st)
-            call define_key(parent, ch("a"), sym("foo"), st)
-            call define_key(child, ch("a"), sym("bar"), st)
-            call check(error, value_eq(lookup(ref(child), ch("a")), sym("bar")), "bar")
+            call define_key(parent, ch("a"), value_type(name="foo"), st)
+            call define_key(child, ch("a"), value_type(name="bar"), st)
+            call check(error, value_eq(lookup(ref(child), ch("a")), value_type(name="bar")), "bar")
             if (allocated(error)) return
 
             if (pass == 1) then
@@ -364,7 +362,7 @@ contains
             else
                 ! Remove: the parent shows through.
                 call define_key(child, ch("a"), value_type(), st, remove=.true.)
-                call check(error, value_eq(lookup(ref(child), ch("a")), sym("foo")), "foo")
+                call check(error, value_eq(lookup(ref(child), ch("a")), value_type(name="foo")), "foo")
             end if
 
             call free(child)
@@ -382,17 +380,17 @@ contains
         call make_sparse_keymap(parent)
         call set_keymap_parent(map, parent, st)
         ! Removing an unset key should not add a key.
-        call define_key(parent, kbd("u"), sym("undo"), st)
+        call define_key(parent, kbd("u"), value_type(name="undo"), st)
         call define_key(map, kbd("u"), value_type(), st, remove=.true.)
-        call check(error, value_eq(lookup(ref(map), kbd("u")), sym("undo")), "undo")
+        call check(error, value_eq(lookup(ref(map), kbd("u")), value_type(name="undo")), "undo")
         if (allocated(error)) return
         ! Non-removed child bindings should shadow parent.
-        call define_key(map, kbd("u"), sym("identity"), st)
+        call define_key(map, kbd("u"), value_type(name="identity"), st)
         call define_key(map, kbd("u"), value_type(), st)
         call check(error, vtag(lookup(ref(map), kbd("u"))) == V_NULL, "shadowed")
         if (allocated(error)) return
         call define_key(map, kbd("u"), value_type(), st, remove=.true.)
-        call check(error, value_eq(lookup(ref(map), kbd("u")), sym("undo")), "from parent")
+        call check(error, value_eq(lookup(ref(map), kbd("u")), value_type(name="undo")), "from parent")
         call free(map)
         call free(parent)
     end subroutine test_unset_inherit
@@ -410,20 +408,20 @@ contains
         call make_keymap(map)
         call make_sparse_keymap(parent)
         call set_keymap_parent(map, parent, st)
-        call define_key(parent, kbd("b"), sym("undo"), st)
-        call define_key(parent, kbd("c"), sym("undo"), st)
-        call define_key_range(map, 97_int64, 122_int64, sym("self_insert_command"), st)
-        call check(error, value_eq(lookup(ref(map), kbd("b")), sym("self_insert_command")), "range")
+        call define_key(parent, kbd("b"), value_type(name="undo"), st)
+        call define_key(parent, kbd("c"), value_type(name="undo"), st)
+        call define_key_range(map, 97_int64, 122_int64, value_type(name="self_insert_command"), st)
+        call check(error, value_eq(lookup(ref(map), kbd("b")), value_type(name="self_insert_command")), "range")
         if (allocated(error)) return
         call define_key(map, kbd("b"), value_type(), st, remove=.true.)
-        call check(error, value_eq(lookup(ref(map), kbd("b")), sym("undo")), "removed")
+        call check(error, value_eq(lookup(ref(map), kbd("b")), value_type(name="undo")), "removed")
         if (allocated(error)) return
         call define_key(map, kbd("c"), value_type(), st)
         call check(error, vtag(lookup(ref(map), kbd("c"))) == V_NULL, "unbound")
         if (allocated(error)) return
-        call define_key(map, kbd("b"), sym("self_insert_command"), st)
+        call define_key(map, kbd("b"), value_type(name="self_insert_command"), st)
         call use_local_map(map, st)
-        call where_is_internal(sym("self_insert_command"), keys, keymap=map)
+        call where_is_internal(value_type(name="self_insert_command"), keys, keymap=map)
         call list_elements(keys, seqs)
         call check(error, size(seqs) == 2, "two runs")
         if (allocated(error)) return
@@ -447,21 +445,21 @@ contains
 
         call make_sparse_keymap(a)
         call make_sparse_keymap(b)
-        call define_key(a, kbd("C-x f"), sym("find_file"), st)
-        call define_key(b, kbd("C-x f"), sym("find_file"), st)
+        call define_key(a, kbd("C-x f"), value_type(name="find_file"), st)
+        call define_key(b, kbd("C-x f"), value_type(name="find_file"), st)
         call check(error, value_equal(ref(a), ref(b)) .and. .not. value_eq(ref(a), ref(b)), "same bindings")
         if (allocated(error)) return
-        call define_key(b, kbd("C-x g"), sym("undo"), st)
+        call define_key(b, kbd("C-x g"), value_type(name="undo"), st)
         call check(error,.not. value_equal(ref(a), ref(b)), "different bindings")
         if (allocated(error)) return
         ! Full keymaps: their char-tables' contents.
         call make_keymap(fa)
         call make_keymap(fb)
-        call define_key_range(fa, 97_int64, 99_int64, sym("undo"), st)
+        call define_key_range(fa, 97_int64, 99_int64, value_type(name="undo"), st)
 
         do c = 97, 99
-            key(1) = make_fixnum(c)
-            call define_key(fb, key, sym("undo"), st)
+            key(1) = value_type(c)
+            call define_key(fb, key, value_type(name="undo"), st)
         end do
 
         call check(error, value_equal(ref(fa), ref(fb)), "char-tables")
@@ -480,10 +478,10 @@ contains
         call make_sparse_keymap(map)
         call check(error, readable_repr(ref(map)), "(keymap)")
         if (allocated(error)) return
-        call make_sparse_keymap(parent, make_string("Menu"))
-        call define_key(parent, kbd("<f5>"), sym("undo"), st)
+        call make_sparse_keymap(parent, value_type(text="Menu"))
+        call define_key(parent, kbd("<f5>"), value_type(name="undo"), st)
         call set_keymap_parent(map, parent, st)
-        call define_key(map, kbd("a"), sym("undo"), st)
+        call define_key(map, kbd("a"), value_type(name="undo"), st)
         call define_key(map, kbd("C-x b"), value_type(), st)
         call check(error, readable_repr(ref(map)), "(keymap (24 keymap (98)) (97 . undo) keymap (f5 . undo) ""Menu"")")
         call free(map)
@@ -501,12 +499,12 @@ contains
         call make_sparse_keymap(parent)
         call make_sparse_keymap(child)
         call set_keymap_parent(child, parent, st)
-        call define_key(parent, kbd("C-x C-f"), sym("find_file"), st)
-        call define_key(parent, kbd("C-x C-s"), sym("save_buffer"), st)
-        call define_key(child, kbd("C-x k"), sym("kill_buffer"), st)
-        call check(error, value_eq(lookup(ref(child), kbd("C-x k")), sym("kill_buffer")), "child")
+        call define_key(parent, kbd("C-x C-f"), value_type(name="find_file"), st)
+        call define_key(parent, kbd("C-x C-s"), value_type(name="save_buffer"), st)
+        call define_key(child, kbd("C-x k"), value_type(name="kill_buffer"), st)
+        call check(error, value_eq(lookup(ref(child), kbd("C-x k")), value_type(name="kill_buffer")), "child")
         if (allocated(error)) return
-        call check(error, value_eq(lookup(ref(child), kbd("C-x C-f")), sym("find_file")), "parent")
+        call check(error, value_eq(lookup(ref(child), kbd("C-x C-f")), value_type(name="find_file")), "parent")
         if (allocated(error)) return
         v = lookup(ref(child), kbd("C-x"))
         call check(error, vtag(v) == V_ARRAY .and. is_keymap(v), "composite")
@@ -527,19 +525,19 @@ contains
         type(value_type) :: key(2)
 
         call make_sparse_keymap(map)
-        call define_key(map, kbd("M-x"), sym("execute_extended_command"), st)
+        call define_key(map, kbd("M-x"), value_type(name="execute_extended_command"), st)
         call check(error, value_eq(lookup(ref(map), kbd("M-x")), &
-                                   sym("execute_extended_command")), "M-x")
+                                   value_type(name="execute_extended_command")), "M-x")
         if (allocated(error)) return
         call check(error, value_eq(lookup(ref(map), kbd("ESC x")), &
-                                   sym("execute_extended_command")), "ESC x")
+                                   value_type(name="execute_extended_command")), "ESC x")
         if (allocated(error)) return
         call check(error, is_keymap(lookup(ref(map), kbd("ESC"))), "ESC map")
         if (allocated(error)) return
-        key(1) = make_fixnum(27_int64)
-        key(2) = make_fixnum(META + iachar("y"))
-        call define_key(map, key, sym("foo"), st)
-        call check(error, value_eq(lookup(ref(map), kbd("ESC ESC y")), sym("foo")), "ESC M-y")
+        key(1) = value_type(27_int64)
+        key(2) = value_type(META + iachar("y"))
+        call define_key(map, key, value_type(name="foo"), st)
+        call check(error, value_eq(lookup(ref(map), kbd("ESC ESC y")), value_type(name="foo")), "ESC M-y")
         call free(map)
     end subroutine test_meta
 
@@ -549,14 +547,14 @@ contains
         type(status_type) :: st
 
         call make_sparse_keymap(map)
-        call define_key(map, kbd("C-c"), sym("foo"), st)
-        call define_key(map, kbd("C-c f"), sym("bar"), st)
+        call define_key(map, kbd("C-c"), value_type(name="foo"), st)
+        call define_key(map, kbd("C-c f"), value_type(name="bar"), st)
         call check(error, st%code == FM_GENERIC_ERROR, "error")
         if (allocated(error)) return
         call check(error, st%detail, "Key sequence C-c f starts with non-prefix key C-c")
         if (allocated(error)) return
-        call define_key(map, kbd("ESC"), sym("foo"), st)
-        call define_key(map, kbd("M-a"), sym("bar"), st)
+        call define_key(map, kbd("ESC"), value_type(name="foo"), st)
+        call define_key(map, kbd("M-a"), value_type(name="bar"), st)
         call check(error, st%detail, "Key sequence M-a starts with non-prefix key ESC")
         call free(map)
     end subroutine test_non_prefix
@@ -569,12 +567,12 @@ contains
         type(value_type) :: key(1)
 
         call make_sparse_keymap(map)
-        key(1) = sym("M-C-home")
-        call define_key(map, key, sym("foo"), st)
-        key(1) = sym("C-M-home")
-        call check(error, value_eq(lookup(ref(map), key), sym("foo")), "C-M-home")
+        key(1) = value_type(name="M-C-home")
+        call define_key(map, key, value_type(name="foo"), st)
+        key(1) = value_type(name="C-M-home")
+        call check(error, value_eq(lookup(ref(map), key), value_type(name="foo")), "C-M-home")
         if (allocated(error)) return
-        call check(error, value_eq(lookup(ref(map), kbd("C-M-<home>")), sym("foo")), "kbd")
+        call check(error, value_eq(lookup(ref(map), kbd("C-M-<home>")), value_type(name="foo")), "kbd")
         call free(map)
     end subroutine test_modifier_order
 
@@ -592,10 +590,10 @@ contains
         call check(error, xfixnum(k(1)), META + 120)
         if (allocated(error)) return
         k = kbd("C-M-<return>")
-        call check(error, value_eq(k(1), sym("C-M-return")), "C-M-<return>")
+        call check(error, value_eq(k(1), value_type(name="C-M-return")), "C-M-<return>")
         if (allocated(error)) return
         k = kbd("<f1> SPC")
-        call check(error, value_eq(k(1), sym("f1")) .and. xfixnum(k(2)) == 32, "<f1> SPC")
+        call check(error, value_eq(k(1), value_type(name="f1")) .and. xfixnum(k(2)) == 32, "<f1> SPC")
         if (allocated(error)) return
         k = kbd("RET TAB ESC DEL NUL LFD")
         call check(error, all(xfixnum(k) == [13, 9, 27, 127, 0, 10]), "named")
@@ -632,7 +630,7 @@ contains
         if (.not. allocated(error)) call check(error, xfixnum(k(2)) == 225, "multibyte")
         if (allocated(error)) return
         k = kbd("<mouse 1>")
-        call check(error, value_eq(k(1), sym("mouse 1")), "<as df>")
+        call check(error, value_eq(k(1), value_type(name="mouse 1")), "<as df>")
         if (allocated(error)) return
         call key_parse("C-xy", k, st)
         call check(error, st%detail, "C- must prefix a single character, not xy")
@@ -642,34 +640,34 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: k1(1), k2(2), k3(3), prefix(1)
 
-        k1(1) = sym("right")
-        prefix(1) = make_fixnum(24_int64)
+        k1(1) = value_type(name="right")
+        prefix(1) = value_type(24_int64)
         call check(error, key_description(k1, prefix), "C-x <right>")
         if (allocated(error)) return
-        k1(1) = sym("M-H-right")
+        k1(1) = value_type(name="M-H-right")
         call check(error, key_description(k1, prefix), "C-x M-H-<right>")
         if (allocated(error)) return
         ! Treat latin-1 correctly vs meta.  (Bug#59305)
         ! Element by element: function results in an array constructor leak.
-        k3(1) = make_fixnum(111_int64)
-        k3(2) = make_fixnum(108_int64)
-        k3(3) = make_fixnum(225_int64)
+        k3(1) = value_type(111_int64)
+        k3(2) = value_type(108_int64)
+        k3(3) = value_type(225_int64)
         call check(error, key_description(k3), "o l "//char(195)//char(161))
         if (allocated(error)) return
-        call check(error, single_key_description(sym("home")), "<home>")
+        call check(error, single_key_description(value_type(name="home")), "<home>")
         if (allocated(error)) return
-        call check(error, single_key_description(sym("home"), .true.), "home")
+        call check(error, single_key_description(value_type(name="home"), .true.), "home")
         if (allocated(error)) return
-        call check(error, single_key_description(sym("C-s-home")), "C-s-<home>")
+        call check(error, single_key_description(value_type(name="C-s-home")), "C-s-<home>")
         if (allocated(error)) return
-        k2(1) = make_fixnum(27_int64)
-        k2(2) = make_fixnum(120_int64)
+        k2(1) = value_type(27_int64)
+        k2(2) = value_type(120_int64)
         call check(error, key_description(k2), "M-x")
         if (allocated(error)) return
-        k2(2) = make_fixnum(27_int64)
+        k2(2) = value_type(27_int64)
         call check(error, key_description(k2), "ESC ESC")
         if (allocated(error)) return
-        k2(2) = sym("f1")
+        k2(2) = value_type(name="f1")
         call check(error, key_description(k2), "ESC <f1>")
         if (allocated(error)) return
         call check(error, push_key_description(0_int64), "C-@")
@@ -695,8 +693,8 @@ contains
         global = current_global_map()
         call check(error, is_keymap_live(global) .and. is_keymap_full(global), "global")
         if (allocated(error)) return
-        call define_key(global, kbd("C-x C-f"), sym("find_file"), st)
-        call define_key(global, kbd("C-f"), sym("forward_char"), st)
+        call define_key(global, kbd("C-x C-f"), value_type(name="find_file"), st)
+        call define_key(global, kbd("C-f"), value_type(name="forward_char"), st)
         call get_buffer_create("*keymap-test*", buf, st)
         call set_buffer(buf, st)
         call make_sparse_keymap(local)
@@ -704,19 +702,19 @@ contains
         h = current_local_map()
         call check(error, st%ok() .and. h%index == local%index, "local")
         if (allocated(error)) return
-        call define_key(local, kbd("C-f"), sym("local-forward"), st)
+        call define_key(local, kbd("C-f"), value_type(name="local-forward"), st)
         call key_binding(kbd("C-f"), v, st)
-        call check(error, value_eq(v, sym("local-forward")), "local wins")
+        call check(error, value_eq(v, value_type(name="local-forward")), "local wins")
         if (allocated(error)) return
         call key_binding(kbd("C-x C-f"), v, st)
-        call check(error, value_eq(v, sym("find_file")), "global")
+        call check(error, value_eq(v, value_type(name="find_file")), "global")
         if (allocated(error)) return
         call key_binding(kbd("C-f C-f"), v, st)
         call check(error,.not. allocated(v%a), "too long is nil")
         if (allocated(error)) return
         call use_local_map(null_handle(), st)
         call key_binding(kbd("C-f"), v, st)
-        call check(error, value_eq(v, sym("forward_char")), "no local map")
+        call check(error, value_eq(v, value_type(name="forward_char")), "no local map")
         call free(local)
         call kill_buffer(buf, st)
     end subroutine test_key_binding
@@ -729,7 +727,7 @@ contains
         type(value_type) :: v
 
         call make_sparse_keymap(map)
-        call define_key(map, kbd("C-c a"), sym("foo"), st)
+        call define_key(map, kbd("C-c a"), value_type(name="foo"), st)
         v = lookup(ref(map), kbd("C-c"))
         prefix = xhandle(v)
         call check(error, is_keymap_live(prefix), "prefix live")
@@ -795,16 +793,16 @@ contains
         type(status_type) :: st
 
         call make_sparse_keymap(k)
-        call keymap_set(k, "a", make_string("a"), st)
+        call keymap_set(k, "a", value_type(text="a"), st)
         call check(error, st%ok(), "keymap_set")
         if (allocated(error)) return
-        a = make_fixnum(97_int64)
+        a = value_type(97_int64)
         call check(error, value_equal(lookup(ref(k), kbd("a")), list(a)), "a")
         if (allocated(error)) return
         call keymap_set(k, "C-c b", "backward_char", st)
-        call check(error, value_eq(lookup(ref(k), kbd("C-c b")), sym("backward_char")), "a command name")
+        call check(error, value_eq(lookup(ref(k), kbd("C-c b")), value_type(name="backward_char")), "a command name")
         if (allocated(error)) return
-        call keymap_set(k, "b", make_string("C-xx"), st)
+        call keymap_set(k, "b", value_type(text="C-xx"), st)
         call check(error, st%detail, """C-xx"""//format_message(" is not a valid key definition; see `is_key_valid'"))
         call free(k)
     end subroutine test_keymap_set
@@ -816,7 +814,7 @@ contains
 
         global = ref(current_global_map())
         call keymap_global_set("C-c x", "forward_char", st)
-        call check(error, st%ok() .and. value_eq(lookup(global, kbd("C-c x")), sym("forward_char")), &
+        call check(error, st%ok() .and. value_eq(lookup(global, kbd("C-c x")), value_type(name="forward_char")), &
                    "keymap_global_set")
         if (allocated(error)) return
         call keymap_global_set("C-c x", value_type(), st)
@@ -826,7 +824,7 @@ contains
         call check(error, st%detail, """C-xx"""//format_message(" is not a valid key definition; see `is_key_valid'"))
         if (allocated(error)) return
         call global_set_key(kbd("C-c y"), "backward_char", st)
-        call check(error, st%ok() .and. value_eq(lookup(global, kbd("C-c y")), sym("backward_char")), &
+        call check(error, st%ok() .and. value_eq(lookup(global, kbd("C-c y")), value_type(name="backward_char")), &
                    "global_set_key")
         call define_key(current_global_map(), kbd("C-c y"), value_type(), st, remove=.true.)
         call define_key(current_global_map(), kbd("C-c x"), value_type(), st, remove=.true.)
@@ -873,18 +871,18 @@ contains
         type(value_type) :: v, key(1)
 
         call make_sparse_keymap(km)
-        key(1) = make_string("C-c a")
-        call define_key(km, key, sym("ignore"), st)
+        key(1) = value_type(text="C-c a")
+        call define_key(km, key, value_type(name="ignore"), st)
         call check(error, st%ok(), "define")
         if (allocated(error)) return
         call lookup_key(make_keymap_ref(km), kbd_keys("C-c a"), v, st)
-        call check(error, value_eq(v, sym("ignore")), "parsed")
+        call check(error, value_eq(v, value_type(name="ignore")), "parsed")
         if (allocated(error)) return
         call lookup_key(make_keymap_ref(km), key, v, st)
-        call check(error, value_eq(v, sym("ignore")), "lookup string")
+        call check(error, value_eq(v, value_type(name="ignore")), "lookup string")
         if (allocated(error)) return
-        key(1) = sym("C-RET")
-        call define_key(km, key, sym("ignore"), st)
+        key(1) = value_type(name="C-RET")
+        call define_key(km, key, value_type(name="ignore"), st)
         call check(error, format_error(st), "To bind the key C-RET, use [?\C-\r], not [C-RET]")
         call free_keymap(km, st)
     end subroutine test_string_keys
@@ -900,24 +898,24 @@ contains
         type(value_type), allocatable :: bindings(:)
         type(value_type) :: v
 
-        call make_sparse_keymap(parent, make_string("Choose"))
+        call make_sparse_keymap(parent, value_type(text="Choose"))
         call make_sparse_keymap(km)
         call set_keymap_parent(km, parent, st)
         v = keymap_prompt(km)
         call check(error, xstring(v), "Choose")
         if (allocated(error)) return
         call make_sparse_keymap(mm)
-        call define_key(mm, kbd_keys("C-c z"), sym("ignore"), st)
+        call define_key(mm, kbd_keys("C-c z"), value_type(name="ignore"), st)
         call add_minor_mode_map("keymap_test_mode", mm)
-        call set(sym("keymap_test_mode"), t_value(), st)
+        call set(value_type(name="keymap_test_mode"), value_type(.true.), st)
         call current_minor_mode_maps(maps)
         call check(error, any(maps%index == mm%index), "current-minor-mode-maps")
         if (allocated(error)) return
         call minor_mode_key_binding(kbd_keys("C-c z"), modes, bindings, st)
-        call check(error, size(modes) == 1 .and. value_eq(bindings(1), sym("ignore")), "minor-mode-key-binding")
+        call check(error, size(modes) == 1 .and. value_eq(bindings(1), value_type(name="ignore")), "minor-mode-key-binding")
         if (allocated(error)) return
         call check(error, trim(modes(1)), "keymap_test_mode")
-        call set(sym("keymap_test_mode"), value_type(), st)
+        call set(value_type(name="keymap_test_mode"), value_type(), st)
         call free_keymap(km, st)
         call free_keymap(parent, st)
     end subroutine test_prompt_minor

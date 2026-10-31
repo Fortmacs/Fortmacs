@@ -66,8 +66,7 @@ module bookmark_fm
     use error_fm, only: status_type, set_error, condition_matches, FM_GENERIC_ERROR, FM_USER_ERROR, &
                         FM_FILE_ERROR, FM_BOOKMARK_ERROR_NO_FILENAME, format_message
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_string, make_list, t_value, vtag, V_INTEGER, V_ARRAY
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, make_list, vtag, V_INTEGER, V_ARRAY
     use data_fm, only: add_local_variables_killer
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes
@@ -997,7 +996,7 @@ contains
         allocate (names(size(bookmark_table)))
 
         do k = 1, size(bookmark_table)
-            names(k) = make_string(bookmark_name_from_full_record(bookmark_table(k)))
+            names(k) = value_type(text=bookmark_name_from_full_record(bookmark_table(k)))
         end do
 
         table%kind = TABLE_LIST
@@ -2569,7 +2568,7 @@ contains
 
     ! Whether prefix argument ARG is (16), as C-u C-u makes it.  Not a port.
     logical function prefix_is_16(arg)
-        use lisp_fm, only: xfixnum, list_elements
+        use lisp_fm, only: xfixnum, list_elements, value_type
         type(value_type), intent(in) :: arg
         type(value_type), allocatable :: elts(:)
 
@@ -3883,7 +3882,7 @@ contains
         use data_fm, only: value_eq
         type(handle_type), intent(in) :: ov
 
-        is_bookmark_overlay = value_eq(overlay_get(ov, "category"), sym("bookmark"))
+        is_bookmark_overlay = value_eq(overlay_get(ov, "category"), value_type(name="bookmark"))
     end function is_bookmark_overlay
 
     !> Apply a colorized overlay to the bookmarked location.
@@ -3897,14 +3896,14 @@ contains
 
         call make_overlay(bm, pos_bol(), pos_bol() + 1, st)
         if (.not. st%ok()) return
-        call overlay_put(bm, "category", sym("bookmark"), st)
-        call overlay_put(bm, "evaporate", t_value(), st)
-        spec(1) = sym("left_fringe")
-        spec(2) = sym("bookmark_fringe_mark")
-        spec(3) = sym("bookmark_face")
-        props(1) = sym("display")
+        call overlay_put(bm, "category", value_type(name="bookmark"), st)
+        call overlay_put(bm, "evaporate", value_type(.true.), st)
+        spec(1) = value_type(name="left_fringe")
+        spec(2) = value_type(name="bookmark_fringe_mark")
+        spec(3) = value_type(name="bookmark_face")
+        props(1) = value_type(name="display")
         props(2) = make_list(spec)
-        call overlay_put(bm, "before_string", propertize(make_string("x"), make_list(props)), st)
+        call overlay_put(bm, "before_string", propertize(value_type(text="x"), make_list(props)), st)
     end subroutine bookmark_set_fringe_mark
 
     !> Remove a bookmark's colorized overlay.

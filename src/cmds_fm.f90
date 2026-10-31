@@ -40,7 +40,7 @@ module cmds_fm
     use character_fm, only: MAX_CHAR
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: last_command_event, this_command, last_command
-    use lisp_fm, only: make_fixnum
+    use lisp_fm, only: value_type
     use eval_fm, only: hook_type
     use data_fm, only: value_eq
     use undo_fm, only: undo_auto_amalgamate, this_command_amalgamating
@@ -255,7 +255,7 @@ contains
 
         status = status_type()
         ! Backward compatibility.
-        if (c >= 0) last_command_event = make_fixnum(c)
+        if (c >= 0) last_command_event = value_type(c)
 
         if (n < 0) then
             write (buf, "(i0)") n

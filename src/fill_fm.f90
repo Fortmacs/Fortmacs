@@ -34,8 +34,7 @@ module fill_fm
     use commands_fm, only: commands
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, xfixnum, make_string, xstring, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, xfixnum, xstring, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
     use data_fm, only: value_eq, symbol_name, logical_setting, add_local_variables_killer
     use buffer_fm, only: buffers, cur, fill_column, FILL_COLUMN_NONE, transient_mark_mode, barf_if_buffer_read_only, &
                          is_buffer_modified, restore_buffer_modified, current_buffer, buffer_serial_live
@@ -365,10 +364,10 @@ contains
         ! Look separately at each region of line with a different
         ! right-margin.
         do
-            call get_text_property(here, sym("right_margin"), margin, st)
+            call get_text_property(here, value_type(name="right_margin"), margin, st)
             fill_col = fill_column%value
             if (vtag(margin) == V_INTEGER) fill_col = fill_column%value - xfixnum(margin)
-            call text_property_not_all(here, eol, sym("right_margin"), margin, change, found, st)
+            call text_property_not_all(here, eol, value_type(name="right_margin"), margin, change, found, st)
             if (.not. found) exit
             call goto_char(change - 1)
             col = current_column()
@@ -902,7 +901,7 @@ contains
             call search_forward(LF, pos, status, bound=endpos, noerror=SEARCH_NOERROR)
             if (.not. status%ok() .or. pos == 0) exit
             mb = match_beginning(0, st)
-            call get_text_property(mb, sym("fill_space"), fill_space, st)
+            call get_text_property(mb, value_type(name="fill_space"), fill_space, st)
 
             if (vtag(fill_space) == V_STRING) then
                 call replace_match(xstring(fill_space), status, literal=.true.)
@@ -1066,8 +1065,8 @@ contains
             ! When refilling later on, this newline would normally not be
             ! replaced by a space, so we need to mark it specially to
             ! re-install the space when we unfill.
-            if (mark_space) call put_text_property(point() - 1, point(), sym("fill_space"), &
-                                                   make_string(match_string(1)), st)
+            if (mark_space) call put_text_property(point() - 1, point(), value_type(name="fill_space"), &
+                                                   value_type(text=match_string(1)), st)
         end if
 
         if (have_prefix .or. .not. fill_indent_according_to_mode) then
@@ -1652,7 +1651,7 @@ contains
         pos = point()
         if (is_eob() .and. .not. is_bob()) pos = pos - 1
         call goto_char(opoint)
-        call get_text_property(pos, sym("justification"), v, st)
+        call get_text_property(pos, value_type(name="justification"), v, st)
         j = default_justification
 
         if ((vtag(v) == V_NAME .or. vtag(v) == V_NULL) .and. allocated(v%a)) then

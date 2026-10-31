@@ -36,9 +36,9 @@
 !> A submodule because the Fortran settings live in modules that use
 !> data_fm.
 submodule(data_fm) data_buffer_fm
-    use lisp_fm, only: t_value, make_fixnum, make_string, make_symbol_ref, make_list, xfixnum, xstring, value_type, &
-                       vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
-    use lread_fm, only: intern, sym
+    use lisp_fm, only: make_symbol_ref, make_list, xfixnum, xstring, value_type, vtag, V_NULL, V_INTEGER, V_NAME, &
+                       V_STRING
+    use lread_fm, only: intern
     use handle_fm, only: null_handle
     use buffer_fm, only: buffers, cur, swap_buffer_locals_hook, fill_column, FILL_COLUMN_NONE, left_margin, &
                          auto_fill_function, auto_fill_proc, is_buffer_live, buffer_handle, transient_mark_mode
@@ -46,7 +46,7 @@ submodule(data_fm) data_buffer_fm
     use indent_fm, only: indent_tabs_mode, standard_indent, indent_line_function, indent_line_proc, &
                          indent_line_setting, indent_line_function_name, indent_line_function_named
     use callint_fm, only: find_command, command_name_of
-    use lisp_fm, only: command_proc
+    use lisp_fm, only: command_proc, value_type
     use search_fm, only: case_fold_search
     use minibuf_fm, only: completion_ignore_case
     use paragraphs_fm, only: paragraph_start, paragraph_separate, sentence_end, &
@@ -233,9 +233,9 @@ contains
         name = command_name_of(p)
 
         if (len(name) > 0) then
-            v = sym(name)
+            v = value_type(name=name)
         else
-            v = t_value()
+            v = value_type(.true.)
         end if
     end function auto_fill_value
 
@@ -249,9 +249,9 @@ contains
         name = indent_line_function_name(p)
 
         if (len(name) > 0) then
-            v = sym(name)
+            v = value_type(name=name)
         else
-            v = t_value()
+            v = value_type(.true.)
         end if
     end function indent_line_value
 
@@ -261,7 +261,7 @@ contains
         integer(int64), intent(in) :: n, none
         type(value_type) :: v
 
-        if (n /= none) v = make_fixnum(n)
+        if (n /= none) v = value_type(n)
     end function fixnum_or_none
 
     ! Not a port.
@@ -270,7 +270,7 @@ contains
         type(value_type) :: v
 
         if (b) then
-            v = t_value()
+            v = value_type(.true.)
         else
             v = value_type()
         end if
@@ -290,9 +290,9 @@ contains
 
         select type (s)
         type is (function_setting)
-            if (associated(s%command)) v = sym(s%command%name)
+            if (associated(s%command)) v = value_type(name=s%command%name)
         type is (indent_line_setting)
-            if (associated(s%command)) v = sym(s%command%name)
+            if (associated(s%command)) v = value_type(name=s%command%name)
         end select
     end subroutine setting_value
 
@@ -354,7 +354,7 @@ contains
         if (k >= EXT_BASE) then
             select type (p => forwarded(k - EXT_BASE)%p)
             type is (integer_setting)
-                call setting_value(p, make_fixnum(p%value), v, bound)
+                call setting_value(p, value_type(p%value), v, bound)
             type is (logical_setting)
                 call setting_value(p, bool_value(p%value), v, bound)
             type is (string_setting)
@@ -378,7 +378,7 @@ contains
         case ("fill_column")
             call setting_value(fill_column, fixnum_or_none(fill_column%value, FILL_COLUMN_NONE), v, bound)
         case ("left_margin")
-            call setting_value(left_margin, make_fixnum(left_margin%value), v, bound)
+            call setting_value(left_margin, value_type(left_margin%value), v, bound)
         case ("tab_width")
             call setting_value(tab_width, fixnum_or_none(tab_width%value, TAB_WIDTH_DEFAULT), v, bound)
         case ("indent_tabs_mode")
@@ -405,7 +405,7 @@ contains
         case ("auto_fill_inhibit_regexp")
             call setting_value(auto_fill_inhibit_regexp, string_or_nil(auto_fill_inhibit_regexp%value), v, bound)
         case ("standard_indent")
-            call setting_value(standard_indent, make_fixnum(standard_indent%value), v, bound)
+            call setting_value(standard_indent, value_type(standard_indent%value), v, bound)
         case ("auto_fill_function")
             call setting_value(auto_fill_function, auto_fill_value(auto_fill_function%value), v, bound)
         case ("indent_line_function")
@@ -415,16 +415,16 @@ contains
         case ("electric_indent_inhibit")
             call setting_value(electric_indent_inhibit, bool_value(electric_indent_inhibit%value), v, bound)
         case ("major_mode")
-            v = sym("fundamental_mode")
+            v = value_type(name="fundamental_mode")
 
             if (b > 0) then
-                if (allocated(buffers(b)%major_mode)) v = sym(buffers(b)%major_mode)
+                if (allocated(buffers(b)%major_mode)) v = value_type(name=buffers(b)%major_mode)
             end if
         case ("mode_name")
-            v = make_string("Fundamental")
+            v = value_type(text="Fundamental")
 
             if (b > 0) then
-                if (allocated(buffers(b)%mode_name)) v = make_string(buffers(b)%mode_name)
+                if (allocated(buffers(b)%mode_name)) v = value_type(text=buffers(b)%mode_name)
             end if
         case ("buffer_read_only")
             v = value_type()
@@ -459,7 +459,7 @@ contains
         type(value_type) :: v
 
         if (allocated(s)) then
-            v = make_string(s)
+            v = value_type(text=s)
         else
             v = value_type()
         end if
@@ -654,13 +654,13 @@ contains
         case (FINAL_NEWLINE_NEVER)
             v = value_type()
         case (FINAL_NEWLINE_SAVE)
-            v = t_value()
+            v = value_type(.true.)
         case (FINAL_NEWLINE_VISIT)
-            v = sym("visit")
+            v = value_type(name="visit")
         case (FINAL_NEWLINE_VISIT_SAVE)
-            v = sym("visit_save")
+            v = value_type(name="visit_save")
         case default
-            v = sym("ask")
+            v = value_type(name="ask")
         end select
     end function final_newline_value
 
@@ -671,11 +671,11 @@ contains
 
         if (.not. allocated(v%a)) then
             s = FINAL_NEWLINE_NEVER
-        else if (value_eq(v, t_value())) then
+        else if (value_eq(v, value_type(.true.))) then
             s = FINAL_NEWLINE_SAVE
-        else if (value_eq(v, sym("visit"))) then
+        else if (value_eq(v, value_type(name="visit"))) then
             s = FINAL_NEWLINE_VISIT
-        else if (value_eq(v, sym("visit_save"))) then
+        else if (value_eq(v, value_type(name="visit_save"))) then
             s = FINAL_NEWLINE_VISIT_SAVE
         else
             s = FINAL_NEWLINE_ASK
@@ -1180,7 +1180,7 @@ contains
 
     do i = buffers(cur)%nlocal, 1, -1
         if (.not. all) then
-            call get(make_symbol_ref(buffers(cur)%local_ids(i)), sym("permanent_local"), prop, st)
+            call get(make_symbol_ref(buffers(cur)%local_ids(i)), value_type(name="permanent_local"), prop, st)
             if (allocated(prop%a)) cycle
         end if
 
@@ -1277,8 +1277,8 @@ contains
 
     fn => s%value
     call ensure_obarray()
-    id = xsymbol(sym(trim(s%name)))
-    if (.not. is_local_variable(sym(trim(s%name)))) return
+    id = xsymbol(value_type(name=trim(s%name)))
+    if (.not. is_local_variable(value_type(name=trim(s%name)))) return
     ! The default is saved as (0, the setting's index) while the current
     ! buffer has its own value.
     i = fn_index(0_int64, resolve(id), .false.)
@@ -1436,9 +1436,9 @@ contains
     end do
 
     do i = 1, size(SLOTS)
-        call buffer_local_value(sym(trim(SLOTS(i))), b, v, st)
+        call buffer_local_value(value_type(name=trim(SLOTS(i))), b, v, st)
         n = n + 1
-        elts(n) = list(sym(trim(SLOTS(i))), v)
+        elts(n) = list(value_type(name=trim(SLOTS(i))), v)
     end do
 
     table = make_list(elts(1:n))
@@ -1447,7 +1447,7 @@ contains
     module procedure setq_local
     type(value_type) :: s
 
-    s = sym(variable)
+    s = value_type(name=variable)
     call make_local_variable(s, status)
     if (status%ok()) call set(s, v, status)
     end procedure setq_local

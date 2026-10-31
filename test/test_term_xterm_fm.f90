@@ -25,7 +25,6 @@ module test_term_xterm_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use lisp_fm, only: value_type, xfixnum, vtag, V_INTEGER
-    use lread_fm, only: sym
     use data_fm, only: value_eq
     use keymap_fm, only: key_description
     use keyboard_fm, only: kbd_store_bytes, read_key_sequence, discard_input
@@ -117,11 +116,11 @@ contains
         call discard_input()
         call kbd_store_bytes(ESC//"[C"//ESC//"[3~"//ESC//"5")
         call read_key_sequence(keys, binding, eof, st)
-        call check(error, value_eq(binding, sym("right_char")), "<right>")
+        call check(error, value_eq(binding, value_type(name="right_char")), "<right>")
         if (allocated(error)) return
         ! <delete> becomes DEL through function-key-map.
         call read_key_sequence(keys, binding, eof, st)
-        call check(error, value_eq(binding, sym("delete_backward_char")) .and. &
+        call check(error, value_eq(binding, value_type(name="delete_backward_char")) .and. &
                    size(keys) == 1, "<delete>")
         if (allocated(error)) return
         call check(error, vtag(keys(1)) == V_INTEGER, "DEL event")
@@ -129,7 +128,7 @@ contains
         call check(error, xfixnum(keys(1)), 127_int64)
         if (allocated(error)) return
         call read_key_sequence(keys, binding, eof, st)
-        call check(error, value_eq(binding, sym("digit_argument")), "M-5")
+        call check(error, value_eq(binding, value_type(name="digit_argument")), "M-5")
         if (allocated(error)) return
         call check(error,.not. eof .and. allocated(binding%a), "bound")
     end subroutine test_bound_keys

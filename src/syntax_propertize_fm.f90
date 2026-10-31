@@ -42,7 +42,6 @@ module syntax_propertize_fm
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, buffer_serial_live
     use lisp_fm, only: value_type, list, make_syntax_table_ref, vtag, V_NULL, V_NAME
-    use lread_fm, only: sym
     use data_fm, only: value_eq, add_local_variables_killer
     use eval_fm, only: region_hook_type, region_entry_type
     use insdel_fm, only: before_change_functions
@@ -554,22 +553,22 @@ contains
         status = status_type()
 
         if (beg > point_min()) then
-            call get_text_property(beg - 1, sym("syntax_multiline"), val, status)
+            call get_text_property(beg - 1, value_type(name="syntax_multiline"), val, status)
             if (.not. status%ok()) return
 
             if (allocated(val%a)) then
-                call previous_single_property_change(beg, sym("syntax_multiline"), pos, found, status)
+                call previous_single_property_change(beg, value_type(name="syntax_multiline"), pos, found, status)
                 if (.not. status%ok()) return
                 new_beg = point_min()
                 if (found) new_beg = pos
             end if
         end if
 
-        call get_text_property(end, sym("syntax_multiline"), val, status)
+        call get_text_property(end, value_type(name="syntax_multiline"), val, status)
         if (.not. status%ok()) return
 
         if (allocated(val%a)) then
-            call text_property_any(end, point_max(), sym("syntax_multiline"), value_type(), pos, found, status)
+            call text_property_any(end, point_max(), value_type(name="syntax_multiline"), value_type(), pos, found, status)
             if (.not. status%ok()) return
             new_end = point_max()
             if (found) new_end = pos
@@ -863,7 +862,7 @@ contains
         if (allocated(step%highlight%syntax)) then
             mb = match_beginning(step%gn, status)
             me = match_end(step%gn, status)
-            call put_text_property(mb, me, sym("syntax_table"), syntax_descriptor_value(step%descriptor), status)
+            call put_text_property(mb, me, value_type(name="syntax_table"), syntax_descriptor_value(step%descriptor), status)
             if (.not. status%ok()) return
         else if (associated(step%highlight%value)) then
             mb = match_beginning(step%gn, status)
@@ -887,9 +886,9 @@ contains
         type(status_type), intent(out) :: status
 
         if (prop%is_table) then
-            call put_text_property(start, end, sym("syntax_table"), make_syntax_table_ref(prop%table), status)
+            call put_text_property(start, end, value_type(name="syntax_table"), make_syntax_table_ref(prop%table), status)
         else
-            call put_text_property(start, end, sym("syntax_table"), syntax_descriptor_value(prop%descriptor), status)
+            call put_text_property(start, end, value_type(name="syntax_table"), syntax_descriptor_value(prop%descriptor), status)
         end if
     end subroutine put_property
 
@@ -994,7 +993,8 @@ contains
             ! Move the limit before calling the function, so it's
             ! done in case of errors.
             call syntax_propertize__done%set_local(end)
-           call remove_text_properties(start, end, list(sym("syntax_table"), value_type(), sym("syntax_multiline"), value_type()), &
+            call remove_text_properties(start, end, list(value_type(name="syntax_table"), value_type(), &
+                                                         value_type(name="syntax_multiline"), value_type()), &
                                         changed, status)
             if (.not. status%ok()) exit body
             ! Bind `syntax_propertize__done' to avoid recursion!
@@ -1377,12 +1377,12 @@ contains
                     if (use_begin) use_begin = point() < p
 
                     if (use_begin) then
-                        call get_text_property(point(), sym("face"), face, st)
+                        call get_text_property(point(), value_type(name="face"), face, st)
 
                         if ((vtag(face) == V_NAME .or. vtag(face) == V_NULL)) then
-                            if (value_eq(face, sym("font_lock_string_face")) .or. &
-                                value_eq(face, sym("font_lock_doc_face")) .or. &
-                                value_eq(face, sym("font_lock_comment_face"))) use_begin = .false.
+                            if (value_eq(face, value_type(name="font_lock_string_face")) .or. &
+                                value_eq(face, value_type(name="font_lock_doc_face")) .or. &
+                                value_eq(face, value_type(name="font_lock_comment_face"))) use_begin = .false.
                         end if
                     end if
 

@@ -47,8 +47,7 @@ module vc_fm
     use error_fm, only: status_type, set_error, format_error, condition_matches, FM_GENERIC_ERROR, FM_USER_ERROR, &
                         FM_VC_NOT_SUPPORTED, FM_FILE_ALREADY_EXISTS
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, make_string, make_list
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, make_list
     use data_fm, only: symbol_value, set, add_local_variables_killer
     use eval_fm, only: hook_type
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, get_buffer, is_buffer_live, &
@@ -781,7 +780,7 @@ contains
             b = vc_backend_named(vc_handled_backends(k))
             if (b == 0) cycle
             if (.not. associated(vc_backends(b)%create_repo)) cycle
-            item = make_string(vc_backends(b)%name)
+            item = value_type(text=vc_backends(b)%name)
             names = [names, item]
         end do
 
@@ -1330,14 +1329,14 @@ contains
         allocate (names(size(vc_handled_backends)))
 
         do k = 1, size(vc_handled_backends)
-            names(k) = make_string(trim(vc_handled_backends(k)))
+            names(k) = value_type(text=trim(vc_handled_backends(k)))
         end do
 
-        call symbol_value(sym("completion_ignore_case"), saved, st)
-        call set(sym("completion_ignore_case"), value_type(), st)
+        call symbol_value(value_type(name="completion_ignore_case"), saved, st)
+        call set(value_type(name="completion_ignore_case"), value_type(), st)
         call completing_read(prompt, completion_list_table(make_list(names)), answer, status, &
                              require_match=REQUIRE_MATCH_YES)
-        call set(sym("completion_ignore_case"), saved, st)
+        call set(value_type(name="completion_ignore_case"), saved, st)
         if (.not. status%ok()) return
         b = vc_backend_named(answer)
         if (b == 0) call set_error(status, FM_GENERIC_ERROR, "VC backend "//answer//" is not ported yet")
@@ -2149,15 +2148,15 @@ contains
     !> Insert TEXT ignoring read-only (`inhibit_read_only' .true., saved and restored).
     !> Not a port.
     subroutine bind_read_only_insert(text)
-        use lisp_fm, only: t_value
+        use lisp_fm, only: value_type
         character(len=*), intent(in) :: text
         type(value_type) :: saved
         type(status_type) :: st
 
-        call symbol_value(sym("inhibit_read_only"), saved, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         call insert(text, st)
-        call set(sym("inhibit_read_only"), saved, st)
+        call set(value_type(name="inhibit_read_only"), saved, st)
     end subroutine bind_read_only_insert
 
     !> Report diffs between revisions REV1 and REV2 of a fileset in FS.
@@ -2396,7 +2395,7 @@ contains
                 allocate (names(size(table)))
 
                 do k = 1, size(table)
-                    names(k) = make_string(table(k)%s)
+                    names(k) = value_type(text=table(k)%s)
                 end do
 
                 call completing_read(prompt, completion_list_table(make_list(names)), rev, status, &
@@ -3464,7 +3463,7 @@ contains
     contains
 
         recursive subroutine walk(file)
-            use lisp_fm, only: list_elements, xstring
+            use lisp_fm, only: list_elements, xstring, value_type
             character(len=*), intent(in) :: file
             type(value_type) :: names
             type(value_type), allocatable :: elts(:)

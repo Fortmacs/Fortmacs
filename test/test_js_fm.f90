@@ -33,7 +33,6 @@ module test_js_fm
     use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer, kill_buffer
     use insdel_fm, only: insert
     use lisp_fm, only: value_type, vtag, V_ARRAY, V_NAME, xsymbol, list_elements, symbols
-    use lread_fm, only: sym
     use editfns_fm, only: point, point_min, point_max, goto_char, widen, is_bob, is_eob, buffer_substring
     use cmds_fm, only: forward_line
     use simple_fm, only: back_to_indentation
@@ -410,7 +409,7 @@ contains
         type(status_type) :: st
 
         name = ""
-        call get_text_property(point(), sym("face"), v, st)
+        call get_text_property(point(), value_type(name="face"), v, st)
 
         if (vtag(v) == V_ARRAY) then
             call list_elements(v, elts)

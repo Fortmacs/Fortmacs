@@ -29,8 +29,7 @@ module test_dired_mode_fm
     use bindings_fm, only: init_bindings
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum, xstring, vtag, V_STRING
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, xstring, vtag, V_STRING
     use textprop_fm, only: get_text_property
     use buffer_fm, only: buffers, cur, get_buffer_create, get_buffer, set_buffer, kill_buffer, current_buffer, &
                          is_buffer_live, erase_buffer
@@ -180,7 +179,7 @@ contains
         allocate (evs(len(keys)))
 
         do i = 1, len(keys)
-            evs(i) = make_fixnum(int(iachar(keys(i:i)), int64))
+            evs(i) = value_type(int(iachar(keys(i:i)), int64))
         end do
 
         call unread_command_events(evs)
@@ -267,7 +266,7 @@ contains
             ! header line's colon shows the available space.
             call check(error, index(text, achar(10)//"  total") == 0, text)
             if (allocated(error)) exit body
-            call get_text_property(int(len_trim(dname) + 3, int64), sym("display"), v, st)
+            call get_text_property(int(len_trim(dname) + 3, int64), value_type(name="display"), v, st)
             call check(error, vtag(v) == V_STRING, "display property on the colon")
             if (allocated(error)) exit body
             disp = xstring(v)
@@ -662,12 +661,11 @@ contains
 
             block
                 use data_fm, only: set
-                use lread_fm, only: sym
-                use lisp_fm, only: t_value
-                call set(sym("inhibit_read_only"), t_value(), st)
+                use lisp_fm, only: value_type
+                call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
                 call delete_region(point(), line_end_position(), st)
                 call insert(new_header, st)
-                call set(sym("inhibit_read_only"), value_type(), st)
+                call set(value_type(name="inhibit_read_only"), value_type(), st)
             end block
 
             len2 = header_len()

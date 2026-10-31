@@ -51,7 +51,6 @@ module shell_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, xstring, vtag, V_NULL, V_NAME
-    use lread_fm, only: sym
     use data_fm, only: string_setting, logical_setting, forward_setting, add_local_variables_killer
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, is_buffer_live, kill_buffer, &
                          generate_new_buffer_name
@@ -92,7 +91,7 @@ module shell_fm
     use compile_fm, only: cd
     use data_fm, only: integer_setting
     use error_fm, only: FM_WRONG_TYPE_ARGUMENT
-    use lisp_fm, only: make_string, make_list, list_elements
+    use lisp_fm, only: make_list, list_elements, value_type
     use eval_fm, only: capf_hook_type, capf_entry_type
     use minibuf_table_fm, only: completion_table_type, completion_predicate, completion_quote_proc, capf_data_type, &
                                 completion_function_table, completion_list_table, COMPLETION_SOLE, COMPLETION_FINISHED
@@ -469,7 +468,7 @@ contains
         if (.not. comint_use_prompt_regexp%value) then
             ! Make sure we're in an input rather than output field.
             bof = field_beginning(point(), .false.)
-            call get_text_property(bof, sym("field"), field_prop, status)
+            call get_text_property(bof, value_type(name="field"), field_prop, status)
 
             if (.not. allocated(field_prop%a)) then
                 input = field_string(bof)
@@ -513,7 +512,7 @@ contains
 
     ! Not a port.
     logical function symbol_is(v, name)
-        use lisp_fm, only: symbols, xsymbol
+        use lisp_fm, only: symbols, xsymbol, value_type
         type(value_type), intent(in) :: v
         character(len=*), intent(in) :: name
 
@@ -888,7 +887,7 @@ contains
                 if (dup) cycle
                 n = n + 1
                 if (n > size(kept)) call grow(kept)
-                kept(n) = make_string(file)
+                kept(n) = value_type(text=file)
             end do
         end do
 
@@ -1140,9 +1139,9 @@ contains
             eq = index(env(k)%s, "=")
 
             if (eq > 0) then
-                variables(k) = make_string(env(k)%s(1:eq - 1))
+                variables(k) = value_type(text=env(k)%s(1:eq - 1))
             else
-                variables(k) = make_string(env(k)%s)
+                variables(k) = value_type(text=env(k)%s)
             end if
         end do
 
@@ -1540,8 +1539,8 @@ contains
 
         if (face%is_empty()) return
         v = ansi_color_face_value(face)
-        call put_text_property(beg, end, sym("ansi_color_face"), v, st)
-        call put_text_property(beg, end, sym("font_lock_face"), v, st)
+        call put_text_property(beg, end, value_type(name="ansi_color_face"), v, st)
+        call put_text_property(beg, end, value_type(name="font_lock_face"), v, st)
     end subroutine shell_apply_ansi_color
 
     !> Reapply ansi-color faces to the existing contents of the buffer.
@@ -1556,14 +1555,14 @@ contains
         saved_zv = buffers(cur)%zv
         call widen()
         pos = point_min()
-        call next_single_property_change(pos, sym("ansi_color_face"), end, found, st)
+        call next_single_property_change(pos, value_type(name="ansi_color_face"), end, found, st)
         if (.not. found) end = point_max()
 
         do
-            call get_text_property(pos, sym("ansi_color_face"), face, st)
-            if (allocated(face%a)) call put_text_property(pos, end, sym("font_lock_face"), face, st)
+            call get_text_property(pos, value_type(name="ansi_color_face"), face, st)
+            if (allocated(face%a)) call put_text_property(pos, end, value_type(name="font_lock_face"), face, st)
             pos = end
-            call next_single_property_change(pos, sym("ansi_color_face"), end, found, st)
+            call next_single_property_change(pos, value_type(name="ansi_color_face"), end, found, st)
             if (.not. found) exit
         end do
 

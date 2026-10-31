@@ -32,13 +32,11 @@ module test_minibuf_fm
     use minibuf_fm, only: completion_regexp_list, minibuffer_depth, minibuffer_prompt, minibuffer_exit_hook, &
                           minibuffer_setup_function, is_minibuffer, assoc_string
     use keyboard_fm, only: inhibit_interaction
-    use lisp_fm, only: list, vtag, V_ARRAY, V_STRING
+    use lisp_fm, only: list, vtag, V_ARRAY, V_STRING, value_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum, list_length, list_elt, xstring, make_string, make_list, &
-                       list, list_elements, t_value
+    use lisp_fm, only: value_type, list_length, list_elt, xstring, make_list, list, list_elements
     use data_fm, only: value_eq
     use fns_fm, only: value_equal
-    use lread_fm, only: sym
     use data_fm, only: set, symbol_value
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, current_buffer, kill_buffer, get_buffer, &
                          erase_buffer, fill_column
@@ -215,7 +213,7 @@ contains
         allocate (evs(len(text)))
 
         do i = 1, len(text)
-            evs(i) = make_fixnum(int(iachar(text(i:i)), int64))
+            evs(i) = value_type(int(iachar(text(i:i)), int64))
         end do
 
         call unread_command_events(evs)
@@ -309,7 +307,7 @@ contains
         type(status_type) :: st
 
         call fresh_scratch()
-        call set(sym("test-history"), value_type(), st)
+        call set(value_type(name="test-history"), value_type(), st)
         call type_text("one"//achar(13))
         call read_from_minibuffer("? ", answer, st, history="test-history")
         call type_text("two"//achar(13))
@@ -338,14 +336,14 @@ contains
         type(status_type) :: st
 
         call fresh_scratch()
-        call set(sym("test-history"), list(make_string("old")), st)
+        call set(value_type(name="test-history"), list(value_type(text="old")), st)
         ! Two lines: <up> goes to the first line, a second <up> to the
         ! history.
         call type_keys("a b c d e f C-q C-j x y z w <up> X RET")
         call read_from_minibuffer("? ", answer, st, history="test-history")
         call check(error, answer == "abXcdef"//achar(10)//"xyzw", answer)
         if (allocated(error)) return
-        call set(sym("test-history"), list(make_string("old")), st)
+        call set(value_type(name="test-history"), list(value_type(text="old")), st)
         call type_keys("a C-q C-j b <up> <up> RET")
         call read_from_minibuffer("? ", answer, st, history="test-history")
         call check(error, answer == "old", answer)
@@ -383,11 +381,11 @@ contains
         integer :: i, saved
         character(len=8) :: num
 
-        call set(sym("h-test"), value_type(), st)
+        call set(value_type(name="h-test"), value_type(), st)
         call add_to_history("h-test", "a")
         call add_to_history("h-test", "a")
         call add_to_history("h-test", "b")
-        call symbol_value(sym("h-test"), h, st)
+        call symbol_value(value_type(name="h-test"), h, st)
         call check(error, list_length(h) == 2 .and. xstring(list_elt(h, 1_int64)) == "b")
         if (allocated(error)) return
         saved = history_length
@@ -399,30 +397,30 @@ contains
         end do
 
         history_length = saved
-        call symbol_value(sym("h-test"), h, st)
+        call symbol_value(value_type(name="h-test"), h, st)
         call check(error, list_length(h) == 3 .and. xstring(list_elt(h, 1_int64)) == "5")
         if (allocated(error)) return
         ! history-delete-duplicates
-        call set(sym("h-test"), value_type(), st)
+        call set(value_type(name="h-test"), value_type(), st)
         history_delete_duplicates = .true.
         call add_to_history("h-test", "a")
         call add_to_history("h-test", "b")
         call add_to_history("h-test", "a")
         history_delete_duplicates = .false.
-        call symbol_value(sym("h-test"), h, st)
+        call symbol_value(value_type(name="h-test"), h, st)
         call check(error, list_length(h) == 2 .and. xstring(list_elt(h, 1_int64)) == "a" .and. &
                    xstring(list_elt(h, 2_int64)) == "b", "duplicates deleted")
         if (allocated(error)) return
         ! The history_length property.
-        call put(sym("h-test"), sym("history_length"), make_fixnum(1_int64), st)
+        call put(value_type(name="h-test"), value_type(name="history_length"), value_type(1_int64), st)
         call add_to_history("h-test", "c")
-        call symbol_value(sym("h-test"), h, st)
+        call symbol_value(value_type(name="h-test"), h, st)
         call check(error, list_length(h) == 1 .and. xstring(list_elt(h, 1_int64)) == "c", "history_length property")
         if (allocated(error)) return
-        call put(sym("h-test"), sym("history_length"), t_value(), st)
+        call put(value_type(name="h-test"), value_type(name="history_length"), value_type(.true.), st)
         call add_to_history("h-test", "d")
         call add_to_history("h-test", "e")
-        call symbol_value(sym("h-test"), h, st)
+        call symbol_value(value_type(name="h-test"), h, st)
         call check(error, list_length(h) == 3, "no truncation")
         if (allocated(error)) return
         ! A void history variable.
@@ -448,7 +446,7 @@ contains
         cmd_test_nested_read = command_type("test-nested-read", nested_read)
         call cmd_test_nested_read%define()
         call key_parse("C-t", key, st)
-        call define_key(minibuffer_local_map, key, sym("test-nested-read"), st)
+        call define_key(minibuffer_local_map, key, value_type(name="test-nested-read"), st)
         call type_keys("C-t RET")
         call read_from_minibuffer("Outer: ", answer, st)
         call check(error, st%ok() .and. nested_status%code == FM_USER_ERROR .and. &
@@ -624,23 +622,23 @@ contains
 
         call fresh_scratch()
         buffers(cur)%directory = "/x/y/"
-        call set(sym("file_name_history"), value_type(), st)
+        call set(value_type(name="file_name_history"), value_type(), st)
         call type_keys("RET")
         call read_file_name("File: ", name, st, default_filename="/x/y/z")
-        call symbol_value(sym("file_name_history"), h, st)
+        call symbol_value(value_type(name="file_name_history"), h, st)
         call check(error, name == "/x/y/z" .and. xstring(list_elt(h, 1_int64)) == "/x/y/z", name)
         if (allocated(error)) return
         ! Typed after the directory: the substituted name.
         call type_text("~/f"//achar(13))
         call read_file_name("File: ", name, st, default_filename="/x/y/z")
-        call symbol_value(sym("file_name_history"), h, st)
+        call symbol_value(value_type(name="file_name_history"), h, st)
         call check(error, name == "~/f" .and. list_length(h) == 2 .and. xstring(list_elt(h, 1_int64)) == "~/f", &
                    xstring(list_elt(h, 1_int64)))
         if (allocated(error)) return
         ! The same name again is a repeat: no new element.
         call type_text("~/f"//achar(13))
         call read_file_name("File: ", name, st, default_filename="/x/y/z")
-        call symbol_value(sym("file_name_history"), h, st)
+        call symbol_value(value_type(name="file_name_history"), h, st)
         call check(error, name == "~/f" .and. list_length(h) == 2, "repeat")
         if (allocated(error)) return
         ! Erasing the input gives "".
@@ -770,7 +768,7 @@ contains
         cmd_test_leave_and_read = command_type("test-leave-and-read", leave_and_read)
         call cmd_test_leave_and_read%define()
         call key_parse("C-t", key, st)
-        call define_key(minibuffer_local_map, key, sym("test-leave-and-read"), st)
+        call define_key(minibuffer_local_map, key, value_type(name="test-leave-and-read"), st)
         call type_keys("C-t x RET")
         call read_from_minibuffer("Outer: ", answer, st)
         call check(error,.not. st%ok() .and. &
@@ -857,13 +855,13 @@ contains
         do k = 1, size(strings)
             select case (kind)
             case (1)
-                elts(k) = make_string(trim(strings(k)))
+                elts(k) = value_type(text=trim(strings(k)))
             case (2)
-                elts(k) = sym(trim(strings(k)))
+                elts(k) = value_type(name=trim(strings(k)))
             case (3)
-                elts(k) = list(sym(trim(strings(k))), make_fixnum(int(k, int64)))
+                elts(k) = list(value_type(name=trim(strings(k))), value_type(int(k, int64)))
             case default
-                elts(k) = list(make_string(trim(strings(k))), make_fixnum(int(k, int64)))
+                elts(k) = list(value_type(text=trim(strings(k))), value_type(int(k, int64)))
             end select
         end do
 
@@ -927,7 +925,7 @@ contains
             call check(error, is_string(r, "ab"), "a in +abba")
             if (allocated(error)) return
             call try_completion("abc", abba, r, st, memq_of_collection)
-            call check(error, value_eq(r, t_value()), "abc is exact")
+            call check(error, value_eq(r, value_type(.true.)), "abc is exact")
             if (allocated(error)) return
             call try_completion("abcd", abba, r, st, memq_of_collection)
             call check(error,.not. allocated(r%a), "abcd")
@@ -942,7 +940,7 @@ contains
             call check(error, is_string(r, "ab"), "a in +abba")
             if (allocated(error)) return
             call try_completion("abc", abba, r, st)
-            call check(error, value_eq(r, t_value()), "abc is exact")
+            call check(error, value_eq(r, value_type(.true.)), "abc is exact")
             if (allocated(error)) return
             call try_completion("abcd", abba, r, st)
             call check(error,.not. allocated(r%a), "abcd")
@@ -966,7 +964,7 @@ contains
             call all_completions("a", abcdef, r, st)
         end if
 
-        call check(error, value_equal(r, list(make_string("abc"))), "a in abcdef")
+        call check(error, value_equal(r, list(value_type(text="abc"))), "a in abcdef")
         if (allocated(error)) return
         abba = collection(kind, [character(len=4) :: "abc", "abba", "def"])
 
@@ -976,7 +974,7 @@ contains
             call all_completions("a", abba, r, st)
         end if
 
-        call check(error, value_equal(r, list(make_string("abc"), make_string("abba"))), "a in +abba")
+        call check(error, value_equal(r, list(value_type(text="abc"), value_type(text="abba"))), "a in +abba")
         if (allocated(error)) return
 
         if (pred) then
@@ -985,7 +983,7 @@ contains
             call all_completions("abc", abba, r, st)
         end if
 
-        call check(error, value_equal(r, list(make_string("abc"))), "abc")
+        call check(error, value_equal(r, list(value_type(text="abc"))), "abc")
         if (allocated(error)) return
         call all_completions("abcd", abba, r, st)
         call check(error,.not. allocated(r%a), "abcd")
@@ -1185,8 +1183,8 @@ contains
         type(value_type) :: r, v
         type(status_type) :: st
 
-        v = sym("zqx-abc")
-        v = sym("zqx-abba")
+        v = value_type(name="zqx-abc")
+        v = value_type(name="zqx-abba")
         call try_completion("zqx-a", completion_obarray_table(), r, st)
         call check(error, is_string(r, "zqx-ab"), "try")
         if (allocated(error)) return
@@ -1266,7 +1264,7 @@ contains
         cmd_test_record_completion = command_type("test-record-completion", record_completion_state)
         call cmd_test_record_completion%define()
         call key_parse("<f9>", key, st)
-        call define_key(current_global_map(), key, sym("test-record-completion"), st)
+        call define_key(current_global_map(), key, value_type(name="test-record-completion"), st)
     end subroutine completion_setup
 
     function strings(items) result(v)
@@ -1278,7 +1276,7 @@ contains
         allocate (elts(size(items)))
 
         do k = 1, size(items)
-            elts(k) = make_string(trim(items(k)))
+            elts(k) = value_type(text=trim(items(k)))
         end do
 
         v = make_list(elts)
@@ -1494,7 +1492,7 @@ contains
             call check(error, is_string(r, "ab"), "a in +abba")
             if (allocated(error)) return
             call try_completion("abc", abba, r, st)
-            call check(error, value_eq(r, t_value()), "abc is exact")
+            call check(error, value_eq(r, value_type(.true.)), "abc is exact")
             if (allocated(error)) return
             call try_completion("abcd", abba, r, st)
             call check(error,.not. allocated(r%a), "abcd")
@@ -1655,7 +1653,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: l, r
 
-        l = list(make_string("one"), list(sym("Two"), make_fixnum(2_int64)), make_fixnum(3_int64))
+        l = list(value_type(text="one"), list(value_type(name="Two"), value_type(2_int64)), value_type(3_int64))
         r = assoc_string("one", l)
         call check(error, is_string(r, "one"), "single string")
         if (allocated(error)) return

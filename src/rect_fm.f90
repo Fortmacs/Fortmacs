@@ -49,14 +49,13 @@
 !> `rectangle_number_lines' FORMAT (an error).
 module rect_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use lisp_fm, only: vtag, V_NULL, V_STRING
+    use lisp_fm, only: vtag, V_NULL, V_STRING, value_type
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_message, condition_matches, FM_GENERIC_ERROR, &
                         FM_BUFFER_READ_ONLY, FM_TEXT_READ_ONLY, FM_WRONG_TYPE_ARGUMENT, FM_END_OF_BUFFER, &
                         FM_BEGINNING_OF_BUFFER
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, list_length, list_elt, xstring, make_string, make_list, list, &
-                       list_elements, t_value, make_fixnum, make_window_ref
+    use lisp_fm, only: value_type, list_length, list_elt, xstring, make_list, list, list_elements, make_window_ref
     use data_fm, only: value_eq
     use eval_fm, only: hook_type
     use modes_fm, only: minor_modes
@@ -77,7 +76,6 @@ module rect_fm
                          set_mark, exchange_point_and_mark
     use xdisp_fm, only: redisplay_highlight_region_function, redisplay_unhighlight_region_function, &
                         highlight_region_proc, unhighlight_region_proc
-    use lread_fm, only: sym
     use data_fm, only: symbol_value
     use character_fm, only: string_char_and_length, char_string, MAX_MULTIBYTE_LENGTH, MAX_CHAR
     use buffer_fm, only: buffers, cur, barf_if_buffer_read_only, deactivate_mark_variable, undo_entry_type, UE_POINT
@@ -1517,7 +1515,7 @@ contains
         status = status_type()
 
         if (arg) then
-            this_command = sym("exchange_point_and_mark")
+            this_command = value_type(name="exchange_point_and_mark")
             call exchange_point_and_mark(arg, status)
             return
         end if
@@ -1541,7 +1539,7 @@ contains
             cm = startcol
         end if
 
-        if (repeat) this_command = sym("exchange_point_and_mark")
+        if (repeat) this_command = value_type(name="exchange_point_and_mark")
         call rectangle_reset_crutches()
         call goto_char(p)
 
@@ -1838,24 +1836,24 @@ contains
         text = ""
 
         do k = 1, size(lines)
-            elems(k) = make_string(lines(k)%text)
+            elems(k) = value_type(text=lines(k)%text)
             if (k > 1) text = text//achar(10)
             text = text//lines(k)%text
         end do
 
-        if (value_eq(last_command, sym("kill_region"))) then
+        if (value_eq(last_command, value_type(name="kill_region"))) then
             ! Try to prevent kill-region from appending this to some
             ! earlier element.
-            last_command = sym("kill_region_dont_append")
+            last_command = value_type(name="kill_region_dont_append")
         end if
 
         if (size(lines) == 0) return
         strs = make_list(elems)
-        string = make_string(text)
+        string = value_type(text=text)
         call multibyte_chars_in_text(text, nchars, status)
         if (.not. status%ok()) return
-        call string_put_text_property(0_int64, nchars, sym("yank_handler"), &
-                                      list(sym("rectangle__insert_for_yank"), strs, t_value()), string, status)
+        call string_put_text_property(0_int64, nchars, value_type(name="yank_handler"), &
+                                      list(value_type(name="rectangle__insert_for_yank"), strs, value_type(.true.)), string, status)
     end subroutine rectangle_extract_region
 
     !> `region_insert_function' in Rectangle-Mark mode: LINES as a
@@ -2074,7 +2072,7 @@ contains
             else
                 call make_overlay(ol, left, right, st)
                 call overlay_put(ol, "window", make_window_ref(window), st)
-                call overlay_put(ol, "face", sym("region"), st)
+                call overlay_put(ol, "face", value_type(name="region"), st)
             end if
 
             ! `move-to-column' may stop before the column (if bumping into
@@ -2098,7 +2096,7 @@ contains
                 ! `rightcol' is past EOL.
                 str = space_to(rightcol)
                 call string_chars(str, nchars)
-                call string_put_text_property(0_int64, nchars, sym("face"), sym("region"), str, st)
+                call string_put_text_property(0_int64, nchars, value_type(name="face"), value_type(name="region"), str, st)
                 ! If cursor happens to be here, draw it at the right place.
                 call place_cursor(leftcol, left, str, window)
                 call overlay_put(ol, "after_string", str, st)
@@ -2113,7 +2111,7 @@ contains
                     call goto_char(right)
                     str = space_to(rightcol)
                     call string_chars(str, nchars)
-                    call string_put_text_property(0_int64, nchars, sym("face"), sym("region"), str, st)
+                    call string_put_text_property(0_int64, nchars, value_type(name="face"), value_type(name="region"), str, st)
                     if (left == right) call place_cursor(leftcol, left, str, window)
                     call overlay_put(ol, "after_string", str, st)
                 end if
@@ -2187,9 +2185,10 @@ contains
         type(value_type) :: v
         type(status_type) :: st
 
-        v = make_string(" ")
-        call string_put_text_property(0_int64, 1_int64, sym("display"), list(sym("space"), sym(":align-to"), &
-                                                                             make_fixnum(col)), v, st)
+        v = value_type(text=" ")
+        call string_put_text_property(0_int64, 1_int64, value_type(name="display"), list(value_type(name="space"), &
+                                                                                         value_type(name=":align-to"), &
+                                                                                         value_type(col)), v, st)
     end function space_to
 
     !> Put the cursor on the first character of STR if point's crutch is
@@ -2205,7 +2204,7 @@ contains
         call get_crutch(point_crutches, window, found, pp, pc)
 
         if (found .and. left == pp .and. leftcol == pc) then
-            call string_put_text_property(0_int64, 1_int64, sym("cursor"), make_fixnum(1_int64), str, st)
+            call string_put_text_property(0_int64, 1_int64, value_type(name="cursor"), value_type(1_int64), str, st)
         end if
     end subroutine place_cursor
 
@@ -2313,7 +2312,7 @@ contains
         type(status_type) :: st
 
         head = ""
-        call symbol_value(sym("string_rectangle_history"), hist, st)
+        call symbol_value(value_type(name="string_rectangle_history"), hist, st)
         if (.not. st%ok()) return
         if (list_length(hist) == 0) return
         first = list_elt(hist, 1_int64)
@@ -2456,7 +2455,7 @@ contains
         type(status_type) :: status
 
         call key_parse(keys, key, status)
-        call define_key(rectangle_mark_mode_map, key, sym(cmd), status)
+        call define_key(rectangle_mark_mode_map, key, value_type(name=cmd), status)
     end subroutine bind
 
     !> Bind [remap FROM] to command CMD in `rectangle_mark_mode_map'.
@@ -2466,8 +2465,8 @@ contains
         type(value_type), allocatable :: key(:)
         type(status_type) :: status
 
-        call list_elements(list(sym("remap"), sym(from)), key)
-        call define_key(rectangle_mark_mode_map, key, sym(cmd), status)
+        call list_elements(list(value_type(name="remap"), value_type(name=from)), key)
+        call define_key(rectangle_mark_mode_map, key, value_type(name=cmd), status)
     end subroutine bind_remap
 
     !> Register the commands, `string_rectangle_history', Rectangle-Mark

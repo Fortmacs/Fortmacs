@@ -39,13 +39,11 @@ module minibuf_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
     use eval_fm, only: hook_type
-    use lisp_fm, only: value_type, t_value, list, make_string, make_list, list_elements, make_fixnum, &
-                       list_length, list_elt, xfixnum, make_symbol_ref, xstring, &
-                       xsymbol, symbols, nsymbols, V_ARRAY, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
+    use lisp_fm, only: value_type, list, make_list, list_elements, list_length, list_elt, xfixnum, make_symbol_ref, &
+                       xstring, xsymbol, symbols, nsymbols, V_ARRAY, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
     use lread_fm, only: intern_soft
     use fns_fm, only: compare_strings, COMPARE_EQUAL, schars, substring
     use search_fm, only: string_match, match_end, regexp_quote
-    use lread_fm, only: sym
     use data_fm, only: set, symbol_value, kill_all_local_variables, logical_setting
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, &
                          erase_buffer, resolve_buffer, inhibit_read_only, is_buffer_live
@@ -341,7 +339,7 @@ contains
         pos = field_end(buffers(cur)%begv, .false.)
 
         if (pos == buffers(cur)%zv) then
-            call get_text_property(buffers(cur)%begv, sym("field"), field, status)
+            call get_text_property(buffers(cur)%begv, value_type(name="field"), field, status)
             if (.not. allocated(field%a)) pos = buffers(cur)%begv
         end if
     end function minibuffer_prompt_end
@@ -460,8 +458,8 @@ contains
         ! If variable is unbound, make it nil (a HISTORY of "t" keeps no
         ! history).
         if (histvar /= "t") then
-            call symbol_value(sym(histvar), histval, st)
-            if (.not. st%ok()) call set(sym(histvar), value_type(), st)
+            call symbol_value(value_type(name=histvar), histval, st)
+            if (.not. st%ok()) call set(value_type(name=histvar), value_type(), st)
         end if
 
         old_selected = selected_frame%minibuffer_selected
@@ -488,7 +486,7 @@ contains
         ! Erase the buffer.
         ! (specbind Qinhibit_read_only Qnil), restored on exit
         saved_inhibit = inhibit_read_only()
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         call erase_buffer(st)
         buffers(cur)%multibyte = .true.
 
@@ -499,13 +497,16 @@ contains
             ! minibuffer-prompt-properties (by default read-only t and the
             ! face minibuffer_prompt, added after any faces of the prompt).
             call add_text_properties(1_int64, buffers(cur)%pt, &
-                                     list(sym("front_sticky"), t_value(), sym("rear_nonsticky"), t_value(), &
-                                          sym("field"), t_value(), sym("read_only"), t_value()), changed, st)
-            call add_text_properties(1_int64, buffers(cur)%pt, list(sym("face"), sym("minibuffer_prompt")), &
+                                     list(value_type(name="front_sticky"), value_type(.true.), value_type(name="rear_nonsticky"), &
+                                          value_type(.true.), &
+                                          value_type(name="field"), value_type(.true.), value_type(name="read_only"), &
+                                          value_type(.true.)), changed, st)
+            call add_text_properties(1_int64, buffers(cur)%pt, list(value_type(name="face"), &
+                                                                    value_type(name="minibuffer_prompt")), &
                                      changed, st)
         end if
 
-        call set(sym("inhibit_read_only"), value_type(), st)
+        call set(value_type(name="inhibit_read_only"), value_type(), st)
 
         if (present(initial)) then
             call insert(initial, st)
@@ -565,9 +566,9 @@ contains
         minibuf_level = minibuf_level - 1
         if (allocated(minibuf_prompt)) deallocate (minibuf_prompt)
         if (had_prompt) call move_alloc(saved_prompt, minibuf_prompt)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         call erase_buffer(st)
-        call set(sym("inhibit_read_only"), saved_inhibit, st)
+        call set(value_type(name="inhibit_read_only"), saved_inhibit, st)
         minibuffer_calling_buffer = saved_calling
         selected_frame%minibuffer_selected = old_selected
         ! (Windows may have been made meanwhile: fetch them again.)
@@ -1023,12 +1024,12 @@ contains
         ! Return t if the supplied string is an exact match (counting
         ! case); it does not require any change to be made.
         if (matchcount == 1 .and. bestmatch == string .and. len(bestmatch) == len(string)) then
-            result = t_value()
+            result = value_type(.true.)
             return
         end if
 
         ! Else extract the part in which all completions agree.
-        result = make_string(substring(bestmatch, 0_int64, bestmatchsize))
+        result = value_type(text=substring(bestmatch, 0_int64, bestmatchsize))
     end subroutine try_completion
 
     !> Search for partial matches of STRING in COLLECTION.
@@ -1098,7 +1099,7 @@ contains
 
             ! Ok => put it on the list.
             n = n + 1
-            matches(n) = make_string(names(k)%s)
+            matches(n) = value_type(text=names(k)%s)
         end do
 
         result = make_list(matches(1:n))
@@ -1215,7 +1216,7 @@ contains
         select case (action)
         case (COMPLETE_TEST)
             ! test-completion
-            if (test_completion(ustring, inner, predicate)) result = t_value()
+            if (test_completion(ustring, inner, predicate)) result = value_type(.true.)
         case (COMPLETE_BOUNDARIES)
             qsuffix = ""
             if (present(suffix)) qsuffix = suffix
@@ -1250,7 +1251,7 @@ contains
                 qrboundary = q - schars(string)
             end if
 
-            result = list(make_fixnum(qlboundary), make_fixnum(qrboundary))
+            result = list(value_type(qlboundary), value_type(qrboundary))
         case (COMPLETE_TRY)
             ! try-completion: most forms of quoting allow several ways to
             ! quote the same string.  So here we could simply requote
@@ -1266,7 +1267,7 @@ contains
                 result = completion
             else
                 call twq_try(table, string, ustring, xstring(completion), 0_int64, qstring, qpoint)
-                result = make_string(qstring)
+                result = value_type(text=qstring)
             end if
         case (COMPLETE_ALL)
             ! all-completions
@@ -1393,7 +1394,7 @@ contains
         call list_elements(completions, elems)
         ! (try-completion "" (cons (substring ustring boundary) completions))
         allocate (quoted(n + 1))
-        quoted(1) = make_string(substring(ustring, boundary))
+        quoted(1) = value_type(text=substring(ustring, boundary))
 
         do k = 1, n
             quoted(k + 1) = elems(k)
@@ -1433,7 +1434,7 @@ contains
                 if (compare_strings(qprefix, qrest, .true.) == COMPARE_EQUAL) qp = qrest
             end if
 
-            quoted(k) = make_string(qp//qnew)
+            quoted(k) = value_type(text=qp//qnew)
         end do
 
         result = make_list(quoted)
@@ -1478,7 +1479,7 @@ contains
         case (COMPLETE_ALL)
             call all_completions(string, table, result, status, predicate)
         case (COMPLETE_TEST)
-            if (test_completion(string, table, predicate)) result = t_value()
+            if (test_completion(string, table, predicate)) result = value_type(.true.)
         case default
             continue
         end select
@@ -1519,10 +1520,10 @@ contains
 
             if (list_length(res) == 2) then
                 if (vtag(list_elt(res, 1_int64)) == V_INTEGER) beg = xfixnum(list_elt(res, 1_int64))
-                result = list(make_fixnum(min(schars(string), max(schars(s1), beg + schars(s1) - schars(s2)))), &
+                result = list(value_type(min(schars(string), max(schars(s1), beg + schars(s1) - schars(s2)))), &
                               list_elt(res, 2_int64))
             else
-                result = list(make_fixnum(min(schars(string), max(schars(s1), beg + schars(s1) - schars(s2)))), &
+                result = list(value_type(min(schars(string), max(schars(s1), beg + schars(s1) - schars(s2)))), &
                               value_type())
             end if
 
@@ -1533,7 +1534,7 @@ contains
 
         if (vtag(res) == V_STRING) then
             if (is_prefix(s2, xstring(res), completion_ignore_case%value)) then
-                result = make_string(s1//substring(xstring(res), schars(s2)))
+                result = value_type(text=s1//substring(xstring(res), schars(s2)))
             end if
         else if (action == COMPLETE_ALL) then
             call inner_boundaries(table, str, "", bstart, bend, predicate)
@@ -1551,7 +1552,7 @@ contains
 
                     if (string_match(re, c, status) > 0) then
                         n = n + 1
-                        kept(n) = make_string(substring(c, match_end(0, status) - 1))
+                        kept(n) = value_type(text=substring(c, match_end(0, status) - 1))
                     end if
                 end do
 
@@ -1591,7 +1592,7 @@ contains
 
         if (.not. strict .and. action == COMPLETE_TEST) then
             ! Ignore pred1 since it doesn't really have to apply anyway.
-            if (test_completion(string, table, predicate)) result = t_value()
+            if (test_completion(string, table, predicate)) result = value_type(.true.)
             return
         end if
 

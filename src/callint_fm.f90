@@ -32,11 +32,10 @@ module callint_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, &
                         FM_VOID_FUNCTION, FM_WRONG_TYPE_ARGUMENT
-    use lisp_fm, only: value_type, V_ARRAY, V_STRING, nsymbols, vtag, &
-                       xfixnum, xsymbol, symbols, &
-                       list_elt, V_NULL, V_INTEGER, V_NAME
-    use lread_fm, only: intern, sym
-    use lisp_fm, only: command_type, command_proc, defined_command, defined_command_name_of
+    use lisp_fm, only: value_type, V_ARRAY, V_STRING, nsymbols, vtag, xfixnum, xsymbol, symbols, list_elt, V_NULL, &
+                       V_INTEGER, V_NAME
+    use lread_fm, only: intern
+    use lisp_fm, only: command_type, command_proc, defined_command, defined_command_name_of, value_type
     use commands_fm, only: builtin_command, BUILTIN_COMMAND_NAMES
     use data_fm, only: value_eq
     implicit none(type, external)
@@ -249,7 +248,7 @@ contains
         n = 1
         if (.not. allocated(raw%a)) return
 
-        if (value_eq(raw, sym("-"))) then
+        if (value_eq(raw, value_type(name="-"))) then
             n = -1
         else if (vtag(raw) == V_ARRAY) then
             head = list_elt(raw, 1_int64)

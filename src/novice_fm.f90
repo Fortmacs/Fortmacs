@@ -33,7 +33,7 @@ module novice_fm
     use commands_fm, only: commands, builtin_command
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR
     use lisp_fm, only: value_type, xfixnum, symbols, xsymbol, vtag, V_NULL, V_INTEGER, V_NAME
-    use lread_fm, only: sym, user_init_file
+    use lread_fm, only: user_init_file
     use handle_fm, only: handle_type
     use buffer_fm, only: current_buffer, set_buffer
     use editfns_fm, only: point, point_min, point_max, goto_char, delete_region, line_beginning_position, &
@@ -255,7 +255,7 @@ contains
         integer :: i, j
         logical :: saved_fold, builtin
 
-        if (.not. is_command(sym(command))) then
+        if (.not. is_command(value_type(name=command))) then
             call set_error(status, FM_GENERIC_ERROR, format_message("Invalid command name `")//command//format_message("'"))
             return
         end if

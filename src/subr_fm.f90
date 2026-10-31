@@ -25,10 +25,8 @@
 module subr_fm
     use error_fm, only: status_type, set_error, FM_QUIT, FM_INVALID_REGEXP
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
-    use lisp_fm, only: value_type, xfixnum, make_string, cons, list_length, list_elt, &
-                       make_keymap_ref, xsymbol, symbols, &
-                       list_elements, make_list, xstring, t_value, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY
-    use lread_fm, only: sym
+    use lisp_fm, only: value_type, xfixnum, cons, list_length, list_elt, make_keymap_ref, xsymbol, symbols, &
+                       list_elements, make_list, xstring, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY
     use data_fm, only: symbol_value, set, value_eq
     use fns_fm, only: get
     use eval_fm, only: hook_type
@@ -519,11 +517,11 @@ contains
                 b%invisibility_spec_t = .false.
                 if (allocated(b%invisibility_spec)) deallocate (b%invisibility_spec)
                 allocate (b%invisibility_spec(1))
-                b%invisibility_spec(1)%atom = t_value()
+                b%invisibility_spec(1)%atom = value_type(.true.)
             end if
 
             if (.not. allocated(b%invisibility_spec)) allocate (b%invisibility_spec(0))
-            e%atom = sym(element)
+            e%atom = value_type(name=element)
 
             if (present(ellipsis)) then
                 e%cons = .true.
@@ -558,7 +556,7 @@ contains
                 b%invisibility_spec_t = .false.
                 if (allocated(b%invisibility_spec)) deallocate (b%invisibility_spec)
                 allocate (b%invisibility_spec(1))
-                b%invisibility_spec(1)%atom = t_value()
+                b%invisibility_spec(1)%atom = value_type(.true.)
                 return
             end if
 
@@ -577,7 +575,7 @@ contains
         logical function same_entry(e)
             type(invisibility_entry_type), intent(in) :: e
 
-            same_entry = value_eq(e%atom, sym(element)) .and. (e%cons .eqv. present(ellipsis))
+            same_entry = value_eq(e%atom, value_type(name=element)) .and. (e%cons .eqv. present(ellipsis))
             if (same_entry .and. present(ellipsis)) same_entry = e%ellipsis .eqv. ellipsis
         end function same_entry
     end subroutine remove_from_invisibility_spec
@@ -634,8 +632,8 @@ contains
         call is_buffer_modified(current_buffer(), s%modified, st)
         s%undo_enabled = buffers(cur)%undo_enabled
         buffers(cur)%undo_enabled = .false.
-        call symbol_value(sym("inhibit_read_only"), s%inhibit_read_only, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
+        call symbol_value(value_type(name="inhibit_read_only"), s%inhibit_read_only, st)
+        call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         s%inhibit_modification_hooks = inhibit_modification_hooks%value
         inhibit_modification_hooks = .true.
     end subroutine silent_modifications_begin
@@ -649,7 +647,7 @@ contains
 
         if (cur == 0) return
         inhibit_modification_hooks = s%inhibit_modification_hooks
-        call set(sym("inhibit_read_only"), s%inhibit_read_only, st)
+        call set(value_type(name="inhibit_read_only"), s%inhibit_read_only, st)
         buffers(cur)%undo_enabled = s%undo_enabled
         call restore_buffer_modified(s%modified)
     end subroutine silent_modifications_end
@@ -690,7 +688,7 @@ contains
 
         do k = 1, size(QRM_KEYS)
             call key_parse(trim(QRM_KEYS(k)), seq, st)
-            if (st%ok()) call define_key(query_replace_map, seq, sym(trim(QRM_ANSWERS(k))), st)
+            if (st%ok()) call define_key(query_replace_map, seq, value_type(name=trim(QRM_ANSWERS(k))), st)
         end do
     end subroutine init_query_replace_map
 
@@ -791,7 +789,7 @@ contains
         if (present(maxelt)) then
             limit = maxelt
         else
-            call get(sym(history_var), sym("history_length"), prop, st)
+            call get(value_type(name=history_var), value_type(name="history_length"), prop, st)
 
             if (vtag(prop) == V_INTEGER) then
                 limit = int(xfixnum(prop))
@@ -803,7 +801,7 @@ contains
 
         all = .false.
         if (present(keep_all)) all = keep_all
-        call symbol_value(sym(history_var), history, st)
+        call symbol_value(value_type(name=history_var), history, st)
 
         if (.not. st%ok()) then
             if (present(status)) status = st
@@ -823,7 +821,7 @@ contains
 
         call list_elements(history, elems)
         allocate (kept(size(elems) + 1))
-        kept(1) = make_string(newelt)
+        kept(1) = value_type(text=newelt)
         n = 1
 
         do k = 1, size(elems)
@@ -846,7 +844,7 @@ contains
             end if
         end if
 
-        call set(sym(history_var), make_list(kept(1:n)), st)
+        call set(value_type(name=history_var), make_list(kept(1:n)), st)
         if (present(added)) added = .true.
     end subroutine add_to_history
 
@@ -871,8 +869,8 @@ contains
         type(value_type) :: v
         type(status_type) :: st
 
-        call symbol_value(sym(name), v, st)
-        if (.not. st%ok()) call set(sym(name), value_type(), st)
+        call symbol_value(value_type(name=name), v, st)
+        if (.not. st%ok()) call set(value_type(name=name), value_type(), st)
     end subroutine defvar_nil
 
     !> Give KEY a global binding as COMMAND.
@@ -899,7 +897,7 @@ contains
         character(len=*), intent(in) :: command
         type(status_type), intent(out) :: status
 
-        call define_key(current_global_map(), key, sym(command), status)
+        call define_key(current_global_map(), key, value_type(name=command), status)
     end subroutine global_set_key_command
 
     !> Return the string of text matched by the previous search or regexp

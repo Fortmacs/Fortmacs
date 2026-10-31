@@ -22,14 +22,13 @@
 
 module test_values_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use lisp_fm, only: vtag, V_NULL, V_NAME, V_ARRAY
+    use lisp_fm, only: vtag, V_NULL, V_NAME, V_ARRAY, value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, FM_WRONG_TYPE_ARGUMENT, FM_VOID_VARIABLE, &
                         FM_SETTING_CONSTANT
-    use lisp_fm, only: cons, list, list_elt, list_length, list_tail, make_fixnum, make_list, &
-                       make_string, sym_nil, sym_t, t_value, value_type, xfixnum, &
+    use lisp_fm, only: cons, list, list_elt, list_length, list_tail, make_list, sym_nil, sym_t, value_type, xfixnum, &
                        xstring
-    use lread_fm, only: intern, intern_soft, sym
+    use lread_fm, only: intern, intern_soft
     use data_fm, only: boundp, makunbound, set, symbol_name, &
                        symbol_value, value_eq
     use fns_fm, only: get, plist_get, plist_member, plist_put, &
@@ -65,7 +64,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: a, b, no_values(0)
 
-        a = list(make_fixnum(1_int64), make_string("x"))
+        a = list(value_type(1_int64), value_type(text="x"))
         b = a
         ! Poke the copy's string atom directly ([LIST] [1] ["x"]).
         b%a(3)%s = "changed"
@@ -73,7 +72,8 @@ contains
         if (allocated(error)) return
         call check(error, vtag(make_list(no_values)) == V_NULL, "empty list is not nil")
         if (allocated(error)) return
-        call check(error, vtag(sym("nil")) == V_NULL .and. (vtag(value_type()) == V_NAME .or. vtag(value_type()) == V_NULL), "nil")
+        call check(error, vtag(value_type(name="nil")) == V_NULL .and. (vtag(value_type()) == V_NAME &
+                                                                        .or. vtag(value_type()) == V_NULL), "nil")
         if (allocated(error)) return
         call check(error, &
                    vtag(a) == V_ARRAY .and. (vtag(a) == V_ARRAY .or. vtag(a) == V_NULL) .and. (vtag(value_type()) &
@@ -93,7 +93,7 @@ contains
         if (allocated(error)) return
         call check(error, intern_soft("tv-never-interned"), 0_int64)
         if (allocated(error)) return
-        call symbol_name(sym("tv-foo"), name, st)
+        call symbol_name(value_type(name="tv-foo"), name, st)
         call check(error, name, "tv-foo")
     end subroutine test_intern
 
@@ -121,22 +121,22 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: s1, s2
 
-        s1 = make_string("abc")
-        s2 = make_string("abc")
-        call check(error, value_eq(sym("a"), sym("a")), "symbols eq")
+        s1 = value_type(text="abc")
+        s2 = value_type(text="abc")
+        call check(error, value_eq(value_type(name="a"), value_type(name="a")), "symbols eq")
         if (allocated(error)) return
-        call check(error, value_eq(make_fixnum(5_int64), make_fixnum(5_int64)), "fixnums eq")
+        call check(error, value_eq(value_type(5_int64), value_type(5_int64)), "fixnums eq")
         if (allocated(error)) return
         call check(error,.not. value_eq(s1, s2), "strings must not be eq")
         if (allocated(error)) return
         call check(error, value_equal(s1, s2), "strings equal")
         if (allocated(error)) return
-        call check(error, value_equal(list(sym("a"), s1), list(sym("a"), s2)), "lists equal")
+        call check(error, value_equal(list(value_type(name="a"), s1), list(value_type(name="a"), s2)), "lists equal")
         if (allocated(error)) return
-        call check(error,.not. value_equal(list(sym("a")), list(sym("a"), sym("b"))), &
+        call check(error,.not. value_equal(list(value_type(name="a")), list(value_type(name="a"), value_type(name="b"))), &
                    "different lengths equal")
         if (allocated(error)) return
-        call check(error,.not. value_equal(make_fixnum(1_int64), make_string("1")), "types differ")
+        call check(error,.not. value_equal(value_type(1_int64), value_type(text="1")), "types differ")
     end subroutine test_eq_equal
 
     !> Value arrays: elements by position, tails, building (C2c: no
@@ -146,21 +146,21 @@ contains
         type(value_type) :: l, v
         logical :: ok
 
-        l = list(sym("a"), sym("b"), sym("c"))
-        call check(error, value_eq(list_elt(l, 1_int64), sym("a")), "first element")
+        l = list(value_type(name="a"), value_type(name="b"), value_type(name="c"))
+        call check(error, value_eq(list_elt(l, 1_int64), value_type(name="a")), "first element")
         if (allocated(error)) return
-        call check(error, value_equal(list_tail(l, 1_int64), list(sym("b"), sym("c"))), "tail")
+        call check(error, value_equal(list_tail(l, 1_int64), list(value_type(name="b"), value_type(name="c"))), "tail")
         if (allocated(error)) return
-        v = list_tail(list(sym("a")), 1_int64)
+        v = list_tail(list(value_type(name="a")), 1_int64)
         call check(error,.not. allocated(v%a), "tail of one element")
         if (allocated(error)) return
-        call cons(sym("z"), l, v, ok)
+        call cons(value_type(name="z"), l, v, ok)
         call check(error, ok .and. list_length(v) == 4, "cons")
         if (allocated(error)) return
-        call cons(sym("z"), sym("y"), v, ok)
+        call cons(value_type(name="z"), value_type(name="y"), v, ok)
         call check(error,.not. ok, "only onto an array")
         if (allocated(error)) return
-        call check(error, value_eq(list_elt(l, 3_int64), sym("c")), "third element")
+        call check(error, value_eq(list_elt(l, 3_int64), value_type(name="c")), "third element")
         if (allocated(error)) return
         v = list_elt(l, 10_int64)
         call check(error,.not. allocated(v%a), "past the end")
@@ -172,26 +172,26 @@ contains
         type(status_type) :: st
         logical :: bound
 
-        call boundp(sym("tv-var"), bound, st)
+        call boundp(value_type(name="tv-var"), bound, st)
         call check(error,.not. bound, "fresh symbol bound")
         if (allocated(error)) return
-        call symbol_value(sym("tv-var"), v, st)
+        call symbol_value(value_type(name="tv-var"), v, st)
         call check(error, st%code, FM_VOID_VARIABLE)
         if (allocated(error)) return
-        call set(sym("tv-var"), make_fixnum(42_int64), st)
-        call symbol_value(sym("tv-var"), v, st)
+        call set(value_type(name="tv-var"), value_type(42_int64), st)
+        call symbol_value(value_type(name="tv-var"), v, st)
         call check(error, st%ok() .and. xfixnum(v) == 42, "set/symbol-value")
         if (allocated(error)) return
         ! Part of data-tests.el binding-test-makunbound (no `let` yet).
-        call makunbound(sym("tv-var"), st)
-        call boundp(sym("tv-var"), bound, st)
+        call makunbound(value_type(name="tv-var"), st)
+        call boundp(value_type(name="tv-var"), bound, st)
         call check(error,.not. bound, "makunbound")
         if (allocated(error)) return
-        call symbol_value(t_value(), v, st)
-        call check(error, value_eq(v, t_value()), "t evaluates to t")
+        call symbol_value(value_type(.true.), v, st)
+        call check(error, value_eq(v, value_type(.true.)), "t evaluates to t")
         if (allocated(error)) return
-        call symbol_value(sym(":kw"), v, st)
-        call check(error, value_eq(v, sym(":kw")), "keyword evaluates to itself")
+        call symbol_value(value_type(name=":kw"), v, st)
+        call check(error, value_eq(v, value_type(name=":kw")), "keyword evaluates to itself")
     end subroutine test_symbol_values
 
     !> data-tests.el: binding-test-set-constant-{t,nil,keyword,itself}.
@@ -199,19 +199,19 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call set(t_value(), sym("bob"), st)
+        call set(value_type(.true.), value_type(name="bob"), st)
         call check(error, st%code, FM_SETTING_CONSTANT)
         if (allocated(error)) return
-        call set(value_type(), sym("bob"), st)
+        call set(value_type(), value_type(name="bob"), st)
         call check(error, st%code, FM_SETTING_CONSTANT)
         if (allocated(error)) return
-        call set(sym(":keyword"), sym("bob"), st)
+        call set(value_type(name=":keyword"), value_type(name="bob"), st)
         call check(error, st%code, FM_SETTING_CONSTANT)
         if (allocated(error)) return
-        call set(sym(":keyword"), sym(":keyword"), st)
+        call set(value_type(name=":keyword"), value_type(name=":keyword"), st)
         call check(error, st%ok(), "setting a keyword to itself")
         if (allocated(error)) return
-        call makunbound(t_value(), st)
+        call makunbound(value_type(.true.), st)
         call check(error, st%code, FM_SETTING_CONSTANT)
     end subroutine test_set_constant
 
@@ -219,8 +219,8 @@ contains
     subroutine test_plist_get_odd(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, vtag(plist_get(list(sym(":foo"), make_fixnum(1_int64), sym(":bar")), &
-                                         sym(":bar"))) == V_NULL, "degenerate plist")
+        call check(error, vtag(plist_get(list(value_type(name=":foo"), value_type(1_int64), value_type(name=":bar")), &
+                                         value_type(name=":bar"))) == V_NULL, "degenerate plist")
     end subroutine test_plist_get_odd
 
     !> fns-tests.el: plist-put/odd-number-of-elements (bug#27726).
@@ -229,8 +229,8 @@ contains
         type(value_type) :: plist
         type(status_type) :: st
 
-        plist = list(sym(":foo"), make_fixnum(1_int64), sym(":bar"))
-        call plist_put(plist, sym(":zot"), make_fixnum(2_int64), st)
+        plist = list(value_type(name=":foo"), value_type(1_int64), value_type(name=":bar"))
+        call plist_put(plist, value_type(name=":zot"), value_type(2_int64), st)
         call check(error, st%code, FM_WRONG_TYPE_ARGUMENT)
         if (allocated(error)) return
         call check(error, st%detail, "expected array")
@@ -242,52 +242,52 @@ contains
         type(value_type) :: plist
         type(status_type) :: st
 
-        plist = list(sym(":a"), make_string("b"))
-        call plist_put(plist, sym(":b"), make_string("c"), st)
-        call check(error, value_equal(plist_get(plist, sym(":b")), make_string("c")), "block 1 get")
+        plist = list(value_type(name=":a"), value_type(text="b"))
+        call plist_put(plist, value_type(name=":b"), value_type(text="c"), st)
+        call check(error, value_equal(plist_get(plist, value_type(name=":b")), value_type(text="c")), "block 1 get")
         if (allocated(error)) return
-        call check(error, value_equal(plist_member(plist, sym(":b")), &
-                                      list(sym(":b"), make_string("c"))), "block 1 member")
+        call check(error, value_equal(plist_member(plist, value_type(name=":b")), &
+                                      list(value_type(name=":b"), value_type(text="c"))), "block 1 member")
         if (allocated(error)) return
         ! eq never matches a fresh string: the pair is appended.
-        plist = list(make_string("1"), make_string("2"), make_string("a"), make_string("b"))
-        call plist_put(plist, make_string("a"), make_string("c"), st)
-        call check(error, value_equal(plist, list(make_string("1"), make_string("2"), make_string("a"), &
-                                                  make_string("b"), make_string("a"), make_string("c"))), &
+        plist = list(value_type(text="1"), value_type(text="2"), value_type(text="a"), value_type(text="b"))
+        call plist_put(plist, value_type(text="a"), value_type(text="c"), st)
+        call check(error, value_equal(plist, list(value_type(text="1"), value_type(text="2"), value_type(text="a"), &
+                                                  value_type(text="b"), value_type(text="a"), value_type(text="c"))), &
                    "block 2 put")
         if (allocated(error)) return
-        call check(error, vtag(plist_get(plist, make_string("a"))) == V_NULL, "block 2 get")
+        call check(error, vtag(plist_get(plist, value_type(text="a"))) == V_NULL, "block 2 get")
         if (allocated(error)) return
-        call check(error, vtag(plist_member(plist, make_string("a"))) == V_NULL, "block 2 member")
+        call check(error, vtag(plist_member(plist, value_type(text="a"))) == V_NULL, "block 2 member")
         if (allocated(error)) return
-        plist = list(make_string("1"), make_string("2"), make_string("a"), make_string("b"))
-        call plist_put(plist, make_string("a"), make_string("c"), st, value_equal)
-        call check(error, value_equal(plist, list(make_string("1"), make_string("2"), make_string("a"), &
-                                                  make_string("c"))), "block 3 put")
+        plist = list(value_type(text="1"), value_type(text="2"), value_type(text="a"), value_type(text="b"))
+        call plist_put(plist, value_type(text="a"), value_type(text="c"), st, value_equal)
+        call check(error, value_equal(plist, list(value_type(text="1"), value_type(text="2"), value_type(text="a"), &
+                                                  value_type(text="c"))), "block 3 put")
         if (allocated(error)) return
-        call check(error, value_equal(plist_get(plist, make_string("a"), value_equal), make_string("c")), &
+        call check(error, value_equal(plist_get(plist, value_type(text="a"), value_equal), value_type(text="c")), &
                    "block 3 get")
         if (allocated(error)) return
-        call check(error, value_equal(plist_member(plist, make_string("a"), value_equal), &
-                                      list(make_string("a"), make_string("c"))), "block 3 member")
+        call check(error, value_equal(plist_member(plist, value_type(text="a"), value_equal), &
+                                      list(value_type(text="a"), value_type(text="c"))), "block 3 member")
         if (allocated(error)) return
-        plist = list(sym(":a"), make_fixnum(1_int64), sym(":b"), make_fixnum(2_int64), &
-                     sym(":c"), make_fixnum(3_int64))
-        call plist_put(plist, make_string(":a"), make_fixnum(4_int64), st, is_string_greater)
-        call check(error, value_equal(plist, list(sym(":a"), make_fixnum(1_int64), sym(":b"), &
-                                                  make_fixnum(4_int64), sym(":c"), make_fixnum(3_int64))), &
+        plist = list(value_type(name=":a"), value_type(1_int64), value_type(name=":b"), value_type(2_int64), &
+                     value_type(name=":c"), value_type(3_int64))
+        call plist_put(plist, value_type(text=":a"), value_type(4_int64), st, is_string_greater)
+        call check(error, value_equal(plist, list(value_type(name=":a"), value_type(1_int64), value_type(name=":b"), &
+                                                  value_type(4_int64), value_type(name=":c"), value_type(3_int64))), &
                    "block 4 put")
         if (allocated(error)) return
-        call check(error, value_equal(plist_get(plist, make_string(":b"), is_string_greater), &
-                                      make_fixnum(3_int64)), "block 4 get")
+        call check(error, value_equal(plist_get(plist, value_type(text=":b"), is_string_greater), &
+                                      value_type(3_int64)), "block 4 get")
         if (allocated(error)) return
-        call check(error, value_equal(plist_member(plist, make_string(":c"), is_string_less), plist), &
+        call check(error, value_equal(plist_member(plist, value_type(text=":c"), is_string_less), plist), &
                    "block 4 member")
         if (allocated(error)) return
-        call check(error, vtag(plist_get(plist, make_string(":a"), is_string_less)) == V_NULL .and. &
-                   vtag(plist_member(plist, make_string(":a"), is_string_less)) == V_NULL .and. &
-                   vtag(plist_get(plist, make_string(":c"), is_string_greater)) == V_NULL .and. &
-                   vtag(plist_member(plist, make_string(":c"), is_string_greater)) == V_NULL, "block 4 misses")
+        call check(error, vtag(plist_get(plist, value_type(text=":a"), is_string_less)) == V_NULL .and. &
+                   vtag(plist_member(plist, value_type(text=":a"), is_string_less)) == V_NULL .and. &
+                   vtag(plist_get(plist, value_type(text=":c"), is_string_greater)) == V_NULL .and. &
+                   vtag(plist_member(plist, value_type(text=":c"), is_string_greater)) == V_NULL, "block 4 misses")
     end subroutine test_plist
 
     subroutine test_get_put(error)
@@ -295,14 +295,14 @@ contains
         type(value_type) :: v
         type(status_type) :: st
 
-        call put(sym("tv-cmd"), sym("disabled"), t_value(), st)
-        call get(sym("tv-cmd"), sym("disabled"), v, st)
-        call check(error, value_eq(v, t_value()), "get after put")
+        call put(value_type(name="tv-cmd"), value_type(name="disabled"), value_type(.true.), st)
+        call get(value_type(name="tv-cmd"), value_type(name="disabled"), v, st)
+        call check(error, value_eq(v, value_type(.true.)), "get after put")
         if (allocated(error)) return
-        call get(sym("tv-cmd"), sym("other"), v, st)
+        call get(value_type(name="tv-cmd"), value_type(name="other"), v, st)
         call check(error,.not. allocated(v%a), "missing property")
         if (allocated(error)) return
-        call put(make_fixnum(1_int64), sym("p"), value_type(), st)
+        call put(value_type(1_int64), value_type(name="p"), value_type(), st)
         call check(error, st%code, FM_WRONG_TYPE_ARGUMENT)
     end subroutine test_get_put
 end module test_values_fm

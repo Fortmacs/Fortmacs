@@ -33,9 +33,9 @@ submodule(indent_fm) indent_cmds_fm
     use commands_fm, only: commands
     use error_fm, only: set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lread_fm, only: sym
     use data_fm, only: value_eq, default_value, add_local_variables_killer
-   use lisp_fm, only: value_type, xsymbol, symbols, t_value, xfixnum, make_keymap_ref, vtag, V_NULL, V_INTEGER, V_NAME, command_type
+    use lisp_fm, only: value_type, xsymbol, symbols, xfixnum, make_keymap_ref, vtag, V_NULL, V_INTEGER, V_NAME, &
+                       command_type
     use marker_fm, only: copy_marker_at, marker_position, free_marker
   use editfns_fm, only: interactive_region, point_min, point_max, is_bob, is_eob, is_bol, is_eol, delete_region, buffer_substring, &
                           char_before, widen, narrow_to_region, region_beginning, region_end, line_end_position, &
@@ -259,10 +259,10 @@ contains
         savedb = buffers(cur)%begv
         savedz = buffers(cur)%text%z - buffers(cur)%zv
         call widen()
-        call default_value(sym("indent_line_function"), v, st)
+        call default_value(value_type(name="indent_line_function"), v, st)
         status = status_type()
 
-        if (.not. st%ok() .or. (vtag(v) /= V_NAME .and. vtag(v) /= V_NULL) .or. value_eq(v, t_value())) then
+        if (.not. st%ok() .or. (vtag(v) /= V_NAME .and. vtag(v) /= V_NULL) .or. value_eq(v, value_type(.true.))) then
             call call_indent_line_function(status, noindent)
         else
             select case (symbols(xsymbol(v))%name)
@@ -445,7 +445,7 @@ contains
     call back_to_indentation()
     pos = point()
     if (is_eob() .and. .not. is_bob()) pos = pos - 1
-    call get_text_property(pos, sym("left_margin"), v, st)
+    call get_text_property(pos, value_type(name="left_margin"), v, st)
     current_left_margin = left_margin%value
     if (vtag(v) == V_INTEGER) current_left_margin = left_margin%value + xfixnum(v)
     current_left_margin = max(0_int64, current_left_margin)
@@ -935,10 +935,10 @@ contains
     ! transient map, so they undo together.  Port of
     ! indent.el:indent-rigidly--pop-undo.
     subroutine rigidly_pop_undo()
-        if (.not. (value_eq(last_command, sym("indent_rigidly_left")) .or. &
-                   value_eq(last_command, sym("indent_rigidly_right")) .or. &
-                   value_eq(last_command, sym("indent_rigidly_left_to_tab_stop")) .or. &
-                   value_eq(last_command, sym("indent_rigidly_right_to_tab_stop")))) return
+        if (.not. (value_eq(last_command, value_type(name="indent_rigidly_left")) .or. &
+                   value_eq(last_command, value_type(name="indent_rigidly_right")) .or. &
+                   value_eq(last_command, value_type(name="indent_rigidly_left_to_tab_stop")) .or. &
+                   value_eq(last_command, value_type(name="indent_rigidly_right_to_tab_stop")))) return
 
         associate (b => buffers(cur))
             if (.not. b%undo_enabled .or. b%undo_count == 0) return
@@ -1063,15 +1063,15 @@ contains
     if (indent_rigidly_map%index == 0) then
         call make_sparse_keymap(indent_rigidly_map)
         call key_parse("TAB", key, st)
-        call keymap_set_key(indent_rigidly_map, key, sym("indent_rigidly_right"), st)
+        call keymap_set_key(indent_rigidly_map, key, value_type(name="indent_rigidly_right"), st)
         call key_parse("<left>", key, st)
-        call keymap_set_key(indent_rigidly_map, key, sym("indent_rigidly_left"), st)
+        call keymap_set_key(indent_rigidly_map, key, value_type(name="indent_rigidly_left"), st)
         call key_parse("<right>", key, st)
-        call keymap_set_key(indent_rigidly_map, key, sym("indent_rigidly_right"), st)
+        call keymap_set_key(indent_rigidly_map, key, value_type(name="indent_rigidly_right"), st)
         call key_parse("S-<left>", key, st)
-        call keymap_set_key(indent_rigidly_map, key, sym("indent_rigidly_left_to_tab_stop"), st)
+        call keymap_set_key(indent_rigidly_map, key, value_type(name="indent_rigidly_left_to_tab_stop"), st)
         call key_parse("S-<right>", key, st)
-        call keymap_set_key(indent_rigidly_map, key, sym("indent_rigidly_right_to_tab_stop"), st)
+        call keymap_set_key(indent_rigidly_map, key, value_type(name="indent_rigidly_right_to_tab_stop"), st)
     end if
     end procedure syms_of_indent
 end submodule indent_cmds_fm

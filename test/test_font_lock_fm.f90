@@ -27,7 +27,6 @@ module test_font_lock_fm
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, symbols, xsymbol, list_elements, vtag, V_NULL, V_NAME, V_ARRAY
-    use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, resolve_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point_max
@@ -86,7 +85,7 @@ contains
         type(status_type) :: st
 
         name = ""
-        call get_text_property(pos, sym("face"), v, st)
+        call get_text_property(pos, value_type(name="face"), v, st)
 
         if (vtag(v) == V_ARRAY) then
             call list_elements(v, elts)
@@ -137,7 +136,7 @@ contains
 
         call init_bindings()
         call buffer_with("*fl-alias*", "abc", h)
-        call put_text_property(1_int64, 3_int64, sym("font_lock_face"), sym("bold"), st)
+        call put_text_property(1_int64, 3_int64, value_type(name="font_lock_face"), value_type(name="bold"), st)
         call check(error, face_at(1_int64) == "", "no alias without Font Lock")
         if (allocated(error)) return
         call minor_modes%font_lock_mode%enable(st)
@@ -206,7 +205,7 @@ contains
         call font_lock_defaults%set_local(k, keywords_only=.true.)
         call minor_modes%font_lock_mode%enable(st)
         call font_lock_ensure(st)
-        call get_text_property(3_int64, sym("face"), v, st)
+        call get_text_property(3_int64, value_type(name="face"), v, st)
         call check(error, vtag(v) == V_ARRAY, "a list of faces")
         if (allocated(error)) return
         call list_elements(v, elts)
@@ -231,12 +230,12 @@ contains
         call set_foo_keywords(.true.)
         call minor_modes%font_lock_mode%enable(st)
         call jit_lock_fontify_now(st)
-        call get_text_property(6_int64, sym("fontified"), v, st)
+        call get_text_property(6_int64, value_type(name="fontified"), v, st)
         call check(error, allocated(v%a), "fontified")
         if (allocated(error)) return
         call goto_char(6_int64)
         call insert("foo", st)
-        call get_text_property(6_int64, sym("fontified"), v, st)
+        call get_text_property(6_int64, value_type(name="fontified"), v, st)
         call check(error,.not. allocated(v%a), "refontify the change")
         if (allocated(error)) return
         call jit_lock_fontify_now(st)
