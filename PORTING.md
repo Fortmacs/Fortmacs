@@ -570,6 +570,7 @@ no rename is added without that.  The confirmed renames:
 | `*_NIL`, `*_T` named constants | the meaning: `_NO`/`_YES` for plain off/on, `_ALWAYS` for always, else the meaning itself | `COMPILATION_SCROLL_NO`/`_YES`/`_FIRST_ERROR`, `LOG_EDIT_CONFIRM_ALWAYS`, `DIRED_LOCALP_ABSOLUTE`/`_RELATIVE`, `KMACRO_REPEAT_YES`/`_NO` (upstream's NO-REPEAT read positively; the argument is REPEAT), `CASE_FOLD_NO`/`_YES`/`_FORCED`, one family per setting (`GREP_USE_NULL_DEVICE_*`, `GREP_USE_NULL_FILENAME_SEPARATOR_*`, `GREP_HIGHLIGHT_MATCHES_*`); every family has three or more states upstream, so none became a logical (the full table: tools/fortran-names, "A1") |
 | nil, NILP (the null value) | `value_type()`; `.not. allocated(v%a)` | the intrinsic itself, no helper; a function result is tested as `vtag(f(x)) == V_NULL`; the value tags are `V_NULL`, `V_INTEGER`, `V_NAME`, `V_STRING`, `V_ARRAY` (were `V_NIL`, `V_INT`, `V_SYMBOL`, `V_STRING`, `V_LIST`) |
 | FIXNUMP, STRINGP, CONSP, SYMBOLP, LISTP, BUFFERP, MARKERP, WINDOWP and lisp_fm's keymap and syntax-table tests | the tag test itself: `vtag(v) == V_INTEGER`, `vtag(v) /= V_STRING`, `(vtag(v) == V_NAME .or. vtag(v) == V_NULL)` | no wrapper; `vtag` gives `V_NULL` for the null value, and is elemental like the wrappers were; window.c's `windowp` (a handle test) is `is_window` |
+| the argument list C-h f shows | the call line, then the declaration block | `call insert(string, status)` followed by `character(len=*), intent(in) :: string` and `type(status_type), intent(out) :: status`; a function's result is declared too (`integer(int64) :: point`); tools/gen-docstrings.sh takes the lines from the dummy arguments' declarations (the help entry's `declarations`) |
 | symbol (an object: a name of a function, variable, ...) | name | `describe_name` (C-h o), `complete_name`, `apropos_next_name`, `apropos_previous_name`, `info_lookup_name`, `abbrev_name`, `abbrev_table_names` |
 | symbol (the syntax class: word and symbol constituents) | identifier | `forward_identifier`, `beginning_of_identifier`, `bounds_of_identifier_at_point`, `case_identifiers_as_words`, `word_or_identifier`, `occur_identifier_at_mouse`, `REGEXP_OPT_IDENTIFIERS` |
 | vector (an array) | a plural name, "array" in help | `ansi_color_basic_faces`, `ansi_color_normal_colors`, `ansi_color_bright_colors` |
@@ -616,8 +617,17 @@ named with it.
 
 **PR 2: wording and names.**
 
-- A2: wrong-type messages use the Fortran declaration ("Wrong type
-  argument: expected character(len=*)").
+- A2: wrong-type messages use the Fortran declaration: "Wrong type
+  argument: expected X, got VALUE" ("expected character(len=*)"), with a
+  qualifier where the bare type loses what was checked: characterp is
+  "expected integer (a character code)", wholenump "expected integer
+  (>= 0)", a live window "expected live type(window_type)", symbolp
+  "expected name", listp "expected array"; predicate names never appear.
+- "pair" is never said: our types name their components ("a replacement
+  with components `function` and `data`"), and upstream data is "two
+  values, X and Y" (no "upstream's cons" aside).
+- A null `value_type` is "unallocated" in prose; a 0 or -1 sentinel is
+  "none"; an absent prefix argument is "no prefix".
 - A3: the messages "Variable has no value", "Function is not defined",
   "Attempt to set a named constant" and "Unknown name".
 - A4a: nil and non-nil are said by meaning: a logical is `.true.` or
@@ -650,8 +660,6 @@ named with it.
   becomes an integer setting with named constants; a function setting
   resolves names to procedure pointers when set (an unknown name is
   "Function is not defined"); other mismatches are a wrong-type error.
-- B6: C-h f shows the call line and the Fortran declaration block (type,
-  intent, optional).
 - B8: a condition-case handler is "a check of the status", a throw to X
   is "return to X with a status", and a catch is "the caller that checks
   the status".

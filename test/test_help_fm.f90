@@ -336,9 +336,13 @@ contains
         call check(error, index(text, "a Fortran subroutine in "//LQ//"insdel_fm.f90"//RQ//"."//LF//LF// &
                                 "call insert(") == 1, text)
         if (allocated(error)) return
+        ! The call line, then the declaration block of its arguments.
+        call check(error, index(text, "call insert(string, status)"//LF//"character(len=*), intent(in) :: string"//LF// &
+                                "type(status_type), intent(out) :: status"//LF//LF) > 0, text)
+        if (allocated(error)) return
         call describe_function_1("point", text)
         call check(error, index(text, "a Fortran function in "//LQ//"editfns_fm.f90"//RQ) == 1 .and. &
-                   index(text, LF//"point()"//LF) > 0, text)
+                   index(text, LF//"point()"//LF//"integer(int64) :: point"//LF) > 0, text)
         if (allocated(error)) return
         call describe_function_1("no-such-function", text)
         call check(error, index(text, "Not documented.") > 0, text)

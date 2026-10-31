@@ -299,7 +299,13 @@ contains
         end if
 
         if (found) then
-            if (len(entry%fortran) > 0) text = text//entry%fortran//LF//LF
+            ! The call line, then the declaration block of its arguments.
+            if (len(entry%fortran) > 0) then
+                text = text//entry%fortran//LF
+                if (len(entry%declarations) > 0) text = text//entry%declarations//LF
+                text = text//LF
+            end if
+
             doc = entry%doc
         else
             doc = ""
