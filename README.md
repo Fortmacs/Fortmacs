@@ -1,8 +1,5 @@
 <h1 align="center"><img src="docs/logo/social.svg" alt="Fortmacs" width="480"></h1>
 
-> **Not usable yet.** This is an early, experimental port; it builds and
-> runs, but most of Emacs is missing.
-
 GNU Emacs 31.1 rewritten in modern Fortran (2018+), for Linux on x86-64 and
 aarch64. There is no Elisp: your configuration is a Fortran module compiled
 into the binary, and every rebuild is a numbered generation you can roll

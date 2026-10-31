@@ -1,0 +1,1 @@
+2026-10-31 — README status (`readme-status`): the "Not usable yet" box at the top is gone; the generated **Progress:** line above the pie chart (tools/progress.sh) already says that Fortmacs is an early, bare-bones terminal editor, so the status is stated once.
