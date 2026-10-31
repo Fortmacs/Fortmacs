@@ -726,7 +726,7 @@ contains
     !> COLOR and `:style' STYLE, for `faces%NAME%box = face_box(...)'.
     !> LINE_WIDTH N is upstream's single number: vertical lines of width
     !> |N| and horizontal lines of width N; VERTICAL_WIDTH and
-    !> HORIZONTAL_WIDTH give upstream's pair (VWIDTH . HWIDTH) and default
+    !> HORIZONTAL_WIDTH give upstream's two values, VWIDTH and HWIDTH, and default
     !> to 1.  A negative width draws the line over the text instead of
     !> beside it.  An absent COLOR is the face's background color for 3D
     !> boxes and FACE_BOX_FLAT_BUTTON and its foreground color otherwise;

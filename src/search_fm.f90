@@ -1123,7 +1123,7 @@ contains
     !> `match_beginning(N)'; element 2N + 2 is the position of the end of
     !> the match of the Nth subexpression; it corresponds to `match_end(N)'.
     !> See `match_beginning' and `match_end'.  Positions are
-    !> integers, 0 when the Nth pair didn't match; trailing zeros are
+    !> integers, 0 when the Nth subexpression didn't match; trailing zeros are
     !> left out.
     !>
     !> Use `set_match_data' to reinstate the match data from the elements

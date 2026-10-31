@@ -38,8 +38,8 @@
 !> redisplay's region overlay).
 !>
 !> Deferred: `face_remapping_table', mouse faces, face filters
-!> (`:filter'), the pair forms FOREGROUND-COLOR and COLOR of face
-!> references (no pairs of two names), the `reset' attribute value, relative
+!> (`:filter'), the two-value forms FOREGROUND-COLOR and COLOR of face
+!> references (no entry of two names), the `reset' attribute value, relative
 !> (float) and functional heights in face references, fonts, fontsets,
 !> stipples and the window-system faces, `internal_set_lisp_face_attribute'
 !> (faces change by assignment in the configuration, then

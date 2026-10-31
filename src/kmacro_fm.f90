@@ -404,7 +404,8 @@ contains
         case (REGISTER_MARKER)
             call marker_position(v%marker, n, status)
         case default
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer, real or type(marker_type), "//register_value_repr(v))
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, &
+                           "expected integer, real or type(marker_type), got "//register_value_repr(v))
         end select
     end subroutine register_as_number
 
@@ -938,7 +939,7 @@ contains
 
         if (n < 2) then
             ! (kmacro-split-ring-element nil)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(kmacro_type), .false.")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(kmacro_type), got .false.")
             return
         end if
 
@@ -1196,7 +1197,7 @@ contains
         if (consp(a)) a = list_elt(a, 1_int64)
 
         if (.not. (nilp(a) .or. fixnump(a))) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer, real or type(marker_type), -")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer, real or type(marker_type), got -")
             return
         end if
 

@@ -1911,7 +1911,7 @@ contains
     !> The return value looks like this:
     !>   (LOGBUFFER (ENTRYSTART ENTRYEND) ...)
     !> where LOGBUFFER is the name of the ChangeLog buffer, and each
-    !> (ENTRYSTART . ENTRYEND) pair is a buffer region.  Port of
+    !> two values, ENTRYSTART and ENTRYEND, are a buffer region.  Port of
     !> log-edit.el:log-edit-changelog-entries.
     recursive subroutine log_edit_changelog_entries(file, entries, status)
         character(len=*), intent(in) :: file

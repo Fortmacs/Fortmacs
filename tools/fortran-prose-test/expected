@@ -12,6 +12,7 @@ rejected.f90:19: fortran-prose: property list
 rejected.f90:20: fortran-prose: interactive spec
 rejected.f90:21: fortran-prose: byte compiler
 rejected.f90:22: fortran-prose: cons
+rejected.f90:23: fortran-prose: pair
 rejected.f90:23: fortran-prose: dotted pair
 rejected.f90:24: fortran-prose: car/cdr
 rejected.f90:25: fortran-prose: lambda
@@ -19,5 +20,6 @@ rejected.f90:26: fortran-prose: funcall
 rejected.f90:27: fortran-prose: setq
 rejected.f90:28: fortran-prose: obarray
 rejected.f90:29: fortran-prose: Elisp
-rejected.f90:34: fortran-prose: nil
-rejected.f90:34: fortran-prose: wrong-type predicate
+rejected.f90:30: fortran-prose: pair
+rejected.f90:35: fortran-prose: nil
+rejected.f90:35: fortran-prose: wrong-type predicate

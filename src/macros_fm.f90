@@ -58,7 +58,7 @@ contains
     else
         ! Check the type of last-kbd-macro.
         if (.not. allocated(last_kbd_macro)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array, .false.")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array, got .false.")
             return
         end if
 
@@ -111,7 +111,7 @@ contains
     else if (fixnump(repeat)) then
         n = xfixnum(repeat)
     else
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer, "//fortran_repr(repeat))
+        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer, got "//fortran_repr(repeat))
         return
     end if
 

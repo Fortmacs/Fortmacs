@@ -6054,7 +6054,7 @@ contains
                         "COLOR and `:style' STYLE, for `faces%NAME%box = face_box(...)'."//LF// &
                         "LINE_WIDTH N is upstream's single number: vertical lines of width"//LF// &
                         "|N| and horizontal lines of width N; VERTICAL_WIDTH and"//LF// &
-                        "HORIZONTAL_WIDTH give upstream's pair (VWIDTH . HWIDTH) and default"//LF// &
+                        "HORIZONTAL_WIDTH give upstream's two values, VWIDTH and HWIDTH, and default"//LF// &
                         "to 1.  A negative width draws the line over the text instead of"//LF// &
                         "beside it.  An absent COLOR is the face's background color for 3D"//LF// &
                         "boxes and FACE_BOX_FLAT_BUTTON and its foreground color otherwise;"//LF// &
@@ -9813,7 +9813,7 @@ contains
                         "`match_beginning(N)'; element 2N + 2 is the position of the end of"//LF// &
                         "the match of the Nth subexpression; it corresponds to `match_end(N)'."//LF// &
                         "See `match_beginning' and `match_end'.  Positions are"//LF// &
-                        "integers, 0 when the Nth pair didn't match; trailing zeros are"//LF// &
+                        "integers, 0 when the Nth subexpression didn't match; trailing zeros are"//LF// &
                         "left out."//LF// &
                         ""//LF// &
                         "Use `set_match_data' to reinstate the match data from the elements"//LF// &
@@ -9839,7 +9839,7 @@ contains
                         "means the entire text matched by the whole regexp or whole string."//LF// &
                         ""//LF// &
                         "The return value is an empty string (and `matched' false) if NUMth"//LF// &
-                        "pair didn't match, or there were less than NUM pairs."//LF// &
+                        "subexpression didn't match, or there were less than NUM subexpressions."//LF// &
                         ""//LF// &
                         "STRING should be given if the last search was by `string_match' on"//LF// &
                         "STRING.  If STRING is absent, the current buffer should be the same"//LF// &
@@ -9849,8 +9849,8 @@ contains
             entry%fortran = "match_string_no_properties(num, string, matched)"
             entry%doc = "Return string of text matched by last search, without text"//LF// &
                         "properties.  NUM specifies which parenthesized expression in the"//LF// &
-                        "last regexp.  Value is an empty string if NUMth pair didn't match, or there"//LF// &
-                        "were less than NUM pairs.  Zero means the entire text matched by"//LF// &
+                        "last regexp.  Value is an empty string if NUMth subexpression didn't match, or there"//LF// &
+                        "were less than NUM subexpressions.  Zero means the entire text matched by"//LF// &
                         "the whole regexp or whole string.  STRING should be given if the"//LF// &
                         "last search was by `string_match' on STRING.  If STRING is absent, the"//LF// &
                         "current buffer should be the same buffer as the one in which the"//LF// &
@@ -11273,9 +11273,9 @@ contains
         case ("region_bounds")
             entry%file = "simple_fm.f90"
             entry%fortran = "call region_bounds(starts, ends, status)"
-            entry%doc = "Return the boundaries of the region, one or more pairs"//LF// &
+            entry%doc = "Return the boundaries of the region, one or more ranges"//LF// &
                         "[STARTS(k), ENDS(k))."//LF// &
-                        "There is more than one pair when the region is non-contiguous, see"//LF// &
+                        "There is more than one range when the region is non-contiguous, see"//LF// &
                         "`region_noncontiguous_p' and `extract_rectangle_bounds'."
         case ("region_end")
             entry%file = "editfns_fm.f90"
@@ -16230,9 +16230,9 @@ contains
             end if
 
             entry%doc = "Regexp to match the start of a comment plus everything up to its body."//LF// &
-                        "If there are any \(...\) pairs and `comment_use_syntax' is COMMENT_USE_SYNTAX_NIL,"//LF// &
+                        "If there are any \(...\) groups and `comment_use_syntax' is COMMENT_USE_SYNTAX_NIL,"//LF// &
                         "the comment delimiter text is held to begin at the place matched"//LF// &
-                        "by the close of the first pair."
+                        "by the close of the first group."
         case ("comment_style")
             entry%file = "newcomment_fm.f90"
             entry%fortran = "comment_style"
@@ -16367,7 +16367,7 @@ contains
             entry%doc = "A value for tracking when directories are entered or left."//LF// &
                         "If its regexp is unallocated, do not track directories, e.g. if all"//LF// &
                         "file names are absolute.  The REGEXP matches these messages.  It can"//LF// &
-                        "match any number of variants, e.g. different languages.  The pairs"//LF// &
+                        "match any number of variants, e.g. different languages.  The values"//LF// &
                         "DIR and LEAVE say: if the DIR'th subexpression matches, that is a"//LF// &
                         "directory name.  If LEAVE is 0 or the corresponding LEAVE'th"//LF// &
                         "subexpression doesn't match, this message is about going into"//LF// &
@@ -21245,7 +21245,7 @@ contains
             entry%doc = "Table of paired characters inserted by `insert_pair'."//LF// &
                         "Each element looks like (OPEN-CHAR CLOSE-CHAR) or (COMMAND-CHAR"//LF// &
                         "OPEN-CHAR CLOSE-CHAR).  The characters OPEN-CHAR and CLOSE-CHAR"//LF// &
-                        "of the pair whose key is equal to the last input character with"//LF// &
+                        "of the entry whose key is equal to the last input character with"//LF// &
                         "or without modifiers, are inserted by `insert_pair'."//LF// &
                         ""//LF// &
                         "If COMMAND-CHAR is specified, it is a character that triggers the"//LF// &
@@ -22838,7 +22838,7 @@ contains
             entry%file = "replace_fm.f90"
             entry%fortran = "query_replace_defaults"
             entry%doc = "Default values of FROM_STRING and TO_STRING for `query_replace'."//LF// &
-                        "This is an array of FROM_STRING and TO_STRING pairs, or unallocated"//LF// &
+                        "This is an array of entries with components `from' and `to', or unallocated"//LF// &
                         "if there are no default values."
         case ("query_replace_from_history_variable")
             entry%file = "replace_fm.f90"
@@ -22867,7 +22867,7 @@ contains
             end if
 
             entry%doc = "String that separates FROM and TO in the history of replacement"//LF// &
-                        "pairs.  When unallocated, the pair will not be added to the"//LF// &
+                        "strings.  When unallocated, FROM and TO will not be added to the"//LF// &
                         "history (same behavior as in Emacs 24.5)."
         case ("query_replace_show_replacement")
             entry%file = "replace_fm.f90"

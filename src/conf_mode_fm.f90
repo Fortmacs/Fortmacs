@@ -31,7 +31,7 @@
 !> The keyword lists (`conf_font_lock_keywords' and the others) are
 !> arrays of `font_lock_keyword_type'.  `conf_assignment_sign' is a string
 !> (unallocated for none).  `conf_space_keywords_table' holds
-!> `conf_space_keywords_entry_type' pairs.
+!> `conf_space_keywords_entry_type' entries.
 !>
 !> Deferred: Outline mode's variables (`outline_regexp',
 !> `outline_heading_end_regexp', `outline_level' with

@@ -207,7 +207,7 @@ module expression_motion_fm
     !> Table of paired characters inserted by `insert_pair'.
     !> Each element looks like (OPEN-CHAR CLOSE-CHAR) or (COMMAND-CHAR
     !> OPEN-CHAR CLOSE-CHAR).  The characters OPEN-CHAR and CLOSE-CHAR
-    !> of the pair whose key is equal to the last input character with
+    !> of the entry whose key is equal to the last input character with
     !> or without modifiers, are inserted by `insert_pair'.
     !>
     !> If COMMAND-CHAR is specified, it is a character that triggers the

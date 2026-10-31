@@ -1426,7 +1426,7 @@ module simple_fm
     !> - REGION_EXTRACT_DELETE_ONLY: delete the region; the return value
     !>   is undefined.
     !> - REGION_EXTRACT_BOUNDS: return the boundaries of the region as
-    !>   one or more pairs START, END.
+    !>   one or more ranges START, END.
     !> - REGION_EXTRACT_DELETE: delete the region and return its content
     !>   as a string, after filtering it with `filter_buffer_substring'.
     !> Port of casefiddle.c region-extract-function, as simple.el sets it.
@@ -3967,9 +3967,9 @@ contains
         end do
     end subroutine default_region_insert
 
-    !> Return the boundaries of the region, one or more pairs
+    !> Return the boundaries of the region, one or more ranges
     !> [STARTS(k), ENDS(k)).
-    !> There is more than one pair when the region is non-contiguous, see
+    !> There is more than one range when the region is non-contiguous, see
     !> `region_noncontiguous_p' and `extract_rectangle_bounds'.  Port of
     !> simple.el:region-bounds.
     recursive subroutine region_bounds(starts, ends, status)
@@ -5385,7 +5385,7 @@ contains
         end subroutine aux
     end subroutine transpose_subr
 
-    !> Exchange the text of the ranges POS1 and POS2 (each a pair of
+    !> Exchange the text of the ranges POS1 and POS2 (each two
     !> positions in either order), preserving markers at their ends.
     !> Port of simple.el:transpose-subr-1.
     subroutine transpose_subr_1(pos1_in, pos2_in, status)

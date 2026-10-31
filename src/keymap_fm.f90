@@ -25,7 +25,7 @@
 !> Keymaps are registry objects referenced by handle (values of tag
 !> V_KEYMAP).  Upstream a keymap is the list (keymap ENTRIES... . PARENT);
 !> here each keymap holds parallel arrays of events and bindings plus a
-!> parent handle.  An entry whose binding is empty is an explicit "unbound"
+!> parent handle.  An entry whose binding is unallocated is an explicit "unbound"
 !> that shadows the parent; `remove' deletes the entry instead.
 !>
 !> A key is a vector of events: fixnums (characters with modifier bits)
@@ -282,7 +282,7 @@ contains
         end do
     end subroutine free_keymap
 
-    !> The prompt string given to `km' itself (empty if none), as its list
+    !> The prompt string given to `km' itself (unallocated if none), as its list
     !> holds it.  Not a port.
     function keymap_own_prompt(km) result(v)
         type(handle_type), intent(in) :: km
@@ -915,7 +915,7 @@ contains
         end if
     end subroutine access_1
 
-    !> Binding of the single event `idx' in `map'; empty if none.  With
+    !> Binding of the single event `idx' in `map'; unallocated if none.  With
     !> `t_ok', bindings of t are defaults.  With `noinherit', inherited
     !> bindings are ignored.  Port of keymap.c:access_keymap.
     function access_keymap(map, idx, t_ok, noinherit) result(val)
@@ -928,7 +928,7 @@ contains
     end function access_keymap
 
     !> Binding of key sequence `key' in `map' (a keymap or composite).
-    !> `val' is empty if undefined, or the integer N if the first N events
+    !> `val' is unallocated if undefined, or the integer N if the first N events
     !> already reach a non-prefix binding ("too long").  Port of
     !> keymap.c:Flookup_key with keymap.c:lookup_key_1 (menu-bar case
     !> folding is not ported) and keymap.c:possibly_translate_key_sequence.
@@ -1068,7 +1068,7 @@ contains
     !> Bind characters `from'..`to' (without modifiers) to `def' in `km',
     !> replacing their single-character entries.  Port of the
     !> (FROM . TO) case of keymap.c:store_in_keymap (Fset_char_table_range
-    !> on the keymap's char-table).  An empty `def' is recorded as an explicit "unbound", as
+    !> on the keymap's char-table).  An unallocated `def' is recorded as an explicit "unbound", as
     !> upstream (no value in a char-table means no binding).
     subroutine define_key_range(km, from, to, def, status)
         type(handle_type), intent(in) :: km
@@ -1118,7 +1118,7 @@ contains
         end if
     end subroutine define_key_range
 
-    !> Add the range `from'..`to' with binding `def' (empty: none, the
+    !> Add the range `from'..`to' with binding `def' (unallocated: none, the
     !> char-table's NO_VALUE) to keymap slot `i'.  Not a port.
     subroutine add_range(i, from, to, def)
         integer(int64), intent(in) :: i, from, to
@@ -1750,7 +1750,7 @@ contains
     !> The proper local keymap TYPE (`keymap' or `local_map') for position
     !> POSITION in the current buffer: the map the TYPE property of the
     !> character there (or, failing that, the property a character inserted
-    !> there would inherit) specifies, if it is a keymap.  Otherwise empty
+    !> there would inherit) specifies, if it is a keymap.  Otherwise unallocated
     !> for `keymap', and the buffer's local map for `local_map'.  Narrowing
     !> is ignored.  Port of intervals.c:get_local_map (the current buffer).
     function get_local_map(position, type) result(map)
@@ -1872,7 +1872,7 @@ contains
         end subroutine push_map
     end function current_active_maps
 
-    !> Binding of `key' in the active maps (local, then global); empty if
+    !> Binding of `key' in the active maps (local, then global); unallocated if
     !> none.  If the binding is a command, its remapping (a binding of
     !> [remap COMMAND]) is returned instead, unless NO_REMAP is true.
     !> Port of keymap.c:Fkey_binding (no POSITION).
@@ -1899,7 +1899,7 @@ contains
     end subroutine key_binding
 
     !> Return the remapping for command COMMAND.
-    !> Returns empty if COMMAND is not remapped (or not a name).
+    !> Returns an unallocated value if COMMAND is not remapped (or not a name).
     !>
     !> If the optional argument KEYMAPS is present, it should be a keymap
     !> or list of keymaps to search for command remapping.  Otherwise,
@@ -2558,7 +2558,7 @@ contains
     !> If DEFINITION is a string, it must also satisfy `key_valid_p'.
     !>
     !> DEFINITION is anything that can be a key's definition:
-    !>  empty (means key is undefined in this keymap),
+    !>  unallocated (means key is undefined in this keymap),
     !>  a command (a name of a registered command),
     !>  a string (treated as a keyboard macro or a sequence of input events),
     !>  a keymap (to define a prefix key).
@@ -2661,7 +2661,7 @@ contains
     !> the global map.  If FIRSTONLY
     !> is true, return the first key sequence found, preferring sequences
     !> consisting of characters without modifiers other than Meta, as a
-    !> array of events (empty for none); else an array of all of them, each an
+    !> array of events (unallocated for none); else an array of all of them, each an
     !> array of events.  Prefix keys of the meta-prefix-char (ESC) followed
     !> by a character are given as one Meta character.  Bindings shadowed
     !> by another binding of the same key are left out.  With FIRSTONLY,
@@ -3231,7 +3231,7 @@ contains
 
         if (character < 0 .or. character > MAX_CHAR) then
             write (num, "(i0)") character
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code), "//trim(num))
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code), got "//trim(num))
             return
         end if
 
@@ -3269,7 +3269,7 @@ contains
     end subroutine current_minor_mode_maps
 
     !> Find the visible minor mode bindings of KEY.
-    !> Return a table of pairs (MODENAME . BINDING), where MODENAME is
+    !> Return MODENAME and BINDING for each mode, where MODENAME is
     !> the name of the minor mode binding KEY, and BINDING is
     !> KEY's definition in that mode.  In particular, if KEY has no
     !> minor-mode bindings, return an empty array.  If the first binding is a
@@ -3279,7 +3279,7 @@ contains
     !>
     !> If optional argument ACCEPT_DEFAULT is true, recognize default
     !> bindings; see the description of `lookup_key' for more details about this.
-    !> Port of keymap.c:Fminor_mode_key_binding (the pairs as the arrays
+    !> Port of keymap.c:Fminor_mode_key_binding (MODENAME and BINDING as the arrays
     !> MODES and BINDINGS).
     recursive subroutine minor_mode_key_binding(key, modes, bindings, status, accept_default)
         type(value_type), intent(in) :: key(:)

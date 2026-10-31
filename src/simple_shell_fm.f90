@@ -80,7 +80,7 @@ submodule(simple_fm) simple_shell_fm
     !> false): upstream's disposable advice on their filter.
     type(handle_type), allocatable :: display_on_output(:)
 
-    !> simple.el shell-command-saved-pos: (BUFFER . POS) pairs.
+    !> simple.el shell-command-saved-pos: entries with components `buffer' and `pos'.
     type :: saved_pos_type
         type(handle_type) :: buffer
         integer(int64) :: pos = 0

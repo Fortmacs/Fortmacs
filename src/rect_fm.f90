@@ -1044,7 +1044,7 @@ contains
                 conversion = "s"
             else if (conversion == "c") then
                 if (arg < 0 .or. arg > MAX_CHAR) then
-                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code), "//int_text(arg))
+                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code), got "//int_text(arg))
                     return
                 end if
 

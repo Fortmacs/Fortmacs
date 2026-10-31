@@ -309,7 +309,7 @@ contains
         call file_to_register("foo", rc)
         call insert_register(rc, st)
         call check(error, st%code == FM_WRONG_TYPE_ARGUMENT .and. &
-                   format_error(st) == "Wrong type argument: expected character(len=*), file", &
+                   format_error(st) == "Wrong type argument: expected character(len=*), got file", &
                    format_error(st))
         if (allocated(error)) return
         call insert_register(iachar("z", int64), st)

@@ -200,8 +200,8 @@ module smie_fm
     end type smie_level_type
 
     !> A precedence-level table (`smie_grammar'): (TOKEN LEFT-LEVEL
-    !> RIGHT-LEVEL) for each token, and the :smie-closer-alist (OPENER .
-    !> CLOSER) pairs.  `unset' is the value 'unset.
+    !> RIGHT-LEVEL) for each token, and the :smie-closer-alist (OPENER and
+    !> CLOSER for each).  `unset' is the value 'unset.
     type, public :: smie_grammar_type
         logical :: unset = .true.
         type(smie_string_type), allocatable :: tokens(:)
@@ -833,8 +833,8 @@ contains
     !>   needs to be a terminal (aka token).  This is a fundamental limitation of
     !>   the parsing technology used (operator precedence grammar).
     !> Additionally, conflicts can occur:
-    !> - The returned prec2 table holds constraints between pairs of
-    !>   token, and for any given pair only one constraint can be
+    !> - The returned prec2 table holds constraints between two
+    !>   tokens, and for any given two only one constraint can be
     !>   present, either: T1 < T2, T1 = T2, or T1 > T2.
     !> - A token can either be an `opener' (something similar to an open-paren),
     !>   a `closer' (like a close-paren), or `neither' of the two (e.g. an infix
@@ -1081,7 +1081,7 @@ contains
         end do
     end subroutine propagate
 
-    !> Build a closer-alist from a BNF table: (OPENER . CLOSER) pairs in
+    !> Build a closer-alist from a BNF table: OPENER and CLOSER of each entry, in
     !> OPENERS and CLOSERS.  The return value is in the same form as
     !> `smie_closer_table'.  NO_INNERS true means that inner keywords will
     !> be excluded from the table, e.g. the table will not include things
@@ -3350,9 +3350,11 @@ contains
         type(smie_indent_type), intent(in) :: v
 
         if (v%kind == SMIE_INDENT_NOINDENT) then
-            call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: expected integer, real or type(marker_type), noindent")
+            call set_error(status, FM_GENERIC_ERROR, &
+                           "Wrong type argument: expected integer, real or type(marker_type), got noindent")
         else
-           call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: expected integer, real or type(marker_type), unallocated")
+            call set_error(status, FM_GENERIC_ERROR, &
+                           "Wrong type argument: expected integer, real or type(marker_type), got unallocated")
         end if
     end subroutine number_error
 
@@ -4049,7 +4051,7 @@ contains
             call beginning_of_line()
 
             if (.not. allocated(comment_start_skip%value)) then
-                call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: expected character(len=*), unallocated")
+                call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: expected character(len=*), got unallocated")
                 exit body
             end if
 

@@ -1703,8 +1703,8 @@ contains
         end do
     end subroutine vc_dir_marked_files
 
-    !> Return the list of (FILE . STATE) for the marked files.
-    !> For marked directories return the corresponding pairs for the
+    !> Return the FILE and STATE of each marked file.
+    !> For marked directories return the FILE and STATE of the
     !> child files.  Port of vc-dir.el:vc-dir-marked-only-files-and-states.
     subroutine vc_dir_marked_only_files_and_states(files, states)
         type(vc_string_type), allocatable, intent(out) :: files(:)
@@ -1767,8 +1767,8 @@ contains
 
     !> Return the state of one or more files for the current entry.
     !> If the entry is a directory, return the list of states of its child
-    !> files, where each file is described by a pair (FILE . STATE).
-    !> If the entry is a file, return a single pair (FILE . STATE) for
+    !> files, where each file is described by two values, FILE and STATE.
+    !> If the entry is a file, return its FILE and STATE for
     !> that file.  Port of vc-dir.el:vc-dir-child-files-and-states.
     subroutine vc_dir_child_files_and_states(files, states)
         type(vc_string_type), allocatable, intent(out) :: files(:)

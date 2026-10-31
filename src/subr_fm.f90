@@ -62,7 +62,7 @@ module subr_fm
 
     !> A numerical progress reporter (`make_progress_reporter' with
     !> MIN_VALUE and MAX_VALUE): the value at which to report next (the
-    !> first element of upstream's pair) and the parameters vector.
+    !> first of upstream's two values) and the parameters vector.
     type, public :: progress_reporter_type
         real(real64) :: next_value = 0
         !> The time of the next echo area update, in seconds.
@@ -864,7 +864,7 @@ contains
         prefix_arg = nil()
     end subroutine undefined
 
-    !> Give the variable NAME an empty value unless it
+    !> Give the variable NAME an unallocated value unless it
     !> has a value already.  Port of eval.c:Fdefvar (INITVALUE empty).
     subroutine defvar_nil(name)
         character(len=*), intent(in) :: name
@@ -908,7 +908,7 @@ contains
     !> means the entire text matched by the whole regexp or whole string.
     !>
     !> The return value is an empty string (and `matched' false) if NUMth
-    !> pair didn't match, or there were less than NUM pairs.
+    !> subexpression didn't match, or there were less than NUM subexpressions.
     !>
     !> STRING should be given if the last search was by `string_match' on
     !> STRING.  If STRING is absent, the current buffer should be the same
@@ -938,8 +938,8 @@ contains
 
     !> Return string of text matched by last search, without text
     !> properties.  NUM specifies which parenthesized expression in the
-    !> last regexp.  Value is an empty string if NUMth pair didn't match, or there
-    !> were less than NUM pairs.  Zero means the entire text matched by
+    !> last regexp.  Value is an empty string if NUMth subexpression didn't match, or there
+    !> were less than NUM subexpressions.  Zero means the entire text matched by
     !> the whole regexp or whole string.  STRING should be given if the
     !> last search was by `string_match' on STRING.  If STRING is absent, the
     !> current buffer should be the same buffer as the one in which the

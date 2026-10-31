@@ -3881,7 +3881,7 @@ contains
             if (size(events) > 0) then
                 if (fixnump(events(1))) then
                     write (buf, "(i0)") xfixnum(events(1))
-                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array or character(len=*), "//trim(buf))
+                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array or character(len=*), got "//trim(buf))
                 else
                     call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array or character(len=*)")
                 end if

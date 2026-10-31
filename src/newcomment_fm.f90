@@ -200,9 +200,9 @@ module newcomment_fm
     type(string_setting), target, public :: comment_start = string_setting(name="comment_start")
 
     !> Regexp to match the start of a comment plus everything up to its body.
-    !> If there are any \(...\) pairs and `comment_use_syntax' is COMMENT_USE_SYNTAX_NIL,
+    !> If there are any \(...\) groups and `comment_use_syntax' is COMMENT_USE_SYNTAX_NIL,
     !> the comment delimiter text is held to begin at the place matched
-    !> by the close of the first pair.  Port of newcomment.el
+    !> by the close of the first group.  Port of newcomment.el
     !> comment-start-skip.
     type(string_setting), target, public :: comment_start_skip = string_setting(name="comment_start_skip")
 

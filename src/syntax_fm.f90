@@ -1196,7 +1196,7 @@ contains
 
     contains
 
-        !> Whether the pair CAT1, CAT2 matches: c1 has CAT1 but not CAT2, and c2
+        !> Whether the categories CAT1 and CAT2 match: c1 has CAT1 but not CAT2, and c2
         !> has CAT2 but not CAT1; a blank category matches.
         logical function between(a, b, cat1, cat2)
             integer, intent(in) :: a, b

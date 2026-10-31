@@ -2177,7 +2177,7 @@ contains
             end if
         else
             ! No file found.
-            call set_error(status, FM_BOOKMARK_ERROR_NO_FILENAME, "expected character(len=*), unallocated")
+            call set_error(status, FM_BOOKMARK_ERROR_NO_FILENAME, "expected character(len=*), got unallocated")
             return
         end if
 

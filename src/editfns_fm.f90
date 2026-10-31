@@ -1028,7 +1028,7 @@ contains
         v = sym("field")
     end function qfield
 
-    !> `prop' of the current buffer's character at `pos' (empty outside the
+    !> `prop' of the current buffer's character at `pos' (unallocated outside the
     !> accessible text); get_char_property without overlays.  Not a port.
     function char_property(pos, prop) result(v)
         integer(int64), intent(in) :: pos
@@ -1241,12 +1241,14 @@ contains
         if (.not. status%ok()) return
 
         if (.not. char_valid_p(fromchar)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code), "//int_text(int(fromchar, int64)))
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, &
+                           "expected integer (a character code), got "//int_text(int(fromchar, int64)))
             return
         end if
 
         if (.not. char_valid_p(tochar)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code), "//int_text(int(tochar, int64)))
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, &
+                           "expected integer (a character code), got "//int_text(int(tochar, int64)))
             return
         end if
 

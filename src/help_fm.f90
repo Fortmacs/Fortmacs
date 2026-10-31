@@ -755,7 +755,7 @@ contains
         ok = status%ok() .and. .not. eof
     end subroutine read_help_key
 
-    !> Whether `defn' leaves a key undefined: empty, a number (a key too
+    !> Whether `defn' leaves a key undefined: unallocated, a number (a key too
     !> long) or `undefined'.  Port of help.el:help--binding-undefined-p.
     logical function binding_undefined_p(defn)
         type(value_type), intent(in) :: defn
@@ -1876,7 +1876,7 @@ contains
     end subroutine describe_map
 
     !> The binding of `key' in the shadowing maps (lookup-key with
-    !> ACCEPT-DEFAULT); empty if the key sequence is too long.  Port of
+    !> ACCEPT-DEFAULT); unallocated if the key sequence is too long.  Port of
     !> help.el:help--shadow-lookup (no REMAP).
     subroutine shadow_lookup(shadow, key, val)
         type(value_type), intent(in) :: shadow(:), key(:)

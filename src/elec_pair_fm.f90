@@ -24,8 +24,8 @@
 !> keeping delimiters balanced, from `post_self_insert_hook'.  Off by
 !> default, as upstream.
 !>
-!> A pair is an `electric_pair_type': two characters (upstream's (CHAR
-!> . CHAR)) or two strings (STRING STRING SPC) / (STRING . STRING), the
+!> An `electric_pair_type' holds two characters or two
+!> strings (with SPC or without), the
 !> first a regular expression.
 !>
 !> Deferred: the DEL binding of `electric_pair_mode_map' and

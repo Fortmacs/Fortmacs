@@ -26,7 +26,7 @@
 !>
 !> Differences from upstream, for want of Lisp and of display features:
 !>
-!> - REPLACEMENTS as a pair of FUNCTION and DATA is a Fortran function of
+!> - REPLACEMENTS as two values, FUNCTION and DATA, is a Fortran function of
 !>   the replacement count (`replacement_function'); `\,' (a Lisp
 !>   expression) in an interactive replacement is an error, while `\#'
 !>   (the replacement count) works;
@@ -150,7 +150,7 @@ module replace_fm
     !> match.
     type(named_face_type), target, public :: match
 
-    !> A FROM_STRING and TO_STRING pair of `query_replace_defaults'.
+    !> An entry of `query_replace_defaults', with components `from' and `to'.
     type, public :: replace_pair_type
         character(len=:), allocatable :: from, to
     end type replace_pair_type
@@ -186,13 +186,13 @@ module replace_fm
     logical, public :: replace_regexp_lax_whitespace = .false.
 
     !> Default values of FROM_STRING and TO_STRING for `query_replace'.
-    !> This is an array of FROM_STRING and TO_STRING pairs, or unallocated
+    !> This is an array of entries with components `from' and `to', or unallocated
     !> if there are no default values.  Port of replace.el
     !> query-replace-defaults (most recent first).
     type(replace_pair_type), allocatable, public :: query_replace_defaults(:)
 
     !> String that separates FROM and TO in the history of replacement
-    !> pairs.  When unallocated, the pair will not be added to the
+    !> strings.  When unallocated, FROM and TO will not be added to the
     !> history (same behavior as in Emacs 24.5).  Port of replace.el
     !> query-replace-from-to-separator.
     character(len=:), allocatable, public :: query_replace_from_to_separator
@@ -772,7 +772,7 @@ contains
 
     !> Query and return the FROM argument of a `query_replace' operation.
     !> Prompt with PROMPT.  REGEXP-FLAG .true. means the response should
-    !> be a regexp.  The return value can also be a pair (FROM . TO)
+    !> be a regexp.  The return value can also be two values, FROM and TO,
     !> indicating that the user wants to replace FROM with TO: then
     !> `have_to' is true, and `counted' says whether TO uses `\#'.
     !> Port of replace.el:query-replace-read-from.
@@ -1137,8 +1137,8 @@ contains
     !> This function returns .false. if there were no matches to make, or
     !> the user canceled the call.
     !>
-    !> REPLACEMENTS is either a string, an array of strings, or a pair
-    !> containing a function and its first argument.  The function is
+    !> REPLACEMENTS is either a string, an array of strings, or two values,
+    !> a function and its first argument.  The function is
     !> called to generate each replacement like this:
     !>   call FUNCTION(DATA, replace_count)
     !> It must return a string.

@@ -236,7 +236,7 @@ module sh_script_fm
     end type sh_syntax_change_type
 
     !> One shell's entry of `sh_mode_syntax_table_input': none (no
-    !> `changes'), or TABLE with CHAR SYNTAX pairs: a copy of `table' with
+    !> `changes'), or TABLE with CHAR and SYNTAX entries: a copy of `table' with
     !> `changes'.
     type, public :: sh_syntax_entry_type
         character(len=:), allocatable :: shell

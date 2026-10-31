@@ -674,7 +674,7 @@ module comint_fm
     !> completion (" " by default; the empty string adds none).
     !> This mirrors the optional behavior of tcsh.  Port of comint.el
     !> comint-completion-addsuffix (.true. is " ", .false. is "", and the obsolete
-    !> pair of DIRSUFFIX and FILESUFFIX is FILESUFFIX).
+    !> two values, DIRSUFFIX and FILESUFFIX, give FILESUFFIX).
     type(string_setting), target, public :: comint_completion_addsuffix = &
                                             string_setting(name="comint_completion_addsuffix")
 

@@ -257,7 +257,7 @@ module font_core_fm
     !> If CASE-FOLD is true, the case of the keywords is ignored when
     !> fontifying.
     !>
-    !> If SYNTAX-ALIST is true, it should be an array of pairs of the
+    !> If SYNTAX-ALIST is true, it should be an array of entries of two values, of the
     !> form CHAR-OR-STRING and STRING used to set the local Font Lock
     !> syntax table, for keyword and syntactic fontification (see
     !> `modify_syntax_entry').

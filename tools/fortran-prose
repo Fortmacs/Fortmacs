@@ -49,6 +49,7 @@ reject	throw	(^|[^a-z_])(throw|throws|thrown|throwing)([^a-z_]|$)	"return to X w
 reject	catch	(^|[^a-z_])(catch|catches|caught)([^a-z_]|$)	"the caller that checks the status"
 reject	condition-case	condition[-_ ]case	"a check of the status"
 # A4d: Lisp data and evaluation.
+reject	pair	(^|[^a-z_-])pairs?([^a-z_-]|$)	components by name, or "two values, X and Y"
 reject	property list	property list|(^|[^a-z])plists?([^a-z]|$)	typed components, "text properties" or "attributes"
 reject	interactive spec	interactive spec	a description ("a command that reads the region")
 reject	byte compiler	byte-compil	(not applicable: remove)
@@ -86,3 +87,20 @@ keep	""nil" (upstream's message text)"
 # the names branch; its docstring goes with it.
 keep	"use the byte-compiler to optimize"
 keep	"elisp byte-compiler."
+# "Pair" in senses that are not Lisp data: delimiters (Electric Pair
+# mode, insert_pair and delete_pair), Unicode's bracket pairs (UAX #9),
+# a pseudo-terminal pair, the verb, and upstream messages.
+keep	src/elec_pair_fm.f90
+keep	src/bidi_fm.f90
+keep	"pair of open and close characters"
+keep	"character pair"
+keep	"open/close pair"
+keep	"pair of characters"
+keep	"deletes a pair around"
+keep	"matching pair"
+keep	"paren-like pair"
+keep	"pair of tokens"
+keep	"pseudo-terminal pair"
+keep	"cookie that pairs"
+keep	"library pairs"
+keep	"usual pair"

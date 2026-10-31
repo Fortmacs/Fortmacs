@@ -462,7 +462,7 @@ module compile_fm
     !> A value for tracking when directories are entered or left.
     !> If its regexp is unallocated, do not track directories, e.g. if all
     !> file names are absolute.  The REGEXP matches these messages.  It can
-    !> match any number of variants, e.g. different languages.  The pairs
+    !> match any number of variants, e.g. different languages.  The values
     !> DIR and LEAVE say: if the DIR'th subexpression matches, that is a
     !> directory name.  If LEAVE is 0 or the corresponding LEAVE'th
     !> subexpression doesn't match, this message is about going into
@@ -2742,7 +2742,8 @@ contains
 
                 do i = 1, size(dm%dir)
                     if (md_pos(md, dm%dir(i), .false.) == 0) then
-                     call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: expected integer or type(marker_type), .false.")
+                        call set_error(status, FM_GENERIC_ERROR, &
+                                       "Wrong type argument: expected integer or type(marker_type), got .false.")
                         return
                     end if
 

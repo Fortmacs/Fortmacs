@@ -372,7 +372,7 @@ contains
     !> standard value makes `syntax_table' and `display' (textprop.c),
     !> `composition' (composite.c) and `fill_space' (fill.el)
     !> rear-nonsticky.  Not a port: the value is built in (its table needs
-    !> pairs of two names).
+    !> entries of two names).
     logical function default_nonsticky(prop)
         type(value_type), intent(in) :: prop
 

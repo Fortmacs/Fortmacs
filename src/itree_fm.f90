@@ -44,8 +44,8 @@
 !> `property_function_type' (eval_fm).
 !>
 !> Deferred: indirect buffers (`copy_overlays'), the `window', `mouse_face' and
-!> `intangible' properties, priorities given as (PRIMARY . SECONDARY)
-!> pairs (no pairs of two names), `remove_overlays' (subr.el) and
+!> `intangible' properties, priorities given as two values, PRIMARY and SECONDARY
+!> (no entry of two names), `remove_overlays' (subr.el) and
 !> `copy_overlay'.
 module itree_fm
     use, intrinsic :: iso_fortran_env, only: int64

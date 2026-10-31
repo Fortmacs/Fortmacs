@@ -603,7 +603,9 @@ what upstream says in Lisp.  Applied (the owner's design review, PR 2):
   type argument: expected character(len=*)", "expected integer",
   "expected type(keymap_type)", "expected live type(window_type)",
   "expected integer (a character code)", "expected name", "expected
-  array", followed by the offending value where upstream shows one.
+  array", then ", got VALUE" where upstream shows the value ("Wrong
+  type argument: expected character(len=*), got file").  The qualifiers
+  (live, valid, case table, ">= 0", "a character code") stay.
 - A3: the error table and help say "Variable has no value", "Function
   is not defined", "Attempt to set a named constant" and "Unknown name";
   help says "NAME has no value as a variable" and "You didn't specify a
@@ -612,7 +614,10 @@ what upstream says in Lisp.  Applied (the owner's design review, PR 2):
   `.false.`, an optional argument present or absent, an allocatable
   unallocated, a pointer null, a missing name "", a handle the null
   handle, and a setting its named constants (the "(upstream nil, t,
-  ...)" asides are gone); a bare t meaning true is `.true.`.
+  ...)" asides are gone); a bare t meaning true is `.true.`.  A null
+  `value_type` is unallocated ("Return an unallocated value if KEY has
+  no binding"), a 0 or -1 sentinel is none, and an absent prefix
+  argument is no prefix.
 - A4b and B2: a symbol in the Lisp-object sense is a name; the syntax
   class (symbol constituents, the identifier at point) is an
   identifier.  Upstream's own symbols, cited as such, keep the word.
@@ -621,8 +626,11 @@ what upstream says in Lisp.  Applied (the owner's design review, PR 2):
 - B8: a condition-case handler is a check of the status, a throw to X a
   return to X with a status, and a catch the caller that checks the
   status.
-- A4d: a cons is named components (`decoding` and `encoding`) or a
-  pair; a FORM that is evaluated is a PREDICATE (a logical function)
+- A4d: a cons is named components (`decoding` and `encoding`; "a
+  replacement with components `function` and `data`"), or, where the
+  text only describes upstream data, "two values, X and Y"; the word
+  "pair" is never used for data; a FORM that is evaluated is a
+  PREDICATE (a logical function)
   that is called; an interactive spec is described ("a command that
   reads the region"); a plist is typed components and constructors for
   faces (`face_underline(color=..., style=..., position=...)`), "text
@@ -641,8 +649,10 @@ what upstream says in Lisp.  Applied (the owner's design review, PR 2):
 used, with what to write instead: non-nil, a standalone nil, "is void",
 "Symbol's value", "constant symbol", "Wrong type argument: PREDp,",
 "signal an error", throw and catch, condition-case, "property list" and
-plist, "interactive spec", "byte-compil", cons, "dotted pair", car and
-cdr, lambda, funcall, setq, obarray and Elisp.  tools/check.sh runs
+plist, "interactive spec", "byte-compil", cons, "dotted pair", pair
+(kept where it means delimiters, Unicode bracket pairs or a
+pseudo-terminal pair), car and cdr, lambda, funcall, setq, obarray and
+Elisp.  tools/check.sh runs
 tools/fortran-prose.awk, which fails with FILE:LINE on one of them in a
 `!>` docstring or in a message or error string (the string literals of
 a line that calls `set_error`, `message`, `user_error`,

@@ -1,5 +1,5 @@
 ! The fixture of tools/test-fortran-prose.sh: each docstring or message
-! below uses one rejected term (tools/fortran-prose), in this order.
+! below uses rejected terms (tools/fortran-prose), in this order.
 module rejected_fm
     implicit none(type, external)
     private
@@ -27,6 +27,7 @@ contains
     !> As setq-local does.
     !> The obarray.
     !> See the Elisp manual.
+    !> FROM and TO as a pair.
     subroutine rejected(status)
         integer, intent(out) :: status
 

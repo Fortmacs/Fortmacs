@@ -25,7 +25,7 @@
 !> Every change to a buffer is recorded in its `buffer_undo_list' (here
 !> the `undo_list' array of buffer_type, newest entry last): insertions,
 !> deletions with the deleted text, where point was, and the first change
-!> after the buffer was saved.  Boundaries (empty entries) separate the
+!> after the buffer was saved.  Boundaries (UE_BOUNDARY entries) separate the
 !> changes of one command from the next; the command loop adds them before
 !> each command (`undo_auto_add_boundary'), and runs of self-inserting or
 !> deleting commands are merged up to `amalgamating_undo_limit' at a time.

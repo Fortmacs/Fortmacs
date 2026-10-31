@@ -180,8 +180,7 @@ module grep_fm
 
     !> An element of `grep_find_ignored_files_variable' and
     !> `grep_find_ignored_directories': the file or directory NAME, which
-    !> applies to a search directory only if APPLIES (when given) says so
-    !> (upstream's pair of FUNCTION and NAME).
+    !> applies to a search directory only if APPLIES (when given) says so.
     type, public :: grep_ignore_type
         character(len=64) :: name = ""
         procedure(grep_ignore_predicate), pointer, nopass :: applies => null()

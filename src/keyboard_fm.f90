@@ -268,7 +268,7 @@ module keyboard_fm
     !> keyboard.c:recent_keys, a ring of the last `lossage_limit' input
     !> events not from keyboard macros, and of the commands run, as
     !> upstream's pseudo-events (no event, then COMMAND): `recent_is_command' marks
-    !> those, whose command (empty for an undefined key) is in
+    !> those, whose command (unallocated for an undefined key) is in
     !> `recent_events'.  The next entry goes at `recent_keys_index'
     !> (1-based); `total_keys' entries are filled.
     type(value_type), allocatable :: recent_events(:)
@@ -1365,7 +1365,7 @@ contains
     !> Read a key sequence: events until the active keymaps give a
     !> non-prefix binding (or none), with terminal escape sequences and
     !> other translations applied.  `keys' is the sequence and `binding'
-    !> its binding (empty if undefined).  `eof' is set when input ended;
+    !> its binding (unallocated if undefined).  `eof' is set when input ended;
     !> `keys' then holds what was read.  PROMPT begins the echo of the
     !> keys; with DONT_DOWNCASE_LAST, an upper-case last event that was
     !> looked up in lower case is returned as it was typed.  The events

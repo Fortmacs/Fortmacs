@@ -22,7 +22,7 @@
 
 !> Markers, and converting between character and byte positions.
 !>
-!> A marker records a buffer and a (charpos, bytepos) pair that insdel_fm
+!> A marker records a buffer and a character and a byte position that insdel_fm
 !> keeps up to date as text is inserted and deleted.  Each buffer's markers
 !> form a singly linked chain (upstream `next'), headed by
 !> `buffers(b)%text%markers'; links are marker registry slots.
@@ -31,7 +31,7 @@
 !> in GC; here `free_marker' must be called (it detaches the marker first).
 !> Killing a buffer leaves its markers pointing nowhere.
 !>
-!> Position conversion finds the known (charpos, bytepos) pair closest to
+!> Position conversion finds the known character and byte position closest to
 !> the target -- BEG, BEGV, PT, GPT, ZV, Z, a one-entry cache, and the
 !> buffer's markers -- and scans from there.  Upstream also creates a
 !> marker after a long scan "until the next GC"; without GC that would

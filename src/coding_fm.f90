@@ -1116,7 +1116,7 @@ contains
     end function raw_text_coding_system
 
     !> Choose a coding system for an operation based on the target name.
-    !> The value names a pair of coding systems: (DECODING-SYSTEM . ENCODING-SYSTEM).
+    !> The value names two coding systems, DECODING-SYSTEM and ENCODING-SYSTEM.
     !> DECODING-SYSTEM is the coding system to use for decoding
     !> (in case OPERATION does decoding), and ENCODING-SYSTEM is the coding system
     !> for encoding (in case OPERATION does encoding).

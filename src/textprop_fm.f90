@@ -32,7 +32,7 @@
 !> property and friends), LIMIT t in next-property-change,
 !> add-face-text-property, stickiness for insert-and-inherit, and
 !> `text_property_default_nonsticky' as a (buffer-local) variable: its
-!> standard value is built in, as the value model has no pairs of two names
+!> standard value is built in, as the value model has no entry of two names
 !> for its table.
 module textprop_fm
     use, intrinsic :: iso_fortran_env, only: int64
@@ -180,8 +180,8 @@ contains
         end associate
     end subroutine ensure_intervals
 
-    !> No properties stay none; an even-length array of name and value pairs is kept; an odd-length one is an
-    !> error; anything else X becomes X with an empty value.  Port of textprop.c:validate_plist.
+    !> No properties stay none; an even-length array of names, each followed by its value, is kept; an odd-length one is an
+    !> error; anything else X becomes X with an unallocated value.  Port of textprop.c:validate_plist.
     subroutine validate_plist(props, plist, status)
         type(value_type), intent(in) :: props
         type(value_type), intent(out) :: plist

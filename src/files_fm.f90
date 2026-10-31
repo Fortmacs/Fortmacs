@@ -407,7 +407,7 @@ module files_fm
         !> trailing slash, to indicate that it is a directory.
         !>
         !> Valid wildcards are `*', `?', `[abc]' and `[a-z]'.  Port of
-        !> files.el:insert-directory-wildcard-in-dir-p (the pair as
+        !> files.el:insert-directory-wildcard-in-dir-p (its two values as
         !> DIRECTORY and WILDCARD).  (In files_dir_fm.)
         module function insert_directory_wildcard_in_dir_p(dir, directory, wildcard) result(found)
             implicit none(type, external)

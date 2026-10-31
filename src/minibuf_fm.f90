@@ -709,13 +709,13 @@ contains
     !> Like `assoc' but specifically for strings (and names).
     !>
     !> This returns the first element of LIST whose first element matches the string or
-    !> name KEY, or empty if no match exists.  When performing the
+    !> name KEY, or an unallocated value if no match exists.  When performing the
     !> comparison, names are first converted to strings, and unibyte
     !> strings to multibyte.  If the optional arg CASE_FOLD is true, both
     !> KEY and the elements of LIST are upcased for comparison.
     !>
     !> Unlike `assoc', KEY can also match an entry in LIST consisting of a
-    !> single string, rather than a pair whose first element is a string.
+    !> single string, rather than two values whose first is a string.
     !> Port of minibuf.c:Fassoc_string (KEY as a string; a name is
     !> given by its name).
     function assoc_string(key, list_value, case_fold) result(elt)

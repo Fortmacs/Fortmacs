@@ -191,7 +191,7 @@ contains
     !> function of 2 args (UPOS QSTR) where QSTR is a string entered by the
     !> user (and hence indicating the user's preferred form of quoting);
     !> and UPOS is a position within the unquoted form of QSTR.  REQUOTE
-    !> should return a pair (QPOS . QFUN) such that QPOS is the position
+    !> should return two values, QPOS and QFUN, such that QPOS is the position
     !> corresponding to UPOS but in QSTR, and QFUN is a function of one
     !> argument (a string) which returns that argument appropriately
     !> quoted for use at QPOS.  Port of
