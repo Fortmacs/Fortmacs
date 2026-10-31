@@ -653,6 +653,12 @@ named with it.
 - B8: a condition-case handler is "a check of the status", a throw to X
   is "return to X with a status", and a catch is "the caller that checks
   the status".
+- C2a/d: `nil()` becomes `value_type()`, and `nilp(v)` becomes
+  `.not. allocated(v%a)`, the intrinsic itself with no helper; the
+  `V_NIL` tag follows.
+- C2c: flat lists become plain Fortran arrays used with the intrinsics
+  (`size`, `findloc`, `any`, `pack`, array sections); `value_type` lists
+  remain only for truly nested data.
 
 **PR 3: module suffix and module names.**
 
@@ -662,7 +668,7 @@ named with it.
   `hooks_fm`, `lread_fm` `names_fm`; `print_fm` stays; `syms_of_X`
   becomes `init_X`.
 
-Still to be confirmed with the owner: C2 to C5 from the
+Still to be confirmed with the owner: C2b, C3, C4 and C5 from the
 scan of Lisp terms.  Already settled and kept as they are: hook and the
 `_hook` suffix, and the names of the Lisp language modes.
 
@@ -676,6 +682,35 @@ Lisp-derived term found while porting is proposed to the owner, never
 renamed on one's own; once confirmed it becomes a line of
 tools/fortran-names and a row above.
 <!-- fortran-names: on -->
+
+## Intrinsics first
+
+Fortmacs must look like Fortran, not Elisp written in Fortran.  The
+intrinsics and language constructs come first: `allocated`, `associated`,
+`present`, `size`, `len`, `any`, `all`, `findloc`, `pack`, `merge`, array
+sections, `select case` and `select type`, `index`, `scan`, `verify`,
+`trim`, `adjustl` and the rest.  A helper that only wraps one is not
+written: not `is_null(v)` for `.not. allocated(v%a)`, `length(x)` for
+`size(x)`, `memq` for `any(x == y)` or `car` for `x(1)`.  Flat data is a
+plain array, used with the intrinsics directly.
+
+tools/intrinsics.awk, run by tools/check.sh, reports two patterns:
+
+- **wrapper**: a function or subroutine whose executable part is one
+  statement assigning one intrinsic (or `.not.` of one) applied to its
+  dummy arguments, such as `is_null = .not. allocated(v%a)` or
+  `n = size(x, kind=int64)`;
+- **lisp-helper**: a procedure named after a Lisp helper: `nilp`,
+  `consp`, `car`, `cdr`, `car_safe`, `cdr_safe`, `nth`, `nthcdr`, `memq`,
+  `member`, `length`, `fixnump`, `make_fixnum`, `xfixnum`, `nil`,
+  `t_value`.
+
+The code of 2026-10-31 has 42 such findings (15 wrappers, 27 Lisp helper
+names), listed as FILE:NAME:RULE in tools/intrinsics-baseline; PR 2
+removes them.  The check fails on a finding the baseline does not list and
+on a baseline line that no longer occurs, so the baseline only shrinks.
+tools/test-intrinsics.sh tests the check on the fixture in
+tools/intrinsics-test.
 
 ## Style
 
