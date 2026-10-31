@@ -26,7 +26,7 @@
 submodule(simple_fm) simple_fill_fm
     use lisp_fm, only: vtag, V_INTEGER, V_ARRAY, value_type
     use commands_fm, only: commands
-    use buffer_fm, only: fill_column, auto_fill_function
+    use buffer_fm, only: fill_column, FILL_COLUMN_NONE, auto_fill_function
     use cmds_fm, only: internal_auto_fill_hook, end_of_line, post_self_insert_hook
     use eval_fm, only: hook_type
     use indent_fm, only: current_column, move_to_column, indent_to_left_margin, indent_according_to_mode
@@ -419,11 +419,18 @@ contains
         ! typed as a typo for C-x C-f, so we turned it into an error and
         ! now an interactive prompt.
         write (a, "(i0)") fill_column%value
+        if (fill_column%value == FILL_COLUMN_NONE) a = "FILL_COLUMN_NONE"
         call read_number("Change fill-column from "//trim(a)//" to: ", n, status, current_column())
         if (.not. status%ok()) return
     else
         ! Disallow missing argument; it's probably a typo for C-x C-f.
         call set_error(status, FM_GENERIC_ERROR, "set_fill_column requires an explicit argument")
+        return
+    end if
+
+    ! Upstream's %d of a nil fill-column is an error.
+    if (fill_column%value == FILL_COLUMN_NONE) then
+        call set_error(status, FM_GENERIC_ERROR, "Format specifier doesn't match argument type")
         return
     end if
 

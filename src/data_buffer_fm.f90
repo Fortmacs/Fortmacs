@@ -40,9 +40,9 @@ submodule(data_fm) data_buffer_fm
                        vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
     use lread_fm, only: intern, sym
     use handle_fm, only: null_handle
-    use buffer_fm, only: buffers, cur, swap_buffer_locals_hook, fill_column, left_margin, &
+    use buffer_fm, only: buffers, cur, swap_buffer_locals_hook, fill_column, FILL_COLUMN_NONE, left_margin, &
                          auto_fill_function, auto_fill_proc, is_buffer_live, buffer_handle, transient_mark_mode
-    use xdisp_fm, only: tab_width
+    use xdisp_fm, only: tab_width, TAB_WIDTH_NONE
     use indent_fm, only: indent_tabs_mode, standard_indent, indent_line_function, indent_line_proc, &
                          indent_line_setting, indent_line_function_name, indent_line_function_named
     use callint_fm, only: find_command, command_name_of
@@ -255,6 +255,15 @@ contains
         end if
     end function indent_line_value
 
+    !> N as a value, unallocated (upstream nil) when it is NONE.
+    !> Not a port.
+    function fixnum_or_none(n, none) result(v)
+        integer(int64), intent(in) :: n, none
+        type(value_type) :: v
+
+        if (n /= none) v = make_fixnum(n)
+    end function fixnum_or_none
+
     ! Not a port.
     function bool_value(b) result(v)
         logical, intent(in) :: b
@@ -291,16 +300,21 @@ contains
     !> `wrong-type-argument' error condition occurs otherwise).  INTEGERP
     !> (a DEFVAR_PER_BUFFER with predicate `integerp') no longer changes
     !> that.  Not a port.
-    subroutine set_integer(s, v, integerp, status)
+    subroutine set_integer(s, v, integerp, status, none)
         type(integer_setting), intent(inout) :: s
         type(value_type), intent(in) :: v
         logical, intent(in) :: integerp
         type(status_type), intent(out) :: status
+        !> The value that stands for an unallocated V (upstream nil), for
+        !> a setting whose nil means something (fill-column, tab-width).
+        integer(int64), intent(in), optional :: none
 
         status = status_type()
 
         if (vtag(v) == V_INTEGER) then
             s = xfixnum(v)
+        else if (.not. allocated(v%a) .and. present(none)) then
+            s = none
         else
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer")
         end if
@@ -362,11 +376,11 @@ contains
 
         select case (trim(FWD_NAMES(k)))
         case ("fill_column")
-            call setting_value(fill_column, make_fixnum(fill_column%value), v, bound)
+            call setting_value(fill_column, fixnum_or_none(fill_column%value, FILL_COLUMN_NONE), v, bound)
         case ("left_margin")
             call setting_value(left_margin, make_fixnum(left_margin%value), v, bound)
         case ("tab_width")
-            call setting_value(tab_width, make_fixnum(tab_width%value), v, bound)
+            call setting_value(tab_width, fixnum_or_none(tab_width%value, TAB_WIDTH_NONE), v, bound)
         case ("indent_tabs_mode")
             ! A DEFVAR_BOOL: always t or nil.
             v = bool_value(indent_tabs_mode%value)
@@ -485,11 +499,11 @@ contains
 
         select case (trim(FWD_NAMES(k)))
         case ("fill_column")
-            call set_integer(fill_column, v, .true., status)
+            call set_integer(fill_column, v, .true., status, FILL_COLUMN_NONE)
         case ("left_margin")
             call set_integer(left_margin, v, .true., status)
         case ("tab_width")
-            call set_integer(tab_width, v, .true., status)
+            call set_integer(tab_width, v, .true., status, TAB_WIDTH_NONE)
         case ("indent_tabs_mode")
             indent_tabs_mode = allocated(v%a)
         case ("completion_ignore_case")

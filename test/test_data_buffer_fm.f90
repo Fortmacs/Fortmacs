@@ -33,9 +33,11 @@ module test_data_buffer_fm
                        list_length, list_elt
     use lread_fm, only: sym
     use buffer_fm, only: get_buffer_create, kill_buffer, set_buffer, buffers, cur, fill_column, &
-                         auto_fill_function
+                         auto_fill_function, FILL_COLUMN_NONE
+    use fill_fm, only: current_fill_column
+    use xdisp_fm, only: tab_width
     use search_fm, only: case_fold_search
-    use indent_fm, only: indent_tabs_mode
+    use indent_fm, only: indent_tabs_mode, sane_tab_width
     use casefiddle_fm, only: case_identifiers_as_words
     use data_fm, only: symbol_value, set, boundp, makunbound, value_eq, make_local_variable, &
                        make_variable_buffer_local, kill_local_variable, kill_all_local_variables, &
@@ -383,9 +385,27 @@ contains
         call symbol_value(sym("case_fold_search"), v, st)
         call check(error, value_eq(v, t_value()) .eqv. saved, "Fortran assignment wins")
         if (allocated(error)) return
-        ! An integer setting holds integers only.
+        ! fill-column and tab-width may be nil upstream: FILL_COLUMN_NONE
+        ! (current_fill_column then gives the largest fixnum) and
+        ! TAB_WIDTH_NONE (tabs are 8 columns wide).
         call set_default(sym("fill_column"), value_type(), st)
-        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "fill-column: unallocated is the wrong type")
+        call check(error, st%ok() .and. fill_column%value == FILL_COLUMN_NONE, "fill-column may be nil")
+        if (allocated(error)) return
+        call symbol_value(sym("fill_column"), v, st)
+        call check(error,.not. allocated(v%a), "fill-column reads back as nil")
+        if (allocated(error)) return
+        call check(error, current_fill_column() == 2_int64**61 - 1, "no fill column: the largest fixnum")
+        if (allocated(error)) return
+        call set_default(sym("tab_width"), value_type(), st)
+        call check(error, st%ok() .and. sane_tab_width() == 8, "tab-width may be nil: 8 columns")
+        if (allocated(error)) return
+        call symbol_value(sym("tab_width"), v, st)
+        call check(error,.not. allocated(v%a), "tab-width reads back as nil")
+        tab_width = 8
+        if (allocated(error)) return
+        ! Another integer setting holds integers only.
+        call set_default(sym("standard_indent"), value_type(), st)
+        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "standard-indent: unallocated is the wrong type")
         if (allocated(error)) return
         call set_default(sym("fill_column"), make_string("x"), st)
         call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "expected integer")

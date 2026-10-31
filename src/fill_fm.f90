@@ -37,7 +37,7 @@ module fill_fm
     use lisp_fm, only: value_type, xfixnum, make_string, xstring, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
     use lread_fm, only: sym
     use data_fm, only: value_eq, symbol_name, logical_setting, add_local_variables_killer
-    use buffer_fm, only: buffers, cur, fill_column, transient_mark_mode, barf_if_buffer_read_only, &
+    use buffer_fm, only: buffers, cur, fill_column, FILL_COLUMN_NONE, transient_mark_mode, barf_if_buffer_read_only, &
                          is_buffer_modified, restore_buffer_modified, current_buffer, buffer_serial_live
     use character_fm, only: string_char_and_length
     use category_fm, only: char_has_category
@@ -313,6 +313,13 @@ contains
         type(value_type) :: margin
         type(status_type) :: st
         logical :: found
+
+        ! Upstream's nil fill-column (obsolete): the largest fixnum (its
+        ! warning, through lwarn, is Deferred).
+        if (fill_column%value == FILL_COLUMN_NONE) then
+            fc = 2_int64**61 - 1
+            return
+        end if
 
         opoint = point()
         here = line_beginning_position()
