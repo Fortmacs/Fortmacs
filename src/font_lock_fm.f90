@@ -98,8 +98,7 @@ module font_lock_fm
               font_lock_remove_face_from_text_property, font_lock_keyword, font_lock_highlight, &
               font_lock_anchored, font_lock_fontified, font_lock_keywords_of_buffer, set_font_lock_keywords
 
-    !> `font_lock_maximum_decoration' for the maximum decoration available
-    !> (upstream's t).
+    !> `font_lock_maximum_decoration' for the maximum decoration available.
     integer, parameter, public :: FONT_LOCK_DECORATION_MAX = huge(0)
 
     !> Maximum decoration level for fontification.

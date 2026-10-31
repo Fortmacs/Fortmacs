@@ -1797,7 +1797,7 @@ contains
     !> `visit', the buffer then visits that file and is unmodified.
     !> `message', if present, receives "Wrote FILE" for the echo area.
     !> Port of fileio.c:Fwrite_region (no APPEND, LOCKNAME or MUSTBENEW;
-    !> no fsync, as write-region-inhibit-fsync defaults to t).
+    !> no fsync, as `write_region_inhibit_fsync' defaults to .true.).
     subroutine write_region(filename, visit, status, start, end, message)
         character(len=*), intent(in) :: filename
         logical, intent(in) :: visit

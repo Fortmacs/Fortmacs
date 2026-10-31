@@ -629,7 +629,7 @@ module window_fm
         !> FORCE_SAME_WINDOW an error condition occurs.  Unless NORECORD, the buffer
         !> becomes the most recently selected one.  When the window showed
         !> the buffer before, its start and point there are restored
-        !> (`switch_to_buffer_preserve_window_point' t).  Port of
+        !> (`switch_to_buffer_preserve_window_point' .true.).  Port of
         !> window.el:switch-to-buffer (`switch_to_buffer_obey_display_actions'
         !> and the other values of `switch_to_buffer_preserve_window_point'
         !> are deferred).
@@ -1101,7 +1101,7 @@ module window_fm
             type(handle_type) :: m
         end function minibuffer_window
 
-        !> Return t if WINDOW is a minibuffer window.
+        !> Return .true. if WINDOW is a minibuffer window.
         !> WINDOW must be a valid window and defaults to the selected one.
         !> Port of window.c:Fwindow_minibuffer_p.
         module function window_minibuffer_p(window, status) result(p)

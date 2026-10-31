@@ -10627,7 +10627,7 @@ contains
         case ("processp")
             entry%file = "process_fm.f90"
             entry%fortran = "processp(object)"
-            entry%doc = "Return t if OBJECT is a process."
+            entry%doc = "Return .true. if OBJECT is a process."
         case ("prog_mode")
             entry%file = "prog_mode_fm.f90"
             entry%fortran = "call prog_mode(status)"
@@ -20218,7 +20218,7 @@ contains
                         "elements, and is done just after inserting a new element."//LF// &
                         ""//LF// &
                         "This variable only affects history lists that don't specify their own"//LF// &
-                        "maximum lengths.  Setting the `history_length' property of a history"//LF// &
+                        "maximum lengths.  Setting the `history_length' attribute of a history"//LF// &
                         "variable overrides this default."
         case ("ibuffer_always_compile_formats")
             entry%file = "ibuffer_fm.f90"

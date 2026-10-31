@@ -102,9 +102,9 @@ module subr_fm
     !> elements, and is done just after inserting a new element.
     !>
     !> This variable only affects history lists that don't specify their own
-    !> maximum lengths.  Setting the `history_length' property of a history
+    !> maximum lengths.  Setting the `history_length' attribute of a history
     !> variable overrides this default.  Port of minibuf.c history-length
-    !> (the value t, no truncation, is not ported: Deferred).
+    !> (a value meaning no truncation is not ported: Deferred).
     integer, public :: history_length = 100
     !> True means to delete duplicates in history.
     !> If set to true when adding a new history element, all previous identical

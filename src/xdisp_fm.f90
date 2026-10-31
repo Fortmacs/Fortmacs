@@ -1856,7 +1856,7 @@ contains
     !> The face of character C in text whose face is FACE_ID on frame F:
     !> control characters and raw bytes shown as ^X or \ooo in the
     !> escape-glyph face merged in, non-ASCII spaces and hyphens with
-    !> nobreak-space and nobreak-hyphen (nobreak-char-display t).  The
+    !> nobreak-space and nobreak-hyphen (`nobreak_char_display' .true.).  The
     !> face part of xdisp.c:get_next_display_element.
     !> Port of xdisp.c:get_next_display_element, in part, with
     !> xdisp.c:merge_escape_glyph_face.
@@ -3206,7 +3206,7 @@ contains
     !> column of the border glyph of a window with one to its right.  The
     !> mode line is in the mode_line_active face if `w' is the selected
     !> window (or was when the minibuffer was entered), else in
-    !> mode_line_inactive (mode-line-in-non-selected-windows t); the
+    !> mode_line_inactive (`mode_line_in_non_selected_windows' .true.); the
     !> buffer name (mode-line-buffer-identification, "%12b") has the
     !> mode_line_buffer_id face merged in.  Port of the terminal part of
     !> xdisp.c:display_mode_line (CURRENT_MODE_LINE_ACTIVE_FACE_ID_3),

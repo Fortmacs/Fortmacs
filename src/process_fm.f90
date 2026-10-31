@@ -233,7 +233,7 @@ contains
         if (.not. status%ok()) status%detail = "Wrong type argument: expected type(process_type)"
     end subroutine resolve
 
-    !> Return t if OBJECT is a process.  Port of process.c:Fprocessp.
+    !> Return .true. if OBJECT is a process.  Port of process.c:Fprocessp.
     logical function processp(object)
         type(handle_type), intent(in) :: object
 

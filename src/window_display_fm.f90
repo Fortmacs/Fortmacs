@@ -2366,7 +2366,7 @@ contains
     !> Even sizes of WINDOW and selected window, if these windows are the
     !> only children of their parent and the selected window is larger
     !> than WINDOW.  Port of window.el:window--even-window-sizes
-    !> (`even_window_sizes' t).
+    !> (`even_window_sizes' .true.).
     subroutine window_even_window_sizes(h)
         type(handle_type), intent(in) :: h
         type(handle_type) :: sw, parent

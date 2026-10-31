@@ -1854,7 +1854,7 @@ contains
         call isearch_search_and_update()
     end subroutine isearch_process_search_string
 
-    !> Return t if STR ends in an odd number of backslashes.  Port of
+    !> Return .true. if STR ends in an odd number of backslashes.  Port of
     !> isearch.el:isearch-backslash.
     pure logical function isearch_backslash(str)
         character(len=*), intent(in) :: str

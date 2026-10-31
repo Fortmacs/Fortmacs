@@ -78,7 +78,7 @@ module abbrev_fm
               abbrev_table_symbols, abbrev_possibly_save, local_abbrev_table, set_local_abbrev_table, &
               edit_abbrevs_mode, abbrev_mode_p, abbrev_no_self_insert, syms_of_abbrev
 
-    !> The values of `save_abbrevs': never save, ask (t upstream) or save
+    !> The values of `save_abbrevs': never save, ask or save
     !> without asking (`silently').
     integer, parameter, public :: SAVE_ABBREVS_NEVER = 0, SAVE_ABBREVS_ASK = 1, SAVE_ABBREVS_SILENTLY = 2
 
@@ -267,7 +267,7 @@ module abbrev_fm
 
     !> True means save word abbrevs too when files are saved.
     !> If `SAVE_ABBREVS_SILENTLY', don't ask the user before saving.  Port
-    !> of files.el save-abbrevs (SAVE_ABBREVS_ASK is t).
+    !> of files.el save-abbrevs (SAVE_ABBREVS_ASK).
     integer, public :: save_abbrevs = SAVE_ABBREVS_ASK
 
     !> Keymap used in `edit_abbrevs'.  Port of abbrev.el
