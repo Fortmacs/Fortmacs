@@ -33,13 +33,16 @@ contains
     !> value holding `text' (already in the internal encoding); with
     !> neither, the null value.  Port of
     !> lread.c:intern and alloc.c:build_string.
-    module procedure value_of_string
-    if (present(name)) then
-        v = make_symbol_ref(intern(name))
-    else if (present(text)) then
-        allocate (v%a(1))
-        v%a(1)%tag = V_STRING
-        v%a(1)%s = text
-    end if
-    end procedure value_of_string
+    recursive module function value_of_string(name, text) result(v)
+        character(len=*), intent(in), optional :: name, text
+        type(value_type) :: v
+
+        if (present(name)) then
+            v = make_symbol_ref(intern(name))
+        else if (present(text)) then
+            allocate (v%a(1))
+            v%a(1)%tag = V_STRING
+            v%a(1)%s = text
+        end if
+    end function value_of_string
 end submodule lisp_names_fm
