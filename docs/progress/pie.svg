@@ -1,17 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="520" height="206" viewBox="0 0 520 206" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13">
-<path d="M90 90 L90.00 10.00 A80 80 0 0 1 101.20 10.79 Z" fill="#96B6B0" stroke="#1A1A1A" stroke-width="1"/>
-<path d="M90 90 L101.20 10.79 A80 80 0 0 1 115.86 14.30 Z" fill="#578D97" stroke="#1A1A1A" stroke-width="1"/>
+<path d="M90 90 L90.00 10.00 A80 80 0 0 1 101.20 10.79 Z" fill="#608A83" stroke="#1A1A1A" stroke-width="1"/>
+<path d="M90 90 L101.20 10.79 A80 80 0 0 1 115.86 14.30 Z" fill="#578497" stroke="#1A1A1A" stroke-width="1"/>
 <path d="M90 90 L115.86 14.30 A80 80 0 1 1 90.00 10.00 Z" fill="#1A1A1A" stroke="#1A1A1A" stroke-width="1"/>
 <text x="292" y="26" fill="#1A1A1A" text-anchor="end">C</text>
-<rect x="302" y="15" width="14" height="14" rx="2" fill="#96B6B0" stroke="#1A1A1A" stroke-width="1"/>
+<rect x="302" y="15" width="14" height="14" rx="2" fill="#608A83" stroke="#1A1A1A" stroke-width="1"/>
 <text x="324" y="26" fill="#1A1A1A">≈16.74%</text>
 <text x="516" y="26" fill="#1A1A1A" text-anchor="end">1,431 of 8,547</text>
 <text x="292" y="52" fill="#1A1A1A" text-anchor="end">Elisp</text>
-<rect x="302" y="41" width="14" height="14" rx="2" fill="#578D97" stroke="#1A1A1A" stroke-width="1"/>
+<rect x="302" y="41" width="14" height="14" rx="2" fill="#578497" stroke="#1A1A1A" stroke-width="1"/>
 <text x="324" y="52" fill="#1A1A1A">≈3.98%</text>
 <text x="516" y="52" fill="#1A1A1A" text-anchor="end">1,922 of 48,317</text>
 <text x="292" y="78" fill="#1A1A1A" text-anchor="end">GNU ELPA</text>
-<rect x="302" y="67" width="14" height="14" rx="2" fill="#AC7E76" stroke="#1A1A1A" stroke-width="1"/>
+<rect x="302" y="67" width="14" height="14" rx="2" fill="#976057" stroke="#1A1A1A" stroke-width="1"/>
 <text x="324" y="78" fill="#1A1A1A">0.00%</text>
 <text x="516" y="78" fill="#1A1A1A" text-anchor="end">0 of 509</text>
 <text x="292" y="104" fill="#1A1A1A" text-anchor="end">NonGNU ELPA</text>
