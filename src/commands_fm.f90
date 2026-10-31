@@ -72,6 +72,9 @@ module commands_fm
         type(command_type) :: backward_up_list
         type(command_type) :: backward_word
         type(command_type) :: beginning_of_buffer
+        type(command_type) :: beginning_of_defun
+        type(command_type) :: beginning_of_defun_comments
+        type(command_type) :: beginning_of_defun_raw
         type(command_type) :: beginning_of_line
         type(command_type) :: beginning_of_line_text
         type(command_type) :: blink_matching_open
@@ -152,6 +155,7 @@ module commands_fm
         type(command_type) :: call_last_kbd_macro
         type(command_type) :: capitalize_region
         type(command_type) :: capitalize_word
+        type(command_type) :: check_parens
         type(command_type) :: clear_rectangle
         type(command_type) :: comint_accumulate
         type(command_type) :: comint_append_output_to_file
@@ -247,7 +251,10 @@ module commands_fm
         type(command_type) :: copy_rectangle_to_register
         type(command_type) :: copy_region_as_kill
         type(command_type) :: copy_to_register
+        type(command_type) :: count_lines_page
         type(command_type) :: count_matches
+        type(command_type) :: count_words
+        type(command_type) :: count_words_region
         type(command_type) :: crm_complete
         type(command_type) :: crm_complete_and_exit
         type(command_type) :: crm_complete_word
@@ -268,6 +275,7 @@ module commands_fm
         type(command_type) :: delete_matching_lines
         type(command_type) :: delete_non_matching_lines
         type(command_type) :: delete_other_windows
+        type(command_type) :: delete_pair
         type(command_type) :: delete_process
         type(command_type) :: delete_rectangle
         type(command_type) :: delete_whitespace_rectangle
@@ -392,6 +400,7 @@ module commands_fm
         type(command_type) :: enable_command
         type(command_type) :: end_kbd_macro
         type(command_type) :: end_of_buffer
+        type(command_type) :: end_of_defun
         type(command_type) :: end_of_line
         type(command_type) :: exchange_point_and_mark
         type(command_type) :: executable_self_display
@@ -470,6 +479,9 @@ module commands_fm
         type(command_type) :: global_auto_revert_mode
         type(command_type) :: global_font_lock_mode
         type(command_type) :: global_font_lock_mode_enable_in_buffer
+        type(command_type) :: goto_char
+        type(command_type) :: goto_line
+        type(command_type) :: goto_line_relative
         type(command_type) :: grep
         type(command_type) :: grep_change_to_grep_edit_mode
         type(command_type) :: grep_edit_mode
@@ -668,6 +680,8 @@ module commands_fm
         type(command_type) :: info_up
         type(command_type) :: info_virtual_index
         type(command_type) :: insert_abbrevs
+        type(command_type) :: insert_pair
+        type(command_type) :: insert_parentheses
         type(command_type) :: insert_register
         type(command_type) :: inverse_add_global_abbrev
         type(command_type) :: inverse_add_mode_abbrev
@@ -816,7 +830,9 @@ module commands_fm
         type(command_type) :: makefile_pickup_targets
         type(command_type) :: makefile_previous_dependency
         type(command_type) :: map_query_replace_regexp
+        type(command_type) :: mark_defun
         type(command_type) :: mark_end_of_sentence
+        type(command_type) :: mark_page
         type(command_type) :: mark_paragraph
         type(command_type) :: mark_sexp
         type(command_type) :: mark_whole_buffer
@@ -832,12 +848,16 @@ module commands_fm
         type(command_type) :: minibuffer_scroll_up_command
         type(command_type) :: move_beginning_of_line
         type(command_type) :: move_end_of_line
+        type(command_type) :: move_to_column
         type(command_type) :: move_to_left_margin
         type(command_type) :: move_to_tab_stop
         type(command_type) :: move_to_window_line
         type(command_type) :: move_to_window_line_top_bottom
         type(command_type) :: multi_occur
         type(command_type) :: multi_occur_in_matching_buffers
+        type(command_type) :: narrow_to_defun
+        type(command_type) :: narrow_to_page
+        type(command_type) :: narrow_to_region
         type(command_type) :: negative_argument
         type(command_type) :: newline
         type(command_type) :: newline_and_indent
@@ -884,6 +904,7 @@ module commands_fm
         type(command_type) :: query_replace_regexp
         type(command_type) :: quit_window
         type(command_type) :: quoted_insert
+        type(command_type) :: raise_sexp
         type(command_type) :: re_search_backward
         type(command_type) :: re_search_forward
         type(command_type) :: read_char_from_minibuffer_insert_char
@@ -1103,7 +1124,9 @@ module commands_fm
         type(command_type) :: view_search_regexp_backward
         type(command_type) :: view_search_regexp_forward
         type(command_type) :: what_line
+        type(command_type) :: what_page
         type(command_type) :: where_is
+        type(command_type) :: widen
         type(command_type) :: window_configuration_to_register
         type(command_type) :: write_abbrev_file
         type(command_type) :: write_file
@@ -1120,7 +1143,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1081) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1104) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1160,6 +1183,9 @@ module commands_fm
                                                                   "backward_up_list", &
                                                                   "backward_word", &
                                                                   "beginning_of_buffer", &
+                                                                  "beginning_of_defun", &
+                                                                  "beginning_of_defun_comments", &
+                                                                  "beginning_of_defun_raw", &
                                                                   "beginning_of_line", &
                                                                   "beginning_of_line_text", &
                                                                   "blink_matching_open", &
@@ -1240,6 +1266,7 @@ module commands_fm
                                                                   "call_last_kbd_macro", &
                                                                   "capitalize_region", &
                                                                   "capitalize_word", &
+                                                                  "check_parens", &
                                                                   "clear_rectangle", &
                                                                   "comint_accumulate", &
                                                                   "comint_append_output_to_file", &
@@ -1335,7 +1362,10 @@ module commands_fm
                                                                   "copy_rectangle_to_register", &
                                                                   "copy_region_as_kill", &
                                                                   "copy_to_register", &
+                                                                  "count_lines_page", &
                                                                   "count_matches", &
+                                                                  "count_words", &
+                                                                  "count_words_region", &
                                                                   "crm_complete", &
                                                                   "crm_complete_and_exit", &
                                                                   "crm_complete_word", &
@@ -1356,6 +1386,7 @@ module commands_fm
                                                                   "delete_matching_lines", &
                                                                   "delete_non_matching_lines", &
                                                                   "delete_other_windows", &
+                                                                  "delete_pair", &
                                                                   "delete_process", &
                                                                   "delete_rectangle", &
                                                                   "delete_whitespace_rectangle", &
@@ -1480,6 +1511,7 @@ module commands_fm
                                                                   "enable_command", &
                                                                   "end_kbd_macro", &
                                                                   "end_of_buffer", &
+                                                                  "end_of_defun", &
                                                                   "end_of_line", &
                                                                   "exchange_point_and_mark", &
                                                                   "executable_self_display", &
@@ -1558,6 +1590,9 @@ module commands_fm
                                                                   "global_auto_revert_mode", &
                                                                   "global_font_lock_mode", &
                                                                   "global_font_lock_mode_enable_in_buffer", &
+                                                                  "goto_char", &
+                                                                  "goto_line", &
+                                                                  "goto_line_relative", &
                                                                   "grep", &
                                                                   "grep_change_to_grep_edit_mode", &
                                                                   "grep_edit_mode", &
@@ -1756,6 +1791,8 @@ module commands_fm
                                                                   "info_up", &
                                                                   "info_virtual_index", &
                                                                   "insert_abbrevs", &
+                                                                  "insert_pair", &
+                                                                  "insert_parentheses", &
                                                                   "insert_register", &
                                                                   "inverse_add_global_abbrev", &
                                                                   "inverse_add_mode_abbrev", &
@@ -1904,7 +1941,9 @@ module commands_fm
                                                                   "makefile_pickup_targets", &
                                                                   "makefile_previous_dependency", &
                                                                   "map_query_replace_regexp", &
+                                                                  "mark_defun", &
                                                                   "mark_end_of_sentence", &
+                                                                  "mark_page", &
                                                                   "mark_paragraph", &
                                                                   "mark_sexp", &
                                                                   "mark_whole_buffer", &
@@ -1920,12 +1959,16 @@ module commands_fm
                                                                   "minibuffer_scroll_up_command", &
                                                                   "move_beginning_of_line", &
                                                                   "move_end_of_line", &
+                                                                  "move_to_column", &
                                                                   "move_to_left_margin", &
                                                                   "move_to_tab_stop", &
                                                                   "move_to_window_line", &
                                                                   "move_to_window_line_top_bottom", &
                                                                   "multi_occur", &
                                                                   "multi_occur_in_matching_buffers", &
+                                                                  "narrow_to_defun", &
+                                                                  "narrow_to_page", &
+                                                                  "narrow_to_region", &
                                                                   "negative_argument", &
                                                                   "newline", &
                                                                   "newline_and_indent", &
@@ -1972,6 +2015,7 @@ module commands_fm
                                                                   "query_replace_regexp", &
                                                                   "quit_window", &
                                                                   "quoted_insert", &
+                                                                  "raise_sexp", &
                                                                   "re_search_backward", &
                                                                   "re_search_forward", &
                                                                   "read_char_from_minibuffer_insert_char", &
@@ -2191,7 +2235,9 @@ module commands_fm
                                                                   "view_search_regexp_backward", &
                                                                   "view_search_regexp_forward", &
                                                                   "what_line", &
+                                                                  "what_page", &
                                                                   "where_is", &
+                                                                  "widen", &
                                                                   "window_configuration_to_register", &
                                                                   "write_abbrev_file", &
                                                                   "write_file", &
@@ -2292,6 +2338,12 @@ contains
             p => commands%backward_word
         case ("beginning_of_buffer")
             p => commands%beginning_of_buffer
+        case ("beginning_of_defun")
+            p => commands%beginning_of_defun
+        case ("beginning_of_defun_comments")
+            p => commands%beginning_of_defun_comments
+        case ("beginning_of_defun_raw")
+            p => commands%beginning_of_defun_raw
         case ("beginning_of_line")
             p => commands%beginning_of_line
         case ("beginning_of_line_text")
@@ -2452,6 +2504,8 @@ contains
             p => commands%capitalize_region
         case ("capitalize_word")
             p => commands%capitalize_word
+        case ("check_parens")
+            p => commands%check_parens
         case ("clear_rectangle")
             p => commands%clear_rectangle
         case ("comint_accumulate")
@@ -2642,8 +2696,14 @@ contains
             p => commands%copy_region_as_kill
         case ("copy_to_register")
             p => commands%copy_to_register
+        case ("count_lines_page")
+            p => commands%count_lines_page
         case ("count_matches")
             p => commands%count_matches
+        case ("count_words")
+            p => commands%count_words
+        case ("count_words_region")
+            p => commands%count_words_region
         case ("crm_complete")
             p => commands%crm_complete
         case ("crm_complete_and_exit")
@@ -2684,6 +2744,8 @@ contains
             p => commands%delete_non_matching_lines
         case ("delete_other_windows")
             p => commands%delete_other_windows
+        case ("delete_pair")
+            p => commands%delete_pair
         case ("delete_process")
             p => commands%delete_process
         case ("delete_rectangle")
@@ -2932,6 +2994,8 @@ contains
             p => commands%end_kbd_macro
         case ("end_of_buffer")
             p => commands%end_of_buffer
+        case ("end_of_defun")
+            p => commands%end_of_defun
         case ("end_of_line")
             p => commands%end_of_line
         case ("exchange_point_and_mark")
@@ -3088,6 +3152,12 @@ contains
             p => commands%global_font_lock_mode
         case ("global_font_lock_mode_enable_in_buffer")
             p => commands%global_font_lock_mode_enable_in_buffer
+        case ("goto_char")
+            p => commands%goto_char
+        case ("goto_line")
+            p => commands%goto_line
+        case ("goto_line_relative")
+            p => commands%goto_line_relative
         case ("grep")
             p => commands%grep
         case ("grep_change_to_grep_edit_mode")
@@ -3484,6 +3554,10 @@ contains
             p => commands%info_virtual_index
         case ("insert_abbrevs")
             p => commands%insert_abbrevs
+        case ("insert_pair")
+            p => commands%insert_pair
+        case ("insert_parentheses")
+            p => commands%insert_parentheses
         case ("insert_register")
             p => commands%insert_register
         case ("inverse_add_global_abbrev")
@@ -3780,8 +3854,12 @@ contains
             p => commands%makefile_previous_dependency
         case ("map_query_replace_regexp")
             p => commands%map_query_replace_regexp
+        case ("mark_defun")
+            p => commands%mark_defun
         case ("mark_end_of_sentence")
             p => commands%mark_end_of_sentence
+        case ("mark_page")
+            p => commands%mark_page
         case ("mark_paragraph")
             p => commands%mark_paragraph
         case ("mark_sexp")
@@ -3812,6 +3890,8 @@ contains
             p => commands%move_beginning_of_line
         case ("move_end_of_line")
             p => commands%move_end_of_line
+        case ("move_to_column")
+            p => commands%move_to_column
         case ("move_to_left_margin")
             p => commands%move_to_left_margin
         case ("move_to_tab_stop")
@@ -3824,6 +3904,12 @@ contains
             p => commands%multi_occur
         case ("multi_occur_in_matching_buffers")
             p => commands%multi_occur_in_matching_buffers
+        case ("narrow_to_defun")
+            p => commands%narrow_to_defun
+        case ("narrow_to_page")
+            p => commands%narrow_to_page
+        case ("narrow_to_region")
+            p => commands%narrow_to_region
         case ("negative_argument")
             p => commands%negative_argument
         case ("newline")
@@ -3916,6 +4002,8 @@ contains
             p => commands%quit_window
         case ("quoted_insert")
             p => commands%quoted_insert
+        case ("raise_sexp")
+            p => commands%raise_sexp
         case ("re_search_backward")
             p => commands%re_search_backward
         case ("re_search_forward")
@@ -4354,8 +4442,12 @@ contains
             p => commands%view_search_regexp_forward
         case ("what_line")
             p => commands%what_line
+        case ("what_page")
+            p => commands%what_page
         case ("where_is")
             p => commands%where_is
+        case ("widen")
+            p => commands%widen
         case ("window_configuration_to_register")
             p => commands%window_configuration_to_register
         case ("write_abbrev_file")

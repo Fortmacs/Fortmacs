@@ -41,6 +41,9 @@ program tester
     use test_newcomment_fm, only: collect_newcomment_fm
     use test_conf_mode_fm, only: collect_conf_mode_fm
     use test_make_mode_fm, only: collect_make_mode_fm
+    use test_lisp_cmds_fm, only: collect_lisp_cmds_fm
+    use test_page_fm, only: collect_page_fm
+    use test_simple_goto_fm, only: collect_simple_goto_fm
     use test_syntax_propertize_fm, only: collect_syntax_propertize_fm
     use test_smie_fm, only: collect_smie_fm
     use test_sh_script_fm, only: collect_sh_script_fm
@@ -212,6 +215,9 @@ program tester
                  new_testsuite("newcomment_fm", collect_newcomment_fm), &
                  new_testsuite("conf_mode_fm", collect_conf_mode_fm), &
                  new_testsuite("make_mode_fm", collect_make_mode_fm), &
+                 new_testsuite("lisp_cmds_fm", collect_lisp_cmds_fm), &
+                 new_testsuite("page_fm", collect_page_fm), &
+                 new_testsuite("simple_goto_fm", collect_simple_goto_fm), &
                  new_testsuite("syntax_propertize_fm", collect_syntax_propertize_fm), &
                  new_testsuite("smie_fm", collect_smie_fm), &
                  new_testsuite("sh_script_fm", collect_sh_script_fm), &

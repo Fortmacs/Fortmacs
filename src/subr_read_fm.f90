@@ -69,9 +69,11 @@ contains
     character(len=:), allocatable :: full, str, histvar, def1
     type(minibuffer_string_type), allocatable :: defs(:)
     integer :: k, ndefs
-    logical :: have
+    logical :: have, first_nil
 
     status = status_type()
+    first_nil = .false.
+    if (present(no_default)) first_nil = no_default
     n = 0
     full = prompt
     histvar = "read_number_history"
@@ -94,7 +96,7 @@ contains
         end if
     end do
 
-    if (ndefs > 0) then
+    if (ndefs > 0 .and. .not. first_nil) then
         def1 = defs(1)%s
         ! (string-match "\\(\\):[ \t]*\\'" prompt): before the last colon
         ! followed only by whitespace, else in place of the trailing
@@ -122,7 +124,7 @@ contains
         if (.not. status%ok()) return
 
         if (len(str) == 0) then
-            have = ndefs > 0
+            have = ndefs > 0 .and. .not. first_nil
 
             if (have) then
                 if (present(defaults)) then
