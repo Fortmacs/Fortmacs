@@ -55,7 +55,7 @@ module help_fns_fm
     use fill_fm, only: fill_region_as_paragraph
     use lread_fm, only: sym
     use data_fm, only: symbol_name
-    use callint_fm, only: is_command_defined, fboundp
+    use callint_fm, only: is_command_defined, find_command
     use keymap_fm, only: key_description, where_is_internal, parse_modifiers
     use minibuf_fm, only: completion_obarray_table, completion_list_table
     use minibuffer_fm, only: completing_read, REQUIRE_MATCH_YES
@@ -98,7 +98,7 @@ contains
             if (trim(function_names(k)) == name) return
         end do
 
-        is_function_known = fboundp(sym(name))
+        is_function_known = associated(find_command(name))
     end function is_function_known
 
     !> Completion predicate for `describe_function'.  Not a port.

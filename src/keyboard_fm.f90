@@ -72,7 +72,7 @@ module keyboard_fm
                          key_description, parse_modifiers, apply_modifiers, &
                          overriding_terminal_local_map, pushed_terminal_local_map, keymap_events, lookup_key, command_remapping, &
                          push_key_description, key_parse, M_UP, M_DOWN, M_DRAG, M_CLICK, M_DOUBLE, M_TRIPLE
-    use callint_fm, only: call_interactively, funcall, current_prefix_arg, prefix_arg, &
+    use callint_fm, only: call_interactively, current_prefix_arg, prefix_arg, &
                           prefix_numeric_value, this_command, command_name_of
     use buffer_fm, only: buffers, cur, deactivate_mark_variable, transient_mark_mode, current_buffer, set_buffer
     use casetab_fm, only: downcase, is_uppercase
@@ -147,6 +147,10 @@ module keyboard_fm
     logical, public :: this_command_keys_shift_translated = .false.
     !> The keys of the command being run (this-command-keys).
     type(value_type), allocatable, public :: this_command_keys(:)
+
+    !> The command run for an undefined key (subr.el:undefined, which
+    !> subr_fm sets: keyboard_fm cannot use it).  Not a port.
+    procedure(command_proc), pointer, public :: undefined_function => null()
     !> Stand-in for the echo area: the last message shown.
     character(len=:), allocatable, public :: last_message
     !> Stand-in for minibuffer.el's minibuffer--message-overlay: text shown
@@ -2183,8 +2187,8 @@ contains
         deactivate_mark_variable = .false.
 
         if (.not. allocated(cmd%a)) then
-            ! nil means key is undefined.
-            call funcall(sym("undefined"), status)
+            ! No command means the key is undefined.
+            if (associated(undefined_function)) call undefined_function(status)
         else
             ! simple.el:command-execute
             current_prefix_arg = prefix_arg

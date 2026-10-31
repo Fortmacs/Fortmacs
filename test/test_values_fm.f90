@@ -30,7 +30,7 @@ module test_values_fm
                        make_string, sym_nil, sym_t, t_value, value_type, xfixnum, &
                        xstring
     use lread_fm, only: intern, intern_soft, sym
-    use data_fm, only: boundp, car, car_safe, cdr, keywordp, makunbound, set, symbol_name, &
+    use data_fm, only: boundp, car, car_safe, cdr, makunbound, set, symbol_name, &
                        symbol_value, value_eq
     use fns_fm, only: get, length, member, memq, nth, nthcdr, plist_get, plist_member, plist_put, &
                       put, is_string_greater, is_string_less, value_equal
@@ -231,7 +231,7 @@ contains
         call check(error, value_eq(v, t_value()), "t evaluates to t")
         if (allocated(error)) return
         call symbol_value(sym(":kw"), v, st)
-        call check(error, value_eq(v, sym(":kw")) .and. keywordp(v), "keyword evaluates to itself")
+        call check(error, value_eq(v, sym(":kw")), "keyword evaluates to itself")
     end subroutine test_symbol_values
 
     !> data-tests.el: binding-test-set-constant-{t,nil,keyword,itself}.

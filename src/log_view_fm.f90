@@ -706,7 +706,7 @@ contains
                 if (.not. (n <= lastl)) exit
                 if (n == processed_line) exit
                 processed_line = n
-                call apply()
+                call toggle_entry()
                 if (.not. status%ok()) exit
             end do
 
@@ -714,14 +714,14 @@ contains
             deactivate_mark_variable = .true.
         else
             do k = 1, arg
-                call apply()
+                call toggle_entry()
                 if (.not. status%ok()) return
             end do
         end if
 
     contains
 
-        recursive subroutine apply()
+        recursive subroutine toggle_entry()
             character(len=:), allocatable :: tag
             logical :: has
             integer :: i
@@ -744,7 +744,7 @@ contains
             else
                 call unmark_entry(status)
             end if
-        end subroutine apply
+        end subroutine toggle_entry
     end subroutine mark_unmark
 
     !> Mark the log entry at point.

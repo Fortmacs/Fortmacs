@@ -651,7 +651,7 @@ contains
         if (vtag(face_ref) == V_ARRAY) then
             call list_elements(face_ref, elts)
 
-            if (keywordp(elts(1))) then
+            if (vtag(elts(1)) == V_NAME .and. index(symbols(xsymbol(elts(1)))%name, ":") == 1) then
                 ! Assume this is the property list form.
                 call merge_plist(elts, to, ok, filter, d)
                 return
@@ -676,19 +676,6 @@ contains
 
         ok = .false.
     end subroutine merge_face_ref
-
-    !> Whether V is a keyword (a name that starts with `:').
-    !> Not a port.
-    logical function keywordp(v)
-        type(value_type), intent(in) :: v
-
-        keywordp = .false.
-        if ((vtag(v) /= V_NAME .and. vtag(v) /= V_NULL)) return
-
-        associate (name => symbols(xsymbol(v))%name)
-            if (len(name) > 0) keywordp = name(1:1) == ":"
-        end associate
-    end function keywordp
 
     !> Whether V is the name NAME.  Not a port.
     logical function is_symbol(v, name)

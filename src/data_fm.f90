@@ -154,7 +154,7 @@ module data_fm
 
     public :: check_fixnum, check_symbol, check_string, check_list
     public :: value_eq, car, cdr, car_safe, cdr_safe
-    public :: symbol_name, keywordp, boundp, symbol_value, set, makunbound
+    public :: symbol_name, boundp, symbol_value, set, makunbound
     public :: make_local_variable, make_variable_buffer_local, kill_local_variable, kill_all_local_variables, &
               is_local_variable, is_local_variable_if_set, is_automatically_local, is_forwarded_variable, default_value, &
               function_setting_default, &
@@ -727,19 +727,6 @@ contains
         name = symbols(xsymbol(symbol))%name
     end subroutine symbol_name
 
-    !> True for symbols whose name starts with ':'.  Port of data.c:Fkeywordp.
-    logical function keywordp(v)
-        type(value_type), intent(in) :: v
-
-        keywordp = .false.
-        if (vtag(v) /= V_NAME) return
-        call ensure_obarray()
-
-        associate (name => symbols(xsymbol(v))%name)
-            if (len(name) > 0) keywordp = name(1:1) == ":"
-        end associate
-    end function keywordp
-
     !> Port of data.c:Fboundp (global value only).
     subroutine boundp(symbol, bound, status)
         type(value_type), intent(in) :: symbol
@@ -799,7 +786,7 @@ contains
         id = xsymbol(symbol)
 
         if (symbols(id)%constant) then
-            if (.not. (keywordp(symbol) .and. value_eq(newval, symbols(id)%val))) then
+            if (.not. (index(symbols(id)%name, ":") == 1 .and. value_eq(newval, symbols(id)%val))) then
                 call set_error(status, FM_SETTING_CONSTANT, symbols(id)%name)
             end if
 

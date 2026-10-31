@@ -55,11 +55,11 @@ module kmacro_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, xfixnum, make_fixnum, make_list, list_elt, vtag, V_INTEGER, V_ARRAY
+    use lisp_fm, only: value_type, xfixnum, make_fixnum, make_list, list_elt, vtag, V_INTEGER, V_ARRAY, command_type
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use keymap_fm, only: make_sparse_keymap, define_key, key_binding, is_keymap_live, key_parse, free_keymap
-    use callint_fm, only: current_prefix_arg, prefix_numeric_value, funcall
+    use callint_fm, only: current_prefix_arg, prefix_numeric_value, find_function
     use buffer_fm, only: is_buffer_live, buffers
     use marker_fm, only: marker_position
     use insdel_fm, only: insert
@@ -801,12 +801,14 @@ contains
         type(status_type), intent(out) :: status
         type(value_type) :: saved_arg
         logical :: saved_no_prefix
+        type(command_type), pointer :: fn
 
         saved_arg = current_prefix_arg
         saved_no_prefix = kmacro_repeat_no_prefix
         current_prefix_arg = value_type()
         kmacro_repeat_no_prefix = .false.
-        call funcall(cmd, status)
+        call find_function(cmd, fn, status)
+        if (status%ok()) call fn%run(status)
         kmacro_repeat_no_prefix = saved_no_prefix
         current_prefix_arg = saved_arg
     end subroutine call_without_prefix

@@ -2621,15 +2621,15 @@ contains
         logical, intent(in), optional :: universal
         integer(int64) :: beg, end, numarg, moved, k
         integer :: style
-        logical :: lines, block, multi, multi_char, triple, indent, ok, cons_arg, has
+        logical :: lines, block, multi, multi_char, triple, indent, ok, universal_arg, has
         character(len=:), allocatable :: cs, ce, ccs, cce, s
         type(status_type) :: st
 
         status = status_type()
         numarg = 1
         if (present(arg)) numarg = arg
-        cons_arg = .false.
-        if (present(universal)) cons_arg = universal
+        universal_arg = .false.
+        if (present(universal)) universal_arg = universal
         style = int(comment_style%value)
         if (style < 1 .or. style > 8) style = COMMENT_STYLE_INDENT
         lines = style_extra(style)
@@ -2679,7 +2679,7 @@ contains
         ! don't add end-markers just because the user asked for `block'
         if (.not. (lines .or. cend() == "")) block = .false.
 
-        if (cons_arg) then
+        if (universal_arg) then
             call uncomment_region(beg, end, status)
             return
         else if (numarg < 0) then

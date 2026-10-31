@@ -22,10 +22,10 @@
 !> `normal_mode', `set_auto_mode' and `auto_mode_table': a submodule
 !> because the modes use files_fm's dependencies.
 submodule(files_fm) files_mode_fm
+    use lisp_fm, only: value_type
     use data_fm, only: kill_all_local_variables
-    use eval_fm, only: funcall_noargs
     use subr_fm, only: delaying_mode_hooks, change_major_mode_after_body_hook, after_change_major_mode_hook
-    use callint_fm, only: fboundp
+    use callint_fm, only: find_command, current_prefix_arg, command_type
     use search_fm, only: string_match, case_fold_search, match_beginning, match_end, looking_at
     use editfns_fm, only: point_min, point_max, buffer_substring, point, goto_char
     implicit none(type, external)
@@ -320,6 +320,8 @@ contains
         character(len=*), intent(in) :: mode
         logical, intent(in) :: keep_mode_if_same
         type(status_type), intent(out) :: status
+        type(command_type), pointer :: fn
+        type(value_type) :: saved
 
         status = status_type()
         done = .false.
@@ -331,12 +333,19 @@ contains
             end if
         end if
 
-        if (.not. fboundp(sym(mode))) then
+        fn => find_command(mode)
+
+        if (.not. associated(fn)) then
             call message(format_message("Ignoring unknown mode `"//mode//"'"))
             return
         end if
 
-        call funcall_noargs(sym(mode), status)
+        ! The mode function is called with no prefix argument
+        ! (eval.c:funcall_nil).
+        saved = current_prefix_arg
+        current_prefix_arg = value_type()
+        call fn%run(status)
+        current_prefix_arg = saved
         done = status%ok()
     end function set_auto_mode_0
 

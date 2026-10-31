@@ -237,11 +237,11 @@ contains
         do k = 1, size(range_from)
             write (a, "(i0)") range_from(k)
             write (b, "(i0)") range_to(k)
-            s = s//" "//cons_repr("("//trim(a)//" . "//trim(b)//")", range_bindings(k))
+            s = s//" "//keymap_entry_repr("("//trim(a)//" . "//trim(b)//")", range_bindings(k))
         end do
 
         do k = 1, size(events)
-            s = s//" "//cons_repr(readable_repr(events(k)), bindings(k))
+            s = s//" "//keymap_entry_repr(readable_repr(events(k)), bindings(k))
         end do
 
         prompt = keymap_own_prompt(km)
@@ -257,28 +257,30 @@ contains
         end if
     end function keymap_elements
 
-    !> The cons (CAR . CDR) printed, `car' already printed: "(CAR)" for a
-    !> nil CDR, "(CAR ELEMENTS...)" for a list or keymap.  Not a port.
-    recursive function cons_repr(car, cdr) result(s)
-        character(len=*), intent(in) :: car
-        type(value_type), intent(in) :: cdr
+    !> A keymap entry printed, as Lisp prints a keymap: EVENT (already
+    !> printed) and its BINDING: "(EVENT)" for no binding, "(EVENT
+    !> ELEMENTS...)" for an array or a keymap, else "(EVENT . BINDING)".
+    !> Not a port.
+    recursive function keymap_entry_repr(event, binding) result(s)
+        character(len=*), intent(in) :: event
+        type(value_type), intent(in) :: binding
         character(len=:), allocatable :: s
         character(len=:), allocatable :: inner
 
-        select case (vtag(cdr))
+        select case (vtag(binding))
         case (V_NULL)
-            s = "("//car//")"
+            s = "("//event//")"
         case (V_ARRAY)
-            inner = readable_repr(cdr)
-            s = "("//car//" "//inner(2:)
+            inner = readable_repr(binding)
+            s = "("//event//" "//inner(2:)
         case (V_KEYMAP)
-            if (is_keymap_live(xhandle(cdr)) .and. .not. is_keymap_full(xhandle(cdr))) then
-                s = "("//car//" "//keymap_elements(xhandle(cdr))//")"
+            if (is_keymap_live(xhandle(binding)) .and. .not. is_keymap_full(xhandle(binding))) then
+                s = "("//event//" "//keymap_elements(xhandle(binding))//")"
             else
-                s = "("//car//" . #<keymap>)"
+                s = "("//event//" . #<keymap>)"
             end if
         case default
-            s = "("//car//" . "//readable_repr(cdr)//")"
+            s = "("//event//" . "//readable_repr(binding)//")"
         end select
-    end function cons_repr
+    end function keymap_entry_repr
 end module print_fm

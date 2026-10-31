@@ -628,8 +628,8 @@ contains
         logical, intent(in), optional :: quoting_style
 
         if (grep_host_defaults_table%has_defaults) then
-            call apply(grep_host_defaults_table%defaults)
-            if (grep_host_defaults_table%has_localhost) call apply(grep_host_defaults_table%localhost)
+            call set_defaults(grep_host_defaults_table%defaults)
+            if (grep_host_defaults_table%has_localhost) call set_defaults(grep_host_defaults_table%localhost)
         end if
 
         if (present(command)) grep_command = command
@@ -650,7 +650,7 @@ contains
 
     contains
 
-        subroutine apply(d)
+        subroutine set_defaults(d)
             type(grep_defaults_type), intent(inout) :: d
 
             if (present(command)) d%command = command
@@ -668,7 +668,7 @@ contains
             if (present(use_null_filename_separator)) d%use_null_filename_separator = use_null_filename_separator
             if (present(highlight_matches)) d%highlight_matches = highlight_matches
             if (present(quoting_style)) d%quoting_style = quoting_style
-        end subroutine apply
+        end subroutine set_defaults
     end subroutine grep_apply_setting
 
     !> The current values of the settings `grep_compute_defaults' computes.

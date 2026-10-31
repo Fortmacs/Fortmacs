@@ -571,6 +571,9 @@ no rename is added without that.  The confirmed renames:
 | nil, NILP (the null value) | `value_type()`; `.not. allocated(v%a)` | the intrinsic itself, no helper; a function result is tested as `vtag(f(x)) == V_NULL`; the value tags are `V_NULL`, `V_INTEGER`, `V_NAME`, `V_STRING`, `V_ARRAY` (were `V_NIL`, `V_INT`, `V_SYMBOL`, `V_STRING`, `V_LIST`) |
 | FIXNUMP, STRINGP, CONSP, SYMBOLP, LISTP, BUFFERP, MARKERP, WINDOWP and lisp_fm's keymap and syntax-table tests | the tag test itself: `vtag(v) == V_INTEGER`, `vtag(v) /= V_STRING`, `(vtag(v) == V_NAME .or. vtag(v) == V_NULL)` | no wrapper; `vtag` gives `V_NULL` for the null value, and is elemental like the wrappers were; window.c's `windowp` (a handle test) is `is_window` |
 | the argument list C-h f shows | the call line, then the declaration block | `call insert(string, status)` followed by `character(len=*), intent(in) :: string` and `type(status_type), intent(out) :: status`; a function's result is declared too (`integer(int64) :: point`); tools/gen-docstrings.sh takes the lines from the dummy arguments' declarations (the help entry's `declarations`) |
+| funcall, funcall_nil, apply | the procedure pointer called directly | `call find_function(v, fn, status)` resolves a run-time name once, then `call fn%run(status)`; set_auto_mode resolves the mode with `find_command`; the undefined-key command is keyboard_fm's `undefined_function` pointer, which subr_fm sets; grep's and log-view's internal `apply` are `set_defaults` and `toggle_entry` |
+| fboundp, keywordp | `associated(find_command(name))`; the name's first character | no wrapper |
+| cons (printing a keymap entry), a cons argument | `keymap_entry_repr(event, binding)`; newcomment's `universal_arg` | named for what they hold |
 | symbol (an object: a name of a function, variable, ...) | name | `describe_name` (C-h o), `complete_name`, `apropos_next_name`, `apropos_previous_name`, `info_lookup_name`, `abbrev_name`, `abbrev_table_names` |
 | symbol (the syntax class: word and symbol constituents) | identifier | `forward_identifier`, `beginning_of_identifier`, `bounds_of_identifier_at_point`, `case_identifiers_as_words`, `word_or_identifier`, `occur_identifier_at_mouse`, `REGEXP_OPT_IDENTIFIERS` |
 | vector (an array) | a plural name, "array" in help | `ansi_color_basic_faces`, `ansi_color_normal_colors`, `ansi_color_bright_colors` |
@@ -737,13 +740,9 @@ named with it.
 - C5-1: the `defvar_nil` histories become typed history objects
   (`type(history_type) :: bookmark_history`, with `%length` per C4).
 - C5-2: `setq_local` is removed in favor of the setting's `%set_local()`.
-- C5-3: `boundp`, `fboundp` and `makunbound` become direct components
-  and `associated()`; `keywordp` is dropped.
-- C5-4: `funcall`, `funcall_noargs` and `apply` are removed: procedure
-  pointers are called directly, and a name given at run time is resolved
-  once to a pointer.
-- C5-5: `cons_repr` and `cons_arg` are removed: each pair-shaped value is
-  a derived type with named components; there is no generic "pair".
+- C5-3: `boundp` and `makunbound` (data_fm's run-time variables, which
+  port data-tests.el) become direct components; they go with C3's name
+  table.  (`fboundp` and `keywordp` are applied.)
 - C2b, the rest: the type-checked readers `xfixnum`, `xsymbol`, `xstring`
   and `xhandle` (each returns a default for another type, so every call
   site is checked) become direct component reads.

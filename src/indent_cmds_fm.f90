@@ -35,7 +35,7 @@ submodule(indent_fm) indent_cmds_fm
     use handle_fm, only: handle_type
     use lread_fm, only: sym
     use data_fm, only: value_eq, default_value, add_local_variables_killer
-    use lisp_fm, only: value_type, xsymbol, symbols, t_value, xfixnum, make_keymap_ref, vtag, V_NULL, V_INTEGER, V_NAME
+   use lisp_fm, only: value_type, xsymbol, symbols, t_value, xfixnum, make_keymap_ref, vtag, V_NULL, V_INTEGER, V_NAME, command_type
     use marker_fm, only: copy_marker_at, marker_position, free_marker
   use editfns_fm, only: interactive_region, point_min, point_max, is_bob, is_eob, is_bol, is_eol, delete_region, buffer_substring, &
                           char_before, widen, narrow_to_region, region_beginning, region_end, line_end_position, &
@@ -48,7 +48,7 @@ submodule(indent_fm) indent_cmds_fm
     use search_fm, only: looking_at, re_search_backward, re_search_forward, regexp_quote, SEARCH_NOERROR
     use keymap_fm, only: make_sparse_keymap, keymap_set_key => define_key, key_parse
     use keyboard_fm, only: this_command, last_command, set_transient_map
-    use callint_fm, only: current_prefix_arg, prefix_numeric_value, funcall
+    use callint_fm, only: current_prefix_arg, prefix_numeric_value, find_function
     use simple_fm, only: fill_prefix, is_use_region, delete_horizontal_space, back_to_indentation, deactivate_mark
     use keymap_fm, only: overriding_terminal_local_map
     use buffer_fm, only: UE_BOUNDARY
@@ -126,9 +126,12 @@ contains
     recursive subroutine indent_line_by_name(status, noindent)
         type(status_type), intent(out) :: status
         logical, intent(out) :: noindent
+        type(command_type), pointer :: fn
 
         noindent = .false.
-        call funcall(indent_line_function%exact, status)
+        call find_function(indent_line_function%exact, fn, status)
+        if (.not. status%ok()) return
+        call fn%run(status)
     end subroutine indent_line_by_name
 
     ! Whether the indent-line-function is one of
@@ -250,6 +253,7 @@ contains
     subroutine widened_default_indent_line(status)
         type(status_type), intent(out) :: status
         type(value_type) :: v
+        type(command_type), pointer :: fn
         type(status_type) :: st
         integer(int64) :: savedb, savedz
         logical :: noindent
@@ -271,7 +275,8 @@ contains
             case ("indent_to_left_margin")
                 call indent_to_left_margin(status, noindent)
             case default
-                call funcall(v, status)
+                call find_function(v, fn, status)
+                if (status%ok()) call fn%run(status)
             end select
         end if
 

@@ -40,7 +40,7 @@ submodule(subr_fm) subr_read_fm
     use window_fm, only: recenter, scroll_up_command, scroll_down_command, window_configuration_type, &
                          current_window_configuration, set_window_configuration, free_window_configuration
     use character_fm, only: char_string, MAX_MULTIBYTE_LENGTH
-    use keyboard_fm, only: last_command_event, last_command
+    use keyboard_fm, only: last_command_event, last_command, undefined_function
     use keymap_fm, only: single_key_description
     use buffer_fm, only: get_buffer, is_buffer_live, kill_buffer
     use help_fm, only: with_output_to_temp_buffer, substitute_command_keys
@@ -637,6 +637,7 @@ contains
     type(status_type) :: st
 
     commands%undefined%run => undefined
+    undefined_function => undefined
     commands%ignore%run => ignore
     commands%read_y_or_n_insert_y%run => read_y_or_n_insert_y
     commands%read_y_or_n_insert_n%run => read_y_or_n_insert_n

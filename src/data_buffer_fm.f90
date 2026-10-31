@@ -45,7 +45,7 @@ submodule(data_fm) data_buffer_fm
     use xdisp_fm, only: tab_width
     use indent_fm, only: indent_tabs_mode, standard_indent, indent_line_function, indent_line_proc, &
                          indent_line_setting, indent_line_function_name, indent_line_function_named
-    use callint_fm, only: find_command, command_type, funcall, command_name_of
+    use callint_fm, only: find_command, command_type, find_function, command_name_of
     use lisp_fm, only: command_proc
     use search_fm, only: case_fold_search
     use minibuf_fm, only: completion_ignore_case
@@ -259,8 +259,11 @@ contains
     !> procedure of this kind: call it by name.  Not a port.
     subroutine auto_fill_by_name(status)
         type(status_type), intent(out) :: status
+        type(command_type), pointer :: fn
 
-        call funcall(auto_fill_function%exact, status)
+        call find_function(auto_fill_function%exact, fn, status)
+        if (.not. status%ok()) return
+        call fn%run(status)
     end subroutine auto_fill_by_name
 
     ! Not a port.

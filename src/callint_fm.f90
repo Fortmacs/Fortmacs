@@ -42,9 +42,9 @@ module callint_fm
     implicit none(type, external)
     private
 
-    public :: command_proc, command_type, find_command, is_command, fboundp, is_command_defined, &
+    public :: command_proc, command_type, find_command, is_command, is_command_defined, &
               set_command_disabled, intern_command_names, command_name_of
-    public :: call_interactively, funcall, prefix_numeric_value
+    public :: call_interactively, find_function, prefix_numeric_value
 
     !> The value of the prefix argument for this editing command.
     !> It may be an integer, or `-' for just a minus sign as arg, or an
@@ -137,14 +137,6 @@ contains
         end do
     end subroutine intern_command_names
 
-    !> Return true if SYMBOL's function definition is not void.  Port of
-    !> data.c:Ffboundp.
-    logical function fboundp(v)
-        type(value_type), intent(in) :: v
-
-        fboundp = associated(symbol_command(v))
-    end function fboundp
-
     !> Whether name `v' names a defined command (a function that is a
     !> command).  Not a port.
     logical function is_command_defined(v)
@@ -225,13 +217,16 @@ contains
         current_minibuffer_command = saved
     end subroutine call_interactively
 
-    !> Call function FN with no arguments.  Port of eval.c:Ffuncall (no
-    !> arguments).
-    recursive subroutine funcall(fn, status)
+    !> The function named FN, as a pointer P to call directly; a
+    !> `void-function' (or `invalid-function') error condition occurs if
+    !> there is none.  Port of eval.c:Ffuncall (resolving the function;
+    !> the caller calls it).
+    subroutine find_function(fn, p, status)
         type(value_type), intent(in) :: fn
+        type(command_type), pointer, intent(out) :: p
         type(status_type), intent(out) :: status
-        type(command_type), pointer :: p
 
+        status = status_type()
         p => symbol_command(fn)
 
         if (.not. associated(p)) then
@@ -243,9 +238,7 @@ contains
 
             return
         end if
-
-        call p%run(status)
-    end subroutine funcall
+    end subroutine find_function
 
     !> The numeric value of raw prefix argument `raw': no prefix gives 1, `-'
     !> gives -1, (N) and N give N.  Port of callint.c:Fprefix_numeric_value.

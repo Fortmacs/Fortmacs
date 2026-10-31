@@ -11,9 +11,6 @@
 src/apropos_fm.f90:member:lisp-helper
 src/autorevert_fm.f90:memq:lisp-helper
 src/bookmark_fm.f90:member:lisp-helper
-src/callint_fm.f90:fboundp:lisp-helper
-src/callint_fm.f90:fboundp:predicate
-src/callint_fm.f90:funcall:lisp-helper
 src/character_fm.f90:byte_at:wrapper
 src/character_fm.f90:char_variation_selector_p:predicate
 src/cmds_fm.f90:arg_p:predicate
@@ -27,12 +24,9 @@ src/data_fm.f90:car:lisp-helper
 src/data_fm.f90:car_safe:lisp-helper
 src/data_fm.f90:cdr:lisp-helper
 src/data_fm.f90:cdr_safe:lisp-helper
-src/data_fm.f90:keywordp:lisp-helper
-src/data_fm.f90:keywordp:predicate
 src/data_fm.f90:makunbound:lisp-helper
 src/diff_mode_fm.f90:diff_at_diff_header_p:predicate
 src/dired_mode_fm.f90:size_of:wrapper
-src/eval_fm.f90:funcall_noargs:lisp-helper
 src/executable_fm.f90:executable_make_buffer_file_executable_if_script_p:predicate
 src/fns_fm.f90:get:lisp-helper
 src/fns_fm.f90:length:lisp-helper
@@ -45,7 +39,6 @@ src/fns_fm.f90:plist_member:lisp-helper
 src/fns_fm.f90:plist_put:lisp-helper
 src/fns_fm.f90:put:lisp-helper
 src/fortmacs.f90:this_command_keys_vector:vector
-src/grep_fm.f90:apply:lisp-helper
 src/help_fm.f90:describe_vector:vector
 src/ibuf_macs_fm.f90:put:lisp-helper
 src/intervals_fm.f90:plist_member:lisp-helper
@@ -62,13 +55,11 @@ src/lisp_fm.f90:xfixnum:lisp-helper
 src/lisp_fm.f90:xhandle:lisp-helper
 src/lisp_fm.f90:xstring:lisp-helper
 src/lisp_fm.f90:xsymbol:lisp-helper
-src/log_view_fm.f90:apply:lisp-helper
 src/lread_fm.f90:intern:lisp-helper
 src/lread_fm.f90:intern_soft:lisp-helper
 src/lread_fm.f90:sym:lisp-helper
 src/macros_fm.f90:execute_kbd_macro_vector:vector
 src/mule_fm.f90:member:lisp-helper
-src/print_fm.f90:cons_repr:lisp-helper
 src/regex_emacs_fm.f90:charset_bitmap_size:wrapper
 src/regexp_opt_fm.f90:all_differ:wrapper
 src/savehist_fm.f90:member:lisp-helper
@@ -95,8 +86,6 @@ src/window_info_fm.f90:set_window_dedicated_p:predicate
 src/window_info_fm.f90:window_dedicated_p:predicate
 src/xdisp_fm.f90:invisible_p:predicate
 src/xdisp_fm.f90:put:lisp-helper
-src/xfaces_fm.f90:keywordp:lisp-helper
-src/xfaces_fm.f90:keywordp:predicate
 test/test_abbrev_fm.f90:test_empty_p:predicate
 test/test_derived_fm.f90:test_provided_mode_derived_p:predicate
 test/test_dired_mode_fm.f90:test_wildcard_in_dir_p:predicate

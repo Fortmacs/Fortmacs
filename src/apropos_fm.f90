@@ -52,7 +52,7 @@ module apropos_fm
     use textprop_fm, only: put_text_property, get_text_property, next_single_property_change
     use search_fm, only: string_match, regexp_quote, match_end
     use keymap_fm, only: key_description, where_is_internal, keymap_set, make_sparse_keymap
-    use callint_fm, only: is_command, current_prefix_arg, fboundp
+    use callint_fm, only: is_command, current_prefix_arg
     use minibuf_fm, only: read_string
     use xdisp_fm, only: message
     use fill_fm, only: fill_region
