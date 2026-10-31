@@ -41,7 +41,7 @@ module test_help_fm
     use editfns_fm, only: buffer_string
     use keymap_fm, only: key_parse, keymap_global_set, keymap_set
     use text_mode_fm, only: text_mode, text_mode_map
-    use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop
+    use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop, store_event
     use bindings_fm, only: init_bindings
     use xdisp_fm, only: tab_width
     use isearch_fm, only: search_upper_case, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
@@ -162,9 +162,14 @@ contains
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
+        integer :: k
 
         call key_parse(keys, evs, st)
-        call unread_command_events(evs)
+
+        ! As typed: into the event queue.
+        do k = 1, size(evs)
+            call store_event(evs(k))
+        end do
     end subroutine type_keys
 
     !> Check that substitute-command-keys turns `input` into `want`.

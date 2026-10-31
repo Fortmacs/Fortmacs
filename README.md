@@ -14,7 +14,7 @@ missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far.
 
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/progress/pie-dark.svg">
-<img src="docs/progress/pie.svg" width="520" height="206" alt="Ported: ≈4.45% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA">
+<img src="docs/progress/pie.svg" width="520" height="206" alt="Ported: ≈4.92% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA">
 </picture>
 <!-- progress:end -->
 
@@ -109,10 +109,13 @@ handful of porters could never keep up, and maintainers shouldn't be asked
 to port their work to a niche experiment, so without help Emacs in Fortran
 would never happen. This is for fun. Let's see where it goes.
 
-AI has made breakthroughs once out of reach, from AlphaFold's 200 million
-protein structures (part of the 2024 Nobel Prize in Chemistry) to the
-antibiotic candidate halicin, yet AI-assisted coding still carries a
-stigma. Fortmacs judges its code like any other: it must build, pass
+AI has made breakthroughs once out of reach: AlphaFold's 200 million
+protein structures (part of the 2024 Nobel Prize in Chemistry), the
+antibiotic candidate halicin and, according to press reports the CIA has
+not confirmed, the 2026 rescue of an airman shot down over Iran, located by
+a sensor called "Ghost Murmur" that reportedly uses AI to single out his
+heartbeat from the background noise. Yet AI-assisted coding still carries
+a stigma. Fortmacs judges its code like any other: it must build, pass
 Emacs's own tests and survive human review.
 
 Fortmacs is co-written with Claude Code, Anthropic's coding agent. It needs

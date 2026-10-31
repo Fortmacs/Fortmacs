@@ -32,7 +32,7 @@ module test_search_fm
     use editfns_fm, only: goto_char, point, narrow_to_region, widen
     use search_fm, only: search_forward, search_backward, match_beginning, match_end, case_fold_search, &
                          SEARCH_NOERROR, SEARCH_MOVE, looking_at, replace_match, re_search_forward, string_match, &
-                         set_match_data
+                         set_match_data, running_asynch_code, restore_search_regs, fast_string_match, fast_looking_at
     use editfns_fm, only: buffer_string, point_min, point_max
     use buffer_fm, only: erase_buffer
     implicit none(type, external)
@@ -60,7 +60,9 @@ contains
                     new_unittest("replace-match-case", test_replace_match_case), &
                     new_unittest("replace-match-string", test_replace_match_string), &
                     new_unittest("replace-match-registers", test_replace_match_registers), &
-                    new_unittest("replace-match-trailing-backslash", test_replace_match_backslash) &
+                    new_unittest("replace-match-trailing-backslash", test_replace_match_backslash), &
+                    new_unittest("search-asynch-match-data", test_asynch_match_data), &
+                    new_unittest("search-fast-match", test_fast_match) &
                     ]
     end subroutine collect_search_fm
 
@@ -406,4 +408,49 @@ contains
         call check(error, st%ok() .and. buffer_string() == "[]bc", "unset \9 in buffer: "//buffer_string())
         call leave(h)
     end subroutine test_replace_match_backslash
+
+    !> A search while a process filter runs (`running_asynch_code') saves
+    !> the match data, which `restore_search_regs' brings back.
+    subroutine test_asynch_match_data(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        integer(int64) :: idx
+
+        idx = string_match("b+", "abbc", st)
+        call check(error, match_beginning(0, st) == 2 .and. match_end(0, st) == 4)
+        if (allocated(error)) return
+        running_asynch_code = .true.
+        idx = string_match("c", "abbc", st)
+        call check(error, match_beginning(0, st) == 4)
+        if (allocated(error)) return
+        call restore_search_regs()
+        running_asynch_code = .false.
+        call check(error, match_beginning(0, st) == 2 .and. match_end(0, st) == 4)
+    end subroutine test_asynch_match_data
+
+    !> `fast_string_match' and `fast_looking_at' leave the match data alone.
+    subroutine test_fast_match(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        integer(int64) :: idx
+
+        idx = string_match("b+", "abbc", st)
+        call check(error, fast_string_match("c", "abbc", .false., st) == 4)
+        if (allocated(error)) return
+        call check(error, fast_string_match("B", "abbc", .true., st) == 2 .and. &
+                   fast_string_match("B", "abbc", .false., st) == 0)
+        if (allocated(error)) return
+        call check(error, fast_looking_at("b+", 2_int64, 4_int64, st, "abbc") == 2)
+        if (allocated(error)) return
+        call enter("foo bar", h)
+        call check(error, fast_looking_at("o+", 2_int64, 8_int64, st) == 2 .and. &
+                   fast_looking_at("o+", 1_int64, 8_int64, st) == -1)
+        if (allocated(error)) return
+        ! The limit stops the match.
+        call check(error, fast_looking_at("o+", 2_int64, 3_int64, st) == 1)
+        if (allocated(error)) return
+        call check(error, match_beginning(0, st) == 2 .and. match_end(0, st) == 4)
+        call kill_buffer(h, st)
+    end subroutine test_fast_match
 end module test_search_fm

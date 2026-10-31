@@ -156,7 +156,6 @@ contains
         integer(int64) :: n
 
         if (.not. buffers(cur)%undo_enabled) return
-        call undo_auto_undoable_change()
         call record_point(beg)
         n = buffers(cur)%undo_count
 
@@ -184,7 +183,6 @@ contains
         type(undo_entry_type) :: entry
 
         if (.not. buffers(cur)%undo_enabled) return
-        call undo_auto_undoable_change()
         call record_point(beg)
         entry%kind = UE_DELETION
         entry%text = string

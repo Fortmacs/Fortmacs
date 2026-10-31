@@ -39,6 +39,9 @@ module test_keymap_fm
                          single_key_description, use_local_map, key_valid_p, keymap_set, &
                          keymap_global_set, define_key_range, where_is_internal
     use subr_fm, only: global_set_key
+    use keymap_fm, only: text_char_description, minor_mode_key_binding, current_minor_mode_maps, add_minor_mode_map
+    use error_fm, only: format_error
+    use data_fm, only: set
     use print_fm, only: prin1_to_string
     implicit none(type, external)
     private
@@ -82,7 +85,10 @@ contains
                     new_unittest("keymap-free", test_free), &
                     new_unittest("subr-test-key-valid-p", test_key_valid_p), &
                     new_unittest("keymap-set-consistency", test_keymap_set), &
-                    new_unittest("keymap-global-set", test_keymap_global_set) &
+                    new_unittest("keymap-global-set", test_keymap_global_set), &
+                    new_unittest("keymap-text-char-description", test_text_char_description), &
+                    new_unittest("keymap-string-keys-and-silly-symbols", test_string_keys), &
+                    new_unittest("keymap-prompt-and-minor-mode-key-binding", test_prompt_minor) &
                     ]
     end subroutine collect_keymap_fm
 
@@ -824,4 +830,103 @@ contains
         call define_key(current_global_map(), kbd("C-c y"), nil(), st, remove=.true.)
         call define_key(current_global_map(), kbd("C-c x"), nil(), st, remove=.true.)
     end subroutine test_keymap_global_set
+
+    !> Ports keymap-tests.el's keymap-text-char-description.
+    subroutine test_text_char_description(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: d
+        type(status_type) :: st
+
+        call text_char_description(97_int64, d, st)
+        call check(error, d, "a")
+        if (allocated(error)) return
+        call text_char_description(32_int64, d, st)
+        call check(error, d, " ")
+        if (allocated(error)) return
+        call text_char_description(9_int64, d, st)
+        call check(error, d, "^I")
+        if (allocated(error)) return
+        call text_char_description(3_int64, d, st)
+        call check(error, d, "^C")
+        if (allocated(error)) return
+        call text_char_description(127_int64, d, st)
+        call check(error, d, "^?")
+        if (allocated(error)) return
+        call text_char_description(128_int64, d, st)
+        call check(error, d, char(194)//char(128))
+        if (allocated(error)) return
+        call text_char_description(229_int64, d, st)
+        call check(error, d, char(195)//char(165))
+        if (allocated(error)) return
+        call text_char_description(int(z'8000063', int64), d, st)
+        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "M-c")
+    end subroutine test_text_char_description
+
+    !> define-key and lookup-key take ["C-c a"] in key-valid-p syntax
+    !> (possibly_translate_key_sequence); a symbol naming a character key
+    !> is an error (silly_event_symbol_error).
+    subroutine test_string_keys(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: km
+        type(status_type) :: st
+        type(value_type) :: v, key(1)
+
+        call make_sparse_keymap(km)
+        key(1) = make_string("C-c a")
+        call define_key(km, key, sym("ignore"), st)
+        call check(error, st%ok(), "define")
+        if (allocated(error)) return
+        call lookup_key(make_keymap_ref(km), kbd_keys("C-c a"), v, st)
+        call check(error, value_eq(v, sym("ignore")), "parsed")
+        if (allocated(error)) return
+        call lookup_key(make_keymap_ref(km), key, v, st)
+        call check(error, value_eq(v, sym("ignore")), "lookup string")
+        if (allocated(error)) return
+        key(1) = sym("C-RET")
+        call define_key(km, key, sym("ignore"), st)
+        call check(error, format_error(st), "To bind the key C-RET, use [?\C-\r], not [C-RET]")
+        call free_keymap(km, st)
+    end subroutine test_string_keys
+
+    !> keymap-prompt looks at the parents; minor-mode-key-binding gives the
+    !> minor modes binding a key.
+    subroutine test_prompt_minor(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: km, parent, mm
+        type(handle_type), allocatable :: maps(:)
+        type(status_type) :: st
+        character(len=48), allocatable :: modes(:)
+        type(value_type), allocatable :: bindings(:)
+        type(value_type) :: v
+
+        call make_sparse_keymap(parent, make_string("Choose"))
+        call make_sparse_keymap(km)
+        call set_keymap_parent(km, parent, st)
+        v = keymap_prompt(km)
+        call check(error, xstring(v), "Choose")
+        if (allocated(error)) return
+        call make_sparse_keymap(mm)
+        call define_key(mm, kbd_keys("C-c z"), sym("ignore"), st)
+        call add_minor_mode_map("keymap_test_mode", mm)
+        call set(sym("keymap_test_mode"), t_value(), st)
+        call current_minor_mode_maps(maps)
+        call check(error, any(maps%index == mm%index), "current-minor-mode-maps")
+        if (allocated(error)) return
+        call minor_mode_key_binding(kbd_keys("C-c z"), modes, bindings, st)
+        call check(error, size(modes) == 1 .and. value_eq(bindings(1), sym("ignore")), "minor-mode-key-binding")
+        if (allocated(error)) return
+        call check(error, trim(modes(1)), "keymap_test_mode")
+        call set(sym("keymap_test_mode"), nil(), st)
+        call free_keymap(km, st)
+        call free_keymap(parent, st)
+    end subroutine test_prompt_minor
+
+    !> The events of key description TEXT.
+    function kbd_keys(text) result(keys)
+        character(len=*), intent(in) :: text
+        type(value_type), allocatable :: keys(:)
+        type(status_type) :: st
+
+        call key_parse(text, keys, st)
+    end function kbd_keys
 end module test_keymap_fm

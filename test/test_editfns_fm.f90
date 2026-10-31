@@ -37,7 +37,10 @@ module test_editfns_fm
                           point_max, point_max_marker, point_min, point_min_marker, position_bytes, &
                           preceding_char, widen, field_beginning, field_end, field_string, &
                           constrain_to_field, line_beginning_position, line_end_position, &
-                          delete_field, subst_char_in_region
+                          delete_field, subst_char_in_region, interactive_region, check_mark, mark_marker
+    use buffer_fm, only: buffers, cur, transient_mark_mode
+    use callint_fm, only: mark_even_if_inactive
+    use error_fm, only: FM_MARK_INACTIVE
     use lisp_fm, only: list, t_value
     use lread_fm, only: sym
     use textprop_fm, only: add_text_properties, put_text_property, get_text_property
@@ -72,7 +75,8 @@ contains
                     new_unittest("erase-buffer-widens", test_erase), &
                     new_unittest("find-fields", test_find_fields), &
                     new_unittest("prompt-field", test_prompt_field), &
-                    new_unittest("subst-char-in-region", test_subst_char) &
+                    new_unittest("subst-char-in-region", test_subst_char), &
+                    new_unittest("interactive-region", test_interactive_region) &
                     ]
     end subroutine collect_editfns_fm
 
@@ -469,4 +473,39 @@ contains
         call check(error, line_beginning_position() == 1)
         call leave(h, old)
     end subroutine test_prompt_field
+
+    !> The `r' code of call-interactively (callint.c:check_mark): point
+    !> and the mark as they are, even outside the accessible part; errors
+    !> for no mark and an inactive one.
+    subroutine test_interactive_region(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old, m
+        type(status_type) :: st
+        integer(int64) :: b, e
+        logical :: saved
+
+        call enter("te-ireg", h, old)
+        call insert("abcdefghij", st)
+        call interactive_region(b, e, st)
+        call check(error, format_error(st), "The mark is not set now, so there is no region")
+        if (allocated(error)) return
+        call check_mark(.false., st)
+        call check(error, format_error(st), "The mark is not set now")
+        if (allocated(error)) return
+        call mark_marker(m)
+        call set_marker(m, 2_int64, st)
+        buffers(cur)%mark_active = .true.
+        call narrow_to_region(4_int64, 8_int64, st)
+        call goto_char(6_int64)
+        call interactive_region(b, e, st)
+        call check(error, st%ok() .and. b == 2 .and. e == 6, "the mark outside the narrowing")
+        if (allocated(error)) return
+        saved = mark_even_if_inactive
+        buffers(cur)%mark_active = .false.
+        mark_even_if_inactive = .false.
+        call interactive_region(b, e, st)
+        mark_even_if_inactive = saved
+        call check(error, st%code == FM_MARK_INACTIVE .and. transient_mark_mode%value, "inactive mark")
+        call leave(h, old)
+    end subroutine test_interactive_region
 end module test_editfns_fm

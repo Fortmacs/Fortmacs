@@ -38,10 +38,10 @@ module bindings_fm
                          key_parse, keymap_live_p, free_keymap, set_repeat_map
     use callint_fm, only: current_prefix_arg, prefix_numeric_value, intern_command_names
     use page_fm, only: syms_of_page
-    use keyboard_fm, only: local_function_key_map, syms_of_macros
+    use keyboard_fm, only: local_function_key_map, syms_of_macros, help_event_list
     use kmacro_fm, only: syms_of_kmacro, kmacro_keymap
     use cmds_fm, only: syms_of_cmds, forward_char, backward_char
-    use simple_fm, only: syms_of_simple, backward_word
+    use simple_fm, only: syms_of_simple, backward_word, region_bounds, region_noncontiguous_p
     use syntax_fm, only: syms_of_syntax, forward_word
     use syntax_propertize_fm, only: syms_of_syntax_propertize
     use smie_fm, only: syms_of_smie
@@ -49,14 +49,16 @@ module bindings_fm
     use sh_script_fm, only: syms_of_sh_script
     use paragraphs_fm, only: syms_of_paragraphs
     use lisp_cmds_fm, only: syms_of_lisp_cmds
-    use search_fm, only: syms_of_search
+    use search_fm, only: syms_of_search, begin_running_asynch_code, end_running_asynch_code
     use replace_fm, only: syms_of_replace, syms_of_occur
-    use casefiddle_fm, only: syms_of_casefiddle
+    use casefiddle_fm, only: syms_of_casefiddle, casefiddle_region_bounds => region_bounds, &
+                             casefiddle_region_noncontiguous_p => region_noncontiguous_p
     use novice_fm, only: syms_of_novice
     use indent_fm, only: syms_of_indent
     use fill_fm, only: syms_of_fill
     use isearch_fm, only: syms_of_isearch
     use window_fm, only: syms_of_window
+    use buffer_fm, only: syms_of_buffer
     use files_fm, only: syms_of_files
     use vc_hooks_fm, only: syms_of_vc_hooks
     use vc_fm, only: syms_of_vc
@@ -88,7 +90,7 @@ module bindings_fm
     use jit_lock_fm, only: syms_of_jit_lock
     use dired_mode_fm, only: syms_of_dired_mode, dired_mode_map
     use view_fm, only: syms_of_view
-    use process_fm, only: syms_of_process
+    use process_fm, only: syms_of_process, begin_asynch_code, end_asynch_code
     use compile_fm, only: syms_of_compile, compilation_mode_map
     use grep_fm, only: syms_of_grep
     use diff_mode_fm, only: syms_of_diff_mode
@@ -278,6 +280,8 @@ contains
         integer(int64) :: c
 
         call intern_command_names()
+        ! bindings.el's help-event-list.
+        help_event_list = [character(len=16) :: "<help>", "<f1>", "?"]
         ! Rebuilding: drop the old maps.
         if (keymap_live_p(global_map)) call free_keymap(global_map, status)
         if (keymap_live_p(esc_map)) call free_keymap(esc_map, status)
@@ -300,6 +304,7 @@ contains
         call syms_of_cmds()
         call syms_of_simple()
         call syms_of_window()
+        call syms_of_buffer()
         commands%right_char%run => cmd_right_char
         commands%complete_symbol%run => cmd_complete_symbol
         commands%left_char%run => cmd_left_char
@@ -311,8 +316,13 @@ contains
         call syms_of_paragraphs()
         call syms_of_lisp_cmds()
         call syms_of_search()
+        ! A process filter or sentinel keeps the match data (search.c).
+        begin_asynch_code => begin_running_asynch_code
+        end_asynch_code => end_running_asynch_code
         call syms_of_replace()
         call syms_of_casefiddle()
+        casefiddle_region_bounds => region_bounds
+        casefiddle_region_noncontiguous_p => region_noncontiguous_p
         call syms_of_indent()
         call syms_of_fill()
         call syms_of_newcomment()
@@ -380,6 +390,8 @@ contains
         call bind(global_map, "C-b", "backward_char")
         call bind(global_map, "C-e", "move_end_of_line")
         call bind(global_map, "C-f", "forward_char")
+        call bind(global_map, "C-M-c", "exit_recursive_edit")
+        call bind(global_map, "C-]", "abort_recursive_edit")
         call bind(global_map, "C-n", "next_line")
         call bind(global_map, "C-p", "previous_line")
         ! bindings.el
