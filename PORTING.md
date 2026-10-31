@@ -232,8 +232,8 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        w, g, p; M-g g, c, TAB; M-=; page.el's C-x C-p, C-x l) — done;
        40c `sh-mode` beyond step 30 (completion, the inferior shell,
        styles) — done; 40d skeleton.el with sh-mode's statements and
-       smie-config; 40e `python-mode`; 40f `js-mode`; 40g `css-mode`;
-       40h `sgml-mode`/`html-mode`.
+       smie-config; 40e `python-mode` (core) — done; 40f `js-mode`;
+       40g `css-mode`; 40h `sgml-mode`/`html-mode`.
    41. Charsets and the other coding systems: charset maps (ISO-8859-x,
        Windows code pages, KOI8), ISO-2022, Shift-JIS, Big5, emacs-mule,
        language environments (C-x RET l) and input methods (`C-\`).
@@ -528,6 +528,7 @@ rules no other tool checks (chosen with the user, 2026-10-30):
 | f90_fm | progmodes/f90.el | `f90-mode` (derived from Prog mode; the syntax table, `f90-mode-map`, the abbrev table with its `:regexp`, four levels of keywords with `f90-typedef-matcher` and `f90-typedec-matcher`, `comment-start`, `comment-indent-function`, `indent-line-function`, `indent-region-function`, `normal-auto-fill-function`, `fill-paragraph-function`, `abbrev-all-caps`), indentation (`f90-indent-line`, `f90-indent-new-line` C-j, `f90-indent-region`, `f90-indent-subprogram` C-M-q, `f90-calculate-indent`, `f90-get-correct-indent`, `f90-comment-indent`, continuation lines, line numbers, preprocessor lines), motion (`f90-previous-statement`/`-next-statement` C-c C-p/C-n, `f90-beginning-of-subprogram`/`-end-of-subprogram` C-M-a/C-M-e, `f90-mark-subprogram` C-M-h, `f90-end-of-block`/`-beginning-of-block` C-M-n/C-M-p with label checks, `f90-next-block`/`-previous-block` C-c C-e/C-a), smart END statements (`f90-match-end`, `f90-block-match`, `f90-insert-end` C-c ], `f90-smart-end`, `f90-smart-end-names`), `f90-comment-region` (C-c ;), `f90-break-line` (C-c RET), `f90-join-lines` (C-c C-d), `f90-do-auto-fill`, `f90-fill-region` (C-c C-f), `f90-fill-paragraph`, `f90-electric-insert`, keyword case (`f90-change-keywords`, `f90-auto-keyword-case`, the up/down/capitalize commands), `f90-abbrev-start` (`) and `f90-abbrev-help`, `f90-font-lock-1`…`-4`, all the user options and regexps; auto-mode-alist `.f90`, `.f95`, `.f03`, `.f08` | the F90 menu, Imenu, Hideshow, Add Log (`f90-current-defun`), `f90-backslash-not-special` (obsolete), the `delete-selection` property, `f90-cache-position` as a buffer-local variable | test_f90_fm (ports f90-tests: all but the expected failure f90-test-bug3729; own: comment filling) | partial |
 | executable_fm | progmodes/executable.el (+ files.el `executable-find`) | `executable-find`, `executable-set-magic` (the command and the function; `executable-insert`, `executable-query`, `executable-magicless-file-regexp`, `executable-prefix`, `executable-prefix-env`), `executable-chmod` and `executable-make-buffer-file-executable-if-script-p` (for `after-save-hook`), `executable-chmod-function`, `executable-self-display` (obsolete), `executable-font-lock-keywords` | `executable-interpret` (it needs `executable-error-regexp-alist`'s rule specifications in `compilation-error-regexp-alist`), `executable-command-find-posix-p` (`data-directory`), remote `executable-find` | test_sh_script_fm (upstream has no executable tests) | partial |
 | sh_script_fm | progmodes/sh-script.el | `sh-mode` and `sh-base-mode` (`shell-script-mode`; the syntax table and its rpm variant, `sh-mode-map` with the remaps, the abbrev table, three highlighting levels as functions, `sh-font-lock-syntactic-face-function`, the faces `sh-heredoc`, `sh-quoted-exec` and `sh-escaped-newline`), the feature tables (`sh-feature` with `sh-append` and `sh-ancestor-alist`, `sh-alias-alist`, `sh-canonicalize-shell`, `sh-builtins`, `sh-leading-keywords`, `sh-other-keywords`, `sh-variables`, `sh-assignment-regexp`, `sh-shell-arg`, `sh-indent-supported`), `sh-set-shell` (C-c :), `sh--guess-shell`, `sh-syntax-propertize-function` (here documents, `#`, case patterns, subshells in strings), SMIE indentation for sh and rc (both grammars, lexers and rules, `sh-smie--indent-continuation` with `sh-indent-after-continuation`, the hanging-eolp advice, `sh-var-value` and all the indentation variables as integers or the constants SH_PLUS … SH_SLASH), `sh-basic-indent-line` for the other shells, `sh-make-vars-local`, `sh-reset-indent-vars-to-global-values`, `sh-execute-region` (C-M-x), `sh-add` (C-c +), `sh-shell-initialize-variables`, `sh-remember-variable`, `sh-assignment` (obsolete), `sh-electric-here-document-mode` (in `sh-mode-hook`), `sh-beginning-of-command`, `sh-end-of-command`, `sh-backslash-region` (C-c C-\), `sh-current-defun-name`, `defun-prompt-regexp`, completion at point (`sh-completion-at-point-function` with `sh--vars-before-point`, `sh--cmd-completion-table-gen` and its cache; `sh-dynamic-complete-functions` through `comint-dynamic-complete-functions`), the inferior shell (`sh-shell-process`, `sh-show-shell` C-c C-z, `sh-send-text`, `sh-cd-here` C-c C-d, `sh-send-line-or-region-and-step` C-c C-n), the indentation styles (`sh-styles-alist` as an array of `sh_style_type`, `sh-name-style`, `sh-load-style`, `sh-save-styles-to-buffer` writing a Fortran assignment); auto-mode-alist and interpreter-mode-alist entries | the statement skeletons and their keys (skeleton.el), smie-config's keys (C-c ?, =, <, >), `executable-interpret` (C-c C-x; `compilation-start`'s NAME-FUNCTION and rule specifications), Imenu (and its candidates in completion), `add-log-current-defun-function`, `outline-regexp`, `escaped-string-quote` (with `yank-in-context`), the Flymake backend, the `sh-shell` file-local variable, the menu, `bash-ts-mode` | test_sh_script_fm (ports sh-script-tests: all 6, with the cases of sh-indents.erts; own: feature tables, here documents, `sh-canonicalize-shell`) | partial |
+| python_fm | progmodes/python.el | `python-mode` and `python-base-mode` (the syntax tables and the dotty one, `python-mode-map` with its remaps and `python-indent-repeat-map`, three Font Lock levels with their matchers: f-strings, assignments, escape sequences in strings and bytes; `python-font-lock-syntactic-face-function`, `python-syntax-stringify` and `python-syntax-propertize-function`), `python-syntax-context` and the other `python-syntax-*` and `python-info-*` functions (`python-info-current-defun`, `python-info-encoding`, statement, block, line and docstring tests), `python-util-*`, navigation (`python-nav-beginning-of-defun`, `-end-of-defun`, statements, blocks, `python-nav-forward-sexp` and the safe variants, `python-nav-up-list`, `python-nav-backward-up-list`, `python-nav-if-name-main`), indentation (`python-indent-context` with the PYTHON_INDENT_* contexts, `python-indent-calculate-indentation` and levels, `python-indent-line`, `python-indent-region`, `python-indent-guess-indent-offset`, `python-indent-dedent-line`, `python-indent-dedent-line-backspace`, `python-indent-shift-left`/`-right`, `python-indent-post-self-insert-function`, `python-electric-pair-string-delimiter`), `python-mark-defun`, filling (`python-fill-paragraph` and the comment, string, decorator and paren functions, `python-fill-docstring-style` as PYTHON_DOCSTRING_* constants), the user options; auto-mode-alist and interpreter-mode-alist entries; electric_fm's buffer-local `electric-indent-chars` | the inferior Python (`run-python`, `python-shell-*`, sending code, `python-pdbtrack`), completion, ElDoc, Imenu, `python-check`, the Flymake backend, ffap, the skeletons (skeleton.el), hideshow, `python-describe-at-point`, `python-ts-mode`, the menu, `python-fix-imports` and the other import commands | test_python_fm (ports python-tests.el's indentation, navigation, info, util and syntax tests: 126) | partial |
 
 ### Not applicable: run-time Lisp
 
@@ -559,6 +560,7 @@ no rename is added without that.  The confirmed renames:
 | Lisp term | Fortran name | Examples |
 |---|---|---|
 | defun (a top-level definition) | subprogram | `beginning_of_subprogram`, `mark_subprogram`, `subprogram_prompt_regexp`, `open_paren_in_column_0_is_subprogram_start`, `add_log_current_subprogram`, `f90_beginning_of_subprogram`; `f90_subprogram_start` and `f90_subprogram_end` (f90_fm's adapters to `beginning_of_subprogram_function` and `end_of_subprogram_function`, whose plain renames would be the f90.el commands they adapt) |
+| defun, in a mode's own helper | the language's term | `python_mark_definition`, `python_nav_beginning_of_definition` (and `_regexp`), `python_nav_end_of_definition` (and `_function`), `python_nav_forward_definition`, `python_nav_backward_definition`, `python_info_current_definition`, `python_info_looking_at_beginning_of_definition`; `makefile_add_log_target`; `sh_current_function_name`; `log_view_beginning_of_entry`, `log_view_end_of_entry`; `css_current_rule_name`.  Generic commands, hooks and helpers keep subprogram: `search_subprogram_forward`/`_backward`, `nav_*_subprogram`, `beg_subprogram_indent`, `change_log_read_subprograms`, `log_edit_insert_filled_subprograms`, `diff_add_log_current_subprograms` |
 | sexp (a balanced expression) | expression | `forward_expression`, `kill_expression`, `parse_partial_expression`, `scan_expressions`, `parse_expression_ignore_comments`, `halfexpression`, `expression_flag` (and the analogous `cmd_`, `test_` and `_1` forms of the renamed names) |
 | list, as a parenthesised group (these names only) | group | `forward_group`, `backward_group`, `up_group`, `down_group`, `backward_up_group`, `kill_backward_up_group`, their `*_group_function` variables, `scan_groups`, `smie_down_group` |
 | alist (an association list) | table | `auto_mode_table`, `bookmark_table`, `file_coding_system_table`, `table_push`; `compilation_error_regexp_table` (all known formats) and `compilation_error_regexp_names` (the enabled ones); `abbrev_minor_mode_tables` (not ..._table_table), `syntax_modifications` (font-lock-defaults' SYNTAX-ALIST, not `syntax_table`), `display_action_table_type` (not `display_table_type`, a display table); in buffer_fm, buffer_ops_fm and process_fm, Vbuffer_alist and Vprocess_alist are `buffer_order`/`buffer_order_count` and `process_order`/`process_order_count` (the modules already have a `table`) |
@@ -759,6 +761,136 @@ empty the check stays, with the empty baseline.
 
 tools/test-intrinsics.sh tests the check on the fixture in
 tools/intrinsics-test.
+
+## Fortran-first decision guide
+
+<!-- fortran-names: off -->
+The renames and checks above cover the Lisp-isms already decided; this
+guide is for the next one.  It records how the owner decides, so a
+session or agent can work without supervision and still not drift into
+Lisp written in Fortran.  Run it before naming anything, wording a
+docstring or choosing a data structure for something that comes from Lisp.
+
+### The questions, in order
+
+1. **Is there an intrinsic or a language construct for it?**  Use it
+   directly (see "Intrinsics first"): `allocated` for "is it nil",
+   `findloc`/`any` for `memq`, array sections for `cdr`, `associated` to
+   compare commands, `select case` on a tag for a type test.  No helper
+   that only wraps one.
+2. **What does the Fortran standard call it?**  Use the standard's own
+   word: subprogram (defun), procedure pointer (function value), named
+   constant, derived type and component (struct, plist), array (vector,
+   list of strings), "an error condition occurs" (signal), STAT/status
+   and RETURN (throw/catch), present/absent (optional arguments),
+   allocated/unallocated, associated/null.
+3. **Is there an established Fortran convention?**  Follow it: the `_mod`
+   module suffix, `read_*` for prompts (READ is Fortran's input verb),
+   `is_*`/`has_*` for logical functions, plural array names without
+   `_array`/`_vector`, `_start`/`_end` for internal helpers that find a
+   position (commands keep upstream's `beginning_of_*`/`end_of_*`), a
+   tagged record with `select case` where `select type` is blocked.
+4. **What does Fortmacs already use for the same role?**  Grep first and
+   match it (the owner asks this whenever two forms exist).
+5. **Does the result read well?**  A mechanical rename that doubles a
+   word (`table_table`), collides with an existing name (`syntax_table`,
+   `display_table_type`, a module's `table`) or reads as a double
+   negative (`KMACRO_NO_REPEAT_NO`) is not applied: propose a better name.
+6. **Is it a type question in disguise?**  A setting with two states is a
+   `logical` (.true./.false.); more states make an integer setting with
+   named constants named after their meaning (COMPILATION_SCROLL_NO /
+   _YES / _FIRST_ERROR, `_ALWAYS` when it means always), never
+   `_NIL`/`_T`/`_TRUE`/`_FALSE`.  A pair is a derived type with named
+   components (`decoding`/`encoding`), never a generic "pair".  A value
+   held "by name" is resolved once to a pointer.  Compile-time things are
+   reached through their typed objects, never by a name string.
+7. **Does gfortran allow it?**  Fortmacs targets gfortran only (13 and
+   later).  Check CLAUDE.md's hazards; when unsure, write a ten-line
+   spike and run it under valgrind (as for recursive allocatable types,
+   which gfortran 13.3 still copies shallowly).
+
+### What stays Lisp
+
+Upstream citations ("Port of lisp.el:forward-sexp"), upstream names quoted
+as upstream names, the Lisp language modes and their keywords, Lisp source
+in test fixtures, Info node names such as `(elisp)Hooks`, and Emacs's own
+vocabulary that is not Lisp: buffer, window, frame, keymap, mode, hook,
+face, marker, overlay, text property, minibuffer, kill ring, prefix
+argument, keyboard macro, process filter and sentinel.  Keys and mode-line
+text are unchanged.
+
+### When the answer is not clear: ask
+
+A Lisp-derived term with no line in tools/fortran-names, or a choice the
+questions above do not settle, goes to the owner; it is never invented
+and never copied from Lisp.  Ask as a multiple-choice question, one
+decision at a time:
+
+- state what the thing is and where it occurs (with counts), so the
+  question stands alone;
+- put the recommended option first, with the reason in Fortran terms
+  ("findloc is a standard intrinsic", "the standard calls it ...");
+- show real before/after examples from the code for each option;
+- never offer an option that contradicts an earlier decision (check this
+  section and tools/fortran-names first);
+- when the owner asks "which is more Fortran?" or for more examples,
+  answer that and ask again; do not take the question as a choice.
+- answer such a request in the question itself, with the options and
+  their previews again, not in text outside it.
+
+Each answer is recorded at once: a line of tools/fortran-names (or a keep
+entry), a row in "Fortran names for Lisp terms", a rule in CLAUDE.md when
+it is general, and the check that enforces it.
+
+### Catching what nobody has decided yet
+
+tools/lisp-candidates.sh, run by tools/check.sh, lists Lisp vocabulary
+(tools/lisp-candidates: funcall, lambda, symbol, cons, quote, eval,
+progn, interactive, vector, ...) in the lines a branch adds.  It only
+warns: many hits are fine (a keyboard macro, a POSIX signal).  Every PR
+description lists the candidates it adds with their decision: asked and
+confirmed (now in tools/fortran-names), or why it is not a Lisp-ism here.
+
+### The review of 2026-10-31, as examples
+
+The decisions that shaped this guide, with the owner's reasoning:
+
+| Question | Decision | Why |
+|---|---|---|
+| defun | subprogram | the standard's term for the source text of a function or subroutine; "procedure" is the callable entity |
+| a mode's own defun helpers | that language's term: `python_nav_beginning_of_definition`, `makefile_add_log_target`, `sh_current_function_name`, `log_view_beginning_of_entry`, `css_current_rule_name`; generic commands, hooks and helpers that serve every mode keep subprogram (`search_subprogram_forward`, `add_log_current_subprogram`) | Python's reference calls def and class definitions; a Makefile has targets, a log entries, CSS rules |
+| sexp | expression | Fortran's primaries are names, constants and parenthesized groups, what C-M-f moves over |
+| list (a parenthesized group) | group | "list" means argument and I/O lists in Fortran |
+| alist | `_table` (`compilation_error_regexp_names` where it is only names) | a lookup table of keyed records; only a real table gets `_table` |
+| `*_NIL`/`*_T` constants | meaningful names; two states become a logical | Fortran's own multi-state constants (IOSTAT_END, IEEE_POSITIVE_INF) are named for their meaning |
+| isearch-case-fold-search (nil, t, `yes`) | `CASE_FOLD_NO`, `CASE_FOLD_YES`, `CASE_FOLD_FORCED` | `yes` is M-c's forced folding; t is the plain "yes" |
+| kmacro-call-macro's NO-REPEAT | `KMACRO_REPEAT_YES`, `KMACRO_REPEAT_NO`; the argument is REPEAT | names read positively, never as a double negative (`KMACRO_NO_REPEAT_NO`) |
+| constants shared by several settings (GREP_NIL, GREP_T) | one family per setting: `GREP_USE_NULL_DEVICE_*`, `GREP_USE_NULL_FILENAME_SEPARATOR_*`, `GREP_HIGHLIGHT_MATCHES_*` | each setting has its own states (only grep-highlight-matches has `always` and `auto`), so a generic pair would admit values the setting does not have |
+| face attribute states | `FACE_ON`, `FACE_OFF` kept | an underline or a box is naturally on or off |
+| wrong-type messages | "Wrong type argument: expected X, got VALUE", with a qualifier where the bare type loses what was checked: `integer (a character code)`, `integer (>= 0)`, `live type(window_type)`, `name`, `array` | it says what a declaration would say; predicate names (`characterp`) never appear |
+| values with no Fortran type | a null `value_type` is "unallocated"; a 0 or -1 sentinel is "none"; an absent prefix argument is "no prefix" | "unallocated" matches the test `.not. allocated(v%a)` |
+| pair (a cons) | never said: our types name their components, and upstream data is "two values, X and Y" | there is no pair type in Fortran; no "upstream's cons" aside |
+| obarray, symbol table | the name table holds run-time names only (`find_name`, `add_name`); compile-time things are typed objects | names typed by the user are the only names looked up at run time |
+| defvar'd history lists | typed history objects (`type(history_type)`, with `%length`) | a history is a record with a known shape |
+| setq-local | `%set_local()` of the setting | the buffer-local value is a component operation of the typed setting |
+| funcall, apply | the procedure pointer called directly | Fortran calls a procedure pointer like a procedure |
+| boundp, fboundp, makunbound | direct components and `associated()` | `associated` is the standard test for a pointer |
+| register value | `register_contents_type` | what a register holds |
+| interactive (of a command) | `is_command` | a logical component is named for what it states |
+| nil / non-nil in help | the word for the value's type (.true., present, unallocated, null, "") | each sentence uses the Fortran word for that type |
+| signal / throw | "an error condition occurs"; "a check of the status"; "return to X with a status" | the standard's STAT=/IOSTAT= wording; EXIT only leaves a construct, "handle" is not Fortran |
+| nilp, car, memq, fixnump | `.not. allocated(v%a)`, sections, `findloc`, `select case` on the tag | intrinsics and constructs, no wrappers |
+| `select type` for values | tagged `select case` (json-fortran style) | gfortran 13.3 shallow-copies recursive allocatable types (spike: changing a copy changed the original, then a segfault) |
+| y_or_n_p | read_y_or_n | READ is the input verb, and Emacs's read_string/read_number match |
+| `_vector` | plural names | Fortran does not suffix arrays; the rank is in the declaration |
+| this_command by name | `type(command_type), pointer` with `associated()` | `associated(p, t)` is a standard intrinsic for identity |
+| put/get | typed components; `findloc` over a `text_property_type` array | CLAUDE.md forbids property bags; findloc is standard (Fortran 2008) |
+| C-h f signature | the call line and a declaration block | what one writes in Fortran to call or wrap the procedure |
+| `_fm` module suffix | `_mod` | the most common Fortran module suffix; `_f90` would read as the Fortran 90 dialect |
+| lisp-name in gen-docstrings | help-name | the value is the name C-h f looks up, not the Lisp name |
+| British spelling | American | owner's rule for all text |
+| conditional expressions (Fortran 2023, `(c ? a : b)`) | not used: a plain IF | gfortran 13 lacks them and Fortmacs builds with -std=f2018; the IF statement is not obsolete |
+<!-- fortran-names: on -->
 
 ## Style
 

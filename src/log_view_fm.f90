@@ -83,7 +83,7 @@ module log_view_fm
               log_view_current_file, log_view_current_entry, is_log_view_inside_comment, log_view_current_tag, &
               log_view_toggle_mark_entry, log_view_mark_entry, log_view_unmark_entry, log_view_unmark_all_entries, &
               log_view_get_marked, log_view_toggle_entry_display, log_view_display_entry_and_diff, &
-              log_view_beginning_of_subprogram, log_view_end_of_subprogram, log_view_find_revision, log_view_diff, &
+              log_view_beginning_of_entry, log_view_end_of_entry, log_view_find_revision, log_view_diff, &
               log_view_diff_changeset, log_view_diff_common, log_view_copy_revision_as_kill, &
               log_view_file_re, log_view_message_re, log_view_per_file_logs, log_view_vc_fileset, log_view_vc_backend, &
               set_log_view_file_re, set_log_view_message_re, set_log_view_per_file_logs, &
@@ -791,7 +791,7 @@ contains
                     call next_single_property_change(beg, sym("log_view_comment"), end, found, st)
                     if (.not. found) end = point_max()
                 else
-                    call log_view_end_of_subprogram()
+                    call log_view_end_of_entry()
                     end = point()
                 end if
 
@@ -934,7 +934,7 @@ contains
 
             if (has) then
                 call put_text_property(beg, beg + 1, sym("log_view_entry_expanded"), t_value(), status)
-                call log_view_end_of_subprogram()
+                call log_view_end_of_entry()
                 beg = point()
                 if (status%ok()) call insert(long_entry//LF, status)
                 props(1) = sym("font_lock_face")
@@ -1006,7 +1006,7 @@ contains
     !> It assumes that a log entry starts with a line matching
     !> `log_view_message_re'.  FOUND is the result.  Port of
     !> log-view.el:log-view-beginning-of-defun.
-    recursive subroutine log_view_beginning_of_subprogram(found, arg)
+    recursive subroutine log_view_beginning_of_entry(found, arg)
         logical, intent(out) :: found
         integer(int64), intent(in), optional :: arg
         integer(int64) :: n, beg, shortage
@@ -1021,7 +1021,7 @@ contains
             ! In log view, the end of one subprogram is the beginning of the
             ! next, so punting to log-view-end-of-defun is safe in this
             ! context.
-            call log_view_end_of_subprogram(-n)
+            call log_view_end_of_entry(-n)
             return
         end if
 
@@ -1044,7 +1044,7 @@ contains
                 found = .true.
             end if
         end do
-    end subroutine log_view_beginning_of_subprogram
+    end subroutine log_view_beginning_of_entry
 
     ! Move forward to the next Log View entry.  Port of
     ! log-view.el:log-view-end-of-defun-1.
@@ -1080,7 +1080,7 @@ contains
 
     !> Move forward to the next Log View entry.
     !> Works like `end_of_subprogram'.  Port of log-view.el:log-view-end-of-defun.
-    recursive subroutine log_view_end_of_subprogram(arg)
+    recursive subroutine log_view_end_of_entry(arg)
         integer(int64), intent(in), optional :: arg
         integer(int64) :: n, k
         logical :: found
@@ -1089,13 +1089,13 @@ contains
         if (present(arg)) n = arg
 
         if (n < 0) then
-            call log_view_beginning_of_subprogram(found, -n)
+            call log_view_beginning_of_entry(found, -n)
         else
             do k = 1, n
                 call end_of_subprogram_1()
             end do
         end if
-    end subroutine log_view_end_of_subprogram
+    end subroutine log_view_end_of_entry
 
     ! ------------------------------------------------------------------
     ! Revisions
@@ -1228,7 +1228,7 @@ contains
         if (.not. previous) then
             opoint = point()
             call goto_char(end)
-            call log_view_end_of_subprogram()
+            call log_view_end_of_entry()
             last = point()
             call goto_char(opoint)
             previous = end >= last

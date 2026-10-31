@@ -44,13 +44,13 @@ submodule(files_fm) files_mode_fm
 
     !> interpreter-mode-alist: (REGEXP . MODE) for the modes that exist so
     !> far, in files.el's order.
-    character(len=*), parameter :: interpreter_regexps(16) = [character(len=24) :: &
+    character(len=*), parameter :: interpreter_regexps(17) = [character(len=24) :: "python[0-9.]*", &
                                                      "[acjkwz]sh", "r?bash2?", "dash", "mksh", "\(dt\|pd\|w\)ksh", "es", "i?tcsh", &
-                                                              "oash", "rc", "rpm", "sh5?", "tail", "more", "less", "pg", "make"]
-    character(len=*), parameter :: interpreter_modes(16) = [character(len=19) :: &
+                                                                  "oash", "rc", "rpm", "sh5?", "tail", "more", "less", "pg", "make"]
+    character(len=*), parameter :: interpreter_modes(17) = [character(len=19) :: "python_mode", &
                                                       "sh_mode", "sh_mode", "sh_mode", "sh_mode", "sh_mode", "sh_mode", "sh_mode", &
                                                 "sh_mode", "sh_mode", "sh_mode", "sh_mode", "text_mode", "text_mode", "text_mode", &
-                                                            "text_mode", "makefile_gmake_mode"]
+                                                                                                 "text_mode", "makefile_gmake_mode"]
 
     !> How much of the buffer the -*- line is looked for in.
     integer(int64), parameter :: SPEC_LIMIT = 4096
@@ -83,6 +83,8 @@ contains
     !> Port of the auto-mode-alist defvar of files.el (in part).
     subroutine init_auto_modes()
         if (allocated(auto_modes)) return
+        ! (The autoloaded add-to-list of python.el comes first.)
+        call append_auto_mode("\(?:\.\(?:p\(?:th\|y[iw]?\)\)\|/\(?:SCons\(?:\(?:crip\|truc\)t\)\)\)\'", "python_mode")
         call append_auto_mode("\.te?xt\'", "text_mode")
         call append_auto_mode("Imakefile\'", "makefile_imake_mode")
         ! Put this before .mk

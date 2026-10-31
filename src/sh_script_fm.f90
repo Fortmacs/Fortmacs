@@ -45,7 +45,7 @@
 !> `executable_interpret' (C-c C-x; needs `compilation_start' with a
 !> buffer name function and rule specifications), Imenu
 !> (`sh_imenu_generic_expression', and the Imenu candidates of
-!> completion), `add_log_current_subprogram_function' (`sh_current_subprogram_name'
+!> completion), `add_log_current_subprogram_function' (`sh_current_function_name'
 !> is here), `outline_regexp', `escaped_string_quote' (with
 !> `yank_in_context'), the Flymake backend (`sh_shellcheck_flymake'), the
 !> `sh_shell' file-local variable (`hack_local_variables_hook'), the menu
@@ -140,7 +140,7 @@ module sh_script_fm
               sh_var_value, sh_basic_indent_line, sh_execute_region, sh_remember_variable, is_sh_quoted, is_sh_backslash_quoted, &
               sh_in_comment_or_string, cmd_sh_make_vars_local, sh_reset_indent_vars_to_global_values, sh_add, &
               sh_shell_initialize_variables, cmd_sh_beginning_of_command, cmd_sh_end_of_command, sh_backslash_region, &
-              sh_current_subprogram_name, sh_mkword_regexpr, sh_indent_supported_here, sh_shell_variables, &
+              sh_current_function_name, sh_mkword_regexpr, sh_indent_supported_here, sh_shell_variables, &
               sh_syntax_propertize_function, sh_font_lock_syntactic_face_function, sh_font_lock_keywords, &
               sh_font_lock_keywords_1, sh_font_lock_keywords_2, sh_smie_default_forward_token, &
               sh_smie_default_backward_token, sh_smie_sh_forward_token, sh_smie_sh_backward_token, sh_smie_sh_rules, &
@@ -4303,7 +4303,7 @@ contains
     !> Find the name of function or variable at point.
     !> For use in `add_log_current_subprogram_function' (unallocated for nil).
     !> Port of sh-script.el:sh-current-defun-name.
-    function sh_current_subprogram_name() result(name)
+    function sh_current_function_name() result(name)
         character(len=:), allocatable :: name
         type(status_type) :: st
         integer(int64) :: here, found
@@ -4330,7 +4330,7 @@ contains
         end if
 
         call goto_char(here)
-    end function sh_current_subprogram_name
+    end function sh_current_function_name
 
     !> Make a regexp which matches WORD as a word.
     !> This specifically excludes an occurrence of WORD followed by

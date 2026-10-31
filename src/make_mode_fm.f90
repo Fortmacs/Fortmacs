@@ -39,7 +39,7 @@
 !> options, obsolete since 30.1), the Makefile menu, Imenu
 !> (`makefile_imenu_generic_expression' and makepp's "Functions"),
 !> `add_log_current_subprogram_function' (add-log's subprogram lookup is not ported;
-!> `makefile_add_log_subprogram' is here), `cpp_font_lock_keywords' in
+!> `makefile_add_log_target' is here), `cpp_font_lock_keywords' in
 !> `makefile_imake_font_lock_keywords' (font-lock.el's C preprocessor
 !> keywords), and the obsolete `makefile_generate_temporary_filename'.
 module make_mode_fm
@@ -109,7 +109,7 @@ module make_mode_fm
               makefile_cleanup_continuations_function, makefile_warn_suspicious_lines, makefile_warn_continuations, &
               makefile_insert_gmake_function, makefile_match_function_end, makefile_match_dependency, &
               makefile_match_action, makefile_do_macro_insertion, makefile_remember_target, makefile_remember_macro, &
-              makefile_format_macro_ref, makefile_add_log_subprogram, makefile_syntax_propertize_function, &
+              makefile_format_macro_ref, makefile_add_log_target, makefile_syntax_propertize_function, &
               makefile_make_font_lock_keywords, makefile_target_table, makefile_macro_table, makefile_has_prereqs, &
               makefile_query_proc
 
@@ -2731,7 +2731,7 @@ contains
     !> Return name of target or variable assignment that point is in.
     !> If it isn't in one, FOUND is unallocated.  Port of
     !> make-mode.el:makefile-add-log-defun.
-    subroutine makefile_add_log_subprogram(found)
+    subroutine makefile_add_log_target(found)
         character(len=:), allocatable, intent(out) :: found
         integer(int64) :: opoint, shortage
         type(status_type) :: st
@@ -2778,7 +2778,7 @@ contains
         end if
 
         call goto_char(opoint)
-    end subroutine makefile_add_log_subprogram
+    end subroutine makefile_add_log_target
 
     ! ------------------------------------------------------------------
     ! Helpers
