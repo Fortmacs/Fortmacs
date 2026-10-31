@@ -84,6 +84,7 @@ name	backward_up_list	backward_up_group
 name	kill_backward_up_list	kill_backward_up_group
 name	scan_lists	scan_groups
 name	smie_down_list	smie_down_group
+name	css_current_defun_name	css_current_rule_name
 
 # Modules.
 file	lisp_cmds_fm	expression_motion_fm
