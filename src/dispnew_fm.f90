@@ -36,16 +36,19 @@
 !> size changes.
 module dispnew_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use frame_fm, only: frame_type, selected_frame, frame_window_p
+    use frame_fm, only: frame_type, selected_frame, frame_window_p, selected_window
+    use window_fm, only: windows, window_valid_p
+    use handle_fm, only: handle_type
+    use commands_fm, only: commands
     use dispextern_fm, only: glyph_type, glyph_matrix_type, glyph_row_type, &
                              glyph_equal_p, char_glyph_space_p, &
                              FACE_TTY_DEFAULT_FG_COLOR, FACE_TTY_DEFAULT_BG_COLOR
-    use termchar_fm, only: tty_flush
+    use termchar_fm, only: tty_flush, tty_put_bytes
     use term_fm, only: tty_cursor_to, tty_write_glyphs, tty_insert_glyphs, &
                        tty_delete_glyphs, tty_clear_end_of_line, tty_clear_frame, &
                        tty_update_end, tty_ring_bell
-    use error_fm, only: status_type
-    use keyboard_fm, only: ring_bell, bitch_at_user
+    use error_fm, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
+    use keyboard_fm, only: ring_bell, bitch_at_user, redisplay_hook, executing_kbd_macro_p
     implicit none(type, external)
     private
 
@@ -53,6 +56,8 @@ module dispnew_fm
               redraw_frame, update_frame, write_row, make_matrix_current, &
               set_desired_row, ding, frame_ring_bell, update_window_line
     public :: frame_or_buffer_changed_p
+    public :: redraw_display, redisplay, send_string_to_terminal, internal_show_cursor, internal_show_cursor_p, &
+              syms_of_display
 
     !> The state `frame_or_buffer_changed_p' compares with: the buffers
     !> (by serial number, in the order of the buffer list) and their
@@ -69,7 +74,9 @@ contains
     ! Matrices
     ! ------------------------------------------------------------------
 
-    ! Allocate M with NROWS blank rows of NCOLS glyphs.  Not a port.
+    !> Allocate M with NROWS blank rows of NCOLS glyphs.  Port of
+    !> dispnew.c:new_glyph_matrix and dispnew.c:adjust_glyph_matrix for a
+    !> frame matrix (its glyphs are allocatable arrays, not a glyph pool).
     subroutine allocate_matrix(m, nrows, ncols)
         type(glyph_matrix_type), intent(inout) :: m
         integer, intent(in) :: nrows, ncols
@@ -89,7 +96,9 @@ contains
     !> Give `f' matrices of its terminal's size (contents unknown, so the
     !> next update redraws everything), and a default face if it has none.
     !> A window-system frame has no frame matrices.  Port of the frame part
-    !> of dispnew.c:adjust_frame_glyphs (adjust_frame_glyphs_for_frame_redisplay).
+    !> of dispnew.c:adjust_frame_glyphs, with
+    !> dispnew.c:adjust_frame_glyphs_for_frame_redisplay and
+    !> dispnew.c:allocate_matrices_for_frame_redisplay.
     subroutine adjust_frame_glyphs(f)
         type(frame_type), intent(inout) :: f
         integer :: nrows, ncols
@@ -118,7 +127,9 @@ contains
         f%glyphs_initialized_p = .true.
     end subroutine adjust_frame_glyphs
 
-    !> Port of dispnew.c:clear_current_matrices.
+    !> Port of dispnew.c:clear_current_matrices (with
+    !> dispnew.c:clear_glyph_matrix, dispnew.c:clear_glyph_matrix_rows and
+    !> dispnew.c:clear_glyph_row).
     subroutine clear_current_matrices(f)
         type(frame_type), intent(inout) :: f
         integer :: r
@@ -129,7 +140,8 @@ contains
         end do
     end subroutine clear_current_matrices
 
-    !> Port of dispnew.c:clear_desired_matrices.
+    !> Port of dispnew.c:clear_desired_matrices (with
+    !> dispnew.c:clear_glyph_matrix).
     subroutine clear_desired_matrices(f)
         type(frame_type), intent(inout) :: f
         integer :: r
@@ -177,8 +189,9 @@ contains
     ! Updating
     ! ------------------------------------------------------------------
 
-    !> Clear the screen and forget what it showed.  Port of
-    !> dispnew.c:redraw_frame.
+    !> Clear frame F and output again what is supposed to appear on it.
+    !> Port of dispnew.c:Fredraw_frame and dispnew.c:redraw_frame: the
+    !> screen is cleared and what it showed forgotten.
     subroutine redraw_frame(f)
         type(frame_type), intent(inout) :: f
 
@@ -190,9 +203,115 @@ contains
 
         call tty_clear_frame(f%tty)
         call clear_current_matrices(f)
-        call tty_update_end(f%tty, f%cursor_off_p)
+        call tty_update_end(f%tty, selected_cursor_off_p())
         f%garbaged = .false.
     end subroutine redraw_frame
+
+    !> Whether the selected window shows no cursor (its `cursor_off_p',
+    !> which term.c:tty_update_end reads).  Not a port.
+    logical function selected_cursor_off_p() result(off)
+        type(handle_type) :: w
+
+        w = selected_window()
+        off = .false.
+        if (window_valid_p(w)) off = windows(w%index)%cursor_off_p
+    end function selected_cursor_off_p
+
+    !> Clear and redisplay all visible frames.  Port of
+    !> dispnew.c:Fredraw_display (one frame).
+    subroutine redraw_display()
+        call redraw_frame(selected_frame)
+    end subroutine redraw_display
+
+    !> Clear and redisplay all visible frames.  Port of
+    !> dispnew.c:Fredraw_display (the command).
+    subroutine cmd_redraw_display(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call redraw_display()
+    end subroutine cmd_redraw_display
+
+    !> Perform redisplay.
+    !> Value is true if redisplay has been performed, false if
+    !> executing a keyboard macro.  Port of dispnew.c:Fredisplay (FORCE,
+    !> ignored upstream, is left out; there are no window-system events to
+    !> swallow), with xdisp.c:redisplay_preserve_echo_area (redisplay
+    !> keeps the echo area as it is).
+    logical function redisplay() result(done)
+        done = .false.
+        if (executing_kbd_macro_p()) return
+        if (associated(redisplay_hook)) call redisplay_hook()
+        done = .true.
+    end function redisplay
+
+    !> Send STRING to the terminal without alteration.
+    !> Control characters in STRING will have terminal-dependent effects.
+    !> Port of dispnew.c:Fsend_string_to_terminal (the selected frame's
+    !> terminal; no termscript).
+    subroutine send_string_to_terminal(string, status)
+        character(len=*), intent(in) :: string
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+
+        if (frame_window_p(selected_frame)) then
+            call set_error(status, FM_GENERIC_ERROR, format_message("Device 0 is not a termcap terminal device"))
+            return
+        end if
+
+        call tty_put_bytes(selected_frame%tty, string)
+        call tty_flush(selected_frame%tty, status)
+    end subroutine send_string_to_terminal
+
+    !> Set the cursor-visibility flag of WINDOW to SHOW.
+    !> WINDOW absent means use the selected window.  SHOW true means
+    !> show a cursor in WINDOW in the next redisplay.  SHOW false means
+    !> don't show a cursor.  Port of dispnew.c:Finternal_show_cursor.
+    subroutine internal_show_cursor(show, status, window)
+        logical, intent(in) :: show
+        type(status_type), intent(out) :: status
+        type(handle_type), intent(in), optional :: window
+        type(handle_type) :: w
+
+        w = selected_window()
+        if (present(window)) w = window
+
+        if (.not. window_valid_p(w)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "windowp")
+            return
+        end if
+
+        status = status_type()
+        windows(w%index)%cursor_off_p = .not. show
+    end subroutine internal_show_cursor
+
+    !> Value is true if next redisplay will display a cursor in WINDOW.
+    !> WINDOW absent means report on the selected window.  Port of
+    !> dispnew.c:Finternal_show_cursor_p.
+    logical function internal_show_cursor_p(status, window) result(show)
+        type(status_type), intent(out) :: status
+        type(handle_type), intent(in), optional :: window
+        type(handle_type) :: w
+
+        show = .false.
+        w = selected_window()
+        if (present(window)) w = window
+
+        if (.not. window_valid_p(w)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "windowp")
+            return
+        end if
+
+        status = status_type()
+        show = .not. windows(w%index)%cursor_off_p
+    end function internal_show_cursor_p
+
+    !> Register this module's commands.  Port of the defsubr part of
+    !> dispnew.c:syms_of_display.
+    subroutine syms_of_display()
+        commands%redraw_display%run => cmd_redraw_display
+    end subroutine syms_of_display
 
     !> Leading blanks of `r(1:len)'.  Port of dispnew.c:count_blanks.
     integer function count_blanks(r, len) result(i)
@@ -483,8 +602,9 @@ contains
     end subroutine tty_set_cursor
 
     !> Make the screen show the desired matrix, then flush.  Port of
-    !> dispnew.c:combine_updates_for_frame for a root terminal frame
-    !> (update_frame's terminal path).
+    !> dispnew.c:update_frame, dispnew.c:combine_updates and
+    !> dispnew.c:combine_updates_for_frame for a root terminal frame (no
+    !> child frames), with dispnew.c:flush_terminal.
     subroutine update_frame(f, status)
         type(frame_type), intent(inout) :: f
         type(status_type), intent(out) :: status
@@ -501,7 +621,7 @@ contains
         if (f%garbaged) call redraw_frame(f)
         call write_matrix(f)
         call make_matrix_current(f)
-        call tty_update_end(f%tty, f%cursor_off_p)
+        call tty_update_end(f%tty, selected_cursor_off_p())
         call tty_set_cursor(f)
         call tty_flush(f%tty, status)
         call clear_desired_matrices(f)

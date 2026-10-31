@@ -65,6 +65,7 @@ module handle_fm
         procedure :: release => table_release
         procedure :: resolve => table_resolve
         procedure :: is_live => table_is_live
+        procedure :: issued => table_issued
         procedure :: handle_of => table_handle_of
         procedure :: capacity => table_capacity
         procedure :: count => table_count
@@ -151,6 +152,18 @@ contains
         if (.not. self%live(h%index)) return
         table_is_live = self%generations(h%index) == h%generation
     end function table_is_live
+
+    !> True when `h' is a handle this table gave out, live or released
+    !> since (an object deleted since keeps its type).
+    elemental logical function table_issued(self, h)
+        class(slot_table_type), intent(in) :: self
+        type(handle_type), intent(in) :: h
+
+        table_issued = .false.
+        if (.not. allocated(self%generations)) return
+        if (h%index < 1 .or. h%index > self%used) return
+        table_issued = h%generation >= 1 .and. h%generation <= self%generations(h%index)
+    end function table_issued
 
     !> The current handle of live slot `i', or the null handle.
     pure function table_handle_of(self, i) result(h)

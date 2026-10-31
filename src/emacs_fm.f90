@@ -45,7 +45,7 @@ module emacs_fm
     use term_fm, only: init_tty, delete_tty, tty_set_terminal_modes
     use termchar_fm, only: tty_flush
     use dispnew_fm, only: adjust_frame_glyphs, frame_ring_bell
-    use xdisp_fm, only: redisplay, init_frame_windows, message
+    use xdisp_fm, only: redisplay_internal, init_frame_windows, message
     use xfaces_fm, only: init_frame_faces
     use faces_fm, only: init_faces
     use modes_fm, only: minor_modes
@@ -187,7 +187,7 @@ contains
     subroutine do_redisplay()
         type(status_type) :: status
 
-        call redisplay(selected_frame, status)
+        call redisplay_internal(selected_frame, status)
     end subroutine do_redisplay
 
     !> Whether terminal type `term' gets term/xterm.el's setup, as
@@ -420,6 +420,8 @@ contains
         selected_frame%minibuffer_window = null_handle()
         selected_frame%minibuffer_selected = .false.
         selected_frame%garbaged = .true.
+        ! dispnew.c:init_display and dispnew.c:init_display_interactive: the
+        ! terminal TERM names.
         call init_tty(selected_frame%tty, terminal_type, fd, status)
         if (.not. status%ok()) return
         ! startup.el:command-line registers the 8 default colors, then
@@ -935,6 +937,7 @@ contains
         call emacs_main(term, 0_int32, status, args, configure)
 
         if (.not. status%ok()) then
+            ! term.c:fatal and term.c:vfatal: the message, then exit.
             write (error_unit, "(a)") "fortmacs: "//format_error(status)
             exit_code = 1
         end if
@@ -963,6 +966,7 @@ contains
         if (len(log) > 0) write (error_unit, "(a)", advance="no") log
 
         if (.not. status%ok()) then
+            ! term.c:fatal and term.c:vfatal: the message, then exit.
             write (error_unit, "(a)") "fortmacs: "//format_error(status)
             return
         end if
@@ -1020,6 +1024,7 @@ contains
         end select
 
         if (.not. status%ok()) then
+            ! term.c:fatal and term.c:vfatal: the message, then exit.
             write (error_unit, "(a)") "fortmacs: "//format_error(status)
             return
         end if
