@@ -1,0 +1,116 @@
+# fortran-names -- the Fortran names Fortmacs gives to Lisp-derived terms.
+#
+# Fortmacs is Fortran-first: where upstream names a thing with a Lisp
+# term, Fortmacs uses a Fortran word.  Every term, name and file entry
+# below was confirmed by the project owner individually; do not add one
+# without that.
+# tools/fortran-names.sh applies this table (to this tree, to branches
+# written before an entry existed, and to code freshly ported from a new
+# upstream version), and tools/check.sh fails on what it would still
+# rename (tools/fortran-names.awk).  PORTING.md, "Fortran names for Lisp
+# terms", explains it.
+#
+# One entry per line, fields separated by one tab:
+#
+#   term<TAB>OLD<TAB>NEW
+#       OLD as an underscore-delimited part of any identifier or as a
+#       word of prose, and its plural OLD + "s" (NEW + "s"):
+#       forward_sexp -> forward_expression, "sexps" -> "expressions".
+#   name<TAB>OLD<TAB>NEW
+#       the identifier OLD, also as a run of underscore-delimited parts
+#       of a longer one (cmd_forward_list -> cmd_forward_group).  Names
+#       are tried before terms, the longest first.
+#   file<TAB>OLD<TAB>NEW
+#       a module: its files (src/OLD.f90, test/test_OLD.f90) are renamed
+#       and OLD is a name; when both end in "_fm" the stems are names
+#       too (syms_of_lisp_cmds -> syms_of_expression_motion).
+#   keep<TAB>OLD[<TAB>FILE...]
+#       an identifier left as it is although a name or term matches it
+#       (in the FILEs only, paths separated by spaces, if any are given):
+#       a Lisp-mode name, or one awaiting the owner's decision.
+#   keep<TAB>PATH
+#       a file left as it is (a path with a slash, from the top of the
+#       repository): Lisp-language content, such as a Lisp mode's
+#       keywords, or a tool that reads upstream's Lisp and C.
+#   keep<TAB>"TEXT"
+#       TEXT, wherever it occurs, left as it is: Lisp source in string
+#       literals, such as a test's buffer text.  Only the words of
+#       user-visible prose are renamed, never Lisp that code matches.
+#   Every keep entry says why in a comment above it.
+#
+# Matching ignores case and keeps it: ERROR_REGEXP_ALIST becomes
+# ERROR_REGEXP_TABLE, "Sexp" becomes "Expression".  Upstream names are
+# never renamed: FILE.el:NAME, FILE.c:NAME and FILE.h:NAME citations,
+# hyphenated names (forward-sexp), C names (Fscan_lists, Vfoo_alist),
+# the name right after "upstream" or "upstream's", lines that say
+# "fortran-names: keep", and lines between "fortran-names: off" and
+# "fortran-names: on".
+#
+# Copyright (C) 2026 The Fortmacs authors
+#
+# This file is part of Fortmacs, under the GNU GPL version 3 or later.
+
+# A top-level definition.
+term	defun	subprogram
+
+# A balanced expression.
+term	sexp	expression
+name	halfsexp	halfexpression
+name	sexpflag	expressionflag
+
+# An association list.
+term	alist	table
+name	compilation_error_regexp_alist_alist	compilation_error_regexp_table
+name	compilation_error_regexp_alist	compilation_error_regexp_names
+
+# A list in the sense of a parenthesised group.
+name	forward_list	forward_group
+name	backward_list	backward_group
+name	up_list	up_group
+name	down_list	down_group
+name	backward_up_list	backward_up_group
+name	kill_backward_up_list	kill_backward_up_group
+name	scan_lists	scan_groups
+
+# Modules.
+file	lisp_cmds_fm	expression_motion_fm
+
+# Awaiting the owner (PORTING.md, "Fortran names for Lisp terms"):
+# smie-down-list (a list in the group sense, not in the list above);
+keep	smie_down_list
+# abbrev-minor-mode-table-alist (would read abbrev_minor_mode_table_table);
+keep	abbrev_minor_mode_table_alist
+# font-lock-defaults' SYNTAX-ALIST (syntax_table is a syntax table);
+keep	syntax_alist
+# the display-buffer action alist (display_table_type would be a display
+# table, disptab.h);
+keep	display_alist_type
+# Vbuffer_alist and Vprocess_alist (their modules already have a `table').
+keep	alist	src/buffer_fm.f90 src/buffer_ops_fm.f90 src/process_fm.f90
+keep	alist_count	src/buffer_fm.f90 src/buffer_ops_fm.f90 src/process_fm.f90
+
+# Lisp that stays Lisp.
+# The commands of upstream's run-time Lisp evaluation, which test_bindings_fm
+# checks do not exist (not applicable, like the Lisp modes' own commands).
+keep	eval_last_sexp
+keep	eval_defun
+# Lisp source as buffer text in tests (test_paren_fm, test_simple_electric_fm).
+keep	"(defun foo ()"
+# The upstream text tools/gen-tty-colors.sh looks for in tty-colors.el.
+keep	"An alist of X color names"
+# It counts upstream's C DEFUNs and Lisp (defun ...) forms.
+keep	tools/progress.sh
+# The Lisp language modes (lisp-mode.el, elisp-mode.el, scheme.el; not yet
+# ported): their keywords, regexps and fixtures are Lisp source.
+keep	src/lisp_mode_fm.f90
+keep	src/elisp_mode_fm.f90
+keep	src/scheme_fm.f90
+keep	test/test_lisp_mode_fm.f90
+keep	test/test_elisp_mode_fm.f90
+keep	test/test_scheme_fm.f90
+# Upstream's C macro (DEFUN, DEFUNs), not a Lisp term.
+keep	"DEFUN"
+# Lisp source quoted in comments: the regexp of `occur's example, which
+# collects the function names in a Lisp program, and window.el code.
+keep	"defun\s +\(\S +\)"
+keep	"(selected-window) alist)"

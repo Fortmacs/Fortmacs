@@ -144,6 +144,15 @@ if $style; then
         exit 1
     fi
 
+    # Fortran names for Lisp terms (PORTING.md, "Fortran names for Lisp
+    # terms"): tools/fortran-names.awk, and its rename script's own test.
+    if ! awk -v mode=check -v table=tools/fortran-names -f tools/fortran-names-lib.awk -f tools/fortran-names.awk \
+        $(find $DIRS -name '*.f90' | sort); then
+        echo "old names for Lisp terms: run tools/fortran-names.sh (PORTING.md, \"Fortran names for Lisp terms\")" >&2
+        exit 1
+    fi
+    tools/test-fortran-names.sh
+
     fortitude check $DIRS
 fi
 
