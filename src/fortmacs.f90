@@ -611,6 +611,17 @@ module fortmacs
                             conf_mode_hook, conf_unix_mode_hook, conf_windows_mode_hook, conf_javaprop_mode_hook, &
                             conf_space_mode_hook, conf_colon_mode_hook, conf_ppd_mode_hook, conf_xdefaults_mode_hook, &
                             conf_toml_mode_hook, conf_desktop_mode_hook, conf_npmrc_mode_hook
+    use make_mode_fm, only: makefile_target_colon, makefile_macro_assign, makefile_electric_keys, &
+                            makefile_use_curly_braces_for_macros_p, makefile_tab_after_target_colon, makefile_backslash_column, &
+                            makefile_backslash_align, makefile_pickup_everything_picks_up_filenames_p, &
+                            makefile_cleanup_continuations, makefile_special_targets_list, makefile_runtime_macros_list, &
+                            makefile_dependency_regex, makefile_dependency_skip, makefile_rule_action_regex, &
+                            makefile_brave_make, makefile_query_one_target_method_function, makefile_query_proc, &
+                            makefile_up_to_date_buffer_name, makefile_gnumake_functions_alist, &
+                            makefile_gnumake_function_type, makefile_mode_map, makefile_mode_syntax_table, &
+                            makefile_imake_mode_syntax_table, makefile_mode_abbrev_table, makefile_mode_hook, &
+                            makefile_automake_mode_hook, makefile_gmake_mode_hook, makefile_makepp_mode_hook, &
+                            makefile_bsdmake_mode_hook, makefile_imake_mode_hook
     use f90_fm, only: f90_do_indent, f90_if_indent, f90_type_indent, f90_program_indent, f90_associate_indent, &
                       f90_critical_indent, f90_continuation_indent, f90_comment_region, f90_indented_comment_re, &
                       f90_directive_comment_re, f90_beginning_ampersand, f90_smart_end, f90_smart_end_names, &
@@ -1028,6 +1039,17 @@ module fortmacs
               conf_mode_hook, conf_unix_mode_hook, conf_windows_mode_hook, conf_javaprop_mode_hook, &
               conf_space_mode_hook, conf_colon_mode_hook, conf_ppd_mode_hook, conf_xdefaults_mode_hook, &
               conf_toml_mode_hook, conf_desktop_mode_hook, conf_npmrc_mode_hook
+    public :: makefile_target_colon, makefile_macro_assign, makefile_electric_keys, &
+              makefile_use_curly_braces_for_macros_p, makefile_tab_after_target_colon, makefile_backslash_column, &
+              makefile_backslash_align, makefile_pickup_everything_picks_up_filenames_p, &
+              makefile_cleanup_continuations, makefile_special_targets_list, makefile_runtime_macros_list, &
+              makefile_dependency_regex, makefile_dependency_skip, makefile_rule_action_regex, &
+              makefile_brave_make, makefile_query_one_target_method_function, makefile_query_proc, &
+              makefile_up_to_date_buffer_name, makefile_gnumake_functions_alist, &
+              makefile_gnumake_function_type, makefile_mode_map, makefile_mode_syntax_table, &
+              makefile_imake_mode_syntax_table, makefile_mode_abbrev_table, makefile_mode_hook, &
+              makefile_automake_mode_hook, makefile_gmake_mode_hook, makefile_makepp_mode_hook, &
+              makefile_bsdmake_mode_hook, makefile_imake_mode_hook
     public :: f90_do_indent, f90_if_indent, f90_type_indent, f90_program_indent, f90_associate_indent, &
               f90_critical_indent, f90_continuation_indent, f90_comment_region, f90_indented_comment_re, &
               f90_directive_comment_re, f90_beginning_ampersand, f90_smart_end, f90_smart_end_names, &

@@ -40,7 +40,7 @@ module dabbrev_fm
     use error_fm, only: status_type, set_error, format_message, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: nilp
-    use data_fm, only: value_eq
+    use data_fm, only: value_eq, string_setting, forward_setting
     use buffer_fm, only: buffers, cur, BEG, current_buffer, set_buffer, buffer_live_p, buffer_list, resolve_buffer, &
                          get_buffer, get_buffer_create, generate_new_buffer_name, kill_buffer, &
                          barf_if_buffer_read_only, UE_POINT, undo_entry_type
@@ -114,9 +114,10 @@ module dabbrev_fm
     !> in which variable names may appear with or without a leading `$'.
     !> (For example, in Makefiles.)
     !>
-    !> Leave this unallocated if no characters should be skipped.  Port of
+    !> Leave this unset if no characters should be skipped.  Port of
     !> dabbrev.el dabbrev-abbrev-skip-leading-regexp.
-    character(len=:), allocatable, public :: dabbrev_abbrev_skip_leading_regexp
+    type(string_setting), target, public :: dabbrev_abbrev_skip_leading_regexp = &
+                                            string_setting(name="dabbrev_abbrev_skip_leading_regexp")
 
     !> True means dabbrev should not insert newlines.
     !> Instead it converts them to spaces.  Port of dabbrev.el
@@ -796,8 +797,8 @@ contains
             if (.not. looking_at(re, st)) call goto_char(point() + 1)
         end if
 
-        if (allocated(dabbrev_abbrev_skip_leading_regexp)) then
-            do while (looking_at(dabbrev_abbrev_skip_leading_regexp, st))
+        if (allocated(dabbrev_abbrev_skip_leading_regexp%value)) then
+            do while (looking_at(dabbrev_abbrev_skip_leading_regexp%value, st))
                 if (point() >= point_max()) exit
                 call goto_char(point() + 1)
             end do
@@ -1816,6 +1817,7 @@ contains
     subroutine syms_of_dabbrev()
         commands%dabbrev_expand%run => cmd_dabbrev_expand
         commands%dabbrev_completion%run => cmd_dabbrev_completion
+        call forward_setting(dabbrev_abbrev_skip_leading_regexp)
 
         if (.not. allocated(dabbrev_ignored_buffer_names)) then
             dabbrev_ignored_buffer_names = [character(len=13) :: "*Messages*", "*Buffer List*"]

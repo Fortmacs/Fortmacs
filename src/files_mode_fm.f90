@@ -44,13 +44,13 @@ submodule(files_fm) files_mode_fm
 
     !> interpreter-mode-alist: (REGEXP . MODE) for the modes that exist so
     !> far, in files.el's order.
-    character(len=*), parameter :: interpreter_regexps(15) = [character(len=24) :: &
+    character(len=*), parameter :: interpreter_regexps(16) = [character(len=24) :: &
                                                      "[acjkwz]sh", "r?bash2?", "dash", "mksh", "\(dt\|pd\|w\)ksh", "es", "i?tcsh", &
-                                                              "oash", "rc", "rpm", "sh5?", "tail", "more", "less", "pg"]
-    character(len=*), parameter :: interpreter_modes(15) = [character(len=16) :: &
+                                                              "oash", "rc", "rpm", "sh5?", "tail", "more", "less", "pg", "make"]
+    character(len=*), parameter :: interpreter_modes(16) = [character(len=19) :: &
                                                       "sh_mode", "sh_mode", "sh_mode", "sh_mode", "sh_mode", "sh_mode", "sh_mode", &
                                                 "sh_mode", "sh_mode", "sh_mode", "sh_mode", "text_mode", "text_mode", "text_mode", &
-                                                            "text_mode"]
+                                                            "text_mode", "makefile_gmake_mode"]
 
     !> How much of the buffer the -*- line is looked for in.
     integer(int64), parameter :: SPEC_LIMIT = 4096
@@ -84,6 +84,15 @@ contains
     subroutine init_auto_modes()
         if (allocated(auto_modes)) return
         call append_auto_mode("\.te?xt\'", "text_mode")
+        call append_auto_mode("Imakefile\'", "makefile_imake_mode")
+        ! Put this before .mk
+        call append_auto_mode("Makeppfile\(?:\.mk\)?\'", "makefile_makepp_mode")
+        call append_auto_mode("\.makepp\'", "makefile_makepp_mode")
+        ! Might be any make, give GNU the host advantage
+        call append_auto_mode("\.mk\'", "makefile_gmake_mode")
+        call append_auto_mode("\.make\'", "makefile_gmake_mode")
+        call append_auto_mode("[Mm]akefile\'", "makefile_gmake_mode")
+        call append_auto_mode("\.am\'", "makefile_automake_mode")
         call append_auto_mode("\.[ckz]?sh\'\|\.shar\'\|/\.z?profile\'", "sh_mode")
         call append_auto_mode("\.bash\'", "sh_mode")
         ! Bash builtin 'fc' creates a temp file named "bash-fc.XXXXXX"
