@@ -43,7 +43,16 @@ module test_sh_script_fm
     use sh_script_fm, only: sh_mode, sh_indent_supported_here, sh_indent_for_continuation, &
                             sh_indent_after_continuation, sh_smie_default_backward_token, sh_set_shell, &
                             sh_builtins, sh_string_type, sh_canonicalize_shell, sh_shell, &
-                            SH_PLUS_PLUS, SH_CONTINUATION_NIL, SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS
+                            SH_PLUS_PLUS, SH_CONTINUATION_NIL, SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS, &
+                            sh_completion_at_point_function, sh_name_style, sh_load_style, sh_save_styles_to_buffer, &
+                            sh_styles_alist, sh_basic_offset, sh_indent_for_do, SH_PLUS
+    use minibuf_table_fm, only: capf_data_type, TABLE_FUNCTION, COMPLETE_ALL
+    use lisp_fm, only: list_length, list_elt, xstring
+    use lisp_cmds_fm, only: beginning_of_defun, end_of_defun
+    use window_fm, only: display_buffer_overriding_action, display_action_type, pop_to_buffer_same_window, &
+                         get_buffer_window, delete_other_windows
+    use frame_fm, only: selected_window
+    use buffer_fm, only: get_buffer
     implicit none(type, external)
     private
 
@@ -66,7 +75,11 @@ contains
                     new_unittest("sh-script-test-do-fontification", test_do_fontification), &
                     new_unittest("sh-feature", test_feature), &
                     new_unittest("sh-here-document-syntax", test_here_doc), &
-                    new_unittest("sh-canonicalize-shell", test_canonicalize) &
+                    new_unittest("sh-canonicalize-shell", test_canonicalize), &
+                    new_unittest("sh-completion-at-point-function", test_completion), &
+                    new_unittest("sh-defun-prompt-regexp", test_defun), &
+                    new_unittest("sh-styles", test_styles), &
+                    new_unittest("display-buffer-overriding-action", test_overriding_action) &
                     ]
     end subroutine collect_sh_script_fm
 
@@ -369,4 +382,136 @@ contains
         if (allocated(error)) return
         call check(error, len(sh_shell%name) > 0, "sh_shell")
     end subroutine test_canonicalize
+
+    ! Whether NAME is among the strings of the list V.
+    logical function in_list(v, name)
+        type(value_type), intent(in) :: v
+        character(len=*), intent(in) :: name
+        integer(int64) :: k
+
+        in_list = .false.
+
+        do k = 1, list_length(v)
+            if (xstring(list_elt(v, k)) == name) in_list = .true.
+        end do
+    end function in_list
+
+    subroutine test_completion(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(capf_data_type) :: data
+        type(value_type) :: all
+        type(status_type) :: st
+
+        call script("FOO=1"//LF//"BAR=2"//LF//"echo $F", h)
+        call goto_char(point_max())
+
+        checks: block
+            call sh_completion_at_point_function(data, st)
+            call check(error, data%found .and. data%start == point_max() - 1 .and. data%end == point_max(), "variable")
+            if (allocated(error)) exit checks
+            call check(error, in_list(data%table%list, "FOO") .and. in_list(data%table%list, "BAR"), "variables")
+            if (allocated(error)) exit checks
+            ! At a keyword position: variables with "=", commands, keywords.
+            call insert(LF//"wh", st)
+            call sh_completion_at_point_function(data, st)
+            call check(error, data%found .and. data%table%kind == TABLE_FUNCTION, "command")
+            if (allocated(error)) exit checks
+            call data%table%fn("wh", COMPLETE_ALL, all, st)
+            call check(error, in_list(all, "while"), "keyword while")
+            if (allocated(error)) exit checks
+            call data%table%fn("F", COMPLETE_ALL, all, st)
+            call check(error, in_list(all, "FOO="), "assignment FOO=")
+        end block checks
+
+        call leave(h)
+    end subroutine test_completion
+
+    subroutine test_defun(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        logical :: found
+        type(status_type) :: st
+
+        call script("x=1"//LF//"foo () {"//LF//"  a"//LF//"}"//LF//"function bar {"//LF//"  b"//LF//"}"//LF, h)
+        call goto_char(point_max())
+
+        checks: block
+            call beginning_of_defun(1_int64, found, st)
+            call check(error, found .and. point() == 20, "beginning of bar")
+            if (allocated(error)) exit checks
+            call beginning_of_defun(1_int64, found, st)
+            call check(error, found .and. point() == 5, "beginning of foo")
+            if (allocated(error)) exit checks
+            call end_of_defun(1_int64, st)
+            call check(error, point() == 20, "end of foo")
+        end block checks
+
+        call leave(h)
+    end subroutine test_defun
+
+    subroutine test_styles(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, out
+        integer(int64) :: saved_offset, saved_do
+        character(len=:), allocatable :: text
+        type(status_type) :: st
+
+        call script("", h)
+        saved_offset = sh_basic_offset%value
+        saved_do = sh_indent_for_do%value
+
+        checks: block
+            sh_basic_offset = 2
+            call sh_name_style("two", st)
+            call check(error, size(sh_styles_alist) >= 1, "style created")
+            if (allocated(error)) exit checks
+            call check(error, trim(sh_styles_alist(1)%name), "two")
+            if (allocated(error)) exit checks
+            sh_basic_offset = 8
+            call sh_load_style("two", st)
+            call check(error, sh_basic_offset%value == 2, "style loaded")
+            if (allocated(error)) exit checks
+            call sh_load_style("nonesuch", st)
+            call check(error,.not. st%ok(), "unknown style")
+            if (allocated(error)) exit checks
+            sh_indent_for_do = SH_PLUS
+            call sh_name_style("two", st)
+            call sh_save_styles_to_buffer(" *sh-styles*", st)
+            out = get_buffer(" *sh-styles*")
+            call set_buffer(out, st)
+            text = buffer_string()
+            call check(error, index(text, LF//"sh_styles_alist = [sh_style_type(name=""two"", values=[2, ") == 1, &
+                       "saved styles")
+            if (allocated(error)) exit checks
+            call check(error, index(text, "SH_PLUS") > 0, "named constant")
+            call kill_buffer(out, st)
+        end block checks
+
+        sh_basic_offset = saved_offset
+        sh_indent_for_do = saved_do
+        deallocate (sh_styles_alist)
+        allocate (sh_styles_alist(0))
+        call set_buffer(h, st)
+        call leave(h)
+    end subroutine test_styles
+
+    subroutine test_overriding_action(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, other, window
+        type(status_type) :: st
+
+        call script("", h)
+        call delete_other_windows(selected_window(), st)
+        call pop_to_buffer_same_window(h, st)
+        call get_buffer_create(" *override-test*", other, st)
+        display_buffer_overriding_action = display_action_type(has_inhibit_same_window=.true., inhibit_same_window=.true.)
+        call pop_to_buffer_same_window(other, st)
+        display_buffer_overriding_action = display_action_type()
+        window = get_buffer_window(h)
+        call check(error, window%index /= 0, "the same window was not used")
+        call delete_other_windows(selected_window(), st)
+        call kill_buffer(other, st)
+        call leave(h)
+    end subroutine test_overriding_action
 end module test_sh_script_fm

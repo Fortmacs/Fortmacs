@@ -415,26 +415,27 @@ module docstrings_fm
     use search_fm, only: case_fold_search, search_spaces_regexp
     use sh_script_fm, only: sh_alias_alist, sh_ancestor_alist, sh_assignment_regexp, &
                             sh_backslash_align, sh_backslash_column, sh_base_mode_hook, sh_base_mode_map, &
-                            sh_basic_offset, sh_beginning_of_command, sh_builtins, sh_end_of_command, &
-                            sh_font_lock_keywords_var, sh_font_lock_keywords_var_1, sh_font_lock_keywords_var_2, &
-                            sh_here_document_word, sh_indent_after_case, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, &
-                            SH_STAR, SH_SLASH, sh_indent_after_continuation, SH_CONTINUATION_NIL, SH_CONTINUATION_T, &
-                            SH_CONTINUATION_ALWAYS, sh_indent_after_do, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, &
-                            SH_STAR, SH_SLASH, sh_indent_after_done, sh_indent_after_else, SH_PLUS, SH_MINUS, &
-                            SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_function, SH_PLUS, SH_MINUS, &
-                            SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_if, SH_PLUS, SH_MINUS, &
-                            SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_loop_construct, SH_PLUS, &
-                            SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_open, SH_PLUS, &
-                            SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_switch, SH_PLUS, &
-                            SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_for_case_alt, SH_PLUS, &
-                            SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_for_case_label, SH_PLUS, &
-                            SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_for_continuation, &
-                            SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_for_do, &
-                            sh_indent_for_done, sh_indent_for_fi, sh_indent_for_then, sh_indent_statement_after_and, &
-                            sh_indent_supported, sh_leading_keywords, sh_make_vars_local, sh_mode_abbrev_table, &
-                            sh_mode_hook, sh_mode_map, sh_mode_syntax_table, sh_mode_syntax_table_input, &
-                            sh_other_keywords, sh_remember_variable_min, sh_set_shell_hook, sh_shell, sh_shell_arg, &
-                            sh_shell_file, sh_smie_rc_grammar, sh_smie_sh_grammar, sh_variables
+                            sh_basic_offset, sh_beginning_of_command, sh_builtins, sh_dynamic_complete_functions, &
+                            sh_end_of_command, sh_font_lock_keywords_var, sh_font_lock_keywords_var_1, &
+                            sh_font_lock_keywords_var_2, sh_here_document_word, sh_indent_after_case, SH_PLUS, SH_MINUS, &
+                            SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_continuation, &
+                            SH_CONTINUATION_NIL, SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS, sh_indent_after_do, SH_PLUS, &
+                            SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_done, &
+                            sh_indent_after_else, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, &
+                            sh_indent_after_function, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, &
+                            sh_indent_after_if, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, &
+                            sh_indent_after_loop_construct, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
+                            SH_SLASH, sh_indent_after_open, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
+                            SH_SLASH, sh_indent_after_switch, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
+                            SH_SLASH, sh_indent_for_case_alt, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
+                            SH_SLASH, sh_indent_for_case_label, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, &
+                            SH_SLASH, sh_indent_for_continuation, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, &
+                            SH_STAR, SH_SLASH, sh_indent_for_do, sh_indent_for_done, sh_indent_for_fi, &
+                            sh_indent_for_then, sh_indent_statement_after_and, sh_indent_supported, sh_leading_keywords, &
+                            sh_make_vars_local, sh_mode_abbrev_table, sh_mode_hook, sh_mode_map, sh_mode_syntax_table, &
+                            sh_mode_syntax_table_input, sh_other_keywords, sh_remember_variable_min, sh_set_shell_hook, &
+                            sh_shell, sh_shell_arg, sh_shell_file, sh_smie_rc_grammar, sh_smie_sh_grammar, &
+                            sh_styles_alist, sh_variables
     use shell_fm, only: explicit_bash_args, explicit_csh_args, explicit_shell_file_name, &
                         list_buffers_directory, shell_cd_regexp, shell_command_mode_hook, shell_command_mode_map, &
                         shell_command_regexp, shell_command_separator_regexp, shell_completion_execonly, &
@@ -514,10 +515,10 @@ module docstrings_fm
     use view_fm, only: view_exits_all_viewing_windows, view_inhibit_help_message, view_mode_hook, &
                        view_mode_map, view_no_disable_on_exit, view_scroll_auto_exit
     use window_fm, only: display_buffer_mark_dedicated, DEDICATED_NONE, DEDICATED_WEAK, &
-                         DEDICATED_STRONG, even_window_sizes, minibuffer_scroll_window, next_screen_context_lines, &
-                         pop_up_windows, scroll_error_top_bottom, split_height_threshold, split_width_threshold, &
-                         split_window_preferred_direction, SPLIT_LONGEST, SPLIT_VERTICAL, SPLIT_HORIZONTAL, &
-                         window_min_height, window_min_width
+                         DEDICATED_STRONG, display_buffer_overriding_action, even_window_sizes, &
+                         minibuffer_scroll_window, next_screen_context_lines, pop_up_windows, scroll_error_top_bottom, &
+                         split_height_threshold, split_width_threshold, split_window_preferred_direction, &
+                         SPLIT_LONGEST, SPLIT_VERTICAL, SPLIT_HORIZONTAL, window_min_height, window_min_width
     use xdisp_fm, only: fontification_functions, message_log_max, tab_width, &
                         truncate_partial_width_windows
     implicit none(type, external)
@@ -550,7 +551,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1409) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1415) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -918,9 +919,11 @@ module docstrings_fm
                                                                   "set_repeat_map", "set_standard_case_table", "set_syntax_table", &
                                                           "set_terminal_coding_system", "set_variable", "sh_add", "sh_assignment", &
                                          "sh_backslash_region", "sh_base_mode", "sh_basic_indent_line", "sh_beginning_of_command", &
-                                                       "sh_electric_here_document_mode", "sh_end_of_command", "sh_execute_region", &
-                                         "sh_make_vars_local", "sh_mode", "sh_reset_indent_vars_to_global_values", "sh_set_shell", &
-                                                         "shell", "shell_backward_command", "shell_command", "shell_command_mode", &
+                                         "sh_cd_here", "sh_electric_here_document_mode", "sh_end_of_command", "sh_execute_region", &
+                                                                "sh_load_style", "sh_make_vars_local", "sh_mode", "sh_name_style", &
+                                                              "sh_reset_indent_vars_to_global_values", "sh_save_styles_to_buffer", &
+                                                      "sh_send_line_or_region_and_step", "sh_set_shell", "sh_show_shell", "shell", &
+                                                                  "shell_backward_command", "shell_command", "shell_command_mode", &
                                                "shell_command_on_region", "shell_dirtrack_mode", "shell_dynamic_complete_command", &
                                              "shell_dynamic_complete_environment_variable", "shell_forward_command", "shell_mode", &
                                              "shell_narrow_to_prompt", "shell_replace_by_expanded_directory", "shell_script_mode", &
@@ -973,7 +976,7 @@ module docstrings_fm
                                                  "y_or_n_p_insert_y", "yank", "yank_pop", "yank_rectangle", "yes_or_no_p", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1158) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1161) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -1117,9 +1120,9 @@ module docstrings_fm
                                                              "dired_switches_in_mode_line", "dired_symlink", "dired_symlink_face", &
                                           "dired_touch_program", "dired_trivial_filenames", "dired_use_ls_dired", "dired_warning", &
                                                     "dired_warning_face", "disable_point_adjustment", "disabled_command_function", &
-                                                       "display_buffer_mark_dedicated", "echo_keystrokes", "echo_keystrokes_help", &
-                                              "edit_abbrevs_mode_abbrev_table", "edit_abbrevs_mode_hook", "edit_abbrevs_mode_map", &
-                                                                    "edmacro_eight_bits", "electric_indent_chars", &
+                                           "display_buffer_mark_dedicated", "display_buffer_overriding_action", "echo_keystrokes", &
+                                               "echo_keystrokes_help", "edit_abbrevs_mode_abbrev_table", "edit_abbrevs_mode_hook", &
+                                                           "edit_abbrevs_mode_map", "edmacro_eight_bits", "electric_indent_chars", &
                                                           "electric_indent_functions_without_reindent", "electric_indent_inhibit", &
                                                                    "electric_indent_local_mode_hook", "electric_indent_mode_hook", &
                                                                     "electric_pair_local_mode_hook", "electric_pair_mode_hook", &
@@ -1307,8 +1310,8 @@ module docstrings_fm
                                          "sentence_end_double_space", "sentence_end_without_period", "sentence_end_without_space", &
                                               "sh_alias_alist", "sh_ancestor_alist", "sh_assignment_regexp", "sh_backslash_align", &
                                                 "sh_backslash_column", "sh_base_mode_hook", "sh_base_mode_map", "sh_basic_offset", &
-                                                                    "sh_beginning_of_command", "sh_builtins", "sh_end_of_command", &
-                                                                    "sh_font_lock_keywords_var", "sh_font_lock_keywords_var_1", &
+                                                        "sh_beginning_of_command", "sh_builtins", "sh_dynamic_complete_functions", &
+                                                  "sh_end_of_command", "sh_font_lock_keywords_var", "sh_font_lock_keywords_var_1", &
                                                    "sh_font_lock_keywords_var_2", "sh_here_document_word", "sh_indent_after_case", &
                                                      "sh_indent_after_continuation", "sh_indent_after_do", "sh_indent_after_done", &
                                                          "sh_indent_after_else", "sh_indent_after_function", "sh_indent_after_if", &
@@ -1319,8 +1322,8 @@ module docstrings_fm
                                                       "sh_make_vars_local", "sh_mode_abbrev_table", "sh_mode_hook", "sh_mode_map", &
                                                         "sh_mode_syntax_table", "sh_mode_syntax_table_input", "sh_other_keywords", &
                                                       "sh_remember_variable_min", "sh_set_shell_hook", "sh_shell", "sh_shell_arg", &
-                                                      "sh_shell_file", "sh_smie_rc_grammar", "sh_smie_sh_grammar", "sh_variables", &
-                                                                    "shell_cd_regexp", "shell_command_default_error_buffer", &
+                                                   "sh_shell_file", "sh_smie_rc_grammar", "sh_smie_sh_grammar", "sh_styles_alist", &
+                                                          "sh_variables", "shell_cd_regexp", "shell_command_default_error_buffer", &
                                            "shell_command_dont_erase_buffer", "shell_command_mode_hook", "shell_command_mode_map", &
                                                                     "shell_command_prompt_show_cwd", "shell_command_regexp", &
                                             "shell_command_separator_regexp", "shell_command_switch", "shell_completion_execonly", &
@@ -1379,7 +1382,7 @@ module docstrings_fm
                                                            "y_or_n_p_history_variable", "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(569) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(570) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1829,6 +1832,7 @@ module docstrings_fm
                                                                       "sh_basic_offset", &
                                                                       "sh_beginning_of_command", &
                                                                       "sh_builtins", &
+                                                                      "sh_dynamic_complete_functions", &
                                                                       "sh_end_of_command", &
                                                                       "sh_here_document_word", &
                                                                       "sh_indent_after_case", &
@@ -12175,6 +12179,10 @@ contains
             entry%file = "sh_script_fm.f90"
             entry%interactive = .true.
             entry%doc = "Move point to successive beginnings of commands."
+        case ("sh_cd_here")
+            entry%file = "sh_script_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Change directory in the current interaction shell to the current one."
         case ("sh_electric_here_document_mode")
             entry%file = "sh_script_fm.f90"
             entry%interactive = .true.
@@ -12195,6 +12203,11 @@ contains
                         "With a positive prefix ARG, instead of sending region, define header from"//LF// &
                         "beginning of buffer to point.  With a negative prefix ARG, instead of sending"//LF// &
                         "region, clear header."
+        case ("sh_load_style")
+            entry%file = "sh_script_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Set shell indentation values for this buffer from those in a style"//LF// &
+                        "(the command)."
         case ("sh_make_vars_local")
             entry%file = "sh_script_fm.f90"
             entry%interactive = .true.
@@ -12257,11 +12270,24 @@ contains
                         ""//LF// &
                         "If your shell gives error messages with line numbers, you can use \[executable_interpret]"//LF// &
                         "with your script for an edit-interpret-debug cycle."
+        case ("sh_name_style")
+            entry%file = "sh_script_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Name the current indentation settings as a style (the command)."
         case ("sh_reset_indent_vars_to_global_values")
             entry%file = "sh_script_fm.f90"
             entry%interactive = .true.
             entry%doc = "Reset local indentation variables to the global values."//LF// &
                         "Then, if variable `sh_make_vars_local' is true, make them local."
+        case ("sh_save_styles_to_buffer")
+            entry%file = "sh_script_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Save all current styles to a buffer (the command)."
+        case ("sh_send_line_or_region_and_step")
+            entry%file = "sh_script_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Send the current line to the inferior shell and step to the next line."//LF// &
+                        "When the region is active, send the region instead."
         case ("sh_set_shell")
             entry%file = "sh_script_fm.f90"
             entry%interactive = .true.
@@ -12282,6 +12308,10 @@ contains
                         "Shell script files can cause this function be called automatically"//LF// &
                         "when the file is visited by having a `sh_shell' file-local variable"//LF// &
                         "whose value is the shell name (don't quote it)."
+        case ("sh_show_shell")
+            entry%file = "sh_script_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Pop the shell interaction buffer."
         case ("shell")
             entry%file = "shell_fm.f90"
             entry%fortran = "call shell(result, status, buffer_name, file_name)"
@@ -18521,6 +18551,16 @@ contains
             entry%doc = "If not DEDICATED_NONE, `display_buffer' marks the windows it creates as"//LF// &
                         "dedicated.  The actual value of this variable will be copied"//LF// &
                         "to the `window_dedicated_p' flag."
+        case ("display_buffer_overriding_action")
+            entry%file = "window_fm.f90"
+            entry%fortran = "display_buffer_overriding_action"
+            entry%doc = "A buffer display action that overrides all others."//LF// &
+                        "If non-empty, this action takes precedence over all others: its"//LF// &
+                        "functions are tried first and the entries of its alist win over"//LF// &
+                        "those of the other actions.  This variable is not intended for"//LF// &
+                        "user customization.  Programs should never set this variable"//LF// &
+                        "permanently but may bind it around calls of buffer display"//LF// &
+                        "functions like `display_buffer' or `pop_to_buffer'."
         case ("echo_keystrokes")
             entry%file = "keyboard_fm.f90"
             entry%fortran = "echo_keystrokes"
@@ -23904,6 +23944,11 @@ contains
             entry%doc = "List of all shell builtins for completing read and fontification."//LF// &
                         "Note that on some systems not all builtins are available or some are"//LF// &
                         "implemented as aliases.  See `sh_feature'."
+        case ("sh_dynamic_complete_functions")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_dynamic_complete_functions"
+            entry%user_option = .true.
+            entry%doc = "Functions for doing TAB dynamic completion."
         case ("sh_end_of_command")
             entry%file = "sh_script_fm.f90"
             entry%fortran = "sh_end_of_command"
@@ -24418,6 +24463,10 @@ contains
             entry%file = "sh_script_fm.f90"
             entry%fortran = "sh_smie_sh_grammar"
             entry%doc = "The SMIE grammar of sh."
+        case ("sh_styles_alist")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_styles_alist"
+            entry%doc = "A list of all known shell indentation styles."
         case ("sh_variables")
             entry%file = "sh_script_fm.f90"
             entry%fortran = "sh_variables"

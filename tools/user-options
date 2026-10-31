@@ -459,6 +459,7 @@ sh_backslash_column
 sh_basic_offset
 sh_beginning_of_command
 sh_builtins
+sh_dynamic_complete_functions
 sh_end_of_command
 sh_here_document_word
 sh_indent_after_case

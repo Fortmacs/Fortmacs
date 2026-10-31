@@ -141,6 +141,25 @@ module window_fm
         procedure(window_height_function), pointer, nopass :: body_function => null()
     end type display_alist_type
 
+    !> A buffer display action given in full: action functions
+    !> (DISPLAY_ACTION_*) and the alist entries it sets (here
+    !> `inhibit_same_window', when `has_inhibit_same_window').
+    type, public :: display_action_type
+        integer, allocatable :: actions(:)
+        logical :: has_inhibit_same_window = .false.
+        logical :: inhibit_same_window = .false.
+    end type display_action_type
+
+    !> A buffer display action that overrides all others.
+    !> If non-empty, this action takes precedence over all others: its
+    !> functions are tried first and the entries of its alist win over
+    !> those of the other actions.  This variable is not intended for
+    !> user customization.  Programs should never set this variable
+    !> permanently but may bind it around calls of buffer display
+    !> functions like `display_buffer' or `pop_to_buffer'.  Port of
+    !> window.el display-buffer-overriding-action.
+    type(display_action_type), public :: display_buffer_overriding_action
+
     !> The window to scroll with \[scroll_other_window] from the
     !> minibuffer: the window showing completions (the null handle for
     !> none).  Port of window.c minibuffer-scroll-window.
