@@ -1396,20 +1396,26 @@ contains
         backup = file//"~"
     end function make_backup_file_name
 
-    !> The temporary directory, as a directory name: $TMPDIR, else "/tmp".
-    !> (callproc.c:init_callproc sets temporary-file-directory.) Not a port.
+    !> The temporary directory, as a directory name: the first of $TMPDIR,
+    !> $TMP and $TEMP that is set, else "/tmp".  Port of
+    !> cus-start.el:temporary-file-directory (its GNU/Linux standard value).
     function temporary_file_directory() result(dir)
         character(len=:), allocatable :: dir
-        integer :: length, stat
+        character(len=6), parameter :: names(3) = [character(len=6) :: "TMPDIR", "TMP", "TEMP"]
+        integer :: i, length, stat
 
-        call get_environment_variable("TMPDIR", length=length, status=stat)
+        dir = "/tmp"
 
-        if (stat == 0 .and. length > 0) then
-            allocate (character(len=length) :: dir)
-            call get_environment_variable("TMPDIR", dir)
-        else
-            dir = "/tmp"
-        end if
+        do i = 1, size(names)
+            call get_environment_variable(trim(names(i)), length=length, status=stat)
+
+            if (stat == 0) then
+                deallocate (dir)
+                allocate (character(len=length) :: dir)
+                if (length > 0) call get_environment_variable(trim(names(i)), dir)
+                exit
+            end if
+        end do
 
         dir = file_name_as_directory(dir)
     end function temporary_file_directory
