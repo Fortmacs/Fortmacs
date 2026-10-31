@@ -28,7 +28,7 @@
 !> `sgml_quote', `sgml_pretty_print', `sgml_slash', the character names
 !> (`sgml_name_char', `sgml_namify_char', `sgml_name_8bit_mode'),
 !> `sgml_validate', `sgml_guess_indent', `sgml_parse_dtd' and
-!> `html_current_subprogram_name'.
+!> `html_current_heading_name'.
 !>
 !> Deferred: what uses skeletons or the tag tables built on them
 !> (`sgml_tag', `sgml_attributes', `sgml_auto_attributes', `sgml_value',
@@ -95,7 +95,7 @@ module sgml_mode_fm
     public :: syms_of_sgml_mode, sgml_mode, html_mode, sgml_indent_line, sgml_calculate_indent, sgml_lexical_context, &
               sgml_beginning_of_tag, sgml_skip_tag_backward, sgml_skip_tag_forward, sgml_delete_tag, sgml_close_tag, &
               sgml_quote, sgml_pretty_print, sgml_xml_guess, sgml_parse_tag_backward, sgml_get_context, sgml_tag_type, &
-              sgml_namify_char, sgml_name_char, sgml_parse_dtd, html_current_subprogram_name, sgml_syntax_propertize, &
+              sgml_namify_char, sgml_name_char, sgml_parse_dtd, html_current_heading_name, sgml_syntax_propertize, &
               sgml_font_lock_syntactic_face
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
@@ -2477,7 +2477,7 @@ contains
 
     !> Return the name of the last HTML title or heading (`found' false for
     !> none).  Port of sgml-mode.el:html-current-defun-name.
-    recursive subroutine html_current_subprogram_name(name, found)
+    recursive subroutine html_current_heading_name(name, found)
         character(len=:), allocatable, intent(out) :: name
         logical, intent(out) :: found
         type(status_type) :: st
@@ -2489,7 +2489,7 @@ contains
         found = pos > 0
         if (found) name = match_string_no_properties(1)
         call goto_char(opoint)
-    end subroutine html_current_subprogram_name
+    end subroutine html_current_heading_name
 
     ! ------------------------------------------------------------------
     ! Modes

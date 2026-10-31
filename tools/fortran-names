@@ -743,3 +743,4 @@ name	apropos_symbol	apropos_name
 name	table_symbol	table_name	src/abbrev_cmds_fm.f90
 name	symbol_in	name_in	src/abbrev_cmds_fm.f90
 name	f90_equal_symbols	f90_equal_names
+name	html_current_subprogram_name	html_current_heading_name	src/sgml_mode_fm.f90
