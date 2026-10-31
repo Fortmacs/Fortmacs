@@ -37,7 +37,8 @@ module test_minibuf_fm
     use lisp_fm, only: value_type, list_length, list_elt, xstring, make_list, list, list_elements
     use data_fm, only: value_eq
     use fns_fm, only: value_equal
-    use data_fm, only: set, symbol_value
+    use data_fm, only: set, symbol_value, history_setting, find_history, HISTORY_LENGTH_UNLIMITED
+    use textprop_fm, only: get_text_property
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, current_buffer, kill_buffer, get_buffer, &
                          erase_buffer, fill_column
     use insdel_fm, only: insert
@@ -47,7 +48,8 @@ module test_minibuf_fm
     use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop, minibuffer_message_text, &
                            ring_bell_hook
     use keymap_fm, only: current_global_map
-    use minibuffer_fm, only: completing_read, completion_auto_help, read_file_name_internal, REQUIRE_MATCH_YES, &
+    use minibuffer_fm, only: completing_read, completion_annotation_function, completion_auto_help, read_file_name_internal, &
+                             REQUIRE_MATCH_YES, &
                              last_minibuffer_message
     use dired_fm, only: file_name_completion, file_name_all_completions
     use frame_fm, only: selected_frame, frame_selected_window_ref
@@ -61,7 +63,6 @@ module test_minibuf_fm
     use fns_fm, only: read_yes_or_no, use_short_answers
     use subr_fm, only: add_to_history, history_length, history_delete_duplicates, read_y_or_n, read_y_or_n_use_read_key, &
                        read_number
-    use fns_fm, only: put
     use minibuf_fm, only: COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
     use minibuffer_fm, only: read_buffer, internal_complete_buffer, insert_default_directory, &
                              read_buffer_completion_ignore_case
@@ -173,6 +174,7 @@ contains
                     new_unittest("test-try-completion-ignore-case", test_try_completion_ignore_case), &
                     new_unittest("completion-auto-help-test", test_completion_auto_help), &
                     new_unittest("completions-list-buffer", test_completion_list_buffer), &
+                    new_unittest("completions-annotations", test_completion_annotations), &
                     new_unittest("minibuffer-complete-and-exit", test_complete_and_exit), &
                     new_unittest("minibuffer-complete-word", test_complete_word), &
                     new_unittest("execute-extended-command", test_execute_extended_command), &
@@ -376,54 +378,58 @@ contains
 
     subroutine test_add_to_history(error)
         type(error_type), allocatable, intent(out) :: error
-        type(value_type) :: h
+        type(history_setting), pointer :: h
         type(status_type) :: st
         integer :: i, saved
         character(len=8) :: num
 
-        call set(value_type(name="h-test"), value_type(), st)
+        h => find_history("h-test", create=.true.)
+        call check(error, associated(h), "history made")
+        if (allocated(error)) return
         call add_to_history("h-test", "a")
         call add_to_history("h-test", "a")
         call add_to_history("h-test", "b")
-        call symbol_value(value_type(name="h-test"), h, st)
-        call check(error, list_length(h) == 2 .and. xstring(list_elt(h, 1_int64)) == "b")
+        call check(error, size(h%items) == 2)
+        if (allocated(error)) return
+        call check(error, h%items(1)%text, "b")
         if (allocated(error)) return
         saved = history_length
         history_length = 3
 
         do i = 1, 5
             write (num, "(i0)") i
-            call add_to_history("h-test", trim(num))
+            call h%add(trim(num))
         end do
 
         history_length = saved
-        call symbol_value(value_type(name="h-test"), h, st)
-        call check(error, list_length(h) == 3 .and. xstring(list_elt(h, 1_int64)) == "5")
+        call check(error, size(h%items) == 3)
+        if (allocated(error)) return
+        call check(error, h%items(1)%text, "5")
         if (allocated(error)) return
         ! history-delete-duplicates
-        call set(value_type(name="h-test"), value_type(), st)
+        deallocate (h%items)
         history_delete_duplicates = .true.
-        call add_to_history("h-test", "a")
-        call add_to_history("h-test", "b")
-        call add_to_history("h-test", "a")
+        call h%add("a")
+        call h%add("b")
+        call h%add("a")
         history_delete_duplicates = .false.
-        call symbol_value(value_type(name="h-test"), h, st)
-        call check(error, list_length(h) == 2 .and. xstring(list_elt(h, 1_int64)) == "a" .and. &
-                   xstring(list_elt(h, 2_int64)) == "b", "duplicates deleted")
+        call check(error, size(h%items) == 2, "duplicates deleted")
         if (allocated(error)) return
-        ! The history_length property.
-        call put(value_type(name="h-test"), value_type(name="history_length"), value_type(1_int64), st)
-        call add_to_history("h-test", "c")
-        call symbol_value(value_type(name="h-test"), h, st)
-        call check(error, list_length(h) == 1 .and. xstring(list_elt(h, 1_int64)) == "c", "history_length property")
+        call check(error, h%items(1)%text//h%items(2)%text, "ab")
         if (allocated(error)) return
-        call put(value_type(name="h-test"), value_type(name="history_length"), value_type(.true.), st)
-        call add_to_history("h-test", "d")
-        call add_to_history("h-test", "e")
-        call symbol_value(value_type(name="h-test"), h, st)
-        call check(error, list_length(h) == 3, "no truncation")
+        ! The history's own length.
+        h%length = 1
+        call h%add("c")
+        call check(error, size(h%items) == 1, "history length")
         if (allocated(error)) return
-        ! A void history variable.
+        call check(error, h%items(1)%text, "c")
+        if (allocated(error)) return
+        h%length = HISTORY_LENGTH_UNLIMITED
+        call h%add("d")
+        call h%add("e")
+        call check(error, size(h%items) == 3, "no truncation")
+        if (allocated(error)) return
+        ! A name that is no history.
         call add_to_history("h-test-void-variable", "x", status=st)
         call check(error, st%code == FM_VOID_VARIABLE, "void-variable")
     end subroutine test_add_to_history
@@ -1327,6 +1333,40 @@ contains
         call check(error, buffer_string() == "3 possible completions:"//achar(10)//"bar"//achar(10)//"baz"//achar(10)//"beta", &
                    buffer_string())
     end subroutine test_completion_list_buffer
+
+    !> The annotation function of completion-extra-properties: each
+    !> candidate in *Completions* is followed by its annotation, in the
+    !> face `completions_annotations'.
+    subroutine test_completion_annotations(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: answer
+        type(status_type) :: st
+        type(handle_type) :: buf
+        type(value_type) :: face
+
+        call completion_setup()
+        completion_annotation_function => length_annotation
+        call type_keys("b ? C-g")
+        call completing_read("Prompt: ", completion_list_table(strings([character(len=6) :: "beta", "bar"])), answer, st)
+        completion_annotation_function => null()
+        buf = get_buffer("*Completions*")
+        call set_buffer(buf, st)
+        call check(error, buffer_string() == "2 possible completions:"//achar(10)//"bar (3)"//achar(10)//"beta (4)", &
+                   buffer_string())
+        if (allocated(error)) return
+        call get_text_property(29_int64, value_type(name="face"), face, st)
+        call check(error, value_equal(face, value_type(name="completions_annotations")), "annotation face")
+    end subroutine test_completion_annotations
+
+    !> " (N)" for a candidate of N characters.
+    subroutine length_annotation(candidate, annotation)
+        character(len=*), intent(in) :: candidate
+        character(len=:), allocatable, intent(out) :: annotation
+        character(len=8) :: buf
+
+        write (buf, "(i0)") len(candidate)
+        annotation = " ("//trim(buf)//")"
+    end subroutine length_annotation
 
     subroutine test_complete_and_exit(error)
         type(error_type), allocatable, intent(out) :: error

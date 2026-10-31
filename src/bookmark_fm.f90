@@ -67,7 +67,7 @@ module bookmark_fm
                         FM_FILE_ERROR, FM_BOOKMARK_ERROR_NO_FILENAME, format_message
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_list, vtag, V_INTEGER, V_ARRAY
-    use data_fm, only: add_local_variables_killer
+    use data_fm, only: add_local_variables_killer, history_setting, forward_setting
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes
     use commands_fm, only: commands
@@ -103,7 +103,7 @@ module bookmark_fm
     use minibuf_table_fm, only: completion_table_type, TABLE_LIST
     use minibuffer_fm, only: completing_read, read_file_name, REQUIRE_MATCH_OTHER, REQUIRE_MATCH_CONFIRM
     use fns_fm, only: read_yes_or_no
-    use subr_fm, only: add_to_history, defvar_nil, read_y_or_n, make_progress_reporter, progress_reporter_done, &
+    use subr_fm, only: add_to_history, read_y_or_n, make_progress_reporter, progress_reporter_done, &
                        progress_reporter_type
     use dispnew_fm, only: ding
     use help_fm, only: substitute_command_keys
@@ -486,6 +486,10 @@ module bookmark_fm
     logical :: watch_asked_known = .false., watch_asked_nil = .false.
     integer(int64) :: watch_asked_sec = 0
     integer(int32) :: watch_asked_nsec = 0
+
+    !> The history list for bookmark functions.  Port of bookmark.el
+    !> bookmark-history.
+    type(history_setting), target, public :: bookmark_history = history_setting(name="bookmark_history")
 
 contains
 
@@ -4030,7 +4034,7 @@ contains
             bookmark_edit_annotation_text_func => default_annotation_text
         end if
 
-        call defvar_nil("bookmark_history")
+        call forward_setting(bookmark_history)
         call add_local_variables_killer(kill_bookmark_locals)
         call define_faces()
         call major_modes%bookmark_edit_annotation_mode%define("bookmark_edit_annotation_mode", &

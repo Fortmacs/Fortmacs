@@ -44,7 +44,7 @@ module minibuf_fm
     use lread_fm, only: intern_soft
     use fns_fm, only: compare_strings, COMPARE_EQUAL, schars, substring
     use search_fm, only: string_match, match_end, regexp_quote
-    use data_fm, only: set, symbol_value, kill_all_local_variables, logical_setting
+    use data_fm, only: set, symbol_value, kill_all_local_variables, logical_setting, history_setting, find_history
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, &
                          erase_buffer, resolve_buffer, inhibit_read_only, is_buffer_live
     use insdel_fm, only: insert
@@ -383,7 +383,8 @@ contains
         type(window_configuration_type) :: config
         type(window_type), pointer :: sw, mw
         type(status_type) :: st, edit_status
-        type(value_type) :: histval, saved_inhibit
+        type(value_type) :: saved_inhibit
+        type(history_setting), pointer :: history_list
         character(len=:), allocatable :: ambient_dir, saved_histvar, histvar, saved_before, histstring
         type(minibuffer_string_type), allocatable :: saved_default(:)
         character(len=:), allocatable :: saved_prompt
@@ -454,14 +455,9 @@ contains
         minibuffer_temporary_goal_position = 0
         had_before = allocated(minibuffer_text_before_history)
         if (had_before) call move_alloc(minibuffer_text_before_history, saved_before)
-
-        ! If variable is unbound, make it nil (a HISTORY of "t" keeps no
-        ! history).
-        if (histvar /= "t") then
-            call symbol_value(value_type(name=histvar), histval, st)
-            if (.not. st%ok()) call set(value_type(name=histvar), value_type(), st)
-        end if
-
+        ! If the history does not exist, make it empty (a HISTORY of "t"
+        ! keeps no history).
+        if (histvar /= "t") history_list => find_history(histvar, create=.true.)
         old_selected = selected_frame%minibuffer_selected
         sw => frame_selected_window_ref()
         mw => minibuffer_window_ref()

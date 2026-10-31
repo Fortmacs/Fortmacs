@@ -116,6 +116,54 @@ module data_fm
         procedure, private :: set_local_function => function_set_local
     end type function_setting
 
+    !> The `%length' of a history that uses `history_length'.  Not a port.
+    integer, parameter, public :: HISTORY_LENGTH_DEFAULT = -huge(0)
+    !> The `%length' of a history that is never truncated (upstream's
+    !> `history-length' property t).  Not a port.
+    integer, parameter, public :: HISTORY_LENGTH_UNLIMITED = huge(0)
+
+    !> Maximum length of history lists before truncation takes place.
+    !> A number means truncate to that length; truncation deletes old
+    !> elements, and is done just after inserting a new element.
+    !>
+    !> This variable only affects history lists that don't specify their own
+    !> maximum lengths.  Setting the `%length' component of a history
+    !> overrides this default.  Port of minibuf.c history-length
+    !> (a value meaning no truncation is not ported: Deferred).
+    integer, public :: history_length = 100
+    !> True means to delete duplicates in history.
+    !> If set to true when adding a new history element, all previous identical
+    !> elements are deleted from the history list.  Port of minibuf.c
+    !> history-delete-duplicates.
+    logical, public :: history_delete_duplicates = .false.
+
+    !> One entry of a history.
+    type, public :: history_item_type
+        character(len=:), allocatable :: text
+    end type history_item_type
+
+    !> A history list: the strings a prompt offers with M-p and M-n, newest
+    !> first.  A prompt names its history (read_from_minibuffer's HISTORY),
+    !> which `find_history' finds through the settings registry:
+    !>
+    !>     type(history_setting), target, public :: grep_history = &
+    !>         history_setting(name="grep_history")
+    !>     call forward_setting(grep_history)  ! in the module's init
+    !>     grep_history%length = 50
+    !>     call grep_history%add("make -k")
+    !>
+    !> Port of minibuf.c's history variables (the value and its
+    !> `history-length' property).
+    type, extends(setting_type), public :: history_setting
+        !> The entries, newest first.
+        type(history_item_type), allocatable :: items(:)
+        !> The maximum length: HISTORY_LENGTH_DEFAULT uses `history_length',
+        !> HISTORY_LENGTH_UNLIMITED never truncates.
+        integer :: length = HISTORY_LENGTH_DEFAULT
+    contains
+        procedure :: add => history_add
+    end type history_setting
+
     public :: kill_locals_proc, add_local_variables_killer
 
     abstract interface
@@ -147,7 +195,7 @@ module data_fm
     !> The settings forwarded with `forward_setting'.
     type(forwarded_ref_type), allocatable :: forwarded(:)
 
-    public :: forward_setting
+    public :: forward_setting, find_history
 
     public :: check_fixnum, check_symbol, check_string, check_list
     public :: value_eq
@@ -782,4 +830,102 @@ contains
         symbols(id)%val = value_type()
         symbols(id)%bound = .false.
     end subroutine makunbound
+
+    ! ------------------------------------------------------------------
+    ! Histories
+    ! ------------------------------------------------------------------
+
+    !> The history called NAME in the settings registry (null if there
+    !> is none).  With CREATE, a history not registered yet is made
+    !> (taking the value a variable of that name had), as read_minibuf
+    !> makes an unbound history variable.  Not a port.
+    function find_history(name, create) result(h)
+        character(len=*), intent(in) :: name
+        logical, intent(in), optional :: create
+        type(history_setting), pointer :: h
+        type(value_type) :: old
+        type(status_type) :: st
+        integer :: k
+
+        h => null()
+
+        if (allocated(forwarded)) then
+            do k = 1, size(forwarded)
+                select type (p => forwarded(k)%p)
+                type is (history_setting)
+                    if (trim(p%name) == name) then
+                        h => p
+                        return
+                    end if
+                end select
+            end do
+        end if
+
+        if (.not. present(create)) return
+        if (.not. create) return
+        call symbol_value(value_type(name=name), old, st)
+        allocate (h)
+        h%name = name
+        call forward_setting(h)
+        if (st%ok()) call set(value_type(name=name), old, st)
+    end function find_history
+
+    !> Add NEWELT to the history list SELF.
+    !> If MAXELT is present, it specifies the maximum length of the history.
+    !> Otherwise, the maximum history length is the history's `%length',
+    !> if set, or the value of the `history_length' variable.  The
+    !> possible values of maximum length have the same meaning as the
+    !> values of `history_length'.
+    !> Remove duplicates of NEWELT if `history_delete_duplicates' is .true..
+    !> If optional fourth arg KEEP-ALL is .true., add NEWELT to history even
+    !> if it is empty or duplicates the most recent entry in the history.
+    !> Port of subr.el:add-to-history (`added' says whether the list
+    !> changed).
+    subroutine history_add(self, newelt, maxelt, keep_all, added)
+        class(history_setting), intent(inout) :: self
+        character(len=*), intent(in) :: newelt
+        integer, intent(in), optional :: maxelt
+        logical, intent(in), optional :: keep_all
+        logical, intent(out), optional :: added
+        type(history_item_type), allocatable :: kept(:)
+        logical :: all
+        integer :: limit, k, n
+
+        if (present(added)) added = .false.
+        limit = self%length
+        if (limit == HISTORY_LENGTH_DEFAULT) limit = history_length
+        if (present(maxelt)) limit = maxelt
+        all = .false.
+        if (present(keep_all)) all = keep_all
+        if (.not. allocated(self%items)) allocate (self%items(0))
+        if (.not. all .and. len(newelt) == 0) return
+
+        if (.not. all .and. size(self%items) > 0) then
+            if (self%items(1)%text == newelt .and. len(self%items(1)%text) == len(newelt)) return
+        end if
+
+        allocate (kept(size(self%items) + 1))
+        kept(1)%text = newelt
+        n = 1
+
+        do k = 1, size(self%items)
+            ! (delete newelt history)
+            if (history_delete_duplicates) then
+                if (self%items(k)%text == newelt .and. len(self%items(k)%text) == len(newelt)) cycle
+            end if
+
+            n = n + 1
+            kept(n)%text = self%items(k)%text
+        end do
+
+        if (limit <= 0) then
+            n = 0
+        else
+            n = min(n, limit)
+        end if
+
+        self%items = kept(1:n)
+        self%void = .false.
+        if (present(added)) added = .true.
+    end subroutine history_add
 end module data_fm

@@ -37,7 +37,7 @@
 !> data_fm.
 submodule(data_fm) data_buffer_fm
     use lisp_fm, only: make_symbol_ref, make_list, xfixnum, xstring, value_type, vtag, V_NULL, V_INTEGER, V_NAME, &
-                       V_STRING
+                       V_STRING, V_ARRAY, list_elements
     use lread_fm, only: intern
     use handle_fm, only: null_handle
     use buffer_fm, only: buffers, cur, swap_buffer_locals_hook, fill_column, FILL_COLUMN_NONE, left_margin, &
@@ -339,6 +339,58 @@ contains
         end if
     end subroutine set_string
 
+    !> The entries of history H as a list of strings.  Not a port.
+    function history_value(h) result(v)
+        type(history_setting), intent(in) :: h
+        type(value_type) :: v
+        type(value_type), allocatable :: elems(:)
+        integer :: k
+
+        if (.not. allocated(h%items)) return
+        allocate (elems(size(h%items)))
+
+        do k = 1, size(h%items)
+            elems(k) = value_type(text=h%items(k)%text)
+        end do
+
+        v = make_list(elems)
+    end function history_value
+
+    !> Set history H to V, a list of strings (a `wrong-type-argument'
+    !> error condition occurs otherwise).  Not a port.
+    subroutine set_history(h, v, status)
+        type(history_setting), intent(inout) :: h
+        type(value_type), intent(in) :: v
+        type(status_type), intent(out) :: status
+        type(value_type), allocatable :: elems(:)
+        type(history_item_type), allocatable :: items(:)
+        integer :: k
+
+        status = status_type()
+
+        if (allocated(v%a)) then
+            if (vtag(v) /= V_ARRAY) then
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array of character(len=*)")
+                return
+            end if
+        end if
+
+        call list_elements(v, elems)
+        allocate (items(size(elems)))
+
+        do k = 1, size(elems)
+            if (vtag(elems(k)) /= V_STRING) then
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array of character(len=*)")
+                return
+            end if
+
+            items(k)%text = xstring(elems(k))
+        end do
+
+        call move_alloc(items, h%items)
+        h%void = .false.
+    end subroutine set_history
+
     !> The value of forwarded variable K in buffer B (B matters only for
     !> slot variables; the others read the current value); BOUND is false
     !> when it is void.  Not a port.
@@ -361,6 +413,8 @@ contains
                 call setting_value(p, string_or_nil(p%value), v, bound)
             type is (function_setting)
                 call setting_value(p, auto_fill_value(p%value), v, bound)
+            type is (history_setting)
+                call setting_value(p, history_value(p), v, bound)
             class default
                 v = value_type()
             end select
@@ -485,6 +539,8 @@ contains
                 call set_string(p, v, status)
             type is (function_setting)
                 call set_auto_fill(p, v, status)
+            type is (history_setting)
+                call set_history(p, v, status)
             class default
             end select
 

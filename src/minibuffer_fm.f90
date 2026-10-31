@@ -29,8 +29,8 @@
 !> (`completion_table_with_quoting', in minibuf_fm).
 !>
 !> Not ported yet: cycling, completion metadata other than the category
-!> and identity sorting (annotations, groups, other sorting functions,
-!> the rest of `completion_extra_properties'), moving through and
+!> and identity sorting (groups, other sorting functions, the rest of
+!> `completion_extra_properties' but its `:annotation_function'), moving through and
 !> choosing from *Completions* (M-<up>, M-<down>, M-RET, mouse),
 !> `completion_show_help', and completion of environment variables and
 !> ~USER in file names.
@@ -49,6 +49,8 @@ module minibuffer_fm
     use data_fm, only: value_eq, symbol_value, set
     use character_fm, only: string_char_and_length
     use editfns_fm, only: point, point_max, goto_char, buffer_substring
+    use faces_fm, only: named_face_type, face_attrs, display_when
+    use textprop_fm, only: add_face_text_property
     use frame_fm, only: selected_frame, frame_selected_window_ref
     use window_fm, only: window_type, windows, set_window_start, is_window_live, same_window, get_buffer_window, &
                          temp_buffer_window_show, fit_window_to_buffer, display_action_table_type, delete_window, &
@@ -294,6 +296,15 @@ module minibuffer_fm
             type(completion_table_type), intent(in) :: collection
             procedure(completion_predicate), optional :: predicate
         end function completion_in_region_proc
+
+        !> An `:annotation_function' of completion-extra-properties: the
+        !> annotation shown after CANDIDATE in *Completions* ("" for none).
+        !> Not a port.
+        subroutine completion_annotation_proc(candidate, annotation)
+            implicit none(type, external)
+            character(len=*), intent(in) :: candidate
+            character(len=:), allocatable, intent(out) :: annotation
+        end subroutine completion_annotation_proc
     end interface
 
     !> Special hook to find the completion table for the entity at point.
@@ -347,6 +358,20 @@ module minibuffer_fm
     !> run after completion is performed (null for none).  Port of
     !> minibuffer.el completion-extra-properties (its `:exit-function').
     procedure(completion_exit_function_proc), pointer, public :: completion_exit_function => null()
+
+    public :: completion_annotation_proc
+
+    !> The `:annotation_function' of completion-extra-properties: function
+    !> giving the annotation *Completions* shows after a candidate (null for
+    !> none).  Port of minibuffer.el completion-extra-properties (its
+    !> `:annotation-function').
+    procedure(completion_annotation_proc), pointer, public :: completion_annotation_function => null()
+
+    !> Face to use for annotations in the *Completions* buffer.
+    !> This face is only used if the strings used for completions
+    !> doesn't already specify a face.  Port of minibuffer.el
+    !> completions-annotations.
+    type(named_face_type), target, public :: completions_annotations
 
     !> completion-in-region--data: the start and end markers, the table
     !> and the predicate (`cir_data' .false. for none).
@@ -897,6 +922,7 @@ contains
     !> the completion keymaps.  Not a port.
     subroutine syms_of_minibuffer()
         type(status_type) :: status
+        type(named_face_type), pointer :: f
 
         commands%exit_minibuffer%run => cmd_exit_minibuffer
         commands%abort_minibuffers%run => cmd_abort_minibuffers
@@ -909,6 +935,11 @@ contains
         commands%minibuffer_scroll_up_command%run => cmd_minibuffer_scroll_up_command
         commands%minibuffer_scroll_down_command%run => cmd_minibuffer_scroll_down_command
         call completion_settings_defaults()
+        f => completions_annotations
+        call f%define("completions_annotations", "Face to use for annotations in the *Completions* buffer."//achar(10)// &
+                      "This face is only used if the strings used for completions"//achar(10)// &
+                      "doesn't already specify a face.")
+        call f%spec_entry(display_when(), face_attrs(inherits=[character(len=12) :: "italic", "shadow"]))
         commands%completion_at_point%run => completion_at_point
         commands%completion_help_at_point%run => completion_help_at_point
         commands%completion_in_region_mode%run => cmd_completion_in_region_mode
@@ -2045,6 +2076,7 @@ contains
         type(value_type) :: completions
         type(value_type), allocatable :: elts(:)
         type(string_box), allocatable :: strings(:)
+        type(string_box), allocatable :: annotations(:)
         type(handle_type) :: mini, buf, window
         type(status_type) :: status
         type(display_action_table_type) :: table
@@ -2104,7 +2136,20 @@ contains
         call set_buffer(buf, status)
         call set_buffer_read_only(buf, .false., status)
         call erase_buffer(status)
-        call display_completion_list(strings)
+
+        ! The `:annotation_function' of completion-extra-properties.
+        if (associated(completion_annotation_function)) then
+            allocate (annotations(size(strings)))
+
+            do k = 1, size(strings)
+                call completion_annotation_function(strings(k)%s, annotations(k)%s)
+            end do
+
+            call display_completion_list(strings, annotations)
+        else
+            call display_completion_list(strings)
+        end if
+
         call set_buffer(mini, status)
         ! If the *Completions* buffer is shown in a new window, mark it
         ! as softly-dedicated, so bury-buffer in
@@ -2203,9 +2248,11 @@ contains
     !> the heading line, then the candidates in columns.  Port of
     !> minibuffer.el:display-completion-list with completion--insert-strings
     !> and completion--insert-horizontal (completions-format horizontal;
-    !> spaces in place of the `display' alignment, no truncation).
-    subroutine display_completion_list(strings)
+    !> spaces in place of the `display' alignment, no truncation); ANNOTATIONS
+    !> are the candidates' suffix annotations, if any.
+    subroutine display_completion_list(strings, annotations)
         type(string_box), intent(in) :: strings(:)
+        type(string_box), intent(in), optional :: annotations(:)
         type(status_type) :: status
         character(len=20) :: count
         integer(int64) :: wwidth
@@ -2219,7 +2266,7 @@ contains
         wwidth = 79
         sw => frame_selected_window_ref()
         if (sw%total_cols > 0) wwidth = sw%total_cols - 1
-        call insert_strings_horizontal(strings, wwidth)
+        call insert_strings_horizontal(strings, wwidth, annotations)
     end subroutine display_completion_list
 
     !> Insert STRINGS into the current buffer in columns: the window
@@ -2247,24 +2294,31 @@ contains
         call insert_strings_horizontal(boxes, wwidth)
     end subroutine completion_insert_strings
 
-    !> The candidates STRINGS in columns of a window WWIDTH columns wide.
-    !> Port of minibuffer.el:completion--insert-strings and
-    !> completion--insert-horizontal (see above).
-    subroutine insert_strings_horizontal(strings, wwidth)
+    !> The candidates STRINGS in columns of a window WWIDTH columns wide,
+    !> each followed by its annotation in ANNOTATIONS (in the face
+    !> `completions_annotations'), if present.  Port of
+    !> minibuffer.el:completion--insert-strings, completion--insert-horizontal
+    !> and completion--insert (see above).
+    subroutine insert_strings_horizontal(strings, wwidth, annotations)
         type(string_box), intent(in) :: strings(:)
         integer(int64), intent(in) :: wwidth
+        type(string_box), intent(in), optional :: annotations(:)
         type(status_type) :: status
         character(len=:), allocatable :: last_string
-        integer(int64) :: length, columns, colwidth, column, cur_col, width
+        integer(int64), allocatable :: widths(:)
+        integer(int64) :: length, columns, colwidth, column, cur_col, width, start
         integer :: k
         logical :: first
 
-        length = 0
+        allocate (widths(size(strings)))
 
         do k = 1, size(strings)
-            length = max(length, schars(strings(k)%s))
+            widths(k) = schars(strings(k)%s)
+            if (present(annotations)) widths(k) = widths(k) + schars(annotations(k)%s)
         end do
 
+        length = 0
+        if (size(widths) > 0) length = maxval(widths)
         ! At least 2 spaces between columns; don't allocate more columns
         ! than we can fill.
         columns = min(max(1_int64, wwidth/(2 + length)), max(1_int64, int(size(strings), int64)/2))
@@ -2280,7 +2334,7 @@ contains
             end if
 
             last_string = strings(k)%s
-            width = schars(strings(k)%s)
+            width = widths(k)
 
             if (.not. first) then
                 if (wwidth < column + max(colwidth, width)) then
@@ -2297,6 +2351,17 @@ contains
 
             first = .false.
             call insert(strings(k)%s, status)
+
+            ! The suffix annotation, in the predefined face.
+            if (present(annotations)) then
+                start = point()
+                call insert(annotations(k)%s, status)
+
+                if (point() > start) then
+                    call add_face_text_property(start, point(), value_type(name="completions_annotations"), status)
+                end if
+            end if
+
             cur_col = cur_col + width
             ! Next column to align to.
             column = column + colwidth*((length + colwidth - 1)/colwidth)

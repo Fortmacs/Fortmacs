@@ -23,12 +23,11 @@
 !> `add_to_history', and the match data helpers (`match_string',
 !> `string_matches', `is_looking_at', `looking_back').
 module subr_fm
-    use error_fm, only: status_type, set_error, FM_QUIT, FM_INVALID_REGEXP
+    use error_fm, only: status_type, set_error, FM_QUIT, FM_INVALID_REGEXP, FM_VOID_VARIABLE
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use lisp_fm, only: value_type, xfixnum, cons, list_length, list_elt, make_keymap_ref, xsymbol, symbols, &
                        list_elements, make_list, xstring, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY
-    use data_fm, only: symbol_value, set, value_eq
-    use fns_fm, only: get
+    use data_fm, only: symbol_value, set, value_eq, history_setting, find_history, history_length, history_delete_duplicates
     use eval_fm, only: hook_type
     use buffer_fm, only: buffers, cur, current_buffer, is_buffer_modified, restore_buffer_modified, &
                          invisibility_entry_type
@@ -50,7 +49,7 @@ module subr_fm
     implicit none(type, external)
     private
 
-    public :: read_key, read_y_or_n, query_replace_answer, add_to_history
+    public :: read_key, read_y_or_n, query_replace_answer, add_to_history, history_length, history_delete_duplicates
     public :: global_set_key, read_number, undefined, syms_of_subr, defvar_nil, forward_identifier, find_tag_default, &
               find_tag_default_as_regexp, find_tag_default_as_identifier_regexp
     public :: make_progress_reporter, progress_reporter_update, progress_reporter_done
@@ -95,20 +94,6 @@ module subr_fm
         module procedure global_set_key_value, global_set_key_command
     end interface global_set_key
 
-    !> Maximum length of history lists before truncation takes place.
-    !> A number means truncate to that length; truncation deletes old
-    !> elements, and is done just after inserting a new element.
-    !>
-    !> This variable only affects history lists that don't specify their own
-    !> maximum lengths.  Setting the `history_length' attribute of a history
-    !> variable overrides this default.  Port of minibuf.c history-length
-    !> (a value meaning no truncation is not ported: Deferred).
-    integer, public :: history_length = 100
-    !> True means to delete duplicates in history.
-    !> If set to true when adding a new history element, all previous identical
-    !> elements are deleted from the history list.  Port of minibuf.c
-    !> history-delete-duplicates.
-    logical, public :: history_delete_duplicates = .false.
     public :: ANSWER_ACT, ANSWER_SKIP, ANSWER_EXIT, ANSWER_ACT_AND_EXIT, &
               ANSWER_AUTOMATIC, ANSWER_RECENTER, ANSWER_HELP, ANSWER_QUIT, ANSWER_NONE, &
               ANSWER_EDIT_REPLACEMENT, ANSWER_EDIT_REPLACEMENT_EXACT_CASE, ANSWER_ACT_AND_SHOW, &
@@ -757,95 +742,36 @@ contains
         end select
     end function query_replace_answer
 
-    !> Add NEWELT to the history list stored in the variable HISTORY-VAR.
+    !> Add NEWELT to the history list called HISTORY-VAR.
     !> If MAXELT is present, it specifies the maximum length of the history.
-    !> Otherwise, the maximum history length is the value of the `history_length'
-    !> property on name HISTORY-VAR, if set, or the value of the `history_length'
-    !> variable.  The possible values of maximum length have the same meaning as
-    !> the values of `history_length'.
+    !> Otherwise, the maximum history length is the history's `%length',
+    !> if set, or the value of the `history_length' variable.  The possible
+    !> values of maximum length have the same meaning as the values of
+    !> `history_length'.
     !> Remove duplicates of NEWELT if `history_delete_duplicates' is .true..
     !> If optional fourth arg KEEP-ALL is .true., add NEWELT to history even
     !> if it is empty or duplicates the most recent entry in the history.
-    !> Port of subr.el:add-to-history (NEWELT a string; `added' says
-    !> whether the list changed; a HISTORY-VAR without a value is a `void_variable'
-    !> error in `status').
+    !> Port of subr.el:add-to-history (the history is found by name, see
+    !> `find_history'; `added' says whether the list changed; a name that
+    !> is no history is a `void_variable' error in `status').
     subroutine add_to_history(history_var, newelt, maxelt, keep_all, added, status)
         character(len=*), intent(in) :: history_var, newelt
         integer, intent(in), optional :: maxelt
         logical, intent(in), optional :: keep_all
         logical, intent(out), optional :: added
         type(status_type), intent(out), optional :: status
-        type(value_type) :: history, prop, first
-        type(value_type), allocatable :: elems(:), kept(:)
-        type(status_type) :: st
-        logical :: all, limited
-        integer :: limit, k, n
+        type(history_setting), pointer :: history
 
         if (present(added)) added = .false.
         if (present(status)) status = status_type()
-        limited = .true.
-        limit = history_length
+        history => find_history(history_var)
 
-        if (present(maxelt)) then
-            limit = maxelt
-        else
-            call get(value_type(name=history_var), value_type(name="history_length"), prop, st)
-
-            if (vtag(prop) == V_INTEGER) then
-                limit = int(xfixnum(prop))
-            else if (allocated(prop%a)) then
-                ! A non-integer MAXELT: no truncation.
-                limited = .false.
-            end if
-        end if
-
-        all = .false.
-        if (present(keep_all)) all = keep_all
-        call symbol_value(value_type(name=history_var), history, st)
-
-        if (.not. st%ok()) then
-            if (present(status)) status = st
+        if (.not. associated(history)) then
+            if (present(status)) call set_error(status, FM_VOID_VARIABLE, history_var)
             return
         end if
 
-        if ((vtag(history) /= V_ARRAY .and. vtag(history) /= V_NULL)) return
-        if (.not. all .and. len(newelt) == 0) return
-
-        if (.not. all .and. list_length(history) > 0) then
-            first = list_elt(history, 1_int64)
-
-            if (vtag(first) == V_STRING) then
-                if (xstring(first) == newelt .and. len(xstring(first)) == len(newelt)) return
-            end if
-        end if
-
-        call list_elements(history, elems)
-        allocate (kept(size(elems) + 1))
-        kept(1) = value_type(text=newelt)
-        n = 1
-
-        do k = 1, size(elems)
-            if (history_delete_duplicates) then
-                ! (delete newelt history)
-                if (vtag(elems(k)) == V_STRING) then
-                    if (xstring(elems(k)) == newelt .and. len(xstring(elems(k))) == len(newelt)) cycle
-                end if
-            end if
-
-            n = n + 1
-            kept(n) = elems(k)
-        end do
-
-        if (limited) then
-            if (limit <= 0) then
-                n = 0
-            else
-                n = min(n, limit)
-            end if
-        end if
-
-        call set(value_type(name=history_var), make_list(kept(1:n)), st)
-        if (present(added)) added = .true.
+        call history%add(newelt, maxelt, keep_all, added)
     end subroutine add_to_history
 
     !> Beep to tell the user this binding is undefined.  Port of

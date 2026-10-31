@@ -58,7 +58,7 @@ module docstrings_fm
                            bookmark_bmenu_type_column_width, bookmark_bookmarks_timestamp, &
                            bookmark_completion_ignore_case, bookmark_current_buffer, bookmark_default_file, &
                            bookmark_edit_annotation_mode_hook, bookmark_edit_annotation_mode_map, bookmark_exit_hook, &
-                           bookmark_face, bookmark_file_coding_system, bookmark_fringe_mark, &
+                           bookmark_face, bookmark_file_coding_system, bookmark_fringe_mark, bookmark_history, &
                            bookmark_inhibit_context_functions, bookmark_map, bookmark_menu_bookmark, &
                            bookmark_menu_confirm_deletion, bookmark_minibuffer_read_name_map, bookmark_save_flag, &
                            BOOKMARK_SAVE_FLAG_NEVER, BOOKMARK_SAVE_FLAG_ON_EXIT, bookmark_search_delay, &
@@ -149,6 +149,7 @@ module docstrings_fm
                           dabbrev_eliminate_newlines, dabbrev_ignored_buffer_modes, dabbrev_ignored_buffer_names, &
                           dabbrev_ignored_buffer_regexps, dabbrev_limit, dabbrev_search_these_buffers_only, &
                           dabbrev_upcase_means_case_search
+    use data_fm, only: history_delete_duplicates, history_length
     use diff_fm, only: diff_command, diff_entire_buffers, diff_switches, diff_use_labels, &
                        DIFF_LABELS_NO, DIFF_LABELS_YES, DIFF_LABELS_CHECK
     use diff_mode_fm, only: diff_advance_after_apply_hunk, diff_ask_before_revert_and_kill_hunk, &
@@ -244,19 +245,20 @@ module docstrings_fm
     use grep_fm, only: find_name_arg, find_program, grep_command, grep_command_position, &
                        grep_compilation_transform_finished_rules, grep_context_face, grep_edit_mode_hook, &
                        grep_edit_mode_map, grep_error, grep_error_face, grep_error_screen_columns, &
-                       grep_files_aliases, grep_find_abbreviate, grep_find_command, grep_find_command_position, &
-                       grep_find_ignored_directories, grep_find_ignored_files_variable, grep_find_template, &
-                       grep_find_use_xargs, GREP_FIND_USE_XARGS_UNKNOWN, GREP_FIND_USE_XARGS_EXEC, &
-                       GREP_FIND_USE_XARGS_EXEC_PLUS, GREP_FIND_USE_XARGS_GNU, GREP_FIND_USE_XARGS_GNU_SORT, &
-                       GREP_FIND_USE_XARGS_OTHER, grep_first_column, grep_heading, grep_heading_regexp, &
-                       grep_highlight_matches, GREP_HIGHLIGHT_MATCHES_NO, GREP_HIGHLIGHT_MATCHES_YES, &
-                       GREP_HIGHLIGHT_MATCHES_AUTO_DETECT, GREP_HIGHLIGHT_MATCHES_ALWAYS, &
-                       GREP_HIGHLIGHT_MATCHES_AUTO, grep_hit_face, grep_last_buffer, grep_match_face, &
-                       grep_match_regexp, grep_mode_font_lock_keywords, grep_mode_hook, grep_mode_map, grep_program, &
-                       grep_quoting_style, grep_regexp_table, grep_save_buffers, GREP_SAVE_BUFFERS_NO, &
-                       GREP_SAVE_BUFFERS_YES, GREP_SAVE_BUFFERS_ASK, grep_scroll_output, grep_setup_hook, &
-                       grep_template, grep_use_headings, grep_use_null_device, GREP_USE_NULL_DEVICE_NO, &
-                       GREP_USE_NULL_DEVICE_YES, GREP_USE_NULL_DEVICE_AUTO_DETECT, grep_use_null_filename_separator, &
+                       grep_files_aliases, grep_files_history, grep_find_abbreviate, grep_find_command, &
+                       grep_find_command_position, grep_find_history, grep_find_ignored_directories, &
+                       grep_find_ignored_files_variable, grep_find_template, grep_find_use_xargs, &
+                       GREP_FIND_USE_XARGS_UNKNOWN, GREP_FIND_USE_XARGS_EXEC, GREP_FIND_USE_XARGS_EXEC_PLUS, &
+                       GREP_FIND_USE_XARGS_GNU, GREP_FIND_USE_XARGS_GNU_SORT, GREP_FIND_USE_XARGS_OTHER, &
+                       grep_first_column, grep_heading, grep_heading_regexp, grep_highlight_matches, &
+                       GREP_HIGHLIGHT_MATCHES_NO, GREP_HIGHLIGHT_MATCHES_YES, GREP_HIGHLIGHT_MATCHES_AUTO_DETECT, &
+                       GREP_HIGHLIGHT_MATCHES_ALWAYS, GREP_HIGHLIGHT_MATCHES_AUTO, grep_history, grep_hit_face, &
+                       grep_last_buffer, grep_match_face, grep_match_regexp, grep_mode_font_lock_keywords, &
+                       grep_mode_hook, grep_mode_map, grep_program, grep_quoting_style, grep_regexp_history, &
+                       grep_regexp_table, grep_save_buffers, GREP_SAVE_BUFFERS_NO, GREP_SAVE_BUFFERS_YES, &
+                       GREP_SAVE_BUFFERS_ASK, grep_scroll_output, grep_setup_hook, grep_template, grep_use_headings, &
+                       grep_use_null_device, GREP_USE_NULL_DEVICE_NO, GREP_USE_NULL_DEVICE_YES, &
+                       GREP_USE_NULL_DEVICE_AUTO_DETECT, grep_use_null_filename_separator, &
                        GREP_USE_NULL_FILENAME_SEPARATOR_NO, GREP_USE_NULL_FILENAME_SEPARATOR_YES, &
                        GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT, rgrep_find_ignores_in_f, xargs_program
     use help_fm, only: help_map
@@ -304,9 +306,9 @@ module docstrings_fm
                           isearch_message_prefix_add, isearch_mode_end_hook, isearch_mode_end_hook_quit, &
                           isearch_mode_hook, isearch_mode_map, isearch_push_state_function, &
                           isearch_regexp_lax_whitespace, isearch_search_fun_function, isearch_wrap_function, &
-                          lazy_highlight, regexp_search_ring_max, search_exit_option, search_nonincremental_instead, &
-                          search_ring_max, search_upper_case, UPPER_CASE_NO, UPPER_CASE_YES, UPPER_CASE_NOT_YANKS, &
-                          search_whitespace_regexp
+                          lazy_highlight, regexp_search_ring, regexp_search_ring_max, search_exit_option, &
+                          search_nonincremental_instead, search_ring, search_ring_max, search_upper_case, &
+                          UPPER_CASE_NO, UPPER_CASE_YES, UPPER_CASE_NOT_YANKS, search_whitespace_regexp
     use jit_lock_fm, only: jit_lock_chunk_size
     use js_fm, only: js_base_mode_hook, js_base_mode_map, js_chain_indent, js_curly_indent_offset, &
                      js_enabled_frameworks, js_expr_indent_offset, js_flat_functions, &
@@ -357,8 +359,9 @@ module docstrings_fm
                              completion_category_defaults, completion_category_overrides, completion_fail_discreetly, &
                              completion_flex_nospace, completion_in_region_mode_map, completion_pcm_leading_wildcard, &
                              completion_pcm_word_delimiters, completion_show_inline_help, completion_styles, &
-                             completions_max_height, insert_default_directory, minibuffer_completing_file_name, &
-                             read_buffer_completion_ignore_case, read_file_name_completion_ignore_case
+                             completions_annotations, completions_max_height, insert_default_directory, &
+                             minibuffer_completing_file_name, read_buffer_completion_ignore_case, &
+                             read_file_name_completion_ignore_case
     use mule_conf_fm, only: password_colon_equivalents, password_word_equivalents
     use mule_fm, only: auto_coding_regexp_table, auto_coding_table, default_keyboard_coding_system, &
                        default_terminal_coding_system, keyboard_coding_system_variable, &
@@ -410,7 +413,8 @@ module docstrings_fm
                           recentf_initialize_file_name_history, recentf_keep, recentf_list, recentf_max_saved_items, &
                           recentf_mode_hook, recentf_mode_map, recentf_save_file, recentf_save_file_modes, &
                           recentf_show_messages
-    use rect_fm, only: killed_rectangle, rectangle_mark_mode_hook, rectangle_mark_mode_map
+    use rect_fm, only: killed_rectangle, rectangle_mark_mode_hook, rectangle_mark_mode_map, &
+                       string_rectangle_history
     use register_fm, only: register_separator, register_table
     use repeat_fm, only: repeat_check_key, repeat_exit_key, repeat_exit_timeout, repeat_in_progress, &
                          repeat_keep_prefix, repeat_map, repeat_mode_hook, repeat_num_input_keys_at_repeat, &
@@ -418,12 +422,12 @@ module docstrings_fm
     use replace_fm, only: case_replace, list_matching_lines_buffer_name_face, &
                           list_matching_lines_current_line_face, list_matching_lines_default_context_lines, &
                           list_matching_lines_face, list_matching_lines_jump_to_current_line, &
-                          list_matching_lines_prefix_face, match, occur_edit_mode_hook, occur_edit_mode_map, &
-                          occur_excluded_properties, occur_excluded_properties_all, occur_hook, &
+                          list_matching_lines_prefix_face, match, occur_collect_regexp_history, occur_edit_mode_hook, &
+                          occur_edit_mode_map, occur_excluded_properties, occur_excluded_properties_all, occur_hook, &
                           occur_mode_find_occurrence_hook, occur_mode_hook, occur_mode_map, query_replace_defaults, &
-                          query_replace_from_history_variable, query_replace_from_to_separator, &
+                          query_replace_from_history_variable, query_replace_from_to_separator, query_replace_history, &
                           query_replace_show_replacement, query_replace_skip_read_only, &
-                          query_replace_to_history_variable, replace_count, replace_lax_whitespace, &
+                          query_replace_to_history_variable, regexp_history, replace_count, replace_lax_whitespace, &
                           replace_regexp_lax_whitespace
     use rmc_fm, only: read_char_choice_use_read_key
     use savehist_fm, only: savehist_additional_variables, savehist_autosave_interval, &
@@ -481,24 +485,25 @@ module docstrings_fm
                          blink_matching_delay, blink_matching_paren, BLINK_MATCHING_PAREN_NO, &
                          BLINK_MATCHING_PAREN_YES, BLINK_MATCHING_PAREN_JUMP, BLINK_MATCHING_PAREN_JUMP_OFFSCREEN, &
                          blink_matching_paren_distance, blink_matching_paren_dont_ignore_comments, &
-                         blink_matching_paren_on_screen, copy_region_blink_delay, cycle_spacing_actions, &
-                         deactivate_mark_hook, delete_active_region, fill_prefix, goal_column, indent_tabs_mode_hook, &
-                         inhibit_auto_fill, kill_read_only_ok, kill_ring_max, kill_ring_yank_pointer, &
-                         kill_whole_line_option, line_move_ignore_invisible, line_move_visual, mark_ring_max, &
-                         messages_buffer_mode_hook, messages_buffer_mode_map, minibuffer_local_shell_command_map, &
-                         next_error_hook, next_error_last_buffer, next_error_verbose, normal_auto_fill_function, &
-                         pending_undo_list, prefix_command_preserve_state_hook, read_only_mode_hook, &
-                         read_quoted_char_radix, shell_command_default_error_buffer, shell_command_dont_erase_buffer, &
-                         DONT_ERASE_NO, DONT_ERASE_ERASE, DONT_ERASE_BEG_LAST_OUT, DONT_ERASE_END_LAST_OUT, &
-                         DONT_ERASE_SAVE_POINT, shell_command_prompt_show_cwd, shell_command_switch, &
-                         special_mode_abbrev_table, special_mode_hook, special_mode_map, suggest_key_bindings, &
-                         transient_mark_mode_hook, undo_in_progress, undo_no_redo, widen_automatically
+                         blink_matching_paren_on_screen, copy_region_blink_delay, custom_variable_history, &
+                         cycle_spacing_actions, deactivate_mark_hook, delete_active_region, fill_prefix, goal_column, &
+                         indent_tabs_mode_hook, inhibit_auto_fill, kill_read_only_ok, kill_ring_max, &
+                         kill_ring_yank_pointer, kill_whole_line_option, line_move_ignore_invisible, line_move_visual, &
+                         mark_ring_max, messages_buffer_mode_hook, messages_buffer_mode_map, &
+                         minibuffer_local_shell_command_map, next_error_hook, next_error_last_buffer, &
+                         next_error_verbose, normal_auto_fill_function, pending_undo_list, &
+                         prefix_command_preserve_state_hook, read_only_mode_hook, read_quoted_char_radix, &
+                         set_variable_value_history, shell_command_default_error_buffer, &
+                         shell_command_dont_erase_buffer, DONT_ERASE_NO, DONT_ERASE_ERASE, DONT_ERASE_BEG_LAST_OUT, &
+                         DONT_ERASE_END_LAST_OUT, DONT_ERASE_SAVE_POINT, shell_command_prompt_show_cwd, &
+                         shell_command_switch, special_mode_abbrev_table, special_mode_hook, special_mode_map, &
+                         suggest_key_bindings, transient_mark_mode_hook, undo_in_progress, undo_no_redo, &
+                         widen_automatically
     use smie_fm, only: smie_blink_matching_inners, smie_blink_matching_triggers, smie_grammar, &
                        smie_indent_basic, smie_indent_functions, smie_rule_separator_outdent
     use startup_fm, only: mail_host_address, user_mail_address
     use subr_fm, only: after_change_major_mode_hook, change_major_mode_after_body_hook, &
-                       history_delete_duplicates, history_length, read_y_or_n_history_variable, &
-                       read_y_or_n_use_read_key
+                       read_y_or_n_history_variable, read_y_or_n_use_read_key
     use syntax_fm, only: comment_end_can_be_escaped, comment_use_syntax_ppss, &
                          multibyte_syntax_as_identifier, open_paren_in_column_0_is_subprogram_start, &
                          parse_expression_ignore_comments, parse_expression_lookup_properties, &
@@ -554,7 +559,7 @@ module docstrings_fm
 
     public :: function_doc, variable_doc
     public :: user_option_info, set_user_option_logical, set_user_option_integer, set_user_option_real, &
-              set_user_option_string, set_user_option_choice
+              set_user_option_string, set_user_option_choice, user_option_constants
 
     !> Kinds of value of a user option, as `set_variable` reads it.
     integer, parameter, public :: OPTION_NONE = 0, OPTION_LOGICAL = 1, OPTION_INTEGER = 2, OPTION_REAL = 3, &
@@ -1020,7 +1025,7 @@ module docstrings_fm
                                                                     "write_file", "yank", "yank_pop", "yank_rectangle", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1217) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1231) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                 "adaptive_fill_first_line_regexp", "adaptive_fill_function", "adaptive_fill_mode", &
@@ -1052,8 +1057,8 @@ module docstrings_fm
                                             "bookmark_completion_ignore_case", "bookmark_current_buffer", "bookmark_default_file", &
                                                         "bookmark_edit_annotation_mode_hook", "bookmark_edit_annotation_mode_map", &
                                                              "bookmark_exit_hook", "bookmark_face", "bookmark_file_coding_system", &
-                                                     "bookmark_fringe_mark", "bookmark_inhibit_context_functions", "bookmark_map", &
-                                                                    "bookmark_menu_bookmark", "bookmark_menu_confirm_deletion", &
+                                                 "bookmark_fringe_mark", "bookmark_history", "bookmark_inhibit_context_functions", &
+                                                       "bookmark_map", "bookmark_menu_bookmark", "bookmark_menu_confirm_deletion", &
                                                "bookmark_minibuffer_read_name_map", "bookmark_save_flag", "bookmark_search_delay", &
                                                                    "bookmark_search_size", "bookmark_sort_flag", "bookmark_table", &
                                                                   "bookmark_table_modification_count", "bookmark_use_annotations", &
@@ -1114,9 +1119,10 @@ module docstrings_fm
                                                                  "completion_ignored_extensions", "completion_in_region_mode_map", &
                                                               "completion_pcm_leading_wildcard", "completion_pcm_word_delimiters", &
                                                      "completion_regexp_list", "completion_show_inline_help", "completion_styles", &
-                                                     "completions_max_height", "conf_assignment_column", "conf_assignment_regexp", &
-                                                  "conf_assignment_sign", "conf_assignment_space", "conf_colon_assignment_column", &
-                                           "conf_colon_assignment_space", "conf_colon_font_lock_keywords", "conf_colon_mode_hook", &
+                                                    "completions_annotations", "completions_max_height", "conf_assignment_column", &
+                                                        "conf_assignment_regexp", "conf_assignment_sign", "conf_assignment_space", &
+                                                                    "conf_colon_assignment_column", "conf_colon_assignment_space", &
+                                                                    "conf_colon_font_lock_keywords", "conf_colon_mode_hook", &
                                            "conf_desktop_font_lock_keywords", "conf_desktop_mode_hook", "conf_font_lock_keywords", &
                                                             "conf_javaprop_assignment_column", "conf_javaprop_font_lock_keywords", &
                                                    "conf_javaprop_mode_hook", "conf_javaprop_mode_syntax_table", "conf_mode_hook", &
@@ -1132,21 +1138,21 @@ module docstrings_fm
                                                            "css_font_lock_keywords", "css_fontify_colors", "css_id_list_function", &
                                                     "css_indent_offset", "css_lookup_url_format", "css_mode_hook", "css_mode_map", &
                                                         "css_mode_syntax_table", "css_smie_grammar", "current_minibuffer_command", &
-                                                      "current_prefix_arg", "cycle_spacing_actions", "dabbrev_abbrev_char_regexp", &
-                                                                    "dabbrev_abbrev_skip_leading_regexp", "dabbrev_backward_only", &
-                                                   "dabbrev_case_distinction", "dabbrev_case_fold_search", "dabbrev_case_replace", &
-                                         "dabbrev_check_all_buffers", "dabbrev_check_other_buffers", "dabbrev_eliminate_newlines", &
-                                                                   "dabbrev_ignored_buffer_modes", "dabbrev_ignored_buffer_names", &
-                                           "dabbrev_ignored_buffer_regexps", "dabbrev_limit", "dabbrev_search_these_buffers_only", &
-                                              "dabbrev_upcase_means_case_search", "deactivate_mark_hook", "default_justification", &
-                                                                "default_keyboard_coding_system", "default_process_coding_system", &
-                                                  "default_terminal_coding_system", "define_ibuffer_column", "defining_kbd_macro", &
-                                                     "delete_active_region", "delete_exited_processes", "delete_pair_blink_delay", &
-                                                                    "delete_pair_push_mark", "diff_advance_after_apply_hunk", &
-                                                 "diff_ask_before_revert_and_kill_hunk", "diff_command", "diff_default_read_only", &
-                                                "diff_entire_buffers", "diff_jump_to_old_file", "diff_mode_hook", "diff_mode_map", &
-                                                         "diff_mode_read_only", "diff_mode_read_only_map", "diff_mode_shared_map", &
-                                                                    "diff_read_only_map", "diff_switches", "diff_use_labels", &
+                                                         "current_prefix_arg", "custom_variable_history", "cycle_spacing_actions", &
+                                                               "dabbrev_abbrev_char_regexp", "dabbrev_abbrev_skip_leading_regexp", &
+                                                  "dabbrev_backward_only", "dabbrev_case_distinction", "dabbrev_case_fold_search", &
+                                               "dabbrev_case_replace", "dabbrev_check_all_buffers", "dabbrev_check_other_buffers", &
+                                                                    "dabbrev_eliminate_newlines", "dabbrev_ignored_buffer_modes", &
+                                                "dabbrev_ignored_buffer_names", "dabbrev_ignored_buffer_regexps", "dabbrev_limit", &
+                                                          "dabbrev_search_these_buffers_only", "dabbrev_upcase_means_case_search", &
+                                                "deactivate_mark_hook", "default_justification", "default_keyboard_coding_system", &
+                                                                "default_process_coding_system", "default_terminal_coding_system", &
+                                                            "define_ibuffer_column", "defining_kbd_macro", "delete_active_region", &
+                                                    "delete_exited_processes", "delete_pair_blink_delay", "delete_pair_push_mark", &
+                                          "diff_advance_after_apply_hunk", "diff_ask_before_revert_and_kill_hunk", "diff_command", &
+                                                         "diff_default_read_only", "diff_entire_buffers", "diff_jump_to_old_file", &
+                                              "diff_mode_hook", "diff_mode_map", "diff_mode_read_only", "diff_mode_read_only_map", &
+                                                 "diff_mode_shared_map", "diff_read_only_map", "diff_switches", "diff_use_labels", &
                                                       "diff_valid_unified_empty_line", "directory_listing_before_filename_regexp", &
                                                       "dired__ls_error_buffer", "dired__ls_error_file", "dired_after_readin_hook", &
                                            "dired_always_read_filesystem", "dired_auto_revert_buffer", "dired_before_readin_hook", &
@@ -1211,12 +1217,13 @@ module docstrings_fm
                                              "global_font_lock_mode_hook", "goal_column", "grep_command", "grep_command_position", &
                                           "grep_compilation_transform_finished_rules", "grep_context_face", "grep_edit_mode_hook", &
                                                "grep_edit_mode_map", "grep_error", "grep_error_face", "grep_error_screen_columns", &
-                                                                "grep_files_aliases", "grep_find_abbreviate", "grep_find_command", &
-                                         "grep_find_command_position", "grep_find_ignored_directories", "grep_find_ignored_files", &
-                                                 "grep_find_template", "grep_find_use_xargs", "grep_first_column", "grep_heading", &
-                                             "grep_heading_regexp", "grep_highlight_matches", "grep_hit_face", "grep_last_buffer", &
-                                         "grep_match_face", "grep_match_regexp", "grep_mode_font_lock_keywords", "grep_mode_hook", &
-                                                       "grep_mode_map", "grep_program", "grep_quoting_style", "grep_regexp_table", &
+                                          "grep_files_aliases", "grep_files_history", "grep_find_abbreviate", "grep_find_command", &
+                                               "grep_find_command_position", "grep_find_history", "grep_find_ignored_directories", &
+                                                           "grep_find_ignored_files", "grep_find_template", "grep_find_use_xargs", &
+                                             "grep_first_column", "grep_heading", "grep_heading_regexp", "grep_highlight_matches", &
+                                                           "grep_history", "grep_hit_face", "grep_last_buffer", "grep_match_face", &
+                                           "grep_match_regexp", "grep_mode_font_lock_keywords", "grep_mode_hook", "grep_mode_map", &
+                                                 "grep_program", "grep_quoting_style", "grep_regexp_history", "grep_regexp_table", &
                                                     "grep_save_buffers", "grep_scroll_output", "grep_setup_hook", "grep_template", &
                                                   "grep_use_headings", "grep_use_null_device", "grep_use_null_filename_separator", &
                                            "help_char", "help_event_list", "help_map", "help_mode_abbrev_table", "help_mode_hook", &
@@ -1313,10 +1320,11 @@ module docstrings_fm
                                                           "mounted_file_systems", "mule_keymap", "multibyte_syntax_as_identifier", &
                                              "narrow_to_subprogram_include_comments", "next_error_hook", "next_error_last_buffer", &
                                                    "next_error_verbose", "next_screen_context_lines", "normal_auto_fill_function", &
-                                                            "num_input_keys", "num_nonmacro_input_events", "occur_edit_mode_hook", &
-                                              "occur_edit_mode_map", "occur_excluded_properties", "occur_excluded_properties_all", &
-                                             "occur_hook", "occur_mode_find_occurrence_hook", "occur_mode_hook", "occur_mode_map", &
-                                            "only_global_abbrevs", "open_paren_in_column_0_is_subprogram_start", "page_delimiter", &
+                                                    "num_input_keys", "num_nonmacro_input_events", "occur_collect_regexp_history", &
+                                                       "occur_edit_mode_hook", "occur_edit_mode_map", "occur_excluded_properties", &
+                                                 "occur_excluded_properties_all", "occur_hook", "occur_mode_find_occurrence_hook", &
+                                                                    "occur_mode_hook", "occur_mode_map", "only_global_abbrevs", &
+                                                                   "open_paren_in_column_0_is_subprogram_start", "page_delimiter", &
                                                           "paragraph_ignore_fill_prefix", "paragraph_separate", "paragraph_start", &
                                                                     "parens_require_spaces", "parse_expression_ignore_comments", &
                                                                "parse_expression_lookup_properties", "password_colon_equivalents", &
@@ -1339,8 +1347,8 @@ module docstrings_fm
                                             "python_mode_map", "python_mode_syntax_table", "python_nav_beginning_of_block_regexp", &
                                                             "python_nav_beginning_of_definition_regexp", "query_replace_defaults", &
                                                          "query_replace_from_history_variable", "query_replace_from_to_separator", &
-                                                                 "query_replace_show_replacement", "query_replace_skip_read_only", &
-                                                                    "query_replace_to_history_variable", "read_answer_short", &
+                                                                    "query_replace_history", "query_replace_show_replacement", &
+                                         "query_replace_skip_read_only", "query_replace_to_history_variable", "read_answer_short", &
                                                             "read_buffer_completion_ignore_case", "read_char_choice_use_read_key", &
                                                                     "read_file_name_completion_ignore_case", "read_hide_char", &
                                                "read_minibuffer_restore_windows", "read_only_mode_hook", "read_quoted_char_radix", &
@@ -1349,10 +1357,11 @@ module docstrings_fm
                                               "recentf_filename_handlers", "recentf_initialize_file_name_history", "recentf_keep", &
                                                "recentf_list", "recentf_max_saved_items", "recentf_mode_hook", "recentf_mode_map", &
                                                           "recentf_save_file", "recentf_save_file_modes", "recentf_show_messages", &
-                                                  "rectangle_mark_mode_hook", "rectangle_mark_mode_map", "regexp_search_ring_max", &
-                                                    "register_separator", "register_table", "repeat_check_key", "repeat_exit_key", &
-                                                  "repeat_exit_timeout", "repeat_in_progress", "repeat_keep_prefix", "repeat_map", &
-                                               "repeat_mode_hook", "repeat_num_input_keys_at_repeat", "repeat_on_final_keystroke", &
+                                                          "rectangle_mark_mode_hook", "rectangle_mark_mode_map", "regexp_history", &
+                                           "regexp_search_ring", "regexp_search_ring_max", "register_separator", "register_table", &
+                                               "repeat_check_key", "repeat_exit_key", "repeat_exit_timeout", "repeat_in_progress", &
+                                                                    "repeat_keep_prefix", "repeat_map", "repeat_mode_hook", &
+                                                                   "repeat_num_input_keys_at_repeat", "repeat_on_final_keystroke", &
                                                       "repeat_previous_repeated_command", "repeat_too_dangerous", "replace_count", &
                                                "replace_lax_whitespace", "replace_regexp_lax_whitespace", "require_final_newline", &
                                             "revert_buffer_function", "revert_buffer_in_progress", "revert_buffer_preserve_modes", &
@@ -1368,49 +1377,49 @@ module docstrings_fm
                                               "savehist_minibuffer_history_variables", "savehist_mode_hook", "savehist_save_hook", &
                                                   "savehist_save_minibuffer_history", "scroll_error_top_bottom", "scss_mode_hook", &
                                                                   "scss_mode_map", "scss_mode_syntax_table", "search_exit_option", &
-                                                       "search_nonincremental_instead", "search_ring_max", "search_spaces_regexp", &
-                                                                    "search_upper_case", "search_whitespace_regexp", &
+                                                                "search_nonincremental_instead", "search_ring", "search_ring_max", &
+                                                          "search_spaces_regexp", "search_upper_case", "search_whitespace_regexp", &
                                                   "select_safe_coding_system_accept_default", "sentence_end", "sentence_end_base", &
                                          "sentence_end_double_space", "sentence_end_without_period", "sentence_end_without_space", &
-                                              "sh_alias_table", "sh_ancestor_table", "sh_assignment_regexp", "sh_backslash_align", &
-                                                "sh_backslash_column", "sh_base_mode_hook", "sh_base_mode_map", "sh_basic_offset", &
-                                                        "sh_beginning_of_command", "sh_builtins", "sh_dynamic_complete_functions", &
-                                                  "sh_end_of_command", "sh_font_lock_keywords_var", "sh_font_lock_keywords_var_1", &
-                                                   "sh_font_lock_keywords_var_2", "sh_here_document_word", "sh_indent_after_case", &
-                                                     "sh_indent_after_continuation", "sh_indent_after_do", "sh_indent_after_done", &
-                                                         "sh_indent_after_else", "sh_indent_after_function", "sh_indent_after_if", &
-                                               "sh_indent_after_loop_construct", "sh_indent_after_open", "sh_indent_after_switch", &
-                                               "sh_indent_for_case_alt", "sh_indent_for_case_label", "sh_indent_for_continuation", &
-                                               "sh_indent_for_do", "sh_indent_for_done", "sh_indent_for_fi", "sh_indent_for_then", &
-                                                    "sh_indent_statement_after_and", "sh_indent_supported", "sh_leading_keywords", &
-                                                      "sh_make_vars_local", "sh_mode_abbrev_table", "sh_mode_hook", "sh_mode_map", &
-                                                        "sh_mode_syntax_table", "sh_mode_syntax_table_input", "sh_other_keywords", &
-                                                      "sh_remember_variable_min", "sh_set_shell_hook", "sh_shell", "sh_shell_arg", &
-                                                   "sh_shell_file", "sh_smie_rc_grammar", "sh_smie_sh_grammar", "sh_styles_table", &
-                                                          "sh_variables", "shell_cd_regexp", "shell_command_default_error_buffer", &
-                                           "shell_command_dont_erase_buffer", "shell_command_mode_hook", "shell_command_mode_map", &
-                                                                    "shell_command_prompt_show_cwd", "shell_command_regexp", &
-                                            "shell_command_separator_regexp", "shell_command_switch", "shell_completion_execonly", &
-                                              "shell_completion_fignore", "shell_delimiter_argument_list", "shell_dirstack_query", &
-                                                  "shell_dirtrack_mode_hook", "shell_dirtrack_verbose", "shell_dumb_shell_regexp", &
-                                                   "shell_dynamic_complete_functions", "shell_file_name", "shell_file_name_chars", &
-                                                   "shell_file_name_quote_list", "shell_get_old_input_include_continuation_lines", &
-                                                         "shell_has_auto_cd", "shell_history_file_name", "shell_input_autoexpand", &
-                                            "shell_kill_buffer_on_exit", "shell_mode_hook", "shell_mode_map", "shell_popd_regexp", &
-                                                            "shell_prompt_pattern", "shell_pushd_dextract", "shell_pushd_dunique", &
-                                                                   "shell_pushd_regexp", "shell_pushd_tohome", "shell_repeat_map", &
-                                                                    "show_paren_context_when_offscreen", "show_paren_delay", &
-                                           "show_paren_highlight_openparen", "show_paren_local_mode_hook", "show_paren_mode_hook", &
-                                                                   "show_paren_not_in_comments_or_strings", "show_paren_priority", &
+                                                              "set_variable_value_history", "sh_alias_table", "sh_ancestor_table", &
+                                         "sh_assignment_regexp", "sh_backslash_align", "sh_backslash_column", "sh_base_mode_hook", &
+                                                  "sh_base_mode_map", "sh_basic_offset", "sh_beginning_of_command", "sh_builtins", &
+                                                "sh_dynamic_complete_functions", "sh_end_of_command", "sh_font_lock_keywords_var", &
+                                            "sh_font_lock_keywords_var_1", "sh_font_lock_keywords_var_2", "sh_here_document_word", &
+                                                     "sh_indent_after_case", "sh_indent_after_continuation", "sh_indent_after_do", &
+                                                       "sh_indent_after_done", "sh_indent_after_else", "sh_indent_after_function", &
+                                                   "sh_indent_after_if", "sh_indent_after_loop_construct", "sh_indent_after_open", &
+                                                   "sh_indent_after_switch", "sh_indent_for_case_alt", "sh_indent_for_case_label", &
+                                                           "sh_indent_for_continuation", "sh_indent_for_do", "sh_indent_for_done", &
+                                                        "sh_indent_for_fi", "sh_indent_for_then", "sh_indent_statement_after_and", &
+                                                               "sh_indent_supported", "sh_leading_keywords", "sh_make_vars_local", &
+                                                    "sh_mode_abbrev_table", "sh_mode_hook", "sh_mode_map", "sh_mode_syntax_table", &
+                                                    "sh_mode_syntax_table_input", "sh_other_keywords", "sh_remember_variable_min", &
+                                           "sh_set_shell_hook", "sh_shell", "sh_shell_arg", "sh_shell_file", "sh_smie_rc_grammar", &
+                                                       "sh_smie_sh_grammar", "sh_styles_table", "sh_variables", "shell_cd_regexp", &
+                                                          "shell_command_default_error_buffer", "shell_command_dont_erase_buffer", &
+                                             "shell_command_mode_hook", "shell_command_mode_map", "shell_command_prompt_show_cwd", &
+                                                 "shell_command_regexp", "shell_command_separator_regexp", "shell_command_switch", &
+                                         "shell_completion_execonly", "shell_completion_fignore", "shell_delimiter_argument_list", &
+                                                     "shell_dirstack_query", "shell_dirtrack_mode_hook", "shell_dirtrack_verbose", &
+                                                 "shell_dumb_shell_regexp", "shell_dynamic_complete_functions", "shell_file_name", &
+                                                                    "shell_file_name_chars", "shell_file_name_quote_list", &
+                                                            "shell_get_old_input_include_continuation_lines", "shell_has_auto_cd", &
+                                                 "shell_history_file_name", "shell_input_autoexpand", "shell_kill_buffer_on_exit", &
+                                                 "shell_mode_hook", "shell_mode_map", "shell_popd_regexp", "shell_prompt_pattern", &
+                                                              "shell_pushd_dextract", "shell_pushd_dunique", "shell_pushd_regexp", &
+                                                    "shell_pushd_tohome", "shell_repeat_map", "show_paren_context_when_offscreen", &
+                                               "show_paren_delay", "show_paren_highlight_openparen", "show_paren_local_mode_hook", &
+                                           "show_paren_mode_hook", "show_paren_not_in_comments_or_strings", "show_paren_priority", &
                                                                     "show_paren_ring_bell_on_mismatch", "show_paren_style", &
                                                        "show_paren_when_point_in_periphery", "show_paren_when_point_inside_paren", &
                                                      "smie_blink_matching_inners", "smie_blink_matching_triggers", "smie_grammar", &
                                                       "smie_indent_basic", "smie_indent_functions", "smie_rule_separator_outdent", &
                                                              "special_mode_abbrev_table", "special_mode_hook", "special_mode_map", &
                                             "split_height_threshold", "split_width_threshold", "split_window_preferred_direction", &
-                                                            "standard_indent", "subprogram_prompt_regexp", "suggest_key_bindings", &
-                                                           "syntax_ppss_max_span", "syntax_ppss_table", "syntax_propertize__done", &
-                                                                    "syntax_propertize_chunk_size", "syntax_propertize_chunks", &
+                                                        "standard_indent", "string_rectangle_history", "subprogram_prompt_regexp", &
+                                                              "suggest_key_bindings", "syntax_ppss_max_span", "syntax_ppss_table", &
+                                            "syntax_propertize__done", "syntax_propertize_chunk_size", "syntax_propertize_chunks", &
                                                         "syntax_propertize_extend_region_functions", "syntax_propertize_function", &
                                                         "syntax_wholeline_max", "tab_always_indent", "tab_stop_list", "tab_width", &
                                                             "tabulated_list_fake_header", "tabulated_list_gui_sort_indicator_asc", &
@@ -16762,6 +16771,10 @@ contains
 
             entry%doc = "The fringe bitmap to mark bookmarked lines with."//LF// &
                         "If unallocated, don't display a mark on the fringe."
+        case ("bookmark_history")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_history"
+            entry%doc = "The history list for bookmark functions."
         case ("bookmark_inhibit_context_functions")
             entry%file = "bookmark_fm.f90"
             entry%fortran = "bookmark_inhibit_context_functions"
@@ -18703,6 +18716,12 @@ contains
                         ""//LF// &
                         "Note that `completion_category_overrides' may override these"//LF// &
                         "styles for specific categories, such as files, buffers, etc."
+        case ("completions_annotations")
+            entry%file = "minibuffer_fm.f90"
+            entry%fortran = "completions_annotations"
+            entry%doc = "Face to use for annotations in the *Completions* buffer."//LF// &
+                        "This face is only used if the strings used for completions"//LF// &
+                        "doesn't already specify a face."
         case ("completions_max_height")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completions_max_height"
@@ -19052,6 +19071,10 @@ contains
                         "It may be an integer, or `-' for just a minus sign as arg, or an"//LF// &
                         "array whose first element is an integer ([4], [16], ...) for just one"//LF// &
                         "or more C-u's, or .false. if no argument has been specified."
+        case ("custom_variable_history")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "custom_variable_history"
+            entry%doc = "The history of the variable names `set_variable' reads."
         case ("cycle_spacing_actions")
             entry%file = "simple_fm.f90"
             entry%fortran = "cycle_spacing_actions"
@@ -21666,6 +21689,10 @@ contains
             entry%fortran = "grep_files_aliases"
             entry%user_option = .true.
             entry%doc = "Table of aliases for the FILES argument to `lgrep' and `rgrep'."
+        case ("grep_files_history")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_files_history"
+            entry%doc = "History of `lgrep' and `rgrep' files args."
         case ("grep_find_abbreviate")
             entry%file = "grep_fm.f90"
             entry%fortran = "grep_find_abbreviate"
@@ -21703,6 +21730,10 @@ contains
             entry%value = repr(grep_find_command_position)
             entry%doc = "The POSITION of `grep_find_command' when it has the form (COMMAND"//LF// &
                         ". POSITION), 0 for none."
+        case ("grep_find_history")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_find_history"
+            entry%doc = "History list for `grep_find'."
         case ("grep_find_ignored_directories")
             entry%file = "grep_fm.f90"
             entry%fortran = "grep_find_ignored_directories"
@@ -21847,6 +21878,10 @@ contains
                         "`grep_compute_defaults' to compute the value.  To change the"//LF// &
                         "default value, use \[customize] or call the function"//LF// &
                         "`grep_apply_setting'."
+        case ("grep_history")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_history"
+            entry%doc = "History list for grep."
         case ("grep_hit_face")
             entry%file = "grep_fm.f90"
             entry%fortran = "grep_hit_face"
@@ -21923,6 +21958,10 @@ contains
             entry%original = ".false."
             entry%value = repr(grep_quoting_style)
             entry%doc = "Whether to use POSIX-like shell argument quoting."
+        case ("grep_regexp_history")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_regexp_history"
+            entry%doc = "History of `lgrep' and `rgrep' regexp args."
         case ("grep_regexp_table")
             entry%file = "grep_fm.f90"
             entry%fortran = "grep_regexp_table"
@@ -22087,7 +22126,7 @@ contains
                         "history list, so it is possible to do this afterwards by calling"//LF// &
                         "`add_to_history' explicitly."
         case ("history_delete_duplicates")
-            entry%file = "subr_fm.f90"
+            entry%file = "data_fm.f90"
             entry%fortran = "history_delete_duplicates"
             entry%user_option = .true.
             entry%original = ".false."
@@ -22096,7 +22135,7 @@ contains
                         "If set to true when adding a new history element, all previous identical"//LF// &
                         "elements are deleted from the history list."
         case ("history_length")
-            entry%file = "subr_fm.f90"
+            entry%file = "data_fm.f90"
             entry%fortran = "history_length"
             entry%user_option = .true.
             entry%original = "100"
@@ -22106,8 +22145,8 @@ contains
                         "elements, and is done just after inserting a new element."//LF// &
                         ""//LF// &
                         "This variable only affects history lists that don't specify their own"//LF// &
-                        "maximum lengths.  Setting the `history_length' attribute of a history"//LF// &
-                        "variable overrides this default."
+                        "maximum lengths.  Setting the `%length' component of a history"//LF// &
+                        "overrides this default."
         case ("ibuffer_always_compile_formats")
             entry%file = "ibuffer_fm.f90"
             entry%fortran = "ibuffer_always_compile_formats"
@@ -24490,6 +24529,10 @@ contains
             entry%value = repr(num_nonmacro_input_events)
             entry%doc = "Number of input events read from the keyboard so far."//LF// &
                         "This does not include events generated by keyboard macros."
+        case ("occur_collect_regexp_history")
+            entry%file = "replace_fm.f90"
+            entry%fortran = "occur_collect_regexp_history"
+            entry%doc = "History of regexp for occur's collect operation."
         case ("occur_edit_mode_hook")
             entry%file = "replace_fm.f90"
             entry%fortran = "occur_edit_mode_hook"
@@ -25191,6 +25234,12 @@ contains
             entry%doc = "String that separates FROM and TO in the history of replacement"//LF// &
                         "strings.  When unallocated, FROM and TO will not be added to the"//LF// &
                         "history (same behavior as in Emacs 24.5)."
+        case ("query_replace_history")
+            entry%file = "replace_fm.f90"
+            entry%fortran = "query_replace_history"
+            entry%doc = "Default history list for `query_replace' commands.  See"//LF// &
+                        "`query_replace_from_history_variable' and"//LF// &
+                        "`query_replace_to_history_variable'."
         case ("query_replace_show_replacement")
             entry%file = "replace_fm.f90"
             entry%fortran = "query_replace_show_replacement"
@@ -25474,6 +25523,17 @@ contains
             entry%file = "rect_fm.f90"
             entry%fortran = "rectangle_mark_mode_map"
             entry%doc = "Keymap used while marking a rectangular region."
+        case ("regexp_history")
+            entry%file = "replace_fm.f90"
+            entry%fortran = "regexp_history"
+            entry%doc = "History list for some commands that read regular expressions."//LF// &
+                        ""//LF// &
+                        "Maximum length of the history list is determined by the value"//LF// &
+                        "of `history_length', which see."
+        case ("regexp_search_ring")
+            entry%file = "isearch_fm.f90"
+            entry%fortran = "regexp_search_ring"
+            entry%doc = "List of regular expression search string sequences."
         case ("regexp_search_ring_max")
             entry%file = "isearch_fm.f90"
             entry%fortran = "regexp_search_ring_max"
@@ -26061,6 +26121,10 @@ contains
             entry%doc = "If true, do a nonincremental search instead of an incremental"//LF// &
                         "one.  This applies to RET typed immediately after entering"//LF// &
                         "incremental search."
+        case ("search_ring")
+            entry%file = "isearch_fm.f90"
+            entry%fortran = "search_ring"
+            entry%doc = "List of search string sequences."
         case ("search_ring_max")
             entry%file = "isearch_fm.f90"
             entry%fortran = "search_ring_max"
@@ -26206,6 +26270,13 @@ contains
                         "This value is used by the function `sentence_end' to construct the"//LF// &
                         "regexp describing the end of a sentence, when the value of the"//LF// &
                         "variable `sentence_end' is unallocated."
+        case ("set_variable_value_history")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "set_variable_value_history"
+            entry%doc = "History of values entered with `set_variable'."//LF// &
+                        ""//LF// &
+                        "Maximum length of the history list is determined by the value"//LF// &
+                        "of `history_length', which see."
         case ("sh_alias_table")
             entry%file = "sh_script_fm.f90"
             entry%fortran = "sh_alias_table"
@@ -27469,6 +27540,10 @@ contains
             entry%original = "4"
             entry%value = repr(standard_indent%value)
             entry%doc = "Default number of columns for margin-changing functions to indent."
+        case ("string_rectangle_history")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "string_rectangle_history"
+            entry%doc = "The history of `string_rectangle' strings."
         case ("subprogram_prompt_regexp")
             entry%file = "expression_motion_fm.f90"
             entry%fortran = "subprogram_prompt_regexp"
@@ -32906,6 +32981,453 @@ contains
             ok = .false.
         end select
     end subroutine set_user_option_choice
+
+    !> The named constants of the enumerated user option called `name`
+    !> (in upper case) and their values; empty arrays for another name.
+    subroutine user_option_constants(name, constants, values)
+        character(len=*), intent(in) :: name
+        character(len=48), allocatable, intent(out) :: constants(:)
+        integer(int64), allocatable, intent(out) :: values(:)
+
+        select case (name)
+        case ("ansi_color_for_comint_mode")
+            constants = [character(len=48) :: "ANSI_COLOR_NO", "ANSI_COLOR_FILTER", &
+                         "ANSI_COLOR_YES"]
+            values = [integer(int64) :: int(ANSI_COLOR_NO, int64), int(ANSI_COLOR_FILTER, int64), &
+                      int(ANSI_COLOR_YES, int64)]
+        case ("ansi_color_for_compilation_mode")
+            constants = [character(len=48) :: "ANSI_COLOR_NO", "ANSI_COLOR_FILTER", &
+                         "ANSI_COLOR_YES"]
+            values = [integer(int64) :: int(ANSI_COLOR_NO, int64), int(ANSI_COLOR_FILTER, int64), &
+                      int(ANSI_COLOR_YES, int64)]
+        case ("async_shell_command_buffer")
+            constants = [character(len=48) :: "ASYNC_CONFIRM_KILL_PROCESS", &
+                         "ASYNC_CONFIRM_NEW_BUFFER", "ASYNC_NEW_BUFFER", "ASYNC_CONFIRM_RENAME_BUFFER", &
+                         "ASYNC_RENAME_BUFFER"]
+            values = [integer(int64) :: int(ASYNC_CONFIRM_KILL_PROCESS, int64), &
+                      int(ASYNC_CONFIRM_NEW_BUFFER, int64), int(ASYNC_NEW_BUFFER, int64), &
+                      int(ASYNC_CONFIRM_RENAME_BUFFER, int64), int(ASYNC_RENAME_BUFFER, int64)]
+        case ("backward_delete_char_untabify_method")
+            constants = [character(len=48) :: "UNTABIFY_METHOD_NONE", "UNTABIFY_METHOD_UNTABIFY", &
+                         "UNTABIFY_METHOD_HUNGRY", "UNTABIFY_METHOD_ALL"]
+            values = [integer(int64) :: int(UNTABIFY_METHOD_NONE, int64), &
+                      int(UNTABIFY_METHOD_UNTABIFY, int64), int(UNTABIFY_METHOD_HUNGRY, int64), &
+                      int(UNTABIFY_METHOD_ALL, int64)]
+        case ("blink_matching_paren")
+            constants = [character(len=48) :: "BLINK_MATCHING_PAREN_NO", &
+                         "BLINK_MATCHING_PAREN_YES", "BLINK_MATCHING_PAREN_JUMP", &
+                         "BLINK_MATCHING_PAREN_JUMP_OFFSCREEN"]
+            values = [integer(int64) :: int(BLINK_MATCHING_PAREN_NO, int64), &
+                      int(BLINK_MATCHING_PAREN_YES, int64), int(BLINK_MATCHING_PAREN_JUMP, int64), &
+                      int(BLINK_MATCHING_PAREN_JUMP_OFFSCREEN, int64)]
+        case ("bookmark_save_flag")
+            constants = [character(len=48) :: "BOOKMARK_SAVE_FLAG_NEVER", &
+                         "BOOKMARK_SAVE_FLAG_ON_EXIT"]
+            values = [integer(int64) :: int(BOOKMARK_SAVE_FLAG_NEVER, int64), &
+                      int(BOOKMARK_SAVE_FLAG_ON_EXIT, int64)]
+        case ("bookmark_sort_flag")
+            constants = [character(len=48) :: "BOOKMARK_SORT_FLAG_CREATED", &
+                         "BOOKMARK_SORT_FLAG_ALPHABETICAL", "BOOKMARK_SORT_FLAG_LAST_MODIFIED"]
+            values = [integer(int64) :: int(BOOKMARK_SORT_FLAG_CREATED, int64), &
+                      int(BOOKMARK_SORT_FLAG_ALPHABETICAL, int64), &
+                      int(BOOKMARK_SORT_FLAG_LAST_MODIFIED, int64)]
+        case ("bookmark_version_control")
+            constants = [character(len=48) :: "BOOKMARK_VERSION_CONTROL_NUMBERED", &
+                         "BOOKMARK_VERSION_CONTROL_EXISTING", "BOOKMARK_VERSION_CONTROL_NEVER", &
+                         "BOOKMARK_VERSION_CONTROL_NOSPECIAL"]
+            values = [integer(int64) :: int(BOOKMARK_VERSION_CONTROL_NUMBERED, int64), &
+                      int(BOOKMARK_VERSION_CONTROL_EXISTING, int64), &
+                      int(BOOKMARK_VERSION_CONTROL_NEVER, int64), &
+                      int(BOOKMARK_VERSION_CONTROL_NOSPECIAL, int64)]
+        case ("bookmark_watch_bookmark_file")
+            constants = [character(len=48) :: "BOOKMARK_WATCH_BOOKMARK_FILE_NO", &
+                         "BOOKMARK_WATCH_BOOKMARK_FILE_ASK", "BOOKMARK_WATCH_BOOKMARK_FILE_SILENT"]
+            values = [integer(int64) :: int(BOOKMARK_WATCH_BOOKMARK_FILE_NO, int64), &
+                      int(BOOKMARK_WATCH_BOOKMARK_FILE_ASK, int64), &
+                      int(BOOKMARK_WATCH_BOOKMARK_FILE_SILENT, int64)]
+        case ("comint_history_isearch")
+            constants = [character(len=48) :: "COMINT_HISTORY_ISEARCH_NO", &
+                         "COMINT_HISTORY_ISEARCH_DWIM", "COMINT_HISTORY_ISEARCH_ALWAYS"]
+            values = [integer(int64) :: int(COMINT_HISTORY_ISEARCH_NO, int64), &
+                      int(COMINT_HISTORY_ISEARCH_DWIM, int64), int(COMINT_HISTORY_ISEARCH_ALWAYS, int64)]
+        case ("comint_input_autoexpand")
+            constants = [character(len=48) :: "COMINT_AUTOEXPAND_NO", &
+                         "COMINT_AUTOEXPAND_ON_COMPLETION", "COMINT_AUTOEXPAND_INPUT", &
+                         "COMINT_AUTOEXPAND_HISTORY"]
+            values = [integer(int64) :: int(COMINT_AUTOEXPAND_NO, int64), &
+                      int(COMINT_AUTOEXPAND_ON_COMPLETION, int64), int(COMINT_AUTOEXPAND_INPUT, int64), &
+                      int(COMINT_AUTOEXPAND_HISTORY, int64)]
+        case ("comint_move_point_for_matching_input")
+            constants = [character(len=48) :: "COMINT_MATCHING_AFTER_INPUT", &
+                         "COMINT_MATCHING_END_OF_LINE"]
+            values = [integer(int64) :: int(COMINT_MATCHING_AFTER_INPUT, int64), &
+                      int(COMINT_MATCHING_END_OF_LINE, int64)]
+        case ("comint_move_point_for_output")
+            constants = [character(len=48) :: "COMINT_MOVE_NO", "COMINT_MOVE_YES", &
+                         "COMINT_MOVE_ALL", "COMINT_MOVE_THIS", "COMINT_MOVE_OTHERS"]
+            values = [integer(int64) :: int(COMINT_MOVE_NO, int64), int(COMINT_MOVE_YES, int64), &
+                      int(COMINT_MOVE_ALL, int64), int(COMINT_MOVE_THIS, int64), &
+                      int(COMINT_MOVE_OTHERS, int64)]
+        case ("comint_scroll_to_bottom_on_input")
+            constants = [character(len=48) :: "COMINT_SCROLL_ON_INPUT_NO", &
+                         "COMINT_SCROLL_ON_INPUT_YES", "COMINT_SCROLL_ON_INPUT_ALL", &
+                         "COMINT_SCROLL_ON_INPUT_THIS"]
+            values = [integer(int64) :: int(COMINT_SCROLL_ON_INPUT_NO, int64), &
+                      int(COMINT_SCROLL_ON_INPUT_YES, int64), int(COMINT_SCROLL_ON_INPUT_ALL, int64), &
+                      int(COMINT_SCROLL_ON_INPUT_THIS, int64)]
+        case ("comment_empty_lines")
+            constants = [character(len=48) :: "COMMENT_EMPTY_LINES_NO", &
+                         "COMMENT_EMPTY_LINES_ALWAYS", "COMMENT_EMPTY_LINES_EOL"]
+            values = [integer(int64) :: int(COMMENT_EMPTY_LINES_NO, int64), &
+                      int(COMMENT_EMPTY_LINES_ALWAYS, int64), int(COMMENT_EMPTY_LINES_EOL, int64)]
+        case ("comment_style")
+            constants = [character(len=48) :: "COMMENT_STYLE_PLAIN", &
+                         "COMMENT_STYLE_INDENT_OR_TRIPLE", "COMMENT_STYLE_INDENT", "COMMENT_STYLE_ALIGNED", &
+                         "COMMENT_STYLE_BOX", "COMMENT_STYLE_EXTRA_LINE", "COMMENT_STYLE_MULTI_LINE", &
+                         "COMMENT_STYLE_BOX_MULTI"]
+            values = [integer(int64) :: int(COMMENT_STYLE_PLAIN, int64), &
+                      int(COMMENT_STYLE_INDENT_OR_TRIPLE, int64), int(COMMENT_STYLE_INDENT, int64), &
+                      int(COMMENT_STYLE_ALIGNED, int64), int(COMMENT_STYLE_BOX, int64), &
+                      int(COMMENT_STYLE_EXTRA_LINE, int64), int(COMMENT_STYLE_MULTI_LINE, int64), &
+                      int(COMMENT_STYLE_BOX_MULTI, int64)]
+        case ("compilation_context_lines")
+            constants = [character(len=48) :: "COMPILATION_CONTEXT_TOP", &
+                         "COMPILATION_CONTEXT_NO_SCROLL"]
+            values = [integer(int64) :: int(COMPILATION_CONTEXT_TOP, int64), &
+                      int(COMPILATION_CONTEXT_NO_SCROLL, int64)]
+        case ("compilation_scroll_output")
+            constants = [character(len=48) :: "COMPILATION_SCROLL_NO", "COMPILATION_SCROLL_YES", &
+                         "COMPILATION_SCROLL_FIRST_ERROR"]
+            values = [integer(int64) :: int(COMPILATION_SCROLL_NO, int64), &
+                      int(COMPILATION_SCROLL_YES, int64), int(COMPILATION_SCROLL_FIRST_ERROR, int64)]
+        case ("dabbrev_case_distinction")
+            constants = [character(len=48) :: "DABBREV_OFF", "DABBREV_ON", &
+                         "DABBREV_LIKE_CASE_FOLD_SEARCH", "DABBREV_LIKE_CASE_REPLACE", "DABBREV_ASK"]
+            values = [integer(int64) :: int(DABBREV_OFF, int64), int(DABBREV_ON, int64), &
+                      int(DABBREV_LIKE_CASE_FOLD_SEARCH, int64), int(DABBREV_LIKE_CASE_REPLACE, int64), &
+                      int(DABBREV_ASK, int64)]
+        case ("dabbrev_case_fold_search")
+            constants = [character(len=48) :: "DABBREV_OFF", "DABBREV_ON", &
+                         "DABBREV_LIKE_CASE_FOLD_SEARCH", "DABBREV_LIKE_CASE_REPLACE", "DABBREV_ASK"]
+            values = [integer(int64) :: int(DABBREV_OFF, int64), int(DABBREV_ON, int64), &
+                      int(DABBREV_LIKE_CASE_FOLD_SEARCH, int64), int(DABBREV_LIKE_CASE_REPLACE, int64), &
+                      int(DABBREV_ASK, int64)]
+        case ("dabbrev_case_replace")
+            constants = [character(len=48) :: "DABBREV_OFF", "DABBREV_ON", &
+                         "DABBREV_LIKE_CASE_FOLD_SEARCH", "DABBREV_LIKE_CASE_REPLACE", "DABBREV_ASK"]
+            values = [integer(int64) :: int(DABBREV_OFF, int64), int(DABBREV_ON, int64), &
+                      int(DABBREV_LIKE_CASE_FOLD_SEARCH, int64), int(DABBREV_LIKE_CASE_REPLACE, int64), &
+                      int(DABBREV_ASK, int64)]
+        case ("dabbrev_check_other_buffers")
+            constants = [character(len=48) :: "DABBREV_OFF", "DABBREV_ON", &
+                         "DABBREV_LIKE_CASE_FOLD_SEARCH", "DABBREV_LIKE_CASE_REPLACE", "DABBREV_ASK"]
+            values = [integer(int64) :: int(DABBREV_OFF, int64), int(DABBREV_ON, int64), &
+                      int(DABBREV_LIKE_CASE_FOLD_SEARCH, int64), int(DABBREV_LIKE_CASE_REPLACE, int64), &
+                      int(DABBREV_ASK, int64)]
+        case ("default_justification")
+            constants = [character(len=48) :: "JUSTIFY_NONE", "JUSTIFY_LEFT", "JUSTIFY_RIGHT", &
+                         "JUSTIFY_FULL", "JUSTIFY_CENTER", "JUSTIFY_CURRENT"]
+            values = [integer(int64) :: int(JUSTIFY_NONE, int64), int(JUSTIFY_LEFT, int64), &
+                      int(JUSTIFY_RIGHT, int64), int(JUSTIFY_FULL, int64), int(JUSTIFY_CENTER, int64), &
+                      int(JUSTIFY_CURRENT, int64)]
+        case ("dired_create_destination_dirs")
+            constants = [character(len=48) :: "DIRED_CREATE_DESTINATION_DIRS_NEVER", &
+                         "DIRED_CREATE_DESTINATION_DIRS_ALWAYS", "DIRED_CREATE_DESTINATION_DIRS_ASK"]
+            values = [integer(int64) :: int(DIRED_CREATE_DESTINATION_DIRS_NEVER, int64), &
+                      int(DIRED_CREATE_DESTINATION_DIRS_ALWAYS, int64), &
+                      int(DIRED_CREATE_DESTINATION_DIRS_ASK, int64)]
+        case ("dired_dwim_target")
+            constants = [character(len=48) :: "DIRED_DWIM_TARGET_NO", "DIRED_DWIM_TARGET_NEXT", &
+                         "DIRED_DWIM_TARGET_NEXT_VISIBLE", "DIRED_DWIM_TARGET_RECENT"]
+            values = [integer(int64) :: int(DIRED_DWIM_TARGET_NO, int64), &
+                      int(DIRED_DWIM_TARGET_NEXT, int64), int(DIRED_DWIM_TARGET_NEXT_VISIBLE, int64), &
+                      int(DIRED_DWIM_TARGET_RECENT, int64)]
+        case ("dired_free_space")
+            constants = [character(len=48) :: "DIRED_FREE_SPACE_NONE", "DIRED_FREE_SPACE_SEPARATE", &
+                         "DIRED_FREE_SPACE_FIRST"]
+            values = [integer(int64) :: int(DIRED_FREE_SPACE_NONE, int64), &
+                      int(DIRED_FREE_SPACE_SEPARATE, int64), int(DIRED_FREE_SPACE_FIRST, int64)]
+        case ("dired_mark_region")
+            constants = [character(len=48) :: "DIRED_MARK_REGION_NO", "DIRED_MARK_REGION_FILE", &
+                         "DIRED_MARK_REGION_LINE"]
+            values = [integer(int64) :: int(DIRED_MARK_REGION_NO, int64), &
+                      int(DIRED_MARK_REGION_FILE, int64), int(DIRED_MARK_REGION_LINE, int64)]
+        case ("dired_movement_style")
+            constants = [character(len=48) :: "DIRED_MOVEMENT_STYLE_PLAIN", &
+                         "DIRED_MOVEMENT_STYLE_CYCLE", "DIRED_MOVEMENT_STYLE_BOUNDED", &
+                         "DIRED_MOVEMENT_STYLE_CYCLE_FILES", "DIRED_MOVEMENT_STYLE_BOUNDED_FILES"]
+            values = [integer(int64) :: int(DIRED_MOVEMENT_STYLE_PLAIN, int64), &
+                      int(DIRED_MOVEMENT_STYLE_CYCLE, int64), int(DIRED_MOVEMENT_STYLE_BOUNDED, int64), &
+                      int(DIRED_MOVEMENT_STYLE_CYCLE_FILES, int64), &
+                      int(DIRED_MOVEMENT_STYLE_BOUNDED_FILES, int64)]
+        case ("dired_recursive_copies")
+            constants = [character(len=48) :: "DIRED_RECURSIVE_NEVER", "DIRED_RECURSIVE_ALWAYS", &
+                         "DIRED_RECURSIVE_TOP", "DIRED_RECURSIVE_ASK"]
+            values = [integer(int64) :: int(DIRED_RECURSIVE_NEVER, int64), &
+                      int(DIRED_RECURSIVE_ALWAYS, int64), int(DIRED_RECURSIVE_TOP, int64), &
+                      int(DIRED_RECURSIVE_ASK, int64)]
+        case ("dired_recursive_deletes")
+            constants = [character(len=48) :: "DIRED_RECURSIVE_NEVER", "DIRED_RECURSIVE_ALWAYS", &
+                         "DIRED_RECURSIVE_TOP", "DIRED_RECURSIVE_ASK"]
+            values = [integer(int64) :: int(DIRED_RECURSIVE_NEVER, int64), &
+                      int(DIRED_RECURSIVE_ALWAYS, int64), int(DIRED_RECURSIVE_TOP, int64), &
+                      int(DIRED_RECURSIVE_ASK, int64)]
+        case ("dired_switches_in_mode_line")
+            constants = [character(len=48) :: "DIRED_SWITCHES_SORT_ORDER", "DIRED_SWITCHES_AS_IS"]
+            values = [integer(int64) :: int(DIRED_SWITCHES_SORT_ORDER, int64), &
+                      int(DIRED_SWITCHES_AS_IS, int64)]
+        case ("dired_use_ls_dired")
+            constants = [character(len=48) :: "DIRED_USE_LS_DIRED_NO", "DIRED_USE_LS_DIRED_YES", &
+                         "DIRED_USE_LS_DIRED_UNSPECIFIED"]
+            values = [integer(int64) :: int(DIRED_USE_LS_DIRED_NO, int64), &
+                      int(DIRED_USE_LS_DIRED_YES, int64), int(DIRED_USE_LS_DIRED_UNSPECIFIED, int64)]
+        case ("electric_pair_skip_whitespace")
+            constants = [character(len=48) :: "ELECTRIC_PAIR_SKIP_WHITESPACE_NO", &
+                         "ELECTRIC_PAIR_SKIP_WHITESPACE_YES", "ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP"]
+            values = [integer(int64) :: int(ELECTRIC_PAIR_SKIP_WHITESPACE_NO, int64), &
+                      int(ELECTRIC_PAIR_SKIP_WHITESPACE_YES, int64), &
+                      int(ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP, int64)]
+        case ("executable_query")
+            constants = [character(len=48) :: "EXECUTABLE_QUERY_NO", "EXECUTABLE_QUERY_FUNCTION", &
+                         "EXECUTABLE_QUERY_ALWAYS"]
+            values = [integer(int64) :: int(EXECUTABLE_QUERY_NO, int64), &
+                      int(EXECUTABLE_QUERY_FUNCTION, int64), int(EXECUTABLE_QUERY_ALWAYS, int64)]
+        case ("f90_auto_keyword_case")
+            constants = [character(len=48) :: "F90_KEYWORD_CASE_NONE", &
+                         "F90_KEYWORD_CASE_DOWNCASE_WORD", "F90_KEYWORD_CASE_UPCASE_WORD", &
+                         "F90_KEYWORD_CASE_CAPITALIZE_WORD"]
+            values = [integer(int64) :: int(F90_KEYWORD_CASE_NONE, int64), &
+                      int(F90_KEYWORD_CASE_DOWNCASE_WORD, int64), &
+                      int(F90_KEYWORD_CASE_UPCASE_WORD, int64), &
+                      int(F90_KEYWORD_CASE_CAPITALIZE_WORD, int64)]
+        case ("f90_smart_end")
+            constants = [character(len=48) :: "F90_SMART_END_NO", "F90_SMART_END_BLINK", &
+                         "F90_SMART_END_NO_BLINK"]
+            values = [integer(int64) :: int(F90_SMART_END_NO, int64), &
+                      int(F90_SMART_END_BLINK, int64), int(F90_SMART_END_NO_BLINK, int64)]
+        case ("font_lock_maximum_decoration")
+            constants = [character(len=48) :: "FONT_LOCK_DECORATION_MAX"]
+            values = [integer(int64) :: int(FONT_LOCK_DECORATION_MAX, int64)]
+        case ("grep_find_use_xargs")
+            constants = [character(len=48) :: "GREP_FIND_USE_XARGS_UNKNOWN", &
+                         "GREP_FIND_USE_XARGS_EXEC", "GREP_FIND_USE_XARGS_EXEC_PLUS", &
+                         "GREP_FIND_USE_XARGS_GNU", "GREP_FIND_USE_XARGS_GNU_SORT", &
+                         "GREP_FIND_USE_XARGS_OTHER"]
+            values = [integer(int64) :: int(GREP_FIND_USE_XARGS_UNKNOWN, int64), &
+                      int(GREP_FIND_USE_XARGS_EXEC, int64), int(GREP_FIND_USE_XARGS_EXEC_PLUS, int64), &
+                      int(GREP_FIND_USE_XARGS_GNU, int64), int(GREP_FIND_USE_XARGS_GNU_SORT, int64), &
+                      int(GREP_FIND_USE_XARGS_OTHER, int64)]
+        case ("grep_highlight_matches")
+            constants = [character(len=48) :: "GREP_HIGHLIGHT_MATCHES_NO", &
+                         "GREP_HIGHLIGHT_MATCHES_YES", "GREP_HIGHLIGHT_MATCHES_AUTO_DETECT", &
+                         "GREP_HIGHLIGHT_MATCHES_ALWAYS", "GREP_HIGHLIGHT_MATCHES_AUTO"]
+            values = [integer(int64) :: int(GREP_HIGHLIGHT_MATCHES_NO, int64), &
+                      int(GREP_HIGHLIGHT_MATCHES_YES, int64), &
+                      int(GREP_HIGHLIGHT_MATCHES_AUTO_DETECT, int64), &
+                      int(GREP_HIGHLIGHT_MATCHES_ALWAYS, int64), int(GREP_HIGHLIGHT_MATCHES_AUTO, int64)]
+        case ("grep_save_buffers")
+            constants = [character(len=48) :: "GREP_SAVE_BUFFERS_NO", "GREP_SAVE_BUFFERS_YES", &
+                         "GREP_SAVE_BUFFERS_ASK"]
+            values = [integer(int64) :: int(GREP_SAVE_BUFFERS_NO, int64), &
+                      int(GREP_SAVE_BUFFERS_YES, int64), int(GREP_SAVE_BUFFERS_ASK, int64)]
+        case ("grep_use_null_device")
+            constants = [character(len=48) :: "GREP_USE_NULL_DEVICE_NO", &
+                         "GREP_USE_NULL_DEVICE_YES", "GREP_USE_NULL_DEVICE_AUTO_DETECT"]
+            values = [integer(int64) :: int(GREP_USE_NULL_DEVICE_NO, int64), &
+                      int(GREP_USE_NULL_DEVICE_YES, int64), int(GREP_USE_NULL_DEVICE_AUTO_DETECT, int64)]
+        case ("grep_use_null_filename_separator")
+            constants = [character(len=48) :: "GREP_USE_NULL_FILENAME_SEPARATOR_NO", &
+                         "GREP_USE_NULL_FILENAME_SEPARATOR_YES", &
+                         "GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT"]
+            values = [integer(int64) :: int(GREP_USE_NULL_FILENAME_SEPARATOR_NO, int64), &
+                      int(GREP_USE_NULL_FILENAME_SEPARATOR_YES, int64), &
+                      int(GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT, int64)]
+        case ("ibuffer_always_show_last_buffer")
+            constants = [character(len=48) :: "IBUFFER_SHOW_LAST_NEVER", &
+                         "IBUFFER_SHOW_LAST_ALWAYS", "IBUFFER_SHOW_LAST_NOMINI"]
+            values = [integer(int64) :: int(IBUFFER_SHOW_LAST_NEVER, int64), &
+                      int(IBUFFER_SHOW_LAST_ALWAYS, int64), int(IBUFFER_SHOW_LAST_NOMINI, int64)]
+        case ("ibuffer_use_header_line")
+            constants = [character(len=48) :: "IBUFFER_HEADER_LINE_NO", &
+                         "IBUFFER_HEADER_LINE_FILTERS", "IBUFFER_HEADER_LINE_TITLE"]
+            values = [integer(int64) :: int(IBUFFER_HEADER_LINE_NO, int64), &
+                      int(IBUFFER_HEADER_LINE_FILTERS, int64), int(IBUFFER_HEADER_LINE_TITLE, int64)]
+        case ("info_hide_note_references")
+            constants = [character(len=48) :: "INFO_HIDE_NOTE_REFERENCES_NO", &
+                         "INFO_HIDE_NOTE_REFERENCES_SEE", "INFO_HIDE_NOTE_REFERENCES_HIDE", &
+                         "INFO_HIDE_NOTE_REFERENCES_TAG"]
+            values = [integer(int64) :: int(INFO_HIDE_NOTE_REFERENCES_NO, int64), &
+                      int(INFO_HIDE_NOTE_REFERENCES_SEE, int64), &
+                      int(INFO_HIDE_NOTE_REFERENCES_HIDE, int64), &
+                      int(INFO_HIDE_NOTE_REFERENCES_TAG, int64)]
+        case ("js_indent_first_init")
+            constants = [character(len=48) :: "JS_INDENT_FIRST_INIT_NO", &
+                         "JS_INDENT_FIRST_INIT_YES", "JS_INDENT_FIRST_INIT_DYNAMIC"]
+            values = [integer(int64) :: int(JS_INDENT_FIRST_INIT_NO, int64), &
+                      int(JS_INDENT_FIRST_INIT_YES, int64), int(JS_INDENT_FIRST_INIT_DYNAMIC, int64)]
+        case ("kmacro_call_repeat_key")
+            constants = [character(len=48) :: "KMACRO_CALL_REPEAT_DISABLED", &
+                         "KMACRO_CALL_REPEAT_LAST_KEY"]
+            values = [integer(int64) :: int(KMACRO_CALL_REPEAT_DISABLED, int64), &
+                      int(KMACRO_CALL_REPEAT_LAST_KEY, int64)]
+        case ("mode_require_final_newline")
+            constants = [character(len=48) :: "FINAL_NEWLINE_NEVER", "FINAL_NEWLINE_SAVE", &
+                         "FINAL_NEWLINE_VISIT", "FINAL_NEWLINE_VISIT_SAVE", "FINAL_NEWLINE_ASK"]
+            values = [integer(int64) :: int(FINAL_NEWLINE_NEVER, int64), &
+                      int(FINAL_NEWLINE_SAVE, int64), int(FINAL_NEWLINE_VISIT, int64), &
+                      int(FINAL_NEWLINE_VISIT_SAVE, int64), int(FINAL_NEWLINE_ASK, int64)]
+        case ("python_fill_docstring_style")
+            constants = [character(len=48) :: "PYTHON_DOCSTRING_NONE", "PYTHON_DOCSTRING_DJANGO", &
+                         "PYTHON_DOCSTRING_ONETWO", "PYTHON_DOCSTRING_PEP_257", &
+                         "PYTHON_DOCSTRING_PEP_257_NN", "PYTHON_DOCSTRING_SYMMETRIC"]
+            values = [integer(int64) :: int(PYTHON_DOCSTRING_NONE, int64), &
+                      int(PYTHON_DOCSTRING_DJANGO, int64), int(PYTHON_DOCSTRING_ONETWO, int64), &
+                      int(PYTHON_DOCSTRING_PEP_257, int64), int(PYTHON_DOCSTRING_PEP_257_NN, int64), &
+                      int(PYTHON_DOCSTRING_SYMMETRIC, int64)]
+        case ("read_answer_short")
+            constants = [character(len=48) :: "READ_ANSWER_SHORT_NO", "READ_ANSWER_SHORT_YES", &
+                         "READ_ANSWER_SHORT_AUTO"]
+            values = [integer(int64) :: int(READ_ANSWER_SHORT_NO, int64), &
+                      int(READ_ANSWER_SHORT_YES, int64), int(READ_ANSWER_SHORT_AUTO, int64)]
+        case ("require_final_newline")
+            constants = [character(len=48) :: "FINAL_NEWLINE_NEVER", "FINAL_NEWLINE_SAVE", &
+                         "FINAL_NEWLINE_VISIT", "FINAL_NEWLINE_VISIT_SAVE", "FINAL_NEWLINE_ASK"]
+            values = [integer(int64) :: int(FINAL_NEWLINE_NEVER, int64), &
+                      int(FINAL_NEWLINE_SAVE, int64), int(FINAL_NEWLINE_VISIT, int64), &
+                      int(FINAL_NEWLINE_VISIT_SAVE, int64), int(FINAL_NEWLINE_ASK, int64)]
+        case ("save_abbrevs")
+            constants = [character(len=48) :: "SAVE_ABBREVS_NEVER", "SAVE_ABBREVS_ASK", &
+                         "SAVE_ABBREVS_SILENTLY"]
+            values = [integer(int64) :: int(SAVE_ABBREVS_NEVER, int64), &
+                      int(SAVE_ABBREVS_ASK, int64), int(SAVE_ABBREVS_SILENTLY, int64)]
+        case ("search_upper_case")
+            constants = [character(len=48) :: "UPPER_CASE_NO", "UPPER_CASE_YES", &
+                         "UPPER_CASE_NOT_YANKS"]
+            values = [integer(int64) :: int(UPPER_CASE_NO, int64), int(UPPER_CASE_YES, int64), &
+                      int(UPPER_CASE_NOT_YANKS, int64)]
+        case ("sh_indent_after_case")
+            constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
+                         "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: int(SH_PLUS, int64), int(SH_MINUS, int64), &
+                      int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
+                      int(SH_SLASH, int64)]
+        case ("sh_indent_after_continuation")
+            constants = [character(len=48) :: "SH_CONTINUATION_NO", "SH_CONTINUATION_DEEPER", &
+                         "SH_CONTINUATION_ALWAYS"]
+            values = [integer(int64) :: int(SH_CONTINUATION_NO, int64), &
+                      int(SH_CONTINUATION_DEEPER, int64), int(SH_CONTINUATION_ALWAYS, int64)]
+        case ("sh_indent_after_do")
+            constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
+                         "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: int(SH_PLUS, int64), int(SH_MINUS, int64), &
+                      int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
+                      int(SH_SLASH, int64)]
+        case ("sh_indent_after_else")
+            constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
+                         "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: int(SH_PLUS, int64), int(SH_MINUS, int64), &
+                      int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
+                      int(SH_SLASH, int64)]
+        case ("sh_indent_after_function")
+            constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
+                         "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: int(SH_PLUS, int64), int(SH_MINUS, int64), &
+                      int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
+                      int(SH_SLASH, int64)]
+        case ("sh_indent_after_if")
+            constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
+                         "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: int(SH_PLUS, int64), int(SH_MINUS, int64), &
+                      int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
+                      int(SH_SLASH, int64)]
+        case ("sh_indent_after_loop_construct")
+            constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
+                         "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: int(SH_PLUS, int64), int(SH_MINUS, int64), &
+                      int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
+                      int(SH_SLASH, int64)]
+        case ("sh_indent_after_open")
+            constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
+                         "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: int(SH_PLUS, int64), int(SH_MINUS, int64), &
+                      int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
+                      int(SH_SLASH, int64)]
+        case ("sh_indent_after_switch")
+            constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
+                         "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: int(SH_PLUS, int64), int(SH_MINUS, int64), &
+                      int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
+                      int(SH_SLASH, int64)]
+        case ("sh_indent_for_case_alt")
+            constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
+                         "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: int(SH_PLUS, int64), int(SH_MINUS, int64), &
+                      int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
+                      int(SH_SLASH, int64)]
+        case ("sh_indent_for_case_label")
+            constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
+                         "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: int(SH_PLUS, int64), int(SH_MINUS, int64), &
+                      int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
+                      int(SH_SLASH, int64)]
+        case ("sh_indent_for_continuation")
+            constants = [character(len=48) :: "SH_PLUS", "SH_MINUS", "SH_PLUS_PLUS", &
+                         "SH_MINUS_MINUS", "SH_STAR", "SH_SLASH"]
+            values = [integer(int64) :: int(SH_PLUS, int64), int(SH_MINUS, int64), &
+                      int(SH_PLUS_PLUS, int64), int(SH_MINUS_MINUS, int64), int(SH_STAR, int64), &
+                      int(SH_SLASH, int64)]
+        case ("shell_command_dont_erase_buffer")
+            constants = [character(len=48) :: "DONT_ERASE_NO", "DONT_ERASE_ERASE", &
+                         "DONT_ERASE_BEG_LAST_OUT", "DONT_ERASE_END_LAST_OUT", "DONT_ERASE_SAVE_POINT"]
+            values = [integer(int64) :: int(DONT_ERASE_NO, int64), int(DONT_ERASE_ERASE, int64), &
+                      int(DONT_ERASE_BEG_LAST_OUT, int64), int(DONT_ERASE_END_LAST_OUT, int64), &
+                      int(DONT_ERASE_SAVE_POINT, int64)]
+        case ("shell_input_autoexpand")
+            constants = [character(len=48) :: "COMINT_AUTOEXPAND_NO", &
+                         "COMINT_AUTOEXPAND_ON_COMPLETION", "COMINT_AUTOEXPAND_INPUT", &
+                         "COMINT_AUTOEXPAND_HISTORY"]
+            values = [integer(int64) :: int(COMINT_AUTOEXPAND_NO, int64), &
+                      int(COMINT_AUTOEXPAND_ON_COMPLETION, int64), int(COMINT_AUTOEXPAND_INPUT, int64), &
+                      int(COMINT_AUTOEXPAND_HISTORY, int64)]
+        case ("show_paren_not_in_comments_or_strings")
+            constants = [character(len=48) :: "SHOW_PAREN_COMMENTS_STRINGS_ALWAYS", &
+                         "SHOW_PAREN_COMMENTS_STRINGS_ALL", "SHOW_PAREN_COMMENTS_STRINGS_ON_MISMATCH"]
+            values = [integer(int64) :: int(SHOW_PAREN_COMMENTS_STRINGS_ALWAYS, int64), &
+                      int(SHOW_PAREN_COMMENTS_STRINGS_ALL, int64), &
+                      int(SHOW_PAREN_COMMENTS_STRINGS_ON_MISMATCH, int64)]
+        case ("show_paren_style")
+            constants = [character(len=48) :: "SHOW_PAREN_PARENTHESIS", "SHOW_PAREN_EXPRESSION", &
+                         "SHOW_PAREN_MIXED"]
+            values = [integer(int64) :: int(SHOW_PAREN_PARENTHESIS, int64), &
+                      int(SHOW_PAREN_EXPRESSION, int64), int(SHOW_PAREN_MIXED, int64)]
+        case ("split_window_preferred_direction")
+            constants = [character(len=48) :: "SPLIT_LONGEST", "SPLIT_VERTICAL", "SPLIT_HORIZONTAL"]
+            values = [integer(int64) :: int(SPLIT_LONGEST, int64), int(SPLIT_VERTICAL, int64), &
+                      int(SPLIT_HORIZONTAL, int64)]
+        case ("vc_command_messages")
+            constants = [character(len=48) :: "VC_COMMAND_MESSAGES_NO", "VC_COMMAND_MESSAGES_YES", &
+                         "VC_COMMAND_MESSAGES_LOG"]
+            values = [integer(int64) :: int(VC_COMMAND_MESSAGES_NO, int64), &
+                      int(VC_COMMAND_MESSAGES_YES, int64), int(VC_COMMAND_MESSAGES_LOG, int64)]
+        case ("vc_display_status")
+            constants = [character(len=48) :: "VC_DISPLAY_STATUS_NO", "VC_DISPLAY_STATUS_YES", &
+                         "VC_DISPLAY_STATUS_NO_BACKEND"]
+            values = [integer(int64) :: int(VC_DISPLAY_STATUS_NO, int64), &
+                      int(VC_DISPLAY_STATUS_YES, int64), int(VC_DISPLAY_STATUS_NO_BACKEND, int64)]
+        case ("vc_follow_symlinks")
+            constants = [character(len=48) :: "VC_FOLLOW_SYMLINKS_NO", "VC_FOLLOW_SYMLINKS_YES", &
+                         "VC_FOLLOW_SYMLINKS_ASK"]
+            values = [integer(int64) :: int(VC_FOLLOW_SYMLINKS_NO, int64), &
+                      int(VC_FOLLOW_SYMLINKS_YES, int64), int(VC_FOLLOW_SYMLINKS_ASK, int64)]
+        case ("vc_revert_show_diff")
+            constants = [character(len=48) :: "VC_REVERT_SHOW_DIFF_NO", "VC_REVERT_SHOW_DIFF_YES", &
+                         "VC_REVERT_SHOW_DIFF_KILL"]
+            values = [integer(int64) :: int(VC_REVERT_SHOW_DIFF_NO, int64), &
+                      int(VC_REVERT_SHOW_DIFF_YES, int64), int(VC_REVERT_SHOW_DIFF_KILL, int64)]
+        case default
+            allocate (constants(0), values(0))
+        end select
+    end subroutine user_option_constants
 
     function repr_logical(v) result(s)
         logical, intent(in) :: v

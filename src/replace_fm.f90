@@ -64,7 +64,7 @@ module replace_fm
     use lisp_fm, only: value_type, make_list, xstring, list_elements, list_length, list_elt, vtag, V_INTEGER, V_STRING, &
                        V_ARRAY
     use fns_fm, only: schars
-    use data_fm, only: value_eq, symbol_value, set
+    use data_fm, only: value_eq, symbol_value, set, history_setting, forward_setting
     use buffer_fm, only: barf_if_buffer_read_only
     use marker_fm, only: make_marker, set_marker, marker_position, free_marker
     use editfns_fm, only: point, goto_char, point_min, point_max, is_bob, is_eob, buffer_substring, &
@@ -75,7 +75,7 @@ module replace_fm
     use search_fm, only: case_fold_search, search_spaces_regexp, re_search_forward, re_search_backward, &
                          looking_at, match_beginning, match_end, match_data, set_match_data, replace_match, &
                          regexp_quote, string_match, SEARCH_NOERROR
-    use subr_fm, only: read_key, add_to_history, defvar_nil, history_length, query_replace_answer, match_string, &
+    use subr_fm, only: read_key, add_to_history, history_length, query_replace_answer, match_string, &
                        looking_back, match_substitute_replacement, find_tag_default, find_tag_default_as_regexp, &
                        find_tag_default_as_identifier_regexp, &
                        ANSWER_ACT, ANSWER_SKIP, ANSWER_EXIT, ANSWER_ACT_AND_EXIT, ANSWER_AUTOMATIC, &
@@ -384,6 +384,21 @@ module replace_fm
     ! occur--final-pos: where point goes in the *Occur* buffer (0 for
     ! nil).
     integer(int64) :: occur_final_pos = 0
+
+    !> Default history list for `query_replace' commands.  See
+    !> `query_replace_from_history_variable' and
+    !> `query_replace_to_history_variable'.  Port of replace.el
+    !> query-replace-history.
+    type(history_setting), target, public :: query_replace_history = history_setting(name="query_replace_history")
+    !> History list for some commands that read regular expressions.
+    !>
+    !> Maximum length of the history list is determined by the value
+    !> of `history_length', which see.  Port of replace.el regexp-history.
+    type(history_setting), target, public :: regexp_history = history_setting(name="regexp_history")
+    !> History of regexp for occur's collect operation.  Port of replace.el
+    !> occur-collect-regexp-history.
+    type(history_setting), target, public :: occur_collect_regexp_history = &
+                                             history_setting(name=OCCUR_COLLECT_HISTORY)
 
 contains
 
@@ -2220,12 +2235,9 @@ contains
         call match%spec_entry(display_when(), face_attrs(background="gray"))
         query_replace_from_to_separator = " → "
         query_replace_from_history_variable = "query_replace_history"
-        call defvar_nil("query_replace_history")
-        call defvar_nil("regexp_history")
+        call forward_setting(query_replace_history)
+        call forward_setting(regexp_history)
         query_replace_to_history_variable = "query_replace_history"
-        ! Default history list for `query_replace' commands.
-        call symbol_value(value_type(name="query_replace_history"), history, st)
-        if (.not. st%ok()) call set(value_type(name="query_replace_history"), value_type(), st)
         commands%query_replace%run => cmd_query_replace
         commands%query_replace_regexp%run => cmd_query_replace_regexp
         commands%map_query_replace_regexp%run => cmd_map_query_replace_regexp
@@ -4637,8 +4649,10 @@ contains
                                          "follow_link"]
         end if
 
-        call defvar_nil(OCCUR_COLLECT_HISTORY)
-        call set(value_type(name=OCCUR_COLLECT_HISTORY), list(value_type(text="\1")), st)
+        call forward_setting(occur_collect_regexp_history)
+        if (allocated(occur_collect_regexp_history%items)) deallocate (occur_collect_regexp_history%items)
+        allocate (occur_collect_regexp_history%items(1))
+        occur_collect_regexp_history%items(1)%text = "\1"
         call occur_mode_hook%add(turn_on_font_lock_hook)
         call major_modes%occur_mode%define("occur_mode", "Occur", occur_mode, occur_mode_hook, &
                                            parent=major_modes%special_mode)

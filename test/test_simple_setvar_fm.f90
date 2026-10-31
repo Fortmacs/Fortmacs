@@ -160,7 +160,8 @@ contains
         call check(error, compile_command%value, "make -k")
     end subroutine test_string
 
-    !> An enumerated setting takes its named constants.
+    !> An enumerated setting takes its named constants only: anything else,
+    !> such as upstream's symbol, is a type error naming them.
     subroutine test_choice(error)
         type(error_type), allocatable, intent(out) :: error
 
@@ -169,7 +170,12 @@ contains
         call check(error, require_final_newline%value == FINAL_NEWLINE_VISIT, last_message)
         if (allocated(error)) return
         call set_var("require_final_newline", "7")
-        call check(error, last_message, "Value "//LQ//"7"//RQ//" does not match type choice of require_final_newline")
+        call check(error, last_message, "Wrong type argument: expected FINAL_NEWLINE_NEVER, FINAL_NEWLINE_SAVE, "// &
+                   "FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE or FINAL_NEWLINE_ASK, got 7")
+        if (allocated(error)) return
+        call set_var("require_final_newline", "visit")
+        call check(error, index(last_message, "Wrong type argument: expected FINAL_NEWLINE_NEVER") == 1 .and. &
+                   index(last_message, ", got visit") > 0, last_message)
         if (allocated(error)) return
         call set_var("require_final_newline", "FINAL_NEWLINE_NEVER")
         call check(error, require_final_newline%value == FINAL_NEWLINE_NEVER, last_message)

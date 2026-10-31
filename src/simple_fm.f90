@@ -44,6 +44,7 @@ module simple_fm
     use lisp_fm, only: value_type, list, xfixnum, list_elt, make_list, list_elements, command_proc, vtag, V_NULL, &
                        V_INTEGER, V_NAME, V_STRING, V_ARRAY
     use data_fm, only: value_eq, string_setting, logical_setting, integer_setting, function_setting, forward_setting, &
+                       history_setting, &
                        add_local_variables_killer
     use character_fm, only: MAX_CHAR, CHAR_META, char_resolve_modifier_mask, multibyte_chars_in_text
     use casetab_fm, only: downcase
@@ -1543,6 +1544,17 @@ module simple_fm
     logical :: tgc_visual = .false.
 
     type(handle_type) :: uarg_map
+
+    !> History of values entered with `set_variable'.
+    !>
+    !> Maximum length of the history list is determined by the value
+    !> of `history_length', which see.
+    !> Port of simple.el set-variable-value-history.
+    type(history_setting), target, public :: set_variable_value_history = &
+                                             history_setting(name="set_variable_value_history")
+    !> The history of the variable names `set_variable' reads.  Port of
+    !> custom.el custom-variable-history.
+    type(history_setting), target, public :: custom_variable_history = history_setting(name="custom_variable_history")
 
 contains
 
@@ -3146,11 +3158,8 @@ contains
                                  cycle_spacing_action_type(CYCLE_RESTORE)]
         commands%mark_word%run => cmd_mark_word
         commands%set_variable%run => cmd_set_variable
-        ! simple.el set-variable-value-history and custom.el
-        ! custom-variable-history: the minibuffer histories of
-        ! `set_variable'.
-        call defvar_nil("set_variable_value_history")
-        call defvar_nil("custom_variable_history")
+        call forward_setting(set_variable_value_history)
+        call forward_setting(custom_variable_history)
     end subroutine syms_of_simple
 
     ! ------------------------------------------------------------------

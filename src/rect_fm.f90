@@ -56,7 +56,7 @@ module rect_fm
                         FM_BEGINNING_OF_BUFFER
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, list_length, list_elt, xstring, make_list, list, list_elements, make_window_ref
-    use data_fm, only: value_eq
+    use data_fm, only: value_eq, history_setting, forward_setting
     use eval_fm, only: hook_type
     use modes_fm, only: minor_modes
     use textprop_fm, only: string_put_text_property
@@ -92,7 +92,7 @@ module rect_fm
     use simple_fm, only: push_mark, insert_for_yank, kill_read_only_ok, indicate_copied_region, count_lines, &
                          line_number_at_pos
     use minibuf_fm, only: read_string
-    use subr_fm, only: read_number, defvar_nil
+    use subr_fm, only: read_number
     use callint_fm, only: current_prefix_arg, this_command, prefix_numeric_value
     implicit none(type, external)
     private
@@ -245,6 +245,10 @@ module rect_fm
     contains
         procedure :: line => number_line
     end type number_line_action
+
+    !> The history of `string_rectangle' strings.  Port of rect.el
+    !> string-rectangle-history.
+    type(history_setting), target, public :: string_rectangle_history = history_setting(name="string_rectangle_history")
 
 contains
 
@@ -2473,7 +2477,7 @@ contains
     !> mode with its keymap, and the rectangular region's functions
     !> around the region's (rect.el's add-function calls).  Not a port.
     subroutine syms_of_rect()
-        call defvar_nil("string_rectangle_history")
+        call forward_setting(string_rectangle_history)
         call minor_modes%rectangle_mark_mode%define("rectangle_mark_mode", hook=rectangle_mark_mode_hook, &
                                                     keymap=.true., body=rectangle_mark_mode_body)
         rectangle_mark_mode_map = minor_modes%rectangle_mark_mode%map

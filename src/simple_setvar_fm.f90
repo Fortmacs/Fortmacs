@@ -36,7 +36,11 @@
 !> Fortmacs has no run-time Lisp and no run-time Fortran either.  A value
 !> of another type is rejected with upstream's "Value `...' does not
 !> match type ... of ..." error, naming the Fortran type (`logical',
-!> `integer', `real', `character', or `choice' for named constants).
+!> `integer', `real' or `character').  An enumerated option takes its
+!> named constants only: anything else (such as upstream's symbol for the
+!> value) is a `wrong-type-argument' error condition naming them, and its
+!> value is read with completion over them, each annotated with its value
+!> (upstream's :annotation-function).
 !>
 !> The options are those tools/user-options lists (custom-variable-p);
 !> their settings are assigned through generated code in docstrings_fm,
@@ -57,14 +61,20 @@ submodule(simple_fm) simple_setvar_fm
     use docstrings_fm, only: user_option_names, user_option_info, set_user_option_logical, set_user_option_integer, &
                              set_user_option_real, set_user_option_string, set_user_option_choice, variable_doc, &
                              doc_entry_type, OPTION_NONE, OPTION_LOGICAL, OPTION_INTEGER, OPTION_REAL, OPTION_STRING, &
-                             OPTION_CHOICE
+                             OPTION_CHOICE, user_option_constants
     use data_fm, only: is_local_variable, is_local_variable_if_set, is_forwarded_variable
-    use error_fm, only: FM_END_OF_FILE, FM_INVALID_READ_SYNTAX
+    use error_fm, only: FM_END_OF_FILE, FM_INVALID_READ_SYNTAX, FM_WRONG_TYPE_ARGUMENT
+    use minibuffer_fm, only: completion_annotation_function, completion_annotation_proc, REQUIRE_MATCH_NO
     use minibuf_fm, only: read_from_minibuffer, completion_list_table
     use casetab_fm, only: upcase
     implicit none(type, external)
 
     character(len=*), parameter :: WS = " "//achar(9)//achar(10)
+
+    !> The named constants of the option whose value `cmd_set_variable'
+    !> reads, and their values, for `constant_annotation'.
+    character(len=48), allocatable :: read_constants(:)
+    integer(int64), allocatable :: read_values(:)
 
 contains
 
@@ -159,6 +169,11 @@ contains
         call literal_token(v, status)
         if (.not. status%ok()) return
         call set_user_option_choice(variable, upper(v), local, ok)
+
+        if (.not. ok) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected "//constant_list(variable)//", got "//v)
+            return
+        end if
     case default
     end select
 
@@ -177,6 +192,46 @@ contains
 
         if (scan(v, WS) > 0) call set_error(status, FM_INVALID_READ_SYNTAX, """Trailing garbage following expression""")
     end subroutine literal_token
+
+    !> The named constants of the enumerated user option `variable', as a
+    !> type error names them: "A, B or C".  Not a port.
+    function constant_list(variable) result(names)
+        character(len=*), intent(in) :: variable
+        character(len=:), allocatable :: names
+        character(len=48), allocatable :: constants(:)
+        integer(int64), allocatable :: values(:)
+        integer :: k
+
+        call user_option_constants(variable, constants, values)
+        names = ""
+
+        do k = 1, size(constants)
+            if (k > 1 .and. k == size(constants)) then
+                names = names//" or "
+            else if (k > 1) then
+                names = names//", "
+            end if
+
+            names = names//trim(constants(k))
+        end do
+    end function constant_list
+
+    !> The completion annotation of the named constant `candidate' while
+    !> `cmd_set_variable' reads an enumerated option: its value.
+    !> Not a port.
+    subroutine constant_annotation(candidate, annotation)
+        character(len=*), intent(in) :: candidate
+        character(len=:), allocatable, intent(out) :: annotation
+        character(len=24) :: buf
+        integer :: k
+
+        annotation = ""
+        if (.not. allocated(read_constants)) return
+        k = findloc(read_constants, candidate, dim=1)
+        if (k == 0) return
+        write (buf, "(i0)") read_values(k)
+        annotation = " = "//trim(buf)
+    end subroutine constant_annotation
 
     !> `s' in upper case (ASCII).  Not a port.
     function upper(s) result(u)
@@ -328,9 +383,11 @@ contains
     module procedure cmd_set_variable
     character(len=:), allocatable :: name, prompt, value, current, scope
     type(value_type), allocatable :: names(:)
+    type(value_type), allocatable :: constants(:)
+    procedure(completion_annotation_proc), pointer :: saved_annotation
     type(doc_entry_type) :: entry
-    logical :: found, make_local
-    integer :: k, n
+    logical :: found, make_local, setting
+    integer :: k, n, kind
 
     ! current-prefix-arg, before the minibuffer's commands change it.
     make_local = allocated(current_prefix_arg%a)
@@ -367,7 +424,27 @@ contains
     call variable_doc(name, entry, found)
     current = ""
     if (found .and. allocated(entry%value)) current = entry%value
-    call read_from_minibuffer(prompt, value, status, history="set_variable_value_history", default=current)
+    call user_option_info(name, kind, setting)
+
+    if (kind == OPTION_CHOICE) then
+        ! The named constants, each annotated with its value.
+        call user_option_constants(name, read_constants, read_values)
+        allocate (constants(size(read_constants)))
+
+        do k = 1, size(read_constants)
+            constants(k) = value_type(text=trim(read_constants(k)))
+        end do
+
+        saved_annotation => completion_annotation_function
+        completion_annotation_function => constant_annotation
+        call completing_read(prompt, completion_list_table(make_list(constants)), value, status, &
+                             require_match=REQUIRE_MATCH_NO, history="set_variable_value_history", default=current)
+        completion_annotation_function => saved_annotation
+        deallocate (read_constants, read_values)
+    else
+        call read_from_minibuffer(prompt, value, status, history="set_variable_value_history", default=current)
+    end if
+
     if (.not. status%ok()) return
     ! Empty input reads the default.
     if (verify(value, WS) == 0 .and. len(current) > 0) value = current

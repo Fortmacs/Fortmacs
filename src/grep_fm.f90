@@ -55,7 +55,7 @@ module grep_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, make_list, list, xstring, xfixnum, list_elements, vtag, V_INTEGER, V_STRING, V_ARRAY
-    use data_fm, only: symbol_value, add_local_variables_killer
+    use data_fm, only: symbol_value, add_local_variables_killer, history_setting, forward_setting
     use eval_fm, only: hook_type
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, generate_new_buffer_name, &
                          kill_buffer, is_buffer_modified, is_buffer_live, transient_mark_mode
@@ -68,7 +68,7 @@ module grep_fm
                            next_single_property_change, remove_list_of_text_properties
     use search_fm, only: re_search_forward, match_beginning, match_end, match_data, set_match_data, replace_match, &
                          string_match, looking_at, case_fold_search, string_index_to_offset, SEARCH_NOERROR, SEARCH_MOVE
-    use subr_fm, only: match_string, shell_quote_argument, add_to_history, defvar_nil, find_tag_default, &
+    use subr_fm, only: match_string, shell_quote_argument, add_to_history, find_tag_default, &
                        silent_modifications_type, silent_modifications_begin, silent_modifications_end
     use fileio_fm, only: expand_file_name, file_name_as_directory, file_name_nondirectory, is_file_directory, &
                          is_file_accessible_directory
@@ -539,6 +539,17 @@ module grep_fm
 
     character(len=*), parameter :: NL = achar(10), TB = achar(9), NUL = achar(0), ESC = achar(27)
     character(len=*), parameter :: NULL_DEVICE = "/dev/null"
+
+    !> History list for grep.  Port of grep.el grep-history.
+    type(history_setting), target, public :: grep_history = history_setting(name="grep_history")
+    !> History list for `grep_find'.  Port of grep.el grep-find-history.
+    type(history_setting), target, public :: grep_find_history = history_setting(name="grep_find_history")
+    !> History of `lgrep' and `rgrep' regexp args.  Port of grep.el
+    !> grep-regexp-history.
+    type(history_setting), target, public :: grep_regexp_history = history_setting(name="grep_regexp_history")
+    !> History of `lgrep' and `rgrep' files args.  Port of grep.el
+    !> grep-files-history.
+    type(history_setting), target, public :: grep_files_history = history_setting(name="grep_files_history")
 
 contains
 
@@ -3077,10 +3088,10 @@ contains
         call make_sparse_keymap(grep_edit_mode_map)
         call set_keymap_parent(grep_edit_mode_map, text_mode_map, st)
         call keymap_set(grep_edit_mode_map, "C-c C-c", "grep_edit_save_changes", st)
-        call defvar_nil("grep_history")
-        call defvar_nil("grep_find_history")
-        call defvar_nil("grep_regexp_history")
-        call defvar_nil("grep_files_history")
+        call forward_setting(grep_history)
+        call forward_setting(grep_find_history)
+        call forward_setting(grep_regexp_history)
+        call forward_setting(grep_files_history)
         commands%grep_mode%run => grep_mode
         commands%grep%run => cmd_grep
         commands%grep_find%run => cmd_grep_find

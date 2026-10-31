@@ -45,7 +45,7 @@ module isearch_fm
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, xfixnum, xstring, make_keymap_ref, list_length, list_elt, list_elements, make_list, &
                        vtag, V_INTEGER, V_STRING
-    use data_fm, only: value_eq, symbol_value, set, add_local_variables_killer
+    use data_fm, only: value_eq, symbol_value, set, add_local_variables_killer, history_setting, forward_setting
     use eval_fm, only: hook_type
     use character_fm, only: string_char_and_length, char_string, MAX_CHAR, MAX_MULTIBYTE_LENGTH, &
                             CHAR_SHIFT
@@ -64,7 +64,7 @@ module isearch_fm
                            pre_command_hook, discard_input, is_input_pending, &
                            read_event, sit_for
     use callint_fm, only: is_command, current_prefix_arg, prefix_numeric_value
-    use subr_fm, only: add_to_history, history_delete_duplicates, defvar_nil
+    use subr_fm, only: add_to_history, history_delete_duplicates
     use minibuf_fm, only: read_from_minibuffer, history_add_new_input, minibuf_level
     use xdisp_fm, only: message, message_nolog
     use dispnew_fm, only: ding
@@ -421,6 +421,12 @@ module isearch_fm
     !> lazy-highlight.
     type(named_face_type), target, public :: lazy_highlight
 
+    !> List of search string sequences.  Port of isearch.el search-ring.
+    type(history_setting), target, public :: search_ring = history_setting(name="search_ring")
+    !> List of regular expression search string sequences.  Port of
+    !> isearch.el regexp-search-ring.
+    type(history_setting), target, public :: regexp_search_ring = history_setting(name="regexp_search_ring")
+
 contains
 
     ! ------------------------------------------------------------------
@@ -628,7 +634,7 @@ contains
 
     !> The search ring (isearch.el search-ring or regexp-search-ring, as
     !> for the current search), most recent first.  Not a port.
-    subroutine search_ring(elems)
+    subroutine search_ring_entries(elems)
         type(value_type), allocatable, intent(out) :: elems(:)
         type(value_type) :: ring
         type(status_type) :: status
@@ -636,7 +642,7 @@ contains
         call symbol_value(value_type(name=ring_name(isearch_regexp)), ring, status)
         if (.not. status%ok()) ring = value_type()
         call list_elements(ring, elems)
-    end subroutine search_ring
+    end subroutine search_ring_entries
 
     !> Add STRING to the beginning of the search ring.
     !> REGEXP if .true. says use the regexp search ring.  Port of
@@ -659,7 +665,7 @@ contains
         type(value_type), allocatable :: ring(:)
         integer :: length, yank_pointer
 
-        call search_ring(ring)
+        call search_ring_entries(ring)
         length = size(ring)
         if (length == 0) return
 
@@ -1578,7 +1584,7 @@ contains
             ! C-s in forward or C-r in reverse.
             if (len(isearch_string) == 0) then
                 ! If search string is empty, use last one.
-                call search_ring(ring)
+                call search_ring_entries(ring)
 
                 if (size(ring) == 0) then
                     isearch_error = "No previous search string"
@@ -2230,7 +2236,7 @@ contains
         if (status%ok()) then
             ! Empty isearch-string means use default.
             if (len(isearch_string) == 0) then
-                call search_ring(ring)
+                call search_ring_entries(ring)
                 isearch_string = ""
                 if (size(ring) > 0) isearch_string = xstring(ring(1))
                 isearch_message = isearch_string
@@ -2695,8 +2701,8 @@ contains
         call lazy_highlight%spec_entry(display_when(classes=[FACE_CLASS_COLOR], min_colors=8), &
                                        face_attrs(background="turquoise3", distant_foreground="white"))
         call lazy_highlight%spec_entry(display_when(), face_attrs(underline=.true.))
-        call defvar_nil("search_ring")
-        call defvar_nil("regexp_search_ring")
+        call forward_setting(search_ring)
+        call forward_setting(regexp_search_ring)
         commands%isearch_forward%run => isearch_forward_command
         commands%isearch_backward%run => isearch_backward_command
         commands%isearch_forward_regexp%run => isearch_forward_regexp_command
