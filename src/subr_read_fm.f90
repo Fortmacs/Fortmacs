@@ -155,7 +155,7 @@ contains
     end procedure read_number
 
     !> The integer the Lisp reader reads first from STR, `ok' false if it
-    !> reads something else (or nothing, or signals).  The syntax of
+    !> reads something else (or nothing, or an error condition occurs).  The syntax of
     !> lread.c:read0 for integers: decimal with an optional sign and
     !> trailing dot, #x, #o, #b and #RADIXr prefixes, and ?C characters.
     !> Floats are not read (the result is an integer): Deferred.

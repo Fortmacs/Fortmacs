@@ -71,7 +71,7 @@ module timer_fm
     !> loop redisplays when it changes while waiting).
     integer(int64), public, protected :: timers_run = 0
 
-    !> The message of the last error a timer function signaled ("Error
+    !> The message of the last error condition that occurred in a timer function ("Error
     !> running timer: ..."), for the caller of `timer_check' to show;
     !> unallocated for none.  Port of the message of
     !> timer.el:timer-event-handler (timer_fm sits below the echo area).
@@ -180,7 +180,7 @@ contains
         timerp = table%is_live(timer)
     end function timerp
 
-    !> Signal wrong-type-argument unless TIMER is a timer.  Port of
+    !> A `wrong_type_argument' error condition occurs unless TIMER is a timer.  Port of
     !> timer.el:timer--check.
     subroutine timer_check_arg(timer, status)
         type(handle_type), intent(in) :: timer

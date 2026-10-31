@@ -294,7 +294,7 @@ module syntax_fm
         !> Comments are ignored if `parse_expression_ignore_comments' is true.
         !>
         !> If the beginning or end of (the accessible part of) the buffer is reached
-        !> in the middle of a parenthetical grouping, an error is signaled.
+        !> in the middle of a parenthetical grouping, an error condition occurs.
         !> If the beginning or end is reached between groupings
         !> but before count is used up, 0 is returned.  Port of
         !> syntax.c:Fscan_sexps.
@@ -379,7 +379,7 @@ contains
         tables(h%index)%parent = parent
     end subroutine new_table
 
-    !> Slot of table `h', or a wrong-type-argument error.  Port of
+    !> Slot of table `h', or a `wrong_type_argument' error.  Port of
     !> syntax.c:check_syntax_table.
     subroutine resolve_table(h, i, status)
         type(handle_type), intent(in) :: h

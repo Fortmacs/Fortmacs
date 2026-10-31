@@ -436,7 +436,7 @@ module vc_hooks_fm
 
     !> A VC backend: its name (as in `vc_handled_backends') and the
     !> functions of the backend API it implements (vc-BACKEND-FUN;
-    !> unassociated ones use vc-default-FUN or signal `vc_not_supported').
+    !> unassociated ones use vc-default-FUN or a `vc_not_supported' error condition occurs).
     type :: vc_backend_type
         character(len=:), allocatable :: name
         procedure(vc_file_predicate), pointer, nopass :: registered => null()

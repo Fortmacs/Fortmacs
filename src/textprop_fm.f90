@@ -1726,7 +1726,7 @@ contains
         if (st%ok()) call string_add_text_properties(0_int64, nchars, properties, v, changed, st)
     end function propertize
 
-    !> The characters of STRING (a wrong-type-argument if not a string).
+    !> The characters of STRING (a `wrong_type_argument' error condition occurs if it is not a string).
     !> Port of textprop.c:CHECK_STRING_OR_BUFFER (the string case).
     subroutine string_chars(string, nchars, status)
         type(value_type), intent(in) :: string

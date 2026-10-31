@@ -409,7 +409,7 @@ module keyboard_fm
     !> True means any user interaction will make an `inhibited_interaction' error condition occur.
     !> This variable can be bound when user interaction can't be performed,
     !> for instance when running a headless Emacs server.  Functions like
-    !> `read_from_minibuffer' (and the like) will signal `inhibited_interaction'
+    !> `read_from_minibuffer' (and the like) will make an `inhibited_interaction' error condition occur
     !> instead.  Port of minibuf.c inhibit-interaction (here because
     !> keyboard.c's `read_event' reads it too).
     logical, public :: inhibit_interaction = .false.
@@ -503,7 +503,7 @@ module keyboard_fm
     !> How many recursive edits the pending abort leaves
     !> (minibuffer-quit-recursive-edit's LEVELS).
     integer :: exit_levels = 1
-    !> VALUE is this string: the recursive edit signals it as an error.
+    !> VALUE is this string: an error condition with it as the message occurs in the recursive edit.
     character(len=:), allocatable :: exit_string
     !> overriding-terminal-local-map holds a transient map, to be dropped
     !> before the next command runs.
@@ -1784,7 +1784,7 @@ contains
     end subroutine clear_transient_map
 
     !> Run the ripe timers (keyboard.c:timer_check), show the error a
-    !> timer function signaled, and redisplay if any timer ran, as
+    !> timer function returned with, and redisplay if any timer ran, as
     !> process.c:wait_reading_process_output does.  The result is the
     !> number of milliseconds to wait for the next timer, or -1 for none.
     !> Port of keyboard.c:detect_input_pending_run_timers (the timers and
@@ -3189,8 +3189,8 @@ contains
     !> input arrives in that time, return false in HAVE.  SECONDS may be a
     !> floating-point value.
     !>
-    !> If `inhibit_interaction' is true, this function will signal an
-    !> `inhibited_interaction' error.  Port of keyboard.c:Fread_char (no
+    !> If `inhibit_interaction' is true, an
+    !> `inhibited_interaction' error condition occurs.  Port of keyboard.c:Fread_char (no
     !> input methods).
     recursive subroutine read_char(c, have, status, prompt, seconds)
         integer(int64), intent(out) :: c
@@ -3225,8 +3225,8 @@ contains
     !> input arrives in that time, return false in HAVE.  SECONDS may be a
     !> floating-point value.
     !>
-    !> If `inhibit_interaction' is true, this function will signal an
-    !> `inhibited_interaction' error.  Port of keyboard.c:Fread_event (no
+    !> If `inhibit_interaction' is true, an
+    !> `inhibited_interaction' error condition occurs.  Port of keyboard.c:Fread_event (no
     !> input methods).
     recursive subroutine read_event(ev, have, status, seconds, prompt)
         type(value_type), intent(out) :: ev
@@ -3258,8 +3258,8 @@ contains
     !> input arrives in that time, return false in HAVE.  SECONDS may be a
     !> floating-point value.
     !>
-    !> If `inhibit_interaction' is true, this function will signal an
-    !> `inhibited_interaction' error.  Port of
+    !> If `inhibit_interaction' is true, an
+    !> `inhibited_interaction' error condition occurs.  Port of
     !> keyboard.c:Fread_char_exclusive (no input methods).
     recursive subroutine read_char_exclusive(c, have, status, prompt, seconds)
         integer(int64), intent(out) :: c
@@ -3558,7 +3558,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Run HOOK's functions, catching their errors: an error is shown as
-    !> "Error in HOOK (FUNCTION): ERROR" and the function that signaled it
+    !> "Error in HOOK (FUNCTION): ERROR" and the function where it occurred
     !> is removed from the hook (from the current buffer's own functions
     !> if it is one of them, else from the default ones), the other
     !> functions still running.  Port of keyboard.c:safe_run_hooks, with

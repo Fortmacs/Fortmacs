@@ -5301,7 +5301,7 @@ contains
     !> first sub-node; otherwise go to the "next" node, if it exists, else
     !> go "up" to the parent node.  When called from Fortran, NOT_DOWN
     !> true means don't descend into sub-nodes, NOT_UP true means don't go
-    !> to parent nodes, and NO_ERROR true means don't signal a user-error
+    !> to parent nodes, and NO_ERROR true means no `user_error' error condition occurs
     !> if there's no node to go to (MOVED says whether it went to one).
     !> Port of info.el:Info-forward-node.
     recursive subroutine info_forward_node(status, not_down, not_up, no_error, moved)

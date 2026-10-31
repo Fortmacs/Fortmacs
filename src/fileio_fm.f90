@@ -1064,7 +1064,7 @@ contains
     !>
     !> The optional argument OK_IF_ALREADY_EXISTS specifies what to do
     !> if file NEWNAME already exists.  If OK_IF_ALREADY_EXISTS is false,
-    !> signal a `file_already_exists' error without overwriting.
+    !> a `file_already_exists' error condition occurs, without overwriting.
     !> Otherwise overwrite the existing file.
     !>
     !> KEEP_TIME true means give the output file the same
@@ -1359,7 +1359,7 @@ contains
     !> storage available to a non-superuser.  All 3 numbers are in bytes.
     !> If the underlying system call fails, FOUND is false.  Port of
     !> fileio.c:Ffile_system_info (an error other than
-    !> a missing file is signaled as "Getting attributes").
+    !> the error condition for a missing file says "Getting attributes").
     subroutine file_system_info(filename, total, free, avail, found, status)
         character(len=*), intent(in) :: filename
         integer(int64), intent(out) :: total, free, avail

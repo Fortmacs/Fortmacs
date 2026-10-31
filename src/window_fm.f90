@@ -71,7 +71,7 @@ module window_fm
     !> Move point on scroll error if true.
     !> If false, an error condition occurs in scroll commands when no more scrolling is
     !> possible.  If true, they move point to the beginning or end of
-    !> the buffer instead (and then signal at the edge).  Port of
+    !> the buffer instead (and then an error condition occurs at the edge).  Port of
     !> window.el scroll-error-top-bottom.
     logical, public :: scroll_error_top_bottom = .false.
 
@@ -931,8 +931,8 @@ module window_fm
         !> is not combined in that direction, next to the combination it is
         !> in) gives or takes the lines.  Port of window.el:window-resize
         !> (taking from further siblings, which upstream does in proportion
-        !> to their normal sizes, is deferred: it signals "Cannot resize
-        !> window").
+        !> to their normal sizes, is deferred: the error condition "Cannot resize
+        !> window" occurs).
         module subroutine window_resize(window, delta, horizontal, status)
             implicit none(type, external)
             type(handle_type), intent(in) :: window
@@ -1365,7 +1365,7 @@ module window_fm
         !> window.  Optional argument MINIBUF chooses whether the minibuffer
         !> window counts, as for `next_window'.  If WINDOW is not on the list of
         !> windows returned, some other window will be listed first but no error
-        !> is signaled.  Port of window.c:Fwindow_list_1 (with window_list_1;
+        !> occurs.  Port of window.c:Fwindow_list_1 (with window_list_1;
         !> one frame).
         module function window_list_1(window, minibuf, status) result(list)
             implicit none(type, external)

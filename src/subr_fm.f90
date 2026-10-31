@@ -769,7 +769,7 @@ contains
     !> If optional fourth arg KEEP-ALL is .true., add NEWELT to history even
     !> if it is empty or duplicates the most recent entry in the history.
     !> Port of subr.el:add-to-history (NEWELT a string; `added' says
-    !> whether the list changed; a void HISTORY-VAR is a void-variable
+    !> whether the list changed; a HISTORY-VAR without a value is a `void_variable'
     !> error in `status').
     subroutine add_to_history(history_var, newelt, maxelt, keep_all, added, status)
         character(len=*), intent(in) :: history_var, newelt

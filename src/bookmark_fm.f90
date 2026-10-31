@@ -371,7 +371,7 @@ module bookmark_fm
     !> should be treated specially, such as Info nodes, news posts,
     !> images, pdf documents, etc.
     !>
-    !> It should signal a user error if it is unable to construct a record
+    !> A `user_error' error condition should occur if it is unable to construct a record
     !> for the current location.
     !>
     !> The returned record is a `bookmark_type'.  Its name is a suggested
@@ -619,7 +619,7 @@ contains
 
     !> Return the index in `bookmark_table' of the bookmark named
     !> BOOKMARK_NAME; error if there is none.  If optional argument NOERROR
-    !> is true, return 0 instead of signaling an error.  Port of
+    !> is true, return 0 instead of making an error condition occur.  Port of
     !> bookmark.el:bookmark-get-bookmark (for a name).
     integer function bookmark_get_bookmark(bookmark_name, status, noerror) result(k)
         character(len=*), intent(in) :: bookmark_name
@@ -1411,8 +1411,8 @@ contains
     !> default name in parentheses, a colon and a space.
     !>
     !> OVERWRITE_OR_PUSH controls what happens if there is already a
-    !> bookmark with the same name: BOOKMARK_SET_ERROR means signal an
-    !> error; BOOKMARK_SET_OVERWRITE means replace any existing bookmark;
+    !> bookmark with the same name: BOOKMARK_SET_ERROR means an error condition
+    !> occurs; BOOKMARK_SET_OVERWRITE means replace any existing bookmark;
     !> BOOKMARK_SET_PUSH means push the new bookmark onto the bookmark
     !> table.  The push behavior means that among bookmarks with the same
     !> name, this most recently set one becomes the one in effect, but the
@@ -2102,7 +2102,7 @@ contains
     end subroutine cmd_bookmark_jump_other_window
 
     !> Call BOOKMARK_NAME's handler, `bookmark_default_handler'.  This
-    !> changes current buffer and point, or signals a `file_error'.
+    !> changes current buffer and point, or a `file_error' error condition occurs.
     !>
     !> If BOOKMARK_NAME has a file, but that file no longer exists, then
     !> offer interactively to relocate BOOKMARK_NAME.  Port of
@@ -2155,8 +2155,8 @@ contains
 
     !> Default handler to jump to a particular bookmark location.
     !> BMK_RECORD is a bookmark record, not a bookmark name (i.e., not a
-    !> string).  Changes current buffer and point, or signals a
-    !> `file_error'.  Port of bookmark.el:bookmark-default-handler (no
+    !> string).  Changes current buffer and point, or a
+    !> `file_error' error condition occurs.  Port of bookmark.el:bookmark-default-handler (no
     !> `buffer' property).
     recursive subroutine bookmark_default_handler(bmk_record, status)
         type(bookmark_type), intent(in) :: bmk_record

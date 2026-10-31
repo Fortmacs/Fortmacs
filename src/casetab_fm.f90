@@ -235,7 +235,7 @@ contains
         end if
     end function case_table_p
 
-    !> Signal wrong-type-argument unless OBJ is a case table.  Port of
+    !> A `wrong_type_argument' error condition occurs unless OBJ is a case table.  Port of
     !> casetab.c:check_case_table.
     subroutine check_case_table(obj, status)
         type(handle_type), intent(in) :: obj

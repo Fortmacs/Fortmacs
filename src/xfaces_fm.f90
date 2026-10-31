@@ -29,7 +29,7 @@
 !> region); `merge_faces' merges a named face into a realized one.
 !>
 !> Face references in text properties are face names (symbols upstream, in the
-!> Fortran spelling: `region', `font_lock_comment_face'), attributes
+!> Fortran spelling: `region', `font_lock_comment_face'), lists
 !> of attributes with the Fortran attribute names as keywords
 !> (`:foreground', `:inverse_video', `:strike_through'), or lists of
 !> face references, the first taking precedence.

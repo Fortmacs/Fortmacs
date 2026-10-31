@@ -145,7 +145,7 @@ contains
         tables(h%index) = char_table_type()
     end subroutine new_table
 
-    !> The slot of char-table H, or a wrong-type-argument error
+    !> The slot of char-table H, or a `wrong_type_argument' error
     !> (char-table-p).  Port of chartab.c:CHECK_CHAR_TABLE.
     pure subroutine check_char_table(h, i, status)
         type(handle_type), intent(in) :: h

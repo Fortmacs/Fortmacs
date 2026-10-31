@@ -1011,9 +1011,9 @@ contains
         call set_error(status, FM_QUIT)
     end subroutine isearch_cancel
 
-    !> Abort incremental search mode if searching is successful, signaling
-    !> quit.  Otherwise, revert to previous successful search and continue
-    !> searching.  Use `isearch_exit' to quit without signaling.  Port of
+    !> Abort incremental search mode if searching is successful, making a
+    !> `quit' occur.  Otherwise, revert to previous successful search and continue
+    !> searching.  Use `isearch_exit' to quit without that.  Port of
     !> isearch.el:isearch-abort.
     subroutine isearch_abort(status)
         type(status_type), intent(out) :: status

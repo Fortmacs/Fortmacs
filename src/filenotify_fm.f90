@@ -408,8 +408,8 @@ contains
     !> to Emacs.  Use `file_notify_rm_watch' to cancel the watch.
     !>
     !> The returned value is a descriptor for the added watch.  If the
-    !> file cannot be watched for some reason, this function signals a
-    !> `file_notify_error' error.
+    !> file cannot be watched for some reason, a
+    !> `file_notify_error' error condition occurs.
     !>
     !> FLAGS is a list of conditions to set what will be watched for.  It can
     !> include the following constants, combined with `ior':

@@ -232,7 +232,7 @@ contains
         call new_keymap(km, .false., prompt)
     end subroutine make_sparse_keymap
 
-    !> Slot of keymap `km', or a wrong-type-argument error.  Port of
+    !> Slot of keymap `km', or a `wrong_type_argument' error.  Port of
     !> keymap.c:get_keymap (no autoloads).
     subroutine resolve_keymap(km, i, status)
         type(handle_type), intent(in) :: km

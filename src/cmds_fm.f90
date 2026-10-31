@@ -208,8 +208,8 @@ contains
         call goto_char(line_end_position(n))
     end subroutine end_of_line
 
-    !> Delete `n' characters after point (before, if negative); signals
-    !> beginning-/end-of-buffer instead of deleting fewer.  Optional
+    !> Delete `n' characters after point (before, if negative); a
+    !> `beginning_of_buffer' or `end_of_buffer' error condition occurs instead of deleting fewer.  Optional
     !> KILLFLAG true means kill instead (save in kill ring).
     !> Port of cmds.c:Fdelete_char.
     subroutine delete_char(n, status, killflag)
@@ -365,7 +365,7 @@ contains
     end function arg_p
 
     !> Move point N characters forward (backward if N is negative).
-    !> On reaching end or beginning of buffer, stop and signal error.
+    !> On reaching end or beginning of buffer, stop, and an error condition occurs.
     !> Interactively, N is the numeric prefix argument.
     !> If N is omitted, move point 1 character forward.
     !>
@@ -379,7 +379,7 @@ contains
     end subroutine cmd_forward_char
 
     !> Move point N characters backward (forward if N is negative).
-    !> On attempt to pass beginning or end of buffer, stop and signal error.
+    !> On attempt to pass beginning or end of buffer, stop, and an error condition occurs.
     !> Interactively, N is the numeric prefix argument.
     !> If N is omitted, move point 1 character backward.
     !>

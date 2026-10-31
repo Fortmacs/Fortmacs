@@ -601,7 +601,7 @@ contains
     end function coding_system_p
 
     !> Check validity of CODING-SYSTEM.
-    !> If valid, return CODING-SYSTEM, else signal a `coding_system_error' error.
+    !> If valid, return CODING-SYSTEM, else a `coding_system_error' error condition occurs.
     !> It is valid if it is "" or a name defined as a coding system by the
     !> function `define_coding_system'.  Port of
     !> coding.c:Fcheck_coding_system.

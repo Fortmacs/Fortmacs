@@ -117,7 +117,7 @@ module eval_fm
         end subroutine region_function
 
         !> Report the error STATUS that FN, a function of the hook named
-        !> HOOK_NAME, signaled (`hook_type%run_safe').  Not a port.
+        !> HOOK_NAME, returned with (`hook_type%run_safe').  Not a port.
         subroutine hook_error_proc(hook_name, fn, status)
             import :: command_proc, status_type
             implicit none(type, external)

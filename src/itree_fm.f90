@@ -37,7 +37,7 @@
 !> `before_string' and `after_string' properties, and textprop_fm's
 !> `get_char_property' family looks at them.
 !>
-!> Modification hooks: insdel_fm's change signals call
+!> Modification hooks: insdel_fm's change notifications call
 !> `report_overlay_modification', which runs the functions of the
 !> `modification_hooks', `insert_in_front_hooks' and `insert_behind_hooks'
 !> properties; a function there is a name of a defined

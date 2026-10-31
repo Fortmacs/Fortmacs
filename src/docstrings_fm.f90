@@ -2328,7 +2328,7 @@ contains
             entry%fortran = "call backward_char(status, n)"
             entry%interactive = .true.
             entry%doc = "Move point N characters backward (forward if N is negative)."//LF// &
-                        "On attempt to pass beginning or end of buffer, stop and signal error."//LF// &
+                        "On attempt to pass beginning or end of buffer, stop, and an error condition occurs."//LF// &
                         "Interactively, N is the numeric prefix argument."//LF// &
                         "If N is omitted, move point 1 character backward."//LF// &
                         ""//LF// &
@@ -3309,7 +3309,7 @@ contains
             entry%file = "coding_fm.f90"
             entry%fortran = "call check_coding_system(coding_system, status)"
             entry%doc = "Check validity of CODING-SYSTEM."//LF// &
-                        "If valid, return CODING-SYSTEM, else signal a `coding_system_error' error."//LF// &
+                        "If valid, return CODING-SYSTEM, else a `coding_system_error' error condition occurs."//LF// &
                         "It is valid if it is """" or a name defined as a coding system by the"//LF// &
                         "function `define_coding_system'."
         case ("check_parens")
@@ -3320,7 +3320,7 @@ contains
                         "expressions in general.  This is done according to the"//LF// &
                         "current syntax table and will find unbalanced brackets or quotes as"//LF// &
                         "appropriate.  (See Info node `(emacs)Parentheses'.)  If imbalance is"//LF// &
-                        "found, an error is signaled and point is left at the first unbalanced"//LF// &
+                        "found, an error condition occurs and point is left at the first unbalanced"//LF// &
                         "character."
         case ("clear_rectangle")
             entry%file = "rect_fm.f90"
@@ -4181,7 +4181,7 @@ contains
                         ""//LF// &
                         "The optional argument OK_IF_ALREADY_EXISTS specifies what to do"//LF// &
                         "if file NEWNAME already exists.  If OK_IF_ALREADY_EXISTS is false,"//LF// &
-                        "signal a `file_already_exists' error without overwriting."//LF// &
+                        "a `file_already_exists' error condition occurs, without overwriting."//LF// &
                         "Otherwise overwrite the existing file."//LF// &
                         ""//LF// &
                         "KEEP_TIME true means give the output file the same"//LF// &
@@ -6462,7 +6462,7 @@ contains
             entry%fortran = "call forward_char(status, n)"
             entry%interactive = .true.
             entry%doc = "Move point N characters forward (backward if N is negative)."//LF// &
-                        "On reaching end or beginning of buffer, stop and signal error."//LF// &
+                        "On reaching end or beginning of buffer, stop, and an error condition occurs."//LF// &
                         "Interactively, N is the numeric prefix argument."//LF// &
                         "If N is omitted, move point 1 character forward."//LF// &
                         ""//LF// &
@@ -6486,7 +6486,7 @@ contains
                         "backward across N balanced expressions.  This command assumes"//LF// &
                         "point is not in a string or comment.  Calls"//LF// &
                         "`forward_expression_function' to do the work, if that is set."//LF// &
-                        "If unable to move over an expression, signal `scan_error' with three"//LF// &
+                        "If unable to move over an expression, a `scan_error' error condition occurs with three"//LF// &
                         "arguments: a message, the start of the obstacle (usually a"//LF// &
                         "parenthesis or group marker of some kind), and end of the"//LF// &
                         "obstacle.  If INTERACTIVE is true, as it is interactively,"//LF// &
@@ -8414,9 +8414,9 @@ contains
         case ("isearch_abort")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
-            entry%doc = "Abort incremental search mode if searching is successful, signaling"//LF// &
-                        "quit.  Otherwise, revert to previous successful search and continue"//LF// &
-                        "searching.  Use `isearch_exit' to quit without signaling."
+            entry%doc = "Abort incremental search mode if searching is successful, making a"//LF// &
+                        "`quit' occur.  Otherwise, revert to previous successful search and continue"//LF// &
+                        "searching.  Use `isearch_exit' to quit without that."
         case ("isearch_backward")
             entry%file = "isearch_fm.f90"
             entry%fortran = "call isearch_backward_command(status)"
@@ -9049,7 +9049,7 @@ contains
             entry%file = "bindings_fm.f90"
             entry%interactive = .true.
             entry%doc = "Move point N characters to the left (to the right if N is negative)."//LF// &
-                        "On reaching beginning or end of buffer, stop and signal error."//LF// &
+                        "On reaching beginning or end of buffer, stop, and an error condition occurs."//LF// &
                         ""//LF// &
                         "In left-to-right text this moves backward in the buffer, like"//LF// &
                         "\[backward_char]."
@@ -10884,8 +10884,8 @@ contains
                         "input arrives in that time, return false in HAVE.  SECONDS may be a"//LF// &
                         "floating-point value."//LF// &
                         ""//LF// &
-                        "If `inhibit_interaction' is true, this function will signal an"//LF// &
-                        "`inhibited_interaction' error."
+                        "If `inhibit_interaction' is true, an"//LF// &
+                        "`inhibited_interaction' error condition occurs."
         case ("read_char_exclusive")
             entry%file = "keyboard_fm.f90"
             entry%fortran = "call read_char_exclusive(c, have, status, prompt, seconds)"
@@ -10905,8 +10905,8 @@ contains
                         "input arrives in that time, return false in HAVE.  SECONDS may be a"//LF// &
                         "floating-point value."//LF// &
                         ""//LF// &
-                        "If `inhibit_interaction' is true, this function will signal an"//LF// &
-                        "`inhibited_interaction' error."
+                        "If `inhibit_interaction' is true, an"//LF// &
+                        "`inhibited_interaction' error condition occurs."
         case ("read_char_from_minibuffer_insert_char")
             entry%file = "subr_read_fm.f90"
             entry%interactive = .true.
@@ -10937,8 +10937,8 @@ contains
                         "input arrives in that time, return false in HAVE.  SECONDS may be a"//LF// &
                         "floating-point value."//LF// &
                         ""//LF// &
-                        "If `inhibit_interaction' is true, this function will signal an"//LF// &
-                        "`inhibited_interaction' error."
+                        "If `inhibit_interaction' is true, an"//LF// &
+                        "`inhibited_interaction' error condition occurs."
         case ("read_file_name_default")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "call read_file_name(prompt, result, status, dir, default_filename, mustmatch, initial, pre"// &
@@ -11523,7 +11523,7 @@ contains
             entry%file = "bindings_fm.f90"
             entry%interactive = .true.
             entry%doc = "Move point N characters to the right (to the left if N is negative)."//LF// &
-                        "On reaching beginning or end of buffer, stop and signal error."//LF// &
+                        "On reaching beginning or end of buffer, stop, and an error condition occurs."//LF// &
                         ""//LF// &
                         "In left-to-right text this moves forward in the buffer, like"//LF// &
                         "\[forward_char]."
@@ -11718,7 +11718,7 @@ contains
                         "Comments are ignored if `parse_expression_ignore_comments' is true."//LF// &
                         ""//LF// &
                         "If the beginning or end of (the accessible part of) the buffer is reached"//LF// &
-                        "in the middle of a parenthetical grouping, an error is signaled."//LF// &
+                        "in the middle of a parenthetical grouping, an error condition occurs."//LF// &
                         "If the beginning or end is reached between groupings"//LF// &
                         "but before count is used up, 0 is returned."
         case ("scan_groups")
@@ -21138,7 +21138,8 @@ contains
                         "."//LF// &
                         "This variable can be bound when user interaction can't be performed,"//LF// &
                         "for instance when running a headless Emacs server.  Functions like"//LF// &
-                        "`read_from_minibuffer' (and the like) will signal `inhibited_interaction'"//LF// &
+                        "`read_from_minibuffer' (and the like) will make an `inhibited_interaction' error condition"// &
+                        " occur"//LF// &
                         "instead."
         case ("inhibit_iso_escape_detection")
             entry%file = "coding_fm.f90"
@@ -23681,7 +23682,7 @@ contains
             entry%doc = "Move point on scroll error if true."//LF// &
                         "If false, an error condition occurs in scroll commands when no more scrolling is"//LF// &
                         "possible.  If true, they move point to the beginning or end of"//LF// &
-                        "the buffer instead (and then signal at the edge)."
+                        "the buffer instead (and then an error condition occurs at the edge)."
         case ("search_exit_option")
             entry%file = "isearch_fm.f90"
             entry%fortran = "search_exit_option"

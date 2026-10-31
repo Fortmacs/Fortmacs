@@ -4802,7 +4802,7 @@ contains
     !> If DISTINGUISH_ONE_MARKED is true, then if we find just one marked
     !> file, ONE_MARKED is true.
     !>
-    !> If ERROR is present, signal it (a message) when the list of found
+    !> If ERROR is present, an error condition with it as the message occurs when the list of found
     !> files is empty.  Port of dired.el:dired-get-marked-files (no
     !> FILTER).
     recursive subroutine dired_get_marked_files(files, status, localp, arg_kind, arg_n, distinguish_one_marked, &

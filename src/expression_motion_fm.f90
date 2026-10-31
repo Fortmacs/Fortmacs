@@ -435,7 +435,7 @@ contains
     !> backward across N balanced expressions.  This command assumes
     !> point is not in a string or comment.  Calls
     !> `forward_expression_function' to do the work, if that is set.
-    !> If unable to move over an expression, signal `scan_error' with three
+    !> If unable to move over an expression, a `scan_error' error condition occurs with three
     !> arguments: a message, the start of the obstacle (usually a
     !> parenthesis or group marker of some kind), and end of the
     !> obstacle.  If INTERACTIVE is true, as it is interactively,
@@ -1798,7 +1798,7 @@ contains
     !> expressions in general.  This is done according to the
     !> current syntax table and will find unbalanced brackets or quotes as
     !> appropriate.  (See Info node `(emacs)Parentheses'.)  If imbalance is
-    !> found, an error is signaled and point is left at the first unbalanced
+    !> found, an error condition occurs and point is left at the first unbalanced
     !> character.  Port of lisp.el:check-parens.
     subroutine check_parens(status)
         type(status_type), intent(out) :: status

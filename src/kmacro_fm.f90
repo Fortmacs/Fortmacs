@@ -386,7 +386,7 @@ contains
     end subroutine kmacro_reg_add_counter
 
     !> The contents of REGISTER as a number or marker position, as the
-    !> arithmetic comparisons take them (else wrong-type-argument).
+    !> arithmetic comparisons take them (else a `wrong_type_argument' error condition occurs).
     !> Not a port.
     subroutine register_as_number(register, n, status)
         integer(int64), intent(in) :: register
